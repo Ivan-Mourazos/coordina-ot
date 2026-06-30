@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Dark mode driven by a .dark class on <html>, not the OS setting */
+@custom-variant dark (&:where(.dark, .dark *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
+  /* CoordinaOT brand gold (from logo) */
+  --color-brand-50: #fbf6e9;
+  --color-brand-100: #f5e7c2;
+  --color-brand-200: #ecd28c;
+  --color-brand-300: #e3bd56;
+  --color-brand-400: #dca72c;
+  --color-brand-500: #d39a1c;
+  --color-brand-600: #b8841a;
+  --color-brand-700: #946218;
+  --color-brand-800: #6f4915;
+  --color-brand-900: #4a3010;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Semantic surface tokens, themable */
+:root {
+  --bg: #efece6; /* warm neutral office */
+  --surface: #ffffff;
+  --surface-2: #f3f1ec;
+  --zone: #f6f4f0;
+  --border: #e2ddd4;
+  --border-strong: #cfc8bb;
+  --text: #2a2620;
+  --text-muted: #7c756a;
+  --paper: #ffffff;
+  --paper-line: #e9e6df;
+}
+
+.dark {
+  --bg: #14130f;
+  --surface: #1d1b16;
+  --surface-2: #24211b;
+  --zone: #1a1813;
+  --border: #322e25;
+  --border-strong: #44402f;
+  --text: #ece8df;
+  --text-muted: #9b9382;
+  --paper: #201d17;
+  --paper-line: #2c281f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-zone: var(--zone);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-paper: var(--paper);
+  --color-paper-line: var(--paper-line);
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* thin scrollbars inside zones */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
 }
