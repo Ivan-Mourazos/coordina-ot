@@ -16,12 +16,14 @@ function OperarioSelect({
   value,
   onChange,
   excluir,
+  miId,
   placeholder = "Sin asignar",
 }: {
   operarios: Operario[];
   value: string | null;
   onChange: (v: string | null) => void;
   excluir?: string | null;
+  miId?: string | null;
   placeholder?: string;
 }) {
   return (
@@ -36,6 +38,7 @@ function OperarioSelect({
         .map((o) => (
           <option key={o.id} value={o.id}>
             {o.nombre}
+            {o.id === miId ? " (tú)" : ""}
           </option>
         ))}
     </select>
@@ -64,6 +67,7 @@ function Chip({ op, label }: { op: Operario | null; label: string }) {
 export function Drawer({
   pedido,
   operarios,
+  miId,
   onClose,
   onAssignOF,
   onAssignPedido,
@@ -72,6 +76,7 @@ export function Drawer({
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
+  miId: string | null;
   onClose: () => void;
   onAssignOF: (ofId: string, autorId: string | null) => void;
   onAssignPedido: (autorId: string | null) => void;
@@ -83,10 +88,13 @@ export function Drawer({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onClose} />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-surface shadow-2xl">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <aside className="glass-panel-strong absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
         {/* cabecera */}
-        <header className="flex items-start gap-3 border-b border-border p-4">
+        <header
+          className="flex items-start gap-3 p-4"
+          style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
+        >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-text">{pedido.codigo}</h2>
@@ -121,7 +129,7 @@ export function Drawer({
           </dl>
 
           {/* asignar autor del pedido entero */}
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface-2 p-3">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
             <span className="text-xs font-semibold text-text">Asignar autor (pedido entero)</span>
             <div className="ml-auto">
               <OperarioSelect
@@ -131,6 +139,7 @@ export function Drawer({
                     ? pedido.ofs[0].autorId
                     : null
                 }
+                miId={miId}
                 onChange={(v) => onAssignPedido(v)}
               />
             </div>
@@ -147,6 +156,7 @@ export function Drawer({
                 of={of}
                 operarios={operarios}
                 opById={opById}
+                miId={miId}
                 onAssignOF={onAssignOF}
                 onSetRevisor={onSetRevisor}
                 onAccion={onAccion}
@@ -155,7 +165,10 @@ export function Drawer({
           </ul>
         </div>
 
-        <footer className="border-t border-border p-3 text-[11px] leading-snug text-text-muted">
+        <footer
+          className="p-3 text-[11px] leading-snug text-text-muted"
+          style={{ boxShadow: "inset 0 1px 0 0 var(--glass-border)" }}
+        >
           Tiempo de la OF = planteo (autor) + revisión (revisor). El revisor nunca puede
           ser el autor.
         </footer>
@@ -168,6 +181,7 @@ function OFRow({
   of,
   operarios,
   opById,
+  miId,
   onAssignOF,
   onSetRevisor,
   onAccion,
@@ -175,6 +189,7 @@ function OFRow({
   of: OF;
   operarios: Operario[];
   opById: (id: string | null) => Operario | null;
+  miId: string | null;
   onAssignOF: (ofId: string, autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -184,10 +199,10 @@ function OFRow({
   const revisor = opById(of.revisorId);
 
   return (
-    <li className={`rounded-lg border-l-4 border border-border bg-surface p-3 ${meta.border}`}>
+    <li className="glass-chip rounded-xl p-3">
       <div className="flex items-center gap-2">
         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
+        <span className="rounded bg-[var(--glass-highlight)] px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
           {of.familia}
         </span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
@@ -243,7 +258,12 @@ function OFRow({
       <div className="mt-2.5 grid grid-cols-2 gap-2">
         <div className="flex items-center justify-between gap-1 rounded-md bg-surface-2 px-2 py-1.5">
           <Chip op={autor} label="Autor" />
-          <OperarioSelect operarios={operarios} value={of.autorId} onChange={(v) => onAssignOF(of.id, v)} />
+          <OperarioSelect
+            operarios={operarios}
+            value={of.autorId}
+            miId={miId}
+            onChange={(v) => onAssignOF(of.id, v)}
+          />
         </div>
         <div className="flex items-center justify-between gap-1 rounded-md bg-surface-2 px-2 py-1.5">
           <Chip op={revisor} label="Revisor" />
@@ -251,6 +271,7 @@ function OFRow({
             operarios={operarios}
             value={of.revisorId}
             excluir={of.autorId}
+            miId={miId}
             placeholder="Asignar…"
             onChange={(v) => onSetRevisor(of.id, v)}
           />

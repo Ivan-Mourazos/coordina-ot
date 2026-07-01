@@ -20,7 +20,7 @@ export const OPERARIOS: Operario[] = [
 
 type Accent = Pedido["accent"];
 
-// [familia, descripción, piezas, autorId, estado?, revisorId?, fichando?]
+// [familia, descripción, piezas, autorId, estado?, revisorId?, fichando?, sinEmpezar?]
 type OFSpec = [
   Familia,
   string,
@@ -28,6 +28,9 @@ type OFSpec = [
   string | null,
   EstadoOF?,
   (string | null)?,
+  boolean?,
+  /** Fuerza tiempoPlanteoMin a 0 aunque el estado sea "en_curso": recién
+   *  asignada, el autor todavía no la ha tocado. */
   boolean?,
 ];
 
@@ -79,13 +82,13 @@ const SPECS: Spec[] = [
   { codigo: "AR2605537", cliente: "Restaurante O Forno", prioridad: 2, entrega: "2026-07-03", solicitud: "2026-06-13", accent: "verde", croquis: false,
     ofs: [["TOLDO", "Toldo brazo invisible 3,5m", 1, "adrian", "en_curso"]] },
   { codigo: "AR2605541", cliente: "Hostal A Ponte", prioridad: 3, entrega: "2026-07-09", solicitud: "2026-06-19", accent: "ninguno", croquis: true,
-    ofs: [["TOLDO", "Toldo corredera patio", 1, "adrian", "en_revision", "alberto"], ["REPARACION", "Engrase guías", 1, "adrian", "en_curso"]] },
+    ofs: [["TOLDO", "Toldo corredera patio", 1, "adrian", "en_revision", "ivan"], ["REPARACION", "Engrase guías", 1, "adrian", "en_curso"]] },
 
   // ── Iván ──
   { codigo: "AR2605544", cliente: "Supermercado Día", prioridad: 1, entrega: "2026-07-01", solicitud: "2026-06-12", accent: "rojo", croquis: false,
-    ofs: [["LONA", "Lona rótulo entrada", 1, "ivan", "en_curso", null, true]] },
+    ofs: [["LONA", "Lona rótulo entrada", 1, "ivan", "en_curso", null, true], ["SUMINISTRO", "Precintos y cinta", 3, "ivan", "en_curso", null, false, true]] },
   { codigo: "AR2605548", cliente: "Gandería Souto", prioridad: 2, entrega: "2026-07-07", solicitud: "2026-06-16", accent: "azul", croquis: true,
-    ofs: [["CARPA", "Cubierta nave 8×20", 1, "ivan", "por_revisar"], ["SUMINISTRO", "Cables tensores", 12, "ivan", "por_revisar"]] },
+    ofs: [["CARPA", "Cubierta nave 8×20", 1, "ivan", "devuelta", "angel"], ["SUMINISTRO", "Cables tensores", 12, "ivan", "por_revisar"]] },
 
   // ── PARTIDO entre operarios ──
   { codigo: "AR2605552", cliente: "Comunidade Veciños Sar", prioridad: 1, entrega: "2026-07-02", solicitud: "2026-06-10", accent: "rojo", croquis: true,
@@ -128,12 +131,13 @@ const SPECS: Spec[] = [
 
 const OBSERVACIONES: Record<string, string> = {
   "AR2605530": "Falta cota de la guía y referencia de la tela. Revisar medidas antes de Producción.",
+  "AR2605548": "Faltan las medidas de anclaje de la nave. Revisar in situ antes de replantear.",
 };
 
 let ofSeq = 0;
 function buildOF(pedidoId: string, codigoPedido: string, idx: number, spec: OFSpec): OF {
   ofSeq += 1;
-  const [familia, descripcion, piezas, autorId, estadoIn, revisorId, fichando] = spec;
+  const [familia, descripcion, piezas, autorId, estadoIn, revisorId, fichando, sinEmpezar] = spec;
   const estado: EstadoOF = estadoIn ?? (autorId ? "en_curso" : "pendiente");
   const tiempoEstimadoMin = 90 + piezas * 25;
 
@@ -143,7 +147,9 @@ function buildOF(pedidoId: string, codigoPedido: string, idx: number, spec: OFSp
     estado === "pendiente"
       ? 0
       : estado === "en_curso"
-        ? Math.round(tiempoEstimadoMin * 0.45)
+        ? sinEmpezar
+          ? 0
+          : Math.round(tiempoEstimadoMin * 0.45)
         : Math.round(tiempoEstimadoMin * (0.85 + (idx % 3) * 0.05));
   const tiempoRevisionMin =
     estado === "en_revision"

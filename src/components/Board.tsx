@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +11,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import type { EstadoOF, Familia, Operario, Pedido } from "@/lib/types";
+import type { EstadoOF, Familia, OF, Operario, Pedido } from "@/lib/types";
 import { estaAtrasado, estaFinalizado, hoyISO, ofsDe } from "@/lib/types";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -24,6 +24,22 @@ import { RevisionView } from "./RevisionView";
 import { HistorialView } from "./HistorialView";
 import { Drawer, type AccionOF } from "./Drawer";
 import { PedidoCardView, type Facet } from "./PedidoCard";
+import { IdentityGate } from "./IdentityGate";
+import { IdentityBadge } from "./IdentityBadge";
+import { EquipoChip } from "./EquipoChip";
+import { Notificaciones, type NotifItem } from "./Notificaciones";
+import { useHydrated } from "@/lib/useHydrated";
+
+const IDENTITY_KEY = "coordina-operario-id";
+
+function leerIdentidadGuardada(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(IDENTITY_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function Board({
   operarios,
@@ -35,8 +51,32 @@ export function Board({
   const [pedidos, setPedidos] = useState<Pedido[]>(initial);
   // dnd-kit genera IDs incrementales que no coinciden SSR↔cliente. Render del
   // tablero solo tras montar para que la hidratación case sin warnings.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
+
+  // Identidad del técnico ("login sin login"): se recuerda por navegador,
+  // igual que el tema. No hay backend de autenticación real detrás. Se lee
+  // con un inicializador perezoso (no en un efecto) para que coincida desde
+  // el primer render tras la hidratación, sin parpadeo de la pantalla de
+  // selección.
+  const [miId, setMiIdState] = useState<string | null>(leerIdentidadGuardada);
+  function setMiId(id: string) {
+    setMiIdState(id);
+    try {
+      localStorage.setItem(IDENTITY_KEY, id);
+    } catch {}
+  }
+
+  // Qué zonas de compañeros están expandidas en la vista Asignar.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const [vista, setVista] = useState<Vista>("asignar");
   const [openId, setOpenId] = useState<string | null>(null);
   const [active, setActive] = useState<Facet | null>(null);
@@ -47,7 +87,7 @@ export function Board({
     estado: "todos",
     situacion: "procesado",
     orden: "planificacion",
-    size: 1,
+    size: 0.75,
   });
   const setFiltros = (f: Partial<Filtros>) => setFiltrosState((prev) => ({ ...prev, ...f }));
 
@@ -135,6 +175,39 @@ export function Board({
   const porRevisar = countEstado("por_revisar");
   const enRevision = countEstado("en_revision");
 
+  // ── Notificaciones personales (según quién eres ahora mismo) ──
+  function ofsPersonales(pred: (of: OF) => boolean): { pedido: Pedido; of: OF }[] {
+    const out: { pedido: Pedido; of: OF }[] = [];
+    procesadosAll.forEach((p) =>
+      p.ofs.forEach((of) => {
+        if (pred(of)) out.push({ pedido: p, of });
+      }),
+    );
+    return out;
+  }
+  const itemsPorRevisar = miId
+    ? ofsPersonales((of) => of.revisorId === miId && of.estado === "en_revision")
+    : [];
+  const itemsDevueltas = miId
+    ? ofsPersonales((of) => of.autorId === miId && of.estado === "devuelta")
+    : [];
+  const itemsSinEmpezar = miId
+    ? ofsPersonales(
+        (of) => of.autorId === miId && of.estado === "en_curso" && of.tiempoPlanteoMin === 0,
+      )
+    : [];
+  const misPorRevisar = itemsPorRevisar.length;
+  const misDevueltas = itemsDevueltas.length;
+  const notifItems: NotifItem[] = [
+    ...itemsPorRevisar.map((x) => ({ ...x, tipo: "revisar" as const })),
+    ...itemsDevueltas.map((x) => ({ ...x, tipo: "devuelta" as const })),
+    ...itemsSinEmpezar.map((x) => ({ ...x, tipo: "sinEmpezar" as const })),
+  ];
+  function irANotificacion(destino: Vista, pedidoId: string) {
+    setVista(destino);
+    setOpenId(pedidoId);
+  }
+
   // ── mutaciones (futuro: persistir en SQL Server) ──
   function mut(ofIds: Set<string>, fn: (of: Pedido["ofs"][number]) => Pedido["ofs"][number]) {
     setPedidos((prev) =>
@@ -220,6 +293,12 @@ export function Board({
     );
   }
 
+  if (!miId) {
+    return <IdentityGate operarios={operarios} onSelect={setMiId} />;
+  }
+  const yo = operarios.find((o) => o.id === miId) as Operario;
+  const resto = operarios.filter((o) => o.id !== miId);
+
   return (
     <DndContext
       sensors={sensors}
@@ -229,13 +308,19 @@ export function Board({
     >
       <div className="flex min-h-full flex-col">
         {/* topbar */}
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-4 border-b border-border bg-bg/85 px-5 py-3 backdrop-blur">
+        <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
           <Logo />
-          <ViewSwitcher vista={vista} onChange={setVista} badge={{ revision: porRevisar }} />
+          <ViewSwitcher
+            vista={vista}
+            onChange={setVista}
+            badge={{ revision: misPorRevisar, asignar: misDevueltas }}
+          />
           <div className="ml-auto flex items-center gap-2 text-xs">
             <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
             <Kpi label="Por revisar" value={porRevisar} tone="amber" />
             <Kpi label="En revisión" value={enRevision} tone="violet" />
+            <Notificaciones items={notifItems} onNavigate={irANotificacion} />
+            <IdentityBadge yo={yo} operarios={operarios} onChange={setMiId} />
             <ThemeToggle />
           </div>
         </header>
@@ -243,23 +328,39 @@ export function Board({
         {/* ── VISTA ASIGNAR ── */}
         {vista === "asignar" && (
           <>
-            <main className="grid flex-1 grid-cols-1 gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
-              {operarios.map((op) => (
-                <Zona
-                  key={op.id}
-                  operario={op}
-                  operarios={operarios}
-                  facets={facetsFor(op.id)}
-                  size={filtros.size}
-                  onOpen={(f) => setOpenId(f.pedido.id)}
-                />
-              ))}
+            <main className="flex flex-col gap-3 p-4">
+              <Zona
+                operario={yo}
+                operarios={operarios}
+                facets={facetsFor(yo.id)}
+                soyYo
+                onOpen={(f) => setOpenId(f.pedido.id)}
+              />
+
+              <div>
+                <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  Equipo
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {resto.map((op) => (
+                    <EquipoChip
+                      key={op.id}
+                      operario={op}
+                      operarios={operarios}
+                      facets={facetsFor(op.id)}
+                      expanded={expanded.has(op.id)}
+                      onToggle={() => toggleExpanded(op.id)}
+                      onOpen={(f) => setOpenId(f.pedido.id)}
+                    />
+                  ))}
+                </div>
+              </div>
             </main>
-            <div className="sticky bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur">
-              <div className="border-b border-border px-5 py-2.5">
+            <div className="glass-header flex min-h-0 flex-1 flex-col">
+              <div className="px-4 py-2" style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}>
                 <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
               </div>
-              <div className="max-h-[38vh] overflow-y-auto p-5 scroll-thin">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja
                   facets={bandejaFacets}
                   size={filtros.size}
@@ -293,6 +394,7 @@ export function Board({
               <RevisionView
                 pedidos={pedidosOrdenados}
                 operarios={operarios}
+                miId={miId}
                 onOpen={(p) => setOpenId(p.id)}
                 onSetRevisor={setRevisor}
                 onAccion={accionOF}
@@ -325,6 +427,7 @@ export function Board({
       <Drawer
         pedido={openPedido}
         operarios={operarios}
+        miId={miId}
         onClose={() => setOpenId(null)}
         onAssignOF={asignarOF}
         onAssignPedido={asignarPedido}

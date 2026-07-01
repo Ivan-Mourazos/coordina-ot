@@ -22,7 +22,9 @@ export function Bandeja({
     <div
       ref={setNodeRef}
       className={`rounded-xl border p-3 transition-colors ${
-        isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : "border-border bg-surface-2"
+        isOver
+          ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15"
+          : "border-[var(--glass-border)] bg-[var(--glass-bg-strong)]"
       }`}
     >
       <div className="mb-2.5 flex items-center gap-2">
@@ -48,6 +50,7 @@ export function Bandeja({
               size={size}
               operarios={operarios}
               onOpen={() => onOpen(f)}
+              mostrarPrioridad
             />
           ))
         )}

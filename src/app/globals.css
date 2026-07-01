@@ -32,6 +32,16 @@
   --text-muted: #7c756a;
   --paper: #ffffff;
   --paper-line: #e9e6df;
+
+  /* Frosted-glass shelving (Asignar panels): the workbench "glass tray" the
+     paper dispatch slips rest on. Translucent + saturated + a hairline
+     specular highlight along the top edge, like light catching glass. */
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-bg-strong: rgba(255, 255, 255, 0.68);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --glass-shadow: rgba(80, 65, 40, 0.16);
+  --glass-chip: rgba(255, 255, 255, 0.82);
 }
 
 .dark {
@@ -45,6 +55,13 @@
   --text-muted: #9b9382;
   --paper: #201d17;
   --paper-line: #2c281f;
+
+  --glass-bg: rgba(38, 35, 28, 0.55);
+  --glass-bg-strong: rgba(38, 35, 28, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --glass-shadow: rgba(0, 0, 0, 0.45);
+  --glass-chip: rgba(58, 54, 44, 0.72);
 }
 
 @theme inline {
@@ -69,6 +86,50 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Glass shelf: the frosted panel material for técnico zones, equipo chips
+   and the bandeja tray. Inset top highlight mimics a specular edge on glass;
+   outer shadow lifts it off the workbench background. */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 8px 30px -14px var(--glass-shadow);
+}
+
+.glass-panel-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 8px 30px -14px var(--glass-shadow);
+}
+
+/* Compact order chip: a lighter tile that reads as a card resting ON the
+   frosted shelf, not another sheet of glass. Solid-ish surface tint so text
+   stays crisp; lifts on hover. */
+.glass-chip {
+  background: var(--glass-chip);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 1px 2px 0 var(--glass-shadow);
+}
+.glass-chip:hover {
+  box-shadow: 0 6px 18px -8px var(--glass-shadow);
+}
+
+/* Header: same glass recipe, edge-to-edge (no side borders/radius, just the
+   bottom hairline the shelf panels sit under). */
+.glass-header {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  box-shadow: inset 0 -1px 0 0 var(--glass-border);
 }
 
 /* thin scrollbars inside zones */

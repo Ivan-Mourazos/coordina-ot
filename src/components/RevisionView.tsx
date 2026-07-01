@@ -19,12 +19,14 @@ const COLUMNAS: { estado: EstadoOF; titulo: string }[] = [
 export function RevisionView({
   pedidos,
   operarios,
+  miId,
   onOpen,
   onSetRevisor,
   onAccion,
 }: {
   pedidos: Pedido[];
   operarios: Operario[];
+  miId: string | null;
   onOpen: (p: Pedido) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -110,6 +112,7 @@ export function RevisionView({
                     facet={f}
                     estado={col.estado}
                     operarios={operarios}
+                    miId={miId}
                     onOpen={() => onOpen(f.pedido)}
                     onSetRevisor={onSetRevisor}
                     onAccion={onAccion}
@@ -142,6 +145,7 @@ function ReviewCard({
   facet,
   estado,
   operarios,
+  miId,
   onOpen,
   onSetRevisor,
   onAccion,
@@ -149,6 +153,7 @@ function ReviewCard({
   facet: RFacet;
   estado: EstadoOF;
   operarios: Operario[];
+  miId: string | null;
   onOpen: () => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -215,6 +220,7 @@ function ReviewCard({
                 .map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.nombre}
+                    {o.id === miId ? " (tú)" : ""}
                   </option>
                 ))}
             </select>

@@ -2,16 +2,9 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import type { OF, Operario, Pedido } from "@/lib/types";
-import { ESTADO, estadoRepresentativo } from "@/lib/estado";
 import { OtPaper } from "./OtPaper";
 
 const BASE_W = 152; // px a tamaño 1.0
-
-const PRIO = {
-  1: { label: "P1", bg: "#d23b3b" },
-  2: { label: "P2", bg: "#d39a1c" },
-  3: { label: "P3", bg: "#6b7280" },
-} as const;
 
 export interface Facet {
   pedido: Pedido;
@@ -32,20 +25,21 @@ export function PedidoCardView({
   size,
   operarios,
   dragging = false,
+  mostrarPrioridad = false,
 }: {
   facet: Facet;
   size: number;
   operarios: Operario[];
   dragging?: boolean;
+  /** Muestra prioridad + atrasado junto al código (pensado para la bandeja
+   *  "Sin asignar", donde no hay agrupación por estado que ya lo indique). */
+  mostrarPrioridad?: boolean;
 }) {
   const { pedido, ofs } = facet;
   const w = Math.round(BASE_W * size);
   const h = Math.round(w * 1.414);
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
-  const prio = PRIO[pedido.prioridad];
-  const rep = estadoRepresentativo(ofs);
-  const meta = ESTADO[rep];
 
   const fichando = ofs.find((o) => o.fichandoRol);
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
@@ -57,25 +51,14 @@ export function PedidoCardView({
       <div
         style={{ height: h }}
         className={`relative rounded-md bg-paper shadow-sm border-2 transition-shadow ${
-          dragging ? "shadow-xl border-brand-400" : `${meta.border} hover:shadow-md`
+          dragging
+            ? "shadow-xl border-brand-400"
+            : fichando
+              ? "border-emerald-400 hover:shadow-md"
+              : "border-border hover:shadow-md"
         } ${atrasado ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zone" : ""}`}
       >
         <OtPaper pedido={pedido} />
-
-        {/* atrasado: pasó la planificación sin finalizar */}
-        {atrasado && (
-          <span className="absolute left-1/2 top-1.5 -translate-x-1/2 rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow">
-            Atrasado
-          </span>
-        )}
-
-        {/* prioridad */}
-        <span
-          className="absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold text-white shadow"
-          style={{ background: prio.bg }}
-        >
-          {prio.label}
-        </span>
 
         {/* nº de OF */}
         {total > 1 && (
@@ -91,19 +74,23 @@ export function PedidoCardView({
             {fichando.fichandoRol === "revisar" ? "Revisa" : "Plantea"}
           </span>
         )}
-
-        {/* estado */}
-        <span
-          className={`absolute right-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase shadow ${meta.chip}`}
-        >
-          {meta.short}
-        </span>
       </div>
 
       {/* pie con datos */}
       <div className="mt-1 px-0.5">
         <div className="flex items-center gap-1">
-          <span className="truncate text-[11px] font-semibold leading-tight text-text">
+          {mostrarPrioridad && (
+            <span
+              className={`shrink-0 text-[10px] font-bold ${atrasado ? "text-red-600" : "text-text-muted"}`}
+            >
+              P{pedido.prioridad}
+            </span>
+          )}
+          <span
+            className={`truncate text-[11px] font-semibold leading-tight ${
+              mostrarPrioridad && atrasado ? "text-red-600" : "text-text"
+            }`}
+          >
             {pedido.codigo}
           </span>
           {revisor && (
@@ -131,11 +118,13 @@ export function PedidoCard({
   size,
   operarios,
   onOpen,
+  mostrarPrioridad = false,
 }: {
   facet: Facet;
   size: number;
   operarios: Operario[];
   onOpen: () => void;
+  mostrarPrioridad?: boolean;
 }) {
   const id = dragIdOf(facet);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -161,7 +150,7 @@ export function PedidoCard({
         isDragging ? "opacity-30" : ""
       }`}
     >
-      <PedidoCardView facet={facet} size={size} operarios={operarios} />
+      <PedidoCardView facet={facet} size={size} operarios={operarios} mostrarPrioridad={mostrarPrioridad} />
     </div>
   );
 }

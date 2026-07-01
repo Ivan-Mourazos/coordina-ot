@@ -2,19 +2,21 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
-import { PedidoCard, type Facet } from "./PedidoCard";
+import type { Facet } from "./PedidoCard";
+import { PedidosPorEstado } from "./PedidosPorEstado";
 
 export function Zona({
   operario,
   operarios,
   facets,
-  size,
+  soyYo = false,
   onOpen,
 }: {
   operario: Operario;
   operarios: Operario[];
   facets: Facet[];
-  size: number;
+  /** Destaca esta zona como la del técnico actual (panel grande de Asignar). */
+  soyYo?: boolean;
   onOpen: (f: Facet) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -23,40 +25,34 @@ export function Zona({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border bg-zone p-3 transition-colors ${
-        isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : "border-border"
+      style={soyYo && !isOver ? { borderColor: operario.color } : undefined}
+      className={`glass-panel flex flex-col rounded-2xl p-4 transition-colors ${
+        isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : ""
       }`}
     >
-      <div className="mb-2.5 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <span
-          className="grid size-6 place-items-center rounded-full text-[10px] font-bold text-white"
+          className={`grid place-items-center rounded-full font-bold text-white ${
+            soyYo ? "size-8 text-xs" : "size-6 text-[10px]"
+          }`}
           style={{ background: operario.color }}
         >
           {operario.iniciales}
         </span>
-        <h2 className="text-sm font-semibold text-text">{operario.nombre}</h2>
-        <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted ring-1 ring-border">
+        <h2 className={`font-semibold text-text ${soyYo ? "text-base" : "text-sm"}`}>
+          {operario.nombre}
+        </h2>
+        {soyYo && (
+          <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-600">
+            Tú
+          </span>
+        )}
+        <span className="ml-auto rounded-full bg-[var(--glass-highlight)] px-2 py-0.5 text-[11px] font-medium text-text-muted">
           {facets.length} ped · {nOFs} OF
         </span>
       </div>
 
-      <div className="flex flex-1 flex-wrap content-start gap-3">
-        {facets.length === 0 ? (
-          <div className="grid min-h-24 w-full place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
-            Arrastra aquí
-          </div>
-        ) : (
-          facets.map((f) => (
-            <PedidoCard
-              key={f.pedido.id}
-              facet={f}
-              size={size}
-              operarios={operarios}
-              onOpen={() => onOpen(f)}
-            />
-          ))
-        )}
-      </div>
+      <PedidosPorEstado facets={facets} operarios={operarios} onOpen={onOpen} />
     </div>
   );
 }

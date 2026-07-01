@@ -4,11 +4,6 @@
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
 /coverage
@@ -30,6 +25,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# pnpm
+.pnpm-store/
+
 # env files (can opt-in for committing if needed)
 .env*
 
@@ -39,3 +37,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# personal Claude Code config (not shared with the team)
+/.claude/settings.local.json
+/.claude/hooks/
+/.claude/.caveman-*
