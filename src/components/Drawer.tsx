@@ -56,6 +56,8 @@ export function Drawer({
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
+  const [viewerFor, setViewerFor] = useState<string | null>(null);
+
   useEffect(() => {
     if (!pedido) return;
     function onKey(e: KeyboardEvent) {
@@ -217,7 +219,7 @@ export function Drawer({
         </footer>
       </aside>
 
-      {viewer && <ScanViewer pedido={pedido} onClose={() => setViewerFor(null)} />}
+      {viewerFor && <ScanViewer pedido={pedido} onClose={() => setViewerFor(null)} />}
     </div>
   );
 }
