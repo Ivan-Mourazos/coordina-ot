@@ -7,6 +7,7 @@ import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
+import type { AccionOF } from "./Drawer";
 
 export function Zona({
   operario,
@@ -27,8 +28,8 @@ export function Zona({
   /** Destaca esta zona como la del técnico actual (panel grande de Asignar). */
   soyYo?: boolean;
   onOpen: (f: Facet) => void;
-  accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: any, obs?: string) => void;
+  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -81,6 +82,7 @@ export function Zona({
         accionFacet={accionFacet}
         accionOF={accionOF}
         completarPedido={completarPedido}
+        raisedCards={soyYo}
       />
     </div>
   );

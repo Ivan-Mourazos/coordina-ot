@@ -1,26 +1,42 @@
 "use client";
 
 import type { Operario } from "@/lib/types";
-import { estadoRepresentativo } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import { PedidoChip } from "./PedidoChip";
+import type { AccionOF } from "./Drawer";
 
 type Bucket = "sinEmpezar" | "planteando" | "revision" | "finalizado";
 
 const GRUPOS: { id: Bucket; label: string }[] = [
   { id: "sinEmpezar", label: "Sin empezar" },
   { id: "planteando", label: "Planteando" },
-  { id: "revision", label: "Revisión" },
+  { id: "revision", label: "Para revisar" },
   { id: "finalizado", label: "Finalizado" },
 ];
 
 function bucketDe(f: Facet): Bucket {
-  const rep = estadoRepresentativo(f.ofs);
-  if (rep === "aprobada") return "finalizado";
-  if (rep === "por_revisar" || rep === "en_revision") return "revision";
-  if (rep === "devuelta") return "planteando";
-  const empezada = f.ofs.some((o) => o.tiempoPlanteoMin > 0 || o.fichandoRol);
-  return empezada ? "planteando" : "sinEmpezar";
+  const todasAprobadas = f.ofs.every((o) => o.estado === "aprobada");
+  if (todasAprobadas) return "finalizado";
+
+  const hayQuePlantear = f.ofs.some(
+    (o) =>
+      o.estado === "en_curso" ||
+      o.estado === "devuelta" ||
+      o.fichandoRol === "plantear",
+  );
+  if (hayQuePlantear) return "planteando";
+
+  const todasSinEmpezar = f.ofs.every(
+    (o) => o.estado === "pendiente" && o.tiempoPlanteoMin === 0 && !o.fichandoRol,
+  );
+  if (todasSinEmpezar) return "sinEmpezar";
+
+  const listoParaRevisor = f.ofs.some(
+    (o) => o.estado === "por_revisar" || o.estado === "en_revision",
+  );
+  if (listoParaRevisor) return "revision";
+
+  return "planteando";
 }
 
 /** Partes de un técnico agrupados por en qué punto del ciclo van, en vez de
@@ -32,6 +48,7 @@ export function PedidosPorEstado({
   operarios,
   onOpen,
   layout = "grid",
+  raisedCards = false,
   accionFacet,
   accionOF,
   completarPedido,
@@ -40,8 +57,9 @@ export function PedidosPorEstado({
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   layout?: "grid" | "list";
-  accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: any, obs?: string) => void;
+  raisedCards?: boolean;
+  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const grupos = GRUPOS.map((g) => ({
@@ -75,6 +93,7 @@ export function PedidosPorEstado({
                   accionFacet={accionFacet}
                   completarPedido={completarPedido}
                   bucket={g.id}
+                  raised={raisedCards}
                 />
               ))}
             </div>
@@ -110,6 +129,7 @@ export function PedidosPorEstado({
                   accionOF={accionOF}
                   completarPedido={completarPedido}
                   bucket={g.id}
+                  raised={raisedCards}
                 />
               ))
             )}

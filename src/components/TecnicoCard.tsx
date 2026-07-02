@@ -8,12 +8,13 @@ import type { Facet } from "./PedidoCard";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
+import type { AccionOF } from "./Drawer";
 
 // En qué fase está cada OF, para la barra de distribución del técnico.
 const FASES = [
   { id: "sin", label: "Sin empezar", color: "#9ca3af" },
   { id: "planteo", label: "Planteando", color: "#059669" },
-  { id: "revision", label: "En revisión", color: "#7c3aed" },
+  { id: "revision", label: "Para revisar", color: "#7c3aed" },
   { id: "ok", label: "Finalizado", color: "#0d9488" },
 ] as const;
 
@@ -49,8 +50,8 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle: () => void;
   onClose: () => void;
   onOpen: (f: Facet) => void;
-  accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: any, obs?: string) => void;
+  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });

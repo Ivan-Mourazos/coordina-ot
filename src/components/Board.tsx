@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
-import { estaAtrasado, estaFinalizado, hoyISO } from "@/lib/types";
+import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -157,12 +157,19 @@ export function Board({
     return [...base].sort(cmpPedido);
   }, [pedidosFiltrados, filtros.situacion, cmpPedido]);
 
+  const historialOrdenados = useMemo(
+    () =>
+      pedidosFiltrados
+        .filter((p) => p.situacion !== "pendiente")
+        .sort(cmpPedido),
+    [pedidosFiltrados, cmpPedido],
+  );
+
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
   // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.
   const facetsByLoc = useMemo(() => {
     const map = new Map<string | null, Facet[]>();
     for (const p of pedidosOrdenados) {
-      if (estaFinalizado(p)) continue; // los finalizados viven en Historial
       const atrasado = estaAtrasado(p, hoy);
       const porLoc = new Map<string | null, OF[]>();
       for (const of of p.ofs) {
@@ -342,7 +349,7 @@ export function Board({
   const accionFacet = useCallback(
     (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => {
       mut(new Set(facet.ofs.map((o) => o.id)), (of) => {
-        let ofObj = revisorId !== undefined ? { ...of, revisorId } : of;
+        const ofObj = revisorId !== undefined ? { ...of, revisorId } : of;
         switch (accion) {
           case "empezar":
             return {
@@ -491,6 +498,7 @@ export function Board({
                 soyYo
                 onOpen={openFacet}
                 accionFacet={accionFacet}
+                accionOF={accionOF}
                 completarPedido={completarPedido}
               />
 
@@ -511,6 +519,7 @@ export function Board({
                       onClose={closeExpanded}
                       onOpen={openFacet}
                       accionFacet={accionFacet}
+                      accionOF={accionOF}
                       completarPedido={completarPedido}
                     />
                   ))}
@@ -566,7 +575,7 @@ export function Board({
               <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
             </div>
             <div className="p-5">
-              <HistorialView pedidos={pedidosOrdenados} operarios={operarios} onOpen={openPedidoCb} />
+              <HistorialView pedidos={historialOrdenados} operarios={operarios} onOpen={openPedidoCb} />
             </div>
           </>
         )}

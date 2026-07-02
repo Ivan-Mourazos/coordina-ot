@@ -1,13 +1,14 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, type CSSProperties } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
 import { dragIdOf, type Facet } from "./PedidoCard";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
-import { Select, OpDot, type SelectOption } from "./Select";
+import { Select, OpDot } from "./Select";
+import type { AccionOF } from "./Drawer";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
@@ -21,14 +22,16 @@ export const PedidoChip = memo(function PedidoChip({
   accionOF,
   completarPedido,
   bucket,
+  raised = false,
 }: {
   facet: Facet;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
-  accionFacet?: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
-  accionOF?: (ofId: string, accion: any, obs?: string) => void;
+  accionFacet?: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
+  accionOF?: (ofId: string, accion: AccionOF, obs?: string) => void;
   completarPedido?: (pedidoId: string) => void;
   bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
+  raised?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
@@ -41,6 +44,14 @@ export const PedidoChip = memo(function PedidoChip({
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
+  const accent =
+    bucket === "planteando"
+      ? "#059669"
+      : bucket === "revision"
+        ? "#f59e0b"
+        : bucket === "finalizado"
+          ? "#0d9488"
+          : "#9ca3af";
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragIdOf(facet),
@@ -50,7 +61,12 @@ export const PedidoChip = memo(function PedidoChip({
   return (
     <div
       ref={setNodeRef}
-      className={`glass-chip group flex w-full flex-col overflow-hidden rounded-lg transition-shadow focus-within:ring-2 focus-within:ring-brand-400 ${
+      style={raised ? ({ "--pedido-accent": accent } as CSSProperties) : undefined}
+      className={`group flex w-full flex-col overflow-hidden rounded-lg focus-within:ring-2 focus-within:ring-brand-400 ${
+        raised
+          ? `pedido-chip-3d ${expanded ? "pedido-chip-3d-open" : ""}`
+          : "glass-chip transition-shadow"
+      } ${
         isDragging ? "opacity-30" : ""
       } ${atrasado ? "ring-1 ring-red-500/70" : ""}`}
     >
@@ -145,8 +161,8 @@ export const PedidoChip = memo(function PedidoChip({
                 let infoEstado = "Sin empezar";
                 if (of.estado === "en_curso" && autor) infoEstado = `Planteando`;
                 else if (of.estado === "en_revision" && rev) infoEstado = `Revisando`;
-                else if (of.estado === "aprobada") infoEstado = "Completada";
-                else if (of.estado === "por_revisar") infoEstado = "Pendiente de revisar";
+                else if (of.estado === "aprobada") infoEstado = "Finalizada";
+                else if (of.estado === "por_revisar") infoEstado = "Para revisar";
 
                 return (
                   <div key={of.id} className="flex items-center justify-between gap-2 text-[10px] leading-tight group/of">
@@ -246,21 +262,10 @@ export const PedidoChip = memo(function PedidoChip({
                   </div>
                 )}
 
-                {bucket === "revision" && accionFacet && (
-                  <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar"); }}
-                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
-                    >
-                      ▶ Empezar revisión
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "aprobar"); }}
-                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
-                    >
-                      ✔ Aprobar revisión
-                    </button>
-                  </>
+                {bucket === "revision" && (
+                  <span className="rounded bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                    Esperando revisión del compañero
+                  </span>
                 )}
 
                 {bucket === "finalizado" && completarPedido && (

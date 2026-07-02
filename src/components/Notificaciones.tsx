@@ -13,7 +13,7 @@ export interface NotifItem {
 }
 
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
-  revisar: { label: "Por revisar", vista: "revision", dot: "bg-violet-600" },
+  revisar: { label: "Me toca revisar", vista: "revision", dot: "bg-violet-600" },
   devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: "bg-red-600" },
   sinEmpezar: { label: "Sin empezar", vista: "asignar", dot: "bg-gray-400" },
 };
