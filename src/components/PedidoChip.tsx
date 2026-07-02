@@ -7,6 +7,7 @@ import { dragIdOf, type Facet } from "./PedidoCard";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
+import { Select, OpDot, type SelectOption } from "./Select";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
@@ -16,12 +17,20 @@ export const PedidoChip = memo(function PedidoChip({
   facet,
   operarios,
   onOpen,
+  accionFacet,
+  completarPedido,
+  bucket,
 }: {
   facet: Facet;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
+  accionFacet?: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  completarPedido?: (pedidoId: string) => void;
+  bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [terminando, setTerminando] = useState(false);
+  const [revisorSelect, setRevisorSelect] = useState<string | null>(null);
   const { pedido, ofs } = facet;
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
@@ -155,15 +164,91 @@ export const PedidoChip = memo(function PedidoChip({
                   </div>
                 );
               })}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpen(facet);
-                }}
-                className="mt-1 w-fit rounded bg-white/50 px-2 py-1 text-[10px] font-semibold hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
-              >
-                Abrir detalles ↗
-              </button>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-[var(--glass-border)] pt-2">
+                {bucket === "sinEmpezar" && accionFacet && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar"); }}
+                    className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
+                  >
+                    ▶ Empezar a plantear
+                  </button>
+                )}
+
+                {bucket === "planteando" && accionFacet && !terminando && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
+                    className="rounded bg-amber-500 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-amber-600"
+                  >
+                    ✔ Terminar de plantear
+                  </button>
+                )}
+
+                {bucket === "planteando" && accionFacet && terminando && (
+                  <div className="flex w-full items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[10px] text-text-muted">Revisor:</span>
+                    <div className="flex-1">
+                      <Select
+                        value={revisorSelect}
+                        onChange={setRevisorSelect}
+                        options={operarios.filter(o => o.id !== facet.locationId).map(o => ({ value: o.id, label: o.nombre, icon: <OpDot color={o.color} iniciales={o.iniciales} /> }))}
+                        placeholder="Elegir..."
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (revisorSelect) {
+                          accionFacet(facet, "terminar", undefined, revisorSelect);
+                          setTerminando(false);
+                        }
+                      }}
+                      disabled={!revisorSelect}
+                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      onClick={() => setTerminando(false)}
+                      className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-surface-3"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+
+                {bucket === "revision" && accionFacet && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar"); }}
+                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
+                    >
+                      ▶ Empezar revisión
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "aprobar"); }}
+                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
+                    >
+                      ✔ Aprobar revisión
+                    </button>
+                  </>
+                )}
+
+                {bucket === "finalizado" && completarPedido && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); completarPedido(pedido.id); }}
+                    className="rounded bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
+                  >
+                    📦 Pasar a Producción (Completar)
+                  </button>
+                )}
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); onOpen(facet); }}
+                  className="ml-auto rounded bg-white/50 px-2 py-1 text-[10px] font-semibold hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
+                >
+                  Abrir detalles ↗
+                </button>
+              </div>
             </div>
           </div>
         </div>

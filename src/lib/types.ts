@@ -31,7 +31,7 @@ export type Prioridad = 1 | 2 | 3; // 1 = máxima urgencia
  *    (= "completamente grabado"). Es el trabajo real de OT.
  *  - pendiente: aún no procesado por Producción. No entra en el tablero de
  *    trabajo; solo se puede consultar/buscar en la Lista. */
-export type Situacion = "procesado" | "pendiente";
+export type Situacion = "procesado" | "pendiente" | "completado";
 
 /** Ciclo de vida de una OF. */
 export type EstadoOF =
@@ -40,7 +40,8 @@ export type EstadoOF =
   | "por_revisar" // planteo terminado, falta asignar/empezar revisor
   | "en_revision" // un revisor (≠ autor) la está repasando
   | "aprobada" // revisada OK → lista para Producción
-  | "devuelta"; // el revisor la devolvió con observaciones
+  | "devuelta" // el revisor la devolvió con observaciones
+  | "anulada"; // OF que no se hace en OT
 
 export type Rol = "plantear" | "revisar";
 

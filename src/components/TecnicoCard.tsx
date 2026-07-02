@@ -46,6 +46,8 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle: () => void;
   onClose: () => void;
   onOpen: (f: Facet) => void;
+  accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -143,7 +145,14 @@ export const TecnicoCard = memo(function TecnicoCard({
 
       {expanded && (
         <div className="glass-pop scroll-thin absolute left-0 top-full z-20 mt-1.5 max-h-[46vh] w-full min-w-72 overflow-y-auto rounded-xl p-3">
-          <PedidosPorEstado facets={facets} operarios={operarios} onOpen={onOpen} layout="list" />
+          <PedidosPorEstado 
+            facets={facets} 
+            operarios={operarios} 
+            onOpen={onOpen} 
+            layout="list" 
+            accionFacet={accionFacet}
+            completarPedido={completarPedido}
+          />
         </div>
       )}
     </div>

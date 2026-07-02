@@ -24,6 +24,8 @@ export function Zona({
   /** Destaca esta zona como la del técnico actual (panel grande de Asignar). */
   soyYo?: boolean;
   onOpen: (f: Facet) => void;
+  accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
@@ -68,7 +70,13 @@ export function Zona({
         </span>
       </div>
 
-      <PedidosPorEstado facets={facets} operarios={operarios} onOpen={onOpen} />
+      <PedidosPorEstado 
+        facets={facets} 
+        operarios={operarios} 
+        onOpen={onOpen} 
+        accionFacet={accionFacet}
+        completarPedido={completarPedido}
+      />
     </div>
   );
 }

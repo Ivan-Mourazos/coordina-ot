@@ -327,6 +327,8 @@ export function Board({
             };
           case "reabrir":
             return { ...of, estado: "en_revision" };
+          case "anular":
+            return { ...of, estado: "anulada", fichandoRol: null };
           default:
             return of;
         }
@@ -334,6 +336,51 @@ export function Board({
     },
     [mut],
   );
+
+  const accionFacet = useCallback(
+    (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => {
+      mut(new Set(facet.ofs.map((o) => o.id)), (of) => {
+        let ofObj = revisorId !== undefined ? { ...of, revisorId } : of;
+        switch (accion) {
+          case "empezar":
+            return {
+              ...ofObj,
+              estado: ofObj.estado === "pendiente" ? "en_curso" : ofObj.estado === "por_revisar" ? "en_revision" : ofObj.estado,
+              fichandoRol: (ofObj.estado === "por_revisar" || ofObj.estado === "en_revision") ? "revisar" : "plantear",
+            };
+          case "pausar":
+            return { ...ofObj, fichandoRol: null };
+          case "terminar":
+            return { ...ofObj, estado: "por_revisar", fichandoRol: null };
+          case "aprobar":
+            return { ...ofObj, estado: "aprobada", fichandoRol: null };
+          case "devolver":
+            return {
+              ...ofObj,
+              estado: "devuelta",
+              observacion: obs?.trim() || "Devuelta para corregir.",
+              fichandoRol: null,
+            };
+          case "reabrir":
+            return { ...ofObj, estado: "en_revision" };
+          case "anular":
+            return { ...ofObj, estado: "anulada", fichandoRol: null };
+          default:
+            return ofObj;
+        }
+      });
+    },
+    [mut]
+  );
+
+  const completarPedido = useCallback((pedidoId: string) => {
+    setPedidos((prev) =>
+      prev.map((p) =>
+        p.id === pedidoId ? { ...p, situacion: "completado" } : p
+      )
+    );
+    setOpenId(null);
+  }, []);
 
   const onDragStart = useCallback((e: DragStartEvent) => {
     setActive((e.active.data.current?.facet as Facet) ?? null);
@@ -439,6 +486,8 @@ export function Board({
                 live={liveByOp.get(yo.id) ?? null}
                 soyYo
                 onOpen={openFacet}
+                accionFacet={accionFacet}
+                completarPedido={completarPedido}
               />
 
               <div>
@@ -457,6 +506,8 @@ export function Board({
                       onToggle={() => toggleExpanded(op.id)}
                       onClose={closeExpanded}
                       onOpen={openFacet}
+                      accionFacet={accionFacet}
+                      completarPedido={completarPedido}
                     />
                   ))}
                 </div>

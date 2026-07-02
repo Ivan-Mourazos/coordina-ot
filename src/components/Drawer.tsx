@@ -324,10 +324,17 @@ function OFRow({
 
       {/* acciones según estado */}
       <div className="mt-2.5 flex flex-wrap gap-2">
-        {of.estado === "pendiente" && of.autorId !== null && (
-          <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
-            ▶ Empezar planteo
-          </Btn>
+        {of.estado === "pendiente" && (
+          <>
+            {of.autorId !== null && (
+              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+                ▶ Empezar planteo
+              </Btn>
+            )}
+            <Btn onClick={() => onAccion(of.id, "anular")} tone="ghost">
+              Anular (No se hace en OT)
+            </Btn>
+          </>
         )}
         {(of.estado === "en_curso" || of.estado === "devuelta") && (
           <>

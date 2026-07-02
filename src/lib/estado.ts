@@ -59,6 +59,14 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     chip: "bg-red-600 text-white",
     rank: 7,
   },
+  anulada: {
+    label: "Anulada",
+    short: "Anul.",
+    dot: "bg-slate-400",
+    border: "border-slate-300",
+    chip: "bg-slate-200 text-slate-700",
+    rank: 0,
+  },
 };
 
 // Código de color por ROL de fichaje, usado en toda la app: quien PLANTEA va
@@ -85,6 +93,7 @@ export const ROL: Record<Rol, RolMeta> = {
 };
 
 export const ESTADOS_ORDEN: EstadoOF[] = [
+  "anulada",
   "pendiente",
   "en_curso",
   "por_revisar",
