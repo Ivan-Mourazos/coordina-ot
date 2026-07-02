@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
 import { PedidoCard, type Facet } from "./PedidoCard";
@@ -15,6 +16,15 @@ export function Bandeja({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "bandeja" });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
+
+  const ordenados = useMemo(() => {
+    return [...facets].sort((a, b) => {
+      if (a.pedido.prioridad !== b.pedido.prioridad) {
+        return a.pedido.prioridad - b.pedido.prioridad;
+      }
+      return a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
+    });
+  }, [facets]);
 
   return (
     <div
@@ -37,12 +47,12 @@ export function Bandeja({
 
       {/* rejilla fluida: llena todo el ancho de pantalla sin slider */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-        {facets.length === 0 ? (
+        {ordenados.length === 0 ? (
           <div className="col-span-full grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
             No hay partes sin asignar
           </div>
         ) : (
-          facets.map((f) => (
+          ordenados.map((f) => (
             <PedidoCard
               key={f.pedido.id}
               facet={f}

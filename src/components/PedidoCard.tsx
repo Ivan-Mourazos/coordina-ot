@@ -107,6 +107,17 @@ export const PedidoCardView = memo(function PedidoCardView({
             </span>
           )}
         </div>
+        {mostrarPrioridad && (
+          <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-text-muted">
+            <span className={`font-bold ${atrasado ? "text-red-600" : ""}`}>
+              P{pedido.prioridad}
+            </span>
+            <span>·</span>
+            <span>
+              Planif: {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
