@@ -56,8 +56,6 @@ export function Drawer({
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
-  const [viewerFor, setViewerFor] = useState<string | null>(null);
-
   useEffect(() => {
     if (!pedido) return;
     function onKey(e: KeyboardEvent) {
@@ -77,10 +75,10 @@ export function Drawer({
 
       {/* PDF del pedido en grande, ocupando todo el hueco a la izquierda */}
       <div
-        className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col p-6 pb-4"
+        className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col"
         onClick={onClose}
       >
-        <div className="pointer-events-none mb-2 flex items-center gap-3 text-white">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 bg-gradient-to-b from-black/60 to-transparent p-4 text-white">
           <span className="font-mono text-sm font-bold">{pedido.codigo}</span>
           <span className="text-sm text-white/70">{pedido.cliente}</span>
           {pedido.scanUrl && (
@@ -89,26 +87,28 @@ export function Drawer({
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="pointer-events-auto ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+              className="pointer-events-auto ml-auto rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold backdrop-blur-md hover:bg-white/30"
             >
               Abrir original ↗
             </a>
           )}
         </div>
-        <div className="grid min-h-0 flex-1 place-items-center">
+        <div className="flex-1">
           {esPdf ? (
             <iframe
               src={pedido.scanUrl}
               title={`Pedido ${pedido.codigo}`}
               onClick={(e) => e.stopPropagation()}
-              className="h-full w-full max-w-4xl rounded-xl bg-white shadow-2xl"
+              className="h-full w-full border-none bg-white"
             />
           ) : (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="aspect-[210/297] max-h-full overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-white/20"
-            >
-              <PedidoScan pedido={pedido} />
+            <div className="grid h-full place-items-center p-4 pt-16">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="aspect-[210/297] max-h-full overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-white/20"
+              >
+                <PedidoScan pedido={pedido} />
+              </div>
             </div>
           )}
         </div>
@@ -142,21 +142,9 @@ export function Drawer({
         </header>
 
         <div className="scroll-thin flex-1 overflow-y-auto p-4">
-          {/* parte original (clic = ver en grande) + meta */}
-          <div className="mb-4 flex gap-4">
-            <button
-              onClick={() => setViewerFor(pedido.id)}
-              className="group relative w-40 shrink-0 self-start overflow-hidden rounded-lg shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-lg"
-              title="Ver el pedido en grande"
-            >
-              <PedidoScan pedido={pedido} />
-              <span className="absolute inset-0 grid place-items-center bg-black/0 transition-colors group-hover:bg-black/25">
-                <span className="rounded-lg bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  🔍 Ver en grande
-                </span>
-              </span>
-            </button>
-            <dl className="grid flex-1 grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">
+          {/* meta */}
+          <div className="mb-4">
+            <dl className="grid grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">
               <Meta k="Solicitud" v={fmt(pedido.fechaSolicitud)} />
               <Meta k="Entrega" v={fmt(pedido.fechaEntrega)} />
               <Meta k="Planificación" v={fmt(pedido.fechaPlanificacion)} />
@@ -219,7 +207,6 @@ export function Drawer({
         </footer>
       </aside>
 
-      {viewerFor && <ScanViewer pedido={pedido} onClose={() => setViewerFor(null)} />}
     </div>
   );
 }
