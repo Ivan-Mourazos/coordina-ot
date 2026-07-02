@@ -37,6 +37,9 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle,
   onClose,
   onOpen,
+  accionFacet,
+  accionOF,
+  completarPedido,
 }: {
   operario: Operario;
   operarios: Operario[];
@@ -47,6 +50,7 @@ export const TecnicoCard = memo(function TecnicoCard({
   onClose: () => void;
   onOpen: (f: Facet) => void;
   accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: any, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -151,6 +155,7 @@ export const TecnicoCard = memo(function TecnicoCard({
             onOpen={onOpen} 
             layout="list" 
             accionFacet={accionFacet}
+            accionOF={accionOF}
             completarPedido={completarPedido}
           />
         </div>

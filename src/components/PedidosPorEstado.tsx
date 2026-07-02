@@ -33,6 +33,7 @@ export function PedidosPorEstado({
   onOpen,
   layout = "grid",
   accionFacet,
+  accionOF,
   completarPedido,
 }: {
   facets: Facet[];
@@ -40,6 +41,7 @@ export function PedidosPorEstado({
   onOpen: (f: Facet) => void;
   layout?: "grid" | "list";
   accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: any, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const grupos = GRUPOS.map((g) => ({
@@ -105,6 +107,7 @@ export function PedidosPorEstado({
                   operarios={operarios}
                   onOpen={onOpen}
                   accionFacet={accionFacet}
+                  accionOF={accionOF}
                   completarPedido={completarPedido}
                   bucket={g.id}
                 />

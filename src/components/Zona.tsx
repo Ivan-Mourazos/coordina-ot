@@ -15,6 +15,9 @@ export function Zona({
   live,
   soyYo = false,
   onOpen,
+  accionFacet,
+  accionOF,
+  completarPedido,
 }: {
   operario: Operario;
   operarios: Operario[];
@@ -25,6 +28,7 @@ export function Zona({
   soyYo?: boolean;
   onOpen: (f: Facet) => void;
   accionFacet: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  accionOF: (ofId: string, accion: any, obs?: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -75,6 +79,7 @@ export function Zona({
         operarios={operarios} 
         onOpen={onOpen} 
         accionFacet={accionFacet}
+        accionOF={accionOF}
         completarPedido={completarPedido}
       />
     </div>

@@ -18,6 +18,7 @@ export const PedidoChip = memo(function PedidoChip({
   operarios,
   onOpen,
   accionFacet,
+  accionOF,
   completarPedido,
   bucket,
 }: {
@@ -25,6 +26,7 @@ export const PedidoChip = memo(function PedidoChip({
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   accionFacet?: (facet: Facet, accion: any, obs?: string, revisorId?: string) => void;
+  accionOF?: (ofId: string, accion: any, obs?: string) => void;
   completarPedido?: (pedidoId: string) => void;
   bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
 }) {
@@ -141,25 +143,46 @@ export const PedidoChip = memo(function PedidoChip({
                 const autor = operarios.find((x) => x.id === of.autorId);
                 const rev = operarios.find((x) => x.id === of.revisorId);
                 let infoEstado = "Sin empezar";
-                if (of.estado === "en_curso" && autor) infoEstado = `Planteando: ${autor.nombre}`;
-                else if (of.estado === "en_revision" && rev) infoEstado = `Revisando: ${rev.nombre}`;
+                if (of.estado === "en_curso" && autor) infoEstado = `Planteando`;
+                else if (of.estado === "en_revision" && rev) infoEstado = `Revisando`;
                 else if (of.estado === "aprobada") infoEstado = "Completada";
                 else if (of.estado === "por_revisar") infoEstado = "Pendiente de revisar";
 
                 return (
-                  <div key={of.id} className="flex flex-col gap-0.5 text-[10px] leading-tight">
-                    <span className="font-semibold text-text">
-                      {of.codigo} - {of.descripcion}
-                    </span>
-                    <div className="flex items-center justify-between text-text-muted">
-                      <span className="flex items-center gap-1">
-                        {of.fichandoRol && <LiveDot rol={of.fichandoRol} className="size-1.5" />}
-                        {infoEstado}
+                  <div key={of.id} className="flex items-center justify-between gap-2 text-[10px] leading-tight group/of">
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span className="font-semibold text-text truncate">
+                        {of.codigo} - {of.descripcion}
                       </span>
-                      <span>
-                        {of.tiempoPlanteoMin > 0 && `Plant: ${of.tiempoPlanteoMin}m`}
-                        {of.tiempoRevisionMin > 0 && ` · Rev: ${of.tiempoRevisionMin}m`}
-                      </span>
+                      <div className="flex items-center gap-1 text-text-muted truncate">
+                        {of.fichandoRol && <LiveDot rol={of.fichandoRol} className="size-1.5 shrink-0" />}
+                        <span>{infoEstado}</span>
+                        {of.tiempoPlanteoMin > 0 && <span>· Plant: {of.tiempoPlanteoMin}m</span>}
+                        {of.tiempoRevisionMin > 0 && <span>· Rev: {of.tiempoRevisionMin}m</span>}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {autor && (
+                        <div className="size-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-sm ring-1 ring-black/10" style={{ background: autor.color }} title={`Plantea: ${autor.nombre}`}>
+                          {autor.iniciales}
+                        </div>
+                      )}
+                      {rev && (
+                        <div className="size-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white shadow-sm ring-1 ring-black/10" style={{ background: rev.color }} title={`Revisa: ${rev.nombre}`}>
+                          {rev.iniciales}
+                        </div>
+                      )}
+                      
+                      {of.estado === "pendiente" && accionOF && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); accionOF(of.id, "anular"); }}
+                          className="rounded px-1.5 py-0.5 text-[9px] font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors opacity-0 group-hover/of:opacity-100 focus:opacity-100"
+                          title="Anular OF (no se hace en OT)"
+                        >
+                          Anular
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
