@@ -10,7 +10,7 @@ import { PedidoScan } from "./PedidoScan";
 import { DevolverInline } from "./DevolverInline";
 import { Select, OpDot, type SelectOption } from "./Select";
 
-export type AccionOF = "terminar" | "aprobar" | "devolver" | "reabrir";
+export type AccionOF = "empezar" | "pausar" | "terminar" | "aprobar" | "devolver" | "reabrir";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -324,13 +324,43 @@ function OFRow({
 
       {/* acciones según estado */}
       <div className="mt-2.5 flex flex-wrap gap-2">
+        {of.estado === "pendiente" && of.autorId !== null && (
+          <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+            ▶ Empezar planteo
+          </Btn>
+        )}
         {(of.estado === "en_curso" || of.estado === "devuelta") && (
-          <Btn onClick={() => onAccion(of.id, "terminar")} tone="amber">
-            Terminar planteo → a revisar
+          <>
+            {of.fichandoRol === "plantear" ? (
+              <Btn onClick={() => onAccion(of.id, "pausar")} tone="amber">
+                ⏸ Pausar tiempo
+              </Btn>
+            ) : (
+              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+                ▶ Reanudar planteo
+              </Btn>
+            )}
+            <Btn onClick={() => onAccion(of.id, "terminar")} tone="amber">
+              Terminar planteo → a revisar
+            </Btn>
+          </>
+        )}
+        {of.estado === "por_revisar" && of.revisorId !== null && (
+          <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+            ▶ Empezar revisión
           </Btn>
         )}
         {of.estado === "en_revision" && (
           <>
+            {of.fichandoRol === "revisar" ? (
+              <Btn onClick={() => onAccion(of.id, "pausar")} tone="amber">
+                ⏸ Pausar revisión
+              </Btn>
+            ) : (
+              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+                ▶ Reanudar revisión
+              </Btn>
+            )}
             <Btn onClick={() => onAccion(of.id, "aprobar")} tone="teal">
               Aprobar → Producción
             </Btn>

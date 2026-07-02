@@ -225,7 +225,7 @@ export function Board({
           out.push({ pedido: p, of, tipo: "revisar" });
         else if (of.autorId === miId && of.estado === "devuelta")
           out.push({ pedido: p, of, tipo: "devuelta" });
-        else if (of.autorId === miId && of.estado === "en_curso" && of.tiempoPlanteoMin === 0)
+        else if (of.autorId === miId && of.estado === "pendiente")
           out.push({ pedido: p, of, tipo: "sinEmpezar" });
       }
     }
@@ -259,7 +259,7 @@ export function Board({
       mut(ofIds, (of) =>
         autorId === null
           ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
-          : { ...of, autorId, estado: of.estado === "pendiente" ? "en_curso" : of.estado },
+          : { ...of, autorId }
       );
     },
     [mut],
@@ -279,7 +279,7 @@ export function Board({
                 ofs: p.ofs.map((of) =>
                   autorId === null
                     ? { ...of, autorId: null, revisorId: null, estado: "pendiente" as const, fichandoRol: null }
-                    : { ...of, autorId, estado: of.estado === "pendiente" ? ("en_curso" as const) : of.estado },
+                    : { ...of, autorId }
                 ),
               },
         ),
@@ -306,6 +306,14 @@ export function Board({
     (ofId: string, accion: AccionOF, obs?: string) => {
       mut(new Set([ofId]), (of) => {
         switch (accion) {
+          case "empezar":
+            return {
+              ...of,
+              estado: of.estado === "pendiente" ? "en_curso" : of.estado === "por_revisar" ? "en_revision" : of.estado,
+              fichandoRol: (of.estado === "por_revisar" || of.estado === "en_revision") ? "revisar" : "plantear",
+            };
+          case "pausar":
+            return { ...of, fichandoRol: null };
           case "terminar":
             return { ...of, estado: "por_revisar", fichandoRol: null };
           case "aprobar":
