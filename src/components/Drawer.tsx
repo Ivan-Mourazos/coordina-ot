@@ -7,10 +7,11 @@ import { ESTADO, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
+import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
 import { Select, OpDot, type SelectOption } from "./Select";
 
-export type AccionOF = "empezar" | "pausar" | "terminar" | "aprobar" | "devolver" | "reabrir";
+export type AccionOF = "empezar" | "pausar" | "terminar" | "aprobar" | "devolver" | "reabrir" | "anular" | "deshacer_empezar";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -349,6 +350,9 @@ function OFRow({
             )}
             <Btn onClick={() => onAccion(of.id, "terminar")} tone="amber">
               Terminar planteo → a revisar
+            </Btn>
+            <Btn onClick={() => onAccion(of.id, "deshacer_empezar")} tone="ghost">
+              Deshacer (Volver a Sin Empezar)
             </Btn>
           </>
         )}

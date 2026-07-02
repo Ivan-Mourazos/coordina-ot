@@ -164,7 +164,6 @@ export const PedidoChip = memo(function PedidoChip({
                   </div>
                 );
               })}
-              </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-[var(--glass-border)] pt-2">
                 {bucket === "sinEmpezar" && accionFacet && (
                   <button
@@ -176,12 +175,20 @@ export const PedidoChip = memo(function PedidoChip({
                 )}
 
                 {bucket === "planteando" && accionFacet && !terminando && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
-                    className="rounded bg-amber-500 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-amber-600"
-                  >
-                    ✔ Terminar de plantear
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
+                      className="rounded bg-amber-500 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-amber-600"
+                    >
+                      ✔ Terminar de plantear
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "deshacer_empezar"); }}
+                      className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-surface-3"
+                    >
+                      ↩ Deshacer (Volver a Sin Empezar)
+                    </button>
+                  </>
                 )}
 
                 {bucket === "planteando" && accionFacet && terminando && (

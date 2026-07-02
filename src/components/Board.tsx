@@ -329,6 +329,8 @@ export function Board({
             return { ...of, estado: "en_revision" };
           case "anular":
             return { ...of, estado: "anulada", fichandoRol: null };
+          case "deshacer_empezar":
+            return { ...of, estado: "pendiente", fichandoRol: null };
           default:
             return of;
         }
@@ -365,6 +367,8 @@ export function Board({
             return { ...ofObj, estado: "en_revision" };
           case "anular":
             return { ...ofObj, estado: "anulada", fichandoRol: null };
+          case "deshacer_empezar":
+            return { ...ofObj, estado: "pendiente", fichandoRol: null };
           default:
             return ofObj;
         }
