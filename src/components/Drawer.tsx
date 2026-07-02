@@ -93,7 +93,7 @@ export function Drawer({
             </a>
           )}
         </div>
-        <div className="flex-1">
+        <div className="min-h-0 flex-1">
           {esPdf ? (
             <iframe
               src={pedido.scanUrl}
@@ -102,13 +102,11 @@ export function Drawer({
               className="h-full w-full border-none bg-white"
             />
           ) : (
-            <div className="grid h-full place-items-center p-4 pt-16">
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="aspect-[210/297] max-h-full overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-white/20"
-              >
-                <PedidoScan pedido={pedido} />
-              </div>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="h-full w-full bg-[#525659] p-4 pt-16"
+            >
+              <PedidoScan pedido={pedido} />
             </div>
           )}
         </div>
