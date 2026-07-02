@@ -6,12 +6,10 @@ import { PedidoCard, type Facet } from "./PedidoCard";
 
 export function Bandeja({
   facets,
-  size,
   operarios,
   onOpen,
 }: {
   facets: Facet[];
-  size: number;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
 }) {
@@ -37,9 +35,10 @@ export function Bandeja({
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* rejilla fluida: llena todo el ancho de pantalla sin slider */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
         {facets.length === 0 ? (
-          <div className="grid min-h-24 w-full place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
+          <div className="col-span-full grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
             No hay partes sin asignar
           </div>
         ) : (
@@ -47,9 +46,8 @@ export function Bandeja({
             <PedidoCard
               key={f.pedido.id}
               facet={f}
-              size={size}
               operarios={operarios}
-              onOpen={() => onOpen(f)}
+              onOpen={onOpen}
               mostrarPrioridad
             />
           ))

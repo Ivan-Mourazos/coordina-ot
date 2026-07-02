@@ -1,10 +1,14 @@
 "use client";
 
+import { memo, useEffect, useRef, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { OF, Operario, Pedido } from "@/lib/types";
-import { OtPaper } from "./OtPaper";
-
-const BASE_W = 152; // px a tamaño 1.0
+import { PedidoScan } from "./PedidoScan";
+import { QuickLook } from "./QuickLook";
+import { FamiliaIcon } from "./FamiliaTag";
+import { LiveDot } from "./LiveBadge";
+import { ROL } from "@/lib/estado";
+import { familiaMeta } from "@/lib/familia";
 
 export interface Facet {
   pedido: Pedido;
@@ -19,16 +23,15 @@ export function dragIdOf(f: Facet) {
   return `${f.pedido.id}::${f.locationId ?? "none"}`;
 }
 
-/** Parte visual (reutilizada por la tarjeta y por el DragOverlay). */
-export function PedidoCardView({
+/** Parte visual (reutilizada por la tarjeta y por el DragOverlay). El ancho
+ *  lo pone el grid contenedor (tarjeta fluida, sin slider de tamaño). */
+export const PedidoCardView = memo(function PedidoCardView({
   facet,
-  size,
   operarios,
   dragging = false,
   mostrarPrioridad = false,
 }: {
   facet: Facet;
-  size: number;
   operarios: Operario[];
   dragging?: boolean;
   /** Muestra prioridad + atrasado junto al código (pensado para la bandeja
@@ -36,8 +39,6 @@ export function PedidoCardView({
   mostrarPrioridad?: boolean;
 }) {
   const { pedido, ofs } = facet;
-  const w = Math.round(BASE_W * size);
-  const h = Math.round(w * 1.414);
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
 
@@ -45,33 +46,47 @@ export function PedidoCardView({
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
+  const familias = [...new Set(ofs.map((o) => o.familia))];
 
   return (
-    <div style={{ width: w }} className="select-none">
+    <div className="w-full select-none">
       <div
-        style={{ height: h }}
-        className={`relative rounded-md bg-paper shadow-sm border-2 transition-shadow ${
+        className={`relative aspect-[210/297] w-full rounded-md bg-white shadow-sm ring-1 transition-shadow ${
           dragging
-            ? "shadow-xl border-brand-400"
-            : fichando
-              ? "border-emerald-400 hover:shadow-md"
-              : "border-border hover:shadow-md"
-        } ${atrasado ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zone" : ""}`}
+            ? "shadow-xl ring-brand-400"
+            : "ring-black/10 hover:shadow-lg dark:ring-white/10"
+        } ${atrasado ? "outline outline-2 outline-offset-2 outline-red-500/80" : ""}`}
       >
-        <OtPaper pedido={pedido} />
+        <PedidoScan pedido={pedido} />
+
+        {/* familias: para saber QUÉ es antes de cogerlo */}
+        <span className="absolute left-1 top-1 flex flex-col gap-0.5">
+          {familias.slice(0, 3).map((f) => (
+            <span
+              key={f}
+              title={familiaMeta(f).label}
+              className="grid size-5 place-items-center rounded-[5px] bg-white/95 shadow-sm ring-1 ring-black/10"
+            >
+              <FamiliaIcon familia={f} className="size-3.5" />
+            </span>
+          ))}
+        </span>
 
         {/* nº de OF */}
         {total > 1 && (
-          <span className="absolute right-1.5 top-1.5 rounded bg-text/85 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
+          <span className="absolute right-1 top-1 rounded bg-[#3b3a36]/85 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
             {parcial ? `${ofs.length}/${total}` : total} OF
           </span>
         )}
 
-        {/* fichando ahora (plantea / revisa) */}
-        {fichando && (
-          <span className="absolute left-1.5 bottom-1.5 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-            {fichando.fichandoRol === "revisar" ? "Revisa" : "Plantea"}
+        {/* fichando ahora, con el color del rol */}
+        {fichando?.fichandoRol && (
+          <span
+            className="absolute bottom-1 left-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
+            style={{ background: ROL[fichando.fichandoRol].color }}
+          >
+            <LiveDot rol={fichando.fichandoRol} className="size-1.5" />
+            {fichando.fichandoRol === "revisar" ? "Revisando" : "Planteando"}
           </span>
         )}
       </div>
@@ -87,7 +102,7 @@ export function PedidoCardView({
             </span>
           )}
           <span
-            className={`truncate text-[11px] font-semibold leading-tight ${
+            className={`truncate font-mono text-[11px] font-semibold leading-tight ${
               mostrarPrioridad && atrasado ? "text-red-600" : "text-text"
             }`}
           >
@@ -110,20 +125,19 @@ export function PedidoCardView({
       </div>
     </div>
   );
-}
+});
 
-/** Tarjeta arrastrable + clic para abrir detalle. */
-export function PedidoCard({
+/** Tarjeta arrastrable + clic para abrir detalle + Quick Look al mantener
+ *  el ratón (vista previa grande de la 1ª hoja del pedido). */
+export const PedidoCard = memo(function PedidoCard({
   facet,
-  size,
   operarios,
   onOpen,
   mostrarPrioridad = false,
 }: {
   facet: Facet;
-  size: number;
   operarios: Operario[];
-  onOpen: () => void;
+  onOpen: (f: Facet) => void;
   mostrarPrioridad?: boolean;
 }) {
   const id = dragIdOf(facet);
@@ -132,25 +146,51 @@ export function PedidoCard({
     data: { facet },
   });
 
+  const [peek, setPeek] = useState<DOMRect | null>(null);
+  const hoverTimer = useRef<number | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  function cancelPeek() {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+    setPeek(null);
+  }
+  useEffect(() => cancelPeek, []);
+  useEffect(() => {
+    if (isDragging) cancelPeek();
+  }, [isDragging]);
+
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => {
+        setNodeRef(el);
+        rootRef.current = el;
+      }}
       {...attributes}
       {...listeners}
-      onClick={onOpen}
+      onClick={() => onOpen(facet)}
+      onMouseEnter={() => {
+        hoverTimer.current = window.setTimeout(() => {
+          const rect = rootRef.current?.getBoundingClientRect();
+          if (rect) setPeek(rect);
+        }, 350);
+      }}
+      onMouseLeave={cancelPeek}
+      onMouseDown={cancelPeek}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpen();
+          onOpen(facet);
         }
       }}
-      className={`cursor-grab active:cursor-grabbing focus:outline-none ${
+      className={`cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
         isDragging ? "opacity-30" : ""
       }`}
     >
-      <PedidoCardView facet={facet} size={size} operarios={operarios} mostrarPrioridad={mostrarPrioridad} />
+      <PedidoCardView facet={facet} operarios={operarios} mostrarPrioridad={mostrarPrioridad} />
+      {peek && !isDragging && <QuickLook pedido={facet.pedido} anchor={peek} />}
     </div>
   );
-}
+});

@@ -3,6 +3,10 @@
 import type { EstadoOF, OF, Operario, Pedido } from "@/lib/types";
 import { ESTADO } from "@/lib/estado";
 import type { AccionOF } from "./Drawer";
+import { FamiliaIcon } from "./FamiliaTag";
+import { LiveDot } from "./LiveBadge";
+import { DevolverInline } from "./DevolverInline";
+import { Select, OpDot } from "./Select";
 
 interface RFacet {
   pedido: Pedido;
@@ -51,7 +55,7 @@ export function RevisionView({
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface p-3">
+      <div className="glass-panel mb-4 flex flex-wrap items-center gap-2 rounded-xl p-3">
         <span className="text-sm font-semibold text-text">Para revisar</span>
         <span className="flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
           <span className="size-2 rounded-full bg-amber-500" />
@@ -181,8 +185,14 @@ function ReviewCard({
         <ul className="mt-1.5 space-y-1">
           {ofs.map((of) => (
             <li key={of.id} className="flex items-center gap-1.5 text-[11px]">
+              <FamiliaIcon familia={of.familia} className="size-3" />
               <span className="font-mono text-text-muted">{of.codigo}</span>
               <span className="truncate text-text">{of.descripcion}</span>
+              {of.fichandoRol && (
+                <span title={of.fichandoRol === "revisar" ? "Revisando ahora" : "Planteando ahora"} className="inline-flex">
+                  <LiveDot rol={of.fichandoRol} className="size-1.5" />
+                </span>
+              )}
               <span className="ml-auto flex items-center gap-1">
                 <Avatar op={operarios.find((o) => o.id === of.autorId)} title="Autor" />
                 {of.revisorId && (
@@ -205,44 +215,33 @@ function ReviewCard({
       {/* acciones por columna */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {estado === "por_revisar" && (
-          <label className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+          <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
             Revisor:
-            <select
-              defaultValue=""
-              onChange={(e) => setRevisorTodas(e.target.value || null)}
-              className="ml-auto rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-text outline-none focus:border-brand-400"
-            >
-              <option value="" disabled>
-                Asignar…
-              </option>
-              {operarios
+            <Select
+              value={null}
+              onChange={(v) => setRevisorTodas(v)}
+              placeholder="Asignar…"
+              alignRight
+              className="ml-auto"
+              options={operarios
                 .filter((o) => !autores.has(o.id))
-                .map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.nombre}
-                    {o.id === miId ? " (tú)" : ""}
-                  </option>
-                ))}
-            </select>
-          </label>
+                .map((o) => ({
+                  value: o.id,
+                  label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+                  icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+                }))}
+            />
+          </div>
         )}
         {estado === "en_revision" && (
           <>
             <button
               onClick={() => accionTodas("aprobar")}
-              className="rounded-md bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+              className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
             >
               Aprobar
             </button>
-            <button
-              onClick={() => {
-                const obs = window.prompt("Motivo de la devolución:") ?? "";
-                accionTodas("devolver", obs);
-              }}
-              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700"
-            >
-              Devolver
-            </button>
+            <DevolverInline onDevolver={(obs) => accionTodas("devolver", obs)} />
           </>
         )}
         {estado === "aprobada" && (

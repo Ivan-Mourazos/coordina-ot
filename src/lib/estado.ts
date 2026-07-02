@@ -1,4 +1,4 @@
-import type { EstadoOF, OF } from "./types";
+import type { EstadoOF, OF, Rol } from "./types";
 
 // Clases Tailwind literales (deben aparecer como texto para que se compilen).
 export interface EstadoMeta {
@@ -58,6 +58,29 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     border: "border-red-500",
     chip: "bg-red-600 text-white",
     rank: 7,
+  },
+};
+
+// Código de color por ROL de fichaje, usado en toda la app: quien PLANTEA va
+// en esmeralda (= "en curso"), quien REVISA va en violeta (= "en revisión").
+// Mismo par de colores en tarjetas, chips, cabecera y drawer para que "quién
+// está fichando y con qué rol" se lea igual en todas partes.
+export interface RolMeta {
+  label: string; // "Planteando" / "Revisando"
+  color: string; // sólido para dots/anillos
+  chip: string; // clases del badge
+}
+
+export const ROL: Record<Rol, RolMeta> = {
+  plantear: {
+    label: "Planteando",
+    color: "#059669",
+    chip: "bg-emerald-600/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  },
+  revisar: {
+    label: "Revisando",
+    color: "#7c3aed",
+    chip: "bg-violet-600/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
   },
 };
 

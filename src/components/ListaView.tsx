@@ -3,6 +3,8 @@
 import type { Operario, Pedido } from "@/lib/types";
 import { estaAtrasado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, estadoRepresentativo, fmtMin } from "@/lib/estado";
+import { FamiliaTag } from "./FamiliaTag";
+import { LiveDot } from "./LiveBadge";
 
 function fmt(d: string) {
   const [, m, day] = d.split("-");
@@ -49,7 +51,7 @@ export function ListaView({
 }) {
   const hoy = hoyISO();
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-text-muted">
@@ -72,6 +74,7 @@ export function ListaView({
             const total = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
             const atrasado = estaAtrasado(p, hoy);
             const pendienteProc = p.situacion === "pendiente";
+            const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
             return (
               <tr
                 key={p.id}
@@ -90,9 +93,14 @@ export function ListaView({
                       }}
                       title={`Prioridad ${p.prioridad}`}
                     />
-                    <span className={`font-semibold ${atrasado ? "text-red-600" : "text-text"}`}>
+                    <span className={`font-mono font-semibold ${atrasado ? "text-red-600" : "text-text"}`}>
                       {p.codigo}
                     </span>
+                    {fichando && (
+                      <span title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"} className="inline-flex">
+                        <LiveDot rol={fichando} />
+                      </span>
+                    )}
                     {atrasado && (
                       <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
                         Atrasado
@@ -106,7 +114,13 @@ export function ListaView({
                   </div>
                 </Td>
                 <Td className="text-text">{p.cliente}</Td>
-                <Td className="text-text-muted">{familiasDe(p).join(", ")}</Td>
+                <Td>
+                  <div className="flex flex-wrap gap-1">
+                    {familiasDe(p).map((f) => (
+                      <FamiliaTag key={f} familia={f} />
+                    ))}
+                  </div>
+                </Td>
                 <Td className="text-center font-medium text-text">{p.ofs.length}</Td>
                 <Td>
                   <Avatares ids={p.ofs.map((o) => o.autorId)} operarios={operarios} />

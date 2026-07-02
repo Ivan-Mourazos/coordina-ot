@@ -2,6 +2,9 @@
 
 import type { EstadoOF, Familia } from "@/lib/types";
 import { ESTADO, ESTADOS_ORDEN } from "@/lib/estado";
+import { familiaMeta } from "@/lib/familia";
+import { Select } from "./Select";
+import { FamiliaIcon } from "./FamiliaTag";
 
 export type Orden = "planificacion" | "entrega" | "prioridad" | "cliente";
 export type SituacionFiltro = "procesado" | "pendiente" | "todos";
@@ -13,30 +16,13 @@ export interface Filtros {
   estado: EstadoOF | "todos";
   situacion: SituacionFiltro;
   orden: Orden;
-  size: number;
 }
 
-function Select({
-  label,
-  value,
-  onChange,
-  children,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  children: React.ReactNode;
-}) {
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex items-center gap-1.5 text-xs text-text-muted">
       <span className="font-medium">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-text outline-none focus:border-brand-400"
-      >
-        {children}
-      </select>
+      {children}
     </label>
   );
 }
@@ -55,90 +41,88 @@ export function FilterBar({
   showSituacion?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
       <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-muted"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+        </svg>
         <input
           value={filtros.query}
           onChange={(e) => setFiltros({ query: e.target.value })}
           placeholder="Buscar AR o cliente…"
-          className="w-52 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+          className="glass-chip w-56 rounded-lg py-1.5 pl-8 pr-3 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
         />
       </div>
 
-      <Select
-        label="Familia:"
-        value={filtros.familia}
-        onChange={(v) => setFiltros({ familia: v as Filtros["familia"] })}
-      >
-        <option value="todas">Todas</option>
-        {familias.map((f) => (
-          <option key={f} value={f}>
-            {f}
-          </option>
-        ))}
-      </Select>
+      <Campo label="Familia">
+        <Select
+          value={filtros.familia === "todas" ? null : filtros.familia}
+          onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
+          placeholder="Todas"
+          options={familias.map((f) => ({
+            value: f,
+            label: familiaMeta(f).label,
+            icon: <FamiliaIcon familia={f} className="size-3.5" />,
+          }))}
+        />
+      </Campo>
 
-      <Select
-        label="Cliente:"
-        value={filtros.cliente}
-        onChange={(v) => setFiltros({ cliente: v })}
-      >
-        <option value="todos">Todos</option>
-        {clientes.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </Select>
+      <Campo label="Cliente">
+        <Select
+          value={filtros.cliente === "todos" ? null : filtros.cliente}
+          onChange={(v) => setFiltros({ cliente: v ?? "todos" })}
+          placeholder="Todos"
+          options={clientes.map((c) => ({ value: c, label: c }))}
+        />
+      </Campo>
 
-      <Select
-        label="Estado:"
-        value={filtros.estado}
-        onChange={(v) => setFiltros({ estado: v as Filtros["estado"] })}
-      >
-        <option value="todos">Todos</option>
-        {ESTADOS_ORDEN.map((e) => (
-          <option key={e} value={e}>
-            {ESTADO[e].label}
-          </option>
-        ))}
-      </Select>
+      <Campo label="Estado">
+        <Select
+          value={filtros.estado === "todos" ? null : filtros.estado}
+          onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
+          placeholder="Todos"
+          options={ESTADOS_ORDEN.map((e) => ({
+            value: e,
+            label: ESTADO[e].label,
+            icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
+          }))}
+        />
+      </Campo>
 
       {showSituacion && (
-        <Select
-          label="Situación:"
-          value={filtros.situacion}
-          onChange={(v) => setFiltros({ situacion: v as SituacionFiltro })}
-        >
-          <option value="procesado">Procesados</option>
-          <option value="pendiente">Pendientes de procesar</option>
-          <option value="todos">Todos</option>
-        </Select>
+        <Campo label="Situación">
+          <Select
+            value={filtros.situacion === "todos" ? null : filtros.situacion}
+            onChange={(v) => setFiltros({ situacion: (v as SituacionFiltro) ?? "todos" })}
+            placeholder="Todos"
+            options={[
+              { value: "procesado", label: "Procesados" },
+              { value: "pendiente", label: "Pendientes de procesar" },
+            ]}
+          />
+        </Campo>
       )}
 
-      <Select
-        label="Orden:"
-        value={filtros.orden}
-        onChange={(v) => setFiltros({ orden: v as Orden })}
-      >
-        <option value="planificacion">Planificación</option>
-        <option value="entrega">Data de entrega</option>
-        <option value="prioridad">Prioridad</option>
-        <option value="cliente">Cliente</option>
-      </Select>
-
-      <label className="flex items-center gap-2 text-xs text-text-muted">
-        <span className="font-medium">Tamaño:</span>
-        <input
-          type="range"
-          min={0.7}
-          max={1.6}
-          step={0.05}
-          value={filtros.size}
-          onChange={(e) => setFiltros({ size: Number(e.target.value) })}
-          className="w-28 accent-brand-500"
+      <Campo label="Orden">
+        <Select
+          value={filtros.orden}
+          onChange={(v) => setFiltros({ orden: (v as Orden) ?? "planificacion" })}
+          placeholder={null}
+          options={[
+            { value: "planificacion", label: "Planificación" },
+            { value: "entrega", label: "Fecha de entrega" },
+            { value: "prioridad", label: "Prioridad" },
+            { value: "cliente", label: "Cliente" },
+          ]}
         />
-      </label>
+      </Campo>
     </div>
   );
 }

@@ -4,64 +4,62 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* CoordinaOT brand gold (from logo) */
-  --color-brand-50: #fbf6e9;
-  --color-brand-100: #f5e7c2;
-  --color-brand-200: #ecd28c;
-  --color-brand-300: #e3bd56;
-  --color-brand-400: #dca72c;
-  --color-brand-500: #d39a1c;
-  --color-brand-600: #b8841a;
-  --color-brand-700: #946218;
-  --color-brand-800: #6f4915;
-  --color-brand-900: #4a3010;
+  /* Dorado CoordinaOT, calibrado al logo real (public/coordina-*.png) */
+  --color-brand-50: #fdf8ec;
+  --color-brand-100: #fbeecd;
+  --color-brand-200: #f8df9d;
+  --color-brand-300: #f5cd66;
+  --color-brand-400: #f2b234;
+  --color-brand-500: #e79f1a;
+  --color-brand-600: #c78312;
+  --color-brand-700: #9e6512;
+  --color-brand-800: #764a12;
+  --color-brand-900: #4e300e;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Semantic surface tokens, themable */
+/* ── Tokens semánticos, tematizables ──
+   Claro  = "plata glass": neutros fríos, paneles blancos translúcidos.
+   Oscuro = "carbón premium": grafito profundo, hairlines, dorado del logo. */
 :root {
-  --bg: #efece6; /* warm neutral office */
+  --bg: #edeff2;
+  --bg-glow: #f7f8fa; /* foco de luz ambiental del fondo */
   --surface: #ffffff;
-  --surface-2: #f3f1ec;
-  --zone: #f6f4f0;
-  --border: #e2ddd4;
-  --border-strong: #cfc8bb;
-  --text: #2a2620;
-  --text-muted: #7c756a;
-  --paper: #ffffff;
-  --paper-line: #e9e6df;
+  --surface-2: #f4f5f7;
+  --zone: #f7f8fa;
+  --border: #e2e4e9;
+  --border-strong: #c8ccd4;
+  --text: #17181c;
+  --text-muted: #676c76;
 
-  /* Frosted-glass shelving (Asignar panels): the workbench "glass tray" the
-     paper dispatch slips rest on. Translucent + saturated + a hairline
-     specular highlight along the top edge, like light catching glass. */
-  --glass-bg: rgba(255, 255, 255, 0.5);
-  --glass-bg-strong: rgba(255, 255, 255, 0.68);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-highlight: rgba(255, 255, 255, 0.9);
-  --glass-shadow: rgba(80, 65, 40, 0.16);
-  --glass-chip: rgba(255, 255, 255, 0.82);
+  /* Vidrio: translúcido + saturado + highlight especular en el canto */
+  --glass-bg: rgba(255, 255, 255, 0.52);
+  --glass-bg-strong: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-highlight: rgba(255, 255, 255, 0.95);
+  --glass-shadow: rgba(24, 32, 48, 0.14);
+  --glass-chip: rgba(255, 255, 255, 0.85);
 }
 
 .dark {
-  --bg: #14130f;
-  --surface: #1d1b16;
-  --surface-2: #24211b;
-  --zone: #1a1813;
-  --border: #322e25;
-  --border-strong: #44402f;
-  --text: #ece8df;
-  --text-muted: #9b9382;
-  --paper: #201d17;
-  --paper-line: #2c281f;
+  --bg: #0b0c0e;
+  --bg-glow: #16181c;
+  --surface: #151619;
+  --surface-2: #1c1e22;
+  --zone: #101114;
+  --border: #24262b;
+  --border-strong: #383b42;
+  --text: #eef0f2;
+  --text-muted: #989ea8;
 
-  --glass-bg: rgba(38, 35, 28, 0.55);
-  --glass-bg-strong: rgba(38, 35, 28, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-highlight: rgba(255, 255, 255, 0.14);
-  --glass-shadow: rgba(0, 0, 0, 0.45);
-  --glass-chip: rgba(58, 54, 44, 0.72);
+  --glass-bg: rgba(22, 24, 28, 0.55);
+  --glass-bg-strong: rgba(20, 22, 26, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-highlight: rgba(255, 255, 255, 0.12);
+  --glass-shadow: rgba(0, 0, 0, 0.65);
+  --glass-chip: rgba(32, 35, 41, 0.85);
 }
 
 @theme inline {
@@ -73,8 +71,6 @@
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
-  --color-paper: var(--paper);
-  --color-paper-line: var(--paper-line);
 }
 
 html,
@@ -83,37 +79,47 @@ body {
 }
 
 body {
-  background: var(--bg);
+  /* Luz ambiental sutil arriba-izquierda: da profundidad al vidrio */
+  background:
+    radial-gradient(1100px 700px at 18% -12%, var(--bg-glow), transparent 60%),
+    var(--bg);
   color: var(--text);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Glass shelf: the frosted panel material for técnico zones, equipo chips
-   and the bandeja tray. Inset top highlight mimics a specular edge on glass;
-   outer shadow lifts it off the workbench background. */
+::selection {
+  background: color-mix(in srgb, var(--color-brand-400) 30%, transparent);
+}
+
+/* Foco de teclado consistente en toda la app */
+:focus-visible {
+  outline: 2px solid var(--color-brand-400);
+  outline-offset: 1px;
+}
+
+/* ── Vidrio ──
+   Panel: bandeja/estantería sobre la que descansan los partes. */
 .glass-panel {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
-    0 8px 30px -14px var(--glass-shadow);
+    0 10px 34px -16px var(--glass-shadow);
 }
 
 .glass-panel-strong {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
-    0 8px 30px -14px var(--glass-shadow);
+    0 10px 34px -16px var(--glass-shadow);
 }
 
-/* Compact order chip: a lighter tile that reads as a card resting ON the
-   frosted shelf, not another sheet of glass. Solid-ish surface tint so text
-   stays crisp; lifts on hover. */
+/* Ficha compacta: tile casi sólido que descansa SOBRE el vidrio */
 .glass-chip {
   background: var(--glass-chip);
   border: 1px solid var(--glass-border);
@@ -123,13 +129,87 @@ body {
   box-shadow: 0 6px 18px -8px var(--glass-shadow);
 }
 
-/* Header: same glass recipe, edge-to-edge (no side borders/radius, just the
-   bottom hairline the shelf panels sit under). */
+/* Cabecera: mismo vidrio, de canto a canto */
 .glass-header {
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   box-shadow: inset 0 -1px 0 0 var(--glass-border);
+}
+
+/* Popover flotante (selects, notificaciones, paneles de equipo) */
+.glass-pop {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 18px 50px -18px var(--glass-shadow);
+  animation: pop-in 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transform-origin: top;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Drawer de detalle: overlay + panel entrando desde la derecha */
+.overlay-in {
+  animation: overlay-in 160ms ease-out;
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.drawer-in {
+  animation: drawer-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes drawer-in {
+  from {
+    opacity: 0.4;
+    transform: translateX(48px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Quick Look: la hoja crece suavemente desde la tarjeta */
+.quicklook {
+  pointer-events: none;
+  animation: quicklook-in 160ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transform-origin: left center;
+}
+@keyframes quicklook-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quicklook,
+  .glass-pop,
+  .overlay-in,
+  .drawer-in {
+    animation: none;
+  }
 }
 
 /* thin scrollbars inside zones */

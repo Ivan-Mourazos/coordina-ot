@@ -2,19 +2,25 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
+import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
+import type { LiveInfo } from "./Board";
 import { PedidosPorEstado } from "./PedidosPorEstado";
+import { LiveDot } from "./LiveBadge";
 
 export function Zona({
   operario,
   operarios,
   facets,
+  live,
   soyYo = false,
   onOpen,
 }: {
   operario: Operario;
   operarios: Operario[];
   facets: Facet[];
+  /** Si este técnico está fichando ahora mismo (y en qué). */
+  live?: LiveInfo | null;
   /** Destaca esta zona como la del técnico actual (panel grande de Asignar). */
   soyYo?: boolean;
   onOpen: (f: Facet) => void;
@@ -45,6 +51,16 @@ export function Zona({
         {soyYo && (
           <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-600">
             Tú
+          </span>
+        )}
+        {live && (
+          <span
+            className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold"
+            style={{ color: ROL[live.rol].color, background: `${ROL[live.rol].color}1a` }}
+            title={`${ROL[live.rol].label} ${live.pedido.codigo} · ${live.of.descripcion}`}
+          >
+            <LiveDot rol={live.rol} className="size-1.5" />
+            {ROL[live.rol].label} {live.pedido.codigo}
           </span>
         )}
         <span className="ml-auto rounded-full bg-[var(--glass-highlight)] px-2 py-0.5 text-[11px] font-medium text-text-muted">

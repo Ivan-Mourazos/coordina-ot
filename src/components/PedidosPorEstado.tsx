@@ -65,7 +65,7 @@ export function PedidosPorEstado({
                   key={f.pedido.id}
                   facet={f}
                   operarios={operarios}
-                  onOpen={() => onOpen(f)}
+                  onOpen={onOpen}
                 />
               ))}
             </div>
@@ -96,7 +96,7 @@ export function PedidosPorEstado({
                   key={f.pedido.id}
                   facet={f}
                   operarios={operarios}
-                  onOpen={() => onOpen(f)}
+                  onOpen={onOpen}
                 />
               ))
             )}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { OF, Pedido } from "@/lib/types";
 import type { Vista } from "./ViewSwitcher";
+import { usePopover } from "@/lib/usePopover";
 
 export type NotifTipo = "revisar" | "devuelta" | "sinEmpezar";
 
@@ -27,17 +27,7 @@ export function Notificaciones({
   items: NotifItem[];
   onNavigate: (vista: Vista, pedidoId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
+  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
   return (
     <div ref={ref} className="relative">
@@ -45,7 +35,7 @@ export function Notificaciones({
         onClick={() => setOpen((v) => !v)}
         aria-label="Notificaciones"
         title="Tus avisos"
-        className="relative grid size-9 place-items-center rounded-lg border border-border bg-surface text-text-muted hover:border-border-strong hover:text-text"
+        className="glass-chip relative grid size-9 place-items-center rounded-lg text-text-muted hover:text-text"
       >
         <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
@@ -59,7 +49,7 @@ export function Notificaciones({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1.5 w-80 rounded-lg border border-border bg-surface p-1 shadow-lg">
+        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-80 rounded-xl p-1">
           {items.length === 0 ? (
             <p className="px-2 py-3 text-center text-xs text-text-muted">Sin avisos pendientes</p>
           ) : (
@@ -73,7 +63,7 @@ export function Notificaciones({
                         onNavigate(meta.vista, item.pedido.id);
                         setOpen(false);
                       }}
-                      className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-surface-2"
+                      className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
                     >
                       <span className={`mt-1 size-2 shrink-0 rounded-full ${meta.dot}`} />
                       <span className="min-w-0">

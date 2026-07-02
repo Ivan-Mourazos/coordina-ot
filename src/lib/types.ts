@@ -89,6 +89,10 @@ export interface Pedido {
   prioridad: Prioridad;
   ofs: OF[];
 
+  /** URL de la 1ª página del PDF del pedido (foto). Cuando RPS la dé, la
+   *  tarjeta muestra la imagen real en lugar de la réplica dibujada. */
+  scanUrl?: string;
+
   // --- pistas visuales para simular el "parte escaneado" ---
   accent: "verde" | "rojo" | "azul" | "ninguno"; // círculo a mano del scan
   lineas: number; // nº de renglones de texto manuscrito simulado

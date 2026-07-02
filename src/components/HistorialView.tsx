@@ -3,6 +3,7 @@
 import type { Operario, Pedido } from "@/lib/types";
 import { estaFinalizado, tiempoTotalOF, tiempoTotalPedido } from "@/lib/types";
 import { fmtMin } from "@/lib/estado";
+import { FamiliaTag } from "./FamiliaTag";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -74,9 +75,7 @@ export function HistorialView({
               <li key={of.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="flex min-w-48 items-center gap-2">
                   <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-                  <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
-                    {of.familia}
-                  </span>
+                  <FamiliaTag familia={of.familia} />
                   <span className="text-sm text-text">{of.descripcion}</span>
                 </div>
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  // Solo se monta tras hidratar (gate de Board), así que puede leer la clase
+  // del <html> directamente en el primer render sin desajustes con el SSR.
+  const [dark, setDark] = useState(() =>
+    typeof document !== "undefined"
+      ? document.documentElement.classList.contains("dark")
+      : false,
+  );
 
   function toggle() {
     const next = !dark;
@@ -23,7 +25,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label="Cambiar tema"
       title="Cambiar tema"
-      className="grid size-9 place-items-center rounded-lg border border-border bg-surface text-text-muted transition-colors hover:text-text hover:border-border-strong"
+      className="glass-chip grid size-9 place-items-center rounded-lg text-text-muted transition-colors hover:text-text"
     >
       {dark ? (
         <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">

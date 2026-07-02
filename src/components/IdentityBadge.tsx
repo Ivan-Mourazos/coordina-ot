@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { Operario } from "@/lib/types";
+import { usePopover } from "@/lib/usePopover";
 
 /** Control de cabecera: quién eres ahora mismo + desplegable para cambiar
  *  de técnico sin volver a la pantalla de selección inicial. */
@@ -14,23 +14,13 @@ export function IdentityBadge({
   operarios: Operario[];
   onChange: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
+  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-lg border border-border bg-surface py-1 pl-1 pr-2 text-xs font-semibold text-text hover:border-border-strong"
+        className="glass-chip flex items-center gap-1.5 rounded-lg py-1 pl-1 pr-2 text-xs font-semibold text-text"
         title="Cambiar de técnico"
       >
         <span
@@ -42,7 +32,7 @@ export function IdentityBadge({
         {yo.nombre}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1.5 w-44 rounded-lg border border-border bg-surface p-1 shadow-lg">
+        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-44 rounded-xl p-1">
           <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             Cambiar de técnico
           </p>
@@ -53,7 +43,7 @@ export function IdentityBadge({
                 onChange(op.id);
                 setOpen(false);
               }}
-              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium hover:bg-surface-2 ${
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
                 op.id === yo.id ? "text-brand-600" : "text-text"
               }`}
             >

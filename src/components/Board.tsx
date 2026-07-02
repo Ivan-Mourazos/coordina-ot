@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -11,8 +11,9 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import type { EstadoOF, Familia, OF, Operario, Pedido } from "@/lib/types";
-import { estaAtrasado, estaFinalizado, hoyISO, ofsDe } from "@/lib/types";
+import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
+import { estaAtrasado, estaFinalizado, hoyISO } from "@/lib/types";
+import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher, type Vista } from "./ViewSwitcher";
@@ -26,11 +27,20 @@ import { Drawer, type AccionOF } from "./Drawer";
 import { PedidoCardView, type Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
-import { EquipoChip } from "./EquipoChip";
+import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones, type NotifItem } from "./Notificaciones";
+import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 
 const IDENTITY_KEY = "coordina-operario-id";
+
+/** Quién está fichando ahora mismo: en qué OF y con qué rol. */
+export interface LiveInfo {
+  operario: Operario;
+  rol: Rol;
+  pedido: Pedido;
+  of: OF;
+}
 
 function leerIdentidadGuardada(): string | null {
   if (typeof window === "undefined") return null;
@@ -54,28 +64,22 @@ export function Board({
   const mounted = useHydrated();
 
   // Identidad del técnico ("login sin login"): se recuerda por navegador,
-  // igual que el tema. No hay backend de autenticación real detrás. Se lee
-  // con un inicializador perezoso (no en un efecto) para que coincida desde
-  // el primer render tras la hidratación, sin parpadeo de la pantalla de
-  // selección.
+  // igual que el tema. Se lee con inicializador perezoso para que coincida
+  // desde el primer render tras la hidratación, sin parpadeo.
   const [miId, setMiIdState] = useState<string | null>(leerIdentidadGuardada);
-  function setMiId(id: string) {
+  const setMiId = useCallback((id: string) => {
     setMiIdState(id);
     try {
       localStorage.setItem(IDENTITY_KEY, id);
     } catch {}
-  }
+  }, []);
 
-  // Qué zonas de compañeros están expandidas en la vista Asignar.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  function toggleExpanded(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  // Panel de compañero desplegado en Asignar: solo uno a la vez.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, []);
+  const closeExpanded = useCallback(() => setExpandedId(null), []);
 
   const [vista, setVista] = useState<Vista>("asignar");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -87,9 +91,11 @@ export function Board({
     estado: "todos",
     situacion: "procesado",
     orden: "planificacion",
-    size: 0.75,
   });
-  const setFiltros = (f: Partial<Filtros>) => setFiltrosState((prev) => ({ ...prev, ...f }));
+  const setFiltros = useCallback(
+    (f: Partial<Filtros>) => setFiltrosState((prev) => ({ ...prev, ...f })),
+    [],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -151,21 +157,39 @@ export function Board({
     return [...base].sort(cmpPedido);
   }, [pedidosFiltrados, filtros.situacion, cmpPedido]);
 
-  function facetsFor(autorId: string | null): Facet[] {
-    return pedidosOrdenados
-      .filter((p) => !estaFinalizado(p)) // los finalizados viven en Historial
-      .map((p) => ({
-        pedido: p,
-        locationId: autorId,
-        ofs: ofsDe(p, autorId),
-        atrasado: estaAtrasado(p, hoy),
-      }))
-      .filter((f) => f.ofs.length > 0);
-  }
-  const bandejaFacets = facetsFor(null);
+  // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
+  // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.
+  const facetsByLoc = useMemo(() => {
+    const map = new Map<string | null, Facet[]>();
+    for (const p of pedidosOrdenados) {
+      if (estaFinalizado(p)) continue; // los finalizados viven en Historial
+      const atrasado = estaAtrasado(p, hoy);
+      const porLoc = new Map<string | null, OF[]>();
+      for (const of of p.ofs) {
+        const loc = of.autorId;
+        const arr = porLoc.get(loc);
+        if (arr) arr.push(of);
+        else porLoc.set(loc, [of]);
+      }
+      for (const [loc, ofs] of porLoc) {
+        const facet: Facet = { pedido: p, locationId: loc, ofs, atrasado };
+        const arr = map.get(loc);
+        if (arr) arr.push(facet);
+        else map.set(loc, [facet]);
+      }
+    }
+    return map;
+  }, [pedidosOrdenados, hoy]);
+  const facetsDe = useCallback(
+    (loc: string | null) => facetsByLoc.get(loc) ?? [],
+    [facetsByLoc],
+  );
 
   // KPIs (solo sobre pedidos procesados = trabajo real de OT)
-  const procesadosAll = pedidos.filter((p) => p.situacion === "procesado");
+  const procesadosAll = useMemo(
+    () => pedidos.filter((p) => p.situacion === "procesado"),
+    [pedidos],
+  );
   const countEstado = (e: EstadoOF) =>
     procesadosAll.reduce((n, p) => n + p.ofs.filter((o) => o.estado === e).length, 0);
   const sinAsignar = procesadosAll.reduce(
@@ -175,108 +199,149 @@ export function Board({
   const porRevisar = countEstado("por_revisar");
   const enRevision = countEstado("en_revision");
 
+  // ── Quién ficha AHORA (para tarjetas de equipo y cluster "En directo") ──
+  const liveByOp = useMemo(() => {
+    const map = new Map<string, LiveInfo>();
+    for (const p of procesadosAll) {
+      for (const of of p.ofs) {
+        if (!of.fichandoRol) continue;
+        const opId = of.fichandoRol === "plantear" ? of.autorId : of.revisorId;
+        const op = operarios.find((o) => o.id === opId);
+        if (op && !map.has(op.id)) {
+          map.set(op.id, { operario: op, rol: of.fichandoRol, pedido: p, of });
+        }
+      }
+    }
+    return map;
+  }, [procesadosAll, operarios]);
+
   // ── Notificaciones personales (según quién eres ahora mismo) ──
-  function ofsPersonales(pred: (of: OF) => boolean): { pedido: Pedido; of: OF }[] {
-    const out: { pedido: Pedido; of: OF }[] = [];
-    procesadosAll.forEach((p) =>
-      p.ofs.forEach((of) => {
-        if (pred(of)) out.push({ pedido: p, of });
-      }),
-    );
+  const notifItems: NotifItem[] = useMemo(() => {
+    if (!miId) return [];
+    const out: NotifItem[] = [];
+    for (const p of procesadosAll) {
+      for (const of of p.ofs) {
+        if (of.revisorId === miId && of.estado === "en_revision")
+          out.push({ pedido: p, of, tipo: "revisar" });
+        else if (of.autorId === miId && of.estado === "devuelta")
+          out.push({ pedido: p, of, tipo: "devuelta" });
+        else if (of.autorId === miId && of.estado === "en_curso" && of.tiempoPlanteoMin === 0)
+          out.push({ pedido: p, of, tipo: "sinEmpezar" });
+      }
+    }
     return out;
-  }
-  const itemsPorRevisar = miId
-    ? ofsPersonales((of) => of.revisorId === miId && of.estado === "en_revision")
-    : [];
-  const itemsDevueltas = miId
-    ? ofsPersonales((of) => of.autorId === miId && of.estado === "devuelta")
-    : [];
-  const itemsSinEmpezar = miId
-    ? ofsPersonales(
-        (of) => of.autorId === miId && of.estado === "en_curso" && of.tiempoPlanteoMin === 0,
-      )
-    : [];
-  const misPorRevisar = itemsPorRevisar.length;
-  const misDevueltas = itemsDevueltas.length;
-  const notifItems: NotifItem[] = [
-    ...itemsPorRevisar.map((x) => ({ ...x, tipo: "revisar" as const })),
-    ...itemsDevueltas.map((x) => ({ ...x, tipo: "devuelta" as const })),
-    ...itemsSinEmpezar.map((x) => ({ ...x, tipo: "sinEmpezar" as const })),
-  ];
-  function irANotificacion(destino: Vista, pedidoId: string) {
+  }, [procesadosAll, miId]);
+  const misPorRevisar = notifItems.filter((i) => i.tipo === "revisar").length;
+  const misDevueltas = notifItems.filter((i) => i.tipo === "devuelta").length;
+
+  const irANotificacion = useCallback((destino: Vista, pedidoId: string) => {
     setVista(destino);
     setOpenId(pedidoId);
-  }
+  }, []);
+  const openFacet = useCallback((f: Facet) => setOpenId(f.pedido.id), []);
+  const openPedidoCb = useCallback((p: Pedido) => setOpenId(p.id), []);
+  const closeDrawer = useCallback(() => setOpenId(null), []);
 
   // ── mutaciones (futuro: persistir en SQL Server) ──
-  function mut(ofIds: Set<string>, fn: (of: Pedido["ofs"][number]) => Pedido["ofs"][number]) {
-    setPedidos((prev) =>
-      prev.map((p) => ({
-        ...p,
-        ofs: p.ofs.map((of) => (ofIds.has(of.id) ? fn(of) : of)),
-      })),
-    );
-  }
-  function moverOFs(ofIds: Set<string>, autorId: string | null) {
-    mut(ofIds, (of) =>
-      autorId === null
-        ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
-        : { ...of, autorId, estado: of.estado === "pendiente" ? "en_curso" : of.estado },
-    );
-  }
-  function asignarOF(ofId: string, autorId: string | null) {
-    moverOFs(new Set([ofId]), autorId);
-  }
-  function asignarPedido(autorId: string | null) {
-    const p = pedidos.find((x) => x.id === openId);
-    if (p) moverOFs(new Set(p.ofs.map((o) => o.id)), autorId);
-  }
-  function setRevisor(ofId: string, revisorId: string | null) {
-    mut(new Set([ofId]), (of) => ({
-      ...of,
-      revisorId,
-      estado:
-        revisorId && of.estado === "por_revisar"
-          ? "en_revision"
-          : !revisorId && of.estado === "en_revision"
-            ? "por_revisar"
-            : of.estado,
-    }));
-  }
-  function accionOF(ofId: string, accion: AccionOF, obs?: string) {
-    mut(new Set([ofId]), (of) => {
-      switch (accion) {
-        case "terminar":
-          return { ...of, estado: "por_revisar", fichandoRol: null };
-        case "aprobar":
-          return { ...of, estado: "aprobada", fichandoRol: null };
-        case "devolver":
-          return {
-            ...of,
-            estado: "devuelta",
-            observacion: obs?.trim() || "Devuelta para corregir.",
-            fichandoRol: null,
-          };
-        case "reabrir":
-          return { ...of, estado: "en_revision" };
-        default:
-          return of;
-      }
-    });
-  }
+  const mut = useCallback(
+    (ofIds: Set<string>, fn: (of: OF) => OF) => {
+      setPedidos((prev) =>
+        prev.map((p) => ({
+          ...p,
+          ofs: p.ofs.map((of) => (ofIds.has(of.id) ? fn(of) : of)),
+        })),
+      );
+    },
+    [],
+  );
+  const moverOFs = useCallback(
+    (ofIds: Set<string>, autorId: string | null) => {
+      mut(ofIds, (of) =>
+        autorId === null
+          ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
+          : { ...of, autorId, estado: of.estado === "pendiente" ? "en_curso" : of.estado },
+      );
+    },
+    [mut],
+  );
+  const asignarOF = useCallback(
+    (ofId: string, autorId: string | null) => moverOFs(new Set([ofId]), autorId),
+    [moverOFs],
+  );
+  const asignarPedido = useCallback(
+    (autorId: string | null) => {
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id !== openId
+            ? p
+            : {
+                ...p,
+                ofs: p.ofs.map((of) =>
+                  autorId === null
+                    ? { ...of, autorId: null, revisorId: null, estado: "pendiente" as const, fichandoRol: null }
+                    : { ...of, autorId, estado: of.estado === "pendiente" ? ("en_curso" as const) : of.estado },
+                ),
+              },
+        ),
+      );
+    },
+    [openId],
+  );
+  const setRevisor = useCallback(
+    (ofId: string, revisorId: string | null) => {
+      mut(new Set([ofId]), (of) => ({
+        ...of,
+        revisorId,
+        estado:
+          revisorId && of.estado === "por_revisar"
+            ? "en_revision"
+            : !revisorId && of.estado === "en_revision"
+              ? "por_revisar"
+              : of.estado,
+      }));
+    },
+    [mut],
+  );
+  const accionOF = useCallback(
+    (ofId: string, accion: AccionOF, obs?: string) => {
+      mut(new Set([ofId]), (of) => {
+        switch (accion) {
+          case "terminar":
+            return { ...of, estado: "por_revisar", fichandoRol: null };
+          case "aprobar":
+            return { ...of, estado: "aprobada", fichandoRol: null };
+          case "devolver":
+            return {
+              ...of,
+              estado: "devuelta",
+              observacion: obs?.trim() || "Devuelta para corregir.",
+              fichandoRol: null,
+            };
+          case "reabrir":
+            return { ...of, estado: "en_revision" };
+          default:
+            return of;
+        }
+      });
+    },
+    [mut],
+  );
 
-  function onDragStart(e: DragStartEvent) {
+  const onDragStart = useCallback((e: DragStartEvent) => {
     setActive((e.active.data.current?.facet as Facet) ?? null);
-  }
-  function onDragEnd(e: DragEndEvent) {
-    const facet = e.active.data.current?.facet as Facet | undefined;
-    const overId = e.over?.id;
-    setActive(null);
-    if (!facet || overId == null) return;
-    const target = overId === "bandeja" ? null : String(overId);
-    if (target === facet.locationId) return;
-    moverOFs(new Set(facet.ofs.map((o) => o.id)), target);
-  }
+  }, []);
+  const onDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      const facet = e.active.data.current?.facet as Facet | undefined;
+      const overId = e.over?.id;
+      setActive(null);
+      if (!facet || overId == null) return;
+      const target = overId === "bandeja" ? null : String(overId);
+      if (target === facet.locationId) return;
+      moverOFs(new Set(facet.ofs.map((o) => o.id)), target);
+    },
+    [moverOFs],
+  );
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
 
@@ -298,6 +363,7 @@ export function Board({
   }
   const yo = operarios.find((o) => o.id === miId) as Operario;
   const resto = operarios.filter((o) => o.id !== miId);
+  const lives = [...liveByOp.values()];
 
   return (
     <DndContext
@@ -309,13 +375,42 @@ export function Board({
       <div className="flex min-h-full flex-col">
         {/* topbar */}
         <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
-          <Logo />
+          {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
+          <Logo className="-my-3" />
           <ViewSwitcher
             vista={vista}
             onChange={setVista}
             badge={{ revision: misPorRevisar, asignar: misDevueltas }}
           />
           <div className="ml-auto flex items-center gap-2 text-xs">
+            {/* En directo: quién está fichando ahora mismo y con qué rol */}
+            {lives.length > 0 && (
+              <div
+                className="glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+                title="Fichando ahora mismo"
+              >
+                <span className="text-[11px] text-text-muted">En directo</span>
+                <div className="flex -space-x-1">
+                  {lives.map((l) => (
+                    <button
+                      key={l.operario.id}
+                      onClick={() => setOpenId(l.pedido.id)}
+                      title={`${l.operario.nombre} — ${ROL[l.rol].label.toLowerCase()} ${l.pedido.codigo} · ${l.of.descripcion}`}
+                      className="relative grid size-6 place-items-center rounded-full text-[9px] font-bold text-white ring-2 transition-transform hover:z-10 hover:scale-110"
+                      style={{
+                        background: l.operario.color,
+                        ["--tw-ring-color" as string]: ROL[l.rol].color,
+                      }}
+                    >
+                      {l.operario.iniciales}
+                      <span className="absolute -right-0.5 -top-0.5">
+                        <LiveDot rol={l.rol} className="size-2" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
             <Kpi label="Por revisar" value={porRevisar} tone="amber" />
             <Kpi label="En revisión" value={enRevision} tone="violet" />
@@ -332,9 +427,10 @@ export function Board({
               <Zona
                 operario={yo}
                 operarios={operarios}
-                facets={facetsFor(yo.id)}
+                facets={facetsDe(yo.id)}
+                live={liveByOp.get(yo.id) ?? null}
                 soyYo
-                onOpen={(f) => setOpenId(f.pedido.id)}
+                onOpen={openFacet}
               />
 
               <div>
@@ -343,14 +439,16 @@ export function Board({
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {resto.map((op) => (
-                    <EquipoChip
+                    <TecnicoCard
                       key={op.id}
                       operario={op}
                       operarios={operarios}
-                      facets={facetsFor(op.id)}
-                      expanded={expanded.has(op.id)}
+                      facets={facetsDe(op.id)}
+                      live={liveByOp.get(op.id) ?? null}
+                      expanded={expandedId === op.id}
                       onToggle={() => toggleExpanded(op.id)}
-                      onOpen={(f) => setOpenId(f.pedido.id)}
+                      onClose={closeExpanded}
+                      onOpen={openFacet}
                     />
                   ))}
                 </div>
@@ -361,12 +459,7 @@ export function Board({
                 <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
-                <Bandeja
-                  facets={bandejaFacets}
-                  size={filtros.size}
-                  operarios={operarios}
-                  onOpen={(f) => setOpenId(f.pedido.id)}
-                />
+                <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} />
               </div>
             </div>
           </>
@@ -379,7 +472,7 @@ export function Board({
               <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showSituacion />
             </div>
             <div className="p-5">
-              <ListaView pedidos={listaOrdenados} operarios={operarios} onOpen={(p) => setOpenId(p.id)} />
+              <ListaView pedidos={listaOrdenados} operarios={operarios} onOpen={openPedidoCb} />
             </div>
           </>
         )}
@@ -395,7 +488,7 @@ export function Board({
                 pedidos={pedidosOrdenados}
                 operarios={operarios}
                 miId={miId}
-                onOpen={(p) => setOpenId(p.id)}
+                onOpen={openPedidoCb}
                 onSetRevisor={setRevisor}
                 onAccion={accionOF}
               />
@@ -410,7 +503,7 @@ export function Board({
               <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
             </div>
             <div className="p-5">
-              <HistorialView pedidos={pedidosOrdenados} operarios={operarios} onOpen={(p) => setOpenId(p.id)} />
+              <HistorialView pedidos={pedidosOrdenados} operarios={operarios} onOpen={openPedidoCb} />
             </div>
           </>
         )}
@@ -418,8 +511,8 @@ export function Board({
 
       <DragOverlay dropAnimation={null}>
         {active ? (
-          <div className="rotate-2">
-            <PedidoCardView facet={active} size={filtros.size} operarios={operarios} dragging />
+          <div className="w-44 rotate-2">
+            <PedidoCardView facet={active} operarios={operarios} dragging />
           </div>
         ) : null}
       </DragOverlay>
@@ -428,7 +521,7 @@ export function Board({
         pedido={openPedido}
         operarios={operarios}
         miId={miId}
-        onClose={() => setOpenId(null)}
+        onClose={closeDrawer}
         onAssignOF={asignarOF}
         onAssignPedido={asignarPedido}
         onSetRevisor={setRevisor}
@@ -450,7 +543,7 @@ function Kpi({
   const color =
     tone === "amber" ? "text-amber-600" : tone === "violet" ? "text-violet-600" : "text-text-muted";
   return (
-    <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5">
+    <div className="glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
       <span className={`text-sm font-bold ${color}`}>{value}</span>
       <span className="text-[11px] text-text-muted">{label}</span>
     </div>
