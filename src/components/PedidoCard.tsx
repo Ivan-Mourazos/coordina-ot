@@ -72,12 +72,7 @@ export const PedidoCardView = memo(function PedidoCardView({
           ))}
         </span>
 
-        {/* nº de OF */}
-        {total > 1 && (
-          <span className="absolute right-1 top-1 rounded bg-[#3b3a36]/85 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow">
-            {parcial ? `${ofs.length}/${total}` : total} OF
-          </span>
-        )}
+
 
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
@@ -94,15 +89,8 @@ export const PedidoCardView = memo(function PedidoCardView({
       {/* pie con datos */}
       <div className="mt-1 px-0.5">
         <div className="flex items-center gap-1">
-          {mostrarPrioridad && (
-            <span
-              className={`shrink-0 text-[10px] font-bold ${atrasado ? "text-red-600" : "text-text-muted"}`}
-            >
-              P{pedido.prioridad}
-            </span>
-          )}
           <span
-            className={`truncate font-mono text-[11px] font-semibold leading-tight ${
+            className={`truncate font-mono text-sm font-bold leading-tight ${
               mostrarPrioridad && atrasado ? "text-red-600" : "text-text"
             }`}
           >
@@ -118,9 +106,6 @@ export const PedidoCardView = memo(function PedidoCardView({
               {revisor.iniciales}
             </span>
           )}
-        </div>
-        <div className="truncate text-[10px] leading-tight text-text-muted">
-          {pedido.cliente}
         </div>
       </div>
     </div>

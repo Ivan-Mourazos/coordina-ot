@@ -4,7 +4,6 @@ import { memo } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
 import { dragIdOf, type Facet } from "./PedidoCard";
-import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 
@@ -77,13 +76,10 @@ export const PedidoChip = memo(function PedidoChip({
         <div className="truncate text-[10px] leading-tight text-text-muted">
           {pedido.cliente}
         </div>
+        <div className="mt-0.5 truncate text-[10px] italic text-text-muted/80">
+          {ofs.map((o) => o.descripcion).join(" · ")}
+        </div>
       </div>
-
-      <span className="flex shrink-0 items-center gap-0.5">
-        {familias.slice(0, 3).map((f) => (
-          <FamiliaIcon key={f} familia={f} className="size-3" />
-        ))}
-      </span>
 
       {revisor && (
         <span
