@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-lockfile.mjs\"",
+            "shell": "bash",
+            "timeout": 15,
+            "statusMessage": "Comprobando lockfile..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.mjs\"",
+            "shell": "bash",
+            "timeout": 120,
+            "statusMessage": "Type-check (tsc)..."
+          }
+        ]
+      }
+    ]
+  }
+}
