@@ -342,7 +342,7 @@ function OFRow({
             </Btn>
           </>
         )}
-        {(of.estado === "en_curso" || of.estado === "devuelta") && (
+        {of.estado === "en_curso" && (
           <>
             {of.fichandoRol === "plantear" ? (
               <Btn onClick={() => onPausarTodo?.()} tone="amber">
@@ -360,6 +360,13 @@ function OFRow({
               Deshacer (Volver a Sin Empezar)
             </Btn>
           </>
+        )}
+        {/* devuelta: la ÚNICA salida es "retomar" (vuelve a en_curso). No
+            ofrecer terminar/deshacer aquí: no aplican desde "devuelta". */}
+        {of.estado === "devuelta" && (
+          <Btn onClick={() => onAccion(of.id, "retomar")} tone="teal">
+            ▶ Retomar planteo
+          </Btn>
         )}
         {of.estado === "por_revisar" && of.revisorId !== null && (
           <Btn onClick={() => onAccion(of.id, "empezar_revision")} tone="teal">

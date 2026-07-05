@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -31,7 +31,7 @@ import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
-import { ACCIONES, aplicarAccion, type AccionOF } from "@/lib/acciones";
+import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
@@ -89,10 +89,17 @@ export function Board({
   // Motor de fichaje: la única fuente de verdad son los intervalos, nunca
   // minutos sumados. Se persiste tal cual y se lee tras hidratar.
   const [fichaje, setFichaje] = useState<Fichaje>(FICHAJE_VACIO);
+  // Antes de que termine el efecto de carga, `fichaje` todavía vale
+  // FICHAJE_VACIO: sin esta guarda, el efecto de persistencia lo escribiría
+  // en localStorage y pisaría lo guardado (p.ej. bajo Strict Mode, que
+  // invoca los efectos dos veces, o si se cierra la pestaña justo entonces).
+  const fichajeCargado = useRef(false);
   useEffect(() => {
     setFichaje(leerFichajeGuardado());
+    fichajeCargado.current = true;
   }, []);
   useEffect(() => {
+    if (!fichajeCargado.current) return;
     localStorage.setItem(FICHAJE_KEY, JSON.stringify(fichaje));
   }, [fichaje]);
 
@@ -384,7 +391,17 @@ export function Board({
   const ejecutarAccion = useCallback(
     (ofIds: string[], accion: AccionOF, obs?: string) => {
       const def = ACCIONES.find((a) => a.id === accion);
-      mut(new Set(ofIds), (of) => {
+      // Solo disparar el efecto de fichaje sobre las OFs donde la acción
+      // realmente aplica: si aplicarAccion() la hubiera rechazado para
+      // todas (p.ej. "empezar_planteo" sobre una OF "devuelta"), no hay que
+      // arrancar/cortar fichaje para nadie. mut() conserva su try/catch por
+      // OF como segunda red de seguridad.
+      const aplicables = ofIds.filter((id) => {
+        const of = pedidos.flatMap((p) => p.ofs).find((o) => o.id === id);
+        return of ? accionesDisponibles(of).some((a) => a.id === accion) : false;
+      });
+      if (aplicables.length === 0) return;
+      mut(new Set(aplicables), (of) => {
         try {
           return aplicarAccion(of, accion, obs);
         } catch {
@@ -395,15 +412,15 @@ export function Board({
         setFichaje((f) => {
           const ab = abierto(f);
           if (!ab) return f;
-          const resto = ab.ofIds.filter((id) => !ofIds.includes(id));
+          const resto = ab.ofIds.filter((id) => !aplicables.includes(id));
           return fichar(f, resto, ab.rol, ab.operarioId, ahora());
         });
       } else if (def?.efectoFichaje === "arranca") {
         const rol = accion === "empezar_revision" ? "revisar" : "plantear";
-        ficharOFs(ofIds, rol);
+        ficharOFs(aplicables, rol);
       }
     },
-    [mut, ficharOFs],
+    [mut, ficharOFs, pedidos],
   );
 
   // Adaptadores para no romper firmas aguas abajo todavía (se eliminan en

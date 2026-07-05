@@ -41,6 +41,7 @@ export const PedidoChip = memo(function PedidoChip({
   const parcial = ofs.length < total;
 
   const fichando = ofs.find((o) => o.fichandoRol);
+  const esDevuelta = ofs.some((o) => o.estado === "devuelta");
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
@@ -213,7 +214,18 @@ export const PedidoChip = memo(function PedidoChip({
                   </button>
                 )}
 
-                {bucket === "planteando" && accionFacet && !terminando && (
+                {/* devuelta: la ÚNICA salida es "retomar" (vuelve a en_curso). No
+                    ofrecer terminar/deshacer: no aplican desde "devuelta". */}
+                {bucket === "planteando" && accionFacet && esDevuelta && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "retomar"); }}
+                    className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
+                  >
+                    ▶ Retomar planteo
+                  </button>
+                )}
+
+                {bucket === "planteando" && accionFacet && !esDevuelta && !terminando && (
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
@@ -230,7 +242,7 @@ export const PedidoChip = memo(function PedidoChip({
                   </>
                 )}
 
-                {bucket === "planteando" && accionFacet && terminando && (
+                {bucket === "planteando" && accionFacet && !esDevuelta && terminando && (
                   <div className="flex w-full items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-text-muted">Revisor:</span>
                     <div className="flex-1">
