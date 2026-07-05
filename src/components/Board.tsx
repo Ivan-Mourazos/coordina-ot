@@ -372,6 +372,9 @@ export function Board({
     });
   }, []);
 
+  // pausarTodo/reanudar: pausa global del fichaje, reservada para el panel
+  // "Mi fichaje" (Task 7). El Drawer ya no las usa: fichar/desfichar ahora
+  // es por OF (onFichar/onDesfichar).
   const pausarTodo = useCallback(() => setFichaje((f) => pausar(f, ahora())), []);
 
   const reanudar = useCallback(() => {
@@ -418,8 +421,9 @@ export function Board({
     [mut, ficharOFs, pedidos],
   );
 
-  // Adaptadores para no romper firmas aguas abajo todavía (se eliminan en
-  // Tasks 6-7, cuando Drawer/PedidoChip llamen a ejecutarAccion directamente).
+  // Adaptador para no romper firmas aguas abajo todavía (Zona/TecnicoCard/
+  // RevisionView siguen operando OF por OF; Drawer ya llama a ejecutarAccion
+  // directamente desde Task 6).
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
   const accionFacet = (facet: Facet, a: AccionOF, obs?: string, revisorId?: string) => {
     if (revisorId !== undefined) mut(new Set(facet.ofs.map((o) => o.id)), (of) => ({ ...of, revisorId }));
@@ -639,8 +643,9 @@ export function Board({
         onAssignOF={asignarOF}
         onAssignPedido={asignarPedido}
         onSetRevisor={setRevisor}
-        onAccion={accionOF}
-        onPausarTodo={pausarTodo}
+        onAccion={ejecutarAccion}
+        onFichar={ficharOFs}
+        onDesfichar={desficharOF}
       />
     </DndContext>
   );

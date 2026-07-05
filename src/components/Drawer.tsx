@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Operario, OF, Pedido } from "@/lib/types";
+import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { piezasTotal, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -9,8 +9,9 @@ import { LiveBadge } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
-import type { AccionOF } from "@/lib/acciones";
+import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -46,7 +47,8 @@ export function Drawer({
   onAssignPedido,
   onSetRevisor,
   onAccion,
-  onPausarTodo,
+  onFichar,
+  onDesfichar,
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
@@ -55,9 +57,9 @@ export function Drawer({
   onAssignOF: (ofId: string, autorId: string | null) => void;
   onAssignPedido: (autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
-  onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
-  /** Pausa provisional global del fichaje (se rehace por OF en Tasks 6-7). */
-  onPausarTodo?: () => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
 }) {
   useEffect(() => {
     if (!pedido) return;
@@ -194,7 +196,8 @@ export function Drawer({
                 onAssignOF={onAssignOF}
                 onSetRevisor={onSetRevisor}
                 onAccion={onAccion}
-                onPausarTodo={onPausarTodo}
+                onFichar={onFichar}
+                onDesfichar={onDesfichar}
               />
             ))}
           </ul>
@@ -240,7 +243,8 @@ function OFRow({
   onAssignOF,
   onSetRevisor,
   onAccion,
-  onPausarTodo,
+  onFichar,
+  onDesfichar,
 }: {
   of: OF;
   operarios: Operario[];
@@ -248,8 +252,9 @@ function OFRow({
   miId: string | null;
   onAssignOF: (ofId: string, autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
-  onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
-  onPausarTodo?: () => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
 }) {
   const meta = ESTADO[of.estado];
   const autor = opById(of.autorId);
@@ -287,6 +292,27 @@ function OFRow({
           Total {fmtMin(tiempoTotalOF(of))}
           <span className="ml-1 font-normal text-text-muted">/ est. {fmtMin(of.tiempoEstimadoMin)}</span>
         </span>
+        {of.fichandoRol ? (
+          <Btn tone="ghost" onClick={() => onDesfichar(of.id)}>
+            ⏸ Dejar de fichar
+          </Btn>
+        ) : (
+          !of.detenida &&
+          of.estado !== "anulada" &&
+          of.estado !== "aprobada" && (
+            <Btn
+              tone="ghost"
+              onClick={() =>
+                onFichar(
+                  [of.id],
+                  of.estado === "por_revisar" || of.estado === "en_revision" ? "revisar" : "plantear",
+                )
+              }
+            >
+              ⏱ Fichar
+            </Btn>
+          )
+        )}
       </div>
 
       {/* archivos subidos a RPS */}
@@ -328,75 +354,50 @@ function OFRow({
         </div>
       </div>
 
-      {/* acciones según estado */}
-      <div className="mt-2.5 flex flex-wrap gap-2">
-        {of.estado === "pendiente" && (
-          <>
-            {of.autorId !== null && (
-              <Btn onClick={() => onAccion(of.id, "empezar_planteo")} tone="teal">
-                ▶ Empezar planteo
-              </Btn>
-            )}
-            <Btn onClick={() => onAccion(of.id, "anular")} tone="ghost">
-              Anular (No se hace en OT)
-            </Btn>
-          </>
-        )}
-        {of.estado === "en_curso" && (
-          <>
-            {of.fichandoRol === "plantear" ? (
-              <Btn onClick={() => onPausarTodo?.()} tone="amber">
-                ⏸ Pausar tiempo
-              </Btn>
-            ) : (
-              <Btn onClick={() => onAccion(of.id, "empezar_planteo")} tone="teal">
-                ▶ Reanudar planteo
-              </Btn>
-            )}
-            <Btn onClick={() => onAccion(of.id, "terminar_planteo")} tone="amber">
-              Terminar planteo → a revisar
-            </Btn>
-            <Btn onClick={() => onAccion(of.id, "deshacer_empezar")} tone="ghost">
-              Deshacer (Volver a Sin Empezar)
-            </Btn>
-          </>
-        )}
-        {/* devuelta: la ÚNICA salida es "retomar" (vuelve a en_curso). No
-            ofrecer terminar/deshacer aquí: no aplican desde "devuelta". */}
-        {of.estado === "devuelta" && (
-          <Btn onClick={() => onAccion(of.id, "retomar")} tone="teal">
-            ▶ Retomar planteo
-          </Btn>
-        )}
-        {of.estado === "por_revisar" && of.revisorId !== null && (
-          <Btn onClick={() => onAccion(of.id, "empezar_revision")} tone="teal">
-            ▶ Empezar revisión
-          </Btn>
-        )}
-        {of.estado === "en_revision" && (
-          <>
-            {of.fichandoRol === "revisar" ? (
-              <Btn onClick={() => onPausarTodo?.()} tone="amber">
-                ⏸ Pausar revisión
-              </Btn>
-            ) : (
-              <Btn onClick={() => onAccion(of.id, "empezar_revision")} tone="teal">
-                ▶ Reanudar revisión
-              </Btn>
-            )}
-            <Btn onClick={() => onAccion(of.id, "aprobar")} tone="teal">
-              Aprobar → Producción
-            </Btn>
-            <DevolverInline onDevolver={(obs) => onAccion(of.id, "devolver", obs)} />
-          </>
-        )}
-        {of.estado === "aprobada" && (
-          <Btn onClick={() => onAccion(of.id, "reabrir")} tone="ghost">
-            Reabrir revisión
-          </Btn>
-        )}
-      </div>
+      {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
+      <AccionesOF of={of} onAccion={onAccion} />
     </li>
+  );
+}
+
+function AccionesOF({
+  of,
+  onAccion,
+}: {
+  of: OF;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+}) {
+  const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
+  const acciones = accionesDisponibles(of);
+  const tono = { primaria: "teal", peligro: "amber", neutra: "ghost" } as const;
+
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-2">
+      {acciones.map((a) =>
+        a.conNota ? (
+          <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />
+        ) : (
+          <Btn
+            key={a.id}
+            tone={tono[a.tono]}
+            onClick={() => (a.confirmar ? setConfirmando(a) : onAccion([of.id], a.id))}
+          >
+            {a.label}
+          </Btn>
+        ),
+      )}
+      <ConfirmDialog
+        abierto={confirmando !== null}
+        titulo={confirmando?.label ?? ""}
+        mensaje={confirmando?.confirmar ?? ""}
+        tono={confirmando?.tono}
+        onConfirmar={() => {
+          if (confirmando) onAccion([of.id], confirmando.id);
+          setConfirmando(null);
+        }}
+        onCancelar={() => setConfirmando(null)}
+      />
+    </div>
   );
 }
 
