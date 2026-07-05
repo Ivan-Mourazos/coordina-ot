@@ -249,20 +249,24 @@ export function Board({
   const enRevision = countEstado("en_revision");
 
   // ── Quién ficha AHORA (para tarjetas de equipo y cluster "En directo") ──
+  // El operario es el del INTERVALO abierto (quien ficha de verdad), no el
+  // autor/revisor de la OF: fichar en OFs de un compañero está permitido y
+  // el tiempo debe verse a nombre de quien lo está echando.
   const liveByOp = useMemo(() => {
     const map = new Map<string, LiveInfo>();
+    const ab = abierto(fichaje);
+    if (!ab) return map;
+    const op = operarios.find((o) => o.id === ab.operarioId);
+    if (!op) return map;
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
-        if (!of.fichandoRol) continue;
-        const opId = of.fichandoRol === "plantear" ? of.autorId : of.revisorId;
-        const op = operarios.find((o) => o.id === opId);
-        if (op && !map.has(op.id)) {
-          map.set(op.id, { operario: op, rol: of.fichandoRol, pedido: p, of });
+        if (of.fichandoRol && ab.ofIds.includes(of.id) && !map.has(op.id)) {
+          map.set(op.id, { operario: op, rol: ab.rol, pedido: p, of });
         }
       }
     }
     return map;
-  }, [procesadosAll, operarios]);
+  }, [procesadosAll, operarios, fichaje]);
 
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
@@ -419,6 +423,38 @@ export function Board({
       else setMiId(id);
     },
     [fichaje, miId, setMiId],
+  );
+
+  // Fichar en OFs asignadas a OTRO operario está permitido (en el taller se
+  // hace, p.ej. para revisar o echar una mano), pero se avisa antes para que
+  // no ocurra sin querer desde el panel/tarjeta de un compañero.
+  const [fichajeAjenoPendiente, setFichajeAjenoPendiente] = useState<{
+    ofIds: string[];
+    rol: Rol;
+    nombres: string[];
+  } | null>(null);
+  const ficharOFsConAviso = useCallback(
+    (ofIds: string[], rol: Rol) => {
+      if (!miId) return;
+      const ids = new Set(ofIds);
+      const ajenos = new Set<string>();
+      for (const p of pedidos) {
+        for (const of of p.ofs) {
+          if (!ids.has(of.id)) continue;
+          const asignado = rol === "revisar" ? of.revisorId : of.autorId;
+          if (asignado !== null && asignado !== miId) ajenos.add(asignado);
+        }
+      }
+      if (ajenos.size === 0) {
+        ficharOFs(ofIds, rol);
+        return;
+      }
+      const nombres = operarios
+        .filter((o) => ajenos.has(o.id))
+        .map((o) => o.nombre);
+      setFichajeAjenoPendiente({ ofIds, rol, nombres });
+    },
+    [miId, pedidos, operarios, ficharOFs],
   );
 
   // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
@@ -582,7 +618,7 @@ export function Board({
                 soyYo
                 onOpen={openFacet}
                 onAccion={ejecutarAccion}
-                onFichar={ficharOFs}
+                onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
                 setRevisor={setRevisor}
                 completarPedido={completarPedido}
@@ -605,7 +641,7 @@ export function Board({
                       onClose={closeExpanded}
                       onOpen={openFacet}
                       onAccion={ejecutarAccion}
-                      onFichar={ficharOFs}
+                      onFichar={ficharOFsConAviso}
                       onDesfichar={desficharOF}
                       setRevisor={setRevisor}
                       completarPedido={completarPedido}
@@ -686,7 +722,7 @@ export function Board({
         onAssignPedido={asignarPedido}
         onSetRevisor={setRevisor}
         onAccion={ejecutarAccion}
-        onFichar={ficharOFs}
+        onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
       />
 
@@ -695,7 +731,7 @@ export function Board({
         operarios={operarios}
         pedidos={procesadosAll}
         fichaje={fichaje}
-        onFichar={ficharOFs}
+        onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
         onPausarTodo={pausarTodo}
         onReanudar={reanudar}
@@ -711,6 +747,19 @@ export function Board({
           setCambioIdentidadPendiente(null);
         }}
         onCancelar={() => setCambioIdentidadPendiente(null)}
+      />
+
+      <ConfirmDialog
+        abierto={fichajeAjenoPendiente !== null}
+        titulo="Fichar en OF de un compañero"
+        mensaje={`Vas a fichar en OFs asignadas a ${fichajeAjenoPendiente?.nombres.join(", ") ?? ""}. El tiempo contará igual (va a Oficina Técnica), pero la OF sigue asignada a esa persona. ¿Continuar?`}
+        onConfirmar={() => {
+          if (fichajeAjenoPendiente) {
+            ficharOFs(fichajeAjenoPendiente.ofIds, fichajeAjenoPendiente.rol);
+          }
+          setFichajeAjenoPendiente(null);
+        }}
+        onCancelar={() => setFichajeAjenoPendiente(null)}
       />
     </DndContext>
   );
