@@ -2,24 +2,29 @@
 
 import { memo, useState, type CSSProperties } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import type { Operario } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import { dragIdOf, type Facet } from "./PedidoCard";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
 import { Select, OpDot } from "./Select";
-import type { AccionOF } from "@/lib/acciones";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
  *  al clic; el estado ya lo da la columna donde vive. Arrastrable para
- *  reasignar, igual que la tarjeta grande. */
+ *  reasignar, igual que la tarjeta grande. Los botones de acción salen de
+ *  la máquina de estados (lib/acciones.ts): máx. 2 primarias + fichar; el
+ *  resto (neutras/peligro, como anular o devolver) solo vive en el Drawer. */
 export const PedidoChip = memo(function PedidoChip({
   facet,
   operarios,
   onOpen,
-  accionFacet,
-  accionOF,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  setRevisor,
   completarPedido,
   bucket,
   raised = false,
@@ -27,8 +32,10 @@ export const PedidoChip = memo(function PedidoChip({
   facet: Facet;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
-  accionFacet?: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
-  accionOF?: (ofId: string, accion: AccionOF, obs?: string) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido?: (pedidoId: string) => void;
   bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
   raised?: boolean;
@@ -36,12 +43,31 @@ export const PedidoChip = memo(function PedidoChip({
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
   const [revisorSelect, setRevisorSelect] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
   const { pedido, ofs } = facet;
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
+  const ofIds = ofs.map((o) => o.id);
+
+  // Unión de acciones disponibles sobre las OFs del facet, solo tono
+  // "primaria" (neutras/peligro viven en el Drawer), máx. 2.
+  const acciones: AccionDef[] = [];
+  const vistas = new Set<AccionOF>();
+  for (const of of ofs) {
+    for (const a of accionesDisponibles(of)) {
+      if (a.tono === "primaria" && !vistas.has(a.id)) {
+        vistas.add(a.id);
+        acciones.push(a);
+      }
+    }
+  }
+  const accionesChip = acciones.slice(0, 2);
 
   const fichando = ofs.find((o) => o.fichandoRol);
-  const esDevuelta = ofs.some((o) => o.estado === "devuelta");
+  const fichandoOfs = ofs.filter((o) => o.fichandoRol);
+  const elegiblesFichar = ofs.filter(
+    (o) => !o.detenida && o.estado !== "anulada" && o.estado !== "aprobada",
+  );
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
@@ -190,59 +216,42 @@ export const PedidoChip = memo(function PedidoChip({
                           {rev.iniciales}
                         </div>
                       )}
-                      
-                      {of.estado === "pendiente" && accionOF && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); accionOF(of.id, "anular"); }}
-                          className="rounded px-1.5 py-0.5 text-[9px] font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors opacity-0 group-hover/of:opacity-100 focus:opacity-100"
-                          title="Anular OF (no se hace en OT)"
-                        >
-                          Anular
-                        </button>
-                      )}
                     </div>
                   </div>
                 );
               })}
               <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-[var(--glass-border)] pt-2">
-                {bucket === "sinEmpezar" && accionFacet && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar_planteo"); }}
-                    className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
-                  >
-                    ▶ Empezar a plantear
-                  </button>
-                )}
-
-                {/* devuelta: la ÚNICA salida es "retomar" (vuelve a en_curso). No
-                    ofrecer terminar/deshacer: no aplican desde "devuelta". */}
-                {bucket === "planteando" && accionFacet && esDevuelta && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "retomar"); }}
-                    className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
-                  >
-                    ▶ Retomar planteo
-                  </button>
-                )}
-
-                {bucket === "planteando" && accionFacet && !esDevuelta && !terminando && (
-                  <>
+                {accionesChip.map((a) =>
+                  a.id === "terminar_planteo" ? (
+                    !terminando && (
+                      <button
+                        key={a.id}
+                        onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
+                        className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
+                      >
+                        {a.label}
+                      </button>
+                    )
+                  ) : (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setTerminando(true); }}
-                      className="rounded bg-amber-500 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-amber-600"
+                      key={a.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (a.confirmar) setConfirmando(a);
+                        else onAccion(ofIds, a.id);
+                      }}
+                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
                     >
-                      ✔ Terminar de plantear
+                      {a.label}
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); accionFacet(facet, "deshacer_empezar"); }}
-                      className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-surface-3"
-                    >
-                      ↩ Deshacer (Volver a Sin Empezar)
-                    </button>
-                  </>
+                  ),
                 )}
 
-                {bucket === "planteando" && accionFacet && !esDevuelta && terminando && (
+                {/* Selector de revisor al terminar planteo: se conserva tal cual
+                    (afecta a todas las OFs del facet). Se fija el revisor ANTES
+                    de ejecutar la acción; terminar_planteo no tiene `requiere`,
+                    así que el orden no afecta al filtro de aplicables del Board. */}
+                {terminando && (
                   <div className="flex w-full items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-text-muted">Revisor:</span>
                     <div className="flex-1">
@@ -256,8 +265,10 @@ export const PedidoChip = memo(function PedidoChip({
                     <button
                       onClick={() => {
                         if (revisorSelect) {
-                          accionFacet(facet, "terminar_planteo", undefined, revisorSelect);
+                          ofIds.forEach((id) => setRevisor(id, revisorSelect));
+                          onAccion(ofIds, "terminar_planteo");
                           setTerminando(false);
+                          setRevisorSelect(null);
                         }
                       }}
                       disabled={!revisorSelect}
@@ -274,10 +285,39 @@ export const PedidoChip = memo(function PedidoChip({
                   </div>
                 )}
 
-                {bucket === "revision" && (
+                {bucket === "revision" && accionesChip.length === 0 && (
                   <span className="rounded bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                     Esperando revisión del compañero
                   </span>
+                )}
+
+                {fichandoOfs.length > 0 ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fichandoOfs.forEach((o) => onDesfichar(o.id));
+                    }}
+                    className="rounded border border-border px-2.5 py-1 text-[10px] font-semibold text-text-muted hover:text-text"
+                  >
+                    ⏸ Dejar de fichar
+                  </button>
+                ) : (
+                  elegiblesFichar.length > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rol: Rol =
+                          elegiblesFichar[0].estado === "por_revisar" ||
+                          elegiblesFichar[0].estado === "en_revision"
+                            ? "revisar"
+                            : "plantear";
+                        onFichar(elegiblesFichar.map((o) => o.id), rol);
+                      }}
+                      className="rounded border border-border px-2.5 py-1 text-[10px] font-semibold text-text-muted hover:text-text"
+                    >
+                      ⏱ Fichar
+                    </button>
+                  )
                 )}
 
                 {bucket === "finalizado" && completarPedido && (
@@ -295,6 +335,18 @@ export const PedidoChip = memo(function PedidoChip({
                 >
                   Abrir detalles ↗
                 </button>
+
+                <ConfirmDialog
+                  abierto={confirmando !== null}
+                  titulo={confirmando?.label ?? ""}
+                  mensaje={confirmando?.confirmar ?? ""}
+                  tono={confirmando?.tono}
+                  onConfirmar={() => {
+                    if (confirmando) onAccion(ofIds, confirmando.id);
+                    setConfirmando(null);
+                  }}
+                  onCancelar={() => setConfirmando(null)}
+                />
               </div>
             </div>
           </div>

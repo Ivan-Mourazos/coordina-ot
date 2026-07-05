@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import type { Operario } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -16,8 +16,10 @@ export function Zona({
   live,
   soyYo = false,
   onOpen,
-  accionFacet,
-  accionOF,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  setRevisor,
   completarPedido,
 }: {
   operario: Operario;
@@ -28,8 +30,10 @@ export function Zona({
   /** Destaca esta zona como la del técnico actual (panel grande de Asignar). */
   soyYo?: boolean;
   onOpen: (f: Facet) => void;
-  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -75,12 +79,14 @@ export function Zona({
         </span>
       </div>
 
-      <PedidosPorEstado 
-        facets={facets} 
-        operarios={operarios} 
-        onOpen={onOpen} 
-        accionFacet={accionFacet}
-        accionOF={accionOF}
+      <PedidosPorEstado
+        facets={facets}
+        operarios={operarios}
+        onOpen={onOpen}
+        onAccion={onAccion}
+        onFichar={onFichar}
+        onDesfichar={onDesfichar}
+        setRevisor={setRevisor}
         completarPedido={completarPedido}
         raisedCards={soyYo}
       />

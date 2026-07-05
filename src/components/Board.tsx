@@ -421,14 +421,11 @@ export function Board({
     [mut, ficharOFs, pedidos],
   );
 
-  // Adaptador para no romper firmas aguas abajo todavía (Zona/TecnicoCard/
-  // RevisionView siguen operando OF por OF; Drawer ya llama a ejecutarAccion
-  // directamente desde Task 6).
+  // Adaptador para no romper firmas aguas abajo todavía: RevisionView sigue
+  // operando OF por OF con la firma antigua (ofId, accion, obs?). Zona/
+  // TecnicoCard/PedidoChip ya llaman a ejecutarAccion directamente desde
+  // Task 7; el adaptador accionFacet murió con ellas.
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
-  const accionFacet = (facet: Facet, a: AccionOF, obs?: string, revisorId?: string) => {
-    if (revisorId !== undefined) mut(new Set(facet.ofs.map((o) => o.id)), (of) => ({ ...of, revisorId }));
-    ejecutarAccion(facet.ofs.map((o) => o.id), a, obs);
-  };
 
   const completarPedido = useCallback((pedidoId: string) => {
     setPedidos((prev) =>
@@ -543,8 +540,10 @@ export function Board({
                 live={liveByOp.get(yo.id) ?? null}
                 soyYo
                 onOpen={openFacet}
-                accionFacet={accionFacet}
-                accionOF={accionOF}
+                onAccion={ejecutarAccion}
+                onFichar={ficharOFs}
+                onDesfichar={desficharOF}
+                setRevisor={setRevisor}
                 completarPedido={completarPedido}
               />
 
@@ -564,8 +563,10 @@ export function Board({
                       onToggle={() => toggleExpanded(op.id)}
                       onClose={closeExpanded}
                       onOpen={openFacet}
-                      accionFacet={accionFacet}
-                      accionOF={accionOF}
+                      onAccion={ejecutarAccion}
+                      onFichar={ficharOFs}
+                      onDesfichar={desficharOF}
+                      setRevisor={setRevisor}
                       completarPedido={completarPedido}
                     />
                   ))}

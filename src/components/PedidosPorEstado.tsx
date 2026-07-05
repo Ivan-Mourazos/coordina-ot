@@ -1,6 +1,6 @@
 "use client";
 
-import type { Operario } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { PedidoChip } from "./PedidoChip";
 import type { AccionOF } from "@/lib/acciones";
@@ -49,8 +49,10 @@ export function PedidosPorEstado({
   onOpen,
   layout = "grid",
   raisedCards = false,
-  accionFacet,
-  accionOF,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  setRevisor,
   completarPedido,
 }: {
   facets: Facet[];
@@ -58,8 +60,10 @@ export function PedidosPorEstado({
   onOpen: (f: Facet) => void;
   layout?: "grid" | "list";
   raisedCards?: boolean;
-  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const grupos = GRUPOS.map((g) => ({
@@ -90,7 +94,10 @@ export function PedidosPorEstado({
                   facet={f}
                   operarios={operarios}
                   onOpen={onOpen}
-                  accionFacet={accionFacet}
+                  onAccion={onAccion}
+                  onFichar={onFichar}
+                  onDesfichar={onDesfichar}
+                  setRevisor={setRevisor}
                   completarPedido={completarPedido}
                   bucket={g.id}
                   raised={raisedCards}
@@ -125,8 +132,10 @@ export function PedidosPorEstado({
                   facet={f}
                   operarios={operarios}
                   onOpen={onOpen}
-                  accionFacet={accionFacet}
-                  accionOF={accionOF}
+                  onAccion={onAccion}
+                  onFichar={onFichar}
+                  onDesfichar={onDesfichar}
+                  setRevisor={setRevisor}
                   completarPedido={completarPedido}
                   bucket={g.id}
                   raised={raisedCards}

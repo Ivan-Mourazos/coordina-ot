@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import type { OF, Operario } from "@/lib/types";
+import type { OF, Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import { PedidosPorEstado } from "./PedidosPorEstado";
@@ -38,8 +38,10 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle,
   onClose,
   onOpen,
-  accionFacet,
-  accionOF,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  setRevisor,
   completarPedido,
 }: {
   operario: Operario;
@@ -50,8 +52,10 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle: () => void;
   onClose: () => void;
   onOpen: (f: Facet) => void;
-  accionFacet: (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => void;
-  accionOF: (ofId: string, accion: AccionOF, obs?: string) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -150,13 +154,15 @@ export const TecnicoCard = memo(function TecnicoCard({
 
       {expanded && (
         <div className="glass-pop scroll-thin absolute left-0 top-full z-20 mt-1.5 max-h-[46vh] w-full min-w-72 overflow-y-auto rounded-xl p-3">
-          <PedidosPorEstado 
-            facets={facets} 
-            operarios={operarios} 
-            onOpen={onOpen} 
-            layout="list" 
-            accionFacet={accionFacet}
-            accionOF={accionOF}
+          <PedidosPorEstado
+            facets={facets}
+            operarios={operarios}
+            onOpen={onOpen}
+            layout="list"
+            onAccion={onAccion}
+            onFichar={onFichar}
+            onDesfichar={onDesfichar}
+            setRevisor={setRevisor}
             completarPedido={completarPedido}
           />
         </div>
