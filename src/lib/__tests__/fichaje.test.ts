@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { FICHAJE_VACIO, abierto, fichar, pausar, minutosOF, ofsFichables } from "../fichaje";
+import {
+  FICHAJE_VACIO, abierto, fichar, pausar, minutosOF,
+  ofsFichables, rolFichajeDe, esFichable,
+} from "../fichaje";
 import type { OF, Pedido } from "../types";
 
 const T0 = "2026-07-06T08:00:00.000Z";
@@ -73,5 +76,33 @@ describe("ofsFichables", () => {
       ],
     } as unknown as Pedido;
     expect(ofsFichables(p).map((o: OF) => o.id)).toEqual(["a"]);
+  });
+});
+
+describe("rolFichajeDe", () => {
+  const of = (estado: OF["estado"]) => ({ estado }) as OF;
+  it("por_revisar y en_revision fichan como revisor", () => {
+    expect(rolFichajeDe(of("por_revisar"))).toBe("revisar");
+    expect(rolFichajeDe(of("en_revision"))).toBe("revisar");
+  });
+  it("el resto de estados fichan como autor (plantear)", () => {
+    expect(rolFichajeDe(of("pendiente"))).toBe("plantear");
+    expect(rolFichajeDe(of("en_curso"))).toBe("plantear");
+    expect(rolFichajeDe(of("devuelta"))).toBe("plantear");
+  });
+});
+
+describe("esFichable", () => {
+  const of = (estado: OF["estado"], detenida?: boolean) => ({ estado, detenida }) as OF;
+  it("acepta estados activos", () => {
+    expect(esFichable(of("pendiente"))).toBe(true);
+    expect(esFichable(of("en_curso"))).toBe(true);
+    expect(esFichable(of("por_revisar"))).toBe(true);
+    expect(esFichable(of("devuelta"))).toBe(true);
+  });
+  it("rechaza detenidas, anuladas y aprobadas", () => {
+    expect(esFichable(of("en_curso", true))).toBe(false);
+    expect(esFichable(of("anulada"))).toBe(false);
+    expect(esFichable(of("aprobada"))).toBe(false);
   });
 });

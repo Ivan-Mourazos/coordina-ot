@@ -74,9 +74,18 @@ export function minutosOF(
   return total;
 }
 
+/** Rol con el que se ficharía esta OF según su estado: en revisión (o lista
+ *  para revisar) se ficha como revisor; en cualquier otro caso, como autor. */
+export function rolFichajeDe(of: OF): Rol {
+  return of.estado === "por_revisar" || of.estado === "en_revision" ? "revisar" : "plantear";
+}
+
+/** ¿Se puede fichar en esta OF? Excluye detenidas, anuladas y aprobadas. */
+export function esFichable(of: OF): boolean {
+  return !of.detenida && of.estado !== "anulada" && of.estado !== "aprobada";
+}
+
 /** OFs de un pedido en las que se puede fichar. */
 export function ofsFichables(p: Pedido): OF[] {
-  return p.ofs.filter(
-    (of) => !of.detenida && of.estado !== "anulada" && of.estado !== "aprobada",
-  );
+  return p.ofs.filter(esFichable);
 }

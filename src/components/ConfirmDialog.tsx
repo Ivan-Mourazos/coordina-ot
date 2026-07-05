@@ -1,6 +1,32 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { AccionDef } from "@/lib/acciones";
+
+/** Estado compartido "acción pendiente de confirmar" (Drawer y PedidoChip):
+ *  pedirConfirmacion(a) abre el diálogo si la acción trae texto `confirmar`,
+ *  o la ejecuta directamente si no; el componente pinta {dialogo} una vez. */
+export function useConfirmacion(ejecutar: (a: AccionDef) => void) {
+  const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
+  const pedirConfirmacion = (a: AccionDef) => {
+    if (a.confirmar) setConfirmando(a);
+    else ejecutar(a);
+  };
+  const dialogo = (
+    <ConfirmDialog
+      abierto={confirmando !== null}
+      titulo={confirmando?.label ?? ""}
+      mensaje={confirmando?.confirmar ?? ""}
+      tono={confirmando?.tono}
+      onConfirmar={() => {
+        if (confirmando) ejecutar(confirmando);
+        setConfirmando(null);
+      }}
+      onCancelar={() => setConfirmando(null)}
+    />
+  );
+  return { confirmando, pedirConfirmacion, dialogo };
+}
 
 /** Confirmación ligera para acciones con consecuencias (aprobar, anular…).
  *  Escape o clic fuera cancelan; el botón de confirmar recibe el foco.

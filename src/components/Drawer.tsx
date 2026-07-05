@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { piezasTotal, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin } from "@/lib/estado";
@@ -9,9 +9,10 @@ import { LiveBadge } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
-import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
+import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
+import { esFichable, rolFichajeDe } from "@/lib/fichaje";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -297,18 +298,8 @@ function OFRow({
             ⏸ Dejar de fichar
           </Btn>
         ) : (
-          !of.detenida &&
-          of.estado !== "anulada" &&
-          of.estado !== "aprobada" && (
-            <Btn
-              tone="ghost"
-              onClick={() =>
-                onFichar(
-                  [of.id],
-                  of.estado === "por_revisar" || of.estado === "en_revision" ? "revisar" : "plantear",
-                )
-              }
-            >
+          esFichable(of) && (
+            <Btn tone="ghost" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
               ⏱ Fichar
             </Btn>
           )
@@ -367,7 +358,7 @@ function AccionesOF({
   of: OF;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
 }) {
-  const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
+  const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const acciones = accionesDisponibles(of);
   const tono = { primaria: "teal", peligro: "amber", neutra: "ghost" } as const;
 
@@ -377,26 +368,12 @@ function AccionesOF({
         a.conNota ? (
           <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />
         ) : (
-          <Btn
-            key={a.id}
-            tone={tono[a.tono]}
-            onClick={() => (a.confirmar ? setConfirmando(a) : onAccion([of.id], a.id))}
-          >
+          <Btn key={a.id} tone={tono[a.tono]} onClick={() => pedirConfirmacion(a)}>
             {a.label}
           </Btn>
         ),
       )}
-      <ConfirmDialog
-        abierto={confirmando !== null}
-        titulo={confirmando?.label ?? ""}
-        mensaje={confirmando?.confirmar ?? ""}
-        tono={confirmando?.tono}
-        onConfirmar={() => {
-          if (confirmando) onAccion([of.id], confirmando.id);
-          setConfirmando(null);
-        }}
-        onCancelar={() => setConfirmando(null)}
-      />
+      {dialogo}
     </div>
   );
 }

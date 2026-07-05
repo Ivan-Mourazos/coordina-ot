@@ -8,8 +8,9 @@ import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
 import { Select, OpDot } from "./Select";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { useConfirmacion } from "./ConfirmDialog";
 import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
+import { esFichable, rolFichajeDe } from "@/lib/fichaje";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
@@ -43,7 +44,6 @@ export const PedidoChip = memo(function PedidoChip({
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
   const [revisorSelect, setRevisorSelect] = useState<string | null>(null);
-  const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
   const { pedido, ofs } = facet;
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
@@ -62,12 +62,23 @@ export const PedidoChip = memo(function PedidoChip({
     }
   }
   const accionesChip = acciones.slice(0, 2);
+  const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion(ofIds, a.id));
 
   const fichando = ofs.find((o) => o.fichandoRol);
   const fichandoOfs = ofs.filter((o) => o.fichandoRol);
-  const elegiblesFichar = ofs.filter(
-    (o) => !o.detenida && o.estado !== "anulada" && o.estado !== "aprobada",
-  );
+  // El motor de fichaje mantiene UN solo intervalo abierto con UN rol: no se
+  // puede fichar plantear y revisar a la vez (una segunda llamada a onFichar
+  // con otro rol REEMPLAZARÍA el conjunto anterior). Se ficha solo el grupo
+  // de rol coherente con el bucket; las OFs del otro rol se fichan desde el
+  // drawer, OF por OF.
+  const elegiblesFichar = ofs.filter(esFichable);
+  const grupoPlantear = elegiblesFichar.filter((o) => rolFichajeDe(o) === "plantear");
+  const grupoRevisar = elegiblesFichar.filter((o) => rolFichajeDe(o) === "revisar");
+  const [grupoPref, grupoAlt] =
+    bucket === "revision" ? [grupoRevisar, grupoPlantear] : [grupoPlantear, grupoRevisar];
+  const grupoFichar = grupoPref.length > 0 ? grupoPref : grupoAlt;
+  const rolFichar: Rol = grupoFichar.length > 0 ? rolFichajeDe(grupoFichar[0]) : "plantear";
+  const excluidasPorRol = elegiblesFichar.length - grupoFichar.length;
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
@@ -237,8 +248,7 @@ export const PedidoChip = memo(function PedidoChip({
                       key={a.id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (a.confirmar) setConfirmando(a);
-                        else onAccion(ofIds, a.id);
+                        pedirConfirmacion(a);
                       }}
                       className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
                     >
@@ -302,20 +312,20 @@ export const PedidoChip = memo(function PedidoChip({
                     ⏸ Dejar de fichar
                   </button>
                 ) : (
-                  elegiblesFichar.length > 0 && (
+                  grupoFichar.length > 0 && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        const rol: Rol =
-                          elegiblesFichar[0].estado === "por_revisar" ||
-                          elegiblesFichar[0].estado === "en_revision"
-                            ? "revisar"
-                            : "plantear";
-                        onFichar(elegiblesFichar.map((o) => o.id), rol);
+                        onFichar(grupoFichar.map((o) => o.id), rolFichar);
                       }}
+                      title={
+                        excluidasPorRol > 0
+                          ? `Ficha ${grupoFichar.length} OF como ${ROL[rolFichar].label.toLowerCase()}; las otras ${excluidasPorRol} (otro rol) se fichan desde el detalle`
+                          : undefined
+                      }
                       className="rounded border border-border px-2.5 py-1 text-[10px] font-semibold text-text-muted hover:text-text"
                     >
-                      ⏱ Fichar
+                      ⏱ Fichar{excluidasPorRol > 0 ? ` (${grupoFichar.length})` : ""}
                     </button>
                   )
                 )}
@@ -336,17 +346,7 @@ export const PedidoChip = memo(function PedidoChip({
                   Abrir detalles ↗
                 </button>
 
-                <ConfirmDialog
-                  abierto={confirmando !== null}
-                  titulo={confirmando?.label ?? ""}
-                  mensaje={confirmando?.confirmar ?? ""}
-                  tono={confirmando?.tono}
-                  onConfirmar={() => {
-                    if (confirmando) onAccion(ofIds, confirmando.id);
-                    setConfirmando(null);
-                  }}
-                  onCancelar={() => setConfirmando(null)}
-                />
+                {dialogo}
               </div>
             </div>
           </div>
