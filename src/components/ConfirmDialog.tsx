@@ -30,18 +30,18 @@ export function ConfirmDialog({
       if (e.key === "Escape") {
         onCancelar();
       } else if (e.key === "Tab") {
-        // Focus trap: circular Tab entre los dos botones
+        // Focus trap: envolver el foco en los bordes; el resto lo maneja el navegador
         if (e.shiftKey) {
-          // Shift+Tab: Confirmar → Cancelar
-          if (document.activeElement === btnConfirmarRef.current) {
-            e.preventDefault();
-            btnCancelarRef.current?.focus();
-          }
-        } else {
-          // Tab: Cancelar → Confirmar
+          // Shift+Tab desde el primero (Cancelar) → envolver a Confirmar
           if (document.activeElement === btnCancelarRef.current) {
             e.preventDefault();
             btnConfirmarRef.current?.focus();
+          }
+        } else {
+          // Tab desde el último (Confirmar) → envolver a Cancelar
+          if (document.activeElement === btnConfirmarRef.current) {
+            e.preventDefault();
+            btnCancelarRef.current?.focus();
           }
         }
       }
