@@ -236,7 +236,7 @@ function GrupoPedido({
         {fichablesPlantear.length > 0 && (
           <button
             onClick={() => onFichar(fichablesPlantear.map((o) => o.id), "plantear")}
-            className="ml-auto shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
+            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL.plantear.solido}`}
           >
             Fichar pedido
           </button>

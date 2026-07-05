@@ -360,7 +360,7 @@ function AccionesOF({
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const acciones = accionesDisponibles(of);
-  const tono = { primaria: "teal", peligro: "amber", neutra: "ghost" } as const;
+  const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
@@ -385,12 +385,16 @@ function Btn({
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  tone: "amber" | "teal" | "ghost";
+  tone: "amber" | "teal" | "ghost" | "rojo";
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
     teal: "bg-teal-600 text-white hover:bg-teal-700",
     ghost: "border border-border text-text-muted hover:text-text hover:border-border-strong",
+    // "rojo" para acciones peligrosas (anular/devolver), coherente con el
+    // rojo del botón "Confirmar" en ConfirmDialog: evita el salto de tono
+    // amarillo → rojo entre el disparador y la confirmación.
+    rojo: "bg-red-600 text-white hover:bg-red-700",
   }[tone];
   return (
     <button onClick={onClick} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${cls}`}>

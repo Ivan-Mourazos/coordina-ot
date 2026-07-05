@@ -77,6 +77,7 @@ export interface RolMeta {
   label: string; // "Planteando" / "Revisando"
   color: string; // sólido para dots/anillos
   chip: string; // clases del badge
+  solido: string; // variante sólida para botones de acción del rol
 }
 
 export const ROL: Record<Rol, RolMeta> = {
@@ -84,11 +85,13 @@ export const ROL: Record<Rol, RolMeta> = {
     label: "Planteando",
     color: "#059669",
     chip: "bg-emerald-600/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+    solido: "bg-emerald-600 text-white hover:bg-emerald-700",
   },
   revisar: {
     label: "Revisando",
     color: "#7c3aed",
     chip: "bg-violet-600/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+    solido: "bg-violet-600 text-white hover:bg-violet-700",
   },
 };
 
