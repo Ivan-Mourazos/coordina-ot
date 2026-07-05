@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 
 /** Confirmación ligera para acciones con consecuencias (aprobar, anular…).
- *  Escape o clic fuera cancelan; el botón de confirmar recibe el foco. */
+ *  Escape o clic fuera cancelan; el botón de confirmar recibe el foco.
+ *  Trap de foco: Tab circula entre Cancelar y Confirmar. */
 export function ConfirmDialog({
   abierto,
   titulo,
@@ -19,13 +20,31 @@ export function ConfirmDialog({
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const btnConfirmarRef = useRef<HTMLButtonElement>(null);
+  const btnCancelarRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!abierto) return;
-    btnRef.current?.focus();
+    btnConfirmarRef.current?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancelar();
+      if (e.key === "Escape") {
+        onCancelar();
+      } else if (e.key === "Tab") {
+        // Focus trap: circular Tab entre los dos botones
+        if (e.shiftKey) {
+          // Shift+Tab: Confirmar → Cancelar
+          if (document.activeElement === btnConfirmarRef.current) {
+            e.preventDefault();
+            btnCancelarRef.current?.focus();
+          }
+        } else {
+          // Tab: Cancelar → Confirmar
+          if (document.activeElement === btnCancelarRef.current) {
+            e.preventDefault();
+            btnConfirmarRef.current?.focus();
+          }
+        }
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -36,7 +55,9 @@ export function ConfirmDialog({
   const toneCls =
     tono === "peligro"
       ? "bg-red-600 text-white hover:bg-red-700"
-      : "bg-teal-600 text-white hover:bg-teal-700";
+      : tono === "primaria"
+        ? "bg-teal-600 text-white hover:bg-teal-700"
+        : "bg-surface-2 text-text ring-1 ring-border hover:bg-[var(--glass-highlight)]";
 
   return (
     <div className="fixed inset-0 z-[60]" role="alertdialog" aria-modal="true" aria-label={titulo}>
@@ -46,13 +67,14 @@ export function ConfirmDialog({
         <p className="mt-1.5 text-sm text-text-muted">{mensaje}</p>
         <div className="mt-4 flex justify-end gap-2">
           <button
+            ref={btnCancelarRef}
             onClick={onCancelar}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-text"
           >
             Cancelar
           </button>
           <button
-            ref={btnRef}
+            ref={btnConfirmarRef}
             onClick={onConfirmar}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${toneCls}`}
           >
