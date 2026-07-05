@@ -75,25 +75,32 @@ export function MiFichaje({
   const ultimo = fichaje.intervalos[fichaje.intervalos.length - 1] ?? null;
   const puedeReanudar = ultimo !== null && ultimo.fin !== null;
 
-  // Aviso ámbar: tengo OFs en_curso (las estoy planteando) pero no hay
-  // ningún fichaje corriendo desde hace más de AVISO_SIN_FICHAR_MIN. Se
-  // recuerda el instante en que empezó la situación en estado (no en un ref:
-  // leer un ref durante el render está prohibido); nada de recomputar
-  // historia, solo un timestamp simple.
+  // Aviso ámbar: tengo OFs en_curso NO detenidas (una detenida no se puede
+  // fichar, así que no tiene sentido avisar por ella) pero no hay ningún
+  // fichaje corriendo desde hace más de AVISO_SIN_FICHAR_MIN. Se recuerda el
+  // instante en que empezó la situación en estado (no en un ref: leer un ref
+  // durante el render está prohibido). El contador va etiquetado con el
+  // operario: es por identidad y no debe heredarse al cambiar de técnico
+  // (si A llevaba 8 min sin fichar y cambio a B, B arranca de cero).
   const misEnCurso = pedidos.some((p) =>
-    p.ofs.some((of) => of.autorId === miId && of.estado === "en_curso"),
+    p.ofs.some((of) => of.autorId === miId && of.estado === "en_curso" && !of.detenida),
   );
-  const [sinFicharDesde, setSinFicharDesde] = useState<number | null>(null);
+  const [sinFicharDesde, setSinFicharDesde] = useState<{ opId: string; desde: number } | null>(
+    null,
+  );
   useEffect(() => {
     if (misEnCurso && !ab) {
-      setSinFicharDesde((prev) => prev ?? Date.now());
+      setSinFicharDesde((prev) =>
+        prev && prev.opId === miId ? prev : { opId: miId, desde: Date.now() },
+      );
     } else {
       setSinFicharDesde(null);
     }
-  }, [misEnCurso, ab]);
+  }, [misEnCurso, ab, miId]);
   const aviso =
     sinFicharDesde !== null &&
-    Date.parse(ahora) - sinFicharDesde >= AVISO_SIN_FICHAR_MIN * 60_000;
+    sinFicharDesde.opId === miId &&
+    Date.parse(ahora) - sinFicharDesde.desde >= AVISO_SIN_FICHAR_MIN * 60_000;
 
   const yo = operarios.find((o) => o.id === miId) ?? null;
   if (!yo) return null;

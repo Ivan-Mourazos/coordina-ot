@@ -393,10 +393,11 @@ export function Board({
   const [cambioIdentidadPendiente, setCambioIdentidadPendiente] = useState<string | null>(null);
   const solicitarCambioIdentidad = useCallback(
     (id: string) => {
+      if (id === miId) return; // re-elegirse a uno mismo: ni diálogo ni pausa
       if (abierto(fichaje) !== null) setCambioIdentidadPendiente(id);
       else setMiId(id);
     },
-    [fichaje, setMiId],
+    [fichaje, miId, setMiId],
   );
 
   // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
