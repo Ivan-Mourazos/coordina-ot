@@ -27,6 +27,8 @@ import { Drawer } from "./Drawer";
 import { PedidoCardView, type Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
@@ -385,6 +387,18 @@ export function Board({
     });
   }, []);
 
+  // Cambiar de identidad con un fichaje corriendo perdería de vista ese
+  // tiempo (queda fichado a nombre del técnico anterior): se avisa y se deja
+  // pausar antes de cambiar, en vez de cambiar en silencio.
+  const [cambioIdentidadPendiente, setCambioIdentidadPendiente] = useState<string | null>(null);
+  const solicitarCambioIdentidad = useCallback(
+    (id: string) => {
+      if (abierto(fichaje) !== null) setCambioIdentidadPendiente(id);
+      else setMiId(id);
+    },
+    [fichaje, setMiId],
+  );
+
   // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
   const ejecutarAccion = useCallback(
     (ofIds: string[], accion: AccionOF, obs?: string) => {
@@ -524,7 +538,7 @@ export function Board({
             <Kpi label="Por revisar" value={porRevisar} tone="amber" />
             <Kpi label="En revisión" value={enRevision} tone="violet" />
             <Notificaciones items={notifItems} onNavigate={irANotificacion} />
-            <IdentityBadge yo={yo} operarios={operarios} onChange={setMiId} />
+            <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
             <ThemeToggle />
           </div>
         </header>
@@ -647,6 +661,29 @@ export function Board({
         onAccion={ejecutarAccion}
         onFichar={ficharOFs}
         onDesfichar={desficharOF}
+      />
+
+      <MiFichaje
+        miId={miId}
+        operarios={operarios}
+        pedidos={procesadosAll}
+        fichaje={fichaje}
+        onFichar={ficharOFs}
+        onDesfichar={desficharOF}
+        onPausarTodo={pausarTodo}
+        onReanudar={reanudar}
+      />
+
+      <ConfirmDialog
+        abierto={cambioIdentidadPendiente !== null}
+        titulo="Cambiar de técnico"
+        mensaje={`Tienes un fichaje corriendo a nombre de ${yo.nombre}. ¿Pausarlo antes de cambiar?`}
+        onConfirmar={() => {
+          pausarTodo();
+          if (cambioIdentidadPendiente) setMiId(cambioIdentidadPendiente);
+          setCambioIdentidadPendiente(null);
+        }}
+        onCancelar={() => setCambioIdentidadPendiente(null)}
       />
     </DndContext>
   );
