@@ -43,3 +43,6 @@ next-env.d.ts
 /.claude/settings.local.json
 /.claude/hooks/
 /.claude/.caveman-*
+
+# Playwright MCP artefacts
+.playwright-mcp/
