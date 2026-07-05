@@ -34,7 +34,7 @@ import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
-import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
+import { FICHAJE_VACIO, abierto, fichar, parseFichaje, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
 const FICHAJE_KEY = "coordina-fichaje-v1";
@@ -42,7 +42,7 @@ const FICHAJE_KEY = "coordina-fichaje-v1";
 function leerFichajeGuardado(): Fichaje {
   if (typeof window === "undefined") return FICHAJE_VACIO;
   try {
-    return JSON.parse(localStorage.getItem(FICHAJE_KEY) ?? "") as Fichaje;
+    return parseFichaje(localStorage.getItem(FICHAJE_KEY));
   } catch {
     return FICHAJE_VACIO;
   }
@@ -357,13 +357,30 @@ export function Board({
   const ficharOFs = useCallback(
     (ofIds: string[], rol: Rol) => {
       if (!miId) return;
+      // Regla del spec ("ligado suave"): fichar una OF pendiente la pasa a
+      // en_curso (igual una devuelta, vía "retomar"). Se aplica con
+      // aplicarAccion() directamente sobre mut(), NO con ejecutarAccion(),
+      // para no volver a entrar aquí (ejecutarAccion → efectoFichaje
+      // "arranca" → ficharOFs sería recursión). Si la OF ya está en_curso
+      // (p.ej. porque ejecutarAccion ya la transicionó antes de llamarnos),
+      // aplicarAccion() lanza y el catch por-OF la deja tal cual: no hay
+      // doble transición ni fichaje duplicado.
+      mut(new Set(ofIds), (of) => {
+        try {
+          if (of.estado === "pendiente") return aplicarAccion(of, "empezar_planteo");
+          if (of.estado === "devuelta") return aplicarAccion(of, "retomar");
+          return of;
+        } catch {
+          return of;
+        }
+      });
       setFichaje((f) => {
         const ab = abierto(f);
         const conjunto = ab && ab.rol === rol ? [...ab.ofIds, ...ofIds] : ofIds;
         return fichar(f, conjunto, rol, miId, ahora());
       });
     },
-    [miId],
+    [miId, mut],
   );
 
   const desficharOF = useCallback((ofId: string) => {
@@ -380,12 +397,16 @@ export function Board({
   const pausarTodo = useCallback(() => setFichaje((f) => pausar(f, ahora())), []);
 
   const reanudar = useCallback(() => {
+    if (!miId) return;
     setFichaje((f) => {
       const ultimo = f.intervalos[f.intervalos.length - 1];
       if (!ultimo || ultimo.fin === null) return f;
-      return fichar(f, ultimo.ofIds, ultimo.rol, ultimo.operarioId, ahora());
+      // Reabre con la identidad ACTUAL (miId), no con la del último
+      // intervalo: si se reanuda tras un cambio de técnico, el tiempo debe
+      // quedar fichado a nombre de quien está delante del panel ahora.
+      return fichar(f, ultimo.ofIds, ultimo.rol, miId, ahora());
     });
-  }, []);
+  }, [miId]);
 
   // Cambiar de identidad con un fichaje corriendo perdería de vista ese
   // tiempo (queda fichado a nombre del técnico anterior): se avisa y se deja
@@ -404,6 +425,11 @@ export function Board({
   const ejecutarAccion = useCallback(
     (ofIds: string[], accion: AccionOF, obs?: string) => {
       const def = ACCIONES.find((a) => a.id === accion);
+      // Acciones con nota obligatoria (p.ej. "devolver") sin nota: cortar aquí
+      // ANTES de tocar nada. Si no, aplicarAccion() lanza (y mut() lo atrapa)
+      // pero el bloque efectoFichaje==="corta" de abajo cortaría igual el
+      // fichaje aunque la OF no haya cambiado de estado.
+      if (def?.conNota && !obs?.trim()) return;
       // Solo disparar el efecto de fichaje sobre las OFs donde la acción
       // realmente aplica: si aplicarAccion() la hubiera rechazado para
       // todas (p.ej. "empezar_planteo" sobre una OF "devuelta"), no hay que

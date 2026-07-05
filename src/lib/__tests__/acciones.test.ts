@@ -35,6 +35,9 @@ describe("aplicarAccion", () => {
     expect(aplicarAccion(of("devuelta"), "retomar").estado).toBe("en_curso");
     expect(aplicarAccion(of("anulada"), "restaurar").estado).toBe("pendiente");
   });
+  it("terminar_planteo también sale de devuelta directo a por_revisar", () => {
+    expect(aplicarAccion(of("devuelta"), "terminar_planteo").estado).toBe("por_revisar");
+  });
   it("devolver exige nota y la guarda", () => {
     const r = aplicarAccion(of("en_revision"), "devolver", "falta cota");
     expect(r.estado).toBe("devuelta");

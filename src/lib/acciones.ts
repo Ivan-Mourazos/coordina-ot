@@ -28,7 +28,7 @@ export const ACCIONES: AccionDef[] = [
   { id: "retomar", label: "Retomar planteo", tono: "primaria",
     desde: ["devuelta"], requiere: "autor", efectoFichaje: "arranca", destino: "en_curso" },
   { id: "terminar_planteo", label: "Pasar a revisión", tono: "primaria",
-    desde: ["en_curso"], efectoFichaje: "corta", destino: "por_revisar" },
+    desde: ["en_curso", "devuelta"], efectoFichaje: "corta", destino: "por_revisar" },
   { id: "deshacer_empezar", label: "Volver a pendiente", tono: "neutra",
     confirmar: "La OF volverá a pendiente. El tiempo ya fichado se conserva.",
     desde: ["en_curso"], efectoFichaje: "corta", destino: "pendiente" },

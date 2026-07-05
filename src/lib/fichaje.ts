@@ -20,6 +20,34 @@ export interface Fichaje {
 
 export const FICHAJE_VACIO: Fichaje = { intervalos: [] };
 
+/** Valida el fichaje leído de localStorage antes de confiar en su forma: es
+ *  dato de usuario (puede venir corrupto, vacío o de una versión anterior del
+ *  esquema). Cualquier desviación de la forma esperada → FICHAJE_VACIO, nunca
+ *  se propaga un objeto a medio validar. */
+export function parseFichaje(raw: string | null): Fichaje {
+  if (!raw) return FICHAJE_VACIO;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return FICHAJE_VACIO;
+  }
+  const intervalos = (parsed as { intervalos?: unknown } | null)?.intervalos;
+  if (!Array.isArray(intervalos)) return FICHAJE_VACIO;
+  const formaValida = intervalos.every((iv) => {
+    const i = iv as Partial<Intervalo> | null;
+    return (
+      !!i &&
+      typeof i.inicio === "string" &&
+      (i.fin === null || typeof i.fin === "string") &&
+      Array.isArray(i.ofIds) &&
+      (i.rol === "plantear" || i.rol === "revisar") &&
+      typeof i.operarioId === "string"
+    );
+  });
+  return formaValida ? (parsed as Fichaje) : FICHAJE_VACIO;
+}
+
 export function abierto(f: Fichaje): Intervalo | null {
   const ultimo = f.intervalos[f.intervalos.length - 1];
   return ultimo && ultimo.fin === null ? ultimo : null;
@@ -43,7 +71,13 @@ export function fichar(
 ): Fichaje {
   const ids = [...new Set(ofIds)];
   const ab = abierto(f);
-  if (ab && ab.rol === rol && ids.length === ab.ofIds.length && ids.every((id) => ab.ofIds.includes(id))) {
+  if (
+    ab &&
+    ab.rol === rol &&
+    ab.operarioId === operarioId &&
+    ids.length === ab.ofIds.length &&
+    ids.every((id) => ab.ofIds.includes(id))
+  ) {
     return f; // idempotente
   }
   const cerrado = cerrar(f, ahora);

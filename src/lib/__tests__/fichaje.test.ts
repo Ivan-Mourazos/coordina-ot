@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FICHAJE_VACIO, abierto, fichar, pausar, minutosOF,
+  FICHAJE_VACIO, abierto, fichar, pausar, minutosOF, parseFichaje,
   ofsFichables, rolFichajeDe, esFichable,
 } from "../fichaje";
 import type { OF, Pedido } from "../types";
@@ -32,6 +32,22 @@ describe("fichar", () => {
     const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
     expect(fichar(f, ["of1"], "plantear", "op1", T1)).toBe(f);
   });
+  it("mismo conjunto y rol pero DISTINTO operario: cierra y reabre (no idempotente)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    const f2 = fichar(f, ["of1"], "plantear", "op2", T1);
+    expect(f2).not.toBe(f);
+    expect(f2.intervalos).toHaveLength(2);
+    expect(f2.intervalos[0]).toMatchObject({ fin: T1, operarioId: "op1" });
+    expect(abierto(f2)).toMatchObject({ ofIds: ["of1"], operarioId: "op2" });
+  });
+  it("mismo conjunto pero DISTINTO rol: cierra y reabre (no idempotente)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    const f2 = fichar(f, ["of1"], "revisar", "op1", T1);
+    expect(f2).not.toBe(f);
+    expect(f2.intervalos).toHaveLength(2);
+    expect(f2.intervalos[0]).toMatchObject({ fin: T1, rol: "plantear" });
+    expect(abierto(f2)).toMatchObject({ ofIds: ["of1"], rol: "revisar" });
+  });
 });
 
 describe("pausar", () => {
@@ -57,6 +73,24 @@ describe("minutosOF", () => {
     const f = fichar(FICHAJE_VACIO, ["of1"], "revisar", "op1", T0);
     expect(minutosOF(f, "of1", { ahora: T1 })).toBeCloseTo(30);
     expect(minutosOF(f, "of1", { ahora: T1, rol: "plantear" })).toBe(0);
+  });
+  it("intervalo abierto SIN `ahora`: no se cuenta (0)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    expect(minutosOF(f, "of1")).toBe(0);
+  });
+});
+
+describe("parseFichaje", () => {
+  it("null, vacío, JSON inválido o con forma incorrecta → FICHAJE_VACIO", () => {
+    expect(parseFichaje(null)).toEqual(FICHAJE_VACIO);
+    expect(parseFichaje("")).toEqual(FICHAJE_VACIO);
+    expect(parseFichaje("null")).toEqual(FICHAJE_VACIO);
+    expect(parseFichaje("{}")).toEqual(FICHAJE_VACIO);
+    expect(parseFichaje('{"intervalos":"x"}')).toEqual(FICHAJE_VACIO);
+  });
+  it("fichaje válido: se conserva íntegro (round-trip)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1", "of2"], "plantear", "op1", T0);
+    expect(parseFichaje(JSON.stringify(f))).toEqual(f);
   });
 });
 

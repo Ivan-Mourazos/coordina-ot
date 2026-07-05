@@ -103,7 +103,29 @@ export function MiFichaje({
     Date.parse(ahora) - sinFicharDesde.desde >= AVISO_SIN_FICHAR_MIN * 60_000;
 
   const yo = operarios.find((o) => o.id === miId) ?? null;
+
+  // Escape colapsa el panel expandido (mismo patrón que el Drawer).
+  useEffect(() => {
+    if (!expandido) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpandido(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [expandido]);
+
   if (!yo) return null;
+
+  // Los minutos del panel son de HOY; el histórico completo se conserva para
+  // Olanet (solo se filtra la proyección que ve el técnico, no el fichaje).
+  const inicioHoy = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const fichajeHoy: Fichaje = {
+    intervalos: fichaje.intervalos.filter((iv) => iv.inicio >= inicioHoy),
+  };
 
   const grupos = pedidos
     .map((p) => ({ pedido: p, ofs: ofsMiasDe(p, miId) }))
@@ -142,7 +164,7 @@ export function MiFichaje({
                 pedido={g.pedido}
                 ofs={g.ofs}
                 miId={miId}
-                fichaje={fichaje}
+                fichaje={fichajeHoy}
                 ahora={ahora}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
@@ -178,7 +200,8 @@ export function MiFichaje({
       {/* píldora colapsada/cabecera del panel */}
       <button
         onClick={() => setExpandido((v) => !v)}
-        className={`glass-chip flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors motion-reduce:animate-none ${
+        aria-expanded={expandido}
+        className={`glass-chip flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
           ab
             ? ROL[ab.rol].chip
             : aviso
