@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FICHAJE_VACIO, abierto, fichar, pausar } from "../fichaje";
+import { FICHAJE_VACIO, abierto, fichar, pausar, minutosOF, ofsFichables } from "../fichaje";
+import type { OF, Pedido } from "../types";
 
 const T0 = "2026-07-06T08:00:00.000Z";
 const T1 = "2026-07-06T08:30:00.000Z";
+const T2 = "2026-07-06T09:00:00.000Z";
 
 describe("fichar", () => {
   it("abre un intervalo con las OFs dadas", () => {
@@ -37,5 +39,39 @@ describe("pausar", () => {
   });
   it("sin intervalo abierto es no-op", () => {
     expect(pausar(FICHAJE_VACIO, T1)).toBe(FICHAJE_VACIO);
+  });
+});
+
+describe("minutosOF", () => {
+  it("reparte cada tramo entre sus OFs", () => {
+    let f = fichar(FICHAJE_VACIO, ["of1", "of2"], "plantear", "op1", T0); // 30 min entre 2
+    f = fichar(f, ["of1"], "plantear", "op1", T1); // 30 min solo of1
+    f = pausar(f, T2);
+    expect(minutosOF(f, "of1")).toBeCloseTo(45);
+    expect(minutosOF(f, "of2")).toBeCloseTo(15);
+  });
+  it("intervalo abierto cuenta hasta `ahora`; filtra por rol", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "revisar", "op1", T0);
+    expect(minutosOF(f, "of1", { ahora: T1 })).toBeCloseTo(30);
+    expect(minutosOF(f, "of1", { ahora: T1, rol: "plantear" })).toBe(0);
+  });
+});
+
+describe("ofsFichables", () => {
+  const base: Omit<OF, "id" | "estado"> = {
+    codigo: "OF-01", descripcion: "x", familia: "TOLDO", piezas: 1,
+    autorId: "op1", revisorId: null, fichandoRol: null,
+    tiempoEstimadoMin: 0, tiempoPlanteoMin: 0, tiempoRevisionMin: 0,
+  };
+  it("excluye detenidas, anuladas y aprobadas", () => {
+    const p = {
+      ofs: [
+        { ...base, id: "a", estado: "pendiente" },
+        { ...base, id: "b", estado: "anulada" },
+        { ...base, id: "c", estado: "aprobada" },
+        { ...base, id: "d", estado: "en_curso", detenida: true },
+      ],
+    } as unknown as Pedido;
+    expect(ofsFichables(p).map((o: OF) => o.id)).toEqual(["a"]);
   });
 });

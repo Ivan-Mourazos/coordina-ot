@@ -1,4 +1,4 @@
-import type { Rol } from "./types";
+import type { OF, Pedido, Rol } from "./types";
 
 // ─── Motor de fichaje por intervalos ─────────────────────────────────────────
 // Funciones puras. Regla clave: cambiar el conjunto de OFs de un fichaje que
@@ -55,4 +55,28 @@ export function fichar(
 
 export function pausar(f: Fichaje, ahora: string): Fichaje {
   return cerrar(f, ahora);
+}
+
+/** Minutos atribuidos a una OF: Σ (fin−inicio)/nºOFs de sus tramos. */
+export function minutosOF(
+  f: Fichaje,
+  ofId: string,
+  opts: { rol?: Rol; ahora?: string } = {},
+): number {
+  let total = 0;
+  for (const iv of f.intervalos) {
+    if (!iv.ofIds.includes(ofId)) continue;
+    if (opts.rol && iv.rol !== opts.rol) continue;
+    const fin = iv.fin ?? opts.ahora;
+    if (!fin) continue; // abierto y sin `ahora`: no se cuenta
+    total += (Date.parse(fin) - Date.parse(iv.inicio)) / 60000 / iv.ofIds.length;
+  }
+  return total;
+}
+
+/** OFs de un pedido en las que se puede fichar. */
+export function ofsFichables(p: Pedido): OF[] {
+  return p.ofs.filter(
+    (of) => !of.detenida && of.estado !== "anulada" && of.estado !== "aprobada",
+  );
 }

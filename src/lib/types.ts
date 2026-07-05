@@ -69,6 +69,8 @@ export interface OF {
 
   /** Si se está fichando ahora mismo, con qué rol. */
   fichandoRol: Rol | null;
+  /** Detenida por Producción: se omite SIEMPRE del fichaje (dato de RPS). */
+  detenida?: boolean;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores
