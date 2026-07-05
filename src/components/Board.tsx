@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -87,19 +87,14 @@ export function Board({
   }, []);
 
   // Motor de fichaje: la única fuente de verdad son los intervalos, nunca
-  // minutos sumados. Se persiste tal cual y se lee tras hidratar.
-  const [fichaje, setFichaje] = useState<Fichaje>(FICHAJE_VACIO);
-  // Antes de que termine el efecto de carga, `fichaje` todavía vale
-  // FICHAJE_VACIO: sin esta guarda, el efecto de persistencia lo escribiría
-  // en localStorage y pisaría lo guardado (p.ej. bajo Strict Mode, que
-  // invoca los efectos dos veces, o si se cierra la pestaña justo entonces).
-  const fichajeCargado = useRef(false);
+  // minutos sumados. La carga es el inicializador perezoso (mismo patrón que
+  // miId): lee localStorage ANTES de que corra ningún efecto, así el efecto
+  // de persistencia nunca puede pisar lo guardado con FICHAJE_VACIO en el
+  // arranque (ni bajo Strict Mode, que invoca los efectos dos veces). El
+  // efecto solo persiste; en SSR leerFichajeGuardado() devuelve FICHAJE_VACIO.
+  const [fichaje, setFichaje] = useState<Fichaje>(leerFichajeGuardado);
   useEffect(() => {
-    setFichaje(leerFichajeGuardado());
-    fichajeCargado.current = true;
-  }, []);
-  useEffect(() => {
-    if (!fichajeCargado.current) return;
+    if (typeof window === "undefined") return;
     localStorage.setItem(FICHAJE_KEY, JSON.stringify(fichaje));
   }, [fichaje]);
 
