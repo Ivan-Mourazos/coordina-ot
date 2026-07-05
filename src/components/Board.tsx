@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -23,7 +23,7 @@ import { Bandeja } from "./Bandeja";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { HistorialView } from "./HistorialView";
-import { Drawer, type AccionOF } from "./Drawer";
+import { Drawer } from "./Drawer";
 import { PedidoCardView, type Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
@@ -31,8 +31,20 @@ import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
+import { ACCIONES, aplicarAccion, type AccionOF } from "@/lib/acciones";
+import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
+const FICHAJE_KEY = "coordina-fichaje-v1";
+
+function leerFichajeGuardado(): Fichaje {
+  if (typeof window === "undefined") return FICHAJE_VACIO;
+  try {
+    return JSON.parse(localStorage.getItem(FICHAJE_KEY) ?? "") as Fichaje;
+  } catch {
+    return FICHAJE_VACIO;
+  }
+}
 
 /** Quién está fichando ahora mismo: en qué OF y con qué rol. */
 export interface LiveInfo {
@@ -73,6 +85,32 @@ export function Board({
       localStorage.setItem(IDENTITY_KEY, id);
     } catch {}
   }, []);
+
+  // Motor de fichaje: la única fuente de verdad son los intervalos, nunca
+  // minutos sumados. Se persiste tal cual y se lee tras hidratar.
+  const [fichaje, setFichaje] = useState<Fichaje>(FICHAJE_VACIO);
+  useEffect(() => {
+    setFichaje(leerFichajeGuardado());
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(FICHAJE_KEY, JSON.stringify(fichaje));
+  }, [fichaje]);
+
+  // fichandoRol de cada OF se DERIVA del intervalo abierto (denormalizado en
+  // pedidos para que LiveBadge, chips y contadores existentes sigan
+  // funcionando sin tocarlos).
+  useEffect(() => {
+    const ab = abierto(fichaje);
+    setPedidos((prev) =>
+      prev.map((p) => ({
+        ...p,
+        ofs: p.ofs.map((of) => {
+          const rol = ab && ab.ofIds.includes(of.id) ? ab.rol : null;
+          return of.fichandoRol === rol ? of : { ...of, fichandoRol: rol };
+        }),
+      })),
+    );
+  }, [fichaje]);
 
   // Panel de compañero desplegado en Asignar: solo uno a la vez.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -309,80 +347,72 @@ export function Board({
     },
     [mut],
   );
-  const accionOF = useCallback(
-    (ofId: string, accion: AccionOF, obs?: string) => {
-      mut(new Set([ofId]), (of) => {
-        switch (accion) {
-          case "empezar":
-            return {
-              ...of,
-              estado: of.estado === "pendiente" ? "en_curso" : of.estado === "por_revisar" ? "en_revision" : of.estado,
-              fichandoRol: (of.estado === "por_revisar" || of.estado === "en_revision") ? "revisar" : "plantear",
-            };
-          case "pausar":
-            return { ...of, fichandoRol: null };
-          case "terminar":
-            return { ...of, estado: "por_revisar", fichandoRol: null };
-          case "aprobar":
-            return { ...of, estado: "aprobada", fichandoRol: null };
-          case "devolver":
-            return {
-              ...of,
-              estado: "devuelta",
-              observacion: obs?.trim() || "Devuelta para corregir.",
-              fichandoRol: null,
-            };
-          case "reabrir":
-            return { ...of, estado: "en_revision" };
-          case "anular":
-            return { ...of, estado: "anulada", fichandoRol: null };
-          case "deshacer_empezar":
-            return { ...of, estado: "pendiente", fichandoRol: null };
-          default:
-            return of;
-        }
+  // ── API de fichaje del Board ──
+  const ahora = () => new Date().toISOString();
+
+  const ficharOFs = useCallback(
+    (ofIds: string[], rol: Rol) => {
+      if (!miId) return;
+      setFichaje((f) => {
+        const ab = abierto(f);
+        const conjunto = ab && ab.rol === rol ? [...ab.ofIds, ...ofIds] : ofIds;
+        return fichar(f, conjunto, rol, miId, ahora());
       });
     },
-    [mut],
+    [miId],
   );
 
-  const accionFacet = useCallback(
-    (facet: Facet, accion: AccionOF, obs?: string, revisorId?: string) => {
-      mut(new Set(facet.ofs.map((o) => o.id)), (of) => {
-        const ofObj = revisorId !== undefined ? { ...of, revisorId } : of;
-        switch (accion) {
-          case "empezar":
-            return {
-              ...ofObj,
-              estado: ofObj.estado === "pendiente" ? "en_curso" : ofObj.estado === "por_revisar" ? "en_revision" : ofObj.estado,
-              fichandoRol: (ofObj.estado === "por_revisar" || ofObj.estado === "en_revision") ? "revisar" : "plantear",
-            };
-          case "pausar":
-            return { ...ofObj, fichandoRol: null };
-          case "terminar":
-            return { ...ofObj, estado: "por_revisar", fichandoRol: null };
-          case "aprobar":
-            return { ...ofObj, estado: "aprobada", fichandoRol: null };
-          case "devolver":
-            return {
-              ...ofObj,
-              estado: "devuelta",
-              observacion: obs?.trim() || "Devuelta para corregir.",
-              fichandoRol: null,
-            };
-          case "reabrir":
-            return { ...ofObj, estado: "en_revision" };
-          case "anular":
-            return { ...ofObj, estado: "anulada", fichandoRol: null };
-          case "deshacer_empezar":
-            return { ...ofObj, estado: "pendiente", fichandoRol: null };
-          default:
-            return ofObj;
+  const desficharOF = useCallback((ofId: string) => {
+    setFichaje((f) => {
+      const ab = abierto(f);
+      if (!ab) return f;
+      return fichar(f, ab.ofIds.filter((id) => id !== ofId), ab.rol, ab.operarioId, ahora());
+    });
+  }, []);
+
+  const pausarTodo = useCallback(() => setFichaje((f) => pausar(f, ahora())), []);
+
+  const reanudar = useCallback(() => {
+    setFichaje((f) => {
+      const ultimo = f.intervalos[f.intervalos.length - 1];
+      if (!ultimo || ultimo.fin === null) return f;
+      return fichar(f, ultimo.ofIds, ultimo.rol, ultimo.operarioId, ahora());
+    });
+  }, []);
+
+  // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
+  const ejecutarAccion = useCallback(
+    (ofIds: string[], accion: AccionOF, obs?: string) => {
+      const def = ACCIONES.find((a) => a.id === accion);
+      mut(new Set(ofIds), (of) => {
+        try {
+          return aplicarAccion(of, accion, obs);
+        } catch {
+          return of;
         }
       });
+      if (def?.efectoFichaje === "corta") {
+        setFichaje((f) => {
+          const ab = abierto(f);
+          if (!ab) return f;
+          const resto = ab.ofIds.filter((id) => !ofIds.includes(id));
+          return fichar(f, resto, ab.rol, ab.operarioId, ahora());
+        });
+      } else if (def?.efectoFichaje === "arranca") {
+        const rol = accion === "empezar_revision" ? "revisar" : "plantear";
+        ficharOFs(ofIds, rol);
+      }
     },
-    [mut]
+    [mut, ficharOFs],
   );
+
+  // Adaptadores para no romper firmas aguas abajo todavía (se eliminan en
+  // Tasks 6-7, cuando Drawer/PedidoChip llamen a ejecutarAccion directamente).
+  const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
+  const accionFacet = (facet: Facet, a: AccionOF, obs?: string, revisorId?: string) => {
+    if (revisorId !== undefined) mut(new Set(facet.ofs.map((o) => o.id)), (of) => ({ ...of, revisorId }));
+    ejecutarAccion(facet.ofs.map((o) => o.id), a, obs);
+  };
 
   const completarPedido = useCallback((pedidoId: string) => {
     setPedidos((prev) =>
@@ -598,6 +628,7 @@ export function Board({
         onAssignPedido={asignarPedido}
         onSetRevisor={setRevisor}
         onAccion={accionOF}
+        onPausarTodo={pausarTodo}
       />
     </DndContext>
   );

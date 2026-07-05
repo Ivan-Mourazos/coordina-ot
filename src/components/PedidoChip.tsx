@@ -8,7 +8,7 @@ import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
 import { Select, OpDot } from "./Select";
-import type { AccionOF } from "./Drawer";
+import type { AccionOF } from "@/lib/acciones";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
@@ -206,7 +206,7 @@ export const PedidoChip = memo(function PedidoChip({
               <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-[var(--glass-border)] pt-2">
                 {bucket === "sinEmpezar" && accionFacet && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar"); }}
+                    onClick={(e) => { e.stopPropagation(); accionFacet(facet, "empezar_planteo"); }}
                     className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700"
                   >
                     ▶ Empezar a plantear
@@ -244,7 +244,7 @@ export const PedidoChip = memo(function PedidoChip({
                     <button
                       onClick={() => {
                         if (revisorSelect) {
-                          accionFacet(facet, "terminar", undefined, revisorSelect);
+                          accionFacet(facet, "terminar_planteo", undefined, revisorSelect);
                           setTerminando(false);
                         }
                       }}

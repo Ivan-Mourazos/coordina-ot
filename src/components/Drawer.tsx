@@ -10,8 +10,7 @@ import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
 import { Select, OpDot, type SelectOption } from "./Select";
-
-export type AccionOF = "empezar" | "pausar" | "terminar" | "aprobar" | "devolver" | "reabrir" | "anular" | "deshacer_empezar";
+import type { AccionOF } from "@/lib/acciones";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -47,6 +46,7 @@ export function Drawer({
   onAssignPedido,
   onSetRevisor,
   onAccion,
+  onPausarTodo,
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
@@ -56,6 +56,8 @@ export function Drawer({
   onAssignPedido: (autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
+  /** Pausa provisional global del fichaje (se rehace por OF en Tasks 6-7). */
+  onPausarTodo?: () => void;
 }) {
   useEffect(() => {
     if (!pedido) return;
@@ -192,6 +194,7 @@ export function Drawer({
                 onAssignOF={onAssignOF}
                 onSetRevisor={onSetRevisor}
                 onAccion={onAccion}
+                onPausarTodo={onPausarTodo}
               />
             ))}
           </ul>
@@ -237,6 +240,7 @@ function OFRow({
   onAssignOF,
   onSetRevisor,
   onAccion,
+  onPausarTodo,
 }: {
   of: OF;
   operarios: Operario[];
@@ -245,6 +249,7 @@ function OFRow({
   onAssignOF: (ofId: string, autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
+  onPausarTodo?: () => void;
 }) {
   const meta = ESTADO[of.estado];
   const autor = opById(of.autorId);
@@ -328,7 +333,7 @@ function OFRow({
         {of.estado === "pendiente" && (
           <>
             {of.autorId !== null && (
-              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+              <Btn onClick={() => onAccion(of.id, "empezar_planteo")} tone="teal">
                 ▶ Empezar planteo
               </Btn>
             )}
@@ -340,15 +345,15 @@ function OFRow({
         {(of.estado === "en_curso" || of.estado === "devuelta") && (
           <>
             {of.fichandoRol === "plantear" ? (
-              <Btn onClick={() => onAccion(of.id, "pausar")} tone="amber">
+              <Btn onClick={() => onPausarTodo?.()} tone="amber">
                 ⏸ Pausar tiempo
               </Btn>
             ) : (
-              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+              <Btn onClick={() => onAccion(of.id, "empezar_planteo")} tone="teal">
                 ▶ Reanudar planteo
               </Btn>
             )}
-            <Btn onClick={() => onAccion(of.id, "terminar")} tone="amber">
+            <Btn onClick={() => onAccion(of.id, "terminar_planteo")} tone="amber">
               Terminar planteo → a revisar
             </Btn>
             <Btn onClick={() => onAccion(of.id, "deshacer_empezar")} tone="ghost">
@@ -357,18 +362,18 @@ function OFRow({
           </>
         )}
         {of.estado === "por_revisar" && of.revisorId !== null && (
-          <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+          <Btn onClick={() => onAccion(of.id, "empezar_revision")} tone="teal">
             ▶ Empezar revisión
           </Btn>
         )}
         {of.estado === "en_revision" && (
           <>
             {of.fichandoRol === "revisar" ? (
-              <Btn onClick={() => onAccion(of.id, "pausar")} tone="amber">
+              <Btn onClick={() => onPausarTodo?.()} tone="amber">
                 ⏸ Pausar revisión
               </Btn>
             ) : (
-              <Btn onClick={() => onAccion(of.id, "empezar")} tone="teal">
+              <Btn onClick={() => onAccion(of.id, "empezar_revision")} tone="teal">
                 ▶ Reanudar revisión
               </Btn>
             )}

@@ -2,7 +2,7 @@
 
 import type { EstadoOF, OF, Operario, Pedido } from "@/lib/types";
 import { ESTADO } from "@/lib/estado";
-import type { AccionOF } from "./Drawer";
+import type { AccionOF } from "@/lib/acciones";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";

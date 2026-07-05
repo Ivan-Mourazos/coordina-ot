@@ -8,7 +8,7 @@ import type { Facet } from "./PedidoCard";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
-import type { AccionOF } from "./Drawer";
+import type { AccionOF } from "@/lib/acciones";
 
 // En qué fase está cada OF, para la barra de distribución del técnico.
 const FASES = [

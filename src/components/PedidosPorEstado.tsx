@@ -3,7 +3,7 @@
 import type { Operario } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { PedidoChip } from "./PedidoChip";
-import type { AccionOF } from "./Drawer";
+import type { AccionOF } from "@/lib/acciones";
 
 type Bucket = "sinEmpezar" | "planteando" | "revision" | "finalizado";
 

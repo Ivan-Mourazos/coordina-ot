@@ -7,7 +7,7 @@ import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
-import type { AccionOF } from "./Drawer";
+import type { AccionOF } from "@/lib/acciones";
 
 export function Zona({
   operario,
