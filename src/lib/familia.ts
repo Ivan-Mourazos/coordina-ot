@@ -1,4 +1,4 @@
-import type { Familia } from "./types";
+import type { Familia, FamiliaConocida } from "./types";
 
 // Identidad visual por familia de producto: color + icono. Así un parte "se
 // sabe lo que es" (remolque, lona, carpa…) de un vistazo, como cuando el papel
@@ -11,7 +11,7 @@ export interface FamiliaMeta {
   icon: string;
 }
 
-const M: Record<Familia, FamiliaMeta> = {
+const M: Record<FamiliaConocida, FamiliaMeta> = {
   TOLDO: {
     label: "Toldo",
     color: "#c65a11",
@@ -66,7 +66,7 @@ const FALLBACK: FamiliaMeta = {
  *  nuevas: ESCENARIO, ESTRUCTURA…) y devuelve un tinte neutro con su nombre. */
 export function familiaMeta(f: Familia | string): FamiliaMeta {
   return (
-    M[f as Familia] ?? {
+    M[f as FamiliaConocida] ?? {
       ...FALLBACK,
       label: f.charAt(0) + f.slice(1).toLowerCase(),
     }

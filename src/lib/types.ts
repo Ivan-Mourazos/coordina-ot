@@ -15,7 +15,8 @@
 // Estas formas son el contrato que consume la UI. El mock (lib/mock.ts) las
 // rellena hoy; mañana el adaptador SQL Server / RPS devolverá lo mismo.
 
-export type Familia =
+/** Familias con identidad visual propia (color + icono en familia.ts). */
+export type FamiliaConocida =
   | "TOLDO"
   | "SUMINISTRO"
   | "REMOLQUE"
@@ -23,6 +24,10 @@ export type Familia =
   | "CARPA"
   | "TAPIZADO"
   | "REPARACION";
+
+/** RPS trae familias fuera del catálogo (ESPECTACULO, CERRAMIENTOS…): se
+ *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */
+export type Familia = FamiliaConocida | (string & {});
 
 export type Prioridad = 1 | 2 | 3; // 1 = máxima urgencia
 
@@ -71,6 +76,14 @@ export interface OF {
   fichandoRol: Rol | null;
   /** Detenida por Producción: se omite SIEMPRE del fichaje (dato de RPS). */
   detenida?: boolean;
+  /** false = la situación en RPS no admite imputaciones (CREADA, FINALIZADA…):
+   *  fichar aquí sería tiempo que NO sube a RPS. undefined = sin dato (mock). */
+  fichable?: boolean;
+  /** Texto de rotulación del parte (dato de RPS, no siempre existe). */
+  rotulacion?: string;
+  /** Fecha ISO en la que llega el material de compras pedido y aún no
+   *  recibido. Informativo: OT plantea por orden de planificación/llegada. */
+  materialPendienteHasta?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores

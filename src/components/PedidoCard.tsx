@@ -47,6 +47,11 @@ export const PedidoCardView = memo(function PedidoCardView({
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;
   const atrasado = Boolean(facet.atrasado);
   const familias = [...new Set(ofs.map((o) => o.familia))];
+  const materialPendiente = ofs
+    .map((o) => o.materialPendienteHasta)
+    .filter(Boolean)
+    .sort()[0];
+  const conRotulacion = ofs.some((o) => o.rotulacion);
 
   return (
     <div className="w-full select-none">
@@ -72,7 +77,29 @@ export const PedidoCardView = memo(function PedidoCardView({
           ))}
         </span>
 
-
+        {/* avisos de datos de RPS: material sin recibir / lleva rotulación */}
+        <span className="absolute right-1 top-1 flex flex-col gap-0.5">
+          {materialPendiente && (
+            <span
+              title={`Material de compras pedido, llega el ${materialPendiente
+                .split("-")
+                .reverse()
+                .slice(0, 2)
+                .join("/")}`}
+              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-amber-400/95 text-[11px] shadow-sm ring-1 ring-black/10"
+            >
+              📦
+            </span>
+          )}
+          {conRotulacion && (
+            <span
+              title="Lleva rotulación"
+              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-white/95 text-[11px] shadow-sm ring-1 ring-black/10"
+            >
+              🏷
+            </span>
+          )}
+        </span>
 
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (

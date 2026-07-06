@@ -28,7 +28,8 @@ function config(): sql.config {
     },
     pool: { max: 5, min: 0, idleTimeoutMillis: 30_000 },
     connectionTimeout: 10_000,
-    requestTimeout: 15_000,
+    // La vista TGM_PENDIENTE_OT tarda 7-15 s según la hora del día.
+    requestTimeout: Number(process.env.RPS_DB_REQUEST_TIMEOUT ?? 60_000),
   };
 }
 

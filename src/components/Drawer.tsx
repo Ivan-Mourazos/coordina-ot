@@ -12,7 +12,7 @@ import { DevolverInline } from "./DevolverInline";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
-import { esFichable, rolFichajeDe } from "@/lib/fichaje";
+import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -275,6 +275,18 @@ function OFRow({
 
       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
 
+      {of.rotulacion && (
+        <p className="mt-1.5 rounded-md bg-sky-500/10 px-2 py-1 text-[11px] text-sky-700 dark:text-sky-300">
+          🏷 Rotulación: <b>{of.rotulacion}</b>
+        </p>
+      )}
+
+      {of.materialPendienteHasta && (
+        <p className="mt-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
+          📦 Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.
+        </p>
+      )}
+
       {of.observacion && (
         <p className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400">
           ⚠ {of.observacion}
@@ -297,11 +309,19 @@ function OFRow({
           <Btn tone="ghost" onClick={() => onDesfichar(of.id)}>
             ⏸ Dejar de fichar
           </Btn>
+        ) : esFichable(of) ? (
+          <Btn tone="ghost" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
+            ⏱ Fichar
+          </Btn>
         ) : (
-          esFichable(of) && (
-            <Btn tone="ghost" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
-              ⏱ Fichar
-            </Btn>
+          of.estado !== "aprobada" &&
+          of.estado !== "anulada" && (
+            <span
+              title={motivoNoFichable(of) ?? undefined}
+              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
+            >
+              ⏱ No fichable
+            </span>
           )
         )}
       </div>

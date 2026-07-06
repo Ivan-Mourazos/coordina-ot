@@ -114,9 +114,26 @@ export function rolFichajeDe(of: OF): Rol {
   return of.estado === "por_revisar" || of.estado === "en_revision" ? "revisar" : "plantear";
 }
 
-/** ¿Se puede fichar en esta OF? Excluye detenidas, anuladas y aprobadas. */
+/** ¿Se puede fichar en esta OF? Excluye detenidas, anuladas, aprobadas y las
+ *  que RPS marca como no imputables (fichable === false): ese tiempo no
+ *  subiría a RPS. `fichable` ausente (mock) no restringe. */
 export function esFichable(of: OF): boolean {
-  return !of.detenida && of.estado !== "anulada" && of.estado !== "aprobada";
+  return (
+    !of.detenida &&
+    of.fichable !== false &&
+    of.estado !== "anulada" &&
+    of.estado !== "aprobada"
+  );
+}
+
+/** Motivo legible por el que una OF no se puede fichar (null = sí se puede). */
+export function motivoNoFichable(of: OF): string | null {
+  if (of.detenida) return "Detenida por Producción";
+  if (of.fichable === false)
+    return "La situación en RPS no admite fichar (el tiempo no subiría)";
+  if (of.estado === "anulada") return "OF anulada";
+  if (of.estado === "aprobada") return "OF aprobada: ya está lista para Producción";
+  return null;
 }
 
 /** OFs de un pedido en las que se puede fichar. */

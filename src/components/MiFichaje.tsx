@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { OF, Operario, Pedido, Rol } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
-import { abierto, esFichable, minutosOF, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
+import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
 import { OpDot } from "./Select";
 
@@ -311,9 +311,12 @@ function OFItem({
         {meta.short}
       </span>
       <span className="ml-auto shrink-0 text-text-muted">{fmtMin(minutos)}</span>
-      {of.detenida ? (
-        <span className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted/60">
-          Detenida
+      {!fichando && motivoNoFichable(of) ? (
+        <span
+          title={motivoNoFichable(of)!}
+          className="shrink-0 cursor-help rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted/60"
+        >
+          {of.detenida ? "Detenida" : "No fichable"}
         </span>
       ) : fichando ? (
         <button
