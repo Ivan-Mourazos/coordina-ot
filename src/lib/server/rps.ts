@@ -2,6 +2,7 @@ import type { Tablero } from "../data";
 import type { Familia, OF, Pedido, Prioridad } from "../types";
 import { hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
+import { operarioDeEmpleado } from "./operarios";
 
 // ─── Adaptador RPS → contrato de la UI ───────────────────────────────────────
 // Lee la vista RPSNext.dbo.TGM_PENDIENTE_OT (1 fila = 1 OF pendiente de OT,
@@ -41,11 +42,19 @@ interface FilaFichaje {
   orden: string | null;
   fase: string | null;
   tiempo: number | null;
+  codoperario: number | null;
 }
 
 interface FilaReserva {
   orden: string | null;
   reservas: number;
+}
+
+interface FilaImputacion {
+  orden: string | null;
+  tarea: string | null;
+  empleado: string | null;
+  minutos: number | null;
 }
 
 // ─── Interpretación tolerante de campos sueltos ──────────────────────────────
@@ -112,17 +121,28 @@ function descripcionDe(fila: FilaVista): string {
   return mo || articulo || notas || tarea || "(sin descripción)";
 }
 
-function aOF(fila: FilaVista, fichadaAhora: boolean, reservas: number): OF {
+interface DatosOF {
+  /** undefined = nadie fichando; null = fichando alguien de fuera de OT. */
+  fichandoOperario: string | null | undefined;
+  reservas: number;
+  /** Operario del tablero con más tiempo imputado en la tarea (autor real). */
+  autorImputado: string | null;
+}
+
+function aOF(fila: FilaVista, datos: DatosOF): OF {
   const orden = (fila.OF ?? "").trim();
   const fichadoMin = fila.TiempoTotalFichado ?? 0;
   const sit = (fila.SitOF ?? "").trim().toUpperCase();
+  const fichadaAhora = datos.fichandoOperario !== undefined;
   return {
     id: `${orden}:${(fila.CodTarea ?? "").trim()}`,
     codigo: orden,
     descripcion: descripcionDe(fila),
     familia: familiaDe(fila),
     piezas: Math.max(1, Math.round(fila.Cantidad ?? 1)),
-    autorId: null, // la asignación no vive en RPS (se hace en el tablero)
+    // Autor: quien ficha ahora la OF o, si nadie, quien más tiempo le ha
+    // imputado (según RPS). La asignación manual del tablero puede moverlo.
+    autorId: datos.fichandoOperario ?? datos.autorImputado,
     revisorId: null,
     // El fichaje del terminal de RPS solo cubre el planteo; la revisión es
     // propia de CoordinaOT y aún no existe en origen.
@@ -132,7 +152,7 @@ function aOF(fila: FilaVista, fichadaAhora: boolean, reservas: number): OF {
     fichable: SITUACIONES_FICHABLES.has(sit),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaComprasISO(fila.PedComprasPendiente),
-    reservasMaterial: reservas,
+    reservasMaterial: datos.reservas,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
     tiempoRevisionMin: 0,
@@ -146,19 +166,34 @@ async function consultarTablero(): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
 
-  const [vista, fichajes, reservas] = await Promise.all([
-    pool.request().query<FilaVista>(`
-      SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
-             v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
-             v.PedComprasPendiente, v.TiempoTotalFichado, v.SitOF, v.NotasOF,
-             mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
-             mo.PlannedStartDate, mo.PlannedEndDate
-      FROM dbo.TGM_PENDIENTE_OT v
-      LEFT JOIN dbo.CPRManufacturingOrder mo
-        ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
-    `),
+  // La vista va primero (es LA consulta cara y da la lista de OFs pendientes);
+  // el resto de datos auxiliares se piden en paralelo contra tablas indexadas.
+  const vista = await pool.request().query<FilaVista>(`
+    SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
+           v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
+           v.PedComprasPendiente, v.TiempoTotalFichado, v.SitOF, v.NotasOF,
+           mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
+           mo.PlannedStartDate, mo.PlannedEndDate
+    FROM dbo.TGM_PENDIENTE_OT v
+    LEFT JOIN dbo.CPRManufacturingOrder mo
+      ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
+  `);
+
+  // Lista de OFs pendientes saneada para usar en IN (…): solo códigos limpios.
+  const ordenes = [
+    ...new Set(
+      vista.recordset
+        .map((f) => (f.OF ?? "").trim())
+        .filter((o) => /^[\w.-]+$/.test(o)),
+    ),
+  ];
+  const listaIn = ordenes.length
+    ? ordenes.map((o) => `'${o}'`).join(",")
+    : "''";
+
+  const [fichajes, reservas, imputaciones] = await Promise.all([
     pool.request().query<FilaFichaje>(`
-      SELECT orden, fase, tiempo FROM dbo.tgm_fichajes_olanet
+      SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
     // Reservas de material vivas, agrupadas por OF. La tabla de reservas es
     // pequeña: subir de reserva → material → tarea → OF es barato.
@@ -171,18 +206,44 @@ async function consultarTablero(): Promise<Tablero> {
       WHERE r.ItemType = 5 AND mo.CodCompany = '001'
       GROUP BY mo.CodManufacturingOrder
     `),
+    // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
+    // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo.
+    pool.request().query<FilaImputacion>(`
+      SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
+             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+      FROM dbo.CPRImputationMO i
+      JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
+      JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
+      JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
+      GROUP BY mo.CodManufacturingOrder, t.CodMOTask, e.CodEmployee
+    `),
   ]);
 
   const reservasPorOF = new Map(
     reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
   );
 
-  // Fichajes con intervalo abierto ahora mismo, por OF+tarea.
-  const abiertos = new Set(
-    fichajes.recordset.map(
-      (f) => `${(f.orden ?? "").trim()}:${(f.fase ?? "").trim()}`,
-    ),
+  // Fichajes con intervalo abierto ahora mismo, por OF+tarea → operario del
+  // tablero (null si ficha alguien de fuera de OT).
+  const abiertos = new Map<string, string | null>(
+    fichajes.recordset.map((f) => [
+      `${(f.orden ?? "").trim()}:${(f.fase ?? "").trim()}`,
+      operarioDeEmpleado(f.codoperario),
+    ]),
   );
+
+  // Autor real por OF+tarea: operario del tablero con más minutos imputados.
+  const autorPorTarea = new Map<string, { op: string; min: number }>();
+  for (const r of imputaciones.recordset) {
+    const op = operarioDeEmpleado(r.empleado);
+    if (!op) continue;
+    const clave = `${(r.orden ?? "").trim()}:${(r.tarea ?? "").trim()}`;
+    const min = r.minutos ?? 0;
+    const actual = autorPorTarea.get(clave);
+    if (!actual || min > actual.min) autorPorTarea.set(clave, { op, min });
+  }
 
   // Agrupa filas (OFs) por pedido. Una OF sin pedido va en un pedido sintético
   // propio: sigue siendo trabajo real de OT y debe verse en el tablero.
@@ -235,11 +296,12 @@ async function consultarTablero(): Promise<Tablero> {
       scanUrl,
       ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
-        return aOF(
-          f,
-          abiertos.has(`${orden}:${(f.CodTarea ?? "").trim()}`),
-          reservasPorOF.get(orden) ?? 0,
-        );
+        const clave = `${orden}:${(f.CodTarea ?? "").trim()}`;
+        return aOF(f, {
+          fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
+          reservas: reservasPorOF.get(orden) ?? 0,
+          autorImputado: autorPorTarea.get(clave)?.op ?? null,
+        });
       }),
       accent: "ninguno",
       lineas: 0,
