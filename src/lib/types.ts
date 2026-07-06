@@ -113,6 +113,11 @@ export interface Pedido {
    *  tarjeta muestra la imagen real en lugar de la réplica dibujada. */
   scanUrl?: string;
 
+  /** Comentario del pedido de venta en RPS (condiciones, avisos del comercial). */
+  comentarioVenta?: string;
+  /** Ciudad de entrega del pedido de venta. */
+  ciudadEntrega?: string;
+
   // --- pistas visuales para simular el "parte escaneado" ---
   accent: "verde" | "rojo" | "azul" | "ninguno"; // círculo a mano del scan
   lineas: number; // nº de renglones de texto manuscrito simulado

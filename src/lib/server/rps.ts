@@ -27,8 +27,10 @@ interface FilaVista {
   FechaSolicitada: Date | null;
   Prioridad: number | null;
   TiempoPrevisto: number | null;
-  PedComprasPendiente: string | null;
-  TiempoTotalFichado: number | null;
+  /** Llegada prevista del material de compras pendiente (null = nada pendiente). */
+  FechaCompras: Date | null;
+  /** Fecha de planificación de la tarea de OT (la que ordena el trabajo). */
+  FechaPlanificada: Date | null;
   SitOF: string | null;
   NotasOF: string | null;
   // De CPRManufacturingOrder (JOIN por CodManufacturingOrder, empresa 001):
@@ -55,6 +57,12 @@ interface FilaImputacion {
   tarea: string | null;
   empleado: string | null;
   minutos: number | null;
+}
+
+interface FilaVenta {
+  pedido: string | null;
+  comentario: string | null;
+  ciudad: string | null;
 }
 
 // ─── Interpretación tolerante de campos sueltos ──────────────────────────────
@@ -98,12 +106,6 @@ function fechaISO(d: Date | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** "08/07/2026" (PedComprasPendiente) → "2026-07-08". Formato raro → undefined. */
-function fechaComprasISO(v: string | null): string | undefined {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((v ?? "").trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : undefined;
-}
-
 /** Situaciones de RPS que admiten imputaciones (AllowImputations en
  *  CPRManufacturingOrderSituation). Fichar fuera de estas = tiempo que NO
  *  sube a RPS (aviso de IT). */
@@ -127,11 +129,13 @@ interface DatosOF {
   reservas: number;
   /** Operario del tablero con más tiempo imputado en la tarea (autor real). */
   autorImputado: string | null;
+  /** Minutos imputados en la tarea de OT (todos los empleados). */
+  minutosImputados: number;
 }
 
 function aOF(fila: FilaVista, datos: DatosOF): OF {
   const orden = (fila.OF ?? "").trim();
-  const fichadoMin = fila.TiempoTotalFichado ?? 0;
+  const fichadoMin = datos.minutosImputados;
   const sit = (fila.SitOF ?? "").trim().toUpperCase();
   const fichadaAhora = datos.fichandoOperario !== undefined;
   return {
@@ -151,7 +155,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     detenida: sit === "DETENIDA",
     fichable: SITUACIONES_FICHABLES.has(sit),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
-    materialPendienteHasta: fechaComprasISO(fila.PedComprasPendiente),
+    materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     reservasMaterial: datos.reservas,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
@@ -171,7 +175,7 @@ async function consultarTablero(): Promise<Tablero> {
   const vista = await pool.request().query<FilaVista>(`
     SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
            v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
-           v.PedComprasPendiente, v.TiempoTotalFichado, v.SitOF, v.NotasOF,
+           v.FechaCompras, v.FechaPlanificada, v.SitOF, v.NotasOF,
            mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
            mo.PlannedStartDate, mo.PlannedEndDate
     FROM dbo.TGM_PENDIENTE_OT v
@@ -191,7 +195,19 @@ async function consultarTablero(): Promise<Tablero> {
     ? ordenes.map((o) => `'${o}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, imputaciones] = await Promise.all([
+  // Pedidos de venta reales presentes en la vista (para el contexto de venta).
+  const codigosPedido = [
+    ...new Set(
+      vista.recordset
+        .map((f) => (f.Pedido ?? "").trim())
+        .filter((c) => /^AR\.\d{2}\.\d{5}$/.test(c)),
+    ),
+  ];
+  const listaPedidosIn = codigosPedido.length
+    ? codigosPedido.map((c) => `'${c}'`).join(",")
+    : "''";
+
+  const [fichajes, reservas, imputaciones, ventas] = await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
@@ -219,7 +235,17 @@ async function consultarTablero(): Promise<Tablero> {
       WHERE mo.CodManufacturingOrder IN (${listaIn})
       GROUP BY mo.CodManufacturingOrder, t.CodMOTask, e.CodEmployee
     `),
+    // Contexto del pedido de venta: comentario del comercial y ciudad.
+    pool.request().query<FilaVenta>(`
+      SELECT CodOrder AS pedido, Comment AS comentario, CityDelivery AS ciudad
+      FROM dbo.FACOrderSL
+      WHERE CodCompany = '001' AND CodOrder IN (${listaPedidosIn})
+    `),
   ]);
+
+  const ventaPorPedido = new Map(
+    ventas.recordset.map((v) => [(v.pedido ?? "").trim(), v]),
+  );
 
   const reservasPorOF = new Map(
     reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
@@ -234,13 +260,17 @@ async function consultarTablero(): Promise<Tablero> {
     ]),
   );
 
-  // Autor real por OF+tarea: operario del tablero con más minutos imputados.
+  // Por OF+tarea: minutos totales imputados (tiempo de planteo ya fichado,
+  // la vista dejó de traerlo) y autor real (operario del tablero con más
+  // minutos).
+  const minutosPorTarea = new Map<string, number>();
   const autorPorTarea = new Map<string, { op: string; min: number }>();
   for (const r of imputaciones.recordset) {
-    const op = operarioDeEmpleado(r.empleado);
-    if (!op) continue;
     const clave = `${(r.orden ?? "").trim()}:${(r.tarea ?? "").trim()}`;
     const min = r.minutos ?? 0;
+    minutosPorTarea.set(clave, (minutosPorTarea.get(clave) ?? 0) + min);
+    const op = operarioDeEmpleado(r.empleado);
+    if (!op) continue;
     const actual = autorPorTarea.get(clave);
     if (!actual || min > actual.min) autorPorTarea.set(clave, { op, min });
   }
@@ -268,10 +298,13 @@ async function consultarTablero(): Promise<Tablero> {
       ds.map(fechaISO).filter((f): f is string => f !== null).sort();
     // Fecha solicitada más temprana del grupo; prioridad más urgente (menor).
     const fecha = validas(filas.map((f) => f.FechaSolicitada))[0] ?? hoyISO();
-    // Planificación = arranque planificado más temprano de las OF del pedido;
-    // entrega = fin planificado más tardío. Si RPS no los trae, la solicitada.
+    // Planificación = FechaPlanificada de la vista (la de la tarea de OT);
+    // si falta, el arranque planificado de la OF. Entrega = fin planificado
+    // más tardío. Último recurso en ambas: la fecha solicitada.
     const planificacion =
-      validas(filas.map((f) => f.PlannedStartDate))[0] ?? fecha;
+      validas(filas.map((f) => f.FechaPlanificada))[0] ??
+      validas(filas.map((f) => f.PlannedStartDate))[0] ??
+      fecha;
     const entrega =
       validas(filas.map((f) => f.PlannedEndDate)).at(-1) ?? fecha;
     const prioridad = filas
@@ -283,6 +316,7 @@ async function consultarTablero(): Promise<Tablero> {
     const scanUrl = /^AR\.\d{2}\.\d{5}$/.test(grupo.codigo)
       ? `/api/pedidos/${grupo.codigo}.pdf`
       : undefined;
+    const venta = ventaPorPedido.get(grupo.codigo);
 
     return {
       id: clave,
@@ -294,6 +328,8 @@ async function consultarTablero(): Promise<Tablero> {
       fechaEntrega: entrega,
       prioridad,
       scanUrl,
+      comentarioVenta: (venta?.comentario ?? "").trim() || undefined,
+      ciudadEntrega: (venta?.ciudad ?? "").trim() || undefined,
       ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
         const clave = `${orden}:${(f.CodTarea ?? "").trim()}`;
@@ -301,6 +337,7 @@ async function consultarTablero(): Promise<Tablero> {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
           reservas: reservasPorOF.get(orden) ?? 0,
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
+          minutosImputados: minutosPorTarea.get(clave) ?? 0,
         });
       }),
       accent: "ninguno",

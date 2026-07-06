@@ -153,6 +153,9 @@ export function Drawer({
               <Meta k="Entrega" v={fmt(pedido.fechaEntrega)} />
               <Meta k="Planificación" v={fmt(pedido.fechaPlanificacion)} />
               <Meta k="Piezas" v={String(piezasTotal(pedido))} />
+              {pedido.ciudadEntrega && (
+                <Meta k="Entrega en" v={pedido.ciudadEntrega} />
+              )}
               <div className="col-span-2">
                 <dt className="mb-1 text-text-muted">Familias</dt>
                 <dd className="flex flex-wrap gap-1">
@@ -163,6 +166,18 @@ export function Drawer({
               </div>
             </dl>
           </div>
+
+          {/* comentario del pedido de venta (condiciones, avisos del comercial) */}
+          {pedido.comentarioVenta && (
+            <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                Comentario del pedido
+              </p>
+              <p className="whitespace-pre-line text-[11px] leading-snug text-text">
+                {pedido.comentarioVenta}
+              </p>
+            </div>
+          )}
 
           {/* asignar autor del pedido entero */}
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
