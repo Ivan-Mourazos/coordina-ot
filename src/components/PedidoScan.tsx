@@ -41,7 +41,11 @@ const INK_SOFT = "#8a877f";
 const LINE = "#d8d4ca";
 
 export function PedidoScan({ pedido }: { pedido: Pedido }) {
-  if (pedido.scanUrl) {
+  // Un PDF no se puede pintar en <img>: la tarjeta mantiene la réplica
+  // dibujada y el PDF real se ve en el drawer/visor (iframe).
+  const esImagen =
+    pedido.scanUrl && !pedido.scanUrl.toLowerCase().endsWith(".pdf");
+  if (esImagen) {
     return (
       // Escaneo servido por RPS en red local: sin optimizador de Next.
       // eslint-disable-next-line @next/next/no-img-element

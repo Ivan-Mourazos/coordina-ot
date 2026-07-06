@@ -217,6 +217,12 @@ async function consultarTablero(): Promise<Tablero> {
       .map((f) => prioridadDe(f.Prioridad))
       .reduce<Prioridad>((a, b) => (b < a ? b : a), 3);
 
+    // El PDF escaneado existe para los pedidos de venta reales (AR.aa.nnnnn);
+    // el endpoint responde 404 si falta y la tarjeta enseña la réplica.
+    const scanUrl = /^AR\.\d{2}\.\d{5}$/.test(grupo.codigo)
+      ? `/api/pedidos/${grupo.codigo}.pdf`
+      : undefined;
+
     return {
       id: clave,
       codigo: grupo.codigo,
@@ -226,6 +232,7 @@ async function consultarTablero(): Promise<Tablero> {
       fechaPlanificacion: planificacion,
       fechaEntrega: entrega,
       prioridad,
+      scanUrl,
       ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
         return aOF(
