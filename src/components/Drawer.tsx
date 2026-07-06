@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
-import { piezasTotal, tiempoTotalOF } from "@/lib/types";
+import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge } from "./LiveBadge";
@@ -289,6 +289,31 @@ function OFRow({
       </div>
 
       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
+
+      {of.avisos && of.avisos.length > 0 && (
+        <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2 py-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+            Avisos de producción
+          </p>
+          {of.avisos.map((a) => (
+            <p key={a} className="text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
+              📌 {a}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {of.fechaLimitePlanteo && (
+        <p
+          className={`mt-1.5 px-2 text-[11px] ${
+            of.fechaLimitePlanteo < hoyISO()
+              ? "font-semibold text-red-600 dark:text-red-400"
+              : "text-text-muted"
+          }`}
+        >
+          🏭 Producción arranca el {fmt(of.fechaLimitePlanteo)}
+        </p>
+      )}
 
       {of.rotulacion && (
         <p className="mt-1.5 rounded-md bg-sky-500/10 px-2 py-1 text-[11px] text-sky-700 dark:text-sky-300">

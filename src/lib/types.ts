@@ -88,6 +88,12 @@ export interface OF {
    *  (las hace OT al plantear, no es obligatorio): sirve para darse cuenta
    *  de si ya se hicieron. undefined = sin dato (mock). */
   reservasMaterial?: number;
+  /** Avisos de producción: "tareas-nota" de la ruta de la OF en RPS
+   *  (p.ej. "22/06 VISITA MEDIR"). Solo informativos. */
+  avisos?: string[];
+  /** Fecha ISO en la que Producción tiene planificado arrancar la primera
+   *  fase posterior al planteo: el "para cuándo" real del trabajo de OT. */
+  fechaLimitePlanteo?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores

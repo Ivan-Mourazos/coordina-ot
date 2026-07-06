@@ -65,6 +65,21 @@ interface FilaVenta {
   ciudad: string | null;
 }
 
+interface FilaTarea {
+  orden: string | null;
+  codTarea: string | null;
+  descripcion: string | null;
+  planificada: Date | null;
+  cancelada: boolean | null;
+}
+
+/** "Tarea-nota" de la ruta: aviso apuntado como tarea ("22/06 VISITA MEDIR").
+ *  Se reconocen por empezar con una fecha dd/mm. Heurística acordada tras ver
+ *  los datos reales; si Producción cambia la costumbre, ajustar aquí. */
+function esNota(descripcion: string): boolean {
+  return /^\s*\d{1,2}\/\d{1,2}\b/.test(descripcion);
+}
+
 // ─── Interpretación tolerante de campos sueltos ──────────────────────────────
 
 /** "  2 - TOLDO FACHADA " → "TOLDO FACHADA". */
@@ -131,6 +146,10 @@ interface DatosOF {
   autorImputado: string | null;
   /** Minutos imputados en la tarea de OT (todos los empleados). */
   minutosImputados: number;
+  /** Tareas-nota de la ruta ("22/06 VISITA MEDIR"). */
+  avisos: string[];
+  /** Arranque planificado de la primera fase de producción tras el planteo. */
+  fechaLimitePlanteo: string | undefined;
 }
 
 function aOF(fila: FilaVista, datos: DatosOF): OF {
@@ -157,6 +176,8 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     reservasMaterial: datos.reservas,
+    avisos: datos.avisos.length ? datos.avisos : undefined,
+    fechaLimitePlanteo: datos.fechaLimitePlanteo,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
     tiempoRevisionMin: 0,
@@ -207,7 +228,7 @@ async function consultarTablero(): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, imputaciones, ventas] = await Promise.all([
+  const [fichajes, reservas, imputaciones, ventas, tareas] = await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
@@ -241,11 +262,30 @@ async function consultarTablero(): Promise<Tablero> {
       FROM dbo.FACOrderSL
       WHERE CodCompany = '001' AND CodOrder IN (${listaPedidosIn})
     `),
+    // Ruta de tareas de cada OF pendiente: da los avisos de producción
+    // (tareas-nota) y el arranque planificado de la fase posterior al planteo.
+    pool.request().query<FilaTarea>(`
+      SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS codTarea,
+             t.Description AS descripcion, t.PlannedStartDate AS planificada,
+             t.Canceled AS cancelada
+      FROM dbo.CPRMOTask t
+      JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
+    `),
   ]);
 
   const ventaPorPedido = new Map(
     ventas.recordset.map((v) => [(v.pedido ?? "").trim(), v]),
   );
+
+  const tareasPorOF = new Map<string, FilaTarea[]>();
+  for (const t of tareas.recordset) {
+    const orden = (t.orden ?? "").trim();
+    const lista = tareasPorOF.get(orden) ?? [];
+    lista.push(t);
+    tareasPorOF.set(orden, lista);
+  }
 
   const reservasPorOF = new Map(
     reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
@@ -332,12 +372,35 @@ async function consultarTablero(): Promise<Tablero> {
       ciudadEntrega: (venta?.ciudad ?? "").trim() || undefined,
       ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
-        const clave = `${orden}:${(f.CodTarea ?? "").trim()}`;
+        const codTareaOT = (f.CodTarea ?? "").trim();
+        const clave = `${orden}:${codTareaOT}`;
+        const ruta = tareasPorOF.get(orden) ?? [];
+        const avisos = [
+          ...new Set(
+            ruta
+              .map((t) => (t.descripcion ?? "").trim())
+              .filter((d) => d && esNota(d)),
+          ),
+        ];
+        // Primera fase de producción tras el planteo: tareas reales (ni la
+        // propia de OT, ni notas, ni canceladas) con fecha planificada válida.
+        const fechaLimitePlanteo = ruta
+          .filter(
+            (t) =>
+              !t.cancelada &&
+              (t.codTarea ?? "").trim() !== codTareaOT &&
+              !esNota((t.descripcion ?? "").trim()),
+          )
+          .map((t) => fechaISO(t.planificada))
+          .filter((d): d is string => d !== null)
+          .sort()[0];
         return aOF(f, {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
           reservas: reservasPorOF.get(orden) ?? 0,
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
           minutosImputados: minutosPorTarea.get(clave) ?? 0,
+          avisos,
+          fechaLimitePlanteo,
         });
       }),
       accent: "ninguno",
