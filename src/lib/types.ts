@@ -84,6 +84,10 @@ export interface OF {
   /** Fecha ISO en la que llega el material de compras pedido y aún no
    *  recibido. Informativo: OT plantea por orden de planificación/llegada. */
   materialPendienteHasta?: string;
+  /** Nº de reservas de material hechas en RPS para esta OF. Informativo
+   *  (las hace OT al plantear, no es obligatorio): sirve para darse cuenta
+   *  de si ya se hicieron. undefined = sin dato (mock). */
+  reservasMaterial?: number;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores

@@ -43,6 +43,11 @@ interface FilaFichaje {
   tiempo: number | null;
 }
 
+interface FilaReserva {
+  orden: string | null;
+  reservas: number;
+}
+
 // ─── Interpretación tolerante de campos sueltos ──────────────────────────────
 
 /** "  2 - TOLDO FACHADA " → "TOLDO FACHADA". */
@@ -107,7 +112,7 @@ function descripcionDe(fila: FilaVista): string {
   return mo || articulo || notas || tarea || "(sin descripción)";
 }
 
-function aOF(fila: FilaVista, fichadaAhora: boolean): OF {
+function aOF(fila: FilaVista, fichadaAhora: boolean, reservas: number): OF {
   const orden = (fila.OF ?? "").trim();
   const fichadoMin = fila.TiempoTotalFichado ?? 0;
   const sit = (fila.SitOF ?? "").trim().toUpperCase();
@@ -127,6 +132,7 @@ function aOF(fila: FilaVista, fichadaAhora: boolean): OF {
     fichable: SITUACIONES_FICHABLES.has(sit),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaComprasISO(fila.PedComprasPendiente),
+    reservasMaterial: reservas,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
     tiempoRevisionMin: 0,
@@ -140,7 +146,7 @@ async function consultarTablero(): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
 
-  const [vista, fichajes] = await Promise.all([
+  const [vista, fichajes, reservas] = await Promise.all([
     pool.request().query<FilaVista>(`
       SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
              v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
@@ -154,7 +160,22 @@ async function consultarTablero(): Promise<Tablero> {
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo FROM dbo.tgm_fichajes_olanet
     `),
+    // Reservas de material vivas, agrupadas por OF. La tabla de reservas es
+    // pequeña: subir de reserva → material → tarea → OF es barato.
+    pool.request().query<FilaReserva>(`
+      SELECT mo.CodManufacturingOrder AS orden, COUNT(*) AS reservas
+      FROM dbo.STKStockReserve r
+      JOIN dbo.CPRMOMaterial m ON m.IDMOMaterial = r.IDItem
+      JOIN dbo.CPRMOTask t ON t.IDMOTask = m.IDMOTask
+      JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = t.IDManufacturingOrder
+      WHERE r.ItemType = 5 AND mo.CodCompany = '001'
+      GROUP BY mo.CodManufacturingOrder
+    `),
   ]);
+
+  const reservasPorOF = new Map(
+    reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
+  );
 
   // Fichajes con intervalo abierto ahora mismo, por OF+tarea.
   const abiertos = new Set(
@@ -205,9 +226,14 @@ async function consultarTablero(): Promise<Tablero> {
       fechaPlanificacion: planificacion,
       fechaEntrega: entrega,
       prioridad,
-      ofs: filas.map((f) =>
-        aOF(f, abiertos.has(`${(f.OF ?? "").trim()}:${(f.CodTarea ?? "").trim()}`)),
-      ),
+      ofs: filas.map((f) => {
+        const orden = (f.OF ?? "").trim();
+        return aOF(
+          f,
+          abiertos.has(`${orden}:${(f.CodTarea ?? "").trim()}`),
+          reservasPorOF.get(orden) ?? 0,
+        );
+      }),
       accent: "ninguno",
       lineas: 0,
       croquis: false,

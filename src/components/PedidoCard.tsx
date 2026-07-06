@@ -52,6 +52,7 @@ export const PedidoCardView = memo(function PedidoCardView({
     .filter(Boolean)
     .sort()[0];
   const conRotulacion = ofs.some((o) => o.rotulacion);
+  const reservasHechas = ofs.reduce((n, o) => n + (o.reservasMaterial ?? 0), 0);
 
   return (
     <div className="w-full select-none">
@@ -97,6 +98,14 @@ export const PedidoCardView = memo(function PedidoCardView({
               className="grid size-5 cursor-help place-items-center rounded-[5px] bg-white/95 text-[11px] shadow-sm ring-1 ring-black/10"
             >
               🏷
+            </span>
+          )}
+          {reservasHechas > 0 && (
+            <span
+              title={`Material reservado (${reservasHechas} ${reservasHechas === 1 ? "reserva" : "reservas"})`}
+              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-teal-500/90 text-[11px] shadow-sm ring-1 ring-black/10"
+            >
+              🧵
             </span>
           )}
         </span>
