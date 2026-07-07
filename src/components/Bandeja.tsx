@@ -90,38 +90,45 @@ export function Bandeja({
           No hay partes sin asignar
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        /* Galería de cajas: cada fecha es una caja con relieve 3D que ocupa
+           solo lo que necesita; con 1 pedido no desperdicia toda la fila. */
+        <div className="flex flex-wrap items-start gap-3">
           {grupos.map((g) => (
-            <div key={g.fecha}>
-              {/* separador de fecha sticky: se queda visible al hacer scroll */}
-              <div
-                className={`sticky top-0 z-10 mb-1.5 flex items-center gap-2 rounded-md px-1.5 py-1 backdrop-blur ${
-                  g.vencida ? "bg-red-500/10" : "bg-surface/70"
-                }`}
-              >
+            <div
+              key={g.fecha}
+              className={`bandeja-caja w-fit max-w-full rounded-2xl p-2.5 ${
+                g.vencida ? "bandeja-caja-tarde" : ""
+              }`}
+            >
+              <div className="mb-2 flex items-center gap-2">
                 <h3
                   className={`text-[11px] font-bold uppercase tracking-wide ${
                     g.vencida ? "text-red-600" : "text-text"
                   }`}
                 >
                   {g.etiqueta}
-                  {g.vencida && " · atrasado"}
                 </h3>
-                <span className="rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] text-text-muted">
+                {g.vencida && (
+                  <span className="rounded bg-red-600 px-1.5 text-[9px] font-bold uppercase text-white">
+                    Tarde
+                  </span>
+                )}
+                <span className="ml-auto rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] font-semibold text-text-muted">
                   {g.facets.length}
                 </span>
-                <div className="h-px flex-1 bg-[var(--glass-border)]" />
               </div>
-              {/* rejilla fluida: tarjetas pequeñas (el QuickLook amplía al pasar) */}
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(116px,1fr))] gap-2">
+              {/* tarjetas de esta fecha: la caja se ajusta al contenido; hasta
+                  ~4 por fila (464px) antes de saltar de línea. */}
+              <div className="flex max-w-[464px] flex-wrap gap-2">
                 {g.facets.map((f) => (
-                  <PedidoCard
-                    key={f.pedido.id}
-                    facet={f}
-                    operarios={operarios}
-                    onOpen={onOpen}
-                    mostrarPrioridad
-                  />
+                  <div key={f.pedido.id} className="w-[108px]">
+                    <PedidoCard
+                      facet={f}
+                      operarios={operarios}
+                      onOpen={onOpen}
+                      mostrarPrioridad
+                    />
+                  </div>
                 ))}
               </div>
             </div>

@@ -139,7 +139,16 @@ export function MiFichaje({
   return (
     <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {expandido && (
-        <div className="glass-panel-strong flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 shadow-2xl">
+        <div className="glass-panel-strong relative flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 pt-4 shadow-2xl">
+          {/* handle estilo iOS: contrae el panel de fichaje */}
+          <button
+            onClick={() => setExpandido(false)}
+            aria-label="Contraer"
+            title="Contraer"
+            className="group absolute left-1/2 top-1 flex -translate-x-1/2 items-center rounded-full px-4 py-1"
+          >
+            <span className="h-1 w-9 rounded-full bg-text-muted/30 transition-colors group-hover:bg-text-muted/60" />
+          </button>
           {/* identidad, bien visible arriba */}
           <div className="mb-2 flex items-center gap-2">
             <OpDot color={yo.color} iniciales={yo.iniciales} />

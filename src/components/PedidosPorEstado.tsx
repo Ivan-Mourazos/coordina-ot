@@ -115,10 +115,15 @@ export function PedidosPorEstado({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {grupos.map((g) => (
-        <div key={g.id} className="flex flex-col gap-1.5">
-          <h3 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        <div
+          key={g.id}
+          className={`flex flex-col gap-1.5 rounded-2xl p-2.5 ${
+            g.items.length > 0 ? "bandeja-caja" : "border border-dashed border-[var(--glass-border)]"
+          }`}
+        >
+          <h3 className="flex items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             {g.label}
             <span className="rounded-full bg-[var(--glass-highlight)] px-1.5 text-[9px] tabular-nums">
               {g.items.length}
@@ -126,7 +131,7 @@ export function PedidosPorEstado({
           </h3>
           <div className="flex flex-1 flex-col gap-1.5">
             {g.items.length === 0 ? (
-              <div className="grid min-h-10 w-full place-items-center rounded-lg border border-dashed border-[var(--glass-border)] text-[10px] text-text-muted">
+              <div className="grid min-h-10 w-full place-items-center text-[10px] text-text-muted">
                 —
               </div>
             ) : (

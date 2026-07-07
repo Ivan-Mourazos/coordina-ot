@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
@@ -8,6 +9,21 @@ import type { LiveInfo } from "./Board";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
 import type { AccionOF } from "@/lib/acciones";
+
+// Resumen de OFs por fase para el panel contraído.
+const RESUMEN = [
+  { label: "Sin empezar", color: "#9ca3af" },
+  { label: "Planteando", color: "#059669" },
+  { label: "Para revisar", color: "#7c3aed" },
+  { label: "Finalizado", color: "#0d9488" },
+] as const;
+
+function faseIdx(of: { estado: string; tiempoPlanteoMin: number; fichandoRol: unknown }): number {
+  if (of.estado === "aprobada") return 3;
+  if (of.estado === "por_revisar" || of.estado === "en_revision") return 2;
+  if (of.estado === "en_curso" || of.estado === "devuelta") return 1;
+  return of.tiempoPlanteoMin > 0 || of.fichandoRol ? 1 : 0;
+}
 
 export function Zona({
   operario,
@@ -38,15 +54,42 @@ export function Zona({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
+  const [colapsada, setColapsada] = useState(false);
+
+  // Recuento de OFs por fase para el resumen del panel contraído.
+  const porFase = RESUMEN.map((r, i) => ({
+    ...r,
+    n: facets.reduce((n, f) => n + f.ofs.filter((o) => faseIdx(o) === i).length, 0),
+  }));
 
   return (
     <div
       ref={setNodeRef}
       style={soyYo && !isOver ? { borderColor: operario.color } : undefined}
-      className={`glass-panel flex flex-col rounded-2xl p-4 transition-colors ${
+      className={`glass-panel relative flex flex-col rounded-2xl p-4 transition-colors ${
         isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : ""
       }`}
     >
+      {/* handle estilo iOS: contrae/expande mi panel. Centrado arriba. */}
+      <button
+        onClick={() => setColapsada((v) => !v)}
+        aria-expanded={!colapsada}
+        aria-label={colapsada ? "Expandir mi panel" : "Contraer mi panel"}
+        title={colapsada ? "Expandir" : "Contraer"}
+        className="group absolute left-1/2 top-1 flex -translate-x-1/2 flex-col items-center gap-0.5 rounded-full px-4 py-1"
+      >
+        <span className="h-1 w-9 rounded-full bg-text-muted/30 transition-colors group-hover:bg-text-muted/60" />
+        <svg
+          viewBox="0 0 24 24"
+          className={`size-3 text-text-muted/50 transition-transform group-hover:text-text-muted ${colapsada ? "" : "rotate-180"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
       <div className="mb-3 flex items-center gap-2">
         <span
           className={`grid place-items-center rounded-full font-bold text-white ${
@@ -79,21 +122,43 @@ export function Zona({
         </span>
       </div>
 
-      {/* Altura acotada con scroll interno: con muchos pedidos la zona no
-          estira la página y deja ver la bandeja de abajo. */}
-      <div className="scroll-thin max-h-[42vh] overflow-y-auto pr-1">
-        <PedidosPorEstado
-          facets={facets}
-          operarios={operarios}
-          onOpen={onOpen}
-          onAccion={onAccion}
-          onFichar={onFichar}
-          onDesfichar={onDesfichar}
-          setRevisor={setRevisor}
-          completarPedido={completarPedido}
-          raisedCards={soyYo}
-        />
-      </div>
+      {colapsada ? (
+        /* Resumen: cuántas OF hay en cada fase, sin ocupar sitio. */
+        <div className="flex flex-wrap items-center gap-2">
+          {porFase.every((f) => f.n === 0) ? (
+            <span className="text-xs text-text-muted">Sin pedidos asignados.</span>
+          ) : (
+            porFase
+              .filter((f) => f.n > 0)
+              .map((f) => (
+                <span
+                  key={f.label}
+                  className="flex items-center gap-1.5 rounded-lg bg-surface-2/70 px-2.5 py-1 text-xs font-medium text-text"
+                >
+                  <span className="size-2 rounded-full" style={{ background: f.color }} />
+                  {f.label}
+                  <b className="tabular-nums">{f.n}</b>
+                </span>
+              ))
+          )}
+        </div>
+      ) : (
+        /* Altura acotada con scroll interno: con muchos pedidos la zona no
+            estira la página y deja ver la bandeja de abajo. */
+        <div className="scroll-thin max-h-[42vh] overflow-y-auto pr-1">
+          <PedidosPorEstado
+            facets={facets}
+            operarios={operarios}
+            onOpen={onOpen}
+            onAccion={onAccion}
+            onFichar={onFichar}
+            onDesfichar={onDesfichar}
+            setRevisor={setRevisor}
+            completarPedido={completarPedido}
+            raisedCards={soyYo}
+          />
+        </div>
+      )}
     </div>
   );
 }

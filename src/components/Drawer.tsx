@@ -337,10 +337,20 @@ function OFRow({
 
       {of.reservasMaterial !== undefined &&
         (of.reservasMaterial > 0 ? (
-          <p className="mt-1.5 rounded-md bg-teal-500/10 px-2 py-1 text-[11px] text-teal-700 dark:text-teal-400">
-            🧵 Material reservado ({of.reservasMaterial}{" "}
-            {of.reservasMaterial === 1 ? "reserva" : "reservas"})
-          </p>
+          <div className="mt-1.5 rounded-md bg-teal-500/10 px-2 py-1 text-[11px] text-teal-700 dark:text-teal-400">
+            <p className="font-semibold">
+              🧵 Material reservado ({of.reservasMaterial})
+            </p>
+            {of.reservasDetalle && (
+              <ul className="mt-0.5 space-y-0.5">
+                {of.reservasDetalle.map((m) => (
+                  <li key={m} className="truncate">
+                    · {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         ) : (
           <p className="mt-1.5 px-2 text-[11px] text-text-muted/70">
             🧵 Sin reservas de material en RPS

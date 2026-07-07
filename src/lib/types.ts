@@ -90,6 +90,8 @@ export interface OF {
    *  (las hace OT al plantear, no es obligatorio): sirve para darse cuenta
    *  de si ya se hicieron. undefined = sin dato (mock). */
   reservasMaterial?: number;
+  /** Material reservado (descripción + cantidad), para saber QUÉ se reservó. */
+  reservasDetalle?: string[];
   /** Avisos de producción: "tareas-nota" de la ruta de la OF en RPS
    *  (p.ej. "22/06 VISITA MEDIR"). Solo informativos. */
   avisos?: string[];

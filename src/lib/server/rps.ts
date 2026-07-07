@@ -49,7 +49,8 @@ interface FilaFichaje {
 
 interface FilaReserva {
   orden: string | null;
-  reservas: number;
+  material: string | null;
+  cantidad: number | null;
 }
 
 interface FilaImputacion {
@@ -170,7 +171,7 @@ function descripcionDe(fila: FilaVista): string {
 interface DatosOF {
   /** undefined = nadie fichando; null = fichando alguien de fuera de OT. */
   fichandoOperario: string | null | undefined;
-  reservas: number;
+  reservas: string[];
   /** Operario del tablero con más tiempo imputado en la tarea (autor real). */
   autorImputado: string | null;
   /** Minutos imputados en la tarea de OT (todos los empleados). */
@@ -204,7 +205,8 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     fichable: SITUACIONES_FICHABLES.has(sit),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
-    reservasMaterial: datos.reservas,
+    reservasMaterial: datos.reservas.length,
+    reservasDetalle: datos.reservas.length ? datos.reservas : undefined,
     avisos: datos.avisos.length ? datos.avisos : undefined,
     fechaLimitePlanteo: datos.fechaLimitePlanteo,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
@@ -217,7 +219,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 /** OF ya finalizada en OT (Historial): no hay fichaje vivo ni situación RPS
  *  que consultar, así que se rellena lo mínimo con lo que da la query. */
 interface ExtrasOF {
-  reservas: number;
+  reservas: string[];
   avisos: string[];
 }
 
@@ -241,7 +243,8 @@ function aOFHistorial(
     tiempoEstimadoMin: 0,
     tiempoPlanteoMin: minutosImputados,
     tiempoRevisionMin: 0,
-    reservasMaterial: extras.reservas,
+    reservasMaterial: extras.reservas.length,
+    reservasDetalle: extras.reservas.length ? extras.reservas : undefined,
     avisos: extras.avisos.length ? extras.avisos : undefined,
   };
 }
@@ -356,16 +359,16 @@ async function consultarTablero(): Promise<Tablero> {
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
-    // Reservas de material vivas, agrupadas por OF. La tabla de reservas es
-    // pequeña: subir de reserva → material → tarea → OF es barato.
+    // Reservas de material vivas (una fila por material reservado). La tabla
+    // es pequeña: subir de reserva → material → tarea → OF es barato.
     pool.request().query<FilaReserva>(`
-      SELECT mo.CodManufacturingOrder AS orden, COUNT(*) AS reservas
+      SELECT mo.CodManufacturingOrder AS orden, m.Description AS material,
+             r.Quantity AS cantidad
       FROM dbo.STKStockReserve r
       JOIN dbo.CPRMOMaterial m ON m.IDMOMaterial = r.IDItem
       JOIN dbo.CPRMOTask t ON t.IDMOTask = m.IDMOTask
       JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = t.IDManufacturingOrder
       WHERE r.ItemType = 5 AND mo.CodCompany = '001'
-      GROUP BY mo.CodManufacturingOrder
     `),
     // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
     // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo.
@@ -447,9 +450,17 @@ async function consultarTablero(): Promise<Tablero> {
     ),
   ];
 
-  const reservasPorOF = new Map(
-    reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
-  );
+  // Reservas por OF: nº y lista legible "MATERIAL · cantidad".
+  const reservasPorOF = new Map<string, string[]>();
+  for (const r of reservas.recordset) {
+    const orden = (r.orden ?? "").trim();
+    if (!orden) continue;
+    const mat = (r.material ?? "").trim().replace(/\s+/g, " ");
+    const cant = r.cantidad != null ? ` · ${r.cantidad}` : "";
+    const lista = reservasPorOF.get(orden) ?? [];
+    lista.push(mat ? `${mat}${cant}` : `(material sin nombre)${cant}`);
+    reservasPorOF.set(orden, lista);
+  }
 
   // Fichajes con intervalo abierto ahora mismo, por OF+tarea → operario del
   // tablero (null si ficha alguien de fuera de OT).
@@ -558,7 +569,7 @@ async function consultarTablero(): Promise<Tablero> {
           f,
           minutosPorOFHist.get(orden) ?? 0,
           autorPorOFHist.get(orden)?.op ?? null,
-          { reservas: reservasPorOF.get(orden) ?? 0, avisos: avisosDe(orden) },
+          { reservas: reservasPorOF.get(orden) ?? [], avisos: avisosDe(orden) },
         );
       }),
       comentarioVenta:
@@ -656,7 +667,7 @@ async function consultarTablero(): Promise<Tablero> {
           .sort()[0];
         return aOF(f, {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
-          reservas: reservasPorOF.get(orden) ?? 0,
+          reservas: reservasPorOF.get(orden) ?? [],
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
           minutosImputados: minutosPorTarea.get(clave) ?? 0,
           avisos,

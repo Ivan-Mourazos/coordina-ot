@@ -186,6 +186,40 @@ body {
     0 18px 34px -18px rgba(0, 0, 0, 0.85);
 }
 
+/* Caja de la bandeja "Sin asignar": agrupa una fecha con relieve 3D suave
+   (galería). Se levanta un punto al pasar el ratón. */
+.bandeja-caja {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 55%, transparent), transparent 38%),
+    var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 85%, white 15%),
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 10px 26px -14px var(--glass-shadow);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.bandeja-caja:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 16px 32px -14px var(--glass-shadow);
+}
+.bandeja-caja-tarde {
+  border-color: color-mix(in srgb, #d23b3b 45%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 85%, white 15%),
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 2px 0 color-mix(in srgb, #d23b3b 30%, transparent),
+    0 10px 26px -14px var(--glass-shadow);
+}
+.dark .bandeja-caja {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -14px rgba(0, 0, 0, 0.8);
+}
+
 /* Cabecera: mismo vidrio, de canto a canto */
 .glass-header {
   background: var(--glass-bg-strong);
