@@ -44,8 +44,8 @@
 }
 
 .dark {
-  --bg: #0b0c0e;
-  --bg-glow: #16181c;
+  --bg: #16181c;
+  --bg-glow: #1d2025;
   --surface: #151619;
   --surface-2: #1c1e22;
   --zone: #101114;
