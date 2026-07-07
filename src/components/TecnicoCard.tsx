@@ -108,9 +108,25 @@ export const TecnicoCard = memo(function TecnicoCard({
           </span>
           <span className="truncate text-xs font-semibold text-text">{operario.nombre}</span>
 
+          {/* distintivos rápidos: cuántas OF planteando / por revisar */}
+          <span className="ml-auto flex shrink-0 items-center gap-1">
+            {porFase
+              .filter((f) => (f.id === "planteo" || f.id === "revision") && f.n > 0)
+              .map((f) => (
+                <span
+                  key={f.id}
+                  title={`${f.label}: ${f.n} OF`}
+                  className="flex items-center gap-0.5 rounded-full px-1.5 text-[9px] font-bold text-white"
+                  style={{ background: f.color }}
+                >
+                  {f.n}
+                </span>
+              ))}
+          </span>
+
           {live ? (
             <span
-              className="ml-auto flex min-w-0 shrink items-center gap-1 text-[10px] font-bold"
+              className="flex min-w-0 shrink items-center gap-1 text-[10px] font-bold"
               style={{ color: ROL[live.rol].color }}
               title={`${ROL[live.rol].label} ${live.pedido.codigo} · ${live.of.descripcion}`}
             >
@@ -118,8 +134,8 @@ export const TecnicoCard = memo(function TecnicoCard({
               <span className="truncate">{ROL[live.rol].label}</span>
             </span>
           ) : (
-            <span className="ml-auto text-[10px] text-text-muted">
-              {facets.length} ped · {ofs.length} OF
+            <span className="text-[10px] text-text-muted">
+              {facets.length}·{ofs.length}
             </span>
           )}
 

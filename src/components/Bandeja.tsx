@@ -93,22 +93,27 @@ export function Bandeja({
         <div className="flex flex-col gap-4">
           {grupos.map((g) => (
             <div key={g.fecha}>
-              <div className="mb-1.5 flex items-center gap-2">
+              {/* separador de fecha sticky: se queda visible al hacer scroll */}
+              <div
+                className={`sticky top-0 z-10 mb-1.5 flex items-center gap-2 rounded-md px-1.5 py-1 backdrop-blur ${
+                  g.vencida ? "bg-red-500/10" : "bg-surface/70"
+                }`}
+              >
                 <h3
-                  className={`text-[11px] font-semibold uppercase tracking-wide ${
-                    g.vencida ? "text-red-600" : "text-text-muted"
+                  className={`text-[11px] font-bold uppercase tracking-wide ${
+                    g.vencida ? "text-red-600" : "text-text"
                   }`}
                 >
                   {g.etiqueta}
                   {g.vencida && " · atrasado"}
                 </h3>
-                <span className="text-[10px] text-text-muted">
-                  {g.facets.length} ped
+                <span className="rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] text-text-muted">
+                  {g.facets.length}
                 </span>
                 <div className="h-px flex-1 bg-[var(--glass-border)]" />
               </div>
               {/* rejilla fluida: tarjetas pequeñas (el QuickLook amplía al pasar) */}
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-2.5">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(116px,1fr))] gap-2">
                 {g.facets.map((f) => (
                   <PedidoCard
                     key={f.pedido.id}

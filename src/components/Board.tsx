@@ -118,6 +118,7 @@ export function Board({
   }, [fichaje]);
 
   // Panel de compañero desplegado en Asignar: solo uno a la vez.
+  const [superiorColapsado, setSuperiorColapsado] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -626,6 +627,7 @@ export function Board({
         {/* ── VISTA ASIGNAR ── */}
         {vista === "asignar" && (
           <>
+            {!superiorColapsado && (
             <main className="flex flex-col gap-3 p-4">
               <Zona
                 operario={yo}
@@ -667,9 +669,25 @@ export function Board({
                 </div>
               </div>
             </main>
+            )}
             <div className="glass-header flex min-h-0 flex-1 flex-col">
-              <div className="px-4 py-2" style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}>
-                <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
+              <div
+                className="flex items-center gap-3 px-4 py-2"
+                style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
+              >
+                <div className="min-w-0 flex-1">
+                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
+                </div>
+                <button
+                  onClick={() => setSuperiorColapsado((v) => !v)}
+                  title={superiorColapsado ? "Mostrar mi zona y el equipo" : "Ocultar arriba para ver más pedidos"}
+                  className="glass-chip flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-text-muted hover:text-text"
+                >
+                  <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform ${superiorColapsado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="m18 15-6-6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {superiorColapsado ? "Mostrar paneles" : "Maximizar bandeja"}
+                </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} />
