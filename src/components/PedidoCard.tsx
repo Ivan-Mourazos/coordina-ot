@@ -7,7 +7,7 @@ import { PedidoScan } from "./PedidoScan";
 import { QuickLook } from "./QuickLook";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
-import { ROL } from "@/lib/estado";
+import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 
 export interface Facet {
@@ -150,10 +150,13 @@ export const PedidoCardView = memo(function PedidoCardView({
         )}
         {mostrarPrioridad && (
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-text-muted">
-            <span className={`font-bold ${atrasado ? "text-red-600" : ""}`}>
+            <span
+              className="rounded px-1 font-bold text-white"
+              style={{ background: PRIORIDAD[pedido.prioridad].color }}
+              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
+            >
               P{pedido.prioridad}
             </span>
-            <span>·</span>
             <span>
               Planif: {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
             </span>

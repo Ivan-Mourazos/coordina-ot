@@ -29,6 +29,7 @@ export const PedidoChip = memo(function PedidoChip({
   completarPedido,
   bucket,
   raised = false,
+  accionable = true,
 }: {
   facet: Facet;
   operarios: Operario[];
@@ -40,6 +41,9 @@ export const PedidoChip = memo(function PedidoChip({
   completarPedido?: (pedidoId: string) => void;
   bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
   raised?: boolean;
+  /** true = zona propia (acciones); false = panel de un compañero (solo
+   *  informativo: resumen sin botones de acción). */
+  accionable?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
@@ -180,7 +184,7 @@ export const PedidoChip = memo(function PedidoChip({
       </div>
 
       {expanded && (
-        <div className="border-t border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2.5 cursor-default">
+        <div className="border-t border-[var(--glass-border)] bg-surface-2 p-2.5 cursor-default">
           <div className="flex gap-3">
             <div
               className="aspect-[210/297] w-16 shrink-0 overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/10 cursor-pointer hover:ring-brand-400 transition-shadow"
@@ -233,7 +237,7 @@ export const PedidoChip = memo(function PedidoChip({
                 );
               })}
               <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-[var(--glass-border)] pt-2">
-                {accionesChip.map((a) =>
+                {accionable && accionesChip.map((a) =>
                   a.id === "terminar_planteo" ? (
                     !terminando && (
                       <button
@@ -262,7 +266,7 @@ export const PedidoChip = memo(function PedidoChip({
                     (afecta a todas las OFs del facet). Se fija el revisor ANTES
                     de ejecutar la acción; terminar_planteo no tiene `requiere`,
                     así que el orden no afecta al filtro de aplicables del Board. */}
-                {terminando && (
+                {accionable && terminando && (
                   <div className="flex w-full items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-text-muted">Revisor:</span>
                     <div className="flex-1">
@@ -302,7 +306,8 @@ export const PedidoChip = memo(function PedidoChip({
                   </span>
                 )}
 
-                {fichandoOfs.length > 0 ? (
+                {accionable &&
+                  (fichandoOfs.length > 0 ? (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -329,9 +334,9 @@ export const PedidoChip = memo(function PedidoChip({
                       ⏱ Fichar{excluidasPorRol > 0 ? ` (${grupoFichar.length})` : ""}
                     </button>
                   )
-                )}
+                ))}
 
-                {bucket === "finalizado" && completarPedido && (
+                {accionable && bucket === "finalizado" && completarPedido && (
                   <button
                     onClick={(e) => { e.stopPropagation(); completarPedido(pedido.id); }}
                     className="rounded bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"

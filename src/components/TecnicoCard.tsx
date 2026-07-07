@@ -152,13 +152,19 @@ export const TecnicoCard = memo(function TecnicoCard({
         </div>
       </button>
 
+      {/* Fondo opaco (var --surface, inline gana a glass-pop) para que no se
+          transparente el contenido del tablero de detrás. */}
       {expanded && (
-        <div className="glass-pop scroll-thin absolute left-0 top-full z-20 mt-1.5 max-h-[46vh] w-full min-w-72 overflow-y-auto rounded-xl p-3">
+        <div
+          style={{ background: "var(--surface)" }}
+          className="glass-pop scroll-thin absolute left-0 top-full z-20 mt-1.5 max-h-[46vh] w-full min-w-72 overflow-y-auto rounded-xl p-3"
+        >
           <PedidosPorEstado
             facets={facets}
             operarios={operarios}
             onOpen={onOpen}
             layout="list"
+            accionable={false}
             onAccion={onAccion}
             onFichar={onFichar}
             onDesfichar={onDesfichar}

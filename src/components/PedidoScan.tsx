@@ -1,5 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import type { Pedido } from "@/lib/types";
 import { familiaMeta } from "@/lib/familia";
+
+/** URL de imagen del parte: si scanUrl es un PDF, la miniatura PNG servida por
+ *  /api/pedidos/{codigo}.png; si ya es una imagen, tal cual. null = sin scan. */
+function imagenDe(pedido: Pedido): string | null {
+  if (!pedido.scanUrl) return null;
+  return pedido.scanUrl.toLowerCase().endsWith(".pdf")
+    ? pedido.scanUrl.replace(/\.pdf$/i, ".png")
+    : pedido.scanUrl;
+}
 
 // Primera hoja del PDF del pedido, tal y como llega por RPS. Mientras no hay
 // escaneo real (pedido.scanUrl) se dibuja una réplica del impreso con los
@@ -41,19 +53,20 @@ const INK_SOFT = "#8a877f";
 const LINE = "#d8d4ca";
 
 export function PedidoScan({ pedido }: { pedido: Pedido }) {
-  // Un PDF no se puede pintar en <img>: la tarjeta mantiene la réplica
-  // dibujada y el PDF real se ve en el drawer/visor (iframe).
-  const esImagen =
-    pedido.scanUrl && !pedido.scanUrl.toLowerCase().endsWith(".pdf");
-  if (esImagen) {
+  // Imagen real del parte (miniatura del PDF o foto de RPS). Si carga bien se
+  // muestra; si el endpoint da 404 (no hay PDF), se cae a la réplica dibujada.
+  const imagen = imagenDe(pedido);
+  const [falloImagen, setFalloImagen] = useState(false);
+  if (imagen && !falloImagen) {
     return (
       // Escaneo servido por RPS en red local: sin optimizador de Next.
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={pedido.scanUrl}
+        src={imagen}
         alt={`Pedido ${pedido.codigo}`}
-        className="block h-full w-full rounded-[3px] object-cover"
+        className="block h-full w-full rounded-[3px] object-cover object-top"
         draggable={false}
+        onError={() => setFalloImagen(true)}
       />
     );
   }

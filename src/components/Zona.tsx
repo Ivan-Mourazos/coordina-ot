@@ -79,17 +79,21 @@ export function Zona({
         </span>
       </div>
 
-      <PedidosPorEstado
-        facets={facets}
-        operarios={operarios}
-        onOpen={onOpen}
-        onAccion={onAccion}
-        onFichar={onFichar}
-        onDesfichar={onDesfichar}
-        setRevisor={setRevisor}
-        completarPedido={completarPedido}
-        raisedCards={soyYo}
-      />
+      {/* Altura acotada con scroll interno: con muchos pedidos la zona no
+          estira la página y deja ver la bandeja de abajo. */}
+      <div className="scroll-thin max-h-[42vh] overflow-y-auto pr-1">
+        <PedidosPorEstado
+          facets={facets}
+          operarios={operarios}
+          onOpen={onOpen}
+          onAccion={onAccion}
+          onFichar={onFichar}
+          onDesfichar={onDesfichar}
+          setRevisor={setRevisor}
+          completarPedido={completarPedido}
+          raisedCards={soyYo}
+        />
+      </div>
     </div>
   );
 }

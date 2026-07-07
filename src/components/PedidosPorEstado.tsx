@@ -49,6 +49,7 @@ export function PedidosPorEstado({
   onOpen,
   layout = "grid",
   raisedCards = false,
+  accionable = true,
   onAccion,
   onFichar,
   onDesfichar,
@@ -60,6 +61,8 @@ export function PedidosPorEstado({
   onOpen: (f: Facet) => void;
   layout?: "grid" | "list";
   raisedCards?: boolean;
+  /** false = panel de un compañero: chips informativos, sin acciones. */
+  accionable?: boolean;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
@@ -101,6 +104,7 @@ export function PedidosPorEstado({
                   completarPedido={completarPedido}
                   bucket={g.id}
                   raised={raisedCards}
+                  accionable={accionable}
                 />
               ))}
             </div>
@@ -139,6 +143,7 @@ export function PedidosPorEstado({
                   completarPedido={completarPedido}
                   bucket={g.id}
                   raised={raisedCards}
+                  accionable={accionable}
                 />
               ))
             )}

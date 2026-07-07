@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
-import { ESTADO, fmtMin } from "@/lib/estado";
+import { ESTADO, PRIORIDAD, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
@@ -32,12 +32,6 @@ function opcionesOperario(
       icon: <OpDot color={o.color} iniciales={o.iniciales} />,
     }));
 }
-
-const PRIORIDAD_BG: Record<number, string> = {
-  1: "#d23b3b",
-  2: "#e79f1a",
-  3: "#6b7280",
-};
 
 export function Drawer({
   pedido,
@@ -132,9 +126,10 @@ export function Drawer({
               <h2 className="font-mono text-lg font-bold text-text">{pedido.codigo}</h2>
               <span
                 className="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
-                style={{ background: PRIORIDAD_BG[pedido.prioridad] }}
+                style={{ background: PRIORIDAD[pedido.prioridad].color }}
+                title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
               >
-                P{pedido.prioridad}
+                P{pedido.prioridad} {PRIORIDAD[pedido.prioridad].label}
               </span>
             </div>
             <p className="truncate text-sm text-text-muted">
@@ -321,8 +316,11 @@ function OFRow({
               ? "font-semibold text-red-600 dark:text-red-400"
               : "text-text-muted"
           }`}
+          title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
         >
-          🏭 Producción arranca el {fmt(of.fechaLimitePlanteo)}
+          🏭 Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el
+          planteo debe estar listo antes
+          {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
         </p>
       )}
 

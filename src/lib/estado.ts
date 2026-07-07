@@ -1,4 +1,20 @@
-import type { EstadoOF, OF, Rol } from "./types";
+import type { EstadoOF, OF, Prioridad, Rol } from "./types";
+
+// ─── Prioridad del trabajo ───────────────────────────────────────────────────
+// Escala real de OT: 1 = poca, 2 = normal, 3 = urgente. Si es 3, la fecha de
+// planificación se respeta al 100%. Colores: urgente rojo, normal ámbar, poca
+// gris. Se ordena de más urgente (3) a menos (1) → usar `rank` descendente.
+export interface PrioridadMeta {
+  label: string;
+  color: string; // sólido para el badge (Pxx)
+  rank: number; // 3 urgente = más alto; para ordenar desc
+}
+
+export const PRIORIDAD: Record<Prioridad, PrioridadMeta> = {
+  3: { label: "Urgente", color: "#d23b3b", rank: 3 },
+  2: { label: "Normal", color: "#d39a1c", rank: 2 },
+  1: { label: "Poca", color: "#6b7280", rank: 1 },
+};
 
 // Clases Tailwind literales (deben aparecer como texto para que se compilen).
 export interface EstadoMeta {

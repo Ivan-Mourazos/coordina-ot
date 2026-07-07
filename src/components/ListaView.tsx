@@ -2,7 +2,7 @@
 
 import type { Operario, Pedido } from "@/lib/types";
 import { estaAtrasado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
-import { ESTADO, estadoRepresentativo, fmtMin } from "@/lib/estado";
+import { ESTADO, PRIORIDAD, estadoRepresentativo, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 
@@ -87,11 +87,8 @@ export function ListaView({
                   <div className="flex items-center gap-2">
                     <span
                       className="h-3.5 w-1 rounded-full"
-                      style={{
-                        background:
-                          p.prioridad === 1 ? "#d23b3b" : p.prioridad === 2 ? "#d39a1c" : "#9ca3af",
-                      }}
-                      title={`Prioridad ${p.prioridad}`}
+                      style={{ background: PRIORIDAD[p.prioridad].color }}
+                      title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
                     />
                     <span className={`font-mono font-semibold ${atrasado ? "text-red-600" : "text-text"}`}>
                       {p.codigo}

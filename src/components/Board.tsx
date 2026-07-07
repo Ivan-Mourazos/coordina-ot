@@ -177,7 +177,9 @@ export function Board({
         case "entrega":
           return a.fechaEntrega.localeCompare(b.fechaEntrega);
         case "prioridad":
-          return a.prioridad - b.prioridad;
+          // 3 = urgente primero (desc); a igualdad, por planificación.
+          return b.prioridad - a.prioridad ||
+            a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
         default:
           return a.cliente.localeCompare(b.cliente);
       }

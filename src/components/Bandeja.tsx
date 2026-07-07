@@ -3,7 +3,30 @@
 import { useMemo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario } from "@/lib/types";
+import { hoyISO } from "@/lib/types";
+import { PRIORIDAD } from "@/lib/estado";
 import { PedidoCard, type Facet } from "./PedidoCard";
+
+const FMT_GRUPO = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+/** "2026-07-15" → "mar 15 jul". Fecha inválida → "Sin planificar". */
+function etiquetaFecha(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "Sin planificar";
+  const t = FMT_GRUPO.format(new Date(y, m - 1, d));
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+interface Grupo {
+  fecha: string;
+  etiqueta: string;
+  vencida: boolean;
+  facets: Facet[];
+}
 
 export function Bandeja({
   facets,
@@ -17,13 +40,30 @@ export function Bandeja({
   const { setNodeRef, isOver } = useDroppable({ id: "bandeja" });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
-  const ordenados = useMemo(() => {
-    return [...facets].sort((a, b) => {
-      if (a.pedido.prioridad !== b.pedido.prioridad) {
-        return a.pedido.prioridad - b.pedido.prioridad;
-      }
-      return a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
-    });
+  // Agrupado por fecha de planificación (asc). Dentro de cada día, primero lo
+  // más urgente (prioridad 3) y a igualdad, por código de pedido.
+  const grupos = useMemo<Grupo[]>(() => {
+    const hoy = hoyISO();
+    const porFecha = new Map<string, Facet[]>();
+    for (const f of facets) {
+      const fecha = f.pedido.fechaPlanificacion;
+      const arr = porFecha.get(fecha);
+      if (arr) arr.push(f);
+      else porFecha.set(fecha, [f]);
+    }
+    return [...porFecha.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([fecha, items]) => ({
+        fecha,
+        etiqueta: etiquetaFecha(fecha),
+        vencida: fecha < hoy,
+        facets: items.sort((a, b) => {
+          const pa = PRIORIDAD[a.pedido.prioridad].rank;
+          const pb = PRIORIDAD[b.pedido.prioridad].rank;
+          if (pa !== pb) return pb - pa; // urgente primero
+          return a.pedido.codigo.localeCompare(b.pedido.codigo);
+        }),
+      }));
   }, [facets]);
 
   return (
@@ -45,24 +85,44 @@ export function Bandeja({
         </span>
       </div>
 
-      {/* rejilla fluida: llena todo el ancho de pantalla sin slider */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-        {ordenados.length === 0 ? (
-          <div className="col-span-full grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
-            No hay partes sin asignar
-          </div>
-        ) : (
-          ordenados.map((f) => (
-            <PedidoCard
-              key={f.pedido.id}
-              facet={f}
-              operarios={operarios}
-              onOpen={onOpen}
-              mostrarPrioridad
-            />
-          ))
-        )}
-      </div>
+      {grupos.length === 0 ? (
+        <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
+          No hay partes sin asignar
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {grupos.map((g) => (
+            <div key={g.fecha}>
+              <div className="mb-1.5 flex items-center gap-2">
+                <h3
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${
+                    g.vencida ? "text-red-600" : "text-text-muted"
+                  }`}
+                >
+                  {g.etiqueta}
+                  {g.vencida && " · atrasado"}
+                </h3>
+                <span className="text-[10px] text-text-muted">
+                  {g.facets.length} ped
+                </span>
+                <div className="h-px flex-1 bg-[var(--glass-border)]" />
+              </div>
+              {/* rejilla fluida: tarjetas pequeñas (el QuickLook amplía al pasar) */}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-2.5">
+                {g.facets.map((f) => (
+                  <PedidoCard
+                    key={f.pedido.id}
+                    facet={f}
+                    operarios={operarios}
+                    onOpen={onOpen}
+                    mostrarPrioridad
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
