@@ -92,6 +92,7 @@ interface FilaHistorial {
   cliente: string | null;
   creacion: Date | null;
   solicitada: Date | null;
+  comentario: string | null;
 }
 
 /** "Tarea-nota" de la ruta: aviso apuntado como tarea ("22/06 VISITA MEDIR").
@@ -215,10 +216,16 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 
 /** OF ya finalizada en OT (Historial): no hay fichaje vivo ni situación RPS
  *  que consultar, así que se rellena lo mínimo con lo que da la query. */
+interface ExtrasOF {
+  reservas: number;
+  avisos: string[];
+}
+
 function aOFHistorial(
   fila: FilaHistorial,
   minutosImputados: number,
   autorImputado: string | null,
+  extras: ExtrasOF,
 ): OF {
   const orden = (fila.orden ?? "").trim();
   return {
@@ -234,6 +241,8 @@ function aOFHistorial(
     tiempoEstimadoMin: 0,
     tiempoPlanteoMin: minutosImputados,
     tiempoRevisionMin: 0,
+    reservasMaterial: extras.reservas,
+    avisos: extras.avisos.length ? extras.avisos : undefined,
   };
 }
 
@@ -285,7 +294,7 @@ async function consultarTablero(): Promise<Tablero> {
         ON t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.CodMOTask = f.codTarea
       OUTER APPLY (
         SELECT TOP 1 o.CodOrder, o.OrderDate, cli.Description AS cliente,
-               l.ReceptionDemandDate AS solicitada
+               l.ReceptionDemandDate AS solicitada, o.Comment AS comentario
         FROM dbo.FACOrderLineSL l
         JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder
         LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
@@ -323,6 +332,13 @@ async function consultarTablero(): Promise<Tablero> {
   const listaHistorialIn = ordenesHistorial.length
     ? ordenesHistorial.map((o) => `'${o}'`).join(",")
     : "''";
+
+  // Ruta de tareas: se piden para pendientes + historial (avisos de producción
+  // en ambas vistas). Reservas de material ya se traen para todas las OFs.
+  const listaTareasIn =
+    [...new Set([...ordenes, ...ordenesHistorial])]
+      .map((o) => `'${o}'`)
+      .join(",") || "''";
 
   // Pedidos de venta reales presentes en la vista (para el contexto de venta).
   const codigosPedido = [
@@ -387,18 +403,25 @@ async function consultarTablero(): Promise<Tablero> {
       FROM dbo.CPRMOTask t
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
-      WHERE mo.CodManufacturingOrder IN (${listaIn})
+      WHERE mo.CodManufacturingOrder IN (${listaTareasIn})
     `),
-    // Autor real y minutos del historial (por OF, no hace falta por tarea:
-    // ya viene filtrada a la fase de OT finalizada).
+    // Autor real y minutos del historial: SOLO la tarea de Oficina Técnica
+    // (recurso a-otec/otec-a). Sin este filtro se sumarían corte, soldadura,
+    // confección… y el "planteo" saldría inflado (p.ej. 6 min reales → 5 h).
     pool.request().query<FilaImputacion>(`
       SELECT mo.CodManufacturingOrder AS orden, NULL AS tarea,
              e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
       FROM dbo.CPRImputationMO i
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
+      JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
       JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
       WHERE mo.CodManufacturingOrder IN (${listaHistorialIn})
+        AND EXISTS (
+          SELECT 1 FROM dbo.CPRMOResourceMachine rm
+          WHERE rm.IDMOTask = t.IDMOTask
+            AND rm.CodMOResourceMachine IN ('a-otec', 'otec-a')
+        )
       GROUP BY mo.CodManufacturingOrder, e.CodEmployee
     `),
   ]);
@@ -414,6 +437,15 @@ async function consultarTablero(): Promise<Tablero> {
     lista.push(t);
     tareasPorOF.set(orden, lista);
   }
+
+  /** Avisos de producción (tareas-nota "22/06 VISITA MEDIR") de una OF. */
+  const avisosDe = (orden: string): string[] => [
+    ...new Set(
+      (tareasPorOF.get(orden) ?? [])
+        .map((t) => (t.descripcion ?? "").trim())
+        .filter((d) => d && esNota(d)),
+    ),
+  ];
 
   const reservasPorOF = new Map(
     reservas.recordset.map((r) => [(r.orden ?? "").trim(), r.reservas]),
@@ -526,8 +558,11 @@ async function consultarTablero(): Promise<Tablero> {
           f,
           minutosPorOFHist.get(orden) ?? 0,
           autorPorOFHist.get(orden)?.op ?? null,
+          { reservas: reservasPorOF.get(orden) ?? 0, avisos: avisosDe(orden) },
         );
       }),
+      comentarioVenta:
+        filas.map((f) => (f.comentario ?? "").trim()).find(Boolean) || undefined,
       accent: "ninguno",
       lineas: 0,
       croquis: false,
@@ -606,13 +641,7 @@ async function consultarTablero(): Promise<Tablero> {
         const codTareaOT = (f.CodTarea ?? "").trim();
         const clave = `${orden}:${codTareaOT}`;
         const ruta = tareasPorOF.get(orden) ?? [];
-        const avisos = [
-          ...new Set(
-            ruta
-              .map((t) => (t.descripcion ?? "").trim())
-              .filter((d) => d && esNota(d)),
-          ),
-        ];
+        const avisos = avisosDe(orden);
         // Primera fase de producción tras el planteo: tareas reales (ni la
         // propia de OT, ni notas, ni canceladas) con fecha planificada válida.
         const fechaLimitePlanteo = ruta

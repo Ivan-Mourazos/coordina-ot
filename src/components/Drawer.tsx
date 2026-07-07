@@ -155,12 +155,8 @@ export function Drawer({
           {/* meta */}
           <div className="mb-4">
             <dl className="grid grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">
-              {pedido.fechaCreacion && (
-                <Meta k="Creación" v={fmt(pedido.fechaCreacion)} />
-              )}
               <Meta k="Solicitud" v={fmt(pedido.fechaSolicitud)} />
               <Meta k="Planificación" v={fmt(pedido.fechaPlanificacion)} />
-              <Meta k="Entrega" v={fmt(pedido.fechaEntrega)} />
               <Meta k="Piezas" v={String(piezasTotal(pedido))} />
               {pedido.ciudadEntrega && (
                 <Meta k="Entrega en" v={pedido.ciudadEntrega} />

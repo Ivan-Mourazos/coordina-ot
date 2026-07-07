@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
-import { estaAtrasado, hoyISO } from "@/lib/types";
+import { estaAtrasado, estaFinalizado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -20,6 +20,7 @@ import { ViewSwitcher, type Vista } from "./ViewSwitcher";
 import { FilterBar, type Filtros } from "./FilterBar";
 import { Zona } from "./Zona";
 import { Bandeja } from "./Bandeja";
+import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { HistorialView } from "./HistorialView";
@@ -205,12 +206,14 @@ export function Board({
     return [...base].sort(cmpPedido);
   }, [pedidosFiltrados, filtros.situacion, cmpPedido]);
 
+  // Historial: los más recientes (mayor fecha de finalización) arriba. En un
+  // pedido ya terminado, fechaPlanificacion guarda la fecha de finalización.
   const historialOrdenados = useMemo(
     () =>
       pedidosFiltrados
-        .filter((p) => p.situacion !== "pendiente")
-        .sort(cmpPedido),
-    [pedidosFiltrados, cmpPedido],
+        .filter((p) => p.situacion === "completado" || estaFinalizado(p))
+        .sort((a, b) => b.fechaPlanificacion.localeCompare(a.fechaPlanificacion)),
+    [pedidosFiltrados],
   );
 
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
@@ -224,6 +227,10 @@ export function Board({
       const atrasado = estaAtrasado(p, hoy);
       const porLoc = new Map<string | null, OF[]>();
       for (const of of p.ofs) {
+        // Las OFs anuladas ("no se hace en OT") salen del tablero de
+        // asignación: si el pedido se queda sin OFs activas, desaparece de
+        // Sin asignar (sigue consultable en Lista/Historial).
+        if (of.estado === "anulada") continue;
         const loc = of.autorId;
         const arr = porLoc.get(loc);
         if (arr) arr.push(of);
@@ -706,7 +713,14 @@ export function Board({
         {vista === "historial" && (
           <>
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
-              <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
+              <FilterBar
+                filtros={filtros}
+                setFiltros={setFiltros}
+                familias={familias}
+                clientes={clientes}
+                showAtrasados={false}
+                ordenes={["cliente", "prioridad"]}
+              />
             </div>
             <div className="p-5">
               <HistorialView pedidos={historialOrdenados} operarios={operarios} onOpen={openPedidoCb} />
@@ -722,6 +736,8 @@ export function Board({
           </div>
         ) : null}
       </DragOverlay>
+
+      <BotonArriba />
 
       <Drawer
         pedido={openPedido}

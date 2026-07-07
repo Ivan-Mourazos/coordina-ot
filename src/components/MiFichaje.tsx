@@ -116,6 +116,11 @@ export function MiFichaje({
 
   if (!yo) return null;
 
+  // El widget solo aparece cuando aporta algo: hay un fichaje corriendo (para
+  // saber qué se está fichando) o el aviso de "planteando sin fichar". Si no,
+  // no molesta: el fichaje se inicia desde las tarjetas del tablero.
+  if (!ab && !aviso) return null;
+
   // Los minutos del panel son de HOY; el histórico completo se conserva para
   // Olanet (solo se filtra la proyección que ve el técnico, no el fichaje).
   const inicioHoy = (() => {

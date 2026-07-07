@@ -69,14 +69,26 @@ export function FilterBar({
   familias,
   clientes,
   showSituacion = false,
+  showAtrasados = true,
+  ordenes = ["planificacion", "prioridad", "entrega", "cliente"],
 }: {
   filtros: Filtros;
   setFiltros: (f: Partial<Filtros>) => void;
   familias: Familia[];
   clientes: string[];
   showSituacion?: boolean;
+  /** El toggle "Solo atrasados" no aplica en Historial (ya están hechos). */
+  showAtrasados?: boolean;
+  /** Opciones de orden disponibles en esta vista. */
+  ordenes?: Orden[];
 }) {
   const activos = filtrosActivos(filtros);
+  const ORDEN_LABEL: Record<Orden, string> = {
+    planificacion: "Planificación",
+    prioridad: "Prioridad",
+    entrega: "Fecha de entrega",
+    cliente: "Cliente",
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -173,18 +185,20 @@ export function FilterBar({
           </Campo>
         )}
 
-        <button
-          type="button"
-          onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
-          aria-pressed={filtros.soloAtrasados}
-          className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-            filtros.soloAtrasados
-              ? "bg-red-600 text-white"
-              : "glass-chip text-text-muted hover:text-text"
-          }`}
-        >
-          Solo atrasados
-        </button>
+        {showAtrasados && (
+          <button
+            type="button"
+            onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
+            aria-pressed={filtros.soloAtrasados}
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              filtros.soloAtrasados
+                ? "bg-red-600 text-white"
+                : "glass-chip text-text-muted hover:text-text"
+            }`}
+          >
+            Solo atrasados
+          </button>
+        )}
 
         <span className="h-5 w-px bg-[var(--glass-border)]" />
 
@@ -194,12 +208,7 @@ export function FilterBar({
             value={filtros.orden}
             onChange={(v) => setFiltros({ orden: (v as Orden) ?? "planificacion" })}
             placeholder={null}
-            options={[
-              { value: "planificacion", label: "Planificación" },
-              { value: "prioridad", label: "Prioridad" },
-              { value: "entrega", label: "Fecha de entrega" },
-              { value: "cliente", label: "Cliente" },
-            ]}
+            options={ordenes.map((o) => ({ value: o, label: ORDEN_LABEL[o] }))}
           />
         </Campo>
       </div>
