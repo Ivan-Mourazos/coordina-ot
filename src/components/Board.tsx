@@ -131,6 +131,8 @@ export function Board({
     familia: "todas",
     cliente: "todos",
     estado: "todos",
+    prioridad: "todas",
+    soloAtrasados: false,
     situacion: "procesado",
     orden: "planificacion",
   });
@@ -152,6 +154,8 @@ export function Board({
     [pedidos],
   );
 
+  const hoy = hoyISO();
+
   const pedidosFiltrados = useMemo(() => {
     const q = filtros.query.trim().toLowerCase();
     return pedidos.filter((p) => {
@@ -159,11 +163,11 @@ export function Board({
       if (filtros.familia !== "todas" && !p.ofs.some((o) => o.familia === filtros.familia)) return false;
       if (filtros.cliente !== "todos" && p.cliente !== filtros.cliente) return false;
       if (filtros.estado !== "todos" && !p.ofs.some((o) => o.estado === filtros.estado)) return false;
+      if (filtros.prioridad !== "todas" && p.prioridad !== filtros.prioridad) return false;
+      if (filtros.soloAtrasados && !estaAtrasado(p, hoy)) return false;
       return true;
     });
-  }, [pedidos, filtros]);
-
-  const hoy = hoyISO();
+  }, [pedidos, filtros, hoy]);
 
   const cmpPedido = useMemo(() => {
     return (a: Pedido, b: Pedido) => {
