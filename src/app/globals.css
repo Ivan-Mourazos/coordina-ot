@@ -24,8 +24,8 @@
    Claro  = "plata glass": neutros fríos, paneles blancos translúcidos.
    Oscuro = "carbón premium": grafito profundo, hairlines, dorado del logo. */
 :root {
-  --bg: #edeff2;
-  --bg-glow: #f7f8fa; /* foco de luz ambiental del fondo */
+  --bg: #dfe3e9; /* gris con cuerpo: los paneles blancos flotan encima */
+  --bg-glow: #eaedf1; /* foco de luz ambiental del fondo */
   --surface: #ffffff;
   --surface-2: #f4f5f7;
   --zone: #f7f8fa;
@@ -44,8 +44,9 @@
 }
 
 .dark {
-  --bg: #16181c;
-  --bg-glow: #1d2025;
+  /* Fondo más oscuro que los paneles para que estos destaquen (jerarquía). */
+  --bg: #0d0e11;
+  --bg-glow: #17191e;
   --surface: #151619;
   --surface-2: #1c1e22;
   --zone: #101114;
@@ -54,12 +55,12 @@
   --text: #eef0f2;
   --text-muted: #989ea8;
 
-  --glass-bg: rgba(22, 24, 28, 0.55);
-  --glass-bg-strong: rgba(20, 22, 26, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.09);
-  --glass-highlight: rgba(255, 255, 255, 0.12);
-  --glass-shadow: rgba(0, 0, 0, 0.65);
-  --glass-chip: rgba(32, 35, 41, 0.85);
+  --glass-bg: rgba(25, 27, 32, 0.92);
+  --glass-bg-strong: rgba(28, 30, 36, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: rgba(0, 0, 0, 0.7);
+  --glass-chip: rgba(33, 36, 42, 0.95);
 }
 
 @theme inline {
