@@ -13,6 +13,7 @@ import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
+import { ReservaChip } from "./ReservaChip";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -335,27 +336,11 @@ function OFRow({
         </p>
       )}
 
-      {of.reservasMaterial !== undefined &&
-        (of.reservasMaterial > 0 ? (
-          <div className="mt-1.5 rounded-md bg-teal-500/10 px-2 py-1 text-[11px] text-teal-700 dark:text-teal-400">
-            <p className="font-semibold">
-              🧵 Material reservado ({of.reservasMaterial})
-            </p>
-            {of.reservasDetalle && (
-              <ul className="mt-0.5 space-y-0.5">
-                {of.reservasDetalle.map((m) => (
-                  <li key={m} className="truncate">
-                    · {m}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <p className="mt-1.5 px-2 text-[11px] text-text-muted/70">
-            🧵 Sin reservas de material en RPS
-          </p>
-        ))}
+      {of.reservasMaterial !== undefined && (
+        <div className="mt-1.5">
+          <ReservaChip n={of.reservasMaterial} detalle={of.reservasDetalle} />
+        </div>
+      )}
 
       {of.observacion && (
         <p className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400">

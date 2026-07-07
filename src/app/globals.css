@@ -100,13 +100,17 @@ body {
 /* ── Vidrio ──
    Panel: bandeja/estantería sobre la que descansan los partes. */
 .glass-panel {
-  background: var(--glass-bg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 30%, transparent), transparent 30%),
+    var(--glass-bg);
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
-    inset 0 1px 0 0 var(--glass-highlight),
-    0 10px 34px -16px var(--glass-shadow);
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 1px rgba(0, 0, 0, 0.03),
+    0 2px 0 -1px color-mix(in srgb, var(--border-strong) 40%, transparent),
+    0 14px 40px -18px var(--glass-shadow);
 }
 
 .glass-panel-strong {
@@ -119,14 +123,59 @@ body {
     0 10px 34px -16px var(--glass-shadow);
 }
 
-/* Ficha compacta: tile casi sólido que descansa SOBRE el vidrio */
+/* Ficha compacta: tile casi sólido que descansa SOBRE el vidrio, con un canto
+   inferior que le da cuerpo (no plano). */
 .glass-chip {
-  background: var(--glass-chip);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
+    var(--glass-chip);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 1px 2px 0 var(--glass-shadow);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 80%, white 20%),
+    0 1px 1px rgba(0, 0, 0, 0.03),
+    0 2px 0 -1px color-mix(in srgb, var(--border-strong) 60%, transparent),
+    0 8px 18px -12px var(--glass-shadow);
+  transition: transform 140ms ease, box-shadow 140ms ease;
 }
 .glass-chip:hover {
-  box-shadow: 0 6px 18px -8px var(--glass-shadow);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 3px 0 -1px color-mix(in srgb, var(--border-strong) 70%, transparent),
+    0 14px 26px -12px var(--glass-shadow);
+}
+.dark .glass-chip {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 0 -1px rgba(0, 0, 0, 0.5),
+    0 10px 22px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */
+.chip-3d {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 55%, transparent), transparent 55%),
+    var(--glass-chip);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 2px 4px -1px var(--glass-shadow);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.chip-3d:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 95%, white 5%),
+    0 2px 0 rgba(0, 0, 0, 0.05),
+    0 6px 12px -2px var(--glass-shadow);
+}
+.chip-3d:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.12),
+    0 1px 2px -1px var(--glass-shadow);
 }
 
 /* Tarjetas destacadas del panel personal: más cuerpo, canto y acento de estado. */

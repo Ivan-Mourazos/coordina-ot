@@ -5,6 +5,7 @@ import type { OF, Operario, Pedido } from "@/lib/types";
 import { estaFinalizado, tiempoTotalOF, tiempoTotalPedido } from "@/lib/types";
 import { fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
+import { ReservaChip } from "./ReservaChip";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -165,13 +166,7 @@ function OFHistorial({
       {/* datos de interés: reservas de material y avisos de producción */}
       <div className="ml-auto flex flex-wrap items-center gap-1.5 text-[10px]">
         {of.reservasMaterial !== undefined && of.reservasMaterial > 0 && (
-          <span
-            className="rounded-md bg-teal-500/10 px-1.5 py-0.5 text-teal-700 dark:text-teal-400"
-            title={of.reservasDetalle?.join("\n")}
-          >
-            🧵 {of.reservasDetalle?.[0] ?? `${of.reservasMaterial} reservas`}
-            {of.reservasMaterial > 1 ? ` +${of.reservasMaterial - 1}` : ""}
-          </span>
+          <ReservaChip n={of.reservasMaterial} detalle={of.reservasDetalle} />
         )}
         {of.avisos?.map((a) => (
           <span
