@@ -86,7 +86,10 @@ export function Drawer({
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 bg-gradient-to-b from-black/60 to-transparent p-4 text-white">
           <span className="font-mono text-sm font-bold">{pedido.codigo}</span>
-          <span className="text-sm text-white/70">{pedido.cliente}</span>
+          <span className="text-sm text-white/70">
+            {pedido.cliente}
+            {pedido.negocio && ` · ${pedido.negocio}`}
+          </span>
           {pedido.scanUrl && (
             <a
               href={pedido.scanUrl}
@@ -134,7 +137,15 @@ export function Drawer({
                 P{pedido.prioridad}
               </span>
             </div>
-            <p className="truncate text-sm text-text-muted">{pedido.cliente}</p>
+            <p className="truncate text-sm text-text-muted">
+              {pedido.cliente}
+              {pedido.negocio && (
+                <>
+                  {" · "}
+                  <span className="font-semibold text-text">{pedido.negocio}</span>
+                </>
+              )}
+            </p>
           </div>
           <button
             onClick={onClose}

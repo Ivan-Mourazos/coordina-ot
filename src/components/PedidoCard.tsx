@@ -143,6 +143,11 @@ export const PedidoCardView = memo(function PedidoCardView({
             </span>
           )}
         </div>
+        {facet.pedido.negocio && (
+          <div className="truncate text-[10px] leading-tight text-text-muted">
+            {facet.pedido.negocio}
+          </div>
+        )}
         {mostrarPrioridad && (
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-text-muted">
             <span className={`font-bold ${atrasado ? "text-red-600" : ""}`}>

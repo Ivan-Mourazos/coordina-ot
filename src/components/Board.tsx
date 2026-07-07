@@ -155,7 +155,7 @@ export function Board({
   const pedidosFiltrados = useMemo(() => {
     const q = filtros.query.trim().toLowerCase();
     return pedidos.filter((p) => {
-      if (q && !`${p.codigo} ${p.cliente}`.toLowerCase().includes(q)) return false;
+      if (q && !`${p.codigo} ${p.cliente} ${p.negocio ?? ""}`.toLowerCase().includes(q)) return false;
       if (filtros.familia !== "todas" && !p.ofs.some((o) => o.familia === filtros.familia)) return false;
       if (filtros.cliente !== "todos" && p.cliente !== filtros.cliente) return false;
       if (filtros.estado !== "todos" && !p.ofs.some((o) => o.estado === filtros.estado)) return false;
@@ -212,6 +212,9 @@ export function Board({
   const facetsByLoc = useMemo(() => {
     const map = new Map<string | null, Facet[]>();
     for (const p of pedidosOrdenados) {
+      // Proyectos internos (OFs sin pedido): no son trabajo de pedidos.
+      // Se fichan desde Mi fichaje y se consultan en la Lista.
+      if (p.interno) continue;
       const atrasado = estaAtrasado(p, hoy);
       const porLoc = new Map<string | null, OF[]>();
       for (const of of p.ofs) {
@@ -242,7 +245,8 @@ export function Board({
   const countEstado = (e: EstadoOF) =>
     procesadosAll.reduce((n, p) => n + p.ofs.filter((o) => o.estado === e).length, 0);
   const sinAsignar = procesadosAll.reduce(
-    (n, p) => n + p.ofs.filter((o) => o.autorId === null).length,
+    (n, p) =>
+      p.interno ? n : n + p.ofs.filter((o) => o.autorId === null).length,
     0,
   );
   const porRevisar = countEstado("por_revisar");

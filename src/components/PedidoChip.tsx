@@ -147,6 +147,7 @@ export const PedidoChip = memo(function PedidoChip({
           </div>
           <div className="truncate text-[10px] leading-tight text-text-muted">
             {pedido.cliente}
+            {pedido.negocio && ` · ${pedido.negocio}`}
           </div>
           <div className="mt-0.5 truncate text-[10px] italic text-text-muted/80">
             {ofs.map((o) => o.descripcion).join(" · ")}

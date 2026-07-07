@@ -107,6 +107,11 @@ export function PedidoScan({ pedido }: { pedido: Pedido }) {
         <text x="14" y="54" fontSize="7.6" fontWeight="650" fill={INK} fontFamily="inherit">
           {pedido.cliente}
         </text>
+        {pedido.negocio && (
+          <text x="14" y="60.5" fontSize="5.4" fontWeight="600" fill={INK_SOFT} fontFamily="inherit">
+            {pedido.negocio}
+          </text>
+        )}
 
         <text x="134" y="45" fontSize="3.8" fill={INK_SOFT} letterSpacing="0.6" fontFamily="inherit">
           SOLICITUD

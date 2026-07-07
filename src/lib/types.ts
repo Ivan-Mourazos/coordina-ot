@@ -123,6 +123,13 @@ export interface Pedido {
   comentarioVenta?: string;
   /** Ciudad de entrega del pedido de venta. */
   ciudadEntrega?: string;
+  /** Negocio/local de entrega ("NOVA CAMELIAS"): distingue pedidos del mismo
+   *  cliente-empresa (p.ej. los de MAHOU, que si no son casi iguales). */
+  negocio?: string;
+  /** Proyecto interno: OF sin pedido de venta (mantenimiento, desarrollos…).
+   *  No es trabajo de pedidos: fuera del tablero de asignación; se ficha
+   *  desde Mi fichaje y se consulta en la Lista. */
+  interno?: boolean;
 
   // --- pistas visuales para simular el "parte escaneado" ---
   accent: "verde" | "rojo" | "azul" | "ninguno"; // círculo a mano del scan

@@ -113,7 +113,12 @@ export function ListaView({
                     )}
                   </div>
                 </Td>
-                <Td className="text-text">{p.cliente}</Td>
+                <Td className="text-text">
+                  {p.cliente}
+                  {p.negocio && (
+                    <span className="text-text-muted"> · {p.negocio}</span>
+                  )}
+                </Td>
                 <Td>
                   <div className="flex flex-wrap gap-1">
                     {familiasDe(p).map((f) => (

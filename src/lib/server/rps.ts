@@ -63,6 +63,11 @@ interface FilaVenta {
   pedido: string | null;
   comentario: string | null;
   ciudad: string | null;
+  /** Fecha solicitada por el cliente (mín. de ReceptionDemandDate de las
+   *  líneas): es la "Fecha solicitada" que aparece en el parte escaneado. */
+  solicitada: Date | null;
+  /** Negocio/local de entrega ("Empresa/Negocio" del parte). */
+  negocio: string | null;
 }
 
 interface FilaTarea {
@@ -256,11 +261,19 @@ async function consultarTablero(): Promise<Tablero> {
       WHERE mo.CodManufacturingOrder IN (${listaIn})
       GROUP BY mo.CodManufacturingOrder, t.CodMOTask, e.CodEmployee
     `),
-    // Contexto del pedido de venta: comentario del comercial y ciudad.
+    // Contexto del pedido de venta: comentario, ciudad y fecha solicitada
+    // (la de las líneas; la cabecera suele traer el centinela 1900-01-01).
     pool.request().query<FilaVenta>(`
-      SELECT CodOrder AS pedido, Comment AS comentario, CityDelivery AS ciudad
-      FROM dbo.FACOrderSL
-      WHERE CodCompany = '001' AND CodOrder IN (${listaPedidosIn})
+      SELECT o.CodOrder AS pedido, o.Comment AS comentario,
+             o.CityDelivery AS ciudad,
+             (SELECT MIN(l.ReceptionDemandDate) FROM dbo.FACOrderLineSL l
+              WHERE l.IDOrder = o.IDOrder
+                AND l.ReceptionDemandDate > '2000-01-01') AS solicitada,
+             d.Description AS negocio
+      FROM dbo.FACOrderSL o
+      LEFT JOIN dbo.FACCustomerDeliveryAddress d
+        ON d.IDCustomerDeliveryAddress = o.IDCustomerDeliveryAddress
+      WHERE o.CodCompany = '001' AND o.CodOrder IN (${listaPedidosIn})
     `),
     // Ruta de tareas de cada OF pendiente: da los avisos de producción
     // (tareas-nota) y el arranque planificado de la fase posterior al planteo.
@@ -336,8 +349,14 @@ async function consultarTablero(): Promise<Tablero> {
       filas.map((f) => (f.Cliente ?? "").trim()).find(Boolean) ?? "Sin cliente";
     const validas = (ds: (Date | null)[]) =>
       ds.map(fechaISO).filter((f): f is string => f !== null).sort();
-    // Fecha solicitada más temprana del grupo; prioridad más urgente (menor).
-    const fecha = validas(filas.map((f) => f.FechaSolicitada))[0] ?? hoyISO();
+    const venta = ventaPorPedido.get(grupo.codigo);
+    // Fecha solicitada por el cliente: la más temprana de la vista o, si la
+    // vista trae el centinela (pasa), la de las líneas del pedido de venta
+    // (la "Fecha solicitada" del parte escaneado). Último recurso: hoy.
+    const fecha =
+      validas(filas.map((f) => f.FechaSolicitada))[0] ??
+      fechaISO(venta?.solicitada ?? null) ??
+      hoyISO();
     // Planificación = FechaPlanificada de la vista (la de la tarea de OT);
     // si falta, el arranque planificado de la OF. Entrega = fin planificado
     // más tardío. Último recurso en ambas: la fecha solicitada.
@@ -356,12 +375,14 @@ async function consultarTablero(): Promise<Tablero> {
     const scanUrl = /^AR\.\d{2}\.\d{5}$/.test(grupo.codigo)
       ? `/api/pedidos/${grupo.codigo}.pdf`
       : undefined;
-    const venta = ventaPorPedido.get(grupo.codigo);
 
     return {
       id: clave,
       codigo: grupo.codigo,
       cliente,
+      // Sin pedido de venta = proyecto interno (desarrollos, mantenimiento):
+      // se ficha, pero no entra en el tablero de asignación.
+      interno: clave.startsWith("sin-pedido:") || undefined,
       situacion: "procesado", // la vista ya es solo trabajo pendiente de OT
       fechaSolicitud: fecha,
       fechaPlanificacion: planificacion,
@@ -370,6 +391,7 @@ async function consultarTablero(): Promise<Tablero> {
       scanUrl,
       comentarioVenta: (venta?.comentario ?? "").trim() || undefined,
       ciudadEntrega: (venta?.ciudad ?? "").trim() || undefined,
+      negocio: (venta?.negocio ?? "").trim() || undefined,
       ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
         const codTareaOT = (f.CodTarea ?? "").trim();
