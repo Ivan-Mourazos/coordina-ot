@@ -29,7 +29,9 @@ export type FamiliaConocida =
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */
 export type Familia = FamiliaConocida | (string & {});
 
-export type Prioridad = 1 | 2 | 3; // 1 = máxima urgencia
+/** Prioridad del trabajo: 1 = poca, 2 = normal, 3 = urgente. Si es 3, la
+ *  fecha de planificación se respeta al 100% (no se puede retrasar). */
+export type Prioridad = 1 | 2 | 3;
 
 /** Situación respecto a Producción.
  *  - procesado: ya escaneado, con OF asignada y pasado a Oficina Técnica
@@ -108,6 +110,9 @@ export interface Pedido {
   cliente: string;
   situacion: Situacion;
   fechaSolicitud: string; // ISO yyyy-mm-dd
+  /** Fecha ISO yyyy-mm-dd en la que se creó el pedido de venta en RPS
+   *  (FACOrderSL.OrderDate). undefined = sin dato (mock, OF sin pedido). */
+  fechaCreacion?: string;
   /** Fecha que Producción planifica antes de enviarlo a Oficina Técnica.
    *  Es la fecha por la que se ordena la lista de trabajo. */
   fechaPlanificacion: string; // ISO yyyy-mm-dd

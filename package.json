@@ -19,9 +19,11 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@napi-rs/canvas": "^1.0.2",
     "@tanstack/react-query": "^5.101.2",
     "mssql": "^12.7.0",
     "next": "16.2.9",
+    "pdfjs-dist": "^6.1.200",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
