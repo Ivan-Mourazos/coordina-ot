@@ -670,7 +670,7 @@ export function Board({
               </div>
             </main>
             )}
-            <div className="glass-header flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--glass-border)]">
               <div
                 className="flex items-center gap-3 px-4 py-2"
                 style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}

@@ -80,10 +80,8 @@ body {
 }
 
 body {
-  /* Luz ambiental sutil arriba-izquierda: da profundidad al vidrio */
-  background:
-    radial-gradient(1100px 700px at 18% -12%, var(--bg-glow), transparent 60%),
-    var(--bg);
+  /* Fondo uniforme (sin degradado) para que todo el lienzo sea igual. */
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
