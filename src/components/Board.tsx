@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -119,6 +119,52 @@ export function Board({
 
   // Panel de compañero desplegado en Asignar: solo uno a la vez.
   const [superiorColapsado, setSuperiorColapsado] = useState(false);
+
+  // Paneles redimensionables: altura del panel personal en px.
+  const [panelTopH, setPanelTopH] = useState<number>(() => {
+    if (typeof window === "undefined") return 280;
+    try {
+      const saved = localStorage.getItem("coordina-panel-sizes");
+      return saved ? JSON.parse(saved).top ?? 280 : 280;
+    } catch { return 280; }
+  });
+  const dragRef = useRef<{ edge: "top" | "bottom"; startY: number; startH: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Persist panel sizes
+  useEffect(() => {
+    try { localStorage.setItem("coordina-panel-sizes", JSON.stringify({ top: panelTopH })); } catch {}
+  }, [panelTopH]);
+
+  // Drag handlers for resizable panels
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!dragRef.current) return;
+      e.preventDefault();
+      const delta = e.clientY - dragRef.current.startY;
+      const newH = Math.max(120, dragRef.current.startH + delta);
+      setPanelTopH(newH);
+    }
+    function onUp() {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    dragRef.current = { edge: "top", startY: e.clientY, startH: panelTopH };
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+  }, [panelTopH]);
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -628,7 +674,10 @@ export function Board({
         {vista === "asignar" && (
           <>
             {!superiorColapsado && (
-            <main className="flex flex-col gap-3 overflow-visible p-4">
+            <main
+              className="flex flex-col gap-3 overflow-visible overflow-y-auto p-4 scroll-thin"
+              style={{ height: panelTopH, minHeight: 120 }}
+            >
               <Zona
                 operario={yo}
                 operarios={operarios}
@@ -670,13 +719,23 @@ export function Board({
               </div>
             </main>
             )}
+            {/* ── resize handle ── */}
+            {!superiorColapsado && (
+              <div
+                onMouseDown={startResize}
+                className="group flex h-1.5 cursor-ns-resize items-center justify-center border-y border-[var(--glass-border)] bg-[var(--surface-2)] hover:bg-brand-400/20 active:bg-brand-400/30"
+                title="Arrastra para redimensionar"
+              >
+                <span className="h-0.5 w-8 rounded-full bg-[var(--border-strong)] transition-colors group-hover:bg-brand-400" />
+              </div>
+            )}
             <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--glass-border)]">
               <div
                 className="flex items-center gap-3 px-4 py-2"
                 style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
               >
                 <div className="min-w-0 flex-1">
-                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
+                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} showAtrasados={false} ordenes={["planificacion", "familia", "prioridad"]} />
                 </div>
                 <button
                   onClick={() => setSuperiorColapsado((v) => !v)}
@@ -690,7 +749,7 @@ export function Board({
                 </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
-                <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} />
+                <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} orden={filtros.orden} />
               </div>
             </div>
           </>

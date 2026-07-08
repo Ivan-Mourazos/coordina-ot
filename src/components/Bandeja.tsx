@@ -1,68 +1,178 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import type { Operario } from "@/lib/types";
-import { hoyISO } from "@/lib/types";
+import type { Operario, Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
+import { familiaMeta } from "@/lib/familia";
+import { FamiliaIcon } from "./FamiliaTag";
 import { PedidoCard, type Facet } from "./PedidoCard";
+import type { Orden } from "./FilterBar";
 
-const FMT_GRUPO = new Intl.DateTimeFormat("es-ES", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+/* ── helpers de orden ── */
 
-/** "2026-07-15" → "mar 15 jul". Fecha inválida → "Sin planificar". */
-function etiquetaFecha(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return "Sin planificar";
-  const t = FMT_GRUPO.format(new Date(y, m - 1, d));
-  return t.charAt(0).toUpperCase() + t.slice(1);
+/** Prioridad desc, luego fecha asc. */
+function cmpPrioFecha(a: Facet, b: Facet) {
+  const pa = PRIORIDAD[a.pedido.prioridad].rank;
+  const pb = PRIORIDAD[b.pedido.prioridad].rank;
+  if (pa !== pb) return pb - pa;
+  return a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
 }
 
-interface Grupo {
-  fecha: string;
-  etiqueta: string;
-  vencida: boolean;
+/** Fecha asc, luego prioridad desc. */
+function cmpFechaPrio(a: Facet, b: Facet) {
+  const d = a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
+  if (d !== 0) return d;
+  return PRIORIDAD[b.pedido.prioridad].rank - PRIORIDAD[a.pedido.prioridad].rank;
+}
+
+/* ── scroll horizontal arrastrable ── */
+
+function useGrabScroll() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const state = useRef({ down: false, startX: 0, scrollLeft: 0 });
+
+  const onDown = useCallback((e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    state.current = { down: true, startX: e.pageX, scrollLeft: el.scrollLeft };
+    el.style.cursor = "grabbing";
+    el.style.userSelect = "none";
+  }, []);
+
+  const onMove = useCallback((e: React.MouseEvent) => {
+    if (!state.current.down) return;
+    const el = ref.current;
+    if (!el) return;
+    el.scrollLeft = state.current.scrollLeft - (e.pageX - state.current.startX);
+  }, []);
+
+  const onUp = useCallback(() => {
+    state.current.down = false;
+    const el = ref.current;
+    if (el) {
+      el.style.cursor = "grab";
+      el.style.userSelect = "";
+    }
+  }, []);
+
+  return { ref, onDown, onMove, onUp, onLeave: onUp };
+}
+
+/* ── fila con scroll horizontal (usada por Familia y Prioridad) ── */
+
+function ScrollRow({
+  label,
+  icon,
+  count,
+  color,
+  facets,
+  operarios,
+  onOpen,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  count: number;
+  color?: string;
   facets: Facet[];
+  operarios: Operario[];
+  onOpen: (f: Facet) => void;
+}) {
+  const { ref, onDown, onMove, onUp, onLeave } = useGrabScroll();
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-2">
+        {icon}
+        <span className="text-xs font-bold text-text" style={color ? { color } : undefined}>
+          {label}
+        </span>
+        <span className="rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] font-semibold text-text-muted">
+          {count}
+        </span>
+      </div>
+      <div
+        ref={ref}
+        onMouseDown={onDown}
+        onMouseMove={onMove}
+        onMouseUp={onUp}
+        onMouseLeave={onLeave}
+        className="scroll-thin flex gap-1.5 overflow-x-auto pb-1"
+        style={{ cursor: "grab" }}
+      >
+        {facets.map((f) => (
+          <div key={f.pedido.id} className="w-[80px] shrink-0">
+            <PedidoCard
+              facet={f}
+              operarios={operarios}
+              onOpen={onOpen}
+              mostrarPrioridad
+              mostrarFecha
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
+
+/* ── componente principal ── */
 
 export function Bandeja({
   facets,
   operarios,
   onOpen,
+  orden = "planificacion",
 }: {
   facets: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
+  orden?: Orden;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "bandeja" });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
-  // Agrupado por fecha de planificación (asc). Dentro de cada día, primero lo
-  // más urgente (prioridad 3) y a igualdad, por código de pedido.
-  const grupos = useMemo<Grupo[]>(() => {
-    const hoy = hoyISO();
-    const porFecha = new Map<string, Facet[]>();
+  /* ── modo flat (planificación) ── */
+  const flat = useMemo(
+    () => [...facets].sort(cmpFechaPrio),
+    [facets],
+  );
+
+  /* ── modo familia ── */
+  const filasFamilia = useMemo(() => {
+    const map = new Map<string, Facet[]>();
     for (const f of facets) {
-      const fecha = f.pedido.fechaPlanificacion;
-      const arr = porFecha.get(fecha);
+      const fam = f.ofs[0]?.familia ?? "OTRO";
+      const arr = map.get(fam);
       if (arr) arr.push(f);
-      else porFecha.set(fecha, [f]);
+      else map.set(fam, [f]);
     }
-    return [...porFecha.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([fecha, items]) => ({
-        fecha,
-        etiqueta: etiquetaFecha(fecha),
-        vencida: fecha < hoy,
-        facets: items.sort((a, b) => {
-          const pa = PRIORIDAD[a.pedido.prioridad].rank;
-          const pb = PRIORIDAD[b.pedido.prioridad].rank;
-          if (pa !== pb) return pb - pa; // urgente primero
-          return a.pedido.codigo.localeCompare(b.pedido.codigo);
-        }),
+    return [...map.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([fam, items]) => ({
+        familia: fam,
+        meta: familiaMeta(fam),
+        facets: items.sort(cmpPrioFecha),
+      }));
+  }, [facets]);
+
+  /* ── modo prioridad ── */
+  const filasPrioridad = useMemo(() => {
+    const map = new Map<Prioridad, Facet[]>();
+    for (const f of facets) {
+      const p = f.pedido.prioridad;
+      const arr = map.get(p);
+      if (arr) arr.push(f);
+      else map.set(p, [f]);
+    }
+    return ([3, 2, 1] as Prioridad[])
+      .filter((p) => map.has(p))
+      .map((p) => ({
+        prioridad: p,
+        meta: PRIORIDAD[p],
+        facets: (map.get(p) ?? []).sort((a, b) =>
+          a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion),
+        ),
       }));
   }, [facets]);
 
@@ -83,45 +193,73 @@ export function Bandeja({
         </span>
       </div>
 
-      {grupos.length === 0 ? (
+      {facets.length === 0 ? (
         <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
           No hay partes sin asignar
         </div>
+      ) : orden === "planificacion" ? (
+        /* ── FLAT: tarjetas seguidas, fecha en cada una ── */
+        <div className="flex flex-wrap gap-1.5">
+          {flat.map((f) => (
+            <div key={f.pedido.id} className="w-[80px]">
+              <PedidoCard
+                facet={f}
+                operarios={operarios}
+                onOpen={onOpen}
+                mostrarPrioridad
+                mostrarFecha
+              />
+            </div>
+          ))}
+        </div>
+      ) : orden === "familia" ? (
+        /* ── FILAS POR FAMILIA ── */
+        <div className="space-y-3">
+          {filasFamilia.map((fila) => (
+            <ScrollRow
+              key={fila.familia}
+              label={fila.meta.label}
+              icon={<FamiliaIcon familia={fila.familia} className="size-4" />}
+              count={fila.facets.length}
+              facets={fila.facets}
+              operarios={operarios}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
+      ) : orden === "prioridad" ? (
+        /* ── FILAS POR PRIORIDAD ── */
+        <div className="space-y-3">
+          {filasPrioridad.map((fila) => (
+            <ScrollRow
+              key={fila.prioridad}
+              label={fila.meta.label}
+              icon={
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ background: fila.meta.color }}
+                />
+              }
+              count={fila.facets.length}
+              color={fila.meta.color}
+              facets={fila.facets}
+              operarios={operarios}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
       ) : (
-        /* Galería de cajas: cada fecha es una caja con relieve 3D que ocupa
-           solo lo que necesita; con 1 pedido no desperdicia toda la fila. */
-        <div className="flex flex-wrap items-start gap-3">
-          {grupos.map((g) => (
-            <div
-              key={g.fecha}
-              className={`bandeja-caja w-fit max-w-full rounded-2xl p-2.5 ${
-                g.vencida ? "bandeja-caja-tarde" : ""
-              }`}
-            >
-              <div className="mb-1.5 flex items-center gap-2">
-                <h3
-                  className={`text-xs font-bold uppercase tracking-wide ${
-                    g.vencida ? "text-red-500" : "text-text"
-                  }`}
-                >
-                  {g.etiqueta}
-                </h3>
-                <span className="ml-auto rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] font-semibold text-text-muted">
-                  {g.facets.length}
-                </span>
-              </div>
-              <div className="flex max-w-[560px] flex-wrap gap-1.5">
-                {g.facets.map((f) => (
-                  <div key={f.pedido.id} className="w-[80px]">
-                    <PedidoCard
-                      facet={f}
-                      operarios={operarios}
-                      onOpen={onOpen}
-                      mostrarPrioridad
-                    />
-                  </div>
-                ))}
-              </div>
+        /* fallback: flat */
+        <div className="flex flex-wrap gap-1.5">
+          {flat.map((f) => (
+            <div key={f.pedido.id} className="w-[80px]">
+              <PedidoCard
+                facet={f}
+                operarios={operarios}
+                onOpen={onOpen}
+                mostrarPrioridad
+                mostrarFecha
+              />
             </div>
           ))}
         </div>

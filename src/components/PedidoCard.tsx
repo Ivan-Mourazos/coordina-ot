@@ -30,6 +30,7 @@ export const PedidoCardView = memo(function PedidoCardView({
   operarios,
   dragging = false,
   mostrarPrioridad = false,
+  mostrarFecha = false,
 }: {
   facet: Facet;
   operarios: Operario[];
@@ -37,6 +38,8 @@ export const PedidoCardView = memo(function PedidoCardView({
   /** Muestra prioridad + atrasado junto al código (pensado para la bandeja
    *  "Sin asignar", donde no hay agrupación por estado que ya lo indique). */
   mostrarPrioridad?: boolean;
+  /** Muestra fecha dd/mm encima de la miniatura PDF. */
+  mostrarFecha?: boolean;
 }) {
   const { pedido, ofs } = facet;
   const total = pedido.ofs.length;
@@ -56,12 +59,17 @@ export const PedidoCardView = memo(function PedidoCardView({
 
   return (
     <div className="w-full select-none">
+      {mostrarFecha && (
+        <div className="truncate px-0.5 text-[9px] leading-tight text-text-muted">
+          {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
+        </div>
+      )}
       <div
         className={`relative aspect-[210/297] w-full rounded-md bg-white shadow-sm ring-1 transition-shadow ${
           dragging
             ? "shadow-xl ring-brand-400"
             : "ring-black/10 hover:shadow-lg dark:ring-white/10"
-        } ${atrasado ? "outline outline-2 outline-offset-2 outline-red-500/80" : ""}`}
+        }`}
       >
         <PedidoScan pedido={pedido} />
 
@@ -171,11 +179,13 @@ export const PedidoCard = memo(function PedidoCard({
   operarios,
   onOpen,
   mostrarPrioridad = false,
+  mostrarFecha = false,
 }: {
   facet: Facet;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   mostrarPrioridad?: boolean;
+  mostrarFecha?: boolean;
 }) {
   const id = dragIdOf(facet);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -226,7 +236,7 @@ export const PedidoCard = memo(function PedidoCard({
         isDragging ? "opacity-30" : ""
       }`}
     >
-      <PedidoCardView facet={facet} operarios={operarios} mostrarPrioridad={mostrarPrioridad} />
+      <PedidoCardView facet={facet} operarios={operarios} mostrarPrioridad={mostrarPrioridad} mostrarFecha={mostrarFecha} />
       {peek && !isDragging && <QuickLook pedido={facet.pedido} anchor={peek} />}
     </div>
   );

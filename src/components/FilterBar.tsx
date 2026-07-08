@@ -6,7 +6,7 @@ import { familiaMeta } from "@/lib/familia";
 import { Select } from "./Select";
 import { FamiliaIcon } from "./FamiliaTag";
 
-export type Orden = "planificacion" | "entrega" | "prioridad" | "cliente";
+export type Orden = "planificacion" | "familia" | "prioridad" | "entrega" | "cliente";
 export type SituacionFiltro = "procesado" | "pendiente" | "todos";
 
 export interface Filtros {
@@ -69,6 +69,7 @@ export function FilterBar({
   familias,
   clientes,
   showSituacion = false,
+  showEstado = true,
   showAtrasados = true,
   ordenes = ["planificacion", "prioridad", "entrega", "cliente"],
 }: {
@@ -77,6 +78,8 @@ export function FilterBar({
   familias: Familia[];
   clientes: string[];
   showSituacion?: boolean;
+  /** El filtro de estado de OF no aplica en Asignar (casi todo pendiente). */
+  showEstado?: boolean;
   /** El toggle "Solo atrasados" no aplica en Historial (ya están hechos). */
   showAtrasados?: boolean;
   /** Opciones de orden disponibles en esta vista. */
@@ -85,6 +88,7 @@ export function FilterBar({
   const activos = filtrosActivos(filtros);
   const ORDEN_LABEL: Record<Orden, string> = {
     planificacion: "Planificación",
+    familia: "Familia",
     prioridad: "Prioridad",
     entrega: "Fecha de entrega",
     cliente: "Cliente",
@@ -138,18 +142,20 @@ export function FilterBar({
           />
         </Campo>
 
-        <Campo label="Estado">
-          <Select
-            value={filtros.estado === "todos" ? null : filtros.estado}
-            onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
-            placeholder="Todos"
-            options={ESTADOS_ORDEN.map((e) => ({
-              value: e,
-              label: ESTADO[e].label,
-              icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
-            }))}
-          />
-        </Campo>
+        {showEstado && (
+          <Campo label="Estado">
+            <Select
+              value={filtros.estado === "todos" ? null : filtros.estado}
+              onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
+              placeholder="Todos"
+              options={ESTADOS_ORDEN.map((e) => ({
+                value: e,
+                label: ESTADO[e].label,
+                icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
+              }))}
+            />
+          </Campo>
+        )}
 
         <Campo label="Prioridad">
           <Select
