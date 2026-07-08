@@ -44,23 +44,24 @@
 }
 
 .dark {
-  /* Fondo más oscuro que los paneles para que estos destaquen (jerarquía). */
-  --bg: #0d0e11;
-  --bg-glow: #17191e;
-  --surface: #151619;
-  --surface-2: #1c1e22;
-  --zone: #101114;
-  --border: #24262b;
-  --border-strong: #383b42;
+  /* Carbón mate: grafito suave, no negro puro. Los paneles flotan con
+     jerarquía clara pero sin el aspecto "pantalla apagada". */
+  --bg: #1a1b1f;
+  --bg-glow: #222428;
+  --surface: #212225;
+  --surface-2: #2a2c31;
+  --zone: #1e1f23;
+  --border: #35373d;
+  --border-strong: #45484f;
   --text: #eef0f2;
   --text-muted: #989ea8;
 
-  --glass-bg: rgba(25, 27, 32, 0.92);
-  --glass-bg-strong: rgba(28, 30, 36, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-highlight: rgba(255, 255, 255, 0.10);
-  --glass-shadow: rgba(0, 0, 0, 0.7);
-  --glass-chip: rgba(33, 36, 42, 0.95);
+  --glass-bg: rgba(36, 38, 44, 0.92);
+  --glass-bg-strong: rgba(40, 42, 48, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.12);
+  --glass-shadow: rgba(0, 0, 0, 0.5);
+  --glass-chip: rgba(44, 47, 54, 0.95);
 }
 
 @theme inline {
@@ -264,8 +265,8 @@ body {
 }
 .dark .bandeja-caja {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 28px -14px rgba(0, 0, 0, 0.8);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 28px -14px rgba(0, 0, 0, 0.5);
 }
 
 /* Cabecera: mismo vidrio, de canto a canto */

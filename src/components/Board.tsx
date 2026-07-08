@@ -628,7 +628,7 @@ export function Board({
         {vista === "asignar" && (
           <>
             {!superiorColapsado && (
-            <main className="flex flex-col gap-3 p-4">
+            <main className="flex flex-col gap-3 overflow-visible p-4">
               <Zona
                 operario={yo}
                 operarios={operarios}

@@ -173,7 +173,7 @@ export const TecnicoCard = memo(function TecnicoCard({
       {expanded && (
         <div
           style={{ background: "var(--surface)" }}
-          className="glass-pop scroll-thin absolute left-0 top-full z-20 mt-1.5 max-h-[46vh] w-[24rem] max-w-[calc(100vw-2rem)] overflow-y-auto overflow-x-hidden rounded-xl p-3"
+          className="glass-pop scroll-thin absolute left-0 top-full z-30 mt-1.5 max-h-[46vh] w-[24rem] max-w-[calc(100vw-2rem)] overflow-y-auto overflow-x-hidden rounded-xl p-3"
         >
           <PedidosPorEstado
             facets={facets}

@@ -66,20 +66,20 @@ export const PedidoCardView = memo(function PedidoCardView({
         <PedidoScan pedido={pedido} />
 
         {/* familias: para saber QUÉ es antes de cogerlo */}
-        <span className="absolute left-1 top-1 flex flex-col gap-0.5">
+        <span className="absolute left-0.5 top-0.5 flex flex-col gap-0.5">
           {familias.slice(0, 3).map((f) => (
             <span
               key={f}
               title={familiaMeta(f).label}
-              className="grid size-5 place-items-center rounded-[5px] bg-white/95 shadow-sm ring-1 ring-black/10"
+              className="grid size-4 place-items-center rounded bg-white/95 shadow-sm ring-1 ring-black/10"
             >
-              <FamiliaIcon familia={f} className="size-3.5" />
+              <FamiliaIcon familia={f} className="size-2.5" />
             </span>
           ))}
         </span>
 
         {/* avisos de datos de RPS: material sin recibir / lleva rotulación */}
-        <span className="absolute right-1 top-1 flex flex-col gap-0.5">
+        <span className="absolute right-0.5 top-0.5 flex flex-col gap-0.5">
           {materialPendiente && (
             <span
               title={`Material de compras pedido, llega el ${materialPendiente
@@ -87,7 +87,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                 .reverse()
                 .slice(0, 2)
                 .join("/")}`}
-              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-amber-400/95 text-[11px] shadow-sm ring-1 ring-black/10"
+              className="grid size-4 cursor-help place-items-center rounded bg-amber-400/95 text-[9px] shadow-sm ring-1 ring-black/10"
             >
               📦
             </span>
@@ -95,7 +95,7 @@ export const PedidoCardView = memo(function PedidoCardView({
           {conRotulacion && (
             <span
               title="Lleva rotulación"
-              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-white/95 text-[11px] shadow-sm ring-1 ring-black/10"
+              className="grid size-4 cursor-help place-items-center rounded bg-white/95 text-[9px] shadow-sm ring-1 ring-black/10"
             >
               🏷
             </span>
@@ -103,12 +103,21 @@ export const PedidoCardView = memo(function PedidoCardView({
           {reservasHechas > 0 && (
             <span
               title={`Material reservado (${reservasHechas} ${reservasHechas === 1 ? "reserva" : "reservas"})`}
-              className="grid size-5 cursor-help place-items-center rounded-[5px] bg-teal-500/90 text-[11px] shadow-sm ring-1 ring-black/10"
+              className="grid size-4 cursor-help place-items-center rounded bg-teal-500/90 text-[9px] shadow-sm ring-1 ring-black/10"
             >
               🧵
             </span>
           )}
         </span>
+
+        {/* dot de prioridad dentro de la miniatura (solo bandeja) */}
+        {mostrarPrioridad && (
+          <span
+            className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full ring-1 ring-white/80 shadow"
+            style={{ background: PRIORIDAD[pedido.prioridad].color }}
+            title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
+          />
+        )}
 
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
@@ -126,7 +135,9 @@ export const PedidoCardView = memo(function PedidoCardView({
       <div className="mt-1 px-0.5">
         <div className="flex items-center gap-1">
           <span
-            className={`truncate font-mono text-sm font-bold leading-tight ${
+            className={`truncate font-mono leading-tight ${
+              mostrarPrioridad ? "text-[11px]" : "text-sm"
+            } font-bold ${
               mostrarPrioridad && atrasado ? "text-red-600" : "text-text"
             }`}
           >
@@ -143,23 +154,9 @@ export const PedidoCardView = memo(function PedidoCardView({
             </span>
           )}
         </div>
-        {facet.pedido.negocio && (
+        {!mostrarPrioridad && facet.pedido.negocio && (
           <div className="truncate text-[10px] leading-tight text-text-muted">
             {facet.pedido.negocio}
-          </div>
-        )}
-        {mostrarPrioridad && (
-          <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-text-muted">
-            <span
-              className="rounded px-1 font-bold text-white"
-              style={{ background: PRIORIDAD[pedido.prioridad].color }}
-              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
-            >
-              P{pedido.prioridad}
-            </span>
-            <span>
-              Planif: {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
-            </span>
           </div>
         )}
       </div>

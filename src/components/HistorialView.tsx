@@ -136,7 +136,7 @@ function OFHistorial({
   opById: (id: string | null) => Operario | undefined;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden px-4 py-3">
       <div className="flex min-w-48 items-center gap-2">
         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
         <FamiliaTag familia={of.familia} />
@@ -164,7 +164,7 @@ function OFHistorial({
       </div>
 
       {/* datos de interés: reservas de material y avisos de producción */}
-      <div className="ml-auto flex flex-wrap items-center gap-1.5 text-[10px]">
+      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5 text-[10px]">
         {of.reservasMaterial !== undefined && of.reservasMaterial > 0 && (
           <ReservaChip n={of.reservasMaterial} detalle={of.reservasDetalle} />
         )}

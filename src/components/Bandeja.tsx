@@ -76,12 +76,10 @@ export function Bandeja({
       }`}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <h2 className="text-sm font-semibold text-text">Sin asignar</h2>
-        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted ring-1 ring-border">
+        <span className="text-base leading-none">📥</span>
+        <h2 className="text-base font-bold text-text">Sin asignar</h2>
+        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-400">
           {facets.length} ped · {nOFs} OF
-        </span>
-        <span className="ml-auto text-[11px] text-text-muted">
-          Arrastra un parte a un operario
         </span>
       </div>
 
@@ -100,28 +98,21 @@ export function Bandeja({
                 g.vencida ? "bandeja-caja-tarde" : ""
               }`}
             >
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-1.5 flex items-center gap-2">
                 <h3
-                  className={`text-[11px] font-bold uppercase tracking-wide ${
-                    g.vencida ? "text-red-600" : "text-text"
+                  className={`text-xs font-bold uppercase tracking-wide ${
+                    g.vencida ? "text-red-500" : "text-text"
                   }`}
                 >
                   {g.etiqueta}
                 </h3>
-                {g.vencida && (
-                  <span className="rounded bg-red-600 px-1.5 text-[9px] font-bold uppercase text-white">
-                    Tarde
-                  </span>
-                )}
                 <span className="ml-auto rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] font-semibold text-text-muted">
                   {g.facets.length}
                 </span>
               </div>
-              {/* tarjetas de esta fecha: la caja se ajusta al contenido; hasta
-                  ~4 por fila (464px) antes de saltar de línea. */}
-              <div className="flex max-w-[464px] flex-wrap gap-2">
+              <div className="flex max-w-[560px] flex-wrap gap-1.5">
                 {g.facets.map((f) => (
-                  <div key={f.pedido.id} className="w-[108px]">
+                  <div key={f.pedido.id} className="w-[80px]">
                     <PedidoCard
                       facet={f}
                       operarios={operarios}

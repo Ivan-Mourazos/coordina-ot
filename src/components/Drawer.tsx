@@ -79,28 +79,10 @@ export function Drawer({
         className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col"
         onClick={onClose}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 bg-gradient-to-b from-black/60 to-transparent p-4 text-white">
-          <span className="font-mono text-sm font-bold">{pedido.codigo}</span>
-          <span className="text-sm text-white/70">
-            {pedido.cliente}
-            {pedido.negocio && ` · ${pedido.negocio}`}
-          </span>
-          {pedido.scanUrl && (
-            <a
-              href={pedido.scanUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="pointer-events-auto ml-auto rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold backdrop-blur-md hover:bg-white/30"
-            >
-              Abrir original ↗
-            </a>
-          )}
-        </div>
         <div className="min-h-0 flex-1">
           {esPdf ? (
             <iframe
-              src={pedido.scanUrl}
+              src={`${pedido.scanUrl}#page=1&view=Fit`}
               title={`Pedido ${pedido.codigo}`}
               onClick={(e) => e.stopPropagation()}
               className="h-full w-full border-none bg-white"
@@ -108,7 +90,7 @@ export function Drawer({
           ) : (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="h-full w-full bg-[#525659] p-4 pt-16"
+              className="h-full w-full bg-[#525659] p-4"
             >
               <PedidoScan pedido={pedido} />
             </div>

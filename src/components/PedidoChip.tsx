@@ -184,10 +184,10 @@ export const PedidoChip = memo(function PedidoChip({
       </div>
 
       {expanded && (
-        <div className="border-t border-[var(--glass-border)] bg-surface-2 p-2.5 cursor-default">
-          <div className="flex gap-3">
+        <div className="border-t border-[var(--glass-border)] bg-surface-2 p-2 cursor-default">
+          <div className="flex gap-2">
             <div
-              className="aspect-[210/297] w-16 shrink-0 overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/10 cursor-pointer hover:ring-brand-400 transition-shadow"
+              className="aspect-[210/297] w-12 shrink-0 overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/10 cursor-pointer hover:ring-brand-400 transition-shadow"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpen(facet);
