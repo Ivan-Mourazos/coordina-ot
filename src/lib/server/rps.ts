@@ -683,13 +683,18 @@ async function consultarTablero(): Promise<Tablero> {
   return { operarios: OPERARIOS, pedidos: [...pedidos, ...pedidosHistorial] };
 }
 
-// ─── Caché con TTL y deduplicación de consultas en vuelo ─────────────────────
+// ─── Caché stale-while-revalidate + precalentamiento ─────────────────────────
+// La vista tarda 7-15 s: nadie debe comérselos en una petición. Estrategia:
+//  · Si hay caché (aunque esté caducada) se sirve AL INSTANTE; si caducó, se
+//    lanza el refresco en segundo plano para la siguiente petición.
+//  · Solo la primera carga en frío espera a la consulta — y el precalentado
+//    de instrumentation.ts hace que eso ocurra al arrancar PM2, no al primer
+//    usuario.
 
 let cache: { data: Tablero; at: number } | null = null;
 let enVuelo: Promise<Tablero> | null = null;
 
-export async function getTableroRPS(): Promise<Tablero> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
+function refrescarTablero(): Promise<Tablero> {
   if (!enVuelo) {
     enVuelo = consultarTablero()
       .then((data) => {
@@ -700,9 +705,41 @@ export async function getTableroRPS(): Promise<Tablero> {
         enVuelo = null;
       });
   }
-  // Si hay caché caducada y falla la consulta, mejor dato viejo que error.
-  return enVuelo.catch((e) => {
-    if (cache) return cache.data;
-    throw e;
+  return enVuelo;
+}
+
+export async function getTableroRPS(): Promise<Tablero> {
+  if (cache) {
+    if (Date.now() - cache.at >= TTL_MS) {
+      // Caducada: dato viejo ya, refresco detrás. Si el refresco falla se
+      // sigue sirviendo lo último bueno (mejor dato viejo que error).
+      refrescarTablero().catch(() => {});
+    }
+    return cache.data;
+  }
+  return refrescarTablero();
+}
+
+/** Frecuencia del refresco de fondo cuando nadie usa la app: mantiene la
+ *  caché caliente sin machacar a RPS (con uso activo el SWR ya refresca
+ *  cada TTL_MS). */
+const REFRESCO_FONDO_MS = 5 * 60_000;
+
+declare global {
+  // Sobrevive a recargas de módulo (HMR en dev) para no apilar timers.
+  var __coordinaPrecalentado: ReturnType<typeof setInterval> | undefined;
+}
+
+/** Llamado desde instrumentation.ts al arrancar el servidor: primera consulta
+ *  ya (fire-and-forget) + refresco periódico de fondo. Idempotente. */
+export function precalentarTablero(): void {
+  if (globalThis.__coordinaPrecalentado) return;
+  refrescarTablero().catch((e) => {
+    console.warn("[coordina] precalentado del tablero falló (se reintenta):", e?.message);
   });
+  globalThis.__coordinaPrecalentado = setInterval(() => {
+    refrescarTablero().catch(() => {});
+  }, REFRESCO_FONDO_MS);
+  // No mantener vivo el proceso solo por el timer.
+  globalThis.__coordinaPrecalentado.unref?.();
 }
