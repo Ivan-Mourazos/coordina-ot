@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDroppable } from "@dnd-kit/core";
 import type { OF, Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
@@ -15,7 +16,7 @@ const FASES = [
   { id: "sin", label: "Sin empezar", color: "#9ca3af" },
   { id: "planteo", label: "Planteando", color: "#059669" },
   { id: "revision", label: "Para revisar", color: "#7c3aed" },
-  { id: "ok", label: "Finalizado", color: "#0d9488" },
+  { id: "ok", label: "Finalizado", color: "#0891b2" },
 ] as const;
 
 function faseDe(of: OF): (typeof FASES)[number]["id"] {
@@ -60,12 +61,24 @@ export const TecnicoCard = memo(function TecnicoCard({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const popRef = useRef<HTMLDivElement | null>(null);
 
-  // Desplegado: se cierra con clic fuera o Escape (igual que los selects).
+  // Ancla del popup: se mide al desplegar. El popup vive en un portal con
+  // posición fixed para no desbordar la página por abajo cuando el compañero
+  // tiene muchos pedidos: si no cabe bajo la tarjeta, abre hacia arriba y su
+  // altura se limita al espacio real disponible.
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    setAnchor(expanded ? rootRef.current?.getBoundingClientRect() ?? null : null);
+  }, [expanded]);
+
+  // Desplegado: se cierra con clic fuera (tarjeta o popup) o Escape.
   useEffect(() => {
     if (!expanded) return;
     function onDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      onClose();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -150,9 +163,10 @@ export const TecnicoCard = memo(function TecnicoCard({
           </svg>
         </div>
 
-        {/* barra de distribución por fase */}
+        {/* barra de distribución por fase: fina y en tono rebajado — es
+            contexto secundario, el dato fuerte ya está en los badges. */}
         <div
-          className="mt-1.5 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)]"
+          className="mt-1.5 flex h-1 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)] opacity-70"
           title={porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n} OF`).join(" · ")}
         >
           {ofs.length > 0 &&
@@ -170,25 +184,51 @@ export const TecnicoCard = memo(function TecnicoCard({
 
       {/* Fondo opaco (var --surface, inline gana a glass-pop) para que no se
           transparente el contenido del tablero de detrás. */}
-      {expanded && (
-        <div
-          style={{ background: "var(--surface)" }}
-          className="glass-pop scroll-thin absolute left-0 top-full z-30 mt-1.5 max-h-[46vh] w-[24rem] max-w-[calc(100vw-2rem)] overflow-y-auto overflow-x-hidden rounded-xl p-3"
-        >
-          <PedidosPorEstado
-            facets={facets}
-            operarios={operarios}
-            onOpen={onOpen}
-            layout="list"
-            accionable={false}
-            onAccion={onAccion}
-            onFichar={onFichar}
-            onDesfichar={onDesfichar}
-            setRevisor={setRevisor}
-            completarPedido={completarPedido}
-          />
-        </div>
-      )}
+      {expanded &&
+        anchor &&
+        typeof document !== "undefined" &&
+        createPortal(
+          (() => {
+            const margin = 12;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const W = Math.min(384, vw - 2 * margin); // 24rem
+            const left = Math.min(Math.max(margin, anchor.left), vw - W - margin);
+            const abajo = vh - anchor.bottom - margin - 6;
+            const arriba = anchor.top - margin - 6;
+            const abreAbajo = abajo >= 240 || abajo >= arriba;
+            const maxH = Math.min(vh * 0.6, abreAbajo ? abajo : arriba);
+            return (
+              <div
+                ref={popRef}
+                style={{
+                  background: "var(--surface)",
+                  left,
+                  width: W,
+                  maxHeight: maxH,
+                  ...(abreAbajo
+                    ? { top: anchor.bottom + 6 }
+                    : { bottom: vh - anchor.top + 6 }),
+                }}
+                className="glass-pop scroll-thin fixed z-40 overflow-y-auto overflow-x-hidden rounded-xl p-3"
+              >
+                <PedidosPorEstado
+                  facets={facets}
+                  operarios={operarios}
+                  onOpen={onOpen}
+                  layout="list"
+                  accionable={false}
+                  onAccion={onAccion}
+                  onFichar={onFichar}
+                  onDesfichar={onDesfichar}
+                  setRevisor={setRevisor}
+                  completarPedido={completarPedido}
+                />
+              </div>
+            );
+          })(),
+          document.body,
+        )}
     </div>
   );
 });
