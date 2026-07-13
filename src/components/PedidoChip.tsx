@@ -1,13 +1,13 @@
 "use client";
 
-import { memo, useState, type CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import { dragIdOf, type Facet } from "./PedidoCard";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { PedidoScan } from "./PedidoScan";
-import { Select, OpDot } from "./Select";
+import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
 import { esFichable, rolFichajeDe } from "@/lib/fichaje";
@@ -47,7 +47,14 @@ export const PedidoChip = memo(function PedidoChip({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
-  const [revisorSelect, setRevisorSelect] = useState<string | null>(null);
+  // Al desplegar, acercar el detalle a la vista: el chip vive en contenedores
+  // con scroll (panel personal, popup de compañero) y el contenido expandido
+  // podía quedar cortado bajo el borde.
+  const detalleRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (expanded)
+      detalleRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [expanded]);
   const { pedido, ofs } = facet;
   const total = pedido.ofs.length;
   const parcial = ofs.length < total;
@@ -92,7 +99,7 @@ export const PedidoChip = memo(function PedidoChip({
       : bucket === "revision"
         ? "#f59e0b"
         : bucket === "finalizado"
-          ? "#0d9488"
+          ? "#0891b2"
           : "#9ca3af";
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -184,10 +191,10 @@ export const PedidoChip = memo(function PedidoChip({
       </div>
 
       {expanded && (
-        <div className="border-t border-[var(--glass-border)] bg-surface-2 p-2 cursor-default">
+        <div ref={detalleRef} className="border-t border-[var(--glass-border)] bg-surface-2 p-2 cursor-default">
           <div className="flex gap-2">
             <div
-              className="aspect-[210/297] w-12 shrink-0 overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/10 cursor-pointer hover:ring-brand-400 transition-shadow"
+              className="aspect-[210/297] w-12 shrink-0 self-start overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/10 cursor-pointer hover:ring-brand-400 transition-shadow"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpen(facet);
@@ -262,42 +269,23 @@ export const PedidoChip = memo(function PedidoChip({
                   ),
                 )}
 
-                {/* Selector de revisor al terminar planteo: se conserva tal cual
-                    (afecta a todas las OFs del facet). Se fija el revisor ANTES
-                    de ejecutar la acción; terminar_planteo no tiene `requiere`,
-                    así que el orden no afecta al filtro de aplicables del Board. */}
+                {/* Revisor pedido en el momento de pasar a revisión (flujo
+                    unificado con el Drawer vía PedirRevisor). Afecta a todas
+                    las OFs del facet; se fija el revisor ANTES de ejecutar la
+                    acción; terminar_planteo no tiene `requiere`, así que el
+                    orden no afecta al filtro de aplicables del Board. */}
                 {accionable && terminando && (
-                  <div className="flex w-full items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[10px] text-text-muted">Revisor:</span>
-                    <div className="flex-1">
-                      <Select
-                        value={revisorSelect}
-                        onChange={setRevisorSelect}
-                        options={operarios.filter(o => o.id !== facet.locationId).map(o => ({ value: o.id, label: o.nombre, icon: <OpDot color={o.color} iniciales={o.iniciales} /> }))}
-                        placeholder="Elegir..."
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (revisorSelect) {
-                          ofIds.forEach((id) => setRevisor(id, revisorSelect));
-                          onAccion(ofIds, "terminar_planteo");
-                          setTerminando(false);
-                          setRevisorSelect(null);
-                        }
-                      }}
-                      disabled={!revisorSelect}
-                      className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => setTerminando(false)}
-                      className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-surface-3"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+                  <PedirRevisor
+                    operarios={operarios}
+                    excluirIds={[facet.locationId, ...ofs.map((o) => o.autorId)]}
+                    valorInicial={revisorId}
+                    onConfirmar={(rev) => {
+                      ofIds.forEach((id) => setRevisor(id, rev));
+                      onAccion(ofIds, "terminar_planteo");
+                      setTerminando(false);
+                    }}
+                    onCancelar={() => setTerminando(false)}
+                  />
                 )}
 
                 {bucket === "revision" && accionesChip.length === 0 && (
