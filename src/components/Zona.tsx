@@ -15,7 +15,7 @@ const RESUMEN = [
   { label: "Sin empezar", color: "#9ca3af" },
   { label: "Planteando", color: "#059669" },
   { label: "Para revisar", color: "#7c3aed" },
-  { label: "Finalizado", color: "#0d9488" },
+  { label: "Finalizado", color: "#0891b2" },
 ] as const;
 
 function faseIdx(of: { estado: string; tiempoPlanteoMin: number; fichandoRol: unknown }): number {
@@ -37,6 +37,8 @@ export function Zona({
   onDesfichar,
   setRevisor,
   completarPedido,
+  className = "",
+  onColapsada,
 }: {
   operario: Operario;
   operarios: Operario[];
@@ -51,10 +53,22 @@ export function Zona({
   onDesfichar: (ofId: string) => void;
   setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
+  className?: string;
+  /** Avisa al contenedor cuando el panel se contrae/expande (el Board usa
+   *  altura auto con el panel contraído para que todo suba pegado). */
+  onColapsada?: (v: boolean) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
-  const [colapsada, setColapsada] = useState(false);
+  const [colapsada, setColapsadaState] = useState(false);
+  // onColapsada se llama FUERA del updater: setState de otro componente
+  // dentro de un updater dispara el error "Cannot update Board while
+  // rendering Zona".
+  function toggleColapsada() {
+    const next = !colapsada;
+    setColapsadaState(next);
+    onColapsada?.(next);
+  }
 
   // Recuento de OFs por fase para el resumen del panel contraído.
   const porFase = RESUMEN.map((r, i) => ({
@@ -68,20 +82,20 @@ export function Zona({
       style={soyYo && !isOver ? { borderColor: operario.color } : undefined}
       className={`glass-panel relative flex flex-col rounded-2xl p-4 transition-colors ${
         isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : ""
-      }`}
+      } ${className}`}
     >
       {/* handle estilo iOS: contrae/expande mi panel. Centrado arriba. */}
       <button
-        onClick={() => setColapsada((v) => !v)}
+        onClick={toggleColapsada}
         aria-expanded={!colapsada}
         aria-label={colapsada ? "Expandir mi panel" : "Contraer mi panel"}
-        title={colapsada ? "Expandir" : "Contraer"}
-        className="group absolute left-1/2 top-1 flex -translate-x-1/2 flex-col items-center gap-0.5 rounded-full px-4 py-1"
+        title={colapsada ? "Expandir mi panel" : "Contraer mi panel"}
+        className="group absolute left-1/2 top-0 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-b-lg px-5 py-1 transition-colors hover:bg-[var(--glass-highlight)]"
       >
-        <span className="h-1 w-9 rounded-full bg-text-muted/30 transition-colors group-hover:bg-text-muted/60" />
+        <span className="h-1 w-9 rounded-full bg-text-muted/40 transition-colors group-hover:bg-brand-500" />
         <svg
           viewBox="0 0 24 24"
-          className={`size-3 text-text-muted/50 transition-transform group-hover:text-text-muted ${colapsada ? "" : "rotate-180"}`}
+          className={`size-3 text-text-muted/60 transition-transform group-hover:text-text ${colapsada ? "" : "rotate-180"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="3"

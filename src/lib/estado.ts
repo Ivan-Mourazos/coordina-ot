@@ -46,9 +46,11 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
   aprobada: {
     label: "Aprobada",
     short: "OK",
-    dot: "bg-teal-600",
-    border: "border-teal-400",
-    chip: "bg-teal-600 text-white",
+    // Cian frío, no teal: en tema oscuro el teal se confundía con el
+    // esmeralda de "en curso" (cuatro verdes compitiendo en pantalla).
+    dot: "bg-cyan-600",
+    border: "border-cyan-400",
+    chip: "bg-cyan-600 text-white",
     rank: 3,
   },
   en_revision: {

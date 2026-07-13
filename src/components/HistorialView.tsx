@@ -86,7 +86,7 @@ function FilaHistorial({
         >
           <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span className="size-2.5 shrink-0 rounded-full bg-teal-600" />
+        <span className="size-2.5 shrink-0 rounded-full bg-cyan-600" />
         <span className="font-semibold text-text">{p.codigo}</span>
         <span className="truncate text-sm text-text-muted">
           {p.cliente}
