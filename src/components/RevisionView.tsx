@@ -2,10 +2,11 @@
 
 import type { EstadoOF, OF, Operario, Pedido } from "@/lib/types";
 import { ESTADO } from "@/lib/estado";
-import type { AccionOF } from "@/lib/acciones";
+import { ACCIONES, type AccionOF } from "@/lib/acciones";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
+import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
 
 interface RFacet {
@@ -42,7 +43,7 @@ export function RevisionView({
 
   // Resumen "para revisar" (sin login): cuántas sin revisor y quién debe revisar.
   const sinRevisor = pedidos.reduce(
-    (n, p) => n + p.ofs.filter((o) => o.estado === "por_revisar").length,
+    (n, p) => n + p.ofs.filter((o) => o.estado === "por_revisar" && !o.revisorId).length,
     0,
   );
   const porRevisor = new Map<string, number>();
@@ -174,6 +175,19 @@ function ReviewCard({
     ofIds.forEach((id) => onAccion(id, accion, obs));
   }
 
+  // Revisor común del grupo (si todas las OFs comparten uno) para pintar el
+  // Select con el valor real en vez de vacío.
+  const revisorComun =
+    ofs.length > 0 && ofs.every((o) => o.revisorId === ofs[0].revisorId)
+      ? ofs[0].revisorId
+      : null;
+  const todasConRevisor = ofs.every((o) => o.revisorId);
+
+  // Confirmación de "Aprobar" desde la máquina de estados: mismo texto y tono
+  // que el botón equivalente del Drawer.
+  const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
+  const { pedirConfirmacion, dialogo } = useConfirmacion(() => accionTodas("aprobar"));
+
   return (
     <div className={`rounded-lg border-l-4 border border-border bg-surface p-2.5 ${meta.border}`}>
       <button onClick={onOpen} className="block w-full text-left">
@@ -215,37 +229,49 @@ function ReviewCard({
       {/* acciones por columna */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {estado === "por_revisar" && (
-          <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
-            Revisor:
-            <Select
-              value={null}
-              onChange={(v) => setRevisorTodas(v)}
-              placeholder="Asignar…"
-              alignRight
-              className="ml-auto"
-              options={operarios
-                .filter((o) => !autores.has(o.id))
-                .map((o) => ({
-                  value: o.id,
-                  label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-                  icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-                }))}
-            />
-          </div>
+          <>
+            <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+              Revisor:
+              <Select
+                value={revisorComun}
+                onChange={(v) => setRevisorTodas(v)}
+                placeholder="Asignar…"
+                alignRight
+                className="ml-auto"
+                options={operarios
+                  .filter((o) => !autores.has(o.id))
+                  .map((o) => ({
+                    value: o.id,
+                    label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+                    icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+                  }))}
+              />
+            </div>
+            {todasConRevisor && (
+              <button
+                onClick={() => accionTodas("empezar_revision")}
+                title="Pasa a En revisión y arranca el fichaje del revisor"
+                className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+              >
+                Empezar revisión
+              </button>
+            )}
+          </>
         )}
         {estado === "en_revision" && (
           <>
             <button
-              onClick={() => accionTodas("aprobar")}
+              onClick={() => pedirConfirmacion(defAprobar)}
               className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
             >
               Aprobar
             </button>
             <DevolverInline onDevolver={(obs) => accionTodas("devolver", obs)} />
+            {dialogo}
           </>
         )}
         {estado === "aprobada" && (
-          <span className="text-[11px] font-medium text-teal-600">✓ Lista para Producción</span>
+          <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">✓ Lista para Producción</span>
         )}
         {estado === "devuelta" && (
           <span className="text-[11px] text-text-muted">↩ Vuelve al autor</span>

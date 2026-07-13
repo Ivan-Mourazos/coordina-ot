@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, PRIORIDAD, fmtMin } from "@/lib/estado";
@@ -9,6 +9,7 @@ import { LiveBadge } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
+import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
@@ -39,8 +40,8 @@ export function Drawer({
   operarios,
   miId,
   onClose,
-  onAssignOF,
   onAssignPedido,
+  onCompletar,
   onSetRevisor,
   onAccion,
   onFichar,
@@ -50,8 +51,8 @@ export function Drawer({
   operarios: Operario[];
   miId: string | null;
   onClose: () => void;
-  onAssignOF: (ofId: string, autorId: string | null) => void;
   onAssignPedido: (autorId: string | null) => void;
+  onCompletar: (pedidoId: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -69,6 +70,11 @@ export function Drawer({
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
+  const ofsActivas = pedido.ofs.filter((of) => of.estado !== "anulada");
+  const listoParaCompletar =
+    pedido.situacion !== "completado" &&
+    ofsActivas.length > 0 &&
+    ofsActivas.every((of) => of.estado === "aprobada");
 
   return (
     <div className="fixed inset-0 z-50">
@@ -196,8 +202,6 @@ export function Drawer({
                 of={of}
                 operarios={operarios}
                 opById={opById}
-                miId={miId}
-                onAssignOF={onAssignOF}
                 onSetRevisor={onSetRevisor}
                 onAccion={onAccion}
                 onFichar={onFichar}
@@ -211,6 +215,14 @@ export function Drawer({
           className="p-3 text-[11px] leading-snug text-text-muted"
           style={{ boxShadow: "inset 0 1px 0 0 var(--glass-border)" }}
         >
+          {listoParaCompletar && (
+            <button
+              onClick={() => onCompletar(pedido.id)}
+              className="mb-2 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+            >
+              📦 Pasar a Producción (Completar pedido)
+            </button>
+          )}
           Tiempo de la OF = planteo (autor) + revisión (revisor). El revisor nunca puede
           ser el autor.
         </footer>
@@ -243,8 +255,6 @@ function OFRow({
   of,
   operarios,
   opById,
-  miId,
-  onAssignOF,
   onSetRevisor,
   onAccion,
   onFichar,
@@ -253,8 +263,6 @@ function OFRow({
   of: OF;
   operarios: Operario[];
   opById: (id: string | null) => Operario | null;
-  miId: string | null;
-  onAssignOF: (ofId: string, autorId: string | null) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -378,57 +386,72 @@ function OFRow({
         </div>
       )}
 
-      {/* roles */}
+      {/* roles: solo lectura. El autor se nombra al asignar el pedido (drag o
+          "asignar pedido entero"); el revisor, al pasar la OF a revisión. */}
       <div className="mt-2.5 grid grid-cols-2 gap-2">
-        <div className="flex items-center justify-between gap-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
+        <div className="flex items-center rounded-lg bg-surface-2/70 px-2 py-1.5">
           <Chip op={autor} label="Autor" />
-          <Select
-            value={of.autorId}
-            onChange={(v) => onAssignOF(of.id, v)}
-            placeholder="Sin asignar"
-            alignRight
-            options={opcionesOperario(operarios, miId)}
-          />
         </div>
-        <div className="flex items-center justify-between gap-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
+        <div className="flex items-center rounded-lg bg-surface-2/70 px-2 py-1.5">
           <Chip op={revisor} label="Revisor" />
-          <Select
-            value={of.revisorId}
-            onChange={(v) => onSetRevisor(of.id, v)}
-            placeholder="Asignar…"
-            alignRight
-            options={opcionesOperario(operarios, miId, of.autorId)}
-          />
         </div>
       </div>
 
       {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
-      <AccionesOF of={of} onAccion={onAccion} />
+      <AccionesOF of={of} operarios={operarios} onAccion={onAccion} onSetRevisor={onSetRevisor} />
     </li>
   );
 }
 
 function AccionesOF({
   of,
+  operarios,
   onAccion,
+  onSetRevisor,
 }: {
   of: OF;
+  operarios: Operario[];
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onSetRevisor: (ofId: string, revisorId: string | null) => void;
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
+  const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   const acciones = accionesDisponibles(of);
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
-      {acciones.map((a) =>
-        a.conNota ? (
-          <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />
-        ) : (
+      {acciones.map((a) => {
+        if (a.conNota)
+          return <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />;
+        // "Pasar a revisión" pide el revisor aquí mismo (flujo unificado con
+        // el chip del tablero): sin revisor no se pasa.
+        if (a.id === "terminar_planteo")
+          return (
+            !pidiendoRevisor && (
+              <Btn key={a.id} tone={tono[a.tono]} onClick={() => setPidiendoRevisor(true)}>
+                {a.label}
+              </Btn>
+            )
+          );
+        return (
           <Btn key={a.id} tone={tono[a.tono]} onClick={() => pedirConfirmacion(a)}>
             {a.label}
           </Btn>
-        ),
+        );
+      })}
+      {pidiendoRevisor && (
+        <PedirRevisor
+          operarios={operarios}
+          excluirIds={[of.autorId]}
+          valorInicial={of.revisorId}
+          onConfirmar={(rev) => {
+            onSetRevisor(of.id, rev);
+            onAccion([of.id], "terminar_planteo");
+            setPidiendoRevisor(false);
+          }}
+          onCancelar={() => setPidiendoRevisor(false)}
+        />
       )}
       {dialogo}
     </div>

@@ -119,6 +119,8 @@ export function Board({
 
   // Panel de compañero desplegado en Asignar: solo uno a la vez.
   const [superiorColapsado, setSuperiorColapsado] = useState(false);
+  // Mi zona contraída con el handle iOS: la fila superior pasa a altura auto.
+  const [zonaColapsada, setZonaColapsada] = useState(false);
 
   // Paneles redimensionables: altura del panel personal en px.
   const [panelTopH, setPanelTopH] = useState<number>(() => {
@@ -130,6 +132,7 @@ export function Board({
   });
   const dragRef = useRef<{ edge: "top" | "bottom"; startY: number; startH: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const equipoRef = useRef<HTMLDivElement | null>(null);
 
   // Persist panel sizes
   useEffect(() => {
@@ -142,7 +145,14 @@ export function Board({
       if (!dragRef.current) return;
       e.preventDefault();
       const delta = e.clientY - dragRef.current.startY;
-      const newH = Math.max(120, dragRef.current.startH + delta);
+      let newH = Math.max(120, dragRef.current.startH + delta);
+      // Tope: cabecera + equipo + handle + filtros + bandeja mínima siempre visibles.
+      const cont = containerRef.current;
+      if (cont) {
+        const equipoH = equipoRef.current?.offsetHeight ?? 0;
+        const max = cont.clientHeight - equipoH - 270;
+        newH = Math.min(newH, Math.max(120, max));
+      }
       setPanelTopH(newH);
     }
     function onUp() {
@@ -381,10 +391,6 @@ export function Board({
     },
     [mut],
   );
-  const asignarOF = useCallback(
-    (ofId: string, autorId: string | null) => moverOFs(new Set([ofId]), autorId),
-    [moverOFs],
-  );
   const asignarPedido = useCallback(
     (autorId: string | null) => {
       setPedidos((prev) =>
@@ -404,18 +410,13 @@ export function Board({
     },
     [openId],
   );
+  // Asignar revisor NO cambia el estado: la OF queda "por revisar" hasta que
+  // el revisor pulse "Empezar revisión" (o fiche como revisor), que es lo que
+  // arranca su fichaje. Antes saltaba sola a en_revision y dejaba muerta la
+  // acción empezar_revision de la máquina de estados.
   const setRevisor = useCallback(
     (ofId: string, revisorId: string | null) => {
-      mut(new Set([ofId]), (of) => ({
-        ...of,
-        revisorId,
-        estado:
-          revisorId && of.estado === "por_revisar"
-            ? "en_revision"
-            : !revisorId && of.estado === "en_revision"
-              ? "por_revisar"
-              : of.estado,
-      }));
+      mut(new Set([ofId]), (of) => ({ ...of, revisorId }));
     },
     [mut],
   );
@@ -437,6 +438,11 @@ export function Board({
         try {
           if (of.estado === "pendiente") return aplicarAccion(of, "empezar_planteo");
           if (of.estado === "devuelta") return aplicarAccion(of, "retomar");
+          // Mismo ligado para el revisor: fichar una OF "por revisar" (rol
+          // revisar) la pasa a en_revision. Requiere revisor asignado; si no
+          // lo tiene, aplicarAccion lanza y el catch la deja como está.
+          if (of.estado === "por_revisar" && rol === "revisar")
+            return aplicarAccion(of, "empezar_revision");
           return of;
         } catch {
           return of;
@@ -622,7 +628,7 @@ export function Board({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <div className="flex min-h-full flex-col">
+      <div ref={containerRef} className="flex min-h-full flex-col">
         {/* topbar */}
         <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
           {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
@@ -674,11 +680,17 @@ export function Board({
         {vista === "asignar" && (
           <>
             {!superiorColapsado && (
+            <>
+            {/* zona personal: el drag estira/encoge; el panel llena el hueco
+                pegado al equipo. Con la zona contraída (handle iOS) la altura
+                pasa a auto: nada de hueco muerto, todo sube pegado. */}
             <main
-              className="flex flex-col gap-3 overflow-visible overflow-y-auto p-4 scroll-thin"
-              style={{ height: panelTopH, minHeight: 120 }}
+              className="flex shrink-0 flex-col overflow-y-auto p-4 pb-2 scroll-thin"
+              style={zonaColapsada ? undefined : { height: panelTopH, minHeight: 120 }}
             >
               <Zona
+                className="min-h-0 flex-1"
+                onColapsada={setZonaColapsada}
                 operario={yo}
                 operarios={operarios}
                 facets={facetsDe(yo.id)}
@@ -691,43 +703,57 @@ export function Board({
                 setRevisor={setRevisor}
                 completarPedido={completarPedido}
               />
-
-              <div>
-                <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                  Equipo
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {resto.map((op) => (
-                    <TecnicoCard
-                      key={op.id}
-                      operario={op}
-                      operarios={operarios}
-                      facets={facetsDe(op.id)}
-                      live={liveByOp.get(op.id) ?? null}
-                      expanded={expandedId === op.id}
-                      onToggle={() => toggleExpanded(op.id)}
-                      onClose={closeExpanded}
-                      onOpen={openFacet}
-                      onAccion={ejecutarAccion}
-                      onFichar={ficharOFsConAviso}
-                      onDesfichar={desficharOF}
-                      setRevisor={setRevisor}
-                      completarPedido={completarPedido}
-                    />
-                  ))}
-                </div>
-              </div>
             </main>
-            )}
-            {/* ── resize handle ── */}
-            {!superiorColapsado && (
+
+            {/* equipo: siempre pegado a la división, altura propia */}
+            <div ref={equipoRef} className="shrink-0 px-4 pb-3">
+              <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                Equipo
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {resto.map((op) => (
+                  <TecnicoCard
+                    key={op.id}
+                    operario={op}
+                    operarios={operarios}
+                    facets={facetsDe(op.id)}
+                    live={liveByOp.get(op.id) ?? null}
+                    expanded={expandedId === op.id}
+                    onToggle={() => toggleExpanded(op.id)}
+                    onClose={closeExpanded}
+                    onOpen={openFacet}
+                    onAccion={ejecutarAccion}
+                    onFichar={ficharOFsConAviso}
+                    onDesfichar={desficharOF}
+                    setRevisor={setRevisor}
+                    completarPedido={completarPedido}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* ── resize handle: sin sentido con la zona contraída ── */}
+            {!zonaColapsada && (
               <div
                 onMouseDown={startResize}
-                className="group flex h-1.5 cursor-ns-resize items-center justify-center border-y border-[var(--glass-border)] bg-[var(--surface-2)] hover:bg-brand-400/20 active:bg-brand-400/30"
-                title="Arrastra para redimensionar"
+                onDoubleClick={() => setPanelTopH(280)}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Redimensionar panel superior"
+                className="group flex h-2.5 shrink-0 cursor-ns-resize items-center justify-center border-y border-[var(--glass-border)] bg-[var(--surface-2)] transition-colors hover:bg-brand-400/15 active:bg-brand-400/25"
+                title="Arrastra para redimensionar · doble clic restablece"
               >
-                <span className="h-0.5 w-8 rounded-full bg-[var(--border-strong)] transition-colors group-hover:bg-brand-400" />
+                <span className="flex items-center gap-1 rounded-full bg-[var(--surface)] px-2.5 py-[3px] ring-1 ring-[var(--border-strong)] transition-all group-hover:ring-brand-400 group-active:scale-95">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="size-[3px] rounded-full bg-text-muted/60 transition-colors group-hover:bg-brand-500"
+                    />
+                  ))}
+                </span>
               </div>
+            )}
+            </>
             )}
             <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--glass-border)]">
               <div
@@ -735,7 +761,7 @@ export function Board({
                 style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
               >
                 <div className="min-w-0 flex-1">
-                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} showAtrasados={false} ordenes={["planificacion", "familia", "prioridad"]} />
+                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} ordenes={["planificacion", "familia", "prioridad"]} />
                 </div>
                 <button
                   onClick={() => setSuperiorColapsado((v) => !v)}
@@ -771,7 +797,14 @@ export function Board({
         {vista === "revision" && (
           <>
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
-              <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} />
+              <FilterBar
+                filtros={filtros}
+                setFiltros={setFiltros}
+                familias={familias}
+                clientes={clientes}
+                showEstado={false}
+                showAtrasados={false}
+              />
             </div>
             <div className="p-5">
               <RevisionView
@@ -795,6 +828,7 @@ export function Board({
                 setFiltros={setFiltros}
                 familias={familias}
                 clientes={clientes}
+                showEstado={false}
                 showAtrasados={false}
                 ordenes={["cliente", "prioridad"]}
               />
@@ -821,8 +855,8 @@ export function Board({
         operarios={operarios}
         miId={miId}
         onClose={closeDrawer}
-        onAssignOF={asignarOF}
         onAssignPedido={asignarPedido}
+        onCompletar={completarPedido}
         onSetRevisor={setRevisor}
         onAccion={ejecutarAccion}
         onFichar={ficharOFsConAviso}
