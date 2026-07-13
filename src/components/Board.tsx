@@ -74,6 +74,18 @@ export function Board({
   pedidos: Pedido[];
 }) {
   const [pedidos, setPedidos] = useState<Pedido[]>(initial);
+  // Espejo síncrono del estado: las mutaciones calculan su resultado sobre él
+  // ANTES del re-render (para persistir el snapshot exacto) y el polling lo
+  // usa sin meter `pedidos` en dependencias de callbacks estables.
+  const pedidosRef = useRef<Pedido[]>(initial);
+  const setPedidosSync = useCallback(
+    (next: Pedido[] | ((prev: Pedido[]) => Pedido[])) => {
+      const value = typeof next === "function" ? next(pedidosRef.current) : next;
+      pedidosRef.current = value;
+      setPedidos(value);
+    },
+    [],
+  );
   // dnd-kit genera IDs incrementales que no coinciden SSR↔cliente. Render del
   // tablero solo tras montar para que la hidratación case sin warnings.
   const mounted = useHydrated();
@@ -106,7 +118,7 @@ export function Board({
   // funcionando sin tocarlos).
   useEffect(() => {
     const ab = abierto(fichaje);
-    setPedidos((prev) =>
+    setPedidosSync((prev) =>
       prev.map((p) => ({
         ...p,
         ofs: p.ofs.map((of) => {
@@ -115,7 +127,7 @@ export function Board({
         }),
       })),
     );
-  }, [fichaje]);
+  }, [fichaje, setPedidosSync]);
 
   // Panel de compañero desplegado en Asignar: solo uno a la vez.
   const [superiorColapsado, setSuperiorColapsado] = useState(false);
@@ -184,6 +196,43 @@ export function Board({
   const [vista, setVista] = useState<Vista>("asignar");
   const [openId, setOpenId] = useState<string | null>(null);
   const [active, setActive] = useState<Facet | null>(null);
+
+  // ── Sincronización entre navegadores: polling ligero del tablero ──
+  // Cada 30 s se pide el tablero completo (RPS+overlay, servido de caché) y
+  // se sustituye el estado local: lo que guardaron los compañeros aparece
+  // solo. Se salta con la pestaña oculta o un arrastre en marcha, y se
+  // conserva el fichandoRol de MI fichaje abierto (verdad local inmediata).
+  const fichajeRef = useRef(fichaje);
+  useEffect(() => {
+    fichajeRef.current = fichaje;
+  }, [fichaje]);
+  const activeRef = useRef<Facet | null>(null);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (document.hidden || activeRef.current) return;
+      try {
+        const r = await fetch("/api/tablero", { cache: "no-store" });
+        if (!r.ok) return;
+        const t = (await r.json()) as { pedidos: Pedido[] };
+        if (activeRef.current) return; // el arrastre pudo empezar durante el fetch
+        const ab = abierto(fichajeRef.current);
+        setPedidosSync(
+          t.pedidos.map((p) => ({
+            ...p,
+            ofs: p.ofs.map((of) =>
+              ab && ab.ofIds.includes(of.id) ? { ...of, fichandoRol: ab.rol } : of,
+            ),
+          })),
+        );
+      } catch {
+        // sin red o servidor reiniciando: el siguiente tick lo reintenta
+      }
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [setPedidosSync]);
   const [filtros, setFiltrosState] = useState<Filtros>({
     query: "",
     familia: "todas",
@@ -369,46 +418,85 @@ export function Board({
   const openPedidoCb = useCallback((p: Pedido) => setOpenId(p.id), []);
   const closeDrawer = useCallback(() => setOpenId(null), []);
 
-  // ── mutaciones (futuro: persistir en SQL Server) ──
+  // ── mutaciones: estado local + persistencia en el servidor (SQLite) ──
+  // El servidor guarda el snapshot completo de flujo de cada OF tocada
+  // (autor, revisor, estado, observación); getTablero() lo fusiona al servir,
+  // así el tablero sobrevive recargas y se comparte entre navegadores.
+  const persistir = useCallback(
+    (payload: {
+      motivo: string;
+      cambiosOF?: Array<{
+        ofId: string;
+        autorId: string | null;
+        revisorId: string | null;
+        estado: EstadoOF;
+        observacion: string | null;
+      }>;
+      completarPedidoId?: string;
+    }) => {
+      fetch("/api/estado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, operarioId: miId }),
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        })
+        .catch((e) => {
+          // La UI ya aplicó el cambio (optimista). Si el guardado falla, el
+          // siguiente polling repondrá la verdad del servidor.
+          console.warn("[coordina] no se pudo guardar el cambio:", e);
+        });
+    },
+    [miId],
+  );
+
+  const snapshotDe = (of: OF) => ({
+    ofId: of.id,
+    autorId: of.autorId,
+    revisorId: of.revisorId,
+    estado: of.estado,
+    observacion: of.observacion ?? null,
+  });
+
   const mut = useCallback(
-    (ofIds: Set<string>, fn: (of: OF) => OF) => {
-      setPedidos((prev) =>
+    (ofIds: Set<string>, fn: (of: OF) => OF, motivo?: string) => {
+      const cambios: ReturnType<typeof snapshotDe>[] = [];
+      setPedidosSync((prev) =>
         prev.map((p) => ({
           ...p,
-          ofs: p.ofs.map((of) => (ofIds.has(of.id) ? fn(of) : of)),
+          ofs: p.ofs.map((of) => {
+            if (!ofIds.has(of.id)) return of;
+            const nueva = fn(of);
+            if (motivo && nueva !== of) cambios.push(snapshotDe(nueva));
+            return nueva;
+          }),
         })),
       );
+      if (motivo && cambios.length > 0) persistir({ motivo, cambiosOF: cambios });
     },
-    [],
+    [setPedidosSync, persistir],
   );
   const moverOFs = useCallback(
     (ofIds: Set<string>, autorId: string | null) => {
-      mut(ofIds, (of) =>
-        autorId === null
-          ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
-          : { ...of, autorId }
+      mut(
+        ofIds,
+        (of) =>
+          autorId === null
+            ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
+            : { ...of, autorId },
+        "asignar",
       );
     },
     [mut],
   );
   const asignarPedido = useCallback(
     (autorId: string | null) => {
-      setPedidos((prev) =>
-        prev.map((p) =>
-          p.id !== openId
-            ? p
-            : {
-                ...p,
-                ofs: p.ofs.map((of) =>
-                  autorId === null
-                    ? { ...of, autorId: null, revisorId: null, estado: "pendiente" as const, fichandoRol: null }
-                    : { ...of, autorId }
-                ),
-              },
-        ),
-      );
+      const pedido = pedidosRef.current.find((p) => p.id === openId);
+      if (!pedido) return;
+      moverOFs(new Set(pedido.ofs.map((of) => of.id)), autorId);
     },
-    [openId],
+    [openId, moverOFs],
   );
   // Asignar revisor NO cambia el estado: la OF queda "por revisar" hasta que
   // el revisor pulse "Empezar revisión" (o fiche como revisor), que es lo que
@@ -416,7 +504,7 @@ export function Board({
   // acción empezar_revision de la máquina de estados.
   const setRevisor = useCallback(
     (ofId: string, revisorId: string | null) => {
-      mut(new Set([ofId]), (of) => ({ ...of, revisorId }));
+      mut(new Set([ofId]), (of) => ({ ...of, revisorId }), "revisor");
     },
     [mut],
   );
@@ -434,20 +522,24 @@ export function Board({
       // (p.ej. porque ejecutarAccion ya la transicionó antes de llamarnos),
       // aplicarAccion() lanza y el catch por-OF la deja tal cual: no hay
       // doble transición ni fichaje duplicado.
-      mut(new Set(ofIds), (of) => {
-        try {
-          if (of.estado === "pendiente") return aplicarAccion(of, "empezar_planteo");
-          if (of.estado === "devuelta") return aplicarAccion(of, "retomar");
-          // Mismo ligado para el revisor: fichar una OF "por revisar" (rol
-          // revisar) la pasa a en_revision. Requiere revisor asignado; si no
-          // lo tiene, aplicarAccion lanza y el catch la deja como está.
-          if (of.estado === "por_revisar" && rol === "revisar")
-            return aplicarAccion(of, "empezar_revision");
-          return of;
-        } catch {
-          return of;
-        }
-      });
+      mut(
+        new Set(ofIds),
+        (of) => {
+          try {
+            if (of.estado === "pendiente") return aplicarAccion(of, "empezar_planteo");
+            if (of.estado === "devuelta") return aplicarAccion(of, "retomar");
+            // Mismo ligado para el revisor: fichar una OF "por revisar" (rol
+            // revisar) la pasa a en_revision. Requiere revisor asignado; si no
+            // lo tiene, aplicarAccion lanza y el catch la deja como está.
+            if (of.estado === "por_revisar" && rol === "revisar")
+              return aplicarAccion(of, "empezar_revision");
+            return of;
+          } catch {
+            return of;
+          }
+        },
+        "fichar",
+      );
       setFichaje((f) => {
         const ab = abierto(f);
         const conjunto = ab && ab.rol === rol ? [...ab.ofIds, ...ofIds] : ofIds;
@@ -546,13 +638,17 @@ export function Board({
         return of ? accionesDisponibles(of).some((a) => a.id === accion) : false;
       });
       if (aplicables.length === 0) return;
-      mut(new Set(aplicables), (of) => {
-        try {
-          return aplicarAccion(of, accion, obs);
-        } catch {
-          return of;
-        }
-      });
+      mut(
+        new Set(aplicables),
+        (of) => {
+          try {
+            return aplicarAccion(of, accion, obs);
+          } catch {
+            return of;
+          }
+        },
+        accion,
+      );
       if (def?.efectoFichaje === "corta") {
         setFichaje((f) => {
           const ab = abierto(f);
@@ -574,14 +670,16 @@ export function Board({
   // Task 7; el adaptador accionFacet murió con ellas.
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
 
-  const completarPedido = useCallback((pedidoId: string) => {
-    setPedidos((prev) =>
-      prev.map((p) =>
-        p.id === pedidoId ? { ...p, situacion: "completado" } : p
-      )
-    );
-    setOpenId(null);
-  }, []);
+  const completarPedido = useCallback(
+    (pedidoId: string) => {
+      setPedidosSync((prev) =>
+        prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
+      );
+      persistir({ motivo: "completar", completarPedidoId: pedidoId });
+      setOpenId(null);
+    },
+    [setPedidosSync, persistir],
+  );
 
   const onDragStart = useCallback((e: DragStartEvent) => {
     setActive((e.active.data.current?.facet as Facet) ?? null);

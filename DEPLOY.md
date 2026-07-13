@@ -1,5 +1,8 @@
 # Despliegue de CoordinaOT (Linux + PM2)
 
+> Guía rápida. El contexto completo para IT (arquitectura, BD propia,
+> backups, peticiones pendientes) está en [MANUAL-IT.md](MANUAL-IT.md).
+
 ## Requisitos de la máquina
 
 - Node.js ≥ 22 y pnpm ≥ 11 (`corepack enable` los activa)
@@ -55,3 +58,6 @@ pm2 restart coordina-ot
   consultas de 7-15 s contra RPS.
 - Logs en `logs/` del propio directorio (`pm2 logs coordina-ot`).
 - Healthcheck: `GET /api/health`.
+- **`data/coordina.db` es la BD de la app (SQLite)**: guarda el flujo de OT.
+  Hay que hacerle backup (cron sugerido en MANUAL-IT.md §2.4) y conservarla
+  entre despliegues (vive fuera de git).

@@ -13,11 +13,23 @@ export interface Tablero {
 }
 
 export async function getTablero(): Promise<Tablero> {
-  if (process.env.DATASOURCE === "rps") {
-    const { getTableroRPS } = await import("./server/rps");
-    return getTableroRPS();
+  const base: Tablero =
+    process.env.DATASOURCE === "rps"
+      ? await (await import("./server/rps")).getTableroRPS()
+      : { operarios: OPERARIOS, pedidos: PEDIDOS };
+
+  // Overlay de CoordinaOT (SQLite): asignaciones, estados del flujo y
+  // completados. Import dinámico para que better-sqlite3 no entre en el
+  // bundle cliente. Si la BD falla, el tablero sale sin overlay: se pierde
+  // flujo pero se sigue viendo el trabajo.
+  try {
+    const { leerOverlay } = await import("./server/estado-db");
+    const { aplicarOverlay } = await import("./server/overlay");
+    return aplicarOverlay(base, leerOverlay());
+  } catch (e) {
+    console.warn("[coordina] overlay no disponible:", (e as Error).message);
+    return base;
   }
-  return { operarios: OPERARIOS, pedidos: PEDIDOS };
 }
 
 // Futuro (acordado con IT / RPS):

@@ -47,3 +47,7 @@ next-env.d.ts
 # Playwright MCP artefacts
 .playwright-mcp/
 snap-board.md
+
+# BD propia de CoordinaOT (SQLite) y logs de PM2
+/data/
+/logs/
