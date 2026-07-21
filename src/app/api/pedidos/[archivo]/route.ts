@@ -192,7 +192,9 @@ export async function GET(
   const anho = 2000 + Number(m[2]);
   const codigo = m[1].toUpperCase();
   const extension = m[3].toLowerCase();
-  const rutaPdf = `${RAIZ}\\${anho}\\${codigo}.pdf`;
+  // path.join usa el separador del SO: en Windows preserva el UNC (\\host\share),
+  // en Linux monta la ruta con "/". Así RPS_PEDIDOS_PDF_DIR vale tal cual en ambos.
+  const rutaPdf = path.join(RAIZ, String(anho), `${codigo}.pdf`);
 
   if (extension === "png") {
     let mtimePdf: number;
