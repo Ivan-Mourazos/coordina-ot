@@ -18,13 +18,14 @@
 ```bash
 git clone <repo> /opt/coordina-ot && cd /opt/coordina-ot
 cp .env.example .env.local        # rellenar credenciales (ver abajo)
+mkdir -p logs                     # PM2 no crea el dir de logs; data/ se crea sola
 pnpm install
 pnpm build
 pm2 start ecosystem.config.cjs
 pm2 save && pm2 startup           # arranque con el sistema
 ```
 
-La app queda en `http://<host>:3100`. Si se quiere nombre bonito
+La app queda en `http://<host>:4300`. Si se quiere nombre bonito
 (`coordina.<dominio>`) basta un reverse proxy (nginx/caddy) delante.
 
 ## .env.local mínimo

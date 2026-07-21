@@ -13,7 +13,7 @@ Contacto de desarrollo: Iván Sánchez (Oficina Técnica).
 
 ```
 Navegadores OT (6 usuarios)
-        │  HTTP :3100
+        │  HTTP :4300
         ▼
 ┌─────────────────────────────────┐
 │  Servidor Linux + PM2           │
@@ -58,7 +58,7 @@ pm2 start ecosystem.config.cjs
 pm2 save && pm2 startup
 ```
 
-Queda en `http://<host>:3100`. Opcional: reverse proxy (nginx/caddy) para
+Queda en `http://<host>:4300`. Opcional: reverse proxy (nginx/caddy) para
 darle nombre DNS interno (`coordina.<dominio>`).
 
 **Importante**: el `ecosystem.config.cjs` fija **1 sola instancia** (modo
@@ -125,7 +125,7 @@ RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
 | Acción | Comando |
 |---|---|
 | Estado / logs | `pm2 status` · `pm2 logs coordina-ot` |
-| Healthcheck | `curl http://localhost:3100/api/health` |
+| Healthcheck | `curl http://localhost:4300/api/health` |
 | Reiniciar | `pm2 restart coordina-ot` |
 | Actualizar versión | `cd /opt/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot` |
 

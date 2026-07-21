@@ -11,7 +11,7 @@ module.exports = {
     {
       name: "coordina-ot",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3100",
+      args: "start -p 4300",
       cwd: __dirname,
 
       // UNA sola instancia, modo fork — obligatorio: la app cachea en memoria
