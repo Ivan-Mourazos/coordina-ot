@@ -57,3 +57,17 @@ test("leerTodosIntervalos junta a todos los operarios", () => {
   const ops = new Set(todos.map((i) => i.operarioId));
   expect(ops.has("op-3")).toBe(true);
 });
+
+test("conserva el orden de un historial multi-intervalo con el último abierto", () => {
+  let f = fichar(FICHAJE_VACIO, ["OF-1"], "plantear", "op-4", "2026-07-22T08:00:00.000Z");
+  f = pausar(f, "2026-07-22T08:10:00.000Z"); // cerrado 1
+  f = fichar(f, ["OF-2"], "plantear", "op-4", "2026-07-22T08:20:00.000Z");
+  f = pausar(f, "2026-07-22T08:25:00.000Z"); // cerrado 2
+  f = fichar(f, ["OF-3"], "revisar", "op-4", "2026-07-22T08:30:00.000Z"); // abierto
+  db.guardarFichaje("op-4", f);
+
+  const leido = db.leerFichaje("op-4");
+  expect(leido.intervalos).toHaveLength(3);
+  expect(leido.intervalos.map((i) => i.ofIds[0])).toEqual(["OF-1", "OF-2", "OF-3"]);
+  expect(leido.intervalos[2].fin).toBeNull(); // el último sigue abierto
+});
