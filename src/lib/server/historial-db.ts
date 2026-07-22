@@ -84,16 +84,18 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     .query<FilaDetalle>(`
       SELECT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
              e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
-      FROM dbo.FACOrderSL o
-      JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-      JOIN dbo.CPRManufacturingOrder mo
-        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      FROM dbo.CPRManufacturingOrder mo
       JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
       LEFT JOIN dbo.CPRImputationMO i
         ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = mo.IDManufacturingOrder
         AND i.ResourceType = 1
       LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      WHERE o.CodOrder = @pedido AND o.CodCompany = '001'
+      WHERE mo.CodCompany = '001'
+        AND EXISTS (
+          SELECT 1 FROM dbo.FACOrderLineSL l
+          JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+          WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
+        )
         AND EXISTS (
           SELECT 1 FROM dbo.CPRMOResourceMachine rm
           WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
