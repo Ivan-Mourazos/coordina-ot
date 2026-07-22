@@ -119,6 +119,7 @@ export function HistorialView() {
             <button
               key={fam}
               onClick={() => setFamilia(activa ? null : fam)}
+              aria-pressed={activa}
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${
                 activa ? "text-white ring-transparent" : "text-text-muted ring-border hover:text-text"
               }`}
@@ -213,7 +214,7 @@ function ClienteAutocomplete({
       <input
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
-        onFocus={() => sug.length > 0 && setAbierto(true)}
+        onFocus={() => texto.trim().length >= 2 && sug.length > 0 && setAbierto(true)}
         onBlur={() => setTimeout(() => setAbierto(false), 150)}
         placeholder="Escribe 2+ letras…"
         className="mt-1 w-56 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
