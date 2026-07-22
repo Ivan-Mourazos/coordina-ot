@@ -73,3 +73,62 @@ export function filaAItem(fila: FilaPagina): HistorialItem {
     nOf: fila.n_of ?? 0,
   };
 }
+
+export interface HistorialPedidoDetalle {
+  codigo: string;
+  cliente: string | null;
+  negocio: string | null;
+  ciudadEntrega: string | null;
+  prioridad: 1 | 2 | 3;
+  fechaSolicitud: string | null; // ISO yyyy-mm-dd
+  fechaFinalizacion: string | null; // ISO
+  piezas: number;
+  familias: string[];
+  comentarioVenta: string | null;
+  scanUrl: string; // /api/pedidos/{codigo}.pdf (puede dar 404)
+  ofs: HistorialOF[];
+}
+
+/** Fila cruda de la cabecera del pedido (antes de mapear). */
+export interface FilaCabecera {
+  pedido: string;
+  cliente: string | null;
+  negocio: string | null;
+  ciudad: string | null;
+  comentario: string | null;
+  solicitada: Date | string | null;
+  prioridad: number | null;
+  piezas: number | null;
+}
+
+/** Fecha de venta a yyyy-mm-dd; centinela RPS (<2000) o inválida → null. */
+function fechaSolicitudISO(v: Date | string | null): string | null {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function cabeceraADetalle(
+  fila: FilaCabecera,
+  ofs: HistorialOF[],
+  finalizada: string | null,
+  familias: string[],
+): HistorialPedidoDetalle {
+  const codigo = (fila.pedido ?? "").trim();
+  const prioridad = fila.prioridad === 1 || fila.prioridad === 2 || fila.prioridad === 3 ? fila.prioridad : 1;
+  return {
+    codigo,
+    cliente: fila.cliente,
+    negocio: fila.negocio,
+    ciudadEntrega: fila.ciudad,
+    prioridad,
+    fechaSolicitud: fechaSolicitudISO(fila.solicitada),
+    fechaFinalizacion: finalizada,
+    piezas: fila.piezas ?? 0,
+    familias,
+    comentarioVenta: fila.comentario,
+    scanUrl: `/api/pedidos/${codigo}.pdf`,
+    ofs,
+  };
+}

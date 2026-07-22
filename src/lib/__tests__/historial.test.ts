@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { construirFiltros, filaAItem, CODIGO_PEDIDO_RE } from "../historial";
+import { construirFiltros, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
 
 test("sin filtros no genera cláusulas ni params", () => {
   const r = construirFiltros({ page: 0 });
@@ -41,4 +41,37 @@ test("CODIGO_PEDIDO_RE acepta AR/BE/SA y rechaza basura", () => {
   expect(CODIGO_PEDIDO_RE.test("AR.26.03453")).toBe(true);
   expect(CODIGO_PEDIDO_RE.test("BE.25.01165")).toBe(true);
   expect(CODIGO_PEDIDO_RE.test("'; DROP TABLE x --")).toBe(false);
+});
+
+test("cabeceraADetalle arma el detalle con fechas ISO, scanUrl y prioridad saneada", () => {
+  const d = cabeceraADetalle(
+    {
+      pedido: " AR.26.03365 ", cliente: "MAHOU, S.A.", negocio: "NOVA",
+      ciudad: "Coruña", comentario: "sin prisa",
+      solicitada: new Date("2026-06-01T00:00:00.000Z"), prioridad: 9, piezas: 4,
+    },
+    [{ codigo: "0230262", descripcion: "TOLDO", tiempoImputadoMin: 12, quien: ["Alberto"] }],
+    "2026-07-22T13:00:00.000Z",
+    ["TOLDO"],
+  );
+  expect(d.codigo).toBe("AR.26.03365");
+  expect(d.scanUrl).toBe("/api/pedidos/AR.26.03365.pdf");
+  expect(d.prioridad).toBe(1); // 9 fuera de rango → 1
+  expect(d.fechaSolicitud).toBe("2026-06-01");
+  expect(d.fechaFinalizacion).toBe("2026-07-22T13:00:00.000Z");
+  expect(d.piezas).toBe(4);
+  expect(d.familias).toEqual(["TOLDO"]);
+  expect(d.ofs).toHaveLength(1);
+});
+
+test("cabeceraADetalle tolera nulos (fecha, piezas, cliente)", () => {
+  const d = cabeceraADetalle(
+    { pedido: "AR.26.00001", cliente: null, negocio: null, ciudad: null, comentario: null, solicitada: null, prioridad: null, piezas: null },
+    [], null, [],
+  );
+  expect(d.cliente).toBeNull();
+  expect(d.fechaSolicitud).toBeNull();
+  expect(d.fechaFinalizacion).toBeNull();
+  expect(d.piezas).toBe(0);
+  expect(d.prioridad).toBe(1);
 });
