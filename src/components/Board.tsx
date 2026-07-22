@@ -35,19 +35,9 @@ import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
-import { FICHAJE_VACIO, abierto, fichar, parseFichaje, pausar, type Fichaje } from "@/lib/fichaje";
+import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
-const FICHAJE_KEY = "coordina-fichaje-v1";
-
-function leerFichajeGuardado(): Fichaje {
-  if (typeof window === "undefined") return FICHAJE_VACIO;
-  try {
-    return parseFichaje(localStorage.getItem(FICHAJE_KEY));
-  } catch {
-    return FICHAJE_VACIO;
-  }
-}
 
 /** Quién está fichando ahora mismo: en qué OF y con qué rol. */
 export interface LiveInfo {
@@ -102,16 +92,10 @@ export function Board({
   }, []);
 
   // Motor de fichaje: la única fuente de verdad son los intervalos, nunca
-  // minutos sumados. La carga es el inicializador perezoso (mismo patrón que
-  // miId): lee localStorage ANTES de que corra ningún efecto, así el efecto
-  // de persistencia nunca puede pisar lo guardado con FICHAJE_VACIO en el
-  // arranque (ni bajo Strict Mode, que invoca los efectos dos veces). El
-  // efecto solo persiste; en SSR leerFichajeGuardado() devuelve FICHAJE_VACIO.
-  const [fichaje, setFichaje] = useState<Fichaje>(leerFichajeGuardado);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(FICHAJE_KEY, JSON.stringify(fichaje));
-  }, [fichaje]);
+  // minutos sumados. El server es la única fuente de verdad (ya no hay
+  // localStorage de por medio): arranca vacío y se reconcilia con lo que
+  // devuelve el server (ver postFichaje y el efecto de carga por miId).
+  const [fichaje, setFichaje] = useState<Fichaje>(FICHAJE_VACIO);
 
   // fichandoRol de cada OF se DERIVA del intervalo abierto (denormalizado en
   // pedidos para que LiveBadge, chips y contadores existentes sigan
@@ -206,6 +190,9 @@ export function Board({
   useEffect(() => {
     fichajeRef.current = fichaje;
   }, [fichaje]);
+  // Cuenta los POST de fichaje emitidos: la carga inicial (GET por miId) no
+  // debe pisar con un snapshot viejo un POST disparado después de arrancar.
+  const postSeqRef = useRef(0);
   const activeRef = useRef<Facet | null>(null);
   useEffect(() => {
     activeRef.current = active;
@@ -517,6 +504,7 @@ export function Board({
   const postFichaje = useCallback(
     (ofIds: string[], rol: Rol) => {
       if (!miId) return;
+      postSeqRef.current += 1;
       fetch("/api/fichaje", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -603,10 +591,15 @@ export function Board({
   useEffect(() => {
     if (!miId) return;
     let cancelado = false;
+    const seqAlArrancar = postSeqRef.current;
     fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { fichaje: Fichaje } | null) => {
-        if (d?.fichaje && !cancelado) setFichaje(d.fichaje);
+        // No pisar un POST emitido tras arrancar esta carga (la carga inicial
+        // trae un snapshot que puede ser anterior a una acción del usuario).
+        if (d?.fichaje && !cancelado && postSeqRef.current === seqAlArrancar) {
+          setFichaje(d.fichaje);
+        }
       })
       .catch(() => {});
     return () => {
