@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { leerHistorialPedido } from "@/lib/server/historial-db";
+import { leerHistorialPedidoDetalle } from "@/lib/server/historial-db";
 import { CODIGO_PEDIDO_RE } from "@/lib/historial";
 
 // ─── GET /api/historial/[pedido] ─────────────────────────────────────────────
@@ -17,8 +17,8 @@ export async function GET(
     return NextResponse.json({ error: "Código de pedido no válido" }, { status: 400 });
 
   try {
-    const ofs = await leerHistorialPedido(pedido);
-    return NextResponse.json({ pedido, ofs }, { headers: { "Cache-Control": "no-store" } });
+    const detalle = await leerHistorialPedidoDetalle(pedido);
+    return NextResponse.json(detalle, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[historial] detalle falló:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo cargar el pedido" }, { status: 500 });

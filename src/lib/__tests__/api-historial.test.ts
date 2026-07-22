@@ -15,14 +15,15 @@ test("GET página con page inválida cae a 0 (no rompe)", async () => {
   expect(res.status).toBe(200);
 });
 
-test("GET detalle con código válido responde 200 y { pedido, ofs }", async () => {
+test("GET detalle con código válido responde 200 y el detalle del pedido", async () => {
   const res = await detalle.GET(new Request("http://x/api/historial/AR.26.03453"), {
     params: Promise.resolve({ pedido: "AR.26.03453" }),
   });
   expect(res.status).toBe(200);
-  const data = (await res.json()) as { pedido: string; ofs: unknown[] };
-  expect(data.pedido).toBe("AR.26.03453");
+  const data = (await res.json()) as { codigo: string; ofs: unknown[]; scanUrl: string };
+  expect(data.codigo).toBe("AR.26.03453");
   expect(Array.isArray(data.ofs)).toBe(true);
+  expect(data.scanUrl).toBe("/api/pedidos/AR.26.03453.pdf");
 });
 
 test("GET detalle con código inválido responde 400", async () => {

@@ -116,7 +116,7 @@ function textoArticulo(articulo: string | null): string {
  *  OF (más fina: "CERRAMIENTO TEXTIL CON LONA…" → LONA) y después el grupo de
  *  artículo de RPS ("CERRAMIENTOS"). Lo que no encaja pasa como texto tal cual
  *  (familiaMeta le da tinte neutro). */
-function familiaDeTexto(descripcionMO: string | null, articulo: string | null): Familia {
+export function familiaDeTexto(descripcionMO: string | null, articulo: string | null): Familia {
   const grupo = textoArticulo(articulo).toUpperCase();
   const desc = (descripcionMO ?? "").toUpperCase();
   for (const t of [desc, grupo]) {
@@ -139,14 +139,14 @@ function familiaDe(fila: FilaVista): Familia {
 /** Escala nueva: 1 = poca, 2 = normal, 3 = urgente (si es 3, la fecha de
  *  planificación se respeta al 100%). Fuera de rango (null, 0, erróneo) → 1
  *  (poca), no la máxima: un dato ausente no debe disparar urgencia. */
-function prioridadDe(n: number | null): Prioridad {
+export function prioridadDe(n: number | null): Prioridad {
   return n === 1 || n === 2 || n === 3 ? n : 1;
 }
 
 /** Fecha ISO o null si no hay dato utilizable. RPS usa 1900-01-01 como
  *  centinela de "sin fecha" (que además llega como 31/12/1899 tras el ajuste
  *  UTC→local): cualquier año < 2000 se trata como ausencia de dato. */
-function fechaISO(d: Date | null): string | null {
+export function fechaISO(d: Date | null): string | null {
   if (!d || Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return null;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

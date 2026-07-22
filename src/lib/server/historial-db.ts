@@ -1,14 +1,18 @@
 import { getPool } from "./db";
 import { operarioDeEmpleado } from "./operarios";
+import { familiaDeTexto } from "./rps";
 import { OPERARIOS, PEDIDOS } from "../mock";
 import {
   PAGE_SIZE,
+  cabeceraADetalle,
   construirFiltros,
   filaAItem,
+  type FilaCabecera,
   type FilaPagina,
   type HistorialFiltros,
   type HistorialItem,
   type HistorialOF,
+  type HistorialPedidoDetalle,
 } from "../historial";
 
 // ─── Historial permanente: acceso a RPS (solo lectura) ───────────────────────
@@ -126,6 +130,77 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   return [...porOF.values()];
 }
 
+/** Detalle completo del pedido: cabecera (cliente, negocio, ciudad, prioridad,
+ *  piezas, fecha solicitada/finalización, familias) + OFs con tiempo imputado.
+ *  La cabecera sale de 3 queries pequeñas y rápidas contra tablas indexadas
+ *  (verificadas en vivo: <200 ms cada una), separadas de `leerHistorialPedido`
+ *  para no acoplar cabecera y detalle de OFs. */
+export async function leerHistorialPedidoDetalle(
+  pedido: string,
+): Promise<HistorialPedidoDetalle> {
+  const ofs = await leerHistorialPedido(pedido); // ya respeta mock/rps
+  if (ES_MOCK) return detalleCabeceraMock(pedido, ofs);
+
+  const pool = await getPool();
+
+  const cab = (
+    await pool.request().input("pedido", pedido).query<FilaCabecera>(`
+      SELECT TOP 1 o.CodOrder AS pedido, cli.Description AS cliente,
+             d.Description AS negocio, o.CityDelivery AS ciudad, o.Comment AS comentario,
+             (SELECT MIN(l2.ReceptionDemandDate) FROM dbo.FACOrderLineSL l2
+                WHERE l2.IDOrder = o.IDOrder AND l2.ReceptionDemandDate > '2000-01-01') AS solicitada,
+             NULL AS prioridad, NULL AS piezas
+      FROM dbo.FACOrderSL o
+      LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
+      LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = o.IDCustomerDeliveryAddress
+      WHERE o.CodOrder = @pedido AND o.CodCompany = '001'
+    `)
+  ).recordset[0] ?? null;
+
+  const pp = (
+    await pool
+      .request()
+      .input("pedido", pedido)
+      .query<{ prioridad: number | null; piezas: number | null }>(`
+      SELECT MAX(mo.Priority) AS prioridad, SUM(mo.Quantity) AS piezas
+      FROM dbo.CPRManufacturingOrder mo
+      WHERE mo.CodCompany = '001'
+        AND EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
+                    WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
+        AND EXISTS (SELECT 1 FROM dbo.CPRMOTask t JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
+                    WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND rm.CodMOResourceMachine IN ('a-otec','otec-a'))
+    `)
+  ).recordset[0] ?? { prioridad: null, piezas: null };
+
+  const fin = (
+    await pool.request().input("pedido", pedido).query<{ finalizada: Date | null }>(`
+      SELECT MAX(e.fecha_cambio) AS finalizada
+      FROM dbo.tgm_estadosof_olanet e
+      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder = e.orden AND mo.CodCompany='001'
+      WHERE e.idestadoof = 3 AND EXISTS (
+        SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
+        WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
+    `)
+  ).recordset[0]?.finalizada ?? null;
+
+  const fila: FilaCabecera = cab ?? {
+    pedido,
+    cliente: null,
+    negocio: null,
+    ciudad: null,
+    comentario: null,
+    solicitada: null,
+    prioridad: null,
+    piezas: null,
+  };
+  fila.prioridad = pp.prioridad;
+  fila.piezas = pp.piezas;
+
+  const familias = [...new Set(ofs.map((of) => familiaDeTexto(of.descripcion, null)))];
+  const finalizada = fin ? fin.toISOString() : null;
+  return cabeceraADetalle(fila, ofs, finalizada, familias);
+}
+
 // ── Fallback mock (desarrollo sin BD) ──
 function pedidosFinalizadosMock(): HistorialItem[] {
   return PEDIDOS.filter((p) => p.ofs.length > 0 && p.ofs.every((o) => o.estado === "aprobada"))
@@ -161,4 +236,24 @@ function detalleMock(pedido: string): HistorialOF[] {
     tiempoImputadoMin: of.tiempoPlanteoMin + of.tiempoRevisionMin,
     quien: [],
   }));
+}
+
+function detalleCabeceraMock(pedido: string, ofs: HistorialOF[]): HistorialPedidoDetalle {
+  const p = PEDIDOS.find((x) => x.codigo === pedido);
+  const familias = [...new Set(ofs.map((of) => familiaDeTexto(of.descripcion, null)))];
+  return cabeceraADetalle(
+    {
+      pedido,
+      cliente: p?.cliente ?? null,
+      negocio: p?.negocio ?? null,
+      ciudad: p?.ciudadEntrega ?? null,
+      comentario: p?.comentarioVenta ?? null,
+      solicitada: p ? p.fechaSolicitud : null,
+      prioridad: p?.prioridad ?? null,
+      piezas: p ? p.ofs.reduce((n, o) => n + o.piezas, 0) : null,
+    },
+    ofs,
+    p ? `${p.fechaPlanificacion}T00:00:00.000Z` : null,
+    familias,
+  );
 }
