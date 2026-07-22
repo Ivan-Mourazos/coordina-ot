@@ -61,3 +61,13 @@ test("POST con rol inválido y ofIds no vacío responde 400", async () => {
   const res = await route.POST(post({ operarioId: "op-9", ofIds: ["OF-1"], rol: "xxx" }));
   expect(res.status).toBe(400);
 });
+
+test("POST con body JSON no-objeto (null) responde 400, no 500", async () => {
+  const req = new Request("http://x/api/fichaje", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "null",
+  });
+  const res = await route.POST(req);
+  expect(res.status).toBe(400);
+});

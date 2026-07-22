@@ -24,6 +24,10 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
+  // Un body JSON que no sea objeto (p.ej. el literal `null`) parsea sin error:
+  // sin esta guarda, leer body.operarioId reventaría con un 500 en vez de 400.
+  if (typeof body !== "object" || body === null)
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
 
   const operarioId = body.operarioId;
   if (typeof operarioId !== "string" || operarioId.length === 0)
