@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
-import { estaAtrasado, estaFinalizado, hoyISO } from "@/lib/types";
+import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -298,16 +298,6 @@ export function Board({
         : pedidosFiltrados.filter((p) => p.situacion === filtros.situacion);
     return [...base].sort(cmpPedido);
   }, [pedidosFiltrados, filtros.situacion, cmpPedido]);
-
-  // Historial: los más recientes (mayor fecha de finalización) arriba. En un
-  // pedido ya terminado, fechaPlanificacion guarda la fecha de finalización.
-  const historialOrdenados = useMemo(
-    () =>
-      pedidosFiltrados
-        .filter((p) => p.situacion === "completado" || estaFinalizado(p))
-        .sort((a, b) => b.fechaPlanificacion.localeCompare(a.fechaPlanificacion)),
-    [pedidosFiltrados],
-  );
 
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
   // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.
@@ -958,22 +948,9 @@ export function Board({
 
         {/* ── VISTA HISTORIAL ── */}
         {vista === "historial" && (
-          <>
-            <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
-              <FilterBar
-                filtros={filtros}
-                setFiltros={setFiltros}
-                familias={familias}
-                clientes={clientes}
-                showEstado={false}
-                showAtrasados={false}
-                ordenes={["cliente", "prioridad"]}
-              />
-            </div>
-            <div className="p-5">
-              <HistorialView pedidos={historialOrdenados} operarios={operarios} onOpen={openPedidoCb} />
-            </div>
-          </>
+          <div className="p-5">
+            <HistorialView />
+          </div>
         )}
       </div>
 
