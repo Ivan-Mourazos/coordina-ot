@@ -18,6 +18,8 @@ export async function GET(req: Request) {
       q: url.searchParams.get("q") ?? undefined,
       desde: url.searchParams.get("desde") ?? undefined,
       hasta: url.searchParams.get("hasta") ?? undefined,
+      familia: url.searchParams.get("familia") ?? undefined,
+      cliente: url.searchParams.get("cliente") ?? undefined,
     });
     return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
