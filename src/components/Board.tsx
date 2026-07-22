@@ -199,7 +199,7 @@ export function Board({
   }, [active]);
   useEffect(() => {
     const id = setInterval(async () => {
-      if (document.hidden || activeRef.current) return;
+      if (activeRef.current) return; // solo se salta durante un drag&drop
       try {
         const r = await fetch("/api/tablero", { cache: "no-store" });
         if (!r.ok) return;
@@ -396,6 +396,12 @@ export function Board({
   }, [procesadosAll, miId]);
   const misPorRevisar = notifItems.filter((i) => i.tipo === "revisar").length;
   const misDevueltas = notifItems.filter((i) => i.tipo === "devuelta").length;
+
+  // Aviso visible aunque la pestaña esté al fondo: "(2) CoordinaOT".
+  useEffect(() => {
+    const n = misPorRevisar + misDevueltas;
+    document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
+  }, [misPorRevisar, misDevueltas]);
 
   const irANotificacion = useCallback((destino: Vista, pedidoId: string) => {
     setVista(destino);
