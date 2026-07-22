@@ -18,8 +18,17 @@ import { pathToFileURL } from "node:url";
 /** Solo códigos de pedido reales: nada de path traversal ni comodines. */
 const ARCHIVO_RE = /^(AR\.(\d{2})\.\d{5})\.(pdf|png)$/i;
 
+// El share de PDFs se llega distinto según dónde corra la app:
+//   · Windows (desarrollo): ruta UNC \\192.168.0.128\RPS\VENTAS\PEDIDOS (por VPN).
+//   · Linux (deploy): punto de montaje CIFS, p.ej. /mnt/rps-pedidos.
+// Se elige por plataforma para que el MISMO .env.local valga en ambas máquinas
+// (una ruta /mnt/... no resuelve en Windows y una UNC no resuelve en Linux).
+// Cada var tiene un valor por defecto útil, así en desarrollo funciona sin tocar
+// nada: en Windows cae al UNC, en Linux a /mnt/rps-pedidos.
 const RAIZ =
-  process.env.RPS_PEDIDOS_PDF_DIR ?? "\\\\192.168.0.128\\RPS\\VENTAS\\PEDIDOS";
+  process.platform === "win32"
+    ? (process.env.RPS_PEDIDOS_PDF_DIR_WIN ?? "\\\\192.168.0.128\\RPS\\VENTAS\\PEDIDOS")
+    : (process.env.RPS_PEDIDOS_PDF_DIR ?? "/mnt/rps-pedidos");
 
 /** Carpeta de caché de miniaturas, dentro de la caché de Next. */
 const CACHE_DIR = path.join(process.cwd(), ".next", "cache", "pedidos-thumbs");
