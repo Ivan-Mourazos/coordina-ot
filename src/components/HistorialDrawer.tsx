@@ -25,6 +25,16 @@ export function HistorialDrawer({
   const [error, setError] = useState(false);
   const [ampliado, setAmpliado] = useState(false);
 
+  const [prevPedido, setPrevPedido] = useState<string | null>(null);
+  // Reset al cambiar de pedido DURANTE el render (no en un efecto): así nunca
+  // hay un frame con la cabecera del pedido nuevo y los datos/PDF del anterior.
+  if (pedido !== prevPedido) {
+    setPrevPedido(pedido);
+    setDetalle(null);
+    setError(false);
+    setAmpliado(false);
+  }
+
   const cargar = useCallback(async (cod: string) => {
     setCargando(true);
     setError(false);
@@ -41,14 +51,11 @@ export function HistorialDrawer({
 
   useEffect(() => {
     if (!pedido) return;
-    // Reset + recarga al cambiar `pedido`: es el patrón de "fetch-on-prop-change"
-    // documentado por React para sincronizar con un sistema externo. La regla
-    // experimental del compilador (react-hooks/set-state-in-effect) lo marca
-    // igualmente; el mismo patrón ya existe sin corregir en MiFichaje.tsx.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDetalle(null);
-    setAmpliado(false);
-    cargar(pedido);
+    // `cargar` llama a setState de forma síncrona (setCargando/setError/setDetalle);
+    // se difiere con setTimeout(0) para que el propio efecto no dispare setState
+    // sincrónicamente (react-hooks/set-state-in-effect), sin recurrir a un disable.
+    const id = setTimeout(() => cargar(pedido), 0);
+    return () => clearTimeout(id);
   }, [pedido, cargar]);
 
   useEffect(() => {
