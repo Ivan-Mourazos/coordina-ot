@@ -57,7 +57,7 @@ export async function leerHistorialPagina(
     FROM PedFin p
     LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = p.idc
     ${where}
-    ORDER BY p.finalizada DESC
+    ORDER BY p.finalizada DESC, p.pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
   `);
 
@@ -135,7 +135,7 @@ function pedidosFinalizadosMock(): HistorialItem[] {
       finalizada: `${p.fechaPlanificacion}T00:00:00.000Z`,
       nOf: p.ofs.length,
     }))
-    .sort((a, b) => b.finalizada.localeCompare(a.finalizada));
+    .sort((a, b) => b.finalizada.localeCompare(a.finalizada) || b.pedido.localeCompare(a.pedido));
 }
 
 function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: boolean } {

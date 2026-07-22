@@ -26,8 +26,14 @@ export function HistorialView() {
   // Clave de filtros: al cambiar, se reinicia la lista.
   const filtrosKey = `${q}|${desde}|${hasta}`;
 
+  // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
+  // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
+  // fuera de orden.
+  const reqSeq = useRef(0);
+
   const cargar = useCallback(
     async (pageAcargar: number, reemplazar: boolean) => {
+      const seq = ++reqSeq.current;
       setCargando(true);
       setError(false);
       try {
@@ -38,24 +44,25 @@ export function HistorialView() {
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
         const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean };
+        if (seq !== reqSeq.current) return; // respuesta obsoleta: la ignoramos
         setItems((prev) => (reemplazar ? data.pedidos : [...prev, ...data.pedidos]));
         setHasMore(data.hasMore);
         setPage(pageAcargar);
       } catch {
+        if (seq !== reqSeq.current) return;
         setError(true);
       } finally {
-        setCargando(false);
+        if (seq === reqSeq.current) setCargando(false);
       }
     },
     [q, desde, hasta],
   );
 
-  // Al cambiar filtros (o al montar), recarga desde la página 0. La llamada
-  // se difiere a un microtask (.then) para que el setState quede dentro de un
-  // callback y no directamente en el cuerpo síncrono del efecto (mismo patrón
-  // que el resto del repo, p.ej. la carga de fichaje en Board.tsx).
+  // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
+  // para no lanzar una query pesada por cada tecla del buscador.
   useEffect(() => {
-    void Promise.resolve().then(() => cargar(0, true));
+    const t = setTimeout(() => cargar(0, true), 300);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtrosKey]);
 
@@ -63,13 +70,13 @@ export function HistorialView() {
   const sentinela = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinela.current;
-    if (!el || !hasMore || cargando) return;
+    if (!el || !hasMore || cargando || error) return;
     const io = new IntersectionObserver((entradas) => {
       if (entradas[0].isIntersecting) cargar(page + 1, false);
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore, cargando, page, cargar]);
+  }, [hasMore, cargando, error, page, cargar]);
 
   return (
     <div className="space-y-3">
