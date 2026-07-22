@@ -64,6 +64,10 @@ fichaje_intervalo
 - Misma forma que el tipo `Intervalo` de [fichaje.ts](../../../src/lib/fichaje.ts):
   el motor puro se reutiliza tal cual.
 - Al vivir en `coordina.db`, los tiempos entran en el backup diario ya montado.
+- **Sin migración**: no se arrastra el fichaje que hubiera en `localStorage`. Los
+  tiempos locales previos a 2a se echaron contra datos mock (el sistema servía
+  mock hasta ahora), así que no valen; a partir de 2a la verdad es el server y el
+  `localStorage` previo se ignora.
 - Índice sugerido: `(operario_id)` para cargar rápido el fichaje de una persona,
   y para el intervalo abierto basta `fin IS NULL`.
 
@@ -128,9 +132,8 @@ Nuevas funciones en la capa de BD (junto a `estado-db.ts`, o en un
   de feedback inmediato, no como verdad.
 - Cada acción que hoy hace `setFichaje(...)` local pasa a: actualización
   optimista local **+** `POST /api/fichaje`. La respuesta reconcilia.
-- **Migración one-shot**: si el server no tiene intervalos para `miId` y
-  `localStorage` sí tiene un fichaje válido, se sube una vez (POST) y a partir
-  de ahí manda el server.
+- En el arranque, al conocer `miId`, se hace `GET /api/fichaje?operarioId=miId` y
+  se adopta el fichaje del server (no hay migración del localStorage previo).
 
 ### Sección 3 — Notificaciones (Board.tsx, solo cliente)
 
