@@ -511,6 +511,26 @@ export function Board({
   // ── API de fichaje del Board ──
   const ahora = () => new Date().toISOString();
 
+  // Envía la intención al server (fuente de la hora) y reconcilia el estado
+  // local con lo que devuelve. Fire-and-forget: si falla la red, se conserva
+  // el optimista y la siguiente acción/carga lo corrige.
+  const postFichaje = useCallback(
+    (ofIds: string[], rol: Rol) => {
+      if (!miId) return;
+      fetch("/api/fichaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operarioId: miId, ofIds, rol }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { fichaje: Fichaje } | null) => {
+          if (d?.fichaje) setFichaje(d.fichaje);
+        })
+        .catch(() => {});
+    },
+    [miId],
+  );
+
   const ficharOFs = useCallback(
     (ofIds: string[], rol: Rol) => {
       if (!miId) return;
@@ -540,38 +560,58 @@ export function Board({
         },
         "fichar",
       );
-      setFichaje((f) => {
-        const ab = abierto(f);
-        const conjunto = ab && ab.rol === rol ? [...ab.ofIds, ...ofIds] : ofIds;
-        return fichar(f, conjunto, rol, miId, ahora());
-      });
+      const ab = abierto(fichajeRef.current);
+      const conjunto = ab && ab.rol === rol ? [...ab.ofIds, ...ofIds] : ofIds;
+      setFichaje((f) => fichar(f, conjunto, rol, miId, ahora())); // optimista
+      postFichaje(conjunto, rol);
     },
-    [miId, mut],
+    [miId, mut, postFichaje],
   );
 
-  const desficharOF = useCallback((ofId: string) => {
-    setFichaje((f) => {
-      const ab = abierto(f);
-      if (!ab) return f;
-      return fichar(f, ab.ofIds.filter((id) => id !== ofId), ab.rol, ab.operarioId, ahora());
-    });
-  }, []);
+  const desficharOF = useCallback(
+    (ofId: string) => {
+      const ab = abierto(fichajeRef.current);
+      if (!ab) return;
+      const resto = ab.ofIds.filter((id) => id !== ofId);
+      setFichaje((f) => fichar(f, resto, ab.rol, ab.operarioId, ahora())); // optimista
+      postFichaje(resto, ab.rol);
+    },
+    [postFichaje],
+  );
 
   // pausarTodo/reanudar: pausa global del fichaje, reservada para el panel
   // "Mi fichaje" (Task 7). El Drawer ya no las usa: fichar/desfichar ahora
   // es por OF (onFichar/onDesfichar).
-  const pausarTodo = useCallback(() => setFichaje((f) => pausar(f, ahora())), []);
+  const pausarTodo = useCallback(() => {
+    setFichaje((f) => pausar(f, ahora())); // optimista
+    postFichaje([], "plantear"); // rol ignorado al pausar (ofIds vacío)
+  }, [postFichaje]);
 
   const reanudar = useCallback(() => {
     if (!miId) return;
-    setFichaje((f) => {
-      const ultimo = f.intervalos[f.intervalos.length - 1];
-      if (!ultimo || ultimo.fin === null) return f;
-      // Reabre con la identidad ACTUAL (miId), no con la del último
-      // intervalo: si se reanuda tras un cambio de técnico, el tiempo debe
-      // quedar fichado a nombre de quien está delante del panel ahora.
-      return fichar(f, ultimo.ofIds, ultimo.rol, miId, ahora());
-    });
+    const ultimo = fichajeRef.current.intervalos[fichajeRef.current.intervalos.length - 1];
+    if (!ultimo || ultimo.fin === null) return;
+    // Reabre con la identidad ACTUAL (miId), no con la del último
+    // intervalo: si se reanuda tras un cambio de técnico, el tiempo debe
+    // quedar fichado a nombre de quien está delante del panel ahora.
+    setFichaje((f) => fichar(f, ultimo.ofIds, ultimo.rol, miId, ahora())); // optimista
+    postFichaje(ultimo.ofIds, ultimo.rol);
+  }, [miId, postFichaje]);
+
+  // Al conocer quién soy, adopto MI fichaje del server (verdad compartida).
+  // No se migra el localStorage previo (era contra datos mock).
+  useEffect(() => {
+    if (!miId) return;
+    let cancelado = false;
+    fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { fichaje: Fichaje } | null) => {
+        if (d?.fichaje && !cancelado) setFichaje(d.fichaje);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
   }, [miId]);
 
   // Cambiar de identidad con un fichaje corriendo perdería de vista ese
