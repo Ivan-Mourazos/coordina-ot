@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialPedidoDetalle } from "@/lib/historial";
-import { fmtMin } from "@/lib/estado";
+import { PRIORIDAD, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 
 function fmtFecha(iso: string | null) {
@@ -24,6 +24,7 @@ export function HistorialDrawer({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
   const [ampliado, setAmpliado] = useState(false);
+  const reqSeq = useRef(0);
 
   const [prevPedido, setPrevPedido] = useState<string | null>(null);
   // Reset al cambiar de pedido DURANTE el render (no en un efecto): así nunca
@@ -36,16 +37,20 @@ export function HistorialDrawer({
   }
 
   const cargar = useCallback(async (cod: string) => {
+    const seq = ++reqSeq.current;
     setCargando(true);
     setError(false);
     try {
       const r = await fetch(`/api/historial/${cod}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
-      setDetalle((await r.json()) as HistorialPedidoDetalle);
+      const d = (await r.json()) as HistorialPedidoDetalle;
+      if (seq !== reqSeq.current) return; // respuesta de un pedido anterior: la ignoramos
+      setDetalle(d);
     } catch {
+      if (seq !== reqSeq.current) return;
       setError(true);
     } finally {
-      setCargando(false);
+      if (seq === reqSeq.current) setCargando(false);
     }
   }, []);
 
@@ -108,7 +113,18 @@ export function HistorialDrawer({
       <aside className="glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
         <header className="flex items-start gap-3 p-4" style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}>
           <div className="min-w-0">
-            <h2 className="font-mono text-lg font-bold text-text">{pedido}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-mono text-lg font-bold text-text">{pedido}</h2>
+              {detalle && (
+                <span
+                  className="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
+                  style={{ background: PRIORIDAD[detalle.prioridad].color }}
+                  title={`Prioridad ${PRIORIDAD[detalle.prioridad].label}`}
+                >
+                  P{detalle.prioridad} {PRIORIDAD[detalle.prioridad].label}
+                </span>
+              )}
+            </div>
             <p className="truncate text-sm text-text-muted">
               {detalle?.cliente ?? "—"}
               {detalle?.negocio && <span className="font-semibold text-text"> · {detalle.negocio}</span>}
