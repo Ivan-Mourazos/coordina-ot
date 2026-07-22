@@ -30,6 +30,9 @@ de IT) ni login.
 1. **El reloj pertenece a la PERSONA, no al dispositivo.** Un solo fichaje por
    técnico en todo el sistema; se vea desde donde se vea, es el mismo. Si abre
    en dos equipos, el último que toca manda (last-write-wins, sin bloqueo).
+   En la práctica no se ficha desde dos PCs a la vez (confirmado por el
+   usuario), así que este caso es un borde defensivo, no un flujo real: por eso
+   basta last-write-wins y no hace falta bloqueo ni resolución de conflictos.
 2. **El server es la fuente de verdad y del reloj.** El cliente manda la
    intención ("deja corriendo exactamente estas OFs con este rol"); el server
    abre/cierra el intervalo con SU hora.
