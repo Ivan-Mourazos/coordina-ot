@@ -85,18 +85,6 @@ export function HistorialView() {
     return () => io.disconnect();
   }, [hasMore, cargando, error, page, cargar]);
 
-  // Botón "volver arriba": el Historial vive en un <div className="p-5"> sin
-  // overflow propio (a diferencia de los paneles de tablero/asignar), así que
-  // el scroll real es el de la ventana — igual que el BotonArriba global de
-  // Board.tsx (bottom-4 left-4). Este vive a la derecha (bottom-6 right-6) y
-  // es específico del historial, tal como pide el spec.
-  const [mostrarArriba, setMostrarArriba] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setMostrarArriba(window.scrollY > 600);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <div className="space-y-3">
       {/* Filtros propios del historial */}
@@ -167,16 +155,6 @@ export function HistorialView() {
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer pedido={abierto} onClose={() => setAbierto(null)} />
-
-      {mostrarArriba && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Volver arriba"
-          className="fixed bottom-6 right-6 z-40 grid size-11 place-items-center rounded-full bg-surface text-lg text-text shadow-lg ring-1 ring-border hover:bg-surface-2"
-        >
-          ↑
-        </button>
-      )}
     </div>
   );
 }
