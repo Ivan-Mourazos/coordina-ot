@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import * as pagina from "../../app/api/historial/route";
 import * as detalle from "../../app/api/historial/[pedido]/route";
+import * as clientes from "../../app/api/historial/clientes/route";
 
 test("GET página devuelve { pedidos, hasMore }", async () => {
   const res = await pagina.GET(new Request("http://x/api/historial?page=0"));
@@ -31,4 +32,19 @@ test("GET detalle con código inválido responde 400", async () => {
     params: Promise.resolve({ pedido: "xxx" }),
   });
   expect(res.status).toBe(400);
+});
+
+test("GET clientes con q<2 devuelve lista vacía", async () => {
+  const res = await clientes.GET(new Request("http://x/api/historial/clientes?q=a"));
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { clientes: string[] };
+  expect(data.clientes).toEqual([]);
+});
+
+test("GET clientes con q válida devuelve array (<=20)", async () => {
+  const res = await clientes.GET(new Request("http://x/api/historial/clientes?q=cli"));
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { clientes: string[] };
+  expect(Array.isArray(data.clientes)).toBe(true);
+  expect(data.clientes.length).toBeLessThanOrEqual(20);
 });

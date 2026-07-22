@@ -3,6 +3,7 @@ import { operarioDeEmpleado } from "./operarios";
 import { familiaDeTexto } from "./rps";
 import { OPERARIOS, PEDIDOS } from "../mock";
 import {
+  FAMILIA_KEYWORDS,
   PAGE_SIZE,
   cabeceraADetalle,
   construirFiltros,
@@ -69,6 +70,39 @@ export async function leerHistorialPagina(
   const hasMore = filas.length > PAGE_SIZE;
   const pedidos = filas.slice(0, PAGE_SIZE).map(filaAItem);
   return { pedidos, hasMore };
+}
+
+/** Autocompletar de cliente: hasta 20 nombres distintos (histórico de OT
+ *  finalizadas) que contengan `q`. Verificado en vivo: ~0.5 s (query con el
+ *  join FinOT, coherente con `leerHistorialPagina`); no hizo falta simplificar
+ *  a FACCustomer directo (esa variante devuelve duplicados sin GROUP BY). */
+export async function leerClientesHistorial(q: string): Promise<string[]> {
+  const term = q.trim();
+  if (term.length < 2) return [];
+  if (ES_MOCK) {
+    const t = term.toLowerCase();
+    return [...new Set(PEDIDOS.map((p) => p.cliente))]
+      .filter((c) => c.toLowerCase().includes(t))
+      .sort()
+      .slice(0, 20);
+  }
+  const pool = await getPool();
+  const r = await pool
+    .request()
+    .input("q", `%${term}%`)
+    .query<{ cliente: string | null }>(`
+      ;WITH FinOT AS (SELECT DISTINCT e.orden FROM dbo.tgm_estadosof_olanet e WHERE e.idestadoof=3)
+      SELECT TOP 20 cli.Description AS cliente
+      FROM FinOT f
+      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder=f.orden AND mo.CodCompany='001'
+      JOIN dbo.FACOrderLineSL l ON l.IDManufacturingOrder=mo.IDManufacturingOrder
+      JOIN dbo.FACOrderSL o ON o.IDOrder=l.IDOrder AND o.CodCompany='001'
+      JOIN dbo.FACCustomer cli ON cli.IDCustomer=o.IDCustomer
+      WHERE cli.Description LIKE @q
+      GROUP BY cli.Description
+      ORDER BY cli.Description
+    `);
+  return r.recordset.map((x) => (x.cliente ?? "").trim()).filter(Boolean);
 }
 
 interface FilaDetalle {
@@ -222,6 +256,17 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
     );
   if (f.desde?.trim()) todos = todos.filter((p) => p.finalizada >= f.desde!.trim());
   if (f.hasta?.trim()) todos = todos.filter((p) => p.finalizada < f.hasta!.trim());
+  if (f.cliente?.trim()) todos = todos.filter((p) => p.cliente === f.cliente!.trim());
+  const fam = f.familia?.trim();
+  if (fam && FAMILIA_KEYWORDS[fam]) {
+    const kws = FAMILIA_KEYWORDS[fam].map((k) => k.toLowerCase());
+    const pedidosFam = new Set(
+      PEDIDOS.filter((p) =>
+        p.ofs.some((of) => kws.some((k) => of.descripcion.toLowerCase().includes(k))),
+      ).map((p) => p.codigo),
+    );
+    todos = todos.filter((p) => pedidosFam.has(p.pedido));
+  }
   const off = Math.max(0, f.page) * PAGE_SIZE;
   const pagina = todos.slice(off, off + PAGE_SIZE + 1);
   return { pedidos: pagina.slice(0, PAGE_SIZE), hasMore: pagina.length > PAGE_SIZE };
