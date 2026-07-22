@@ -12,7 +12,22 @@ export interface HistorialFiltros {
   q?: string; // busca en código de pedido o nombre de cliente
   desde?: string; // ISO yyyy-mm-dd (inclusive)
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
+  familia?: string;
+  cliente?: string;
 }
+
+/** Palabras clave por familia visual (réplica de familiaDeTexto de rps.ts): el
+ *  filtro por familia busca estas en la descripción de las MO del pedido. Sus
+ *  claves son el catálogo de 7 familias que pintan los chips. */
+export const FAMILIA_KEYWORDS: Record<string, string[]> = {
+  TOLDO: ["TOLDO"],
+  LONA: ["LONA", "ROLLO"],
+  CARPA: ["CARPA"],
+  REMOLQUE: ["REMOLQUE"],
+  TAPIZADO: ["TAPIZ"],
+  REPARACION: ["REPARAC"],
+  SUMINISTRO: ["SUMINISTRO"],
+};
 
 export interface HistorialItem {
   pedido: string;
@@ -58,6 +73,26 @@ export function construirFiltros(f: HistorialFiltros): {
     clausulas.push("p.finalizada < @hasta");
     params.push({ nombre: "hasta", valor: f.hasta.trim() });
   }
+
+  const familia = f.familia?.trim();
+  if (familia && FAMILIA_KEYWORDS[familia]) {
+    const kws = FAMILIA_KEYWORDS[familia];
+    const likes = kws.map((_, i) => `mo2.Description LIKE @fam${i}`).join(" OR ");
+    clausulas.push(
+      `EXISTS (SELECT 1 FROM dbo.FACOrderSL o2 ` +
+        `JOIN dbo.FACOrderLineSL l2 ON l2.IDOrder = o2.IDOrder ` +
+        `JOIN dbo.CPRManufacturingOrder mo2 ON mo2.IDManufacturingOrder = l2.IDManufacturingOrder AND mo2.CodCompany = '001' ` +
+        `WHERE o2.CodOrder = p.pedido AND o2.CodCompany = '001' AND (${likes}))`,
+    );
+    kws.forEach((kw, i) => params.push({ nombre: `fam${i}`, valor: `%${kw}%` }));
+  }
+
+  const cliente = f.cliente?.trim();
+  if (cliente) {
+    clausulas.push("cli.Description = @cliente");
+    params.push({ nombre: "cliente", valor: cliente });
+  }
+
   return { clausulas, params };
 }
 

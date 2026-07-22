@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { construirFiltros, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
+import { FAMILIA_KEYWORDS } from "../historial";
 
 test("sin filtros no genera cláusulas ni params", () => {
   const r = construirFiltros({ page: 0 });
@@ -74,4 +75,30 @@ test("cabeceraADetalle tolera nulos (fecha, piezas, cliente)", () => {
   expect(d.fechaFinalizacion).toBeNull();
   expect(d.piezas).toBe(0);
   expect(d.prioridad).toBe(1);
+});
+
+test("FAMILIA_KEYWORDS tiene las 7 familias con sus keywords", () => {
+  expect(Object.keys(FAMILIA_KEYWORDS).sort()).toEqual(
+    ["CARPA", "LONA", "REMOLQUE", "REPARACION", "SUMINISTRO", "TAPIZADO", "TOLDO"],
+  );
+  expect(FAMILIA_KEYWORDS.LONA).toEqual(["LONA", "ROLLO"]);
+});
+
+test("filtro familia genera EXISTS parametrizado con las keywords de esa familia", () => {
+  const r = construirFiltros({ page: 0, familia: "LONA" });
+  expect(r.clausulas.some((c) => c.includes("EXISTS"))).toBe(true);
+  expect(r.clausulas.some((c) => c.includes("mo2.Description LIKE @fam0"))).toBe(true);
+  expect(r.clausulas.some((c) => c.includes("mo2.Description LIKE @fam1"))).toBe(true);
+  expect(r.params).toContainEqual({ nombre: "fam0", valor: "%LONA%" });
+  expect(r.params).toContainEqual({ nombre: "fam1", valor: "%ROLLO%" });
+});
+
+test("filtro familia desconocida se ignora", () => {
+  expect(construirFiltros({ page: 0, familia: "XXX" }).clausulas).toEqual([]);
+});
+
+test("filtro cliente genera igualdad exacta parametrizada", () => {
+  const r = construirFiltros({ page: 0, cliente: "MAHOU, S.A." });
+  expect(r.clausulas).toContain("cli.Description = @cliente");
+  expect(r.params).toContainEqual({ nombre: "cliente", valor: "MAHOU, S.A." });
 });
