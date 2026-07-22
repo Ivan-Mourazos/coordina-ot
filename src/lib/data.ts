@@ -25,7 +25,15 @@ export async function getTablero(): Promise<Tablero> {
   try {
     const { leerOverlay } = await import("./server/estado-db");
     const { aplicarOverlay } = await import("./server/overlay");
-    return aplicarOverlay(base, leerOverlay());
+    const conFlujo = aplicarOverlay(base, leerOverlay());
+
+    const { leerTodosIntervalos } = await import("./server/fichaje-db");
+    const { aplicarTiemposFichaje } = await import("./server/tiempos");
+    return aplicarTiemposFichaje(
+      conFlujo,
+      leerTodosIntervalos(),
+      new Date().toISOString(),
+    );
   } catch (e) {
     console.warn("[coordina] overlay no disponible:", (e as Error).message);
     return base;
