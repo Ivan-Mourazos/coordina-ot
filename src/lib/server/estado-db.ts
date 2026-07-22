@@ -42,6 +42,16 @@ function abrir(): Database.Database {
       motivo      TEXT NOT NULL,
       detalle     TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS fichaje_intervalo (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      operario_id TEXT NOT NULL,
+      of_ids      TEXT NOT NULL,
+      rol         TEXT NOT NULL,
+      inicio      TEXT NOT NULL,
+      fin         TEXT,
+      updated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_fichaje_operario ON fichaje_intervalo(operario_id);
   `);
   globalThis.__coordinaDb = db;
   return db;
@@ -123,4 +133,10 @@ export function guardarMutacion(m: Mutacion): void {
       }),
     );
   })();
+}
+
+/** Conexión compartida (misma que el flujo). La usan otros módulos de datos
+ *  propios, p. ej. fichaje-db.ts, para no duplicar apertura ni esquema. */
+export function getDb(): Database.Database {
+  return abrir();
 }
