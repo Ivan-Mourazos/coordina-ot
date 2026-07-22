@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem } from "@/lib/historial";
+import { FAMILIA_KEYWORDS } from "@/lib/historial";
+import { familiaMeta } from "@/lib/familia";
 import { HistorialDrawer } from "./HistorialDrawer";
 
 function fmtFecha(iso: string) {
@@ -23,9 +25,11 @@ export function HistorialView() {
   const [q, setQ] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [familia, setFamilia] = useState<string | null>(null);
+  const [cliente, setCliente] = useState<string | null>(null);
 
   // Clave de filtros: al cambiar, se reinicia la lista.
-  const filtrosKey = `${q}|${desde}|${hasta}`;
+  const filtrosKey = `${q}|${desde}|${hasta}|${familia ?? ""}|${cliente ?? ""}`;
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
   // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
@@ -42,6 +46,8 @@ export function HistorialView() {
         if (q.trim()) params.set("q", q.trim());
         if (desde) params.set("desde", desde);
         if (hasta) params.set("hasta", hasta);
+        if (familia) params.set("familia", familia);
+        if (cliente) params.set("cliente", cliente);
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
         const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean };
@@ -56,7 +62,7 @@ export function HistorialView() {
         if (seq === reqSeq.current) setCargando(false);
       }
     },
-    [q, desde, hasta],
+    [q, desde, hasta, familia, cliente],
   );
 
   // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
@@ -78,6 +84,18 @@ export function HistorialView() {
     io.observe(el);
     return () => io.disconnect();
   }, [hasMore, cargando, error, page, cargar]);
+
+  // Botón "volver arriba": el Historial vive en un <div className="p-5"> sin
+  // overflow propio (a diferencia de los paneles de tablero/asignar), así que
+  // el scroll real es el de la ventana — igual que el BotonArriba global de
+  // Board.tsx (bottom-4 left-4). Este vive a la derecha (bottom-6 right-6) y
+  // es específico del historial, tal como pide el spec.
+  const [mostrarArriba, setMostrarArriba] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setMostrarArriba(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -102,6 +120,26 @@ export function HistorialView() {
           <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
             className="mt-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text" />
         </label>
+        <ClienteAutocomplete value={cliente} onChange={setCliente} />
+      </div>
+
+      <div className="flex w-full flex-wrap gap-1.5">
+        {Object.keys(FAMILIA_KEYWORDS).map((fam) => {
+          const activa = familia === fam;
+          const meta = familiaMeta(fam);
+          return (
+            <button
+              key={fam}
+              onClick={() => setFamilia(activa ? null : fam)}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${
+                activa ? "text-white ring-transparent" : "text-text-muted ring-border hover:text-text"
+              }`}
+              style={activa ? { background: meta.color } : undefined}
+            >
+              {meta.label ?? fam}
+            </button>
+          );
+        })}
       </div>
 
       {error && (
@@ -129,7 +167,98 @@ export function HistorialView() {
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer pedido={abierto} onClose={() => setAbierto(null)} />
+
+      {mostrarArriba && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Volver arriba"
+          className="fixed bottom-6 right-6 z-40 grid size-11 place-items-center rounded-full bg-surface text-lg text-text shadow-lg ring-1 ring-border hover:bg-surface-2"
+        >
+          ↑
+        </button>
+      )}
     </div>
+  );
+}
+
+function ClienteAutocomplete({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (cliente: string | null) => void;
+}) {
+  const [texto, setTexto] = useState("");
+  const [sug, setSug] = useState<string[]>([]);
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    const t = texto.trim();
+    // El reset (texto < 2 chars) también se difiere al timer: llamar a
+    // setState de forma síncrona en el cuerpo del efecto dispara el lint
+    // react-hooks/set-state-in-effect (cascading renders).
+    const timer = setTimeout(async () => {
+      if (t.length < 2) {
+        setSug([]);
+        return;
+      }
+      try {
+        const r = await fetch(`/api/historial/clientes?q=${encodeURIComponent(t)}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const d = (await r.json()) as { clientes: string[] };
+        setSug(d.clientes);
+        setAbierto(true);
+      } catch {
+        /* sin sugerencias */
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [texto]);
+
+  if (value) {
+    return (
+      <label className="flex flex-col text-xs text-text-muted">
+        Cliente
+        <span className="mt-1 flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text">
+          {value}
+          <button onClick={() => onChange(null)} aria-label="Quitar cliente" className="ml-1 text-text-muted hover:text-text">
+            ✕
+          </button>
+        </span>
+      </label>
+    );
+  }
+
+  return (
+    <label className="relative flex flex-col text-xs text-text-muted">
+      Cliente
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onFocus={() => sug.length > 0 && setAbierto(true)}
+        onBlur={() => setTimeout(() => setAbierto(false), 150)}
+        placeholder="Escribe 2+ letras…"
+        className="mt-1 w-56 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+      />
+      {abierto && sug.length > 0 && (
+        <ul className="glass-pop absolute top-full z-30 mt-1 max-h-60 w-72 overflow-y-auto rounded-lg p-1">
+          {sug.map((c) => (
+            <li key={c}>
+              <button
+                onMouseDown={() => {
+                  onChange(c);
+                  setTexto("");
+                  setAbierto(false);
+                }}
+                className="block w-full truncate rounded px-2 py-1 text-left text-sm text-text hover:bg-[var(--glass-highlight)]"
+              >
+                {c}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </label>
   );
 }
 
