@@ -23,6 +23,7 @@ import { Bandeja } from "./Bandeja";
 import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
+import { VisitasCotView } from "./VisitasCotView";
 import { HistorialView } from "./HistorialView";
 import { Drawer } from "./Drawer";
 import { PedidoCardView, type Facet } from "./PedidoCard";
@@ -950,6 +951,13 @@ export function Board({
         {vista === "historial" && (
           <div className="p-5">
             <HistorialView />
+          </div>
+        )}
+
+        {/* ── VISTA VISITAS COT ── */}
+        {vista === "visitas" && (
+          <div className="p-5">
+            <VisitasCotView />
           </div>
         )}
       </div>

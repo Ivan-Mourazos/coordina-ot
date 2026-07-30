@@ -1,11 +1,17 @@
 "use client";
 
-export type Vista = "asignar" | "lista" | "revision" | "historial";
+export type Vista =
+  | "asignar"
+  | "lista"
+  | "revision"
+  | "visitas"
+  | "historial";
 
 const OPCIONES: { id: Vista; label: string }[] = [
   { id: "asignar", label: "Asignar" },
   { id: "lista", label: "Lista" },
   { id: "revision", label: "Revisión" },
+  { id: "visitas", label: "Visitas" },
   { id: "historial", label: "Historial" },
 ];
 
