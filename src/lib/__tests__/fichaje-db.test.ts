@@ -71,3 +71,43 @@ test("conserva el orden de un historial multi-intervalo con el último abierto",
   expect(leido.intervalos.map((i) => i.ofIds[0])).toEqual(["OF-1", "OF-2", "OF-3"]);
   expect(leido.intervalos[2].fin).toBeNull(); // el último sigue abierto
 });
+
+test("guardado incremental: la historia previa no se pierde al crecer la lista", () => {
+  // Simula la secuencia real de POSTs: la lista crece y solo cambia su cola.
+  let f = fichar(FICHAJE_VACIO, ["OF-A"], "plantear", "op-5", "2026-07-22T08:00:00.000Z");
+  db.guardarFichaje("op-5", f); // 1 abierto
+  f = pausar(f, "2026-07-22T08:30:00.000Z");
+  db.guardarFichaje("op-5", f); // el mismo, ya cerrado
+  f = fichar(f, ["OF-B"], "revisar", "op-5", "2026-07-22T09:00:00.000Z");
+  db.guardarFichaje("op-5", f); // + uno nuevo abierto
+
+  const leido = db.leerFichaje("op-5");
+  expect(leido.intervalos).toHaveLength(2);
+  // El primero conserva su cierre: el upsert lo actualizó, no lo duplicó.
+  expect(leido.intervalos[0]).toMatchObject({
+    ofIds: ["OF-A"], rol: "plantear", fin: "2026-07-22T08:30:00.000Z",
+  });
+  expect(leido.intervalos[1]).toMatchObject({ ofIds: ["OF-B"], rol: "revisar", fin: null });
+});
+
+test("guardado incremental: guardar dos veces lo mismo no duplica filas", () => {
+  let f = fichar(FICHAJE_VACIO, ["OF-C"], "plantear", "op-6", "2026-07-22T10:00:00.000Z");
+  f = pausar(f, "2026-07-22T10:15:00.000Z");
+  db.guardarFichaje("op-6", f);
+  db.guardarFichaje("op-6", f);
+  expect(db.leerFichaje("op-6").intervalos).toHaveLength(1);
+});
+
+test("si llegan menos intervalos de los guardados, se reescribe entero", () => {
+  let f = fichar(FICHAJE_VACIO, ["OF-D"], "plantear", "op-7", "2026-07-22T11:00:00.000Z");
+  f = pausar(f, "2026-07-22T11:10:00.000Z");
+  f = fichar(f, ["OF-E"], "plantear", "op-7", "2026-07-22T11:20:00.000Z");
+  db.guardarFichaje("op-7", f); // 2 intervalos
+
+  const corto = fichar(FICHAJE_VACIO, ["OF-F"], "revisar", "op-7", "2026-07-22T12:00:00.000Z");
+  db.guardarFichaje("op-7", corto);
+
+  const leido = db.leerFichaje("op-7");
+  expect(leido.intervalos).toHaveLength(1);
+  expect(leido.intervalos[0].ofIds).toEqual(["OF-F"]);
+});

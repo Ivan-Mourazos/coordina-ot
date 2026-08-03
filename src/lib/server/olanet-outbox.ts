@@ -87,17 +87,48 @@ function encolar(
  *  los deja en la cola en ese orden: el tiempo tiene que estar puesto antes de
  *  que la fase cambie de estado.
  *
+ *  Solo procesa lo que puede haber cambiado. `fichar`/`pausar` nunca tocan un
+ *  intervalo que no sea el último, así que todo lo anterior al primero abierto
+ *  ya está en la cola y no hace falta volver a derivarlo; sin esto, cada
+ *  pulsación reprocesaba meses de fichajes. La marca avanza en la MISMA
+ *  transacción que el encolado: si falla, no se da nada por procesado.
+ *
  *  Nunca lanza: se llama justo después de guardar el fichaje, y que la cola
  *  falle no puede impedir que alguien fiche. Devuelve cuántos eventos nuevos
  *  entraron (los repetidos se ignoran por la clave). */
-export function encolarFichaje(intervalos: readonly Intervalo[]): number {
+export function encolarFichaje(operarioId: string, intervalos: readonly Intervalo[]): number {
   try {
-    const bonos = bonosDe(intervalos, COD_RPS_POR_OPERARIO);
-    const fases = eventosFaseDe(intervalos);
-    return encolar([
+    const db = getDb();
+    const marca = db
+      .prepare("SELECT procesados FROM olanet_watermark WHERE operario_id = ?")
+      .get(operarioId) as { procesados: number } | undefined;
+
+    // Si llegan menos intervalos de los dados por procesados, la premisa no se
+    // cumple: se rederiva todo. Solo cuesta trabajo, nunca duplica (clave UNIQUE).
+    const previos = marca?.procesados ?? 0;
+    const desde = previos <= intervalos.length ? previos : 0;
+    const nuevos = intervalos.slice(desde);
+
+    // Un intervalo abierto aún puede cambiar (le falta su `fin`): se queda
+    // fuera de la marca para reprocesarlo cuando se cierre.
+    const abierto = intervalos.findIndex((iv) => iv.fin === null);
+    const procesados = abierto === -1 ? intervalos.length : abierto;
+
+    const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO);
+    const fases = eventosFaseDe(nuevos);
+    const entradas = [
       ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
       ...fases.map((e) => ({ tipo: "fase" as const, clave: claveFase(e), operarioId: e.operarioId, datos: e })),
-    ]);
+    ];
+
+    return db.transaction(() => {
+      const n = encolar(entradas);
+      db.prepare(
+        `INSERT INTO olanet_watermark (operario_id, procesados) VALUES (?, ?)
+         ON CONFLICT(operario_id) DO UPDATE SET procesados = excluded.procesados`,
+      ).run(operarioId, procesados);
+      return n;
+    })();
   } catch (e) {
     console.error("[fichaje] no se pudo encolar el fichaje:", e);
     return 0;

@@ -52,6 +52,14 @@ function abrir(): Database.Database {
       updated_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_fichaje_operario ON fichaje_intervalo(operario_id);
+    -- Cuántos intervalos de cada operario están ya enteros en la cola de
+    -- salida. Solo el ÚLTIMO intervalo puede seguir abierto y cambiar, así que
+    -- todo lo anterior es inmutable y no hace falta volver a derivarlo en cada
+    -- fichaje. Sin esto, cada pulsación reprocesaba el histórico completo.
+    CREATE TABLE IF NOT EXISTS olanet_watermark (
+      operario_id TEXT PRIMARY KEY,
+      procesados  INTEGER NOT NULL
+    );
     -- Cola de salida hacia OLANET (patrón outbox). El fichaje se cierra aquí y
     -- se empuja después: si la VPN o el servidor de OLANET no responden, no se
     -- pierde nada y se reintenta.
@@ -75,8 +83,26 @@ function abrir(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
   `);
+  prepararClaveIntervalo(db);
   globalThis.__coordinaDb = db;
   return db;
+}
+
+/** (operario, inicio) identifica un intervalo: es lo que permite guardar el
+ *  fichaje por lo alto en vez de reescribir el histórico entero (ver
+ *  guardarFichaje). El índice se crea aparte porque una BD anterior puede
+ *  tener duplicados: dos acciones en el mismo milisegundo dejan un intervalo
+ *  de duración cero junto al bueno. Se conserva el de id mayor, que es el
+ *  real; el de duración cero no aporta tiempo a ninguna OF. */
+function prepararClaveIntervalo(db: Database.Database): void {
+  db.exec(`
+    DELETE FROM fichaje_intervalo
+     WHERE id NOT IN (
+       SELECT MAX(id) FROM fichaje_intervalo GROUP BY operario_id, inicio
+     );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_fichaje_intervalo
+      ON fichaje_intervalo(operario_id, inicio);
+  `);
 }
 
 export function leerOverlay(): Overlay {

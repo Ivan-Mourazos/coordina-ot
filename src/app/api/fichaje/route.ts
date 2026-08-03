@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   // abierto ya genera su "iniciada"). encolarFichaje no lanza a propósito: que
   // la cola falle no puede impedir que alguien fiche, y los intervalos quedan
   // guardados igual para reintentarlo.
-  encolarFichaje(nuevo.intervalos);
+  encolarFichaje(operarioId, nuevo.intervalos);
   return NextResponse.json({ fichaje: nuevo });
 }
 
