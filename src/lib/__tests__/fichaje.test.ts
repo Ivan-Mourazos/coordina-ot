@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FICHAJE_VACIO, abierto, fichar, pausar, minutosOF, parseFichaje,
+  FICHAJE_VACIO, abierto, agregarPorRol, fichar, pausar, minutosOF, parseFichaje,
   ofsFichables, rolFichajeDe, esFichable,
 } from "../fichaje";
 import type { OF, Pedido } from "../types";
@@ -138,5 +138,48 @@ describe("esFichable", () => {
     expect(esFichable(of("en_curso", true))).toBe(false);
     expect(esFichable(of("anulada"))).toBe(false);
     expect(esFichable(of("aprobada"))).toBe(false);
+  });
+});
+
+describe("agregarPorRol", () => {
+  const iv = (inicio: string, fin: string | null, ofIds: string[], rol: "plantear" | "revisar", op = "op1") =>
+    ({ inicio, fin, ofIds, rol, operarioId: op });
+
+  it("separa planteo de revisión en la misma OF", () => {
+    const m = agregarPorRol({
+      intervalos: [
+        iv(T0, T1, ["of1"], "plantear"),      // 30 min
+        iv(T1, T2, ["of1"], "revisar", "op2"), // 30 min
+      ],
+    });
+    expect(m.get("of1")).toMatchObject({ planteoMin: 30, revisionMin: 30 });
+  });
+
+  it("guarda quién hizo cada rol, sin repetir", () => {
+    const m = agregarPorRol({
+      intervalos: [
+        iv(T0, T1, ["of1"], "plantear", "ana"),
+        iv(T1, T2, ["of1"], "plantear", "ana"),
+        iv(T1, T2, ["of1"], "revisar", "luis"),
+      ],
+    });
+    expect(m.get("of1")!.operarios).toEqual({ plantear: ["ana"], revisar: ["luis"] });
+  });
+
+  it("reparte el tramo compartido entre sus OFs, igual que minutosOF", () => {
+    const intervalos = [iv(T0, T1, ["of1", "of2"], "plantear")];
+    const m = agregarPorRol({ intervalos });
+    expect(m.get("of1")!.planteoMin).toBe(15);
+    expect(m.get("of1")!.planteoMin).toBe(minutosOF({ intervalos }, "of1"));
+  });
+
+  it("un intervalo abierto no cuenta sin `ahora`, y cuenta con él", () => {
+    const intervalos = [iv(T0, null, ["of1"], "plantear")];
+    expect(agregarPorRol({ intervalos }).size).toBe(0);
+    expect(agregarPorRol({ intervalos }, { ahora: T1 }).get("of1")!.planteoMin).toBe(30);
+  });
+
+  it("una OF sin fichar no aparece: no se sabe su desglose, no es cero", () => {
+    expect(agregarPorRol({ intervalos: [iv(T0, T1, ["of1"], "plantear")] }).has("of2")).toBe(false);
   });
 });

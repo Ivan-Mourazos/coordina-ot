@@ -1,6 +1,9 @@
 import { getPool } from "./db";
+import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
 import { familiaDeTexto } from "./rps";
+import { partirOfId } from "../bonos";
+import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
 import {
   FAMILIA_KEYWORDS,
@@ -161,7 +164,61 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     }
     porOF.set(codigo, of);
   }
-  return [...porOF.values()];
+  return anadirDesgloseRol([...porOF.values()]);
+}
+
+/** Añade a cada OF el desglose planteo/revisión de lo fichado en CoordinaOT.
+ *
+ *  RPS agrupa por ORDEN de fabricación y no sabe nada de roles; nuestros
+ *  intervalos van por OF+tarea ("orden:codTarea"), así que se suman las tareas
+ *  de la misma orden. Las OFs sin intervalos se quedan sin `rol`: no se sabe
+ *  el desglose, que no es lo mismo que decir que la revisión fue cero. */
+function anadirDesgloseRol(ofs: HistorialOF[]): HistorialOF[] {
+  if (ofs.length === 0) return ofs;
+
+  let porOfId;
+  try {
+    porOfId = agregarPorRol({ intervalos: leerTodosIntervalos() });
+  } catch (e) {
+    // El historial es de solo lectura y vive de RPS: si nuestra BD local falla,
+    // se sirve sin desglose antes que devolver un error.
+    console.error("[historial] no se pudo leer el fichaje local:", e);
+    return ofs;
+  }
+  if (porOfId.size === 0) return ofs;
+
+  const porOrden = new Map<string, { planteoMin: number; revisionMin: number; plantear: string[]; revisar: string[] }>();
+  for (const [ofId, t] of porOfId) {
+    const partes = partirOfId(ofId);
+    if (!partes) continue;
+    const acc = porOrden.get(partes.of) ?? {
+      planteoMin: 0,
+      revisionMin: 0,
+      plantear: [] as string[],
+      revisar: [] as string[],
+    };
+    acc.planteoMin += t.planteoMin;
+    acc.revisionMin += t.revisionMin;
+    for (const rol of ["plantear", "revisar"] as const) {
+      for (const id of t.operarios[rol]) if (!acc[rol].includes(id)) acc[rol].push(id);
+    }
+    porOrden.set(partes.of, acc);
+  }
+
+  const nombre = (id: string) => NOMBRE_POR_OPERARIO.get(id) ?? id;
+  return ofs.map((of) => {
+    const t = porOrden.get(of.codigo);
+    if (!t) return of;
+    return {
+      ...of,
+      rol: {
+        planteoMin: t.planteoMin,
+        revisionMin: t.revisionMin,
+        quienPlanteo: t.plantear.map(nombre),
+        quienReviso: t.revisar.map(nombre),
+      },
+    };
+  });
 }
 
 /** Detalle completo del pedido: cabecera (cliente, negocio, ciudad, prioridad,
@@ -275,11 +332,18 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
 function detalleMock(pedido: string): HistorialOF[] {
   const p = PEDIDOS.find((x) => x.codigo === pedido);
   if (!p) return [];
+  const nombre = (id: string | null) => (id ? [NOMBRE_POR_OPERARIO.get(id) ?? id] : []);
   return p.ofs.map((of) => ({
     codigo: of.codigo,
     descripcion: of.descripcion,
     tiempoImputadoMin: of.tiempoPlanteoMin + of.tiempoRevisionMin,
     quien: [],
+    rol: {
+      planteoMin: of.tiempoPlanteoMin,
+      revisionMin: of.tiempoRevisionMin,
+      quienPlanteo: nombre(of.autorId),
+      quienReviso: nombre(of.revisorId),
+    },
   }));
 }
 

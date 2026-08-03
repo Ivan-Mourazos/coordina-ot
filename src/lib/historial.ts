@@ -41,6 +41,17 @@ export interface HistorialOF {
   descripcion: string;
   tiempoImputadoMin: number;
   quien: string[]; // nombres (operario mapeado o código de empleado)
+
+  /** Desglose planteo/revisión. Solo existe para lo fichado en CoordinaOT: RPS
+   *  no tiene tarea de revisión, así que de sus imputaciones no se puede
+   *  deducir el rol. Ausente = no se sabe (OF anterior al fichaje en
+   *  CoordinaOT), que no es lo mismo que cero. */
+  rol?: {
+    planteoMin: number;
+    revisionMin: number;
+    quienPlanteo: string[]; // nombres
+    quienReviso: string[];
+  };
 }
 
 /** Fila cruda de la query de página (antes de mapear). */

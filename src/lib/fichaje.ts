@@ -108,6 +108,44 @@ export function minutosOF(
   return total;
 }
 
+export interface TiemposRolOF {
+  planteoMin: number;
+  revisionMin: number;
+  /** Ids de operario que han fichado en cada rol, en orden de aparición. */
+  operarios: { plantear: string[]; revisar: string[] };
+}
+
+/** Reparte TODOS los intervalos por OF y rol de una pasada.
+ *
+ *  Es el mismo cálculo que `minutosOF`, pero devolviendo el desglose completo:
+ *  RPS no distingue planteo de revisión (no existe tarea de revisión en la ruta
+ *  de OT), así que esta es la ÚNICA fuente de esa separación. El historial la
+ *  necesita para no colapsar los dos roles en un solo número al pasar el pedido
+ *  a Producción. */
+export function agregarPorRol(
+  f: Fichaje,
+  opts: { ahora?: string } = {},
+): Map<string, TiemposRolOF> {
+  const porOF = new Map<string, TiemposRolOF>();
+  for (const iv of f.intervalos) {
+    const fin = iv.fin ?? opts.ahora;
+    if (!fin || iv.ofIds.length === 0) continue; // abierto y sin `ahora`: no cuenta
+    const minutos = (Date.parse(fin) - Date.parse(iv.inicio)) / 60000 / iv.ofIds.length;
+    for (const ofId of iv.ofIds) {
+      let e = porOF.get(ofId);
+      if (!e) {
+        e = { planteoMin: 0, revisionMin: 0, operarios: { plantear: [], revisar: [] } };
+        porOF.set(ofId, e);
+      }
+      if (iv.rol === "plantear") e.planteoMin += minutos;
+      else e.revisionMin += minutos;
+      const quienes = e.operarios[iv.rol];
+      if (!quienes.includes(iv.operarioId)) quienes.push(iv.operarioId);
+    }
+  }
+  return porOF;
+}
+
 /** Rol con el que se ficharía esta OF según su estado: en revisión (o lista
  *  para revisar) se ficha como revisor; en cualquier otro caso, como autor. */
 export function rolFichajeDe(of: OF): Rol {

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialPedidoDetalle } from "@/lib/historial";
-import { PRIORIDAD, fmtMin } from "@/lib/estado";
+import type { Rol } from "@/lib/types";
+import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 
 function fmtFecha(iso: string | null) {
@@ -185,6 +186,23 @@ export function HistorialDrawer({
                     <p className="mt-1 text-[11px] text-text-muted">
                       {of.quien.length > 0 ? of.quien.join(", ") : "—"}
                     </p>
+                    {/* Desglose por rol: solo lo fichado en CoordinaOT. RPS no
+                        tiene tarea de revisión, así que las OF anteriores al
+                        fichaje aquí no lo traen y se quedan con el total. */}
+                    {of.rol && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <RolChip
+                          rol="plantear"
+                          min={of.rol.planteoMin}
+                          quien={of.rol.quienPlanteo}
+                        />
+                        <RolChip
+                          rol="revisar"
+                          min={of.rol.revisionMin}
+                          quien={of.rol.quienReviso}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -212,6 +230,22 @@ export function HistorialDrawer({
         </div>
       )}
     </div>
+  );
+}
+
+/** Chip de tiempo por rol. Mismo código de color que en todo el tablero
+ *  (plantear = esmeralda, revisar = violeta), tomado de ROL. */
+function RolChip({ rol, min, quien }: { rol: Rol; min: number; quien: string[] }) {
+  const meta = ROL[rol];
+  const etiqueta = rol === "plantear" ? "Planteo" : "Revisión";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.chip}`}
+      title={quien.length > 0 ? `${etiqueta}: ${quien.join(", ")}` : `Sin ${etiqueta.toLowerCase()} fichado`}
+    >
+      {etiqueta} {fmtMin(min)}
+      {quien.length > 0 && <span className="font-normal opacity-80">· {quien.join(", ")}</span>}
+    </span>
   );
 }
 
