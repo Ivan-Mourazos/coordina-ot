@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardarMutacion } from "@/lib/server/estado-db";
+import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
@@ -12,6 +13,7 @@ interface Body {
   motivo?: string;
   cambiosOF?: CambioOF[];
   completarPedidoId?: string;
+  ofIdsPedido?: string[];
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -45,12 +47,27 @@ export async function POST(req: Request) {
   if (cambios.length === 0 && !body.completarPedidoId)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
 
+  const operarioId = typeof body.operarioId === "string" ? body.operarioId : null;
+  const completarPedidoId =
+    typeof body.completarPedidoId === "string" ? body.completarPedidoId : undefined;
+
   guardarMutacion({
-    operarioId: typeof body.operarioId === "string" ? body.operarioId : null,
+    operarioId,
     motivo: body.motivo,
     cambiosOF: cambios,
-    completarPedidoId:
-      typeof body.completarPedidoId === "string" ? body.completarPedidoId : undefined,
+    completarPedidoId,
   });
+
+  // Pasar el pedido a Producción es lo que da las fases por terminadas en
+  // OLANET (IdEstadoOF = 3): el fichaje por sí solo nunca finaliza nada. Va
+  // después de guardar y sin bloquear la respuesta — encolarFinalizacion no
+  // lanza, y si algo falla el pedido queda "interrumpido" en vez de
+  // "finalizado", que se ve y se puede volver a pasar.
+  if (completarPedidoId && operarioId) {
+    const ofIds = Array.isArray(body.ofIdsPedido)
+      ? body.ofIdsPedido.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : [];
+    encolarFinalizacion(ofIds, operarioId);
+  }
   return NextResponse.json({ ok: true });
 }

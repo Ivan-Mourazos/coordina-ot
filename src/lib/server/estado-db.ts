@@ -54,19 +54,26 @@ function abrir(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_fichaje_operario ON fichaje_intervalo(operario_id);
     -- Cola de salida hacia OLANET (patrón outbox). El fichaje se cierra aquí y
     -- se empuja después: si la VPN o el servidor de OLANET no responden, no se
-    -- pierde nada y se reintenta. 'clave' es la clave natural del sub-tramo
-    -- (of|numope|operario|dia|segundo), y su UNIQUE es lo que hace que volver a
-    -- derivar los mismos intervalos no duplique bonos.
-    CREATE TABLE IF NOT EXISTS bono_pendiente (
+    -- pierde nada y se reintenta.
+    --
+    -- Los dos tipos de evento ('bono' y 'fase') comparten tabla A PROPÓSITO:
+    -- el orden importa. Las líneas de tiempo tienen que estar puestas antes de
+    -- marcar la fase como finalizada, porque es ese estado el que dispara el
+    -- traspaso a RPS; en dos colas separadas no habría forma de garantizarlo.
+    --
+    -- 'clave' es la clave natural del evento y su UNIQUE es lo que hace que
+    -- volver a derivar los mismos intervalos no duplique nada.
+    CREATE TABLE IF NOT EXISTS olanet_pendiente (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo        TEXT NOT NULL,
       clave       TEXT NOT NULL UNIQUE,
       operario_id TEXT NOT NULL,
-      fila        TEXT NOT NULL,
+      datos       TEXT NOT NULL,
       creado_at   TEXT NOT NULL,
       enviado_at  TEXT,
       error       TEXT
     );
-    CREATE INDEX IF NOT EXISTS idx_bono_pendiente ON bono_pendiente(enviado_at, id);
+    CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
   `);
   globalThis.__coordinaDb = db;
   return db;

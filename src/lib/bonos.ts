@@ -117,7 +117,7 @@ function siguienteMedianoche(ms: number): number {
 
 /** El id de OF de CoordinaOT es "orden:codTarea" (ver rps.ts). `numope` es el
  *  codTarea; sin él el bono no se puede imputar a ninguna tarea de RPS. */
-function partirOfId(ofId: string): { of: string; numope: string } | null {
+export function partirOfId(ofId: string): { of: string; numope: string } | null {
   const i = ofId.indexOf(":");
   if (i <= 0) return null;
   const of = ofId.slice(0, i).trim();

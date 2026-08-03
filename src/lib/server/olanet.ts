@@ -1,5 +1,6 @@
 import sql from "mssql";
 import type { FilaBono } from "../bonos";
+import type { EstadoFase } from "../fases";
 import { getPoolOlanet } from "./db";
 
 // ─── Escritura del fichaje en OLANET ─────────────────────────────────────────
@@ -13,14 +14,12 @@ import { getPoolOlanet } from "./db";
 //     SQL_Latin1_General_CP1_CI_AS. Cualquier comparación que cruce las dos
 //     necesita COLLATE explícito. Aquí no cruzamos: se compara con parámetros.
 
-/** Estado de la fase al dejar de fichar (columna IdEstadoOF). Valores de IT.
- *  En la tabla real conviven además 0 (fase cargada, sin tocar) y 4, que es el
- *  más común con diferencia (1,25 M filas) y lo pone el proceso que traspasa a
- *  RPS: nosotros no escribimos ninguno de los dos. */
-export const ESTADO_FASE = { interrumpida: 2, finalizada: 3 } as const;
-export type EstadoFase = (typeof ESTADO_FASE)[keyof typeof ESTADO_FASE];
+// Los valores de IdEstadoOF y su ciclo viven en lib/fases.ts. En scg_Fases
+// conviven además 0 (fase cargada, sin tocar) y 4, el más común con diferencia
+// (1,25 M filas), que pone el proceso que traspasa a RPS: nosotros no
+// escribimos ninguno de los dos.
 
-/** Valor de `traspasado` en sch_FasesMov según IT. */
+/** Valor de `traspasado` en sch_FasesMov según IT, confirmado en filas reales. */
 const FASESMOV_TRASPASADO = 2;
 
 /** `IdBolMaqAct` no existe fuera del terminal de OLANET. IT indicó ponerlo a 0

@@ -417,6 +417,10 @@ export function Board({
         observacion: string | null;
       }>;
       completarPedidoId?: string;
+      /** OFs del pedido que se pasa a Producción: son las que se marcan como
+       *  finalizadas en OLANET. Van explícitas porque el servidor no sabe qué
+       *  OFs tiene un pedido sin volver a la vista de RPS, que tarda 7-15 s. */
+      ofIdsPedido?: string[];
     }) => {
       fetch("/api/estado", {
         method: "POST",
@@ -702,13 +706,17 @@ export function Board({
 
   const completarPedido = useCallback(
     (pedidoId: string) => {
+      // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
+      const ofIdsPedido = (pedidos.find((p) => p.id === pedidoId)?.ofs ?? [])
+        .filter((of) => of.estado !== "anulada")
+        .map((of) => of.id);
       setPedidosSync((prev) =>
         prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
       );
-      persistir({ motivo: "completar", completarPedidoId: pedidoId });
+      persistir({ motivo: "completar", completarPedidoId: pedidoId, ofIdsPedido });
       setOpenId(null);
     },
-    [setPedidosSync, persistir],
+    [pedidos, setPedidosSync, persistir],
   );
 
   const onDragStart = useCallback((e: DragStartEvent) => {
