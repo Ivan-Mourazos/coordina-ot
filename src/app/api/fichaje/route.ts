@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leerFichaje, guardarFichaje } from "@/lib/server/fichaje-db";
+import { encolarBonos } from "@/lib/server/bonos-outbox";
 import { fichar, pausar } from "@/lib/fichaje";
 import type { Rol } from "@/lib/types";
 
@@ -50,6 +51,10 @@ export async function POST(req: Request) {
   }
 
   guardarFichaje(operarioId, nuevo);
+  // Los intervalos ya cerrados pasan a la cola de salida hacia OLANET.
+  // encolarBonos no lanza a propósito: que la cola falle no puede impedir que
+  // alguien fiche, y los intervalos siguen guardados para reintentarlo.
+  encolarBonos(nuevo.intervalos);
   return NextResponse.json({ fichaje: nuevo });
 }
 
