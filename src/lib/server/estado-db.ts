@@ -79,7 +79,8 @@ function abrir(): Database.Database {
       datos       TEXT NOT NULL,
       creado_at   TEXT NOT NULL,
       enviado_at  TEXT,
-      error       TEXT
+      error       TEXT,
+      intentos    INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
   `);

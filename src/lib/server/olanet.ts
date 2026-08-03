@@ -90,11 +90,12 @@ export async function insertarBono(
     );
 }
 
-/** Cierra una fase: marca el estado en scg_Fases y deja el movimiento en
- *  sch_FasesMov. Las dos van juntas en una transacción — una fase marcada como
+/** Mueve una fase de estado: lo marca en scg_Fases y deja el movimiento en
+ *  sch_FasesMov. Vale para los tres estados (iniciar, interrumpir, finalizar).
+ *  Las dos escrituras van juntas en una transacción — una fase marcada como
  *  finalizada sin su movimiento deja el histórico incoherente, y desde
  *  scg_Fases es desde donde los tiempos suben solos a RPS. */
-export async function cerrarFase(opts: {
+export async function moverFase(opts: {
   idBoletin: string;
   estado: EstadoFase;
   operarioRps: string;
@@ -131,57 +132,47 @@ export async function cerrarFase(opts: {
   }
 }
 
-/** Refresca la foto de "quién está fichando ahora". La tabla no tiene clave
- *  primaria, así que se borra y se reinserta la fila de ese operario en esa
- *  OF/fase dentro de una transacción. */
-export async function refrescarFichajeEnCurso(opts: {
+export interface FilaEnCurso {
   of: string;
   fase: number;
   minutos: number;
-  maquina: string;
   operarioRps: string;
-}): Promise<void> {
+}
+
+/** Deja en `tgm_fichajes_olanet_ot` la foto de quién está fichando AHORA en
+ *  Oficina Técnica. Es lo que ve Producción en tiempo real.
+ *
+ *  La tabla no tiene clave primaria y es COMPARTIDA con el olanet de taller,
+ *  así que el borrado va acotado a nuestra máquina: las filas de producción no
+ *  se tocan. Se hace en una transacción para que nadie lea la tabla a medias
+ *  y crea que no ficha nadie. */
+export async function sincronizarFichajeEnCurso(
+  filas: readonly FilaEnCurso[],
+  maquina: string,
+): Promise<void> {
   const pool = await getPoolOlanet();
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
-    const filtro = "orden = @of AND fase = @fase AND codoperario = @operario";
     await new sql.Request(tx)
-      .input("of", sql.VarChar(50), opts.of)
-      .input("fase", sql.Int, opts.fase)
-      .input("operario", sql.VarChar(50), opts.operarioRps)
-      .query(`DELETE FROM tgm_fichajes_olanet_ot WHERE ${filtro}`);
+      .input("maquina", sql.VarChar(50), maquina)
+      .query("DELETE FROM tgm_fichajes_olanet_ot WHERE maquina = @maquina");
 
-    await new sql.Request(tx)
-      .input("of", sql.VarChar(50), opts.of)
-      .input("fase", sql.Int, opts.fase)
-      .input("tiempo", sql.Int, Math.round(opts.minutos))
-      .input("maquina", sql.VarChar(50), opts.maquina)
-      .input("operario", sql.VarChar(50), opts.operarioRps)
-      .query(
-        `INSERT INTO tgm_fichajes_olanet_ot (orden, fase, tiempo, maquina, codoperario)
-         VALUES (@of, @fase, @tiempo, @maquina, @operario)`,
-      );
+    for (const f of filas) {
+      await new sql.Request(tx)
+        .input("of", sql.VarChar(50), f.of)
+        .input("fase", sql.Int, f.fase)
+        .input("tiempo", sql.Int, Math.round(f.minutos))
+        .input("maquina", sql.VarChar(50), maquina)
+        .input("operario", sql.VarChar(50), f.operarioRps)
+        .query(
+          `INSERT INTO tgm_fichajes_olanet_ot (orden, fase, tiempo, maquina, codoperario)
+           VALUES (@of, @fase, @tiempo, @maquina, @operario)`,
+        );
+    }
     await tx.commit();
   } catch (e) {
     await tx.rollback();
     throw e;
   }
-}
-
-/** Quita al operario de la foto de fichaje en curso (al pausar o cerrar). */
-export async function borrarFichajeEnCurso(opts: {
-  of: string;
-  fase: number;
-  operarioRps: string;
-}): Promise<void> {
-  const pool = await getPoolOlanet();
-  await pool
-    .request()
-    .input("of", sql.VarChar(50), opts.of)
-    .input("fase", sql.Int, opts.fase)
-    .input("operario", sql.VarChar(50), opts.operarioRps)
-    .query(
-      "DELETE FROM tgm_fichajes_olanet_ot WHERE orden = @of AND fase = @fase AND codoperario = @operario",
-    );
 }

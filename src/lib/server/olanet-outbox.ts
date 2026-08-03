@@ -23,9 +23,17 @@ export function modoFichaje(): ModoFichaje {
   return process.env.FICHAJE_OLANET === "activo" ? "activo" : "sombra";
 }
 
+interface Comun {
+  id: number;
+  operarioId: string;
+  enviadoAt: string | null;
+  error: string | null;
+  intentos: number;
+}
+
 export type Pendiente =
-  | { id: number; tipo: "bono"; operarioId: string; datos: FilaBono; enviadoAt: string | null; error: string | null }
-  | { id: number; tipo: "fase"; operarioId: string; datos: EventoFase; enviadoAt: string | null; error: string | null };
+  | (Comun & { tipo: "bono"; datos: FilaBono })
+  | (Comun & { tipo: "fase"; datos: EventoFase });
 
 interface FilaCola {
   id: number;
@@ -34,6 +42,7 @@ interface FilaCola {
   datos: string;
   enviado_at: string | null;
   error: string | null;
+  intentos: number;
 }
 
 function claveBono(f: FilaBono): string {
@@ -61,6 +70,7 @@ function aPendiente(fila: FilaCola): Pendiente | null {
     datos,
     enviadoAt: fila.enviado_at,
     error: fila.error,
+    intentos: fila.intentos,
   } as Pendiente;
 }
 
@@ -154,7 +164,8 @@ export function encolarFinalizacion(
   }
 }
 
-const SELECT = `SELECT id, tipo, operario_id, datos, enviado_at, error FROM olanet_pendiente`;
+const SELECT = `SELECT id, tipo, operario_id, datos, enviado_at, error, intentos
+                FROM olanet_pendiente`;
 
 /** Eventos aún no enviados, en orden de llegada. El orden es el contrato: no
  *  reordenar ni paralelizar el envío. */
@@ -186,6 +197,21 @@ export function marcarEnviados(ids: readonly number[]): void {
 /** Deja constancia del fallo sin marcar como enviado: se reintentará. */
 export function marcarError(id: number, mensaje: string): void {
   getDb()
-    .prepare("UPDATE olanet_pendiente SET error = ? WHERE id = ?")
+    .prepare(
+      "UPDATE olanet_pendiente SET error = ?, intentos = intentos + 1 WHERE id = ?",
+    )
     .run(mensaje.slice(0, 1000), id);
+}
+
+/** Saca un evento de la cola SIN haberlo escrito en OLANET, conservando el
+ *  motivo. Es para lo que no se va a arreglar solo (una fase que OLANET no
+ *  tiene, un operario sin código): el orden de la cola es un contrato, así que
+ *  un evento imposible no puede quedarse bloqueando a los que van detrás. El
+ *  error queda visible en /api/fichaje/cola. */
+export function descartar(id: number, motivo: string): void {
+  getDb()
+    .prepare(
+      "UPDATE olanet_pendiente SET enviado_at = ?, error = ? WHERE id = ?",
+    )
+    .run(new Date().toISOString(), `DESCARTADO: ${motivo}`.slice(0, 1000), id);
 }
