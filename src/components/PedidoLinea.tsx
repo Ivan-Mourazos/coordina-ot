@@ -152,7 +152,7 @@ export function PedidoLinea({
             <button
               onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
               title="Empezar a fichar en este pedido"
-              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus:opacity-100 group-hover:opacity-100"
+              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted invisible transition-[visibility] hover:bg-[var(--glass-highlight)] hover:text-text focus-visible:visible group-hover:visible"
             >
               Fichar
             </button>
@@ -167,7 +167,7 @@ export function PedidoLinea({
                 : onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)
             }
             title={accion.label}
-            className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 transition-opacity hover:bg-brand-600 focus:opacity-100 group-hover:opacity-100"
+            className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white invisible transition-[visibility] hover:bg-brand-600 focus-visible:visible group-hover:visible"
           >
             {accion.label}
           </button>

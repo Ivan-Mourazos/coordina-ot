@@ -108,7 +108,7 @@ export interface OF {
 /** Pedido = lo que se escanea (un parte). Code "AR…". Contiene sus OF. */
 export interface Pedido {
   id: string;
-  codigo: string; // p.ej. "AR2605555"
+  codigo: string; // p.ej. "AR.26.03376"
   cliente: string;
   situacion: Situacion;
   fechaSolicitud: string; // ISO yyyy-mm-dd

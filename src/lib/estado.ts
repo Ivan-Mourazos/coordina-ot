@@ -132,12 +132,24 @@ export function estadoRepresentativo(ofs: OF[]): EstadoOF {
   return best;
 }
 
+/** Duración en horas, minutos y segundos, omitiendo lo que valga cero.
+ *
+ *  Los segundos solo aparecen si los hay, así que un tiempo estimado en
+ *  minutos redondos («1h 55m») se lee limpio, y un fichaje recién empezado
+ *  («45s») da señal de que está corriendo en vez de un «0h» desconcertante.
+ *
+ *  Se redondea a segundos PRIMERO: los minutos de un fichaje en curso se
+ *  derivan de milisegundos y llegan fraccionarios; sin esto salía en pantalla
+ *  «5166666666666m». */
 export function fmtMin(min: number): string {
-  // Redondear PRIMERO: los minutos de un fichaje en curso vienen fraccionarios
-  // (se derivan de milisegundos), y sin esto salía "5166666666666m" en pantalla.
-  const total = Math.round(min);
-  if (!total) return "0h";
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+  const totalSeg = Math.round(min * 60);
+  if (totalSeg <= 0) return "0m";
+  const h = Math.floor(totalSeg / 3600);
+  const m = Math.floor((totalSeg % 3600) / 60);
+  const s = totalSeg % 60;
+  const partes: string[] = [];
+  if (h) partes.push(`${h}h`);
+  if (m) partes.push(`${m}m`);
+  if (s) partes.push(`${s}s`);
+  return partes.join(" ");
 }
