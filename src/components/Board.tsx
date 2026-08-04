@@ -19,6 +19,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher, type Vista } from "./ViewSwitcher";
 import { FilterBar, type Filtros } from "./FilterBar";
 import { Zona } from "./Zona";
+import { ZonaPersonal } from "./ZonaPersonal";
 import { Bandeja } from "./Bandeja";
 import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
@@ -171,6 +172,9 @@ export function Board({
     document.body.style.cursor = "ns-resize";
     document.body.style.userSelect = "none";
   }, [panelTopH]);
+
+  // Fase cuyo "+N más" está desplegado en mi zona (null = ninguno).
+  const [faseAbierta, setFaseAbierta] = useState<string | null>(null);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleExpanded = useCallback((id: string) => {
@@ -817,26 +821,19 @@ export function Board({
           <>
             {!superiorColapsado && (
             <>
-            {/* zona personal: el drag estira/encoge; el panel llena el hueco
-                pegado al equipo. Con la zona contraída (handle iOS) la altura
-                pasa a auto: nada de hueco muerto, todo sube pegado. */}
-            <main
-              className="flex shrink-0 flex-col overflow-y-auto p-4 pb-2 scroll-thin"
-              style={zonaColapsada ? undefined : { height: panelTopH, minHeight: 120 }}
-            >
-              <Zona
-                className="min-h-0 flex-1"
-                onColapsada={setZonaColapsada}
+            {/* Zona personal: mide lo que necesita. Sin altura fija ni scroll
+                interno — las fases vacías ya no reservan sitio, así que el alto
+                sale del contenido y lo que sobra se lo queda la bandeja. */}
+            <main className="flex shrink-0 flex-col p-4 pb-2">
+              <ZonaPersonal
                 operario={yo}
-                operarios={operarios}
                 facets={facetsDe(yo.id)}
                 live={liveByOp.get(yo.id) ?? null}
-                soyYo
                 onOpen={openFacet}
+                onVerTodos={setFaseAbierta}
                 onAccion={ejecutarAccion}
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
-                setRevisor={setRevisor}
                 completarPedido={completarPedido}
               />
             </main>
