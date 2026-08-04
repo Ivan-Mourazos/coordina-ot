@@ -1,4 +1,4 @@
-import type { OF, Pedido, Rol } from "./types";
+import type { OF, Rol } from "./types";
 
 // ─── Motor de fichaje por intervalos ─────────────────────────────────────────
 // Funciones puras. Regla clave: cambiar el conjunto de OFs de un fichaje que
@@ -174,7 +174,9 @@ export function motivoNoFichable(of: OF): string | null {
   return null;
 }
 
-/** OFs de un pedido en las que se puede fichar. */
-export function ofsFichables(p: Pedido): OF[] {
+/** OFs en las que se puede fichar. Acepta un `Pedido` o cualquier objeto con
+ *  forma equivalente (p. ej. `ConOFs` del tablero): la regla es la misma,
+ *  única implementación reutilizada por lib/accion-pedido.ts. */
+export function ofsFichables(p: { ofs: OF[] }): OF[] {
   return p.ofs.filter(esFichable);
 }

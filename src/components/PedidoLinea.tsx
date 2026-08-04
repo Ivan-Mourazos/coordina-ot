@@ -4,7 +4,6 @@ import type { Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { FASES, type Fase } from "@/lib/fases-tablero";
 import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
-import { rolFichajeDe } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
 import type { AccionOF } from "@/lib/acciones";
 
@@ -12,8 +11,9 @@ import type { AccionOF } from "@/lib/acciones";
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
  *
  *  Las acciones se revelan al pasar el ratón para no gastar sitio en reposo.
- *  La excepción es la pausa del pedido que se está fichando: está siempre
- *  visible porque es la que más se pulsa y esconderla obligaría a buscarla.
+ *  Dos excepciones quedan siempre visibles: la pausa del pedido que se está
+ *  fichando (es la que más se pulsa, esconderla obligaría a buscarla) y el
+ *  botón «Pasar» en "listo para pasar" (es la acción esperada de esa fase).
  *
  *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
  *  pintan en rojo: la prioridad tiene que verse sin leer. */
@@ -42,7 +42,14 @@ export function PedidoLinea({
   const descripcion = ofs[0]?.descripcion ?? "";
 
   const accion = accionPrimariaDePedido(facet);
-  const fichables = ofsFichablesDe(facet);
+  // El motor de fichaje solo admite un rol corriendo a la vez (ver el
+  // comentario de ofsFichablesDe): en "esperandoRevision" lo que se ficha es
+  // la revisión; en el resto de fases (planteando, sinEmpezar) es el
+  // planteo. Las OFs del otro rol que también sean fichables (un pedido
+  // "planteando" puede tener a la vez una OF en_curso y otra por_revisar) se
+  // fichan desde el detalle, una a una — igual que resuelve PedidoChip.
+  const rolFichar: Rol = fase === "esperandoRevision" ? "revisar" : "plantear";
+  const fichables = ofsFichablesDe(facet, rolFichar);
 
   return (
     <div
@@ -82,7 +89,7 @@ export function PedidoLinea({
         ) : (
           fichables.length > 0 && (
             <button
-              onClick={() => onFichar(fichables.map((o) => o.id), rolFichajeDe(fichables[0]))}
+              onClick={() => onFichar(fichables.map((o) => o.id), rolFichar)}
               title="Empezar a fichar en este pedido"
               className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus:opacity-100 group-hover:opacity-100"
             >

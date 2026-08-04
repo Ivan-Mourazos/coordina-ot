@@ -60,6 +60,10 @@ describe("faseDeOF", () => {
     expect(faseDeOF(of({ estado: "pendiente", tiempoPlanteoMin: 12 }))).toBe("planteando");
     expect(faseDeOF(of({ estado: "pendiente", fichandoRol: "plantear" }))).toBe("planteando");
   });
+  it("anulada → sin empezar, aunque conserve tiempo fichado: no es trabajo activo", () => {
+    expect(faseDeOF(of({ estado: "anulada" }))).toBe("sinEmpezar");
+    expect(faseDeOF(of({ estado: "anulada", tiempoPlanteoMin: 30 }))).toBe("sinEmpezar");
+  });
 });
 
 describe("faseDePedido", () => {

@@ -1,7 +1,7 @@
 import { accionesDisponibles, type AccionDef, type AccionOF } from "./acciones";
-import { esFichable } from "./fichaje";
-import { faseDePedido, type ConOFs } from "./fases-tablero";
-import type { OF } from "./types";
+import { ofsFichables, rolFichajeDe } from "./fichaje";
+import { faseDePedido, type ConOFs, type Fase } from "./fases-tablero";
+import type { OF, Rol } from "./types";
 
 // ─── Qué acción ofrecer en la fila de un pedido ──────────────────────────────
 // Un pedido tiene N OFs y cada una tiene sus acciones. La fila solo tiene sitio
@@ -14,11 +14,16 @@ import type { OF } from "./types";
 /** Acción primaria de cada fase. `null` = esa fase no tiene botón propio en la
  *  fila: "esperando revisión" es trabajo de otro, y "listo para pasar" tiene su
  *  propio botón de pasar el pedido entero. */
-const PRIMARIA_POR_FASE: Record<string, AccionOF[]> = {
+const PRIMARIA_POR_FASE: Record<Fase, AccionOF[]> = {
   sinEmpezar: ["empezar_planteo"],
   // Devuelta y en curso caen las dos en "planteando": si viene devuelta hay que
   // retomarla, y si ya está en curso lo que toca es mandarla a revisión.
-  planteando: ["retomar", "terminar_planteo"],
+  // "empezar_planteo" va al final: cubre la OF que "deshacer_empezar" devolvió
+  // a pendiente conservando el tiempo ya fichado (faseDeOF la clasifica como
+  // planteando por ese tiempo, aunque su estado real vuelva a ser pendiente).
+  // Va después de las otras dos para que un en_curso siga ofreciendo
+  // terminar_planteo aunque conviva con esa OF pendiente-con-tiempo.
+  planteando: ["retomar", "terminar_planteo", "empezar_planteo"],
   esperandoRevision: [],
   listoParaPasar: [],
 };
@@ -41,7 +46,19 @@ export function accionPrimariaDePedido(p: ConOFs): AccionDef | null {
   return null;
 }
 
-/** OFs del pedido en las que se puede fichar. */
-export function ofsFichablesDe(p: ConOFs): OF[] {
-  return p.ofs.filter(esFichable);
+/** OFs del pedido fichables como `rol`.
+ *
+ *  El motor de fichaje (lib/fichaje.ts) mantiene UN solo intervalo abierto con
+ *  UN rol: no se puede fichar plantear y revisar a la vez con una sola
+ *  llamada. Un pedido, en cambio, puede tener a la vez una OF en_curso (rol
+ *  plantear) y otra por_revisar (rol revisar) — faseDePedido ya da por normal
+ *  esa mezcla. Por eso el rol es un parámetro explícito y no algo que se
+ *  infiera de "la primera OF fichable": mezclar los dos grupos en un mismo
+ *  fichaje rompería la separación planteo/revisión de la que depende el
+ *  historial (ver PedidoChip, que resolvió esto primero).
+ *
+ *  La regla de qué es fichable vive en `ofsFichables` (lib/fichaje.ts); aquí
+ *  solo se añade el filtro por rol. */
+export function ofsFichablesDe(p: ConOFs, rol: Rol): OF[] {
+  return ofsFichables(p).filter((o) => rolFichajeDe(o) === rol);
 }

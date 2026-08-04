@@ -33,6 +33,12 @@ export function faseDeOF(of: OF): Fase {
   if (of.estado === "aprobada") return "listoParaPasar";
   if (of.estado === "por_revisar" || of.estado === "en_revision") return "esperandoRevision";
   if (of.estado === "en_curso" || of.estado === "devuelta") return "planteando";
+  // Anulada: no es trabajo activo, aunque conserve tiempo fichado de antes de
+  // anularse. Cae en "sin empezar" en vez de "planteando" para no aparecer
+  // como si hubiera algo en marcha. Hoy Board.tsx filtra las anuladas antes
+  // de llegar aquí, pero esta función se presenta como la definición única y
+  // reutilizable de la fase, así que necesita su propio caso explícito.
+  if (of.estado === "anulada") return "sinEmpezar";
   // Pendiente pero con tiempo o con alguien fichando: ya está en marcha.
   return of.tiempoPlanteoMin > 0 || of.fichandoRol ? "planteando" : "sinEmpezar";
 }
