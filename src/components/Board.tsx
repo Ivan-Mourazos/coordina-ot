@@ -327,7 +327,11 @@ export function Board({
     const out: NotifItem[] = [];
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
-        if (of.revisorId === miId && of.estado === "en_revision")
+        // Avisa desde que te la asignan (por_revisar), no solo cuando ya la
+        // has empezado: enterarte de que te ha llegado trabajo DESPUÉS de
+        // cogerlo no sirve de nada. Se mantiene en_revision para que lo que
+        // tienes a medias no desaparezca de la campana.
+        if (of.revisorId === miId && (of.estado === "por_revisar" || of.estado === "en_revision"))
           out.push({ pedido: p, of, tipo: "revisar" });
         else if (of.autorId === miId && of.estado === "devuelta")
           out.push({ pedido: p, of, tipo: "devuelta" });
