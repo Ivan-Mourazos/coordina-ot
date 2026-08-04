@@ -51,3 +51,4 @@ snap-board.md
 # BD propia de CoordinaOT (SQLite) y logs de PM2
 /data/
 /logs/
+.superpowers/
