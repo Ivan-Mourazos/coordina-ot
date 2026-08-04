@@ -60,7 +60,7 @@ export function PedidoLinea({
   return (
     <div
       style={{ borderLeftColor: color }}
-      className={`group flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-[11px] transition-colors hover:border-brand-400 ${
+      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-[11px] transition-colors hover:border-brand-400 ${
         fichando ? "bg-emerald-500/10" : "bg-surface-2/60"
       }`}
     >
@@ -97,7 +97,11 @@ export function PedidoLinea({
           )}
         </span>
       ) : (
-      <span className="flex shrink-0 items-center gap-1">
+        // Los botones se superponen al final de la fila en vez de reservar
+        // sitio: así los minutos van siempre pegados al borde y, al pasar el
+        // ratón, no se mueve nada. Heredan el fondo de la fila para tapar
+        // limpiamente lo que quede debajo.
+        <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
         {/* Pausa: siempre visible mientras se ficha. */}
         {fichando ? (
           <button
@@ -138,7 +142,7 @@ export function PedidoLinea({
             Pasar
           </button>
         )}
-      </span>
+        </span>
       )}
     </div>
   );
