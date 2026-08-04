@@ -314,6 +314,7 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
             <span>{item.nOf} OF</span>
             <span title={item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS"}>
               Pasado {fmtFechaHora(pasado)}
+              {item.pasadoPor && <span className="ml-1 text-text">· {item.pasadoPor}</span>}
             </span>
           </span>
         </button>

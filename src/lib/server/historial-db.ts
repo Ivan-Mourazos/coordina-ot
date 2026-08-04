@@ -1,5 +1,5 @@
 import { getPool } from "./db";
-import { leerPedidosPasadosAt } from "./estado-db";
+import { leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
 import { familiaDeTexto } from "./rps";
@@ -172,16 +172,24 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
  *  CoordinaOT, si fue desde aquí. Se lee una vez por página; son pocas filas y
  *  vive en SQLite, así que no compensa filtrar por ids. */
 function anadirPasadoAt(item: HistorialItem): HistorialItem {
-  const at = pasadosAt().get(item.pedido);
-  return at ? { ...item, pasadoAt: at } : item;
+  const paso = pasadosAt().get(item.pedido);
+  if (!paso) return item;
+  const nombre = paso.operarioId ? NOMBRE_POR_OPERARIO.get(paso.operarioId) : undefined;
+  return {
+    ...item,
+    pasadoAt: paso.at,
+    // Si el id no está en el catálogo se enseña tal cual: mejor un id crudo
+    // que perder la información de quién fue.
+    ...(paso.operarioId ? { pasadoPor: nombre ?? paso.operarioId } : {}),
+  };
 }
 
 /** Cache muy corta: una misma página llama a esto una vez por pedido. */
-let cachePasados: { at: number; mapa: Map<string, string> } | null = null;
-function pasadosAt(): Map<string, string> {
+let cachePasados: { at: number; mapa: Map<string, PasoAProduccion> } | null = null;
+function pasadosAt(): Map<string, PasoAProduccion> {
   if (cachePasados && Date.now() - cachePasados.at < 5_000) return cachePasados.mapa;
   try {
-    const mapa = leerPedidosPasadosAt();
+    const mapa = leerPedidosPasados();
     cachePasados = { at: Date.now(), mapa };
     return mapa;
   } catch (e) {

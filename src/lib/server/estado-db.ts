@@ -85,8 +85,28 @@ function abrir(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
   `);
   prepararClaveIntervalo(db);
+  prepararPasadoPor(db);
   globalThis.__coordinaDb = db;
   return db;
+}
+
+/** Quién pasó cada pedido a Producción. La columna se añade sobre la marcha
+ *  porque la tabla ya existe en producción, y se rellena hacia atrás desde
+ *  `acciones_log`, que lleva registrando el autor de cada "completar" desde el
+ *  principio: así el historial también sabe quién pasó los pedidos anteriores
+ *  a este cambio. */
+function prepararPasadoPor(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(pedido_overlay)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "pasado_por")) return;
+  db.exec("ALTER TABLE pedido_overlay ADD COLUMN pasado_por TEXT");
+  db.exec(`
+    UPDATE pedido_overlay SET pasado_por = (
+      SELECT l.operario_id FROM acciones_log l
+       WHERE l.motivo = 'completar'
+         AND json_extract(l.detalle, '$.completarPedidoId') = pedido_overlay.pedido_id
+       ORDER BY l.id DESC LIMIT 1
+    )
+  `);
 }
 
 /** (operario, inicio) identifica un intervalo: es lo que permite guardar el
@@ -139,15 +159,24 @@ export function leerOverlay(): Overlay {
   return { ofs, pedidosCompletados };
 }
 
-/** Cuándo se marcó cada pedido como pasado a Producción (ISO), por id de
- *  pedido. Es la hora a la que alguien pulsó el botón en CoordinaOT, que es
- *  más fiel que la de RPS: la de RPS es cuando OLANET registró el cambio de
- *  estado, y puede ir por detrás. Solo existe para lo pasado desde aquí. */
-export function leerPedidosPasadosAt(): Map<string, string> {
+export interface PasoAProduccion {
+  at: string; // ISO
+  operarioId: string | null;
+}
+
+/** Cuándo y quién pasó cada pedido a Producción, por id de pedido. La hora es
+ *  la del botón en CoordinaOT, más fiel que la de RPS: la de RPS es cuando
+ *  OLANET registró el cambio de estado, y puede ir por detrás. Solo existe
+ *  para lo pasado desde aquí. */
+export function leerPedidosPasados(): Map<string, PasoAProduccion> {
   const filas = abrir()
-    .prepare("SELECT pedido_id, updated_at FROM pedido_overlay WHERE completado = 1")
-    .all() as Array<{ pedido_id: string; updated_at: string }>;
-  return new Map(filas.map((f) => [f.pedido_id, f.updated_at]));
+    .prepare(
+      "SELECT pedido_id, updated_at, pasado_por FROM pedido_overlay WHERE completado = 1",
+    )
+    .all() as Array<{ pedido_id: string; updated_at: string; pasado_por: string | null }>;
+  return new Map(
+    filas.map((f) => [f.pedido_id, { at: f.updated_at, operarioId: f.pasado_por }]),
+  );
 }
 
 export interface Mutacion {
@@ -172,9 +201,12 @@ export function guardarMutacion(m: Mutacion): void {
       updated_at = excluded.updated_at
   `);
   const upsertPedido = db.prepare(`
-    INSERT INTO pedido_overlay (pedido_id, completado, updated_at)
-    VALUES (?, 1, ?)
-    ON CONFLICT(pedido_id) DO UPDATE SET completado = 1, updated_at = excluded.updated_at
+    INSERT INTO pedido_overlay (pedido_id, completado, updated_at, pasado_por)
+    VALUES (?, 1, ?, ?)
+    ON CONFLICT(pedido_id) DO UPDATE SET
+      completado = 1,
+      updated_at = excluded.updated_at,
+      pasado_por = excluded.pasado_por
   `);
   const log = db.prepare(
     "INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, ?, ?)",
@@ -182,7 +214,7 @@ export function guardarMutacion(m: Mutacion): void {
 
   db.transaction(() => {
     for (const c of m.cambiosOF ?? []) upsertOF.run({ ...c, ahora });
-    if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora);
+    if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);
     log.run(
       ahora,
       m.operarioId,

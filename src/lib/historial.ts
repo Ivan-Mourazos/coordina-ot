@@ -39,6 +39,9 @@ export interface HistorialItem {
    *  `finalizada`, que es cuando OLANET registró el cambio de estado y puede
    *  ir por detrás. Ausente en los pedidos que no se pasaron desde aquí. */
   pasadoAt?: string;
+  /** Nombre de quien lo pasó. Puede faltar aunque haya `pasadoAt`: los
+   *  pedidos pasados antes de que se guardara el autor no lo tienen. */
+  pasadoPor?: string;
 }
 
 export interface HistorialOF {
