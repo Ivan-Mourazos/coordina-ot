@@ -873,7 +873,33 @@ En `src/components/Board.tsx`, sustituir el `<h2>Equipo</h2>` (líneas ~845-847)
 
 Añadir el import `import { FASES } from "@/lib/fases-tablero";` si no está ya.
 
-- [ ] **Step 4: Restringir el arrastre en el panel de compañero**
+- [ ] **Step 4: Migrar `PedidosPorEstado` y `PedidoChip` a las fases nuevas**
+
+`PedidosPorEstado` sigue definiendo su propio tipo y sus propios grupos, y `PedidoChip` compara contra los nombres viejos en seis sitios. Si no se migran, `bucket={g.id}` deja de tipar en cuanto los ids cambian.
+
+En `src/components/PedidosPorEstado.tsx`: borrar `type Bucket`, la constante `GRUPOS` y la función `bucketDe` (líneas 8-40) y sustituir el cálculo de `grupos` (líneas 72-75) por:
+
+```tsx
+const grupos = agruparPorFase(facets);
+```
+
+con el import `import { agruparPorFase } from "@/lib/fases-tablero";`.
+
+En `src/components/PedidoChip.tsx`, cambiar el tipo de la prop (línea 42) por:
+
+```tsx
+  bucket?: Fase;
+```
+
+con `import type { Fase } from "@/lib/fases-tablero";`, y actualizar las seis comparaciones:
+- línea 89: `bucket === "revision"` → `bucket === "esperandoRevision"`
+- líneas 97-101: `bucket === "revision"` → `bucket === "esperandoRevision"` y `bucket === "finalizado"` → `bucket === "listoParaPasar"`
+- línea 291: `bucket === "revision"` → `bucket === "esperandoRevision"`
+- línea 327: `bucket === "finalizado"` → `bucket === "listoParaPasar"`
+
+Comprobar que no queda ninguno: `grep -n '"revision"\|"finalizado"' src/components/PedidoChip.tsx` debe salir vacío.
+
+- [ ] **Step 5: Restringir el arrastre en el panel de compañero**
 
 En `src/components/PedidosPorEstado.tsx`, añadir la prop y pasarla a cada chip:
 
@@ -924,7 +950,7 @@ En `src/components/TecnicoCard.tsx`, en el `<PedidosPorEstado …>` del panel fl
 arrastrable={arrastrableDeCompanero}
 ```
 
-- [ ] **Step 5: Comprobar**
+- [ ] **Step 6: Comprobar**
 
 Run: `npx vitest run && npx tsc --noEmit && npx eslint src/components && npx next build`
 Expected: 152 tests en verde (los 132 de antes + los 20 de la Task 1), sin errores, build correcto.
@@ -932,7 +958,7 @@ Expected: 152 tests en verde (los 132 de antes + los 20 de la Task 1), sin error
 En la app: abrir un compañero con pedidos ya empezados.
 Expected: los de «Sin empezar» se arrastran; los que tienen tiempo fichado, no.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/components/TecnicoCard.tsx src/components/Board.tsx src/components/PedidosPorEstado.tsx src/components/PedidoChip.tsx
