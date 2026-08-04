@@ -20,6 +20,7 @@ import { ViewSwitcher, type Vista } from "./ViewSwitcher";
 import { FilterBar, type Filtros } from "./FilterBar";
 import { Zona } from "./Zona";
 import { ZonaPersonal } from "./ZonaPersonal";
+import { FaseFlyout } from "./FaseFlyout";
 import { Bandeja } from "./Bandeja";
 import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
@@ -837,6 +838,22 @@ export function Board({
                 completarPedido={completarPedido}
               />
             </main>
+
+            {faseAbierta && (
+              <FaseFlyout
+                facets={facetsDe(yo.id)}
+                faseId={faseAbierta}
+                onOpen={(f) => {
+                  setFaseAbierta(null);
+                  openFacet(f);
+                }}
+                onClose={() => setFaseAbierta(null)}
+                onAccion={ejecutarAccion}
+                onFichar={ficharOFsConAviso}
+                onDesfichar={desficharOF}
+                completarPedido={completarPedido}
+              />
+            )}
 
             {/* equipo: siempre pegado a la división, altura propia */}
             <div ref={equipoRef} className="shrink-0 px-4 pb-3">
