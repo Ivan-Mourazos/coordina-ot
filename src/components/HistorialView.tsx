@@ -1,15 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { HistorialItem } from "@/lib/historial";
+import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import { FAMILIA_KEYWORDS } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
+import { fmtMin } from "@/lib/estado";
 import { HistorialDrawer } from "./HistorialDrawer";
+import { RolChip } from "./RolChip";
 
-function fmtFecha(iso: string) {
+function fmtFechaHora(iso: string) {
   if (!iso) return "—";
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
 }
 
 /** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado). */
@@ -112,6 +119,19 @@ export function HistorialView() {
       </div>
 
       <div className="flex w-full flex-wrap gap-1.5">
+        {/* "Todas" explícito: sin él, volver a ver todo dependía de acordarse
+            de repulsar la familia activa, que no se ve por ningún lado. */}
+        <button
+          onClick={() => setFamilia(null)}
+          aria-pressed={familia === null}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${
+            familia === null
+              ? "bg-text text-surface ring-transparent"
+              : "text-text-muted ring-border hover:text-text"
+          }`}
+        >
+          Todas
+        </button>
         {Object.keys(FAMILIA_KEYWORDS).map((fam) => {
           const activa = familia === fam;
           const meta = familiaMeta(fam);
@@ -242,18 +262,87 @@ function ClienteAutocomplete({
 }
 
 function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido: string) => void }) {
+  const [desplegado, setDesplegado] = useState(false);
+  const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(false);
+
+  // Las OFs se piden al desplegar por primera vez y se quedan cacheadas: abrir
+  // y cerrar no repite la consulta. Va en el handler y no en un efecto porque
+  // desplegar es un evento de usuario, no una sincronización con nada externo.
+  const alternar = useCallback(async () => {
+    const abre = !desplegado;
+    setDesplegado(abre);
+    if (!abre || ofs || cargando) return;
+    setCargando(true);
+    setError(false);
+    try {
+      const r = await fetch(`/api/historial/${item.pedido}`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { ofs: HistorialOF[] };
+      setOfs(d.ofs);
+    } catch {
+      setError(true);
+    } finally {
+      setCargando(false);
+    }
+  }, [desplegado, ofs, cargando, item.pedido]);
+
+  // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
+  // es cuando OLANET registró el cambio y puede ir por detrás.
+  const pasado = item.pasadoAt ?? item.finalizada;
+
   return (
-    <button
-      onClick={() => onOpen(item.pedido)}
-      className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-4 py-2.5 text-left hover:bg-surface-2/60"
-    >
-      <span className="size-2.5 shrink-0 rounded-full bg-cyan-600" />
-      <span className="font-semibold text-text">{item.pedido}</span>
-      <span className="truncate text-sm text-text-muted">{item.cliente ?? "—"}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
-        <span>{item.nOf} OF</span>
-        <span>Finalizado {fmtFecha(item.finalizada)}</span>
-      </span>
-    </button>
+    <div className="rounded-xl border border-border bg-surface">
+      <div className="flex items-center gap-3 px-2 py-2.5">
+        <button
+          onClick={alternar}
+          aria-expanded={desplegado}
+          aria-label={desplegado ? `Ocultar OFs de ${item.pedido}` : `Ver OFs de ${item.pedido}`}
+          className="grid size-6 shrink-0 place-items-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
+        >
+          <span className={`transition-transform ${desplegado ? "rotate-90" : ""}`}>›</span>
+        </button>
+        <button
+          onClick={() => onOpen(item.pedido)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
+        >
+          <span className="size-2.5 shrink-0 rounded-full bg-cyan-600" />
+          <span className="font-semibold text-text">{item.pedido}</span>
+          <span className="truncate text-sm text-text-muted">{item.cliente ?? "—"}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
+            <span>{item.nOf} OF</span>
+            <span title={item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS"}>
+              Pasado {fmtFechaHora(pasado)}
+            </span>
+          </span>
+        </button>
+      </div>
+
+      {desplegado && (
+        <div className="border-t border-border px-4 py-2">
+          {cargando && <p className="py-1 text-xs text-text-muted">Cargando OFs…</p>}
+          {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OFs.</p>}
+          {ofs?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OFs.</p>}
+          <ul className="space-y-1.5">
+            {ofs?.map((of) => (
+              <li key={of.codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="font-mono font-semibold text-text">{of.codigo}</span>
+                <span className="min-w-0 flex-1 truncate text-text-muted">{of.descripcion}</span>
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
+                  {fmtMin(of.tiempoImputadoMin)}
+                </span>
+                {of.rol && (
+                  <span className="flex gap-1.5">
+                    <RolChip rol="plantear" min={of.rol.planteoMin} quien={of.rol.quienPlanteo} />
+                    <RolChip rol="revisar" min={of.rol.revisionMin} quien={of.rol.quienReviso} />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

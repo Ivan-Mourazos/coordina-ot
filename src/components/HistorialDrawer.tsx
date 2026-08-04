@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialPedidoDetalle } from "@/lib/historial";
-import type { Rol } from "@/lib/types";
-import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
+import { PRIORIDAD, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
+import { RolChip } from "./RolChip";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -63,6 +63,23 @@ export function HistorialDrawer({
     const id = setTimeout(() => cargar(pedido), 0);
     return () => clearTimeout(id);
   }, [pedido, cargar]);
+
+  // Con el drawer abierto, la rueda seguía moviendo la lista del historial que
+  // hay detrás: al cerrarlo aparecías en otro sitio. Se congela el body y se
+  // compensa el ancho de la barra para que el fondo no dé un salto lateral.
+  useEffect(() => {
+    if (!pedido) return;
+    const { body } = document;
+    const overflowPrevio = body.style.overflow;
+    const paddingPrevio = body.style.paddingRight;
+    const hueco = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
+    return () => {
+      body.style.overflow = overflowPrevio;
+      body.style.paddingRight = paddingPrevio;
+    };
+  }, [pedido]);
 
   useEffect(() => {
     if (!pedido) return;
@@ -230,22 +247,6 @@ export function HistorialDrawer({
         </div>
       )}
     </div>
-  );
-}
-
-/** Chip de tiempo por rol. Mismo código de color que en todo el tablero
- *  (plantear = esmeralda, revisar = violeta), tomado de ROL. */
-function RolChip({ rol, min, quien }: { rol: Rol; min: number; quien: string[] }) {
-  const meta = ROL[rol];
-  const etiqueta = rol === "plantear" ? "Planteo" : "Revisión";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.chip}`}
-      title={quien.length > 0 ? `${etiqueta}: ${quien.join(", ")}` : `Sin ${etiqueta.toLowerCase()} fichado`}
-    >
-      {etiqueta} {fmtMin(min)}
-      {quien.length > 0 && <span className="font-normal opacity-80">· {quien.join(", ")}</span>}
-    </span>
   );
 }
 

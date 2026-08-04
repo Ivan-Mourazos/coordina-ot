@@ -1,4 +1,5 @@
 import { getPool } from "./db";
+import { leerPedidosPasadosAt } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
 import { familiaDeTexto } from "./rps";
@@ -71,7 +72,7 @@ export async function leerHistorialPagina(
 
   const filas = r.recordset;
   const hasMore = filas.length > PAGE_SIZE;
-  const pedidos = filas.slice(0, PAGE_SIZE).map(filaAItem);
+  const pedidos = filas.slice(0, PAGE_SIZE).map(filaAItem).map(anadirPasadoAt);
   return { pedidos, hasMore };
 }
 
@@ -165,6 +166,28 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     porOF.set(codigo, of);
   }
   return anadirDesgloseRol([...porOF.values()]);
+}
+
+/** Sella el item con la hora a la que se pulsó "pasar a Producción" en
+ *  CoordinaOT, si fue desde aquí. Se lee una vez por página; son pocas filas y
+ *  vive en SQLite, así que no compensa filtrar por ids. */
+function anadirPasadoAt(item: HistorialItem): HistorialItem {
+  const at = pasadosAt().get(item.pedido);
+  return at ? { ...item, pasadoAt: at } : item;
+}
+
+/** Cache muy corta: una misma página llama a esto una vez por pedido. */
+let cachePasados: { at: number; mapa: Map<string, string> } | null = null;
+function pasadosAt(): Map<string, string> {
+  if (cachePasados && Date.now() - cachePasados.at < 5_000) return cachePasados.mapa;
+  try {
+    const mapa = leerPedidosPasadosAt();
+    cachePasados = { at: Date.now(), mapa };
+    return mapa;
+  } catch (e) {
+    console.error("[historial] no se pudo leer pedido_overlay:", e);
+    return new Map();
+  }
 }
 
 /** Añade a cada OF el desglose planteo/revisión de lo fichado en CoordinaOT.
@@ -326,7 +349,10 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
   }
   const off = Math.max(0, f.page) * PAGE_SIZE;
   const pagina = todos.slice(off, off + PAGE_SIZE + 1);
-  return { pedidos: pagina.slice(0, PAGE_SIZE), hasMore: pagina.length > PAGE_SIZE };
+  return {
+    pedidos: pagina.slice(0, PAGE_SIZE).map(anadirPasadoAt),
+    hasMore: pagina.length > PAGE_SIZE,
+  };
 }
 
 function detalleMock(pedido: string): HistorialOF[] {

@@ -34,6 +34,11 @@ export interface HistorialItem {
   cliente: string | null;
   finalizada: string; // ISO
   nOf: number;
+
+  /** Cuándo se pulsó "pasar a Producción" en CoordinaOT (ISO). Más fiel que
+   *  `finalizada`, que es cuando OLANET registró el cambio de estado y puede
+   *  ir por detrás. Ausente en los pedidos que no se pasaron desde aquí. */
+  pasadoAt?: string;
 }
 
 export interface HistorialOF {

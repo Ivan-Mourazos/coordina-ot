@@ -139,6 +139,17 @@ export function leerOverlay(): Overlay {
   return { ofs, pedidosCompletados };
 }
 
+/** Cuándo se marcó cada pedido como pasado a Producción (ISO), por id de
+ *  pedido. Es la hora a la que alguien pulsó el botón en CoordinaOT, que es
+ *  más fiel que la de RPS: la de RPS es cuando OLANET registró el cambio de
+ *  estado, y puede ir por detrás. Solo existe para lo pasado desde aquí. */
+export function leerPedidosPasadosAt(): Map<string, string> {
+  const filas = abrir()
+    .prepare("SELECT pedido_id, updated_at FROM pedido_overlay WHERE completado = 1")
+    .all() as Array<{ pedido_id: string; updated_at: string }>;
+  return new Map(filas.map((f) => [f.pedido_id, f.updated_at]));
+}
+
 export interface Mutacion {
   operarioId: string | null;
   motivo: string;
