@@ -1,4 +1,4 @@
-import { MAQUINA_OT, partirOfId } from "../bonos";
+import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { leerTodosIntervalos } from "./fichaje-db";
 import {
@@ -51,7 +51,11 @@ let temporizador: NodeJS.Timeout | null = null;
  *  ya lo saca de la cola CONSERVANDO el motivo, y `marcarEnviados` lo borraría. */
 async function enviarUno(p: Pendiente): Promise<boolean> {
   if (p.tipo === "bono") {
-    await insertarBono(p.datos);
+    // En ensayo el bono se escribe igual pero marcado como no procesable, así
+    // que recorre todo el camino real sin que el tiempo llegue a RPS.
+    const traspasado =
+      modoFichaje() === "ensayo" ? TRASPASADO_NO_PROCESAR : p.datos.traspasado;
+    await insertarBono({ ...p.datos, traspasado });
     return true;
   }
   const operarioRps = COD_RPS_POR_OPERARIO[p.datos.operarioId];
@@ -78,7 +82,7 @@ async function enviarUno(p: Pendiente): Promise<boolean> {
 
 /** Vacía la cola en orden. Devuelve cuántos eventos se escribieron. */
 export async function drenarCola(): Promise<number> {
-  if (modoFichaje() !== "activo") return 0;
+  if (modoFichaje() === "sombra") return 0;
 
   const pendientes = leerPendientes(LOTE);
   const enviados: number[] = [];
@@ -128,7 +132,7 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
 }
 
 export async function refrescarEnCurso(): Promise<void> {
-  if (modoFichaje() !== "activo") return;
+  if (modoFichaje() === "sombra") return;
   await sincronizarFichajeEnCurso(filasEnCurso(), MAQUINA_OT);
 }
 

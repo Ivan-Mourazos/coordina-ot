@@ -32,6 +32,8 @@ interface FilaVista {
   /** Fecha de planificación de la tarea de OT (la que ordena el trabajo). */
   FechaPlanificada: Date | null;
   SitOF: string | null;
+  /** Bit de la vista: la situación de la OF admite imputaciones. */
+  PermiteImputaciones?: boolean | number | null;
   NotasOF: string | null;
   // De CPRManufacturingOrder (JOIN por CodManufacturingOrder, empresa 001):
   DescripcionMO: string | null;
@@ -151,14 +153,27 @@ function fechaISO(d: Date | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Situaciones de RPS que admiten imputaciones (AllowImputations en
- *  CPRManufacturingOrderSituation). Fichar fuera de estas = tiempo que NO
- *  sube a RPS (aviso de IT). */
+/** Respaldo de `PermiteImputaciones` para cuando la vista no lo traiga (una
+ *  versión anterior, o la fila sin valor). Son las situaciones que hoy tienen
+ *  AllowImputations en CPRManufacturingOrderSituation; si IT añade una nueva,
+ *  la columna de la vista se entera y esta lista no, así que solo se usa como
+ *  último recurso. Fichar fuera de estas = tiempo que NO sube a RPS. */
 const SITUACIONES_FICHABLES = new Set([
   "LANZADA",
   "IMPRESA",
   "CON IMPUTACIONES",
 ]);
+
+/** ¿Se puede imputar tiempo en esta OF? Manda la columna `PermiteImputaciones`
+ *  de la vista (bit, creada por IT el 2026-08-04 a petición nuestra); solo si
+ *  falta se deduce de la situación. */
+function permiteImputaciones(fila: FilaVista): boolean {
+  if (typeof fila.PermiteImputaciones === "boolean") return fila.PermiteImputaciones;
+  if (fila.PermiteImputaciones === 1 || fila.PermiteImputaciones === 0) {
+    return fila.PermiteImputaciones === 1;
+  }
+  return SITUACIONES_FICHABLES.has((fila.SitOF ?? "").trim().toUpperCase());
+}
 
 function descripcionDe(fila: FilaVista): string {
   const mo = (fila.DescripcionMO ?? "").trim();
@@ -202,7 +217,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     estado: fichadaAhora || fichadoMin > 0 ? "en_curso" : "pendiente",
     fichandoRol: fichadaAhora ? "plantear" : null,
     detenida: sit === "DETENIDA",
-    fichable: SITUACIONES_FICHABLES.has(sit),
+    fichable: permiteImputaciones(fila),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     reservasMaterial: datos.reservas.length,
@@ -264,7 +279,7 @@ async function consultarTablero(): Promise<Tablero> {
     pool.request().query<FilaVista>(`
       SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
              v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
-             v.FechaCompras, v.FechaPlanificada, v.SitOF, v.NotasOF,
+             v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
              mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
              mo.PlannedStartDate, mo.PlannedEndDate
       FROM dbo.TGM_PENDIENTE_OT v

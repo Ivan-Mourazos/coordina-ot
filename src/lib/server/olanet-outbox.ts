@@ -16,11 +16,18 @@ import { COD_RPS_POR_OPERARIO } from "./operarios";
 // para poder compararlos con lo que graba el mini-olanet antes de escribir de
 // verdad en OFs reales.
 
-export type ModoFichaje = "sombra" | "activo";
+/** · sombra → no sale nada; los eventos se acumulan para compararlos.
+ *  · ensayo → se escribe en las tablas REALES, pero los bonos van con
+ *    `traspasado = 2`, que OLANET no procesa: el tiempo no llega a RPS. Es la
+ *    forma de probar contra producción que indicó IT, mejor que una tabla
+ *    aparte porque ejercita el camino de verdad.
+ *  · activo → se escribe y el tiempo sube a RPS. */
+export type ModoFichaje = "sombra" | "ensayo" | "activo";
 
 /** Por defecto sombra: para escribir en OLANET hay que pedirlo a propósito. */
 export function modoFichaje(): ModoFichaje {
-  return process.env.FICHAJE_OLANET === "activo" ? "activo" : "sombra";
+  const v = process.env.FICHAJE_OLANET;
+  return v === "activo" || v === "ensayo" ? v : "sombra";
 }
 
 interface Comun {

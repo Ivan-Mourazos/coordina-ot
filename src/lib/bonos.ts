@@ -42,16 +42,19 @@ export const BONO_FIJO = {
   valoresextra: "dv2:-;",
 } as const;
 
-/** PENDIENTE DE CONFIRMAR CON IT (David), en un solo sitio a propósito:
- *
- *  · MAQUINA: dijo A-OTEC. En bonos hay 32.217 filas con A-OTEC (última de
- *    2025-10-20) pero 214 con A-OTECP con última del 2026-07-21, así que lo que
- *    se usa hoy parece ser A-OTECP.
- *  · TRASPASADO: dijo 0, pero ese valor no aparece ni una vez en las 510.388
- *    filas de la tabla (solo 1, 2 y 3). Si el proceso que sube a RPS no recoge
- *    los ceros, los fichajes se quedarían parados. */
+/** Máquina de Oficina Técnica. Confirmado por IT el 2026-08-04: **A-OTEC** es
+ *  la nuestra; A-OTECP es una máquina de OT en planta, para la fábrica. */
 export const MAQUINA_OT = "A-OTEC";
-export const TRASPASADO_NUEVO = 0;
+
+/** Valores de `traspasado` (confirmado por IT):
+ *  · 0 = pendiente de traspasar. Es el que hay que escribir: los procedimientos
+ *    de OLANET lo recogen y suben el tiempo a RPS.
+ *  · 2 y 3 = estados internos de OLANET; significan que ya está pasado.
+ *
+ *  Por eso un bono con 2 nunca se procesa, y de ahí el modo "ensayo": escribir
+ *  en la tabla real sin que el tiempo llegue a RPS. */
+export const TRASPASADO_PENDIENTE = 0;
+export const TRASPASADO_NO_PROCESAR = 2;
 
 /** Una fila de sch_RPS_bonos, con los nombres de columna tal cual están en la
  *  tabla (minúsculas incluidas) para que el INSERT se lea igual que el DDL. */
@@ -152,7 +155,7 @@ function filasDeTramo(
       // A medianoche `partesLocales` devuelve el día siguiente con 0 s; el
       // bono se cierra a 86400 del día que empezó para no perder ese trozo.
       horafin: b.fecha === a.fecha ? b.segundos : DIA_S,
-      traspasado: TRASPASADO_NUEVO,
+      traspasado: TRASPASADO_PENDIENTE,
     });
     cursor = corte;
   }

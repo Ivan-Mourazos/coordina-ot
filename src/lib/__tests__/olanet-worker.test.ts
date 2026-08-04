@@ -22,12 +22,14 @@ let dir: string;
 let worker: typeof import("../server/olanet-worker");
 let outbox: typeof import("../server/olanet-outbox");
 let fichajeDb: typeof import("../server/fichaje-db");
+let estadoDb: typeof import("../server/estado-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-worker-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   outbox = await import("../server/olanet-outbox");
   fichajeDb = await import("../server/fichaje-db");
+  estadoDb = await import("../server/estado-db");
   worker = await import("../server/olanet-worker");
 });
 
@@ -126,6 +128,46 @@ describe("drenarCola en modo activo", () => {
     const bono = outbox.leerCola().find((p) => p.tipo === "bono" && p.datos.of === "0230600")!;
     expect(bono.enviadoAt).not.toBeNull();
     expect(bono.error).toContain("DESCARTADO");
+  });
+});
+
+describe("modo ensayo", () => {
+  // Los tests anteriores ya dejaron marca de procesado para estos operarios;
+  // se limpia para que la lista corta que se manda aquí se derive entera.
+  const desdeCero = (operarioId: string) => {
+    estadoDb.getDb().prepare("DELETE FROM olanet_watermark WHERE operario_id = ?").run(operarioId);
+  };
+
+  it("escribe en las tablas reales pero marca el bono como no procesable", async () => {
+    process.env.FICHAJE_OLANET = "ensayo";
+    desdeCero("jaime");
+    outbox.encolarFichaje("jaime", [
+      iv("2026-08-04T08:00:00Z", "2026-08-04T08:30:00Z", ["0231000:5"], "jaime"),
+    ]);
+    await worker.drenarCola();
+
+    const escrito = insertarBono.mock.calls.at(-1)?.[0] as { of: string; traspasado: number };
+    expect(escrito.of).toBe("0231000");
+    // 2 = estado interno de OLANET "ya pasado": su proceso no lo recoge, así
+    // que el tiempo no sube a RPS aunque la fila esté en la tabla buena.
+    expect(escrito.traspasado).toBe(2);
+    // Los movimientos de fase sí se escriben tal cual: son los que dejan ver
+    // el ensayo en el sistema de Producción.
+    expect(moverFase).toHaveBeenCalled();
+    delete process.env.FICHAJE_OLANET;
+  });
+
+  it("en activo el bono va como pendiente de traspasar", async () => {
+    process.env.FICHAJE_OLANET = "activo";
+    desdeCero("tamara");
+    outbox.encolarFichaje("tamara", [
+      iv("2026-08-04T09:00:00Z", "2026-08-04T09:30:00Z", ["0231001:5"], "tamara"),
+    ]);
+    await worker.drenarCola();
+
+    const escrito = insertarBono.mock.calls.at(-1)?.[0] as { traspasado: number };
+    expect(escrito.traspasado).toBe(0);
+    delete process.env.FICHAJE_OLANET;
   });
 });
 
