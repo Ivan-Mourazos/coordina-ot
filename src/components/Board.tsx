@@ -18,7 +18,6 @@ import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher, type Vista } from "./ViewSwitcher";
 import { FilterBar, type Filtros } from "./FilterBar";
-import { Zona } from "./Zona";
 import { ZonaPersonal } from "./ZonaPersonal";
 import { FaseFlyout } from "./FaseFlyout";
 import { Bandeja } from "./Bandeja";
@@ -115,64 +114,6 @@ export function Board({
       })),
     );
   }, [fichaje, setPedidosSync]);
-
-  // Panel de compañero desplegado en Asignar: solo uno a la vez.
-  const [superiorColapsado, setSuperiorColapsado] = useState(false);
-  // Mi zona contraída con el handle iOS: la fila superior pasa a altura auto.
-  const [zonaColapsada, setZonaColapsada] = useState(false);
-
-  // Paneles redimensionables: altura del panel personal en px.
-  const [panelTopH, setPanelTopH] = useState<number>(() => {
-    if (typeof window === "undefined") return 280;
-    try {
-      const saved = localStorage.getItem("coordina-panel-sizes");
-      return saved ? JSON.parse(saved).top ?? 280 : 280;
-    } catch { return 280; }
-  });
-  const dragRef = useRef<{ edge: "top" | "bottom"; startY: number; startH: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const equipoRef = useRef<HTMLDivElement | null>(null);
-
-  // Persist panel sizes
-  useEffect(() => {
-    try { localStorage.setItem("coordina-panel-sizes", JSON.stringify({ top: panelTopH })); } catch {}
-  }, [panelTopH]);
-
-  // Drag handlers for resizable panels
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!dragRef.current) return;
-      e.preventDefault();
-      const delta = e.clientY - dragRef.current.startY;
-      let newH = Math.max(120, dragRef.current.startH + delta);
-      // Tope: cabecera + equipo + handle + filtros + bandeja mínima siempre visibles.
-      const cont = containerRef.current;
-      if (cont) {
-        const equipoH = equipoRef.current?.offsetHeight ?? 0;
-        const max = cont.clientHeight - equipoH - 270;
-        newH = Math.min(newH, Math.max(120, max));
-      }
-      setPanelTopH(newH);
-    }
-    function onUp() {
-      if (!dragRef.current) return;
-      dragRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    }
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  const startResize = useCallback((e: React.MouseEvent) => {
-    dragRef.current = { edge: "top", startY: e.clientY, startH: panelTopH };
-    document.body.style.cursor = "ns-resize";
-    document.body.style.userSelect = "none";
-  }, [panelTopH]);
 
   // Fase cuyo "+N más" está desplegado en mi zona (null = ninguno).
   const [faseAbierta, setFaseAbierta] = useState<string | null>(null);
@@ -769,7 +710,7 @@ export function Board({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <div ref={containerRef} className="flex min-h-full flex-col">
+      <div className="flex min-h-full flex-col">
         {/* topbar */}
         <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
           {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
@@ -820,8 +761,6 @@ export function Board({
         {/* ── VISTA ASIGNAR ── */}
         {vista === "asignar" && (
           <>
-            {!superiorColapsado && (
-            <>
             {/* Zona personal: mide lo que necesita. Sin altura fija ni scroll
                 interno — las fases vacías ya no reservan sitio, así que el alto
                 sale del contenido y lo que sobra se lo queda la bandeja. */}
@@ -856,7 +795,7 @@ export function Board({
             )}
 
             {/* equipo: siempre pegado a la división, altura propia */}
-            <div ref={equipoRef} className="shrink-0 px-4 pb-3">
+            <div className="shrink-0 px-4 pb-3">
               <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Equipo
               </h2>
@@ -882,29 +821,6 @@ export function Board({
               </div>
             </div>
 
-            {/* ── resize handle: sin sentido con la zona contraída ── */}
-            {!zonaColapsada && (
-              <div
-                onMouseDown={startResize}
-                onDoubleClick={() => setPanelTopH(280)}
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label="Redimensionar panel superior"
-                className="group flex h-2.5 shrink-0 cursor-ns-resize items-center justify-center border-y border-[var(--glass-border)] bg-[var(--surface-2)] transition-colors hover:bg-brand-400/15 active:bg-brand-400/25"
-                title="Arrastra para redimensionar · doble clic restablece"
-              >
-                <span className="flex items-center gap-1 rounded-full bg-[var(--surface)] px-2.5 py-[3px] ring-1 ring-[var(--border-strong)] transition-all group-hover:ring-brand-400 group-active:scale-95">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="size-[3px] rounded-full bg-text-muted/60 transition-colors group-hover:bg-brand-500"
-                    />
-                  ))}
-                </span>
-              </div>
-            )}
-            </>
-            )}
             <div className="flex min-h-0 flex-1 flex-col border-t border-[var(--glass-border)]">
               <div
                 className="flex items-center gap-3 px-4 py-2"
@@ -913,16 +829,9 @@ export function Board({
                 <div className="min-w-0 flex-1">
                   <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} ordenes={["planificacion", "familia", "prioridad"]} />
                 </div>
-                <button
-                  onClick={() => setSuperiorColapsado((v) => !v)}
-                  title={superiorColapsado ? "Mostrar mi zona y el equipo" : "Ocultar arriba para ver más pedidos"}
-                  className="glass-chip flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-text-muted hover:text-text"
-                >
-                  <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform ${superiorColapsado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="m18 15-6-6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {superiorColapsado ? "Mostrar paneles" : "Maximizar bandeja"}
-                </button>
+                <span className="shrink-0 text-[11px] font-semibold text-text-muted">
+                  {facetsDe(null).length} sin asignar
+                </span>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} orden={filtros.orden} />
