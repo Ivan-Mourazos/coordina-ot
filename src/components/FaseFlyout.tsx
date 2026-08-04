@@ -21,6 +21,7 @@ export function FaseFlyout({
   completarPedido,
   operarios,
   setRevisor,
+  ofIdsFichandoYo,
 }: {
   facets: Facet[];
   faseId: string;
@@ -33,6 +34,8 @@ export function FaseFlyout({
   /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
   operarios: Operario[];
   setRevisor: (ofId: string, revisorId: string | null) => void;
+  /** OFs de mi intervalo abierto; ver el comentario en Board. */
+  ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   const grupo = agruparPorFase(facets).find((g) => g.id === faseId);
   if (!grupo) return null;
@@ -64,6 +67,7 @@ export function FaseFlyout({
             completarPedido={completarPedido}
             operarios={operarios}
             setRevisor={setRevisor}
+                      ofIdsFichandoYo={ofIdsFichandoYo}
           />
         ))}
       </div>

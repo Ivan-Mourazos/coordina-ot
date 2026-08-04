@@ -29,6 +29,7 @@ export function ZonaPersonal({
   completarPedido,
   operarios,
   setRevisor,
+  ofIdsFichandoYo,
 }: {
   operario: Operario;
   facets: Facet[];
@@ -44,6 +45,8 @@ export function ZonaPersonal({
   /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
   operarios: Operario[];
   setRevisor: (ofId: string, revisorId: string | null) => void;
+  /** OFs de mi intervalo abierto; ver el comentario en Board. */
+  ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const grupos = agruparPorFase(facets);
@@ -122,6 +125,7 @@ export function ZonaPersonal({
                       completarPedido={completarPedido}
                       operarios={operarios}
                       setRevisor={setRevisor}
+                      ofIdsFichandoYo={ofIdsFichandoYo}
                     />
                   ))}
                   {resto > 0 && (

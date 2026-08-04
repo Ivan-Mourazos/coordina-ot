@@ -116,6 +116,11 @@ export function Board({
     );
   }, [fichaje, setPedidosSync]);
 
+  // OFs de MI intervalo abierto. `fichandoRol` de una OF dice que alguien la
+  // ficha, no que la fiche yo: sin esto la fila ofreceria pausar el fichaje de
+  // otro, que en realidad cortaria el mio.
+  const ofIdsFichandoYo = useMemo(() => new Set(abierto(fichaje)?.ofIds ?? []), [fichaje]);
+
   // Fase cuyo "+N más" está desplegado en mi zona (null = ninguno).
   const [faseAbierta, setFaseAbierta] = useState<string | null>(null);
 
@@ -772,6 +777,7 @@ export function Board({
                 live={liveByOp.get(yo.id) ?? null}
                 onOpen={openFacet}
                 onVerTodos={setFaseAbierta}
+                ofIdsFichandoYo={ofIdsFichandoYo}
                 onAccion={ejecutarAccion}
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
@@ -790,6 +796,7 @@ export function Board({
                   openFacet(f);
                 }}
                 onClose={() => setFaseAbierta(null)}
+    ofIdsFichandoYo={ofIdsFichandoYo}
                 onAccion={ejecutarAccion}
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}

@@ -29,6 +29,7 @@ export function PedidoLinea({
   completarPedido,
   operarios,
   setRevisor,
+  ofIdsFichandoYo,
   soloConsulta = false,
 }: {
   facet: Facet;
@@ -42,13 +43,21 @@ export function PedidoLinea({
    *  No hace falta en modo consulta: ahí no hay ninguna acción que lo pida. */
   operarios?: Operario[];
   setRevisor?: (ofId: string, revisorId: string | null) => void;
+  /** OFs de MI intervalo abierto. Sin esto no se puede distinguir mi fichaje
+   *  del de otra persona sobre la misma OF. */
+  ofIdsFichandoYo?: ReadonlySet<string>;
   /** Panel de un compañero: sobre su trabajo no se ficha ni se cambia estado. */
   soloConsulta?: boolean;
 }) {
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
-  const fichando = ofs.find((o) => o.fichandoRol);
+  // OJO: `fichandoRol` significa "alguien está fichando esta OF", no "la estoy
+  // fichando yo": puede ser el revisor, o cualquiera desde el mini-olanet. Solo
+  // se ofrece «Pausar» si la OF está en MI intervalo abierto; si no, pausar
+  // cortaría mi propio fichaje, que es otro.
+  const fichandoAlguien = ofs.find((o) => o.fichandoRol);
+  const fichando = ofs.find((o) => ofIdsFichandoYo?.has(o.id));
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
   const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
@@ -65,7 +74,7 @@ export function PedidoLinea({
     <div
       style={{ borderLeftColor: color }}
       className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-[11px] transition-colors hover:border-brand-400 ${
-        fichando ? "bg-emerald-500/10" : "bg-surface-2/60"
+        fichandoAlguien ? "bg-emerald-500/10" : "bg-surface-2/60"
       }`}
     >
       <button
@@ -73,8 +82,11 @@ export function PedidoLinea({
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
         className={`flex min-w-0 items-center gap-2 text-left ${pidiendoRevisor ? "shrink-0" : "flex-1"}`}
       >
-        {fichando && (
-          <span className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
+        {fichandoAlguien && (
+          <span
+            title={fichando ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
+            className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
+          />
         )}
         <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
         {/* Al pedir revisor se recorta a solo el código: el hueco que suelta

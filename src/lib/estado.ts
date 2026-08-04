@@ -133,8 +133,11 @@ export function estadoRepresentativo(ofs: OF[]): EstadoOF {
 }
 
 export function fmtMin(min: number): string {
-  if (!min) return "0h";
-  const h = Math.floor(min / 60);
-  const m = min % 60;
+  // Redondear PRIMERO: los minutos de un fichaje en curso vienen fraccionarios
+  // (se derivan de milisegundos), y sin esto salía "5166666666666m" en pantalla.
+  const total = Math.round(min);
+  if (!total) return "0h";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
 }
