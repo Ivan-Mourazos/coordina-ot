@@ -1,0 +1,46 @@
+import type { EstadoOF, OF, Pedido } from "./types";
+
+// ─── "Lo mío como revisor" ────────────────────────────────────────────────
+// Única definición de qué OF le tocan a un operario en su rol de REVISOR.
+// La comparten el modo "Solo mías" de la pestaña Revisión (src/components/
+// RevisionView.tsx) y los contadores "Por revisar" / "En revisión" de la
+// cabecera del tablero (Board.tsx), para que ambos digan siempre el mismo
+// número: antes cada uno hacía su propio recuento y podían desincronizarse.
+//
+// `miId` nulo (identidad sin elegir todavía) no es revisor de nada: no
+// revienta, simplemente no hay nada "mío".
+
+/** Un pedido junto con el subconjunto de sus OF que interesa a la vista. */
+export interface FacetRevision {
+  pedido: Pedido;
+  ofs: OF[];
+}
+
+/** OF de `pedidos`, agrupadas por pedido, en `estado` y con `miId` como
+ *  revisor asignado. Solo incluye pedidos con al menos una OF que cumpla. */
+export function facetsRevisorEnEstado(
+  pedidos: Pedido[],
+  estado: EstadoOF,
+  miId: string | null,
+): FacetRevision[] {
+  if (!miId) return [];
+  return pedidos
+    .map((p) => ({
+      pedido: p,
+      ofs: p.ofs.filter((o) => o.estado === estado && o.revisorId === miId),
+    }))
+    .filter((f) => f.ofs.length > 0);
+}
+
+/** Cuántas OF (sin agrupar por pedido) me tocan como revisor en `estado`. */
+export function contarRevisorEnEstado(
+  pedidos: Pedido[],
+  estado: EstadoOF,
+  miId: string | null,
+): number {
+  if (!miId) return 0;
+  return pedidos.reduce(
+    (n, p) => n + p.ofs.filter((o) => o.estado === estado && o.revisorId === miId).length,
+    0,
+  );
+}

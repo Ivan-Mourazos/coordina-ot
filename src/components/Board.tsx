@@ -38,6 +38,7 @@ import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { FASES } from "@/lib/fases-tablero";
+import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
@@ -291,15 +292,15 @@ export function Board({
     () => pedidos.filter((p) => p.situacion === "procesado"),
     [pedidos],
   );
-  const countEstado = (e: EstadoOF) =>
-    procesadosAll.reduce((n, p) => n + p.ofs.filter((o) => o.estado === e).length, 0);
   const sinAsignar = procesadosAll.reduce(
     (n, p) =>
       p.interno ? n : n + p.ofs.filter((o) => o.autorId === null).length,
     0,
   );
-  const porRevisar = countEstado("por_revisar");
-  const enRevision = countEstado("en_revision");
+  // Lo mío como revisor, no lo de todos: casa con lo que muestra por defecto
+  // la pestaña Revisión (ver src/lib/revision.ts, misma fuente que usa ahí).
+  const porRevisar = contarRevisorEnEstado(procesadosAll, "por_revisar", miId);
+  const enRevision = contarRevisorEnEstado(procesadosAll, "en_revision", miId);
 
   // ── Quién ficha AHORA (para tarjetas de equipo y cluster "En directo") ──
   // El operario es el del INTERVALO abierto (quien ficha de verdad), no el
