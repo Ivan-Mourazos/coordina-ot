@@ -8,6 +8,7 @@ import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
+import { PanelFlotante } from "./PanelFlotante";
 
 /** Mismo tope que la zona personal: un compañero con 40 pedidos no puede
  *  ocupar más pantalla que uno con 4. */
@@ -47,10 +48,7 @@ export function PanelCompanero({
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
   return (
-    <div
-      style={{ background: "var(--surface)", borderColor: operario.color }}
-      className="glass-pop scroll-thin max-h-[55vh] overflow-y-auto rounded-2xl border-2 p-3"
-    >
+    <PanelFlotante onCerrar={onCerrar} ancho="46rem">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"
@@ -119,6 +117,6 @@ export function PanelCompanero({
           })}
         </div>
       )}
-    </div>
+    </PanelFlotante>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { memo, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
@@ -43,52 +42,6 @@ export const TecnicoCard = memo(function TecnicoCard({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const popRef = useRef<HTMLDivElement | null>(null);
-
-  // Ancla del popup: se mide al desplegar. El popup vive en un portal con
-  // posición fixed para no desbordar la página por abajo cuando el compañero
-  // tiene muchos pedidos: si no cabe bajo la tarjeta, abre hacia arriba y su
-  // altura se limita al espacio real disponible.
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  useEffect(() => {
-    setAnchor(expanded ? rootRef.current?.getBoundingClientRect() ?? null : null);
-  }, [expanded]);
-
-  // Con el panel abierto, la rueda seguía moviendo la bandeja de detrás: al
-  // cerrarlo aparecías en otro sitio. Se congela el body y se compensa el ancho
-  // de la barra para que el fondo no dé un salto lateral.
-  useEffect(() => {
-    if (!expanded) return;
-    const { body } = document;
-    const overflowPrevio = body.style.overflow;
-    const paddingPrevio = body.style.paddingRight;
-    const hueco = window.innerWidth - document.documentElement.clientWidth;
-    body.style.overflow = "hidden";
-    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
-    return () => {
-      body.style.overflow = overflowPrevio;
-      body.style.paddingRight = paddingPrevio;
-    };
-  }, [expanded]);
-
-  // Desplegado: se cierra con clic fuera (tarjeta o popup) o Escape.
-  useEffect(() => {
-    if (!expanded) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (rootRef.current?.contains(t) || popRef.current?.contains(t)) return;
-      onClose();
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [expanded, onClose]);
 
   // La barra reparte PEDIDOS, no OFs, para que case con el "N ped" de al lado:
   // dos números distintos midiendo lo mismo obligan a mirar dos veces.
@@ -165,53 +118,21 @@ export const TecnicoCard = memo(function TecnicoCard({
         </div>
       </button>
 
-      {/* Fondo opaco (var --surface, inline gana a glass-pop) para que no se
-          transparente el contenido del tablero de detrás. */}
-      {expanded &&
-        anchor &&
-        typeof document !== "undefined" &&
-        createPortal(
-          (() => {
-            // Ancho de casi toda la ventana, no de la tarjeta: dentro van las
-            // cuatro fases en columnas, igual que en la zona personal, y con
-            // 384 px no cabrían. Flota sobre la bandeja sin empujarla.
-            const margin = 16;
-            const vh = window.innerHeight;
-            return (
-              <>
-                {/* Atenúa el resto: mientras miras el trabajo de un compañero,
-                    el tablero de detrás es contexto, no algo con lo que operar. */}
-                <div
-                  onClick={onClose}
-                  aria-hidden
-                  className="fixed inset-0 z-30 bg-black/45 backdrop-blur-[1px]"
-                />
-                <div
-                  ref={popRef}
-                  style={{
-                    left: margin,
-                    right: margin,
-                    top: Math.min(anchor.bottom + 6, vh - 160),
-                  }}
-                  className="fixed z-40"
-                >
-                  <PanelCompanero
-                    operario={operario}
-                    facets={facets}
-                    live={live}
-                    onOpen={onOpen}
-                    onCerrar={onClose}
-                    onAccion={onAccion}
-                    onFichar={onFichar}
-                    onDesfichar={onDesfichar}
-                    completarPedido={completarPedido}
-                  />
-                </div>
-              </>
-            );
-          })(),
-          document.body,
-        )}
+      {/* El panel se pinta aquí, pero se posiciona y se cierra solo: eso lo
+          lleva PanelFlotante, compartido con el desplegable «+N más». */}
+      {expanded && (
+        <PanelCompanero
+          operario={operario}
+          facets={facets}
+          live={live}
+          onOpen={onOpen}
+          onCerrar={onClose}
+          onAccion={onAccion}
+          onFichar={onFichar}
+          onDesfichar={onDesfichar}
+          completarPedido={completarPedido}
+        />
+      )}
     </div>
   );
 });
