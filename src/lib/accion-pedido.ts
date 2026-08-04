@@ -55,7 +55,7 @@ export function accionPrimariaDePedido(p: ConOFs): AccionDef | null {
  *  esa mezcla. Por eso el rol es un parámetro explícito y no algo que se
  *  infiera de "la primera OF fichable": mezclar los dos grupos en un mismo
  *  fichaje rompería la separación planteo/revisión de la que depende el
- *  historial (ver PedidoChip, que resolvió esto primero).
+ *  historial.
  *
  *  La regla de qué es fichable vive en `ofsFichables` (lib/fichaje.ts); aquí
  *  solo se añade el filtro por rol. */

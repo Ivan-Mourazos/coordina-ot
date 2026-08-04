@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { AccionDef } from "@/lib/acciones";
 
-/** Estado compartido "acción pendiente de confirmar" (Drawer y PedidoChip):
- *  pedirConfirmacion(a) abre el diálogo si la acción trae texto `confirmar`,
- *  o la ejecuta directamente si no; el componente pinta {dialogo} una vez. */
+/** Estado compartido "acción pendiente de confirmar" (Drawer y otros sitios
+ *  con botones de acción): pedirConfirmacion(a) abre el diálogo si la acción
+ *  trae texto `confirmar`, o la ejecuta directamente si no; el componente
+ *  pinta {dialogo} una vez. */
 export function useConfirmacion(ejecutar: (a: AccionDef) => void) {
   const [confirmando, setConfirmando] = useState<AccionDef | null>(null);
   const pedirConfirmacion = (a: AccionDef) => {

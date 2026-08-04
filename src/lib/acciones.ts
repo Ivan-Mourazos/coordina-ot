@@ -1,9 +1,9 @@
 import type { EstadoOF, OF } from "./types";
 
 // ─── Máquina de estados de OF: ÚNICA fuente de verdad ────────────────────────
-// Tarjeta (PedidoChip), drawer y panel Mi fichaje pintan botones desde
-// accionesDisponibles(); textos, confirmaciones y efecto sobre el fichaje
-// viven aquí y solo aquí.
+// Fila del tablero (PedidoLinea), drawer y panel Mi fichaje pintan botones
+// desde accionesDisponibles(); textos, confirmaciones y efecto sobre el
+// fichaje viven aquí y solo aquí.
 
 export type AccionOF =
   | "empezar_planteo" | "terminar_planteo" | "deshacer_empezar"
