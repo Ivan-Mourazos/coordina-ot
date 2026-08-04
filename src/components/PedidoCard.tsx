@@ -162,6 +162,16 @@ export const PedidoCardView = memo(function PedidoCardView({
             </span>
           )}
         </div>
+        {/* cliente: solo en la bandeja (mostrarPrioridad), donde el código
+         *  solo no basta para decidir a quién se asigna el parte */}
+        {mostrarPrioridad && pedido.cliente && (
+          <span
+            className="block truncate text-[9px] leading-tight text-text-muted"
+            title={pedido.cliente}
+          >
+            {pedido.cliente}
+          </span>
+        )}
         {!mostrarPrioridad && facet.pedido.negocio && (
           <div className="truncate text-[10px] leading-tight text-text-muted">
             {facet.pedido.negocio}
