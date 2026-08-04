@@ -17,6 +17,43 @@ import { useEffect, useRef, type ReactNode } from "react";
  *  distintos hacía pensar que eran cosas distintas. */
 const ANCHO = "46rem";
 
+// Cuántos PanelFlotante hay montados a la vez. A nivel de MÓDULO a propósito,
+// no por instancia: el "+N más" de una fase y el panel de un compañero son
+// estados independientes (Board.tsx guarda faseAbierta, TecnicoCard.tsx guarda
+// expanded), así que pueden convivir los dos — con teclado se llega al
+// segundo sin cerrar el primero. Si cada instancia guardara y restaurara su
+// PROPIO body.style.overflow, el que se desmonta primero pisaría el estilo
+// que ya había puesto el segundo (que sigue abierto): "hidden" se perdería
+// mientras aún hace falta, o el segundo en cerrarse restauraría un valor
+// capturado cuando el body YA estaba congelado, dejándolo congelado para
+// siempre aunque no quede ningún panel abierto. El contador solo congela al
+// pasar de 0→1 y solo restaura al volver a 0.
+let bloqueos = 0;
+let overflowOriginal = "";
+let paddingOriginal = "";
+
+function bloquearScroll() {
+  if (bloqueos === 0) {
+    const { body } = document;
+    overflowOriginal = body.style.overflow;
+    paddingOriginal = body.style.paddingRight;
+    // Compensa el ancho de la barra de scroll para que el fondo no dé un
+    // salto lateral al congelarlo.
+    const hueco = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
+  }
+  bloqueos += 1;
+}
+
+function liberarScroll() {
+  bloqueos = Math.max(0, bloqueos - 1);
+  if (bloqueos === 0) {
+    document.body.style.overflow = overflowOriginal;
+    document.body.style.paddingRight = paddingOriginal;
+  }
+}
+
 export function PanelFlotante({
   onCerrar,
   children,
@@ -42,18 +79,8 @@ export function PanelFlotante({
   }, [onCerrar]);
 
   useEffect(() => {
-    const { body } = document;
-    const overflowPrevio = body.style.overflow;
-    const paddingPrevio = body.style.paddingRight;
-    // Compensa el ancho de la barra de scroll para que el fondo no dé un salto
-    // lateral al congelarlo.
-    const hueco = window.innerWidth - document.documentElement.clientWidth;
-    body.style.overflow = "hidden";
-    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
-    return () => {
-      body.style.overflow = overflowPrevio;
-      body.style.paddingRight = paddingPrevio;
-    };
+    bloquearScroll();
+    return liberarScroll;
   }, []);
 
   return (
