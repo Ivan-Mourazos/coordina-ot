@@ -76,12 +76,16 @@ export function conTope<T>(items: readonly T[], tope: number): { visibles: T[]; 
   };
 }
 
-/** ¿Se puede quitar este pedido a un compañero? Solo si no ha empezado.
- *  Moverlo con tiempo ya fichado dejaría las horas a nombre de una persona y
- *  el trabajo a nombre de otra. */
-export function arrastrableDeCompanero(p: ConOFs): boolean {
-  if (p.ofs.length === 0) return false;
-  return p.ofs.every(
-    (o) => o.estado === "pendiente" && o.tiempoPlanteoMin === 0 && !o.fichandoRol,
-  );
+/** Por qué no se puede tocar el pedido de un compañero: el candado del panel
+ *  de solo consulta necesita un motivo, no una acción (el arrastre para
+ *  quitárselo a otro se eliminó; ver PanelCompanero).
+ *
+ *  No repite el tiempo: ya sale a la izquierda de la propia fila, y decir
+ *  "1 OF · 17m … 17m fichados" obliga a leer dos veces lo mismo. */
+export function motivoBloqueo(p: ConOFs): string {
+  if (p.ofs.some((o) => o.fichandoRol)) return "fichando";
+  const minutos = p.ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
+  if (minutos > 0) return "empezado";
+  if (p.ofs.some((o) => o.revisorId)) return "con revisor";
+  return "no disponible";
 }

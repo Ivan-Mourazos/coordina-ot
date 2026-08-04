@@ -27,6 +27,8 @@ export function ZonaPersonal({
   onFichar,
   onDesfichar,
   completarPedido,
+  operarios,
+  setRevisor,
 }: {
   operario: Operario;
   facets: Facet[];
@@ -39,6 +41,9 @@ export function ZonaPersonal({
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
+  operarios: Operario[];
+  setRevisor: (ofId: string, revisorId: string | null) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const grupos = agruparPorFase(facets);
@@ -115,6 +120,8 @@ export function ZonaPersonal({
                       onFichar={onFichar}
                       onDesfichar={onDesfichar}
                       completarPedido={completarPedido}
+                      operarios={operarios}
+                      setRevisor={setRevisor}
                     />
                   ))}
                   {resto > 0 && (

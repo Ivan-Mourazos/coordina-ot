@@ -646,9 +646,9 @@ export function Board({
   );
 
   // Adaptador para no romper firmas aguas abajo todavía: RevisionView sigue
-  // operando OF por OF con la firma antigua (ofId, accion, obs?). Zona/
-  // TecnicoCard/PedidoChip ya llaman a ejecutarAccion directamente desde
-  // Task 7; el adaptador accionFacet murió con ellas.
+  // operando OF por OF con la firma antigua (ofId, accion, obs?). ZonaPersonal,
+  // FaseFlyout, TecnicoCard y PedidoLinea ya llaman a ejecutarAccion
+  // directamente; el adaptador accionFacet murió con ellas.
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
 
   const completarPedido = useCallback(
@@ -776,6 +776,8 @@ export function Board({
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
                 completarPedido={completarPedido}
+                operarios={operarios}
+                setRevisor={setRevisor}
               />
             </main>
 
@@ -792,6 +794,8 @@ export function Board({
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
                 completarPedido={completarPedido}
+                operarios={operarios}
+                setRevisor={setRevisor}
               />
             )}
 

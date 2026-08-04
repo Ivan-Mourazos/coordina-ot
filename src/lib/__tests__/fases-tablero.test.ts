@@ -3,10 +3,10 @@ import type { OF } from "../types";
 import {
   FASES,
   agruparPorFase,
-  arrastrableDeCompanero,
   conTope,
   faseDeOF,
   faseDePedido,
+  motivoBloqueo,
 } from "../fases-tablero";
 
 const of = (p: Partial<OF>): OF =>
@@ -108,20 +108,26 @@ describe("conTope", () => {
   });
 });
 
-describe("arrastrableDeCompanero", () => {
-  it("solo se mueve lo que no ha empezado", () => {
-    expect(arrastrableDeCompanero({ ofs: [of({}), of({})] })).toBe(true);
+describe("motivoBloqueo", () => {
+  it("si alguien está fichando ahora, ese es el motivo", () => {
+    expect(motivoBloqueo({ ofs: [of({ fichandoRol: "plantear" })] })).toBe("fichando");
   });
-  it("con tiempo ya fichado no se mueve: las horas quedarían a nombre de otro", () => {
-    expect(arrastrableDeCompanero({ ofs: [of({}), of({ tiempoPlanteoMin: 5 })] })).toBe(false);
+  it("fichando manda sobre el tiempo ya acumulado", () => {
+    expect(
+      motivoBloqueo({ ofs: [of({ fichandoRol: "revisar", tiempoRevisionMin: 10 })] }),
+    ).toBe("fichando");
   });
-  it("si alguien la está fichando ahora, tampoco", () => {
-    expect(arrastrableDeCompanero({ ofs: [of({ fichandoRol: "plantear" })] })).toBe(false);
+  it("con tiempo ya fichado (planteo o revisión) está empezado", () => {
+    expect(motivoBloqueo({ ofs: [of({ tiempoPlanteoMin: 5 })] })).toBe("empezado");
+    expect(motivoBloqueo({ ofs: [of({ tiempoRevisionMin: 5 })] })).toBe("empezado");
   });
-  it("fuera de pendiente, tampoco", () => {
-    expect(arrastrableDeCompanero({ ofs: [of({ estado: "por_revisar" })] })).toBe(false);
+  it("sin tiempo pero con revisor asignado: con revisor", () => {
+    expect(motivoBloqueo({ ofs: [of({ revisorId: "ana" })] })).toBe("con revisor");
   });
-  it("un pedido sin OFs no es arrastrable", () => {
-    expect(arrastrableDeCompanero({ ofs: [] })).toBe(false);
+  it("sin nada de lo anterior: no disponible", () => {
+    expect(motivoBloqueo({ ofs: [of({})] })).toBe("no disponible");
+  });
+  it("un pedido sin OFs: no disponible", () => {
+    expect(motivoBloqueo({ ofs: [] })).toBe("no disponible");
   });
 });

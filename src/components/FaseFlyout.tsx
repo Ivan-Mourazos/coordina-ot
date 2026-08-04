@@ -1,6 +1,6 @@
 "use client";
 
-import type { Rol } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
@@ -19,6 +19,8 @@ export function FaseFlyout({
   onFichar,
   onDesfichar,
   completarPedido,
+  operarios,
+  setRevisor,
 }: {
   facets: Facet[];
   faseId: string;
@@ -28,6 +30,9 @@ export function FaseFlyout({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
+  /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
+  operarios: Operario[];
+  setRevisor: (ofId: string, revisorId: string | null) => void;
 }) {
   const grupo = agruparPorFase(facets).find((g) => g.id === faseId);
   if (!grupo) return null;
@@ -57,6 +62,8 @@ export function FaseFlyout({
             onFichar={onFichar}
             onDesfichar={onDesfichar}
             completarPedido={completarPedido}
+            operarios={operarios}
+            setRevisor={setRevisor}
           />
         ))}
       </div>

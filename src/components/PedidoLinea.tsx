@@ -1,11 +1,13 @@
 "use client";
 
-import type { OF, Rol } from "@/lib/types";
+import { useState } from "react";
+import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
-import { FASES, type Fase } from "@/lib/fases-tablero";
+import { FASES, motivoBloqueo, type Fase } from "@/lib/fases-tablero";
 import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
 import { fmtMin } from "@/lib/estado";
 import type { AccionOF } from "@/lib/acciones";
+import { PedirRevisor } from "./PedirRevisor";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
@@ -25,8 +27,9 @@ export function PedidoLinea({
   onFichar,
   onDesfichar,
   completarPedido,
+  operarios,
+  setRevisor,
   soloConsulta = false,
-  arrastrable = false,
 }: {
   facet: Facet;
   fase: Fase;
@@ -35,11 +38,14 @@ export function PedidoLinea({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
+  /** Para nombrar revisor al pulsar "Pasar a revisión" (ver PedirRevisor).
+   *  No hace falta en modo consulta: ahí no hay ninguna acción que lo pida. */
+  operarios?: Operario[];
+  setRevisor?: (ofId: string, revisorId: string | null) => void;
   /** Panel de un compañero: sobre su trabajo no se ficha ni se cambia estado. */
   soloConsulta?: boolean;
-  /** Solo en modo consulta: si se puede quitar al compañero (arrastrándolo). */
-  arrastrable?: boolean;
 }) {
+  const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
   const fichando = ofs.find((o) => o.fichandoRol);
@@ -49,13 +55,11 @@ export function PedidoLinea({
 
   const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
-  // comentario de ofsFichablesDe): en "esperandoRevision" lo que se ficha es
-  // la revisión; en el resto de fases (planteando, sinEmpezar) es el
-  // planteo. Las OFs del otro rol que también sean fichables (un pedido
-  // "planteando" puede tener a la vez una OF en_curso y otra por_revisar) se
-  // fichan desde el detalle, una a una — igual que resuelve PedidoChip.
-  const rolFichar: Rol = fase === "esperandoRevision" ? "revisar" : "plantear";
-  const fichables = ofsFichablesDe(facet, rolFichar);
+  // comentario de ofsFichablesDe): esta fila solo ficha planteo. En
+  // "esperandoRevision" el pedido es MI trabajo en manos de otro — lo que se
+  // ficha ahí es la revisión, que le toca al revisor, no a mí — así que no
+  // se ofrece fichar en absoluto en esa fase.
+  const fichables = fase === "esperandoRevision" ? [] : ofsFichablesDe(facet, "plantear");
 
   return (
     <div
@@ -67,34 +71,54 @@ export function PedidoLinea({
       <button
         onClick={() => onOpen(facet)}
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className={`flex min-w-0 items-center gap-2 text-left ${pidiendoRevisor ? "shrink-0" : "flex-1"}`}
       >
         {fichando && (
           <span className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
         )}
         <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
-        <span className="min-w-0 flex-1 truncate text-text-muted">
-          {pedido.cliente}
-          {descripcion && ` · ${descripcion}`}
-        </span>
-        <span className="shrink-0 text-[10px] text-text-muted">
-          {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
-        </span>
+        {/* Al pedir revisor se recorta a solo el código: el hueco que suelta
+            la descripción es el que necesita el selector para no quedar
+            apretado en filas estrechas (zona personal, "+N más"). */}
+        {!pidiendoRevisor && (
+          <>
+            <span className="min-w-0 flex-1 truncate text-text-muted">
+              {pedido.cliente}
+              {descripcion && ` · ${descripcion}`}
+            </span>
+            <span className="shrink-0 text-[10px] text-text-muted">
+              {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
+            </span>
+          </>
+        )}
       </button>
 
-      {/* Trabajo de otro: ni se ficha ni se cambia de estado. Lo que se puede
-          es quitárselo, y solo si no lo ha empezado — mover un pedido con
-          tiempo ya fichado dejaría las horas a nombre de uno y el trabajo a
-          nombre de otro. El motivo va escrito para que no haya que adivinarlo. */}
+      {/* Trabajo de otro: ni se ficha ni se cambia de estado, el panel es
+          solo consulta. El candado dice por qué no está disponible, para
+          que no haga falta adivinarlo. */}
       {soloConsulta ? (
         <span className="shrink-0 text-[10px] text-text-muted">
-          {arrastrable ? (
-            <span className="rounded border border-dashed border-amber-500/70 px-1.5 py-0.5 font-semibold text-amber-600">
-              Arrastrable
-            </span>
-          ) : (
-            <span title={motivoBloqueo(facet, fichando)}>🔒 {motivoBloqueo(facet, fichando)}</span>
-          )}
+          <span title={motivoBloqueo(facet)}>🔒 {motivoBloqueo(facet)}</span>
+        </span>
+      ) : pidiendoRevisor ? (
+        // "Pasar a revisión" pide el revisor aquí mismo (flujo unificado con
+        // el Drawer, ver AccionesOF en Drawer.tsx): terminar_planteo no
+        // exige revisor, pero empezar_revision sí — sin nombrarlo aquí, la
+        // OF quedaría "por revisar" sin nadie que pueda tomarla. Se fija el
+        // revisor ANTES de ejecutar la acción.
+        <span className="min-w-0 flex-1">
+          <PedirRevisor
+            operarios={operarios ?? []}
+            excluirIds={[facet.locationId, ...ofs.map((o) => o.autorId)]}
+            valorInicial={ofs.find((o) => o.revisorId)?.revisorId ?? null}
+            onConfirmar={(rev) => {
+              const ids = ofsPara(facet, "terminar_planteo").map((o) => o.id);
+              ids.forEach((id) => setRevisor?.(id, rev));
+              onAccion(ids, "terminar_planteo");
+              setPidiendoRevisor(false);
+            }}
+            onCancelar={() => setPidiendoRevisor(false)}
+          />
         </span>
       ) : (
         // Los botones se superponen al final de la fila en vez de reservar
@@ -114,7 +138,7 @@ export function PedidoLinea({
         ) : (
           fichables.length > 0 && (
             <button
-              onClick={() => onFichar(fichables.map((o) => o.id), rolFichar)}
+              onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
               title="Empezar a fichar en este pedido"
               className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus:opacity-100 group-hover:opacity-100"
             >
@@ -125,7 +149,11 @@ export function PedidoLinea({
 
         {accion && (
           <button
-            onClick={() => onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)}
+            onClick={() =>
+              accion.id === "terminar_planteo"
+                ? setPidiendoRevisor(true)
+                : onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)
+            }
             title={accion.label}
             className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 transition-opacity hover:bg-brand-600 focus:opacity-100 group-hover:opacity-100"
           >
@@ -146,16 +174,4 @@ export function PedidoLinea({
       )}
     </div>
   );
-}
-
-/** Por qué no se puede quitar este pedido a quien lo tiene.
- *
- *  No repite el tiempo: ya sale a la izquierda de la propia fila, y decir
- *  "1 OF · 17m … 17m fichados" obliga a leer dos veces lo mismo. */
-function motivoBloqueo(facet: Facet, fichando: OF | undefined): string {
-  if (fichando) return "fichando";
-  const minutos = facet.ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
-  if (minutos > 0) return "empezado";
-  if (facet.ofs.some((o) => o.revisorId)) return "con revisor";
-  return "no disponible";
 }
