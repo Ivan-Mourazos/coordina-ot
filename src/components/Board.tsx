@@ -840,9 +840,6 @@ export function Board({
                 <div className="min-w-0 flex-1">
                   <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} ordenes={["planificacion", "familia", "prioridad"]} />
                 </div>
-                <span className="shrink-0 text-[11px] font-semibold text-text-muted">
-                  {facetsDe(null).length} sin asignar
-                </span>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} orden={filtros.orden} />
