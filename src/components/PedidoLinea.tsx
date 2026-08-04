@@ -144,12 +144,14 @@ export function PedidoLinea({
   );
 }
 
-/** Por qué no se puede quitar este pedido a quien lo tiene. */
+/** Por qué no se puede quitar este pedido a quien lo tiene.
+ *
+ *  No repite el tiempo: ya sale a la izquierda de la propia fila, y decir
+ *  "1 OF · 17m … 17m fichados" obliga a leer dos veces lo mismo. */
 function motivoBloqueo(facet: Facet, fichando: OF | undefined): string {
-  if (fichando) return "fichando ahora";
+  if (fichando) return "fichando";
   const minutos = facet.ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
-  if (minutos > 0) return `${fmtMin(minutos)} fichados`;
-  const revisor = facet.ofs.find((o) => o.revisorId)?.revisorId;
-  if (revisor) return "ya tiene revisor";
-  return "empezado";
+  if (minutos > 0) return "empezado";
+  if (facet.ofs.some((o) => o.revisorId)) return "con revisor";
+  return "no disponible";
 }

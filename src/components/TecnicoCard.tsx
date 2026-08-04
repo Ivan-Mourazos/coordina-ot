@@ -54,6 +54,23 @@ export const TecnicoCard = memo(function TecnicoCard({
     setAnchor(expanded ? rootRef.current?.getBoundingClientRect() ?? null : null);
   }, [expanded]);
 
+  // Con el panel abierto, la rueda seguía moviendo la bandeja de detrás: al
+  // cerrarlo aparecías en otro sitio. Se congela el body y se compensa el ancho
+  // de la barra para que el fondo no dé un salto lateral.
+  useEffect(() => {
+    if (!expanded) return;
+    const { body } = document;
+    const overflowPrevio = body.style.overflow;
+    const paddingPrevio = body.style.paddingRight;
+    const hueco = window.innerWidth - document.documentElement.clientWidth;
+    body.style.overflow = "hidden";
+    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
+    return () => {
+      body.style.overflow = overflowPrevio;
+      body.style.paddingRight = paddingPrevio;
+    };
+  }, [expanded]);
+
   // Desplegado: se cierra con clic fuera (tarjeta o popup) o Escape.
   useEffect(() => {
     if (!expanded) return;
@@ -161,27 +178,36 @@ export const TecnicoCard = memo(function TecnicoCard({
             const margin = 16;
             const vh = window.innerHeight;
             return (
-              <div
-                ref={popRef}
-                style={{
-                  left: margin,
-                  right: margin,
-                  top: Math.min(anchor.bottom + 6, vh - 160),
-                }}
-                className="fixed z-40"
-              >
-                <PanelCompanero
-                  operario={operario}
-                  facets={facets}
-                  live={live}
-                  onOpen={onOpen}
-                  onCerrar={onClose}
-                  onAccion={onAccion}
-                  onFichar={onFichar}
-                  onDesfichar={onDesfichar}
-                  completarPedido={completarPedido}
+              <>
+                {/* Atenúa el resto: mientras miras el trabajo de un compañero,
+                    el tablero de detrás es contexto, no algo con lo que operar. */}
+                <div
+                  onClick={onClose}
+                  aria-hidden
+                  className="fixed inset-0 z-30 bg-black/45 backdrop-blur-[1px]"
                 />
-              </div>
+                <div
+                  ref={popRef}
+                  style={{
+                    left: margin,
+                    right: margin,
+                    top: Math.min(anchor.bottom + 6, vh - 160),
+                  }}
+                  className="fixed z-40"
+                >
+                  <PanelCompanero
+                    operario={operario}
+                    facets={facets}
+                    live={live}
+                    onOpen={onOpen}
+                    onCerrar={onClose}
+                    onAccion={onAccion}
+                    onFichar={onFichar}
+                    onDesfichar={onDesfichar}
+                    completarPedido={completarPedido}
+                  />
+                </div>
+              </>
             );
           })(),
           document.body,
