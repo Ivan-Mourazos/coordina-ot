@@ -6,11 +6,11 @@ import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
-import { PedidosPorEstado } from "./PedidosPorEstado";
+import { PanelCompanero } from "./PanelCompanero";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
 import type { AccionOF } from "@/lib/acciones";
-import { FASES, arrastrableDeCompanero, faseDeOF } from "@/lib/fases-tablero";
+import { agruparPorFase } from "@/lib/fases-tablero";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
  *  qué rol), y una barra con la distribución de sus OF por fase. Zona
@@ -18,7 +18,6 @@ import { FASES, arrastrableDeCompanero, faseDeOF } from "@/lib/fases-tablero";
  *  despliega sus partes agrupados sin robar sitio a la bandeja. */
 export const TecnicoCard = memo(function TecnicoCard({
   operario,
-  operarios,
   facets,
   live,
   expanded,
@@ -28,11 +27,9 @@ export const TecnicoCard = memo(function TecnicoCard({
   onAccion,
   onFichar,
   onDesfichar,
-  setRevisor,
   completarPedido,
 }: {
   operario: Operario;
-  operarios: Operario[];
   facets: Facet[];
   live: LiveInfo | null;
   expanded: boolean;
@@ -42,7 +39,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
-  setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
@@ -77,11 +73,9 @@ export const TecnicoCard = memo(function TecnicoCard({
     };
   }, [expanded, onClose]);
 
-  const ofs = facets.flatMap((f) => f.ofs);
-  const porFase = FASES.map((fase) => ({
-    ...fase,
-    n: ofs.filter((o) => faseDeOF(o) === fase.id).length,
-  }));
+  // La barra reparte PEDIDOS, no OFs, para que case con el "N ped" de al lado:
+  // dos números distintos midiendo lo mismo obligan a mirar dos veces.
+  const porFase = agruparPorFase(facets).map((g) => ({ ...g, n: g.items.length }));
 
   return (
     <div
@@ -107,36 +101,22 @@ export const TecnicoCard = memo(function TecnicoCard({
           </span>
           <span className="truncate text-xs font-semibold text-text">{operario.nombre}</span>
 
-          {/* distintivos rápidos: cuántas OF planteando / por revisar */}
-          <span className="ml-auto flex shrink-0 items-center gap-1">
-            {porFase
-              .filter((f) => (f.id === "planteando" || f.id === "esperandoRevision") && f.n > 0)
-              .map((f) => (
-                <span
-                  key={f.id}
-                  title={`${f.label}: ${f.n} OF`}
-                  className="flex items-center gap-0.5 rounded-full px-1.5 text-[9px] font-bold text-white"
-                  style={{ background: f.color }}
-                >
-                  {f.n}
-                </span>
-              ))}
-          </span>
-
-          {live ? (
+          {live && (
             <span
-              className="flex min-w-0 shrink items-center gap-1 text-[10px] font-bold"
+              className="ml-auto flex min-w-0 shrink items-center gap-1 text-[10px] font-bold"
               style={{ color: ROL[live.rol].color }}
               title={`${ROL[live.rol].label} ${live.pedido.codigo} · ${live.of.descripcion}`}
             >
               <LiveDot rol={live.rol} className="size-1.5" />
-              <span className="truncate">{ROL[live.rol].label}</span>
-            </span>
-          ) : (
-            <span className="text-[10px] text-text-muted">
-              {facets.length}·{ofs.length}
+              <span className="truncate">{live.pedido.codigo}</span>
             </span>
           )}
+
+          {/* Cuánto lleva. En qué está cargado lo dice la barra de abajo, así
+              que aquí no se repiten distintivos por fase. */}
+          <span className={`shrink-0 text-[10px] text-text-muted ${live ? "" : "ml-auto"}`}>
+            {facets.length} ped
+          </span>
 
           <svg
             viewBox="0 0 24 24"
@@ -153,16 +133,16 @@ export const TecnicoCard = memo(function TecnicoCard({
             cuánto. Antes era de 1 px y al 70% de opacidad, ilegible. */}
         <div
           className="mt-1.5 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)]"
-          title={porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n} OF`).join(" · ")}
+          title={porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n}`).join(" · ")}
         >
-          {ofs.length > 0 &&
+          {facets.length > 0 &&
             porFase
               .filter((f) => f.n > 0)
               .map((f) => (
                 <span
                   key={f.id}
                   className="h-full"
-                  style={{ width: `${(f.n / ofs.length) * 100}%`, background: f.color }}
+                  style={{ width: `${(f.n / facets.length) * 100}%`, background: f.color }}
                 />
               ))}
         </div>
@@ -175,40 +155,30 @@ export const TecnicoCard = memo(function TecnicoCard({
         typeof document !== "undefined" &&
         createPortal(
           (() => {
-            const margin = 12;
-            const vw = window.innerWidth;
+            // Ancho de casi toda la ventana, no de la tarjeta: dentro van las
+            // cuatro fases en columnas, igual que en la zona personal, y con
+            // 384 px no cabrían. Flota sobre la bandeja sin empujarla.
+            const margin = 16;
             const vh = window.innerHeight;
-            const W = Math.min(384, vw - 2 * margin); // 24rem
-            const left = Math.min(Math.max(margin, anchor.left), vw - W - margin);
-            const abajo = vh - anchor.bottom - margin - 6;
-            const arriba = anchor.top - margin - 6;
-            const abreAbajo = abajo >= 240 || abajo >= arriba;
-            const maxH = Math.min(vh * 0.6, abreAbajo ? abajo : arriba);
             return (
               <div
                 ref={popRef}
                 style={{
-                  background: "var(--surface)",
-                  left,
-                  width: W,
-                  maxHeight: maxH,
-                  ...(abreAbajo
-                    ? { top: anchor.bottom + 6 }
-                    : { bottom: vh - anchor.top + 6 }),
+                  left: margin,
+                  right: margin,
+                  top: Math.min(anchor.bottom + 6, vh - 160),
                 }}
-                className="glass-pop scroll-thin fixed z-40 overflow-y-auto overflow-x-hidden rounded-xl p-3"
+                className="fixed z-40"
               >
-                <PedidosPorEstado
+                <PanelCompanero
+                  operario={operario}
                   facets={facets}
-                  operarios={operarios}
+                  live={live}
                   onOpen={onOpen}
-                  layout="list"
-                  accionable={false}
-                  arrastrable={arrastrableDeCompanero}
+                  onCerrar={onClose}
                   onAccion={onAccion}
                   onFichar={onFichar}
                   onDesfichar={onDesfichar}
-                  setRevisor={setRevisor}
                   completarPedido={completarPedido}
                 />
               </div>

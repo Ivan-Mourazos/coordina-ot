@@ -1,6 +1,6 @@
 "use client";
 
-import type { Rol } from "@/lib/types";
+import type { OF, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { FASES, type Fase } from "@/lib/fases-tablero";
 import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
@@ -25,6 +25,8 @@ export function PedidoLinea({
   onFichar,
   onDesfichar,
   completarPedido,
+  soloConsulta = false,
+  arrastrable = false,
 }: {
   facet: Facet;
   fase: Fase;
@@ -33,6 +35,10 @@ export function PedidoLinea({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
+  /** Panel de un compañero: sobre su trabajo no se ficha ni se cambia estado. */
+  soloConsulta?: boolean;
+  /** Solo en modo consulta: si se puede quitar al compañero (arrastrándolo). */
+  arrastrable?: boolean;
 }) {
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
@@ -76,6 +82,21 @@ export function PedidoLinea({
         </span>
       </button>
 
+      {/* Trabajo de otro: ni se ficha ni se cambia de estado. Lo que se puede
+          es quitárselo, y solo si no lo ha empezado — mover un pedido con
+          tiempo ya fichado dejaría las horas a nombre de uno y el trabajo a
+          nombre de otro. El motivo va escrito para que no haya que adivinarlo. */}
+      {soloConsulta ? (
+        <span className="shrink-0 text-[10px] text-text-muted">
+          {arrastrable ? (
+            <span className="rounded border border-dashed border-amber-500/70 px-1.5 py-0.5 font-semibold text-amber-600">
+              Arrastrable
+            </span>
+          ) : (
+            <span title={motivoBloqueo(facet, fichando)}>🔒 {motivoBloqueo(facet, fichando)}</span>
+          )}
+        </span>
+      ) : (
       <span className="flex shrink-0 items-center gap-1">
         {/* Pausa: siempre visible mientras se ficha. */}
         {fichando ? (
@@ -118,6 +139,17 @@ export function PedidoLinea({
           </button>
         )}
       </span>
+      )}
     </div>
   );
+}
+
+/** Por qué no se puede quitar este pedido a quien lo tiene. */
+function motivoBloqueo(facet: Facet, fichando: OF | undefined): string {
+  if (fichando) return "fichando ahora";
+  const minutos = facet.ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
+  if (minutos > 0) return `${fmtMin(minutos)} fichados`;
+  const revisor = facet.ofs.find((o) => o.revisorId)?.revisorId;
+  if (revisor) return "ya tiene revisor";
+  return "empezado";
 }

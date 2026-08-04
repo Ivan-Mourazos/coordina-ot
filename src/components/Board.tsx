@@ -815,7 +815,6 @@ export function Board({
                   <TecnicoCard
                     key={op.id}
                     operario={op}
-                    operarios={operarios}
                     facets={facetsDe(op.id)}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}
@@ -825,7 +824,6 @@ export function Board({
                     onAccion={ejecutarAccion}
                     onFichar={ficharOFsConAviso}
                     onDesfichar={desficharOF}
-                    setRevisor={setRevisor}
                     completarPedido={completarPedido}
                   />
                 ))}
