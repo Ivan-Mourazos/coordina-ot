@@ -151,9 +151,18 @@ describe("modo ensayo", () => {
     // 2 = estado interno de OLANET "ya pasado": su proceso no lo recoge, así
     // que el tiempo no sube a RPS aunque la fila esté en la tabla buena.
     expect(escrito.traspasado).toBe(2);
-    // Los movimientos de fase sí se escriben tal cual: son los que dejan ver
-    // el ensayo en el sistema de Producción.
-    expect(moverFase).toHaveBeenCalled();
+    // Los movimientos de fase NO se escriben: no hay forma de neutralizarlos y
+    // dejarían una OF real marcada como finalizada para Producción.
+    expect(moverFase).not.toHaveBeenCalled();
+    const descartados = outbox.leerCola().filter((p) => p.error?.includes("ensayo:"));
+    expect(descartados.length).toBeGreaterThan(0);
+    delete process.env.FICHAJE_OLANET;
+  });
+
+  it("en ensayo no toca la tabla de fichaje vivo, que comparte con el mini-olanet", async () => {
+    process.env.FICHAJE_OLANET = "ensayo";
+    await worker.refrescarEnCurso();
+    expect(sincronizarFichajeEnCurso).not.toHaveBeenCalled();
     delete process.env.FICHAJE_OLANET;
   });
 

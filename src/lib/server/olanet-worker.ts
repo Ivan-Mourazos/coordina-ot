@@ -50,14 +50,25 @@ let temporizador: NodeJS.Timeout | null = null;
  *  descartado: el llamante no debe marcarlo como enviado, porque `descartar`
  *  ya lo saca de la cola CONSERVANDO el motivo, y `marcarEnviados` lo borraría. */
 async function enviarUno(p: Pendiente): Promise<boolean> {
+  const ensayo = modoFichaje() === "ensayo";
+
   if (p.tipo === "bono") {
     // En ensayo el bono se escribe igual pero marcado como no procesable, así
     // que recorre todo el camino real sin que el tiempo llegue a RPS.
-    const traspasado =
-      modoFichaje() === "ensayo" ? TRASPASADO_NO_PROCESAR : p.datos.traspasado;
+    const traspasado = ensayo ? TRASPASADO_NO_PROCESAR : p.datos.traspasado;
     await insertarBono({ ...p.datos, traspasado });
     return true;
   }
+
+  // Los movimientos de fase NO son neutralizables: poner IdEstadoOF = 3 deja la
+  // fase finalizada para Producción, en una OF real de un cliente real. Mientras
+  // el mini-olanet siga en uso, un ensayo no puede permitirse eso, así que se
+  // descartan dejando constancia en la cola.
+  if (ensayo) {
+    descartar(p.id, `ensayo: no se mueve la fase ${p.datos.of}/${p.datos.numope} a ${p.datos.estado}`);
+    return false;
+  }
+
   const operarioRps = COD_RPS_POR_OPERARIO[p.datos.operarioId];
   if (!operarioRps) {
     // No se arregla solo: sin código no se puede escribir a nombre de nadie.
@@ -132,7 +143,10 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
 }
 
 export async function refrescarEnCurso(): Promise<void> {
-  if (modoFichaje() === "sombra") return;
+  // Solo en activo. Esta tabla la comparte el mini-olanet, y la sincronización
+  // empieza borrando las filas de A-OTEC: durante un ensayo se llevaría por
+  // delante a quien esté fichando ahora mismo en el sistema de verdad.
+  if (modoFichaje() !== "activo") return;
   await sincronizarFichajeEnCurso(filasEnCurso(), MAQUINA_OT);
 }
 
