@@ -48,7 +48,7 @@ export function PanelCompanero({
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
   return (
-    <PanelFlotante onCerrar={onCerrar} ancho="46rem">
+    <PanelFlotante onCerrar={onCerrar}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"

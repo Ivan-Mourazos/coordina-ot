@@ -12,14 +12,16 @@ import { useEffect, useRef, type ReactNode } from "react";
  *  salto y se perdería el alto que el rediseño acaba de ganar. Y mientras está
  *  abierto se congela el scroll del fondo, porque si no la rueda mueve la
  *  bandeja de detrás y al cerrar apareces en otro sitio. */
+/** Ancho de TODOS los desplegables del tablero. Uno solo a propósito: el de
+ *  tus pedidos y el de un compañero enseñan lo mismo, y verlos de dos tamaños
+ *  distintos hacía pensar que eran cosas distintas. */
+const ANCHO = "46rem";
+
 export function PanelFlotante({
   onCerrar,
-  ancho = "32rem",
   children,
 }: {
   onCerrar: () => void;
-  /** Ancho máximo. El panel de compañero necesita más: lleva columnas. */
-  ancho?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -61,7 +63,7 @@ export function PanelFlotante({
       <div onClick={onCerrar} aria-hidden className="absolute inset-0 bg-black/15" />
       <div
         ref={ref}
-        style={{ background: "var(--surface)", width: `min(${ancho}, 92vw)` }}
+        style={{ background: "var(--surface)", width: `min(${ANCHO}, 92vw)` }}
         className="glass-pop scroll-thin relative max-h-[60vh] overflow-y-auto rounded-xl p-3"
       >
         {children}
