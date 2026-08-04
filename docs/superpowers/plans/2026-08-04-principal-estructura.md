@@ -18,13 +18,9 @@
 - Comentarios y textos de UI en **castellano**, como el resto del proyecto.
 - Este plan cubre las secciones 1–4 del diseño (estructura). Las secciones 5 y 6 —flujo de revisión y reparto por rol entre Asignar y la pestaña Revisión— van en un **segundo plan**, porque cambian semántica y no layout.
 
-## Consecuencia conocida y aceptada
+## Acciones en línea
 
-La fila compacta **no lleva acciones en línea**. Hoy `PedidoChip` ofrece «Empezar planteo», «Pasar a revisión», fichar y desfichar sin salir del tablero; con la fila, esas acciones se hacen abriendo el pedido, donde ya existen todas (`Drawer.tsx` recibe `onAccion`, `onFichar` y `onDesfichar`).
-
-Es un paso atrás deliberado y temporal: meter botones en una fila de 24 px sin haber decidido su jerarquía es justo lo que produce el desorden del que venimos. Esa decisión es el **segundo diseño** (flujo de fichaje y botones). Si al probarlo resulta insoportable trabajar así, la vuelta atrás es barata: `PedidoLinea` puede aceptar las mismas props de acción y pintar los botones al pasar el ratón.
-
-**Avisar a Iván antes de empezar la Task 3**, porque cambia cómo se ficha a diario.
+Iván confirmó que la fila debe conservar las acciones: perderlas seria pasar de un clic a dos en algo que se hace a diario. Van reveladas al pasar el raton (ver Task 2), y la jerarquia completa de botones sigue siendo asunto del segundo diseño.
 
 ## Estructura de ficheros
 
@@ -301,31 +297,196 @@ contrario de lo que significa."
 
 ---
 
-### Task 2: Fila compacta de pedido
+### Task 2: Fila compacta de pedido, con acciones en línea
 
 Sustituye la tarjeta de tres líneas por una fila. Es la pieza que hace que 5 pedidos ocupen ~130 px en vez de ~340.
 
+**Las acciones se conservan**: hoy se puede fichar y cambiar de estado desde el tablero sin abrir nada, y perder eso serían dos clics donde hay uno, cada día. Van reveladas al pasar el ratón para no gastar sitio en reposo, salvo el botón de pausa del pedido que se está fichando, que está siempre visible porque es el que más se usa.
+
+Qué acción ofrecer no se decide en el componente: sale de `accionesDisponibles()` de `src/lib/acciones.ts`, que ya es la fuente única de verdad de la máquina de estados. Lo único nuevo es reducir las acciones de las N OFs de un pedido a **una** primaria, y eso es lógica pura y con tests.
+
 **Files:**
+- Create: `src/lib/accion-pedido.ts`
+- Test: `src/lib/__tests__/accion-pedido.test.ts`
 - Create: `src/components/PedidoLinea.tsx`
 
 **Interfaces:**
-- Consumes: `Fase` y `FASES` de Task 1; `Facet` de `./PedidoCard`.
-- Produces: `<PedidoLinea facet fase onOpen destacada />`.
+- Consumes: `Fase`, `FASES` (Task 1); `accionesDisponibles`, `AccionDef`, `AccionOF` de `src/lib/acciones.ts`; `esFichable`, `rolFichajeDe` de `src/lib/fichaje.ts`; `Facet` de `./PedidoCard`.
+- Produces: `accionPrimariaDePedido(p)`, `ofsPara(p, accion)`, `ofsFichablesDe(p)` y `<PedidoLinea facet fase onOpen onAccion onFichar onDesfichar completarPedido />`.
 
-- [ ] **Step 1: Escribir el componente**
+- [ ] **Step 1: Escribir el test que falla**
+
+Crear `src/lib/__tests__/accion-pedido.test.ts`:
+
+```ts
+import { describe, expect, it } from "vitest";
+import type { OF } from "../types";
+import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "../accion-pedido";
+
+const of = (p: Partial<OF>): OF =>
+  ({
+    id: "0230001:5",
+    codigo: "0230001",
+    descripcion: "LONA",
+    familia: "LONA",
+    piezas: 1,
+    autorId: "ivan",
+    revisorId: null,
+    estado: "pendiente",
+    fichandoRol: null,
+    tiempoEstimadoMin: 0,
+    tiempoPlanteoMin: 0,
+    tiempoRevisionMin: 0,
+    ...p,
+  }) as OF;
+
+describe("accionPrimariaDePedido", () => {
+  it("pendiente con autor → empezar planteo", () => {
+    expect(accionPrimariaDePedido({ ofs: [of({})] })?.id).toBe("empezar_planteo");
+  });
+
+  it("en curso → pasar a revisión", () => {
+    expect(accionPrimariaDePedido({ ofs: [of({ estado: "en_curso" })] })?.id)
+      .toBe("terminar_planteo");
+  });
+
+  it("devuelta → retomar planteo", () => {
+    expect(accionPrimariaDePedido({ ofs: [of({ estado: "devuelta" })] })?.id).toBe("retomar");
+  });
+
+  it("aprobada no ofrece accion primaria: lo que toca es pasar el pedido", () => {
+    expect(accionPrimariaDePedido({ ofs: [of({ estado: "aprobada" })] })).toBeNull();
+  });
+
+  it("pendiente SIN autor no ofrece empezar: la accion lo exige", () => {
+    expect(accionPrimariaDePedido({ ofs: [of({ autorId: null })] })).toBeNull();
+  });
+
+  it("con OFs en estados distintos manda la de la fase del pedido", () => {
+    // El pedido está "planteando" porque una OF está en curso; la acción tiene
+    // que ser la de esa fase, no la de la OF que sigue pendiente.
+    const p = { ofs: [of({ estado: "pendiente" }), of({ estado: "en_curso" })] };
+    expect(accionPrimariaDePedido(p)?.id).toBe("terminar_planteo");
+  });
+
+  it("un pedido sin OFs no ofrece nada", () => {
+    expect(accionPrimariaDePedido({ ofs: [] })).toBeNull();
+  });
+});
+
+describe("ofsPara", () => {
+  it("devuelve solo las OFs que admiten esa accion", () => {
+    const a = of({ id: "a:1", estado: "en_curso" });
+    const b = of({ id: "b:1", estado: "aprobada" });
+    expect(ofsPara({ ofs: [a, b] }, "terminar_planteo").map((o) => o.id)).toEqual(["a:1"]);
+  });
+
+  it("lista vacia si ninguna la admite", () => {
+    expect(ofsPara({ ofs: [of({ estado: "aprobada" })] }, "empezar_planteo")).toEqual([]);
+  });
+});
+
+describe("ofsFichablesDe", () => {
+  it("excluye anuladas, aprobadas y detenidas", () => {
+    const ok = of({ id: "ok:1", estado: "en_curso" });
+    const p = {
+      ofs: [
+        ok,
+        of({ id: "x:1", estado: "aprobada" }),
+        of({ id: "y:1", estado: "anulada" }),
+        of({ id: "z:1", estado: "en_curso", detenida: true }),
+      ],
+    };
+    expect(ofsFichablesDe(p).map((o) => o.id)).toEqual(["ok:1"]);
+  });
+});
+```
+
+- [ ] **Step 2: Ejecutar el test y comprobar que falla**
+
+Run: `npx vitest run src/lib/__tests__/accion-pedido.test.ts`
+Expected: FAIL — `Failed to resolve import "../accion-pedido"`.
+
+- [ ] **Step 3: Escribir el módulo**
+
+Crear `src/lib/accion-pedido.ts`:
+
+```ts
+import { accionesDisponibles, type AccionDef, type AccionOF } from "./acciones";
+import { esFichable } from "./fichaje";
+import { faseDePedido, type ConOFs } from "./fases-tablero";
+import type { OF } from "./types";
+
+// ─── Qué acción ofrecer en la fila de un pedido ──────────────────────────────
+// Un pedido tiene N OFs y cada una tiene sus acciones. La fila solo tiene sitio
+// para UNA, así que se reduce a la primaria de la fase en la que está el pedido.
+// Las demás siguen estando en el detalle.
+//
+// Las acciones NO se definen aquí: salen de accionesDisponibles(), que es la
+// máquina de estados y la única fuente de verdad.
+
+/** Acción primaria de cada fase. `null` = esa fase no tiene botón propio en la
+ *  fila: "esperando revisión" es trabajo de otro, y "listo para pasar" tiene su
+ *  propio botón de pasar el pedido entero. */
+const PRIMARIA_POR_FASE: Record<string, AccionOF[]> = {
+  sinEmpezar: ["empezar_planteo"],
+  // Devuelta y en curso caen las dos en "planteando": si viene devuelta hay que
+  // retomarla, y si ya está en curso lo que toca es mandarla a revisión.
+  planteando: ["retomar", "terminar_planteo"],
+  esperandoRevision: [],
+  listoParaPasar: [],
+};
+
+/** OFs del pedido que admiten esa acción ahora mismo. */
+export function ofsPara(p: ConOFs, accion: AccionOF): OF[] {
+  return p.ofs.filter((o) => accionesDisponibles(o).some((a) => a.id === accion));
+}
+
+/** La acción que pinta la fila, o null si en esta fase no hay ninguna. */
+export function accionPrimariaDePedido(p: ConOFs): AccionDef | null {
+  if (p.ofs.length === 0) return null;
+  const candidatas = PRIMARIA_POR_FASE[faseDePedido(p)] ?? [];
+  for (const id of candidatas) {
+    const ofs = ofsPara(p, id);
+    if (ofs.length === 0) continue;
+    const def = accionesDisponibles(ofs[0]).find((a) => a.id === id);
+    if (def) return def;
+  }
+  return null;
+}
+
+/** OFs del pedido en las que se puede fichar. */
+export function ofsFichablesDe(p: ConOFs): OF[] {
+  return p.ofs.filter(esFichable);
+}
+```
+
+- [ ] **Step 4: Ejecutar el test y comprobar que pasa**
+
+Run: `npx vitest run src/lib/__tests__/accion-pedido.test.ts`
+Expected: PASS, 10 tests.
+
+- [ ] **Step 5: Escribir la fila**
 
 Crear `src/components/PedidoLinea.tsx`:
 
 ```tsx
 "use client";
 
+import type { Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { FASES, type Fase } from "@/lib/fases-tablero";
+import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
+import { rolFichajeDe } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
+import type { AccionOF } from "@/lib/acciones";
 
-/** Una línea por pedido: código, cliente, descripción y nº de OF. La
- *  descripción larga y el resto del detalle salen al abrir el pedido; aquí
- *  manda que quepan muchos sin crecer.
+/** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
+ *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
+ *
+ *  Las acciones se revelan al pasar el ratón para no gastar sitio en reposo.
+ *  La excepción es la pausa del pedido que se está fichando: está siempre
+ *  visible porque es la que más se pulsa y esconderla obligaría a buscarla.
  *
  *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
  *  pintan en rojo: la prioridad tiene que verse sin leer. */
@@ -333,10 +494,18 @@ export function PedidoLinea({
   facet,
   fase,
   onOpen,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  completarPedido,
 }: {
   facet: Facet;
   fase: Fase;
   onOpen: (f: Facet) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  completarPedido: (pedidoId: string) => void;
 }) {
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
@@ -345,45 +514,103 @@ export function PedidoLinea({
   const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
 
+  const accion = accionPrimariaDePedido(facet);
+  const fichables = ofsFichablesDe(facet);
+
   return (
-    <button
-      onClick={() => onOpen(facet)}
+    <div
       style={{ borderLeftColor: color }}
-      title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-      className={`flex w-full items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-left text-[11px] transition-colors hover:border-brand-400 ${
+      className={`group flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-[11px] transition-colors hover:border-brand-400 ${
         fichando ? "bg-emerald-500/10" : "bg-surface-2/60"
       }`}
     >
-      {fichando && (
-        <span className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
-      )}
-      <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
-      <span className="min-w-0 flex-1 truncate text-text-muted">
-        {pedido.cliente}
-        {descripcion && ` · ${descripcion}`}
+      <button
+        onClick={() => onOpen(facet)}
+        title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+      >
+        {fichando && (
+          <span className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
+        )}
+        <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
+        <span className="min-w-0 flex-1 truncate text-text-muted">
+          {pedido.cliente}
+          {descripcion && ` · ${descripcion}`}
+        </span>
+        <span className="shrink-0 text-[10px] text-text-muted">
+          {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
+        </span>
+      </button>
+
+      <span className="flex shrink-0 items-center gap-1">
+        {/* Pausa: siempre visible mientras se ficha. */}
+        {fichando ? (
+          <button
+            onClick={() => onDesfichar(fichando.id)}
+            title="Pausar el fichaje"
+            className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-emerald-700"
+          >
+            Pausar
+          </button>
+        ) : (
+          fichables.length > 0 && (
+            <button
+              onClick={() => onFichar(fichables.map((o) => o.id), rolFichajeDe(fichables[0]))}
+              title="Empezar a fichar en este pedido"
+              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus:opacity-100 group-hover:opacity-100"
+            >
+              Fichar
+            </button>
+          )
+        )}
+
+        {accion && (
+          <button
+            onClick={() => onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)}
+            title={accion.label}
+            className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 transition-opacity hover:bg-brand-600 focus:opacity-100 group-hover:opacity-100"
+          >
+            {accion.label}
+          </button>
+        )}
+
+        {fase === "listoParaPasar" && (
+          <button
+            onClick={() => completarPedido(pedido.id)}
+            title="Pasar el pedido a Producción"
+            className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
+          >
+            Pasar
+          </button>
+        )}
       </span>
-      <span className="shrink-0 text-[10px] text-text-muted">
-        {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
-      </span>
-    </button>
+    </div>
   );
 }
 ```
 
-- [ ] **Step 2: Comprobar tipos y lint**
+- [ ] **Step 6: Comprobar tipos, lint y suite completa**
 
-Run: `npx tsc --noEmit && npx eslint src/components/PedidoLinea.tsx`
-Expected: sin salida de error.
+Run: `npx vitest run && npx tsc --noEmit && npx eslint src/lib src/components/PedidoLinea.tsx`
+Expected: 162 tests en verde (152 + 10), sin errores.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/components/PedidoLinea.tsx
-git commit -m "feat(tablero): fila compacta de pedido
+git add src/lib/accion-pedido.ts src/lib/__tests__/accion-pedido.test.ts src/components/PedidoLinea.tsx
+git commit -m "feat(tablero): fila compacta de pedido con acciones en linea
 
-Una linea en vez de las tres de la tarjeta actual. El borde izquierdo lleva el
-color de la fase, o rojo si el pedido es urgente: la prioridad tiene que verse
-sin leer."
+Una linea en vez de las tres de la tarjeta actual, sin perder el poder fichar
+y cambiar de estado desde el tablero: seria pasar de un clic a dos, cada dia.
+Se revelan al pasar el raton para no gastar sitio en reposo, salvo la pausa
+del pedido que se esta fichando, que es la que mas se pulsa.
+
+Que accion toca no lo decide el componente: sale de accionesDisponibles(), la
+maquina de estados. Lo unico nuevo es reducir las acciones de las N OFs de un
+pedido a una primaria, y eso va como funcion pura con tests.
+
+El borde izquierdo lleva el color de la fase, o rojo si el pedido es urgente:
+la prioridad tiene que verse sin leer."
 ```
 
 ---
@@ -406,7 +633,8 @@ Crear `src/components/ZonaPersonal.tsx`:
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import type { Operario } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
+import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase, conTope } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -427,6 +655,9 @@ export function ZonaPersonal({
   live,
   onOpen,
   onVerTodos,
+  onAccion,
+  onFichar,
+  onDesfichar,
   completarPedido,
 }: {
   operario: Operario;
@@ -437,6 +668,9 @@ export function ZonaPersonal({
   completarPedido: (pedidoId: string) => void;
   /** Abre el desplegable con todos los pedidos de una fase. */
   onVerTodos: (faseId: string) => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const grupos = agruparPorFase(facets);
@@ -504,7 +738,16 @@ export function ZonaPersonal({
                 </h3>
                 <div className="flex flex-col gap-1">
                   {visibles.map((f) => (
-                    <PedidoLinea key={f.pedido.id} facet={f} fase={g.id} onOpen={onOpen} />
+                    <PedidoLinea
+                      key={f.pedido.id}
+                      facet={f}
+                      fase={g.id}
+                      onOpen={onOpen}
+                      onAccion={onAccion}
+                      onFichar={onFichar}
+                      onDesfichar={onDesfichar}
+                      completarPedido={completarPedido}
+                    />
                   ))}
                   {resto > 0 && (
                     <button
@@ -514,19 +757,6 @@ export function ZonaPersonal({
                       +{resto} más
                     </button>
                   )}
-                  {/* En la última fase el trabajo ya está hecho: lo único que
-                      queda es sacarlo a Producción, así que el botón vive aquí
-                      y no escondido en el detalle. */}
-                  {g.id === "listoParaPasar" &&
-                    g.items.map((f) => (
-                      <button
-                        key={`pasar-${f.pedido.id}`}
-                        onClick={() => completarPedido(f.pedido.id)}
-                        className="rounded-md bg-cyan-600 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
-                      >
-                        Pasar {f.pedido.codigo} a Producción
-                      </button>
-                    ))}
                 </div>
               </div>
             );
@@ -562,6 +792,9 @@ Sustituir el bloque `<Zona … soyYo … />` (hoy en `Board.tsx:827-841`) por:
   live={liveByOp.get(yo.id) ?? null}
   onOpen={openFacet}
   onVerTodos={setFaseAbierta}
+  onAccion={ejecutarAccion}
+  onFichar={ficharOFsConAviso}
+  onDesfichar={desficharOF}
   completarPedido={completarPedido}
 />
 ```
@@ -621,6 +854,8 @@ Crear `src/components/FaseFlyout.tsx`:
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Rol } from "@/lib/types";
+import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
 import { PedidoLinea } from "./PedidoLinea";
@@ -635,11 +870,19 @@ export function FaseFlyout({
   faseId,
   onOpen,
   onClose,
+  onAccion,
+  onFichar,
+  onDesfichar,
+  completarPedido,
 }: {
   facets: Facet[];
   faseId: string;
   onOpen: (f: Facet) => void;
   onClose: () => void;
+  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
+  completarPedido: (pedidoId: string) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -682,7 +925,16 @@ export function FaseFlyout({
         </div>
         <div className="flex flex-col gap-1">
           {grupo.items.map((f) => (
-            <PedidoLinea key={f.pedido.id} facet={f} fase={grupo.id} onOpen={onOpen} />
+            <PedidoLinea
+              key={f.pedido.id}
+              facet={f}
+              fase={grupo.id}
+              onOpen={onOpen}
+              onAccion={onAccion}
+              onFichar={onFichar}
+              onDesfichar={onDesfichar}
+              completarPedido={completarPedido}
+            />
           ))}
         </div>
       </div>
@@ -711,6 +963,10 @@ Justo después del `<ZonaPersonal … />` que se puso en la Task 3, añadir:
       openFacet(f);
     }}
     onClose={() => setFaseAbierta(null)}
+    onAccion={ejecutarAccion}
+    onFichar={ficharOFsConAviso}
+    onDesfichar={desficharOF}
+    completarPedido={completarPedido}
   />
 )}
 ```
