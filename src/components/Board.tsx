@@ -37,6 +37,7 @@ import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
+import { FASES } from "@/lib/fases-tablero";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 
 const IDENTITY_KEY = "coordina-operario-id";
@@ -796,9 +797,19 @@ export function Board({
 
             {/* equipo: siempre pegado a la división, altura propia */}
             <div className="shrink-0 px-4 pb-3">
-              <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Equipo
-              </h2>
+              <div className="mb-1.5 flex flex-wrap items-center gap-3">
+                <h2 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  Equipo
+                </h2>
+                <span className="flex flex-wrap items-center gap-2.5 text-[10px] text-text-muted">
+                  {FASES.map((f) => (
+                    <span key={f.id} className="flex items-center gap-1">
+                      <span className="size-1.5 rounded-sm" style={{ background: f.color }} />
+                      {f.label.toLowerCase()}
+                    </span>
+                  ))}
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {resto.map((op) => (
                   <TecnicoCard

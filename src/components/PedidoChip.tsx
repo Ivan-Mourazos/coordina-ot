@@ -11,6 +11,7 @@ import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { accionesDisponibles, type AccionDef, type AccionOF } from "@/lib/acciones";
 import { esFichable, rolFichajeDe } from "@/lib/fichaje";
+import type { Fase } from "@/lib/fases-tablero";
 
 /** Ficha compacta de un pedido dentro del panel de un técnico. Muestra lo
  *  mínimo para identificarlo (código, cliente, nº de OF) y abre el detalle
@@ -30,6 +31,7 @@ export const PedidoChip = memo(function PedidoChip({
   bucket,
   raised = false,
   accionable = true,
+  arrastrable = true,
 }: {
   facet: Facet;
   operarios: Operario[];
@@ -39,11 +41,13 @@ export const PedidoChip = memo(function PedidoChip({
   onDesfichar: (ofId: string) => void;
   setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido?: (pedidoId: string) => void;
-  bucket?: "sinEmpezar" | "planteando" | "revision" | "finalizado";
+  bucket?: Fase;
   raised?: boolean;
   /** true = zona propia (acciones); false = panel de un compañero (solo
    *  informativo: resumen sin botones de acción). */
   accionable?: boolean;
+  /** false = con candado: el pedido no se puede quitar a quien lo tiene. */
+  arrastrable?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [terminando, setTerminando] = useState(false);
@@ -86,7 +90,7 @@ export const PedidoChip = memo(function PedidoChip({
   const grupoPlantear = elegiblesFichar.filter((o) => rolFichajeDe(o) === "plantear");
   const grupoRevisar = elegiblesFichar.filter((o) => rolFichajeDe(o) === "revisar");
   const [grupoPref, grupoAlt] =
-    bucket === "revision" ? [grupoRevisar, grupoPlantear] : [grupoPlantear, grupoRevisar];
+    bucket === "esperandoRevision" ? [grupoRevisar, grupoPlantear] : [grupoPlantear, grupoRevisar];
   const grupoFichar = grupoPref.length > 0 ? grupoPref : grupoAlt;
   const rolFichar: Rol = grupoFichar.length > 0 ? rolFichajeDe(grupoFichar[0]) : "plantear";
   const excluidasPorRol = elegiblesFichar.length - grupoFichar.length;
@@ -96,15 +100,16 @@ export const PedidoChip = memo(function PedidoChip({
   const accent =
     bucket === "planteando"
       ? "#059669"
-      : bucket === "revision"
+      : bucket === "esperandoRevision"
         ? "#f59e0b"
-        : bucket === "finalizado"
+        : bucket === "listoParaPasar"
           ? "#0891b2"
           : "#9ca3af";
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragIdOf(facet),
     data: { facet },
+    disabled: !arrastrable,
   });
 
   return (
@@ -288,7 +293,7 @@ export const PedidoChip = memo(function PedidoChip({
                   />
                 )}
 
-                {bucket === "revision" && accionesChip.length === 0 && (
+                {bucket === "esperandoRevision" && accionesChip.length === 0 && (
                   <span className="rounded bg-amber-500/15 px-2.5 py-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                     Esperando revisión del compañero
                   </span>
@@ -324,7 +329,7 @@ export const PedidoChip = memo(function PedidoChip({
                   )
                 ))}
 
-                {accionable && bucket === "finalizado" && completarPedido && (
+                {accionable && bucket === "listoParaPasar" && completarPedido && (
                   <button
                     onClick={(e) => { e.stopPropagation(); completarPedido(pedido.id); }}
                     className="rounded bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"

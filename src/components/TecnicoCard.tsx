@@ -3,28 +3,14 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDroppable } from "@dnd-kit/core";
-import type { OF, Operario, Rol } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import { PedidosPorEstado } from "./PedidosPorEstado";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
 import type { AccionOF } from "@/lib/acciones";
-
-// En qué fase está cada OF, para la barra de distribución del técnico.
-const FASES = [
-  { id: "sin", label: "Sin empezar", color: "#9ca3af" },
-  { id: "planteo", label: "Planteando", color: "#059669" },
-  { id: "revision", label: "Para revisar", color: "#7c3aed" },
-  { id: "ok", label: "Finalizado", color: "#0891b2" },
-] as const;
-
-function faseDe(of: OF): (typeof FASES)[number]["id"] {
-  if (of.estado === "aprobada") return "ok";
-  if (of.estado === "por_revisar" || of.estado === "en_revision") return "revision";
-  if (of.estado === "devuelta") return "planteo";
-  return of.tiempoPlanteoMin > 0 || of.fichandoRol ? "planteo" : "sin";
-}
+import { FASES, arrastrableDeCompanero, faseDeOF } from "@/lib/fases-tablero";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
  *  qué rol), y una barra con la distribución de sus OF por fase. Zona
@@ -94,7 +80,7 @@ export const TecnicoCard = memo(function TecnicoCard({
   const ofs = facets.flatMap((f) => f.ofs);
   const porFase = FASES.map((fase) => ({
     ...fase,
-    n: ofs.filter((o) => faseDe(o) === fase.id).length,
+    n: ofs.filter((o) => faseDeOF(o) === fase.id).length,
   }));
 
   return (
@@ -124,7 +110,7 @@ export const TecnicoCard = memo(function TecnicoCard({
           {/* distintivos rápidos: cuántas OF planteando / por revisar */}
           <span className="ml-auto flex shrink-0 items-center gap-1">
             {porFase
-              .filter((f) => (f.id === "planteo" || f.id === "revision") && f.n > 0)
+              .filter((f) => (f.id === "planteando" || f.id === "esperandoRevision") && f.n > 0)
               .map((f) => (
                 <span
                   key={f.id}
@@ -163,10 +149,10 @@ export const TecnicoCard = memo(function TecnicoCard({
           </svg>
         </div>
 
-        {/* barra de distribución por fase: fina y en tono rebajado — es
-            contexto secundario, el dato fuerte ya está en los badges. */}
+        {/* Barra de carga por fase: dice EN QUÉ está cargado cada uno, no solo
+            cuánto. Antes era de 1 px y al 70% de opacidad, ilegible. */}
         <div
-          className="mt-1.5 flex h-1 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)] opacity-70"
+          className="mt-1.5 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)]"
           title={porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n} OF`).join(" · ")}
         >
           {ofs.length > 0 &&
@@ -175,7 +161,7 @@ export const TecnicoCard = memo(function TecnicoCard({
               .map((f) => (
                 <span
                   key={f.id}
-                  className="h-full rounded-full"
+                  className="h-full"
                   style={{ width: `${(f.n / ofs.length) * 100}%`, background: f.color }}
                 />
               ))}
@@ -218,6 +204,7 @@ export const TecnicoCard = memo(function TecnicoCard({
                   onOpen={onOpen}
                   layout="list"
                   accionable={false}
+                  arrastrable={arrastrableDeCompanero}
                   onAccion={onAccion}
                   onFichar={onFichar}
                   onDesfichar={onDesfichar}

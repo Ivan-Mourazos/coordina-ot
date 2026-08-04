@@ -4,40 +4,7 @@ import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import { PedidoChip } from "./PedidoChip";
 import type { AccionOF } from "@/lib/acciones";
-
-type Bucket = "sinEmpezar" | "planteando" | "revision" | "finalizado";
-
-const GRUPOS: { id: Bucket; label: string }[] = [
-  { id: "sinEmpezar", label: "Sin empezar" },
-  { id: "planteando", label: "Planteando" },
-  { id: "revision", label: "Para revisar" },
-  { id: "finalizado", label: "Finalizado" },
-];
-
-function bucketDe(f: Facet): Bucket {
-  const todasAprobadas = f.ofs.every((o) => o.estado === "aprobada");
-  if (todasAprobadas) return "finalizado";
-
-  const hayQuePlantear = f.ofs.some(
-    (o) =>
-      o.estado === "en_curso" ||
-      o.estado === "devuelta" ||
-      o.fichandoRol === "plantear",
-  );
-  if (hayQuePlantear) return "planteando";
-
-  const todasSinEmpezar = f.ofs.every(
-    (o) => o.estado === "pendiente" && o.tiempoPlanteoMin === 0 && !o.fichandoRol,
-  );
-  if (todasSinEmpezar) return "sinEmpezar";
-
-  const listoParaRevisor = f.ofs.some(
-    (o) => o.estado === "por_revisar" || o.estado === "en_revision",
-  );
-  if (listoParaRevisor) return "revision";
-
-  return "planteando";
-}
+import { agruparPorFase } from "@/lib/fases-tablero";
 
 /** Partes de un técnico agrupados por en qué punto del ciclo van, en vez de
  *  mostrar el estado en cada tarjeta individual.
@@ -50,6 +17,7 @@ export function PedidosPorEstado({
   layout = "grid",
   raisedCards = false,
   accionable = true,
+  arrastrable = () => true,
   onAccion,
   onFichar,
   onDesfichar,
@@ -63,16 +31,15 @@ export function PedidosPorEstado({
   raisedCards?: boolean;
   /** false = panel de un compañero: chips informativos, sin acciones. */
   accionable?: boolean;
+  /** Decide si un pedido concreto se puede arrastrar. Por defecto, todos. */
+  arrastrable?: (f: Facet) => boolean;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   setRevisor: (ofId: string, revisorId: string | null) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
-  const grupos = GRUPOS.map((g) => ({
-    ...g,
-    items: facets.filter((f) => bucketDe(f) === g.id),
-  }));
+  const grupos = agruparPorFase(facets);
 
   if (layout === "list") {
     // Solo grupos con contenido; cada uno un subtítulo y sus pedidos apilados.
@@ -105,6 +72,7 @@ export function PedidosPorEstado({
                   bucket={g.id}
                   raised={raisedCards}
                   accionable={accionable}
+                  arrastrable={arrastrable(f)}
                 />
               ))}
             </div>
@@ -149,6 +117,7 @@ export function PedidosPorEstado({
                   bucket={g.id}
                   raised={raisedCards}
                   accionable={accionable}
+                  arrastrable={arrastrable(f)}
                 />
               ))
             )}
