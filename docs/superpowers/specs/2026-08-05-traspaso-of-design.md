@@ -91,7 +91,38 @@ Las OF que lleguen ahí sin revisor —las trae RPS, o el mock— se cogen pulsa
 coge trabajo, no un reparto. El resumen de la barra pasa de «N sin revisor asignado» a
 «N sin coger».
 
-## 3. Quién puede hacerlo
+## 3. Pasar a Producción un pedido repartido
+
+Hoy la fila calcula su fase con **las OF del facet** (`agruparPorFase(facets)`, y un
+facet son las OF de un pedido que tiene un operario), pero el botón llama a
+`completarPedido(pedido.id)`, que recoge **todas** las OF no anuladas del pedido y las
+marca finalizadas en OLANET.
+
+Con los pedidos sin repartir eso no se nota. En cuanto se repartan: acabo mis dos OF,
+mi fila dice «listo para pasar», pulso **Pasar** y mando a Producción la OF que otro
+tiene a medias. Es un fallo latente que este trabajo destapa, y hay que arreglarlo con
+él.
+
+**Regla: el pedido se pasa cuando están aprobadas todas sus OF, las de todos.**
+Producción recibe el pedido completo o no lo recibe; no existe medio pedido pasado.
+
+- La fila sigue mostrando la fase de **su** facet: es tu zona y es tu trabajo.
+- El botón **Pasar** mira el **pedido entero**. Si lo tuyo está listo pero falta gente,
+  en su sitio va una nota: `listo · falta Tamara (1 OF)`.
+- Cuando se aprueba la última, el botón aparece a **todos** los que tienen OF en ese
+  pedido. Lo pulsa el primero que llegue y queda registrado en `pedido_overlay.
+  pasado_por`, que ya existe.
+
+Sin dueños ni turnos. Y un aviso más en la campana, a todos los implicados: **«AR.26.
+05552 ya está completo, se puede pasar a Producción»**. Sin él, un pedido repartido
+puede quedarse listo y parado porque cada uno da por hecho que lo pasa el otro —
+sobre todo si la fila vive dentro de un «+3 más» plegado.
+
+Este aviso, a diferencia de los cuatro de la sección 5, **sí se deriva del estado**
+(todas aprobadas y el pedido aún sin pasar), no de `acciones_log`. Deja de salir solo
+cuando el pedido se pasa.
+
+## 4. Quién puede hacerlo
 
 Cualquiera, sin permisos. Coherente con el modelo sin login de la app: Ángel
 reorganiza cuando hace falta y nadie se queda bloqueado porque el dueño de una OF esté
@@ -100,7 +131,7 @@ de vacaciones.
 Lo que hace que eso sea seguro no es un permiso, es el rastro: **ningún cambio es
 silencioso**, y en cada aviso consta quién lo hizo.
 
-## 4. Los avisos
+## 5. Los avisos
 
 Cada cambio ya se guarda en `acciones_log` (`ts`, `operario_id`, `motivo`, `detalle`).
 El traspaso y el cambio de revisor se registran con su propio motivo, y la campana lee
@@ -131,7 +162,7 @@ traspaso no deja rastro en la OF, así que hay que leerlo del registro. Eso obli
 Ventana: solo se leen los movimientos de los últimos 7 días. Un traspaso de hace un mes
 ya no es noticia.
 
-## 5. Alcance
+## 6. Alcance
 
 Entra:
 
@@ -139,7 +170,10 @@ Entra:
 - cambio de revisor en `por_revisar` y `en_revision`, con las reglas de la sección 2;
 - retirada del selector suelto de revisor en la vista Revisión, y autoasignación al
   pulsar «Empezar revisión»;
-- cuatro avisos nuevos en la campana, leídos de `acciones_log`, con quién y a quién.
+- el botón «Pasar» pasa a mirar el pedido entero, con la nota de quién falta
+  (sección 3);
+- cuatro avisos nuevos en la campana leídos de `acciones_log`, con quién y a quién, más
+  el de «pedido completo» derivado del estado.
 
 No entra:
 
