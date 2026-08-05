@@ -159,8 +159,11 @@ traspaso no deja rastro en la OF, así que hay que leerlo del registro. Eso obli
 - decidir cuándo se apagan. Se apagan **al abrir el pedido**: el aviso deja de salir
   para ese operario en cuanto lo ha visto en su sitio.
 
-Ventana: solo se leen los movimientos de los últimos 7 días. Un traspaso de hace un mes
-ya no es noticia.
+**Ventana: 30 días.** Los avisos se apagan al abrir el pedido, pero si nunca lo abres
+no se apagarían solos y arrastrarías en la campana un traspaso de hace ocho meses de un
+pedido que ya ni existe. El mes cubre unas vacaciones largas o una baja corta —el caso
+para el que se diseñó todo esto—, y pasado ese tiempo un traspaso ya no es noticia: el
+trabajo se ha hecho o se ha vuelto a mover.
 
 ## 6. Alcance
 
