@@ -138,3 +138,39 @@ test("si llegan menos intervalos de los guardados, se reescribe entero", () => {
   expect(leido.intervalos).toHaveLength(1);
   expect(leido.intervalos[0].ofIds).toEqual(["OF-F"]);
 });
+
+test("cortarFichajeDeOF cierra el fichaje de OTRO operario y respeta el resto de OFs", () => {
+  // Tamara ficha dos OFs a la vez; se traspasa solo una.
+  const f = fichar(FICHAJE_VACIO, ["OF-T1", "OF-T2"], "plantear", "tamara", "2026-08-05T09:00:00.000Z");
+  db.guardarFichaje("tamara", f);
+
+  const afectados = db.cortarFichajeDeOF("OF-T1", "2026-08-05T09:30:00.000Z");
+  expect(afectados).toEqual(["tamara"]);
+
+  const guardado = db.leerFichaje("tamara");
+  // El tramo compartido se cierra a las 09:30 y se abre otro solo con OF-T2:
+  // si se borrase el intervalo, se perdería el tiempo de la que sigue siendo suya.
+  expect(guardado.intervalos).toHaveLength(2);
+  expect(guardado.intervalos[0].fin).toBe("2026-08-05T09:30:00.000Z");
+  expect(guardado.intervalos[0].ofIds).toEqual(["OF-T1", "OF-T2"]);
+  expect(guardado.intervalos[1].fin).toBeNull();
+  expect(guardado.intervalos[1].ofIds).toEqual(["OF-T2"]);
+});
+
+test("cortarFichajeDeOF con la única OF del intervalo deja el fichaje parado", () => {
+  const f = fichar(FICHAJE_VACIO, ["OF-U1"], "revisar", "jaime", "2026-08-05T10:00:00.000Z");
+  db.guardarFichaje("jaime", f);
+
+  expect(db.cortarFichajeDeOF("OF-U1", "2026-08-05T10:20:00.000Z")).toEqual(["jaime"]);
+  const guardado = db.leerFichaje("jaime");
+  expect(guardado.intervalos).toHaveLength(1);
+  expect(guardado.intervalos[0].fin).toBe("2026-08-05T10:20:00.000Z");
+});
+
+test("cortarFichajeDeOF no toca a quien no la está fichando", () => {
+  const f = fichar(FICHAJE_VACIO, ["OF-V1"], "plantear", "adrian", "2026-08-05T11:00:00.000Z");
+  db.guardarFichaje("adrian", f);
+
+  expect(db.cortarFichajeDeOF("OF-QUE-NADIE-FICHA", "2026-08-05T11:10:00.000Z")).toEqual([]);
+  expect(db.leerFichaje("adrian").intervalos[0].fin).toBeNull();
+});

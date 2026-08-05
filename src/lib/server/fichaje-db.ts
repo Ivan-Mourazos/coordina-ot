@@ -1,4 +1,5 @@
 import type { Fichaje, Intervalo } from "../fichaje";
+import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
 
@@ -119,6 +120,33 @@ export function leerAvisoCierre(operarioId: string): AvisoCierre | null {
 /** Borra el aviso: lo llama el cliente cuando el técnico ya lo ha visto. */
 export function marcarAvisoCierreVisto(operarioId: string): void {
   getDb().prepare("DELETE FROM fichaje_aviso_cierre WHERE operario_id = ?").run(operarioId);
+}
+
+/** Cierra el fichaje que CUALQUIER operario tenga abierto sobre esta OF y
+ *  devuelve a quiénes afectó.
+ *
+ *  Existe porque traspasar una OF es soltarla: si el intervalo sigue abierto,
+ *  al anterior le sigue corriendo el tiempo de algo que ya no es suyo. Y a
+ *  diferencia del resto del fichaje, esto NO lo puede hacer el navegador de
+ *  quien traspasa: el afectado puede estar en otro equipo, o con la app
+ *  cerrada. Lo hace el servidor, con su reloj, que es la hora oficial.
+ *
+ *  Si el intervalo llevaba más OFs, se cierra y se abre otro con las que
+ *  quedan: borrarlo perdería el tiempo de las que siguen siendo suyas. */
+export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
+  const abiertos = getDb()
+    .prepare(`${SELECT} WHERE fin IS NULL`)
+    .all() as Fila[];
+  const afectados: string[] = [];
+  for (const fila of abiertos) {
+    const iv = filaAIntervalo(fila);
+    if (!iv || !iv.ofIds.includes(ofId)) continue;
+    const resto = iv.ofIds.filter((id) => id !== ofId);
+    const actual = leerFichaje(iv.operarioId);
+    guardarFichaje(iv.operarioId, fichar(actual, resto, iv.rol, iv.operarioId, ahora));
+    afectados.push(iv.operarioId);
+  }
+  return afectados;
 }
 
 /** Guarda el fichaje de un operario.
