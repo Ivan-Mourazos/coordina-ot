@@ -8,15 +8,20 @@ import { fmtMin } from "@/lib/estado";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { RolChip } from "./RolChip";
 
-function fmtFechaHora(iso: string) {
-  if (!iso) return "—";
+/** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
+ *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
+ *  como el resto de la línea. El momento exacto sigue en el `title`. */
+function fmtFecha(iso: string): { corta: string; completa: string } {
+  if (!iso) return { corta: "—", completa: "" };
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return { corta: "—", completa: "" };
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const ano = d.getFullYear();
+  const corta = ano === new Date().getFullYear() ? `${dd}/${mm}` : `${dd}/${mm}/${ano}`;
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
+  return { corta, completa: `${dd}/${mm}/${ano} a las ${hh}:${mi}` };
 }
 
 /** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado). */
@@ -290,11 +295,12 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
 
   // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
   // es cuando OLANET registró el cambio y puede ir por detrás.
-  const pasado = item.pasadoAt ?? item.finalizada;
+  const pasado = fmtFecha(item.pasadoAt ?? item.finalizada);
+  const origen = item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS";
 
   return (
     <div className="rounded-xl border border-border bg-surface">
-      <div className="flex items-center gap-3 px-2 py-2.5">
+      <div className="flex items-center gap-2 px-2 py-1.5">
         <button
           onClick={alternar}
           aria-expanded={desplegado}
@@ -312,9 +318,15 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
           <span className="truncate text-sm text-text-muted">{item.cliente ?? "—"}</span>
           <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
             <span>{item.nOf} OF</span>
-            <span title={item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS"}>
-              Pasado {fmtFechaHora(pasado)}
-              {item.pasadoPor && <span className="ml-1 text-text">· {item.pasadoPor}</span>}
+            {/* Quién lo pasó junto a la fecha: en un historial la pregunta
+                casi siempre es "¿cuándo y quién?", no una de las dos sola. */}
+            <span title={`${origen}: ${pasado.completa}`}>
+              Pasado {pasado.corta}
+              {item.pasadoPor ? (
+                <span className="ml-1 text-text">· {item.pasadoPor}</span>
+              ) : (
+                <span className="ml-1 italic">· sin autor</span>
+              )}
             </span>
           </span>
         </button>

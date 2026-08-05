@@ -326,12 +326,20 @@ export async function leerHistorialPedidoDetalle(
 // ── Fallback mock (desarrollo sin BD) ──
 function pedidosFinalizadosMock(): HistorialItem[] {
   return PEDIDOS.filter((p) => p.ofs.length > 0 && p.ofs.every((o) => o.estado === "aprobada"))
-    .map((p) => ({
-      pedido: p.codigo,
-      cliente: p.cliente,
-      finalizada: `${p.fechaPlanificacion}T00:00:00.000Z`,
-      nOf: p.ofs.length,
-    }))
+    .map((p) => {
+      // Quien lo pasó: el revisor que lo aprobó. En RPS ese dato sale del
+      // registro real; aquí se deriva para que la columna "pasado por" tenga
+      // algo que enseñar en simulación en vez de quedar siempre vacía.
+      const revisor = p.ofs.find((o) => o.revisorId)?.revisorId ?? null;
+      const nombre = OPERARIOS.find((o) => o.id === revisor)?.nombre;
+      return {
+        pedido: p.codigo,
+        cliente: p.cliente,
+        finalizada: `${p.fechaPlanificacion}T00:00:00.000Z`,
+        nOf: p.ofs.length,
+        ...(nombre ? { pasadoPor: nombre } : {}),
+      };
+    })
     .sort((a, b) => b.finalizada.localeCompare(a.finalizada) || b.pedido.localeCompare(a.pedido));
 }
 
