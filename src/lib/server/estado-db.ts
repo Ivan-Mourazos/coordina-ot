@@ -230,8 +230,17 @@ export function guardarMutacion(m: Mutacion): void {
   const log = db.prepare(
     "INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, ?, ?)",
   );
+  // El cliente manda el snapshot NUEVO de cada OF; el anterior solo lo sabe el
+  // servidor, y hace falta para poder decir "antes Tamara" en los avisos.
+  const leerPrevio = db.prepare(
+    "SELECT of_id AS ofId, autor_id AS autorId, revisor_id AS revisorId, estado, observacion FROM of_overlay WHERE of_id = ?",
+  );
 
   db.transaction(() => {
+    // Se lee ANTES de los upserts: después ya solo quedaría el estado nuevo.
+    const previos = (m.cambiosOF ?? [])
+      .map((c) => leerPrevio.get(c.ofId) as CambioOF | undefined)
+      .filter((x): x is CambioOF => x !== undefined);
     for (const c of m.cambiosOF ?? []) upsertOF.run({ ...c, ahora });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);
     log.run(
@@ -240,10 +249,55 @@ export function guardarMutacion(m: Mutacion): void {
       m.motivo,
       JSON.stringify({
         cambiosOF: m.cambiosOF ?? [],
+        previos,
         completarPedidoId: m.completarPedidoId ?? null,
       }),
     );
   })();
+}
+
+export interface AccionLog {
+  id: number;
+  ts: string;
+  operarioId: string | null;
+  motivo: string;
+  cambiosOF: CambioOF[];
+  previos: CambioOF[];
+}
+
+/** Movimientos registrados desde `desde` (ISO), del más reciente al más
+ *  antiguo. Es la materia prima de los avisos de traspaso: un cambio de manos
+ *  no deja marca en la OF, así que solo se puede saber leyendo el registro. */
+export function leerAccionesDesde(desde: string): AccionLog[] {
+  const filas = abrir()
+    .prepare(
+      "SELECT id, ts, operario_id, motivo, detalle FROM acciones_log WHERE ts >= ? ORDER BY id DESC",
+    )
+    .all(desde) as Array<{
+    id: number;
+    ts: string;
+    operario_id: string | null;
+    motivo: string;
+    detalle: string;
+  }>;
+  return filas.flatMap((f) => {
+    let d: { cambiosOF?: CambioOF[]; previos?: CambioOF[] };
+    try {
+      d = JSON.parse(f.detalle);
+    } catch {
+      return []; // fila corrupta: se ignora, nunca se propaga a medias
+    }
+    return [
+      {
+        id: f.id,
+        ts: f.ts,
+        operarioId: f.operario_id,
+        motivo: f.motivo,
+        cambiosOF: d.cambiosOF ?? [],
+        previos: d.previos ?? [],
+      },
+    ];
+  });
 }
 
 /** Conexión compartida (misma que el flujo). La usan otros módulos de datos
