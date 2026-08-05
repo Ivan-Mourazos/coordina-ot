@@ -3,6 +3,14 @@
 // 7-15 s y así se los come el arranque de PM2, no el primer usuario.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  // El cierre por inactividad va PRIMERO y sin condiciones: solo toca nuestra
+  // SQLite (los intervalos de fichaje), no depende de RPS ni de OLANET. Si
+  // colgara del bloque de abajo, en desarrollo con datos mock no correría
+  // nunca y un fichaje olvidado seguiría sumando horas.
+  const { arrancarCierrePorInactividad } = await import("./lib/server/fichaje-worker");
+  arrancarCierrePorInactividad();
+
   if (process.env.DATASOURCE !== "rps") return;
   // Import dinámico: mssql no debe entrar en el grafo con DATASOURCE=mock.
   const { precalentarTablero } = await import("./lib/server/rps");

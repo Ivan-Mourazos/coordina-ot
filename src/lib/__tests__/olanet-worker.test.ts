@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { abierto, type Intervalo } from "../fichaje";
+import type { Intervalo } from "../fichaje";
 
 // El acceso a OLANET se sustituye: aquí se prueba la lógica del worker (orden,
 // reintentos, descarte), no la conexión a SQL Server.
@@ -21,14 +21,12 @@ vi.mock("../server/olanet", () => ({
 let dir: string;
 let worker: typeof import("../server/olanet-worker");
 let outbox: typeof import("../server/olanet-outbox");
-let fichajeDb: typeof import("../server/fichaje-db");
 let estadoDb: typeof import("../server/estado-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-worker-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   outbox = await import("../server/olanet-outbox");
-  fichajeDb = await import("../server/fichaje-db");
   estadoDb = await import("../server/estado-db");
   worker = await import("../server/olanet-worker");
 });
@@ -177,93 +175,5 @@ describe("modo ensayo", () => {
     const escrito = insertarBono.mock.calls.at(-1)?.[0] as { traspasado: number };
     expect(escrito.traspasado).toBe(0);
     delete process.env.FICHAJE_OLANET;
-  });
-});
-
-describe("cerrarFichajesSinLatido", () => {
-  // "angel" no se ha usado en ningún test anterior con encolarFichaje: su
-  // watermark está limpio, así que el bono que genera este cierre se deriva
-  // entero (no interfiere con otros describes de este fichero).
-  it("cierra con la hora del ÚLTIMO LATIDO (no con `ahora`) y lo encola igual que cualquier otro cierre", () => {
-    const inicio = "2026-08-04T10:00:00Z";
-    fichajeDb.guardarFichaje("angel", {
-      intervalos: [iv(inicio, null, ["0231100:1"], "angel")],
-    });
-    // guardarFichaje ya deja un latido "recién ahora" (hora real del test);
-    // para simular una pestaña muerta hace falta uno viejo de verdad.
-    const latidoViejo = new Date(Date.now() - 6 * 60_000).toISOString();
-    fichajeDb.registrarLatido("angel", latidoViejo);
-
-    worker.cerrarFichajesSinLatido();
-
-    const f = fichajeDb.leerFichaje("angel");
-    expect(abierto(f)).toBeNull(); // ya no queda nada corriendo
-    const cerrado = f.intervalos.find((i) => i.inicio === inicio)!;
-    expect(cerrado.fin).toBe(latidoViejo); // la hora del latido, NUNCA la de "ahora"
-
-    // Las filas tipo "bono" de la cola guardan el operarioId como CÓDIGO RPS
-    // (f.operario, "146" para angel), no como id del tablero — así lo hace
-    // olanet-outbox.ts para cualquier otro cierre, así que se busca por eso.
-    const bono = outbox
-      .leerCola()
-      .find((p) => p.tipo === "bono" && p.datos.of === "0231100");
-    expect(bono).toBeDefined();
-  });
-
-  it("no toca nada si el latido es reciente (la pestaña sigue viva)", () => {
-    const inicio = new Date().toISOString();
-    // Operario sin código RPS a propósito: aísla este test de cualquier otro
-    // (encolarFichaje/watermark) sin afectar el resultado que se comprueba.
-    fichajeDb.guardarFichaje("silvia", {
-      intervalos: [iv(inicio, null, ["0231103:1"], "silvia")],
-    });
-    // guardarFichaje ya dejó el latido "ahora mismo": sigue vivo.
-    worker.cerrarFichajesSinLatido();
-    expect(abierto(fichajeDb.leerFichaje("silvia"))).not.toBeNull();
-  });
-
-  it("deja un aviso pendiente para que el operario se entere al volver, y se consume una sola vez", () => {
-    const inicio = "2026-08-04T11:00:00Z";
-    fichajeDb.guardarFichaje("raquel", {
-      intervalos: [iv(inicio, null, ["0231104:1"], "raquel")],
-    });
-    const latidoViejo = new Date(Date.now() - 6 * 60_000).toISOString();
-    fichajeDb.registrarLatido("raquel", latidoViejo);
-
-    worker.cerrarFichajesSinLatido();
-
-    expect(fichajeDb.leerYConsumirAvisoCierre("raquel")).toEqual({
-      ofIds: ["0231104:1"],
-      fin: latidoViejo,
-    });
-    expect(fichajeDb.leerYConsumirAvisoCierre("raquel")).toBeNull(); // ya se sirvió
-  });
-
-  it("no hace nada si no hay ningún fichaje abierto", () => {
-    expect(() => worker.cerrarFichajesSinLatido()).not.toThrow();
-  });
-});
-
-describe("filasEnCurso", () => {
-  it("solo toma los intervalos abiertos, con su tiempo repartido", () => {
-    fichajeDb.guardarFichaje("angel", {
-      intervalos: [
-        iv("2026-08-03T07:00:00Z", "2026-08-03T07:30:00Z", ["0230700:1"], "angel"), // cerrado
-        iv("2026-08-03T08:00:00Z", null, ["0230800:2", "0230801:3"], "angel"), // abierto
-      ],
-    });
-    const filas = worker.filasEnCurso("2026-08-03T08:30:00Z");
-    expect(filas.map((f) => [f.of, f.fase, f.minutos])).toEqual([
-      ["0230800", 2, 15],
-      ["0230801", 3, 15],
-    ]);
-    expect(filas.every((f) => f.operarioRps === "146")).toBe(true);
-  });
-
-  it("descarta las OFs cuya tarea no es un número: la columna `fase` es int", () => {
-    fichajeDb.guardarFichaje("alberto", {
-      intervalos: [iv("2026-08-03T08:00:00Z", null, ["0230900:A"], "alberto")],
-    });
-    expect(worker.filasEnCurso("2026-08-03T08:30:00Z").some((f) => f.of === "0230900")).toBe(false);
   });
 });
