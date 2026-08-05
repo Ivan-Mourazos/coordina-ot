@@ -281,12 +281,18 @@ export function leerAccionesDesde(desde: string): AccionLog[] {
     detalle: string;
   }>;
   return filas.flatMap((f) => {
-    let d: { cambiosOF?: CambioOF[]; previos?: CambioOF[] };
+    let parsed: unknown;
     try {
-      d = JSON.parse(f.detalle);
+      parsed = JSON.parse(f.detalle);
     } catch {
       return []; // fila corrupta: se ignora, nunca se propaga a medias
     }
+    // JSON.parse("null") o JSON.parse("42") no lanzan: son JSON sintácticamente
+    // válido pero no el objeto que se espera. Si no se comprueba aquí, el acceso
+    // a d.cambiosOF revienta FUERA del try y tira la lectura ENTERA en vez de
+    // descartar solo esta fila (mismo criterio que filaAIntervalo en fichaje-db.ts).
+    if (typeof parsed !== "object" || parsed === null) return [];
+    const d = parsed as { cambiosOF?: CambioOF[]; previos?: CambioOF[] };
     return [
       {
         id: f.id,
