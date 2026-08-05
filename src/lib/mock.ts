@@ -7,6 +7,7 @@ import type {
   EstadoOF,
   Situacion,
 } from "./types";
+import { hoyISO } from "./types";
 
 // ─── Operarios (las zonas del tablero, como en el boceto) ────────────────────
 export const OPERARIOS: Operario[] = [
@@ -53,6 +54,22 @@ function addDays(iso: string, days: number): string {
   const d = new Date(iso);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+// ─── Las fechas del mock se mueven con el calendario ─────────────────────────
+// Están escritas a mano (junio de 2026) porque así se leen y se editan bien,
+// pero un mock con fechas fijas envejece: al mes siguiente TODO sale atrasado
+// y la simulación deja de parecerse a un día de trabajo — justo lo que se usa
+// para juzgar el diseño. Se desplazan en bloque para que la planificación
+// quede alrededor de hoy, conservando intactas las distancias entre ellas.
+const ANCLA = "2026-06-30";
+
+const DESFASE_DIAS = Math.round(
+  (Date.parse(`${hoyISO()}T12:00:00Z`) - Date.parse(`${ANCLA}T12:00:00Z`)) / 86_400_000,
+);
+
+function alCalendario(iso: string): string {
+  return addDays(iso, DESFASE_DIAS);
 }
 
 const SPECS: Spec[] = [
@@ -189,9 +206,9 @@ export const PEDIDOS: Pedido[] = SPECS.map((s, i) => {
     codigo: s.codigo,
     cliente: s.cliente,
     situacion: s.situacion ?? "procesado",
-    fechaSolicitud: s.solicitud,
-    fechaPlanificacion: s.plan ?? addDays(s.solicitud, 12),
-    fechaEntrega: s.entrega,
+    fechaSolicitud: alCalendario(s.solicitud),
+    fechaPlanificacion: alCalendario(s.plan ?? addDays(s.solicitud, 12)),
+    fechaEntrega: alCalendario(s.entrega),
     prioridad: s.prioridad,
     accent: s.accent,
     lineas: 4 + (i % 5),
