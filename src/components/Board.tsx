@@ -544,6 +544,15 @@ export function Board({
     postFichaje(ultimo.ofIds, ultimo.rol);
   }, [miId, postFichaje]);
 
+  // Si el servidor cerró un fichaje mío solo (latido perdido, ver el efecto
+  // de más abajo), me entero al cargar: si no, mañana veo menos tiempo del
+  // que esperaba y no sé por qué. Solo dura hasta que lo cierre (o cambie de
+  // identidad): no es un historial, es un aviso de "esto pasó mientras no
+  // mirabas".
+  const [avisoCierreAuto, setAvisoCierreAuto] = useState<{ ofIds: string[]; fin: string } | null>(
+    null,
+  );
+
   // Al conocer quién soy, adopto MI fichaje del server (verdad compartida).
   // No se migra el localStorage previo (era contra datos mock).
   useEffect(() => {
@@ -552,18 +561,48 @@ export function Board({
     const seqAlArrancar = postSeqRef.current;
     fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { fichaje: Fichaje } | null) => {
-        // No pisar un POST emitido tras arrancar esta carga (la carga inicial
-        // trae un snapshot que puede ser anterior a una acción del usuario).
-        if (d?.fichaje && !cancelado && postSeqRef.current === seqAlArrancar) {
-          setFichaje(d.fichaje);
-        }
-      })
+      .then(
+        (
+          d: {
+            fichaje: Fichaje;
+            avisoCierre: { ofIds: string[]; fin: string } | null;
+          } | null,
+        ) => {
+          if (cancelado) return;
+          // No pisar un POST emitido tras arrancar esta carga (la carga
+          // inicial trae un snapshot que puede ser anterior a una acción del
+          // usuario).
+          if (d?.fichaje && postSeqRef.current === seqAlArrancar) {
+            setFichaje(d.fichaje);
+          }
+          // El aviso se consumió en el servidor con este mismo GET (no
+          // depende del seq: si no lo mostramos aquí, se pierde).
+          if (d?.avisoCierre) setAvisoCierreAuto(d.avisoCierre);
+        },
+      )
       .catch(() => {});
     return () => {
       cancelado = true;
     };
   }, [miId]);
+
+  // ── Latido: mientras tengo un fichaje corriendo, aviso al server cada
+  // 60 s de que la pestaña sigue viva (ver /api/fichaje/latido). Se para al
+  // pausar (abierto(fichaje) pasa a null → el efecto se limpia y no arranca
+  // otro) y al desmontar. Si el aviso deja de llegar más de 5 min, el server
+  // cierra el intervalo con la hora del ÚLTIMO latido, no con la hora en que
+  // se dio cuenta (cerrarPorInactividad, lib/fichaje.ts).
+  useEffect(() => {
+    if (!miId || !abierto(fichaje)) return;
+    const id = setInterval(() => {
+      fetch("/api/fichaje/latido", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operarioId: miId }),
+      }).catch(() => {}); // sin red: el siguiente tick lo reintenta
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [miId, fichaje]);
 
   // Cambiar de identidad con un fichaje corriendo perdería de vista ese
   // tiempo (queda fichado a nombre del técnico anterior): se avisa y se deja
@@ -948,6 +987,39 @@ export function Board({
         onPausarTodo={pausarTodo}
         onReanudar={reanudar}
       />
+
+      {/* Aviso de "tu fichaje se cerró solo" (latido perdido). NO es un
+          diálogo modal: no pide respuesta, solo informa; se descarta con un
+          clic y si se ignora no bloquea nada. Distinto sitio que MiFichaje
+          (abajo-derecha) para no competir por el mismo rincón. */}
+      {avisoCierreAuto && (
+        <div
+          role="status"
+          className="glass-panel-strong fixed right-4 top-20 z-40 w-72 rounded-xl p-3 shadow-xl"
+        >
+          <p className="text-xs font-bold text-text">⏱ Tu fichaje se cerró solo</p>
+          <p className="mt-1 text-[11px] text-text-muted">
+            {(() => {
+              const codigos = pedidos
+                .flatMap((p) => p.ofs)
+                .filter((of) => avisoCierreAuto.ofIds.includes(of.id))
+                .map((of) => of.codigo);
+              const quien = codigos.length > 0 ? codigos.join(", ") : "Un fichaje";
+              const hora = new Date(avisoCierreAuto.fin).toLocaleTimeString("es-ES", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return `${quien} dejó de avisar (pestaña cerrada o sin conexión) y se cerró a las ${hora}, la hora del último aviso.`;
+            })()}
+          </p>
+          <button
+            onClick={() => setAvisoCierreAuto(null)}
+            className="mt-2 rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            Vale
+          </button>
+        </div>
+      )}
 
       <ConfirmDialog
         abierto={cambioIdentidadPendiente !== null}

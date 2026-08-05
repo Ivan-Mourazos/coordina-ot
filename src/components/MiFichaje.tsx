@@ -11,6 +11,16 @@ import { OpDot } from "./Select";
  *  avisar en ámbar (aviso "te has puesto a plantear y no estás fichando"). */
 const AVISO_SIN_FICHAR_MIN = 10;
 
+/** Minutos de un intervalo corriendo antes de avisar de que lleva mucho
+ *  rato. Es un AVISO, no un corte: el cierre automático por inactividad
+ *  (latido, ver lib/fichaje.ts) es cosa del servidor y depende de si la
+ *  pestaña sigue viva, no de cuánto lleva fichando. Este aviso es lo
+ *  contrario — la pestaña SIGUE viva y el fichaje puede ser real (una pieza
+ *  larga, una revisión a fondo) — así que no bloquea, no exige respuesta y
+ *  si se ignora no pasa nada: solo ofrece el atajo de pausar por si a la
+ *  persona se le olvidó. Nunca debe convertirse en un corte automático. */
+const AVISO_FICHAJE_LARGO_MIN = 180;
+
 /** Redondea a minutos y da formato h:mm (p.ej. "1:05"), para el total
  *  "corriendo ahora" de la píldora. Los minutos por OF usan `fmtMin`
  *  (formato "1h 5m"); este es solo para el reloj agregado del fichaje activo. */
@@ -71,6 +81,13 @@ export function MiFichaje({
   const ab = abierto(fichaje);
   const nOFs = ab?.ofIds.length ?? 0;
   const totalMin = ab ? (Date.parse(ahora) - Date.parse(ab.inicio)) / 60000 : 0;
+
+  // Aviso de fichaje largo (ver AVISO_FICHAJE_LARGO_MIN): solo el rótulo, una
+  // OF cualquiera de las que están corriendo basta para identificarlo.
+  const ofLargo =
+    ab && totalMin >= AVISO_FICHAJE_LARGO_MIN
+      ? (pedidos.flatMap((p) => p.ofs).find((of) => ab.ofIds.includes(of.id)) ?? null)
+      : null;
 
   const ultimo = fichaje.intervalos[fichaje.intervalos.length - 1] ?? null;
   const puedeReanudar = ultimo !== null && ultimo.fin !== null;
@@ -208,6 +225,25 @@ export function MiFichaje({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Aviso de fichaje largo: discreto, junto al contador. NO corta el
+          fichaje, no exige respuesta — si se ignora, sigue corriendo igual.
+          El botón de pausar es solo un atajo por si a la persona se le
+          olvidó, nunca un cierre automático (ese lo hace el servidor por
+          falta de latido, algo completamente distinto). */}
+      {ofLargo && (
+        <div className="glass-chip flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+          <span>
+            ⏳ Llevas {Math.floor(totalMin / 60)}h en {ofLargo.codigo}
+          </span>
+          <button
+            onClick={onPausarTodo}
+            className="rounded-lg bg-amber-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-amber-600"
+          >
+            ⏸ Pausar
+          </button>
         </div>
       )}
 
