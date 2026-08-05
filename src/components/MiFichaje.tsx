@@ -301,6 +301,11 @@ function GrupoPedido({
   const misPlantear = ofs.filter((of) => of.autorId === miId && rolFichajeDe(of) === "plantear");
   const fichablesPlantear = misPlantear.filter(esFichable);
   const detenidas = misPlantear.length - fichablesPlantear.length;
+  // Lo que queda POR arrancar. Antes el botón salía igual con todas las OFs
+  // ya corriendo: ofrecía fichar lo que ya se estaba fichando, y ocupaba el
+  // sitio donde lo útil es lo contrario, pararlas todas de una vez.
+  const porArrancar = fichablesPlantear.filter((of) => of.fichandoRol === null);
+  const corriendo = misPlantear.filter((of) => of.fichandoRol !== null);
 
   return (
     <li className="rounded-xl bg-surface-2/50 p-2">
@@ -308,14 +313,21 @@ function GrupoPedido({
         <span className="min-w-0 truncate text-xs font-semibold text-text">
           {pedido.codigo} <span className="font-normal text-text-muted">· {pedido.cliente}</span>
         </span>
-        {fichablesPlantear.length > 0 && (
+        {porArrancar.length > 0 ? (
           <button
-            onClick={() => onFichar(fichablesPlantear.map((o) => o.id), "plantear")}
+            onClick={() => onFichar(porArrancar.map((o) => o.id), "plantear")}
             className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL.plantear.solido}`}
           >
-            Fichar pedido
+            {corriendo.length > 0 ? "Fichar el resto" : "Fichar pedido"}
           </button>
-        )}
+        ) : corriendo.length > 1 ? (
+          <button
+            onClick={() => corriendo.forEach((o) => onDesfichar(o.id))}
+            className="ml-auto shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            Parar pedido
+          </button>
+        ) : null}
       </div>
       {detenidas > 0 && fichablesPlantear.length > 0 && (
         <p className="mt-0.5 text-[10px] text-text-muted">
@@ -359,10 +371,14 @@ function OFItem({
   return (
     <li className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5 text-[11px]">
       <span className="truncate font-mono font-semibold text-text">{of.codigo}</span>
+      {/* Etiqueta entera, no la abreviatura: "REVIS." y "POR REV." se
+          parecen demasiado, y en este panel sobra ancho para distinguirlas. */}
       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
-        {meta.short}
+        {meta.label}
       </span>
-      <span className="ml-auto shrink-0 text-text-muted">{fmtMin(minutos)}</span>
+      <span className="ml-auto shrink-0 text-text-muted" title="Tiempo que llevas hoy en esta OF">
+        {fmtMin(minutos)}
+      </span>
       {!fichando && motivoNoFichable(of) ? (
         <span
           title={motivoNoFichable(of)!}
