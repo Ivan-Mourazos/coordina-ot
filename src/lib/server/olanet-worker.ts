@@ -1,6 +1,13 @@
 import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
-import { agregarPorRol } from "../fichaje";
-import { leerTodosIntervalos } from "./fichaje-db";
+import { abierto, agregarPorRol, cerrarPorInactividad, TOLERANCIA_LATIDO_MS } from "../fichaje";
+import {
+  leerFichaje,
+  leerTodosIntervalos,
+  leerUltimoLatido,
+  guardarFichaje,
+  registrarAvisoCierre,
+} from "./fichaje-db";
+import { encolarFichaje } from "./olanet-outbox";
 import {
   descartar,
   leerPendientes,
@@ -150,10 +157,48 @@ export async function refrescarEnCurso(): Promise<void> {
   await sincronizarFichajeEnCurso(filasEnCurso(), MAQUINA_OT);
 }
 
+/** Cierra, con la hora de su último latido, cualquier fichaje que se haya
+ *  quedado abierto porque alguien cerró la pestaña sin pausar (ver
+ *  cerrarPorInactividad en lib/fichaje.ts para el porqué de la hora).
+ *
+ *  Es la base local de CoordinaOT, sin relación con OLANET: por eso corre
+ *  SIEMPRE en vuelta(), sin mirar modoFichaje(). Un fichaje sin cerrar suma
+ *  tiempo real (a un pedido que nadie está tocando) independientemente de si
+ *  ese tiempo llega a subir a RPS o no; los modos sombra/ensayo/activo solo
+ *  deciden si el bono que genera este cierre SALE hacia OLANET, no si el
+ *  cierre debe ocurrir. */
+export function cerrarFichajesSinLatido(): void {
+  const ahora = new Date().toISOString();
+  // Solo el ÚLTIMO intervalo de cada operario puede estar abierto, así que
+  // esto da como mucho un operario por fila.
+  const operarios = new Set(
+    leerTodosIntervalos()
+      .filter((iv) => iv.fin === null)
+      .map((iv) => iv.operarioId),
+  );
+  for (const operarioId of operarios) {
+    const f = leerFichaje(operarioId);
+    const ab = abierto(f);
+    if (!ab) continue; // no debería pasar (venía de la lista de arriba), pero por si acaso
+    const ultimoLatido = leerUltimoLatido(operarioId);
+    const cerrado = cerrarPorInactividad(f, ultimoLatido, ahora, TOLERANCIA_LATIDO_MS);
+    if (!cerrado) continue;
+
+    guardarFichaje(operarioId, cerrado);
+    // Mismo camino que cualquier otro cierre (ver /api/fichaje POST): sus
+    // bonos y movimientos de fase se encolan hacia OLANET igual que si
+    // alguien hubiera pulsado pausar.
+    encolarFichaje(operarioId, cerrado.intervalos);
+    const finReal = cerrado.intervalos[cerrado.intervalos.length - 1].fin;
+    if (finReal) registrarAvisoCierre(operarioId, ab.ofIds, finReal);
+  }
+}
+
 async function vuelta(): Promise<void> {
   if (corriendo) return; // una vuelta lenta no debe solaparse con la siguiente
   corriendo = true;
   try {
+    cerrarFichajesSinLatido();
     await drenarCola();
     await refrescarEnCurso();
   } catch (e) {
