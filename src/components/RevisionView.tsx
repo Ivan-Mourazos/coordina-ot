@@ -12,10 +12,13 @@ import { DevolverInline } from "./DevolverInline";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
 
+// "Listas para pasar", no "Aprobadas": es el mismo sitio al que el tablero
+// llama "Listo para pasar", y tener dos nombres para el final del recorrido
+// obliga a traducir mentalmente al cambiar de pestaña.
 const COLUMNAS: { estado: EstadoOF; titulo: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar" },
   { estado: "en_revision", titulo: "En revisión" },
-  { estado: "aprobada", titulo: "Aprobadas" },
+  { estado: "aprobada", titulo: "Listas para pasar" },
   { estado: "devuelta", titulo: "Devueltas" },
 ];
 
@@ -140,7 +143,10 @@ export function RevisionView({
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* items-start: cada columna mide lo que ocupa. Sin esto todas se
+              estiraban a la altura de la más larga, y "Devueltas" con dos
+              tarjetas dejaba medio metro de vacío enmarcado. */}
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
             {COLUMNAS.map((col) => (
               <ColumnaRevision
                 key={col.estado}
@@ -162,7 +168,7 @@ export function RevisionView({
           No tienes nada pendiente de revisar.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
           {COLUMNAS_MIAS.map((col) => (
             <ColumnaRevision
               key={col.estado}
@@ -335,7 +341,7 @@ function ReviewCard({
   const { pedirConfirmacion, dialogo } = useConfirmacion(() => accionTodas("aprobar"));
 
   return (
-    <div className={`rounded-lg border-l-4 border border-border bg-surface p-2.5 ${meta.border}`}>
+    <div className={`rounded-lg border border-l-4 border-border bg-surface p-2.5 ${meta.borderIzq}`}>
       <button onClick={onOpen} className="block w-full text-left">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-text">{pedido.codigo}</span>
@@ -417,7 +423,9 @@ function ReviewCard({
           </>
         )}
         {estado === "aprobada" && (
-          <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">✓ Lista para Producción</span>
+          <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+            ✓ Lista para pasar a Producción
+          </span>
         )}
         {estado === "devuelta" && (
           <span className="text-[11px] text-text-muted">↩ Vuelve al autor</span>

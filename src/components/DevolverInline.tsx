@@ -3,7 +3,13 @@
 import { useState } from "react";
 
 /** Devolución con motivo escrito ahí mismo (sustituye al window.prompt):
- *  botón rojo → se despliega el campo + confirmar/cancelar. */
+ *  se despliega el campo + confirmar/cancelar.
+ *
+ *  El botón de llamada NO va en rojo sólido. Aprobar y devolver competían
+ *  como dos bloques de color del mismo peso, cuando lo normal es aprobar:
+ *  devolver es la excepción y se pide con un botón discreto. El rojo sólido
+ *  se reserva para el "Confirmar devolución" de dentro, que sí es el punto
+ *  de no retorno. */
 export function DevolverInline({ onDevolver }: { onDevolver: (obs: string) => void }) {
   const [abierto, setAbierto] = useState(false);
   const [obs, setObs] = useState("");
@@ -12,7 +18,7 @@ export function DevolverInline({ onDevolver }: { onDevolver: (obs: string) => vo
     return (
       <button
         onClick={() => setAbierto(true)}
-        className="rounded-lg bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700"
+        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400"
       >
         Devolver
       </button>

@@ -21,7 +21,9 @@ export interface EstadoMeta {
   label: string;
   short: string;
   dot: string; // color sólido (badges, puntos)
-  border: string; // borde de tarjeta
+  /** Color SOLO del borde izquierdo de la tarjeta. Antes teñía el marco
+   *  entero y una columna de tarjetas devueltas era un muro de rojo. */
+  borderIzq: string;
   chip: string; // fondo+texto para badge
   rank: number; // prioridad para elegir estado representativo de un grupo
 }
@@ -31,7 +33,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "Pendiente",
     short: "Pend.",
     dot: "bg-gray-400",
-    border: "border-border",
+    borderIzq: "border-l-border",
     chip: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
     rank: 1,
   },
@@ -39,7 +41,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "En curso",
     short: "Curso",
     dot: "bg-emerald-600",
-    border: "border-emerald-400",
+    borderIzq: "border-l-emerald-400",
     chip: "bg-emerald-600 text-white",
     rank: 2,
   },
@@ -49,7 +51,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     // Cian frío, no teal: en tema oscuro el teal se confundía con el
     // esmeralda de "en curso" (cuatro verdes compitiendo en pantalla).
     dot: "bg-cyan-600",
-    border: "border-cyan-400",
+    borderIzq: "border-l-cyan-400",
     chip: "bg-cyan-600 text-white",
     rank: 3,
   },
@@ -57,7 +59,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "En revisión",
     short: "Revis.",
     dot: "bg-violet-600",
-    border: "border-violet-400",
+    borderIzq: "border-l-violet-400",
     chip: "bg-violet-600 text-white",
     rank: 5,
   },
@@ -65,7 +67,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "Por revisar",
     short: "Por rev.",
     dot: "bg-amber-500",
-    border: "border-amber-400",
+    borderIzq: "border-l-amber-400",
     chip: "bg-amber-500 text-white",
     rank: 6,
   },
@@ -73,7 +75,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "Devuelta",
     short: "Devuelta",
     dot: "bg-red-600",
-    border: "border-red-500",
+    borderIzq: "border-l-red-500",
     chip: "bg-red-600 text-white",
     rank: 7,
   },
@@ -81,7 +83,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     label: "Anulada",
     short: "Anul.",
     dot: "bg-slate-400",
-    border: "border-slate-300",
+    borderIzq: "border-l-slate-300",
     chip: "bg-slate-200 text-slate-700",
     rank: 0,
   },
