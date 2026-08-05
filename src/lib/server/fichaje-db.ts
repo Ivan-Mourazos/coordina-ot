@@ -49,6 +49,72 @@ export function leerTodosIntervalos(): Intervalo[] {
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
 }
 
+/** Deja constancia de que la pestaña de este operario sigue viva. La llama el
+ *  endpoint /api/fichaje/latido cada 60 s mientras haya un fichaje corriendo,
+ *  y guardarFichaje() en cada guardado (abrir/cambiar/pausar cuenta igual de
+ *  "sigo viva" que el aviso periódico): así un intervalo recién abierto
+ *  nunca se queda sin latido esperando al primer tick del cliente. */
+export function registrarLatido(operarioId: string, ultimo: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO fichaje_latido (operario_id, ultimo) VALUES (?, ?)
+       ON CONFLICT(operario_id) DO UPDATE SET ultimo = excluded.ultimo`,
+    )
+    .run(operarioId, ultimo);
+}
+
+/** Último latido conocido de un operario, o `null` si nunca se registró
+ *  ninguno (ver el caso "sin latido" en cerrarPorInactividad, lib/fichaje.ts). */
+export function leerUltimoLatido(operarioId: string): string | null {
+  const fila = getDb()
+    .prepare("SELECT ultimo FROM fichaje_latido WHERE operario_id = ?")
+    .get(operarioId) as { ultimo: string } | undefined;
+  return fila?.ultimo ?? null;
+}
+
+export interface AvisoCierre {
+  ofIds: string[];
+  fin: string; // ISO, hora real del último latido — no la del chequeo
+}
+
+/** Dejar constancia de que cerrarFichajesSinLatido cerró un intervalo de este
+ *  operario, para que se entere al volver: si no, mañana ve menos tiempo del
+ *  esperado y no sabe por qué. Un aviso pendiente por operario basta (si
+ *  hubiera dos seguidos sin que nadie cargue la app entre medias, el segundo
+ *  sustituye al primero: es información de servicio, no un historial). */
+export function registrarAvisoCierre(operarioId: string, ofIds: readonly string[], fin: string): void {
+  getDb()
+    .prepare(
+      `INSERT INTO fichaje_aviso_cierre (operario_id, of_ids, fin, creado_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(operario_id) DO UPDATE SET
+         of_ids = excluded.of_ids, fin = excluded.fin, creado_at = excluded.creado_at`,
+    )
+    .run(operarioId, JSON.stringify(ofIds), fin, new Date().toISOString());
+}
+
+/** Lee el aviso pendiente de este operario y lo BORRA en la misma operación:
+ *  se sirve una sola vez (la carga en la que el técnico vuelve), la próxima
+ *  ya no lo repite. */
+export function leerYConsumirAvisoCierre(operarioId: string): AvisoCierre | null {
+  const db = getDb();
+  return db.transaction(() => {
+    const fila = db
+      .prepare("SELECT of_ids, fin FROM fichaje_aviso_cierre WHERE operario_id = ?")
+      .get(operarioId) as { of_ids: string; fin: string } | undefined;
+    if (!fila) return null;
+    db.prepare("DELETE FROM fichaje_aviso_cierre WHERE operario_id = ?").run(operarioId);
+    let ofIds: unknown;
+    try {
+      ofIds = JSON.parse(fila.of_ids);
+    } catch {
+      return null; // fila corrupta: se descarta, nunca se propaga a medias
+    }
+    if (!Array.isArray(ofIds) || !ofIds.every((x) => typeof x === "string")) return null;
+    return { ofIds: ofIds as string[], fin: fila.fin };
+  })();
+}
+
 /** Guarda el fichaje de un operario.
  *
  *  Solo el ÚLTIMO intervalo puede estar abierto, y `fichar`/`pausar` nunca
@@ -85,4 +151,9 @@ export function guardarFichaje(operarioId: string, f: Fichaje): void {
       ins.run(operarioId, JSON.stringify(iv.ofIds), iv.rol, iv.inicio, iv.fin, ahora);
     }
   })();
+  // Cualquier guardado (abrir, cambiar de OF, pausar) prueba que la pestaña
+  // está viva: cuenta como latido igual que el aviso periódico de 60 s, así
+  // un intervalo recién abierto nunca queda sin latido esperando al primer
+  // tick del cliente.
+  registrarLatido(operarioId, ahora);
 }

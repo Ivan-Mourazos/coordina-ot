@@ -91,6 +91,64 @@ export function pausar(f: Fichaje, ahora: string): Fichaje {
   return cerrar(f, ahora);
 }
 
+/** Tolerancia por defecto del latido: sin avisos del cliente durante más de
+ *  esto, se asume que la pestaña se cerró (portátil apagado, navegador
+ *  cerrado) y no que la persona sigue delante en silencio. */
+export const TOLERANCIA_LATIDO_MS = 5 * 60_000;
+
+/** Cierra el intervalo abierto de un fichaje cuya pestaña dejó de avisar
+ *  ("latido") hace más de `toleranciaMs`. Lo cierra EN LA HORA DEL ÚLTIMO
+ *  LATIDO, nunca en `ahora`: si alguien se fue a las 18:05 y el chequeo
+ *  periódico no corre hasta las 18:10 (o hasta las 9:00 del día siguiente si
+ *  el servidor estuvo parado), el fichaje debe quedar cerrado a las 18:05,
+ *  la hora real en que la pestaña dejó de estar viva — no la hora en que el
+ *  servidor se dio cuenta.
+ *
+ *  Deliberadamente mide si la PESTAÑA sigue viva, no si la persona está
+ *  delante del teclado: en Oficina Técnica buena parte del trabajo ocurre
+ *  lejos del teclado (medir una pieza, mirar el parte en papel, hablar con
+ *  Producción), así que detectar inactividad de ratón/teclado cortaría
+ *  trabajo real. Que una ausencia corta del puesto siga fichando es un
+ *  efecto ACEPTADO A PROPÓSITO de este diseño, no un descuido: lo único que
+ *  se corta es el olvido de cerrar la pestaña (o pausar), nunca las pausas
+ *  cortas de trabajo real. No "arreglar" esto añadiendo detección de
+ *  inactividad de ratón: fue descartado a propósito.
+ *
+ *  Devuelve `null` si no hay nada que cerrar: sin intervalo abierto, o el
+ *  latido (o la falta de él, ver abajo) es reciente. */
+export function cerrarPorInactividad(
+  f: Fichaje,
+  ultimoLatido: string | null,
+  ahora: string,
+  toleranciaMs: number,
+): Fichaje | null {
+  const ab = abierto(f);
+  if (!ab) return null;
+
+  // Sin latido registrado: puede pasar con un intervalo abierto ANTES de que
+  // existiera esta función (nadie llamó nunca a registrarLatido para él) o
+  // con la tabla de latidos corrupta/vaciada. Se trata como si el latido
+  // hubiera llegado justo al abrir el intervalo (guardarFichaje SIEMPRE
+  // registra latido al abrir, así que en el caso normal esto no debería
+  // ocurrir): si el intervalo lleva abierto más de la tolerancia sin ningún
+  // latido, se cierra con su propio inicio; si es reciente, se deja correr
+  // con normalidad. La alternativa —no cerrar nunca sin latido— dejaría sin
+  // red de seguridad justo el caso que motivó esto (el fichaje de 11h de la
+  // simulación no tenía latido previo, porque la función no existía).
+  const referencia = ultimoLatido ?? ab.inicio;
+
+  if (Date.parse(ahora) - Date.parse(referencia) < toleranciaMs) return null;
+
+  // El cierre nunca puede quedar antes del inicio del intervalo: un latido
+  // corrupto o un reloj desincronizado no puede producir un fichaje de
+  // duración negativa.
+  const fin = Date.parse(referencia) < Date.parse(ab.inicio) ? ab.inicio : referencia;
+
+  return {
+    intervalos: [...f.intervalos.slice(0, -1), { ...ab, fin }],
+  };
+}
+
 /** Minutos atribuidos a una OF: Σ (fin−inicio)/nºOFs de sus tramos. */
 export function minutosOF(
   f: Fichaje,

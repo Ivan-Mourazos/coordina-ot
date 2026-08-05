@@ -52,6 +52,25 @@ function abrir(): Database.Database {
       updated_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_fichaje_operario ON fichaje_intervalo(operario_id);
+    -- Latido: última vez que la pestaña de un operario avisó "sigo viva"
+    -- (fichar/pausar cuenta igual que el aviso periódico, ver guardarFichaje
+    -- más abajo). Sirve para cerrar solos los fichajes que se quedan abiertos
+    -- porque alguien cerró el portátil sin pausar — ver cerrarPorInactividad
+    -- en lib/fichaje.ts y cerrarFichajesSinLatido en server/olanet-worker.ts.
+    CREATE TABLE IF NOT EXISTS fichaje_latido (
+      operario_id TEXT PRIMARY KEY,
+      ultimo      TEXT NOT NULL
+    );
+    -- Aviso pendiente de "tu fichaje se cerró solo": una fila por operario,
+    -- creada cuando cerrarFichajesSinLatido cierra un intervalo suyo. Se lee
+    -- y se borra en la misma operación (leerYConsumirAvisoCierre), así que
+    -- /api/fichaje solo lo sirve UNA vez, la próxima carga ya no lo repite.
+    CREATE TABLE IF NOT EXISTS fichaje_aviso_cierre (
+      operario_id TEXT PRIMARY KEY,
+      of_ids      TEXT NOT NULL,
+      fin         TEXT NOT NULL,
+      creado_at   TEXT NOT NULL
+    );
     -- Cuántos intervalos de cada operario están ya enteros en la cola de
     -- salida. Solo el ÚLTIMO intervalo puede seguir abierto y cambiar, así que
     -- todo lo anterior es inmutable y no hace falta volver a derivarlo en cada

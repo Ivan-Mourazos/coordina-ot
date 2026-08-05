@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  FICHAJE_VACIO, abierto, agregarPorRol, fichar, pausar, minutosOF, parseFichaje,
-  ofsFichables, rolFichajeDe, esFichable,
+  FICHAJE_VACIO, abierto, agregarPorRol, cerrarPorInactividad, fichar, pausar, minutosOF,
+  parseFichaje, ofsFichables, rolFichajeDe, esFichable,
 } from "../fichaje";
 import type { OF, Pedido } from "../types";
 
@@ -138,6 +138,60 @@ describe("esFichable", () => {
     expect(esFichable(of("en_curso", true))).toBe(false);
     expect(esFichable(of("anulada"))).toBe(false);
     expect(esFichable(of("aprobada"))).toBe(false);
+  });
+});
+
+describe("cerrarPorInactividad", () => {
+  const TOL = 5 * 60_000; // 5 minutos, la tolerancia real del producto
+
+  it("sin intervalo abierto: no hay nada que cerrar", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    const pausado = pausar(f, T1);
+    expect(cerrarPorInactividad(pausado, T1, T2, TOL)).toBeNull();
+    expect(cerrarPorInactividad(FICHAJE_VACIO, null, T2, TOL)).toBeNull();
+  });
+
+  it("latido reciente: no cierra (la pestaña sigue viva)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    // Latido a T1 (08:30), ahora T2 (09:00): 30 min < 5 min de tolerancia...
+    // se ajusta para que el latido esté DENTRO de la tolerancia de `ahora`.
+    const latido = "2026-07-06T08:58:00.000Z"; // 2 min antes de T2
+    expect(cerrarPorInactividad(f, latido, T2, TOL)).toBeNull();
+  });
+
+  it("latido antiguo: cierra con la hora del LATIDO, no con `ahora`", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    const latido = "2026-07-06T08:10:00.000Z"; // último aviso a las 08:10
+    const ahora = "2026-07-06T08:20:00.000Z"; // el servidor se entera 10 min después
+    const cerrado = cerrarPorInactividad(f, latido, ahora, TOL);
+    expect(abierto(cerrado!)).toBeNull();
+    expect(cerrado!.intervalos[0]).toMatchObject({ inicio: T0, fin: latido });
+    // La clave del diseño: NUNCA la hora de `ahora`.
+    expect(cerrado!.intervalos[0].fin).not.toBe(ahora);
+  });
+
+  it("sin latido registrado nunca: si el intervalo lleva abierto más que la tolerancia, cierra con su propio inicio", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0); // abre a las 08:00
+    const ahora = "2026-07-06T08:10:00.000Z"; // 10 min después, sin latido nunca
+    const cerrado = cerrarPorInactividad(f, null, ahora, TOL);
+    expect(cerrado!.intervalos[0]).toMatchObject({ inicio: T0, fin: T0 });
+  });
+
+  it("sin latido registrado pero el intervalo es reciente: no cierra todavía", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0); // abre a las 08:00
+    const ahora = "2026-07-06T08:02:00.000Z"; // 2 min después, dentro de tolerancia
+    expect(cerrarPorInactividad(f, null, ahora, TOL)).toBeNull();
+  });
+
+  it("el intervalo cerrado nunca acaba antes de su propio inicio (latido corrupto/reloj desincronizado)", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T1); // abre a las 08:30
+    const latidoAntesDelInicio = T0; // 08:00, ANTES del inicio del intervalo
+    const ahora = "2026-07-06T09:00:00.000Z";
+    const cerrado = cerrarPorInactividad(f, latidoAntesDelInicio, ahora, TOL);
+    expect(cerrado!.intervalos[0].fin).toBe(T1); // se recorta al inicio, no queda negativo
+    expect(Date.parse(cerrado!.intervalos[0].fin!)).toBeGreaterThanOrEqual(
+      Date.parse(cerrado!.intervalos[0].inicio),
+    );
   });
 });
 
