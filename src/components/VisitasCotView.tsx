@@ -13,6 +13,8 @@ import {
   type VisitaCot,
   type VisitasCotPagina,
 } from "@/lib/visitas-cot";
+import { tituloDia } from "@/lib/fechas";
+import { hoyISO } from "@/lib/types";
 
 const REFRESCO_PENDIENTES_MS = 60_000;
 
@@ -23,51 +25,6 @@ function useDebounced<T>(value: T, delay: number): T {
     return () => clearTimeout(id);
   }, [value, delay]);
   return debounced;
-}
-
-function hoyISO(): string {
-  const ahora = new Date();
-  return [
-    ahora.getFullYear(),
-    String(ahora.getMonth() + 1).padStart(2, "0"),
-    String(ahora.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-function fmtDia(fecha: string | null): {
-  dia: string;
-  semana: string;
-  mes: string;
-  completa: string;
-} {
-  if (!fecha) {
-    return {
-      dia: "—",
-      semana: "Sin fecha",
-      mes: "",
-      completa: "Sin fecha planificada",
-    };
-  }
-  const date = new Date(`${fecha}T12:00:00`);
-  const semana = new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-  }).format(date);
-  const mes = new Intl.DateTimeFormat("es-ES", {
-    month: "short",
-  })
-    .format(date)
-    .replace(".", "");
-  return {
-    dia: String(date.getDate()).padStart(2, "0"),
-    semana: `${semana[0].toUpperCase()}${semana.slice(1)}`,
-    mes,
-    completa: new Intl.DateTimeFormat("es-ES", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date),
-  };
 }
 
 function fmtFechaHora(iso: string | null): string {
@@ -184,6 +141,9 @@ export function VisitasCotView() {
     [visitas],
   );
   const hayFiltros = Boolean(query || desde || hasta);
+  // Se calcula en cada render, no en estado: la vista se refresca sola cada
+  // minuto, así que al pasar de medianoche "Hoy" se recoloca sin más.
+  const hoy = hoyISO();
 
   return (
     <section className="mx-auto w-full max-w-[1500px] space-y-4">
@@ -332,13 +292,17 @@ export function VisitasCotView() {
       ) : null}
 
       {grupos.length > 0 ? (
-        <div className="space-y-3">
+        // Un solo panel con todos los días dentro, no una tarjeta por día: lo
+        // que se viene a mirar aquí es "quién viene y cuándo", y con una
+        // tarjeta por día un aviso suelto ocupaba media pantalla.
+        <div className="glass-panel overflow-hidden rounded-2xl">
           {grupos.map((grupo) => (
             <GrupoDia
               key={grupo.fecha ?? "sin-fecha"}
               fecha={grupo.fecha}
               visitas={grupo.visitas}
               ambito={ambito}
+              hoy={hoy}
             />
           ))}
         </div>
@@ -364,48 +328,34 @@ function GrupoDia({
   fecha,
   visitas,
   ambito,
+  hoy,
 }: {
   fecha: string | null;
   visitas: VisitaCot[];
   ambito: AmbitoVisitasCot;
+  hoy: string;
 }) {
-  const label = fmtDia(fecha);
-  const atrasado =
-    ambito === "pendientes" && Boolean(fecha && fecha < hoyISO());
-  const acento = atrasado
-    ? "bg-red-500"
-    : ambito === "pendientes"
-      ? "bg-brand-400"
-      : "bg-cyan-600";
+  const { titulo, sub } = tituloDia(fecha, hoy);
+  const atrasado = ambito === "pendientes" && Boolean(fecha && fecha < hoy);
+  const acento = atrasado ? "bg-red-500" : ambito === "pendientes" ? "bg-brand-400" : "bg-cyan-600";
 
   return (
-    <section
-      aria-label={label.completa}
-      className="glass-panel grid overflow-hidden rounded-2xl lg:grid-cols-[9.5rem_minmax(0,1fr)]"
-    >
-      <div className="relative flex items-center gap-3 border-b border-border bg-surface/35 px-4 py-3 lg:block lg:border-b-0 lg:border-r lg:px-5 lg:py-5">
-        <span
-          className={`absolute left-0 top-0 h-full w-1 ${acento}`}
-          aria-hidden="true"
-        />
-        <span className="font-mono text-3xl font-semibold tabular-nums tracking-tight text-text">
-          {label.dia}
-        </span>
-        <div className="lg:mt-1">
-          <p className="text-xs font-semibold text-text">{label.semana}</p>
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">
-            {label.mes}
-          </p>
-        </div>
-        <p className="ml-auto text-[10px] font-semibold text-text-muted lg:ml-0 lg:mt-5">
-          {visitas.length} {visitas.length === 1 ? "visita" : "visitas"}
-        </p>
+    <section aria-label={`${titulo} · ${sub}`}>
+      {/* Cabecera pegajosa: al bajar por una lista larga sigue viéndose de qué
+          día son las visitas que se están leyendo. */}
+      <header className="sticky top-0 z-10 flex items-center gap-2.5 border-y border-border bg-surface-2/92 px-4 py-1.5 backdrop-blur">
+        <span className={`h-4 w-1 shrink-0 rounded-full ${acento}`} aria-hidden="true" />
+        <span className="text-[13px] font-semibold text-text">{titulo}</span>
+        <span className="truncate text-[11px] text-text-muted">{sub}</span>
         {atrasado ? (
-          <span className="ml-2 rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300 lg:ml-0 lg:mt-2 lg:inline-block">
+          <span className="rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300">
             Atrasada
           </span>
         ) : null}
-      </div>
+        <span className="ml-auto shrink-0 text-[11px] tabular-nums text-text-muted">
+          {visitas.length} {visitas.length === 1 ? "visita" : "visitas"}
+        </span>
+      </header>
 
       <div className="divide-y divide-border">
         {visitas.map((visita) => (
@@ -429,7 +379,7 @@ function VisitaRow({ visita }: { visita: VisitaCot }) {
         aria-expanded={abierta}
         disabled={!tieneDetalle}
         onClick={() => setAbierta((actual) => !actual)}
-        className="grid w-full grid-cols-[7rem_9rem_minmax(12rem,1fr)_13rem_1.5rem] items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface/75 disabled:cursor-default"
+        className="grid w-full grid-cols-[6.5rem_8.5rem_minmax(12rem,1fr)_12rem_1.25rem] items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface/75 disabled:cursor-default"
       >
         <span className="font-mono text-xs font-bold text-text">
           {visita.incidencia || "Sin código"}
@@ -495,14 +445,15 @@ function Detalle({ label, value }: { label: string; value: string }) {
 
 function AgendaSkeleton() {
   return (
-    <div className="space-y-3" aria-label="Cargando agenda">
+    // Mismo esqueleto que la lista real (cabecera de día + filas finas): si el
+    // hueco no tiene la forma de lo que va a llegar, la página da un salto.
+    <div className="glass-panel animate-pulse overflow-hidden rounded-2xl" aria-label="Cargando agenda">
       {[0, 1].map((i) => (
-        <div
-          key={i}
-          className="glass-panel grid animate-pulse overflow-hidden rounded-2xl lg:grid-cols-[9.5rem_minmax(0,1fr)]"
-        >
-          <div className="h-24 border-r border-border bg-surface/35" />
-          <div className="space-y-3 px-4 py-5">
+        <div key={i}>
+          <div className="flex items-center gap-2.5 border-y border-border bg-surface-2/60 px-4 py-2">
+            <div className="h-3 w-24 rounded bg-border" />
+          </div>
+          <div className="space-y-2.5 px-4 py-3">
             <div className="h-3 w-4/5 rounded bg-border" />
             <div className="h-3 w-3/5 rounded bg-border" />
           </div>
