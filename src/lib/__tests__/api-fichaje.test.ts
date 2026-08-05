@@ -5,12 +5,14 @@ import path from "node:path";
 
 let dir: string;
 let route: typeof import("../../app/api/fichaje/route");
+let avisoVisto: typeof import("../../app/api/fichaje/aviso-visto/route");
 let fichajeDb: typeof import("../server/fichaje-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-api-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   route = await import("../../app/api/fichaje/route");
+  avisoVisto = await import("../../app/api/fichaje/aviso-visto/route");
   fichajeDb = await import("../server/fichaje-db");
 });
 
@@ -60,15 +62,39 @@ test("GET sin aviso pendiente devuelve avisoCierre: null", async () => {
   expect(data.avisoCierre).toBeNull();
 });
 
-test("GET sirve el aviso de cierre automático UNA sola vez", async () => {
+test("GET repite el aviso de cierre hasta que el cliente acusa recibo", async () => {
   fichajeDb.registrarAvisoCierre("op-aviso", ["OF-9"], "2026-08-04T18:05:00.000Z");
-  const res1 = await route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
-  const data1 = (await res1.json()) as { avisoCierre: { ofIds: string[]; fin: string } | null };
-  expect(data1.avisoCierre).toEqual({ ofIds: ["OF-9"], fin: "2026-08-04T18:05:00.000Z" });
+  const pedir = () => route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
+  const esperado = { ofIds: ["OF-9"], fin: "2026-08-04T18:05:00.000Z" };
 
-  const res2 = await route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
-  const data2 = (await res2.json()) as { avisoCierre: unknown };
-  expect(data2.avisoCierre).toBeNull(); // ya se consumió en la primera lectura
+  const data1 = (await (await pedir()).json()) as { avisoCierre: unknown };
+  expect(data1.avisoCierre).toEqual(esperado);
+  // Recargar la página no lo hace desaparecer: leerlo no lo consume.
+  const data2 = (await (await pedir()).json()) as { avisoCierre: unknown };
+  expect(data2.avisoCierre).toEqual(esperado);
+
+  const ack = await avisoVisto.POST(
+    new Request("http://x/api/fichaje/aviso-visto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operarioId: "op-aviso" }),
+    }),
+  );
+  expect(ack.status).toBe(200);
+
+  const data3 = (await (await pedir()).json()) as { avisoCierre: unknown };
+  expect(data3.avisoCierre).toBeNull();
+});
+
+test("aviso-visto sin operarioId responde 400", async () => {
+  const res = await avisoVisto.POST(
+    new Request("http://x/api/fichaje/aviso-visto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    }),
+  );
+  expect(res.status).toBe(400);
 });
 
 test("POST sin operarioId responde 400", async () => {

@@ -93,26 +93,32 @@ export function registrarAvisoCierre(operarioId: string, ofIds: readonly string[
     .run(operarioId, JSON.stringify(ofIds), fin, new Date().toISOString());
 }
 
-/** Lee el aviso pendiente de este operario y lo BORRA en la misma operación:
- *  se sirve una sola vez (la carga en la que el técnico vuelve), la próxima
- *  ya no lo repite. */
-export function leerYConsumirAvisoCierre(operarioId: string): AvisoCierre | null {
-  const db = getDb();
-  return db.transaction(() => {
-    const fila = db
-      .prepare("SELECT of_ids, fin FROM fichaje_aviso_cierre WHERE operario_id = ?")
-      .get(operarioId) as { of_ids: string; fin: string } | undefined;
-    if (!fila) return null;
-    db.prepare("DELETE FROM fichaje_aviso_cierre WHERE operario_id = ?").run(operarioId);
-    let ofIds: unknown;
-    try {
-      ofIds = JSON.parse(fila.of_ids);
-    } catch {
-      return null; // fila corrupta: se descarta, nunca se propaga a medias
-    }
-    if (!Array.isArray(ofIds) || !ofIds.every((x) => typeof x === "string")) return null;
-    return { ofIds: ofIds as string[], fin: fila.fin };
-  })();
+/** Lee el aviso pendiente de este operario SIN borrarlo.
+ *
+ *  Antes se borraba al leerlo, y eso lo hacía frágil: si la respuesta se
+ *  perdía por el camino, o si otra pestaña la pedía primero, el aviso
+ *  desaparecía y el técnico nunca se enteraba de que su fichaje se había
+ *  cerrado solo — que es justo lo que este aviso existe para evitar. Ahora
+ *  espera a que el cliente confirme que lo ha enseñado (ver
+ *  `marcarAvisoCierreVisto`), así que sobrevive a recargas y a fallos de red. */
+export function leerAvisoCierre(operarioId: string): AvisoCierre | null {
+  const fila = getDb()
+    .prepare("SELECT of_ids, fin FROM fichaje_aviso_cierre WHERE operario_id = ?")
+    .get(operarioId) as { of_ids: string; fin: string } | undefined;
+  if (!fila) return null;
+  let ofIds: unknown;
+  try {
+    ofIds = JSON.parse(fila.of_ids);
+  } catch {
+    return null; // fila corrupta: se descarta, nunca se propaga a medias
+  }
+  if (!Array.isArray(ofIds) || !ofIds.every((x) => typeof x === "string")) return null;
+  return { ofIds: ofIds as string[], fin: fila.fin };
+}
+
+/** Borra el aviso: lo llama el cliente cuando el técnico ya lo ha visto. */
+export function marcarAvisoCierreVisto(operarioId: string): void {
+  getDb().prepare("DELETE FROM fichaje_aviso_cierre WHERE operario_id = ?").run(operarioId);
 }
 
 /** Guarda el fichaje de un operario.

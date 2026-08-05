@@ -105,15 +105,17 @@ export function MiFichaje({
   const [sinFicharDesde, setSinFicharDesde] = useState<{ opId: string; desde: number } | null>(
     null,
   );
-  useEffect(() => {
-    if (misEnCurso && !ab) {
-      setSinFicharDesde((prev) =>
-        prev && prev.opId === miId ? prev : { opId: miId, desde: Date.now() },
-      );
-    } else {
-      setSinFicharDesde(null);
-    }
-  }, [misEnCurso, ab, miId]);
+  // Ajuste durante el render, no en un efecto: el efecto provocaba un segundo
+  // render en cascada (y el lint lo rechaza). React descarta este render y
+  // vuelve a empezar con el valor nuevo, sin pintar el estado intermedio.
+  const enSituacion = misEnCurso && !ab;
+  if (enSituacion && sinFicharDesde?.opId !== miId) {
+    // `ahora` en vez de Date.now(): el reloj del render ya viene de fuera y
+    // leerlo aquí es puro, además de usar la misma escala que la comparación.
+    setSinFicharDesde({ opId: miId, desde: Date.parse(ahora) });
+  } else if (!enSituacion && sinFicharDesde !== null) {
+    setSinFicharDesde(null);
+  }
   const aviso =
     sinFicharDesde !== null &&
     sinFicharDesde.opId === miId &&

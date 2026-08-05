@@ -94,11 +94,12 @@ describe("cerrarFichajesSinLatido", () => {
 
     fichajeWorker.cerrarFichajesSinLatido();
 
-    expect(fichajeDb.leerYConsumirAvisoCierre("raquel")).toEqual({
-      ofIds: ["0231104:1"],
-      fin: latidoViejo,
-    });
-    expect(fichajeDb.leerYConsumirAvisoCierre("raquel")).toBeNull(); // ya se sirvió
+    const esperado = { ofIds: ["0231104:1"], fin: latidoViejo };
+    expect(fichajeDb.leerAvisoCierre("raquel")).toEqual(esperado);
+    // Sigue ahí hasta que el cliente acuse: leerlo no lo consume.
+    expect(fichajeDb.leerAvisoCierre("raquel")).toEqual(esperado);
+    fichajeDb.marcarAvisoCierreVisto("raquel");
+    expect(fichajeDb.leerAvisoCierre("raquel")).toBeNull();
   });
 
   it("no hace nada si no hay ningún fichaje abierto", () => {

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { leerFichaje, guardarFichaje, leerYConsumirAvisoCierre } from "@/lib/server/fichaje-db";
+import {
+  leerFichaje,
+  guardarFichaje,
+  leerAvisoCierre,
+  marcarAvisoCierreVisto,
+} from "@/lib/server/fichaje-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
 import { fichar, pausar } from "@/lib/fichaje";
 import type { Rol } from "@/lib/types";
@@ -66,9 +71,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
   // avisoCierre: si el latido dejó de llegar y cerrarFichajesSinLatido()
   // cerró un intervalo suyo mientras no miraba, se entera aquí, al cargar.
-  // Se CONSUME (se borra) al leerlo: la próxima carga ya no lo repite.
+  // NO se borra al leerlo: sigue viniendo hasta que el cliente confirme que lo
+  // ha enseñado (POST /api/fichaje/aviso-visto). Antes se consumía aquí, y
+  // bastaba con que la respuesta se perdiera para que el aviso desapareciera
+  // sin que nadie lo viera.
   return NextResponse.json(
-    { fichaje: leerFichaje(operarioId), avisoCierre: leerYConsumirAvisoCierre(operarioId) },
+    { fichaje: leerFichaje(operarioId), avisoCierre: leerAvisoCierre(operarioId) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

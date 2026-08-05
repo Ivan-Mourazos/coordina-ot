@@ -1013,7 +1013,19 @@ export function Board({
             })()}
           </p>
           <button
-            onClick={() => setAvisoCierreAuto(null)}
+            onClick={() => {
+              setAvisoCierreAuto(null);
+              // Hasta este acuse el servidor lo sigue devolviendo. Si el POST
+              // falla, el aviso reaparece en la próxima carga: preferible a
+              // perderlo, que es lo que pasaba cuando se borraba al leerlo.
+              if (miId) {
+                fetch("/api/fichaje/aviso-visto", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ operarioId: miId }),
+                }).catch(() => {});
+              }
+            }}
             className="mt-2 rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
           >
             Vale

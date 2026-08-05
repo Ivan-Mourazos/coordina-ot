@@ -112,15 +112,17 @@ test("registrarLatido/leerUltimoLatido: round-trip, y null si nunca se registró
   expect(db.leerUltimoLatido("op-9")).toBe("2026-07-22T14:05:00.000Z");
 });
 
-test("registrarAvisoCierre/leerYConsumirAvisoCierre: se sirve una vez y se borra", () => {
-  expect(db.leerYConsumirAvisoCierre("op-10")).toBeNull();
+test("el aviso de cierre sobrevive a leerlo: solo lo borra el acuse del cliente", () => {
+  expect(db.leerAvisoCierre("op-10")).toBeNull();
   db.registrarAvisoCierre("op-10", ["OF-H"], "2026-07-22T15:00:00.000Z");
-  expect(db.leerYConsumirAvisoCierre("op-10")).toEqual({
-    ofIds: ["OF-H"],
-    fin: "2026-07-22T15:00:00.000Z",
-  });
-  // Segunda lectura: ya se consumió, no se repite.
-  expect(db.leerYConsumirAvisoCierre("op-10")).toBeNull();
+  const esperado = { ofIds: ["OF-H"], fin: "2026-07-22T15:00:00.000Z" };
+  expect(db.leerAvisoCierre("op-10")).toEqual(esperado);
+  // Leerlo NO lo consume: si se borrara aquí, bastaría con que la respuesta se
+  // perdiera para que el técnico nunca se enterase de que le cerraron el fichaje.
+  expect(db.leerAvisoCierre("op-10")).toEqual(esperado);
+
+  db.marcarAvisoCierreVisto("op-10");
+  expect(db.leerAvisoCierre("op-10")).toBeNull();
 });
 
 test("si llegan menos intervalos de los guardados, se reescribe entero", () => {
