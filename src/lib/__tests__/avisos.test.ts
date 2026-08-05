@@ -31,7 +31,41 @@ describe("avisosPara", () => {
   it("avisa al que recibe el trabajo", () => {
     const r = avisosPara([traspaso], "tamara", new Set());
     expect(r).toEqual([
-      { logId: 7, ts: traspaso.ts, tipo: "recibida", ofId: "of-1", quien: "ivan", otro: "ivan" },
+      {
+        clave: "7:recibida:of-1",
+        logId: 7,
+        ts: traspaso.ts,
+        tipo: "recibida",
+        ofId: "of-1",
+        quien: "ivan",
+        otro: "ivan",
+      },
+    ]);
+  });
+
+  it("distingue quien hace el cambio de quien pierde el trabajo, al avisar de que se recibe", () => {
+    // En el test de arriba, quien hace el cambio (operarioId: "ivan") y el
+    // autor previo (previos: [of("of-1", "ivan", ...)]) son la misma
+    // persona: si `otro` se calculara mal (reutilizando el actor en vez del
+    // autor previo), ese test seguiría en verde. Aquí actor, autor previo y
+    // destinatario son tres personas distintas, así que el error se nota.
+    const traspasoDeTresPersonas = accion({
+      id: 30,
+      operarioId: "coord",
+      previos: [of("of-20", "ivan", null)],
+      cambiosOF: [of("of-20", "tamara", null)],
+    });
+    const r = avisosPara([traspasoDeTresPersonas], "tamara", new Set());
+    expect(r).toEqual([
+      {
+        clave: "30:recibida:of-20",
+        logId: 30,
+        ts: traspasoDeTresPersonas.ts,
+        tipo: "recibida",
+        ofId: "of-20",
+        quien: "coord",
+        otro: "ivan",
+      },
     ]);
   });
 
@@ -76,7 +110,58 @@ describe("avisosPara", () => {
   });
 
   it("los ya vistos no vuelven a salir", () => {
-    expect(avisosPara([traspaso], "tamara", new Set([7]))).toEqual([]);
+    // `vistos` ahora es un conjunto de claves de aviso, no de ids de acción.
+    expect(avisosPara([traspaso], "tamara", new Set(["7:recibida:of-1"]))).toEqual([]);
+  });
+
+  it("un aviso no visto sigue saliendo aunque otro aviso de la misma acción sí se haya visto", () => {
+    // Traspasar un pedido entero manda todas sus OF en una sola llamada: dos
+    // OF que van al mismo destinatario generan, en la misma acción, dos
+    // avisos con el mismo logId. Si el filtro de "vistos" siguiera
+    // comparando por logId (o si `clave` no existiera), marcar uno como
+    // visto apagaría también el otro, que nadie ha abierto.
+    const traspasoPedido = accion({
+      id: 20,
+      operarioId: "coord",
+      previos: [of("of-10", "ivan", null), of("of-11", "angel", null)],
+      cambiosOF: [of("of-10", "tamara", null), of("of-11", "tamara", null)],
+    });
+    const sinVistos = avisosPara([traspasoPedido], "tamara", new Set());
+    expect(sinVistos).toHaveLength(2);
+
+    const avisoDeOf10 = sinVistos.find((av) => av.ofId === "of-10")!;
+    expect(avisoDeOf10.clave).toBe("20:recibida:of-10");
+
+    // Marcamos como vista solo la clave del aviso de of-10.
+    const r = avisosPara([traspasoPedido], "tamara", new Set([avisoDeOf10.clave]));
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ ofId: "of-11", tipo: "recibida", otro: "angel" });
+  });
+
+  it("avisa cuando te devuelven el trabajo a la bandeja sin reasignarlo a nadie", () => {
+    // Que te quiten una OF y quede sin autor (vuelve a la bandeja) es un
+    // caso de "cedida" más: es intencional que se avise con otro: null,
+    // porque perder el trabajo es justo lo que este aviso existe para
+    // contar, tenga o no ya dueño nuevo. Este test fija ese comportamiento
+    // para que un cambio futuro no lo rompa sin darse cuenta.
+    const devueltaABandeja = accion({
+      id: 40,
+      operarioId: "angel",
+      previos: [of("of-30", "ivan", null)],
+      cambiosOF: [of("of-30", null, null)],
+    });
+    const r = avisosPara([devueltaABandeja], "ivan", new Set());
+    expect(r).toEqual([
+      {
+        clave: "40:cedida:of-30",
+        logId: 40,
+        ts: devueltaABandeja.ts,
+        tipo: "cedida",
+        ofId: "of-30",
+        quien: "angel",
+        otro: null,
+      },
+    ]);
   });
 
   it("ignora los cambios que no mueven a nadie de sitio", () => {

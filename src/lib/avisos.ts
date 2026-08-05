@@ -13,7 +13,15 @@ import type { AccionLog } from "./server/estado-db";
 export type TipoAviso = "recibida" | "cedida" | "revisarNueva" | "revisarQuitada";
 
 export interface AvisoMovimiento {
-  /** Fila de `acciones_log`. Es lo que se marca como visto. */
+  /** Identidad propia y estable del aviso: `logId:tipo:ofId`. Es lo que se
+   *  marca como visto — no `logId`. Una sola acción puede producir varios
+   *  avisos (traspasar un pedido manda todas sus OF de una vez, y una OF
+   *  puede cambiar de autor y de revisor a la vez): si el filtro de vistos
+   *  comparara por logId, marcar uno como visto apagaría también los demás
+   *  avisos de esa acción que nadie ha abierto. */
+  clave: string;
+  /** Fila de `acciones_log` que originó el aviso. Sigue siendo útil (para
+   *  depurar o agrupar), pero ya no es la identidad del aviso: ver `clave`. */
   logId: number;
   ts: string;
   tipo: TipoAviso;
@@ -36,35 +44,41 @@ export const VENTANA_AVISOS_DIAS = 30;
 export function avisosPara(
   acciones: readonly AccionLog[],
   operarioId: string,
-  vistos: ReadonlySet<number>,
+  vistos: ReadonlySet<string>,
 ): AvisoMovimiento[] {
   const out: AvisoMovimiento[] = [];
   for (const a of acciones) {
-    if (vistos.has(a.id)) continue;
     const previoDe = new Map(a.previos.map((p) => [p.ofId, p]));
     for (const nuevo of a.cambiosOF) {
       const previo = previoDe.get(nuevo.ofId);
       if (!previo) continue; // OF que no existía en el overlay: nada que comparar
 
-      const base = { logId: a.id, ts: a.ts, ofId: nuevo.ofId, quien: a.operarioId };
+      // El filtro de "ya visto" se aplica por aviso (por su `clave`), no
+      // descartando la acción entera de antemano: una acción puede traer
+      // varios avisos y solo hay que apagar el que realmente se ha abierto.
+      const push = (tipo: TipoAviso, otro: string | null) => {
+        const clave = `${a.id}:${tipo}:${nuevo.ofId}`;
+        if (vistos.has(clave)) return;
+        out.push({ clave, logId: a.id, ts: a.ts, ofId: nuevo.ofId, quien: a.operarioId, tipo, otro });
+      };
 
       // Autor. Solo de persona a persona: sacar una OF de la bandeja
       // (previo.autorId === null) ya se anuncia como "sin empezar", y avisar
       // otra vez sería el mismo hecho contado dos veces.
       if (previo.autorId !== nuevo.autorId && previo.autorId !== null) {
         if (nuevo.autorId === operarioId && a.operarioId !== operarioId)
-          out.push({ ...base, tipo: "recibida", otro: previo.autorId });
+          push("recibida", previo.autorId);
         if (previo.autorId === operarioId && a.operarioId !== operarioId)
-          out.push({ ...base, tipo: "cedida", otro: nuevo.autorId });
+          push("cedida", nuevo.autorId);
       }
 
       // Revisor. Aquí sí cuenta pasar de "sin revisor" a tenerlo: nombrar
       // revisor es siempre encargarle algo a alguien.
       if (previo.revisorId !== nuevo.revisorId) {
         if (nuevo.revisorId === operarioId && a.operarioId !== operarioId)
-          out.push({ ...base, tipo: "revisarNueva", otro: previo.revisorId });
+          push("revisarNueva", previo.revisorId);
         if (previo.revisorId === operarioId && a.operarioId !== operarioId)
-          out.push({ ...base, tipo: "revisarQuitada", otro: nuevo.revisorId });
+          push("revisarQuitada", nuevo.revisorId);
       }
     }
   }
