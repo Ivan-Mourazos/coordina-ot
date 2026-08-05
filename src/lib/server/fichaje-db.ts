@@ -2,6 +2,7 @@ import type { Fichaje, Intervalo } from "../fichaje";
 import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
+import { encolarFichaje } from "./olanet-outbox";
 
 // ─── Persistencia del fichaje (SQLite propio) ────────────────────────────────
 // Los intervalos de tiempo por operario. La HORA la pone siempre el server al
@@ -143,7 +144,17 @@ export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
     if (!iv || !iv.ofIds.includes(ofId)) continue;
     const resto = iv.ofIds.filter((id) => id !== ofId);
     const actual = leerFichaje(iv.operarioId);
-    guardarFichaje(iv.operarioId, fichar(actual, resto, iv.rol, iv.operarioId, ahora));
+    const nuevo = fichar(actual, resto, iv.rol, iv.operarioId, ahora);
+    // Quien traspasa la OF no es el operario afectado, así que este guardado
+    // no prueba que su pestaña siga viva (ver la excepción documentada en
+    // guardarFichaje).
+    guardarFichaje(iv.operarioId, nuevo, { latido: false });
+    // Mismo camino que cualquier otro cierre (ver POST /api/fichaje y
+    // cerrarFichajesSinLatido): sin esto, si esta OF era la única abierta de
+    // este operario, el tramo queda cerrado aquí pero nunca sube a OLANET —
+    // y como cerrarFichajesSinLatido solo vigila intervalos ABIERTOS, si el
+    // operario no vuelve a fichar ese tiempo no se encola jamás.
+    encolarFichaje(iv.operarioId, nuevo.intervalos);
     afectados.push(iv.operarioId);
   }
   return afectados;
@@ -158,8 +169,16 @@ export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
  *  filas por POST). La clave natural (operario, inicio) resuelve el upsert.
  *
  *  Si en la BD hay más intervalos de los que llegan, la premisa no se cumple y
- *  se reescribe todo: más vale pagar el coste que dejar filas descolgadas. */
-export function guardarFichaje(operarioId: string, f: Fichaje): void {
+ *  se reescribe todo: más vale pagar el coste que dejar filas descolgadas.
+ *
+ *  `opciones.latido` (por defecto true) controla si este guardado cuenta como
+ *  prueba de vida del operario — ver el comentario junto a registrarLatido()
+ *  más abajo para el porqué de la excepción. */
+export function guardarFichaje(
+  operarioId: string,
+  f: Fichaje,
+  opciones: { latido?: boolean } = {},
+): void {
   const db = getDb();
   const ahora = new Date().toISOString();
   const contar = db.prepare(
@@ -189,5 +208,12 @@ export function guardarFichaje(operarioId: string, f: Fichaje): void {
   // está viva: cuenta como latido igual que el aviso periódico de 60 s, así
   // un intervalo recién abierto nunca queda sin latido esperando al primer
   // tick del cliente.
-  registrarLatido(operarioId, ahora);
+  //
+  // EXCEPCIÓN: cortarFichajeDeOF pasa `latido: false`. Ahí quien dispara el
+  // guardado no es el operario de la fila, sino OTRA persona que traspasa la
+  // OF; el afectado puede llevar horas con la pestaña cerrada. Registrarle un
+  // latido aquí le daría una prueba de vida que no ha dado, y retrasaría
+  // hasta 5 min (TOLERANCIA_LATIDO_MS) que cerrarFichajesSinLatido cierre una
+  // sesión ya muerta — inflando el tiempo de las OFs que le quedan.
+  if (opciones.latido !== false) registrarLatido(operarioId, ahora);
 }

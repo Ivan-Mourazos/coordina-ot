@@ -6,12 +6,14 @@ import { fichar, pausar, FICHAJE_VACIO } from "../fichaje";
 
 let dir: string;
 let db: typeof import("../server/fichaje-db");
+let outbox: typeof import("../server/olanet-outbox");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-fdb-"));
   // Debe fijarse ANTES de importar: estado-db lee COORDINA_DB_PATH al cargar.
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   db = await import("../server/fichaje-db");
+  outbox = await import("../server/olanet-outbox");
 });
 
 afterAll(() => {
@@ -173,4 +175,45 @@ test("cortarFichajeDeOF no toca a quien no la está fichando", () => {
 
   expect(db.cortarFichajeDeOF("OF-QUE-NADIE-FICHA", "2026-08-05T11:10:00.000Z")).toEqual([]);
   expect(db.leerFichaje("adrian").intervalos[0].fin).toBeNull();
+});
+
+// Defecto 1 (Critical): si la OF traspasada era la única abierta de ese
+// operario, el tramo se cerraba en SQLite pero nunca se encolaba hacia
+// OLANET. Como cerrarFichajesSinLatido solo vigila intervalos ABIERTOS, si el
+// operario no vuelve a fichar ese tiempo no sube nunca. El id de OF usa el
+// formato "orden:numope" (ver partirOfId en lib/bonos.ts) y "angel" es un
+// operario real de COD_RPS_POR_OPERARIO: sin esa forma bonosDe/eventosFaseDe
+// no producen ninguna fila y el test no distinguiría el defecto de un dato
+// mal formado.
+test("cortarFichajeDeOF encola el tramo cerrado hacia OLANET", () => {
+  const antes = outbox.leerPendientes().length;
+  const f = fichar(FICHAJE_VACIO, ["0230700:5"], "plantear", "angel", "2026-08-05T12:00:00.000Z");
+  db.guardarFichaje("angel", f);
+
+  db.cortarFichajeDeOF("0230700:5", "2026-08-05T12:30:00.000Z");
+
+  // Nota: en la cola los eventos "bono" llevan el CÓDIGO RPS del operario en
+  // operarioId (así los deriva bonosDe), no el id del tablero — por eso se
+  // localiza por el número de OF, igual que hace olanet-worker.test.ts.
+  const pendientes = outbox.leerPendientes();
+  expect(pendientes.length).toBeGreaterThan(antes);
+  const bono = pendientes.find((p) => p.tipo === "bono" && p.datos.of === "0230700");
+  expect(bono).toBeDefined();
+});
+
+// Defecto 2 (Important): guardarFichaje registra un latido porque, en el
+// resto de caminos, guardar prueba que la pestaña del operario está viva.
+// Aquí el guardado lo provoca OTRA persona al traspasar la OF, y "ivan" (el
+// afectado) puede tener el navegador cerrado. Si se le registrase un latido,
+// tendría una prueba de vida que no ha dado y cerrarFichajesSinLatido
+// tardaría hasta 5 min más en cerrar una sesión ya muerta.
+test("cortarFichajeDeOF no fabrica un latido del operario cortado", () => {
+  const f = fichar(FICHAJE_VACIO, ["0230800:2"], "plantear", "ivan", "2026-08-05T13:00:00.000Z");
+  db.guardarFichaje("ivan", f); // este SÍ es un guardado del propio ivan: registra latido
+  const latidoTrasFichar = db.leerUltimoLatido("ivan");
+  expect(latidoTrasFichar).not.toBeNull();
+
+  db.cortarFichajeDeOF("0230800:2", "2026-08-05T13:10:00.000Z");
+
+  expect(db.leerUltimoLatido("ivan")).toBe(latidoTrasFichar);
 });
