@@ -672,7 +672,9 @@ git commit -m "feat(avisos): derivar del registro quién ha movido trabajo y a q
 - Test: `src/lib/__tests__/estado-db.test.ts`
 
 **Interfaces:**
-- Produces: `marcarAvisosVistos(operarioId: string, logIds: number[]): void`, `leerAvisosVistos(operarioId: string): Set<number>`.
+- Produces: `marcarAvisosVistos(operarioId: string, claves: string[]): void`, `leerAvisosVistos(operarioId: string): Set<string>`.
+
+**CORRECCIÓN sobre el plan original:** la clave NO es el id de la fila de `acciones_log`. Una sola acción genera varios avisos (un traspaso de pedido entero manda todas sus OF en una llamada; y una misma OF puede cambiar de autor y de revisor a la vez). Marcar por id de acción apagaría avisos que nadie ha visto. La clave es la del aviso: `logId:tipo:ofId`, que produce `avisosPara`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -703,9 +705,9 @@ En `src/lib/server/estado-db.ts`, dentro del `db.exec(\`...\`)` del esquema, añ
 ```sql
     CREATE TABLE IF NOT EXISTS aviso_visto (
       operario_id TEXT NOT NULL,
-      log_id      INTEGER NOT NULL,
+      clave       TEXT NOT NULL,
       visto_at    TEXT NOT NULL,
-      PRIMARY KEY (operario_id, log_id)
+      PRIMARY KEY (operario_id, clave)
     );
 ```
 
@@ -718,23 +720,23 @@ Y al final del fichero:
  *  visto": los avisos se apagan de uno en uno, al abrir el pedido al que
  *  pertenecen, y un mismo movimiento le llega a dos personas que lo verán en
  *  momentos distintos. */
-export function marcarAvisosVistos(operarioId: string, logIds: number[]): void {
-  if (logIds.length === 0) return;
+export function marcarAvisosVistos(operarioId: string, claves: string[]): void {
+  if (claves.length === 0) return;
   const db = abrir();
   const ins = db.prepare(
-    "INSERT OR IGNORE INTO aviso_visto (operario_id, log_id, visto_at) VALUES (?, ?, ?)",
+    "INSERT OR IGNORE INTO aviso_visto (operario_id, clave, visto_at) VALUES (?, ?, ?)",
   );
   const ahora = new Date().toISOString();
   db.transaction(() => {
-    for (const id of logIds) ins.run(operarioId, id, ahora);
+    for (const clave of claves) ins.run(operarioId, clave, ahora);
   })();
 }
 
-export function leerAvisosVistos(operarioId: string): Set<number> {
+export function leerAvisosVistos(operarioId: string): Set<string> {
   const filas = abrir()
-    .prepare("SELECT log_id FROM aviso_visto WHERE operario_id = ?")
-    .all(operarioId) as Array<{ log_id: number }>;
-  return new Set(filas.map((f) => f.log_id));
+    .prepare("SELECT clave FROM aviso_visto WHERE operario_id = ?")
+    .all(operarioId) as Array<{ clave: string }>;
+  return new Set(filas.map((f) => f.clave));
 }
 ```
 
@@ -760,7 +762,7 @@ git commit -m "feat(avisos): recordar qué avisos ha visto ya cada operario"
 
 **Interfaces:**
 - Consumes: `leerAccionesDesde`, `leerAvisosVistos`, `marcarAvisosVistos` (estado-db); `avisosPara`, `VENTANA_AVISOS_DIAS` (lib/avisos).
-- Produces: `GET /api/avisos?operarioId=X` → `{ avisos: AvisoMovimiento[] }`; `POST /api/avisos` con `{ operarioId, logIds: number[] }` → `{ ok: true }`.
+- Produces: `GET /api/avisos?operarioId=X` → `{ avisos: AvisoMovimiento[] }`; `POST /api/avisos` con `{ operarioId, claves: string[] }` → `{ ok: true }`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -822,7 +824,7 @@ test("GET devuelve los movimientos que le tocan y POST los apaga", async () => {
     new Request("http://x/api/avisos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operarioId: "tamara", logIds: [avisos[0].logId] }),
+      body: JSON.stringify({ operarioId: "tamara", claves: [avisos[0].clave] }),
     }),
   );
   expect(ack.status).toBe(200);
@@ -834,12 +836,12 @@ test("GET sin operarioId responde 400", async () => {
   expect(res.status).toBe(400);
 });
 
-test("POST con logIds que no son números responde 400", async () => {
+test("POST con claves que no son cadenas responde 400", async () => {
   const res = await route.POST(
     new Request("http://x/api/avisos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operarioId: "tamara", logIds: ["7"] }),
+      body: JSON.stringify({ operarioId: "tamara", claves: [7] }),
     }),
   );
   expect(res.status).toBe(400);
@@ -889,7 +891,7 @@ export async function GET(req: Request) {
 
 interface Body {
   operarioId?: unknown;
-  logIds?: unknown;
+  claves?: unknown;
 }
 
 export async function POST(req: Request) {
@@ -908,11 +910,11 @@ export async function POST(req: Request) {
   if (typeof operarioId !== "string" || operarioId.length === 0)
     return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
 
-  const logIds = body.logIds;
-  if (!Array.isArray(logIds) || !logIds.every((x) => Number.isInteger(x)))
-    return NextResponse.json({ error: "logIds inválido" }, { status: 400 });
+  const claves = body.claves;
+  if (!Array.isArray(claves) || !claves.every((x) => typeof x === "string" && x.length > 0))
+    return NextResponse.json({ error: "claves inválido" }, { status: 400 });
 
-  marcarAvisosVistos(operarioId, logIds as number[]);
+  marcarAvisosVistos(operarioId, claves as string[]);
   return NextResponse.json({ ok: true });
 }
 ```
@@ -1458,7 +1460,7 @@ git commit -m "fix(tablero): un pedido repartido no se pasa a Producción hasta 
 
 **Interfaces:**
 - Consumes: `GET/POST /api/avisos` (Task 6), `AvisoMovimiento` (Task 4), `pedidoListoParaPasar` (Task 10).
-- Produces: `NotifItem` admite los tipos `recibida`, `cedida`, `revisarNueva`, `revisarQuitada` y `pedidoCompleto`, con campos opcionales `quien`, `otro` y `logId`.
+- Produces: `NotifItem` admite los tipos `recibida`, `cedida`, `revisarNueva`, `revisarQuitada` y `pedidoCompleto`, con campos opcionales `quien`, `otro` y `clave`.
 
 - [ ] **Step 1: Ampliar el tipo del aviso**
 
@@ -1484,8 +1486,8 @@ export interface NotifItem {
   quien?: string;
   /** La otra parte (de quién venía / a quién ha ido), ya resuelta a nombre. */
   otro?: string;
-  /** Fila de `acciones_log`: es lo que se marca como visto al abrir. */
-  logId?: number;
+  /** Clave del aviso (`logId:tipo:ofId`): es lo que se marca como visto. */
+  clave?: string;
 }
 
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
@@ -1514,7 +1516,7 @@ En el `<li>`, sustituye las dos últimas líneas del contenido por una que aguan
                         )}
 ```
 
-Y la `key` del `<li>` pasa a `key={item.logId ?? `${item.of?.id}-${item.tipo}-${i}`}`.
+Y la `key` del `<li>` pasa a `key={item.clave ?? `${item.of?.id}-${item.tipo}-${i}`}`. Tiene que ser la clave del aviso y no el id de la acción: una misma acción genera varios avisos y React vería keys repetidas.
 
 - [ ] **Step 2: Traer los avisos en Board**
 
@@ -1570,7 +1572,7 @@ En el `useMemo` de `notifItems`, después del bucle actual:
         tipo: a.tipo,
         quien: nombre(a.quien),
         otro: nombre(a.otro),
-        logId: a.logId,
+        clave: a.clave,
       });
     }
 ```
@@ -1586,15 +1588,15 @@ En `irANotificacion` (el `onNavigate` de la campana), antes de navegar:
 ```ts
     // Abrir el pedido ES haber visto el aviso: se apaga solo, sin un botón
     // más que pulsar.
-    const logIds = notifItems
-      .filter((i) => i.pedido.id === pedidoId && i.logId !== undefined)
-      .map((i) => i.logId as number);
-    if (logIds.length > 0 && miId) {
-      setAvisosMov((prev) => prev.filter((a) => !logIds.includes(a.logId)));
+    const claves = notifItems
+      .filter((i) => i.pedido.id === pedidoId && i.clave !== undefined)
+      .map((i) => i.clave as string);
+    if (claves.length > 0 && miId) {
+      setAvisosMov((prev) => prev.filter((a) => !claves.includes(a.clave)));
       fetch("/api/avisos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operarioId: miId, logIds }),
+        body: JSON.stringify({ operarioId: miId, claves }),
       }).catch(() => {});
     }
 ```
