@@ -5,11 +5,13 @@ import path from "node:path";
 
 let dir: string;
 let route: typeof import("../../app/api/fichaje/route");
+let fichajeDb: typeof import("../server/fichaje-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-api-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   route = await import("../../app/api/fichaje/route");
+  fichajeDb = await import("../server/fichaje-db");
 });
 
 afterAll(() => {
@@ -50,6 +52,23 @@ test("GET devuelve el fichaje del operario", async () => {
   const res = await route.GET(new Request("http://x/api/fichaje?operarioId=op-3"));
   const data = (await res.json()) as { fichaje: { intervalos: { ofIds: string[] }[] } };
   expect(data.fichaje.intervalos[0].ofIds).toEqual(["OF-7"]);
+});
+
+test("GET sin aviso pendiente devuelve avisoCierre: null", async () => {
+  const res = await route.GET(new Request("http://x/api/fichaje?operarioId=op-sin-aviso"));
+  const data = (await res.json()) as { avisoCierre: unknown };
+  expect(data.avisoCierre).toBeNull();
+});
+
+test("GET sirve el aviso de cierre automático UNA sola vez", async () => {
+  fichajeDb.registrarAvisoCierre("op-aviso", ["OF-9"], "2026-08-04T18:05:00.000Z");
+  const res1 = await route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
+  const data1 = (await res1.json()) as { avisoCierre: { ofIds: string[]; fin: string } | null };
+  expect(data1.avisoCierre).toEqual({ ofIds: ["OF-9"], fin: "2026-08-04T18:05:00.000Z" });
+
+  const res2 = await route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
+  const data2 = (await res2.json()) as { avisoCierre: unknown };
+  expect(data2.avisoCierre).toBeNull(); // ya se consumió en la primera lectura
 });
 
 test("POST sin operarioId responde 400", async () => {

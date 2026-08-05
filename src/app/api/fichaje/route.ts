@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { leerFichaje, guardarFichaje } from "@/lib/server/fichaje-db";
+import { leerFichaje, guardarFichaje, leerYConsumirAvisoCierre } from "@/lib/server/fichaje-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
 import { fichar, pausar } from "@/lib/fichaje";
 import type { Rol } from "@/lib/types";
@@ -64,8 +64,11 @@ export async function GET(req: Request) {
   const operarioId = new URL(req.url).searchParams.get("operarioId");
   if (!operarioId)
     return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  // avisoCierre: si el latido dejó de llegar y cerrarFichajesSinLatido()
+  // cerró un intervalo suyo mientras no miraba, se entera aquí, al cargar.
+  // Se CONSUME (se borra) al leerlo: la próxima carga ya no lo repite.
   return NextResponse.json(
-    { fichaje: leerFichaje(operarioId) },
+    { fichaje: leerFichaje(operarioId), avisoCierre: leerYConsumirAvisoCierre(operarioId) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
