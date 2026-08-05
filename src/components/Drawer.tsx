@@ -435,7 +435,14 @@ function AccionesOF({
             )
           );
         return (
-          <Btn key={a.id} tone={tono[a.tono]} onClick={() => pedirConfirmacion(a)}>
+          <Btn
+            key={a.id}
+            tone={tono[a.tono]}
+            // Lo peligroso, al otro extremo de la fila: no se pulsa por
+            // inercia después de la acción que sí se usa a diario.
+            className={a.tono === "peligro" ? "ml-auto" : ""}
+            onClick={() => pedirConfirmacion(a)}
+          >
             {a.label}
           </Btn>
         );
@@ -462,22 +469,29 @@ function Btn({
   children,
   onClick,
   tone,
+  className = "",
 }: {
   children: React.ReactNode;
   onClick: () => void;
   tone: "amber" | "teal" | "ghost" | "rojo";
+  className?: string;
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
     teal: "bg-teal-600 text-white hover:bg-teal-700",
     ghost: "border border-border text-text-muted hover:text-text hover:border-border-strong",
-    // "rojo" para acciones peligrosas (anular/devolver), coherente con el
-    // rojo del botón "Confirmar" en ConfirmDialog: evita el salto de tono
-    // amarillo → rojo entre el disparador y la confirmación.
-    rojo: "bg-red-600 text-white hover:bg-red-700",
+    // Peligro (anular) en rojo pero SIN relleno: era lo que más gritaba de la
+    // tarjeta, por encima de la acción que se hace a diario, y en una OF
+    // pendiente parecía que anular fuese lo que tocaba hacer. El rojo sólido
+    // se queda para el "Confirmar" del ConfirmDialog, que es donde la acción
+    // se materializa de verdad.
+    rojo: "text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400",
   }[tone];
   return (
-    <button onClick={onClick} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${cls}`}>
+    <button
+      onClick={onClick}
+      className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${cls} ${className}`}
+    >
       {children}
     </button>
   );
