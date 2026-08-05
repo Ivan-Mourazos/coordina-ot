@@ -30,6 +30,17 @@ export function diasEntre(desde: string, hasta: string): number {
   return Math.round((b - a) / MS_DIA);
 }
 
+/** Suma días a una fecha ISO, sea `yyyy-mm-dd` o un timestamp completo, y
+ *  devuelve el mismo formato que recibió. Se opera en UTC, que no tiene cambio
+ *  de hora: sumar 24 h por día es exacto ahí y no lo sería en local. */
+export function sumarDias(iso: string, dias: number): string {
+  const soloFecha = iso.length === 10;
+  const t = Date.parse(soloFecha ? `${iso}T12:00:00Z` : iso);
+  if (Number.isNaN(t)) return iso;
+  const movida = new Date(t + dias * MS_DIA).toISOString();
+  return soloFecha ? movida.slice(0, 10) : movida;
+}
+
 /** dd/mm — el formato con el que se habla de fechas en el taller. */
 export function fmtDiaMes(iso: string): string {
   const [, m, d] = iso.split("-");
@@ -87,7 +98,13 @@ export function tituloDia(iso: string | null, hoy: string): { titulo: string; su
     .format(fecha)
     .replace(".", "");
   const titulo = dias === 0 ? "Hoy" : dias === 1 ? "Mañana" : dias === -1 ? "Ayer" : null;
-  return titulo
-    ? { titulo, sub: largo }
-    : { titulo: `${largo[0].toUpperCase()}${largo.slice(1)}`, sub: fmtFechaLarga(iso) };
+  if (titulo) return { titulo, sub: largo };
+  // Sin el año salvo que sea otro año: repetir "07/08/2026" al lado de
+  // "Viernes, 7 ago" es decir dos veces lo mismo, y en el historial —donde sí
+  // hay fechas de otros años— es justo el dato que falta.
+  const otroAno = iso.slice(0, 4) !== hoy.slice(0, 4);
+  return {
+    titulo: `${largo[0].toUpperCase()}${largo.slice(1)}`,
+    sub: otroAno ? iso.slice(0, 4) : "",
+  };
 }

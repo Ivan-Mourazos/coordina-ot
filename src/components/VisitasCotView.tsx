@@ -340,13 +340,13 @@ function GrupoDia({
   const acento = atrasado ? "bg-red-500" : ambito === "pendientes" ? "bg-brand-400" : "bg-cyan-600";
 
   return (
-    <section aria-label={`${titulo} · ${sub}`}>
+    <section aria-label={sub ? `${titulo} · ${sub}` : titulo}>
       {/* Cabecera pegajosa: al bajar por una lista larga sigue viéndose de qué
           día son las visitas que se están leyendo. */}
       <header className="sticky top-0 z-10 flex items-center gap-2.5 border-y border-border bg-surface-2/92 px-4 py-1.5 backdrop-blur">
         <span className={`h-4 w-1 shrink-0 rounded-full ${acento}`} aria-hidden="true" />
         <span className="text-[13px] font-semibold text-text">{titulo}</span>
-        <span className="truncate text-[11px] text-text-muted">{sub}</span>
+        {sub ? <span className="truncate text-[11px] text-text-muted">{sub}</span> : null}
         {atrasado ? (
           <span className="rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300">
             Atrasada
@@ -392,7 +392,9 @@ function VisitaRow({ visita }: { visita: VisitaCot }) {
         >
           {visita.pedido ?? "Sin pedido"}
         </span>
-        <span className="truncate text-sm text-text">
+        {/* Al abrir deja de truncarse: el texto completo se lee aquí mismo, y
+            así el panel de abajo no tiene que repetirlo entero. */}
+        <span className={`text-sm text-text ${abierta ? "whitespace-pre-wrap" : "truncate"}`}>
           {visita.texto || visita.solucion || "Sin descripción"}
         </span>
         <span className="flex min-w-0 items-center gap-2">
@@ -409,17 +411,17 @@ function VisitaRow({ visita }: { visita: VisitaCot }) {
       </button>
 
       {abierta ? (
-        <div className="grid gap-4 border-t border-border bg-surface-2/55 px-4 py-4 md:grid-cols-[minmax(0,1.4fr)_minmax(12rem,0.8fr)_minmax(12rem,0.8fr)]">
-          <Detalle label="Aviso" value={visita.texto || "Sin texto"} />
-          <Detalle
-            label="Resultado"
-            value={
-              visita.solucion ??
-              (visita.estado === "pendiente" ? "Pendiente de realizar" : "—")
-            }
-          />
-          <Detalle label="Notas" value={visita.notas ?? "Sin notas"} />
-          <div className="md:col-span-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-3 font-mono text-[10px] text-text-muted">
+        // Solo lo que aporta algo: un "Notas — Sin notas" ocupa una columna
+        // para decir que no hay nada. Si no hay ni resultado ni notas, queda
+        // únicamente la línea de datos de RPS, que es lo correcto.
+        <div className="space-y-3 border-t border-border bg-surface-2/55 px-4 py-3">
+          {visita.solucion || visita.notas ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {visita.solucion ? <Detalle label="Resultado" value={visita.solucion} /> : null}
+              {visita.notas ? <Detalle label="Notas" value={visita.notas} /> : null}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] text-text-muted">
             <span>Alta: {fmtFechaHora(visita.fechaAviso)}</span>
             <span>Estado RPS: {visita.estadoRps}</span>
             <span>Orden: {visita.idOrden}</span>

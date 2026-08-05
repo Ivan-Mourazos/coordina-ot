@@ -8,6 +8,7 @@ import type {
   Situacion,
 } from "./types";
 import { hoyISO } from "./types";
+import { diasEntre, sumarDias } from "./fechas";
 
 // ─── Operarios (las zonas del tablero, como en el boceto) ────────────────────
 export const OPERARIOS: Operario[] = [
@@ -64,12 +65,10 @@ function addDays(iso: string, days: number): string {
 // quede alrededor de hoy, conservando intactas las distancias entre ellas.
 const ANCLA = "2026-06-30";
 
-const DESFASE_DIAS = Math.round(
-  (Date.parse(`${hoyISO()}T12:00:00Z`) - Date.parse(`${ANCLA}T12:00:00Z`)) / 86_400_000,
-);
+const DESFASE_DIAS = diasEntre(ANCLA, hoyISO());
 
 function alCalendario(iso: string): string {
-  return addDays(iso, DESFASE_DIAS);
+  return sumarDias(iso, DESFASE_DIAS);
 }
 
 const SPECS: Spec[] = [

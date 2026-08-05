@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import type { OF, Operario, Pedido } from "@/lib/types";
-import { familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
+import { estaFinalizado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin, PRIORIDAD } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
@@ -68,10 +68,26 @@ function Avatar({ op, title }: { op: Operario | undefined; title: string }) {
   );
 }
 
-function Fecha({ iso, hoy, apagada = false }: { iso: string; hoy: string; apagada?: boolean }) {
+/** `enfasis` gradúa cuánto grita la fecha:
+ *  · "normal"  → su urgencia real (la planificación, que es la que manda).
+ *  · "suave"   → solo destaca si ya venció (la entrega: informa, no apremia).
+ *  · "ninguno" → siempre en gris, aunque haya vencido: trabajo ya terminado. */
+function Fecha({
+  iso,
+  hoy,
+  enfasis = "normal",
+}: {
+  iso: string;
+  hoy: string;
+  enfasis?: "normal" | "suave" | "ninguno";
+}) {
   const r = relativoA(iso, hoy);
+  const clase =
+    enfasis === "ninguno" || (enfasis === "suave" && r.tono !== "vencida")
+      ? TONO.lejana
+      : TONO[r.tono];
   return (
-    <span className={apagada && r.tono !== "vencida" ? TONO.lejana : TONO[r.tono]} title={r.completa}>
+    <span className={clase} title={r.completa}>
       {r.etiqueta}
     </span>
   );
@@ -121,6 +137,10 @@ export function ListaView({
           {pedidos.map((p) => {
             const fase = FASES.find((f) => f.id === faseDePedido(p))!;
             const total = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
+            // Terminado = la planificación vencida ya no es un problema
+            // pendiente. Misma regla que `estaAtrasado`, que también los
+            // excluye; si no, media lista salía en rojo por trabajo hecho.
+            const hecho = estaFinalizado(p);
             const pendienteProc = p.situacion === "pendiente";
             const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
             const abierto = expandidos.has(p.id);
@@ -218,10 +238,10 @@ export function ListaView({
                     </span>
                   </Td>
                   <Td className="whitespace-nowrap">
-                    <Fecha iso={p.fechaPlanificacion} hoy={hoy} />
+                    <Fecha iso={p.fechaPlanificacion} hoy={hoy} enfasis={hecho ? "ninguno" : "normal"} />
                   </Td>
                   <Td className="whitespace-nowrap">
-                    <Fecha iso={p.fechaEntrega} hoy={hoy} apagada />
+                    <Fecha iso={p.fechaEntrega} hoy={hoy} enfasis={hecho ? "ninguno" : "suave"} />
                   </Td>
                   <Td className="whitespace-nowrap text-right font-medium text-text">
                     {total > 0 ? fmtMin(total) : <span className="text-text-muted">—</span>}
@@ -254,13 +274,13 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
     <div className="space-y-2.5">
       <dl className="flex flex-wrap gap-x-6 gap-y-1.5 text-[11px]">
         <Dato label="Solicitado">
-          <Fecha iso={p.fechaSolicitud} hoy={hoy} apagada />
+          <Fecha iso={p.fechaSolicitud} hoy={hoy} enfasis="ninguno" />
         </Dato>
         <Dato label="Planificado">
           <Fecha iso={p.fechaPlanificacion} hoy={hoy} />
         </Dato>
         <Dato label="Entrega">
-          <Fecha iso={p.fechaEntrega} hoy={hoy} apagada />
+          <Fecha iso={p.fechaEntrega} hoy={hoy} enfasis="suave" />
         </Dato>
         <Dato label="Planteo">{fmtMin(planteo)}</Dato>
         <Dato label="Revisión">{fmtMin(revision)}</Dato>

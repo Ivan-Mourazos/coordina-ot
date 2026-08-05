@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasEntre, fmtDiaMes, relativoA, tituloDia } from "../fechas";
+import { diasEntre, fmtDiaMes, relativoA, sumarDias, tituloDia } from "../fechas";
 
 const HOY = "2026-08-05";
 
@@ -56,8 +56,34 @@ describe("tituloDia", () => {
     expect(tituloDia("2026-08-12", HOY).titulo).toMatch(/^Miércoles/);
   });
 
+  it("solo repite el año cuando no es el de hoy", () => {
+    expect(tituloDia("2026-08-12", HOY).sub).toBe("");
+    expect(tituloDia("2025-11-03", HOY).sub).toBe("2025");
+  });
+
   it("sin fecha lo dice, no inventa un día", () => {
     expect(tituloDia(null, HOY)).toEqual({ titulo: "Sin fecha", sub: "no planificada" });
+  });
+});
+
+describe("sumarDias", () => {
+  it("devuelve el mismo formato que recibe", () => {
+    expect(sumarDias("2026-08-05", 3)).toBe("2026-08-08");
+    expect(sumarDias("2026-08-05T09:15:00.000Z", 3)).toBe("2026-08-08T09:15:00.000Z");
+  });
+
+  it("cruza meses y años, y acepta días negativos", () => {
+    expect(sumarDias("2026-08-31", 1)).toBe("2026-09-01");
+    expect(sumarDias("2026-01-01", -1)).toBe("2025-12-31");
+  });
+
+  it("no se salta un día al cruzar el cambio de hora", () => {
+    expect(sumarDias("2026-10-24", 2)).toBe("2026-10-26");
+    expect(sumarDias("2026-03-28", 2)).toBe("2026-03-30");
+  });
+
+  it("con una fecha ilegible la devuelve tal cual", () => {
+    expect(sumarDias("mañana", 1)).toBe("mañana");
   });
 });
 

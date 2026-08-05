@@ -8,10 +8,26 @@ import {
   type VisitasCotPagina,
 } from "../visitas-cot";
 import { getPool } from "./db";
+import { diasEntre, sumarDias } from "../fechas";
+import { hoyISO } from "../types";
 
 // ─── Visitas COT: acceso de solo lectura a RPS ───────────────────────────────
 
-const MOCK_VISITAS: VisitaCot[] = [
+// Las fechas del mock se escriben a mano pero se mueven con el calendario: si
+// no, al mes siguiente la agenda de simulación sale entera "Atrasada" y no se
+// parece a lo que se ve en un día normal (que es para lo que sirve). El ancla
+// es la primera visita pendiente, así que esa cae siempre en hoy.
+const ANCLA_VISITAS = "2026-07-31";
+
+function alCalendario(visita: VisitaCot, dias: number): VisitaCot {
+  return {
+    ...visita,
+    fechaAviso: visita.fechaAviso ? sumarDias(visita.fechaAviso, dias) : visita.fechaAviso,
+    fechaVisita: visita.fechaVisita ? sumarDias(visita.fechaVisita, dias) : visita.fechaVisita,
+  };
+}
+
+const MOCK_BASE: VisitaCot[] = [
   {
     idOrden: "OM-COT-001",
     incidencia: "I129576",
@@ -80,6 +96,10 @@ const MOCK_VISITAS: VisitaCot[] = [
 ];
 
 function paginaMock(filtros: VisitasCotFiltros): VisitasCotPagina {
+  // Se recalcula en cada petición, no al importar el módulo: el server puede
+  // llevar días levantado y "hoy" no puede quedarse congelado en el arranque.
+  const desfase = diasEntre(ANCLA_VISITAS, hoyISO());
+  const MOCK_VISITAS = MOCK_BASE.map((v) => alCalendario(v, desfase));
   const estado = filtros.ambito === "pendientes" ? "pendiente" : "cerrada";
   const q = filtros.q?.toLocaleLowerCase("es") ?? "";
   const visitas = MOCK_VISITAS.filter((visita) => {
