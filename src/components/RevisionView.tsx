@@ -429,7 +429,15 @@ function ReviewCard({
             )}
             {(todasConRevisor || (!soyAutor && miId)) && (
               <button
-                onClick={() => (todasConRevisor ? accionTodas("empezar_revision") : onCoger(ofIds))}
+                // Solo se coge lo que de verdad está sin coger: una tarjeta
+                // puede mezclar OF con revisor y sin él, y mandarlas todas
+                // reasignaría a mí la que ya estaba revisando otro, sin
+                // avisar y bajo una etiqueta que dice "Sin coger".
+                onClick={() =>
+                  todasConRevisor
+                    ? accionTodas("empezar_revision")
+                    : onCoger(ofs.filter((o) => !o.revisorId).map((o) => o.id))
+                }
                 title={
                   todasConRevisor
                     ? "Pasa a En revisión y arranca el fichaje del revisor"

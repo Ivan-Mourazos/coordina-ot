@@ -25,10 +25,15 @@ function cambioValido(c: unknown): c is CambioOF {
   const x = c as Record<string, unknown>;
   const idOk = typeof x.ofId === "string" && x.ofId.length > 0;
   const nulable = (v: unknown) => v === null || typeof v === "string";
+  // Regla dura del dominio: el revisor nunca puede ser el autor de la misma
+  // OF. El cliente ya lo impide por varias vías; esto es la última red, para
+  // que un estado imposible no llegue a guardarse por un camino que se olvide.
+  const rolesDistintos = x.autorId === null || x.autorId !== x.revisorId;
   return (
     idOk &&
     nulable(x.autorId) &&
     nulable(x.revisorId) &&
+    rolesDistintos &&
     typeof x.estado === "string" &&
     ESTADOS_OF.has(x.estado) &&
     nulable(x.observacion)

@@ -40,7 +40,7 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { FASES, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
-import { cambiarRevisor, traspasarAutor } from "@/lib/traspaso";
+import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
 import type { AvisoMovimiento } from "@/lib/avisos";
 
 const IDENTITY_KEY = "coordina-operario-id";
@@ -490,18 +490,62 @@ export function Board({
     },
     [setPedidosSync, persistir],
   );
+  /** Saca de MI intervalo abierto las OF que acaban de dejar de ser mías.
+   *
+   *  El corte de verdad lo hace el servidor (`cortarFichajeDe`), que es quien
+   *  tiene la hora oficial y puede cortarle el fichaje a otra persona. Pero mi
+   *  navegador también tiene que enterarse: `ficharOFs` reenvía TODO lo que
+   *  cree tener abierto, así que si sigue contando esta OF, el siguiente
+   *  "Fichar" la reabriría en el servidor y me imputaría tiempo de un trabajo
+   *  que ya no es mío. No hace falta POST: el servidor ya la cerró. */
+  const soltarDeMiFichaje = useCallback((ofIds: readonly string[]) => {
+    setFichaje((f) => {
+      const ab = abierto(f);
+      if (!ab || !ab.ofIds.some((id) => ofIds.includes(id))) return f;
+      const resto = ab.ofIds.filter((id) => !ofIds.includes(id));
+      return fichar(f, resto, ab.rol, ab.operarioId, new Date().toISOString());
+    });
+  }, []);
+
   const moverOFs = useCallback(
     (ofIds: Set<string>, autorId: string | null) => {
-      mut(
-        ofIds,
-        (of) =>
-          autorId === null
-            ? { ...of, autorId: null, revisorId: null, estado: "pendiente", fichandoRol: null }
-            : { ...of, autorId },
-        "asignar",
-      );
+      const ids = [...ofIds];
+      if (autorId === null) {
+        // Volver a la bandeja sí resetea: deja de ser trabajo de nadie.
+        const vueltas: ReturnType<typeof snapshotDe>[] = [];
+        mut(ofIds, (of) => {
+          const nueva: OF = {
+            ...of,
+            autorId: null,
+            revisorId: null,
+            estado: "pendiente",
+            fichandoRol: null,
+          };
+          vueltas.push(snapshotDe(nueva));
+          return nueva;
+        });
+        soltarDeMiFichaje(ids);
+        persistir({ motivo: "asignar", cambiosOF: vueltas, cortarFichajeDe: ids });
+        return;
+      }
+      // Cambiar de autor por esta vía (el selector de pedido entero, o soltar
+      // en la zona de alguien) es el mismo hecho que traspasar una OF suelta,
+      // así que aplica la misma regla: `traspasarAutor` borra el revisor —se
+      // nombró para el trabajo del autor anterior— y hay que cerrar el fichaje
+      // que alguien tuviera abierto. Sin esto se podía acabar siendo autor y
+      // revisor de la misma OF, que es la regla dura del dominio.
+      const cambios: ReturnType<typeof snapshotDe>[] = [];
+      mut(ofIds, (of) => {
+        if (of.autorId === autorId) return of;
+        const nueva = traspasarAutor(of, autorId);
+        cambios.push(snapshotDe(nueva));
+        return nueva;
+      });
+      if (cambios.length === 0) return;
+      soltarDeMiFichaje(ids);
+      persistir({ motivo: "asignar", cambiosOF: cambios, cortarFichajeDe: ids });
     },
-    [mut],
+    [mut, persistir, soltarDeMiFichaje],
   );
   const asignarPedido = useCallback(
     (autorId: string | null) => {
@@ -532,13 +576,14 @@ export function Board({
       if (!antes || antes.autorId === autorId) return;
       const nueva = traspasarAutor(antes, autorId);
       mut(new Set([ofId]), () => nueva);
+      soltarDeMiFichaje([ofId]);
       persistir({
         motivo: "traspaso",
         cambiosOF: [snapshotDe(nueva)],
         cortarFichajeDe: [ofId],
       });
     },
-    [mut, persistir],
+    [mut, persistir, soltarDeMiFichaje],
   );
   // Cambiar quién revisa. Si la revisión ya había empezado, la OF vuelve a
   // "por revisar" y hay que cerrar el fichaje de revisión del anterior: su
@@ -547,6 +592,10 @@ export function Board({
     (ofId: string, revisorId: string) => {
       const antes = pedidosRef.current.flatMap((p) => p.ofs).find((o) => o.id === ofId);
       if (!antes || antes.revisorId === revisorId) return;
+      // `cambiarRevisor` devuelve la OF en "por revisar", así que llamarlo
+      // desde un estado que no lo admite (una OF ya aprobada) la desaprobaría
+      // sin que nadie lo haya pedido.
+      if (!puedeCambiarRevisor(antes)) return;
       let nueva: OF;
       try {
         nueva = cambiarRevisor(antes, revisorId);
@@ -558,13 +607,14 @@ export function Board({
         return;
       }
       mut(new Set([ofId]), () => nueva);
+      if (antes.estado === "en_revision") soltarDeMiFichaje([ofId]);
       persistir({
         motivo: "revisor",
         cambiosOF: [snapshotDe(nueva)],
         cortarFichajeDe: antes.estado === "en_revision" ? [ofId] : undefined,
       });
     },
-    [mut, persistir],
+    [mut, persistir, soltarDeMiFichaje],
   );
   // ── API de fichaje del Board ──
   const ahora = () => new Date().toISOString();
@@ -671,31 +721,39 @@ export function Board({
   useEffect(() => {
     if (!miId) return;
     let cancelado = false;
-    const seqAlArrancar = postSeqRef.current;
-    fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          d: {
-            fichaje: Fichaje;
-            avisoCierre: { ofIds: string[]; fin: string } | null;
-          } | null,
-        ) => {
-          if (cancelado) return;
-          // No pisar un POST emitido tras arrancar esta carga (la carga
-          // inicial trae un snapshot que puede ser anterior a una acción del
-          // usuario).
-          if (d?.fichaje && postSeqRef.current === seqAlArrancar) {
-            setFichaje(d.fichaje);
-          }
-          // El aviso se consumió en el servidor con este mismo GET (no
-          // depende del seq: si no lo mostramos aquí, se pierde).
-          if (d?.avisoCierre) setAvisoCierreAuto(d.avisoCierre);
-        },
-      )
-      .catch(() => {});
+    const traer = (conAviso: boolean) => {
+      const seqAlArrancar = postSeqRef.current;
+      fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(
+          (
+            d: {
+              fichaje: Fichaje;
+              avisoCierre: { ofIds: string[]; fin: string } | null;
+            } | null,
+          ) => {
+            if (cancelado) return;
+            // No pisar un POST emitido tras arrancar esta carga (la carga
+            // inicial trae un snapshot que puede ser anterior a una acción del
+            // usuario).
+            if (d?.fichaje && postSeqRef.current === seqAlArrancar) {
+              setFichaje(d.fichaje);
+            }
+            if (conAviso && d?.avisoCierre) setAvisoCierreAuto(d.avisoCierre);
+          },
+        )
+        .catch(() => {});
+    };
+    traer(true);
+    // Y se repite, al mismo ritmo que el tablero. No es un lujo: si otro me
+    // traspasa una OF que yo tenía fichada, el servidor cierra mi intervalo
+    // pero mi navegador no se entera de nada, y al siguiente "Fichar" volvería
+    // a mandar esa OF —`ficharOFs` reenvía lo que cree tener abierto— y la
+    // reabriría, imputándome tiempo de un trabajo que ya no es mío.
+    const id = setInterval(() => traer(false), 30_000);
     return () => {
       cancelado = true;
+      clearInterval(id);
     };
   }, [miId]);
 

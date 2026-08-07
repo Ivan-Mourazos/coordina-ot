@@ -112,3 +112,49 @@ test("si el corte de fichaje falla, la mutación se guardó igual (respuesta 200
     expect.objectContaining({ ofId: "of-y", autorId: "carlos" }),
   ]);
 });
+
+test("rechaza un cambio que deje a la misma persona de autor y de revisor", async () => {
+  const res = await route.POST(
+    new Request("http://x/api/estado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operarioId: "angel",
+        motivo: "asignar",
+        cambiosOF: [
+          {
+            ofId: "of-z",
+            autorId: "tamara",
+            revisorId: "tamara",
+            estado: "por_revisar",
+            observacion: null,
+          },
+        ],
+      }),
+    }),
+  );
+  // Regla dura del dominio: el revisor nunca puede ser el autor de la misma
+  // OF. El cliente ya lo impide por varias vías; esta es la última red, para
+  // que un camino que se olvide no llegue a guardar un estado imposible.
+  expect(res.status).toBe(400);
+
+  const acciones = estadoDb.leerAccionesDesde("1970-01-01T00:00:00.000Z");
+  expect(acciones.some((a) => a.cambiosOF.some((c) => c.ofId === "of-z"))).toBe(false);
+});
+
+test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
+  const res = await route.POST(
+    new Request("http://x/api/estado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operarioId: "angel",
+        motivo: "asignar",
+        cambiosOF: [
+          { ofId: "of-w", autorId: null, revisorId: null, estado: "pendiente", observacion: null },
+        ],
+      }),
+    }),
+  );
+  expect(res.status).toBe(200);
+});

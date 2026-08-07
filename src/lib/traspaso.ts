@@ -17,8 +17,11 @@ export function puedeTraspasarAutor(of: OF): boolean {
  *
  *  El revisor SÍ se borra: se nombró para el trabajo del autor anterior, y el
  *  nuevo lo elegirá cuando mande a revisar (que es el único momento en que se
- *  nombra revisor). De paso hace imposible que alguien acabe siendo autor y
- *  revisor de la misma OF. */
+ *  nombra revisor). De paso evita que el nuevo autor herede el papel de
+ *  revisor de la misma OF, que la regla dura del dominio prohíbe. Por eso
+ *  TODAS las vías de cambiar de autor pasan por aquí, también la de asignar el
+ *  pedido entero (ver `moverOFs` en Board.tsx): si alguna se lo saltara,
+ *  volvería a ser alcanzable ese estado imposible. */
 export function traspasarAutor(of: OF, autorId: string): OF {
   return { ...of, autorId, revisorId: null };
 }
