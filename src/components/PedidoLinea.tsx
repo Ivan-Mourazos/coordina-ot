@@ -70,13 +70,22 @@ export function PedidoLinea({
 
   // `pedido` son TODAS las OF del pedido, no solo las de este facet: por eso
   // se puede saber desde aquí si falta gente sin pedir nada más.
+  const nombreDe = (autorId: string | null) =>
+    operarios?.find((o) => o.id === autorId)?.nombre ?? "sin asignar";
   const faltan = autoresQueFaltan(pedido);
-  const faltanTexto = faltan
-    .map((f) => {
-      const nombre = operarios?.find((o) => o.id === f.autorId)?.nombre ?? "sin asignar";
-      return `${nombre} (${f.n} OF)`;
-    })
-    .join(", ");
+  const faltanTexto = faltan.map((f) => `${nombreDe(f.autorId)} (${f.n} OF)`).join(", ");
+  // Versión corta para la fila: el caso normal es UNA persona y entra entera;
+  // con varias se recorta a la primera + cuántas quedan, para no depender de
+  // que el texto quepa por casualidad (el detalle completo sigue en el title).
+  const faltanResumen =
+    faltan.length <= 1
+      ? faltanTexto
+      : `${nombreDe(faltan[0].autorId)} (${faltan[0].n} OF) +${faltan.length - 1} más`;
+  const listoParaPasar = pedidoListoParaPasar(pedido);
+  // "Listo para pasar" pero con gente pendiente: el aviso ocupa el mismo
+  // hueco que la descripción (como pidiendoRevisor) en vez de superponerse,
+  // que era lo que tapaba código/cliente/descripción con pedidos repartidos.
+  const mostrandoFalta = !soloConsulta && fase === "listoParaPasar" && !listoParaPasar;
 
   const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
@@ -96,7 +105,7 @@ export function PedidoLinea({
       <button
         onClick={() => onOpen(facet)}
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-        className={`flex min-w-0 items-center gap-2 text-left ${pidiendoRevisor ? "shrink-0" : "flex-1"}`}
+        className={`flex min-w-0 items-center gap-2 text-left ${pidiendoRevisor || mostrandoFalta ? "shrink-0" : "flex-1"}`}
       >
         {fichandoAlguien && (
           <span
@@ -105,10 +114,11 @@ export function PedidoLinea({
           />
         )}
         <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
-        {/* Al pedir revisor se recorta a solo el código: el hueco que suelta
-            la descripción es el que necesita el selector para no quedar
-            apretado en filas estrechas (zona personal, "+N más"). */}
-        {!pidiendoRevisor && (
+        {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
+            solo el código: el hueco que suelta la descripción es el que
+            necesita el selector o el aviso para no quedar apretados en
+            filas estrechas (zona personal). */}
+        {!pidiendoRevisor && !mostrandoFalta && (
           <>
             <span className="min-w-0 flex-1 truncate text-text-muted">
               {pedido.cliente}
@@ -148,11 +158,25 @@ export function PedidoLinea({
             onCancelar={() => setPidiendoRevisor(false)}
           />
         </span>
+      ) : mostrandoFalta ? (
+        // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
+        // quién se espera, que si no el botón desaparece sin más. Ocupa el
+        // mismo hueco reservado que la descripción (min-w-0 flex-1 truncate)
+        // en vez de superponerse como los botones: con varias personas
+        // repartidas el texto no cabía y tapaba código, cliente y descripción.
+        <span
+          className="min-w-0 flex-1 truncate text-[10px] text-text-muted"
+          title={`El pedido se pasa a Producción cuando están aprobadas todas sus OF — falta ${faltanTexto}`}
+        >
+          falta {faltanResumen}
+        </span>
       ) : (
         // Los botones se superponen al final de la fila en vez de reservar
         // sitio: así los minutos van siempre pegados al borde y, al pasar el
         // ratón, no se mueve nada. Heredan el fondo de la fila para tapar
-        // limpiamente lo que quede debajo.
+        // limpiamente lo que quede debajo. Sirve para botones cortos
+        // ("Pasar", "Fichar"); el aviso de "falta …", que puede ser largo,
+        // tiene su propia rama arriba con hueco reservado.
         <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
         {/* Pausa: siempre visible mientras se ficha. */}
         {fichando ? (
@@ -189,25 +213,15 @@ export function PedidoLinea({
           </button>
         )}
 
-        {fase === "listoParaPasar" &&
-          (pedidoListoParaPasar(pedido) ? (
-            <button
-              onClick={() => completarPedido(pedido.id)}
-              title="Pasar el pedido a Producción"
-              className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
-            >
-              Pasar
-            </button>
-          ) : (
-            // Lo tuyo está hecho pero el pedido va entero a Producción: se
-            // dice a quién se espera, que si no el botón desaparece sin más.
-            <span
-              className="whitespace-nowrap text-[10px] text-text-muted"
-              title="El pedido se pasa a Producción cuando están aprobadas todas sus OF"
-            >
-              falta {faltanTexto}
-            </span>
-          ))}
+        {fase === "listoParaPasar" && listoParaPasar && (
+          <button
+            onClick={() => completarPedido(pedido.id)}
+            title="Pasar el pedido a Producción"
+            className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
+          >
+            Pasar
+          </button>
+        )}
         </span>
       )}
     </div>

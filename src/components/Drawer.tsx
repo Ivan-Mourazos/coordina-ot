@@ -15,6 +15,7 @@ import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
+import { pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
 
 function fmt(d: string) {
@@ -73,11 +74,13 @@ export function Drawer({
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
-  const ofsActivas = pedido.ofs.filter((of) => of.estado !== "anulada");
-  const listoParaCompletar =
-    pedido.situacion !== "completado" &&
-    ofsActivas.length > 0 &&
-    ofsActivas.every((of) => of.estado === "aprobada");
+  // La regla de "¿están todas las OF aprobadas?" vive en pedidoListoParaPasar
+  // (fases-tablero.ts): es la definición única, ver su comentario de cabecera.
+  // Aquí se mantiene una condición extra que el helper no cubre: la Lista
+  // puede reabrir un pedido ya completado (filtro "todos"/"completado"), y
+  // ahí sus OF siguen "aprobada" — sin este check el botón "Pasar a
+  // Producción" reaparecería para un pedido que ya pasó.
+  const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
 
   return (
     <div className="fixed inset-0 z-50">

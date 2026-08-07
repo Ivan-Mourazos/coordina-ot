@@ -193,4 +193,22 @@ describe("autoresQueFaltan", () => {
     };
     expect(autoresQueFaltan(p)).toEqual([]);
   });
+  it("con varios autores pendientes, respeta el orden en que aparecen las OF", () => {
+    // PedidoLinea resume el aviso a "el primero + N más": para que ese
+    // resumen sea estable necesita que el orden de esta lista no dependa
+    // del azar de iteración de un Map, sino del orden de las OF del pedido.
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "en_curso", autorId: "cristina" }),
+        of({ id: "b", estado: "en_curso", autorId: "cristina" }),
+        of({ id: "c", estado: "por_revisar", autorId: "alejandro" }),
+        of({ id: "d", estado: "en_curso", autorId: "tamara" }),
+      ],
+    };
+    expect(autoresQueFaltan(p)).toEqual([
+      { autorId: "cristina", n: 2 },
+      { autorId: "alejandro", n: 1 },
+      { autorId: "tamara", n: 1 },
+    ]);
+  });
 });
