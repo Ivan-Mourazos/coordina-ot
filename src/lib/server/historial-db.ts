@@ -147,6 +147,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
 
   // Agrupar por OF (orden): sumar minutos y juntar quién.
   const porOF = new Map<string, HistorialOF>();
+  const minutosPorPersona = new Map<string, Map<string, number>>();
   for (const fila of r.recordset) {
     const codigo = (fila.orden ?? "").trim();
     if (!codigo) continue;
@@ -162,10 +163,67 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
       const idOperario = operarioDeEmpleado(codEmpleado);
       const nombre = (idOperario && NOMBRE_POR_OPERARIO.get(idOperario)) || codEmpleado;
       if (nombre && !of.quien.includes(nombre)) of.quien.push(nombre);
+      // El minutaje por persona se guarda aparte para poder deducir quién
+      // planteó y quién revisó en los pedidos viejos (ver `deducirRoles`).
+      // `quien` se queda como está: es la lista que se enseña.
+      if (nombre) {
+        const porPersona = minutosPorPersona.get(codigo) ?? new Map<string, number>();
+        porPersona.set(nombre, (porPersona.get(nombre) ?? 0) + (fila.minutos ?? 0));
+        minutosPorPersona.set(codigo, porPersona);
+      }
     }
     porOF.set(codigo, of);
   }
-  return anadirDesgloseRol([...porOF.values()]);
+  return anadirDesgloseRol([...porOF.values()]).map((of) =>
+    deducirRoles(of, minutosPorPersona.get(of.codigo)),
+  );
+}
+
+/** Cuánto del tiempo total tiene que llevar alguien para contar como autor.
+ *  Por debajo de esto se le da por revisor: una revisión es un repaso, no
+ *  rehacer el trabajo. */
+const PARTE_AUTOR = 0.25;
+
+/** Deduce quién planteó y quién revisó en los pedidos ANTIGUOS, los cerrados
+ *  antes de que CoordinaOT registrara los roles.
+ *
+ *  RPS solo guarda "esta persona imputó estos minutos a esta OF", sin decir a
+ *  qué rol. Pero el reparto lo canta: plantear es el grueso del trabajo y
+ *  revisar es un repaso, así que quien más tiempo lleva es el autor y quien
+ *  lleva poco es el revisor.
+ *
+ *  Es una DEDUCCIÓN, no un dato: puede fallar si dos personas se repartieron
+ *  el planteo a partes iguales, o si una revisión se complicó más que el
+ *  planteo. Solo se aplica cuando no hay nada mejor — en cuanto el pedido pasa
+ *  por CoordinaOT, `anadirDesgloseRol` ya trae los roles de verdad y esta
+ *  función no toca nada. */
+export function deducirRoles(
+  of: HistorialOF,
+  minutosPorPersona: Map<string, number> | undefined,
+): HistorialOF {
+  // Roles reales (fichados en CoordinaOT): mandan siempre.
+  if (of.rol) return of;
+  if (!minutosPorPersona || minutosPorPersona.size === 0) return of;
+
+  const gente = [...minutosPorPersona.entries()].sort((a, b) => b[1] - a[1]);
+  // Una sola persona: lo planteó ella, no hay revisor que deducir.
+  if (gente.length === 1) {
+    return { ...of, rolDeducido: { quienPlanteo: [gente[0][0]], quienReviso: [] } };
+  }
+
+  const total = gente.reduce((n, [, min]) => n + min, 0);
+  // Sin minutos no hay reparto que interpretar: se dejan como están.
+  if (total <= 0) return of;
+
+  // El primero es autor siempre (aunque el reparto sea parejo: alguien lo
+  // planteó). Del resto, autor quien pase del umbral y revisor quien no.
+  const autores = [gente[0][0]];
+  const revisores: string[] = [];
+  for (const [nombre, min] of gente.slice(1)) {
+    if (min / total >= PARTE_AUTOR) autores.push(nombre);
+    else revisores.push(nombre);
+  }
+  return { ...of, rolDeducido: { quienPlanteo: autores, quienReviso: revisores } };
 }
 
 /** Sella el item con la hora a la que se pulsó "pasar a Producción" en

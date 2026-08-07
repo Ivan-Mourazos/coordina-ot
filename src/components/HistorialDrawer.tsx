@@ -231,6 +231,21 @@ export function HistorialDrawer({
                         />
                       </div>
                     )}
+                    {/* Sin roles fichados: los deducidos del reparto de
+                        minutos. Se marcan como suposición —"≈" y el título lo
+                        explica— porque no son un dato registrado y no deben
+                        leerse como tal. */}
+                    {!of.rol && of.rolDeducido && (
+                      <p
+                        className="mt-1.5 text-[10px] text-text-muted"
+                        title="Deducido del reparto de tiempo de RPS: quien más horas lleva planteó y quien lleva pocas revisó. No es un dato registrado."
+                      >
+                        ≈ planteó {of.rolDeducido.quienPlanteo.join(", ") || "—"}
+                        {of.rolDeducido.quienReviso.length > 0 && (
+                          <> · revisó {of.rolDeducido.quienReviso.join(", ")}</>
+                        )}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

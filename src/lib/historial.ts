@@ -60,6 +60,16 @@ export interface HistorialOF {
     quienPlanteo: string[]; // nombres
     quienReviso: string[];
   };
+
+  /** Roles DEDUCIDOS del reparto de minutos de RPS, para las OF anteriores al
+   *  fichaje en CoordinaOT: quien más tiempo lleva planteó y quien lleva poco
+   *  revisó (ver `deducirRoles`). Va en un campo aparte de `rol` a propósito —
+   *  es una suposición, no un dato registrado, y quien lo pinte debe poder
+   *  decirlo. Nunca aparecen los dos a la vez. */
+  rolDeducido?: {
+    quienPlanteo: string[];
+    quienReviso: string[];
+  };
 }
 
 /** Fila cruda de la query de página (antes de mapear). */
