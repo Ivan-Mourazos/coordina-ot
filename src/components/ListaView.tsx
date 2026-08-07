@@ -6,6 +6,7 @@ import { estaFinalizado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin, PRIORIDAD } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
+import { lineaTiempo, repartirEtiquetas } from "@/lib/linea-tiempo";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 
@@ -93,6 +94,125 @@ function Fecha({
   );
 }
 
+/** Cuánto texto de fecha ("27/08") ocupa, en % del ancho de la columna. Es la
+ *  separación mínima entre etiquetas y lo que sobresale por los extremos. */
+const ANCHO_FECHA_PCT = 17;
+
+/** Color de cada tramo del recorrido. Hex y no clases de Tailwind porque van
+ *  dentro de un degradado CSS, no de un `class`. */
+const TRAMO = {
+  espera: "#3b82f6", // pedido dentro, aún sin planificar: no toca a OT
+  trabajo: "#10b981", // de la planificación a la fabricación
+  aviso: "#f59e0b", // el último tercio antes de la entrega
+  limite: "#dc2626", // la fecha solicitada
+} as const;
+
+/** Degradado del recorrido con los cortes de color en los hitos.
+ *
+ *  Los dos primeros cortes son secos (el pedido cambia de tramo un día
+ *  concreto), y el último es una rampa: acercarse a la entrega es gradual, no
+ *  pasa de golpe de "va bien" a "va mal". */
+export function degradadoRecorrido(pctPlanificacion: number, pctFabricacion?: number): string {
+  const p = Math.max(0, Math.min(100, pctPlanificacion));
+  const paradas = [`${TRAMO.espera} 0%`, `${TRAMO.espera} ${p}%`, `${TRAMO.trabajo} ${p}%`];
+  if (pctFabricacion !== undefined) {
+    const f = Math.max(p, Math.min(100, pctFabricacion));
+    paradas.push(`${TRAMO.trabajo} ${f}%`, `${TRAMO.aviso} ${f + (100 - f) / 2}%`);
+  } else {
+    paradas.push(`${TRAMO.aviso} ${p + (100 - p) * 0.6}%`);
+  }
+  paradas.push(`${TRAMO.limite} 100%`);
+  return `linear-gradient(to right, ${paradas.join(", ")})`;
+}
+
+/** El recorrido del pedido en una fila: los hitos a escala con su fecha
+ *  encima, y el punto de hoy moviéndose por encima.
+ *
+ *  Sustituye a las columnas de fechas sueltas, no se suma a ellas. Con las
+ *  fechas en columnas propias hacían falta tres colores para decir lo mismo
+ *  —planificada en rojo, solicitada en rojo, barra en rojo— y la lista era un
+ *  muro. Aquí las fechas son grises y lo único que grita es dónde está hoy.
+ *
+ *  Los rótulos (Creación, Planificación…) NO se repiten por fila: el orden es
+ *  el mismo en todas, así que viven una sola vez en la cabecera. */
+function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
+  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = lineaTiempo(pedido, hoy);
+  const urgente = diasParaEntrega <= 2;
+  const etiquetas = repartirEtiquetas(
+    hitos.map((h) => h.pct),
+    ANCHO_FECHA_PCT,
+    ANCHO_FECHA_PCT / 2,
+  );
+  const degradado = degradadoRecorrido(
+    hitos.find((h) => h.clave === "planificacion")?.pct ?? 0,
+    hitos.find((h) => h.clave === "fabricacion")?.pct,
+  );
+
+  return (
+    <div className="w-[260px] pb-0.5 pt-1">
+      <div className="relative h-3">
+        {hitos.map((h, i) => (
+          <span
+            key={h.clave}
+            className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[9px] leading-none text-text-muted"
+            style={{ left: `${etiquetas[i]}%` }}
+            title={`${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`}
+          >
+            {h.iso.slice(8)}/{h.iso.slice(5, 7)}
+          </span>
+        ))}
+      </div>
+
+      <div className="relative h-2">
+        {/* El color dice EN QUÉ TRAMO va el pedido, no solo cuánto lleva: azul
+            mientras espera a que OT lo planifique, verde mientras se trabaja, y
+            calentándose hacia el rojo según se acerca la entrega. Va en un
+            degradado y no en trozos sueltos porque los cortes tienen que caer
+            justo en los hitos, que están a escala real.
+
+            La línea entera se pinta apagada y solo lo recorrido va a todo
+            color: así se ve a la vez el plan completo y por dónde se va. */}
+        <div
+          className="absolute inset-x-0 top-[3px] h-0.5 rounded-full opacity-25"
+          style={{ background: degradado }}
+        />
+        <div
+          className="absolute left-0 top-[3px] h-0.5 overflow-hidden rounded-full"
+          style={{ width: `${hoyPct}%` }}
+        >
+          {/* Ancho fijo al 100 % del PADRE de arriba para que el degradado no
+              se comprima según avanza el día: los cortes de color tienen que
+              seguir cayendo en los hitos. */}
+          <div
+            className="h-0.5 rounded-full"
+            style={{ background: degradado, width: `${(100 / Math.max(hoyPct, 0.01)) * 100}%` }}
+          />
+        </div>
+        {hitos.map((h) => (
+          <span
+            key={h.clave}
+            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-border-strong"
+            style={{ left: `${h.pct}%` }}
+          />
+        ))}
+        {/* Hoy: el único que se mueve, y el único con color. Más grande que
+            los hitos y con anillo del fondo para que se despegue de ellos. */}
+        <span
+          className={`absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface ${
+            urgente ? "bg-red-600" : "bg-brand-500"
+          } ${hoyFuera ? "opacity-50" : ""}`}
+          style={{ left: `${hoyPct}%` }}
+          title={
+            diasParaEntrega < 0
+              ? `Hoy · vencido hace ${-diasParaEntrega} d`
+              : `Hoy · quedan ${diasParaEntrega} d`
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
 export function ListaView({
   pedidos,
   operarios,
@@ -128,12 +248,15 @@ export function ListaView({
             <Th className="text-center">OF</Th>
             <Th>Autor → revisor</Th>
             <Th>Fase</Th>
-            {/* Los dos nombres son los de la herramienta vieja: "planificada"
-                es el día de plantear y "solicitada" la entrega que pide el
-                cliente. Son las dos que se miran para decidir por dónde
-                empezar, así que van juntas y visibles sin desplegar la fila. */}
-            <Th title="El día en que OT debería plantear este pedido">Planificada</Th>
-            <Th title="La fecha de entrega que pide el cliente">Solicitada</Th>
+            {/* Los rótulos de los hitos van aquí, una vez, en lugar de
+                repetirse en cada fila: el orden es el mismo en todas. Los
+                nombres son los de la herramienta vieja. */}
+            <Th className="w-[260px]">
+              <span className="block">Recorrido</span>
+              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted/80">
+                creación · planificada · fabricación · solicitada
+              </span>
+            </Th>
             <Th className="text-right">Fichado</Th>
           </tr>
         </thead>
@@ -258,11 +381,13 @@ export function ListaView({
                       {fase.label}
                     </span>
                   </Td>
-                  <Td className="whitespace-nowrap">
-                    <Fecha iso={p.fechaPlanificacion} hoy={hoy} enfasis={hecho ? "ninguno" : "normal"} />
-                  </Td>
-                  <Td className="whitespace-nowrap">
-                    <Fecha iso={p.fechaEntrega} hoy={hoy} enfasis={hecho ? "ninguno" : "suave"} />
+                  <Td>
+                    {/* Terminado = el recorrido ya no dice nada: el pedido no
+                        se mueve más. Se apaga entero en vez de teñir media
+                        lista de rojo por trabajo que ya está hecho. */}
+                    <span className={hecho ? "block opacity-40 grayscale" : undefined}>
+                      <Recorrido pedido={p} hoy={hoy} />
+                    </span>
                   </Td>
                   <Td className="whitespace-nowrap text-right font-medium text-text">
                     {total > 0 ? fmtMin(total) : <span className="text-text-muted">—</span>}
@@ -270,7 +395,7 @@ export function ListaView({
                 </tr>
                 {abierto && (
                   <tr className="border-b border-border bg-surface-2/60 last:border-0">
-                    <td colSpan={10} className="px-3 py-3">
+                    <td colSpan={9} className="px-3 py-3">
                       <Detalle p={p} hoy={hoy} operarios={operarios} />
                     </td>
                   </tr>

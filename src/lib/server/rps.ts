@@ -40,6 +40,7 @@ interface FilaVista {
   Cantidad: number | null;
   PlannedStartDate: Date | null;
   PlannedEndDate: Date | null;
+  ManualEndDate: Date | null;
 }
 
 interface FilaFichaje {
@@ -338,7 +339,7 @@ async function consultarTablero(): Promise<Tablero> {
              v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
              v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
              mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
-             mo.PlannedStartDate, mo.PlannedEndDate
+             mo.PlannedStartDate, mo.PlannedEndDate, mo.ManualEndDate
       FROM dbo.TGM_PENDIENTE_OT v
       LEFT JOIN dbo.CPRManufacturingOrder mo
         ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
@@ -685,7 +686,7 @@ async function consultarTablero(): Promise<Tablero> {
     // herramienta vieja (verificado contra ella con AR.26.03926):
     //
     //   planificación → FechaPlanificada de la vista (el día de PLANTEAR)
-    //   fabricación   → PlannedEndDate de la OF (fin de fabricación previsto)
+    //   fabricación   → ManualEndDate de la OF (la que fija Producción)
     //   solicitada    → FechaSolicitada = la ENTREGA que pide el cliente
     //
     // La entrega es la solicitada, no PlannedEndDate: son cosas distintas y
@@ -695,7 +696,10 @@ async function consultarTablero(): Promise<Tablero> {
       validas(filas.map((f) => f.PlannedStartDate))[0] ??
       fecha;
     // La más tardía: el pedido no está fabricado hasta que lo está su última OF.
-    const fabricacion = validas(filas.map((f) => f.PlannedEndDate)).at(-1);
+    // ManualEndDate, no PlannedEndDate: en AR.26.03914 la herramienta vieja da
+    // 17/08, que es ManualEndDate — PlannedEndDate vale 28/08. En AR.26.03926
+    // las dos valen 07/09, así que ese pedido solo no distinguía cuál era.
+    const fabricacion = validas(filas.map((f) => f.ManualEndDate)).at(-1);
     const entrega = fecha;
     // El pedido hereda la MÁS urgente de sus OFs: con la escala nueva (3 =
     // urgente) eso es el máximo, no el mínimo.

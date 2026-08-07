@@ -34,6 +34,44 @@ const ETIQUETA = {
   solicitada: "Solicitada",
 } as const;
 
+/** Separa etiquetas que caerían una encima de otra.
+ *
+ *  Los hitos van a escala real, así que dos fechas próximas comparten sitio: en
+ *  AR.26.03914 la creación es el 05/08 y la fabricación el 17/08 sobre un
+ *  recorrido de 22 días, y sus textos se pisan. Los PUNTOS se quedan donde les
+ *  toca —la escala es el dato— y solo se mueven los textos, lo justo para que
+ *  se lean.
+ *
+ *  `pcts` entra en el orden en que se pinta; devuelve las posiciones ya
+ *  separadas, en el mismo orden. `sep` es la distancia mínima entre centros y
+ *  `margen` cuánto texto sobresale por los extremos, las dos en % del ancho. */
+export function repartirEtiquetas(pcts: number[], sep: number, margen = 0): number[] {
+  const min = margen;
+  const max = 100 - margen;
+  // Se trabaja de izquierda a derecha por posición real, no por orden de
+  // pintado: con fechas desordenadas (que RPS las da) no son lo mismo.
+  const orden = pcts.map((pct, i) => ({ pct, i })).sort((a, b) => a.pct - b.pct);
+
+  const puestas = orden.map((o) => o.pct);
+  // Empujando a la derecha se resuelven todos los solapes salvo el desborde.
+  puestas[0] = Math.max(min, puestas[0]);
+  for (let k = 1; k < puestas.length; k++) {
+    puestas[k] = Math.max(puestas[k], puestas[k - 1] + sep);
+  }
+  // Si se salió por la derecha, se recoge todo hacia atrás. Puede tocar el
+  // borde izquierdo si no cabe: mejor apretado que fuera de la caja.
+  if (puestas[puestas.length - 1] > max) {
+    puestas[puestas.length - 1] = max;
+    for (let k = puestas.length - 2; k >= 0; k--) {
+      puestas[k] = Math.max(min, Math.min(puestas[k], puestas[k + 1] - sep));
+    }
+  }
+
+  const salida = new Array<number>(pcts.length);
+  orden.forEach((o, k) => (salida[o.i] = puestas[k]));
+  return salida;
+}
+
 /** Reparte las tres fechas a escala real sobre una línea de 0 a 100.
  *
  *  A escala y no a intervalos iguales: si la fabricación cae pegada a la

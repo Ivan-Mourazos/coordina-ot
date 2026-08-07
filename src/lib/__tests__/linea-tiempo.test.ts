@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineaTiempo } from "../linea-tiempo";
+import { lineaTiempo, repartirEtiquetas } from "../linea-tiempo";
 
 // Vocabulario de la herramienta vieja, que es el del taller:
 //   creación      = cuándo entró el pedido (OrderDate)
@@ -107,5 +107,40 @@ describe("con fecha de fabricación", () => {
     expect(pcts.fabricacion).toBe(100);
     expect(pcts.solicitada).toBe(67);
     expect(l.hitos.every((h) => h.pct >= 0 && h.pct <= 100)).toBe(true);
+  });
+});
+
+describe("repartirEtiquetas", () => {
+  it("deja en paz lo que ya cabe", () => {
+    expect(repartirEtiquetas([0, 50, 100], 15)).toEqual([0, 50, 100]);
+  });
+
+  it("separa dos fechas pegadas sin mover el resto", () => {
+    // 40 y 44 se pisan con separación 15: la segunda se va a 55.
+    expect(repartirEtiquetas([0, 40, 44, 100], 15)).toEqual([0, 40, 55, 100]);
+  });
+
+  it("recoge hacia atrás cuando el empuje se sale por la derecha", () => {
+    const r = repartirEtiquetas([80, 90, 100], 15);
+    expect(r).toEqual([70, 85, 100]);
+    expect(Math.max(...r)).toBeLessThanOrEqual(100);
+  });
+
+  it("respeta el margen de los extremos", () => {
+    const r = repartirEtiquetas([0, 100], 15, 6);
+    expect(r).toEqual([6, 94]);
+  });
+
+  it("devuelve las posiciones en el orden de entrada, no en el de la línea", () => {
+    // Fechas desordenadas: la 3ª de pintado cae la primera en el tiempo.
+    const r = repartirEtiquetas([90, 95, 10], 15);
+    expect(r[2]).toBe(10);
+    expect(r[1]).toBeGreaterThan(r[0]);
+  });
+
+  it("aprieta al mínimo cuando no cabe ninguna separación", () => {
+    const r = repartirEtiquetas([50, 50, 50, 50, 50], 40);
+    expect(Math.min(...r)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...r)).toBeLessThanOrEqual(100);
   });
 });
