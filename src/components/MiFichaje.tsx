@@ -5,7 +5,6 @@ import type { OF, Operario, Pedido, Rol } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
-import { OpDot } from "./Select";
 
 /** Minutos sin ningún fichaje corriendo, con OFs mías en_curso, antes de
  *  avisar en ámbar (aviso "te has puesto a plantear y no estás fichando"). */
@@ -159,26 +158,29 @@ export function MiFichaje({
     <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {expandido && (
         <div className="glass-panel-strong relative flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 pt-4 shadow-2xl">
-          {/* handle estilo iOS: contrae el panel de fichaje */}
-          <button
-            onClick={() => setExpandido(false)}
-            aria-label="Contraer"
-            title="Contraer"
-            className="group absolute left-1/2 top-1 flex -translate-x-1/2 items-center rounded-full px-4 py-1"
-          >
-            <span className="h-1 w-9 rounded-full bg-text-muted/30 transition-colors group-hover:bg-text-muted/60" />
-          </button>
-          {/* identidad, bien visible arriba */}
+          {/* Cabecera: lo primero que se mira al abrir es si algo está
+              corriendo y cuánto llevo, no cómo me llamo — eso ya está en la
+              barra de arriba. Antes había además dos formas de cerrar (un
+              tirador y la ✕), una encima de la otra: se queda la ✕, que es la
+              que usan el Drawer y el resto de paneles. */}
           <div className="mb-2 flex items-center gap-2">
-            <OpDot color={yo.color} iniciales={yo.iniciales} />
-            <span className="text-sm font-bold text-text">{yo.nombre}</span>
-            <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               Mi fichaje
             </span>
+            {ab ? (
+              <span
+                className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-bold ${ROL[ab.rol].chip}`}
+              >
+                <LiveDot rol={ab.rol} className="size-1.5" />
+                {ROL[ab.rol].label} · {fmtHM(totalMin)}
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-text-muted">Parado</span>
+            )}
             <button
               onClick={() => setExpandido(false)}
               aria-label="Cerrar"
-              className="grid size-6 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              className="ml-auto grid size-6 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             >
               ✕
             </button>
@@ -207,9 +209,8 @@ export function MiFichaje({
 
           {/* pausar/reanudar + total corriendo */}
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--glass-border)] pt-2.5">
-            <span className="text-[11px] text-text-muted">
-              {ab ? `⏱ ${nOFs} OF${nOFs === 1 ? "" : "s"} · ${fmtHM(totalMin)}` : "Sin fichar"}
-            </span>
+            {/* El total y el rol ya están en la cabecera: aquí solo la acción. */}
+            <span />
             {ab ? (
               <button
                 onClick={onPausarTodo}
