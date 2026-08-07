@@ -1,16 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  pointerWithin,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
 import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
 import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
@@ -27,7 +17,7 @@ import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
 import { HistorialView } from "./HistorialView";
 import { Drawer } from "./Drawer";
-import { PedidoCardView, type Facet } from "./PedidoCard";
+import type { Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -164,7 +154,6 @@ export function Board({
 
   const [vista, setVista] = useState<Vista>("asignar");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [active, setActive] = useState<Facet | null>(null);
 
   // ── Sincronización entre navegadores: polling ligero del tablero ──
   // Cada 30 s se pide el tablero completo (RPS+overlay, servido de caché) y
@@ -178,18 +167,12 @@ export function Board({
   // Cuenta los POST de fichaje emitidos: la carga inicial (GET por miId) no
   // debe pisar con un snapshot viejo un POST disparado después de arrancar.
   const postSeqRef = useRef(0);
-  const activeRef = useRef<Facet | null>(null);
-  useEffect(() => {
-    activeRef.current = active;
-  }, [active]);
   useEffect(() => {
     const id = setInterval(async () => {
-      if (activeRef.current) return; // solo se salta durante un drag&drop
       try {
         const r = await fetch("/api/tablero", { cache: "no-store" });
         if (!r.ok) return;
         const t = (await r.json()) as { pedidos: Pedido[] };
-        if (activeRef.current) return; // el arrastre pudo empezar durante el fetch
         const ab = abierto(fichajeRef.current);
         setPedidosSync(
           t.pedidos.map((p) => ({
@@ -221,9 +204,6 @@ export function Board({
     [],
   );
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
 
   const familias = useMemo(
     () => [...new Set(pedidos.flatMap((p) => p.ofs.map((o) => o.familia)))].sort() as Familia[],
@@ -983,21 +963,6 @@ export function Board({
     [pedidos, setPedidosSync, persistir],
   );
 
-  const onDragStart = useCallback((e: DragStartEvent) => {
-    setActive((e.active.data.current?.facet as Facet) ?? null);
-  }, []);
-  const onDragEnd = useCallback(
-    (e: DragEndEvent) => {
-      const facet = e.active.data.current?.facet as Facet | undefined;
-      const overId = e.over?.id;
-      setActive(null);
-      if (!facet || overId == null) return;
-      const target = overId === "bandeja" ? null : String(overId);
-      if (target === facet.locationId) return;
-      moverOFs(new Set(facet.ofs.map((o) => o.id)), target);
-    },
-    [moverOFs],
-  );
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
 
@@ -1022,12 +987,7 @@ export function Board({
   const lives = [...liveByOp.values()];
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
+    <>
       <div className="flex min-h-full flex-col">
         {/* topbar */}
         <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
@@ -1211,7 +1171,14 @@ export function Board({
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
-                <Bandeja facets={facetsDe(null)} operarios={operarios} onOpen={openFacet} orden={filtros.orden} />
+                <Bandeja
+                  facets={facetsDe(null)}
+                  operarios={operarios}
+                  onOpen={openFacet}
+                  onAsignar={(f, op) => moverOFs(new Set(f.ofs.map((o) => o.id)), op)}
+                  miId={miId}
+                  orden={filtros.orden}
+                />
               </div>
             </div>
           </>
@@ -1271,14 +1238,6 @@ export function Board({
         )}
       </div>
 
-      <DragOverlay dropAnimation={null}>
-        {active ? (
-          <div className="w-44 rotate-2">
-            <PedidoCardView facet={active} operarios={operarios} dragging />
-          </div>
-        ) : null}
-      </DragOverlay>
-
       <BotonArriba />
 
       <Drawer
@@ -1330,7 +1289,7 @@ export function Board({
         }}
         onCancelar={() => setFichajeAjenoPendiente(null)}
       />
-    </DndContext>
+    </>
   );
 }
 

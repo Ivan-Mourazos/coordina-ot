@@ -1,9 +1,9 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { useDraggable } from "@dnd-kit/core";
 import type { OF, Operario, Pedido } from "@/lib/types";
 import { PedidoScan } from "./PedidoScan";
+import { MenuAsignar } from "./MenuAsignar";
 import { QuickLook } from "./QuickLook";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -19,22 +19,16 @@ export interface Facet {
   atrasado?: boolean;
 }
 
-export function dragIdOf(f: Facet) {
-  return `${f.pedido.id}::${f.locationId ?? "none"}`;
-}
-
-/** Parte visual (reutilizada por la tarjeta y por el DragOverlay). El ancho
+/** Parte visual (la usan la tarjeta y la Bandeja). El ancho
  *  lo pone el grid contenedor (tarjeta fluida, sin slider de tamaño). */
 export const PedidoCardView = memo(function PedidoCardView({
   facet,
   operarios,
-  dragging = false,
   mostrarPrioridad = false,
   mostrarFecha = false,
 }: {
   facet: Facet;
   operarios: Operario[];
-  dragging?: boolean;
   /** Muestra prioridad + atrasado junto al código (pensado para la bandeja
    *  "Sin asignar", donde no hay agrupación por estado que ya lo indique). */
   mostrarPrioridad?: boolean;
@@ -65,11 +59,7 @@ export const PedidoCardView = memo(function PedidoCardView({
         </div>
       )}
       <div
-        className={`relative aspect-[210/297] w-full rounded-md bg-white shadow-sm ring-1 transition-shadow ${
-          dragging
-            ? "shadow-xl ring-brand-400"
-            : "ring-black/10 hover:shadow-lg dark:ring-white/10"
-        }`}
+        className="relative aspect-[210/297] w-full rounded-md bg-white shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-lg dark:ring-white/10"
       >
         <PedidoScan pedido={pedido} />
 
@@ -182,7 +172,8 @@ export const PedidoCardView = memo(function PedidoCardView({
   );
 });
 
-/** Tarjeta arrastrable + clic para abrir detalle + Quick Look al mantener
+/** Tarjeta con clic para abrir el detalle, menú para asignarla sin arrastrar,
+ *  y Quick Look al mantener
  *  el ratón (vista previa grande de la 1ª hoja del pedido). */
 export const PedidoCard = memo(function PedidoCard({
   facet,
@@ -190,18 +181,18 @@ export const PedidoCard = memo(function PedidoCard({
   onOpen,
   mostrarPrioridad = false,
   mostrarFecha = false,
+  onAsignar,
+  miId = null,
 }: {
   facet: Facet;
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   mostrarPrioridad?: boolean;
   mostrarFecha?: boolean;
+  /** Sustituye al arrastre: dar el parte a alguien desde la propia tarjeta. */
+  onAsignar?: (facet: Facet, operarioId: string) => void;
+  miId?: string | null;
 }) {
-  const id = dragIdOf(facet);
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id,
-    data: { facet },
-  });
 
   const [peek, setPeek] = useState<DOMRect | null>(null);
   const hoverTimer = useRef<number | null>(null);
@@ -213,18 +204,9 @@ export const PedidoCard = memo(function PedidoCard({
     setPeek(null);
   }
   useEffect(() => cancelPeek, []);
-  useEffect(() => {
-    if (isDragging) cancelPeek();
-  }, [isDragging]);
-
   return (
     <div
-      ref={(el) => {
-        setNodeRef(el);
-        rootRef.current = el;
-      }}
-      {...attributes}
-      {...listeners}
+      ref={rootRef}
       onClick={() => onOpen(facet)}
       onMouseEnter={() => {
         hoverTimer.current = window.setTimeout(() => {
@@ -242,12 +224,19 @@ export const PedidoCard = memo(function PedidoCard({
           onOpen(facet);
         }
       }}
-      className={`cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
-        isDragging ? "opacity-30" : ""
-      }`}
+      className="group relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
     >
       <PedidoCardView facet={facet} operarios={operarios} mostrarPrioridad={mostrarPrioridad} mostrarFecha={mostrarFecha} />
-      {peek && !isDragging && <QuickLook pedido={facet.pedido} anchor={peek} />}
+      {onAsignar && (
+        <div className="absolute right-1 top-1">
+          <MenuAsignar
+            operarios={operarios}
+            miId={miId}
+            onAsignar={(op) => onAsignar(facet, op)}
+          />
+        </div>
+      )}
+      {peek && <QuickLook pedido={facet.pedido} anchor={peek} />}
     </div>
   );
 });

@@ -1,6 +1,5 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase, conTope } from "@/lib/fases-tablero";
@@ -48,7 +47,6 @@ export function ZonaPersonal({
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const grupos = agruparPorFase(facets);
   const conItems = grupos.filter((g) => g.items.length > 0);
   const vacias = grupos.filter((g) => g.items.length === 0);
@@ -56,11 +54,8 @@ export function ZonaPersonal({
 
   return (
     <div
-      ref={setNodeRef}
-      style={!isOver ? { borderColor: operario.color } : undefined}
-      className={`glass-panel flex flex-col rounded-2xl p-3 transition-colors ${
-        isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : ""
-      }`}
+      style={{ borderColor: operario.color }}
+      className="glass-panel flex flex-col rounded-2xl border p-3"
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span

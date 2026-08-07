@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useRef } from "react";
-import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Rol } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
@@ -40,7 +39,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: operario.id });
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   // La barra reparte PEDIDOS, no OFs, para que case con el "N ped" de al lado:
@@ -49,18 +47,13 @@ export const TecnicoCard = memo(function TecnicoCard({
 
   return (
     <div
-      ref={(el) => {
-        setNodeRef(el);
-        rootRef.current = el;
-      }}
+      ref={rootRef}
       className="relative min-w-[230px] flex-1"
     >
       <button
         onClick={onToggle}
         aria-expanded={expanded}
-        className={`glass-panel w-full rounded-xl px-3 py-2 text-left transition-colors ${
-          isOver ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15" : ""
-        } ${expanded ? "ring-1 ring-brand-400" : ""}`}
+        className={`glass-panel w-full rounded-xl px-3 py-2 text-left transition-colors ${expanded ? "ring-1 ring-brand-400" : ""}`}
       >
         <div className="flex items-center gap-1.5">
           <span

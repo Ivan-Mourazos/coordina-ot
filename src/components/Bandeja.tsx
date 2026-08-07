@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import { useDroppable } from "@dnd-kit/core";
 import type { Operario, Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
@@ -69,6 +68,8 @@ function ScrollRow({
   facets,
   operarios,
   onOpen,
+  onAsignar,
+  miId,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -77,6 +78,8 @@ function ScrollRow({
   facets: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
+  onAsignar?: (f: Facet, operarioId: string) => void;
+  miId?: string | null;
 }) {
   const { ref, onDown, onMove, onUp, onLeave } = useGrabScroll();
 
@@ -106,6 +109,8 @@ function ScrollRow({
               facet={f}
               operarios={operarios}
               onOpen={onOpen}
+              onAsignar={onAsignar}
+              miId={miId}
               mostrarPrioridad
               mostrarFecha
             />
@@ -122,14 +127,17 @@ export function Bandeja({
   facets,
   operarios,
   onOpen,
+  onAsignar,
+  miId,
   orden = "planificacion",
 }: {
   facets: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
+  onAsignar?: (f: Facet, operarioId: string) => void;
+  miId?: string | null;
   orden?: Orden;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "bandeja" });
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
   /* ── modo flat (planificación) ── */
@@ -178,12 +186,7 @@ export function Bandeja({
 
   return (
     <div
-      ref={setNodeRef}
-      className={`rounded-xl border p-3 transition-colors ${
-        isOver
-          ? "border-brand-400 bg-brand-50/60 dark:bg-brand-900/15"
-          : "border-[var(--glass-border)] bg-[var(--glass-bg-strong)]"
-      }`}
+      className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-strong)] p-3"
     >
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-base leading-none">📥</span>
@@ -206,6 +209,8 @@ export function Bandeja({
                 facet={f}
                 operarios={operarios}
                 onOpen={onOpen}
+                onAsignar={onAsignar}
+                miId={miId}
                 mostrarPrioridad
                 mostrarFecha
               />
@@ -224,6 +229,8 @@ export function Bandeja({
               facets={fila.facets}
               operarios={operarios}
               onOpen={onOpen}
+              onAsignar={onAsignar}
+              miId={miId}
             />
           ))}
         </div>
@@ -245,6 +252,8 @@ export function Bandeja({
               facets={fila.facets}
               operarios={operarios}
               onOpen={onOpen}
+              onAsignar={onAsignar}
+              miId={miId}
             />
           ))}
         </div>
@@ -257,6 +266,8 @@ export function Bandeja({
                 facet={f}
                 operarios={operarios}
                 onOpen={onOpen}
+                onAsignar={onAsignar}
+                miId={miId}
                 mostrarPrioridad
                 mostrarFecha
               />
