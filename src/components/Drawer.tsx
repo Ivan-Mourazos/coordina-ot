@@ -17,6 +17,7 @@ import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
+import { LineaTiempoPedido } from "./LineaTiempoPedido";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -168,6 +169,8 @@ export function Drawer({
             </dl>
           </div>
 
+          <LineaTiempoPedido pedido={pedido} />
+
           {/* comentario del pedido de venta (condiciones, avisos del comercial) */}
           {pedido.comentarioVenta && (
             <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
@@ -294,6 +297,17 @@ function OFRow({
           {meta.label}
         </span>
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
+        {/* Detenida por Producción: no se puede fichar y no depende de OT
+            resolverlo. Tiene que verse aquí, que es donde se decide qué coger:
+            hasta ahora solo se enteraba uno al intentar fichar. */}
+        {of.detenida && (
+          <span
+            className="rounded bg-red-600/12 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
+            title="Detenida por Producción: no admite fichaje hasta que la liberen"
+          >
+            Detenida
+          </span>
+        )}
         <span className="ml-auto text-[11px] text-text-muted">{of.piezas} pz</span>
       </div>
 

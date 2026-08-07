@@ -55,7 +55,7 @@ export function PanelCompanero({
         </span>
         <h2 className="text-sm font-semibold text-text">{operario.nombre}</h2>
         <span className="text-[11px] text-text-muted">
-          {facets.length} pedidos · {nOFs} OF
+          {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>
 
         {live && (

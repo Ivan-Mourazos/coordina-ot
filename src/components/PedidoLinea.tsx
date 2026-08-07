@@ -87,6 +87,8 @@ export function PedidoLinea({
   // que era lo que tapaba código/cliente/descripción con pedidos repartidos.
   const mostrandoFalta = !soloConsulta && fase === "listoParaPasar" && !listoParaPasar;
 
+  const detenidas = ofs.filter((o) => o.detenida).length;
+
   const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
   // comentario de ofsFichablesDe): esta fila solo ficha planteo. En
@@ -114,6 +116,21 @@ export function PedidoLinea({
           />
         )}
         <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
+        {/* Detenidas por Producción: no se pueden fichar y no está en mano de
+            OT resolverlo. Se avisa en la fila para no coger un pedido que no
+            se puede tocar y descubrirlo al intentar fichar. */}
+        {detenidas > 0 && (
+          <span
+            className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[9px] font-bold uppercase text-red-700 dark:text-red-300"
+            title={
+              detenidas === ofs.length
+                ? "Detenida por Producción: no admite fichaje"
+                : `${detenidas} de ${ofs.length} OF detenidas por Producción`
+            }
+          >
+            {detenidas === ofs.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+          </span>
+        )}
         {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
             solo el código: el hueco que suelta la descripción es el que
             necesita el selector o el aviso para no quedar apretados en

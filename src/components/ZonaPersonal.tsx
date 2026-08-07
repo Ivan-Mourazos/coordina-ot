@@ -74,7 +74,7 @@ export function ZonaPersonal({
           Tú
         </span>
         <span className="text-[11px] text-text-muted">
-          {facets.length} pedidos · {nOFs} OF
+          {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>
 
         {/* Fases vacías: contadores diminutos, sin gastar una columna. */}
