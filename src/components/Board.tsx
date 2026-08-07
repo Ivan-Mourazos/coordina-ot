@@ -216,9 +216,13 @@ export function Board({
 
   const hoy = hoyISO();
 
-  const pedidosFiltrados = useMemo(() => {
-    const q = filtros.query.trim().toLowerCase();
-    return pedidos.filter((p) => {
+  // Los filtros de la barra son de la BANDEJA, no de todo el tablero: viven
+  // encima de ella y es donde hay cientos de partes. Mi zona y las de los
+  // compañeros tienen cinco o seis pedidos, así que filtrarlas solo servía
+  // para hacer desaparecer trabajo propio al escribir en el buscador.
+  const pasaFiltros = useCallback(
+    (p: Pedido) => {
+      const q = filtros.query.trim().toLowerCase();
       if (q && !`${p.codigo} ${p.cliente} ${p.negocio ?? ""}`.toLowerCase().includes(q)) return false;
       if (filtros.familia !== "todas" && !p.ofs.some((o) => o.familia === filtros.familia)) return false;
       if (filtros.cliente !== "todos" && p.cliente !== filtros.cliente) return false;
@@ -226,8 +230,14 @@ export function Board({
       if (filtros.prioridad !== "todas" && p.prioridad !== filtros.prioridad) return false;
       if (filtros.soloAtrasados && !estaAtrasado(p, hoy)) return false;
       return true;
-    });
-  }, [pedidos, filtros, hoy]);
+    },
+    [filtros, hoy],
+  );
+
+  const pedidosFiltrados = useMemo(
+    () => pedidos.filter(pasaFiltros),
+    [pedidos, pasaFiltros],
+  );
 
   const cmpPedido = useMemo(() => {
     return (a: Pedido, b: Pedido) => {
@@ -252,8 +262,8 @@ export function Board({
 
   // Lista de TRABAJO = solo procesados por Producción (lo que llega a OT).
   const pedidosOrdenados = useMemo(
-    () => pedidosFiltrados.filter((p) => p.situacion === "procesado").sort(cmpPedido),
-    [pedidosFiltrados, cmpPedido],
+    () => pedidos.filter((p) => p.situacion === "procesado").sort(cmpPedido),
+    [pedidos, cmpPedido],
   );
 
   // Vista Lista: respeta el filtro de Situación (permite buscar los pendientes).
@@ -1172,7 +1182,7 @@ export function Board({
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja
-                  facets={facetsDe(null)}
+                  facets={facetsDe(null).filter((f) => pasaFiltros(f.pedido))}
                   operarios={operarios}
                   onOpen={openFacet}
                   onAsignar={(f, op) => moverOFs(new Set(f.ofs.map((o) => o.id)), op)}

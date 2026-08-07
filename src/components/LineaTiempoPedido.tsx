@@ -44,9 +44,11 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
         </p>
       </div>
 
-      {/* La línea. Los hitos van posicionados en porcentaje sobre ella, así que
-          el contenedor necesita altura propia: los hijos son absolutos. */}
-      <div className="relative h-10">
+      {/* SOLO los puntos van posicionados en la barra; las etiquetas van
+          debajo, repartidas. Cuando dos hitos caen juntos —planificar el
+          viernes y fabricar el lunes es lo normal— los textos absolutos se
+          montaban uno encima de otro y no se leía ninguno. */}
+      <div className="relative h-3">
         <div className="absolute inset-x-0 top-1 h-1 rounded-full bg-border" />
         {/* Lo recorrido hasta hoy, para que el avance se vea de un vistazo. */}
         <div
@@ -57,26 +59,21 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
         />
 
         {hitos.map((h) => (
-          <div
+          <span
             key={h.clave}
-            className="absolute top-0 flex -translate-x-1/2 flex-col items-center"
+            className="absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-surface bg-text-muted"
             style={{ left: `${h.pct}%` }}
-          >
-            <span className="size-3 rounded-full border-2 border-surface bg-text-muted" />
-            <span className="mt-1 whitespace-nowrap text-[9px] font-semibold uppercase tracking-wide text-text-muted">
-              {h.etiqueta}
-            </span>
-            <span className="whitespace-nowrap text-[10px] font-medium text-text">
-              {fmtDiaMes(h.iso)}
-            </span>
-          </div>
+            title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}`}
+          />
         ))}
 
-        {/* Hoy. Va por encima de los hitos y con el color de urgencia; si cae
-            fuera del recorrido se queda en el extremo, y el título lo explica
+        {/* Hoy, por encima de los hitos y con el color de urgencia. Si cae
+            fuera del recorrido se queda en el extremo y el título lo explica,
             en vez de dibujar un punto donde no hay línea. */}
-        <div
-          className="absolute top-0 -translate-x-1/2"
+        <span
+          className={`absolute top-0 block size-3 -translate-x-1/2 rounded-full ring-2 ring-surface ${
+            urgente ? "bg-red-600" : "bg-brand-500"
+          } ${hoyFuera ? "opacity-50" : ""}`}
           style={{ left: `${hoyPct}%` }}
           title={
             hoyFuera
@@ -85,13 +82,20 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
                 : "Hoy, antes de que entrara el pedido"
               : "Hoy"
           }
-        >
-          <span
-            className={`block size-3 rounded-full ring-2 ring-surface ${
-              urgente ? "bg-red-600" : "bg-brand-500"
-            } ${hoyFuera ? "opacity-50" : ""}`}
-          />
-        </div>
+        />
+      </div>
+
+      {/* Leyenda: en fila, no sobre la barra. Así nunca se pisa, y el orden de
+          izquierda a derecha ya dice a qué punto corresponde cada una. */}
+      <div className="mt-2 flex justify-between gap-2">
+        {hitos.map((h) => (
+          <div key={h.clave} className="min-w-0">
+            <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-text-muted">
+              {h.etiqueta}
+            </p>
+            <p className="text-[10px] font-medium text-text">{fmtDiaMes(h.iso)}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
