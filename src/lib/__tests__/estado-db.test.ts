@@ -110,3 +110,17 @@ test("una fila con `detalle` = \"null\" (JSON válido) se descarta sin tumbar el
   expect(filas.some((f) => f.motivo === "motivo-corrupto")).toBe(false);
   expect(filas.some((f) => f.motivo === "asignar-tras-corrupta")).toBe(true);
 });
+
+test("lo visto se guarda por operario, no globalmente", () => {
+  expect(db.leerAvisosVistos("tamara").size).toBe(0);
+  db.marcarAvisosVistos("tamara", ["1:recibida:of-001", "2:cedida:of-002"]);
+  db.marcarAvisosVistos("tamara", ["2:cedida:of-002"]); // repetir no duplica ni revienta
+
+  expect([...db.leerAvisosVistos("tamara")].sort()).toEqual([
+    "1:recibida:of-001",
+    "2:cedida:of-002",
+  ]);
+  // Que Tamara lo haya visto no lo apaga para Jaime: el mismo movimiento le
+  // llega a los dos y cada uno lo ve cuando abre el pedido.
+  expect(db.leerAvisosVistos("jaime").size).toBe(0);
+});

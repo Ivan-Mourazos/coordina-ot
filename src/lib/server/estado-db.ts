@@ -102,6 +102,12 @@ function abrir(): Database.Database {
       intentos    INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
+    CREATE TABLE IF NOT EXISTS aviso_visto (
+      operario_id TEXT NOT NULL,
+      clave       TEXT NOT NULL,
+      visto_at    TEXT NOT NULL,
+      PRIMARY KEY (operario_id, clave)
+    );
   `);
   prepararClaveIntervalo(db);
   prepararPasadoPor(db);
@@ -310,4 +316,29 @@ export function leerAccionesDesde(desde: string): AccionLog[] {
  *  propios, p. ej. fichaje-db.ts, para no duplicar apertura ni esquema. */
 export function getDb(): Database.Database {
   return abrir();
+}
+
+/** Marca avisos como vistos por un operario.
+ *
+ *  La clave es la pareja (operario, movimiento) y no una marca de "último
+ *  visto": los avisos se apagan de uno en uno, al abrir el pedido al que
+ *  pertenecen, y un mismo movimiento le llega a dos personas que lo verán en
+ *  momentos distintos. */
+export function marcarAvisosVistos(operarioId: string, claves: string[]): void {
+  if (claves.length === 0) return;
+  const db = abrir();
+  const ins = db.prepare(
+    "INSERT OR IGNORE INTO aviso_visto (operario_id, clave, visto_at) VALUES (?, ?, ?)",
+  );
+  const ahora = new Date().toISOString();
+  db.transaction(() => {
+    for (const clave of claves) ins.run(operarioId, clave, ahora);
+  })();
+}
+
+export function leerAvisosVistos(operarioId: string): Set<string> {
+  const filas = abrir()
+    .prepare("SELECT clave FROM aviso_visto WHERE operario_id = ?")
+    .all(operarioId) as Array<{ clave: string }>;
+  return new Set(filas.map((f) => f.clave));
 }
