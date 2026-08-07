@@ -84,6 +84,11 @@ export interface OF {
   /** false = la situación en RPS no admite imputaciones (CREADA, FINALIZADA…):
    *  fichar aquí sería tiempo que NO sube a RPS. undefined = sin dato (mock). */
   fichable?: boolean;
+  /** La tarea por la que esta OF entra en la vista de RPS es de TALLER, no de
+   *  Oficina Técnica ("PLANTEAR EN TALLER"): capotas, faldones y demás. No es
+   *  trabajo nuestro salvo que alguien la rescate asignándole autor.
+   *  Ver docs/superpowers/specs/2026-08-07-of-ajenas-a-ot-design.md */
+  ajenaOT?: boolean;
   /** Texto de rotulación del parte (dato de RPS, no siempre existe). */
   rotulacion?: string;
   /** Fecha ISO en la que llega el material de compras pedido y aún no

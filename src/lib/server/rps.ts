@@ -176,6 +176,24 @@ function familiaDe(fila: FilaVista): Familia {
   return familiaDeTexto(fila.DescripcionMO, fila.Articulo);
 }
 
+/** ¿La tarea por la que esta OF entra en la vista es de TALLER y no de OT?
+ *
+ *  La vista `TGM_PENDIENTE_OT` filtra por el TEXTO de la tarea y deja pasar
+ *  todo lo que empieza por "PLANTEAR", así que por ahí entran las capotas y
+ *  los faldones, que los plantea el taller. Verificado sobre las 106 filas:
+ *  las de OT son "PLANTEAR Y PREPARAR ARCHIVO(S) MAQ. DE CORTE",
+ *  "PLANTEAMIENTO EN OFICINA TECNICA" y "PLANTEAR" a secas; las ajenas dicen
+ *  "PLANTEAR EN TALLER".
+ *
+ *  Sí, distinguirlas por texto es frágil, y se sabe: se comprobaron las dos
+ *  alternativas y ninguna sirve. Ninguna tarea tiene máquina asignada
+ *  (`IDBudgetMachine` vacío en las 106) y el catálogo tampoco discrimina (la
+ *  misma descripción aparece con y sin `IDUsualTask`). Por eso estas OF no se
+ *  descartan: se marcan, y basta con asignarles autor para recuperarlas. */
+export function esTareaDeTaller(tarea: string | null): boolean {
+  return /\bTALLER\b/.test((tarea ?? "").toUpperCase());
+}
+
 /** Escala nueva: 1 = poca, 2 = normal, 3 = urgente (si es 3, la fecha de
  *  planificación se respeta al 100%). Fuera de rango (null, 0, erróneo) → 1
  *  (poca), no la máxima: un dato ausente no debe disparar urgencia. */
@@ -256,6 +274,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     fichandoRol: fichadaAhora ? "plantear" : null,
     detenida: sit === "DETENIDA",
     fichable: permiteImputaciones(fila),
+    ajenaOT: esTareaDeTaller(fila.Tarea),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     reservasMaterial: datos.reservas.length,

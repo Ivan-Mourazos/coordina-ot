@@ -332,6 +332,14 @@ function OFRowLista({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy
       <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
         {meta.label}
       </span>
+      {of.ajenaOT && (
+        <span
+          className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
+          title="Entra por una tarea de taller (PLANTEAR EN TALLER): no es trabajo de OT. Se recupera asignándole autor."
+        >
+          Taller
+        </span>
+      )}
       {of.detenida && (
         <span
           className="rounded bg-red-600/12 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"

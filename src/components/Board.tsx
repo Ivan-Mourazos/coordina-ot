@@ -37,7 +37,7 @@ import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
-import { FASES, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
@@ -212,6 +212,7 @@ export function Board({
     estado: "todos",
     prioridad: "todas",
     soloAtrasados: false,
+    verAjenasOT: false,
     situacion: "procesado",
     orden: "planificacion",
   });
@@ -281,8 +282,16 @@ export function Board({
       filtros.situacion === "todos"
         ? pedidosFiltrados
         : pedidosFiltrados.filter((p) => p.situacion === filtros.situacion);
-    return [...base].sort(cmpPedido);
-  }, [pedidosFiltrados, filtros.situacion, cmpPedido]);
+    // Las OF de taller solo salen si se piden. Se filtran las OF, no los
+    // pedidos: uno con una OF nuestra y otra de taller sigue apareciendo, con
+    // lo que toca. Aquí SÍ se pueden buscar, que era la gracia de no tirarlas.
+    const visibles = filtros.verAjenasOT
+      ? base
+      : base
+          .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !ofOcultaDeOT(o)) }))
+          .filter((p) => p.ofs.length > 0);
+    return [...visibles].sort(cmpPedido);
+  }, [pedidosFiltrados, filtros.situacion, filtros.verAjenasOT, cmpPedido]);
 
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
   // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.
@@ -299,6 +308,9 @@ export function Board({
         // asignación: si el pedido se queda sin OFs activas, desaparece de
         // Sin asignar (sigue consultable en Lista/Historial).
         if (of.estado === "anulada") continue;
+        // Tarea de taller y sin rescatar: no es trabajo de OT (ver
+        // ofOcultaDeOT). Sigue en la Lista, que es donde se busca un pedido.
+        if (ofOcultaDeOT(of)) continue;
         const loc = of.autorId;
         const arr = porLoc.get(loc);
         if (arr) arr.push(of);
@@ -325,7 +337,7 @@ export function Board({
   );
   const sinAsignar = procesadosAll.reduce(
     (n, p) =>
-      p.interno ? n : n + p.ofs.filter((o) => o.autorId === null).length,
+      p.interno ? n : n + p.ofs.filter((o) => o.autorId === null && !ofOcultaDeOT(o)).length,
     0,
   );
   // Lo mío como revisor, no lo de todos: casa con lo que muestra por defecto
@@ -1209,7 +1221,7 @@ export function Board({
         {vista === "lista" && (
           <>
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
-              <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showSituacion />
+              <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showSituacion showAjenasOT />
             </div>
             <div className="p-5">
               <ListaView pedidos={listaOrdenados} operarios={operarios} onOpen={openPedidoCb} />

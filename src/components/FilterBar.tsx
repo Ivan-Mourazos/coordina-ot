@@ -16,6 +16,9 @@ export interface Filtros {
   estado: EstadoOF | "todos";
   prioridad: Prioridad | "todas";
   soloAtrasados: boolean;
+  /** Mostrar también las OF que entran por una tarea de taller y que nadie ha
+   *  rescatado. Fuera de la Lista no se ofrece: el tablero nunca las enseña. */
+  verAjenasOT: boolean;
   situacion: SituacionFiltro;
   orden: Orden;
 }
@@ -28,6 +31,7 @@ export const FILTROS_VACIOS: Omit<Filtros, "situacion" | "orden"> = {
   estado: "todos",
   prioridad: "todas",
   soloAtrasados: false,
+  verAjenasOT: false,
 };
 
 /** Selector de MODO (situación, orden): siempre tiene valor, así que el nombre
@@ -55,6 +59,7 @@ function filtrosActivos(f: Filtros): { clave: keyof Filtros; texto: string }[] {
   if (f.prioridad !== "todas")
     chips.push({ clave: "prioridad", texto: PRIORIDAD[f.prioridad].label });
   if (f.soloAtrasados) chips.push({ clave: "soloAtrasados", texto: "Solo atrasados" });
+  if (f.verAjenasOT) chips.push({ clave: "verAjenasOT", texto: "Con las de taller" });
   return chips;
 }
 
@@ -65,6 +70,7 @@ const VACIO_POR_CLAVE: Partial<Filtros> = {
   estado: "todos",
   prioridad: "todas",
   soloAtrasados: false,
+  verAjenasOT: false,
 };
 
 export function FilterBar({
@@ -75,6 +81,7 @@ export function FilterBar({
   showSituacion = false,
   showEstado = true,
   showAtrasados = true,
+  showAjenasOT = false,
   ordenes = ["planificacion", "prioridad", "entrega", "cliente"],
 }: {
   filtros: Filtros;
@@ -86,6 +93,9 @@ export function FilterBar({
   showEstado?: boolean;
   /** El toggle "Solo atrasados" no aplica en Historial (ya están hechos). */
   showAtrasados?: boolean;
+  /** Solo en la Lista: dejar ver las OF que entran por una tarea de taller.
+   *  En el tablero no se ofrece porque ahí no se enseñan nunca. */
+  showAjenasOT?: boolean;
   /** Opciones de orden disponibles en esta vista. */
   ordenes?: Orden[];
 }) {
@@ -192,6 +202,22 @@ export function FilterBar({
               ]}
             />
           </Campo>
+        )}
+
+        {showAjenasOT && (
+          <button
+            type="button"
+            onClick={() => setFiltros({ verAjenasOT: !filtros.verAjenasOT })}
+            aria-pressed={filtros.verAjenasOT}
+            title="Las OF que entran por una tarea de taller (capotas, faldones): no son trabajo de OT, pero se pueden buscar aquí"
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              filtros.verAjenasOT
+                ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
+                : "glass-chip text-text-muted hover:text-text"
+            }`}
+          >
+            Con las de taller
+          </button>
         )}
 
         {showAtrasados && (

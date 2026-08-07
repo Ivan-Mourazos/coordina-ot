@@ -29,6 +29,20 @@ export interface ConOFs {
   ofs: OF[];
 }
 
+/** ¿Esta OF está fuera del trabajo de OT ahora mismo?
+ *
+ *  Las que entran por una tarea de taller (capotas, faldones) no son nuestras
+ *  y no deben ocupar sitio en el tablero. Pero a veces sí resulta que el
+ *  pedido lo llevamos nosotros, y entonces basta con asignarle autor: tener
+ *  autor ES el rescate, no hace falta guardar nada más.
+ *
+ *  Al revés funciona igual de solo: devolver el pedido a la bandeja le quita
+ *  el autor y vuelve a esconderse. Y anularla sigue estando disponible como
+ *  para cualquier otra. */
+export function ofOcultaDeOT(of: OF): boolean {
+  return of.ajenaOT === true && of.autorId === null;
+}
+
 export function faseDeOF(of: OF): Fase {
   if (of.estado === "aprobada") return "listoParaPasar";
   if (of.estado === "por_revisar" || of.estado === "en_revision") return "esperandoRevision";

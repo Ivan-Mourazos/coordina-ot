@@ -8,6 +8,7 @@ import {
   faseDeOF,
   faseDePedido,
   motivoBloqueo,
+  ofOcultaDeOT,
   pedidoListoParaPasar,
 } from "../fases-tablero";
 
@@ -210,5 +211,28 @@ describe("autoresQueFaltan", () => {
       { autorId: "alejandro", n: 1 },
       { autorId: "tamara", n: 1 },
     ]);
+  });
+});
+
+describe("OF que entran por una tarea de taller", () => {
+  const ajena = (autorId: string | null): OF =>
+    of({ id: "t1", estado: "pendiente", autorId, ajenaOT: true });
+
+  it("sin autor están fuera del trabajo de OT", () => {
+    expect(ofOcultaDeOT(ajena(null))).toBe(true);
+  });
+
+  it("asignarle autor ES el rescate: no hace falta guardar nada más", () => {
+    expect(ofOcultaDeOT(ajena("ivan"))).toBe(false);
+  });
+
+  it("devolverla a la bandeja la vuelve a esconder", () => {
+    // Quitar el autor es lo que hace `moverOFs(ids, null)`, así que el camino
+    // de vuelta sale gratis y no necesita su propia acción.
+    expect(ofOcultaDeOT({ ...ajena("ivan"), autorId: null })).toBe(true);
+  });
+
+  it("una OF normal sin autor no se esconde nunca", () => {
+    expect(ofOcultaDeOT(of({ id: "n1", estado: "pendiente", autorId: null }))).toBe(false);
   });
 });
