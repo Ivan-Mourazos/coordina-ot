@@ -40,6 +40,7 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { FASES } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
+import { traspasarAutor } from "@/lib/traspaso";
 
 const IDENTITY_KEY = "coordina-operario-id";
 
@@ -378,6 +379,7 @@ export function Board({
        *  finalizadas en OLANET. Van explícitas porque el servidor no sabe qué
        *  OFs tiene un pedido sin volver a la vista de RPS, que tarda 7-15 s. */
       ofIdsPedido?: string[];
+      cortarFichajeDe?: string[];
     }) => {
       fetch("/api/estado", {
         method: "POST",
@@ -452,6 +454,25 @@ export function Board({
       mut(new Set([ofId]), (of) => ({ ...of, revisorId }), "revisor");
     },
     [mut],
+  );
+  // Traspasar UNA OF a otro operario. `mut` no vale tal cual: hay que mandar
+  // también `cortarFichajeDe` para que el servidor cierre el fichaje que el
+  // anterior tuviera abierto sobre ella (no lo puede hacer este navegador).
+  const traspasarAutorOF = useCallback(
+    (ofId: string, autorId: string) => {
+      const antes = pedidosRef.current
+        .flatMap((p) => p.ofs)
+        .find((o) => o.id === ofId);
+      if (!antes || antes.autorId === autorId) return;
+      const nueva = traspasarAutor(antes, autorId);
+      mut(new Set([ofId]), () => nueva);
+      persistir({
+        motivo: "traspaso",
+        cambiosOF: [snapshotDe(nueva)],
+        cortarFichajeDe: [ofId],
+      });
+    },
+    [mut, persistir],
   );
   // ── API de fichaje del Board ──
   const ahora = () => new Date().toISOString();
@@ -972,6 +993,7 @@ export function Board({
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}
         onSetRevisor={setRevisor}
+        onTraspasarAutor={traspasarAutorOF}
         onAccion={ejecutarAccion}
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}

@@ -14,6 +14,7 @@ import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
+import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ReservaChip } from "./ReservaChip";
 
 function fmt(d: string) {
@@ -43,6 +44,7 @@ export function Drawer({
   onAssignPedido,
   onCompletar,
   onSetRevisor,
+  onTraspasarAutor,
   onAccion,
   onFichar,
   onDesfichar,
@@ -54,6 +56,7 @@ export function Drawer({
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onTraspasarAutor: (ofId: string, autorId: string) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
@@ -201,8 +204,10 @@ export function Drawer({
                 key={of.id}
                 of={of}
                 operarios={operarios}
+                miId={miId}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
+                onTraspasarAutor={onTraspasarAutor}
                 onAccion={onAccion}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
@@ -254,16 +259,20 @@ function Chip({ op, label }: { op: Operario | null; label: string }) {
 function OFRow({
   of,
   operarios,
+  miId,
   opById,
   onSetRevisor,
+  onTraspasarAutor,
   onAccion,
   onFichar,
   onDesfichar,
 }: {
   of: OF;
   operarios: Operario[];
+  miId: string | null;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onTraspasarAutor: (ofId: string, autorId: string) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
@@ -386,11 +395,26 @@ function OFRow({
         </div>
       )}
 
-      {/* roles: solo lectura. El autor se nombra al asignar el pedido (drag o
-          "asignar pedido entero"); el revisor, al pasar la OF a revisión. */}
+      {/* Roles. El autor se puede traspasar mientras quede trabajo suyo; el
+          revisor sigue siendo de solo lectura aquí, se nombra al mandar a
+          revisar (o se corrige desde la vista Revisión). */}
       <div className="mt-2.5 grid grid-cols-2 gap-2">
-        <div className="flex items-center rounded-lg bg-surface-2/70 px-2 py-1.5">
-          <Chip op={autor} label="Autor" />
+        <div className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5">
+          {puedeTraspasarAutor(of) ? (
+            <>
+              <span className="text-[11px] text-text-muted">Autor</span>
+              <Select
+                value={of.autorId}
+                onChange={(v) => v && onTraspasarAutor(of.id, v)}
+                placeholder={null}
+                alignRight
+                className="ml-auto"
+                options={opcionesOperario(operarios, miId)}
+              />
+            </>
+          ) : (
+            <Chip op={autor} label="Autor" />
+          )}
         </div>
         <div className="flex items-center rounded-lg bg-surface-2/70 px-2 py-1.5">
           <Chip op={revisor} label="Revisor" />
