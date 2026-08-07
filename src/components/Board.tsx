@@ -481,7 +481,16 @@ export function Board({
     (ofId: string, revisorId: string) => {
       const antes = pedidosRef.current.flatMap((p) => p.ofs).find((o) => o.id === ofId);
       if (!antes || antes.revisorId === revisorId) return;
-      const nueva = cambiarRevisor(antes, revisorId);
+      let nueva: OF;
+      try {
+        nueva = cambiarRevisor(antes, revisorId);
+      } catch {
+        // cambiarRevisor() lanza si revisorId === autorId (regla dura: revisor
+        // ≠ autor). Hoy el Select del tablero ya lo filtra y es inalcanzable,
+        // pero el resto del código no confía en eso: mismo criterio que el
+        // try/catch por-OF de mut(), se ignora en vez de tumbar el manejador.
+        return;
+      }
       mut(new Set([ofId]), () => nueva);
       persistir({
         motivo: "revisor",
@@ -732,6 +741,47 @@ export function Board({
     [mut, ficharOFs, pedidos],
   );
 
+  // "Coger y empezar" revisión (columna "Por revisar" sin revisor): asigna al
+  // que pulsa como revisor Y arranca la revisión en la MISMA mutación, sobre
+  // el snapshot de pedidosRef. Antes RevisionView encadenaba onSetRevisor +
+  // onAccion("empezar_revision") en dos llamadas síncronas; como
+  // ejecutarAccion filtra las OFs aplicables leyendo `pedidos` (el estado del
+  // render actual, no pedidosRef), en el primer clic la OF todavía no tenía
+  // revisor, la lista de aplicables salía vacía y la acción se descartaba en
+  // silencio (quedaba el revisor puesto pero la OF seguía en por_revisar).
+  // Aquí la transición se aplica con aplicarAccion() sobre la OF que YA lleva
+  // el revisor puesto, no sobre la vieja: no se duplica la máquina de estados.
+  const cogerRevision = useCallback(
+    (ofIds: string[]) => {
+      if (!miId) return;
+      mut(
+        new Set(ofIds),
+        (of) => {
+          // Defensa además del filtro de la UI: revisor ≠ autor es regla dura
+          // del dominio, no se puede llegar aquí siendo autor de la propia OF.
+          if (of.autorId === miId) return of;
+          try {
+            const conRevisor = of.revisorId === miId ? of : { ...of, revisorId: miId };
+            return aplicarAccion(conRevisor, "empezar_revision");
+          } catch {
+            return of;
+          }
+        },
+        "empezar_revision",
+      );
+      // Solo arranca el fichaje de las OFs que de verdad pasaron a en_revision
+      // (pedidosRef ya refleja la mutación de arriba: mut() es síncrono).
+      const cogidas = pedidosRef.current
+        .flatMap((p) => p.ofs)
+        .filter(
+          (of) => ofIds.includes(of.id) && of.estado === "en_revision" && of.revisorId === miId,
+        )
+        .map((of) => of.id);
+      if (cogidas.length > 0) ficharOFs(cogidas, "revisar");
+    },
+    [miId, mut, ficharOFs],
+  );
+
   // Adaptador para no romper firmas aguas abajo todavía: RevisionView sigue
   // operando OF por OF con la firma antigua (ofId, accion, obs?). ZonaPersonal,
   // FaseFlyout, TecnicoCard y PedidoLinea ya llaman a ejecutarAccion
@@ -970,7 +1020,7 @@ export function Board({
                 operarios={operarios}
                 miId={miId}
                 onOpen={openPedidoCb}
-                onSetRevisor={setRevisor}
+                onCoger={cogerRevision}
                 onCambiarRevisor={cambiarRevisorOF}
                 onAccion={accionOF}
               />

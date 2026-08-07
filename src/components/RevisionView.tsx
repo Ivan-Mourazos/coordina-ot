@@ -5,7 +5,6 @@ import type { EstadoOF, Operario, Pedido } from "@/lib/types";
 import { ESTADO } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, type AccionOF } from "@/lib/acciones";
-import { puedeCambiarRevisor } from "@/lib/traspaso";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -53,7 +52,7 @@ export function RevisionView({
   operarios,
   miId,
   onOpen,
-  onSetRevisor,
+  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -61,7 +60,10 @@ export function RevisionView({
   operarios: Operario[];
   miId: string | null;
   onOpen: (p: Pedido) => void;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  /** "Coger y empezar": asigna revisor + arranca la revisión + fichaje en un
+   *  único paso (ver cogerRevision en Board.tsx, evita la carrera del primer
+   *  clic). */
+  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -160,7 +162,7 @@ export function RevisionView({
                 operarios={operarios}
                 miId={miId}
                 onOpen={onOpen}
-                onSetRevisor={onSetRevisor}
+                onCoger={onCoger}
                 onCambiarRevisor={onCambiarRevisor}
                 onAccion={onAccion}
               />
@@ -183,7 +185,7 @@ export function RevisionView({
               operarios={operarios}
               miId={miId}
               onOpen={onOpen}
-              onSetRevisor={onSetRevisor}
+              onCoger={onCoger}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
             />
@@ -208,7 +210,7 @@ function ColumnaRevision({
   operarios,
   miId,
   onOpen,
-  onSetRevisor,
+  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -220,7 +222,7 @@ function ColumnaRevision({
   operarios: Operario[];
   miId: string | null;
   onOpen: (p: Pedido) => void;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -251,7 +253,7 @@ function ColumnaRevision({
               operarios={operarios}
               miId={miId}
               onOpen={() => onOpen(f.pedido)}
-              onSetRevisor={onSetRevisor}
+              onCoger={onCoger}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
             />
@@ -312,7 +314,7 @@ function ReviewCard({
   operarios,
   miId,
   onOpen,
-  onSetRevisor,
+  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -321,7 +323,7 @@ function ReviewCard({
   operarios: Operario[];
   miId: string | null;
   onOpen: () => void;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -329,6 +331,10 @@ function ReviewCard({
   const meta = ESTADO[estado];
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
   const ofIds = ofs.map((o) => o.id);
+  // Regla dura: revisor ≠ autor. Si soy autor de alguna OF del grupo, "Coger
+  // y empezar" no se ofrece (mismo criterio que el Select de abajo, que ya
+  // filtra `operarios.filter(o => !autores.has(o.id))`).
+  const soyAutor = miId !== null && autores.has(miId);
 
   function accionTodas(accion: AccionOF, obs?: string) {
     ofIds.forEach((id) => onAccion(id, accion, obs));
@@ -407,26 +413,33 @@ function ReviewCard({
                     }))}
                 />
               </div>
+            ) : soyAutor ? (
+              // Regla dura del dominio: revisor ≠ autor. No se ofrece el
+              // botón — se explica por qué en vez de dejarlo sin efecto.
+              <span className="text-[11px] text-text-muted">No puedes revisar lo tuyo</span>
+            ) : !miId ? (
+              // Sin identidad no hay a quién asignar como revisor: mismo
+              // criterio que soyAutor, no se pinta un botón que no hace nada.
+              <span className="text-[11px] text-text-muted">Identifícate para poder cogerla</span>
             ) : (
               // Sin revisor no se ofrece elegirlo: el revisor se nombra al
               // mandar a revisar. Una OF que llega así (de RPS) es una cola de
               // la que se coge trabajo — quien pulse se pone a sí mismo.
               <span className="text-[11px] text-text-muted">Sin coger</span>
             )}
-            <button
-              onClick={() => {
-                if (!todasConRevisor && miId) ofIds.forEach((id) => onSetRevisor(id, miId));
-                accionTodas("empezar_revision");
-              }}
-              title={
-                todasConRevisor
-                  ? "Pasa a En revisión y arranca el fichaje del revisor"
-                  : "Te pone como revisor y arranca tu fichaje"
-              }
-              className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
-            >
-              {todasConRevisor ? "Empezar revisión" : "Coger y empezar"}
-            </button>
+            {(todasConRevisor || (!soyAutor && miId)) && (
+              <button
+                onClick={() => (todasConRevisor ? accionTodas("empezar_revision") : onCoger(ofIds))}
+                title={
+                  todasConRevisor
+                    ? "Pasa a En revisión y arranca el fichaje del revisor"
+                    : "Te pone como revisor y arranca tu fichaje"
+                }
+                className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+              >
+                {todasConRevisor ? "Empezar revisión" : "Coger y empezar"}
+              </button>
+            )}
           </>
         )}
         {estado === "en_revision" && (
@@ -434,26 +447,27 @@ function ReviewCard({
             {/* Cambio de última hora con la revisión en marcha: al elegir a
                 otro, `cambiarRevisor` devuelve la OF a "por revisar" y el
                 servidor cierra el fichaje del anterior — sus minutos se
-                quedan a su nombre, pero dejan de correr. */}
-            {ofs.every(puedeCambiarRevisor) && (
-              <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
-                Revisor:
-                <Select
-                  value={revisorComun}
-                  onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
-                  placeholder={null}
-                  alignRight
-                  className="ml-auto"
-                  options={operarios
-                    .filter((o) => !autores.has(o.id))
-                    .map((o) => ({
-                      value: o.id,
-                      label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-                      icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-                    }))}
-                />
-              </div>
-            )}
+                quedan a su nombre, pero dejan de correr. Sin guarda de
+                puedeCambiarRevisor: las facets de esta columna ya vienen
+                filtradas por estado "en_revision", así que siempre se cumple
+                — una guarda que nunca es falsa solo engañaba a quien la leía. */}
+            <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+              Revisor:
+              <Select
+                value={revisorComun}
+                onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
+                placeholder={null}
+                alignRight
+                className="ml-auto"
+                options={operarios
+                  .filter((o) => !autores.has(o.id))
+                  .map((o) => ({
+                    value: o.id,
+                    label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+                    icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+                  }))}
+              />
+            </div>
             <button
               onClick={() => pedirConfirmacion(defAprobar)}
               className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
