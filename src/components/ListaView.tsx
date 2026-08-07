@@ -5,7 +5,7 @@ import type { OF, Operario, Pedido } from "@/lib/types";
 import { estaFinalizado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
 import { ESTADO, fmtMin, PRIORIDAD } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
-import { relativoA, type TonoFecha } from "@/lib/fechas";
+import { diasEntre, relativoA, type TonoFecha } from "@/lib/fechas";
 import { lineaTiempo, repartirEtiquetas } from "@/lib/linea-tiempo";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -98,31 +98,42 @@ function Fecha({
  *  separación mínima entre etiquetas y lo que sobresale por los extremos. */
 const ANCHO_FECHA_PCT = 17;
 
-/** Color de cada tramo del recorrido. Hex y no clases de Tailwind porque van
- *  dentro de un degradado CSS, no de un `class`. */
+/** Color de cada tramo del recorrido. Escalada, no degradado: el pedido
+ *  cambia de tramo un día concreto, y verlo cambiar de golpe es la
+ *  información. Hex y no clases de Tailwind porque van en un `style`. */
+// OJO con el significado: la fecha límite de OT es la PLANIFICADA, no la
+// solicitada. Es el día en que el pedido debería estar planteado, así que
+// pasarla ya es ir tarde aunque a Producción le sobren tres semanas. Por eso
+// la escalada arranca ahí y no al final.
 const TRAMO = {
-  espera: "#3b82f6", // pedido dentro, aún sin planificar: no toca a OT
-  trabajo: "#10b981", // de la planificación a la fabricación
-  aviso: "#f59e0b", // el último tercio antes de la entrega
-  limite: "#dc2626", // la fecha solicitada
+  /** Hasta la planificación: OT llega a tiempo. */
+  holgado: "#10b981",
+  /** Pasada la planificación: OT ya va tarde, pero Producción aún llega. */
+  trabajo: "#f59e0b",
+  /** Pasada la fabricación: el retraso se come el margen de Producción. */
+  ajustado: "#dc2626",
+  /** Pasada la solicitada. Fuera de la escalada a propósito: no es "más
+   *  rojo", es otra cosa — la fecha ya se incumplió. */
+  fuera: "#9333ea",
 } as const;
 
-/** Degradado del recorrido con los cortes de color en los hitos.
+/** Los tramos de la línea, ya recortados a [0, 100].
  *
- *  Los dos primeros cortes son secos (el pedido cambia de tramo un día
- *  concreto), y el último es una rampa: acercarse a la entrega es gradual, no
- *  pasa de golpe de "va bien" a "va mal". */
-export function degradadoRecorrido(pctPlanificacion: number, pctFabricacion?: number): string {
-  const p = Math.max(0, Math.min(100, pctPlanificacion));
-  const paradas = [`${TRAMO.espera} 0%`, `${TRAMO.espera} ${p}%`, `${TRAMO.trabajo} ${p}%`];
-  if (pctFabricacion !== undefined) {
-    const f = Math.max(p, Math.min(100, pctFabricacion));
-    paradas.push(`${TRAMO.trabajo} ${f}%`, `${TRAMO.aviso} ${f + (100 - f) / 2}%`);
-  } else {
-    paradas.push(`${TRAMO.aviso} ${p + (100 - p) * 0.6}%`);
-  }
-  paradas.push(`${TRAMO.limite} 100%`);
-  return `linear-gradient(to right, ${paradas.join(", ")})`;
+ *  Se calcula aquí y no en el pintado porque RPS da las fechas desordenadas
+ *  (la fabricación puede caer después de la solicitada) y un tramo al revés
+ *  dibujaría un trozo de ancho negativo. */
+export function tramosRecorrido(
+  pctPlanificacion: number,
+  pctFabricacion: number | undefined,
+): { desde: number; hasta: number; color: string }[] {
+  const corte = (n: number) => Math.max(0, Math.min(100, n));
+  const p = corte(pctPlanificacion);
+  const f = pctFabricacion === undefined ? p : Math.max(p, corte(pctFabricacion));
+  return [
+    { desde: 0, hasta: p, color: TRAMO.holgado },
+    { desde: p, hasta: f, color: TRAMO.trabajo },
+    { desde: f, hasta: 100, color: TRAMO.ajustado },
+  ].filter((t) => t.hasta > t.desde);
 }
 
 /** El recorrido del pedido en una fila: los hitos a escala con su fecha
@@ -137,19 +148,25 @@ export function degradadoRecorrido(pctPlanificacion: number, pctFabricacion?: nu
  *  el mismo en todas, así que viven una sola vez en la cabecera. */
 function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   const { hitos, hoyPct, hoyFuera, diasParaEntrega } = lineaTiempo(pedido, hoy);
-  const urgente = diasParaEntrega <= 2;
   const etiquetas = repartirEtiquetas(
     hitos.map((h) => h.pct),
     ANCHO_FECHA_PCT,
     ANCHO_FECHA_PCT / 2,
   );
-  const degradado = degradadoRecorrido(
+  const tramos = tramosRecorrido(
     hitos.find((h) => h.clave === "planificacion")?.pct ?? 0,
     hitos.find((h) => h.clave === "fabricacion")?.pct,
   );
+  // El retraso que le importa a OT se cuenta desde la PLANIFICADA: ese es el
+  // día en que el pedido debería estar planteado. La solicitada es la del
+  // cliente y llega mucho después; medir contra ella diría "vas bien" con el
+  // planteo dos semanas pasado de fecha.
+  const diasTarde = diasEntre(pedido.fechaPlanificacion, hoy);
+  const vencido = diasParaEntrega < 0;
 
   return (
-    <div className="w-[260px] pb-0.5 pt-1">
+    <div className="flex w-[260px] items-end gap-1.5 pb-0.5 pt-1">
+      <div className="min-w-0 flex-1">
       <div className="relative h-3">
         {hitos.map((h, i) => (
           <span
@@ -164,30 +181,41 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
       </div>
 
       <div className="relative h-2">
-        {/* El color dice EN QUÉ TRAMO va el pedido, no solo cuánto lleva: azul
-            mientras espera a que OT lo planifique, verde mientras se trabaja, y
-            calentándose hacia el rojo según se acerca la entrega. Va en un
-            degradado y no en trozos sueltos porque los cortes tienen que caer
-            justo en los hitos, que están a escala real.
+        {/* El color dice EN QUÉ TRAMO va el pedido, no cuánto lleva: verde
+            hasta la planificación (hay margen), naranja mientras el trabajo es
+            de OT, rojo en el último tramo. Cortes secos, no degradado: el
+            pedido cambia de tramo un día concreto y verlo saltar ES el dato.
 
-            La línea entera se pinta apagada y solo lo recorrido va a todo
-            color: así se ve a la vez el plan completo y por dónde se va. */}
-        <div
-          className="absolute inset-x-0 top-[3px] h-0.5 rounded-full opacity-25"
-          style={{ background: degradado }}
-        />
-        <div
-          className="absolute left-0 top-[3px] h-0.5 overflow-hidden rounded-full"
-          style={{ width: `${hoyPct}%` }}
-        >
-          {/* Ancho fijo al 100 % del PADRE de arriba para que el degradado no
-              se comprima según avanza el día: los cortes de color tienen que
-              seguir cayendo en los hitos. */}
+            Lo ya recorrido va a todo color y lo que queda apagado, así se ven
+            a la vez el plan entero y por dónde se va. */}
+        {tramos.map((t) => (
           <div
-            className="h-0.5 rounded-full"
-            style={{ background: degradado, width: `${(100 / Math.max(hoyPct, 0.01)) * 100}%` }}
+            key={t.color}
+            className="absolute top-[3px] h-0.5"
+            style={{
+              left: `${t.desde}%`,
+              width: `${t.hasta - t.desde}%`,
+              background: t.color,
+              // Opaco solo si ya está andado ENTERO; el que hoy parte por la
+              // mitad se pinta apagado y encima va su trozo andado.
+              opacity: t.hasta <= hoyPct ? 1 : 0.28,
+            }}
           />
-        </div>
+        ))}
+        {/* El tramo que hoy parte por la mitad: la parte ya andada, opaca. */}
+        {tramos
+          .filter((t) => t.desde < hoyPct && t.hasta > hoyPct)
+          .map((t) => (
+            <div
+              key={`${t.color}-andado`}
+              className="absolute top-[3px] h-0.5"
+              style={{
+                left: `${t.desde}%`,
+                width: `${hoyPct - t.desde}%`,
+                background: t.color,
+              }}
+            />
+          ))}
         {hitos.map((h) => (
           <span
             key={h.clave}
@@ -195,20 +223,43 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
             style={{ left: `${h.pct}%` }}
           />
         ))}
-        {/* Hoy: el único que se mueve, y el único con color. Más grande que
-            los hitos y con anillo del fondo para que se despegue de ellos. */}
+        {/* Hoy: el único que se mueve. Sin color propio —el tramo ya lo dice—
+            salvo cuando se sale de la línea, que ahí el morado es la señal.
+            Más grande que los hitos y con anillo del fondo para despegarlo. */}
         <span
-          className={`absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface ${
-            urgente ? "bg-red-600" : "bg-brand-500"
-          } ${hoyFuera ? "opacity-50" : ""}`}
-          style={{ left: `${hoyPct}%` }}
+          className="absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface"
+          style={{
+            left: `${hoyPct}%`,
+            background: vencido ? TRAMO.fuera : "var(--text)",
+            opacity: hoyFuera && !vencido ? 0.5 : 1,
+          }}
           title={
-            diasParaEntrega < 0
-              ? `Hoy · vencido hace ${-diasParaEntrega} d`
+            vencido
+              ? `Hoy · fuera de fecha, ${-diasParaEntrega} d pasada la solicitada`
               : `Hoy · quedan ${diasParaEntrega} d`
           }
         />
+        </div>
       </div>
+
+      {/* Cuánto se ha pasado OT de SU fecha. El número no cabe en la línea
+          —hoy se queda pegado al extremo cuando se sale— así que se dice
+          aparte. El morado avisa además de que la entrega al cliente ya no se
+          cumple: está fuera de la escalada verde-naranja-rojo a propósito,
+          porque no es "va muy justo", es que la fecha ya se incumplió. */}
+      {diasTarde > 0 && (
+        <span
+          className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none text-white"
+          style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo }}
+          title={
+            vencido
+              ? `${diasTarde} días pasada la planificada — y la entrega solicitada era hace ${-diasParaEntrega}`
+              : `${diasTarde} días pasada la fecha planificada para plantearlo`
+          }
+        >
+          +{diasTarde}d
+        </span>
+      )}
     </div>
   );
 }
