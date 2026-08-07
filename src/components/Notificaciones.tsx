@@ -38,8 +38,15 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: "bg-cyan-600" },
 };
 
-/** Campana con avisos personales: qué tengo por revisar, qué me han
- *  devuelto y qué tengo asignado pero sin tocar todavía. */
+/** Campana con avisos personales. Dos clases distintas conviven aquí:
+ *
+ *  · Los que se DEDUCEN mirando la OF: qué tengo por revisar, qué me han
+ *    devuelto, qué tengo asignado sin tocar, y qué pedido mío ya está
+ *    completo. Se recalculan solos y desaparecen cuando deja de ser cierto.
+ *  · Los de MOVIMIENTO (te han pasado trabajo, ya no lo tienes tú, te toca
+ *    revisar, ya no lo revisas): un cambio de manos no deja marca en la OF,
+ *    así que se leen del registro de acciones y hay que apagarlos uno a uno
+ *    —de eso va el campo `clave`— cuando se abre el pedido. */
 export function Notificaciones({
   items,
   onNavigate,
@@ -99,7 +106,10 @@ export function Notificaciones({
                         {item.quien && (
                           <span className="block truncate text-[11px] text-text-muted">
                             {item.quien}
-                            {item.otro ? ` · antes ${item.otro}` : ""}
+                            {/* Sin repetir el nombre: lo normal es soltar tu
+                                propio trabajo, y ahí quien lo mueve y quien lo
+                                tenía son la misma persona ("Iván · antes Iván"). */}
+                            {item.otro && item.otro !== item.quien ? ` · antes ${item.otro}` : ""}
                           </span>
                         )}
                       </span>
