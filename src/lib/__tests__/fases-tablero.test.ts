@@ -3,10 +3,12 @@ import type { OF } from "../types";
 import {
   FASES,
   agruparPorFase,
+  autoresQueFaltan,
   conTope,
   faseDeOF,
   faseDePedido,
   motivoBloqueo,
+  pedidoListoParaPasar,
 } from "../fases-tablero";
 
 const of = (p: Partial<OF>): OF =>
@@ -129,5 +131,66 @@ describe("motivoBloqueo", () => {
   });
   it("un pedido sin OFs: no disponible", () => {
     expect(motivoBloqueo({ ofs: [] })).toBe("no disponible");
+  });
+});
+
+describe("pedidoListoParaPasar", () => {
+  it("un pedido repartido no se pasa hasta que TODOS acaban", () => {
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "b", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "c", estado: "en_curso", autorId: "tamara" }),
+      ],
+    };
+    // Mis dos OF están listas, pero Producción recibe el pedido entero: si
+    // esto devolviera true, pasaría a Producción la OF que Tamara tiene a
+    // medias.
+    expect(pedidoListoParaPasar(p)).toBe(false);
+  });
+  it("con todas aprobadas se puede pasar", () => {
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "b", estado: "aprobada", autorId: "tamara" }),
+      ],
+    };
+    expect(pedidoListoParaPasar(p)).toBe(true);
+  });
+  it("las anuladas no cuentan: no son trabajo de OT", () => {
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "b", estado: "anulada", autorId: "tamara" }),
+      ],
+    };
+    expect(pedidoListoParaPasar(p)).toBe(true);
+  });
+  it("un pedido sin OF activas no se puede pasar", () => {
+    expect(pedidoListoParaPasar({ ofs: [of({ estado: "anulada", autorId: "ivan" })] })).toBe(
+      false,
+    );
+  });
+});
+
+describe("autoresQueFaltan", () => {
+  it("dice quién tiene OF sin aprobar todavía, y cuántas", () => {
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "b", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "c", estado: "en_curso", autorId: "tamara" }),
+      ],
+    };
+    expect(autoresQueFaltan(p)).toEqual([{ autorId: "tamara", n: 1 }]);
+  });
+  it("con todas aprobadas no falta nadie", () => {
+    const p = {
+      ofs: [
+        of({ id: "a", estado: "aprobada", autorId: "ivan" }),
+        of({ id: "b", estado: "aprobada", autorId: "tamara" }),
+      ],
+    };
+    expect(autoresQueFaltan(p)).toEqual([]);
   });
 });

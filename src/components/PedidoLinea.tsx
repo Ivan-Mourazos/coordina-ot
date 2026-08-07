@@ -3,7 +3,13 @@
 import { useState } from "react";
 import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
-import { FASES, motivoBloqueo, type Fase } from "@/lib/fases-tablero";
+import {
+  FASES,
+  autoresQueFaltan,
+  motivoBloqueo,
+  pedidoListoParaPasar,
+  type Fase,
+} from "@/lib/fases-tablero";
 import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
 import { fmtMin } from "@/lib/estado";
 import type { AccionOF } from "@/lib/acciones";
@@ -61,6 +67,16 @@ export function PedidoLinea({
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
   const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
+
+  // `pedido` son TODAS las OF del pedido, no solo las de este facet: por eso
+  // se puede saber desde aquí si falta gente sin pedir nada más.
+  const faltan = autoresQueFaltan(pedido);
+  const faltanTexto = faltan
+    .map((f) => {
+      const nombre = operarios?.find((o) => o.id === f.autorId)?.nombre ?? "sin asignar";
+      return `${nombre} (${f.n} OF)`;
+    })
+    .join(", ");
 
   const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
@@ -173,15 +189,25 @@ export function PedidoLinea({
           </button>
         )}
 
-        {fase === "listoParaPasar" && (
-          <button
-            onClick={() => completarPedido(pedido.id)}
-            title="Pasar el pedido a Producción"
-            className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
-          >
-            Pasar
-          </button>
-        )}
+        {fase === "listoParaPasar" &&
+          (pedidoListoParaPasar(pedido) ? (
+            <button
+              onClick={() => completarPedido(pedido.id)}
+              title="Pasar el pedido a Producción"
+              className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
+            >
+              Pasar
+            </button>
+          ) : (
+            // Lo tuyo está hecho pero el pedido va entero a Producción: se
+            // dice a quién se espera, que si no el botón desaparece sin más.
+            <span
+              className="whitespace-nowrap text-[10px] text-text-muted"
+              title="El pedido se pasa a Producción cuando están aprobadas todas sus OF"
+            >
+              falta {faltanTexto}
+            </span>
+          ))}
         </span>
       )}
     </div>

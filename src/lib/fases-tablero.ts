@@ -54,6 +54,28 @@ export function faseDePedido(p: ConOFs): Fase {
   return "sinEmpezar";
 }
 
+/** ¿Se puede mandar este pedido a Producción?
+ *
+ *  Mira el pedido ENTERO, no las OF de quien pregunta. El tablero reparte cada
+ *  pedido por autor, así que quien acabe su parte vería su trozo "listo para
+ *  pasar" y, si el botón mirase solo eso, mandaría a Producción la OF que otro
+ *  tiene a medias. Producción recibe el pedido completo o no lo recibe. */
+export function pedidoListoParaPasar(p: ConOFs): boolean {
+  const activas = p.ofs.filter((o) => o.estado !== "anulada");
+  return activas.length > 0 && activas.every((o) => o.estado === "aprobada");
+}
+
+/** Quién tiene todavía trabajo en este pedido, para poder decir a quién se
+ *  espera en vez de un botón apagado sin explicación. */
+export function autoresQueFaltan(p: ConOFs): Array<{ autorId: string | null; n: number }> {
+  const cuenta = new Map<string | null, number>();
+  for (const of of p.ofs) {
+    if (of.estado === "anulada" || of.estado === "aprobada") continue;
+    cuenta.set(of.autorId, (cuenta.get(of.autorId) ?? 0) + 1);
+  }
+  return [...cuenta].map(([autorId, n]) => ({ autorId, n }));
+}
+
 export interface GrupoFase<T> extends FaseMeta {
   items: T[];
 }
