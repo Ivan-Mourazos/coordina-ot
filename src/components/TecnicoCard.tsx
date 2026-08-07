@@ -83,6 +83,7 @@ export const TecnicoCard = memo(function TecnicoCard({
 
           <svg
             viewBox="0 0 24 24"
+            aria-hidden="true"
             className={`size-3 shrink-0 text-text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
             fill="none"
             stroke="currentColor"

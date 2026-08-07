@@ -18,6 +18,7 @@ import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
+import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -72,6 +73,10 @@ export function Drawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [pedido, onClose]);
 
+  // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
+  // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
+  const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
+
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
@@ -85,7 +90,13 @@ export function Drawer({
   const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Pedido ${pedido.codigo}`}
+      className="fixed inset-0 z-50"
+    >
       <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
 
       {/* PDF del pedido en grande, ocupando todo el hueco a la izquierda */}
@@ -141,6 +152,7 @@ export function Drawer({
           </div>
           <button
             onClick={onClose}
+            data-foco-inicial
             className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             aria-label="Cerrar"
           >

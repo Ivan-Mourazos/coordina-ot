@@ -157,7 +157,7 @@ export function MiFichaje({
   return (
     <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {expandido && (
-        <div className="glass-panel-strong relative flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 pt-4 shadow-2xl">
+        <div className="panel-solido relative flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 pt-4 shadow-2xl">
           {/* Cabecera: lo primero que se mira al abrir es si algo está
               corriendo y cuánto llevo, no cómo me llamo — eso ya está en la
               barra de arriba. Antes había además dos formas de cerrar (un

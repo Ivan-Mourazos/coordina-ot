@@ -5,6 +5,7 @@ import type { HistorialPedidoDetalle } from "@/lib/historial";
 import { PRIORIDAD, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { RolChip } from "./RolChip";
+import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -93,13 +94,23 @@ export function HistorialDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [pedido, ampliado, onClose]);
 
+  // Mismo trato que el drawer del tablero: con telón delante, el foco no puede
+  // quedarse recorriendo la lista del historial que hay detrás.
+  const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
+
   if (!pedido) return null;
   const scanUrl = detalle?.scanUrl ?? `/api/pedidos/${pedido}.pdf`;
   // La ruta de PDFs solo resuelve AR.*; para otras series se avisa en vez de romper.
   const pdfSoportado = /^AR\./.test(pedido);
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Historial del pedido ${pedido}`}
+      className="fixed inset-0 z-50"
+    >
       <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
 
       {/* PDF mediano a la izquierda */}
@@ -148,7 +159,7 @@ export function HistorialDrawer({
               {detalle?.negocio && <span className="font-semibold text-text"> · {detalle.negocio}</span>}
             </p>
           </div>
-          <button onClick={onClose} aria-label="Cerrar"
+          <button onClick={onClose} aria-label="Cerrar" data-foco-inicial
             className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text">
             ✕
           </button>

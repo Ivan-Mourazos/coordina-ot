@@ -72,8 +72,9 @@ export function Board({
     },
     [],
   );
-  // dnd-kit genera IDs incrementales que no coinciden SSR↔cliente. Render del
-  // tablero solo tras montar para que la hidratación case sin warnings.
+  // El tablero depende de cosas que solo existen en el navegador (identidad
+  // guardada, filtros de localStorage): se pinta tras montar para que la
+  // hidratación case sin warnings.
   const mounted = useHydrated();
 
   // Identidad del técnico ("login sin login"): se recuerda por navegador,

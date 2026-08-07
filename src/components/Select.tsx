@@ -119,6 +119,7 @@ export function Select({
         </span>
         <svg
           viewBox="0 0 24 24"
+          aria-hidden="true"
           className={`size-3 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
@@ -154,7 +155,7 @@ export function Select({
                   {o.icon}
                   <span className="min-w-0 flex-1 truncate">{o.label}</span>
                   {isSel && (
-                    <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}

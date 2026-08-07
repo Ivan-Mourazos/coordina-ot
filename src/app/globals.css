@@ -32,7 +32,11 @@
   --border: #e2e4e9;
   --border-strong: #c8ccd4;
   --text: #17181c;
-  --text-muted: #676c76;
+  /* Los secundarios (tiempos, "3 OF", cliente) viven sobre vidrio, no sobre
+     blanco: el fondo real es el panel translúcido, más oscuro que #fff. Con
+     #676c76 quedaban en el filo del mínimo legible a 10-11 px; este tono da
+     ~5,6:1 contra el vidrio y ~6:1 contra blanco. */
+  --text-muted: #5c616b;
 
   /* Vidrio: translúcido + saturado + highlight especular en el canto */
   --glass-bg: rgba(255, 255, 255, 0.52);
@@ -123,6 +127,19 @@ body {
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 10px 34px -16px var(--glass-shadow);
+}
+
+/* Panel flotante SIN telón detrás ("Mi fichaje"): descansa directamente sobre
+   el tablero, así que el vidrio translúcido dejaba leer las miniaturas de los
+   partes a través de los tiempos. Los drawers y el diálogo sí pueden ser
+   translúcidos porque tienen un fondo negro difuminado debajo; este no. Mismo
+   canto y misma sombra, fondo opaco. */
+.panel-solido {
+  background: var(--surface);
+  border: 1px solid var(--border);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
     0 10px 34px -16px var(--glass-shadow);

@@ -148,21 +148,38 @@ export function ListaView({
               <Fragment key={p.id}>
                 <tr
                   onClick={() => toggle(p.id)}
-                  aria-expanded={abierto}
                   className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface-2 ${
                     pendienteProc ? "opacity-60" : ""
                   } ${abierto ? "bg-surface-2" : ""}`}
                 >
                   <Td>
-                    <svg
-                      viewBox="0 0 24 24"
-                      className={`size-3.5 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
+                    {/* El clic en la fila entera despliega, pero una <tr> no se
+                        puede enfocar sin romper la semántica de la tabla: el
+                        botón de la flecha es la misma acción, alcanzable con
+                        el tabulador. */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        // La fila también escucha el clic: sin esto, el toggle
+                        // se ejecutaría dos veces y se quedaría como estaba.
+                        e.stopPropagation();
+                        toggle(p.id);
+                      }}
+                      aria-expanded={abierto}
+                      aria-label={`${abierto ? "Plegar" : "Desplegar"} ${p.codigo}`}
+                      className="grid place-items-center rounded p-0.5 hover:bg-surface-2"
                     >
-                      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        className={`size-3.5 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
