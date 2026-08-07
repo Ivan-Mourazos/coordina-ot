@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardarMutacion } from "@/lib/server/estado-db";
+import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
 import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
 
@@ -14,6 +15,9 @@ interface Body {
   cambiosOF?: CambioOF[];
   completarPedidoId?: string;
   ofIdsPedido?: string[];
+  /** OFs que dejan de ser de quien las tenía: hay que cerrar el fichaje que
+   *  alguien tuviera abierto sobre ellas. */
+  cortarFichajeDe?: string[];
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -57,6 +61,17 @@ export async function POST(req: Request) {
     cambiosOF: cambios,
     completarPedidoId,
   });
+
+  // Soltar una OF cierra el fichaje de quien la tenía. NO lo puede hacer su
+  // navegador: puede estar en otro equipo o con la app cerrada, así que lo
+  // hace el servidor con su reloj, que es la hora oficial de todo el fichaje.
+  const cortar = Array.isArray(body.cortarFichajeDe)
+    ? body.cortarFichajeDe.filter((x): x is string => typeof x === "string" && x.length > 0)
+    : [];
+  if (cortar.length > 0) {
+    const ahora = new Date().toISOString();
+    for (const ofId of cortar) cortarFichajeDeOF(ofId, ahora);
+  }
 
   // Pasar el pedido a Producción es lo que da las fases por terminadas en
   // OLANET (IdEstadoOF = 3): el fichaje por sí solo nunca finaliza nada. Va
