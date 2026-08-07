@@ -5,6 +5,7 @@ import type { EstadoOF, Operario, Pedido } from "@/lib/types";
 import { ESTADO } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, type AccionOF } from "@/lib/acciones";
+import { puedeCambiarRevisor } from "@/lib/traspaso";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -53,6 +54,7 @@ export function RevisionView({
   miId,
   onOpen,
   onSetRevisor,
+  onCambiarRevisor,
   onAccion,
 }: {
   pedidos: Pedido[];
@@ -60,6 +62,7 @@ export function RevisionView({
   miId: string | null;
   onOpen: (p: Pedido) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
   // Inicializador perezoso (no setState síncrono en efecto): mismo patrón
@@ -112,7 +115,7 @@ export function RevisionView({
             <span className="text-sm font-semibold text-text">Para revisar</span>
             <span className="flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
               <span className="size-2 rounded-full bg-amber-500" />
-              {sinRevisor} sin revisor asignado
+              {sinRevisor} sin coger
             </span>
             <span className="mx-1 text-text-muted">·</span>
             <span className="text-xs text-text-muted">En revisión por:</span>
@@ -158,6 +161,7 @@ export function RevisionView({
                 miId={miId}
                 onOpen={onOpen}
                 onSetRevisor={onSetRevisor}
+                onCambiarRevisor={onCambiarRevisor}
                 onAccion={onAccion}
               />
             ))}
@@ -180,6 +184,7 @@ export function RevisionView({
               miId={miId}
               onOpen={onOpen}
               onSetRevisor={onSetRevisor}
+              onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
             />
           ))}
@@ -204,6 +209,7 @@ function ColumnaRevision({
   miId,
   onOpen,
   onSetRevisor,
+  onCambiarRevisor,
   onAccion,
 }: {
   titulo: string;
@@ -215,6 +221,7 @@ function ColumnaRevision({
   miId: string | null;
   onOpen: (p: Pedido) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
   const nOF = facets.reduce((n, f) => n + f.ofs.length, 0);
@@ -245,6 +252,7 @@ function ColumnaRevision({
               miId={miId}
               onOpen={() => onOpen(f.pedido)}
               onSetRevisor={onSetRevisor}
+              onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
             />
           ))
@@ -305,6 +313,7 @@ function ReviewCard({
   miId,
   onOpen,
   onSetRevisor,
+  onCambiarRevisor,
   onAccion,
 }: {
   facet: RFacet;
@@ -313,6 +322,7 @@ function ReviewCard({
   miId: string | null;
   onOpen: () => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
   const { pedido, ofs } = facet;
@@ -320,9 +330,6 @@ function ReviewCard({
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
   const ofIds = ofs.map((o) => o.id);
 
-  function setRevisorTodas(revisorId: string | null) {
-    ofIds.forEach((id) => onSetRevisor(id, revisorId));
-  }
   function accionTodas(accion: AccionOF, obs?: string) {
     ofIds.forEach((id) => onAccion(id, accion, obs));
   }
@@ -382,36 +389,71 @@ function ReviewCard({
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {estado === "por_revisar" && (
           <>
-            <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
-              Revisor:
-              <Select
-                value={revisorComun}
-                onChange={(v) => setRevisorTodas(v)}
-                placeholder="Asignar…"
-                alignRight
-                className="ml-auto"
-                options={operarios
-                  .filter((o) => !autores.has(o.id))
-                  .map((o) => ({
-                    value: o.id,
-                    label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-                    icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-                  }))}
-              />
-            </div>
-            {todasConRevisor && (
-              <button
-                onClick={() => accionTodas("empezar_revision")}
-                title="Pasa a En revisión y arranca el fichaje del revisor"
-                className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
-              >
-                Empezar revisión
-              </button>
+            {todasConRevisor ? (
+              <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+                Revisor:
+                <Select
+                  value={revisorComun}
+                  onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
+                  placeholder={null}
+                  alignRight
+                  className="ml-auto"
+                  options={operarios
+                    .filter((o) => !autores.has(o.id))
+                    .map((o) => ({
+                      value: o.id,
+                      label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+                      icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+                    }))}
+                />
+              </div>
+            ) : (
+              // Sin revisor no se ofrece elegirlo: el revisor se nombra al
+              // mandar a revisar. Una OF que llega así (de RPS) es una cola de
+              // la que se coge trabajo — quien pulse se pone a sí mismo.
+              <span className="text-[11px] text-text-muted">Sin coger</span>
             )}
+            <button
+              onClick={() => {
+                if (!todasConRevisor && miId) ofIds.forEach((id) => onSetRevisor(id, miId));
+                accionTodas("empezar_revision");
+              }}
+              title={
+                todasConRevisor
+                  ? "Pasa a En revisión y arranca el fichaje del revisor"
+                  : "Te pone como revisor y arranca tu fichaje"
+              }
+              className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+            >
+              {todasConRevisor ? "Empezar revisión" : "Coger y empezar"}
+            </button>
           </>
         )}
         {estado === "en_revision" && (
           <>
+            {/* Cambio de última hora con la revisión en marcha: al elegir a
+                otro, `cambiarRevisor` devuelve la OF a "por revisar" y el
+                servidor cierra el fichaje del anterior — sus minutos se
+                quedan a su nombre, pero dejan de correr. */}
+            {ofs.every(puedeCambiarRevisor) && (
+              <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+                Revisor:
+                <Select
+                  value={revisorComun}
+                  onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
+                  placeholder={null}
+                  alignRight
+                  className="ml-auto"
+                  options={operarios
+                    .filter((o) => !autores.has(o.id))
+                    .map((o) => ({
+                      value: o.id,
+                      label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+                      icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+                    }))}
+                />
+              </div>
+            )}
             <button
               onClick={() => pedirConfirmacion(defAprobar)}
               className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"

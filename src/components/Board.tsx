@@ -40,7 +40,7 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { FASES } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
-import { traspasarAutor } from "@/lib/traspaso";
+import { cambiarRevisor, traspasarAutor } from "@/lib/traspaso";
 
 const IDENTITY_KEY = "coordina-operario-id";
 
@@ -470,6 +470,23 @@ export function Board({
         motivo: "traspaso",
         cambiosOF: [snapshotDe(nueva)],
         cortarFichajeDe: [ofId],
+      });
+    },
+    [mut, persistir],
+  );
+  // Cambiar quién revisa. Si la revisión ya había empezado, la OF vuelve a
+  // "por revisar" y hay que cerrar el fichaje de revisión del anterior: su
+  // tiempo se queda guardado a su nombre, pero deja de correr.
+  const cambiarRevisorOF = useCallback(
+    (ofId: string, revisorId: string) => {
+      const antes = pedidosRef.current.flatMap((p) => p.ofs).find((o) => o.id === ofId);
+      if (!antes || antes.revisorId === revisorId) return;
+      const nueva = cambiarRevisor(antes, revisorId);
+      mut(new Set([ofId]), () => nueva);
+      persistir({
+        motivo: "revisor",
+        cambiosOF: [snapshotDe(nueva)],
+        cortarFichajeDe: antes.estado === "en_revision" ? [ofId] : undefined,
       });
     },
     [mut, persistir],
@@ -954,6 +971,7 @@ export function Board({
                 miId={miId}
                 onOpen={openPedidoCb}
                 onSetRevisor={setRevisor}
+                onCambiarRevisor={cambiarRevisorOF}
                 onAccion={accionOF}
               />
             </div>
