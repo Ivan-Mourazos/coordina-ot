@@ -13,6 +13,7 @@ interface Body {
   operarioId?: string | null;
   motivo?: string;
   cambiosOF?: CambioOF[];
+  previosOF?: CambioOF[];
   completarPedidoId?: string;
   ofIdsPedido?: string[];
   /** OFs que dejan de ser de quien las tenía: hay que cerrar el fichaje que
@@ -51,6 +52,9 @@ export async function POST(req: Request) {
   const cambios = body.cambiosOF ?? [];
   if (!body.motivo || typeof body.motivo !== "string")
     return NextResponse.json({ error: "Falta motivo" }, { status: 400 });
+  const previos = body.previosOF ?? [];
+  if (!previos.every(cambioValido))
+    return NextResponse.json({ error: "previosOF inválidos" }, { status: 400 });
   if (!cambios.every(cambioValido))
     return NextResponse.json({ error: "cambiosOF inválidos" }, { status: 400 });
   if (cambios.length === 0 && !body.completarPedidoId)
@@ -64,6 +68,7 @@ export async function POST(req: Request) {
     operarioId,
     motivo: body.motivo,
     cambiosOF: cambios,
+    previosOF: previos,
     completarPedidoId,
   });
 

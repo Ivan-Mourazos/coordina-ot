@@ -41,6 +41,13 @@ export interface AvisoMovimiento {
  *  hecho o se ha vuelto a mover. */
 export const VENTANA_AVISOS_DIAS = 30;
 
+/** Motivo con el que se registra corregir un revisor YA nombrado.
+ *
+ *  Se distingue del `"revisor"` con el que se guarda nombrarlo por primera
+ *  vez —lo que pasa al mandar una OF a revisión— porque de aquello ya avisa
+ *  la campana por su cuenta, mirando el estado de la OF. */
+export const MOTIVO_CAMBIO_REVISOR = "revisor-cambio";
+
 export function avisosPara(
   acciones: readonly AccionLog[],
   operarioId: string,
@@ -72,9 +79,14 @@ export function avisosPara(
           push("cedida", nuevo.autorId);
       }
 
-      // Revisor. Aquí sí cuenta pasar de "sin revisor" a tenerlo: nombrar
-      // revisor es siempre encargarle algo a alguien.
-      if (previo.revisorId !== nuevo.revisorId) {
+      // Revisor: SOLO cuando se corrige uno ya elegido.
+      //
+      // Nombrar revisor por primera vez ocurre al mandar la OF a revisión, y
+      // de eso ya avisa la campana por su cuenta ("Me toca revisar", derivado
+      // del estado de la OF). Si aquí no se filtrara por motivo, el flujo más
+      // frecuente de la app generaría los dos avisos a la vez para la misma
+      // OF: el derivado y este.
+      if (a.motivo === MOTIVO_CAMBIO_REVISOR && previo.revisorId !== nuevo.revisorId) {
         if (nuevo.revisorId === operarioId && a.operarioId !== operarioId)
           push("revisarNueva", previo.revisorId);
         if (previo.revisorId === operarioId && a.operarioId !== operarioId)

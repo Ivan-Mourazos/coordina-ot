@@ -208,6 +208,9 @@ export interface Mutacion {
   operarioId: string | null;
   motivo: string;
   cambiosOF?: CambioOF[];
+  /** Cómo estaban esas OF antes, según el cliente. Solo se usa para las que
+   *  todavía no tienen fila en `of_overlay`: ver `guardarMutacion`. */
+  previosOF?: CambioOF[];
   completarPedidoId?: string;
 }
 
@@ -242,10 +245,19 @@ export function guardarMutacion(m: Mutacion): void {
     "SELECT of_id AS ofId, autor_id AS autorId, revisor_id AS revisorId, estado, observacion FROM of_overlay WHERE of_id = ?",
   );
 
+  // Respaldo del cliente para las OF que aún no tienen fila en el overlay.
+  // No es un capricho: RPS trae OF que YA tienen autor (quien las imputó allí)
+  // y que CoordinaOT no ha tocado nunca. Sin esto, el primer traspaso de una
+  // de ellas no dejaría previo, y por tanto no avisaría a nadie — justo lo
+  // contrario del principio de que ningún cambio es silencioso.
+  const previoCliente = new Map((m.previosOF ?? []).map((p) => [p.ofId, p]));
+
   db.transaction(() => {
     // Se lee ANTES de los upserts: después ya solo quedaría el estado nuevo.
     const previos = (m.cambiosOF ?? [])
-      .map((c) => leerPrevio.get(c.ofId) as CambioOF | undefined)
+      .map(
+        (c) => (leerPrevio.get(c.ofId) as CambioOF | undefined) ?? previoCliente.get(c.ofId),
+      )
       .filter((x): x is CambioOF => x !== undefined);
     for (const c of m.cambiosOF ?? []) upsertOF.run({ ...c, ahora });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);

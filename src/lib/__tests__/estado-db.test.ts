@@ -124,3 +124,59 @@ test("lo visto se guarda por operario, no globalmente", () => {
   // llega a los dos y cada uno lo ve cuando abre el pedido.
   expect(db.leerAvisosVistos("jaime").size).toBe(0);
 });
+
+test("con el previo del cliente, traspasar una OF que RPS trae sin overlay sí deja rastro", () => {
+  // RPS entrega OF que YA tienen autor (quien las imputó allí) y que
+  // CoordinaOT no ha tocado nunca: no tienen fila en of_overlay. Sin este
+  // respaldo, su primer traspaso no dejaría previo y no avisaría a nadie —
+  // justo lo contrario del principio de que ningún cambio es silencioso.
+  db.guardarMutacion({
+    operarioId: "angel",
+    motivo: "traspaso",
+    cambiosOF: [
+      {
+        ofId: "of-rps-1",
+        autorId: "tamara",
+        revisorId: null,
+        estado: "en_curso",
+        observacion: null,
+      },
+    ],
+    previosOF: [
+      {
+        ofId: "of-rps-1",
+        autorId: "ivan",
+        revisorId: null,
+        estado: "en_curso",
+        observacion: null,
+      },
+    ],
+  });
+
+  const traspaso = db
+    .leerAccionesDesde("1970-01-01T00:00:00.000Z")
+    .find((a) => a.cambiosOF.some((c) => c.ofId === "of-rps-1"))!;
+  expect(traspaso.previos).toEqual([expect.objectContaining({ autorId: "ivan" })]);
+});
+
+test("el overlay manda sobre el previo que dice el cliente", () => {
+  const base = {
+    ofId: "of-mixta",
+    revisorId: null,
+    estado: "en_curso" as const,
+    observacion: null,
+  };
+  db.guardarMutacion({ operarioId: "ivan", motivo: "asignar", cambiosOF: [{ ...base, autorId: "ivan" }] });
+  db.guardarMutacion({
+    operarioId: "angel",
+    motivo: "traspaso",
+    cambiosOF: [{ ...base, autorId: "tamara" }],
+    // El cliente puede ir desfasado; la BD no.
+    previosOF: [{ ...base, autorId: "jaime" }],
+  });
+
+  const traspaso = db
+    .leerAccionesDesde("1970-01-01T00:00:00.000Z")
+    .find((a) => a.motivo === "traspaso" && a.cambiosOF.some((c) => c.ofId === "of-mixta"))!;
+  expect(traspaso.previos).toEqual([expect.objectContaining({ autorId: "ivan" })]);
+});

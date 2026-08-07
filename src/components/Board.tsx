@@ -41,7 +41,7 @@ import { FASES, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
-import type { AvisoMovimiento } from "@/lib/avisos";
+import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
 
 const IDENTITY_KEY = "coordina-operario-id";
 
@@ -128,6 +128,12 @@ export function Board({
   // no guarda de quién venía), así que se piden aparte. Mismo ritmo que el
   // polling del tablero, que es donde se notaría el cambio.
   const [avisosMov, setAvisosMov] = useState<AvisoMovimiento[]>([]);
+  // Espejo para leerlos al abrir un pedido sin que los callbacks de apertura
+  // se recreen en cada refresco de avisos.
+  const avisosMovRef = useRef<AvisoMovimiento[]>([]);
+  useEffect(() => {
+    avisosMovRef.current = avisosMov;
+  }, [avisosMov]);
   useEffect(() => {
     if (!miId) return;
     let vivo = true;
@@ -402,28 +408,43 @@ export function Board({
     document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
   }, [misPorRevisar, misDevueltas]);
 
-  const irANotificacion = useCallback(
-    (destino: Vista, pedidoId: string) => {
-      // Abrir el pedido ES haber visto el aviso: se apaga solo, sin un botón
-      // más que pulsar.
-      const claves = notifItems
-        .filter((i) => i.pedido.id === pedidoId && i.clave !== undefined)
-        .map((i) => i.clave as string);
-      if (claves.length > 0 && miId) {
-        setAvisosMov((prev) => prev.filter((a) => !claves.includes(a.clave)));
-        fetch("/api/avisos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ operarioId: miId, claves }),
-        }).catch(() => {});
-      }
-      setVista(destino);
+  /** Abrir el pedido ES haber visto sus avisos: se apagan solos, sin un botón
+   *  más que pulsar. Da igual por dónde se abra —la campana, el tablero, la
+   *  Lista—: si solo lo hiciera la campana, quien ve la OF aparecer en su zona
+   *  y la abre desde ahí arrastraría el aviso hasta que caducase. */
+  const verAvisosDe = useCallback(
+    (pedidoId: string) => {
+      if (!miId) return;
+      const suyas = new Set(
+        pedidosRef.current.find((p) => p.id === pedidoId)?.ofs.map((o) => o.id) ?? [],
+      );
+      const claves = avisosMovRef.current.filter((a) => suyas.has(a.ofId)).map((a) => a.clave);
+      if (claves.length === 0) return;
+      setAvisosMov((prev) => prev.filter((a) => !claves.includes(a.clave)));
+      fetch("/api/avisos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operarioId: miId, claves }),
+      }).catch(() => {});
+    },
+    [miId],
+  );
+  const abrirPedido = useCallback(
+    (pedidoId: string) => {
+      verAvisosDe(pedidoId);
       setOpenId(pedidoId);
     },
-    [notifItems, miId],
+    [verAvisosDe],
   );
-  const openFacet = useCallback((f: Facet) => setOpenId(f.pedido.id), []);
-  const openPedidoCb = useCallback((p: Pedido) => setOpenId(p.id), []);
+  const irANotificacion = useCallback(
+    (destino: Vista, pedidoId: string) => {
+      setVista(destino);
+      abrirPedido(pedidoId);
+    },
+    [abrirPedido],
+  );
+  const openFacet = useCallback((f: Facet) => abrirPedido(f.pedido.id), [abrirPedido]);
+  const openPedidoCb = useCallback((p: Pedido) => abrirPedido(p.id), [abrirPedido]);
   const closeDrawer = useCallback(() => setOpenId(null), []);
 
   // ── mutaciones: estado local + persistencia en el servidor (SQLite) ──
@@ -433,6 +454,13 @@ export function Board({
   const persistir = useCallback(
     (payload: {
       motivo: string;
+      previosOF?: Array<{
+        ofId: string;
+        autorId: string | null;
+        revisorId: string | null;
+        estado: EstadoOF;
+        observacion: string | null;
+      }>;
       cambiosOF?: Array<{
         ofId: string;
         autorId: string | null;
@@ -513,7 +541,9 @@ export function Board({
       if (autorId === null) {
         // Volver a la bandeja sí resetea: deja de ser trabajo de nadie.
         const vueltas: ReturnType<typeof snapshotDe>[] = [];
+        const previasV: ReturnType<typeof snapshotDe>[] = [];
         mut(ofIds, (of) => {
+          previasV.push(snapshotDe(of));
           const nueva: OF = {
             ...of,
             autorId: null,
@@ -525,7 +555,12 @@ export function Board({
           return nueva;
         });
         soltarDeMiFichaje(ids);
-        persistir({ motivo: "asignar", cambiosOF: vueltas, cortarFichajeDe: ids });
+        persistir({
+          motivo: "asignar",
+          cambiosOF: vueltas,
+          previosOF: previasV,
+          cortarFichajeDe: ids,
+        });
         return;
       }
       // Cambiar de autor por esta vía (el selector de pedido entero, o soltar
@@ -535,15 +570,22 @@ export function Board({
       // que alguien tuviera abierto. Sin esto se podía acabar siendo autor y
       // revisor de la misma OF, que es la regla dura del dominio.
       const cambios: ReturnType<typeof snapshotDe>[] = [];
+      const previas: ReturnType<typeof snapshotDe>[] = [];
       mut(ofIds, (of) => {
         if (of.autorId === autorId) return of;
+        previas.push(snapshotDe(of));
         const nueva = traspasarAutor(of, autorId);
         cambios.push(snapshotDe(nueva));
         return nueva;
       });
       if (cambios.length === 0) return;
       soltarDeMiFichaje(ids);
-      persistir({ motivo: "asignar", cambiosOF: cambios, cortarFichajeDe: ids });
+      persistir({
+        motivo: "asignar",
+        cambiosOF: cambios,
+        previosOF: previas,
+        cortarFichajeDe: ids,
+      });
     },
     [mut, persistir, soltarDeMiFichaje],
   );
@@ -580,6 +622,7 @@ export function Board({
       persistir({
         motivo: "traspaso",
         cambiosOF: [snapshotDe(nueva)],
+        previosOF: [snapshotDe(antes)],
         cortarFichajeDe: [ofId],
       });
     },
@@ -609,8 +652,9 @@ export function Board({
       mut(new Set([ofId]), () => nueva);
       if (antes.estado === "en_revision") soltarDeMiFichaje([ofId]);
       persistir({
-        motivo: "revisor",
+        motivo: MOTIVO_CAMBIO_REVISOR,
         cambiosOF: [snapshotDe(nueva)],
+        previosOF: [snapshotDe(antes)],
         cortarFichajeDe: antes.estado === "en_revision" ? [ofId] : undefined,
       });
     },

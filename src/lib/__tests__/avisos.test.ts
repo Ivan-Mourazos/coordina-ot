@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccionLog } from "../server/estado-db";
-import { avisosPara } from "../avisos";
+import { avisosPara, MOTIVO_CAMBIO_REVISOR } from "../avisos";
 
 const accion = (parcial: Partial<AccionLog>): AccionLog => ({
   id: 1,
@@ -94,7 +94,7 @@ describe("avisosPara", () => {
   it("avisa del cambio de revisor en las dos direcciones", () => {
     const cambio = accion({
       id: 10,
-      motivo: "revisor",
+      motivo: MOTIVO_CAMBIO_REVISOR,
       operarioId: "ivan",
       previos: [of("of-3", "ivan", "tamara")],
       cambiosOF: [of("of-3", "ivan", "jaime")],
@@ -172,5 +172,47 @@ describe("avisosPara", () => {
       cambiosOF: [{ ...of("of-4", "ivan", null), estado: "por_revisar" }],
     });
     expect(avisosPara([soloEstado], "ivan", new Set())).toEqual([]);
+  });
+});
+
+describe("nombrar revisor por primera vez", () => {
+  // Pasa al mandar una OF a revisión, que es el flujo más frecuente de la app.
+  // De eso ya avisa la campana por su cuenta ("Me toca revisar", derivado del
+  // estado de la OF): si además saliera de aquí, el revisor vería el mismo
+  // hecho contado dos veces.
+  const nombrar = {
+    id: 30,
+    ts: "2026-08-05T09:00:00.000Z",
+    operarioId: "ivan",
+    motivo: "revisor",
+    previos: [
+      {
+        ofId: "of-30",
+        autorId: "ivan",
+        revisorId: null,
+        estado: "en_curso" as const,
+        observacion: null,
+      },
+    ],
+    cambiosOF: [
+      {
+        ofId: "of-30",
+        autorId: "ivan",
+        revisorId: "tamara",
+        estado: "por_revisar" as const,
+        observacion: null,
+      },
+    ],
+  };
+
+  it("no genera aviso de movimiento", () => {
+    expect(avisosPara([nombrar], "tamara", new Set())).toEqual([]);
+  });
+
+  it("pero corregir un revisor ya nombrado sí lo genera", () => {
+    const corregir = { ...nombrar, id: 31, motivo: MOTIVO_CAMBIO_REVISOR };
+    expect(avisosPara([corregir], "tamara", new Set())[0]).toMatchObject({
+      tipo: "revisarNueva",
+    });
   });
 });
