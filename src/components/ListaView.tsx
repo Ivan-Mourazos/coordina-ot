@@ -163,6 +163,14 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   // planteo dos semanas pasado de fecha.
   const diasTarde = diasEntre(pedido.fechaPlanificacion, hoy);
   const vencido = diasParaEntrega < 0;
+  // SOLO se pinta el tramo en el que está el pedido hoy; el resto queda en
+  // gris. Pintarlos todos teñía de rojo el último trozo de cada fila, y ese
+  // tramo es normal: todos los pedidos pasan por él llegando a tiempo. Así el
+  // color aparece únicamente cuando dice algo de ESTE pedido, ahora.
+  const actual =
+    tramos.find((t) => hoyPct >= t.desde && hoyPct < t.hasta) ??
+    // Hoy pegado al extremo derecho (o pasado): el último tramo es el suyo.
+    (hoyPct >= 100 ? tramos[tramos.length - 1] : undefined);
 
   return (
     <div className="flex w-[260px] items-end gap-1.5 pb-0.5 pt-1">
@@ -188,34 +196,17 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
 
             Lo ya recorrido va a todo color y lo que queda apagado, así se ven
             a la vez el plan entero y por dónde se va. */}
-        {tramos.map((t) => (
+        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
+        {actual && (
           <div
-            key={t.color}
-            className="absolute top-[3px] h-0.5"
+            className="absolute top-[3px] h-0.5 rounded-full"
             style={{
-              left: `${t.desde}%`,
-              width: `${t.hasta - t.desde}%`,
-              background: t.color,
-              // Opaco solo si ya está andado ENTERO; el que hoy parte por la
-              // mitad se pinta apagado y encima va su trozo andado.
-              opacity: t.hasta <= hoyPct ? 1 : 0.28,
+              left: `${actual.desde}%`,
+              width: `${actual.hasta - actual.desde}%`,
+              background: vencido ? TRAMO.fuera : actual.color,
             }}
           />
-        ))}
-        {/* El tramo que hoy parte por la mitad: la parte ya andada, opaca. */}
-        {tramos
-          .filter((t) => t.desde < hoyPct && t.hasta > hoyPct)
-          .map((t) => (
-            <div
-              key={`${t.color}-andado`}
-              className="absolute top-[3px] h-0.5"
-              style={{
-                left: `${t.desde}%`,
-                width: `${hoyPct - t.desde}%`,
-                background: t.color,
-              }}
-            />
-          ))}
+        )}
         {hitos.map((h) => (
           <span
             key={h.clave}
