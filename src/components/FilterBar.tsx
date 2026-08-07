@@ -16,19 +16,18 @@ export interface Filtros {
   estado: EstadoOF | "todos";
   prioridad: Prioridad | "todas";
   soloAtrasados: boolean;
-  /** Mostrar también las OF que entran por una tarea de taller y que nadie ha
-   *  rescatado. Fuera de la Lista no se ofrece: el tablero nunca las enseña. */
-  verAjenasOT: boolean;
-  /** Mostrar también las OF que Producción tiene DETENIDAS. Ocultas por
-   *  defecto: no se pueden fichar y desatascarlas no es cosa de OT, así que en
-   *  la lista solo son filas que no se pueden trabajar. Se piden cuando hace
-   *  falta saber qué hay parado. */
-  verDetenidas: boolean;
-  /** Mostrar también las OF de mantenimiento: las que no cuelgan de ningún
-   *  pedido de venta (`Pedido.interno`). No son trabajo de cliente y no
-   *  llevan fechas de entrega, así que en la lista de pedidos solo estorban.
-   *  Ocultas por defecto. */
-  verMantenimiento: boolean;
+  // Los tres siguientes son filtros EXCLUYENTES, no aditivos: apagados, su
+  // categoría no se ve; encendidos, se ve SOLO esa categoría. Es lo que se
+  // espera de un botón que se llama "Pedidos detenidos" — enseñar los
+  // detenidos, no los de siempre más los detenidos.
+  /** Solo las OF que entran por una tarea de taller (capotas, faldones). */
+  soloTaller: boolean;
+  /** Solo las OF que Producción tiene detenidas: no se pueden fichar y
+   *  desatascarlas no es cosa de OT. */
+  soloDetenidos: boolean;
+  /** Solo el trabajo interno: sin pedido de venta, o a nombre de la propia
+   *  empresa (ver `esTrabajoInterno`). */
+  soloInternos: boolean;
   situacion: SituacionFiltro;
   orden: Orden;
 }
@@ -41,9 +40,9 @@ export const FILTROS_VACIOS: Omit<Filtros, "situacion" | "orden"> = {
   estado: "todos",
   prioridad: "todas",
   soloAtrasados: false,
-  verAjenasOT: false,
-  verDetenidas: false,
-  verMantenimiento: false,
+  soloTaller: false,
+  soloDetenidos: false,
+  soloInternos: false,
 };
 
 /** Selector de MODO (situación, orden): siempre tiene valor, así que el nombre
@@ -71,10 +70,10 @@ function filtrosActivos(f: Filtros): { clave: keyof Filtros; texto: string }[] {
   if (f.prioridad !== "todas")
     chips.push({ clave: "prioridad", texto: PRIORIDAD[f.prioridad].label });
   if (f.soloAtrasados) chips.push({ clave: "soloAtrasados", texto: "Solo atrasados" });
-  if (f.verAjenasOT) chips.push({ clave: "verAjenasOT", texto: "Ver taller" });
-  if (f.verDetenidas) chips.push({ clave: "verDetenidas", texto: "Ver detenidos" });
-  if (f.verMantenimiento)
-    chips.push({ clave: "verMantenimiento", texto: "Ver mantenimiento" });
+  if (f.soloTaller) chips.push({ clave: "soloTaller", texto: "Para taller" });
+  if (f.soloDetenidos) chips.push({ clave: "soloDetenidos", texto: "Pedidos detenidos" });
+  if (f.soloInternos)
+    chips.push({ clave: "soloInternos", texto: "Pedidos internos" });
   return chips;
 }
 
@@ -85,9 +84,9 @@ const VACIO_POR_CLAVE: Partial<Filtros> = {
   estado: "todos",
   prioridad: "todas",
   soloAtrasados: false,
-  verAjenasOT: false,
-  verDetenidas: false,
-  verMantenimiento: false,
+  soloTaller: false,
+  soloDetenidos: false,
+  soloInternos: false,
 };
 
 export function FilterBar({
@@ -228,48 +227,48 @@ export function FilterBar({
         {showAjenasOT && (
           <button
             type="button"
-            onClick={() => setFiltros({ verAjenasOT: !filtros.verAjenasOT })}
-            aria-pressed={filtros.verAjenasOT}
-            title="Las OF que entran por una tarea de taller (capotas, faldones): no son trabajo de OT, pero se pueden buscar aquí"
+            onClick={() => setFiltros({ soloTaller: !filtros.soloTaller })}
+            aria-pressed={filtros.soloTaller}
+            title="Enseña SOLO las OF que entran por una tarea de taller (capotas, faldones). No son trabajo de OT; apagado, no se ven."
             className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-              filtros.verAjenasOT
+              filtros.soloTaller
                 ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >
-            Ver taller
+            Para taller
           </button>
         )}
 
         {showAjenasOT && (
           <button
             type="button"
-            onClick={() => setFiltros({ verDetenidas: !filtros.verDetenidas })}
-            aria-pressed={filtros.verDetenidas}
-            title="Las OF que Producción tiene detenidas: no se pueden fichar y sacarlas de ahí no es cosa de OT. Ocultas por defecto."
+            onClick={() => setFiltros({ soloDetenidos: !filtros.soloDetenidos })}
+            aria-pressed={filtros.soloDetenidos}
+            title="Enseña SOLO las OF que Producción tiene detenidas. No se pueden fichar y desatascarlas no es cosa de OT; apagado, no se ven."
             className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-              filtros.verDetenidas
+              filtros.soloDetenidos
                 ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >
-            Ver detenidos
+            Pedidos detenidos
           </button>
         )}
 
         {showAjenasOT && (
           <button
             type="button"
-            onClick={() => setFiltros({ verMantenimiento: !filtros.verMantenimiento })}
-            aria-pressed={filtros.verMantenimiento}
-            title="Las OF de mantenimiento: no cuelgan de ningún pedido de venta ni llevan fecha de entrega. Ocultas por defecto."
+            onClick={() => setFiltros({ soloInternos: !filtros.soloInternos })}
+            aria-pressed={filtros.soloInternos}
+            title="Enseña SOLO el trabajo interno: sin pedido de venta o a nombre de la propia empresa. Apagado, no se ve."
             className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-              filtros.verMantenimiento
+              filtros.soloInternos
                 ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >
-            Ver mantenimiento
+            Pedidos internos
           </button>
         )}
 

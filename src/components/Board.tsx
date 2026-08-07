@@ -196,9 +196,9 @@ export function Board({
     estado: "todos",
     prioridad: "todas",
     soloAtrasados: false,
-    verAjenasOT: false,
-    verDetenidas: false,
-    verMantenimiento: false,
+    soloTaller: false,
+    soloDetenidos: false,
+    soloInternos: false,
     situacion: "procesado",
     orden: "planificacion",
   });
@@ -275,38 +275,35 @@ export function Board({
       filtros.situacion === "todos"
         ? pedidosFiltrados
         : pedidosFiltrados.filter((p) => p.situacion === filtros.situacion);
-    // Las OF de taller solo salen si se piden. Se filtran las OF, no los
-    // pedidos: uno con una OF nuestra y otra de taller sigue apareciendo, con
-    // lo que toca. Aquí SÍ se pueden buscar, que era la gracia de no tirarlas.
-    const conTaller = filtros.verAjenasOT
-      ? base
-      : base
-          .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !ofOcultaDeOT(o)) }))
-          .filter((p) => p.ofs.length > 0);
-    // Las detenidas por Producción se ocultan por defecto: no se pueden fichar
-    // y desatascarlas no es cosa de OT, así que en la lista solo son filas que
-    // no se pueden trabajar (hoy, 33 OF, algunas de hace más de un año). Se
-    // piden con el filtro cuando hace falta saber qué hay parado. Se filtran
-    // las OF y no los pedidos, igual que las de taller: un pedido con una OF
-    // detenida y otra viva sigue saliendo, con lo que se puede trabajar.
-    const sinDetenidas = filtros.verDetenidas
-      ? conTaller
-      : conTaller
-          .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !o.detenida) }))
-          .filter((p) => p.ofs.length > 0);
-    // Mantenimiento: OF sin pedido de venta. Aquí se quita el PEDIDO entero y
-    // no sus OF, al revés que arriba — un pedido interno lo es por completo,
-    // no tiene una parte de cliente que salvar.
-    const visibles = filtros.verMantenimiento
-      ? sinDetenidas
-      : sinDetenidas.filter((p) => !p.interno);
+    // Taller, detenidos e internos son categorías que por defecto NO se ven, y
+    // su botón las enseña EN EXCLUSIVA en vez de sumarlas a la lista: si pulso
+    // "Pedidos detenidos" quiero ver los detenidos, no los de siempre más los
+    // detenidos, que era lo que hacía antes y obligaba a buscarlos entre el
+    // resto. Encender dos a la vez cruza las dos condiciones (detenidos Y de
+    // taller), que es lo que dicen los botones leídos juntos.
+    //
+    // Taller y detenidos filtran OF, no pedidos: un pedido con una OF de cada
+    // clase aparece en los dos filtros, con la parte que toque. El interno, en
+    // cambio, lo es por completo, así que ahí se quita el pedido entero.
+    const filtrarOFs = (ps: Pedido[], pasa: (o: OF) => boolean) =>
+      ps.map((p) => ({ ...p, ofs: p.ofs.filter(pasa) })).filter((p) => p.ofs.length > 0);
+
+    const conTaller = filtrarOFs(base, (o) =>
+      filtros.soloTaller ? ofOcultaDeOT(o) : !ofOcultaDeOT(o),
+    );
+    const conDetenidos = filtrarOFs(conTaller, (o) =>
+      filtros.soloDetenidos ? Boolean(o.detenida) : !o.detenida,
+    );
+    const visibles = conDetenidos.filter((p) =>
+      filtros.soloInternos ? Boolean(p.interno) : !p.interno,
+    );
     return [...visibles].sort(cmpPedido);
   }, [
     pedidosFiltrados,
     filtros.situacion,
-    filtros.verAjenasOT,
-    filtros.verDetenidas,
-    filtros.verMantenimiento,
+    filtros.soloTaller,
+    filtros.soloDetenidos,
+    filtros.soloInternos,
     cmpPedido,
   ]);
 
