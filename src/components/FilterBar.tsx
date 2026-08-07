@@ -24,6 +24,11 @@ export interface Filtros {
    *  la lista solo son filas que no se pueden trabajar. Se piden cuando hace
    *  falta saber qué hay parado. */
   verDetenidas: boolean;
+  /** Mostrar también las OF de mantenimiento: las que no cuelgan de ningún
+   *  pedido de venta (`Pedido.interno`). No son trabajo de cliente y no
+   *  llevan fechas de entrega, así que en la lista de pedidos solo estorban.
+   *  Ocultas por defecto. */
+  verMantenimiento: boolean;
   situacion: SituacionFiltro;
   orden: Orden;
 }
@@ -38,6 +43,7 @@ export const FILTROS_VACIOS: Omit<Filtros, "situacion" | "orden"> = {
   soloAtrasados: false,
   verAjenasOT: false,
   verDetenidas: false,
+  verMantenimiento: false,
 };
 
 /** Selector de MODO (situación, orden): siempre tiene valor, así que el nombre
@@ -65,8 +71,10 @@ function filtrosActivos(f: Filtros): { clave: keyof Filtros; texto: string }[] {
   if (f.prioridad !== "todas")
     chips.push({ clave: "prioridad", texto: PRIORIDAD[f.prioridad].label });
   if (f.soloAtrasados) chips.push({ clave: "soloAtrasados", texto: "Solo atrasados" });
-  if (f.verAjenasOT) chips.push({ clave: "verAjenasOT", texto: "Con las de taller" });
-  if (f.verDetenidas) chips.push({ clave: "verDetenidas", texto: "Con las detenidas" });
+  if (f.verAjenasOT) chips.push({ clave: "verAjenasOT", texto: "Ver taller" });
+  if (f.verDetenidas) chips.push({ clave: "verDetenidas", texto: "Ver detenidos" });
+  if (f.verMantenimiento)
+    chips.push({ clave: "verMantenimiento", texto: "Ver mantenimiento" });
   return chips;
 }
 
@@ -79,6 +87,7 @@ const VACIO_POR_CLAVE: Partial<Filtros> = {
   soloAtrasados: false,
   verAjenasOT: false,
   verDetenidas: false,
+  verMantenimiento: false,
 };
 
 export function FilterBar({
@@ -228,7 +237,7 @@ export function FilterBar({
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >
-            Con las de taller
+            Ver taller
           </button>
         )}
 
@@ -244,7 +253,23 @@ export function FilterBar({
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >
-            Con las detenidas
+            Ver detenidos
+          </button>
+        )}
+
+        {showAjenasOT && (
+          <button
+            type="button"
+            onClick={() => setFiltros({ verMantenimiento: !filtros.verMantenimiento })}
+            aria-pressed={filtros.verMantenimiento}
+            title="Las OF de mantenimiento: no cuelgan de ningún pedido de venta ni llevan fecha de entrega. Ocultas por defecto."
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              filtros.verMantenimiento
+                ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
+                : "glass-chip text-text-muted hover:text-text"
+            }`}
+          >
+            Ver mantenimiento
           </button>
         )}
 

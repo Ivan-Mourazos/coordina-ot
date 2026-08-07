@@ -198,6 +198,7 @@ export function Board({
     soloAtrasados: false,
     verAjenasOT: false,
     verDetenidas: false,
+    verMantenimiento: false,
     situacion: "procesado",
     orden: "planificacion",
   });
@@ -288,13 +289,26 @@ export function Board({
     // piden con el filtro cuando hace falta saber qué hay parado. Se filtran
     // las OF y no los pedidos, igual que las de taller: un pedido con una OF
     // detenida y otra viva sigue saliendo, con lo que se puede trabajar.
-    const visibles = filtros.verDetenidas
+    const sinDetenidas = filtros.verDetenidas
       ? conTaller
       : conTaller
           .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !o.detenida) }))
           .filter((p) => p.ofs.length > 0);
+    // Mantenimiento: OF sin pedido de venta. Aquí se quita el PEDIDO entero y
+    // no sus OF, al revés que arriba — un pedido interno lo es por completo,
+    // no tiene una parte de cliente que salvar.
+    const visibles = filtros.verMantenimiento
+      ? sinDetenidas
+      : sinDetenidas.filter((p) => !p.interno);
     return [...visibles].sort(cmpPedido);
-  }, [pedidosFiltrados, filtros.situacion, filtros.verAjenasOT, filtros.verDetenidas, cmpPedido]);
+  }, [
+    pedidosFiltrados,
+    filtros.situacion,
+    filtros.verAjenasOT,
+    filtros.verDetenidas,
+    filtros.verMantenimiento,
+    cmpPedido,
+  ]);
 
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
   // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.

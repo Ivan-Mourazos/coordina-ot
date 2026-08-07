@@ -205,6 +205,22 @@ function prioridadDe(n: number | null): Prioridad {
 /** Fecha ISO o null si no hay dato utilizable. RPS usa 1900-01-01 como
  *  centinela de "sin fecha" (que además llega como 31/12/1899 tras el ajuste
  *  UTC→local): cualquier año < 2000 se trata como ausencia de dato. */
+/** Trabajo de la casa para la casa: el "cliente" es Toldos Gómez.
+ *
+ *  Hay dos formas de que un trabajo sea interno y solo una salta a la vista.
+ *  La conocida es no tener pedido de venta. La otra es tenerlo pero a nombre
+ *  de la propia empresa, y esos venían colándose en la lista de pedidos como
+ *  si fueran de un cliente: en la vista real son AR.24.06449, AR.24.06685,
+ *  AR.25.00124 y AR.25.05590 — los cuatro más viejos de todos, con más de un
+ *  año de retraso aparente que no era tal.
+ *
+ *  Se mira el CLIENTE y no la descripción a propósito: dos de esos cuatro son
+ *  "MUESTRA LONA" y "BAMBALINA NUEVA", que no dicen mantenimiento por ninguna
+ *  parte y son igual de internos. */
+export function esTrabajoInterno(cliente: string): boolean {
+  return /TOLDOS\s*G[OÓ]MEZ|(^|\W)TGM(\W|$)/i.test(cliente);
+}
+
 function fechaISO(d: Date | null): string | null {
   if (!d || Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return null;
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -717,9 +733,9 @@ async function consultarTablero(): Promise<Tablero> {
       id: clave,
       codigo: grupo.codigo,
       cliente,
-      // Sin pedido de venta = proyecto interno (desarrollos, mantenimiento):
-      // se ficha, pero no entra en el tablero de asignación.
-      interno: clave.startsWith("sin-pedido:") || undefined,
+      // Trabajo interno (mantenimiento, muestras, desarrollos): se ficha, pero
+      // no entra en el tablero de asignación.
+      interno: clave.startsWith("sin-pedido:") || esTrabajoInterno(cliente) || undefined,
       situacion: "procesado", // la vista ya es solo trabajo pendiente de OT
       fechaSolicitud: fecha,
       fechaCreacion: fechaISO(venta?.creacion ?? null) ?? undefined,
