@@ -20,6 +20,7 @@ export function Select({
   placeholder = "—",
   alignRight = false,
   className = "",
+  acentuarActivo = false,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -29,6 +30,11 @@ export function Select({
   placeholder?: string | null;
   alignRight?: boolean;
   className?: string;
+  /** Para los filtros: con valor elegido se pinta con el color de marca, para
+   *  que se vea CUÁL está filtrando sin tener que leer todos los desplegables.
+   *  Los selectores que siempre tienen valor (autor, revisor, orden) no lo
+   *  usan: ahí el acento sería permanente y no diría nada. */
+  acentuarActivo?: boolean;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   const items: SelectOption[] = [
@@ -93,7 +99,11 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={`glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
-          selected ? "text-text" : "text-text-muted"
+          acentuarActivo && selected
+            ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
+            : selected
+              ? "text-text"
+              : "text-text-muted"
         }`}
       >
         {selected?.icon}

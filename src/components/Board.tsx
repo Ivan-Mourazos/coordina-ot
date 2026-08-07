@@ -1064,6 +1064,54 @@ export function Board({
           </div>
         </header>
 
+      {/* Aviso de "tu fichaje se cerró solo" (latido perdido). NO es un
+          diálogo modal: no pide respuesta, solo informa; se descarta con un
+          clic y si se ignora no bloquea nada.
+          Va EN EL FLUJO, no flotando: como tarjeta fija arriba a la derecha se
+          plantaba encima de la cabecera de la tabla en la vista Lista y tapaba
+          dos columnas. Aquí empuja el contenido hacia abajo, que para un aviso
+          que sale una vez al día es mejor que esconder datos. */}
+      {avisoCierreAuto && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2"
+        >
+          <p className="text-xs font-bold text-text">⏱ Tu fichaje se cerró solo</p>
+          <p className="min-w-0 flex-1 text-[11px] text-text-muted">
+            {(() => {
+              const codigos = pedidos
+                .flatMap((p) => p.ofs)
+                .filter((of) => avisoCierreAuto.ofIds.includes(of.id))
+                .map((of) => of.codigo);
+              const quien = codigos.length > 0 ? codigos.join(", ") : "Un fichaje";
+              const hora = new Date(avisoCierreAuto.fin).toLocaleTimeString("es-ES", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return `${quien} dejó de avisar (pestaña cerrada o sin conexión) y se cerró a las ${hora}, la hora del último aviso.`;
+            })()}
+          </p>
+          <button
+            onClick={() => {
+              setAvisoCierreAuto(null);
+              // Hasta este acuse el servidor lo sigue devolviendo. Si el POST
+              // falla, el aviso reaparece en la próxima carga: preferible a
+              // perderlo, que es lo que pasaba cuando se borraba al leerlo.
+              if (miId) {
+                fetch("/api/fichaje/aviso-visto", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ operarioId: miId }),
+                }).catch(() => {});
+              }
+            }}
+            className="shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            Vale
+          </button>
+        </div>
+      )}
+
         {/* ── VISTA ASIGNAR ── */}
         {vista === "asignar" && (
           <>
@@ -1245,51 +1293,6 @@ export function Board({
         onPausarTodo={pausarTodo}
         onReanudar={reanudar}
       />
-
-      {/* Aviso de "tu fichaje se cerró solo" (latido perdido). NO es un
-          diálogo modal: no pide respuesta, solo informa; se descarta con un
-          clic y si se ignora no bloquea nada. Distinto sitio que MiFichaje
-          (abajo-derecha) para no competir por el mismo rincón. */}
-      {avisoCierreAuto && (
-        <div
-          role="status"
-          className="glass-panel-strong fixed right-4 top-20 z-40 w-72 rounded-xl p-3 shadow-xl"
-        >
-          <p className="text-xs font-bold text-text">⏱ Tu fichaje se cerró solo</p>
-          <p className="mt-1 text-[11px] text-text-muted">
-            {(() => {
-              const codigos = pedidos
-                .flatMap((p) => p.ofs)
-                .filter((of) => avisoCierreAuto.ofIds.includes(of.id))
-                .map((of) => of.codigo);
-              const quien = codigos.length > 0 ? codigos.join(", ") : "Un fichaje";
-              const hora = new Date(avisoCierreAuto.fin).toLocaleTimeString("es-ES", {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              return `${quien} dejó de avisar (pestaña cerrada o sin conexión) y se cerró a las ${hora}, la hora del último aviso.`;
-            })()}
-          </p>
-          <button
-            onClick={() => {
-              setAvisoCierreAuto(null);
-              // Hasta este acuse el servidor lo sigue devolviendo. Si el POST
-              // falla, el aviso reaparece en la próxima carga: preferible a
-              // perderlo, que es lo que pasaba cuando se borraba al leerlo.
-              if (miId) {
-                fetch("/api/fichaje/aviso-visto", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ operarioId: miId }),
-                }).catch(() => {});
-              }
-            }}
-            className="mt-2 rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
-          >
-            Vale
-          </button>
-        </div>
-      )}
 
       <ConfirmDialog
         abierto={cambioIdentidadPendiente !== null}

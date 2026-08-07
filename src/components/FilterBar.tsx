@@ -30,6 +30,10 @@ export const FILTROS_VACIOS: Omit<Filtros, "situacion" | "orden"> = {
   soloAtrasados: false,
 };
 
+/** Selector de MODO (situación, orden): siempre tiene valor, así que el nombre
+ *  va fuera — sin él, un desplegable que pone "Planificación" no dice de qué.
+ *  Los FILTROS no usan esto: llevan su propio nombre dentro como texto vacío
+ *  ("Familia") y lo sustituyen por el valor al elegir. */
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex items-center gap-1.5 text-xs text-text-muted">
@@ -119,63 +123,62 @@ export function FilterBar({
 
         <span className="h-5 w-px bg-[var(--glass-border)]" />
 
-        {/* filtros de contenido */}
-        <Campo label="Familia">
-          <Select
-            value={filtros.familia === "todas" ? null : filtros.familia}
-            onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
-            placeholder="Todas"
-            options={familias.map((f) => ({
-              value: f,
-              label: familiaMeta(f).label,
-              icon: <FamiliaIcon familia={f} className="size-3.5" />,
-            }))}
-          />
-        </Campo>
+        {/* Filtros de contenido. El nombre del campo va DENTRO del desplegable
+            y el valor lo sustituye al elegir: con la etiqueta fuera, "Familia
+            Todas" gastaba el doble de sitio para decir que no filtra nada. Y
+            al filtrar se pinta con el color de marca, así se ve de un vistazo
+            cuál está recortando la lista. */}
+        <Select
+          value={filtros.familia === "todas" ? null : filtros.familia}
+          onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
+          placeholder="Familia"
+          acentuarActivo
+          options={familias.map((f) => ({
+            value: f,
+            label: familiaMeta(f).label,
+            icon: <FamiliaIcon familia={f} className="size-3.5" />,
+          }))}
+        />
 
-        <Campo label="Cliente">
-          <Select
-            value={filtros.cliente === "todos" ? null : filtros.cliente}
-            onChange={(v) => setFiltros({ cliente: v ?? "todos" })}
-            placeholder="Todos"
-            options={clientes.map((c) => ({ value: c, label: c }))}
-          />
-        </Campo>
+        <Select
+          value={filtros.cliente === "todos" ? null : filtros.cliente}
+          onChange={(v) => setFiltros({ cliente: v ?? "todos" })}
+          placeholder="Cliente"
+          acentuarActivo
+          className="max-w-52"
+          options={clientes.map((c) => ({ value: c, label: c }))}
+        />
 
         {showEstado && (
-          <Campo label="Estado">
-            <Select
-              value={filtros.estado === "todos" ? null : filtros.estado}
-              onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
-              placeholder="Todos"
-              options={ESTADOS_ORDEN.map((e) => ({
-                value: e,
-                label: ESTADO[e].label,
-                icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
-              }))}
-            />
-          </Campo>
-        )}
-
-        <Campo label="Prioridad">
           <Select
-            value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
-            onChange={(v) =>
-              setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })
-            }
-            placeholder="Todas"
-            options={([3, 2, 1] as Prioridad[]).map((p) => ({
-              value: String(p),
-              label: PRIORIDAD[p].label,
-              icon: (
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ background: PRIORIDAD[p].color }}
-                />
-              ),
+            value={filtros.estado === "todos" ? null : filtros.estado}
+            onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
+            placeholder="Estado"
+            acentuarActivo
+            options={ESTADOS_ORDEN.map((e) => ({
+              value: e,
+              label: ESTADO[e].label,
+              icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
             }))}
           />
-        </Campo>
+        )}
+
+        <Select
+          value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
+          onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
+          placeholder="Prioridad"
+          acentuarActivo
+          options={([3, 2, 1] as Prioridad[]).map((p) => ({
+            value: String(p),
+            label: PRIORIDAD[p].label,
+            icon: (
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: PRIORIDAD[p].color }}
+              />
+            ),
+          }))}
+        />
 
         {showSituacion && (
           <Campo label="Situación">
@@ -217,32 +220,23 @@ export function FilterBar({
             options={ordenes.map((o) => ({ value: o, label: ORDEN_LABEL[o] }))}
           />
         </Campo>
-      </div>
 
-      {/* resumen de filtros activos + limpiar */}
-      {activos.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {activos.map((c) => (
-            <button
-              key={c.clave}
-              type="button"
-              onClick={() => setFiltros({ [c.clave]: VACIO_POR_CLAVE[c.clave] })}
-              className="flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-semibold text-brand-700 hover:bg-brand-500/25 dark:text-brand-300"
-              title="Quitar este filtro"
-            >
-              {c.texto}
-              <span aria-hidden>✕</span>
-            </button>
-          ))}
+        {/* Limpiar, en la MISMA fila. Antes esto era una segunda línea de
+            chips que aparecía al filtrar: la barra cambiaba de alto y empujaba
+            la tabla entera hacia abajo cada vez. Los chips además repetían lo
+            que ya dicen los desplegables acentuados. */}
+        {activos.length > 0 && (
           <button
             type="button"
             onClick={() => setFiltros(VACIO_POR_CLAVE)}
-            className="text-[10px] font-semibold text-text-muted underline-offset-2 hover:text-text hover:underline"
+            className="ml-auto flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+            title={`Quitar ${activos.map((c) => c.texto).join(", ")}`}
           >
-            Limpiar todo
+            <span aria-hidden>✕</span>
+            Limpiar {activos.length > 1 ? `(${activos.length})` : ""}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
