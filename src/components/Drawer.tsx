@@ -76,10 +76,11 @@ export function Drawer({
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
   // La regla de "¿están todas las OF aprobadas?" vive en pedidoListoParaPasar
   // (fases-tablero.ts): es la definición única, ver su comentario de cabecera.
-  // Aquí se mantiene una condición extra que el helper no cubre: la Lista
-  // puede reabrir un pedido ya completado (filtro "todos"/"completado"), y
-  // ahí sus OF siguen "aprobada" — sin este check el botón "Pasar a
-  // Producción" reaparecería para un pedido que ya pasó.
+  // Aquí se mantiene una condición extra que el helper no cubre: con el filtro
+  // de situación en "todos", la Lista puede reabrir un pedido ya completado, y
+  // sus OF siguen en "aprobada" porque pasarlo solo cambia la situación del
+  // pedido. Sin este check, el botón "Pasar a Producción" reaparecería para un
+  // pedido que ya pasó.
   const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
 
   return (
