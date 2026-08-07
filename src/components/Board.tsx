@@ -37,10 +37,11 @@ import { Notificaciones, type NotifItem } from "./Notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
-import { FASES } from "@/lib/fases-tablero";
+import { FASES, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 import { cambiarRevisor, traspasarAutor } from "@/lib/traspaso";
+import type { AvisoMovimiento } from "@/lib/avisos";
 
 const IDENTITY_KEY = "coordina-operario-id";
 
@@ -122,6 +123,29 @@ export function Board({
   // ficha, no que la fiche yo: sin esto la fila ofreceria pausar el fichaje de
   // otro, que en realidad cortaria el mio.
   const ofIdsFichandoYo = useMemo(() => new Set(abierto(fichaje)?.ofIds ?? []), [fichaje]);
+
+  // Avisos de movimiento: no se pueden deducir del tablero (una OF traspasada
+  // no guarda de quién venía), así que se piden aparte. Mismo ritmo que el
+  // polling del tablero, que es donde se notaría el cambio.
+  const [avisosMov, setAvisosMov] = useState<AvisoMovimiento[]>([]);
+  useEffect(() => {
+    if (!miId) return;
+    let vivo = true;
+    const cargar = () => {
+      fetch(`/api/avisos?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { avisos: AvisoMovimiento[] } | null) => {
+          if (vivo && d) setAvisosMov(d.avisos);
+        })
+        .catch(() => {});
+    };
+    cargar();
+    const id = setInterval(cargar, 30_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [miId]);
 
   // Fase cuyo "+N más" está desplegado en mi zona (null = ninguno).
   const [faseAbierta, setFaseAbierta] = useState<string | null>(null);
@@ -341,8 +365,34 @@ export function Board({
           out.push({ pedido: p, of, tipo: "sinEmpezar" });
       }
     }
+
+    // Pedidos míos ya completos: aviso a todos los implicados, porque un
+    // pedido repartido puede quedarse listo y parado si cada uno da por hecho
+    // que lo pasa el otro.
+    for (const p of procesadosAll) {
+      if (p.situacion !== "procesado") continue;
+      if (!p.ofs.some((o) => o.autorId === miId)) continue;
+      if (pedidoListoParaPasar(p)) out.push({ pedido: p, of: null, tipo: "pedidoCompleto" });
+    }
+
+    // Movimientos leídos del registro. Los ids se resuelven aquí: el servidor
+    // manda ids crudos para no tener que cargar el tablero.
+    const nombre = (id: string | null) => operarios.find((o) => o.id === id)?.nombre;
+    for (const a of avisosMov) {
+      const pedido = procesadosAll.find((p) => p.ofs.some((o) => o.id === a.ofId));
+      const of = pedido?.ofs.find((o) => o.id === a.ofId);
+      if (!pedido || !of) continue; // OF que ya no está en el tablero
+      out.push({
+        pedido,
+        of,
+        tipo: a.tipo,
+        quien: nombre(a.quien),
+        otro: nombre(a.otro),
+        clave: a.clave,
+      });
+    }
     return out;
-  }, [procesadosAll, miId]);
+  }, [procesadosAll, miId, avisosMov, operarios]);
   const misPorRevisar = notifItems.filter((i) => i.tipo === "revisar").length;
   const misDevueltas = notifItems.filter((i) => i.tipo === "devuelta").length;
 
@@ -352,10 +402,26 @@ export function Board({
     document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
   }, [misPorRevisar, misDevueltas]);
 
-  const irANotificacion = useCallback((destino: Vista, pedidoId: string) => {
-    setVista(destino);
-    setOpenId(pedidoId);
-  }, []);
+  const irANotificacion = useCallback(
+    (destino: Vista, pedidoId: string) => {
+      // Abrir el pedido ES haber visto el aviso: se apaga solo, sin un botón
+      // más que pulsar.
+      const claves = notifItems
+        .filter((i) => i.pedido.id === pedidoId && i.clave !== undefined)
+        .map((i) => i.clave as string);
+      if (claves.length > 0 && miId) {
+        setAvisosMov((prev) => prev.filter((a) => !claves.includes(a.clave)));
+        fetch("/api/avisos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operarioId: miId, claves }),
+        }).catch(() => {});
+      }
+      setVista(destino);
+      setOpenId(pedidoId);
+    },
+    [notifItems, miId],
+  );
   const openFacet = useCallback((f: Facet) => setOpenId(f.pedido.id), []);
   const openPedidoCb = useCallback((p: Pedido) => setOpenId(p.id), []);
   const closeDrawer = useCallback(() => setOpenId(null), []);

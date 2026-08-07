@@ -4,18 +4,38 @@ import type { OF, Pedido } from "@/lib/types";
 import type { Vista } from "./ViewSwitcher";
 import { usePopover } from "@/lib/usePopover";
 
-export type NotifTipo = "revisar" | "devuelta" | "sinEmpezar";
+export type NotifTipo =
+  | "revisar"
+  | "devuelta"
+  | "sinEmpezar"
+  | "recibida"
+  | "cedida"
+  | "revisarNueva"
+  | "revisarQuitada"
+  | "pedidoCompleto";
 
 export interface NotifItem {
   tipo: NotifTipo;
   pedido: Pedido;
-  of: OF;
+  /** Los avisos de pedido completo no son de una OF concreta. */
+  of: OF | null;
+  /** Quién movió el trabajo, ya resuelto a nombre. Solo en los de movimiento. */
+  quien?: string;
+  /** La otra parte (de quién venía / a quién ha ido), ya resuelta a nombre. */
+  otro?: string;
+  /** Clave del aviso (`logId:tipo:ofId`): es lo que se marca como visto. */
+  clave?: string;
 }
 
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisar: { label: "Me toca revisar", vista: "revision", dot: "bg-violet-600" },
   devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: "bg-red-600" },
   sinEmpezar: { label: "Sin empezar", vista: "asignar", dot: "bg-gray-400" },
+  recibida: { label: "Te han pasado trabajo", vista: "asignar", dot: "bg-emerald-600" },
+  cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-gray-400" },
+  revisarNueva: { label: "Te toca revisar", vista: "revision", dot: "bg-violet-600" },
+  revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
+  pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: "bg-cyan-600" },
 };
 
 /** Campana con avisos personales: qué tengo por revisar, qué me han
@@ -57,7 +77,7 @@ export function Notificaciones({
               {items.map((item, i) => {
                 const meta = META[item.tipo];
                 return (
-                  <li key={`${item.of.id}-${i}`}>
+                  <li key={item.clave ?? `${item.of?.id}-${item.tipo}-${i}`}>
                     <button
                       onClick={() => {
                         onNavigate(meta.vista, item.pedido.id);
@@ -74,8 +94,14 @@ export function Notificaciones({
                           {item.pedido.codigo} · {item.pedido.cliente}
                         </span>
                         <span className="block truncate text-[11px] text-text-muted">
-                          {item.of.codigo} — {item.of.descripcion}
+                          {item.of ? `${item.of.codigo} — ${item.of.descripcion}` : "Todas sus OF aprobadas"}
                         </span>
+                        {item.quien && (
+                          <span className="block truncate text-[11px] text-text-muted">
+                            {item.quien}
+                            {item.otro ? ` · antes ${item.otro}` : ""}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
