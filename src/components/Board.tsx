@@ -1344,7 +1344,7 @@ function Kpi({
   tone: "amber" | "violet" | "muted";
 }) {
   const color =
-    tone === "amber" ? "text-amber-600" : tone === "violet" ? "text-violet-600" : "text-text-muted";
+    tone === "amber" ? "text-amber-700 dark:text-amber-400" : tone === "violet" ? "text-violet-700 dark:text-violet-400" : "text-text-muted";
   return (
     <div className="glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
       <span className={`text-sm font-bold ${color}`}>{value}</span>

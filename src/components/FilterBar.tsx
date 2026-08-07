@@ -142,6 +142,7 @@ export function FilterBar({
           value={filtros.familia === "todas" ? null : filtros.familia}
           onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
           placeholder="Familia"
+          etiquetaVaciar="Todas las familias"
           acentuarActivo
           options={familias.map((f) => ({
             value: f,
@@ -154,6 +155,7 @@ export function FilterBar({
           value={filtros.cliente === "todos" ? null : filtros.cliente}
           onChange={(v) => setFiltros({ cliente: v ?? "todos" })}
           placeholder="Cliente"
+          etiquetaVaciar="Todos los clientes"
           acentuarActivo
           className="max-w-52"
           options={clientes.map((c) => ({ value: c, label: c }))}
@@ -164,6 +166,7 @@ export function FilterBar({
             value={filtros.estado === "todos" ? null : filtros.estado}
             onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
             placeholder="Estado"
+            etiquetaVaciar="Todos los estados"
             acentuarActivo
             options={ESTADOS_ORDEN.map((e) => ({
               value: e,
@@ -177,6 +180,7 @@ export function FilterBar({
           value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
           onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
           placeholder="Prioridad"
+          etiquetaVaciar="Todas las prioridades"
           acentuarActivo
           options={([3, 2, 1] as Prioridad[]).map((p) => ({
             value: String(p),
@@ -227,7 +231,7 @@ export function FilterBar({
             aria-pressed={filtros.soloAtrasados}
             className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
               filtros.soloAtrasados
-                ? "bg-red-600 text-white"
+                ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
                 : "glass-chip text-text-muted hover:text-text"
             }`}
           >

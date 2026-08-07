@@ -54,7 +54,7 @@ export function PedirRevisor({
       </button>
       <button
         onClick={onCancelar}
-        className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-surface-3"
+        className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-[var(--glass-highlight)]"
       >
         Cancelar
       </button>

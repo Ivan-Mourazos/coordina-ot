@@ -37,6 +37,10 @@
   /* Vidrio: translúcido + saturado + highlight especular en el canto */
   --glass-bg: rgba(255, 255, 255, 0.52);
   --glass-bg-strong: rgba(255, 255, 255, 0.7);
+  /* Los menús desplegables TAPAN contenido, así que no pueden ser
+     translúcidos: en claro se leían las miniaturas de la bandeja a través del
+     menú abierto. El desenfoque no basta cuando detrás hay texto nítido. */
+  --glass-bg-pop: rgba(255, 255, 255, 0.99);
   --glass-border: rgba(255, 255, 255, 0.72);
   --glass-highlight: rgba(255, 255, 255, 0.95);
   --glass-shadow: rgba(24, 32, 48, 0.14);
@@ -58,6 +62,7 @@
 
   --glass-bg: rgba(36, 38, 44, 0.92);
   --glass-bg-strong: rgba(40, 42, 48, 0.95);
+  --glass-bg-pop: rgba(32, 34, 40, 0.99);
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-highlight: rgba(255, 255, 255, 0.12);
   --glass-shadow: rgba(0, 0, 0, 0.5);
@@ -279,7 +284,7 @@ body {
 
 /* Popover flotante (selects, notificaciones, paneles de equipo) */
 .glass-pop {
-  background: var(--glass-bg-strong);
+  background: var(--glass-bg-pop);
   backdrop-filter: blur(28px) saturate(1.8);
   -webkit-backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid var(--glass-border);

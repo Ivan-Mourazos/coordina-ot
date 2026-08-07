@@ -21,6 +21,7 @@ export function Select({
   alignRight = false,
   className = "",
   acentuarActivo = false,
+  etiquetaVaciar,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -35,10 +36,16 @@ export function Select({
    *  Los selectores que siempre tienen valor (autor, revisor, orden) no lo
    *  usan: ahí el acento sería permanente y no diría nada. */
   acentuarActivo?: boolean;
+  /** Texto de la opción que quita el valor, cuando no sirve el del botón. */
+  etiquetaVaciar?: string;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  // El botón cerrado y la opción de vaciar dicen cosas distintas: el botón
+  // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla
+  // ("Todas"). Con un solo texto, el menú del filtro de familia ofrecía una
+  // opción llamada "Familia", que no dice nada de lo que hace.
   const items: SelectOption[] = [
-    ...(placeholder !== null ? [{ value: "", label: placeholder }] : []),
+    ...(placeholder !== null ? [{ value: "", label: etiquetaVaciar ?? placeholder }] : []),
     ...options,
   ];
   const selected = options.find((o) => o.value === value) ?? null;

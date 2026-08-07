@@ -188,7 +188,7 @@ export function Bandeja({
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-base leading-none">📥</span>
         <h2 className="text-base font-bold text-text">Sin asignar</h2>
-        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-400">
+        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-700 dark:text-brand-300">
           {facets.length} ped · {nOFs} OF
         </span>
       </div>
