@@ -20,14 +20,18 @@ const AVISO_SIN_FICHAR_MIN = 10;
  *  persona se le olvidó. Nunca debe convertirse en un corte automático. */
 const AVISO_FICHAJE_LARGO_MIN = 180;
 
-/** Redondea a minutos y da formato h:mm (p.ej. "1:05"), para el total
- *  "corriendo ahora" de la píldora. Los minutos por OF usan `fmtMin`
- *  (formato "1h 5m"); este es solo para el reloj agregado del fichaje activo. */
-function fmtHM(min: number): string {
-  const total = Math.max(0, Math.round(min));
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${h}:${String(m).padStart(2, "0")}`;
+/** Reloj del fichaje que corre AHORA, en h:mm:ss (p.ej. "1:05:42").
+ *
+ *  Con segundos, no solo minutos: es la señal de que el fichaje está vivo. Un
+ *  "0:03" quieto no distingue "va contando" de "se ha colgado", y el fichaje
+ *  es justo lo que nadie quiere dar por hecho. Los tiempos por OF siguen en
+ *  minutos (`fmtMin`, "1h 5m"): ahí lo que importa es el acumulado del día. */
+function fmtHMS(seg: number): string {
+  const total = Math.max(0, Math.floor(seg));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 /** OFs donde soy autor o revisor, en estados que todavía tienen sentido
@@ -43,10 +47,13 @@ function ofsMiasDe(p: Pedido, miId: string): OF[] {
 }
 
 /** Panel flotante "Mi fichaje": píldora colapsada en la esquina inferior
- *  derecha que se expande a un panel con mis OFs agrupadas por pedido.
- *  Un solo fichaje corre a la vez (un intervalo = un rol); este panel deja
- *  fichar/desfichar OF a OF y en bloque por pedido, ver los minutos de hoy
- *  y pausar/reanudar el fichaje completo. */
+ *  derecha que se expande al detalle de lo que estoy fichando AHORA — el
+ *  pedido en marcha con sus OF, o la OF sola si fiché solo una.
+ *
+ *  Un solo fichaje corre a la vez (un intervalo = un rol). Desde aquí se
+ *  para OF a OF o el pedido entero, se ven los minutos de hoy de cada una y
+ *  se pausa/reanuda el fichaje completo. Asignar y arrancar trabajo nuevo es
+ *  cosa del tablero: este panel responde a "¿qué estoy contando ahora?". */
 export function MiFichaje({
   miId,
   operarios,
@@ -68,18 +75,25 @@ export function MiFichaje({
 }) {
   const [expandido, setExpandido] = useState(false);
 
-  // Reloj: se refresca cada 30s para que los minutos "de hoy" y el total
-  // corriendo avancen aunque nadie interactúe. Los intervalos guardados
-  // nunca cambian; solo se recalcula la proyección con este `ahora`.
-  const [ahora, setAhora] = useState(() => new Date().toISOString());
-  useEffect(() => {
-    const id = setInterval(() => setAhora(new Date().toISOString()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
   const ab = abierto(fichaje);
+
+  // Reloj: la proyección avanza aunque nadie toque nada. Los intervalos
+  // guardados no cambian; solo se recalcula con este `ahora`.
+  //
+  // Con un fichaje corriendo va al segundo, que es lo que hace que el
+  // contador se vea subir; parado basta con medio minuto (ahí solo sirve
+  // para el aviso de "planteando sin fichar", que se mide en minutos) y no
+  // tiene sentido repintar 60 veces más a cambio de nada.
+  const [ahora, setAhora] = useState(() => new Date().toISOString());
+  const corriendo = ab !== null;
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date().toISOString()), corriendo ? 1_000 : 30_000);
+    return () => clearInterval(id);
+  }, [corriendo]);
+
   const nOFs = ab?.ofIds.length ?? 0;
-  const totalMin = ab ? (Date.parse(ahora) - Date.parse(ab.inicio)) / 60000 : 0;
+  const totalSeg = ab ? (Date.parse(ahora) - Date.parse(ab.inicio)) / 1000 : 0;
+  const totalMin = totalSeg / 60;
 
   // Aviso de fichaje largo (ver AVISO_FICHAJE_LARGO_MIN): solo el rótulo, una
   // OF cualquiera de las que están corriendo basta para identificarlo.
@@ -150,8 +164,14 @@ export function MiFichaje({
     intervalos: fichaje.intervalos.filter((iv) => iv.inicio >= inicioHoy),
   };
 
+  // SOLO lo que está corriendo ahora mismo. El panel es el reloj de este
+  // fichaje, no la lista de todo lo que tengo asignado: eso ya es el tablero,
+  // y repetirlo aquí obligaba a buscar entre veinte pedidos cuál era el que
+  // estaba contando. Si fiché el pedido entero salen todas sus OF; si fiché
+  // una sola, sale esa sola — el panel refleja lo que se decidió al fichar.
+  const enMarcha = new Set(ab?.ofIds ?? []);
   const grupos = pedidos
-    .map((p) => ({ pedido: p, ofs: ofsMiasDe(p, miId) }))
+    .map((p) => ({ pedido: p, ofs: ofsMiasDe(p, miId).filter((of) => enMarcha.has(of.id)) }))
     .filter((g) => g.ofs.length > 0);
 
   return (
@@ -172,7 +192,9 @@ export function MiFichaje({
                 className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-bold ${ROL[ab.rol].chip}`}
               >
                 <LiveDot rol={ab.rol} className="size-1.5" />
-                {ROL[ab.rol].label} · {fmtHM(totalMin)}
+                {/* tabular-nums: sin ancho fijo de cifra, el reloj tiembla
+                    cada segundo y arrastra lo que tiene al lado. */}
+                {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
               </span>
             ) : (
               <span className="text-xs font-semibold text-text-muted">Parado</span>
@@ -190,7 +212,9 @@ export function MiFichaje({
           <ul className="scroll-thin -mx-1 flex-1 space-y-2 overflow-y-auto px-1">
             {grupos.length === 0 && (
               <li className="px-1 py-6 text-center text-xs text-text-muted">
-                No tienes OFs para fichar.
+                {/* Sin fichaje corriendo la lista está vacía por definición:
+                    el panel solo pinta lo que se está fichando. */}
+                No estás fichando nada ahora.
               </li>
             )}
             {grupos.map((g) => (
@@ -266,7 +290,8 @@ export function MiFichaje({
           <>
             <LiveDot rol={ab.rol} className="size-2" />
             <span>
-              ⏱ {nOFs} OF{nOFs === 1 ? "" : "s"} · {fmtHM(totalMin)}
+              ⏱ {nOFs} OF{nOFs === 1 ? "" : "s"} ·{" "}
+              <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
             </span>
           </>
         ) : aviso ? (
@@ -296,6 +321,12 @@ function GrupoPedido({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
 }) {
+  // Aquí solo llegan OF que se están fichando (ver `enMarcha` arriba), así que
+  // en la práctica manda la rama de "Parar pedido". El botón de fichar se
+  // mantiene porque la regla de qué se puede arrancar sigue siendo suya, y
+  // porque quien la lea no debería tener que fiarse de un filtro que está en
+  // otro sitio.
+  //
   // "Fichar pedido" solo ficha lo que me toca PLANTEAR (autor): un fichaje
   // corriendo es un único rol, así que mezclar plantear+revisar en un solo
   // botón no tendría un rol claro que pasarle a onFichar.
