@@ -197,6 +197,7 @@ export function Board({
     prioridad: "todas",
     soloAtrasados: false,
     verAjenasOT: false,
+    verDetenidas: false,
     situacion: "procesado",
     orden: "planificacion",
   });
@@ -276,13 +277,24 @@ export function Board({
     // Las OF de taller solo salen si se piden. Se filtran las OF, no los
     // pedidos: uno con una OF nuestra y otra de taller sigue apareciendo, con
     // lo que toca. Aquí SÍ se pueden buscar, que era la gracia de no tirarlas.
-    const visibles = filtros.verAjenasOT
+    const conTaller = filtros.verAjenasOT
       ? base
       : base
           .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !ofOcultaDeOT(o)) }))
           .filter((p) => p.ofs.length > 0);
+    // Las detenidas por Producción se ocultan por defecto: no se pueden fichar
+    // y desatascarlas no es cosa de OT, así que en la lista solo son filas que
+    // no se pueden trabajar (hoy, 33 OF, algunas de hace más de un año). Se
+    // piden con el filtro cuando hace falta saber qué hay parado. Se filtran
+    // las OF y no los pedidos, igual que las de taller: un pedido con una OF
+    // detenida y otra viva sigue saliendo, con lo que se puede trabajar.
+    const visibles = filtros.verDetenidas
+      ? conTaller
+      : conTaller
+          .map((p) => ({ ...p, ofs: p.ofs.filter((o) => !o.detenida) }))
+          .filter((p) => p.ofs.length > 0);
     return [...visibles].sort(cmpPedido);
-  }, [pedidosFiltrados, filtros.situacion, filtros.verAjenasOT, cmpPedido]);
+  }, [pedidosFiltrados, filtros.situacion, filtros.verAjenasOT, filtros.verDetenidas, cmpPedido]);
 
   // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
   // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.

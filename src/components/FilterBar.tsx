@@ -19,6 +19,11 @@ export interface Filtros {
   /** Mostrar también las OF que entran por una tarea de taller y que nadie ha
    *  rescatado. Fuera de la Lista no se ofrece: el tablero nunca las enseña. */
   verAjenasOT: boolean;
+  /** Mostrar también las OF que Producción tiene DETENIDAS. Ocultas por
+   *  defecto: no se pueden fichar y desatascarlas no es cosa de OT, así que en
+   *  la lista solo son filas que no se pueden trabajar. Se piden cuando hace
+   *  falta saber qué hay parado. */
+  verDetenidas: boolean;
   situacion: SituacionFiltro;
   orden: Orden;
 }
@@ -32,6 +37,7 @@ export const FILTROS_VACIOS: Omit<Filtros, "situacion" | "orden"> = {
   prioridad: "todas",
   soloAtrasados: false,
   verAjenasOT: false,
+  verDetenidas: false,
 };
 
 /** Selector de MODO (situación, orden): siempre tiene valor, así que el nombre
@@ -60,6 +66,7 @@ function filtrosActivos(f: Filtros): { clave: keyof Filtros; texto: string }[] {
     chips.push({ clave: "prioridad", texto: PRIORIDAD[f.prioridad].label });
   if (f.soloAtrasados) chips.push({ clave: "soloAtrasados", texto: "Solo atrasados" });
   if (f.verAjenasOT) chips.push({ clave: "verAjenasOT", texto: "Con las de taller" });
+  if (f.verDetenidas) chips.push({ clave: "verDetenidas", texto: "Con las detenidas" });
   return chips;
 }
 
@@ -71,6 +78,7 @@ const VACIO_POR_CLAVE: Partial<Filtros> = {
   prioridad: "todas",
   soloAtrasados: false,
   verAjenasOT: false,
+  verDetenidas: false,
 };
 
 export function FilterBar({
@@ -221,6 +229,22 @@ export function FilterBar({
             }`}
           >
             Con las de taller
+          </button>
+        )}
+
+        {showAjenasOT && (
+          <button
+            type="button"
+            onClick={() => setFiltros({ verDetenidas: !filtros.verDetenidas })}
+            aria-pressed={filtros.verDetenidas}
+            title="Las OF que Producción tiene detenidas: no se pueden fichar y sacarlas de ahí no es cosa de OT. Ocultas por defecto."
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              filtros.verDetenidas
+                ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
+                : "glass-chip text-text-muted hover:text-text"
+            }`}
+          >
+            Con las detenidas
           </button>
         )}
 
