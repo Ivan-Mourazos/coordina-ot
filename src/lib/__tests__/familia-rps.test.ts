@@ -84,3 +84,17 @@ describe("vocabulario ampliado del catálogo de Toldos Gómez", () => {
     expect(familiaDeTexto("FUNDA A MEDIDA", null)).toBe("FUNDA");
   });
 });
+
+describe("cortina: depende de con qué vaya", () => {
+  it("toldo cortina y cambio de tela de cortina son toldos", () => {
+    expect(familiaDeTexto("TOLDO CORTINA CRISTAL", null)).toBe("TOLDO");
+    expect(familiaDeTexto("CAMBIO DE TELA CORTINA", null)).toBe("TOLDO");
+    expect(familiaDeTexto("CORTINA CRISTAL TERRAZA", null)).toBe("TOLDO");
+  });
+
+  it("cortina de lona con riel es lona, en cualquier orden", () => {
+    expect(familiaDeTexto("CORTINA LONA CON RIEL", null)).toBe("LONA");
+    expect(familiaDeTexto("LONA CORTINA CON RIEL SUPERIOR", null)).toBe("LONA");
+    expect(familiaDeTexto("CORTINA CON RIEL SUPERIOR", null)).toBe("LONA");
+  });
+});

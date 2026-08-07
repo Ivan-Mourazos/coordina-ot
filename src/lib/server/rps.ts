@@ -146,10 +146,11 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   [/FUNDA/, "FUNDA"],
   [/PUERTA R[AÁ]PIDA|APILABLE|ENROLLABLE|AUTOREPARABLE|AUTORREPARABLE/, "PUERTA"],
   [/ORQUESTA|ESPECTACULO|ESCENARIO/, "ESPECTACULO"],
-  // "Cortina" sirve para las dos cosas: una cortina de cristal es un toldo,
-  // pero "LONA CORTINA CON RIEL" es una lona. Lo que abre la descripción es
-  // lo que manda, así que una que empieza por LONA se queda en lonas.
-  [/^LONA\b/, "LONA"],
+  // "Cortina" sirve para las dos cosas, y lo que decide es con qué va (Iván):
+  // un toldo cortina y un cambio de tela de cortina son TOLDO, pero una
+  // cortina de lona con riel es LONA. Va antes que la regla de toldo, y mira
+  // los dos órdenes: en RPS aparece igual "LONA CORTINA…" que "CORTINA LONA…".
+  [/CORTINA(?!.*(?:TOLDO|CAMBIO DE TELA)).*(?:LONA|RIEL)|(?:LONA|RIEL).*CORTINA/, "LONA"],
   [
     /TOLDO|CORTINA|ARZ[UÚ]A|BAMBALINA|CAMBIO DE TELA|CAMBIAR TELA|PROTECCI[OÓ]N SOLAR/,
     "TOLDO",
