@@ -7,7 +7,7 @@ import { diasEntre } from "./fechas";
 // "¿voy con tiempo?" se contesta mirando, sin restar fechas de cabeza.
 
 export interface HitoLinea {
-  clave: "solicitud" | "planificacion" | "fabricacion" | "entrega";
+  clave: "creacion" | "planificacion" | "fabricacion" | "solicitada";
   etiqueta: string;
   iso: string;
   /** Posición en la línea, de 0 a 100. */
@@ -24,15 +24,14 @@ export interface LineaTiempo {
   diasParaEntrega: number;
 }
 
+// Los nombres son los de la herramienta vieja, que es el vocabulario del
+// taller. No inventar sinónimos: "solicitada" es la entrega, y "planificación"
+// es el día de plantear, no el de fabricar.
 const ETIQUETA = {
-  solicitud: "Entrada",
-  // OJO con los nombres, que se confunden: `fechaPlanificacion` es el día en
-  // que OT debería PLANTEAR (es la que ordena su lista de trabajo), no cuándo
-  // se fabrica. La de fabricación es `fechaLimitePlanteo`, que vive por OF y
-  // marca cuándo arranca la primera fase posterior al planteo.
-  planificacion: "Plantear",
+  creacion: "Creación",
+  planificacion: "Planificación",
   fabricacion: "Fabricación",
-  entrega: "Entrega",
+  solicitada: "Solicitada",
 } as const;
 
 /** Reparte las tres fechas a escala real sobre una línea de 0 a 100.
@@ -43,22 +42,29 @@ const ETIQUETA = {
  *  que se reparten iguales para que la línea siga siendo legible. */
 export function lineaTiempo(
   p: {
-    fechaSolicitud: string;
+    /** Cuándo entró el pedido (OrderDate). Si falta, la línea arranca en la
+     *  planificación: es preferible a fingir una entrada que no se sabe. */
+    fechaCreacion?: string;
     fechaPlanificacion: string;
-    fechaEntrega: string;
-    /** Cuándo arranca la fabricación, si Producción lo tiene planificado. */
+    /** Fin de fabricación previsto, si alguna OF lo tiene puesto. */
     fechaFabricacion?: string;
+    /** La entrega que pide el cliente. */
+    fechaEntrega: string;
   },
   hoy: string,
 ): LineaTiempo {
   const crudos = [
-    { clave: "solicitud" as const, iso: p.fechaSolicitud },
+    ...(p.fechaCreacion ? [{ clave: "creacion" as const, iso: p.fechaCreacion }] : []),
     { clave: "planificacion" as const, iso: p.fechaPlanificacion },
     ...(p.fechaFabricacion ? [{ clave: "fabricacion" as const, iso: p.fechaFabricacion }] : []),
-    { clave: "entrega" as const, iso: p.fechaEntrega },
+    { clave: "solicitada" as const, iso: p.fechaEntrega },
   ];
-  const inicio = crudos[0].iso;
-  const total = diasEntre(inicio, crudos[crudos.length - 1].iso);
+  // Los extremos son los que marcan la escala, y no siempre son el primero y
+  // el último de la lista: RPS deja fabricar después de la fecha solicitada
+  // (pedido que va tarde) y eso tiene que verse, no salirse de la línea.
+  const ordenadas = crudos.map((h) => h.iso).sort();
+  const inicio = ordenadas[0];
+  const total = diasEntre(inicio, ordenadas[ordenadas.length - 1]);
 
   const hitos: HitoLinea[] = crudos.map((h, i) => ({
     clave: h.clave,

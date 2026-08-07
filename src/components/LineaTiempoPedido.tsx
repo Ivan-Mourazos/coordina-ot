@@ -12,16 +12,7 @@ import { fmtDiaMes, relativoA } from "@/lib/fechas";
  *  dónde estamos y cuánto queda sin pensar. */
 export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   const hoy = hoyISO();
-  // La fabricación arranca con la primera fase posterior al planteo, y eso
-  // vive por OF: se coge la más temprana del pedido.
-  const fabricacion = pedido.ofs
-    .map((o) => o.fechaLimitePlanteo)
-    .filter((f): f is string => !!f)
-    .sort()[0];
-  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = lineaTiempo(
-    { ...pedido, fechaFabricacion: fabricacion },
-    hoy,
-  );
+  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = lineaTiempo(pedido, hoy);
   const entrega = relativoA(pedido.fechaEntrega, hoy);
   const urgente = diasParaEntrega < 0 || diasParaEntrega <= 2;
 

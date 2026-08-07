@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { lineaTiempo } from "../linea-tiempo";
 
-const p = (solicitud: string, planificacion: string, entrega: string) => ({
-  fechaSolicitud: solicitud,
+// Vocabulario de la herramienta vieja, que es el del taller:
+//   creación      = cuándo entró el pedido (OrderDate)
+//   planificación = el día de PLANTEAR (FechaPlanificada de la vista)
+//   fabricación   = fin de fabricación previsto (PlannedEndDate de la OF)
+//   solicitada    = la ENTREGA que pide el cliente (FechaSolicitada)
+const p = (creacion: string, planificacion: string, entrega: string) => ({
+  fechaCreacion: creacion,
   fechaPlanificacion: planificacion,
   fechaEntrega: entrega,
 });
 
 describe("lineaTiempo", () => {
   it("reparte las fechas a escala real, no a intervalos iguales", () => {
-    // La fabricación cae al 25 % del recorrido: 10 días de 40.
+    // La planificación cae al 25 % del recorrido: 10 días de 40.
     const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
     expect(l.hitos.map((h) => Math.round(h.pct))).toEqual([0, 25, 100]);
-    // "Plantear", no "Fabricación": `fechaPlanificacion` es el día en que OT
-    // debe plantear, que es lo que ordena su lista de trabajo.
-    expect(l.hitos.map((h) => h.etiqueta)).toEqual(["Entrada", "Plantear", "Entrega"]);
+    expect(l.hitos.map((h) => h.etiqueta)).toEqual([
+      "Creación",
+      "Planificación",
+      "Solicitada",
+    ]);
   });
 
   it("sitúa hoy donde toca", () => {
@@ -45,16 +52,25 @@ describe("lineaTiempo", () => {
     expect(l.diasParaEntrega).toBe(0);
   });
 
-  it("aguanta fechas desordenadas (entrega antes que la entrada)", () => {
+  it("aguanta fechas desordenadas (entrega antes que la creación)", () => {
     const l = lineaTiempo(p("2026-08-20", "2026-08-15", "2026-08-10"), "2026-08-12");
     expect(l.hitos.every((h) => Number.isFinite(h.pct))).toBe(true);
     expect(l.hoyPct).toBeGreaterThanOrEqual(0);
     expect(l.hoyPct).toBeLessThanOrEqual(100);
   });
+
+  it("sin fecha de creación arranca en la planificación, sin inventarse la entrada", () => {
+    const l = lineaTiempo(
+      { fechaPlanificacion: "2026-08-05", fechaEntrega: "2026-08-25" },
+      "2026-08-05",
+    );
+    expect(l.hitos.map((h) => h.etiqueta)).toEqual(["Planificación", "Solicitada"]);
+    expect(l.hitos[0].pct).toBe(0);
+  });
 });
 
 describe("con fecha de fabricación", () => {
-  it("añade el hito entre plantear y entregar, a escala", () => {
+  it("añade el hito entre planificación y solicitada, a escala", () => {
     const l = lineaTiempo(
       {
         ...p("2026-08-01", "2026-08-05", "2026-08-21"),
@@ -63,10 +79,10 @@ describe("con fecha de fabricación", () => {
       "2026-08-01",
     );
     expect(l.hitos.map((h) => h.etiqueta)).toEqual([
-      "Entrada",
-      "Plantear",
+      "Creación",
+      "Planificación",
       "Fabricación",
-      "Entrega",
+      "Solicitada",
     ]);
     expect(l.hitos.map((h) => Math.round(h.pct))).toEqual([0, 20, 50, 100]);
   });
@@ -74,6 +90,22 @@ describe("con fecha de fabricación", () => {
   it("sin ella, la línea sigue teniendo tres hitos", () => {
     const l = lineaTiempo(p("2026-08-01", "2026-08-05", "2026-08-21"), "2026-08-01");
     expect(l.hitos).toHaveLength(3);
-    expect(l.hitos[1].etiqueta).toBe("Plantear");
+    expect(l.hitos[1].etiqueta).toBe("Planificación");
+  });
+
+  it("con la fabricación después de la solicitada, la escala la marca la fabricación", () => {
+    // Pasa de verdad en RPS: un pedido que va tarde. El hito no puede salirse
+    // de la línea, así que el extremo derecho es la fecha más tardía.
+    const l = lineaTiempo(
+      {
+        ...p("2026-08-01", "2026-08-05", "2026-08-21"),
+        fechaFabricacion: "2026-08-31",
+      },
+      "2026-08-01",
+    );
+    const pcts = Object.fromEntries(l.hitos.map((h) => [h.clave, Math.round(h.pct)]));
+    expect(pcts.fabricacion).toBe(100);
+    expect(pcts.solicitada).toBe(67);
+    expect(l.hitos.every((h) => h.pct >= 0 && h.pct <= 100)).toBe(true);
   });
 });

@@ -681,15 +681,22 @@ async function consultarTablero(): Promise<Tablero> {
       validas(filas.map((f) => f.FechaSolicitada))[0] ??
       fechaISO(venta?.solicitada ?? null) ??
       hoyISO();
-    // Planificación = FechaPlanificada de la vista (la de la tarea de OT);
-    // si falta, el arranque planificado de la OF. Entrega = fin planificado
-    // más tardío. Último recurso en ambas: la fecha solicitada.
+    // Las tres fechas con las que trabaja OT, con los nombres de la
+    // herramienta vieja (verificado contra ella con AR.26.03926):
+    //
+    //   planificación → FechaPlanificada de la vista (el día de PLANTEAR)
+    //   fabricación   → PlannedEndDate de la OF (fin de fabricación previsto)
+    //   solicitada    → FechaSolicitada = la ENTREGA que pide el cliente
+    //
+    // La entrega es la solicitada, no PlannedEndDate: son cosas distintas y
+    // pueden no coincidir (en AR.26.03926, 10/09 frente a 07/09).
     const planificacion =
       validas(filas.map((f) => f.FechaPlanificada))[0] ??
       validas(filas.map((f) => f.PlannedStartDate))[0] ??
       fecha;
-    const entrega =
-      validas(filas.map((f) => f.PlannedEndDate)).at(-1) ?? fecha;
+    // La más tardía: el pedido no está fabricado hasta que lo está su última OF.
+    const fabricacion = validas(filas.map((f) => f.PlannedEndDate)).at(-1);
+    const entrega = fecha;
     // El pedido hereda la MÁS urgente de sus OFs: con la escala nueva (3 =
     // urgente) eso es el máximo, no el mínimo.
     const prioridad = filas
@@ -713,6 +720,7 @@ async function consultarTablero(): Promise<Tablero> {
       fechaSolicitud: fecha,
       fechaCreacion: fechaISO(venta?.creacion ?? null) ?? undefined,
       fechaPlanificacion: planificacion,
+      fechaFabricacion: fabricacion,
       fechaEntrega: entrega,
       prioridad,
       scanUrl,

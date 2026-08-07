@@ -128,8 +128,12 @@ export function ListaView({
             <Th className="text-center">OF</Th>
             <Th>Autor → revisor</Th>
             <Th>Fase</Th>
-            <Th title="Fecha en la que Producción planificó el trabajo de OT">Planif.</Th>
-            <Th>Entrega</Th>
+            {/* Los dos nombres son los de la herramienta vieja: "planificada"
+                es el día de plantear y "solicitada" la entrega que pide el
+                cliente. Son las dos que se miran para decidir por dónde
+                empezar, así que van juntas y visibles sin desplegar la fila. */}
+            <Th title="El día en que OT debería plantear este pedido">Planificada</Th>
+            <Th title="La fecha de entrega que pide el cliente">Solicitada</Th>
             <Th className="text-right">Fichado</Th>
           </tr>
         </thead>
@@ -290,13 +294,22 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
   return (
     <div className="space-y-2.5">
       <dl className="flex flex-wrap gap-x-6 gap-y-1.5 text-[11px]">
-        <Dato label="Solicitado">
-          <Fecha iso={p.fechaSolicitud} hoy={hoy} enfasis="ninguno" />
-        </Dato>
-        <Dato label="Planificado">
+        {/* Creación, no "solicitado": la solicitada es la entrega y ya está en
+            su columna. Aquí lo que aporta el desplegable es cuándo entró. */}
+        {p.fechaCreacion && (
+          <Dato label="Creación">
+            <Fecha iso={p.fechaCreacion} hoy={hoy} enfasis="ninguno" />
+          </Dato>
+        )}
+        <Dato label="Planificada">
           <Fecha iso={p.fechaPlanificacion} hoy={hoy} />
         </Dato>
-        <Dato label="Entrega">
+        {p.fechaFabricacion && (
+          <Dato label="Fabricación">
+            <Fecha iso={p.fechaFabricacion} hoy={hoy} enfasis="ninguno" />
+          </Dato>
+        )}
+        <Dato label="Solicitada">
           <Fecha iso={p.fechaEntrega} hoy={hoy} enfasis="suave" />
         </Dato>
         <Dato label="Planteo">{fmtMin(planteo)}</Dato>

@@ -124,8 +124,19 @@ export interface Pedido {
    *  (FACOrderSL.OrderDate). undefined = sin dato (mock, OF sin pedido). */
   fechaCreacion?: string;
   /** Fecha que Producción planifica antes de enviarlo a Oficina Técnica.
-   *  Es la fecha por la que se ordena la lista de trabajo. */
+   *  Es la fecha por la que se ordena la lista de trabajo. En RPS:
+   *  TGM_PENDIENTE_OT.FechaPlanificada. Lo que en la herramienta vieja se
+   *  llama "planificación". */
   fechaPlanificacion: string; // ISO yyyy-mm-dd
+  /** Fin de fabricación planificado (CPRManufacturingOrder.PlannedEndDate, la
+   *  más tardía de las OF del pedido). Lo que la herramienta vieja llama
+   *  "fabricación". undefined = ninguna OF lo tiene puesto. */
+  fechaFabricacion?: string;
+  /** La fecha de ENTREGA que pide el cliente — "solicitada" en la herramienta
+   *  vieja (FechaSolicitada de la vista = ReceptionDemandDate del pedido de
+   *  venta). OJO: durante un tiempo esto se pintó como la fecha de entrada del
+   *  pedido, y por eso la línea de tiempo salía al revés; la de entrada es
+   *  `fechaCreacion`. */
   fechaEntrega: string; // ISO yyyy-mm-dd
   prioridad: Prioridad;
   ofs: OF[];
