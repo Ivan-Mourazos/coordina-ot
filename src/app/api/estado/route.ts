@@ -70,7 +70,32 @@ export async function POST(req: Request) {
     : [];
   if (cortar.length > 0) {
     const ahora = new Date().toISOString();
-    for (const ofId of cortar) cortarFichajeDeOF(ofId, ahora);
+    try {
+      // Ejecutar cada corte en su propio try/catch: si uno falla, los demás se
+      // intentan de todas formas.
+      for (const ofId of cortar) {
+        try {
+          cortarFichajeDeOF(ofId, ahora);
+        } catch (e) {
+          // El corte es un efecto secundario no-crítico:
+          //
+          // 1. cortarFichajeDeOF NO registra latido (pasa { latido: false } a
+          //    guardarFichaje) porque quien llama es otro operario trasvasando
+          //    la OF, no el afectado. Registrar un latido falso retrasaría hasta
+          //    5 min el cierre automático de una sesión muerta.
+          //
+          // 2. Si el fichaje se queda abierto por este fallo, cerrarFichajesSinLatido
+          //    (fichaje-worker.ts) lo cerrará dentro de esa tolerancia. Hay red
+          //    de seguridad: devolver 500 aquí con la mutación YA GUARDADA no la
+          //    añadiría, solo timaría al cliente para que reintente algo ya hecho.
+          console.error("[estado] no se pudo cortar el fichaje de la OF", ofId, ":", e);
+        }
+      }
+    } catch (e) {
+      // Fallo no esperado en lógica ajena al bucle: igual, se registra pero
+      // no tumba la respuesta porque la mutación ya está guardada.
+      console.error("[estado] error inesperado cortando fichajes:", e);
+    }
   }
 
   // Pasar el pedido a Producción es lo que da las fases por terminadas en
