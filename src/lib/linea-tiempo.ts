@@ -7,7 +7,7 @@ import { diasEntre } from "./fechas";
 // "¿voy con tiempo?" se contesta mirando, sin restar fechas de cabeza.
 
 export interface HitoLinea {
-  clave: "solicitud" | "planificacion" | "entrega";
+  clave: "solicitud" | "planificacion" | "fabricacion" | "entrega";
   etiqueta: string;
   iso: string;
   /** Posición en la línea, de 0 a 100. */
@@ -26,7 +26,12 @@ export interface LineaTiempo {
 
 const ETIQUETA = {
   solicitud: "Entrada",
-  planificacion: "Fabricación",
+  // OJO con los nombres, que se confunden: `fechaPlanificacion` es el día en
+  // que OT debería PLANTEAR (es la que ordena su lista de trabajo), no cuándo
+  // se fabrica. La de fabricación es `fechaLimitePlanteo`, que vive por OF y
+  // marca cuándo arranca la primera fase posterior al planteo.
+  planificacion: "Plantear",
+  fabricacion: "Fabricación",
   entrega: "Entrega",
 } as const;
 
@@ -37,22 +42,29 @@ const ETIQUETA = {
  *  fechas caen el mismo día (o vienen desordenadas) no hay escala posible, así
  *  que se reparten iguales para que la línea siga siendo legible. */
 export function lineaTiempo(
-  p: { fechaSolicitud: string; fechaPlanificacion: string; fechaEntrega: string },
+  p: {
+    fechaSolicitud: string;
+    fechaPlanificacion: string;
+    fechaEntrega: string;
+    /** Cuándo arranca la fabricación, si Producción lo tiene planificado. */
+    fechaFabricacion?: string;
+  },
   hoy: string,
 ): LineaTiempo {
   const crudos = [
     { clave: "solicitud" as const, iso: p.fechaSolicitud },
     { clave: "planificacion" as const, iso: p.fechaPlanificacion },
+    ...(p.fechaFabricacion ? [{ clave: "fabricacion" as const, iso: p.fechaFabricacion }] : []),
     { clave: "entrega" as const, iso: p.fechaEntrega },
   ];
   const inicio = crudos[0].iso;
-  const total = diasEntre(inicio, crudos[2].iso);
+  const total = diasEntre(inicio, crudos[crudos.length - 1].iso);
 
   const hitos: HitoLinea[] = crudos.map((h, i) => ({
     clave: h.clave,
     etiqueta: ETIQUETA[h.clave],
     iso: h.iso,
-    pct: total > 0 ? (diasEntre(inicio, h.iso) / total) * 100 : i * 50,
+    pct: total > 0 ? (diasEntre(inicio, h.iso) / total) * 100 : (i / (crudos.length - 1)) * 100,
   }));
 
   const brutoHoy = total > 0 ? (diasEntre(inicio, hoy) / total) * 100 : 50;
@@ -62,6 +74,6 @@ export function lineaTiempo(
     // se quede en el extremo ya dice "esto viene de antes" o "esto ya pasó".
     hoyPct: Math.min(100, Math.max(0, brutoHoy)),
     hoyFuera: brutoHoy < 0 || brutoHoy > 100,
-    diasParaEntrega: diasEntre(hoy, crudos[2].iso),
+    diasParaEntrega: diasEntre(hoy, p.fechaEntrega),
   };
 }

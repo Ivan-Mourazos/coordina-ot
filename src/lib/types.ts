@@ -23,7 +23,10 @@ export type FamiliaConocida =
   | "LONA"
   | "CARPA"
   | "TAPIZADO"
-  | "REPARACION";
+  | "REPARACION"
+  | "ESPECTACULO"
+  | "FUNDA"
+  | "PUERTA";
 
 /** RPS trae familias fuera del catálogo (ESPECTACULO, CERRAMIENTOS…): se
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */

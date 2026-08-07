@@ -54,6 +54,24 @@ const M: Record<FamiliaConocida, FamiliaMeta> = {
     // caja de material
     icon: "M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8",
   },
+  ESPECTACULO: {
+    label: "Espectáculo",
+    color: "#7c3aed",
+    // escenario con focos
+    icon: "M3 20h18M5 20V10h14v10M8 10 5 4M16 10l3-6M12 10V4",
+  },
+  FUNDA: {
+    label: "Funda",
+    color: "#0f8a8a",
+    // funda: cubierta con costura
+    icon: "M5 8h14v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM5 8l2-4h10l2 4M9 12h6",
+  },
+  PUERTA: {
+    label: "Puerta rápida",
+    color: "#b45309",
+    // puerta enrollable: dintel y lamas
+    icon: "M4 4h16M5 8h14M5 12h14M5 16h14M7 20h10",
+  },
 };
 
 const FALLBACK: FamiliaMeta = {

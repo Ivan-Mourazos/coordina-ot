@@ -118,19 +118,56 @@ function textoArticulo(articulo: string | null): string {
  *  OF (más fina: "CERRAMIENTO TEXTIL CON LONA…" → LONA) y después el grupo de
  *  artículo de RPS ("CERRAMIENTOS"). Lo que no encaja pasa como texto tal cual
  *  (familiaMeta le da tinte neutro). */
+/** Grupos de artículo de RPS que ya dicen por sí solos de qué familia es.
+ *
+ *  Van ANTES que la descripción porque son la clasificación oficial y la
+ *  descripción engaña: "LONA SEPARA MERCANCIAS" de un camión acababa en Lona
+ *  cuando es un remolque, y por eso los remolques no aparecían en el filtro. */
+const FAMILIA_POR_GRUPO: [RegExp, Familia][] = [
+  [/CAMION|CAPOTA/, "REMOLQUE"],
+  [/TOLDO/, "TOLDO"],
+  [/ESPECTACULO/, "ESPECTACULO"],
+  [/CARPA/, "CARPA"],
+  [/SUMINISTRO/, "SUMINISTRO"],
+];
+
+/** Y por descripción, con el vocabulario del taller (acordado con Iván): los
+ *  toldos incluyen cortinas, bambalinas y cambios de tela; los remolques,
+ *  arquillados, baquetones y tautliners; las lonas, las de estructura, riel y
+ *  ollaos. Lo específico va primero: "lona de tautliner" es un remolque. */
+const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
+  // Transporte. Va lo primero porque casi todo esto se describe empezando por
+  // "LONA…" y si no, acabaría en lonas. Las tildes se contemplan a mano:
+  // toUpperCase() no las quita, y en RPS conviven "BAQUETON" y "BAQUETÓN".
+  [
+    /TAUT?LINER|ARQUILLAD|BAQUET[OÓ]N|REMOLQUE|CAMI[OÓ]N|CAPOTA|BOTELLERO|CISTERNA|GANADO|CABALLO/,
+    "REMOLQUE",
+  ],
+  [/FUNDA/, "FUNDA"],
+  [/PUERTA R[AÁ]PIDA|APILABLE|ENROLLABLE|AUTOREPARABLE|AUTORREPARABLE/, "PUERTA"],
+  [/ORQUESTA|ESPECTACULO|ESCENARIO/, "ESPECTACULO"],
+  // "Cortina" sirve para las dos cosas: una cortina de cristal es un toldo,
+  // pero "LONA CORTINA CON RIEL" es una lona. Lo que abre la descripción es
+  // lo que manda, así que una que empieza por LONA se queda en lonas.
+  [/^LONA\b/, "LONA"],
+  [
+    /TOLDO|CORTINA|ARZ[UÚ]A|BAMBALINA|CAMBIO DE TELA|CAMBIAR TELA|PROTECCI[OÓ]N SOLAR/,
+    "TOLDO",
+  ],
+  [/CARPA/, "CARPA"],
+  [/TAPIZ/, "TAPIZADO"],
+  [/REPARAC/, "REPARACION"],
+  [/SUMINISTRO|SYSTEM DOCK/, "SUMINISTRO"],
+  [/LONA|ROLLO|OLLAO|RIEL/, "LONA"],
+];
+
 export function familiaDeTexto(descripcionMO: string | null, articulo: string | null): Familia {
   const grupo = textoArticulo(articulo).toUpperCase();
   const desc = (descripcionMO ?? "").toUpperCase();
-  for (const t of [desc, grupo]) {
-    if (!t) continue;
-    if (t.includes("TOLDO")) return "TOLDO";
-    if (t.includes("LONA") || t.includes("ROLLO")) return "LONA";
-    if (t.includes("CARPA")) return "CARPA";
-    if (t.includes("REMOLQUE")) return "REMOLQUE";
-    if (t.includes("TAPIZ")) return "TAPIZADO";
-    if (t.includes("REPARAC")) return "REPARACION";
-    if (t.includes("SUMINISTRO")) return "SUMINISTRO";
-  }
+  for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
+  for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
+  // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte
+  // neutro. Mejor un nombre feo que meterlo en una familia que no es.
   return grupo || "OTRO";
 }
 

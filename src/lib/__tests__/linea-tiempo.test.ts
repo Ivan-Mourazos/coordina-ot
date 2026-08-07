@@ -12,7 +12,9 @@ describe("lineaTiempo", () => {
     // La fabricación cae al 25 % del recorrido: 10 días de 40.
     const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
     expect(l.hitos.map((h) => Math.round(h.pct))).toEqual([0, 25, 100]);
-    expect(l.hitos.map((h) => h.etiqueta)).toEqual(["Entrada", "Fabricación", "Entrega"]);
+    // "Plantear", no "Fabricación": `fechaPlanificacion` es el día en que OT
+    // debe plantear, que es lo que ordena su lista de trabajo.
+    expect(l.hitos.map((h) => h.etiqueta)).toEqual(["Entrada", "Plantear", "Entrega"]);
   });
 
   it("sitúa hoy donde toca", () => {
@@ -48,5 +50,30 @@ describe("lineaTiempo", () => {
     expect(l.hitos.every((h) => Number.isFinite(h.pct))).toBe(true);
     expect(l.hoyPct).toBeGreaterThanOrEqual(0);
     expect(l.hoyPct).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("con fecha de fabricación", () => {
+  it("añade el hito entre plantear y entregar, a escala", () => {
+    const l = lineaTiempo(
+      {
+        ...p("2026-08-01", "2026-08-05", "2026-08-21"),
+        fechaFabricacion: "2026-08-11",
+      },
+      "2026-08-01",
+    );
+    expect(l.hitos.map((h) => h.etiqueta)).toEqual([
+      "Entrada",
+      "Plantear",
+      "Fabricación",
+      "Entrega",
+    ]);
+    expect(l.hitos.map((h) => Math.round(h.pct))).toEqual([0, 20, 50, 100]);
+  });
+
+  it("sin ella, la línea sigue teniendo tres hitos", () => {
+    const l = lineaTiempo(p("2026-08-01", "2026-08-05", "2026-08-21"), "2026-08-01");
+    expect(l.hitos).toHaveLength(3);
+    expect(l.hitos[1].etiqueta).toBe("Plantear");
   });
 });
