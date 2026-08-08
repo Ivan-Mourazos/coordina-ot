@@ -373,17 +373,10 @@ async function consultarTablero(): Promise<Tablero> {
       ;WITH Fin AS (
         SELECT e.orden, e.fase AS codTarea, MAX(e.fecha_cambio) AS finalizada
         FROM dbo.tgm_estadosof_olanet e
-        -- Dos años, no 60 días. Con 60 los pedidos cerrados hace más de dos
-        -- meses desaparecían de la app: ni en pendientes (RPS ya no los da) ni
-        -- aquí. AR.26.02187, cerrado en mayo, era justo eso.
-        --
-        -- Y no "sin límite", que se probó: sin el corte por fecha SQL Server
-        -- ni siquiera llega a planificar la consulta ("The query processor ran
-        -- out of internal resources", error 8623) y el tablero se cae entero.
-        -- El límite es de esta consulta, la que alimenta el TABLERO. La
-        -- pestaña Historial no tiene ninguno: va paginada contra la misma
-        -- tabla y de ahí sí sale todo, por viejo que sea.
-        WHERE e.idestadoof = 3 AND e.fecha_cambio > DATEADD(year, -2, GETDATE())
+        -- La ventana vuelve a 60 días porque ya da igual cuál sea: lo que
+        -- sale de aquí no llega al tablero (ver el return de la función). Se
+        -- deja corta para que la consulta sea barata mientras se quita.
+        WHERE e.idestadoof = 3 AND e.fecha_cambio > DATEADD(day, -60, GETDATE())
         GROUP BY e.orden, e.fase
       )
       SELECT f.orden, f.codTarea, f.finalizada,
@@ -790,7 +783,19 @@ async function consultarTablero(): Promise<Tablero> {
     };
   });
 
-  return { operarios: OPERARIOS, pedidos: [...pedidos, ...pedidosHistorial] };
+  // SOLO trabajo por hacer. Los finalizados viven en la pestaña Historial, que
+  // tiene su propio endpoint paginado y sin límite de antigüedad.
+  //
+  // Antes se mezclaban aquí los cerrados recientemente, y eso traía dos
+  // problemas encadenados: el tablero cargaba 1290 pedidos y casi 1 MB para
+  // enseñar 85, y cualquier corte por antigüedad dejaba un limbo — un pedido
+  // cerrado antes del corte no salía en pendientes (RPS ya no lo da) ni en el
+  // tablero, y parecía desaparecido (AR.26.02187). Sin mezcla no hay corte que
+  // elegir y el limbo no existe.
+  //
+  // `pedidosHistorial` se sigue calculando y de momento no lo usa nadie: hay
+  // que quitarlo, junto con la consulta que lo alimenta.
+  return { operarios: OPERARIOS, pedidos };
 }
 
 // ─── Caché stale-while-revalidate + precalentamiento ─────────────────────────
