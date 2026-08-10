@@ -214,12 +214,18 @@ export function FilterBar({
 
       <Separador />
 
-      {/* QUÉ trabajo es. El nombre del campo va DENTRO del desplegable y el
-          valor lo sustituye al elegir: con la etiqueta fuera, "Familia Todas"
-          gastaba el doble de sitio para decir que no filtra nada. Al filtrar se
-          pinta con el color de marca, así se ve de un vistazo cuál está
-          recortando la lista. */}
-      <Grupo label="Qué">
+      {/* VER: todo lo que recorta lo que sale en pantalla, en un solo bloque —
+          de qué es, en qué estado, con qué urgencia, para cuándo y de qué clase.
+          Estuvieron un rato repartidos en tres grupos ("Qué", "Planificado",
+          "Ver") y no ayudaba: son nombres para categorías que solo existen en
+          la cabeza de quien las agrupó, y había que leer los tres rótulos para
+          dar con el control que se busca. Uno solo, y dentro el orden en que se
+          preguntan las cosas.
+          El nombre del campo va DENTRO de cada desplegable y el valor lo
+          sustituye al elegir: con la etiqueta fuera, "Familia Todas" gastaba el
+          doble de sitio para decir que no filtra nada. Al filtrar se pinta con
+          el color de marca, así se ve de un vistazo cuál está recortando. */}
+      <Grupo label="Ver">
         <Select
           value={filtros.familia === "todas" ? null : filtros.familia}
           onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
@@ -265,6 +271,53 @@ export function FilterBar({
             ),
           }))}
         />
+
+        {/* PARA CUÁNDO, en el mismo bloque: "los toldos del jueves" es una
+            sola pregunta, no dos. */}
+        {ver.fechas && (
+          <SelectorFecha
+            desde={filtros.desde}
+            hasta={filtros.hasta}
+            onCambiar={(desde, hasta) => setFiltros({ desde, hasta })}
+          />
+        )}
+
+        {/* De qué CLASE es el trabajo. Fueron cuatro botones seguidos que
+            gastaban una fila entera para decir "esto está escondido", y ninguno
+            decía cuánto había detrás: había que pulsarlos a ciegas para
+            descubrir que no había ninguna OF anulada. */}
+        {ver.categoria && (
+          <Select
+            value={filtros.categoria}
+            onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
+            placeholder={null}
+            acentuarActivo={filtros.categoria !== "normal"}
+            options={CATEGORIAS.map((c) => ({
+              value: c,
+              label: conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
+            }))}
+          />
+        )}
+
+        {ver.material && (
+          <Toggle
+            activo={filtros.soloMaterialPendiente}
+            onClick={() => setFiltros({ soloMaterialPendiente: !filtros.soloMaterialPendiente })}
+            title="Enseña SOLO las OF que esperan material de compras. No se pueden terminar de plantear hasta que llegue."
+          >
+            Esperando material
+          </Toggle>
+        )}
+
+        {ver.atrasados && (
+          <Toggle
+            activo={filtros.soloAtrasados}
+            onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
+            title="Enseña SOLO los pedidos cuya fecha de planificación ya pasó y siguen sin terminar."
+          >
+            Solo atrasados
+          </Toggle>
+        )}
       </Grupo>
 
       {/* DE QUIÉN es. "¿Qué le queda a Tamara por repasar?" no se podía
@@ -289,67 +342,6 @@ export function FilterBar({
               acentuarActivo
               options={opcionesPersona}
             />
-          </Grupo>
-        </>
-      )}
-
-      {/* PARA CUÁNDO. El Historial ya tenía sus dos fechas; esto es lo mismo
-          para el trabajo que aún está por hacer. */}
-      {ver.fechas && (
-        <>
-          <Separador />
-          <Grupo label="Planificado">
-            <SelectorFecha
-              desde={filtros.desde}
-              hasta={filtros.hasta}
-              onCambiar={(desde, hasta) => setFiltros({ desde, hasta })}
-            />
-          </Grupo>
-        </>
-      )}
-
-      {/* QUÉ SE ENSEÑA: las categorías que por defecto no se ven, más los
-          recortes sueltos. "Ver" era antes cuatro botones seguidos que gastaban
-          una fila entera para decir "esto está escondido", y ninguno decía
-          cuánto había detrás: había que pulsarlos a ciegas para descubrir que
-          no había ninguna OF anulada. */}
-      {(ver.categoria || ver.atrasados || ver.material) && (
-        <>
-          <Separador />
-          <Grupo label="Ver">
-            {ver.categoria && (
-              <Select
-                value={filtros.categoria}
-                onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
-                placeholder={null}
-                acentuarActivo={filtros.categoria !== "normal"}
-                options={CATEGORIAS.map((c) => ({
-                  value: c,
-                  label:
-                    conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
-                }))}
-              />
-            )}
-            {ver.material && (
-              <Toggle
-                activo={filtros.soloMaterialPendiente}
-                onClick={() =>
-                  setFiltros({ soloMaterialPendiente: !filtros.soloMaterialPendiente })
-                }
-                title="Enseña SOLO las OF que esperan material de compras. No se pueden terminar de plantear hasta que llegue."
-              >
-                Esperando material
-              </Toggle>
-            )}
-            {ver.atrasados && (
-              <Toggle
-                activo={filtros.soloAtrasados}
-                onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
-                title="Enseña SOLO los pedidos cuya fecha de planificación ya pasó y siguen sin terminar."
-              >
-                Solo atrasados
-              </Toggle>
-            )}
           </Grupo>
         </>
       )}

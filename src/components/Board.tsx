@@ -106,6 +106,34 @@ function filtrosDeUrl(): Record<VistaFiltrable, Filtros> {
   return { ...base, [filtrableDeUrl()]: paramsAFiltros(sp) };
 }
 
+// ── Recordatorio del periodo de pruebas ─────────────────────────────────────
+// Mientras el fichaje de CoordinaOT se contrasta con el de siempre hay que
+// fichar en los DOS sitios. Se recuerda una vez al día por técnico, la primera
+// vez que ficha: en cada fichaje se convertiría en un diálogo que se cierra sin
+// leer. Se guarda la FECHA y no un booleano para que caduque solo al cambiar
+// de día, sin nada que limpiar.
+// QUITAR esto y el cartel de MiFichaje cuando el fichaje pase a "activo".
+const AVISO_ANTIGUA_KEY = "coordina-aviso-herramienta-antigua";
+
+function avisoAntiguaPendiente(operarioId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(`${AVISO_ANTIGUA_KEY}:${operarioId}`) !== hoyISO();
+  } catch {
+    // Sin localStorage (modo privado, permisos) se avisa siempre: molesta menos
+    // que perder horas por no haber fichado en la herramienta antigua.
+    return true;
+  }
+}
+
+function marcarAvisoAntiguaVisto(operarioId: string): void {
+  try {
+    localStorage.setItem(`${AVISO_ANTIGUA_KEY}:${operarioId}`, hoyISO());
+  } catch {
+    // Da igual: el aviso volverá a salir, que es el lado seguro.
+  }
+}
+
 function leerIdentidadGuardada(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -1031,6 +1059,12 @@ export function Board({
   // Fichar en OFs asignadas a OTRO operario está permitido (en el taller se
   // hace, p.ej. para revisar o echar una mano), pero se avisa antes para que
   // no ocurra sin querer desde el panel/tarjeta de un compañero.
+  // Lo que se iba a fichar cuando saltó el recordatorio de la herramienta
+  // antigua: se retoma tal cual al aceptar, sin que haya que volver a pulsar.
+  const [recordatorioAntigua, setRecordatorioAntigua] = useState<{
+    ofIds: string[];
+    rol: Rol;
+  } | null>(null);
   const [fichajeAjenoPendiente, setFichajeAjenoPendiente] = useState<{
     ofIds: string[];
     rol: Rol;
@@ -1039,6 +1073,16 @@ export function Board({
   const ficharOFsConAviso = useCallback(
     (ofIds: string[], rol: Rol) => {
       if (!miId) return;
+      // Periodo de pruebas: hay que fichar también en la herramienta antigua.
+      // El recordatorio salta al PULSAR fichar, que es cuando se puede olvidar,
+      // pero solo la PRIMERA vez del día: un diálogo en cada fichaje —y se
+      // ficha muchas veces al día— se aprende a cerrar sin leerlo, que es peor
+      // que no ponerlo. El resto del día lo recuerda el cartel fijo del panel
+      // de Mi fichaje. QUITAR los dos cuando el fichaje pase a "activo".
+      if (avisoAntiguaPendiente(miId)) {
+        setRecordatorioAntigua({ ofIds, rol });
+        return;
+      }
       const ids = new Set(ofIds);
       const ajenos = new Set<string>();
       for (const p of pedidos) {
@@ -1549,6 +1593,23 @@ export function Board({
           setCambioIdentidadPendiente(null);
         }}
         onCancelar={() => setCambioIdentidadPendiente(null)}
+      />
+
+      {/* Periodo de pruebas: recordatorio del doble fichaje, una vez al día. */}
+      <ConfirmDialog
+        abierto={recordatorioAntigua !== null}
+        titulo="Recuerda: ficha también en la herramienta antigua"
+        mensaje="Mientras dure el periodo de pruebas, el tiempo tiene que quedar apuntado en los dos sitios. Este aviso sale una vez al día."
+        onConfirmar={() => {
+          if (miId) marcarAvisoAntiguaVisto(miId);
+          const pendiente = recordatorioAntigua;
+          setRecordatorioAntigua(null);
+          // Se retoma el fichaje que lo disparó: ya está marcado como visto,
+          // así que esta vez pasa de largo y sigue su curso normal (incluido el
+          // aviso de OF ajena, si lo hubiera).
+          if (pendiente) ficharOFsConAviso(pendiente.ofIds, pendiente.rol);
+        }}
+        onCancelar={() => setRecordatorioAntigua(null)}
       />
 
       <ConfirmDialog
