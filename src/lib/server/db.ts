@@ -7,8 +7,14 @@ import sql from "mssql";
 function req(name: string): string {
   const v = process.env[name];
   if (!v) {
+    // El mensaje nombra el servidor que de verdad falta. Decía "las
+    // credenciales de RPS" pasara lo que pasara, y un fallo de OLANET —que es
+    // otra máquina, con otro usuario— mandaba a mirar el sitio equivocado. Le
+    // costó a IT media tarde de búsqueda: el fichaje llevaba días sin escribir
+    // nada porque faltaba OLANET_DB_HOST, y el error decía RPS.
+    const servidor = name.startsWith("OLANET") ? "OLANET" : "RPS";
     throw new Error(
-      `Falta ${name} en .env.local (copia .env.example y rellena las credenciales de RPS)`,
+      `Falta ${name} en .env.local (copia .env.example y rellena las credenciales de ${servidor})`,
     );
   }
   return v;
