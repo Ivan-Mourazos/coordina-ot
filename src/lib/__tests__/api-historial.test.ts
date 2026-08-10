@@ -1,7 +1,14 @@
 import { expect, test } from "vitest";
 import * as pagina from "../../app/api/historial/route";
 import * as detalle from "../../app/api/historial/[pedido]/route";
+import * as documento from "../../app/api/historial/[pedido]/documento/[indice]/route";
 import * as clientes from "../../app/api/historial/clientes/route";
+
+/** Pide un documento a la ruta. En mock no hay documentos, así que todo lo que
+ *  pase la validación acaba en 404: es justo lo que se quiere comprobar aquí,
+ *  que lo inválido se para ANTES (400) y no llega ni a tocar la BD. */
+const pedirDocumento = (pedido: string, indice: string) =>
+  documento.GET(new Request("http://x/"), { params: Promise.resolve({ pedido, indice }) });
 
 test("GET página devuelve { pedidos, hasMore }", async () => {
   const res = await pagina.GET(new Request("http://x/api/historial?page=0"));
@@ -32,6 +39,41 @@ test("GET detalle con código inválido responde 400", async () => {
     params: Promise.resolve({ pedido: "xxx" }),
   });
   expect(res.status).toBe(400);
+});
+
+test("GET detalle trae los campos nuevos, vacíos en mock pero presentes", async () => {
+  const res = await detalle.GET(new Request("http://x/api/historial/AR.26.03453"), {
+    params: Promise.resolve({ pedido: "AR.26.03453" }),
+  });
+  const d = (await res.json()) as {
+    documentos: unknown[];
+    comentariosLinea: unknown[];
+    comentarioEnvio: string | null;
+  };
+  // En mock no hay share ni pedido de venta que consultar: listas vacías, no
+  // ausentes. El contrato con la UI es el mismo con BD y sin ella.
+  expect(d.documentos).toEqual([]);
+  expect(d.comentariosLinea).toEqual([]);
+  expect(d.comentarioEnvio).toBeNull();
+});
+
+test("GET documento rechaza el código de pedido que no lo es", async () => {
+  for (const malo of ["xxx", "../../etc/passwd", "AR.26.0345", "'; DROP TABLE x --"]) {
+    expect((await pedirDocumento(malo, "0")).status).toBe(400);
+  }
+});
+
+test("GET documento rechaza los índices que no son un número de lista", async () => {
+  // Negativos, decimales, notación rara y desbordados: se paran en la ruta, sin
+  // llegar a preguntarle nada a RPS.
+  for (const malo of ["-1", "0.5", "1e3", "0x10", " 1", "99999999", ""]) {
+    expect((await pedirDocumento("AR.26.03453", malo)).status).toBe(400);
+  }
+});
+
+test("GET documento con índice válido y sin documentos responde 404", async () => {
+  const res = await pedirDocumento("AR.26.03453", "0");
+  expect(res.status).toBe(404);
 });
 
 test("GET clientes con q<2 devuelve lista vacía", async () => {

@@ -5,8 +5,10 @@ import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import { FAMILIA_KEYWORDS } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
 import { fmtMin } from "@/lib/estado";
+import { FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { RolChip } from "./RolChip";
+import { Desplegable } from "./Desplegable";
 
 /** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
  *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
@@ -23,6 +25,22 @@ function fmtFecha(iso: string): { corta: string; completa: string } {
   const mi = String(d.getMinutes()).padStart(2, "0");
   return { corta, completa: `${dd}/${mm}/${ano} a las ${hh}:${mi}` };
 }
+
+/** La página del historial NO trae hoy ni familia ni negocio: `filaAItem`
+ *  (lib/historial.ts) mapea solo pedido, cliente, finalizada y nOf, y esos dos
+ *  datos viven en la cabecera del detalle, una consulta aparte por pedido.
+ *
+ *  Se leen con un ensanchado LOCAL del tipo para que la barra los pinte en
+ *  cuanto el backend los meta en la fila de la página, sin volver a tocar esta
+ *  vista y —sobre todo— sin una petición por fila: son 40 filas por página
+ *  contra RPS, cuya vista de pendientes ya tarda de 7 a 15 s ella sola.
+ *  Se admiten los dos nombres posibles porque aún no está decidido cuál usará
+ *  la query: el detalle ya llama `familias` (en plural) a lo mismo. */
+type ItemAmpliado = HistorialItem & {
+  familias?: string[];
+  familia?: string | null;
+  negocio?: string | null;
+};
 
 /** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado). */
 export function HistorialView() {
@@ -266,6 +284,55 @@ function ClienteAutocomplete({
   );
 }
 
+/** Quién hay detrás del pedido, en el hueco donde antes ponía "· sin autor".
+ *
+ *  Ese literal salía en cuanto faltaba `pasadoPor` —o sea, en todo lo anterior
+ *  a la web— y era mentira: al desplegar la fila aparecen los técnicos con sus
+ *  horas. Ahora manda `autores` (quien lo planteó, registrado en los pedidos
+ *  nuevos y deducido del reparto de horas de RPS en los viejos).
+ *
+ *  `autores` y `pasadoPor` son cosas distintas y NO se juntan en un mismo
+ *  texto: el verbo dice cuál se está leyendo ("Planteó Ana" / "Lo pasó Ana"),
+ *  y el title lo remata. Cuando hay autores, quien lo pasó no desaparece: está
+ *  en el title de la fecha, al lado. Dos nombres es un resultado válido —se lo
+ *  repartieron a partes iguales—, así que se enseñan los dos. */
+function Autoria({ item }: { item: HistorialItem }) {
+  const autores = (item.autores ?? []).filter(Boolean);
+  if (autores.length > 0) {
+    const visibles = autores.slice(0, 2);
+    return (
+      <span
+        className="text-text"
+        title={`Quién lo planteó: ${autores.join(", ")}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
+      >
+        {autores.length > 1 ? "Plantearon" : "Planteó"} {visibles.join(" y ")}
+        {autores.length > 2 && ` +${autores.length - 2}`}
+      </span>
+    );
+  }
+  if (item.pasadoPor) {
+    return (
+      <span
+        className="text-text"
+        title={`${item.pasadoPor} pulsó "pasar a Producción". De este pedido no consta quién lo planteó, y no tienen por qué ser la misma persona.`}
+      >
+        Lo pasó {item.pasadoPor}
+      </span>
+    );
+  }
+  // Ahora sí: ni autores ni quien lo pasó. Ningún minuto imputado a nadie.
+  return <span className="italic">sin autor</span>;
+}
+
+/** Una fila del historial: la barra entera DESPLIEGA sus OFs, y el detalle
+ *  completo se abre con un botón propio.
+ *
+ *  Antes era al revés —la barra abría el drawer y solo la flecha desplegaba— y
+ *  eso choca con la Lista, donde pulsar la fila despliega. Quien venía de la
+ *  Lista pulsaba el pedido esperando ver sus OF y le saltaba el drawer encima.
+ *  El detalle sigue haciendo falta (ahí van a ir los documentos y las reservas
+ *  de material), así que tiene botón propio: rotulado, siempre visible y en el
+ *  tabulador. En un hover no se encontraría, y con el teclado no se llegaría. */
 function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido: string) => void }) {
   const [desplegado, setDesplegado] = useState(false);
   const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
@@ -297,42 +364,90 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
   // es cuando OLANET registró el cambio y puede ir por detrás.
   const pasado = fmtFecha(item.pasadoAt ?? item.finalizada);
   const origen = item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS";
+  // Quién lo pasó viaja en el title de la fecha, que es el sitio que le
+  // corresponde: "pasar a Producción" es un acto con su hora, no la autoría.
+  const tituloPasado = item.pasadoPor
+    ? `${origen}: ${pasado.completa} · lo pasó ${item.pasadoPor}`
+    : `${origen}: ${pasado.completa}`;
+
+  const ampliado = item as ItemAmpliado;
+  const familias = Array.isArray(ampliado.familias)
+    ? ampliado.familias.filter(Boolean)
+    : ampliado.familia
+      ? [ampliado.familia]
+      : [];
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    // `pl-1` reserva SIEMPRE el hueco de la barra de acento: si apareciera solo
+    // al abrir, el pedido daría un salto lateral justo cuando lo estás mirando.
+    <div className="relative overflow-hidden rounded-xl border border-border bg-surface pl-1">
+      {/* Cuál está desplegado: una barra de acento que recorre el bloque entero,
+          cabecera y OFs. De las tres marcas posibles es la única que dice DÓNDE
+          ACABA lo abierto, que es justo la queja ("parece todo pedidos"): un
+          fondo distinto en la cabecera marca el principio y deja el final a
+          ojo, y un borde alrededor no se nota porque cada fila ya trae el suyo.
+          Color de marca en plano: se ve igual en claro y en oscuro. */}
+      {desplegado && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />}
+
       <div className="flex items-center gap-2 px-2 py-1.5">
         <button
+          type="button"
           onClick={alternar}
           aria-expanded={desplegado}
           aria-label={desplegado ? `Ocultar OFs de ${item.pedido}` : `Ver OFs de ${item.pedido}`}
-          className="grid size-6 shrink-0 place-items-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
+          className="grid size-6 shrink-0 cursor-pointer place-items-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
         >
           <span className={`transition-transform ${desplegado ? "rotate-90" : ""}`}>›</span>
         </button>
+        {/* Sin `aria-label`: todo lo que se lee de la fila (código, cliente,
+            OFs, fecha) vive dentro de este botón y es su nombre accesible;
+            ponerle una etiqueta lo taparía entero. El estado lo da aria-expanded. */}
         <button
-          onClick={() => onOpen(item.pedido)}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
+          type="button"
+          onClick={alternar}
+          aria-expanded={desplegado}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
         >
           <span className="size-2.5 shrink-0 rounded-full bg-cyan-600" />
-          <span className="font-semibold text-text">{item.pedido}</span>
-          <span className="truncate text-sm text-text-muted">{item.cliente ?? "—"}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
-            <span>{item.nOf} OF</span>
-            {/* Quién lo pasó junto a la fecha: en un historial la pregunta
-                casi siempre es "¿cuándo y quién?", no una de las dos sola. */}
-            <span title={`${origen}: ${pasado.completa}`}>
-              Pasado {pasado.corta}
-              {item.pasadoPor ? (
-                <span className="ml-1 text-text">· {item.pasadoPor}</span>
-              ) : (
-                <span className="ml-1 italic">· sin autor</span>
-              )}
+          {/* Identidad en dos renglones, como va a quedar la Lista: arriba el
+              código con su familia, abajo el cliente. Antes iba todo seguido en
+              una línea y el cliente se comía el ancho que necesita el resto. */}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="font-mono font-semibold text-text">{item.pedido}</span>
+              {familias.map((f) => (
+                <FamiliaTag key={f} familia={f} />
+              ))}
+            </span>
+            <span className="block truncate text-xs text-text-muted">
+              {item.cliente ?? "—"}
+              {ampliado.negocio && <span> · {ampliado.negocio}</span>}
             </span>
           </span>
+          <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
+            <span>{item.nOf} OF</span>
+            <span title={tituloPasado}>Pasado {pasado.corta}</span>
+            <Autoria item={item} />
+          </span>
+        </button>
+        {/* El detalle completo, ahora que la barra despliega. Rotulado y no un
+            icono a secas: en una lista de 40 filas iguales, un símbolo suelto
+            no dice si abre el pedido, lo descarga o lo imprime. */}
+        <button
+          type="button"
+          onClick={() => onOpen(item.pedido)}
+          aria-label={`Ver detalle de ${item.pedido}`}
+          title="Ficha del pedido: escaneo, fechas, comentario de ventas y sus OF"
+          className="shrink-0 cursor-pointer rounded-lg px-2 py-1 text-[11px] font-semibold text-text-muted ring-1 ring-border transition-colors hover:bg-surface-2 hover:text-text"
+        >
+          Ver detalle
         </button>
       </div>
 
-      {desplegado && (
+      {/* Envuelto y no `{desplegado && …}`: si React lo quitara al pulsar, el
+          contenido desaparecería de golpe y no habría nada que animar. Cerrado
+          no ocupa nada (`Desplegable` devuelve null). */}
+      <Desplegable abierto={desplegado}>
         <div className="border-t border-border px-4 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OFs…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OFs.</p>}
@@ -355,7 +470,7 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
             ))}
           </ul>
         </div>
-      )}
+      </Desplegable>
     </div>
   );
 }
