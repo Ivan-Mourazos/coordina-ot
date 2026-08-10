@@ -20,15 +20,30 @@ function req(name: string): string {
  *  usuario de lectura no debe poder escribir. */
 function config(prefijo: string): sql.config {
   const v = (nombre: string) => process.env[`${prefijo}_DB_${nombre}`];
+  // Instancia con nombre (SQLExpress y compañía). Dos formas de llegar, y hay
+  // que elegir UNA:
+  //
+  //  · Por PUERTO fijo (lo que usa OLANET: 54325). Es lo preferible: va directo
+  //    y no depende de ningún servicio más.
+  //  · Por NOMBRE de instancia, que obliga a preguntarle al SQL Server Browser
+  //    por UDP 1434 para que diga en qué puerto escucha. Si ese servicio está
+  //    parado o el 1434 cerrado, no conecta.
+  //
+  // Lo que NO funciona es meter `host\instancia` en `_DB_HOST`: el driver toma
+  // la cadena entera como nombre de máquina y no resuelve nada. Es el error
+  // natural al ver una instancia con nombre, así que aquí se separa explícito.
+  const instancia = v("INSTANCE")?.trim();
   return {
     server: req(`${prefijo}_DB_HOST`),
-    port: Number(v("PORT") ?? 1433),
+    // Puerto e instancia son excluyentes: con los dos puestos, tedious falla.
+    ...(instancia ? {} : { port: Number(v("PORT") ?? 1433) }),
     database: req(`${prefijo}_DB_DATABASE`),
     user: req(`${prefijo}_DB_USER`),
     password: req(`${prefijo}_DB_PASSWORD`),
     options: {
       encrypt: v("ENCRYPT") !== "false",
       trustServerCertificate: v("TRUST_SERVER_CERTIFICATE") !== "false",
+      ...(instancia ? { instanceName: instancia } : {}),
     },
     pool: { max: 5, min: 0, idleTimeoutMillis: 30_000 },
     connectionTimeout: 10_000,
