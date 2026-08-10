@@ -7,10 +7,11 @@ import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher, type Vista } from "./ViewSwitcher";
-import { FilterBar, type Filtros } from "./FilterBar";
+import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
 import { FaseFlyout } from "./FaseFlyout";
-import { Bandeja } from "./Bandeja";
+import { Bandeja, type Agrupacion } from "./Bandeja";
+import { Select } from "./Select";
 import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
@@ -32,6 +33,15 @@ import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
 import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
 import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
+import {
+  FILTROS_INICIALES,
+  aplicarFiltros,
+  contarCategoriasVisibles,
+  filtrosAParams,
+  hayFiltrosActivos,
+  paramsAFiltros,
+  type Filtros,
+} from "@/lib/filtros";
 
 const IDENTITY_KEY = "coordina-operario-id";
 
@@ -41,6 +51,32 @@ export interface LiveInfo {
   rol: Rol;
   pedido: Pedido;
   of: OF;
+}
+
+/** Vista que pide la URL, si pide alguna. */
+function vistaDeUrl(): VistaFiltrable | null {
+  if (typeof window === "undefined") return null;
+  const v = new URLSearchParams(window.location.search).get("v");
+  return v === "asignar" || v === "revision" || v === "lista" ? v : null;
+}
+
+/** Filtros iniciales de cada vista, con los de la URL puestos en la suya.
+ *
+ *  Se lee al construir el estado, no en un efecto: el tablero no se pinta hasta
+ *  estar hidratado (ver `mounted` más abajo), así que aquí `window` ya existe y
+ *  no hay desajuste con el marcado del servidor. Es el mismo patrón que usa la
+ *  identidad guardada en localStorage. */
+function filtrosDeUrl(): Record<VistaFiltrable, Filtros> {
+  const base: Record<VistaFiltrable, Filtros> = {
+    asignar: FILTROS_INICIALES,
+    lista: FILTROS_INICIALES,
+    revision: FILTROS_INICIALES,
+  };
+  if (typeof window === "undefined") return base;
+  const sp = new URLSearchParams(window.location.search);
+  // Solo `v` = un enlace a una vista, sin filtros que restaurar.
+  if (![...sp.keys()].some((k) => k !== "v")) return base;
+  return { ...base, [vistaDeUrl() ?? "asignar"]: paramsAFiltros(sp) };
 }
 
 function leerIdentidadGuardada(): string | null {
@@ -153,8 +189,13 @@ export function Board({
   }, []);
   const closeExpanded = useCallback(() => setExpandedId(null), []);
 
-  const [vista, setVista] = useState<Vista>("asignar");
+  const [vista, setVista] = useState<Vista>(() => vistaDeUrl() ?? "asignar");
   const [openId, setOpenId] = useState<string | null>(null);
+  // Cómo se reparte la bandeja en filas. NO es un filtro y por eso no vive con
+  // ellos: el desplegable se llamaba "Orden" pero lo que hace es agrupar, y
+  // encima compartía valores con las otras vistas ("Fecha de entrega") que aquí
+  // no significan nada y dejaban el control pintando un "—".
+  const [agrupar, setAgrupar] = useState<Agrupacion>("ninguna");
 
   // ── Sincronización entre navegadores: polling ligero del tablero ──
   // Cada 30 s se pide el tablero completo (RPS+overlay, servido de caché) y
@@ -189,129 +230,113 @@ export function Board({
     }, 30_000);
     return () => clearInterval(id);
   }, [setPedidosSync]);
-  const [filtros, setFiltrosState] = useState<Filtros>({
-    query: "",
-    familia: "todas",
-    cliente: "todos",
-    estado: "todos",
-    prioridad: "todas",
-    soloAtrasados: false,
-    soloTaller: false,
-    soloDetenidos: false,
-    soloInternos: false,
-    situacion: "procesado",
-    orden: "planificacion",
-  });
+  // ── Filtros: UNOS POR VISTA, no unos compartidos ──
+  // Antes había un solo juego para Asignar, Lista y Revisión mientras cada
+  // vista escondía controles distintos: ponías Estado="Aprobada" en la Lista,
+  // volvías a Asignar —que no enseña ese desplegable— y la bandeja seguía
+  // recortada por un filtro que no aparecía en ninguna parte. Con un juego por
+  // vista, todo filtro activo tiene su control delante.
+  const [filtrosPorVista, setFiltrosPorVista] =
+    useState<Record<VistaFiltrable, Filtros>>(filtrosDeUrl);
+  // Las vistas sin barra (Historial y Visitas llevan la suya) caen en "lista",
+  // que nunca se llega a pintar desde ellas: así `vistaFiltrable` es total y no
+  // hace falta un null que comprobar en cada uso.
+  const vistaFiltrable: VistaFiltrable =
+    vista === "asignar" || vista === "revision" ? vista : "lista";
+  const filtros = filtrosPorVista[vistaFiltrable];
   const setFiltros = useCallback(
-    (f: Partial<Filtros>) => setFiltrosState((prev) => ({ ...prev, ...f })),
-    [],
+    (f: Partial<Filtros>) =>
+      setFiltrosPorVista((prev) => ({
+        ...prev,
+        [vistaFiltrable]: { ...prev[vistaFiltrable], ...f },
+      })),
+    [vistaFiltrable],
   );
 
-
-  const familias = useMemo(
-    () => [...new Set(pedidos.flatMap((p) => p.ofs.map((o) => o.familia)))].sort() as Familia[],
-    [pedidos],
-  );
-  const clientes = useMemo(
-    () => [...new Set(pedidos.map((p) => p.cliente))].sort(),
-    [pedidos],
-  );
+  // ── Los filtros viven también en la URL ──
+  // Para poder recargar sin perderlos y para pasar un enlace ("mira los de
+  // MAHOU que van tarde") en vez de dictar por dónde hay que pulsar. La lectura
+  // está arriba, en `filtrosDeUrl`; aquí solo la escritura.
+  //
+  // Con `history.replaceState` y no con `useSearchParams`: ese hook obliga a
+  // envolver el componente en un <Suspense> o la build de producción falla
+  // ("Missing Suspense boundary with useSearchParams", ver
+  // node_modules/next/dist/docs/.../use-search-params.md), y arrastraría el
+  // árbol entero del tablero a renderizado en cliente. Aquí solo se quiere que
+  // la barra de direcciones acompañe. `replace` y no `push` a propósito:
+  // escribir en el buscador no debe dejar una entrada de historial por letra.
+  useEffect(() => {
+    const sp = filtrosAParams(filtros);
+    sp.set("v", vistaFiltrable);
+    window.history.replaceState(null, "", `${window.location.pathname}?${sp}`);
+  }, [filtros, vistaFiltrable]);
 
   const hoy = hoyISO();
 
-  // Los filtros de la barra son de la BANDEJA, no de todo el tablero: viven
-  // encima de ella y es donde hay cientos de partes. Mi zona y las de los
-  // compañeros tienen cinco o seis pedidos, así que filtrarlas solo servía
-  // para hacer desaparecer trabajo propio al escribir en el buscador.
-  const pasaFiltros = useCallback(
-    (p: Pedido) => {
-      const q = filtros.query.trim().toLowerCase();
-      if (q && !`${p.codigo} ${p.cliente} ${p.negocio ?? ""}`.toLowerCase().includes(q)) return false;
-      if (filtros.familia !== "todas" && !p.ofs.some((o) => o.familia === filtros.familia)) return false;
-      if (filtros.cliente !== "todos" && p.cliente !== filtros.cliente) return false;
-      if (filtros.estado !== "todos" && !p.ofs.some((o) => o.estado === filtros.estado)) return false;
-      if (filtros.prioridad !== "todas" && p.prioridad !== filtros.prioridad) return false;
-      if (filtros.soloAtrasados && !estaAtrasado(p, hoy)) return false;
-      return true;
-    },
-    [filtros, hoy],
+  // Lista de TRABAJO = solo procesados por Producción (lo que llega a OT). Sin
+  // ordenar: la Lista ordena por sus propias cabeceras y la Bandeja agrupa por
+  // su cuenta. El "atrasados primero" que iba cableado aquí, por delante de
+  // cualquier criterio elegido, ahora es un interruptor visible en la Lista.
+  const procesados = useMemo(
+    () => pedidos.filter((p) => p.situacion === "procesado"),
+    [pedidos],
   );
 
-  const pedidosFiltrados = useMemo(
-    () => pedidos.filter(pasaFiltros),
-    [pedidos, pasaFiltros],
+  // Lo que cada vista enseña, ya recortado por SUS filtros. `aplicarFiltros`
+  // estrecha las OF del pedido en vez de aceptarlo o rechazarlo entero (ver
+  // lib/filtros.ts): filtrar por TOLDO enseña el toldo del pedido, no sus
+  // cuatro OF porque una fuese de toldo.
+  const visiblesLista = useMemo(
+    () => aplicarFiltros(pedidos, filtrosPorVista.lista, hoy),
+    [pedidos, filtrosPorVista.lista, hoy],
+  );
+  // Revisión enseñaba una barra de filtros que no filtraba NADA: recibía los
+  // pedidos sin pasar por ella, así que buscar o elegir familia ahí no hacía
+  // nada y no había forma de saber por qué.
+  const visiblesRevision = useMemo(
+    () => aplicarFiltros(procesados, filtrosPorVista.revision, hoy),
+    [procesados, filtrosPorVista.revision, hoy],
+  );
+  const visiblesAsignar = useMemo(
+    () => aplicarFiltros(procesados, filtrosPorVista.asignar, hoy),
+    [procesados, filtrosPorVista.asignar, hoy],
   );
 
-  const cmpPedido = useMemo(() => {
-    return (a: Pedido, b: Pedido) => {
-      // Atrasados (pasada la planificación sin finalizar) siempre primero.
-      const aa = estaAtrasado(a, hoy);
-      const ab = estaAtrasado(b, hoy);
-      if (aa !== ab) return aa ? -1 : 1;
-      switch (filtros.orden) {
-        case "planificacion":
-          return a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
-        case "entrega":
-          return a.fechaEntrega.localeCompare(b.fechaEntrega);
-        case "prioridad":
-          // 3 = urgente primero (desc); a igualdad, por planificación.
-          return b.prioridad - a.prioridad ||
-            a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
-        default:
-          return a.cliente.localeCompare(b.cliente);
-      }
-    };
-  }, [filtros.orden, hoy]);
-
-  // Lista de TRABAJO = solo procesados por Producción (lo que llega a OT).
-  const pedidosOrdenados = useMemo(
-    () => pedidos.filter((p) => p.situacion === "procesado").sort(cmpPedido),
-    [pedidos, cmpPedido],
+  // El desplegable de familia se rellena con las que hay de verdad. El de
+  // cliente ya no existe: obligaba a dar con el nombre exacto entre cientos
+  // para hacer lo que el buscador hace escribiendo cuatro letras.
+  const familias = useMemo(
+    () =>
+      [...new Set(pedidos.flatMap((p) => p.ofs.map((o) => o.familia)))].sort() as Familia[],
+    [pedidos],
+  );
+  // Los conteos del desplegable "Ver": lo que saldría al elegir cada categoría
+  // con el RESTO de la barra puesta. Si salieran de lo ya filtrado, elegir "OF
+  // anuladas" pondría a cero todas las demás opciones.
+  const conteosLista = useMemo(
+    () => contarCategoriasVisibles(pedidos, filtrosPorVista.lista, hoy),
+    [pedidos, filtrosPorVista.lista, hoy],
+  );
+  const sinAutor = useMemo(
+    () => procesados.map((p) => ({ ...p, ofs: p.ofs.filter((o) => o.autorId === null) })),
+    [procesados],
+  );
+  const conteosAsignar = useMemo(
+    () => contarCategoriasVisibles(sinAutor, filtrosPorVista.asignar, hoy),
+    [sinAutor, filtrosPorVista.asignar, hoy],
   );
 
-  // Vista Lista: respeta el filtro de Situación (permite buscar los pendientes).
-  const listaOrdenados = useMemo(() => {
-    const base =
-      filtros.situacion === "todos"
-        ? pedidosFiltrados
-        : pedidosFiltrados.filter((p) => p.situacion === filtros.situacion);
-    // Taller, detenidos e internos son categorías que por defecto NO se ven, y
-    // su botón las enseña EN EXCLUSIVA en vez de sumarlas a la lista: si pulso
-    // "Pedidos detenidos" quiero ver los detenidos, no los de siempre más los
-    // detenidos, que era lo que hacía antes y obligaba a buscarlos entre el
-    // resto. Encender dos a la vez cruza las dos condiciones (detenidos Y de
-    // taller), que es lo que dicen los botones leídos juntos.
-    //
-    // Taller y detenidos filtran OF, no pedidos: un pedido con una OF de cada
-    // clase aparece en los dos filtros, con la parte que toque. El interno, en
-    // cambio, lo es por completo, así que ahí se quita el pedido entero.
-    const filtrarOFs = (ps: Pedido[], pasa: (o: OF) => boolean) =>
-      ps.map((p) => ({ ...p, ofs: p.ofs.filter(pasa) })).filter((p) => p.ofs.length > 0);
-
-    const conTaller = filtrarOFs(base, (o) =>
-      filtros.soloTaller ? ofOcultaDeOT(o) : !ofOcultaDeOT(o),
-    );
-    const conDetenidos = filtrarOFs(conTaller, (o) =>
-      filtros.soloDetenidos ? Boolean(o.detenida) : !o.detenida,
-    );
-    const visibles = conDetenidos.filter((p) =>
-      filtros.soloInternos ? Boolean(p.interno) : !p.interno,
-    );
-    return [...visibles].sort(cmpPedido);
-  }, [
-    pedidosFiltrados,
-    filtros.situacion,
-    filtros.soloTaller,
-    filtros.soloDetenidos,
-    filtros.soloInternos,
-    cmpPedido,
-  ]);
-
-  // Facets del tablero Asignar, agrupadas por ubicación (autor o bandeja) en
-  // UNA pasada, en vez de recorrer todos los pedidos una vez por zona.
+  // Facets de las ZONAS del tablero (mi zona y las de los compañeros),
+  // agrupadas por autor en UNA pasada en vez de recorrer todos los pedidos una
+  // vez por zona.
+  //
+  // La barra de filtros NO las toca, a propósito: vive sobre la bandeja, que es
+  // donde hay cientos de partes. Las zonas tienen cinco o seis pedidos, así que
+  // filtrarlas solo servía para hacer desaparecer trabajo propio al escribir en
+  // el buscador. La bandeja se calcula aparte, ya filtrada (`facetsBandeja`).
   const facetsByLoc = useMemo(() => {
     const map = new Map<string | null, Facet[]>();
-    for (const p of pedidosOrdenados) {
+    for (const p of procesados) {
       // Proyectos internos (OFs sin pedido): no son trabajo de pedidos.
       // Se fichan desde Mi fichaje y se consultan en la Lista.
       if (p.interno) continue;
@@ -338,20 +363,38 @@ export function Board({
       }
     }
     return map;
-  }, [pedidosOrdenados, hoy]);
+  }, [procesados, hoy]);
   const facetsDe = useCallback(
     (loc: string | null) => facetsByLoc.get(loc) ?? [],
     [facetsByLoc],
   );
 
+  // La bandeja "Sin asignar": lo que no tiene autor, ya pasado por la barra.
+  // Se calcula desde `visiblesAsignar` y no recortando `facetsByLoc`, porque
+  // los filtros estrechan las OF del pedido y hay que respetar ese recorte.
+  const facetsBandeja = useMemo(() => {
+    const salida: Facet[] = [];
+    for (const p of visiblesAsignar) {
+      const ofs = p.ofs.filter((o) => o.autorId === null);
+      if (ofs.length === 0) continue;
+      salida.push({ pedido: p, locationId: null, ofs, atrasado: estaAtrasado(p, hoy) });
+    }
+    return salida;
+  }, [visiblesAsignar, hoy]);
+
   // KPIs (solo sobre pedidos procesados = trabajo real de OT)
-  const procesadosAll = useMemo(
-    () => pedidos.filter((p) => p.situacion === "procesado"),
-    [pedidos],
-  );
+  const procesadosAll = procesados;
+  // Sin las anuladas: el tablero de abajo ya no las enseña (`facetsByLoc` las
+  // salta), así que contarlas aquí anunciaba trabajo pendiente que no aparecía
+  // por ningún lado y el número no había forma de cuadrarlo.
   const sinAsignar = procesadosAll.reduce(
     (n, p) =>
-      p.interno ? n : n + p.ofs.filter((o) => o.autorId === null && !ofOcultaDeOT(o)).length,
+      p.interno
+        ? n
+        : n +
+          p.ofs.filter(
+            (o) => o.autorId === null && o.estado !== "anulada" && !ofOcultaDeOT(o),
+          ).length,
     0,
   );
   // Lo mío como revisor, no lo de todos: casa con lo que muestra por defecto
@@ -527,7 +570,15 @@ export function Board({
   });
 
   const mut = useCallback(
-    (ofIds: Set<string>, fn: (of: OF) => OF, motivo?: string) => {
+    (
+      ofIds: Set<string>,
+      fn: (of: OF) => OF,
+      motivo?: string,
+      /** OFs cuyo fichaje abierto tiene que cerrar el servidor (ver persistir).
+       *  Este navegador solo puede cerrar el suyo, y ni siquiera con la hora
+       *  buena: el reloj oficial del fichaje es el del servidor. */
+      cortarFichajeDe?: string[],
+    ) => {
       const cambios: ReturnType<typeof snapshotDe>[] = [];
       setPedidosSync((prev) =>
         prev.map((p) => ({
@@ -540,7 +591,8 @@ export function Board({
           }),
         })),
       );
-      if (motivo && cambios.length > 0) persistir({ motivo, cambiosOF: cambios });
+      if (motivo && cambios.length > 0)
+        persistir({ motivo, cambiosOF: cambios, cortarFichajeDe });
     },
     [setPedidosSync, persistir],
   );
@@ -909,6 +961,12 @@ export function Board({
         return of ? accionesDisponibles(of).some((a) => a.id === accion) : false;
       });
       if (aplicables.length === 0) return;
+      // El corte del fichaje va DENTRO de la misma persistencia que el cambio
+      // de estado: antes solo se hacía `setFichaje` local, así que el servidor
+      // —dueño del intervalo y del reloj— seguía contando, el sondeo de 30 s
+      // reponía el fichaje en pantalla y el tiempo se le seguía imputando a
+      // una OF ya anulada (o ya pasada a revisión, aprobada, devuelta…).
+      const corta = def?.efectoFichaje === "corta";
       mut(
         new Set(aplicables),
         (of) => {
@@ -919,20 +977,18 @@ export function Board({
           }
         },
         accion,
+        corta ? aplicables : undefined,
       );
-      if (def?.efectoFichaje === "corta") {
-        setFichaje((f) => {
-          const ab = abierto(f);
-          if (!ab) return f;
-          const resto = ab.ofIds.filter((id) => !aplicables.includes(id));
-          return fichar(f, resto, ab.rol, ab.operarioId, ahora());
-        });
+      if (corta) {
+        // Lo que ya se fichó se queda imputado (el servidor cierra el tramo con
+        // su hora y lo encola hacia OLANET); lo que deja de correr es el reloj.
+        soltarDeMiFichaje(aplicables);
       } else if (def?.efectoFichaje === "arranca") {
         const rol = accion === "empezar_revision" ? "revisar" : "plantear";
         ficharOFs(aplicables, rol);
       }
     },
-    [mut, ficharOFs, pedidos],
+    [mut, ficharOFs, soltarDeMiFichaje, pedidos],
   );
 
   // "Coger y empezar" revisión (columna "Por revisar" sin revisor): asigna al
@@ -1201,17 +1257,38 @@ export function Board({
                 style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
               >
                 <div className="min-w-0 flex-1">
-                  <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showEstado={false} ordenes={["planificacion", "familia", "prioridad"]} />
+                  <FilterBar
+                    vista="asignar"
+                    titulo="Sin asignar"
+                    filtros={filtros}
+                    setFiltros={setFiltros}
+                    familias={familias}
+                    operarios={operarios}
+                    conteos={conteosAsignar}
+                    agrupacion={
+                      <Select
+                        value={agrupar}
+                        onChange={(v) => setAgrupar((v as Agrupacion) ?? "ninguna")}
+                        placeholder={null}
+                        options={[
+                          { value: "ninguna", label: "Sin agrupar" },
+                          { value: "familia", label: "Por familia" },
+                          { value: "prioridad", label: "Por prioridad" },
+                        ]}
+                      />
+                    }
+                  />
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
                 <Bandeja
-                  facets={facetsDe(null).filter((f) => pasaFiltros(f.pedido))}
+                  facets={facetsBandeja}
                   operarios={operarios}
                   onOpen={openFacet}
                   onAsignar={(f, op) => moverOFs(new Set(f.ofs.map((o) => o.id)), op)}
                   miId={miId}
-                  orden={filtros.orden}
+                  agrupar={agrupar}
+                  hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.asignar)}
                 />
               </div>
             </div>
@@ -1222,10 +1299,22 @@ export function Board({
         {vista === "lista" && (
           <>
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
-              <FilterBar filtros={filtros} setFiltros={setFiltros} familias={familias} clientes={clientes} showSituacion showAjenasOT />
+              <FilterBar
+                vista="lista"
+                filtros={filtros}
+                setFiltros={setFiltros}
+                familias={familias}
+                operarios={operarios}
+                conteos={conteosLista}
+              />
             </div>
             <div className="p-5">
-              <ListaView pedidos={listaOrdenados} operarios={operarios} onOpen={openPedidoCb} />
+              <ListaView
+                pedidos={visiblesLista}
+                operarios={operarios}
+                onOpen={openPedidoCb}
+                hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
+              />
             </div>
           </>
         )}
@@ -1235,17 +1324,17 @@ export function Board({
           <>
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
               <FilterBar
+                vista="revision"
                 filtros={filtros}
                 setFiltros={setFiltros}
                 familias={familias}
-                clientes={clientes}
-                showEstado={false}
-                showAtrasados={false}
+                operarios={operarios}
+                conteos={conteosLista}
               />
             </div>
             <div className="p-5">
               <RevisionView
-                pedidos={pedidosOrdenados}
+                pedidos={visiblesRevision}
                 operarios={operarios}
                 miId={miId}
                 onOpen={openPedidoCb}

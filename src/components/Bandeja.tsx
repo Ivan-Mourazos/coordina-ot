@@ -6,7 +6,14 @@ import { PRIORIDAD } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaIcon } from "./FamiliaTag";
 import { PedidoCard, type Facet } from "./PedidoCard";
-import type { Orden } from "./FilterBar";
+
+/* ── cómo se reparten las tarjetas ── */
+
+/** Lo que hace este panel con el desplegable NO es ordenar, es partir la
+ *  bandeja en filas. Se llamaba `Orden` y venía de FilterBar, que además traía
+ *  valores ajenos ("entrega", "cliente") que aquí no pintaban nada y caían a un
+ *  fallback mudo: tres valores propios y cerrados dicen la verdad. */
+export type Agrupacion = "ninguna" | "familia" | "prioridad";
 
 /* ── helpers de orden ── */
 
@@ -61,6 +68,7 @@ function useGrabScroll() {
 /* ── fila con scroll horizontal (usada por Familia y Prioridad) ── */
 
 function ScrollRow({
+  claveGrupo,
   label,
   icon,
   count,
@@ -71,6 +79,10 @@ function ScrollRow({
   onAsignar,
   miId,
 }: {
+  /** Identidad de la fila (familia o prioridad). Entra en la key de cada
+   *  tarjeta porque agrupando por familia el mismo pedido sale en varias filas
+   *  y `pedido.id` a secas ya no identifica a cuál pertenece la tarjeta. */
+  claveGrupo: string;
   label: string;
   icon: React.ReactNode;
   count: number;
@@ -104,7 +116,7 @@ function ScrollRow({
         style={{ cursor: "grab" }}
       >
         {facets.map((f) => (
-          <div key={f.pedido.id} className="w-[80px] shrink-0">
+          <div key={`${claveGrupo}:${f.pedido.id}`} className="w-[80px] shrink-0">
             <PedidoCard
               facet={f}
               operarios={operarios}
@@ -129,42 +141,59 @@ export function Bandeja({
   onOpen,
   onAsignar,
   miId,
-  orden = "planificacion",
+  agrupar = "ninguna",
+  hayFiltrosActivos = false,
 }: {
   facets: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   onAsignar?: (f: Facet, operarioId: string) => void;
   miId?: string | null;
-  orden?: Orden;
+  agrupar?: Agrupacion;
+  /** Si la barra de arriba está recortando. Con 0 partes cambia el mensaje:
+   *  "no hay nada" y "no hay nada que pase el filtro" no son lo mismo. */
+  hayFiltrosActivos?: boolean;
 }) {
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
-  /* ── modo flat (planificación) ── */
+  /* ── sin agrupar ── */
   const flat = useMemo(
     () => [...facets].sort(cmpFechaPrio),
     [facets],
   );
 
-  /* ── modo familia ── */
+  /* ── agrupado por familia ── */
   const filasFamilia = useMemo(() => {
     const map = new Map<string, Facet[]>();
     for (const f of facets) {
-      const fam = f.ofs[0]?.familia ?? "OTRO";
-      const arr = map.get(fam);
-      if (arr) arr.push(f);
-      else map.set(fam, [f]);
+      // Un pedido con una OF de toldo y otra de lona sale en LAS DOS filas,
+      // cada una con solo sus OF. Antes se miraba `ofs[0].familia` y el pedido
+      // entero caía en toldo: quien vigilaba la fila "Lona" no veía trabajo que
+      // sí era suyo. Estrechar `ofs` es lo mismo que hace la Lista al filtrar.
+      for (const fam of new Set(f.ofs.map((o) => o.familia))) {
+        const trozo: Facet = { ...f, ofs: f.ofs.filter((o) => o.familia === fam) };
+        const arr = map.get(fam);
+        if (arr) arr.push(trozo);
+        else map.set(fam, [trozo]);
+      }
     }
     return [...map.entries()]
-      .sort((a, b) => b[1].length - a[1].length)
       .map(([fam, items]) => ({
         familia: fam,
         meta: familiaMeta(fam),
         facets: items.sort(cmpPrioFecha),
-      }));
+      }))
+      // Antes las filas iban por número de pedidos: un criterio que nadie
+      // adivinaba mirándolas y que solo decía qué montón era más alto. Ahora
+      // manda la urgencia — como cada fila ya está ordenada, su primer parte es
+      // el más urgente que contiene, y ese decide el orden entre filas.
+      .sort((a, b) => cmpPrioFecha(a.facets[0], b.facets[0]));
   }, [facets]);
 
-  /* ── modo prioridad ── */
+  /* ── agrupado por prioridad ── */
+  // Aquí no hay que partir nada: la prioridad es del pedido, no de cada OF, así
+  // que un parte cae en una fila y solo en una. Y las filas van 3→2→1, que se
+  // lee solo — a diferencia de familia, este orden no hacía falta cambiarlo.
   const filasPrioridad = useMemo(() => {
     const map = new Map<Prioridad, Facet[]>();
     for (const f of facets) {
@@ -197,32 +226,21 @@ export function Bandeja({
       </div>
 
       {facets.length === 0 ? (
+        /* Decir "no hay partes sin asignar" cuando lo que pasa es que los
+           filtros se los han comido es mentir: manda a buscar un problema que
+           no existe (o a dar por hecho que no queda trabajo). */
         <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
-          No hay partes sin asignar
+          {hayFiltrosActivos
+            ? "Hay partes sin asignar, pero ninguno pasa los filtros actuales"
+            : "No hay partes sin asignar"}
         </div>
-      ) : orden === "planificacion" ? (
-        /* ── FLAT: tarjetas seguidas, fecha en cada una ── */
-        <div className="flex flex-wrap gap-1.5">
-          {flat.map((f) => (
-            <div key={f.pedido.id} className="w-[80px]">
-              <PedidoCard
-                facet={f}
-                operarios={operarios}
-                onOpen={onOpen}
-                onAsignar={onAsignar}
-                miId={miId}
-                mostrarPrioridad
-                mostrarFecha
-              />
-            </div>
-          ))}
-        </div>
-      ) : orden === "familia" ? (
+      ) : agrupar === "familia" ? (
         /* ── FILAS POR FAMILIA ── */
         <div className="space-y-3">
           {filasFamilia.map((fila) => (
             <ScrollRow
               key={fila.familia}
+              claveGrupo={fila.familia}
               label={fila.meta.label}
               icon={<FamiliaIcon familia={fila.familia} className="size-4" />}
               count={fila.facets.length}
@@ -234,12 +252,13 @@ export function Bandeja({
             />
           ))}
         </div>
-      ) : orden === "prioridad" ? (
+      ) : agrupar === "prioridad" ? (
         /* ── FILAS POR PRIORIDAD ── */
         <div className="space-y-3">
           {filasPrioridad.map((fila) => (
             <ScrollRow
               key={fila.prioridad}
+              claveGrupo={String(fila.prioridad)}
               label={fila.meta.label}
               icon={
                 <span
@@ -258,7 +277,9 @@ export function Bandeja({
           ))}
         </div>
       ) : (
-        /* fallback: flat */
+        /* ── SIN AGRUPAR: tarjetas seguidas, fecha en cada una. Va de última
+             rama, no de primera con un fallback igual detrás: `Agrupacion`
+             tiene tres valores y ya no hay ningún cuarto caso que cubrir. ── */
         <div className="flex flex-wrap gap-1.5">
           {flat.map((f) => (
             <div key={f.pedido.id} className="w-[80px]">
