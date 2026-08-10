@@ -915,7 +915,7 @@ function Estado({
   pedido: Pedido;
   nombrePorId: (id: string) => string;
 }) {
-  const tramos = estadoDePedido(pedido, nombrePorId);
+  const { tramos, listoParaPasar } = estadoDePedido(pedido, nombrePorId);
 
   return (
     <span className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
@@ -953,6 +953,22 @@ function Estado({
           )}
         </span>
       ))}
+      {/* El estado del PEDIDO, que no es de nadie: "Revisado" dice que el
+          revisor terminó lo suyo, no que el parte esté listo — en uno de cuatro
+          OF puede haber una revisada y tres sin empezar. Esto solo sale cuando
+          ya no queda nada, y es lo que hay que ver para pasarlo a Producción.
+          En el cian de `aprobada`, el mismo de toda la app. */}
+      {listoParaPasar && (
+        <span
+          // Sin fondo, como los verbos de los tramos: la columna entera se lee
+          // como texto y una pastilla suelta aquí abajo destacaría más que el
+          // trabajo que sí hay que atender.
+          className="font-semibold text-cyan-700 dark:text-cyan-300"
+          title="Todas sus OF están aprobadas: solo falta pasarlo a Producción."
+        >
+          Listo para Producción
+        </span>
+      )}
     </span>
   );
 }

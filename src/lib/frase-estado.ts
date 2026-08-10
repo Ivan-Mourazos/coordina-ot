@@ -1,4 +1,5 @@
 import type { Pedido, Rol } from "./types";
+import { pedidoListoParaPasar } from "./fases-tablero";
 
 // ─── "Quién lo lleva y por dónde va", en una frase ───────────────────────────
 // La Lista tenía tres columnas para contar esto: los avatares del autor y del
@@ -28,6 +29,19 @@ export interface TramoEstado {
   pendienteDeAlguien: boolean;
 }
 
+export interface EstadoPedido {
+  /** Los tramos del flujo: quién plantea y, cuando toca, quién revisa. */
+  tramos: TramoEstado[];
+  /** Ya no le queda trabajo a OT: todas sus OF vivas están aprobadas y solo
+   *  falta pasarlo a Producción.
+   *
+   *  Va aparte de los tramos porque no es de nadie: "Revisado" dice que Tamara
+   *  terminó lo suyo, no que el PEDIDO esté listo — en uno de cuatro OF, la
+   *  primera puede estar revisada y las otras tres sin empezar. Esto mira el
+   *  pedido entero, con el mismo criterio que el botón de pasarlo. */
+  listoParaPasar: boolean;
+}
+
 const nombresDe = (ids: Array<string | null>, nombre: (id: string) => string): string[] => [
   ...new Set(ids.filter((id): id is string => id !== null)),
 ].map(nombre);
@@ -39,7 +53,7 @@ const nombresDe = (ids: Array<string | null>, nombre: (id: string) => string): s
  *  estados distintos manda lo que está más en marcha, igual que `faseDePedido`.
  *  Las anuladas no cuentan para nada — OT ya dijo que no las hace, y su tiempo
  *  fichado no debe inflar el del pedido. */
-export function estadoDePedido(p: Pedido, nombre: (id: string) => string): TramoEstado[] {
+export function estadoDePedido(p: Pedido, nombre: (id: string) => string): EstadoPedido {
   const ofs = p.ofs.filter((o) => o.estado !== "anulada");
 
   const planteoMin = ofs.reduce((n, o) => n + o.tiempoPlanteoMin, 0);
@@ -68,7 +82,11 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
     verbo: planteando
       ? "Planteando"
       : hayDevueltas
-        ? "Devuelto"
+        ? // Devuelta = la pelota vuelve al AUTOR. Los dos tramos decían
+          // "Devuelto", la misma palabra dos veces, y ninguna decía a quién le
+          // toca mover ficha: aquí es el autor quien tiene trabajo, y el
+          // revisor ya hizo el suyo.
+          "A corregir"
         : todasEntregadas
           ? "Planteado"
           : planteoMin > 0
@@ -84,7 +102,8 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
   // nombrado, ya se ha fichado revisión, o el planteo está entregado y por
   // tanto le toca a alguien. Antes de eso, la flecha "→ —" solo ocupaba sitio.
   const tocaRevisar = revisores.length > 0 || revisionMin > 0 || entregadas > 0;
-  if (!tocaRevisar) return [planteo];
+  const listoParaPasar = pedidoListoParaPasar(p);
+  if (!tocaRevisar) return { tramos: [planteo], listoParaPasar };
 
   const aprobadas = ofs.filter((o) => o.estado === "aprobada").length;
   const revision: TramoEstado = {
@@ -96,7 +115,9 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
     verbo: revisando
       ? "Revisando"
       : hayDevueltas
-        ? "Devuelto"
+        ? // Lo que hizo el revisor, en pasado: su parte está hecha. El trabajo
+          // pendiente está en la línea de arriba ("A corregir").
+          "Devolvió"
         : ofs.length > 0 && aprobadas === ofs.length
           ? "Revisado"
           : revisores.length > 0
@@ -105,5 +126,5 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
               // resolver, y decirlo con nombre propio ahorra abrir el pedido.
               "Falta revisor",
   };
-  return [planteo, revision];
+  return { tramos: [planteo, revision], listoParaPasar };
 }

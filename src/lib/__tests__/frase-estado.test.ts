@@ -35,7 +35,8 @@ const pedido = (ofs: OF[]): Pedido => ({
   croquis: false,
 });
 
-const frase = (ofs: OF[]) => estadoDePedido(pedido(ofs), nombre);
+const frase = (ofs: OF[]) => estadoDePedido(pedido(ofs), nombre).tramos;
+const estado = (ofs: OF[]) => estadoDePedido(pedido(ofs), nombre);
 
 describe("estadoDePedido", () => {
   it("sin autor: no hay a quién nombrar, y se marca como pendiente de alguien", () => {
@@ -116,12 +117,40 @@ describe("estadoDePedido", () => {
     expect(revision).toMatchObject({ verbo: "Revisado", minutos: 10 });
   });
 
-  it("devuelta manda sobre el resto: hay que rehacerla", () => {
+  it("devuelta: cada tramo dice lo SUYO, no la misma palabra dos veces", () => {
     const [planteo, revision] = frase([
       of({ autorId: "ivan", revisorId: "tamara", estado: "devuelta", tiempoPlanteoMin: 30 }),
     ]);
-    expect(planteo.verbo).toBe("Devuelto");
-    expect(revision.verbo).toBe("Devuelto");
+    // La pelota vuelve al autor: el trabajo pendiente es suyo y así se lee.
+    expect(planteo.verbo).toBe("A corregir");
+    // Y el revisor ya hizo lo suyo, en pasado.
+    expect(revision.verbo).toBe("Devolvió");
+  });
+
+  it("un pedido devuelto NO está listo para pasar", () => {
+    expect(
+      estado([of({ autorId: "ivan", revisorId: "tamara", estado: "devuelta" })]).listoParaPasar,
+    ).toBe(false);
+  });
+
+  it("todas aprobadas: el pedido está listo para Producción", () => {
+    expect(
+      estado([
+        of({ id: "a", autorId: "ivan", revisorId: "tamara", estado: "aprobada" }),
+        of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "aprobada" }),
+      ]).listoParaPasar,
+    ).toBe(true);
+  });
+
+  it("una aprobada y otra a medias NO es un pedido listo", () => {
+    // El caso que hacía falta distinguir: "Revisado" habla del revisor, no del
+    // parte, y con cuatro OF puede haber una revisada y tres sin empezar.
+    expect(
+      estado([
+        of({ id: "a", autorId: "ivan", revisorId: "tamara", estado: "aprobada" }),
+        of({ id: "b", autorId: "ivan", estado: "en_curso" }),
+      ]).listoParaPasar,
+    ).toBe(false);
   });
 
   it("varias OF: los nombres no se repiten y los tiempos suman", () => {
