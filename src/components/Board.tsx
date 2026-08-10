@@ -53,11 +53,26 @@ export interface LiveInfo {
   of: OF;
 }
 
-/** Vista que pide la URL, si pide alguna. */
-function vistaDeUrl(): VistaFiltrable | null {
+const VISTAS: Vista[] = ["asignar", "lista", "revision", "visitas", "historial"];
+
+/** Vista que pide la URL, si pide alguna.
+ *
+ *  Acepta las CINCO, no solo las que llevan barra de filtros: Historial y
+ *  Visitas tienen sus propios filtros pero siguen siendo sitios a los que se
+ *  pasa un enlace, y limitarlo a las filtrables hacía que `?v=historial`
+ *  aterrizara en Asignar y encima reescribiera la URL. */
+function vistaDeUrl(): Vista | null {
   if (typeof window === "undefined") return null;
   const v = new URLSearchParams(window.location.search).get("v");
-  return v === "asignar" || v === "revision" || v === "lista" ? v : null;
+  return VISTAS.includes(v as Vista) ? (v as Vista) : null;
+}
+
+/** La vista cuyos filtros toca leer de la URL. Historial y Visitas no tienen
+ *  barra propia en `filtrosPorVista`, así que sus parámetros no van a ninguna
+ *  parte — y es correcto: sus filtros son suyos y viven en su componente. */
+function filtrableDeUrl(): VistaFiltrable {
+  const v = vistaDeUrl();
+  return v === "lista" || v === "revision" ? v : "asignar";
 }
 
 /** Filtros iniciales de cada vista, con los de la URL puestos en la suya.
@@ -76,7 +91,7 @@ function filtrosDeUrl(): Record<VistaFiltrable, Filtros> {
   const sp = new URLSearchParams(window.location.search);
   // Solo `v` = un enlace a una vista, sin filtros que restaurar.
   if (![...sp.keys()].some((k) => k !== "v")) return base;
-  return { ...base, [vistaDeUrl() ?? "asignar"]: paramsAFiltros(sp) };
+  return { ...base, [filtrableDeUrl()]: paramsAFiltros(sp) };
 }
 
 function leerIdentidadGuardada(): string | null {
@@ -266,10 +281,13 @@ export function Board({
   // la barra de direcciones acompañe. `replace` y no `push` a propósito:
   // escribir en el buscador no debe dejar una entrada de historial por letra.
   useEffect(() => {
-    const sp = filtrosAParams(filtros);
-    sp.set("v", vistaFiltrable);
+    // `vista` y no `vistaFiltrable`: en Historial o Visitas hay que escribir su
+    // nombre, no el de la vista de la que se toman prestados los filtros.
+    const enFiltrable = vista === "asignar" || vista === "lista" || vista === "revision";
+    const sp = enFiltrable ? filtrosAParams(filtros) : new URLSearchParams();
+    sp.set("v", vista);
     window.history.replaceState(null, "", `${window.location.pathname}?${sp}`);
-  }, [filtros, vistaFiltrable]);
+  }, [filtros, vista]);
 
   const hoy = hoyISO();
 
