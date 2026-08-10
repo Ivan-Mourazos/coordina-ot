@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
-import { ESTADO, PRIORIDAD, fmtMin } from "@/lib/estado";
+import { ESTADO, PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveBadge } from "./LiveBadge";
+import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
@@ -161,11 +161,12 @@ export function Drawer({
         </header>
 
         <div className="scroll-thin flex-1 overflow-y-auto p-4">
-          {/* meta */}
+          {/* meta: sin fechas — las cuatro del pedido están en la línea de
+              tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
+              sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor
+              contado dos veces. */}
           <div className="mb-4">
             <dl className="grid grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">
-              <Meta k="Solicitud" v={fmt(pedido.fechaSolicitud)} />
-              <Meta k="Planificación" v={fmt(pedido.fechaPlanificacion)} />
               <Meta k="Piezas" v={String(piezasTotal(pedido))} />
               {pedido.ciudadEntrega && (
                 <Meta k="Entrega en" v={pedido.ciudadEntrega} />
@@ -247,8 +248,12 @@ export function Drawer({
               📦 Pasar a Producción (Completar pedido)
             </button>
           )}
-          Tiempo de la OF = planteo (autor) + revisión (revisor). El revisor nunca puede
-          ser el autor.
+          {/* Ya no hace falta explicar que "planteo = autor" y "revisión =
+              revisor": cada OF lo enseña en su línea. Aquí se queda solo lo que
+              la tarjeta NO puede enseñar: que el tiempo de un rol puede venir de
+              varias personas y que revisor y autor nunca coinciden. */}
+          El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El
+          revisor nunca puede ser el autor.
         </footer>
       </aside>
 
@@ -256,22 +261,85 @@ export function Drawer({
   );
 }
 
-function Chip({ op, label }: { op: Operario | null; label: string }) {
+/** Una línea del bloque de roles de la OF: QUIÉN · con qué rol · cuánto tiempo
+ *  hay fichado en ese rol.
+ *
+ *  Nace de una queja concreta sobre la ficha de un pedido: los mismos técnicos
+ *  salían dos veces y encima en distinto orden —arriba "Jaime, Adrián" y
+ *  debajo "planteo Adrián, Jaime" (pedido 3798)—, así que había que leerlo dos
+ *  veces para descubrir que decían lo mismo. Esta tarjeta tenía la misma
+ *  enfermedad en versión suave: la fila de tiempos daba "Planteo 1h 20m ·
+ *  Revisión 30m" SIN nombres y, cuatro líneas más abajo (con los archivos de
+ *  RPS metidos en medio), los chips "Autor / Revisor" daban los nombres SIN
+ *  tiempos. Emparejar planteo↔autor y revisión↔revisor quedaba de cuenta del
+ *  que mira; tanto, que hubo que explicarlo por escrito en el pie del panel.
+ *
+ *  OJO, que no son exactamente el mismo dato y por eso no vale con juntarlos y
+ *  ya: el nombre es QUIEN TIENE EL ROL asignado, y el tiempo es TODO el
+ *  fichado en ese rol, que puede haber echado un compañero (se ficha en la OF
+ *  ajena y el tiempo se imputa a quien lo echa) o el autor anterior si la OF se
+ *  traspasó. Por eso el tiempo va rotulado con el trabajo —"planteo",
+ *  "revisión"— y no con la persona, y el title lo deja escrito: así la
+ *  diferencia se ve, en vez de tener que deducirla.
+ *
+ *  El color del chip sale de ROL (plantear = esmeralda, revisar = violeta),
+ *  el mismo par que usan tarjetas, badges y el resto de la app. */
+function LineaRol({
+  rol,
+  rotulo,
+  trabajo,
+  op,
+  min,
+  live,
+  control,
+}: {
+  rol: Rol;
+  /** Cómo se llama quien tiene el rol: "Autor" / "Revisor". Son las palabras
+   *  con las que se habla del trabajo en el resto del panel (traspasar autor,
+   *  elegir revisor), no invento nuevo. */
+  rotulo: string;
+  /** Cómo se llama el tiempo: "planteo" / "revisión". */
+  trabajo: string;
+  op: Operario | null;
+  min: number;
+  live: boolean;
+  /** Sustituye al nombre cuando la persona se puede cambiar desde aquí (el
+   *  autor se traspasa mientras quede trabajo suyo). El revisor sigue siendo
+   *  de solo lectura: se nombra al mandar a revisar. */
+  control?: React.ReactNode;
+}) {
   return (
-    <span className="flex items-center gap-1 text-[11px] text-text-muted">
-      {label}
-      {op ? (
-        <span
-          className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-          style={{ background: op.color }}
-          title={op.nombre}
-        >
-          {op.iniciales}
-        </span>
-      ) : (
-        <span className="italic">—</span>
+    <div
+      className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5"
+      title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. ${fmtMin(min)} de ${trabajo} fichados en esta OF, que pueden repartirse entre varias personas: el tiempo se imputa a quien lo echa, aunque la OF sea de otro.`}
+    >
+      <span
+        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[rol].chip}`}
+      >
+        {rotulo}
+      </span>
+      {control ?? (
+        op ? (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
+              style={{ background: op.color }}
+            >
+              {op.iniciales}
+            </span>
+            <span className="truncate text-[11px] text-text">{op.nombre}</span>
+          </span>
+        ) : (
+          <span className="text-[11px] italic text-text-muted">Sin asignar</span>
+        )
       )}
-    </span>
+      {/* El punto pulsante no repite el rol (el badge de la cabecera de la OF
+          ya lo dice): solo señala CUÁL de las dos líneas está corriendo. */}
+      {live && <LiveDot rol={rol} className="size-1.5" />}
+      <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-text-muted">
+        {trabajo} <b className="font-semibold text-text">{fmtMin(min)}</b>
+      </span>
+    </div>
   );
 }
 
@@ -377,24 +445,60 @@ function OFRow({
         </p>
       )}
 
-      {/* tiempos: planteo + revisión = total */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-        <span className="text-text-muted">
-          Planteo <b className="text-emerald-700 dark:text-emerald-400">{fmtMin(of.tiempoPlanteoMin)}</b>
-        </span>
-        <span className="text-text-muted">
-          Revisión <b className="text-violet-600 dark:text-violet-400">{fmtMin(of.tiempoRevisionMin)}</b>
-        </span>
-        <span className="ml-auto rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
+      {/* Quién y cuánto, en un solo bloque: una línea por rol con la persona y
+          su tiempo al lado (ver LineaRol para el porqué). Antes esto estaba
+          partido en dos —los minutos aquí, los nombres cuatro líneas más
+          abajo— y había que emparejarlos de cabeza.
+
+          Orden fijo: autor y luego revisor, que es el del flujo de trabajo
+          (primero se plantea, después se repasa). Es un orden que no se mueve
+          nunca; ordenar por tiempo haría que la misma OF se recolocase sola
+          según quién llevase más minutos ese día, y ver los mismos nombres en
+          dos órdenes distintos es justo lo que despistaba en la queja. */}
+      <div className="mt-2.5 space-y-1">
+        <LineaRol
+          rol="plantear"
+          rotulo="Autor"
+          trabajo="planteo"
+          op={autor}
+          min={of.tiempoPlanteoMin}
+          live={of.fichandoRol === "plantear"}
+          control={
+            puedeTraspasarAutor(of) ? (
+              <Select
+                value={of.autorId}
+                onChange={(v) => v && onTraspasarAutor(of.id, v)}
+                placeholder={null}
+                alignRight
+                className="min-w-0"
+                options={opcionesOperario(operarios, miId)}
+              />
+            ) : null
+          }
+        />
+        <LineaRol
+          rol="revisar"
+          rotulo="Revisor"
+          trabajo="revisión"
+          op={revisor}
+          min={of.tiempoRevisionMin}
+          live={of.fichandoRol === "revisar"}
+        />
+      </div>
+
+      {/* Lo que es de la OF entera y no de una persona: el total contra lo
+          estimado y el botón de fichar. */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+        <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
           Total {fmtMin(tiempoTotalOF(of))}
           <span className="ml-1 font-normal text-text-muted">/ est. {fmtMin(of.tiempoEstimadoMin)}</span>
         </span>
         {of.fichandoRol ? (
-          <Btn tone="ghost" onClick={() => onDesfichar(of.id)}>
+          <Btn tone="ghost" className="ml-auto" onClick={() => onDesfichar(of.id)}>
             ⏸ Dejar de fichar
           </Btn>
         ) : esFichable(of) ? (
-          <Btn tone="ghost" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
+          <Btn tone="ghost" className="ml-auto" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
             ⏱ Fichar
           </Btn>
         ) : (
@@ -402,7 +506,7 @@ function OFRow({
           of.estado !== "anulada" && (
             <span
               title={motivoNoFichable(of) ?? undefined}
-              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
+              className="ml-auto cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
             >
               ⏱ No fichable
             </span>
@@ -424,32 +528,6 @@ function OFRow({
           ))}
         </div>
       )}
-
-      {/* Roles. El autor se puede traspasar mientras quede trabajo suyo; el
-          revisor sigue siendo de solo lectura aquí, se nombra al mandar a
-          revisar (o se corrige desde la vista Revisión). */}
-      <div className="mt-2.5 grid grid-cols-2 gap-2">
-        <div className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5">
-          {puedeTraspasarAutor(of) ? (
-            <>
-              <span className="text-[11px] text-text-muted">Autor</span>
-              <Select
-                value={of.autorId}
-                onChange={(v) => v && onTraspasarAutor(of.id, v)}
-                placeholder={null}
-                alignRight
-                className="ml-auto"
-                options={opcionesOperario(operarios, miId)}
-              />
-            </>
-          ) : (
-            <Chip op={autor} label="Autor" />
-          )}
-        </div>
-        <div className="flex items-center rounded-lg bg-surface-2/70 px-2 py-1.5">
-          <Chip op={revisor} label="Revisor" />
-        </div>
-      </div>
 
       {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
       <AccionesOF of={of} operarios={operarios} onAccion={onAccion} onSetRevisor={onSetRevisor} />

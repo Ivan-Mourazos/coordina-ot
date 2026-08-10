@@ -61,6 +61,9 @@ interface FilaImputacion {
   tarea: string | null;
   empleado: string | null;
   minutos: number | null;
+  /** Primera fecha en la que ESE empleado imputó tiempo en la tarea. Opcional
+   *  porque la query del historial no la pide (allí no se usa). */
+  desde?: Date | null;
 }
 
 interface FilaVenta {
@@ -226,6 +229,24 @@ function fechaISO(d: Date | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** El día en que se tocó por primera vez una OF, a partir de las fechas que
+ *  devuelve la query de imputaciones (una por empleado que le echó tiempo).
+ *
+ *  Hay que quedarse con la MÁS TEMPRANA de todas, no con la de la primera fila
+ *  que salga: la query agrupa por empleado y el orden en que llegan las filas
+ *  no lo decide nadie, así que si Ana empezó en marzo y Luis en julio, leer la
+ *  fila de Luis diría que la OF se empezó en julio.
+ *
+ *  Las fechas inservibles se caen por `fechaISO` (null, centinela 1900 de RPS);
+ *  las del futuro las descarta ya la query. Sin ninguna válida → undefined,
+ *  que es lo que el contrato entiende por "nunca se le imputó tiempo". */
+export function primeraImputacion(fechas: (Date | null | undefined)[]): string | undefined {
+  return fechas
+    .map((d) => fechaISO(d ?? null))
+    .filter((d): d is string => d !== null)
+    .sort()[0];
+}
+
 /** Respaldo de `PermiteImputaciones` para cuando la vista no lo traiga (una
  *  versión anterior, o la fila sin valor). Son las situaciones que hoy tienen
  *  AllowImputations en CPRManufacturingOrderSituation; si IT añade una nueva,
@@ -268,6 +289,8 @@ interface DatosOF {
   avisos: string[];
   /** Arranque planificado de la primera fase de producción tras el planteo. */
   fechaLimitePlanteo: string | undefined;
+  /** Día de la primera imputación de tiempo en RPS (undefined = ninguna). */
+  fichadaDesde: string | undefined;
 }
 
 function aOF(fila: FilaVista, datos: DatosOF): OF {
@@ -298,6 +321,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     reservasDetalle: datos.reservas.length ? datos.reservas : undefined,
     avisos: datos.avisos.length ? datos.avisos : undefined,
     fechaLimitePlanteo: datos.fechaLimitePlanteo,
+    fichadaDesde: datos.fichadaDesde,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
     tiempoRevisionMin: 0,
@@ -463,10 +487,37 @@ async function consultarTablero(): Promise<Tablero> {
       WHERE r.ItemType = 5 AND mo.CodCompany = '001'
     `),
     // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
-    // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo.
+    // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo, y
+    // el DÍA en que se tocó por primera vez (`fichadaDesde`).
+    //
+    // La fecha va aquí, colgada de la query que ya existía, y no en una consulta
+    // propia: son las mismas filas de las que ya salen los minutos, así que el
+    // dato es gratis y además no puede contradecir a `tiempoPlanteoMin`.
+    // Medido en vivo contra RPS (08/2026, 4 pasadas alternas sobre las 111 OFs
+    // de la vista): 54 ms de media antes y 54 después — en régimen, 31-33 ms
+    // frente a 32-45. El tablero entero, 3 pasadas alternas de punta a punta:
+    // 3788 ms antes y 3552 después (la diferencia es el arranque en frío de la
+    // primera pasada; la vista pesada se lleva ~3,5 s de los dos). Es decir:
+    // no cuesta nada, que era la condición para traerlo.
+    //
+    // `ImputationDate` y no `CreationTimestamp`: la primera no falta nunca
+    // (0 nulos y 0 centinelas en las 136 328 imputaciones de OT) y la segunda
+    // está vacía en 77 253 de ellas, justo en las viejas — que son las que
+    // interesan. Guarda contra el futuro porque RPS acepta años mal tecleados:
+    // hay 7 filas de 153 776 con fechas de 2062, 2105 y 2201, y bastaría una
+    // en una OF sin más imputaciones para que el panel dijera "fichada desde
+    // 2201". El CASE solo tapa la fecha: los minutos se siguen sumando todos, y
+    // comprobado sobre la vista real (86 filas) no deja sin fecha ni una sola
+    // fila que tenga minutos.
+    //
+    // Lo que se gana, medido el mismo día: de las 116 filas de la vista, 23
+    // tienen tiempo imputado y las 23 reciben fecha; 6 de ellas se empezaron
+    // antes de julio y hoy mienten con un "Aún sin fichar" — la más sangrante
+    // es 0217537, con 23 horas encima desde el 10/10/2025.
     pool.request().query<FilaImputacion>(`
       SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
-             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos,
+             MIN(CASE WHEN i.ImputationDate <= GETDATE() THEN i.ImputationDate END) AS desde
       FROM dbo.CPRImputationMO i
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
@@ -568,14 +619,27 @@ async function consultarTablero(): Promise<Tablero> {
   // minutos).
   const minutosPorTarea = new Map<string, number>();
   const autorPorTarea = new Map<string, { op: string; min: number }>();
+  // Fechas sueltas por OF+tarea: la query da una por empleado y la buena es la
+  // más temprana de todas (ver `primeraImputacion`), así que se juntan antes de
+  // decidir. Son 86 filas en la vista real: no compensa afinar más.
+  const fechasPorTarea = new Map<string, (Date | null | undefined)[]>();
   for (const r of imputaciones.recordset) {
     const clave = `${(r.orden ?? "").trim()}:${(r.tarea ?? "").trim()}`;
     const min = r.minutos ?? 0;
     minutosPorTarea.set(clave, (minutosPorTarea.get(clave) ?? 0) + min);
+    const suyas = fechasPorTarea.get(clave) ?? [];
+    suyas.push(r.desde);
+    fechasPorTarea.set(clave, suyas);
     const op = operarioDeEmpleado(r.empleado);
     if (!op) continue;
     const actual = autorPorTarea.get(clave);
     if (!actual || min > actual.min) autorPorTarea.set(clave, { op, min });
+  }
+
+  const desdePorTarea = new Map<string, string>();
+  for (const [clave, fechas] of fechasPorTarea) {
+    const desde = primeraImputacion(fechas);
+    if (desde) desdePorTarea.set(clave, desde);
   }
 
   // Autor/minutos del historial, por OF (una sola fase de OT por OF).
@@ -773,6 +837,9 @@ async function consultarTablero(): Promise<Tablero> {
           reservas: reservasPorOF.get(orden) ?? [],
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
           minutosImputados: minutosPorTarea.get(clave) ?? 0,
+          // Misma clave OF+tarea que los minutos: el "desde cuándo" y el
+          // "cuánto llevas" hablan siempre del mismo trabajo.
+          fichadaDesde: desdePorTarea.get(clave),
           avisos,
           fechaLimitePlanteo,
         });

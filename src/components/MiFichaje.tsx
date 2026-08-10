@@ -6,8 +6,15 @@ import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
 
-/** Minutos sin ningún fichaje corriendo, con OFs mías en_curso, antes de
- *  avisar en ámbar (aviso "te has puesto a plantear y no estás fichando"). */
+/** Minutos con trabajo mío a medias y NINGÚN fichaje corriendo antes de sacar
+ *  la píldora en ámbar.
+ *
+ *  El aviso NO dice "te has puesto a plantear y no fichas": eso el navegador
+ *  no lo sabe y casi siempre era falso — lo normal es tener un pedido
+ *  interrumpido, empezado y sin terminar, con el reloj parado a propósito.
+ *  Dice lo único comprobable: hay trabajo empezado y el reloj no cuenta. Los
+ *  10 minutos evitan dar la tabarra justo después de pausar (ir a comer,
+ *  una reunión). */
 const AVISO_SIN_FICHAR_MIN = 10;
 
 /** Minutos de un intervalo corriendo antes de avisar de que lleva mucho
@@ -34,6 +41,74 @@ function fmtHMS(seg: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** Cuándo se paró el reloj, en corto: la hora si fue hoy ("las 11:40") y con
+ *  la fecha si fue otro día ("el 6/8 a las 18:20"). Sin la fecha, un "parado
+ *  desde las 18:20" de la semana pasada se lee como de esta tarde. */
+function fmtDesde(iso: string, ahora: string): string {
+  const d = new Date(iso);
+  const hora = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const mismoDia = d.toDateString() === new Date(ahora).toDateString();
+  return mismoDia ? `las ${hora}` : `el ${d.getDate()}/${d.getMonth() + 1} a las ${hora}`;
+}
+
+/** Un día suelto en corto ("10/10/2025"). Para `fichadaDesde`, que viene de
+ *  RPS y es un DÍA, no un instante: pasarlo por `fmtDesde` sacaría una hora
+ *  inventada. Se parte el ISO en vez de construir un Date para no arrastrar el
+ *  desfase de zona horaria, que en una fecha sin hora corre el día entero. */
+function fmtDia(iso: string): string {
+  const [a, m, d] = iso.split("-");
+  return `${Number(d)}/${Number(m)}/${a}`;
+}
+
+/** "1 OF empezada" / "3 OFs empezadas". El rótulo se repite en la píldora, en
+ *  su título y en el panel; hacer la concordancia a mano en cada sitio acaba
+ *  descuadrando en alguno. */
+function nOF(n: number, adjetivo?: string): string {
+  const s = n === 1 ? "" : "s";
+  return `${n} OF${s}${adjetivo ? ` ${adjetivo}${s}` : ""}`;
+}
+
+/** Instante en que dejó de correr el reloj de esta OF: el `fin` de su último
+ *  tramo. Se busca desde el final porque los intervalos se añaden en orden.
+ *  Mira el fichaje ENTERO, no el de hoy: lo que se dejó a medias ayer sigue
+ *  a medias esta mañana, y "parado desde ayer a las 18:20" es justo el dato
+ *  que se busca. null = nunca se fichó. */
+function paradoDesdeDe(f: Fichaje, ofId: string): string | null {
+  for (let i = f.intervalos.length - 1; i >= 0; i--) {
+    const iv = f.intervalos[i];
+    if (iv.fin && iv.ofIds.includes(ofId)) return iv.fin;
+  }
+  return null;
+}
+
+/** ¿Es esta OF trabajo MÍO empezado y sin terminar? El estado dice quién la
+ *  tiene a medias: `en_revision` es del revisor (el autor ya acabó lo suyo);
+ *  `en_curso` y `devuelta` son del autor. Fuera `pendiente` (nadie la ha
+ *  tocado) y `por_revisar` (el planteo está terminado y solo espera revisor:
+ *  no es trabajo interrumpido de nadie). Las detenidas SÍ entran: están
+ *  paradas y eso es exactamente lo que hay que enseñar. */
+function esMiTrabajoAMedias(of: OF, miId: string): boolean {
+  if (of.estado === "en_revision") return of.revisorId === miId;
+  return (of.estado === "en_curso" || of.estado === "devuelta") && of.autorId === miId;
+}
+
+/** Minutos fichados HOY, en total y por rol. El tramo abierto cuenta hasta
+ *  `ahora`: el resumen del día tiene que cuadrar con el reloj que se está
+ *  viendo subir, no quedarse en el último tramo cerrado. */
+function resumenDelDia(
+  f: Fichaje,
+  ahora: string,
+): { plantear: number; revisar: number; total: number } {
+  let plantear = 0;
+  let revisar = 0;
+  for (const iv of f.intervalos) {
+    const min = (Date.parse(iv.fin ?? ahora) - Date.parse(iv.inicio)) / 60000;
+    if (iv.rol === "plantear") plantear += min;
+    else revisar += min;
+  }
+  return { plantear, revisar, total: plantear + revisar };
+}
+
 /** OFs donde soy autor o revisor, en estados que todavía tienen sentido
  *  fichar/consultar (fuera anuladas y ya aprobadas). Las detenidas SÍ se
  *  incluyen: se ven en el panel pero con el toggle deshabilitado. */
@@ -46,14 +121,19 @@ function ofsMiasDe(p: Pedido, miId: string): OF[] {
   );
 }
 
-/** Panel flotante "Mi fichaje": píldora colapsada en la esquina inferior
- *  derecha que se expande al detalle de lo que estoy fichando AHORA — el
- *  pedido en marcha con sus OF, o la OF sola si fiché solo una.
+/** Panel flotante "Mi fichaje". Píldora colapsada en la esquina inferior
+ *  derecha que se expande a un panel con DOS caras, según el reloj:
  *
- *  Un solo fichaje corre a la vez (un intervalo = un rol). Desde aquí se
- *  para OF a OF o el pedido entero, se ven los minutos de hoy de cada una y
- *  se pausa/reanuda el fichaje completo. Asignar y arrancar trabajo nuevo es
- *  cosa del tablero: este panel responde a "¿qué estoy contando ahora?". */
+ *  · Corriendo → qué estoy fichando AHORA: el pedido en marcha con sus OF, el
+ *    tiempo de cada una y el total del día.
+ *  · Parado → qué tengo empezado y sin terminar, con el estado de cada OF y
+ *    desde cuándo está parada. Antes esta cara no enseñaba nada ("no estás
+ *    fichando"), que es justo cuando hace falta saber qué quedó a medias.
+ *
+ *  Un solo fichaje corre a la vez (un intervalo = un rol). Desde aquí se para
+ *  OF a OF o el pedido entero, se retoma lo interrumpido y se pausa/reanuda el
+ *  fichaje completo. Asignar trabajo nuevo sigue siendo cosa del tablero: este
+ *  panel responde a "¿qué estoy contando?" y a "¿qué dejé a medias?". */
 export function MiFichaje({
   miId,
   operarios,
@@ -81,8 +161,8 @@ export function MiFichaje({
   // guardados no cambian; solo se recalcula con este `ahora`.
   //
   // Con un fichaje corriendo va al segundo, que es lo que hace que el
-  // contador se vea subir; parado basta con medio minuto (ahí solo sirve
-  // para el aviso de "planteando sin fichar", que se mide en minutos) y no
+  // contador se vea subir; parado basta con medio minuto (ahí solo sirve para
+  // el aviso de trabajo a medias sin fichar, que se mide en minutos) y no
   // tiene sentido repintar 60 veces más a cambio de nada.
   const [ahora, setAhora] = useState(() => new Date().toISOString());
   const corriendo = ab !== null;
@@ -105,23 +185,38 @@ export function MiFichaje({
   const ultimo = fichaje.intervalos[fichaje.intervalos.length - 1] ?? null;
   const puedeReanudar = ultimo !== null && ultimo.fin !== null;
 
-  // Aviso ámbar: tengo OFs en_curso NO detenidas (una detenida no se puede
-  // fichar, así que no tiene sentido avisar por ella) pero no hay ningún
-  // fichaje corriendo desde hace más de AVISO_SIN_FICHAR_MIN. Se recuerda el
-  // instante en que empezó la situación en estado (no en un ref: leer un ref
-  // durante el render está prohibido). El contador va etiquetado con el
-  // operario: es por identidad y no debe heredarse al cambiar de técnico
-  // (si A llevaba 8 min sin fichar y cambio a B, B arranca de cero).
-  const misEnCurso = pedidos.some((p) =>
-    p.ofs.some((of) => of.autorId === miId && of.estado === "en_curso" && !of.detenida),
-  );
+  // Mi trabajo empezado y sin terminar, agrupado por pedido. Se calcula
+  // siempre (no solo al desplegar) porque de aquí salen las dos cosas: la
+  // lista que enseña el panel con el reloj parado y el aviso ámbar.
+  const aMedias = pedidos
+    .map((p) => ({ pedido: p, ofs: p.ofs.filter((of) => esMiTrabajoAMedias(of, miId)) }))
+    .filter((g) => g.ofs.length > 0);
+  // De lo que hay a medias, lo que además se podría estar fichando: una OF
+  // detenida por Producción sale en la lista (para que se vea POR QUÉ está
+  // parada) pero no cuenta como olvido, porque regañar por no fichar algo que
+  // la web no deja fichar sería absurdo. Igual con las que RPS no admite.
+  const sinFichar = aMedias.flatMap((g) => g.ofs).filter(esFichable);
+  // Lo que DISPARA el aviso es más estrecho que lo que el panel enseña: una OF
+  // `en_curso` es la que se está planteando ahora mismo, y esa es la que uno se
+  // olvida de fichar. Una `devuelta` puede llevar días esperando sin que nadie
+  // la toque: avisar por ella dejaría la píldora ámbar encendida para siempre,
+  // que es como no avisar. Una vez encendida sí cuenta todo lo que hay a
+  // medias, para que el número cuadre con la lista del panel.
+  const enCursoSinFichar = sinFichar.some((of) => of.estado === "en_curso");
+
+  // Aviso ámbar: tengo trabajo a medias y ningún fichaje corriendo desde hace
+  // más de AVISO_SIN_FICHAR_MIN. Se recuerda el instante en que empezó la
+  // situación en estado (no en un ref: leer un ref durante el render está
+  // prohibido). El contador va etiquetado con el operario: es por identidad y
+  // no debe heredarse al cambiar de técnico (si A llevaba 8 min sin fichar y
+  // cambio a B, B arranca de cero).
   const [sinFicharDesde, setSinFicharDesde] = useState<{ opId: string; desde: number } | null>(
     null,
   );
   // Ajuste durante el render, no en un efecto: el efecto provocaba un segundo
   // render en cascada (y el lint lo rechaza). React descarta este render y
   // vuelve a empezar con el valor nuevo, sin pintar el estado intermedio.
-  const enSituacion = misEnCurso && !ab;
+  const enSituacion = enCursoSinFichar && !ab;
   if (enSituacion && sinFicharDesde?.opId !== miId) {
     // `ahora` en vez de Date.now(): el reloj del render ya viene de fuera y
     // leerlo aquí es puro, además de usar la misma escala que la comparación.
@@ -149,9 +244,12 @@ export function MiFichaje({
   if (!yo) return null;
 
   // El widget solo aparece cuando aporta algo: hay un fichaje corriendo (para
-  // saber qué se está fichando) o el aviso de "planteando sin fichar". Si no,
+  // saber qué se está fichando), hay trabajo a medias con el reloj parado
+  // desde hace rato (el aviso ámbar), o lo tengo abierto a mano. Esto último
+  // importa: al pulsar "Pausar todo" el fichaje deja de correr y sin ello el
+  // panel se desvanecía bajo el dedo, llevándose el botón de reanudar. Si no,
   // no molesta: el fichaje se inicia desde las tarjetas del tablero.
-  if (!ab && !aviso) return null;
+  if (!ab && !aviso && !expandido) return null;
 
   // Los minutos del panel son de HOY; el histórico completo se conserva para
   // Olanet (solo se filtra la proyección que ve el técnico, no el fichaje).
@@ -164,15 +262,46 @@ export function MiFichaje({
     intervalos: fichaje.intervalos.filter((iv) => iv.inicio >= inicioHoy),
   };
 
-  // SOLO lo que está corriendo ahora mismo. El panel es el reloj de este
-  // fichaje, no la lista de todo lo que tengo asignado: eso ya es el tablero,
-  // y repetirlo aquí obligaba a buscar entre veinte pedidos cuál era el que
-  // estaba contando. Si fiché el pedido entero salen todas sus OF; si fiché
-  // una sola, sale esa sola — el panel refleja lo que se decidió al fichar.
+  // Con el reloj corriendo: SOLO lo que corre ahora mismo. El panel es el
+  // reloj de este fichaje, no la lista de todo lo que tengo asignado: eso ya
+  // es el tablero, y repetirlo aquí obligaba a buscar entre veinte pedidos
+  // cuál era el que estaba contando. Si fiché el pedido entero salen todas sus
+  // OF; si fiché una sola, sale esa sola — el panel refleja lo que se decidió
+  // al fichar.
   const enMarcha = new Set(ab?.ofIds ?? []);
   const grupos = pedidos
     .map((p) => ({ pedido: p, ofs: ofsMiasDe(p, miId).filter((of) => enMarcha.has(of.id)) }))
     .filter((g) => g.ofs.length > 0);
+
+  // Con el reloj parado: lo que dejé a medias, de lo último a lo más viejo.
+  // Ese orden es el que se busca al abrir el panel ("¿qué estaba haciendo
+  // antes de comer?"); el del tablero manda por fecha de planificación, que
+  // aquí no dice nada. Lo que nunca se fichó queda al final (cadena vacía).
+  const paradoDe = (of: OF) => paradoDesdeDe(fichaje, of.id);
+  const aMediasOrden = aMedias
+    .map((g) => ({
+      ...g,
+      paro: g.ofs.reduce((max, of) => {
+        const p = paradoDe(of) ?? "";
+        return p > max ? p : max;
+      }, ""),
+    }))
+    .sort((a, b) => (a.paro < b.paro ? 1 : a.paro > b.paro ? -1 : 0));
+
+  // Una sola lista para las dos caras del panel: los grupos tienen la misma
+  // forma y GrupoPedido sabe en qué modo está por `enMarchaModo`.
+  const mostrados = ab ? grupos : aMediasOrden;
+  const hoy = resumenDelDia(fichajeHoy, ahora);
+
+  // Frase larga para el ratón (y para quien no pilla el rótulo corto de la
+  // píldora). No se pone como aria-label: sustituiría al texto visible en el
+  // nombre accesible y el control por voz dejaría de responder a lo que se lee
+  // en pantalla; como `title` acompaña, que es lo que se quiere.
+  const tituloPildora = ab
+    ? `${ROL[ab.rol].label} en ${nOF(nOFs)} · llevas ${fmtHMS(totalSeg)}`
+    : aviso
+      ? `Tienes ${nOF(sinFichar.length, "empezada")} y el reloj parado`
+      : "El reloj está parado";
 
   return (
     <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
@@ -197,7 +326,9 @@ export function MiFichaje({
                 {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
               </span>
             ) : (
-              <span className="text-xs font-semibold text-text-muted">Parado</span>
+              // "Reloj parado", no "Parado" a secas: lo que está parado es el
+              // contador, no el trabajo (que puede estar empezado y esperando).
+              <span className="text-xs font-semibold text-text-muted">⏸ Reloj parado</span>
             )}
             <button
               onClick={() => setExpandido(false)}
@@ -208,16 +339,22 @@ export function MiFichaje({
             </button>
           </div>
 
+          {/* Con el reloj parado hay que decir QUÉ es esta lista: no es lo que
+              se está fichando (nada lo está), es lo que quedó a medias. */}
+          {!ab && mostrados.length > 0 && (
+            <p className="mb-1.5 text-[11px] leading-snug text-text-muted">
+              Tienes esto empezado y sin terminar:
+            </p>
+          )}
+
           {/* mis OFs agrupadas por pedido */}
           <ul className="scroll-thin -mx-1 flex-1 space-y-2 overflow-y-auto px-1">
-            {grupos.length === 0 && (
+            {mostrados.length === 0 && (
               <li className="px-1 py-6 text-center text-xs text-text-muted">
-                {/* Sin fichaje corriendo la lista está vacía por definición:
-                    el panel solo pinta lo que se está fichando. */}
-                No estás fichando nada ahora.
+                {ab ? "No estás fichando nada ahora." : "No tienes nada empezado a medias."}
               </li>
             )}
-            {grupos.map((g) => (
+            {mostrados.map((g) => (
               <GrupoPedido
                 key={g.pedido.id}
                 pedido={g.pedido}
@@ -225,16 +362,33 @@ export function MiFichaje({
                 miId={miId}
                 fichaje={fichajeHoy}
                 ahora={ahora}
+                enMarchaModo={ab !== null}
+                paradoDesde={paradoDe}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
               />
             ))}
           </ul>
 
-          {/* pausar/reanudar + total corriendo */}
+          {/* pausar/reanudar + lo fichado hoy */}
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--glass-border)] pt-2.5">
-            {/* El total y el rol ya están en la cabecera: aquí solo la acción. */}
-            <span />
+            {/* El reloj de la cabecera es el del tramo que corre AHORA; esto es
+                lo que llevo fichado HOY en total, que es la pregunta del final
+                de la jornada y la única que sigue teniendo respuesta con el
+                reloj parado. El desglose por rol solo sale si hoy hubo de los
+                dos: con uno solo repetiría el total. */}
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                Hoy
+              </p>
+              <p className="text-xs font-bold tabular-nums text-text">{fmtMin(hoy.total)}</p>
+              {hoy.plantear > 0 && hoy.revisar > 0 && (
+                <p className="text-[10px] text-text-muted">
+                  {ROL.plantear.label} {fmtMin(hoy.plantear)} · {ROL.revisar.label}{" "}
+                  {fmtMin(hoy.revisar)}
+                </p>
+              )}
+            </div>
             {ab ? (
               <button
                 onClick={onPausarTodo}
@@ -278,6 +432,7 @@ export function MiFichaje({
       <button
         onClick={() => setExpandido((v) => !v)}
         aria-expanded={expandido}
+        title={tituloPildora}
         className={`glass-chip flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
           ab
             ? ROL[ab.rol].chip
@@ -290,14 +445,18 @@ export function MiFichaje({
           <>
             <LiveDot rol={ab.rol} className="size-2" />
             <span>
-              ⏱ {nOFs} OF{nOFs === 1 ? "" : "s"} ·{" "}
-              <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
+              ⏱ {nOF(nOFs)} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
             </span>
           </>
         ) : aviso ? (
-          <span>⚠ Planteando sin fichar</span>
+          // Lo que de verdad pasa: hay trabajo empezado y el reloj no cuenta.
+          // Sigue en ámbar (es un toque de atención, no un error) pero con ⏸ en
+          // vez de ⚠: no se ha roto nada, hay algo pausado. Cuenta solo las
+          // fichables, que son de las que uno se puede olvidar; las detenidas
+          // salen igual en el panel, con su chip.
+          <span>⏸ {nOF(sinFichar.length, "empezada")} sin fichar</span>
         ) : (
-          <span>⏱ Sin fichar</span>
+          <span>⏸ Reloj parado</span>
         )}
       </button>
     </div>
@@ -310,6 +469,8 @@ function GrupoPedido({
   miId,
   fichaje,
   ahora,
+  enMarchaModo,
+  paradoDesde,
   onFichar,
   onDesfichar,
 }: {
@@ -318,14 +479,19 @@ function GrupoPedido({
   miId: string;
   fichaje: Fichaje;
   ahora: string;
+  /** true = el panel enseña lo que corre AHORA; false = lo que quedó a medias.
+   *  Cambia los rótulos, no las reglas: lo que se puede fichar es lo mismo. */
+  enMarchaModo: boolean;
+  paradoDesde: (of: OF) => string | null;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
 }) {
-  // Aquí solo llegan OF que se están fichando (ver `enMarcha` arriba), así que
-  // en la práctica manda la rama de "Parar pedido". El botón de fichar se
-  // mantiene porque la regla de qué se puede arrancar sigue siendo suya, y
-  // porque quien la lea no debería tener que fiarse de un filtro que está en
-  // otro sitio.
+  // Con el reloj en marcha aquí solo llegan OF que se están fichando (ver
+  // `enMarcha` arriba), así que manda la rama de "Parar pedido"; con el reloj
+  // parado llegan las que tengo a medias y manda la de fichar. Las dos ramas
+  // se quedan en los dos modos: la regla de qué se puede arrancar es de este
+  // componente, y quien la lea no debería tener que fiarse de un filtro que
+  // está en otro sitio.
   //
   // "Fichar pedido" solo ficha lo que me toca PLANTEAR (autor): un fichaje
   // corriendo es un único rol, así que mezclar plantear+revisar en un solo
@@ -350,7 +516,13 @@ function GrupoPedido({
             onClick={() => onFichar(porArrancar.map((o) => o.id), "plantear")}
             className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL.plantear.solido}`}
           >
-            {corriendo.length > 0 ? "Fichar el resto" : "Fichar pedido"}
+            {/* Con el reloj parado no se "empieza" nada: se retoma lo que ya
+                estaba empezado, y así se llama el botón. */}
+            {!enMarchaModo
+              ? "Retomar pedido"
+              : corriendo.length > 0
+                ? "Fichar el resto"
+                : "Fichar pedido"}
           </button>
         ) : corriendo.length > 1 ? (
           <button
@@ -363,8 +535,12 @@ function GrupoPedido({
       </div>
       {detenidas > 0 && fichablesPlantear.length > 0 && (
         <p className="mt-0.5 text-[10px] text-text-muted">
-          fichando {fichablesPlantear.length} de {misPlantear.length} — {detenidas} detenida
-          {detenidas === 1 ? "" : "s"}
+          {/* "fichando X de Y" sería mentira con el reloj parado: ahí lo que
+              cuenta es cuántas se PODRÍAN retomar. */}
+          {enMarchaModo
+            ? `fichando ${fichablesPlantear.length} de ${misPlantear.length}`
+            : `${fichablesPlantear.length} de ${misPlantear.length} se pueden fichar`}{" "}
+          — {detenidas} detenida{detenidas === 1 ? "" : "s"}
         </p>
       )}
       <ul className="mt-1.5 space-y-1">
@@ -374,6 +550,7 @@ function GrupoPedido({
             of={of}
             fichaje={fichaje}
             ahora={ahora}
+            paradoDesde={enMarchaModo ? undefined : paradoDesde(of)}
             onFichar={onFichar}
             onDesfichar={onDesfichar}
           />
@@ -387,12 +564,17 @@ function OFItem({
   of,
   fichaje,
   ahora,
+  paradoDesde,
   onFichar,
   onDesfichar,
 }: {
   of: OF;
   fichaje: Fichaje;
   ahora: string;
+  /** Cuándo dejó de correr el reloj de esta OF. `undefined` = no procede
+   *  enseñarlo (el panel está en modo "lo que corre AHORA"); `null` = está a
+   *  medias pero nunca se llegó a fichar. */
+  paradoDesde?: string | null;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
 }) {
@@ -401,37 +583,64 @@ function OFItem({
   const minutos = Math.round(minutosOF(fichaje, of.id, { ahora }));
 
   return (
-    <li className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5 text-[11px]">
-      <span className="truncate font-mono font-semibold text-text">{of.codigo}</span>
-      {/* Etiqueta entera, no la abreviatura: "REVIS." y "POR REV." se
-          parecen demasiado, y en este panel sobra ancho para distinguirlas. */}
-      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
-        {meta.label}
-      </span>
-      <span className="ml-auto shrink-0 text-text-muted" title="Tiempo que llevas hoy en esta OF">
-        {fmtMin(minutos)}
-      </span>
-      {!fichando && motivoNoFichable(of) ? (
+    <li className="rounded-lg bg-surface-2/70 px-2 py-1.5 text-[11px]">
+      <div className="flex items-center gap-2">
+        <span className="truncate font-mono font-semibold text-text">{of.codigo}</span>
+        {/* Etiqueta entera, no la abreviatura: "REVIS." y "POR REV." se
+            parecen demasiado, y en este panel sobra ancho para distinguirlas.
+            El chip sale de ESTADO: es el mismo color que en el tablero, así que
+            "devuelta" o "en revisión" se reconocen sin leer. */}
         <span
-          title={motivoNoFichable(of)!}
-          className="shrink-0 cursor-help rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted/60"
+          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}
         >
-          {of.detenida ? "Detenida" : "No fichable"}
+          {meta.label}
         </span>
-      ) : fichando ? (
-        <button
-          onClick={() => onDesfichar(of.id)}
-          className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
-        >
-          ⏸ Parar
-        </button>
-      ) : (
-        <button
-          onClick={() => onFichar([of.id], rolFichajeDe(of))}
-          className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
-        >
-          ⏱ Fichar
-        </button>
+        <span className="ml-auto shrink-0 text-text-muted" title="Tiempo que llevas hoy en esta OF">
+          {fmtMin(minutos)}
+        </span>
+        {!fichando && motivoNoFichable(of) ? (
+          <span
+            title={motivoNoFichable(of)!}
+            className="shrink-0 cursor-help rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted/60"
+          >
+            {of.detenida ? "Detenida" : "No fichable"}
+          </span>
+        ) : fichando ? (
+          <button
+            onClick={() => onDesfichar(of.id)}
+            className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            ⏸ Parar
+          </button>
+        ) : (
+          <button
+            onClick={() => onFichar([of.id], rolFichajeDe(of))}
+            className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            ⏱ Fichar
+          </button>
+        )}
+      </div>
+      {/* Desde cuándo está parada: "está a medias" sin más no sirve para
+          decidir qué retomar; "parado desde las 11:40" sí. No se pinta si la OF
+          está fichándose (el tablero puede decir que corre aunque mi reloj
+          local esté parado: ahí la línea se contradiría con el botón). */}
+      {paradoDesde !== undefined && !fichando && (
+        <p className="mt-1 text-[10px] text-text-muted">
+          {paradoDesde
+            ? `Parado desde ${fmtDesde(paradoDesde, ahora)}`
+            : of.fichadaDesde
+              ? // Sin tramos MÍOS pero con imputaciones en RPS: el trabajo se
+                // empezó fuera de la web (o lo empezó otro). Antes esto decía
+                // "Aún sin fichar", que era mentira y de las que escuecen: la
+                // OF 0217537 lleva 23 horas encima desde el 10/10/2025.
+                //
+                // Aquí NO vale `fmtDesde`: RPS guarda el día, no el instante
+                // (0 de 12 763 imputaciones de 2026 llevan hora), y formatearlo
+                // con horas se inventaría un "a las 2:00".
+                `Empezada el ${fmtDia(of.fichadaDesde)}, fuera de la web`
+              : "Aún sin fichar"}
+        </p>
       )}
     </li>
   );
