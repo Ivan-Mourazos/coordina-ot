@@ -25,6 +25,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones } from "./Notificaciones";
+import { Herramientas } from "./Herramientas";
 import {
   agruparAvisos,
   aplicarDescartes,
@@ -1285,6 +1286,7 @@ export function Board({
             <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
             <Kpi label="Por revisar" value={porRevisar} tone="amber" />
             <Kpi label="En revisión" value={enRevision} tone="violet" />
+            <Herramientas />
             <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
             <ThemeToggle />
