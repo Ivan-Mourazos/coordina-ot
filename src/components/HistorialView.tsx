@@ -189,7 +189,11 @@ export function HistorialView() {
         </div>
       )}
 
-      <div className="space-y-2">
+      {/* Más juntas: el Historial se lee comparando filas —cuándo se pasó qué y
+          quién lo hizo— y con 8 px entre tarjetas caben cinco pedidos menos por
+          pantalla sin ganar nada a cambio. La Lista, que es la otra tabla larga
+          de la app, no deja aire entre filas. */}
+      <div className="space-y-1">
         {items.map((it) => (
           <FilaHistorial key={it.pedido} item={it} onOpen={setAbierto} />
         ))}
@@ -430,17 +434,26 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
             <Autoria item={item} />
           </span>
         </button>
-        {/* El detalle completo, ahora que la barra despliega. Rotulado y no un
-            icono a secas: en una lista de 40 filas iguales, un símbolo suelto
-            no dice si abre el pedido, lo descarga o lo imprime. */}
+        {/* El detalle completo, ahora que la barra despliega.
+            Rotulado SOLO al pasar por encima: repetido en las 40 filas de la
+            página, "Ver detalle" formaba una columna de texto que pesaba más
+            que los datos del pedido. El icono se queda siempre (para saber que
+            se puede) y la palabra aparece cuando hace falta, que es cuando se
+            está a punto de pulsarlo. Con teclado sale igual, por `focus`. */}
         <button
           type="button"
           onClick={() => onOpen(item.pedido)}
           aria-label={`Ver detalle de ${item.pedido}`}
           title="Ficha del pedido: escaneo, fechas, comentario de ventas y sus OF"
-          className="shrink-0 cursor-pointer rounded-lg px-2 py-1 text-[11px] font-semibold text-text-muted ring-1 ring-border transition-colors hover:bg-surface-2 hover:text-text"
+          className="group/detalle flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-semibold text-text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:bg-surface-2 focus-visible:text-text"
         >
-          Ver detalle
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span className="hidden group-hover/detalle:inline group-focus-visible/detalle:inline">
+            Ver detalle
+          </span>
         </button>
       </div>
 

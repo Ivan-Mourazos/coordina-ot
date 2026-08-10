@@ -101,15 +101,28 @@ function Fecha({
 // es justo lo que hay que evitar—. Ahora el % sale de los px reales: al
 // ensanchar la columna las fechas no se separan MÁS, se separan menos.
 
-/** Ancho de la columna. Va dos veces —la clase para Tailwind, que no compila
- *  las que se concatenan, y el número para la cuenta de aquí abajo— y las dos
- *  tienen que decir lo mismo. */
-// Ensanchada otra vez al fundir tres columnas (OF, autor→revisor y fase) en la
-// frase de estado: el sitio que dejan se lo lleva la línea de tiempo, que es lo
-// que de verdad se mira. Y ensanchar la MEJORA — ver `ANCHO_FECHA_PCT`: cuanto
-// más ancha, menos tienen que separarse las fechas en porcentaje y más cerca
-// caen de su hito.
-const RECORRIDO_W = "w-[520px]";
+/** Reparto de ancho de las tres columnas. La clase va literal porque Tailwind
+ *  no compila las que se concatenan, y `RECORRIDO_PX` repite el mínimo como
+ *  número para la cuenta de aquí abajo: los dos tienen que decir lo mismo. */
+// Las tres columnas reparten el ancho en PORCENTAJE, no en píxeles fijos.
+//
+// Con el recorrido clavado en píxeles, todo el hueco que sobraba se lo comía la
+// celda de identidad: entre el nombre del cliente y la columna de estado
+// quedaban 250 px en blanco en casi todas las filas. Y dándoselo entero al
+// recorrido pasaba lo contrario, que se quedaba con más de lo que necesita y
+// ahogaba a las otras dos. En porcentaje crecen las tres a la vez.
+//
+// El `min-w` es el suelo de la línea de tiempo: por debajo de ahí las cuatro
+// fechas no caben sin pisarse.
+//
+// La cuenta de separación (`ANCHO_FECHA_PCT`) se sigue haciendo sobre ese
+// mínimo: si la columna crece, el porcentaje sobra y las fechas se separan algo
+// MÁS de lo necesario. Se pierde algo de precisión, nunca legibilidad — el
+// fallo por el otro lado (calcular sobre un ancho mayor del real) sí las
+// montaría unas encima de otras.
+const IDENTIDAD_W = "w-[36%]";
+const ESTADO_W = "w-[22%]";
+const RECORRIDO_W = "w-[42%] min-w-[520px]";
 const RECORRIDO_PX = 520;
 
 /** Lo que se lleva el chip "+128d" con su hueco cuando el pedido va tarde. Se
@@ -203,6 +216,17 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   // tocaba, avisando de un retraso que todavía no existía.
   const enPlazo = diasTarde <= 0;
   const esHoyLaPlanificada = diasTarde === 0;
+  // Con el año cuando el recorrido cruza de un año a otro.
+  //
+  // Sin él, un pedido creado el 02/12/2024 y planificado el 16/06/2027 pintaba
+  // "02/12 · 16/06 · 19/03 · 20/03": leídas como del mismo año parecen
+  // desordenadas y el recorrido, roto. Son 17 de 92 en la vista de hoy, casi
+  // todos trabajo interno con fechas disparatadas en RPS (planificaciones de
+  // 2028 y 2029). El año no se pone siempre porque en los normales gasta sitio
+  // para decir lo que ya se sabe.
+  const aniosDistintos = new Set(hitos.map((h) => h.iso.slice(0, 4))).size > 1;
+  const fmtHito = (iso: string) =>
+    `${iso.slice(8)}/${iso.slice(5, 7)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
   // SOLO se pinta el tramo en el que está el pedido hoy; el resto queda en
   // gris. Pintarlos todos teñía de rojo el último trozo de cada fila, y ese
   // tramo es normal: todos los pedidos pasan por él llegando a tiempo. Así el
@@ -213,7 +237,9 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
     (hoyPct >= 100 ? tramos[tramos.length - 1] : undefined);
 
   return (
-    <div className={`flex ${RECORRIDO_W} items-end gap-1.5 pb-0.5 pt-1`}>
+    // `w-full` a secas: el ancho lo manda la COLUMNA (ver RECORRIDO_W) y la
+    // línea solo tiene que llenarla.
+    <div className="flex w-full items-end gap-1.5 pb-0.5 pt-1">
       <div className="min-w-0 flex-1">
       <div className="relative h-3">
         {/* A 10 px y no a 9: la fecha es lo único que hay que LEER de la línea
@@ -257,7 +283,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
                   : `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
               }
             >
-              {h.iso.slice(8)}/{h.iso.slice(5, 7)}
+              {fmtHito(h.iso)}
             </span>
           );
         })}
@@ -951,7 +977,7 @@ function Th({
 }) {
   if (!col || !orden || !onOrdenar) {
     return (
-      <th className={`px-3 py-2.5 font-semibold ${className}`} title={title}>
+      <th className={`px-4 py-2.5 font-semibold ${className}`} title={title}>
         {children}
       </th>
     );
@@ -959,7 +985,7 @@ function Th({
   const activa = orden.col === col;
   return (
     <th
-      className={`px-3 py-2.5 font-semibold ${className}`}
+      className={`px-4 py-2.5 font-semibold ${className}`}
       title={title}
       // Solo en la columna activa: `aria-sort="none"` en las otras seis es
       // ruido que el lector de pantalla repite cabecera tras cabecera.
@@ -992,7 +1018,7 @@ function ThIdentidad({
   const activa = orden.col === "codigo" || orden.col === "cliente";
   return (
     <th
-      className="px-3 py-2.5 font-semibold"
+      className={`px-4 py-2.5 font-semibold ${IDENTIDAD_W}`}
       aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <span className="flex items-center gap-1.5">
@@ -1032,7 +1058,7 @@ function ThEstado({
   const activa = orden.col === "autor" || orden.col === "fase";
   return (
     <th
-      className="px-3 py-2.5 font-semibold"
+      className={`px-4 py-2.5 font-semibold ${ESTADO_W}`}
       aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <span className="flex items-center gap-1.5">
@@ -1118,5 +1144,5 @@ function Estado({
 }
 
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-3 py-2.5 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-2.5 ${className}`}>{children}</td>;
 }
