@@ -5,7 +5,7 @@ import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
 import { PedidoLinea } from "./PedidoLinea";
-import { PanelFlotante } from "./PanelFlotante";
+import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 
 /** Todos los pedidos de una fase, para cuando el tope de la zona personal deja
  *  algunos fuera. El comportamiento (sitio, fondo, cierre) lo pone
@@ -47,12 +47,9 @@ export function FaseFlyout({
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-text-muted">
           {grupo.label} · {grupo.items.length}
         </h3>
-        <button
-          onClick={onClose}
-          className="ml-auto text-[10px] font-semibold text-text-muted hover:text-text"
-        >
-          Cerrar · Esc
-        </button>
+        {/* Del contexto y no del `onClose` de arriba: ese desmonta el panel en
+            seco y se saltaría la animación de salida. */}
+        <BotonCerrarPanel className="ml-auto" />
       </div>
       <div className="flex flex-col gap-1">
         {grupo.items.map((f) => (

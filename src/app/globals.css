@@ -365,14 +365,100 @@ body {
   }
 }
 
+/* Cierre de los desplegables del tablero (panel de un compañero, «+N más»).
+ *
+ * Abrir ya lo animaba `glass-pop`; cerrar no, porque el panel se desmontaba de
+ * golpe. Ahora PanelFlotante se queda montado el tiempo justo para pintar esto
+ * y avisa al padre en `animationend`. Los dos duran lo mismo para que el fondo
+ * y la hoja se vayan a la vez y no se vea uno sin el otro. */
+.pop-out {
+  animation: pop-out 130ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+.overlay-out {
+  animation: overlay-out 130ms ease-in forwards;
+}
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Desplegar/plegar una fila (Lista, Historial).
+ *
+ * Sobre una rejilla de UNA fila: animar `grid-template-rows` de 0fr a 1fr es la
+ * única forma de ir de cero a "lo que mida el contenido" sin medirlo en JS. Con
+ * `height: auto` no se puede interpolar, y calcular el alto a mano obliga a
+ * volver a medirlo cada vez que el detalle cambia de tamaño.
+ *
+ * El hijo lleva `overflow: hidden` (ver `.desplegable > *`): sin eso el
+ * contenido se sale de la caja mientras encoge en vez de recortarse. */
+.desplegable {
+  display: grid;
+}
+.desplegable > * {
+  overflow: hidden;
+}
+.desplegable-abre {
+  animation: desplegar 190ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.desplegable-cierra {
+  animation: plegar 150ms ease-in forwards;
+}
+@keyframes desplegar {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+/* Cerrar más rápido que abrir: al abrir se va a leer lo que aparece y merece
+ * la pena acompañarlo; al cerrar ya se ha decidido y esperar molesta. */
+@keyframes plegar {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .quicklook,
   .glass-pop,
   .overlay-in,
   .drawer-in,
-  .pedido-chip-3d {
+  .pedido-chip-3d,
+  .desplegable-abre,
+  .desplegable-cierra,
+  .overlay-out {
     animation: none;
     transition: none;
+    transform: none;
+  }
+  /* `.pop-out` NO se anula del todo: sin animación no llega `animationend` y
+   * el panel se quedaría abierto para siempre. Se deja instantánea, que es lo
+   * que pide `reduce`, pero sigue disparando el evento que lo cierra. */
+  .pop-out {
+    animation-duration: 1ms;
     transform: none;
   }
 }

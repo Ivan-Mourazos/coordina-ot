@@ -8,7 +8,7 @@ import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
-import { PanelFlotante } from "./PanelFlotante";
+import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 
 /** El trabajo de un compañero, con la MISMA forma que tu propia zona: cuatro
  *  fases en columnas y una línea por pedido. Que se lea igual es el punto —
@@ -68,12 +68,9 @@ export function PanelCompanero({
           </span>
         )}
 
-        <button
-          onClick={onCerrar}
-          className="ml-auto rounded-lg px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-        >
-          Cerrar · Esc
-        </button>
+        {/* Del contexto y no del `onCerrar` de arriba: ese desmonta el panel en
+            seco y se saltaría la animación de salida. */}
+        <BotonCerrarPanel className="ml-auto" />
       </div>
 
       {conItems.length === 0 ? (
