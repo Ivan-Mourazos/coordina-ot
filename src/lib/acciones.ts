@@ -42,9 +42,16 @@ export const ACCIONES: AccionDef[] = [
   { id: "reabrir", label: "Reabrir revisión", tono: "neutra",
     confirmar: "La OF volverá a revisión y dejará de estar lista para Producción.",
     desde: ["aprobada"], destino: "en_revision" },
+  // Anular se decide al ver el pedido, y muchas veces con trabajo ya hecho: se
+  // empezó a plantear y al final la hace el taller. Por eso vale desde
+  // cualquier estado del ciclo salvo `aprobada` —esa ya se pasó a Producción y
+  // el camino de vuelta es "reabrir"—, incluida `en_revision` y `devuelta`. El
+  // tiempo ya fichado NO se borra: el corte cierra el tramo abierto con la hora
+  // del servidor y se imputa igual (ver efectoFichaje en Board.ejecutarAccion).
   { id: "anular", label: "Anular OF", tono: "peligro",
-    confirmar: "La OF quedará anulada (no se hace en Oficina Técnica). Se puede restaurar.",
-    desde: ["pendiente", "en_curso", "por_revisar"], efectoFichaje: "corta", destino: "anulada" },
+    confirmar: "La OF quedará anulada (no se hace en Oficina Técnica). El tiempo ya fichado se conserva. Se puede restaurar.",
+    desde: ["pendiente", "en_curso", "por_revisar", "en_revision", "devuelta"],
+    efectoFichaje: "corta", destino: "anulada" },
   { id: "restaurar", label: "Restaurar", tono: "neutra",
     confirmar: "La OF anulada volverá a pendiente.",
     desde: ["anulada"], destino: "pendiente" },

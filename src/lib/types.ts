@@ -106,6 +106,24 @@ export interface OF {
   /** Fecha ISO en la que Producción tiene planificado arrancar la primera
    *  fase posterior al planteo: el "para cuándo" real del trabajo de OT. */
   fechaLimitePlanteo?: string;
+  /** Cuándo se imputó por primera vez tiempo a esta OF en RPS (ISO yyyy-mm-dd).
+   *
+   *  Es un DÍA, no un instante: RPS guarda la fecha de imputación sin hora (ver
+   *  `CPRImputationMO.ImputationDate` en rps.ts). No pasarlo por un formateador
+   *  de hora — saldría la medianoche, que es inventada.
+   *
+   *  Existe porque "Mi fichaje" deducía el "parado desde" del último tramo
+   *  fichado EN LA WEB, así que una OF que se empezó en el terminal de RPS
+   *  antes de que existiera CoordinaOT decía "Aún sin fichar", y era mentira:
+   *  sí se fichó, solo que no aquí. Este campo es la fuente de verdad de RPS.
+   *
+   *  Cubre la misma tarea de OT cuyos minutos van en `tiempoPlanteoMin`, así
+   *  que las dos cifras hablan del mismo trabajo. Ojo: puede llegar con
+   *  `tiempoPlanteoMin` a 0, porque RPS admite imputaciones de cero minutos;
+   *  no es contradicción, es que se tocó la OF y no se acumuló tiempo.
+   *
+   *  undefined = nunca se le imputó tiempo (o mock, que no lo rellena). */
+  fichadaDesde?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores
@@ -201,9 +219,29 @@ export function hoyISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Finalizado = todas sus OF aprobadas (revisadas, listas para Producción). */
+/** Finalizado = no le queda trabajo a OT: todas sus OF ACTIVAS están aprobadas
+ *  (revisadas, listas para Producción). Las anuladas no cuentan, mismo criterio
+ *  que `pedidoListoParaPasar` y `faseDeOF` en fases-tablero.ts: anular es
+ *  "esto no lo hace OT" (normalmente lo acaba el taller), no trabajo pendiente,
+ *  aunque la OF conserve el tiempo que se fichó antes de anularse.
+ *
+ *  Antes se exigía que TODAS estuvieran aprobadas y una anulada nunca va a
+ *  estarlo, así que un pedido con una anulada y el resto aprobadas no se daba
+ *  por finalizado jamás: `estaAtrasado` lo devolvía atrasado para siempre y
+ *  salía en rojo y el primero de la lista de por vida, por trabajo ya hecho.
+ *
+ *  Pedido con TODAS las OF anuladas → finalizado: a OT no le queda nada que
+ *  hacer ahí, que es justo lo que mide esta función. Que `pedidoListoParaPasar`
+ *  diga lo contrario en ese mismo caso no es incoherencia: responde a otra
+ *  pregunta —"¿hay algo que mandar a Producción?"— y sin ninguna OF activa no
+ *  hay nada que mandar, así que su botón debe seguir apagado.
+ *
+ *  Sin OFs de ninguna clase sigue siendo false: un pedido vacío es uno que
+ *  todavía no ha llegado, no uno terminado. */
 export function estaFinalizado(p: Pedido): boolean {
-  return p.ofs.length > 0 && p.ofs.every((o) => o.estado === "aprobada");
+  if (p.ofs.length === 0) return false;
+  const activas = p.ofs.filter((o) => o.estado !== "anulada");
+  return activas.every((o) => o.estado === "aprobada");
 }
 
 /** Atrasado = pasó la fecha de planificación y aún no está finalizado. */

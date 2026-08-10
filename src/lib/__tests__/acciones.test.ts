@@ -25,6 +25,14 @@ describe("accionesDisponibles", () => {
     expect(accionesDisponibles(of("anulada")).map((a) => a.id)).toEqual(["restaurar"]);
     expect(accionesDisponibles(of("aprobada")).map((a) => a.id)).toEqual(["reabrir"]);
   });
+  it("anular se ofrece en todo el ciclo menos en aprobada", () => {
+    const estados: OF["estado"][] = [
+      "pendiente", "en_curso", "por_revisar", "en_revision", "devuelta",
+    ];
+    for (const e of estados)
+      expect(accionesDisponibles(of(e)).map((a) => a.id)).toContain("anular");
+    expect(accionesDisponibles(of("aprobada")).map((a) => a.id)).not.toContain("anular");
+  });
 });
 
 describe("aplicarAccion", () => {
@@ -46,6 +54,13 @@ describe("aplicarAccion", () => {
   });
   it("acción no disponible desde ese estado lanza error", () => {
     expect(() => aplicarAccion(of("aprobada"), "anular")).toThrow();
+  });
+  it("anular conserva el tiempo ya fichado: solo cambia el estado", () => {
+    const conTiempo = of("en_curso", { tiempoPlanteoMin: 101, tiempoRevisionMin: 12 });
+    const r = aplicarAccion(conTiempo, "anular");
+    expect(r.estado).toBe("anulada");
+    expect(r.tiempoPlanteoMin).toBe(101);
+    expect(r.tiempoRevisionMin).toBe(12);
   });
   it("aprobar y anular piden confirmación en su def", () => {
     const porId = Object.fromEntries(ACCIONES.map((a) => [a.id, a]));
