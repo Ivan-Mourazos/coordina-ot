@@ -257,30 +257,36 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           // incumplió—. Antes iba en negro y había que buscar el retraso en el
           // chip del final.
           const esPlan = h.clave === "planificacion";
-          const color = !esPlan
-            ? undefined
-            : enPlazo
-              ? TRAMO.holgado
-              : vencido
-                ? TRAMO.fuera
-                : (actual?.color ?? TRAMO.trabajo);
+          // La prestada NO se colorea ni se pone en negrita: sería dar por
+          // firme una fecha que nadie ha decidido. Va en cursiva y apagada,
+          // como diciendo "aquí falta el dato".
+          const color =
+            !esPlan || h.estimado
+              ? undefined
+              : enPlazo
+                ? TRAMO.holgado
+                : vencido
+                  ? TRAMO.fuera
+                  : (actual?.color ?? TRAMO.trabajo);
           return (
             <span
               key={h.clave}
               className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px] leading-none ${
-                esPlan ? "font-bold" : "text-text-muted"
+                h.estimado ? "italic text-text-muted" : esPlan ? "font-bold" : "text-text-muted"
               }`}
               style={{ left: `${etiquetas[i]}%`, color }}
               title={
-                esPlan
-                  ? `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${
-                      esHoyLaPlanificada
-                        ? " (es hoy)"
-                        : enPlazo
-                          ? ` (quedan ${-diasTarde} d)`
-                          : ` (pasada hace ${diasTarde} d)`
-                    }`
-                  : `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
+                h.estimado
+                  ? "Sin fecha de planificación en RPS: aquí se enseña la de entrega para que el pedido tenga por dónde ordenarse. No cuenta como retraso."
+                  : esPlan
+                    ? `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${
+                        esHoyLaPlanificada
+                          ? " (es hoy)"
+                          : enPlazo
+                            ? ` (quedan ${-diasTarde} d)`
+                            : ` (pasada hace ${diasTarde} d)`
+                      }`
+                    : `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
               }
             >
               {fmtHito(h.iso)}
@@ -315,7 +321,11 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
         {hitos.map((h) => (
           <span
             key={h.clave}
-            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-border-strong"
+            // En hueco cuando la fecha es prestada: se ve que hay un hito ahí,
+            // pero no se afirma que sea el día que alguien decidió.
+            className={`absolute top-0 size-2 -translate-x-1/2 rounded-full ${
+              h.estimado ? "border border-border-strong bg-surface" : "bg-border-strong"
+            }`}
             style={{ left: `${h.pct}%` }}
           />
         ))}
@@ -446,10 +456,18 @@ function comparar(orden: Orden, nombres: Map<string, string>) {
           FASES.findIndex((f) => f.id === faseDePedido(a)) -
           FASES.findIndex((f) => f.id === faseDePedido(b));
         break;
-      case "planificacion":
+      case "planificacion": {
+        // Los que no tienen fecha de planificación real van DELANTE, siempre,
+        // en las dos direcciones: un parte sin planificar es algo que alguien
+        // tiene que resolver, no trabajo tranquilo, y ordenarlos por la fecha
+        // prestada los repartiría por la lista como si estuvieran planificados.
+        const ea = a.planificacionEstimada === true;
+        const eb = b.planificacionEstimada === true;
+        if (ea !== eb) return ea ? -1 : 1;
         // ISO yyyy-mm-dd: comparar el texto ya es comparar la fecha.
         d = a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
         break;
+      }
     }
     return d !== 0 ? d * signo : a.codigo.localeCompare(b.codigo, "es");
   };

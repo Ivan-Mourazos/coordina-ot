@@ -12,6 +12,10 @@ export interface HitoLinea {
   iso: string;
   /** Posición en la línea, de 0 a 100. */
   pct: number;
+  /** La fecha no es de RPS: se puso a falta de otra cosa. Hoy solo la
+   *  planificación (ver `planificacionEstimada` en types.ts). Se pinta distinta
+   *  —en hueco— para no dar por firme algo que nadie ha decidido. */
+  estimado?: boolean;
 }
 
 export interface LineaTiempo {
@@ -84,6 +88,8 @@ export function lineaTiempo(
      *  planificación: es preferible a fingir una entrada que no se sabe. */
     fechaCreacion?: string;
     fechaPlanificacion: string;
+    /** La planificación es la entrega puesta a falta de otra cosa. */
+    planificacionEstimada?: boolean;
     /** Fin de fabricación previsto, si alguna OF lo tiene puesto. */
     fechaFabricacion?: string;
     /** La entrega que pide el cliente. */
@@ -91,10 +97,31 @@ export function lineaTiempo(
   },
   hoy: string,
 ): LineaTiempo {
+  // Una fabricación ANTERIOR al planteo es imposible: no se termina de fabricar
+  // algo que todavía no se ha planteado. RPS las da (AR.25.02771: planteo el
+  // 07/08 y fabricación el 21/05, dos meses antes), y dibujarla a escala la
+  // coloca a la izquierda de la planificación y hace dudar de toda la línea.
+  // Se deja fuera: mejor tres hitos ciertos que cuatro con uno inventando un
+  // recorrido que no ocurrió. Ojo, solo se descarta hacia ATRÁS — fabricar
+  // después de la fecha solicitada sí pasa, y es justo lo que hay que ver.
+  //
+  // Con la planificación prestada no se descarta nada: comparar contra una
+  // fecha que no es la de planteo no dice si la fabricación es imposible.
+  const fabricacionImposible =
+    p.fechaFabricacion !== undefined &&
+    !p.planificacionEstimada &&
+    p.fechaFabricacion < p.fechaPlanificacion;
+
   const crudos = [
     ...(p.fechaCreacion ? [{ clave: "creacion" as const, iso: p.fechaCreacion }] : []),
-    { clave: "planificacion" as const, iso: p.fechaPlanificacion },
-    ...(p.fechaFabricacion ? [{ clave: "fabricacion" as const, iso: p.fechaFabricacion }] : []),
+    {
+      clave: "planificacion" as const,
+      iso: p.fechaPlanificacion,
+      estimado: p.planificacionEstimada === true,
+    },
+    ...(p.fechaFabricacion && !fabricacionImposible
+      ? [{ clave: "fabricacion" as const, iso: p.fechaFabricacion }]
+      : []),
     { clave: "solicitada" as const, iso: p.fechaEntrega },
   ];
   // Los extremos son los que marcan la escala, y no siempre son el primero y
@@ -109,6 +136,7 @@ export function lineaTiempo(
     etiqueta: ETIQUETA[h.clave],
     iso: h.iso,
     pct: total > 0 ? (diasEntre(inicio, h.iso) / total) * 100 : (i / (crudos.length - 1)) * 100,
+    ...("estimado" in h && h.estimado ? { estimado: true } : {}),
   }));
 
   const brutoHoy = total > 0 ? (diasEntre(inicio, hoy) / total) * 100 : 50;

@@ -146,6 +146,13 @@ export interface Pedido {
    *  TGM_PENDIENTE_OT.FechaPlanificada. Lo que en la herramienta vieja se
    *  llama "planificación". */
   fechaPlanificacion: string; // ISO yyyy-mm-dd
+  /** La planificación NO viene de RPS: es la fecha de entrega puesta ahí para
+   *  que el pedido tenga por dónde ordenarse. Uno de cada cuatro llega así.
+   *
+   *  Quien la pinte tiene que decir que es prestada, y quien mida retrasos no
+   *  debe contarla: un parte al que nadie ha puesto fecha de planteo no está
+   *  atrasado, está sin planificar, que es otro problema y de otra persona. */
+  planificacionEstimada?: boolean;
   /** Fin de fabricación planificado (CPRManufacturingOrder.PlannedEndDate, la
    *  más tardía de las OF del pedido). Lo que la herramienta vieja llama
    *  "fabricación". undefined = ninguna OF lo tiene puesto. */
@@ -244,8 +251,16 @@ export function estaFinalizado(p: Pedido): boolean {
   return activas.every((o) => o.estado === "aprobada");
 }
 
-/** Atrasado = pasó la fecha de planificación y aún no está finalizado. */
+/** Atrasado = pasó la fecha de planificación y aún no está finalizado.
+ *
+ *  Con la planificación PRESTADA no se puede decir: ahí la fecha es la de
+ *  entrega puesta a falta de otra cosa (ver `planificacionEstimada`), y medir
+ *  contra ella daba dos respuestas malas seguidas — "vas sobrado" hasta el día
+ *  de la entrega y "atrasado" a partir de ese día—, ninguna de las dos sobre el
+ *  planteo, que es lo que esto pretende medir. Sin fecha de planteo no hay
+ *  retraso de planteo; hay un parte sin planificar. */
 export function estaAtrasado(p: Pedido, hoy: string): boolean {
+  if (p.planificacionEstimada) return false;
   return p.fechaPlanificacion < hoy && !estaFinalizado(p);
 }
 

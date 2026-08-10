@@ -774,10 +774,18 @@ async function consultarTablero(): Promise<Tablero> {
     //
     // La entrega es la solicitada, no PlannedEndDate: son cosas distintas y
     // pueden no coincidir (en AR.26.03926, 10/09 frente a 07/09).
-    const planificacion =
+    // Cuando RPS no da ninguna de las dos, la planificación NO se sabe. Se
+    // sigue rellenando con la solicitada para que todo lo que ordena por esta
+    // fecha siga funcionando, pero se marca como estimada: uno de cada cuatro
+    // pedidos del tablero (25 de 93 el 10/08/2026) llega sin fecha planificada,
+    // y darla por buena tenía dos efectos feos. En la línea de tiempo el hito
+    // se iba al final, detrás de la fabricación, y parecía que las fechas
+    // estaban mal metidas; y el pedido figuraba "a tiempo" hasta el día de la
+    // entrega cuando en realidad nadie le había puesto fecha de planteo.
+    const planificada =
       validas(filas.map((f) => f.FechaPlanificada))[0] ??
-      validas(filas.map((f) => f.PlannedStartDate))[0] ??
-      fecha;
+      validas(filas.map((f) => f.PlannedStartDate))[0];
+    const planificacion = planificada ?? fecha;
     // La más tardía: el pedido no está fabricado hasta que lo está su última OF.
     // ManualEndDate, no PlannedEndDate: en AR.26.03914 la herramienta vieja da
     // 17/08, que es ManualEndDate — PlannedEndDate vale 28/08. En AR.26.03926
@@ -807,6 +815,7 @@ async function consultarTablero(): Promise<Tablero> {
       fechaSolicitud: fecha,
       fechaCreacion: fechaISO(venta?.creacion ?? null) ?? undefined,
       fechaPlanificacion: planificacion,
+      planificacionEstimada: planificada === undefined || undefined,
       fechaFabricacion: fabricacion,
       fechaEntrega: entrega,
       prioridad,

@@ -52,9 +52,18 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
         {hitos.map((h) => (
           <span
             key={h.clave}
-            className="absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-surface bg-text-muted"
+            // En hueco cuando la fecha es prestada, igual que en la Lista: las
+            // dos líneas de tiempo de la app tienen que contar lo mismo, o al
+            // pasar de una a otra parece que los datos han cambiado.
+            className={`absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-surface ${
+              h.estimado ? "bg-surface-2 ring-1 ring-border-strong" : "bg-text-muted"
+            }`}
             style={{ left: `${h.pct}%` }}
-            title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}`}
+            title={
+              h.estimado
+                ? "Sin fecha de planificación en RPS: se enseña la de entrega para poder situar el pedido. No cuenta como retraso."
+                : `${h.etiqueta}: ${fmtDiaMes(h.iso)}`
+            }
           />
         ))}
 
@@ -84,7 +93,20 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
             <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-text-muted">
               {h.etiqueta}
             </p>
-            <p className="text-[10px] font-medium text-text">{fmtDiaMes(h.iso)}</p>
+            {/* La prestada, en cursiva y apagada: se ve que hay una fecha ahí y
+                que no es firme, sin tener que abrir el `title`. */}
+            <p
+              className={`text-[10px] ${
+                h.estimado ? "italic text-text-muted" : "font-medium text-text"
+              }`}
+              title={
+                h.estimado
+                  ? "Sin fecha de planificación en RPS: se enseña la de entrega. No cuenta como retraso."
+                  : undefined
+              }
+            >
+              {fmtDiaMes(h.iso)}
+            </p>
           </div>
         ))}
       </div>

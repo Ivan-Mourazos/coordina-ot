@@ -144,3 +144,59 @@ describe("repartirEtiquetas", () => {
     expect(Math.max(...r)).toBeLessThanOrEqual(100);
   });
 });
+
+// ─── Fechas que RPS da mal, o que no da ─────────────────────────────────────
+// La mitad del tablero real tiene alguna fecha que no cuadra: 32 de 93 con la
+// fabricación antes que el planteo, y 25 sin fecha de planificación. La línea
+// tiene que seguir contando algo cierto en esos casos.
+describe("lineaTiempo con datos malos de RPS", () => {
+  it("descarta la fabricación anterior al planteo: no se acaba lo que no se ha empezado", () => {
+    // Caso real AR.25.02771: planteo el 07/08 y fabricación el 21/05.
+    const l = lineaTiempo(
+      {
+        fechaPlanificacion: "2026-08-07",
+        fechaFabricacion: "2026-05-21",
+        fechaEntrega: "2026-06-01",
+      },
+      "2026-08-10",
+    );
+    expect(l.hitos.map((h) => h.clave)).toEqual(["planificacion", "solicitada"]);
+  });
+
+  it("fabricar DESPUÉS de la solicitada sí se pinta: es un pedido que va tarde", () => {
+    const l = lineaTiempo(
+      {
+        fechaPlanificacion: "2026-08-01",
+        fechaFabricacion: "2026-09-15",
+        fechaEntrega: "2026-09-01",
+      },
+      "2026-08-10",
+    );
+    expect(l.hitos.map((h) => h.clave)).toEqual([
+      "planificacion",
+      "fabricacion",
+      "solicitada",
+    ]);
+  });
+
+  it("marca la planificación prestada, y con ella no descarta la fabricación", () => {
+    // Sin fecha de planteo, `fechaPlanificacion` es la de entrega: comparar la
+    // fabricación contra ella no dice nada de si es imposible.
+    const l = lineaTiempo(
+      {
+        fechaPlanificacion: "2026-09-01",
+        planificacionEstimada: true,
+        fechaFabricacion: "2026-08-20",
+        fechaEntrega: "2026-09-01",
+      },
+      "2026-08-10",
+    );
+    expect(l.hitos.find((h) => h.clave === "planificacion")?.estimado).toBe(true);
+    expect(l.hitos.some((h) => h.clave === "fabricacion")).toBe(true);
+  });
+
+  it("una planificación normal no se marca como prestada", () => {
+    const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
+    expect(l.hitos.every((h) => h.estimado === undefined)).toBe(true);
+  });
+});
