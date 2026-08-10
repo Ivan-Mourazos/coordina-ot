@@ -1,21 +1,23 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { OF, Operario, Pedido } from "@/lib/types";
 import { estaFinalizado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
-import { ESTADO, fmtMin, PRIORIDAD } from "@/lib/estado";
+import { ESTADO, fmtMin, PRIORIDAD, ROL } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
+import { estadoDePedido } from "@/lib/frase-estado";
 import { diasEntre, relativoA, type TonoFecha } from "@/lib/fechas";
 import { lineaTiempo, repartirEtiquetas } from "@/lib/linea-tiempo";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
+import { Desplegable } from "./Desplegable";
 
 // ─── Vista Lista ─────────────────────────────────────────────────────────────
 // La consulta densa: todo lo que aún no ha pasado a Producción, para mirar de
 // un vistazo en qué anda cada pedido, para cuándo es y cuánto lleva. No se
 // trabaja desde aquí (eso es el tablero); por eso no hay acciones, solo datos.
 //
-// Dos decisiones que vienen de ver la vista llena de pedidos reales:
+// Cinco decisiones que vienen de ver la vista llena de pedidos reales:
 //   · La columna de estado habla el MISMO idioma que el tablero (las cuatro
 //     fases), no los siete estados internos de la OF. Los estados de OF siguen
 //     estando, pero dentro del despliegue, que es donde se mira el detalle.
@@ -23,6 +25,15 @@ import { LiveDot } from "./LiveBadge";
 //     planificación sea de ayer— y con él el código y la fecha también en rojo:
 //     tres avisos para el mismo dato, y ninguno decía CUÁNTO. Ahora hay un solo
 //     sitio donde mirarlo, la fecha, y dice "-1 d" o "-28 d".
+//   · El orden lo mandan las CABECERAS, no el desplegable de la barra de
+//     filtros: ver abajo, en el bloque "Orden por cabecera".
+//   · Pedido, cliente y familias son UNA celda de dos renglones y no tres
+//     columnas seguidas: se leen siempre juntos ("el AR.26.03914 de toldos de
+//     Mahou") y sueltos se comían el ancho que necesita el recorrido, que es a
+//     lo que de verdad se viene aquí. Ver "La celda de identidad".
+//   · Un pedido desplegado se marca con una barra a la izquierda que recorre su
+//     fila y su detalle: con dos o tres abiertos a la vez, el detalle de uno
+//     parecía el principio del siguiente. Ver "Marcar lo desplegado".
 
 /** Color del texto de una fecha según su urgencia. Clases literales: Tailwind
  *  no compila las que se construyen concatenando. */
@@ -32,29 +43,6 @@ const TONO: Record<TonoFecha, string> = {
   proxima: "text-text",
   lejana: "text-text-muted",
 };
-
-function Avatares({ ids, operarios }: { ids: (string | null)[]; operarios: Operario[] }) {
-  const unicos = [...new Set(ids.filter(Boolean) as string[])];
-  if (unicos.length === 0) return <span className="text-text-muted">—</span>;
-  return (
-    <div className="flex -space-x-1.5">
-      {unicos.map((id) => {
-        const o = operarios.find((x) => x.id === id);
-        if (!o) return null;
-        return (
-          <span
-            key={id}
-            className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white ring-2 ring-surface"
-            style={{ background: o.color }}
-            title={o.nombre}
-          >
-            {o.iniciales}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 function Avatar({ op, title }: { op: Operario | undefined; title: string }) {
   if (!op) return <span className="text-text-muted italic">—</span>;
@@ -94,9 +82,42 @@ function Fecha({
   );
 }
 
-/** Cuánto texto de fecha ("27/08") ocupa, en % del ancho de la columna. Es la
- *  separación mínima entre etiquetas y lo que sobresale por los extremos. */
-const ANCHO_FECHA_PCT = 17;
+// ─── El ancho del recorrido ──────────────────────────────────────────────────
+// La línea de tiempo vivía en 260 px, apretada entre Cliente y Familias. Al
+// fundir esas dos con Pedido en una sola celda de identidad se libera sitio, y
+// todo se lo queda el recorrido: es lo que más se mira de esta vista.
+//
+// Ensanchar no es solo estética. La separación mínima entre las fechas de los
+// hitos se le pasa a `repartirEtiquetas` en % del ancho, pero el texto ("27/08")
+// mide siempre lo mismo en px. Con un 17 % fijo sobre 260 px se separaban 38 px
+// las fechas que solo necesitan ~28, así que cada una acababa lejos de su punto
+// sin hacer falta —y en un recorrido a escala, la etiqueta despegada de su hito
+// es justo lo que hay que evitar—. Ahora el % sale de los px reales: al
+// ensanchar la columna las fechas no se separan MÁS, se separan menos.
+
+/** Ancho de la columna. Va dos veces —la clase para Tailwind, que no compila
+ *  las que se concatenan, y el número para la cuenta de aquí abajo— y las dos
+ *  tienen que decir lo mismo. */
+// Ensanchada otra vez al fundir tres columnas (OF, autor→revisor y fase) en la
+// frase de estado: el sitio que dejan se lo lleva la línea de tiempo, que es lo
+// que de verdad se mira. Y ensanchar la MEJORA — ver `ANCHO_FECHA_PCT`: cuanto
+// más ancha, menos tienen que separarse las fechas en porcentaje y más cerca
+// caen de su hito.
+const RECORRIDO_W = "w-[520px]";
+const RECORRIDO_PX = 520;
+
+/** Lo que se lleva el chip "+128d" con su hueco cuando el pedido va tarde. Se
+ *  descuenta siempre, salga o no en esa fila: si la separación dependiera del
+ *  chip, la misma fecha caería en un sitio distinto según la fila. */
+const CHIP_TARDE_PX = 42;
+
+/** Lo que ocupa "27/08" a 10 px, con aire para que dos seguidas no se toquen. */
+const ANCHO_FECHA_PX = 36;
+
+/** Lo mismo en % del ancho de la línea, que es lo que entiende
+ *  `repartirEtiquetas`: separación mínima entre centros y, a la mitad, lo que
+ *  cada fecha sobresale por los extremos (van centradas sobre su hito). */
+const ANCHO_FECHA_PCT = (ANCHO_FECHA_PX / (RECORRIDO_PX - CHIP_TARDE_PX)) * 100;
 
 /** Color de cada tramo del recorrido. Escalada, no degradado: el pedido
  *  cambia de tramo un día concreto, y verlo cambiar de golpe es la
@@ -163,6 +184,12 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   // planteo dos semanas pasado de fecha.
   const diasTarde = diasEntre(pedido.fechaPlanificacion, hoy);
   const vencido = diasParaEntrega < 0;
+  // El día planificado cuenta como EN PLAZO: quien lo tiene para hoy va a
+  // tiempo hasta que acabe la jornada. Antes `hoyPct` caía justo en el corte
+  // del tramo y la línea se ponía naranja a primera hora del día en que
+  // tocaba, avisando de un retraso que todavía no existía.
+  const enPlazo = diasTarde <= 0;
+  const esHoyLaPlanificada = diasTarde === 0;
   // SOLO se pinta el tramo en el que está el pedido hoy; el resto queda en
   // gris. Pintarlos todos teñía de rojo el último trozo de cada fila, y ese
   // tramo es normal: todos los pedidos pasan por él llegando a tiempo. Así el
@@ -173,19 +200,54 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
     (hoyPct >= 100 ? tramos[tramos.length - 1] : undefined);
 
   return (
-    <div className="flex w-[260px] items-end gap-1.5 pb-0.5 pt-1">
+    <div className={`flex ${RECORRIDO_W} items-end gap-1.5 pb-0.5 pt-1`}>
       <div className="min-w-0 flex-1">
       <div className="relative h-3">
-        {hitos.map((h, i) => (
-          <span
-            key={h.clave}
-            className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[9px] leading-none text-text-muted"
-            style={{ left: `${etiquetas[i]}%` }}
-            title={`${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`}
-          >
-            {h.iso.slice(8)}/{h.iso.slice(5, 7)}
-          </span>
-        ))}
+        {/* A 10 px y no a 9: la fecha es lo único que hay que LEER de la línea
+            (el resto se mira), y con la columna ensanchada el sitio ya no lo
+            paga nadie. */}
+        {hitos.map((h, i) => {
+          // La PLANIFICADA destacada sobre las demás: de las cuatro fechas es
+          // la única que es una fecha límite para OT —el día en que esto
+          // debería estar planteado— y las otras tres son contexto.
+          //
+          // Y con color propio, porque es la que contesta la pregunta: verde
+          // mientras se llega (incluido el mismo día), y al pasarla cambia a lo
+          // que diga la escalada —naranja mientras el margen es de Producción,
+          // rojo cuando se come el suyo, morado cuando la entrega ya se
+          // incumplió—. Antes iba en negro y había que buscar el retraso en el
+          // chip del final.
+          const esPlan = h.clave === "planificacion";
+          const color = !esPlan
+            ? undefined
+            : enPlazo
+              ? TRAMO.holgado
+              : vencido
+                ? TRAMO.fuera
+                : (actual?.color ?? TRAMO.trabajo);
+          return (
+            <span
+              key={h.clave}
+              className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px] leading-none ${
+                esPlan ? "font-bold" : "text-text-muted"
+              }`}
+              style={{ left: `${etiquetas[i]}%`, color }}
+              title={
+                esPlan
+                  ? `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${
+                      esHoyLaPlanificada
+                        ? " (es hoy)"
+                        : enPlazo
+                          ? ` (quedan ${-diasTarde} d)`
+                          : ` (pasada hace ${diasTarde} d)`
+                    }`
+                  : `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
+              }
+            >
+              {h.iso.slice(8)}/{h.iso.slice(5, 7)}
+            </span>
+          );
+        })}
       </div>
 
       <div className="relative h-2">
@@ -197,7 +259,11 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
             Lo ya recorrido va a todo color y lo que queda apagado, así se ven
             a la vez el plan entero y por dónde se va. */}
         <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
-        {actual && (
+        {/* El día en que toca, la barra se queda ENTERA en gris y todo el aviso
+            lo lleva el punto verde. Es el único estado que no habla de margen
+            ni de retraso —habla de hoy—, y pintarle un tramo de color al lado
+            competía con el punto justo el día que hay que mirarlo. */}
+        {actual && !esHoyLaPlanificada && (
           <div
             className="absolute top-[3px] h-0.5 rounded-full"
             style={{
@@ -221,13 +287,19 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           className="absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface"
           style={{
             left: `${hoyPct}%`,
-            background: vencido ? TRAMO.fuera : "var(--text)",
+            background: esHoyLaPlanificada
+              ? TRAMO.holgado
+              : vencido
+                ? TRAMO.fuera
+                : "var(--text)",
             opacity: hoyFuera && !vencido ? 0.5 : 1,
           }}
           title={
-            vencido
-              ? `Hoy · fuera de fecha, ${-diasParaEntrega} d pasada la solicitada`
-              : `Hoy · quedan ${diasParaEntrega} d`
+            esHoyLaPlanificada
+              ? "Hoy es el día planificado: toca plantearlo hoy y aún se va a tiempo"
+              : vencido
+                ? `Hoy · fuera de fecha, ${-diasParaEntrega} d pasada la solicitada`
+                : `Hoy · quedan ${diasParaEntrega} d`
           }
         />
         </div>
@@ -255,17 +327,171 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   );
 }
 
+// ─── Orden por cabecera ──────────────────────────────────────────────────────
+// Hasta ahora la Lista se ordenaba desde el desplegable "Orden" de la barra de
+// filtros, que además compartía con el tablero: cuatro criterios fijos, ninguno
+// para las preguntas que se hacen delante de ESTA tabla. Ordenar pulsando la
+// columna que se está mirando ahorra el viaje a la barra.
+//
+// Como el desplegable ya no manda aquí, la Lista recibe los pedidos SIN ordenar
+// y el orden es cosa suya de principio a fin.
+//
+// Un criterio por rótulo visible, ni uno más: el nº de OF y los minutos se
+// leen en la fila pero ya no ordenan, porque sus columnas se fundieron y un
+// orden sin cabecera donde pulsar no se puede descubrir.
+
+type ColumnaOrden = "codigo" | "cliente" | "autor" | "fase" | "planificacion";
+
+interface Orden {
+  col: ColumnaOrden;
+  dir: "asc" | "desc";
+}
+
+/** La planificada ascendente, que es como ha vivido siempre esta lista: es la
+ *  fecha por la que Producción reparte el trabajo, así que de arriba abajo se
+ *  lee "lo que toca antes". */
+const ORDEN_INICIAL: Orden = { col: "planificacion", dir: "asc" };
+
+/** Nombre del PRIMER autor del pedido, el mismo que sale en el primer avatar de
+ *  la columna. Un pedido repartido entre dos personas se ordena por la que se
+ *  ve a la izquierda y no por una escondida detrás; `null` = ninguna de sus OF
+ *  tiene autor todavía. Si el operario ya no está en la plantilla se cae al id,
+ *  que al menos es estable y no manda la fila a un sitio distinto cada vez. */
+function nombrePrimerAutor(p: Pedido, nombres: Map<string, string>): string | null {
+  for (const of of p.ofs) {
+    if (of.autorId) return nombres.get(of.autorId) ?? of.autorId;
+  }
+  return null;
+}
+
+/** Compara dos pedidos por la columna elegida.
+ *
+ *  El signo de la dirección se aplica DENTRO y no envolviendo el resultado,
+ *  porque hay dos cosas que no se invierten con el resto:
+ *    · Los pedidos sin autor se quedan al final en las dos direcciones. Son
+ *      los recién llegados de Producción y hay muchos: subirlos al principio al
+ *      pulsar por segunda vez llenaría la primera pantalla de guiones.
+ *    · El desempate por código va siempre de la A a la Z, para que dos pedidos
+ *      planificados el mismo día (que son la mayoría) no se cambien de sitio
+ *      entre sí cada vez que se reordena por otra columna y se vuelve. */
+function comparar(orden: Orden, nombres: Map<string, string>) {
+  const signo = orden.dir === "asc" ? 1 : -1;
+  return (a: Pedido, b: Pedido): number => {
+    let d = 0;
+    switch (orden.col) {
+      case "codigo":
+        d = a.codigo.localeCompare(b.codigo, "es");
+        break;
+      case "cliente":
+        d = a.cliente.localeCompare(b.cliente, "es");
+        break;
+      case "autor": {
+        const na = nombrePrimerAutor(a, nombres);
+        const nb = nombrePrimerAutor(b, nombres);
+        if (na === null || nb === null) {
+          if (na !== nb) return na === null ? 1 : -1;
+          break; // los dos sin autor: que decida el desempate
+        }
+        d = na.localeCompare(nb, "es");
+        break;
+      }
+      case "fase":
+        // Por el orden natural del tablero (sin empezar → listo para pasar), no
+        // por la etiqueta: alfabéticamente "Esperando revisión" iría antes que
+        // "Planteando", y eso no dice nada de cómo avanza el trabajo.
+        d =
+          FASES.findIndex((f) => f.id === faseDePedido(a)) -
+          FASES.findIndex((f) => f.id === faseDePedido(b));
+        break;
+      case "planificacion":
+        // ISO yyyy-mm-dd: comparar el texto ya es comparar la fecha.
+        d = a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
+        break;
+    }
+    return d !== 0 ? d * signo : a.codigo.localeCompare(b.codigo, "es");
+  };
+}
+
+/** Hacia dónde se pega el rótulo dentro del botón de la cabecera, para que las
+ *  columnas centradas (OF) y a la derecha (Fichado) no se muevan al meterles el
+ *  botón. Clases literales: Tailwind no compila las que se concatenan. */
+const JUSTIFICAR = {
+  izquierda: "justify-start",
+  centro: "justify-center",
+  derecha: "justify-end",
+} as const;
+
+// ─── Marcar lo desplegado ────────────────────────────────────────────────────
+// Un pedido abierto son DOS <tr>: la fila de siempre y la del detalle. Pintadas
+// como las demás no se veía dónde empezaba ni dónde acababa lo abierto —con
+// tres pedidos desplegados a la vez, el detalle de uno se leía como el arranque
+// del siguiente— y el fondo que ya llevaba la fila abierta era `bg-surface-2`,
+// exactamente el mismo gris del hover: marcaba tan poco como no marcar.
+//
+// Se resuelve con UNA barra dorada a la izquierda que recorre las dos filas. Es
+// la única de las opciones que dice a la vez dónde empieza y dónde acaba el
+// bloque sin añadir tinta al centro de la tabla, que ya va densa. Descartado el
+// borde envolvente: con `border-collapse` habría que fingir los lados en la
+// primera y la última celda, y son cuatro hairlines más por pedido abierto.
+//
+// La barra va en dos mitades, una por fila, y se dibuja con un pseudoelemento y
+// no con `border-l`: un borde de verdad empujaría el contenido 3 px al abrir y
+// la fila daría un salto. Cada mitad deja un respiro en su extremo y lo remata
+// redondeado, para que dos pedidos abiertos SEGUIDOS no formen una sola barra
+// continua de arriba abajo: entre el final de uno y el principio del otro se ve
+// el corte. El dorado es el de marca (`--color-brand-400`), que es el mismo
+// tono en claro y en oscuro; el fondo, ese mismo dorado a un 10 % en la fila y
+// a un 5 % en el detalle: sobre blanco queda crema y sobre grafito, cálido, y
+// en los dos casos no se confunde con el gris del hover.
+const ACENTO_ARRIBA =
+  "relative before:absolute before:bottom-0 before:left-0 before:top-1.5 before:w-[3px] before:rounded-t-full before:bg-brand-400 before:content-['']";
+const ACENTO_ABAJO =
+  "relative before:absolute before:bottom-1.5 before:left-0 before:top-0 before:w-[3px] before:rounded-b-full before:bg-brand-400 before:content-['']";
+
 export function ListaView({
   pedidos,
   operarios,
   onOpen,
+  hayFiltrosActivos = false,
 }: {
+  /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
   pedidos: Pedido[];
   operarios: Operario[];
   onOpen: (p: Pedido) => void;
+  /** ¿Hay algún filtro puesto en la barra? Solo cambia lo que dice la lista
+   *  vacía, y la diferencia importa: "no queda trabajo pendiente" y "lo hay,
+   *  pero lo estás tapando con un filtro" se arreglan de formas distintas. */
+  hayFiltrosActivos?: boolean;
 }) {
   const hoy = hoyISO();
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  // Por fecha de planificación y punto. El interruptor "Atrasados primero" que
+  // había aquí sobraba: partía la lista en dos bloques para decir algo que la
+  // línea de tiempo ya cuenta fila a fila —con su tramo en rojo y su "+128d"—,
+  // y encima secuestraba el orden que pidieras. Ordenando por planificación,
+  // lo atrasado sale arriba solo, porque es lo más antiguo.
+  const [orden, setOrden] = useState<Orden>(ORDEN_INICIAL);
+
+  function ordenarPor(col: ColumnaOrden) {
+    // Primer clic, ascendente; el segundo sobre la MISMA columna invierte.
+    // Cambiar de columna vuelve a empezar por ascendente en vez de arrastrar la
+    // dirección de la anterior, que deja preguntas del tipo "¿por qué los
+    // clientes me empiezan por la Z?".
+    setOrden((prev) =>
+      prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" },
+    );
+  }
+
+  const nombrePorId = useMemo(() => {
+    const m = new Map(operarios.map((o) => [o.id, o.nombre]));
+    return (id: string) => m.get(id) ?? id;
+  }, [operarios]);
+
+  const ordenados = useMemo(() => {
+    const nombres = new Map(operarios.map((o) => [o.id, o.nombre]));
+    const cmp = comparar(orden, nombres);
+    return [...pedidos].sort(cmp);
+  }, [pedidos, operarios, orden]);
 
   function toggle(id: string) {
     setExpandidos((prev) => {
@@ -277,176 +503,245 @@ export function ListaView({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          {/* Pegada arriba: con 40 pedidos, a mitad de scroll ya no se sabía
-              qué columna era cuál. */}
-          <tr className="sticky top-0 z-10 border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-text-muted">
-            <Th className="w-8" />
-            <Th>Pedido</Th>
-            <Th>Cliente</Th>
-            <Th>Familias</Th>
-            <Th className="text-center">OF</Th>
-            <Th>Autor → revisor</Th>
-            <Th>Fase</Th>
-            {/* Los rótulos de los hitos van aquí, una vez, en lugar de
-                repetirse en cada fila: el orden es el mismo en todas. Los
-                nombres son los de la herramienta vieja. */}
-            <Th className="w-[260px]">
-              <span className="block">Recorrido</span>
-              <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted/80">
-                creación · planificada · fabricación · solicitada
-              </span>
-            </Th>
-            <Th className="text-right">Fichado</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {pedidos.map((p) => {
-            const fase = FASES.find((f) => f.id === faseDePedido(p))!;
-            const total = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
-            // Terminado = la planificación vencida ya no es un problema
-            // pendiente. Misma regla que `estaAtrasado`, que también los
-            // excluye; si no, media lista salía en rojo por trabajo hecho.
-            const hecho = estaFinalizado(p);
-            const pendienteProc = p.situacion === "pendiente";
-            const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
-            const abierto = expandidos.has(p.id);
-            return (
-              <Fragment key={p.id}>
-                <tr
-                  onClick={() => toggle(p.id)}
-                  className={`cursor-pointer border-b border-border last:border-0 hover:bg-surface-2 ${
-                    pendienteProc ? "opacity-60" : ""
-                  } ${abierto ? "bg-surface-2" : ""}`}
-                >
-                  <Td>
-                    {/* El clic en la fila entera despliega, pero una <tr> no se
-                        puede enfocar sin romper la semántica de la tabla: el
-                        botón de la flecha es la misma acción, alcanzable con
-                        el tabulador. */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        // La fila también escucha el clic: sin esto, el toggle
-                        // se ejecutaría dos veces y se quedaría como estaba.
-                        e.stopPropagation();
-                        toggle(p.id);
-                      }}
-                      aria-expanded={abierto}
-                      aria-label={`${abierto ? "Plegar" : "Desplegar"} ${p.codigo}`}
-                      className="grid place-items-center rounded p-0.5 hover:bg-surface-2"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        className={`size-3.5 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </Td>
-                  <Td>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3.5 w-1 rounded-full"
-                        style={{ background: PRIORIDAD[p.prioridad].color }}
-                        title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
-                      />
+    <div>
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            {/* Pegada arriba: con 40 pedidos, a mitad de scroll ya no se sabía
+                qué columna era cuál. */}
+            <tr className="sticky top-0 z-10 border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-text-muted">
+              <Th className="w-8" />
+              {/* Familias no tiene rótulo propio ni ordena: un pedido trae
+                  varias y ordenar por la primera diría "por familia" enseñando
+                  otra cosa. Se reconocen por su icono de color, que es como se
+                  leen en el tablero. */}
+              <ThIdentidad orden={orden} onOrdenar={ordenarPor} />
+              {/* Autor, fase y minutos eran tres columnas para una sola frase.
+                  Fundidas, el rótulo ofrece los dos criterios de orden que de
+                  verdad se usan; el nº de OF y el tiempo se leen en la fila y
+                  ya no ordenan, que era un lujo a costa de la línea de tiempo. */}
+              <ThEstado orden={orden} onOrdenar={ordenarPor} />
+              {/* Los rótulos de los hitos van aquí, una vez, en lugar de
+                  repetirse en cada fila: el orden es el mismo en todas. Los
+                  nombres son los de la herramienta vieja. */}
+              <Th
+                className={RECORRIDO_W}
+                col="planificacion"
+                orden={orden}
+                onOrdenar={ordenarPor}
+                title="Ordena por la fecha planificada, que es la que manda para OT: el día en que el pedido debería estar planteado. Es el orden de salida de la lista."
+              >
+                <span className="block">Recorrido</span>
+                <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted/80">
+                  creación · <span className="font-semibold text-text-muted">planificada</span> ·
+                  fabricación · solicitada
+                </span>
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordenados.length === 0 && (
+              <tr>
+                {/* Antes la tabla se quedaba en la cabecera y a secas: con un
+                    filtro puesto y ningún resultado parecía que la web se había
+                    quedado a medias de cargar. */}
+                <td colSpan={4} className="px-3 py-12 text-center">
+                  <p className="text-sm font-semibold text-text">
+                    {hayFiltrosActivos
+                      ? "Ningún pedido pasa los filtros"
+                      : "No hay trabajo pendiente"}
+                  </p>
+                  <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
+                    {hayFiltrosActivos
+                      ? "Hay pedidos en la lista, pero los filtros de arriba los dejan todos fuera. Quita alguno para volver a verlos."
+                      : "Aquí sale lo que aún no ha pasado a Producción. Los pedidos nuevos aparecerán en cuanto Producción los planifique para Oficina Técnica."}
+                  </p>
+                </td>
+              </tr>
+            )}
+            {ordenados.map((p) => {
+              // Terminado = la planificación vencida ya no es un problema
+              // pendiente. Misma regla que `estaAtrasado`, que también los
+              // excluye; si no, media lista salía en rojo por trabajo hecho.
+              const hecho = estaFinalizado(p);
+              const pendienteProc = p.situacion === "pendiente";
+              const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
+              const abierto = expandidos.has(p.id);
+              return (
+                <Fragment key={p.id}>
+                  <tr
+                    onClick={() => toggle(p.id)}
+                    // Abierta pierde el hairline de abajo: lo que va debajo no
+                    // es la fila siguiente, es su propio detalle, y sin la raya
+                    // los dos <tr> se leen como un bloque. Y pierde el hover
+                    // gris, que si no ganaría por especificidad y taparía el
+                    // dorado justo al pasar por encima.
+                    className={`cursor-pointer ${pendienteProc ? "opacity-60" : ""} ${
+                      abierto
+                        ? "bg-brand-500/10 hover:bg-brand-500/15"
+                        : "border-b border-border last:border-0 hover:bg-surface-2"
+                    }`}
+                  >
+                    <Td className={abierto ? ACENTO_ARRIBA : ""}>
+                      {/* El clic en la fila entera despliega, pero una <tr> no se
+                          puede enfocar sin romper la semántica de la tabla: el
+                          botón de la flecha es la misma acción, alcanzable con
+                          el tabulador. */}
                       <button
+                        type="button"
                         onClick={(e) => {
+                          // La fila también escucha el clic: sin esto, el toggle
+                          // se ejecutaría dos veces y se quedaría como estaba.
                           e.stopPropagation();
-                          onOpen(p);
+                          toggle(p.id);
                         }}
-                        className="font-mono font-semibold text-text hover:underline"
-                        title="Abrir detalle del pedido"
+                        aria-expanded={abierto}
+                        aria-label={`${abierto ? "Plegar" : "Desplegar"} ${p.codigo}`}
+                        className="grid place-items-center rounded p-0.5 hover:bg-surface-2"
                       >
-                        {p.codigo}
+                        <svg
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          className={`size-3.5 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </button>
-                      {fichando && (
-                        <span
-                          title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"}
-                          className="inline-flex"
+                    </Td>
+                    {/* ─── La celda de identidad ───────────────────────────
+                        Arriba QUÉ pedido es y de qué va; abajo, de quién es.
+                        Los dos renglones ocupan lo mismo de alto que la fila de
+                        antes, así que la vista no pierde densidad y el
+                        recorrido se lleva las dos columnas liberadas. */}
+                    <Td>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span
+                            className="h-3.5 w-1 shrink-0 rounded-full"
+                            style={{ background: PRIORIDAD[p.prioridad].color }}
+                            title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpen(p);
+                            }}
+                            className="font-mono font-semibold text-text hover:underline"
+                            title="Abrir detalle del pedido"
+                          >
+                            {p.codigo}
+                          </button>
+                          {/* El nº de OF pegado al código: es parte de QUÉ es
+                              este pedido —"el de Mahou, el de tres"—, no una
+                              medida que nadie compara en columna. */}
+                          <span
+                            className="shrink-0 text-[11px] font-medium text-text-muted"
+                            title={`${p.ofs.length} orden${p.ofs.length === 1 ? "" : "es"} de fabricación`}
+                          >
+                            · {p.ofs.length} OF
+                          </span>
+                          {fichando && (
+                            <span
+                              title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+                              className="inline-flex"
+                            >
+                              <LiveDot rol={fichando} />
+                            </span>
+                          )}
+                          {/* Las familias pegadas al código y no en columna
+                              propia: nadie busca "los de lona" leyendo una
+                              columna, se pregunta de qué va ESTE pedido. */}
+                          {familiasDe(p).map((f) => (
+                            <FamiliaTag key={f} familia={f} />
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-text-muted">
+                          {/* Cliente y negocio en la misma frase, "MAHOU · NOVA
+                              CAMELIAS": el negocio solo significa algo pegado a
+                              su cliente —de MAHOU hay muchos pedidos y lo que
+                              los distingue es el local—, y en columnas
+                              separadas obligaba a leer a saltos. */}
+                          <span
+                            className="min-w-0 text-text"
+                            title={
+                              p.negocio
+                                ? `Cliente ${p.cliente} · Negocio ${p.negocio}`
+                                : `Cliente ${p.cliente}`
+                            }
+                          >
+                            {p.cliente}
+                            {/* El negocio, más apagado que el cliente: el
+                                renglón se lee de corrido pero sigue viéndose
+                                cuál de los dos es el que se busca. */}
+                            {p.negocio && <span className="text-text-muted"> · {p.negocio}</span>}
+                          </span>
+                          {/* Los dos avisos bajan a este renglón: arriba le
+                              quitaban el sitio a las familias, y los dos hablan
+                              de la PROCEDENCIA del pedido —"Interno" es que no
+                              hay pedido de venta detrás, "Sin procesar" que
+                              Producción aún no lo ha pasado a OT—, que es de lo
+                              que va aquí abajo. */}
+                          {p.interno && (
+                            <span
+                              className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
+                              title="Proyecto interno: sin pedido de venta"
+                            >
+                              Interno
+                            </span>
+                          )}
+                          {pendienteProc && (
+                            <span
+                              className="rounded bg-gray-400 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white dark:bg-gray-600"
+                              title="Producción todavía no lo ha pasado a Oficina Técnica"
+                            >
+                              Sin procesar
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
+                      <Estado pedido={p} nombrePorId={nombrePorId} />
+                    </Td>
+                    <Td>
+                      {/* Terminado = el recorrido ya no dice nada: el pedido no
+                          se mueve más. Se apaga entero en vez de teñir media
+                          lista de rojo por trabajo que ya está hecho. */}
+                      <span className={hecho ? "block opacity-40 grayscale" : undefined}>
+                        <Recorrido pedido={p} hoy={hoy} />
+                      </span>
+                    </Td>
+                  </tr>
+                  {/* La <tr> del detalle se pinta SIEMPRE, aunque esté cerrada.
+                      Es el precio de que el cierre se vea: si React la quitara
+                      al pulsar, el contenido desaparecería de golpe y no habría
+                      nada que animar. Cerrada no ocupa nada —`Desplegable`
+                      devuelve null y la celda va sin relleno— y el fondo, el
+                      acento y el hairline viven DENTRO, para que se vayan con
+                      el contenido en vez de apagarse antes que él. */}
+                  <tr>
+                    <td colSpan={4} className="p-0">
+                      <Desplegable abierto={abierto}>
+                        {/* El hairline de abajo es el que CIERRA el bloque: es
+                            la única raya que le queda al pedido abierto, así
+                            que se lee como "hasta aquí llega lo desplegado". */}
+                        <div
+                          className={`border-b border-border bg-brand-500/5 px-3 py-3 ${ACENTO_ABAJO}`}
                         >
-                          <LiveDot rol={fichando} />
-                        </span>
-                      )}
-                      {p.interno && (
-                        <span
-                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
-                          title="Proyecto interno: sin pedido de venta"
-                        >
-                          Interno
-                        </span>
-                      )}
-                      {pendienteProc && (
-                        <span
-                          className="rounded bg-gray-400 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white dark:bg-gray-600"
-                          title="Producción todavía no lo ha pasado a Oficina Técnica"
-                        >
-                          Sin procesar
-                        </span>
-                      )}
-                    </div>
-                  </Td>
-                  <Td className="text-text">
-                    {p.cliente}
-                    {p.negocio && <span className="text-text-muted"> · {p.negocio}</span>}
-                  </Td>
-                  <Td>
-                    <div className="flex flex-wrap gap-1">
-                      {familiasDe(p).map((f) => (
-                        <FamiliaTag key={f} familia={f} />
-                      ))}
-                    </div>
-                  </Td>
-                  <Td className="text-center font-medium text-text">{p.ofs.length}</Td>
-                  <Td>
-                    {/* Juntos y en el orden del flujo: quien lo plantea y a
-                        quién le toca repasarlo se leen como una frase. */}
-                    <span className="flex items-center gap-1.5">
-                      <Avatares ids={p.ofs.map((o) => o.autorId)} operarios={operarios} />
-                      <span className="text-text-muted">→</span>
-                      <Avatares ids={p.ofs.map((o) => o.revisorId)} operarios={operarios} />
-                    </span>
-                  </Td>
-                  <Td>
-                    <span className="flex items-center gap-1.5 whitespace-nowrap text-text">
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: fase.color }}
-                      />
-                      {fase.label}
-                    </span>
-                  </Td>
-                  <Td>
-                    {/* Terminado = el recorrido ya no dice nada: el pedido no
-                        se mueve más. Se apaga entero en vez de teñir media
-                        lista de rojo por trabajo que ya está hecho. */}
-                    <span className={hecho ? "block opacity-40 grayscale" : undefined}>
-                      <Recorrido pedido={p} hoy={hoy} />
-                    </span>
-                  </Td>
-                  <Td className="whitespace-nowrap text-right font-medium text-text">
-                    {total > 0 ? fmtMin(total) : <span className="text-text-muted">—</span>}
-                  </Td>
-                </tr>
-                {abierto && (
-                  <tr className="border-b border-border bg-surface-2/60 last:border-0">
-                    <td colSpan={9} className="px-3 py-3">
-                      <Detalle p={p} hoy={hoy} operarios={operarios} />
+                          <Detalle p={p} hoy={hoy} operarios={operarios} />
+                        </div>
+                      </Desplegable>
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -565,21 +860,232 @@ function OFRowLista({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy
   );
 }
 
+/** Un rótulo de cabecera que ordena. Vive fuera de `Th` porque la celda de
+ *  identidad lleva DOS y tienen que verse y portarse igual que los del resto de
+ *  columnas: misma flecha, mismo hover, mismo foco.
+ *
+ *  Un <button> y no un onClick sobre el <th>: así se llega con el tabulador y
+ *  se pulsa con Intro, como cualquier otro control. */
+function BotonOrden({
+  col,
+  orden,
+  onOrdenar,
+  alinear = "izquierda",
+  title,
+  className = "",
+  children,
+}: {
+  col: ColumnaOrden;
+  orden: Orden;
+  onOrdenar: (col: ColumnaOrden) => void;
+  alinear?: keyof typeof JUSTIFICAR;
+  title?: string;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const activa = orden.col === col;
+  return (
+    <button
+      type="button"
+      onClick={() => onOrdenar(col)}
+      title={title}
+      className={`group flex cursor-pointer items-center gap-1 rounded text-left uppercase tracking-wide hover:text-text ${JUSTIFICAR[alinear]} ${className}`}
+    >
+      <span className="min-w-0">{children}</span>
+      {/* La flecha de la columna activa se ve siempre; la de las demás solo
+          asoma al pasar por encima, que es cuando hace falta saber que la
+          cabecera se puede pulsar. Se apaga con opacidad y no quitándola, para
+          que la fila no dé un salto al entrar el ratón. */}
+      <span
+        aria-hidden="true"
+        className={`shrink-0 text-[8px] leading-none transition-opacity ${
+          activa ? "opacity-100" : "opacity-0 group-hover:opacity-40"
+        }`}
+      >
+        {activa && orden.dir === "desc" ? "▼" : "▲"}
+      </span>
+    </button>
+  );
+}
+
+/** Cabecera de columna. Con `col` ordena; sin `col` es un rótulo y nada más
+ *  (la de desplegar), sin flecha ni foco que sugieran lo contrario. */
 function Th({
   children,
   className = "",
   title,
+  col,
+  orden,
+  onOrdenar,
+  alinear = "izquierda",
 }: {
   children?: React.ReactNode;
   className?: string;
   title?: string;
+  col?: ColumnaOrden;
+  orden?: Orden;
+  onOrdenar?: (col: ColumnaOrden) => void;
+  alinear?: keyof typeof JUSTIFICAR;
 }) {
+  if (!col || !orden || !onOrdenar) {
+    return (
+      <th className={`px-3 py-2.5 font-semibold ${className}`} title={title}>
+        {children}
+      </th>
+    );
+  }
+  const activa = orden.col === col;
   return (
-    <th className={`px-3 py-2.5 font-semibold ${className}`} title={title}>
-      {children}
+    <th
+      className={`px-3 py-2.5 font-semibold ${className}`}
+      title={title}
+      // Solo en la columna activa: `aria-sort="none"` en las otras seis es
+      // ruido que el lector de pantalla repite cabecera tras cabecera.
+      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
+    >
+      <BotonOrden col={col} orden={orden} onOrdenar={onOrdenar} alinear={alinear} className="w-full">
+        {children}
+      </BotonOrden>
     </th>
   );
 }
+
+/** La cabecera de la celda de identidad: DOS rótulos que ordenan, uno por cada
+ *  renglón de la celda —Pedido arriba, Cliente abajo— y no uno solo.
+ *
+ *  Al fundir las tres columnas parecía que había que elegir entre perder un
+ *  criterio de orden o esconderlo en un menú. No hace falta ninguna de las dos:
+ *  los dos botones caben en la misma celda y cada uno ordena por lo que se lee
+ *  justo debajo, que es más fácil de adivinar que cuando cada uno tenía columna
+ *  y el rótulo quedaba lejos de su dato. `aria-sort` va en la celda, no en los
+ *  botones, porque lo que está ordenado es la COLUMNA; se enciende con
+ *  cualquiera de los dos criterios. */
+function ThIdentidad({
+  orden,
+  onOrdenar,
+}: {
+  orden: Orden;
+  onOrdenar: (col: ColumnaOrden) => void;
+}) {
+  const activa = orden.col === "codigo" || orden.col === "cliente";
+  return (
+    <th
+      className="px-3 py-2.5 font-semibold"
+      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
+    >
+      <span className="flex items-center gap-1.5">
+        <BotonOrden
+          col="codigo"
+          orden={orden}
+          onOrdenar={onOrdenar}
+          title="Ordena por el código del pedido, el del renglón de arriba."
+        >
+          Pedido
+        </BotonOrden>
+        <span aria-hidden="true" className="text-text-muted/40">
+          ·
+        </span>
+        <BotonOrden
+          col="cliente"
+          orden={orden}
+          onOrdenar={onOrdenar}
+          title="Ordena por el nombre del cliente, el del renglón de abajo."
+        >
+          Cliente
+        </BotonOrden>
+      </span>
+    </th>
+  );
+}
+
+/** Cabecera de la columna fundida de estado. Mismo patrón que `ThIdentidad`:
+ *  dos criterios de orden en una celda, cada rótulo sobre lo que ordena. */
+function ThEstado({
+  orden,
+  onOrdenar,
+}: {
+  orden: Orden;
+  onOrdenar: (col: ColumnaOrden) => void;
+}) {
+  const activa = orden.col === "autor" || orden.col === "fase";
+  return (
+    <th
+      className="px-3 py-2.5 font-semibold"
+      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
+    >
+      <span className="flex items-center gap-1.5">
+        <BotonOrden
+          col="fase"
+          orden={orden}
+          onOrdenar={onOrdenar}
+          title="Ordena por el avance real: sin empezar, planteando, esperando revisión, listo para pasar."
+        >
+          Estado
+        </BotonOrden>
+        <span aria-hidden="true" className="text-text-muted/40">
+          ·
+        </span>
+        <BotonOrden
+          col="autor"
+          orden={orden}
+          onOrdenar={onOrdenar}
+          title="Ordena por el nombre de quien lo plantea. Los pedidos sin autor van al final."
+        >
+          Quién
+        </BotonOrden>
+      </span>
+    </th>
+  );
+}
+
+/** Quién lleva el pedido y por dónde va, en una frase.
+ *
+ *  Sustituye a tres columnas —avatares de autor y revisor, fase y minutos— que
+ *  contaban a trozos algo que en el taller se dice de corrido: "lo planteó
+ *  Iván, 25 minutos, y lo tiene Tamara para revisar". Los tramos los arma
+ *  `estadoDePedido`, que está probado aparte; aquí solo se pintan. */
+function Estado({
+  pedido,
+  nombrePorId,
+}: {
+  pedido: Pedido;
+  nombrePorId: (id: string) => string;
+}) {
+  const tramos = estadoDePedido(pedido, nombrePorId);
+
+  return (
+    <span className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
+      {tramos.map((t) => (
+        <span key={t.rol} className="flex flex-wrap items-baseline gap-x-1.5">
+          {/* Con NOMBRE y no con avatar: dos iniciales en un círculo obligan a
+              descifrar quién es, y la frase que se dice en el taller lleva el
+              nombre — "eso lo tiene Jaime sin empezar". Los avatares valen en
+              el tablero, donde cada zona ya tiene cara y color; aquí no.
+              Varios nombres cuando el trabajo está repartido entre dos. */}
+          {t.quien.length > 0 && (
+            <>
+              <span className="min-w-0 font-medium text-text">{t.quien.join(", ")}</span>
+              <span aria-hidden="true" className="text-text-muted">
+                ·
+              </span>
+            </>
+          )}
+          {/* El verbo lleva el color de su rol —plantear esmeralda, revisar
+              violeta, los mismos de toda la app— y no un punto de fase aparte:
+              el color YA dice de qué rol se habla. */}
+          <span className={`rounded px-1.5 py-0.5 font-semibold ${ROL[t.rol].chip}`}>
+            {t.verbo}
+          </span>
+          {t.enMarcha && <LiveDot rol={t.rol} />}
+          {t.minutos > 0 && (
+            <span className="tabular-nums text-text-muted">{fmtMin(t.minutos)}</span>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-3 py-2.5 ${className}`}>{children}</td>;
 }
