@@ -38,9 +38,26 @@ const pedido = (ofs: OF[]): Pedido => ({
 const frase = (ofs: OF[]) => estadoDePedido(pedido(ofs), nombre);
 
 describe("estadoDePedido", () => {
-  it("sin autor: no hay a quién nombrar", () => {
+  it("sin autor: no hay a quién nombrar, y se marca como pendiente de alguien", () => {
     const [planteo] = frase([of()]);
-    expect(planteo).toMatchObject({ quien: [], verbo: "Sin asignar", minutos: 0 });
+    expect(planteo).toMatchObject({
+      quien: [],
+      verbo: "Sin asignar",
+      minutos: 0,
+      // Lo que hace que NO se pinte del verde de "Planteado": un pedido que no
+      // ha tocado nadie no puede parecer terminado.
+      pendienteDeAlguien: true,
+    });
+  });
+
+  it("con alguien asignado, el tramo no está pendiente de nadie", () => {
+    const [planteo] = frase([of({ autorId: "jaime" })]);
+    expect(planteo.pendienteDeAlguien).toBe(false);
+  });
+
+  it("entregado y sin revisor: el tramo de revisión sí está pendiente", () => {
+    const [, revision] = frase([of({ autorId: "ivan", estado: "por_revisar" })]);
+    expect(revision).toMatchObject({ verbo: "Falta revisor", pendienteDeAlguien: true });
   });
 
   it("con autor y sin empezar", () => {

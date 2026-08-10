@@ -42,7 +42,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     short: "Curso",
     dot: "bg-emerald-600",
     borderIzq: "border-l-emerald-400",
-    chip: "bg-emerald-600 text-white",
+    chip: "bg-emerald-700 text-white",
     rank: 2,
   },
   aprobada: {
@@ -52,7 +52,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     // esmeralda de "en curso" (cuatro verdes compitiendo en pantalla).
     dot: "bg-cyan-600",
     borderIzq: "border-l-cyan-400",
-    chip: "bg-cyan-600 text-white",
+    chip: "bg-cyan-700 text-white",
     rank: 3,
   },
   en_revision: {
@@ -68,7 +68,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     short: "Por rev.",
     dot: "bg-amber-500",
     borderIzq: "border-l-amber-400",
-    chip: "bg-amber-500 text-white",
+    chip: "bg-amber-600 text-white",
     rank: 6,
   },
   devuelta: {
@@ -84,7 +84,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     short: "Anul.",
     dot: "bg-slate-400",
     borderIzq: "border-l-slate-300",
-    chip: "bg-slate-200 text-slate-700",
+    chip: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
     rank: 0,
   },
 };
@@ -104,7 +104,7 @@ export const ROL: Record<Rol, RolMeta> = {
   plantear: {
     label: "Planteando",
     color: "#059669",
-    chip: "bg-emerald-600/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+    chip: "bg-emerald-600/12 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300",
     solido: "bg-emerald-600 text-white hover:bg-emerald-700",
   },
   revisar: {

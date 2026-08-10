@@ -65,10 +65,16 @@ function Fecha({
   iso,
   hoy,
   enfasis = "normal",
+  absoluta = false,
 }: {
   iso: string;
   hoy: string;
   enfasis?: "normal" | "suave" | "ninguno";
+  /** Enseñar la fecha, no lo que falta o sobra. Para las que son HISTORIA y no
+   *  un plazo: la creación salía como "-26 d" al lado de "FABRICACIÓN 19/08",
+   *  y leídas juntas parecían dos cosas distintas cuando son cuatro fechas del
+   *  mismo recorrido. Cuánto hace que entró se sigue viendo en el `title`. */
+  absoluta?: boolean;
 }) {
   const r = relativoA(iso, hoy);
   const clase =
@@ -76,8 +82,8 @@ function Fecha({
       ? TONO.lejana
       : TONO[r.tono];
   return (
-    <span className={clase} title={r.completa}>
-      {r.etiqueta}
+    <span className={clase} title={`${r.completa} · ${r.etiqueta}`}>
+      {absoluta ? `${iso.slice(8)}/${iso.slice(5, 7)}` : r.etiqueta}
     </span>
   );
 }
@@ -126,16 +132,23 @@ const ANCHO_FECHA_PCT = (ANCHO_FECHA_PX / (RECORRIDO_PX - CHIP_TARDE_PX)) * 100;
 // solicitada. Es el día en que el pedido debería estar planteado, así que
 // pasarla ya es ir tarde aunque a Producción le sobren tres semanas. Por eso
 // la escalada arranca ahí y no al final.
+// Variables de tema y no hex fijos: estos colores van sobre el fondo de la
+// tabla y sobre blanco el verde y el ámbar de siempre se leían a 2,5:1 — la
+// fecha planificada, que es el dato central de esta columna, quedaba
+// prácticamente invisible en tema claro. Y al revés en oscuro, donde se
+// apagaban el rojo y el morado, justo los estados urgentes. Los valores de
+// cada tema están en globals.css; el patrón es el que ya usa
+// LineaTiempoPedido.tsx para lo mismo.
 const TRAMO = {
   /** Hasta la planificación: OT llega a tiempo. */
-  holgado: "#10b981",
+  holgado: "var(--tramo-holgado)",
   /** Pasada la planificación: OT ya va tarde, pero Producción aún llega. */
-  trabajo: "#f59e0b",
+  trabajo: "var(--tramo-trabajo)",
   /** Pasada la fabricación: el retraso se come el margen de Producción. */
-  ajustado: "#dc2626",
+  ajustado: "var(--tramo-ajustado)",
   /** Pasada la solicitada. Fuera de la escalada a propósito: no es "más
    *  rojo", es otra cosa — la fecha ya se incumplió. */
-  fuera: "#9333ea",
+  fuera: "var(--tramo-fuera)",
 } as const;
 
 /** Los tramos de la línea, ya recortados a [0, 100].
@@ -312,8 +325,12 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           porque no es "va muy justo", es que la fecha ya se incumplió. */}
       {diasTarde > 0 && (
         <span
-          className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none text-white"
-          style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo }}
+          className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none"
+          // El texto va del color del FONDO de la app, no blanco fijo: sobre el
+          // ámbar claro del tema oscuro, un "+3d" en blanco se leía a 2:1. Así
+          // el chip contrasta solo en los dos temas, sin una segunda pareja de
+          // colores que mantener.
+          style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo, color: "var(--surface)" }}
           title={
             vencido
               ? `${diasTarde} días pasada la planificada — y la entrega solicitada era hace ${-diasParaEntrega}`
@@ -532,8 +549,10 @@ export function ListaView({
                 title="Ordena por la fecha planificada, que es la que manda para OT: el día en que el pedido debería estar planteado. Es el orden de salida de la lista."
               >
                 <span className="block">Recorrido</span>
-                <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted/80">
-                  creación · <span className="font-semibold text-text-muted">planificada</span> ·
+                {/* Sin opacidad extra sobre el muted: a 9 px ya es lo bastante
+                    secundario por tamaño, y el /80 solo restaba legibilidad. */}
+                <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted">
+                  creación · <span className="font-semibold text-text">planificada</span> ·
                   fabricación · solicitada
                 </span>
               </Th>
@@ -694,7 +713,10 @@ export function ListaView({
                           )}
                           {pendienteProc && (
                             <span
-                              className="rounded bg-gray-400 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white dark:bg-gray-600"
+                              // gray-400 con texto blanco se leía a 2,6:1 en
+                              // claro. Mismo tratamiento que "Interno", que ya
+                              // usaba tokens y no fallaba.
+                              className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
                               title="Producción todavía no lo ha pasado a Oficina Técnica"
                             >
                               Sin procesar
@@ -760,7 +782,7 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
             su columna. Aquí lo que aporta el desplegable es cuándo entró. */}
         {p.fechaCreacion && (
           <Dato label="Creación">
-            <Fecha iso={p.fechaCreacion} hoy={hoy} enfasis="ninguno" />
+            <Fecha iso={p.fechaCreacion} hoy={hoy} enfasis="ninguno" absoluta />
           </Dato>
         )}
         <Dato label="Planificada">
@@ -1072,8 +1094,17 @@ function Estado({
           )}
           {/* El verbo lleva el color de su rol —plantear esmeralda, revisar
               violeta, los mismos de toda la app— y no un punto de fase aparte:
-              el color YA dice de qué rol se habla. */}
-          <span className={`rounded px-1.5 py-0.5 font-semibold ${ROL[t.rol].chip}`}>
+              el color YA dice de qué rol se habla.
+              Salvo cuando lo que dice es que FALTA alguien: ahí va apagado,
+              porque "Sin asignar" en el mismo verde que "Planteado" hacía que
+              un pedido sin tocar pareciera terminado. */}
+          <span
+            className={`rounded px-1.5 py-0.5 font-semibold ${
+              t.pendienteDeAlguien
+                ? "bg-surface-2 text-text-muted ring-1 ring-border"
+                : ROL[t.rol].chip
+            }`}
+          >
             {t.verbo}
           </span>
           {t.enMarcha && <LiveDot rol={t.rol} />}

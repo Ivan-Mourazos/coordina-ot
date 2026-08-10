@@ -433,12 +433,17 @@ export function MiFichaje({
         onClick={() => setExpandido((v) => !v)}
         aria-expanded={expandido}
         title={tituloPildora}
-        className={`glass-chip flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
+        // Con color, SIN `glass-chip`: el fondo del vidrio gana a las
+        // utilidades de Tailwind (ver globals.css), así que la píldora se
+        // quedaba en gris tanto fichando como avisando — el color que dice de
+        // un vistazo si algo corre no llegaba a pantalla. Sin color sí lleva
+        // vidrio, que es cuando no tiene nada que destacar.
+        className={`flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
           ab
-            ? ROL[ab.rol].chip
+            ? `ring-1 ring-border ${ROL[ab.rol].chip}`
             : aviso
-              ? "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400"
-              : "text-text-muted"
+              ? "bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:bg-amber-400/15 dark:text-amber-300"
+              : "glass-chip text-text-muted"
         }`}
       >
         {ab ? (

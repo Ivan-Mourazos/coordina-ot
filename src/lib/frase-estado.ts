@@ -21,6 +21,11 @@ export interface TramoEstado {
   /** Alguien lo está fichando AHORA. Es lo que distingue "Planteando" de
    *  "Planteado 25m": el segundo es trabajo empezado y parado. */
   enMarcha: boolean;
+  /** El tramo NO habla de trabajo hecho ni en marcha, sino de que falta algo:
+   *  nadie asignado, o entregado y sin revisor. Se pinta apagado en vez de con
+   *  el color del rol — verlo del mismo verde que "Planteado" hacía que un
+   *  pedido que no ha tocado nadie pareciera terminado. */
+  pendienteDeAlguien: boolean;
 }
 
 const nombresDe = (ids: Array<string | null>, nombre: (id: string) => string): string[] => [
@@ -59,6 +64,7 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
     quien: autores,
     minutos: planteoMin,
     enMarcha: planteando,
+    pendienteDeAlguien: autores.length === 0,
     verbo: planteando
       ? "Planteando"
       : hayDevueltas
@@ -86,6 +92,7 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Tramo
     quien: revisores,
     minutos: revisionMin,
     enMarcha: revisando,
+    pendienteDeAlguien: revisores.length === 0,
     verbo: revisando
       ? "Revisando"
       : hayDevueltas

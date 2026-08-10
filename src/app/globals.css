@@ -49,6 +49,17 @@
   --glass-highlight: rgba(255, 255, 255, 0.95);
   --glass-shadow: rgba(24, 32, 48, 0.14);
   --glass-chip: rgba(255, 255, 255, 0.85);
+
+  /* Escalada de urgencia de la línea de tiempo (ver TRAMO en ListaView).
+     Aquí y no como hex en el JS porque va sobre el fondo de la tabla y NO
+     valen los mismos tonos en los dos temas: sobre blanco, el verde y el
+     ámbar de Tailwind -500 se leen a 2,5:1 y la fecha planificada —el dato
+     central de esa columna— queda prácticamente invisible. En claro hacen
+     falta escalones oscuros. */
+  --tramo-holgado: #047857;
+  --tramo-trabajo: #b45309;
+  --tramo-ajustado: #b91c1c;
+  --tramo-fuera: #6b21a8;
 }
 
 .dark {
@@ -71,6 +82,13 @@
   --glass-highlight: rgba(255, 255, 255, 0.12);
   --glass-shadow: rgba(0, 0, 0, 0.5);
   --glass-chip: rgba(44, 47, 54, 0.95);
+
+  /* Sobre grafito se invierte el problema: los que se apagan son el rojo y el
+     morado, justo los estados urgentes. Escalones claros. */
+  --tramo-holgado: #34d399;
+  --tramo-trabajo: #fbbf24;
+  --tramo-ajustado: #f87171;
+  --tramo-fuera: #c084fc;
 }
 
 @theme inline {
@@ -146,7 +164,14 @@ body {
 }
 
 /* Ficha compacta: tile casi sólido que descansa SOBRE el vidrio, con un canto
-   inferior que le da cuerpo (no plano). */
+   inferior que le da cuerpo (no plano).
+ *
+ * OJO al combinarla con una utilidad de color: este CSS va SIN capa y Tailwind
+ * v4 mete las suyas en `@layer utilities`, así que `.glass-chip` gana siempre
+ * y un `bg-brand-500/15` puesto al lado no se pinta, da igual el orden de las
+ * clases. Por eso existe `.glass-chip-activo`, que reaplica el fondo tintado
+ * desde aquí: el color de "filtro activo" de los desplegables no llegaba a
+ * pantalla y el resaltado que el código dice tener no existía. */
 .glass-chip {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
@@ -172,6 +197,18 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 2px 0 -1px rgba(0, 0, 0, 0.5),
     0 10px 22px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* Un chip de vidrio que además está FILTRANDO. Va aquí y no como utilidad de
+   Tailwind por lo dicho arriba: desde una utilidad no se puede pisar el fondo
+   de `.glass-chip`. El tinte es el dorado de marca, el mismo que marca la fila
+   desplegada de la Lista. */
+.glass-chip-activo {
+  background: color-mix(in srgb, var(--color-brand-500) 15%, var(--glass-chip));
+  border-color: var(--color-brand-400);
+}
+.dark .glass-chip-activo {
+  background: color-mix(in srgb, var(--color-brand-400) 18%, var(--glass-chip));
 }
 
 /* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */

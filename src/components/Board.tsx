@@ -403,18 +403,22 @@ export function Board({
 
   // KPIs (solo sobre pedidos procesados = trabajo real de OT)
   const procesadosAll = procesados;
-  // Sin las anuladas: el tablero de abajo ya no las enseña (`facetsByLoc` las
-  // salta), así que contarlas aquí anunciaba trabajo pendiente que no aparecía
-  // por ningún lado y el número no había forma de cuadrarlo.
-  const sinAsignar = procesadosAll.reduce(
-    (n, p) =>
-      p.interno
-        ? n
-        : n +
-          p.ofs.filter(
-            (o) => o.autorId === null && o.estado !== "anulada" && !ofOcultaDeOT(o),
-          ).length,
-    0,
+  // Exactamente lo mismo que enseña la bandeja de abajo, y por eso se cuenta
+  // SOBRE ella: la cabecera decía 72 y el panel 47, porque cada uno excluía
+  // cosas distintas (el KPI no contaba anuladas ni taller, la bandeja tampoco
+  // las detenidas). Un número de cabecera que no cuadra con lo que hay debajo
+  // no sirve para nada, y hacerlo derivado es la única forma de que no se
+  // vuelvan a separar.
+  //
+  // Ojo: es la bandeja SIN filtrar por la barra. Filtrar es una decisión de
+  // quien mira; el KPI cuenta el trabajo que hay.
+  const sinAsignar = useMemo(
+    () =>
+      aplicarFiltros(procesados, FILTROS_INICIALES, hoy).reduce(
+        (n, p) => n + p.ofs.filter((o) => o.autorId === null).length,
+        0,
+      ),
+    [procesados, hoy],
   );
   // Lo mío como revisor, no lo de todos: casa con lo que muestra por defecto
   // la pestaña Revisión (ver src/lib/revision.ts, misma fuente que usa ahí).

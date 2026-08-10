@@ -105,9 +105,13 @@ export function Select({
         onKeyDown={onKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
+        // `glass-chip-activo` y no un `bg-*` de Tailwind: el fondo de
+        // `.glass-chip` gana siempre a las utilidades (ver globals.css), así
+        // que el acento de "este filtro está recortando la lista" no llegaba a
+        // pintarse nunca.
         className={`glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
           acentuarActivo && selected
-            ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
+            ? "glass-chip-activo text-brand-700 dark:text-brand-300"
             : selected
               ? "text-text"
               : "text-text-muted"
