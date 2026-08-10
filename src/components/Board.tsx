@@ -25,7 +25,14 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones } from "./Notificaciones";
-import { agruparAvisos, type AvisoSuelto, type NotifItem } from "@/lib/notificaciones";
+import {
+  agruparAvisos,
+  aplicarDescartes,
+  esDescartable,
+  identidadAviso,
+  type AvisoSuelto,
+  type NotifItem,
+} from "@/lib/notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
@@ -101,6 +108,26 @@ function leerIdentidadGuardada(): string | null {
     return localStorage.getItem(IDENTITY_KEY);
   } catch {
     return null;
+  }
+}
+
+/** Avisos deducidos que ya se abrieron, GUARDADOS POR TÉCNICO.
+ *
+ *  Por técnico y no en una lista común porque "listo para pasar" le llega a
+ *  todos los implicados en el pedido: con una sola lista, apagarlo uno se lo
+ *  apagaría al compañero que entrara después en el mismo puesto. */
+const DESCARTES_KEY = "coordina-avisos-descartados";
+
+function leerDescartes(operarioId: string | null): string[] {
+  if (typeof window === "undefined" || !operarioId) return [];
+  try {
+    const crudo = localStorage.getItem(`${DESCARTES_KEY}:${operarioId}`);
+    const val: unknown = crudo ? JSON.parse(crudo) : null;
+    // Se filtra por tipo: si lo guardado está corrupto, lo peor que puede pasar
+    // es volver a ver un aviso, nunca reventar el tablero al arrancar.
+    return Array.isArray(val) ? val.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
   }
 }
 
@@ -505,6 +532,43 @@ export function Board({
     document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
   }, [misPorRevisar, misDevueltas]);
 
+  // ── Avisos deducidos ya abiertos ──
+  // En localStorage y no en el servidor como los de movimiento: estos se
+  // vuelven a deducir del tablero en cada render, así que perder el descarte
+  // solo hace que el aviso reaparezca —y sigue siendo cierto—, mientras que un
+  // movimiento sin marcar no hay forma de recuperarlo. Y sobre todo, podarlos
+  // exige saber qué avisos siguen vivos, o sea el tablero entero: justo lo que
+  // /api/avisos está diseñado para NO cargar (7-15 s contra RPS). Aquí el
+  // tablero ya está en memoria.
+  const [descartes, setDescartes] = useState<{ opId: string | null; claves: string[] }>({
+    opId: null,
+    claves: [],
+  });
+  const { visibles: avisosVisibles, vigentes } = useMemo(
+    () => aplicarDescartes(notifItems, descartes.claves),
+    [notifItems, descartes.claves],
+  );
+  // Ajuste durante el render, no en un efecto (que además el lint rechaza):
+  // React descarta este render y repite con el valor bueno, sin pintar el
+  // estado intermedio. Las dos ramas son excluyentes a propósito: encadenar
+  // dos setState en la misma pasada haría que el segundo pisara al primero.
+  if (descartes.opId !== miId) {
+    // Cambio de técnico: los descartes son suyos, no se heredan.
+    setDescartes({ opId: miId, claves: leerDescartes(miId) });
+  } else if (vigentes.length !== descartes.claves.length) {
+    // Poda: un descarte solo vale mientras exista el aviso que apaga. Al
+    // desaparecer la situación se borra, y si vuelve a darse el aviso suena
+    // otra vez —te devuelven la misma OF por segunda vez y te enteras—. De
+    // paso, la lista guardada no puede crecer más que los avisos vivos.
+    setDescartes({ opId: miId, claves: vigentes });
+  }
+  useEffect(() => {
+    if (!descartes.opId) return;
+    try {
+      localStorage.setItem(`${DESCARTES_KEY}:${descartes.opId}`, JSON.stringify(descartes.claves));
+    } catch {}
+  }, [descartes]);
+
   /** Abrir el pedido ES haber visto sus avisos: se apagan solos, sin un botón
    *  más que pulsar. Da igual por dónde se abra —la campana, el tablero, la
    *  Lista—: si solo lo hiciera la campana, quien ve la OF aparecer en su zona
@@ -533,10 +597,20 @@ export function Board({
     },
     [verAvisosDe],
   );
+  /** Abrir un aviso de la campana lo apaga. Solo ESE: del mismo pedido puedes
+   *  tener una OF por revisar y otra devuelta, y atender una no es haber visto
+   *  la otra. Los de movimiento no pasan por aquí, ya los apaga `verAvisosDe`
+   *  contra el servidor. */
   const irANotificacion = useCallback(
-    (destino: Vista, pedidoId: string) => {
+    (destino: Vista, item: NotifItem) => {
+      if (esDescartable(item)) {
+        const clave = identidadAviso(item);
+        setDescartes((prev) =>
+          prev.claves.includes(clave) ? prev : { ...prev, claves: [...prev.claves, clave] },
+        );
+      }
       setVista(destino);
-      abrirPedido(pedidoId);
+      abrirPedido(item.pedido.id);
     },
     [abrirPedido],
   );
@@ -1151,7 +1225,7 @@ export function Board({
             <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
             <Kpi label="Por revisar" value={porRevisar} tone="amber" />
             <Kpi label="En revisión" value={enRevision} tone="violet" />
-            <Notificaciones items={notifItems} onNavigate={irANotificacion} />
+            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
             <ThemeToggle />
           </div>

@@ -37,13 +37,18 @@ function detalleDe(item: NotifItem): string {
  *  · Los de MOVIMIENTO (te han pasado trabajo, ya no lo tienes tú, te toca
  *    revisar, ya no lo revisas): un cambio de manos no deja marca en la OF,
  *    así que se leen del registro de acciones y hay que apagarlos uno a uno
- *    —de eso va el campo `clave`— cuando se abre el pedido. */
+ *    —de eso va el campo `clave`— cuando se abre el pedido.
+ *
+ *  Abrir un aviso lo apaga, sea de la clase que sea. Por eso el manejador
+ *  recibe el ITEM entero y no solo el id del pedido: lo que se apaga es el
+ *  aviso que se ha abierto, no todos los del pedido —te tocan dos cosas
+ *  distintas del mismo parte y solo has atendido una. */
 export function Notificaciones({
   items,
   onNavigate,
 }: {
   items: NotifItem[];
-  onNavigate: (vista: Vista, pedidoId: string) => void;
+  onNavigate: (vista: Vista, item: NotifItem) => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
@@ -78,7 +83,7 @@ export function Notificaciones({
                   <li key={`${item.pedido.id}-${item.tipo}-${i}`}>
                     <button
                       onClick={() => {
-                        onNavigate(meta.vista, item.pedido.id);
+                        onNavigate(meta.vista, item);
                         setOpen(false);
                       }}
                       className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
