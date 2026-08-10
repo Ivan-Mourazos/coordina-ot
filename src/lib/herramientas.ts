@@ -13,6 +13,10 @@
 // estables, no secretos, y cambiarlas es tan raro como cambiar el nombre de una
 // vista. Un fichero se lee, se comenta y queda en el historial de git; una
 // variable de entorno con seis URLs dentro no.
+//
+// Todas viven en el mismo servidor (192.168.0.90) y se distinguen por puerto;
+// CoordinaOT es el 4300. Si algún día se les pone nombre de verdad, se cambia
+// aquí y ya está.
 
 export interface Herramienta {
   id: string;
@@ -46,6 +50,7 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
         id: "reservar-materiales",
         nombre: "Reservar materiales",
         descripcion: "Apartar el material de una OF en RPS.",
+        url: "http://192.168.0.90:4200/",
       },
     ],
   },
@@ -56,16 +61,19 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
         id: "historial-pedidos",
         nombre: "Historial de pedidos hechos",
         descripcion: "Los pedidos ya terminados, con sus tiempos.",
+        url: "http://192.168.0.90:4100/",
       },
       {
         id: "buscador-sisgeko",
         nombre: "Buscador Sisgeko",
         descripcion: "Búsqueda en la documentación de Sisgeko.",
+        url: "http://192.168.0.90:5000/",
       },
       {
         id: "monitorizacion-tgm",
         nombre: "Monitorización TGM",
         descripcion: "Estado de las máquinas y la producción.",
+        url: "http://192.168.0.90:4000/",
       },
     ],
   },
