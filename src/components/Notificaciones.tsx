@@ -1,31 +1,10 @@
 "use client";
 
-import type { OF, Pedido } from "@/lib/types";
 import type { Vista } from "./ViewSwitcher";
 import { usePopover } from "@/lib/usePopover";
+import type { NotifItem, NotifTipo } from "@/lib/notificaciones";
 
-export type NotifTipo =
-  | "revisar"
-  | "devuelta"
-  | "sinEmpezar"
-  | "recibida"
-  | "cedida"
-  | "revisarNueva"
-  | "revisarQuitada"
-  | "pedidoCompleto";
-
-export interface NotifItem {
-  tipo: NotifTipo;
-  pedido: Pedido;
-  /** Los avisos de pedido completo no son de una OF concreta. */
-  of: OF | null;
-  /** Quién movió el trabajo, ya resuelto a nombre. Solo en los de movimiento. */
-  quien?: string;
-  /** La otra parte (de quién venía / a quién ha ido), ya resuelta a nombre. */
-  otro?: string;
-  /** Clave del aviso (`logId:tipo:ofId`): es lo que se marca como visto. */
-  clave?: string;
-}
+export type { NotifItem, NotifTipo };
 
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisar: { label: "Me toca revisar", vista: "revision", dot: "bg-violet-600" },
@@ -37,6 +16,18 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: "bg-cyan-600" },
 };
+
+/** La segunda línea del aviso: de qué parte del pedido habla. */
+function detalleDe(item: NotifItem): string {
+  if (item.ofs.length === 0) return "Todas sus OF aprobadas";
+  if (item.pedidoEntero)
+    return item.totalOFs === 1
+      ? `${item.ofs[0].codigo} — ${item.ofs[0].descripcion}`
+      : `Todo el pedido · ${item.totalOFs} OF`;
+  if (item.ofs.length === 1)
+    return `${item.ofs[0].codigo} — ${item.ofs[0].descripcion}`;
+  return `${item.ofs.length} de ${item.totalOFs} OF · ${item.ofs.map((o) => o.codigo).join(", ")}`;
+}
 
 /** Campana con avisos personales. Dos clases distintas conviven aquí:
  *
@@ -84,7 +75,7 @@ export function Notificaciones({
               {items.map((item, i) => {
                 const meta = META[item.tipo];
                 return (
-                  <li key={item.clave ?? `${item.of?.id}-${item.tipo}-${i}`}>
+                  <li key={`${item.pedido.id}-${item.tipo}-${i}`}>
                     <button
                       onClick={() => {
                         onNavigate(meta.vista, item.pedido.id);
@@ -100,8 +91,13 @@ export function Notificaciones({
                         <span className="block truncate text-xs font-semibold text-text">
                           {item.pedido.codigo} · {item.pedido.cliente}
                         </span>
+                        {/* Qué parte del pedido es. Un pedido de cuatro OF
+                            mandado entero a revisar encendía cuatro avisos
+                            iguales; ahora es uno y lo dice. Cuando solo te
+                            tocan algunas SÍ hay que nombrarlas: son OF sueltas
+                            de un pedido que lleva alguien más. */}
                         <span className="block truncate text-[11px] text-text-muted">
-                          {item.of ? `${item.of.codigo} — ${item.of.descripcion}` : "Todas sus OF aprobadas"}
+                          {detalleDe(item)}
                         </span>
                         {item.quien && (
                           <span className="block truncate text-[11px] text-text-muted">

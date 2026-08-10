@@ -530,7 +530,7 @@ function OFRow({
       )}
 
       {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
-      <AccionesOF of={of} operarios={operarios} onAccion={onAccion} onSetRevisor={onSetRevisor} />
+      <AccionesOF of={of} operarios={operarios} miId={miId} onAccion={onAccion} onSetRevisor={onSetRevisor} />
     </li>
   );
 }
@@ -538,17 +538,21 @@ function OFRow({
 function AccionesOF({
   of,
   operarios,
+  miId,
   onAccion,
   onSetRevisor,
 }: {
   of: OF;
   operarios: Operario[];
+  miId: string | null;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
-  const acciones = accionesDisponibles(of);
+  // Con `miId`: la revisión de otro no la empieza cualquiera, así que su botón
+  // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
+  const acciones = accionesDisponibles(of, miId);
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
   return (

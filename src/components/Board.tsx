@@ -24,7 +24,8 @@ import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
-import { Notificaciones, type NotifItem } from "./Notificaciones";
+import { Notificaciones } from "./Notificaciones";
+import { agruparAvisos, type AvisoSuelto, type NotifItem } from "@/lib/notificaciones";
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
@@ -443,7 +444,10 @@ export function Board({
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
     if (!miId) return [];
-    const out: NotifItem[] = [];
+    // Se detectan por OF —es la unidad de trabajo— y se agrupan por pedido al
+    // final: mandar a revisar un pedido de cuatro OF encendía cuatro avisos
+    // idénticos que llevaban todos al mismo sitio.
+    const out: AvisoSuelto[] = [];
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
         // Avisa desde que te la asignan (por_revisar), no solo cuando ya la
@@ -484,8 +488,10 @@ export function Board({
         clave: a.clave,
       });
     }
-    return out;
+    return agruparAvisos(out);
   }, [procesadosAll, miId, avisosMov, operarios]);
+  // Los badges cuentan PEDIDOS, igual que la campana: si tres avisos son del
+  // mismo parte, el trabajo que tienes delante es uno.
   const misPorRevisar = notifItems.filter((i) => i.tipo === "revisar").length;
   const misDevueltas = notifItems.filter((i) => i.tipo === "devuelta").length;
 
@@ -974,9 +980,12 @@ export function Board({
       // todas (p.ej. "empezar_planteo" sobre una OF "devuelta"), no hay que
       // arrancar/cortar fichaje para nadie. mut() conserva su try/catch por
       // OF como segunda red de seguridad.
+      // Con `miId`: es el embudo por el que pasan TODAS las acciones de la
+      // interfaz, así que es donde se hace valer que la revisión de otro no la
+      // empieza cualquiera (ver `soloEl` en lib/acciones.ts).
       const aplicables = ofIds.filter((id) => {
         const of = pedidos.flatMap((p) => p.ofs).find((o) => o.id === id);
-        return of ? accionesDisponibles(of).some((a) => a.id === accion) : false;
+        return of ? accionesDisponibles(of, miId).some((a) => a.id === accion) : false;
       });
       if (aplicables.length === 0) return;
       // El corte del fichaje va DENTRO de la misma persistencia que el cambio
@@ -1006,7 +1015,7 @@ export function Board({
         ficharOFs(aplicables, rol);
       }
     },
-    [mut, ficharOFs, soltarDeMiFichaje, pedidos],
+    [mut, ficharOFs, soltarDeMiFichaje, pedidos, miId],
   );
 
   // "Coger y empezar" revisión (columna "Por revisar" sin revisor): asigna al
