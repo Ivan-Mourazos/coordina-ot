@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { lineaTiempo, repartirEtiquetas } from "../linea-tiempo";
 
 // Vocabulario de la herramienta vieja, que es el del taller:
-//   creación      = cuándo entró el pedido (OrderDate)
+//   llegada       = cuándo se crearon sus OF: el día que el parte llega a OT
 //   planificación = el día de PLANTEAR (FechaPlanificada de la vista)
 //   fabricación   = fin de fabricación previsto (PlannedEndDate de la OF)
 //   solicitada    = la ENTREGA que pide el cliente (FechaSolicitada)
@@ -18,7 +18,7 @@ describe("lineaTiempo", () => {
     const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
     expect(l.hitos.map((h) => Math.round(h.pct))).toEqual([0, 25, 100]);
     expect(l.hitos.map((h) => h.etiqueta)).toEqual([
-      "Creación",
+      "Llegada",
       "Planificación",
       "Solicitada",
     ]);
@@ -79,7 +79,7 @@ describe("con fecha de fabricación", () => {
       "2026-08-01",
     );
     expect(l.hitos.map((h) => h.etiqueta)).toEqual([
-      "Creación",
+      "Llegada",
       "Planificación",
       "Fabricación",
       "Solicitada",

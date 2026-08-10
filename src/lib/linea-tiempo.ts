@@ -35,7 +35,11 @@ export interface LineaTiempo {
 // taller. No inventar sinónimos: "solicitada" es la entrega, y "planificación"
 // es el día de plantear, no el de fabricar.
 const ETIQUETA = {
-  creacion: "Creación",
+  // "Llegada" y no "Creación": desde que este hito es la creación de las OF y
+  // no la del pedido de venta, seguir llamándolo creación señalaría a otro día.
+  // Es la única palabra que se aparta de la herramienta vieja, y se aparta
+  // porque el dato debajo también lo hace.
+  creacion: "Llegada",
   planificacion: "Planificación",
   fabricacion: "Fabricación",
   solicitada: "Solicitada",

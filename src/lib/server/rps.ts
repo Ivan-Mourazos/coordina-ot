@@ -81,6 +81,9 @@ interface FilaVenta {
 
 interface FilaTarea {
   orden: string | null;
+  /** Cuándo se creó la OF en RPS: el día en que el trabajo llega a Oficina
+   *  Técnica, que no es el mismo en que el cliente hizo el pedido. */
+  ofCreada: Date | null;
   codTarea: string | null;
   descripcion: string | null;
   planificada: Date | null;
@@ -545,7 +548,7 @@ async function consultarTablero(): Promise<Tablero> {
     pool.request().query<FilaTarea>(`
       SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS codTarea,
              t.Description AS descripcion, t.PlannedStartDate AS planificada,
-             t.Canceled AS cancelada
+             t.Canceled AS cancelada, mo.CreationTimestamp AS ofCreada
       FROM dbo.CPRMOTask t
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
@@ -786,6 +789,14 @@ async function consultarTablero(): Promise<Tablero> {
       validas(filas.map((f) => f.FechaPlanificada))[0] ??
       validas(filas.map((f) => f.PlannedStartDate))[0];
     const planificacion = planificada ?? fecha;
+    // Cuándo aterrizó en OT: la creación más temprana de sus OF. Sale de la
+    // consulta de tareas, que ya recorre las mismas OF.
+    const llegadaAOT = filas
+      .map((f) => (f.OF ?? "").trim())
+      .flatMap((orden) => (tareasPorOF.get(orden) ?? []).map((t) => t.ofCreada))
+      .map((d) => fechaISO(d ?? null))
+      .filter((d): d is string => d !== null)
+      .sort()[0];
     // La más tardía: el pedido no está fabricado hasta que lo está su última OF.
     // ManualEndDate, no PlannedEndDate: en AR.26.03914 la herramienta vieja da
     // 17/08, que es ManualEndDate — PlannedEndDate vale 28/08. En AR.26.03926
@@ -813,7 +824,14 @@ async function consultarTablero(): Promise<Tablero> {
       interno: clave.startsWith("sin-pedido:") || esTrabajoInterno(cliente) || undefined,
       situacion: "procesado", // la vista ya es solo trabajo pendiente de OT
       fechaSolicitud: fecha,
-      fechaCreacion: fechaISO(venta?.creacion ?? null) ?? undefined,
+      // Cuándo llegó a OT, no cuándo lo pidió el cliente: son dos días
+      // distintos y el que importa aquí es el primero. En AR.26.03947 el
+      // pedido de venta es del 07/08 y sus OF se crearon el 10/08 — hasta ese
+      // día el parte no existía para Oficina Técnica, así que arrancar el
+      // recorrido tres días antes daba un retraso que nadie había tenido.
+      // La MÁS TEMPRANA de sus OF: el trabajo llega cuando llega la primera.
+      // Si RPS no la da (no debería), se cae a la fecha de venta.
+      fechaCreacion: llegadaAOT ?? fechaISO(venta?.creacion ?? null) ?? undefined,
       fechaPlanificacion: planificacion,
       planificacionEstimada: planificada === undefined || undefined,
       fechaFabricacion: fabricacion,

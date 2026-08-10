@@ -831,7 +831,7 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
         {/* Creación, no "solicitado": la solicitada es la entrega y ya está en
             su columna. Aquí lo que aporta el desplegable es cuándo entró. */}
         {p.fechaCreacion && (
-          <Dato label="Creación">
+          <Dato label="Llegada a OT">
             <Fecha iso={p.fechaCreacion} hoy={hoy} enfasis="ninguno" absoluta />
           </Dato>
         )}
@@ -1144,17 +1144,17 @@ function Estado({
               </span>
             </>
           )}
-          {/* El verbo lleva el color de su rol —plantear esmeralda, revisar
-              violeta, los mismos de toda la app— y no un punto de fase aparte:
-              el color YA dice de qué rol se habla.
-              Salvo cuando lo que dice es que FALTA alguien: ahí va apagado,
-              porque "Sin asignar" en el mismo verde que "Planteado" hacía que
-              un pedido sin tocar pareciera terminado. */}
+          {/* Solo el texto en el color de su rol —plantear esmeralda, revisar
+              violeta, los de toda la app—, sin recuadro. Con fondo tintado, 40
+              filas seguidas eran 40 pastillas de color compitiendo entre ellas
+              y con el resto de la fila; el color dice de qué rol se habla igual
+              de bien sin caja alrededor.
+              Cuando lo que dice es que FALTA alguien va apagado: "Sin asignar"
+              en el mismo verde que "Planteado" hacía que un pedido sin tocar
+              pareciera terminado. */}
           <span
-            className={`rounded px-1.5 py-0.5 font-semibold ${
-              t.pendienteDeAlguien
-                ? "bg-surface-2 text-text-muted ring-1 ring-border"
-                : ROL[t.rol].chip
+            className={`font-semibold ${
+              t.pendienteDeAlguien ? "text-text-muted" : ROL[t.rol].texto
             }`}
           >
             {t.verbo}
