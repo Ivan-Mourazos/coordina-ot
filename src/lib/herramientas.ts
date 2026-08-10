@@ -59,20 +59,23 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
     items: [
       {
         id: "historial-pedidos",
-        nombre: "Historial de pedidos hechos",
-        descripcion: "Los pedidos ya terminados, con sus tiempos.",
+        nombre: "Pedidos hechos",
+        // No es lo mismo que la pestaña Historial de aquí: esa busca un pedido
+        // por su código, su cliente o su fecha. Esta busca por MEDIDAS y
+        // características, que es la pregunta de "¿cómo resolvimos uno así?".
+        descripcion: "Búsqueda de pedidos ya realizados, por medidas o características.",
         url: "http://192.168.0.90:4100/",
       },
       {
         id: "buscador-sisgeko",
-        nombre: "Buscador Sisgeko",
-        descripcion: "Búsqueda en la documentación de Sisgeko.",
+        nombre: "Sisgeko",
+        descripcion: "Sistema de gestión de conocimiento de Toldos Gómez.",
         url: "http://192.168.0.90:5000/",
       },
       {
         id: "monitorizacion-tgm",
         nombre: "Monitorización TGM",
-        descripcion: "Estado de las máquinas y la producción.",
+        descripcion: "Actividad en tiempo real de instalaciones y comerciales.",
         url: "http://192.168.0.90:4000/",
       },
     ],
