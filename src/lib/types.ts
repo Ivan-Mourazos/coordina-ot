@@ -253,12 +253,14 @@ export function estaFinalizado(p: Pedido): boolean {
 
 /** Atrasado = pasó la fecha de planificación y aún no está finalizado.
  *
- *  Con la planificación PRESTADA no se puede decir: ahí la fecha es la de
- *  entrega puesta a falta de otra cosa (ver `planificacionEstimada`), y medir
- *  contra ella daba dos respuestas malas seguidas — "vas sobrado" hasta el día
- *  de la entrega y "atrasado" a partir de ese día—, ninguna de las dos sobre el
- *  planteo, que es lo que esto pretende medir. Sin fecha de planteo no hay
- *  retraso de planteo; hay un parte sin planificar. */
+ *  Sin fecha de planificación no se puede decir, así que no se dice: ahí
+ *  `fechaPlanificacion` es la entrega puesta a falta de otra cosa (ver
+ *  `planificacionEstimada`), y en esos partes viene mal más veces que bien —7
+ *  de 25 la traen ya pasada el día que entran—. Medir contra ella declaraba
+ *  atrasado un pedido recién llegado.
+ *
+ *  Va de la mano de la línea de tiempo, que a esos tampoco les pinta color:
+ *  ninguna de las dos afirma un retraso que nadie ha medido. */
 export function estaAtrasado(p: Pedido, hoy: string): boolean {
   if (p.planificacionEstimada) return false;
   return p.fechaPlanificacion < hoy && !estaFinalizado(p);

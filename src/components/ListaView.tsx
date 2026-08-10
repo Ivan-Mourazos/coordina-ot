@@ -200,10 +200,19 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
     ANCHO_FECHA_PCT,
     ANCHO_FECHA_PCT / 2,
   );
-  const tramos = tramosRecorrido(
-    hitos.find((h) => h.clave === "planificacion")?.pct ?? 0,
-    hitos.find((h) => h.clave === "fabricacion")?.pct,
-  );
+  // Sin fecha de planteo NO se colorea nada: ni el tramo, ni la fecha de
+  // referencia, ni el chip de retraso. La escalada mide contra el día en que
+  // esto debería estar planteado, y aquí ese día no se sabe — lo que hay es la
+  // entrega, que en estos partes viene mal más veces que bien (7 de 25 la
+  // tienen ya pasada el día que entran). AR.26.03947 entró el 07/08 con la
+  // entrega el 13/08 y salía en rojo: la línea afirmaba un retraso que nadie
+  // había medido. Gris y un rótulo que lo explica dice la verdad.
+  const sinPlanificar = pedido.planificacionEstimada === true;
+  const pctPlan = hitos.find((h) => h.clave === "planificacion")?.pct;
+  const tramos =
+    pctPlan === undefined
+      ? []
+      : tramosRecorrido(pctPlan, hitos.find((h) => h.clave === "fabricacion")?.pct);
   // El retraso que le importa a OT se cuenta desde la PLANIFICADA: ese es el
   // día en que el pedido debería estar planteado. La solicitada es la del
   // cliente y llega mucho después; medir contra ella diría "vas bien" con el
@@ -256,37 +265,37 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           // rojo cuando se come el suyo, morado cuando la entrega ya se
           // incumplió—. Antes iba en negro y había que buscar el retraso en el
           // chip del final.
-          const esPlan = h.clave === "planificacion";
-          // La prestada NO se colorea ni se pone en negrita: sería dar por
-          // firme una fecha que nadie ha decidido. Va en cursiva y apagada,
-          // como diciendo "aquí falta el dato".
+          // Se colorea el hito de REFERENCIA, sea cual sea: la planificada en
+          // los normales y la solicitada en los que no tienen fecha de planteo
+          // (ahí no se pinta hito de planificación, porque sería la misma fecha
+          // repetida). Así el color está siempre en el mismo sitio de la línea:
+          // la fecha que manda.
           const color =
-            !esPlan || h.estimado
+            !h.referencia || sinPlanificar
               ? undefined
               : enPlazo
                 ? TRAMO.holgado
                 : vencido
                   ? TRAMO.fuera
                   : (actual?.color ?? TRAMO.trabajo);
+          const cuanto = esHoyLaPlanificada
+            ? " (es hoy)"
+            : enPlazo
+              ? ` (quedan ${-diasTarde} d)`
+              : ` (pasada hace ${diasTarde} d)`;
           return (
             <span
               key={h.clave}
               className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px] leading-none ${
-                h.estimado ? "italic text-text-muted" : esPlan ? "font-bold" : "text-text-muted"
+                h.referencia ? "font-bold" : "text-text-muted"
               }`}
               style={{ left: `${etiquetas[i]}%`, color }}
               title={
-                h.estimado
-                  ? "Sin fecha de planificación en RPS: aquí se enseña la de entrega para que el pedido tenga por dónde ordenarse. No cuenta como retraso."
-                  : esPlan
-                    ? `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${
-                        esHoyLaPlanificada
-                          ? " (es hoy)"
-                          : enPlazo
-                            ? ` (quedan ${-diasTarde} d)`
-                            : ` (pasada hace ${diasTarde} d)`
-                      }`
-                    : `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
+                !h.referencia
+                  ? `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
+                  : sinPlanificar
+                    ? `Solicitada: ${h.iso.split("-").reverse().join("/")} — este pedido no tiene fecha de planificación en RPS. Se enseña la entrega como referencia, pero sin medir retraso contra ella: no es la fecha en que hay que plantearlo.`
+                    : `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${cuanto}`
               }
             >
               {fmtHito(h.iso)}
@@ -321,11 +330,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
         {hitos.map((h) => (
           <span
             key={h.clave}
-            // En hueco cuando la fecha es prestada: se ve que hay un hito ahí,
-            // pero no se afirma que sea el día que alguien decidió.
-            className={`absolute top-0 size-2 -translate-x-1/2 rounded-full ${
-              h.estimado ? "border border-border-strong bg-surface" : "bg-border-strong"
-            }`}
+            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-border-strong"
             style={{ left: `${h.pct}%` }}
           />
         ))}
@@ -359,7 +364,9 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           aparte. El morado avisa además de que la entrega al cliente ya no se
           cumple: está fuera de la escalada verde-naranja-rojo a propósito,
           porque no es "va muy justo", es que la fecha ya se incumplió. */}
-      {diasTarde > 0 && (
+      {/* Sin fecha de planteo no hay retraso que anunciar: el chip contaría
+          días pasados de una fecha que no es la que hay que cumplir. */}
+      {diasTarde > 0 && !sinPlanificar && (
         <span
           className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none"
           // El texto va del color del FONDO de la app, no blanco fijo: sobre el
@@ -456,18 +463,17 @@ function comparar(orden: Orden, nombres: Map<string, string>) {
           FASES.findIndex((f) => f.id === faseDePedido(a)) -
           FASES.findIndex((f) => f.id === faseDePedido(b));
         break;
-      case "planificacion": {
-        // Los que no tienen fecha de planificación real van DELANTE, siempre,
-        // en las dos direcciones: un parte sin planificar es algo que alguien
-        // tiene que resolver, no trabajo tranquilo, y ordenarlos por la fecha
-        // prestada los repartiría por la lista como si estuvieran planificados.
-        const ea = a.planificacionEstimada === true;
-        const eb = b.planificacionEstimada === true;
-        if (ea !== eb) return ea ? -1 : 1;
+      case "planificacion":
+        // Por la fecha de REFERENCIA de cada pedido, que en los que no tienen
+        // planificación es la entrega (`fechaPlanificacion` ya trae ese valor).
+        // Sin privilegios para esos: llegué a ponerlos delante de todo, pero
+        // eso colaba un pedido con la entrega a tres meses por encima de uno
+        // urgente. Lo que tienen de particular se ve en la línea, que no pinta
+        // hito de planificación, no colándose en la primera pantalla.
+        //
         // ISO yyyy-mm-dd: comparar el texto ya es comparar la fecha.
         d = a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
         break;
-      }
     }
     return d !== 0 ? d * signo : a.codigo.localeCompare(b.codigo, "es");
   };
@@ -955,21 +961,20 @@ function BotonOrden({
       type="button"
       onClick={() => onOrdenar(col)}
       title={title}
-      className={`group flex cursor-pointer items-center gap-1 rounded text-left uppercase tracking-wide hover:text-text ${JUSTIFICAR[alinear]} ${className}`}
+      className={`group flex cursor-pointer items-center gap-1 rounded text-left uppercase tracking-wide hover:text-text hover:underline ${JUSTIFICAR[alinear]} ${className}`}
     >
       <span className="min-w-0">{children}</span>
-      {/* La flecha de la columna activa se ve siempre; la de las demás solo
-          asoma al pasar por encima, que es cuando hace falta saber que la
-          cabecera se puede pulsar. Se apaga con opacidad y no quitándola, para
-          que la fila no dé un salto al entrar el ratón. */}
-      <span
-        aria-hidden="true"
-        className={`shrink-0 text-[8px] leading-none transition-opacity ${
-          activa ? "opacity-100" : "opacity-0 group-hover:opacity-40"
-        }`}
-      >
-        {activa && orden.dir === "desc" ? "▼" : "▲"}
-      </span>
+      {/* La flecha SOLO en la columna activa. Antes se pintaba siempre, apagada
+          con opacidad para que la cabecera no diera un salto al pasar el ratón
+          — pero seguía ocupando su hueco, y en las cabeceras de dos rótulos
+          ("QUIÉN · ESTADO") ese hueco invisible separaba la palabra de su punto
+          y parecía un error de maquetación. Que se puede pulsar lo dice ahora
+          el subrayado al pasar por encima, que no ocupa nada. */}
+      {activa && (
+        <span aria-hidden="true" className="shrink-0 text-[8px] leading-none">
+          {orden.dir === "desc" ? "▼" : "▲"}
+        </span>
+      )}
     </button>
   );
 }
@@ -1080,17 +1085,9 @@ function ThEstado({
       aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <span className="flex items-center gap-1.5">
-        <BotonOrden
-          col="fase"
-          orden={orden}
-          onOrdenar={onOrdenar}
-          title="Ordena por el avance real: sin empezar, planteando, esperando revisión, listo para pasar."
-        >
-          Estado
-        </BotonOrden>
-        <span aria-hidden="true" className="text-text-muted/40">
-          ·
-        </span>
+        {/* En el MISMO orden en que se lee la fila ("Jaime · Planteado"): con
+            los rótulos al revés, cada uno ordenaba por lo que tenía al lado el
+            otro. */}
         <BotonOrden
           col="autor"
           orden={orden}
@@ -1098,6 +1095,17 @@ function ThEstado({
           title="Ordena por el nombre de quien lo plantea. Los pedidos sin autor van al final."
         >
           Quién
+        </BotonOrden>
+        <span aria-hidden="true" className="text-text-muted/40">
+          ·
+        </span>
+        <BotonOrden
+          col="fase"
+          orden={orden}
+          onOrdenar={onOrdenar}
+          title="Ordena por el avance real: sin empezar, planteando, esperando revisión, listo para pasar."
+        >
+          Estado
         </BotonOrden>
       </span>
     </th>

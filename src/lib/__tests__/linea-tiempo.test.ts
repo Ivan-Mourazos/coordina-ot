@@ -179,9 +179,35 @@ describe("lineaTiempo con datos malos de RPS", () => {
     ]);
   });
 
-  it("marca la planificación prestada, y con ella no descarta la fabricación", () => {
-    // Sin fecha de planteo, `fechaPlanificacion` es la de entrega: comparar la
-    // fabricación contra ella no dice nada de si es imposible.
+  it("sin fecha de planteo NO se pinta hito de planificación: sería la solicitada repetida", () => {
+    const l = lineaTiempo(
+      {
+        fechaPlanificacion: "2026-09-01", // = la entrega, puesta por rps.ts
+        planificacionEstimada: true,
+        fechaFabricacion: "2026-08-20",
+        fechaEntrega: "2026-09-01",
+      },
+      "2026-08-10",
+    );
+    expect(l.hitos.map((h) => h.clave)).toEqual(["fabricacion", "solicitada"]);
+  });
+
+  it("sin fecha de planteo, la REFERENCIA pasa a ser la solicitada", () => {
+    const l = lineaTiempo(
+      { fechaPlanificacion: "2026-09-01", planificacionEstimada: true, fechaEntrega: "2026-09-01" },
+      "2026-08-10",
+    );
+    expect(l.hitos.find((h) => h.referencia)?.clave).toBe("solicitada");
+  });
+
+  it("con fecha de planteo, la referencia es la planificación y solo ella", () => {
+    const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
+    expect(l.hitos.filter((h) => h.referencia).map((h) => h.clave)).toEqual(["planificacion"]);
+  });
+
+  it("la planificación prestada no descarta la fabricación anterior a ella", () => {
+    // Comparar la fabricación contra una fecha que no es la de planteo no dice
+    // nada de si es imposible, así que ahí no se descarta nada.
     const l = lineaTiempo(
       {
         fechaPlanificacion: "2026-09-01",
@@ -191,12 +217,37 @@ describe("lineaTiempo con datos malos de RPS", () => {
       },
       "2026-08-10",
     );
-    expect(l.hitos.find((h) => h.clave === "planificacion")?.estimado).toBe(true);
     expect(l.hitos.some((h) => h.clave === "fabricacion")).toBe(true);
   });
+});
 
-  it("una planificación normal no se marca como prestada", () => {
-    const l = lineaTiempo(p("2026-08-01", "2026-08-11", "2026-09-10"), "2026-08-01");
-    expect(l.hitos.every((h) => h.estimado === undefined)).toBe(true);
+describe("fabricación anterior a la creación del pedido", () => {
+  it("no se pinta: no se acaba de fabricar lo que nadie ha pedido todavía", () => {
+    // Caso real AR.26.03947: pedido de venta del 07/08, OF creada el 10/08 y
+    // ManualEndDate del 06/08 — el mismo valor en sus cuatro OF.
+    const l = lineaTiempo(
+      {
+        fechaCreacion: "2026-08-07",
+        fechaPlanificacion: "2026-08-13",
+        planificacionEstimada: true,
+        fechaFabricacion: "2026-08-06",
+        fechaEntrega: "2026-08-13",
+      },
+      "2026-08-10",
+    );
+    expect(l.hitos.map((h) => h.clave)).toEqual(["creacion", "solicitada"]);
+  });
+
+  it("la comprobación NO depende del planteo, así que vale sin planificación", () => {
+    const conPlanteo = lineaTiempo(
+      {
+        fechaCreacion: "2026-08-07",
+        fechaPlanificacion: "2026-08-09",
+        fechaFabricacion: "2026-08-06",
+        fechaEntrega: "2026-08-20",
+      },
+      "2026-08-10",
+    );
+    expect(conPlanteo.hitos.some((h) => h.clave === "fabricacion")).toBe(false);
   });
 });

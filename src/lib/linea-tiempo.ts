@@ -12,10 +12,13 @@ export interface HitoLinea {
   iso: string;
   /** Posición en la línea, de 0 a 100. */
   pct: number;
-  /** La fecha no es de RPS: se puso a falta de otra cosa. Hoy solo la
-   *  planificación (ver `planificacionEstimada` en types.ts). Se pinta distinta
-   *  —en hueco— para no dar por firme algo que nadie ha decidido. */
-  estimado?: boolean;
+  /** Este hito es la fecha que MANDA en el pedido: la que se colorea con la
+   *  urgencia y contra la que se mide el retraso.
+   *
+   *  Normalmente es la planificación. Cuando RPS no la da, el pedido no tiene
+   *  hito de planificación —sería repetir la solicitada— y el papel lo hereda
+   *  la solicitada, que pasa a ser la única fecha que se sabe de él. */
+  referencia?: boolean;
 }
 
 export interface LineaTiempo {
@@ -107,22 +110,43 @@ export function lineaTiempo(
   //
   // Con la planificación prestada no se descarta nada: comparar contra una
   // fecha que no es la de planteo no dice si la fabricación es imposible.
-  const fabricacionImposible =
-    p.fechaFabricacion !== undefined &&
+  //
+  // Y tampoco puede ser anterior a la CREACIÓN del pedido de venta: no se acaba
+  // de fabricar algo que todavía nadie ha pedido. Esta segunda comprobación no
+  // depende del planteo, así que caza también los partes sin planificar, que es
+  // donde más se cuela. Comprobado en RPS con AR.26.03947: la OF se creó el
+  // 10/08, el pedido de venta el 07/08 y su ManualEndDate dice 06/08 — y las
+  // cuatro OF del pedido traen la MISMA fecha, que es lo que delata que es un
+  // valor heredado de una plantilla y no algo que nadie decidiera.
+  const fabAntesDePlanteo =
     !p.planificacionEstimada &&
+    p.fechaFabricacion !== undefined &&
     p.fechaFabricacion < p.fechaPlanificacion;
+  const fabAntesDelPedido =
+    p.fechaCreacion !== undefined &&
+    p.fechaFabricacion !== undefined &&
+    p.fechaFabricacion < p.fechaCreacion;
+  const fabricacionImposible = fabAntesDePlanteo || fabAntesDelPedido;
 
+  // Sin fecha de planteo, la planificación ES la solicitada (ver rps.ts), así
+  // que pintar el hito sería repetir la misma fecha dos veces en la misma
+  // línea. Se deja fuera y manda la solicitada: la referencia del pedido pasa a
+  // ser la entrega, que es lo único que se sabe de él.
   const crudos = [
     ...(p.fechaCreacion ? [{ clave: "creacion" as const, iso: p.fechaCreacion }] : []),
-    {
-      clave: "planificacion" as const,
-      iso: p.fechaPlanificacion,
-      estimado: p.planificacionEstimada === true,
-    },
+    ...(p.planificacionEstimada
+      ? []
+      : [{ clave: "planificacion" as const, iso: p.fechaPlanificacion }]),
     ...(p.fechaFabricacion && !fabricacionImposible
       ? [{ clave: "fabricacion" as const, iso: p.fechaFabricacion }]
       : []),
-    { clave: "solicitada" as const, iso: p.fechaEntrega },
+    {
+      clave: "solicitada" as const,
+      iso: p.fechaEntrega,
+      // La solicitada hace de referencia cuando no hay planteo: es la que se
+      // colorea, en el sitio donde las demás colorean la planificada.
+      referencia: p.planificacionEstimada === true,
+    },
   ];
   // Los extremos son los que marcan la escala, y no siempre son el primero y
   // el último de la lista: RPS deja fabricar después de la fecha solicitada
@@ -136,7 +160,11 @@ export function lineaTiempo(
     etiqueta: ETIQUETA[h.clave],
     iso: h.iso,
     pct: total > 0 ? (diasEntre(inicio, h.iso) / total) * 100 : (i / (crudos.length - 1)) * 100,
-    ...("estimado" in h && h.estimado ? { estimado: true } : {}),
+    // La planificación es la referencia siempre que exista; si no, lo es la
+    // solicitada (ver arriba). Así quien pinta no necesita saber por qué.
+    ...(h.clave === "planificacion" || ("referencia" in h && h.referencia)
+      ? { referencia: true }
+      : {}),
   }));
 
   const brutoHoy = total > 0 ? (diasEntre(inicio, hoy) / total) * 100 : 50;

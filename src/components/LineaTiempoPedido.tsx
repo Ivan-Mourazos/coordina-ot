@@ -52,18 +52,9 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
         {hitos.map((h) => (
           <span
             key={h.clave}
-            // En hueco cuando la fecha es prestada, igual que en la Lista: las
-            // dos líneas de tiempo de la app tienen que contar lo mismo, o al
-            // pasar de una a otra parece que los datos han cambiado.
-            className={`absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-surface ${
-              h.estimado ? "bg-surface-2 ring-1 ring-border-strong" : "bg-text-muted"
-            }`}
+            className="absolute top-0 size-3 -translate-x-1/2 rounded-full border-2 border-surface bg-text-muted"
             style={{ left: `${h.pct}%` }}
-            title={
-              h.estimado
-                ? "Sin fecha de planificación en RPS: se enseña la de entrega para poder situar el pedido. No cuenta como retraso."
-                : `${h.etiqueta}: ${fmtDiaMes(h.iso)}`
-            }
+            title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}`}
           />
         ))}
 
@@ -93,15 +84,16 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
             <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-text-muted">
               {h.etiqueta}
             </p>
-            {/* La prestada, en cursiva y apagada: se ve que hay una fecha ahí y
-                que no es firme, sin tener que abrir el `title`. */}
+            {/* La fecha que MANDA en el pedido va destacada: la planificada, o
+                la solicitada en los que no tienen fecha de planteo. Igual que
+                en la Lista — las dos líneas de la app cuentan lo mismo. */}
             <p
               className={`text-[10px] ${
-                h.estimado ? "italic text-text-muted" : "font-medium text-text"
+                h.referencia ? "font-bold text-text" : "font-medium text-text-muted"
               }`}
               title={
-                h.estimado
-                  ? "Sin fecha de planificación en RPS: se enseña la de entrega. No cuenta como retraso."
+                h.referencia && h.clave === "solicitada"
+                  ? "Este pedido no tiene fecha de planificación en RPS, así que la referencia es la entrega."
                   : undefined
               }
             >
