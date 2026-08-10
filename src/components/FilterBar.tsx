@@ -12,6 +12,7 @@ import {
   filtrosActivos,
   type Categoria,
   type Filtros,
+  type OpcionesFiltro,
 } from "@/lib/filtros";
 import { Select, OpDot } from "./Select";
 import { FamiliaIcon } from "./FamiliaTag";
@@ -28,6 +29,11 @@ import { FamiliaIcon } from "./FamiliaTag";
 // desplegable— y la bandeja seguía recortada por un filtro invisible. Ahora
 // cada vista lleva sus propios filtros (ver `filtrosPorVista` en Board) y esta
 // tabla garantiza que todo filtro activo tiene su control en pantalla.
+//
+// Los controles van POR GRUPOS, con su rótulo y su división: QUÉ trabajo es,
+// DE QUIÉN, PARA CUÁNDO y QUÉ SE ENSEÑA. En una sola fila corrida de ocho
+// controles había que leerlos todos para dar con el que se busca; agrupados se
+// va directo al bloque.
 
 export type VistaFiltrable = "asignar" | "lista" | "revision";
 
@@ -43,16 +49,18 @@ export type VistaFiltrable = "asignar" | "lista" | "revision";
  *    sí se quedan: ahí la pregunta "¿qué le falta por repasar a Tamara?" no
  *    tiene otro sitio donde hacerse.
  *  · **Solo atrasados en la Lista**: la columna Recorrido ya pinta la línea de
- *    tiempo de cada pedido y la tabla tiene "Atrasados primero". Tres formas
- *    de decir lo mismo eran dos de más. En Asignar se queda: ahí no hay línea
- *    de tiempo y es el panel donde se decide qué se coge antes.
+ *    tiempo de cada pedido. Dos formas de decir lo mismo era una de más. En
+ *    Asignar se queda: ahí no hay línea de tiempo y es el panel donde se decide
+ *    qué se coge antes.
  *  · **Esperando material en Asignar**: no impide plantear, así que no es un
- *    criterio para repartir. Es una consulta, y las consultas son la Lista. */
+ *    criterio para repartir. Es una consulta, y las consultas son la Lista.
+ *  · **"Con los pasados"**: un interruptor que prometía algo que no se
+ *    entendía —pasados, ¿a dónde?—. Los pedidos ya pasados a Producción no
+ *    salen y punto: esta es la lista de lo que queda por hacer. */
 const CONTROLES: Record<VistaFiltrable, {
   estado: boolean;
   roles: boolean;
   fechas: boolean;
-  pasados: boolean;
   categoria: boolean;
   atrasados: boolean;
   material: boolean;
@@ -60,23 +68,28 @@ const CONTROLES: Record<VistaFiltrable, {
   // Asignar reparte trabajo sin empezar: el estado no discrimina (casi todo es
   // "pendiente") y filtrar por autor no tiene sentido en un panel que es, por
   // definición, lo que no tiene autor.
-  asignar: { estado: false, roles: false, fechas: false, pasados: false, categoria: true, atrasados: true, material: false },
-  lista: { estado: true, roles: false, fechas: true, pasados: true, categoria: true, atrasados: false, material: true },
+  asignar: { estado: false, roles: false, fechas: false, categoria: true, atrasados: true, material: false },
+  lista: { estado: true, roles: false, fechas: true, categoria: true, atrasados: false, material: true },
   // Revisión ya está partida por estado de revisión y no enseña trabajo
   // terminado: el estado y las fechas sobran.
-  revision: { estado: false, roles: true, fechas: false, pasados: false, categoria: false, atrasados: false, material: false },
+  revision: { estado: false, roles: true, fechas: false, categoria: false, atrasados: false, material: false },
 };
 
-/** Selector de MODO (situación): siempre tiene valor, así que el nombre va
- *  fuera — sin él, un desplegable que pone "Procesados" no dice de qué. Los
- *  FILTROS no usan esto: llevan su propio nombre dentro como texto vacío
- *  ("Familia") y lo sustituyen por el valor al elegir. */
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+/** División entre grupos de controles. */
+function Separador() {
+  return <span aria-hidden className="h-5 w-px shrink-0 bg-[var(--glass-border)]" />;
+}
+
+/** Un bloque de controles con su nombre delante. El rótulo va pequeño y
+ *  apagado: nombra el grupo sin competir con lo que se pulsa. */
+function Grupo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex items-center gap-1.5 text-xs text-text-muted">
-      <span className="font-medium">{label}</span>
-      {children}
-    </label>
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        {label}
+      </span>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
   );
 }
 
@@ -100,10 +113,10 @@ function Toggle({
       onClick={onClick}
       aria-pressed={activo}
       title={title}
-      className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+      className={`glass-chip rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
         activo
-          ? "bg-brand-500/15 text-brand-700 ring-1 ring-brand-400 dark:text-brand-300"
-          : "glass-chip text-text-muted hover:text-text"
+          ? "glass-chip-activo text-brand-700 dark:text-brand-300"
+          : "text-text-muted hover:text-text"
       }`}
     >
       {children}
@@ -116,10 +129,11 @@ export function FilterBar({
   titulo,
   filtros,
   setFiltros,
-  familias,
+  opciones,
   operarios,
   conteos,
-  agrupacion,
+  ajustes,
+  rotuloAjustes,
 }: {
   vista: VistaFiltrable;
   /** Rótulo a la izquierda cuando la barra no filtra la vista entera, sino un
@@ -128,15 +142,20 @@ export function FilterBar({
   titulo?: string;
   filtros: Filtros;
   setFiltros: (f: Partial<Filtros>) => void;
-  familias: Familia[];
+  /** Lo que se puede elegir en cada desplegable: solo lo que hay delante, no el
+   *  catálogo entero (ver `opcionesDisponibles`). Ofrecer las siete familias
+   *  cuando en la vista hay tres llenaba los menús de opciones que dejaban la
+   *  pantalla en blanco al elegirlas. */
+  opciones: OpcionesFiltro;
   operarios: Operario[];
   /** Cuántas OF hay de cada categoría, para el desplegable "Ver". */
   conteos: Record<Categoria, number>;
-  /** Control de AGRUPACIÓN de la vista, si lo tiene. Va aquí dentro y no
-   *  suelto al lado para poder separarlo de verdad: filtrar quita cosas de la
-   *  pantalla y agrupar solo reparte lo que queda, y puestos en fila sin más
-   *  parecían lo mismo. Por eso van en dos zonas rotuladas. */
-  agrupacion?: React.ReactNode;
+  /** Ajustes de PRESENTACIÓN de la vista: cómo se ordena o cómo se agrupa lo
+   *  que ha pasado los filtros. Van aquí dentro y no sueltos al lado para poder
+   *  separarlos de verdad: filtrar quita cosas de la pantalla y esto solo
+   *  coloca lo que queda, y puestos en fila sin más parecían lo mismo. */
+  ajustes?: React.ReactNode;
+  rotuloAjustes?: string;
 }) {
   const ver = CONTROLES[vista];
   const activos = filtrosActivos(filtros);
@@ -153,13 +172,13 @@ export function FilterBar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {titulo && (
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-text">
-          {titulo}
-        </span>
+        <>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-text">
+            {titulo}
+          </span>
+          <Separador />
+        </>
       )}
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-        Filtrar
-      </span>
 
       {/* búsqueda, con su propia ✕: vaciarla es lo que más se hace y antes
           obligaba a ir a "Limpiar", que se lleva por delante el resto. */}
@@ -178,7 +197,7 @@ export function FilterBar({
           value={filtros.query}
           onChange={(e) => setFiltros({ query: e.target.value })}
           placeholder="Buscar AR, cliente o negocio…"
-          className="glass-chip w-56 rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+          className="glass-chip w-52 rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
         />
         {filtros.query && (
           <button
@@ -192,172 +211,168 @@ export function FilterBar({
         )}
       </div>
 
-      <span className="h-5 w-px bg-[var(--glass-border)]" />
+      <Separador />
 
-      {/* Filtros de contenido. El nombre del campo va DENTRO del desplegable y
-          el valor lo sustituye al elegir: con la etiqueta fuera, "Familia
-          Todas" gastaba el doble de sitio para decir que no filtra nada. Y al
-          filtrar se pinta con el color de marca, así se ve de un vistazo cuál
-          está recortando la lista. */}
-      <Select
-        value={filtros.familia === "todas" ? null : filtros.familia}
-        onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
-        placeholder="Familia"
-        etiquetaVaciar="Todas las familias"
-        acentuarActivo
-        options={familias.map((f) => ({
-          value: f,
-          label: familiaMeta(f).label,
-          icon: <FamiliaIcon familia={f} className="size-3.5" />,
-        }))}
-      />
-
-      {ver.estado && (
+      {/* QUÉ trabajo es. El nombre del campo va DENTRO del desplegable y el
+          valor lo sustituye al elegir: con la etiqueta fuera, "Familia Todas"
+          gastaba el doble de sitio para decir que no filtra nada. Al filtrar se
+          pinta con el color de marca, así se ve de un vistazo cuál está
+          recortando la lista. */}
+      <Grupo label="Qué">
         <Select
-          value={filtros.estado === "todos" ? null : filtros.estado}
-          onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
-          placeholder="Estado"
-          etiquetaVaciar="Todos los estados"
+          value={filtros.familia === "todas" ? null : filtros.familia}
+          onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
+          placeholder="Familia"
+          etiquetaVaciar="Todas las familias"
           acentuarActivo
-          options={ESTADOS_ORDEN.map((e) => ({
-            value: e,
-            label: ESTADO[e].label,
-            icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
+          options={opciones.familias.map((f) => ({
+            value: f,
+            label: familiaMeta(f).label,
+            icon: <FamiliaIcon familia={f} className="size-3.5" />,
           }))}
         />
-      )}
 
-      <Select
-        value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
-        onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
-        placeholder="Prioridad"
-        etiquetaVaciar="Todas las prioridades"
-        acentuarActivo
-        options={([3, 2, 1] as Prioridad[]).map((p) => ({
-          value: String(p),
-          label: PRIORIDAD[p].label,
-          icon: (
-            <span
-              className="size-2 shrink-0 rounded-full"
-              style={{ background: PRIORIDAD[p].color }}
-            />
-          ),
-        }))}
-      />
+        {ver.estado && (
+          <Select
+            value={filtros.estado === "todos" ? null : filtros.estado}
+            onChange={(v) => setFiltros({ estado: (v as EstadoOF) ?? "todos" })}
+            placeholder="Estado"
+            etiquetaVaciar="Todos los estados"
+            acentuarActivo
+            options={ESTADOS_ORDEN.filter((e) => opciones.estados.includes(e)).map((e) => ({
+              value: e,
+              label: ESTADO[e].label,
+              icon: <span className={`size-2 shrink-0 rounded-full ${ESTADO[e].dot}`} />,
+            }))}
+          />
+        )}
 
-      {/* Autor y revisor: "¿qué lleva Tamara?" no se podía preguntar en ningún
-          sitio salvo mirando su zona del tablero, que además solo enseña lo que
-          tiene asignado ahora. */}
+        <Select
+          value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
+          onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
+          placeholder="Prioridad"
+          etiquetaVaciar="Todas las prioridades"
+          acentuarActivo
+          options={opciones.prioridades.map((p) => ({
+            value: String(p),
+            label: PRIORIDAD[p].label,
+            icon: (
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: PRIORIDAD[p].color }}
+              />
+            ),
+          }))}
+        />
+      </Grupo>
+
+      {/* DE QUIÉN es. "¿Qué le queda a Tamara por repasar?" no se podía
+          preguntar en ningún sitio salvo mirando su zona del tablero. */}
       {ver.roles && (
         <>
-          <Select
-            value={filtros.autor === "todos" ? null : filtros.autor}
-            onChange={(v) => setFiltros({ autor: v ?? "todos" })}
-            placeholder="Autor"
-            etiquetaVaciar="Cualquier autor"
-            acentuarActivo
-            options={opcionesPersona}
-          />
-          <Select
-            value={filtros.revisor === "todos" ? null : filtros.revisor}
-            onChange={(v) => setFiltros({ revisor: v ?? "todos" })}
-            placeholder="Revisor"
-            etiquetaVaciar="Cualquier revisor"
-            acentuarActivo
-            options={opcionesPersona}
-          />
+          <Separador />
+          <Grupo label="Quién">
+            <Select
+              value={filtros.autor === "todos" ? null : filtros.autor}
+              onChange={(v) => setFiltros({ autor: v ?? "todos" })}
+              placeholder="Autor"
+              etiquetaVaciar="Cualquier autor"
+              acentuarActivo
+              options={opcionesPersona}
+            />
+            <Select
+              value={filtros.revisor === "todos" ? null : filtros.revisor}
+              onChange={(v) => setFiltros({ revisor: v ?? "todos" })}
+              placeholder="Revisor"
+              etiquetaVaciar="Cualquier revisor"
+              acentuarActivo
+              options={opcionesPersona}
+            />
+          </Grupo>
         </>
       )}
 
-      {/* Ventana de planificación: "lo de esta semana" no se podía pedir. El
-          Historial ya tenía sus dos fechas; esto es lo mismo para el trabajo
-          que aún está por hacer. */}
+      {/* PARA CUÁNDO. El Historial ya tenía sus dos fechas; esto es lo mismo
+          para el trabajo que aún está por hacer. */}
       {ver.fechas && (
-        <Campo label="Planificado">
-          <input
-            type="date"
-            value={filtros.desde}
-            onChange={(e) => setFiltros({ desde: e.target.value })}
-            aria-label="Planificado desde"
-            className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
-              filtros.desde ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
-            }`}
-          />
-          <span className="text-text-muted">→</span>
-          <input
-            type="date"
-            value={filtros.hasta}
-            onChange={(e) => setFiltros({ hasta: e.target.value })}
-            aria-label="Planificado hasta"
-            className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
-              filtros.hasta ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
-            }`}
-          />
-        </Campo>
-      )}
-
-      {ver.pasados && (
-        <Toggle
-          activo={filtros.incluirPasados}
-          onClick={() => setFiltros({ incluirPasados: !filtros.incluirPasados })}
-          title="Enseña también los pedidos ya pasados a Producción. Apagado, la lista es solo trabajo pendiente."
-        >
-          Con los pasados
-        </Toggle>
-      )}
-
-      {/* "Ver": las categorías que NO son el trabajo normal de OT. Antes eran
-          cuatro botones seguidos que gastaban una fila entera para decir "esto
-          está escondido", y ninguno decía cuánto había detrás: había que
-          pulsarlos a ciegas para descubrir que no había ninguna OF anulada. */}
-      {ver.categoria && (
-        <Campo label="Ver">
-          <Select
-            value={filtros.categoria}
-            onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
-            placeholder={null}
-            acentuarActivo={filtros.categoria !== "normal"}
-            options={CATEGORIAS.map((c) => ({
-              value: c,
-              label: conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
-            }))}
-          />
-        </Campo>
-      )}
-
-      {ver.material && (
-        <Toggle
-          activo={filtros.soloMaterialPendiente}
-          onClick={() => setFiltros({ soloMaterialPendiente: !filtros.soloMaterialPendiente })}
-          title="Enseña SOLO las OF que esperan material de compras. No se pueden terminar de plantear hasta que llegue."
-        >
-          Esperando material
-        </Toggle>
-      )}
-
-      {ver.atrasados && (
-        <Toggle
-          activo={filtros.soloAtrasados}
-          onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
-          title="Enseña SOLO los pedidos cuya fecha de planificación ya pasó y siguen sin terminar."
-        >
-          Solo atrasados
-        </Toggle>
-      )}
-
-      {/* Zona de AGRUPAR, separada de la de filtrar con su propio rótulo y una
-          división. El usuario leyó "Familia" (filtro) y "Familia" (agrupación)
-          seguidos y no distinguía uno de otro; y no son lo mismo: filtrar por
-          familia deja solo esa, agrupar por familia las enseña todas repartidas
-          en filas. Se quedan las dos porque combinarlas es útil —agrupado por
-          prioridad, filtrando solo toldos—, pero ya no se confunden. */}
-      {agrupacion && (
         <>
-          <span className="h-5 w-px bg-[var(--glass-border)]" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-            Agrupar
-          </span>
-          {agrupacion}
+          <Separador />
+          <Grupo label="Planificado">
+            <input
+              type="date"
+              value={filtros.desde}
+              onChange={(e) => setFiltros({ desde: e.target.value })}
+              aria-label="Planificado desde"
+              className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
+                filtros.desde ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
+              }`}
+            />
+            <span className="text-text-muted">→</span>
+            <input
+              type="date"
+              value={filtros.hasta}
+              onChange={(e) => setFiltros({ hasta: e.target.value })}
+              aria-label="Planificado hasta"
+              className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
+                filtros.hasta ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
+              }`}
+            />
+          </Grupo>
+        </>
+      )}
+
+      {/* QUÉ SE ENSEÑA: las categorías que por defecto no se ven, más los
+          recortes sueltos. "Ver" era antes cuatro botones seguidos que gastaban
+          una fila entera para decir "esto está escondido", y ninguno decía
+          cuánto había detrás: había que pulsarlos a ciegas para descubrir que
+          no había ninguna OF anulada. */}
+      {(ver.categoria || ver.atrasados || ver.material) && (
+        <>
+          <Separador />
+          <Grupo label="Ver">
+            {ver.categoria && (
+              <Select
+                value={filtros.categoria}
+                onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
+                placeholder={null}
+                acentuarActivo={filtros.categoria !== "normal"}
+                options={CATEGORIAS.map((c) => ({
+                  value: c,
+                  label:
+                    conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
+                }))}
+              />
+            )}
+            {ver.material && (
+              <Toggle
+                activo={filtros.soloMaterialPendiente}
+                onClick={() =>
+                  setFiltros({ soloMaterialPendiente: !filtros.soloMaterialPendiente })
+                }
+                title="Enseña SOLO las OF que esperan material de compras. No se pueden terminar de plantear hasta que llegue."
+              >
+                Esperando material
+              </Toggle>
+            )}
+            {ver.atrasados && (
+              <Toggle
+                activo={filtros.soloAtrasados}
+                onClick={() => setFiltros({ soloAtrasados: !filtros.soloAtrasados })}
+                title="Enseña SOLO los pedidos cuya fecha de planificación ya pasó y siguen sin terminar."
+              >
+                Solo atrasados
+              </Toggle>
+            )}
+          </Grupo>
+        </>
+      )}
+
+      {/* Los ajustes de PRESENTACIÓN, en su zona. Se leía "Familia" (filtro) y
+          "Familia" (agrupación) seguidos y no se distinguía uno de otro. */}
+      {ajustes && (
+        <>
+          <Separador />
+          <Grupo label={rotuloAjustes ?? "Ver como"}>{ajustes}</Grupo>
         </>
       )}
 

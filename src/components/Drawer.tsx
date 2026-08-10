@@ -19,6 +19,7 @@ import { pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
+import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -76,6 +77,10 @@ export function Drawer({
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
+  // El Drawer tapa la pantalla entera pero dejaba el `body` suelto: la rueda
+  // sobre él movía la Lista de detrás, y al cerrar aparecías en otro sitio sin
+  // haber tocado nada. Mismo bloqueo que usan los paneles del tablero.
+  useScrollBloqueado(pedido !== null);
 
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;

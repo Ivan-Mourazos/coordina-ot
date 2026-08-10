@@ -4,6 +4,7 @@ import {
   aplicarFiltros,
   contarCategorias,
   contarCategoriasVisibles,
+  opcionesDisponibles,
   filtrosAParams,
   hayFiltrosActivos,
   ofEnCategoria,
@@ -157,13 +158,55 @@ describe("aplicarFiltros", () => {
     expect(r[0].ofs.map((o) => o.id)).toEqual(["espera"]);
   });
 
-  it("los pasados a Producción se esconden salvo que se pidan", () => {
+  it("los pasados a Producción no salen nunca: esto es lo que queda por hacer", () => {
     const ps = [
       pedido({ id: "proc", situacion: "procesado" }),
       pedido({ id: "pasado", situacion: "completado" }),
     ];
     expect(aplicarFiltros(ps, FILTROS_INICIALES, HOY).map((p) => p.id)).toEqual(["proc"]);
-    expect(aplicarFiltros(ps, con({ incluirPasados: true }), HOY)).toHaveLength(2);
+  });
+});
+
+describe("opcionesDisponibles", () => {
+  it("solo ofrece las familias que hay delante, no el catálogo entero", () => {
+    const ps = [
+      pedido({ id: "a", ofs: [of({ familia: "TOLDO" })] }),
+      pedido({ id: "b", ofs: [of({ familia: "LONA" })] }),
+    ];
+    expect(opcionesDisponibles(ps, FILTROS_INICIALES, HOY).familias).toEqual(["LONA", "TOLDO"]);
+  });
+
+  it("se adapta al resto de la barra: con 'Ver: anuladas', las familias de esas", () => {
+    const ps = [
+      pedido({ id: "a", ofs: [of({ familia: "TOLDO" })] }),
+      pedido({ id: "b", ofs: [of({ familia: "LONA", estado: "anulada" })] }),
+    ];
+    expect(opcionesDisponibles(ps, con({ categoria: "anuladas" }), HOY).familias).toEqual([
+      "LONA",
+    ]);
+  });
+
+  it("elegir un filtro NO vacía su propio desplegable", () => {
+    const ps = [
+      pedido({ id: "a", ofs: [of({ familia: "TOLDO" })] }),
+      pedido({ id: "b", ofs: [of({ familia: "LONA" })] }),
+    ];
+    // Con TOLDO elegido siguen ofreciéndose las dos: si no, cambiar de familia
+    // exigiría vaciar el filtro primero.
+    expect(opcionesDisponibles(ps, con({ familia: "TOLDO" }), HOY).familias).toEqual([
+      "LONA",
+      "TOLDO",
+    ]);
+  });
+
+  it("estados y prioridades salen de lo visible", () => {
+    const ps = [
+      pedido({ id: "a", prioridad: 3, ofs: [of({ estado: "en_curso" })] }),
+      pedido({ id: "b", prioridad: 1, ofs: [of({ estado: "aprobada" })] }),
+    ];
+    const o = opcionesDisponibles(ps, FILTROS_INICIALES, HOY);
+    expect(o.estados.sort()).toEqual(["aprobada", "en_curso"]);
+    expect(o.prioridades).toEqual([3, 1]);
   });
 });
 
@@ -231,7 +274,8 @@ describe("ida y vuelta a la URL", () => {
       soloAtrasados: true,
       soloMaterialPendiente: true,
       categoria: "detenidas",
-      incluirPasados: true,
+      orden: "cliente",
+      ordenDesc: true,
     });
     expect(paramsAFiltros(filtrosAParams(f))).toEqual(f);
   });

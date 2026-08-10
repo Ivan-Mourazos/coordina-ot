@@ -39,6 +39,25 @@ export const CATEGORIA_AYUDA: Record<Categoria, string> = {
   internos: "SOLO el trabajo interno: sin pedido de venta o a nombre de la propia empresa.",
 };
 
+/** Por qué se ordena la Lista.
+ *
+ *  Vuelve a la barra tras un rodeo por las cabeceras de la tabla. Ordenar
+ *  pulsando la columna suena bien y en una tabla normal lo es, pero aquí tres
+ *  de las columnas son celdas fundidas —identidad, estado— y hacía falta meter
+ *  dos rótulos pulsables dentro de cada una, con su flecha y su hueco: la
+ *  cabecera acababa contando más de lo que cuenta una fila. En la barra, junto
+ *  a los filtros, es un ajuste más de la vista y se lee de corrido. */
+export const ORDENES = ["planificacion", "codigo", "cliente", "autor", "fase"] as const;
+export type OrdenLista = (typeof ORDENES)[number];
+
+export const ORDEN_LABEL: Record<OrdenLista, string> = {
+  planificacion: "Fecha planificada",
+  codigo: "Nº de pedido",
+  cliente: "Cliente",
+  autor: "Quién lo lleva",
+  fase: "Por dónde va",
+};
+
 /** Valor de autor/revisor: id de operario, "todos" o "sin" (sin asignar). */
 export type FiltroPersona = string;
 export const SIN_ASIGNAR = "sin";
@@ -60,15 +79,12 @@ export interface Filtros {
    *  día, así que es una consulta, no un aviso. */
   soloMaterialPendiente: boolean;
   categoria: Categoria;
-  /** Enseñar también los pedidos ya pasados a Producción.
-   *
-   *  Sustituye al desplegable "Situación", que ofrecía "Pendientes de
-   *  procesar" y no devolvía NUNCA nada: la vista de RPS que alimenta el
-   *  tablero solo trae trabajo ya procesado (ver el comentario de `situacion`
-   *  en rps.ts), así que ese valor era de la época de los datos de ejemplo. Lo
-   *  que sí existe de verdad es lo ya pasado a Producción, que por defecto
-   *  estorba en una lista de trabajo pendiente. */
-  incluirPasados: boolean;
+  /** Por qué se ordena la Lista, y en qué sentido. Solo lo usa esa vista; las
+   *  otras dos tienen su propio reparto (por zonas, por estado de revisión) y
+   *  lo ignoran. Vive aquí, y no aparte, para que viaje en la URL con el resto
+   *  y un enlace enseñe la lista tal cual la dejaste. */
+  orden: OrdenLista;
+  ordenDesc: boolean;
 }
 
 /** Todo apagado: la barra en reposo. */
@@ -84,7 +100,11 @@ export const FILTROS_VACIOS: Filtros = {
   soloAtrasados: false,
   soloMaterialPendiente: false,
   categoria: "normal",
-  incluirPasados: false,
+  // La planificada ascendente, que es como ha vivido siempre esta lista: la
+  // fecha por la que Producción reparte el trabajo, así que de arriba abajo se
+  // lee "lo que toca antes".
+  orden: "planificacion",
+  ordenDesc: false,
 };
 
 export const FILTROS_INICIALES: Filtros = FILTROS_VACIOS;
@@ -145,6 +165,46 @@ export function contarCategoriasVisibles(
   return cuenta;
 }
 
+/** Lo que se puede elegir en cada desplegable, según lo que HAY delante.
+ *
+ *  Cada lista se calcula con su propio filtro apagado y el resto puesto, igual
+ *  que los contadores de categoría: así "Familia" ofrece las familias que
+ *  quedarían al elegirlas —si estás en "Ver: Para taller", las de esos partes—
+ *  pero elegir una no vacía su propio desplegable.
+ *
+ *  Ofrecer el catálogo entero llenaba los menús de opciones que dejaban la
+ *  pantalla en blanco: siete familias cuando en el tablero solo hay tres, o
+ *  "Aprobada" en una lista donde no queda ninguna. */
+export interface OpcionesFiltro {
+  familias: Familia[];
+  estados: EstadoOF[];
+  prioridades: Prioridad[];
+}
+
+export function opcionesDisponibles(
+  pedidos: Pedido[],
+  f: Filtros,
+  hoy: string,
+): OpcionesFiltro {
+  const ofsDe = (sin: Partial<Filtros>) =>
+    aplicarFiltros(pedidos, { ...f, ...sin }, hoy);
+
+  const familias = new Set<Familia>();
+  for (const p of ofsDe({ familia: "todas" })) for (const o of p.ofs) familias.add(o.familia);
+
+  const estados = new Set<EstadoOF>();
+  for (const p of ofsDe({ estado: "todos" })) for (const o of p.ofs) estados.add(o.estado);
+
+  const prioridades = new Set<Prioridad>();
+  for (const p of ofsDe({ prioridad: "todas" })) prioridades.add(p.prioridad);
+
+  return {
+    familias: [...familias].sort(),
+    estados: [...estados],
+    prioridades: [...prioridades].sort((a, b) => b - a),
+  };
+}
+
 /** ¿Coincide el valor de un filtro de persona con la OF? */
 function pasaPersona(valor: FiltroPersona, id: string | null): boolean {
   if (valor === "todos") return true;
@@ -160,7 +220,10 @@ function pasaPedido(p: Pedido, f: Filtros, hoy: string): boolean {
   const q = f.query.trim().toLowerCase();
   if (q && !`${p.codigo} ${p.cliente} ${p.negocio ?? ""}`.toLowerCase().includes(q)) return false;
   if (f.prioridad !== "todas" && p.prioridad !== f.prioridad) return false;
-  if (!f.incluirPasados && p.situacion === "completado") return false;
+  // Los ya pasados a Producción nunca: esto es la lista de lo que queda por
+  // hacer. Hubo un interruptor para enseñarlos y no se entendía qué prometía —
+  // "pasados" a secas no dice pasados a dónde—, así que se fue con él.
+  if (p.situacion === "completado") return false;
   // La ventana va sobre la planificación, que es la fecha por la que se ordena
   // el trabajo de OT (ver el comentario de `fechaPlanificacion` en types.ts).
   // `hasta` es inclusivo: quien escribe "hasta el 31" espera ver el día 31.
@@ -210,7 +273,6 @@ export function filtrosActivos(f: Filtros): string[] {
   if (f.desde || f.hasta) chips.push("fechas");
   if (f.soloAtrasados) chips.push("solo atrasados");
   if (f.soloMaterialPendiente) chips.push("esperando material");
-  if (f.incluirPasados) chips.push("con los pasados a Producción");
   // "normal" no cuenta: es el estado de reposo de la barra, no un recorte que
   // alguien haya pedido. Pero sí cuenta para explicar una lista vacía, y por
   // eso `hayRecorte` lo mira aparte.
@@ -236,6 +298,7 @@ const CLAVES: Array<[keyof Filtros, string]> = [
   ["desde", "desde"],
   ["hasta", "hasta"],
   ["categoria", "ver"],
+  ["orden", "ord"],
 ];
 
 export function filtrosAParams(f: Filtros): URLSearchParams {
@@ -247,7 +310,7 @@ export function filtrosAParams(f: Filtros): URLSearchParams {
   }
   if (f.soloAtrasados) sp.set("atr", "1");
   if (f.soloMaterialPendiente) sp.set("mat", "1");
-  if (f.incluirPasados) sp.set("pas", "1");
+  if (f.ordenDesc) sp.set("desc", "1");
   return sp;
 }
 
@@ -270,6 +333,8 @@ export function paramsAFiltros(sp: URLSearchParams): Filtros {
   if ((CATEGORIAS as readonly string[]).includes(ver)) f.categoria = ver as Categoria;
   f.soloAtrasados = sp.get("atr") === "1";
   f.soloMaterialPendiente = sp.get("mat") === "1";
-  f.incluirPasados = sp.get("pas") === "1";
+  const ord = texto("ord");
+  if ((ORDENES as readonly string[]).includes(ord)) f.orden = ord as OrdenLista;
+  f.ordenDesc = sp.get("desc") === "1";
   return f;
 }

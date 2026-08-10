@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { EstadoOF, Familia, OF, Operario, Pedido, Rol } from "@/lib/types";
+import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
 import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
@@ -43,12 +43,16 @@ import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/trasp
 import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
 import {
   FILTROS_INICIALES,
+  ORDENES,
+  ORDEN_LABEL,
   aplicarFiltros,
   contarCategoriasVisibles,
   filtrosAParams,
   hayFiltrosActivos,
+  opcionesDisponibles,
   paramsAFiltros,
   type Filtros,
+  type OrdenLista,
 } from "@/lib/filtros";
 
 const IDENTITY_KEY = "coordina-operario-id";
@@ -348,14 +352,6 @@ export function Board({
     [procesados, filtrosPorVista.asignar, hoy],
   );
 
-  // El desplegable de familia se rellena con las que hay de verdad. El de
-  // cliente ya no existe: obligaba a dar con el nombre exacto entre cientos
-  // para hacer lo que el buscador hace escribiendo cuatro letras.
-  const familias = useMemo(
-    () =>
-      [...new Set(pedidos.flatMap((p) => p.ofs.map((o) => o.familia)))].sort() as Familia[],
-    [pedidos],
-  );
   // Los conteos del desplegable "Ver": lo que saldría al elegir cada categoría
   // con el RESTO de la barra puesta. Si salieran de lo ya filtrado, elegir "OF
   // anuladas" pondría a cero todas las demás opciones.
@@ -370,6 +366,26 @@ export function Board({
   const conteosAsignar = useMemo(
     () => contarCategoriasVisibles(sinAutor, filtrosPorVista.asignar, hoy),
     [sinAutor, filtrosPorVista.asignar, hoy],
+  );
+
+  // Lo que ofrece cada desplegable sale de lo que HAY delante en esa vista, no
+  // del catálogo entero: con "Ver: Para taller" puesto, "Familia" enseña las
+  // familias de esos partes y no las siete. Cada lista se calcula con su propio
+  // filtro apagado, para que elegir uno no vacíe su propio menú.
+  //
+  // El desplegable de cliente ya no existe: obligaba a dar con el nombre exacto
+  // entre cientos para hacer lo que el buscador hace escribiendo cuatro letras.
+  const opcionesAsignar = useMemo(
+    () => opcionesDisponibles(sinAutor, filtrosPorVista.asignar, hoy),
+    [sinAutor, filtrosPorVista.asignar, hoy],
+  );
+  const opcionesLista = useMemo(
+    () => opcionesDisponibles(pedidos, filtrosPorVista.lista, hoy),
+    [pedidos, filtrosPorVista.lista, hoy],
+  );
+  const opcionesRevision = useMemo(
+    () => opcionesDisponibles(procesados, filtrosPorVista.revision, hoy),
+    [procesados, filtrosPorVista.revision, hoy],
   );
 
   // Facets de las ZONAS del tablero (mi zona y las de los compañeros),
@@ -1367,10 +1383,11 @@ export function Board({
                     titulo="Sin asignar"
                     filtros={filtros}
                     setFiltros={setFiltros}
-                    familias={familias}
+                    opciones={opcionesAsignar}
                     operarios={operarios}
                     conteos={conteosAsignar}
-                    agrupacion={
+                    rotuloAjustes="Agrupar"
+                    ajustes={
                       <Select
                         value={agrupar}
                         onChange={(v) => setAgrupar((v as Agrupacion) ?? "ninguna")}
@@ -1408,9 +1425,36 @@ export function Board({
                 vista="lista"
                 filtros={filtros}
                 setFiltros={setFiltros}
-                familias={familias}
+                opciones={opcionesLista}
                 operarios={operarios}
                 conteos={conteosLista}
+                rotuloAjustes="Orden"
+                ajustes={
+                  <>
+                    <Select
+                      value={filtros.orden}
+                      onChange={(v) => setFiltros({ orden: (v as OrdenLista) ?? "planificacion" })}
+                      placeholder={null}
+                      options={ORDENES.map((o) => ({ value: o, label: ORDEN_LABEL[o] }))}
+                    />
+                    {/* La dirección, en un botón aparte: el criterio y el
+                        sentido son dos preguntas, y meterlas en el mismo
+                        desplegable obligaba a listar cada criterio dos veces. */}
+                    <button
+                      type="button"
+                      onClick={() => setFiltros({ ordenDesc: !filtros.ordenDesc })}
+                      aria-pressed={filtros.ordenDesc}
+                      title={
+                        filtros.ordenDesc
+                          ? "De mayor a menor. Pulsa para invertir."
+                          : "De menor a mayor. Pulsa para invertir."
+                      }
+                      className="glass-chip grid size-7 place-items-center rounded-lg text-[10px] text-text-muted hover:text-text"
+                    >
+                      {filtros.ordenDesc ? "▼" : "▲"}
+                    </button>
+                  </>
+                }
               />
             </div>
             <div className="p-5">
@@ -1418,6 +1462,8 @@ export function Board({
                 pedidos={visiblesLista}
                 operarios={operarios}
                 onOpen={openPedidoCb}
+                orden={filtrosPorVista.lista.orden}
+                ordenDesc={filtrosPorVista.lista.ordenDesc}
                 hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
               />
             </div>
@@ -1432,7 +1478,7 @@ export function Board({
                 vista="revision"
                 filtros={filtros}
                 setFiltros={setFiltros}
-                familias={familias}
+                opciones={opcionesRevision}
                 operarios={operarios}
                 conteos={conteosLista}
               />

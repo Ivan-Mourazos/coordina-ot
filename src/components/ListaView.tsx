@@ -8,6 +8,7 @@ import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { estadoDePedido } from "@/lib/frase-estado";
 import { diasEntre, relativoA, type TonoFecha } from "@/lib/fechas";
 import { lineaTiempo, repartirEtiquetas } from "@/lib/linea-tiempo";
+import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { Desplegable } from "./Desplegable";
@@ -387,30 +388,15 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   );
 }
 
-// ─── Orden por cabecera ──────────────────────────────────────────────────────
-// Hasta ahora la Lista se ordenaba desde el desplegable "Orden" de la barra de
-// filtros, que además compartía con el tablero: cuatro criterios fijos, ninguno
-// para las preguntas que se hacen delante de ESTA tabla. Ordenar pulsando la
-// columna que se está mirando ahorra el viaje a la barra.
+// ─── Orden ───────────────────────────────────────────────────────────────────
+// El criterio lo elige la barra de filtros y llega por props (ver `orden` en
+// lib/filtros.ts). Estuvo un tiempo en las cabeceras de la tabla, pulsando la
+// columna que se mira; se quitó porque tres de las cuatro columnas son celdas
+// fundidas y hacía falta meter dos rótulos pulsables dentro de cada una, con su
+// flecha y su hueco: la cabecera acababa contando más que una fila.
 //
-// Como el desplegable ya no manda aquí, la Lista recibe los pedidos SIN ordenar
-// y el orden es cosa suya de principio a fin.
-//
-// Un criterio por rótulo visible, ni uno más: el nº de OF y los minutos se
-// leen en la fila pero ya no ordenan, porque sus columnas se fundieron y un
-// orden sin cabecera donde pulsar no se puede descubrir.
-
-type ColumnaOrden = "codigo" | "cliente" | "autor" | "fase" | "planificacion";
-
-interface Orden {
-  col: ColumnaOrden;
-  dir: "asc" | "desc";
-}
-
-/** La planificada ascendente, que es como ha vivido siempre esta lista: es la
- *  fecha por la que Producción reparte el trabajo, así que de arriba abajo se
- *  lee "lo que toca antes". */
-const ORDEN_INICIAL: Orden = { col: "planificacion", dir: "asc" };
+// La Lista recibe los pedidos SIN ordenar y ordena aquí: el criterio es de la
+// barra, la comparación es suya.
 
 /** Nombre del PRIMER autor del pedido, el mismo que sale en el primer avatar de
  *  la columna. Un pedido repartido entre dos personas se ordena por la que se
@@ -434,11 +420,11 @@ function nombrePrimerAutor(p: Pedido, nombres: Map<string, string>): string | nu
  *    · El desempate por código va siempre de la A a la Z, para que dos pedidos
  *      planificados el mismo día (que son la mayoría) no se cambien de sitio
  *      entre sí cada vez que se reordena por otra columna y se vuelve. */
-function comparar(orden: Orden, nombres: Map<string, string>) {
-  const signo = orden.dir === "asc" ? 1 : -1;
+function comparar(orden: OrdenLista, desc: boolean, nombres: Map<string, string>) {
+  const signo = desc ? -1 : 1;
   return (a: Pedido, b: Pedido): number => {
     let d = 0;
-    switch (orden.col) {
+    switch (orden) {
       case "codigo":
         d = a.codigo.localeCompare(b.codigo, "es");
         break;
@@ -479,15 +465,6 @@ function comparar(orden: Orden, nombres: Map<string, string>) {
   };
 }
 
-/** Hacia dónde se pega el rótulo dentro del botón de la cabecera, para que las
- *  columnas centradas (OF) y a la derecha (Fichado) no se muevan al meterles el
- *  botón. Clases literales: Tailwind no compila las que se concatenan. */
-const JUSTIFICAR = {
-  izquierda: "justify-start",
-  centro: "justify-center",
-  derecha: "justify-end",
-} as const;
-
 // ─── Marcar lo desplegado ────────────────────────────────────────────────────
 // Un pedido abierto son DOS <tr>: la fila de siempre y la del detalle. Pintadas
 // como las demás no se veía dónde empezaba ni dónde acababa lo abierto —con
@@ -519,6 +496,8 @@ export function ListaView({
   pedidos,
   operarios,
   onOpen,
+  orden,
+  ordenDesc,
   hayFiltrosActivos = false,
 }: {
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
@@ -529,25 +508,13 @@ export function ListaView({
    *  vacía, y la diferencia importa: "no queda trabajo pendiente" y "lo hay,
    *  pero lo estás tapando con un filtro" se arreglan de formas distintas. */
   hayFiltrosActivos?: boolean;
+  /** Criterio y sentido del orden. Vienen de la barra de filtros: es un ajuste
+   *  de la vista, como los filtros, y viaja con ellos en la URL. */
+  orden: OrdenLista;
+  ordenDesc: boolean;
 }) {
   const hoy = hoyISO();
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
-  // Por fecha de planificación y punto. El interruptor "Atrasados primero" que
-  // había aquí sobraba: partía la lista en dos bloques para decir algo que la
-  // línea de tiempo ya cuenta fila a fila —con su tramo en rojo y su "+128d"—,
-  // y encima secuestraba el orden que pidieras. Ordenando por planificación,
-  // lo atrasado sale arriba solo, porque es lo más antiguo.
-  const [orden, setOrden] = useState<Orden>(ORDEN_INICIAL);
-
-  function ordenarPor(col: ColumnaOrden) {
-    // Primer clic, ascendente; el segundo sobre la MISMA columna invierte.
-    // Cambiar de columna vuelve a empezar por ascendente en vez de arrastrar la
-    // dirección de la anterior, que deja preguntas del tipo "¿por qué los
-    // clientes me empiezan por la Z?".
-    setOrden((prev) =>
-      prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" },
-    );
-  }
 
   const nombrePorId = useMemo(() => {
     const m = new Map(operarios.map((o) => [o.id, o.nombre]));
@@ -556,9 +523,8 @@ export function ListaView({
 
   const ordenados = useMemo(() => {
     const nombres = new Map(operarios.map((o) => [o.id, o.nombre]));
-    const cmp = comparar(orden, nombres);
-    return [...pedidos].sort(cmp);
-  }, [pedidos, operarios, orden]);
+    return [...pedidos].sort(comparar(orden, ordenDesc, nombres));
+  }, [pedidos, operarios, orden, ordenDesc]);
 
   function toggle(id: string) {
     setExpandidos((prev) => {
@@ -578,26 +544,16 @@ export function ListaView({
                 qué columna era cuál. */}
             <tr className="sticky top-0 z-10 border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-text-muted">
               <Th className="w-8" />
-              {/* Familias no tiene rótulo propio ni ordena: un pedido trae
-                  varias y ordenar por la primera diría "por familia" enseñando
-                  otra cosa. Se reconocen por su icono de color, que es como se
-                  leen en el tablero. */}
-              <ThIdentidad orden={orden} onOrdenar={ordenarPor} />
-              {/* Autor, fase y minutos eran tres columnas para una sola frase.
-                  Fundidas, el rótulo ofrece los dos criterios de orden que de
-                  verdad se usan; el nº de OF y el tiempo se leen en la fila y
-                  ya no ordenan, que era un lujo a costa de la línea de tiempo. */}
-              <ThEstado orden={orden} onOrdenar={ordenarPor} />
+              {/* Rótulos y nada más: el orden se elige en la barra de filtros.
+                  Familias no tiene el suyo —un pedido trae varias y nombrarlas
+                  en singular engañaría—; se reconocen por su icono de color,
+                  que es como se leen en el tablero. */}
+              <Th className={IDENTIDAD_W}>Pedido · cliente</Th>
+              <Th className={ESTADO_W}>Quién · estado</Th>
               {/* Los rótulos de los hitos van aquí, una vez, en lugar de
                   repetirse en cada fila: el orden es el mismo en todas. Los
-                  nombres son los de la herramienta vieja. */}
-              <Th
-                className={RECORRIDO_W}
-                col="planificacion"
-                orden={orden}
-                onOrdenar={ordenarPor}
-                title="Ordena por la fecha planificada, que es la que manda para OT: el día en que el pedido debería estar planteado. Es el orden de salida de la lista."
-              >
+                  nombres son los de la herramienta vieja, salvo "llegada". */}
+              <Th className={RECORRIDO_W}>
                 <span className="block">Recorrido</span>
                 {/* Sin opacidad extra sobre el muted: a 9 px ya es lo bastante
                     secundario por tamaño, y el /80 solo restaba legibilidad. */}
@@ -932,184 +888,18 @@ function OFRowLista({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy
   );
 }
 
-/** Un rótulo de cabecera que ordena. Vive fuera de `Th` porque la celda de
- *  identidad lleva DOS y tienen que verse y portarse igual que los del resto de
- *  columnas: misma flecha, mismo hover, mismo foco.
- *
- *  Un <button> y no un onClick sobre el <th>: así se llega con el tabulador y
- *  se pulsa con Intro, como cualquier otro control. */
-function BotonOrden({
-  col,
-  orden,
-  onOrdenar,
-  alinear = "izquierda",
-  title,
-  className = "",
-  children,
-}: {
-  col: ColumnaOrden;
-  orden: Orden;
-  onOrdenar: (col: ColumnaOrden) => void;
-  alinear?: keyof typeof JUSTIFICAR;
-  title?: string;
-  className?: string;
-  children?: React.ReactNode;
-}) {
-  const activa = orden.col === col;
-  return (
-    <button
-      type="button"
-      onClick={() => onOrdenar(col)}
-      title={title}
-      className={`group flex cursor-pointer items-center gap-1 rounded text-left uppercase tracking-wide hover:text-text hover:underline ${JUSTIFICAR[alinear]} ${className}`}
-    >
-      <span className="min-w-0">{children}</span>
-      {/* La flecha SOLO en la columna activa. Antes se pintaba siempre, apagada
-          con opacidad para que la cabecera no diera un salto al pasar el ratón
-          — pero seguía ocupando su hueco, y en las cabeceras de dos rótulos
-          ("QUIÉN · ESTADO") ese hueco invisible separaba la palabra de su punto
-          y parecía un error de maquetación. Que se puede pulsar lo dice ahora
-          el subrayado al pasar por encima, que no ocupa nada. */}
-      {activa && (
-        <span aria-hidden="true" className="shrink-0 text-[8px] leading-none">
-          {orden.dir === "desc" ? "▼" : "▲"}
-        </span>
-      )}
-    </button>
-  );
-}
-
-/** Cabecera de columna. Con `col` ordena; sin `col` es un rótulo y nada más
- *  (la de desplegar), sin flecha ni foco que sugieran lo contrario. */
+/** Cabecera de columna: un rótulo y nada más. El orden se elige en la barra de
+ *  filtros, así que aquí no hay nada pulsable — tres de las cuatro columnas son
+ *  celdas fundidas y meterles dos rótulos con su flecha hacía que la cabecera
+ *  contara más que una fila. */
 function Th({
   children,
   className = "",
-  title,
-  col,
-  orden,
-  onOrdenar,
-  alinear = "izquierda",
 }: {
   children?: React.ReactNode;
   className?: string;
-  title?: string;
-  col?: ColumnaOrden;
-  orden?: Orden;
-  onOrdenar?: (col: ColumnaOrden) => void;
-  alinear?: keyof typeof JUSTIFICAR;
 }) {
-  if (!col || !orden || !onOrdenar) {
-    return (
-      <th className={`px-4 py-2.5 font-semibold ${className}`} title={title}>
-        {children}
-      </th>
-    );
-  }
-  const activa = orden.col === col;
-  return (
-    <th
-      className={`px-4 py-2.5 font-semibold ${className}`}
-      title={title}
-      // Solo en la columna activa: `aria-sort="none"` en las otras seis es
-      // ruido que el lector de pantalla repite cabecera tras cabecera.
-      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
-    >
-      <BotonOrden col={col} orden={orden} onOrdenar={onOrdenar} alinear={alinear} className="w-full">
-        {children}
-      </BotonOrden>
-    </th>
-  );
-}
-
-/** La cabecera de la celda de identidad: DOS rótulos que ordenan, uno por cada
- *  renglón de la celda —Pedido arriba, Cliente abajo— y no uno solo.
- *
- *  Al fundir las tres columnas parecía que había que elegir entre perder un
- *  criterio de orden o esconderlo en un menú. No hace falta ninguna de las dos:
- *  los dos botones caben en la misma celda y cada uno ordena por lo que se lee
- *  justo debajo, que es más fácil de adivinar que cuando cada uno tenía columna
- *  y el rótulo quedaba lejos de su dato. `aria-sort` va en la celda, no en los
- *  botones, porque lo que está ordenado es la COLUMNA; se enciende con
- *  cualquiera de los dos criterios. */
-function ThIdentidad({
-  orden,
-  onOrdenar,
-}: {
-  orden: Orden;
-  onOrdenar: (col: ColumnaOrden) => void;
-}) {
-  const activa = orden.col === "codigo" || orden.col === "cliente";
-  return (
-    <th
-      className={`px-4 py-2.5 font-semibold ${IDENTIDAD_W}`}
-      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
-    >
-      <span className="flex items-center gap-1.5">
-        <BotonOrden
-          col="codigo"
-          orden={orden}
-          onOrdenar={onOrdenar}
-          title="Ordena por el código del pedido, el del renglón de arriba."
-        >
-          Pedido
-        </BotonOrden>
-        <span aria-hidden="true" className="text-text-muted/40">
-          ·
-        </span>
-        <BotonOrden
-          col="cliente"
-          orden={orden}
-          onOrdenar={onOrdenar}
-          title="Ordena por el nombre del cliente, el del renglón de abajo."
-        >
-          Cliente
-        </BotonOrden>
-      </span>
-    </th>
-  );
-}
-
-/** Cabecera de la columna fundida de estado. Mismo patrón que `ThIdentidad`:
- *  dos criterios de orden en una celda, cada rótulo sobre lo que ordena. */
-function ThEstado({
-  orden,
-  onOrdenar,
-}: {
-  orden: Orden;
-  onOrdenar: (col: ColumnaOrden) => void;
-}) {
-  const activa = orden.col === "autor" || orden.col === "fase";
-  return (
-    <th
-      className={`px-4 py-2.5 font-semibold ${ESTADO_W}`}
-      aria-sort={activa ? (orden.dir === "asc" ? "ascending" : "descending") : undefined}
-    >
-      <span className="flex items-center gap-1.5">
-        {/* En el MISMO orden en que se lee la fila ("Jaime · Planteado"): con
-            los rótulos al revés, cada uno ordenaba por lo que tenía al lado el
-            otro. */}
-        <BotonOrden
-          col="autor"
-          orden={orden}
-          onOrdenar={onOrdenar}
-          title="Ordena por el nombre de quien lo plantea. Los pedidos sin autor van al final."
-        >
-          Quién
-        </BotonOrden>
-        <span aria-hidden="true" className="text-text-muted/40">
-          ·
-        </span>
-        <BotonOrden
-          col="fase"
-          orden={orden}
-          onOrdenar={onOrdenar}
-          title="Ordena por el avance real: sin empezar, planteando, esperando revisión, listo para pasar."
-        >
-          Estado
-        </BotonOrden>
-      </span>
-    </th>
-  );
+  return <th className={`px-4 py-2.5 font-semibold ${className}`}>{children}</th>;
 }
 
 /** Quién lleva el pedido y por dónde va, en una frase.
@@ -1134,8 +924,7 @@ function Estado({
           {/* Con NOMBRE y no con avatar: dos iniciales en un círculo obligan a
               descifrar quién es, y la frase que se dice en el taller lleva el
               nombre — "eso lo tiene Jaime sin empezar". Los avatares valen en
-              el tablero, donde cada zona ya tiene cara y color; aquí no.
-              Varios nombres cuando el trabajo está repartido entre dos. */}
+              el tablero, donde cada zona ya tiene cara y color; aquí no. */}
           {t.quien.length > 0 && (
             <>
               <span className="min-w-0 font-medium text-text">{t.quien.join(", ")}</span>
@@ -1147,8 +936,7 @@ function Estado({
           {/* Solo el texto en el color de su rol —plantear esmeralda, revisar
               violeta, los de toda la app—, sin recuadro. Con fondo tintado, 40
               filas seguidas eran 40 pastillas de color compitiendo entre ellas
-              y con el resto de la fila; el color dice de qué rol se habla igual
-              de bien sin caja alrededor.
+              y con el resto de la fila.
               Cuando lo que dice es que FALTA alguien va apagado: "Sin asignar"
               en el mismo verde que "Planteado" hacía que un pedido sin tocar
               pareciera terminado. */}
