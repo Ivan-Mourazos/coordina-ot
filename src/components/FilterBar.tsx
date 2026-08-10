@@ -16,6 +16,7 @@ import {
 } from "@/lib/filtros";
 import { Select, OpDot } from "./Select";
 import { FamiliaIcon } from "./FamiliaTag";
+import { SelectorFecha } from "./SelectorFecha";
 
 // ─── Barra de filtros ────────────────────────────────────────────────────────
 // Un solo componente para las tres vistas, pero NO el mismo juego de filtros en
@@ -298,24 +299,10 @@ export function FilterBar({
         <>
           <Separador />
           <Grupo label="Planificado">
-            <input
-              type="date"
-              value={filtros.desde}
-              onChange={(e) => setFiltros({ desde: e.target.value })}
-              aria-label="Planificado desde"
-              className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
-                filtros.desde ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
-              }`}
-            />
-            <span className="text-text-muted">→</span>
-            <input
-              type="date"
-              value={filtros.hasta}
-              onChange={(e) => setFiltros({ hasta: e.target.value })}
-              aria-label="Planificado hasta"
-              className={`glass-chip rounded-lg px-2 py-1 text-xs outline-none focus:border-brand-400 ${
-                filtros.hasta ? "text-brand-700 dark:text-brand-300" : "text-text-muted"
-              }`}
+            <SelectorFecha
+              desde={filtros.desde}
+              hasta={filtros.hasta}
+              onCambiar={(desde, hasta) => setFiltros({ desde, hasta })}
             />
           </Grupo>
         </>

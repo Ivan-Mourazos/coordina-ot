@@ -339,6 +339,20 @@ export function MiFichaje({
             </button>
           </div>
 
+          {/* ── AVISO TEMPORAL DEL PERIODO DE PRUEBAS ────────────────────────
+              Mientras el fichaje de CoordinaOT se contrasta con el de siempre,
+              hay que fichar en los DOS: aquí y en la herramienta antigua. Es lo
+              único que garantiza que no se pierdan horas si algo no cuadra.
+              Va en el panel del reloj, y no en un diálogo de una vez, porque el
+              riesgo se repite en cada fichaje: un aviso que se cierra y no
+              vuelve se olvida al tercer día.
+              QUITAR cuando el fichaje pase a "activo" y OT deje de usar la
+              herramienta antigua (ver FICHAJE_OLANET en .env.example). */}
+          <p className="mb-2 rounded-lg bg-amber-500/12 px-2 py-1.5 text-[11px] leading-snug text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/12 dark:text-amber-200">
+            <span className="font-bold">Periodo de pruebas:</span> de momento hay que fichar
+            también en la herramienta antigua, hasta nuevo aviso.
+          </p>
+
           {/* Con el reloj parado hay que decir QUÉ es esta lista: no es lo que
               se está fichando (nada lo está), es lo que quedó a medias. */}
           {!ab && mostrados.length > 0 && (
