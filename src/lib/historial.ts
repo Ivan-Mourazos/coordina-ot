@@ -16,18 +16,29 @@ export interface HistorialFiltros {
   cliente?: string;
 }
 
-/** Palabras clave por familia visual (réplica de familiaDeTexto de rps.ts): el
- *  filtro por familia busca estas en la descripción de las MO del pedido. Sus
- *  claves son el catálogo de 7 familias que pintan los chips. */
-export const FAMILIA_KEYWORDS: Record<string, string[]> = {
-  TOLDO: ["TOLDO"],
-  LONA: ["LONA", "ROLLO"],
-  CARPA: ["CARPA"],
-  REMOLQUE: ["REMOLQUE"],
-  TAPIZADO: ["TAPIZ"],
-  REPARACION: ["REPARAC"],
-  SUMINISTRO: ["SUMINISTRO"],
-};
+/** Las subfamilias de RPS por las que se puede filtrar el Historial, y que son
+ *  también los chips que pinta.
+ *
+ *  Son códigos de `GENProductSubFamily`, los mismos con los que agrupa el
+ *  tablero: filtrar aquí por "PUERTAS" y allí por "Puertas" tiene que traer lo
+ *  mismo. La lista es fija y no sale de la base a propósito: hay 462
+ *  subfamilias en el catálogo y solo estas aparecen en el trabajo de Oficina
+ *  Técnica (12 meses a 11/08/2026, de más a menos: 1313 puertas, 700
+ *  reparaciones, 662 toldos nuevos, 908 lonas nuevas, 488 confección, 163
+ *  accesorios…). Una lista de 462 chips no es un filtro. */
+export const FAMILIAS_FILTRABLES: readonly string[] = [
+  "PUERTAS",
+  "TOLDO NUEVO",
+  "REPARACIONES",
+  "LONASNUEVAS",
+  "CONFECCION",
+  "ACCESORIOS TF",
+  "YURTAS",
+  "CLONA",
+  "PISCINA",
+  "PORTALES",
+  "CAPOTA NUEVA",
+];
 
 export interface HistorialItem {
   pedido: string;
@@ -223,17 +234,23 @@ export function construirFiltros(f: HistorialFiltros): {
     params.push({ nombre: "hasta", valor: f.hasta.trim() });
   }
 
+  // El filtro de familia iba por PALABRAS de la descripción de la MO, que era
+  // adivinar: "REPARACION TOLDO" caía en las dos listas y bastaba una
+  // descripción escrita de otra manera para dejar un pedido fuera. Ahora
+  // pregunta por lo que RPS tiene clasificado —la subfamilia del artículo—, que
+  // es además lo que agrupa en el tablero: la misma palabra significa lo mismo
+  // en las dos pantallas.
   const familia = f.familia?.trim();
-  if (familia && FAMILIA_KEYWORDS[familia]) {
-    const kws = FAMILIA_KEYWORDS[familia];
-    const likes = kws.map((_, i) => `mo2.Description LIKE @fam${i}`).join(" OR ");
+  if (familia && FAMILIAS_FILTRABLES.includes(familia)) {
     clausulas.push(
       `EXISTS (SELECT 1 FROM dbo.FACOrderSL o2 ` +
         `JOIN dbo.FACOrderLineSL l2 ON l2.IDOrder = o2.IDOrder ` +
-        `JOIN dbo.CPRManufacturingOrder mo2 ON mo2.IDManufacturingOrder = l2.IDManufacturingOrder AND mo2.CodCompany = '001' ` +
-        `WHERE o2.CodOrder = p.pedido AND o2.CodCompany = '001' AND (${likes}))`,
+        `JOIN dbo.STKArticle art2 ON art2.IDArticle = l2.IDArticle ` +
+        `JOIN dbo.GENProductSubFamily sf2 ON sf2.IDProductSubFamily = art2.IDProductSubFamily ` +
+        `WHERE o2.CodOrder = p.pedido AND o2.CodCompany = '001' ` +
+        `AND sf2.CodProductSubFamily = @familia)`,
     );
-    kws.forEach((kw, i) => params.push({ nombre: `fam${i}`, valor: `%${kw}%` }));
+    params.push({ nombre: "familia", valor: familia });
   }
 
   const cliente = f.cliente?.trim();

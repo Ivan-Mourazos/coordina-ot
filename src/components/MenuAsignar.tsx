@@ -7,6 +7,9 @@ import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
 /** Alto máximo del menú, para decidir si abre hacia arriba o hacia abajo. */
 const ALTO_MAX = 260;
+/** Ancho fijo (w-44 = 11rem). Sabido a propósito: con el ancho se puede sujetar
+ *  el menú por los DOS lados y no hay forma de que se salga de la pantalla. */
+const ANCHO = 176;
 
 /** Menú para dar un parte a alguien sin arrastrarlo.
  *
@@ -75,7 +78,9 @@ export function MenuAsignar({
 
   const ventana = ventanaActual();
   const sitio =
-    caja && ventana ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight: true }) : null;
+    caja && ventana
+      ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight: true, ancho: ANCHO })
+      : null;
 
   return (
     <div
@@ -107,7 +112,7 @@ export function MenuAsignar({
             // tomen este clic por un clic fuera y se cierren solos.
             data-en-portal=""
             style={{ ...sitio, maxHeight: ALTO_MAX }}
-            className="glass-pop scroll-thin fixed z-[60] w-44 overflow-y-auto rounded-xl p-1"
+            className="glass-pop scroll-thin fixed z-[60] overflow-y-auto rounded-xl p-1"
             onClick={(e) => e.stopPropagation()}
           >
             {orden.map((o) => (

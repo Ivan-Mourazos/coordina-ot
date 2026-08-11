@@ -8,7 +8,6 @@ import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
 import { estaFinalizado } from "../types";
 import {
-  FAMILIA_KEYWORDS,
   PAGE_SIZE,
   aMaterialOF,
   archivoDeRuta,
@@ -110,6 +109,13 @@ interface FilaExtra {
   descripcion: string | null;
   empleado: string | null;
   minutos: number | null;
+  /** Los dos que necesita `familiaDeTexto` para dar la misma familia que el
+   *  tablero: el cliente (hay clientes que valen por una familia) y la
+   *  subfamilia del artículo (que es la que agrupa de verdad). Sin ellos, el
+   *  mismo pedido salía como "Suministro" en el Historial y como "Puertas" o
+   *  "Assa Abloy" en el tablero. */
+  cliente: string | null;
+  subfamilia: string | null;
 }
 
 /** Lo que la lista necesita de cada pedido y no cabe en la query de página:
@@ -159,12 +165,20 @@ async function extrasDePagina(
   const r = await req.query<FilaExtra>(`
     SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
            mo.Description AS descripcion,
+           cli.Description AS cliente, sf.CodProductSubFamily AS subfamilia,
            e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
     FROM dbo.FACOrderSL o
     JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
     JOIN dbo.CPRManufacturingOrder mo
       ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
     JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
+    -- Cliente y subfamilia cuelgan de lo que esta consulta ya recorre (el
+    -- pedido de venta y su línea), así que salen sin traer ninguna fila nueva:
+    -- son LEFT JOIN a tablas de catálogo, uno a uno.
+    LEFT JOIN dbo.STKArticle art ON art.IDArticle = l.IDArticle
+    LEFT JOIN dbo.GENProductSubFamily sf
+      ON sf.IDProductSubFamily = art.IDProductSubFamily
     LEFT JOIN dbo.CPRImputationMO i
       ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = mo.IDManufacturingOrder
       AND i.ResourceType = 1
@@ -174,7 +188,8 @@ async function extrasDePagina(
         SELECT 1 FROM dbo.CPRMOResourceMachine rm
         WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
       )
-    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, e.CodEmployee
+    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description,
+             cli.Description, sf.CodProductSubFamily, e.CodEmployee
   `);
 
   // Por pedido: minutos de cada persona, qué órdenes lo componen (las órdenes
@@ -193,10 +208,16 @@ async function extrasDePagina(
       ordenes.set(pedido, suyas);
     }
 
-    // Sin artículo, igual que el detalle: la descripción de la MO es lo único
-    // que hay aquí y las dos vistas deben coincidir.
+    // Sin artículo (la familia ancha), pero SÍ con cliente y subfamilia: son
+    // los dos que deciden hoy, y sin ellos el Historial daría familias
+    // distintas de las del tablero para el mismo pedido.
     const suyasFam = familias.get(pedido) ?? new Set<string>();
-    suyasFam.add(familiaDeTexto(fila.descripcion, null));
+    suyasFam.add(
+      familiaDeTexto(fila.descripcion, null, {
+        cliente: fila.cliente,
+        subfamilia: fila.subfamilia,
+      }),
+    );
     familias.set(pedido, suyasFam);
 
     if (!fila.empleado) continue; // OF sin imputaciones: solo aporta su orden
@@ -893,13 +914,13 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
   if (f.desde?.trim()) todos = todos.filter((p) => p.finalizada >= f.desde!.trim());
   if (f.hasta?.trim()) todos = todos.filter((p) => p.finalizada < f.hasta!.trim());
   if (f.cliente?.trim()) todos = todos.filter((p) => p.cliente === f.cliente!.trim());
+  // El mock no tiene subfamilias de RPS (es data inventada), así que aquí se
+  // filtra por la familia que ya lleva cada OF. Contra la base de verdad el
+  // filtro pregunta por `CodProductSubFamily`, ver `clausulasDe`.
   const fam = f.familia?.trim();
-  if (fam && FAMILIA_KEYWORDS[fam]) {
-    const kws = FAMILIA_KEYWORDS[fam].map((k) => k.toLowerCase());
+  if (fam) {
     const pedidosFam = new Set(
-      PEDIDOS.filter((p) =>
-        p.ofs.some((of) => kws.some((k) => of.descripcion.toLowerCase().includes(k))),
-      ).map((p) => p.codigo),
+      PEDIDOS.filter((p) => p.ofs.some((of) => of.familia === fam)).map((p) => p.codigo),
     );
     todos = todos.filter((p) => pedidosFam.has(p.pedido));
   }

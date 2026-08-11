@@ -17,6 +17,26 @@
 
 /** Familias con identidad visual propia (color + icono en familia.ts). */
 export type FamiliaConocida =
+  // ── Subfamilias de RPS ─────────────────────────────────────────────────────
+  // Son el nivel al que de verdad se distingue el trabajo, y por eso mandan
+  // sobre la familia (ver familiaDeTexto en server/rps.ts). Estos códigos son
+  // los de `GENProductSubFamily.CodProductSubFamily`, tal cual: la clave la
+  // pone RPS y aquí solo se le da nombre y color.
+  | "PUERTAS"
+  | "REPARACIONES"
+  | "TOLDO NUEVO"
+  | "LONASNUEVAS"
+  | "CONFECCION"
+  | "ACCESORIOS TF"
+  | "YURTAS"
+  | "CLONA"
+  | "CBASTIDOR"
+  | "PORTALES"
+  | "PISCINA"
+  | "CAPOTA NUEVA"
+  | "SERIE50"
+  | "LONAS"
+  // ── Familias de RPS, para los artículos SIN subfamilia ─────────────────────
   | "TOLDO"
   | "SUMINISTRO"
   | "REMOLQUE"
@@ -30,10 +50,13 @@ export type FamiliaConocida =
   // Separada de REMOLQUE: RPS ya las distingue en su catálogo (grupos CAMION y
   // CAPOTA) y no son el mismo trabajo; los juntábamos nosotros.
   | "CAMION"
-  // Un CLIENTE que vale por una familia. Entra trabajo suyo sin parar y siempre
-  // del mismo tipo, y en la oficina se habla de él por su nombre. La lista está
-  // en CLIENTES_FAMILIA (server/rps.ts).
-  | "ASSAABLOY";
+  // ── Clientes que valen por una familia ─────────────────────────────────────
+  // Entra trabajo suyo sin parar y siempre del mismo tipo, y en la oficina se
+  // habla de ellos por su nombre. La lista está en CLIENTES_FAMILIA
+  // (server/rps.ts) y mandan sobre todo lo demás.
+  | "ASSAABLOY"
+  | "CCI"
+  | "LAYHER";
 
 /** RPS trae familias fuera del catálogo (ESPECTACULO, CERRAMIENTOS…): se
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */

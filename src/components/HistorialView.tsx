@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Pedido } from "@/lib/types";
-import { FAMILIA_KEYWORDS } from "@/lib/historial";
+import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
 import { fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -206,7 +206,7 @@ export function HistorialView({
         >
           Todas
         </button>
-        {Object.keys(FAMILIA_KEYWORDS).map((fam) => {
+        {FAMILIAS_FILTRABLES.map((fam) => {
           const activa = familia === fam;
           const meta = familiaMeta(fam);
           return (

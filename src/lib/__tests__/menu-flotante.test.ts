@@ -47,6 +47,34 @@ describe("sitioDeMenu", () => {
     expect(fueraPorLaDerecha.right).toBe(MARGEN);
   });
 
+  it("con el ancho sabido, se sujeta por los DOS lados", () => {
+    // El fallo real del menú "Asignar" (176 px fijos): pegado al borde
+    // izquierdo y anclado por la derecha, su borde izquierdo caía en negativo y
+    // media lista de nombres quedaba fuera de la pantalla. Limitar el `right`
+    // no lo arregla, porque `right` no sabe cuánto mide el menú.
+    const pegadoIzquierda = sitioDeMenu(caja({ left: 20, right: 76 }), {
+      ventana,
+      alto: 260,
+      alignRight: true,
+      ancho: 176,
+    });
+    expect(pegadoIzquierda.left).toBe(MARGEN);
+    expect(pegadoIzquierda.right).toBeUndefined();
+
+    const pegadoDerecha = sitioDeMenu(caja({ left: 1150, right: 1195 }), {
+      ventana,
+      alto: 260,
+      alignRight: true,
+      ancho: 176,
+    });
+    expect(pegadoDerecha.left! + 176).toBeLessThanOrEqual(ventana.ancho - MARGEN);
+  });
+
+  it("y en una ventana más estrecha que el propio menú, no se va por la izquierda", () => {
+    const s = sitioDeMenu(caja(), { ventana: { ancho: 150, alto: 800 }, alto: 260, ancho: 176 });
+    expect(s.left).toBe(MARGEN);
+  });
+
   it("nunca es más ancho que la ventana", () => {
     const s = sitioDeMenu(caja(), { ventana: { ancho: 320, alto: 800 }, alto: 260 });
     expect(s.maxWidth).toBe(320 - 2 * MARGEN);

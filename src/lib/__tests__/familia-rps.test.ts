@@ -26,21 +26,57 @@ describe("familiaDeTexto", () => {
     // resto de "Suministro" —el cajón de sastre de RPS— quedaba escondido.
     const assa = { cliente: "ASSA ABLOY ENTRANCE SYSTEMS PRODUCTION ROMANIA SRL" };
     expect(familiaDeTexto("PUERTA RAPIDA ENROLLABLE", "18 - SUMINISTRO", assa)).toBe("ASSAABLOY");
-    // Manda incluso sobre un grupo que sí diría algo.
-    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", assa)).toBe("ASSAABLOY");
+    // Manda incluso sobre la subfamilia, que es lo que manda en todo lo demás.
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", {
+      ...assa,
+      subfamilia: "TOLDO NUEVO",
+    })).toBe("ASSAABLOY");
     // Y sin cliente reconocido, todo sigue como estaba.
     expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { cliente: "MAHOU" })).toBe("TOLDO");
   });
 
-  it("la subfamilia rescata lo que 'SUMINISTRO' no distingue", () => {
-    // "SUMINISTRO" es el cajón de sastre de RPS: ahí conviven las puertas
-    // rápidas y el material suelto. La subfamilia sí lo separa.
-    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTA");
-    // Sin subfamilia concluyente, se queda en su familia de siempre.
-    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO", { subfamilia: "CONFECCION" })).toBe(
-      "SUMINISTRO",
+  it("cada uno de los tres clientes tiene sus razones sociales, y no se pisan entre ellos", () => {
+    const f = (cliente: string) => familiaDeTexto("LONA", "1 - CAMION", { cliente });
+    // Assa Abloy: en RPS hay cuatro nombres, uno con la errata "PRDUCTION".
+    expect(f("ASSA ABLOY ENTRANCE  SYSTEMS PRDUCTION SPAIN")).toBe("ASSAABLOY");
+    expect(f("ASSA ABLOY ENTRANCE SYSTEM SPAIN S.A.")).toBe("ASSAABLOY");
+    // Layher: dos sociedades.
+    expect(f("LAYHER, S. A. ")).toBe("LAYHER");
+    expect(f("LAYHER IBERICA S.L.")).toBe("LAYHER");
+    // Carrocerías Inteligentes se pide por el nombre ENTERO: hay dos docenas de
+    // "CARROCERIAS <algo>" en RPS que no son este cliente, y buscar solo
+    // "CARROCERIAS" los metería a todos en el mismo saco.
+    expect(f("CCI CARROCERIAS INTELIGENTES S.L.")).toBe("CCI");
+    expect(f("CARROCERIAS TAMBRE, S. A.")).toBe("CAMION");
+    expect(f("CARROCEROS DEL NOROESTE, S. L.")).toBe("CAMION");
+  });
+
+  it("la subfamilia manda sobre la familia: es el nivel al que se distingue el trabajo", () => {
+    // Las familias de RPS son demasiado anchas para agrupar. "SUMINISTRO"
+    // mezcla 1313 puertas con 422 OF de material suelto, y "TOLDO FACHADA"
+    // junta 662 toldos nuevos con 700 reparaciones y 163 accesorios.
+    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTAS");
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { subfamilia: "TOLDO NUEVO" })).toBe(
+      "TOLDO NUEVO",
     );
+    expect(familiaDeTexto("CAMBIO DE TELA", "1 - TOLDO FACHADA", { subfamilia: "REPARACIONES" }))
+      .toBe("REPARACIONES");
+  });
+
+  it("y junta a propósito lo que RPS tenía en familias distintas", () => {
+    // LONASNUEVAS cuelga de REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA.
+    // Agrupar por subfamilia las mete todas en el mismo sitio: es la decisión
+    // de Iván, porque en la oficina el trabajo se llama así.
+    const sub = { subfamilia: "LONASNUEVAS" };
+    expect(familiaDeTexto("LONA", "1 - CAMION", sub)).toBe("LONASNUEVAS");
+    expect(familiaDeTexto("LONA", "1 - CARPAS", sub)).toBe("LONASNUEVAS");
+  });
+
+  it("sin subfamilia se cae a la familia de RPS, que sigue haciendo falta", () => {
+    // Pasa de verdad y no es raro: 450 OF de OTR.ESTRUCTURAS y 422 de
+    // SUMINISTRO no tienen subfamilia puesta en el artículo.
     expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO")).toBe("SUMINISTRO");
+    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO", { subfamilia: "" })).toBe("SUMINISTRO");
   });
 
   it("toldos: también cortinas, bambalinas y cambios de tela", () => {

@@ -154,22 +154,17 @@ const FAMILIA_POR_GRUPO: [RegExp, Familia][] = [
  *  Manda sobre todo lo demás, a propósito: si el pedido es de uno de estos, eso
  *  es lo primero que se quiere saber. Para añadir otro basta una línea. */
 const CLIENTES_FAMILIA: [RegExp, Familia][] = [
-  // 34 de las 40 OF suyas pendientes son SUMINISTRO/PUERTAS (11/08/2026).
+  // Los tres tienen varias razones sociales en RPS, y por eso se buscan por el
+  // nombre y no por código de cliente. Pedidos históricos a 11/08/2026:
+  //   ASSA ABLOY … ROMANIA SRL 1692, … SPAIN 1271 (y "PRDUCTION", con la errata
+  //   de RPS), … SYSTEM SPAIN S.A. 46
   [/\bASSA\s*ABLOY\b/, "ASSAABLOY"],
-];
-
-/** Subfamilias de RPS que dicen más que su familia.
- *
- *  La familia sola se queda corta donde el catálogo mete cosas dispares:
- *  "SUMINISTRO" es el cajón de sastre de RPS y ahí conviven las puertas
- *  rápidas con material suelto. La subfamilia sí lo distingue, así que cuando
- *  es concluyente manda ella.
- *
- *  Solo las concluyentes: subfamilias como CONFECCION o LONASNUEVAS aparecen
- *  colgando de familias muy distintas (CAMION, CARPAS, ESPECTACULO…) y no
- *  dicen de qué es el trabajo, solo qué se hace con él. */
-const FAMILIA_POR_SUBFAMILIA: [RegExp, Familia][] = [
-  [/^PUERTAS$/, "PUERTA"],
+  //   CCI CARROCERIAS INTELIGENTES S.L. 1101. Se pide el nombre entero: hay dos
+  //   docenas de "CARROCERIAS <algo>" que no son este cliente, y bastaría con
+  //   buscar "CARROCERIAS" para meterlos a todos en el mismo saco.
+  [/CARROCER[IÍ]AS?\s+INTELIGENTES/, "CCI"],
+  //   LAYHER, S. A. 250 y LAYHER IBERICA S.L. 87
+  [/\bLAYHER\b/, "LAYHER"],
 ];
 
 /** Y por descripción, con el vocabulario del taller (acordado con Iván): los
@@ -203,9 +198,23 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   [/LONA|ROLLO|OLLAO|RIEL/, "LONA"],
 ];
 
-/** De qué es este trabajo, de lo más decisivo a lo más adivinado: el cliente si
- *  es de los que valen por una familia, luego la subfamilia de RPS cuando dice
- *  algo, luego su familia, y solo al final la descripción. */
+/** De qué es este trabajo, de lo más decisivo a lo más adivinado.
+ *
+ *  1. El CLIENTE, si es de los que valen por una familia.
+ *  2. La SUBFAMILIA de RPS, que es el nivel al que de verdad se distingue el
+ *     trabajo. Las familias de RPS son demasiado anchas para agrupar:
+ *     "SUMINISTRO" mezcla 1313 puertas con 422 OF de material suelto, y
+ *     "TOLDO FACHADA" mete en el mismo sitio 662 toldos nuevos, 700
+ *     reparaciones y 163 accesorios (12 meses de trabajo de OT, 11/08/2026).
+ *  3. Su familia, cuando el artículo no tiene subfamilia puesta (pasa: 450 OF
+ *     de OTR.ESTRUCTURAS y 422 de SUMINISTRO no la tienen).
+ *  4. Y al final la descripción, que es adivinar.
+ *
+ *  Aviso sobre 2: hay subfamilias que cuelgan de familias muy distintas y al
+ *  agrupar por ellas se juntan trabajos que antes iban separados —LONASNUEVAS
+ *  vive bajo REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA; CONFECCION bajo
+ *  ESPECTACULO, SUMINISTRO, ACABADOS y más—. Es a propósito y es decisión de
+ *  Iván: en la oficina el trabajo se llama por la subfamilia. */
 export function familiaDeTexto(
   descripcionMO: string | null,
   articulo: string | null,
@@ -216,7 +225,7 @@ export function familiaDeTexto(
   const cliente = (extra?.cliente ?? "").toUpperCase();
   const sub = (extra?.subfamilia ?? "").trim().toUpperCase();
   for (const [re, familia] of CLIENTES_FAMILIA) if (re.test(cliente)) return familia;
-  for (const [re, familia] of FAMILIA_POR_SUBFAMILIA) if (sub && re.test(sub)) return familia;
+  if (sub) return sub;
   for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
   for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
   // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte

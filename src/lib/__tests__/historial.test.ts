@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { construirFiltros, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
-import { FAMILIA_KEYWORDS, archivoDeRuta, claseDeDocumento, comoServir, segmentosEnShare } from "../historial";
+import { FAMILIAS_FILTRABLES, archivoDeRuta, claseDeDocumento, comoServir, segmentosEnShare } from "../historial";
 import { aMaterialOF, repartirMateriales } from "../historial";
 
 test("sin filtros no genera cláusulas ni params", () => {
@@ -78,20 +78,24 @@ test("cabeceraADetalle tolera nulos (fecha, piezas, cliente)", () => {
   expect(d.prioridad).toBe(1);
 });
 
-test("FAMILIA_KEYWORDS tiene las 7 familias con sus keywords", () => {
-  expect(Object.keys(FAMILIA_KEYWORDS).sort()).toEqual(
-    ["CARPA", "LONA", "REMOLQUE", "REPARACION", "SUMINISTRO", "TAPIZADO", "TOLDO"],
-  );
-  expect(FAMILIA_KEYWORDS.LONA).toEqual(["LONA", "ROLLO"]);
+test("las familias filtrables son subfamilias de RPS, las mismas con las que agrupa el tablero", () => {
+  // Si estas dos pantallas no hablan el mismo idioma, filtrar por "Puertas" en
+  // el Historial y en el tablero traería cosas distintas.
+  expect(FAMILIAS_FILTRABLES).toContain("PUERTAS");
+  expect(FAMILIAS_FILTRABLES).toContain("TOLDO NUEVO");
+  // Y ya no están las familias anchas que se buscaban por palabras.
+  expect(FAMILIAS_FILTRABLES).not.toContain("TOLDO");
+  expect(FAMILIAS_FILTRABLES).not.toContain("SUMINISTRO");
 });
 
-test("filtro familia genera EXISTS parametrizado con las keywords de esa familia", () => {
-  const r = construirFiltros({ page: 0, familia: "LONA" });
-  expect(r.clausulas.some((c) => c.includes("EXISTS"))).toBe(true);
-  expect(r.clausulas.some((c) => c.includes("mo2.Description LIKE @fam0"))).toBe(true);
-  expect(r.clausulas.some((c) => c.includes("mo2.Description LIKE @fam1"))).toBe(true);
-  expect(r.params).toContainEqual({ nombre: "fam0", valor: "%LONA%" });
-  expect(r.params).toContainEqual({ nombre: "fam1", valor: "%ROLLO%" });
+test("filtro familia pregunta por la subfamilia clasificada, no por palabras de la descripción", () => {
+  // Antes buscaba palabras en la descripción de la MO, que es adivinar:
+  // "REPARACION TOLDO" caía en dos familias a la vez.
+  const r = construirFiltros({ page: 0, familia: "PUERTAS" });
+  expect(r.clausulas.some((c) => c.includes("sf2.CodProductSubFamily = @familia"))).toBe(true);
+  expect(r.params).toContainEqual({ nombre: "familia", valor: "PUERTAS" });
+  // Parametrizado, nunca interpolado.
+  expect(r.clausulas.some((c) => c.includes("PUERTAS"))).toBe(false);
 });
 
 test("filtro familia desconocida se ignora", () => {

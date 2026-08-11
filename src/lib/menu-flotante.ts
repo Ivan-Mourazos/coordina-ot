@@ -30,18 +30,39 @@ export interface SitioMenu {
  *  `maxWidth`. Y si abajo no cabe, abre hacia arriba. */
 export function sitioDeMenu(
   caja: { left: number; right: number; top: number; bottom: number; width: number },
-  opts: { ventana: Ventana; alto: number; alignRight?: boolean },
+  opts: { ventana: Ventana; alto: number; alignRight?: boolean; ancho?: number },
 ): SitioMenu {
-  const { ventana, alto, alignRight = false } = opts;
+  const { ventana, alto, alignRight = false, ancho } = opts;
   const cabeAbajo = caja.bottom + 4 + alto <= ventana.alto - MARGEN;
+  const vertical = cabeAbajo
+    ? { top: caja.bottom + 4 }
+    : { bottom: ventana.alto - caja.top + 4 };
+
+  // Con el ancho SABIDO se puede sujetar el menú por los dos lados de verdad,
+  // que es la única manera de que no se salga. Anclarlo por la derecha y
+  // limitar ese `right` no basta: el borde izquierdo queda en
+  // `ancho_ventana - right - ancho_menú`, y con el botón pegado al borde
+  // izquierdo eso se va a negativo. Es lo que le pasaba al "Asignar" de la
+  // bandeja, que mide 176 px fijos y se abría fuera de la pantalla.
+  if (ancho !== undefined) {
+    const deseado = alignRight ? caja.right - ancho : caja.left;
+    const tope = Math.max(MARGEN, ventana.ancho - ancho - MARGEN);
+    return {
+      left: Math.min(Math.max(MARGEN, deseado), tope),
+      ...vertical,
+      minWidth: ancho,
+      maxWidth: Math.min(ancho, ventana.ancho - 2 * MARGEN),
+    };
+  }
+
+  // Sin saber el ancho (el menú de Select se mide al pintarlo) se ancla por un
+  // lado y el otro lo limita `maxWidth`: no es perfecto, pero no hay que
+  // adivinar nada.
   return {
     ...(alignRight
-      ? // Sujeto también por la izquierda: anclar solo por la derecha dejaba el
-        // menú saliéndose por el otro lado cuando el botón estaba pegado al
-        // borde izquierdo (el "Asignar" de la bandeja, en pantalla estrecha).
-        { right: Math.min(Math.max(MARGEN, ventana.ancho - caja.right), ventana.ancho - MARGEN) }
+      ? { right: Math.min(Math.max(MARGEN, ventana.ancho - caja.right), ventana.ancho - MARGEN) }
       : { left: Math.min(Math.max(MARGEN, caja.left), ventana.ancho - MARGEN) }),
-    ...(cabeAbajo ? { top: caja.bottom + 4 } : { bottom: ventana.alto - caja.top + 4 }),
+    ...vertical,
     minWidth: caja.width,
     maxWidth: ventana.ancho - 2 * MARGEN,
   };
