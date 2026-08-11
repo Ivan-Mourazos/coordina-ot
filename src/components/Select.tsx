@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
 // ─── Por qué el menú va en un PORTAL ─────────────────────────────────────────
 // Estaba `absolute` dentro del propio control, y eso le daba dos problemas que
@@ -17,8 +18,6 @@ import { createPortal } from "react-dom";
 // recorta nadie y se puede sujetar dentro de la ventana. Es el mismo patrón que
 // ya usaba el popover de reservas.
 
-/** Margen mínimo con los bordes de la ventana. */
-const MARGEN = 8;
 /** Alto máximo del menú (`max-h-64`), para decidir si abre arriba o abajo. */
 const ALTO_MAX = 256;
 
@@ -160,24 +159,11 @@ export function Select({
   // Dónde cabe el menú. Se sujeta a la ventana por los dos lados y, si abajo no
   // queda sitio, se abre hacia arriba: contra el borde inferior se quedaba
   // medio menú fuera de la pantalla.
-  const sitio = (() => {
-    if (!caja || typeof window === "undefined") return null;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const cabeAbajo = caja.bottom + 4 + ALTO_MAX <= vh - MARGEN;
-    // Se ancla por el lado que toque —izquierda, o derecha si `alignRight`— en
-    // vez de calcular el ancho del menú, que no se sabe hasta pintarlo. Así el
-    // borde anclado queda sujeto a la ventana sin adivinar nada, y el otro lo
-    // limita `maxWidth`.
-    return {
-      ...(alignRight
-        ? { right: Math.max(MARGEN, vw - caja.right) }
-        : { left: Math.min(Math.max(MARGEN, caja.left), vw - MARGEN) }),
-      ...(cabeAbajo ? { top: caja.bottom + 4 } : { bottom: vh - caja.top + 4 }),
-      minWidth: caja.width,
-      maxWidth: vw - 2 * MARGEN,
-    };
-  })();
+  // La cuenta vive en lib/menu-flotante.ts: la comparten todos los menús que se
+  // pintan en un portal, que si no cada uno se salía de la pantalla a su manera.
+  const ventana = ventanaActual();
+  const sitio =
+    caja && ventana ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight }) : null;
 
   return (
     <div className={`relative ${className}`}>
@@ -225,6 +211,10 @@ export function Select({
             menuRef.current = el;
           }}
           role="listbox"
+          // Marca de "esto vive en un portal": lo que se cierra al hacer clic
+          // fuera (los paneles flotantes) tiene que saber que este menú sigue
+          // siendo parte de lo que lo abrió, aunque en el DOM cuelgue del body.
+          data-en-portal=""
           className="glass-pop scroll-thin fixed z-[60] max-h-64 w-max overflow-y-auto rounded-xl p-1"
           style={sitio}
         >

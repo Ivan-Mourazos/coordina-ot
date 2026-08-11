@@ -10,8 +10,13 @@ import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 
 /** Cuántos pedidos se ven por fase antes de "+N más". Es lo que garantiza que
- *  el bloque mida lo mismo con 5 pedidos que con 40. */
-const TOPE = 3;
+ *  el bloque mida lo mismo con 5 pedidos que con 40.
+ *
+ *  Seis y no tres: con tres, un reparto normal ya mandaba media columna al
+ *  desplegable, y abrir un panel para ver el cuarto pedido es trabajo que no
+ *  hacía falta. Cada fila mide 26 px, así que seis siguen cabiendo sin que la
+ *  zona personal se coma la bandeja. */
+const TOPE = 6;
 
 /** La zona del operario actual. Solo pinta las fases con contenido: las vacías
  *  se resumen como contadores en la cabecera, en vez de reservar una columna

@@ -38,8 +38,14 @@ export const ACCIONES: AccionDef[] = [
     desde: ["devuelta"], requiere: "autor", efectoFichaje: "arranca", destino: "en_curso" },
   { id: "terminar_planteo", label: "Pasar a revisión", tono: "primaria",
     desde: ["en_curso", "devuelta"], efectoFichaje: "corta", destino: "por_revisar" },
-  { id: "deshacer_empezar", label: "Volver a pendiente", tono: "neutra",
-    confirmar: "La OF volverá a pendiente. El tiempo ya fichado se conserva.",
+  // "Dejar sin empezar" y no "Volver a pendiente": lo segundo suena a "pararla
+  // un rato" y no lo es —deshace el haberla empezado—, así que se usaba como
+  // pausa por no haber otra cosa a mano. La pausa de verdad es el botón del
+  // reloj, y el texto de confirmación lo dice para que no se confundan otra vez.
+  { id: "deshacer_empezar", label: "Dejar sin empezar", tono: "neutra",
+    confirmar:
+      "La OF vuelve a 'sin empezar' y deja de figurar como trabajo en curso. El tiempo ya fichado se conserva. " +
+      "Si solo quieres parar y seguir más tarde, usa Pausar: la OF se queda como está.",
     desde: ["en_curso"], efectoFichaje: "corta", destino: "pendiente" },
   { id: "empezar_revision", label: "Empezar revisión", tono: "primaria",
     desde: ["por_revisar"], requiere: "revisor", soloEl: "revisor",

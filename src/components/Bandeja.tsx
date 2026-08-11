@@ -280,9 +280,17 @@ export function Bandeja({
         /* ── SIN AGRUPAR: tarjetas seguidas, fecha en cada una. Va de última
              rama, no de primera con un fallback igual detrás: `Agrupacion`
              tiene tres valores y ya no hay ningún cuarto caso que cubrir. ── */
-        <div className="flex flex-wrap gap-1.5">
+        /* Rejilla que se reparte el ancho, no tarjetas de 80 px que dejan un
+           hueco a la derecha. `auto-fill` mete las que quepan a 80 px mínimo y
+           `1fr` les da el sobrante a partes iguales: con 21 por fila, en vez de
+           una franja muerta al final cada tarjeta crece un pelín. El PDF de
+           dentro escala con ella, así que se lee mejor cuanto más ancha. */
+        <div
+          className="grid gap-1.5"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))" }}
+        >
           {flat.map((f) => (
-            <div key={f.pedido.id} className="w-[80px]">
+            <div key={f.pedido.id} className="min-w-0">
               <PedidoCard
                 facet={f}
                 operarios={operarios}

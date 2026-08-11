@@ -15,7 +15,7 @@ import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
-import { ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -49,9 +49,11 @@ type GrupoOculto = "detenida" | "taller" | "anulada";
  *  las que tiene el pedido. */
 function grupoOculto(of: OF): GrupoOculto | null {
   if (of.estado === "anulada") return "anulada";
-  // Mismo criterio con el que el tablero decide no enseñarla: tarea de taller y
-  // nadie de OT que la haya rescatado asignándose autor.
-  if (ofOcultaDeOT(of)) return "taller";
+  // `ofDeTaller` y no `ofOcultaDeOT`: aquí no vale la excepción del rescate,
+  // porque el autor de una OF de taller puede venir deducido de RPS sin que
+  // nadie de OT la haya tocado (ver el comentario en fases-tablero.ts). Lo que
+  // se pidió es ver SOLO las de OT, y eso es por dónde entra la tarea.
+  if (ofDeTaller(of)) return "taller";
   if (of.detenida) return "detenida";
   return null;
 }
@@ -169,6 +171,9 @@ export function Drawer({
     ...ofsDeOT,
     ...ocultas.filter((c) => mostrar.has(c.grupo.id)).flatMap((c) => c.ofs),
   ];
+  // Lo que se puede fichar de una tacada: solo lo que es trabajo de OT y admite
+  // reloj. Las detenidas y las de taller no entran ni aunque estén desplegadas.
+  const fichablesDeOT = ofsDeOT.filter(esFichable);
 
   return (
     <div
@@ -289,6 +294,11 @@ export function Drawer({
                 }
                 onChange={(v) => onAssignPedido(v)}
                 placeholder="Sin asignar"
+                // La opción de vaciar dice lo que HACE, no el estado en que
+                // deja las cosas: "Sin asignar" a secas se leía como el rótulo
+                // del selector vacío y nadie caía en que ahí estaba la forma de
+                // devolver un pedido a la bandeja.
+                etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
                 alignRight
                 options={opcionesOperario(operarios, miId)}
               />
@@ -296,14 +306,29 @@ export function Drawer({
           </div>
 
           {/* OFs: el trabajo de OT arriba, lo demás en cajones (ver GRUPOS). */}
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Órdenes de fabricación ({ofsDeOT.length})
-            {ofsDeOT.length !== pedido.ofs.length && (
-              <span className="ml-1.5 font-normal normal-case tracking-normal">
-                · {pedido.ofs.length - ofsDeOT.length} más en el pedido
-              </span>
+          <div className="mb-2 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Órdenes de fabricación ({ofsDeOT.length})
+              {ofsDeOT.length !== pedido.ofs.length && (
+                <span className="ml-1.5 font-normal normal-case tracking-normal">
+                  · {pedido.ofs.length - ofsDeOT.length} más en el pedido
+                </span>
+              )}
+            </h3>
+            {/* Fichar el pedido entero sin ir OF por OF. Solo con más de una:
+                con una sola, este botón y el de su fila harían lo mismo y
+                sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
+                usa cuando de verdad solo tocas una. */}
+            {fichablesDeOT.length > 1 && (
+              <button
+                onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
+                title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
+                className="ml-auto shrink-0 rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+              >
+                ⏱ Fichar las {fichablesDeOT.length}
+              </button>
             )}
-          </h3>
+          </div>
 
           {ofsDeOT.length === 0 && (
             <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-muted">
@@ -516,7 +541,7 @@ function OFRow({
             ficha del pedido entero— y sin marcarlas parecía trabajo tuyo: en
             AR.26.03626, de cinco OF solo el toldo es de OT y la capota se leía
             igual que él. */}
-        {ofOcultaDeOT(of) && (
+        {ofDeTaller(of) && (
           <span
             className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
             title="Entra por una tarea de taller: no es trabajo de Oficina Técnica. Asignarle autor la rescata."
@@ -622,32 +647,13 @@ function OFRow({
         />
       </div>
 
-      {/* Lo que es de la OF entera y no de una persona: el total contra lo
-          estimado y el botón de fichar. */}
+      {/* El total contra lo estimado. El reloj ya NO va aquí: bajó a la fila de
+          acciones, ver el comentario de AccionesOF. */}
       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
         <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
           Total {fmtMin(tiempoTotalOF(of))}
           <span className="ml-1 font-normal text-text-muted">/ est. {fmtMin(of.tiempoEstimadoMin)}</span>
         </span>
-        {of.fichandoRol ? (
-          <Btn tone="ghost" className="ml-auto" onClick={() => onDesfichar(of.id)}>
-            ⏸ Dejar de fichar
-          </Btn>
-        ) : esFichable(of) ? (
-          <Btn tone="ghost" className="ml-auto" onClick={() => onFichar([of.id], rolFichajeDe(of))}>
-            ⏱ Fichar
-          </Btn>
-        ) : (
-          of.estado !== "aprobada" &&
-          of.estado !== "anulada" && (
-            <span
-              title={motivoNoFichable(of) ?? undefined}
-              className="ml-auto cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
-            >
-              ⏱ No fichable
-            </span>
-          )
-        )}
       </div>
 
       {/* archivos subidos a RPS */}
@@ -666,23 +672,43 @@ function OFRow({
       )}
 
       {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
-      <AccionesOF of={of} operarios={operarios} miId={miId} onAccion={onAccion} onSetRevisor={onSetRevisor} />
+      <AccionesOF
+        of={of}
+        operarios={operarios}
+        miId={miId}
+        onAccion={onAccion}
+        onSetRevisor={onSetRevisor}
+        onFichar={onFichar}
+        onDesfichar={onDesfichar}
+      />
     </li>
   );
 }
 
+/** Todo lo que se puede HACER con esta OF, en una sola fila.
+ *
+ *  El reloj estaba arriba, suelto y en tono fantasma ("⏸ Dejar de fichar"), y
+ *  las acciones de estado abajo. Con esa separación, quien quería parar y
+ *  seguir por la tarde no encontraba la pausa y tiraba de "Volver a pendiente",
+ *  que no es pausar: deshace el haber empezado. Ahora van juntas y en el orden
+ *  del trabajo —el reloj primero, que es lo que más se pulsa—, y los textos
+ *  dicen lo que hacen: "Pausar", "Reanudar", "Dejar sin empezar". */
 function AccionesOF({
   of,
   operarios,
   miId,
   onAccion,
   onSetRevisor,
+  onFichar,
+  onDesfichar,
 }: {
   of: OF;
   operarios: Operario[];
   miId: string | null;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onFichar: (ofIds: string[], rol: Rol) => void;
+  onDesfichar: (ofId: string) => void;
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
@@ -690,9 +716,39 @@ function AccionesOF({
   // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
   const acciones = accionesDisponibles(of, miId);
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
+  // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
+  // pausa, y llamarlo igual que empezar de cero borraba esa diferencia.
+  const yaEmpezada = tiempoTotalOF(of) > 0;
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
+      {of.fichandoRol ? (
+        <Btn
+          tone="teal"
+          title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
+          onClick={() => onDesfichar(of.id)}
+        >
+          ⏸ Pausar
+        </Btn>
+      ) : esFichable(of) ? (
+        <Btn
+          tone="teal"
+          title={yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Empieza a contar tiempo en esta OF"}
+          onClick={() => onFichar([of.id], rolFichajeDe(of))}
+        >
+          {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
+        </Btn>
+      ) : (
+        of.estado !== "aprobada" &&
+        of.estado !== "anulada" && (
+          <span
+            title={motivoNoFichable(of) ?? undefined}
+            className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
+          >
+            ⏱ No fichable
+          </span>
+        )
+      )}
       {acciones.map((a) => {
         if (a.conNota)
           return <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />;
@@ -742,11 +798,13 @@ function Btn({
   onClick,
   tone,
   className = "",
+  title,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   tone: "amber" | "teal" | "ghost" | "rojo";
   className?: string;
+  title?: string;
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
@@ -762,6 +820,7 @@ function Btn({
   return (
     <button
       onClick={onClick}
+      title={title}
       className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${cls} ${className}`}
     >
       {children}

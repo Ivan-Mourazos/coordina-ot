@@ -826,13 +826,30 @@ export function Board({
     },
     [mut, persistir, soltarDeMiFichaje],
   );
+  // Quitar el autor devuelve el pedido a la bandeja, y no solo eso: también
+  // borra el revisor y deja las OF en "pendiente" (ver moverOFs). Es
+  // reversible, pero le quita el trabajo de las manos a alguien —que se entera
+  // por la campana, con un aviso "Ya no lo tienes tú"—, así que se pregunta.
+  const [quitarAutorPendiente, setQuitarAutorPendiente] = useState<{
+    pedidoId: string;
+    quien: string;
+  } | null>(null);
   const asignarPedido = useCallback(
     (autorId: string | null) => {
       const pedido = pedidosRef.current.find((p) => p.id === openId);
       if (!pedido) return;
-      moverOFs(new Set(pedido.ofs.map((of) => of.id)), autorId);
+      const ids = new Set(pedido.ofs.map((of) => of.id));
+      const duenos = [...new Set(pedido.ofs.map((of) => of.autorId).filter(Boolean))] as string[];
+      if (autorId === null && duenos.length > 0) {
+        const quien = duenos
+          .map((id) => operarios.find((o) => o.id === id)?.nombre ?? id)
+          .join(" y ");
+        setQuitarAutorPendiente({ pedidoId: pedido.id, quien });
+        return;
+      }
+      moverOFs(ids, autorId);
     },
-    [openId, moverOFs],
+    [openId, moverOFs, operarios],
   );
   // Asignar revisor NO cambia el estado: la OF queda "por revisar" hasta que
   // el revisor pulse "Empezar revisión" (o fiche como revisor), que es lo que
@@ -1083,19 +1100,20 @@ export function Board({
     rol: Rol;
     nombres: string[];
   } | null>(null);
-  const ficharOFsConAviso = useCallback(
+  // Fichar desde una fila del tablero arranca el reloj en TODAS las OF
+  // fichables del pedido a la vez. Es lo que se quiere casi siempre, pero no se
+  // veía por ningún lado: el botón dice "Fichar" y no cuántas cosas ficha. Se
+  // pregunta solo con más de una —con una no hay nada que explicar— y de paso
+  // se cuenta que dentro del pedido se puede fichar OF por OF.
+  const [fichajeVariasPendiente, setFichajeVariasPendiente] = useState<{
+    ofIds: string[];
+    rol: Rol;
+    codigos: string[];
+  } | null>(null);
+  // Último tramo del embudo de avisos: fichar en OFs asignadas a OTRO está
+  // permitido (se hace, para echar una mano), pero no debe pasar sin querer.
+  const ficharAvisandoSiEsAjeno = useCallback(
     (ofIds: string[], rol: Rol) => {
-      if (!miId) return;
-      // Periodo de pruebas: hay que fichar también en la herramienta antigua.
-      // El recordatorio salta al PULSAR fichar, que es cuando se puede olvidar,
-      // pero solo la PRIMERA vez del día: un diálogo en cada fichaje —y se
-      // ficha muchas veces al día— se aprende a cerrar sin leerlo, que es peor
-      // que no ponerlo. El resto del día lo recuerda el cartel fijo del panel
-      // de Mi fichaje. QUITAR los dos cuando el fichaje pase a "activo".
-      if (avisoAntiguaPendiente(miId)) {
-        setRecordatorioAntigua({ ofIds, rol });
-        return;
-      }
       const ids = new Set(ofIds);
       const ajenos = new Set<string>();
       for (const p of pedidos) {
@@ -1109,12 +1127,40 @@ export function Board({
         ficharOFs(ofIds, rol);
         return;
       }
-      const nombres = operarios
-        .filter((o) => ajenos.has(o.id))
-        .map((o) => o.nombre);
+      const nombres = operarios.filter((o) => ajenos.has(o.id)).map((o) => o.nombre);
       setFichajeAjenoPendiente({ ofIds, rol, nombres });
     },
     [miId, pedidos, operarios, ficharOFs],
+  );
+
+  /** Embudo de avisos antes de arrancar el reloj, en orden: el doble fichaje
+   *  del periodo de pruebas → qué OF se van a fichar → de quién son. Cada
+   *  diálogo, al aceptar, sigue por donde iba, así que se encadenan solos. */
+  const ficharOFsConAviso = useCallback(
+    (ofIds: string[], rol: Rol) => {
+      if (!miId) return;
+      // Periodo de pruebas: hay que fichar también en la herramienta antigua.
+      // El recordatorio salta al PULSAR fichar, que es cuando se puede olvidar,
+      // pero solo la PRIMERA vez del día: un diálogo en cada fichaje —y se
+      // ficha muchas veces al día— se aprende a cerrar sin leerlo, que es peor
+      // que no ponerlo. El resto del día lo recuerda el cartel fijo del panel
+      // de Mi fichaje. QUITAR los dos cuando el fichaje pase a "activo".
+      if (avisoAntiguaPendiente(miId)) {
+        setRecordatorioAntigua({ ofIds, rol });
+        return;
+      }
+      if (ofIds.length > 1) {
+        const ids = new Set(ofIds);
+        const codigos = pedidos
+          .flatMap((p) => p.ofs)
+          .filter((of) => ids.has(of.id))
+          .map((of) => `${of.codigo} · ${of.descripcion}`);
+        setFichajeVariasPendiente({ ofIds, rol, codigos });
+        return;
+      }
+      ficharAvisandoSiEsAjeno(ofIds, rol);
+    },
+    [miId, pedidos, ficharAvisandoSiEsAjeno],
   );
 
   // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
@@ -1270,29 +1316,39 @@ export function Board({
     <>
       <div className="flex min-h-full flex-col">
         {/* topbar */}
-        <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-4 px-5 py-3">
+        {/* Tres zonas y no una fila que se reparte como puede: identidad y
+            navegación a la izquierda, el buscador CENTRADO, y a la derecha lo
+            que se consulta de reojo. Sin `flex-wrap`: al meter el buscador, la
+            cabecera saltaba a dos alturas en cuanto la ventana se estrechaba.
+            Lo de la derecha se va retirando por tamaño de pantalla (primero el
+            "en directo", luego los contadores), que es el orden inverso al de
+            su utilidad — los botones no se van nunca. */}
+        <header className="glass-header sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5">
           {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
-          <Logo className="-my-3" />
-          <ViewSwitcher
-            vista={vista}
-            onChange={setVista}
-            badge={{ revision: misPorRevisar, asignar: misDevueltas }}
-          />
+          <Logo className="-my-3 shrink-0" />
+          <div className="shrink-0">
+            <ViewSwitcher
+              vista={vista}
+              onChange={setVista}
+              badge={{ revision: misPorRevisar, asignar: misDevueltas }}
+            />
+          </div>
           {/* Busca en TODO: `pedidos` sin filtrar (con lo de taller, lo
               detenido, lo anulado y lo ya pasado) más el historial de RPS. Cada
               vista enseña un recorte distinto y sin esto encontrar un pedido
               concreto era adivinar en cuál cayó. */}
           <BuscadorGlobal
+            className="mx-auto w-full max-w-lg"
             pedidos={pedidos}
             nombre={nombreDeOperario}
             onAbrirPedido={abrirPedido}
             onAbrirHistorial={setHistorialAbierto}
           />
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex shrink-0 items-center gap-2 text-xs">
             {/* En directo: quién está fichando ahora mismo y con qué rol */}
             {lives.length > 0 && (
               <div
-                className="glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+                className="glass-chip hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 2xl:flex"
                 title="Fichando ahora mismo"
               >
                 <span className="text-[11px] text-text-muted">En directo</span>
@@ -1317,9 +1373,13 @@ export function Board({
                 </div>
               </div>
             )}
-            <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
-            <Kpi label="Por revisar" value={porRevisar} tone="amber" />
-            <Kpi label="En revisión" value={enRevision} tone="violet" />
+            {/* Contadores: se consultan de reojo, no se pulsan. Son los
+                primeros en irse cuando la pantalla no da para todo. */}
+            <div className="hidden items-center gap-2 xl:flex">
+              <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
+              <Kpi label="Por revisar" value={porRevisar} tone="amber" />
+              <Kpi label="En revisión" value={enRevision} tone="violet" />
+            </div>
             <Herramientas />
             <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
@@ -1633,6 +1693,27 @@ export function Board({
         onCancelar={() => setCambioIdentidadPendiente(null)}
       />
 
+      <ConfirmDialog
+        abierto={quitarAutorPendiente !== null}
+        titulo="Quitar el autor del pedido"
+        tono="peligro"
+        mensaje={
+          `El pedido sale de las manos de ${quitarAutorPendiente?.quien ?? ""} y vuelve a "Sin asignar", ` +
+          `para que lo pueda coger cualquiera.\n\n` +
+          `Sus OF vuelven a "sin empezar" y se queda sin revisor. El tiempo ya fichado NO se borra.` +
+          (quitarAutorPendiente && quitarAutorPendiente.quien
+            ? `\n\nA ${quitarAutorPendiente.quien} le llegará el aviso de que ya no lo lleva.`
+            : "")
+        }
+        onConfirmar={() => {
+          const pendiente = quitarAutorPendiente;
+          setQuitarAutorPendiente(null);
+          const pedido = pendiente && pedidosRef.current.find((p) => p.id === pendiente.pedidoId);
+          if (pedido) moverOFs(new Set(pedido.ofs.map((of) => of.id)), null);
+        }}
+        onCancelar={() => setQuitarAutorPendiente(null)}
+      />
+
       {/* Periodo de pruebas: recordatorio del doble fichaje, una vez al día. */}
       <ConfirmDialog
         abierto={recordatorioAntigua !== null}
@@ -1648,6 +1729,26 @@ export function Board({
           if (pendiente) ficharOFsConAviso(pendiente.ofIds, pendiente.rol);
         }}
         onCancelar={() => setRecordatorioAntigua(null)}
+      />
+
+      {/* Qué se va a fichar. El botón de la fila dice "Fichar" y arranca el
+          reloj en todas las OF fichables del pedido: enseñarlas por su nombre
+          es la única forma de que eso no sea una sorpresa, y de paso se aprende
+          que dentro del pedido se puede fichar una sola. */}
+      <ConfirmDialog
+        abierto={fichajeVariasPendiente !== null}
+        titulo={`Fichar ${fichajeVariasPendiente?.ofIds.length ?? 0} OF a la vez`}
+        mensaje={
+          `Se va a poner el reloj en marcha en:\n\n` +
+          `${(fichajeVariasPendiente?.codigos ?? []).map((c) => `· ${c}`).join("\n")}\n\n` +
+          `El tiempo se reparte entre ellas. Si solo quieres fichar una, abre el pedido y ficha esa OF.`
+        }
+        onConfirmar={() => {
+          const pendiente = fichajeVariasPendiente;
+          setFichajeVariasPendiente(null);
+          if (pendiente) ficharAvisandoSiEsAjeno(pendiente.ofIds, pendiente.rol);
+        }}
+        onCancelar={() => setFichajeVariasPendiente(null)}
       />
 
       <ConfirmDialog

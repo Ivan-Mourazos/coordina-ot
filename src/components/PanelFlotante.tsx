@@ -72,7 +72,14 @@ export function PanelFlotante({
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) pedirCierre();
+      const donde = e.target as Node;
+      if (ref.current?.contains(donde)) return;
+      // Lo que sale del panel por un PORTAL sigue siendo del panel aunque en el
+      // DOM cuelgue del `body`. Sin esto, elegir revisor desde el «+N más»
+      // cerraba el panel al pulsar la opción —el menú del Select es un portal—
+      // y el pedido nunca llegaba a pasar a revisión.
+      if (donde instanceof Element && donde.closest("[data-en-portal]")) return;
+      pedirCierre();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") pedirCierre();

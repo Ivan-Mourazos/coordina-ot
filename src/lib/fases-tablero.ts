@@ -54,6 +54,26 @@ export function ofOcultaDeOT(of: OF): boolean {
   return of.ajenaOT === true && of.autorId === null;
 }
 
+/** ¿Entra por una tarea de TALLER? Sin la excepción del rescate.
+ *
+ *  Para decidir si una OF ocupa sitio en el tablero, el rescate manda: te la
+ *  asignas y es tuya. Pero para CONTAR y AGRUPAR dentro de la ficha del pedido
+ *  lo que importa es de dónde viene, y ahí el rescate estorba de dos maneras:
+ *
+ *  · El autor de una OF no siempre lo pone alguien. Cuando RPS trae tiempo
+ *    imputado, el autor se deduce de quién lo echó (ver `autorImputado` en
+ *    server/rps.ts), así que una tarea de taller que el taller ya empezó
+ *    aparece "con autor" sin que nadie de OT la haya tocado — y se colaba en
+ *    la ficha como si fuera trabajo nuestro.
+ *  · Y una OF de taller detenida por Producción marcaba el pedido entero como
+ *    "Detenido" cuando lo detenido no era cosa de Oficina Técnica.
+ *
+ *  La única excepción es que se esté fichando AHORA: si alguien tiene el reloj
+ *  corriendo en ella, es trabajo de verdad y esconderla sería mentir. */
+export function ofDeTaller(of: OF): boolean {
+  return of.ajenaOT === true && !of.fichandoRol;
+}
+
 export function faseDeOF(of: OF): Fase {
   if (of.estado === "aprobada") return "listoParaPasar";
   if (of.estado === "por_revisar" || of.estado === "en_revision") return "esperandoRevision";

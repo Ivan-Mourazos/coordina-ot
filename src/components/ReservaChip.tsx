@@ -59,6 +59,9 @@ function ReservaPopover({
   return createPortal(
     <div
       ref={ref}
+      // Ver Select.tsx: marca de portal para que los paneles flotantes no lo
+      // tomen por un clic fuera y se cierren solos.
+      data-en-portal=""
       className="glass-pop fixed z-[70] w-72 rounded-xl p-2.5"
       style={{ left, top, background: "var(--surface)" }}
     >

@@ -31,7 +31,10 @@ export function BuscadorGlobal({
   nombre,
   onAbrirPedido,
   onAbrirHistorial,
+  className = "",
 }: {
+  /** Lo pone quien lo coloca: en la cabecera es la columna del centro. */
+  className?: string;
   /** Todos los del tablero SIN filtrar: aquí se busca en todo. */
   pedidos: readonly Pedido[];
   nombre: (id: string) => string;
@@ -122,7 +125,7 @@ export function BuscadorGlobal({
   }
 
   return (
-    <div ref={ref} className="relative min-w-0 flex-1 basis-64 md:max-w-md">
+    <div ref={ref} className={`relative min-w-0 ${className}`}>
       <div className="glass-chip flex items-center gap-2 rounded-lg px-2.5 py-1.5">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 shrink-0 text-text-muted"
           fill="none" stroke="currentColor" strokeWidth="2">

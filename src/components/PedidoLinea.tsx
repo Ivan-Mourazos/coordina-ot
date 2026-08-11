@@ -7,6 +7,7 @@ import {
   FASES,
   autoresQueFaltan,
   motivoBloqueo,
+  ofDeTaller,
   pedidoListoParaPasar,
   type Fase,
 } from "@/lib/fases-tablero";
@@ -87,7 +88,12 @@ export function PedidoLinea({
   // que era lo que tapaba código/cliente/descripción con pedidos repartidos.
   const mostrandoFalta = !soloConsulta && fase === "listoParaPasar" && !listoParaPasar;
 
-  const detenidas = ofs.filter((o) => o.detenida).length;
+  // Solo las que son trabajo de OT. Una capota detenida en el taller no tiene
+  // por qué marcar TU pedido como detenido: no lo está para ti, y no está en tu
+  // mano resolverlo. `ofDeTaller` ignora a propósito el rescate por autor —el
+  // autor puede venir deducido de RPS—, ver su comentario.
+  const deOT = ofs.filter((o) => !ofDeTaller(o));
+  const detenidas = deOT.filter((o) => o.detenida).length;
 
   const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
@@ -123,12 +129,12 @@ export function PedidoLinea({
           <span
             className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[9px] font-bold uppercase text-red-700 dark:text-red-300"
             title={
-              detenidas === ofs.length
+              detenidas === deOT.length
                 ? "Detenida por Producción: no admite fichaje"
-                : `${detenidas} de ${ofs.length} OF detenidas por Producción`
+                : `${detenidas} de ${deOT.length} OF detenidas por Producción`
             }
           >
-            {detenidas === ofs.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+            {detenidas === deOT.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
           </span>
         )}
         {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
@@ -194,24 +200,31 @@ export function PedidoLinea({
         // limpiamente lo que quede debajo. Sirve para botones cortos
         // ("Pasar", "Fichar"); el aviso de "falta …", que puede ser largo,
         // tiene su propia rama arriba con hueco reservado.
+        // Los textos eran de 10 px en negrita sobre color, y en negrita a ese
+        // tamaño las letras se empastan: "Pasar a revisión" no se leía, se
+        // adivinaba por la forma. Ahora 11 px y semibold, con algo más de aire.
         <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
         {/* Pausa: siempre visible mientras se ficha. */}
         {fichando ? (
           <button
             onClick={() => onDesfichar(fichando.id)}
-            title="Pausar el fichaje"
-            className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-emerald-700"
+            title="Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
+            className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
           >
-            Pausar
+            ⏸ Pausar
           </button>
         ) : (
           fichables.length > 0 && (
             <button
               onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
-              title="Empezar a fichar en este pedido"
-              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
+              title={
+                fichables.length === 1
+                  ? "Empezar a fichar en este pedido"
+                  : `Empezar a fichar en las ${fichables.length} OF de este pedido`
+              }
+              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
             >
-              Fichar
+              ⏱ Fichar{fichables.length > 1 && ` ${fichables.length}`}
             </button>
           )
         )}
@@ -224,7 +237,7 @@ export function PedidoLinea({
                 : onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)
             }
             title={accion.label}
-            className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-0 transition-opacity hover:bg-brand-600 focus-visible:opacity-100 group-hover:opacity-100"
+            className="rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-brand-600 focus-visible:opacity-100 group-hover:opacity-100"
           >
             {accion.label}
           </button>
@@ -234,7 +247,7 @@ export function PedidoLinea({
           <button
             onClick={() => completarPedido(pedido.id)}
             title="Pasar el pedido a Producción"
-            className="rounded bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-cyan-700"
+            className="rounded-md bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-cyan-700"
           >
             Pasar
           </button>

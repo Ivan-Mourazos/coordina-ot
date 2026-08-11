@@ -91,7 +91,9 @@ export function ConfirmDialog({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
       <div className="glass-panel-strong absolute left-1/2 top-1/3 w-full max-w-sm -translate-x-1/2 rounded-2xl p-4">
         <h3 className="text-sm font-bold text-text">{titulo}</h3>
-        <p className="mt-1.5 text-sm text-text-muted">{mensaje}</p>
+        {/* `whitespace-pre-line`: hay mensajes que enumeran (qué OF se van a
+            fichar), y una lista en un solo párrafo corrido no se lee. */}
+        <p className="mt-1.5 whitespace-pre-line text-sm text-text-muted">{mensaje}</p>
         <div className="mt-4 flex justify-end gap-2">
           <button
             ref={btnCancelarRef}
