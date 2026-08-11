@@ -1231,6 +1231,10 @@ export function Board({
 
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
+  // Pasados a Producción pero todavía en la vista de pendientes de RPS: los
+  // enseña el Historial en un bloque aparte (ver su comentario). Se van solos
+  // de aquí en cuanto RPS cierra la fase y el pedido deja de venir.
+  const pasadosSinCerrar = pedidos.filter((p) => p.situacion === "completado");
 
   if (!mounted) {
     return (
@@ -1556,7 +1560,7 @@ export function Board({
         {/* ── VISTA HISTORIAL ── */}
         {vista === "historial" && (
           <div className="p-5">
-            <HistorialView />
+            <HistorialView pasados={pasadosSinCerrar} onAbrirPasado={abrirPedido} />
           </div>
         )}
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
+import type { Pedido } from "@/lib/types";
 import { FAMILIA_KEYWORDS } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
 import { fmtMin } from "@/lib/estado";
@@ -42,8 +43,18 @@ type ItemAmpliado = HistorialItem & {
   negocio?: string | null;
 };
 
-/** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado). */
-export function HistorialView() {
+/** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado).
+ *
+ *  `pasados` son los que pasaste a Producción pero RPS todavía no ha cerrado
+ *  (ver el bloque de abajo). Van aparte porque no salen de la misma consulta:
+ *  el historial lo pagina RPS y estos viven en el tablero. */
+export function HistorialView({
+  pasados = [],
+  onAbrirPasado,
+}: {
+  pasados?: readonly Pedido[];
+  onAbrirPasado?: (pedidoId: string) => void;
+} = {}) {
   const [items, setItems] = useState<HistorialItem[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -117,6 +128,46 @@ export function HistorialView() {
 
   return (
     <div className="space-y-3">
+      {/* Los que pasaste a Producción y RPS aún no ha cerrado.
+          Iban a ninguna parte: la Lista los quita en cuanto se pasan (es la
+          lista de lo que QUEDA por hacer) y el Historial no los tiene hasta que
+          RPS marca la fase de OT como finalizada, que puede tardar. Entremedias
+          el pedido no aparecía por ningún lado — el caso fue AR.26.03948, que
+          se pasó y desapareció.
+          Arriba y fuera de los filtros de abajo, que son de la consulta a RPS:
+          esto es otra cosa y filtrarlo con ellos mentiría. */}
+      {pasados.length > 0 && (
+        <section className="rounded-xl border border-cyan-500/40 bg-cyan-500/5 p-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
+            Pasados a Producción ({pasados.length})
+          </h2>
+          <p className="mt-0.5 text-[11px] text-text-muted">
+            Ya no son trabajo de Oficina Técnica. Pasan al historial de abajo en cuanto
+            RPS cierre su fase.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {pasados.map((p) => (
+              <li key={p.id}>
+                <button
+                  onClick={() => onAbrirPasado?.(p.id)}
+                  disabled={!onAbrirPasado}
+                  className="flex w-full items-center gap-2 rounded-lg bg-surface/60 px-2 py-1.5 text-left text-xs enabled:hover:bg-surface"
+                >
+                  <span className="font-mono font-semibold text-text">{p.codigo}</span>
+                  <span className="truncate text-text-muted">
+                    {p.cliente}
+                    {p.negocio ? ` · ${p.negocio}` : ""}
+                  </span>
+                  <span className="ml-auto shrink-0 text-[11px] text-text-muted">
+                    {p.ofs.length} OF
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Filtros propios del historial */}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col text-xs text-text-muted">
