@@ -79,16 +79,40 @@ describe("avisosPara", () => {
     expect(avisosPara([traspaso], "ivan", new Set())).toEqual([]);
   });
 
-  it("no avisa de asignar trabajo que no tenía dueño", () => {
+  it("avisa cuando OTRO te saca un parte de la bandeja y te lo pone a ti", () => {
     const asignar = accion({
       id: 9,
       motivo: "asignar",
       previos: [of("of-2", null, null)],
       cambiosOF: [of("of-2", "tamara", null)],
     });
-    // Una OF que sale de la bandeja ya se anuncia sola en la campana como
-    // "sin empezar": repetirlo aquí sería el mismo aviso dos veces.
-    expect(avisosPara([asignar], "tamara", new Set())).toEqual([]);
+    // Sale de la bandeja (sin dueño) y acaba en tus manos: es un hecho que te
+    // afecta y no lo has provocado tú. Antes se dejaba fuera porque lo cubría
+    // un aviso derivado del estado ("lo tienes sin empezar"), que se quitó por
+    // no distinguir quién lo había asignado.
+    expect(avisosPara([asignar], "tamara", new Set()).map((a) => a.tipo)).toEqual(["recibida"]);
+  });
+
+  it("pero NO si el parte te lo asignas tú", () => {
+    const propio = accion({
+      id: 11,
+      operarioId: "tamara",
+      motivo: "asignar",
+      previos: [of("of-2", null, null)],
+      cambiosOF: [of("of-2", "tamara", null)],
+    });
+    expect(avisosPara([propio], "tamara", new Set())).toEqual([]);
+  });
+
+  it("devolver a la bandeja el trabajo de otro sí le avisa", () => {
+    const suelta = accion({
+      id: 12,
+      motivo: "asignar",
+      previos: [of("of-2", "tamara", null)],
+      cambiosOF: [of("of-2", null, null)],
+    });
+    // Enterarte de que ya no es tuyo importa igual que enterarte de que lo es.
+    expect(avisosPara([suelta], "tamara", new Set()).map((a) => a.tipo)).toEqual(["cedida"]);
   });
 
   it("avisa del cambio de revisor en las dos direcciones", () => {

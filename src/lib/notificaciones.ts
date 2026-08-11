@@ -9,10 +9,15 @@ import type { OF, Pedido } from "./types";
 // OF solo te tocan dos, eso NO es "el pedido", y el aviso tiene que decir
 // cuáles son. Un solo aviso igualmente, pero nombrando las OF.
 
+/** Los avisos que puede dar la campana.
+ *
+ *  Todos son HECHOS: algo que ha pasado y que no has provocado tú. Lo que
+ *  tienes pendiente no va aquí —para eso están el tablero y Revisión—, y por
+ *  eso se cayó "sin empezar": saltaba por cada OF asignada y sin tocar,
+ *  incluidas las que te asignabas tú. */
 export type NotifTipo =
   | "revisar"
   | "devuelta"
-  | "sinEmpezar"
   | "recibida"
   | "cedida"
   | "revisarNueva"
@@ -115,7 +120,6 @@ export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
 const DEDUCIDOS: ReadonlySet<NotifTipo> = new Set<NotifTipo>([
   "revisar",
   "devuelta",
-  "sinEmpezar",
   "pedidoCompleto",
 ]);
 

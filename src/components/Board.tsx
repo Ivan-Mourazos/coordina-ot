@@ -523,19 +523,25 @@ export function Board({
     // Se detectan por OF —es la unidad de trabajo— y se agrupan por pedido al
     // final: mandar a revisar un pedido de cuatro OF encendía cuatro avisos
     // idénticos que llevaban todos al mismo sitio.
+    // La campana avisa de lo que te ha PASADO, no de lo que tienes. Para saber
+    // qué te queda por hacer están el tablero y la vista de Revisión, que es su
+    // trabajo; repetirlo aquí llenaba la campana de cosas que no son noticia:
+    //
+    //  · "Sin empezar" saltaba por cada OF asignada y sin tocar, incluidas las
+    //    que te habías asignado tú. Autoasignarte cinco partes eran cinco
+    //    avisos de tus propios actos. Fuera: que otro te dé trabajo ya lo dice
+    //    "recibida", que sale del registro y sabe QUIÉN lo hizo (ver avisos.ts).
+    //  · "Me toca revisar" cubría también `en_revision`, o sea lo que ya estás
+    //    revisando ahora mismo — y con "Coger y empezar" te avisaba de una
+    //    revisión que acababas de coger tú. Solo `por_revisar`: te lo han
+    //    dejado y aún no lo has tocado.
     const out: AvisoSuelto[] = [];
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
-        // Avisa desde que te la asignan (por_revisar), no solo cuando ya la
-        // has empezado: enterarte de que te ha llegado trabajo DESPUÉS de
-        // cogerlo no sirve de nada. Se mantiene en_revision para que lo que
-        // tienes a medias no desaparezca de la campana.
-        if (of.revisorId === miId && (of.estado === "por_revisar" || of.estado === "en_revision"))
+        if (of.revisorId === miId && of.estado === "por_revisar")
           out.push({ pedido: p, of, tipo: "revisar" });
         else if (of.autorId === miId && of.estado === "devuelta")
           out.push({ pedido: p, of, tipo: "devuelta" });
-        else if (of.autorId === miId && of.estado === "pendiente")
-          out.push({ pedido: p, of, tipo: "sinEmpezar" });
       }
     }
 
@@ -566,16 +572,6 @@ export function Board({
     }
     return agruparAvisos(out);
   }, [procesadosAll, miId, avisosMov, operarios]);
-  // Los badges cuentan PEDIDOS, igual que la campana: si tres avisos son del
-  // mismo parte, el trabajo que tienes delante es uno.
-  const misPorRevisar = notifItems.filter((i) => i.tipo === "revisar").length;
-  const misDevueltas = notifItems.filter((i) => i.tipo === "devuelta").length;
-
-  // Aviso visible aunque la pestaña esté al fondo: "(2) CoordinaOT".
-  useEffect(() => {
-    const n = misPorRevisar + misDevueltas;
-    document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
-  }, [misPorRevisar, misDevueltas]);
 
   // ── Avisos deducidos ya abiertos ──
   // En localStorage y no en el servidor como los de movimiento: estos se
@@ -593,6 +589,20 @@ export function Board({
     () => aplicarDescartes(notifItems, descartes.claves),
     [notifItems, descartes.claves],
   );
+
+  // Los números de las pestañas y del título salen de lo que la campana enseña
+  // AHORA, no de todos los avisos deducidos. Contaban sobre la lista sin
+  // descartar, así que abrir un aviso lo quitaba de la campana pero dejaba el
+  // número puesto: salía un "2" en Revisión sin nada detrás que abrir. Un
+  // número que no lleva a ninguna parte es peor que no ponerlo.
+  const misPorRevisar = avisosVisibles.filter((i) => i.tipo === "revisar").length;
+  const misDevueltas = avisosVisibles.filter((i) => i.tipo === "devuelta").length;
+
+  // Aviso visible aunque la pestaña esté al fondo: "(2) CoordinaOT".
+  useEffect(() => {
+    const n = misPorRevisar + misDevueltas;
+    document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
+  }, [misPorRevisar, misDevueltas]);
   // Ajuste durante el render, no en un efecto (que además el lint rechaza):
   // React descarta este render y repite con el valor bueno, sin pintar el
   // estado intermedio. Las dos ramas son excluyentes a propósito: encadenar

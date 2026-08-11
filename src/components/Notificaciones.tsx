@@ -9,7 +9,6 @@ export type { NotifItem, NotifTipo };
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisar: { label: "Me toca revisar", vista: "revision", dot: "bg-violet-600" },
   devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: "bg-red-600" },
-  sinEmpezar: { label: "Sin empezar", vista: "asignar", dot: "bg-gray-400" },
   recibida: { label: "Te han pasado trabajo", vista: "asignar", dot: "bg-emerald-600" },
   cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-gray-400" },
   revisarNueva: { label: "Te toca revisar", vista: "revision", dot: "bg-violet-600" },

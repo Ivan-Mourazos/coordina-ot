@@ -146,7 +146,6 @@ describe("identidadAviso", () => {
     const items = agruparAvisos([
       { tipo: "revisar", pedido: p, of: p.ofs[0] },
       { tipo: "devuelta", pedido: p, of: p.ofs[0] },
-      { tipo: "sinEmpezar", pedido: p, of: p.ofs[0] },
       { tipo: "pedidoCompleto", pedido: p, of: null },
       { tipo: "recibida", pedido: p, of: p.ofs[0], clave: "7:recibida:a" },
       { tipo: "cedida", pedido: p, of: p.ofs[0], clave: "7:cedida:a" },
@@ -156,7 +155,6 @@ describe("identidadAviso", () => {
     expect(items.filter(esDescartable).map((i) => i.tipo)).toEqual([
       "revisar",
       "devuelta",
-      "sinEmpezar",
       "pedidoCompleto",
     ]);
   });

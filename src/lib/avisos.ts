@@ -69,14 +69,20 @@ export function avisosPara(
         out.push({ clave, logId: a.id, ts: a.ts, ofId: nuevo.ofId, quien: a.operarioId, tipo, otro });
       };
 
-      // Autor. Solo de persona a persona: sacar una OF de la bandeja
-      // (previo.autorId === null) ya se anuncia como "sin empezar", y avisar
-      // otra vez sería el mismo hecho contado dos veces.
-      if (previo.autorId !== nuevo.autorId && previo.autorId !== null) {
-        if (nuevo.autorId === operarioId && a.operarioId !== operarioId)
-          push("recibida", previo.autorId);
-        if (previo.autorId === operarioId && a.operarioId !== operarioId)
-          push("cedida", nuevo.autorId);
+      // Autor. Vale también cuando sale de la bandeja (`previo.autorId` null):
+      // que alguien coja un parte sin asignar y te lo ponga a ti es un hecho
+      // igual de digno de aviso que pasártelo de sus manos.
+      //
+      // Antes ese caso se dejaba fuera porque lo anunciaba un aviso derivado
+      // del estado ("lo tienes sin empezar"), que se ha quitado: no distinguía
+      // quién lo había asignado, así que autoasignarte cinco partes te llenaba
+      // la campana de avisos de tus propios actos. Aquí no puede pasar: la
+      // condición `a.operarioId !== operarioId` deja fuera lo que haces tú.
+      if (previo.autorId !== nuevo.autorId && a.operarioId !== operarioId) {
+        if (nuevo.autorId === operarioId) push("recibida", previo.autorId);
+        // Y al revés: que te lo quiten, se lo den a otro o lo devuelvan a la
+        // bandeja. Enterarte de que ya no es tuyo importa igual.
+        if (previo.autorId === operarioId) push("cedida", nuevo.autorId);
       }
 
       // Revisor: SOLO cuando se corrige uno ya elegido.
