@@ -102,6 +102,13 @@ export function PedidoLinea({
   // ficha ahí es la revisión, que le toca al revisor, no a mí — así que no
   // se ofrece fichar en absoluto en esa fase.
   const fichables = fase === "esperandoRevision" ? [] : ofsFichablesDe(facet, "plantear");
+  // "Empezar planteo" y "Retomar" YA arrancan el reloj (efectoFichaje:
+  // "arranca" en lib/acciones.ts), así que al lado de un botón "Fichar" eran
+  // dos botones que parecían lo mismo — y casi lo son: la diferencia es que la
+  // acción, además, cambia el estado de la OF. Se enseña solo la acción, que
+  // hace las dos cosas. "Fichar" se queda para cuando NO hay nada que empezar:
+  // una OF ya en curso a la que solo hay que volver a ponerle el reloj.
+  const laAccionYaFicha = accion?.id === "empezar_planteo" || accion?.id === "retomar";
 
   return (
     <div
@@ -214,17 +221,22 @@ export function PedidoLinea({
             ⏸ Pausar
           </button>
         ) : (
+          !laAccionYaFicha &&
           fichables.length > 0 && (
             <button
               onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
               title={
-                fichables.length === 1
-                  ? "Empezar a fichar en este pedido"
-                  : `Empezar a fichar en las ${fichables.length} OF de este pedido`
+                minutos > 0
+                  ? "Vuelve a poner el reloj en marcha en este pedido"
+                  : fichables.length === 1
+                    ? "Empezar a fichar en este pedido"
+                    : `Empezar a fichar en las ${fichables.length} OF de este pedido`
               }
               className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
             >
-              ⏱ Fichar{fichables.length > 1 && ` ${fichables.length}`}
+              {/* Mismas palabras que en el detalle: reanudar no es empezar. */}
+              {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
+              {fichables.length > 1 && ` ${fichables.length}`}
             </button>
           )
         )}
