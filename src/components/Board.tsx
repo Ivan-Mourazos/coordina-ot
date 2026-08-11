@@ -26,6 +26,8 @@ import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones } from "./Notificaciones";
 import { Herramientas } from "./Herramientas";
+import { BuscadorGlobal } from "./BuscadorGlobal";
+import { HistorialDrawer } from "./HistorialDrawer";
 import {
   agruparAvisos,
   aplicarDescartes,
@@ -1231,6 +1233,14 @@ export function Board({
 
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
+  const nombreDeOperario = useCallback(
+    (id: string) => operarios.find((o) => o.id === id)?.nombre ?? id,
+    [operarios],
+  );
+  // Pedido del historial abierto en su propio panel (el de solo lectura). Lo
+  // abre el buscador global: un resultado del historial no se puede enseñar en
+  // el Drawer normal, que espera un pedido vivo del tablero.
+  const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   // Pasados a Producción pero todavía en la vista de pendientes de RPS: los
   // enseña el Historial en un bloque aparte (ver su comentario). Se van solos
   // de aquí en cuanto RPS cierra la fase y el pedido deja de venir.
@@ -1268,7 +1278,17 @@ export function Board({
             onChange={setVista}
             badge={{ revision: misPorRevisar, asignar: misDevueltas }}
           />
-          <div className="ml-auto flex items-center gap-2 text-xs">
+          {/* Busca en TODO: `pedidos` sin filtrar (con lo de taller, lo
+              detenido, lo anulado y lo ya pasado) más el historial de RPS. Cada
+              vista enseña un recorte distinto y sin esto encontrar un pedido
+              concreto era adivinar en cuál cayó. */}
+          <BuscadorGlobal
+            pedidos={pedidos}
+            nombre={nombreDeOperario}
+            onAbrirPedido={abrirPedido}
+            onAbrirHistorial={setHistorialAbierto}
+          />
+          <div className="flex items-center gap-2 text-xs">
             {/* En directo: quién está fichando ahora mismo y con qué rol */}
             {lives.length > 0 && (
               <div
@@ -1587,6 +1607,8 @@ export function Board({
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
       />
+
+      <HistorialDrawer pedido={historialAbierto} onClose={() => setHistorialAbierto(null)} />
 
       <MiFichaje
         miId={miId}
