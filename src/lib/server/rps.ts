@@ -201,6 +201,35 @@ export function esTareaDeTaller(tarea: string | null): boolean {
   return /\bTALLER\b/.test((tarea ?? "").toUpperCase());
 }
 
+/** Una fila por OF, no una por TAREA.
+ *
+ *  La vista da una fila por cada tarea pendiente, así que una OF con dos tareas
+ *  sale dos veces. Pasa de verdad: en AR.26.03626 la OF 0230700 aparecía
+ *  repetida, una vez por su tarea de Oficina Técnica y otra por una de taller.
+ *  Es la misma orden de fabricación —mismas piezas, mismas fechas, misma
+ *  situación—, y contarla dos veces hinchaba el nº de OF del pedido y obligaba
+ *  a mirar las dos para descubrir que decían lo mismo.
+ *
+ *  Gana la tarea de OT: es la que decide si el trabajo es nuestro y la que da
+ *  el CodTarea con el que se imputa. Si TODAS son de taller se queda la
+ *  primera, y la OF sigue marcada como ajena a OT (que es lo cierto).
+ *
+ *  Lo que no comparten las filas es de la tarea, no de la OF (descripción de la
+ *  MO, tiempo previsto), así que no hay nada que sumar al fusionar: el tiempo
+ *  previsto de una tarea de taller no es tiempo de Oficina Técnica. */
+export function unaFilaPorOF<T extends { OF: string | null; Tarea: string | null }>(
+  filas: readonly T[],
+): T[] {
+  const porOF = new Map<string, T>();
+  for (const f of filas) {
+    const ya = porOF.get((f.OF ?? "").trim());
+    if (!ya || (esTareaDeTaller(ya.Tarea) && !esTareaDeTaller(f.Tarea))) {
+      porOF.set((f.OF ?? "").trim(), f);
+    }
+  }
+  return [...porOF.values()];
+}
+
 /** Escala nueva: 1 = poca, 2 = normal, 3 = urgente (si es 3, la fecha de
  *  planificación se respeta al 100%). Fuera de rango (null, 0, erróneo) → 1
  *  (poca), no la máxima: un dato ausente no debe disparar urgencia. */
@@ -755,7 +784,7 @@ async function consultarTablero(): Promise<Tablero> {
   }
 
   const pedidos: Pedido[] = [...porPedido.entries()].map(([clave, grupo]) => {
-    const filas = grupo.filas;
+    const filas = unaFilaPorOF(grupo.filas);
     const cliente =
       filas.map((f) => (f.Cliente ?? "").trim()).find(Boolean) ?? "Sin cliente";
     const validas = (ds: (Date | null)[]) =>
