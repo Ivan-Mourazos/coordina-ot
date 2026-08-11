@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CompraOF, MaterialAsignado } from "@/lib/types";
+import { estadoMaterial } from "@/lib/types";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
 // ─── El recorrido del material de la OF ──────────────────────────────────────
@@ -28,6 +29,11 @@ const ALTO = 240;
 /** dd/mm de una fecha ISO, sin pasar por `new Date` (que se lleva el día por
  *  el huso horario). */
 const dm = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
+
+/** Cantidades como se leen: el escandallo trae decimales largos
+ *  (3,9627416998 m de lona) y aquí solo estorban. */
+const num = (n: number) =>
+  Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
 
 /** En qué punto está una compra, dicho como se pregunta: ¿ha llegado ya? */
 function estadoCompra(c: CompraOF, hoy: string): { texto: string; clase: string } {
@@ -92,7 +98,7 @@ function MaterialPopover({
   if (typeof document === "undefined" || !ventana) return null;
   const sitio = sitioDeMenu(anchor, { ventana, alto: ALTO, ancho: ANCHO });
 
-  const reservadas = materiales.filter((m) => m.reservada > 0).length;
+  const reservadas = materiales.filter((m) => estadoMaterial(m) === "reservado").length;
 
   return createPortal(
     <div
@@ -114,26 +120,41 @@ function MaterialPopover({
             </span>
           </p>
           <ul className="space-y-1">
-            {materiales.map((m, i) => (
-              <li
-                key={`${m.descripcion}-${i}`}
-                className="flex items-start justify-between gap-2 text-[11px]"
-              >
-                <span className="min-w-0 text-text">
-                  {m.descripcion}
-                  {/* La reserva, debajo y solo si la hay: lo que se busca aquí
-                      es precisamente lo que NO está reservado todavía. */}
-                  {m.reservada > 0 && (
-                    <span className="block text-[10px] text-teal-700 dark:text-teal-300">
-                      reservado {m.reservada}
-                    </span>
-                  )}
-                </span>
-                <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-mono font-semibold text-text ring-1 ring-border">
-                  {m.cantidad}
-                </span>
-              </li>
-            ))}
+            {materiales.map((m, i) => {
+              const estado = estadoMaterial(m);
+              return (
+                <li
+                  key={`${m.descripcion}-${i}`}
+                  className="flex items-start justify-between gap-2 text-[11px]"
+                >
+                  <span className="min-w-0 text-text">
+                    {m.descripcion}
+                    {/* Cubierto: no se repite la cantidad, que ya está a la
+                        derecha. Lo que hay que ver es lo que NO está. */}
+                    {estado === "reservado" && (
+                      <span className="block text-[10px] text-teal-700 dark:text-teal-300">
+                        reservado por Almacén
+                      </span>
+                    )}
+                    {estado === "aMedias" && (
+                      <span className="block text-[10px] text-amber-700 dark:text-amber-300">
+                        reservado {num(m.reservada)} de {num(m.cantidad)} · faltan{" "}
+                        {num(m.cantidad - m.reservada)}
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono font-semibold ring-1 ${
+                      estado === "reservado"
+                        ? "bg-teal-600/12 text-teal-700 ring-teal-500/40 dark:text-teal-300"
+                        : "bg-surface-2 text-text ring-border"
+                    }`}
+                  >
+                    {num(m.cantidad)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -214,7 +235,9 @@ export function MaterialChip({
     );
   }
 
-  const reservadas = lista.filter((m) => m.reservada > 0).length;
+  // Solo cuentan las CUBIERTAS: una reservada a medias no esta resuelta.
+  const reservadas = lista.filter((m) => estadoMaterial(m) === "reservado").length;
+  const aMedias = lista.filter((m) => estadoMaterial(m) === "aMedias").length;
   const todoReservado = lista.length > 0 && reservadas === lista.length;
   // Lo que se ha comprado y no ha llegado: es lo único de aquí que puede parar
   // el trabajo, así que sale en el propio botón sin tener que abrirlo.
@@ -236,7 +259,12 @@ export function MaterialChip({
             ? "Sin material asignado, pero con compras para esta OF"
             : todoReservado
               ? "Almacén ha reservado todo el material"
-              : `${lista.length - reservadas} de ${lista.length} sin reservar por Almacén`
+              : [
+                  `${lista.length - reservadas} de ${lista.length} sin reservar por Almacén`,
+                  aMedias > 0 && `${aMedias} reservado${aMedias === 1 ? "" : "s"} a medias`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
         }
         className={`chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
           todoReservado ? "text-teal-700 dark:text-teal-300" : "text-text-muted"
@@ -248,7 +276,7 @@ export function MaterialChip({
         {lista.length > 0 && (
           <span
             className={`rounded-full px-1.5 text-[10px] font-bold text-white ${
-              todoReservado ? "bg-teal-600" : "bg-gray-500"
+              todoReservado ? "bg-teal-600" : aMedias > 0 ? "bg-amber-500" : "bg-gray-500"
             }`}
           >
             {reservadas}/{lista.length}

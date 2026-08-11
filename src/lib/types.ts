@@ -88,6 +88,36 @@ export interface MaterialAsignado {
   reservada: number;
 }
 
+/** En qué punto está una línea de material. */
+export type EstadoMaterial = "sinReservar" | "reservado" | "aMedias";
+
+/** Cuánto puede bailar la reserva respecto a lo asignado sin que cuente como
+ *  "falta material".
+ *
+ *  Almacén reserva con lo que hay en el rollo, no con el decimal exacto del
+ *  escandallo, así que la cifra no cuadra al milímetro. Medido sobre las 265
+ *  líneas reservadas de los últimos 12 meses: 254 (95,8 %) cuadran exactas y
+ *  las once restantes son de dos clases muy distintas.
+ *
+ *  · REDONDEO, y hay que dejarlo pasar: 3,9627 → 3,97, 7,3998 → 7,4,
+ *    6,725484 → 6,72, 18,5 → 19, 3,25 → 4. Céntimos de metro, o el metro
+ *    entero hacia arriba.
+ *  · FALTA DE VERDAD, y hay que verlo: 31 → 6, 21 → 19, 6,6 → 5, 6 → 1.
+ *
+ *  El margen es el mayor entre 5 centésimas y el 1 % de lo asignado: cubre el
+ *  primer grupo entero y no se traga ninguno del segundo (para 21 el margen es
+ *  0,21 y faltan 2). */
+export function margenReserva(cantidad: number): number {
+  return Math.max(0.05, Math.abs(cantidad) * 0.01);
+}
+
+/** Si Almacén ya ha cubierto esta línea, se ha quedado corto, o ni la ha
+ *  tocado. Reservar de MÁS es cubrir: sobra material, no falta. */
+export function estadoMaterial(m: MaterialAsignado): EstadoMaterial {
+  if (m.reservada <= 0) return "sinReservar";
+  return m.reservada >= m.cantidad - margenReserva(m.cantidad) ? "reservado" : "aMedias";
+}
+
 /** Una línea de compra hecha PARA esta OF. */
 export interface CompraOF {
   articulo: string;
