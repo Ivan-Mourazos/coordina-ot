@@ -1,5 +1,5 @@
 import type { Tablero } from "../data";
-import type { Familia, OF, Pedido, Prioridad } from "../types";
+import type { Familia, MaterialAsignado, OF, Pedido, Prioridad } from "../types";
 import { hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
@@ -53,7 +53,11 @@ interface FilaFichaje {
 interface FilaReserva {
   orden: string | null;
   material: string | null;
+  /** Lo que la OF necesita (CPRMOMaterial.Quantity). */
   cantidad: number | null;
+  /** Lo apartado del almacén para ella (suma de STKStockReserve). 0 = asignado
+   *  pero sin reservar. */
+  reservada: number | null;
 }
 
 interface FilaImputacion {
@@ -396,7 +400,8 @@ function descripcionDe(fila: FilaVista): string {
 interface DatosOF {
   /** undefined = nadie fichando; null = fichando alguien de fuera de OT. */
   fichandoOperario: string | null | undefined;
-  reservas: string[];
+  /** Todo el material de la OF, con lo reservado de cada línea. */
+  materiales: MaterialAsignado[];
   /** Operario del tablero con más tiempo imputado en la tarea (autor real). */
   autorImputado: string | null;
   /** Minutos imputados en la tarea de OT (todos los empleados). */
@@ -410,6 +415,21 @@ interface DatosOF {
   /** Subfamilia del artículo en RPS (CodProductSubFamily). Afina la familia
    *  donde el catálogo de RPS la deja corta; ver FAMILIA_POR_SUBFAMILIA. */
   subfamilia: string | undefined;
+}
+
+/** Los tres campos de material de la OF, del mismo sitio para que no se
+ *  contradigan: todo lo asignado, y de eso lo que está reservado. */
+function materialYReservas(
+  materiales: MaterialAsignado[],
+): Pick<OF, "materiales" | "reservasMaterial" | "reservasDetalle"> {
+  const reservados = materiales.filter((m) => m.reservada > 0);
+  return {
+    materiales: materiales.length ? materiales : undefined,
+    reservasMaterial: reservados.length,
+    reservasDetalle: reservados.length
+      ? reservados.map((m) => `${m.descripcion} · ${m.reservada}`)
+      : undefined,
+  };
 }
 
 function aOF(fila: FilaVista, datos: DatosOF): OF {
@@ -437,8 +457,9 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     ajenaOT: esTareaDeTaller(fila.Tarea),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
-    reservasMaterial: datos.reservas.length,
-    reservasDetalle: datos.reservas.length ? datos.reservas : undefined,
+    // Lo RESERVADO se sigue contando aparte de lo asignado: son dos cosas
+    // distintas y la interfaz distingue una de otra.
+    ...materialYReservas(datos.materiales),
     avisos: datos.avisos.length ? datos.avisos : undefined,
     fechaLimitePlanteo: datos.fechaLimitePlanteo,
     fichadaDesde: datos.fichadaDesde,
@@ -452,7 +473,8 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 /** OF ya finalizada en OT (Historial): no hay fichaje vivo ni situación RPS
  *  que consultar, así que se rellena lo mínimo con lo que da la query. */
 interface ExtrasOF {
-  reservas: string[];
+  /** Todo el material de la OF, con lo reservado de cada línea. */
+  materiales: MaterialAsignado[];
   avisos: string[];
 }
 
@@ -476,8 +498,7 @@ function aOFHistorial(
     tiempoEstimadoMin: 0,
     tiempoPlanteoMin: minutosImputados,
     tiempoRevisionMin: 0,
-    reservasMaterial: extras.reservas.length,
-    reservasDetalle: extras.reservas.length ? extras.reservas : undefined,
+    ...materialYReservas(extras.materiales),
     avisos: extras.avisos.length ? extras.avisos : undefined,
   };
 }
@@ -596,16 +617,30 @@ async function consultarTablero(): Promise<Tablero> {
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
-    // Reservas de material vivas (una fila por material reservado). La tabla
-    // es pequeña: subir de reserva → material → tarea → OF es barato.
+    // El material de cada OF: lo que LLEVA y, de eso, lo que está reservado.
+    //
+    // Antes se preguntaba solo por las reservas (partiendo de STKStockReserve),
+    // y una OF con material asignado pero sin reservar parecía no llevar nada.
+    // Pasó con AR.26.03981: 20 m de lona en la OF y cero reservas, y el detalle
+    // del pedido salía vacío. Son dos cosas distintas —lo asignado viene del
+    // escandallo, la reserva es haberlo apartado— y hacen falta las dos.
+    //
+    // Ahora se parte del MATERIAL y la reserva se suma por fuera. Acotado a las
+    // OF que ya se están pidiendo: sin ese filtro son 3320 materiales y 500 ms,
+    // con él es un puñado.
     pool.request().query<FilaReserva>(`
       SELECT mo.CodManufacturingOrder AS orden, m.Description AS material,
-             r.Quantity AS cantidad
-      FROM dbo.STKStockReserve r
-      JOIN dbo.CPRMOMaterial m ON m.IDMOMaterial = r.IDItem
+             m.Quantity AS cantidad, ISNULL(res.reservada, 0) AS reservada
+      FROM dbo.CPRMOMaterial m
       JOIN dbo.CPRMOTask t ON t.IDMOTask = m.IDMOTask
-      JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = t.IDManufacturingOrder
-      WHERE r.ItemType = 5 AND mo.CodCompany = '001'
+      JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
+      OUTER APPLY (
+        SELECT SUM(r.Quantity) AS reservada
+        FROM dbo.STKStockReserve r
+        WHERE r.ItemType = 5 AND r.IDItem = m.IDMOMaterial
+      ) res
+      WHERE mo.CodManufacturingOrder IN (${listaTareasIn})
     `),
     // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
     // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo, y
@@ -743,16 +778,18 @@ async function consultarTablero(): Promise<Tablero> {
     ),
   ];
 
-  // Reservas por OF: nº y lista legible "MATERIAL · cantidad".
-  const reservasPorOF = new Map<string, string[]>();
+  // Material por OF: todo lo que lleva, con lo reservado de cada línea.
+  const materialesPorOF = new Map<string, MaterialAsignado[]>();
   for (const r of reservas.recordset) {
     const orden = (r.orden ?? "").trim();
     if (!orden) continue;
-    const mat = (r.material ?? "").trim().replace(/\s+/g, " ");
-    const cant = r.cantidad != null ? ` · ${r.cantidad}` : "";
-    const lista = reservasPorOF.get(orden) ?? [];
-    lista.push(mat ? `${mat}${cant}` : `(material sin nombre)${cant}`);
-    reservasPorOF.set(orden, lista);
+    const lista = materialesPorOF.get(orden) ?? [];
+    lista.push({
+      descripcion: (r.material ?? "").trim().replace(/\s+/g, " ") || "(material sin nombre)",
+      cantidad: r.cantidad ?? 0,
+      reservada: r.reservada ?? 0,
+    });
+    materialesPorOF.set(orden, lista);
   }
 
   // Fichajes con intervalo abierto ahora mismo, por OF+tarea → operario del
@@ -875,7 +912,7 @@ async function consultarTablero(): Promise<Tablero> {
           f,
           minutosPorOFHist.get(orden) ?? 0,
           autorPorOFHist.get(orden)?.op ?? null,
-          { reservas: reservasPorOF.get(orden) ?? [], avisos: avisosDe(orden) },
+          { materiales: materialesPorOF.get(orden) ?? [], avisos: avisosDe(orden) },
         );
       }),
       comentarioVenta:
@@ -1008,7 +1045,7 @@ async function consultarTablero(): Promise<Tablero> {
           .sort()[0];
         return aOF(f, {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
-          reservas: reservasPorOF.get(orden) ?? [],
+          materiales: materialesPorOF.get(orden) ?? [],
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
           minutosImputados: minutosPorTarea.get(clave) ?? 0,
           // Misma clave OF+tarea que los minutos: el "desde cuándo" y el

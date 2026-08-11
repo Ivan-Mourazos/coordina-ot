@@ -16,7 +16,7 @@ import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
-import { ReservaChip } from "./ReservaChip";
+import { MaterialChip } from "./MaterialChip";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
@@ -606,9 +606,12 @@ function OFRow({
         </p>
       )}
 
+      {/* `reservasMaterial` sigue siendo la señal de "hay dato de RPS": el mock
+          no lo rellena, y ahí no se enseña nada en vez de mentir con un
+          "sin material asignado". */}
       {of.reservasMaterial !== undefined && (
         <div className="mt-1.5">
-          <ReservaChip n={of.reservasMaterial} detalle={of.reservasDetalle} />
+          <MaterialChip materiales={of.materiales} />
         </div>
       )}
 

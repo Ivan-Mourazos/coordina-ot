@@ -62,6 +62,16 @@ export type FamiliaConocida =
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */
 export type Familia = FamiliaConocida | (string & {});
 
+/** Una línea de material de la OF, tal como la lleva RPS. */
+export interface MaterialAsignado {
+  descripcion: string;
+  /** Lo que la OF necesita. */
+  cantidad: number;
+  /** Lo que se ha apartado del almacén para ella. 0 = asignado pero sin
+   *  reservar, que es el caso normal hasta que alguien lo reserva. */
+  reservada: number;
+}
+
 /** Prioridad del trabajo: 1 = poca, 2 = normal, 3 = urgente. Si es 3, la
  *  fecha de planificación se respeta al 100% (no se puede retrasar). */
 export type Prioridad = 1 | 2 | 3;
@@ -130,6 +140,14 @@ export interface OF {
   reservasMaterial?: number;
   /** Material reservado (descripción + cantidad), para saber QUÉ se reservó. */
   reservasDetalle?: string[];
+  /** El material que la OF LLEVA, esté reservado o no.
+   *
+   *  Son dos cosas distintas y hacían falta las dos: lo asignado es lo que la
+   *  OF necesita para hacerse (viene del escandallo, lo pone Producción), y la
+   *  reserva es haberlo apartado del almacén. Enseñando solo las reservas, una
+   *  OF con material pero sin reservar parecía no llevar nada — que es justo
+   *  lo que pasó con AR.26.03981, con 20 m de lona asignados y 0 reservas. */
+  materiales?: MaterialAsignado[];
   /** Avisos de producción: "tareas-nota" de la ruta de la OF en RPS
    *  (p.ej. "22/06 VISITA MEDIR"). Solo informativos. */
   avisos?: string[];
