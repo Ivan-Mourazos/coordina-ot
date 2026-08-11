@@ -55,7 +55,12 @@ export function MenuAsignar({
       if (e.key === "Escape") setCaja(null);
     }
     // Al mover la página el botón se va y el menú se quedaría flotando solo.
-    function onMover() {
+    // Salvo que lo que se mueva sea el menú por dentro: el listener va con
+    // `capture` y si no, con la lista de nombres larga, la rueda lo cerraría
+    // en vez de bajarlo (ver el mismo caso en Select.tsx).
+    function onMover(e?: Event) {
+      const donde = e?.target;
+      if (donde instanceof Node && menuRef.current?.contains(donde)) return;
       setCaja(null);
     }
     document.addEventListener("mousedown", onDown);

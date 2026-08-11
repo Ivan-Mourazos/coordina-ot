@@ -84,7 +84,15 @@ export function Select({
     // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
     // quedaría flotando donde estaba: se cierra, que es menos molesto que
     // perseguirlo con un recálculo en cada píxel.
-    function onMover() {
+    //
+    // Pero NO cuando lo que se mueve es el menú por dentro. El listener va con
+    // `capture` para enterarse del scroll de cualquier contenedor, y eso
+    // incluía la propia lista: en cuanto tenía más opciones de las que caben
+    // (el filtro de familia ahora tiene 22), la rueda la cerraba en vez de
+    // bajarla, y no había forma de llegar a las de abajo.
+    function onMover(e?: Event) {
+      const donde = e?.target;
+      if (donde instanceof Node && menuRef.current?.contains(donde)) return;
       setCaja(null);
     }
     document.addEventListener("mousedown", onDown);
