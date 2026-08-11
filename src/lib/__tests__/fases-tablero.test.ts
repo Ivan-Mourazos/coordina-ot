@@ -30,17 +30,21 @@ const of = (p: Partial<OF>): OF =>
   }) as OF;
 
 describe("FASES", () => {
-  it("son cuatro, en orden de ciclo y con los nombres nuevos", () => {
+  it("van en orden de ciclo, con las devoluciones delante", () => {
     expect(FASES.map((f) => f.id)).toEqual([
+      // Fuera del recorrido y la primera: es la única fase que existe porque
+      // alguien está esperando a que la atiendas.
+      "devuelta",
       "sinEmpezar",
       "planteando",
       "esperandoRevision",
       "listoParaPasar",
     ]);
+    expect(FASES[0].label).toBe("A corregir");
     // "Esperando revisión" y no "Para revisar": es mi trabajo en manos de otro,
     // no trabajo que me toque revisar a mí.
-    expect(FASES[2].label).toBe("Esperando revisión");
-    expect(FASES[3].label).toBe("Listo para pasar");
+    expect(FASES[3].label).toBe("Esperando revisión");
+    expect(FASES[4].label).toBe("Listo para pasar");
   });
 });
 
@@ -52,9 +56,13 @@ describe("faseDeOF", () => {
     expect(faseDeOF(of({ estado: "por_revisar" }))).toBe("esperandoRevision");
     expect(faseDeOF(of({ estado: "en_revision" }))).toBe("esperandoRevision");
   });
-  it("en_curso y devuelta → planteando", () => {
+  it("en_curso → planteando", () => {
     expect(faseDeOF(of({ estado: "en_curso" }))).toBe("planteando");
-    expect(faseDeOF(of({ estado: "devuelta" }))).toBe("planteando");
+  });
+  it("devuelta tiene fase propia: metida en planteando no se distinguía de lo que ya tenías a medias", () => {
+    expect(faseDeOF(of({ estado: "devuelta" }))).toBe("devuelta");
+    // Y sigue siéndolo aunque lleve tiempo fichado de la primera vuelta.
+    expect(faseDeOF(of({ estado: "devuelta", tiempoPlanteoMin: 45 }))).toBe("devuelta");
   });
   it("pendiente sin tiempo ni fichaje → sin empezar", () => {
     expect(faseDeOF(of({ estado: "pendiente" }))).toBe("sinEmpezar");
@@ -85,17 +93,29 @@ describe("faseDePedido", () => {
     expect(faseDePedido({ ofs: [of({}), of({ estado: "por_revisar" })] }))
       .toBe("esperandoRevision");
   });
+  it("una devolución manda sobre el resto del pedido", () => {
+    // Lo primero que hay que saber de un pedido es si algo volvió a corregir,
+    // aunque las demás OF vayan bien: es trabajo con alguien esperando.
+    expect(faseDePedido({ ofs: [of({ estado: "en_curso" }), of({ estado: "devuelta" })] }))
+      .toBe("devuelta");
+    expect(faseDePedido({ ofs: [of({ estado: "aprobada" }), of({ estado: "devuelta" })] }))
+      .toBe("devuelta");
+  });
+  it("pero un pedido ya aprobado entero no vuelve a 'a corregir'", () => {
+    expect(faseDePedido({ ofs: [of({ estado: "aprobada" }), of({ estado: "aprobada" })] }))
+      .toBe("listoParaPasar");
+  });
   it("un pedido sin OFs no revienta", () => {
     expect(faseDePedido({ ofs: [] })).toBe("sinEmpezar");
   });
 });
 
 describe("agruparPorFase", () => {
-  it("devuelve las cuatro fases, en orden, aunque estén vacías", () => {
+  it("devuelve TODAS las fases, en orden, aunque estén vacías", () => {
     const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }]);
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
-    expect(g[1].items).toHaveLength(1);
-    expect(g[0].items).toHaveLength(0);
+    expect(g.find((x) => x.id === "planteando")!.items).toHaveLength(1);
+    expect(g.find((x) => x.id === "devuelta")!.items).toHaveLength(0);
   });
 });
 

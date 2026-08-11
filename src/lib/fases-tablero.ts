@@ -5,7 +5,12 @@ import type { OF } from "./types";
 // TecnicoCard (faseDe) y Zona (faseIdx), con etiquetas y colores distintos en
 // cada sitio; al cambiar un nombre había que acordarse de los tres.
 
-export type Fase = "sinEmpezar" | "planteando" | "esperandoRevision" | "listoParaPasar";
+export type Fase =
+  | "devuelta"
+  | "sinEmpezar"
+  | "planteando"
+  | "esperandoRevision"
+  | "listoParaPasar";
 
 export interface FaseMeta {
   id: Fase;
@@ -16,6 +21,12 @@ export interface FaseMeta {
 }
 
 export const FASES: readonly FaseMeta[] = [
+  // Primera, y no en su sitio del recorrido, a propósito: una devolución es la
+  // única fase que existe porque alguien te está esperando. Iba metida en
+  // "Planteando" y el resultado fue el esperable — te devuelven un pedido, la
+  // campana avisa una vez, y en el tablero aparece indistinguible de lo que ya
+  // tenías a medias: nada dice que hubo devolución.
+  { id: "devuelta", label: "A corregir", color: "#dc2626" },
   { id: "sinEmpezar", label: "Sin empezar", color: "#9ca3af" },
   { id: "planteando", label: "Planteando", color: "#059669" },
   // "Esperando revisión", no "Para revisar": es MI trabajo en manos de otro.
@@ -46,7 +57,11 @@ export function ofOcultaDeOT(of: OF): boolean {
 export function faseDeOF(of: OF): Fase {
   if (of.estado === "aprobada") return "listoParaPasar";
   if (of.estado === "por_revisar" || of.estado === "en_revision") return "esperandoRevision";
-  if (of.estado === "en_curso" || of.estado === "devuelta") return "planteando";
+  // Antes que en_curso: una devuelta que ya se está retomando pasa a en_curso
+  // sola (la acción "retomar" cambia el estado), así que mientras siga diciendo
+  // "devuelta" es que nadie la ha tocado desde que volvió.
+  if (of.estado === "devuelta") return "devuelta";
+  if (of.estado === "en_curso") return "planteando";
   // Anulada: no es trabajo activo, aunque conserve tiempo fichado de antes de
   // anularse. Cae en "sin empezar" en vez de "planteando" para no aparecer
   // como si hubiera algo en marcha. Hoy Board.tsx filtra las anuladas antes
@@ -63,6 +78,9 @@ export function faseDePedido(p: ConOFs): Fase {
   if (p.ofs.length === 0) return "sinEmpezar";
   const fases = p.ofs.map(faseDeOF);
   if (fases.every((f) => f === "listoParaPasar")) return "listoParaPasar";
+  // Manda sobre todo lo demás: si una OF del pedido volvió a corregir, eso es
+  // lo primero que hay que saber del pedido, aunque las otras vayan bien.
+  if (fases.some((f) => f === "devuelta")) return "devuelta";
   if (fases.some((f) => f === "planteando")) return "planteando";
   if (fases.some((f) => f === "esperandoRevision")) return "esperandoRevision";
   return "sinEmpezar";

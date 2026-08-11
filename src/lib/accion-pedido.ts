@@ -16,14 +16,17 @@ import type { OF, Rol } from "./types";
  *  propio botón de pasar el pedido entero. */
 const PRIMARIA_POR_FASE: Record<Fase, AccionOF[]> = {
   sinEmpezar: ["empezar_planteo"],
-  // Devuelta y en curso caen las dos en "planteando": si viene devuelta hay que
-  // retomarla, y si ya está en curso lo que toca es mandarla a revisión.
+  // Lo que toca con una devolución es ponerse con ella. Se deja detrás
+  // "terminar_planteo" porque el pedido puede tener a la vez una OF devuelta y
+  // otra en curso: si la devuelta ya se retomó (y por tanto es en_curso), la
+  // fila sigue ofreciendo algo que hacer.
+  devuelta: ["retomar", "terminar_planteo"],
   // "empezar_planteo" va al final: cubre la OF que "deshacer_empezar" devolvió
   // a pendiente conservando el tiempo ya fichado (faseDeOF la clasifica como
   // planteando por ese tiempo, aunque su estado real vuelva a ser pendiente).
-  // Va después de las otras dos para que un en_curso siga ofreciendo
-  // terminar_planteo aunque conviva con esa OF pendiente-con-tiempo.
-  planteando: ["retomar", "terminar_planteo", "empezar_planteo"],
+  // Va después para que un en_curso siga ofreciendo terminar_planteo aunque
+  // conviva con esa OF pendiente-con-tiempo.
+  planteando: ["terminar_planteo", "empezar_planteo"],
   esperandoRevision: [],
   listoParaPasar: [],
 };
