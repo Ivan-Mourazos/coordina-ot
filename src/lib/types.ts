@@ -118,6 +118,37 @@ export function estadoMaterial(m: MaterialAsignado): EstadoMaterial {
   return m.reservada >= m.cantidad - margenReserva(m.cantidad) ? "reservado" : "aMedias";
 }
 
+/** Cómo está el material de un conjunto de OF (un pedido, o la parte de un
+ *  pedido que lleva alguien). `null` = no hay material asignado, que no es lo
+ *  mismo que estar sin reservar: no hay nada que reservar.
+ *
+ *  Manda lo peor, que es lo que hay que ver desde fuera: con una línea a medias
+ *  el pedido está a medias, aunque las otras cinco estén cubiertas. */
+export function estadoMaterialDe(ofs: readonly { materiales?: MaterialAsignado[] }[]):
+  | EstadoMaterial
+  | null {
+  const lineas = ofs.flatMap((o) => o.materiales ?? []);
+  if (lineas.length === 0) return null;
+  const estados = lineas.map(estadoMaterial);
+  if (estados.includes("sinReservar")) return "sinReservar";
+  if (estados.includes("aMedias")) return "aMedias";
+  return "reservado";
+}
+
+/** Compras de un conjunto de OF que aún no han llegado, y de esas cuántas
+ *  llevan la fecha de entrega pasada. Es lo único del material que puede parar
+ *  el trabajo sin que nadie avise. */
+export function comprasPendientes(
+  ofs: readonly { compras?: CompraOF[] }[],
+  hoy: string,
+): { porLlegar: number; tarde: number } {
+  const pendientes = ofs.flatMap((o) => o.compras ?? []).filter((c) => c.recibida < c.pedida);
+  return {
+    porLlegar: pendientes.length,
+    tarde: pendientes.filter((c) => c.estimada && c.estimada < hoy).length,
+  };
+}
+
 /** Una línea de compra hecha PARA esta OF. */
 export interface CompraOF {
   articulo: string;

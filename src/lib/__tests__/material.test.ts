@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CompraOF } from "../types";
-import { estadoMaterial, margenReserva } from "../types";
+import { comprasPendientes, estadoMaterial, estadoMaterialDe, margenReserva } from "../types";
 
 // El recorrido del material tiene tres manos —OT asigna, Almacén reserva,
 // Compras pide— y lo que se pregunta mirando un pedido es siempre lo mismo:
@@ -99,5 +99,73 @@ describe("comparar lo reservado con lo asignado", () => {
     // Con 4 m, el 1 % serían 4 cm y eso es menos que el redondeo habitual.
     expect(margenReserva(4)).toBe(0.05);
     expect(margenReserva(300)).toBe(3);
+  });
+});
+
+describe("el material visto desde fuera (la esquina de la miniatura)", () => {
+  const of = (materiales: { cantidad: number; reservada: number }[]) => ({
+    materiales: materiales.map((m) => ({ descripcion: "LONA", ...m })),
+  });
+
+  it("sin material asignado no dice nada: no es lo mismo que estar sin reservar", () => {
+    expect(estadoMaterialDe([{ materiales: [] }])).toBeNull();
+    expect(estadoMaterialDe([{}])).toBeNull();
+  });
+
+  it("manda lo peor: con una linea sin tocar, el pedido está sin reservar", () => {
+    // Cinco cubiertas y una sin tocar no es "casi listo": falta material.
+    const p = of([
+      { cantidad: 10, reservada: 10 },
+      { cantidad: 5, reservada: 0 },
+    ]);
+    expect(estadoMaterialDe([p])).toBe("sinReservar");
+  });
+
+  it("a medias gana a cubierto", () => {
+    const p = of([
+      { cantidad: 10, reservada: 10 },
+      { cantidad: 31, reservada: 6 },
+    ]);
+    expect(estadoMaterialDe([p])).toBe("aMedias");
+  });
+
+  it("todo cubierto (con su redondeo) es cubierto", () => {
+    const p = of([
+      { cantidad: 3.9627416998, reservada: 3.97 },
+      { cantidad: 18.5, reservada: 19 },
+    ]);
+    expect(estadoMaterialDe([p])).toBe("reservado");
+  });
+
+  it("mira TODAS las OF del pedido, no solo la primera", () => {
+    expect(
+      estadoMaterialDe([of([{ cantidad: 5, reservada: 5 }]), of([{ cantidad: 5, reservada: 0 }])]),
+    ).toBe("sinReservar");
+  });
+});
+
+describe("compras pendientes de un pedido", () => {
+  const hoy = "2026-08-15";
+  const c = (p: Partial<CompraOF>): CompraOF => ({
+    articulo: "TUBO", pedida: 4, recibida: 0, estimada: "2026-08-20", ...p,
+  });
+
+  it("cuenta lo que no ha llegado, y de eso lo que llega tarde", () => {
+    const ofs = [
+      { compras: [c({}), c({ recibida: 4 })] },
+      { compras: [c({ estimada: "2026-08-01" })] },
+    ];
+    expect(comprasPendientes(ofs, hoy)).toEqual({ porLlegar: 2, tarde: 1 });
+  });
+
+  it("sin compras, cero", () => {
+    expect(comprasPendientes([{}], hoy)).toEqual({ porLlegar: 0, tarde: 0 });
+  });
+
+  it("una compra sin fecha estimada no es tarde: no se sabe", () => {
+    expect(comprasPendientes([{ compras: [c({ estimada: undefined })] }], hoy)).toEqual({
+      porLlegar: 1,
+      tarde: 0,
+    });
   });
 });

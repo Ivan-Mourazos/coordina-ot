@@ -600,7 +600,12 @@ function OFRow({
         </p>
       )}
 
-      {of.materialPendienteHasta && (
+      {/* Solo cuando el chip de material NO puede contarlo. Los dos salían del
+          mismo hecho —hay una compra pendiente— y quedaban uno encima del otro
+          diciendo lo mismo; el chip además dice QUÉ se pidió, a quién y si
+          llega tarde. Esta línea se queda para las OF donde la vista de RPS da
+          la fecha pero no tenemos el detalle de la compra. */}
+      {of.materialPendienteHasta && !of.compras?.length && (
         <p className="mt-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
           📦 Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.
         </p>

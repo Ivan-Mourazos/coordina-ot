@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import type { OF, Operario, Pedido } from "@/lib/types";
+import { comprasPendientes, estadoMaterialDe, hoyISO } from "@/lib/types";
 import { PedidoScan } from "./PedidoScan";
 import { MenuAsignar } from "./MenuAsignar";
 import { QuickLook } from "./QuickLook";
@@ -49,7 +50,12 @@ export const PedidoCardView = memo(function PedidoCardView({
     .filter(Boolean)
     .sort()[0];
   const conRotulacion = ofs.some((o) => o.rotulacion);
-  const reservasHechas = ofs.reduce((n, o) => n + (o.reservasMaterial ?? 0), 0);
+  // El material, en la esquina de la miniatura: se decide coger un pedido
+  // mirando esto, y antes el 🧵 solo aparecía si YA había reserva — o sea, la
+  // mitad de la información. Ahora dice en qué punto está (ver estadoMaterial
+  // en types.ts): asignado sin reservar, a medias, o cubierto.
+  const material = estadoMaterialDe(ofs);
+  const compras = comprasPendientes(ofs, hoyISO());
 
   return (
     <div className="w-full select-none">
@@ -78,14 +84,24 @@ export const PedidoCardView = memo(function PedidoCardView({
 
         {/* avisos de datos de RPS: material sin recibir / lleva rotulación */}
         <span className="absolute right-0.5 top-0.5 flex flex-col gap-0.5">
-          {materialPendiente && (
+          {(compras.porLlegar > 0 || materialPendiente) && (
             <span
-              title={`Material de compras pedido, llega el ${materialPendiente
-                .split("-")
-                .reverse()
-                .slice(0, 2)
-                .join("/")}`}
-              className="grid size-4 cursor-help place-items-center rounded bg-amber-400/95 text-[9px] shadow-sm ring-1 ring-black/10"
+              title={
+                compras.tarde > 0
+                  ? `${compras.tarde} compra${compras.tarde === 1 ? "" : "s"} con la fecha de entrega ya pasada`
+                  : compras.porLlegar > 0
+                    ? `${compras.porLlegar} compra${compras.porLlegar === 1 ? "" : "s"} pedida${compras.porLlegar === 1 ? "" : "s"} y sin llegar`
+                    : `Material de compras pedido, llega el ${materialPendiente!
+                        .split("-")
+                        .reverse()
+                        .slice(0, 2)
+                        .join("/")}`
+              }
+              // Rojo si la fecha de entrega ya pasó: eso es lo único de aquí
+              // que puede parar el trabajo sin que nadie avise.
+              className={`grid size-4 cursor-help place-items-center rounded text-[9px] shadow-sm ring-1 ring-black/10 ${
+                compras.tarde > 0 ? "bg-red-500/95" : "bg-amber-400/95"
+              }`}
             >
               📦
             </span>
@@ -98,10 +114,22 @@ export const PedidoCardView = memo(function PedidoCardView({
               🏷
             </span>
           )}
-          {reservasHechas > 0 && (
+          {material && (
             <span
-              title={`Material reservado (${reservasHechas} ${reservasHechas === 1 ? "reserva" : "reservas"})`}
-              className="grid size-4 cursor-help place-items-center rounded bg-teal-500/90 text-[9px] shadow-sm ring-1 ring-black/10"
+              title={
+                material === "reservado"
+                  ? "Almacén ha reservado todo el material"
+                  : material === "aMedias"
+                    ? "Almacén ha reservado solo parte del material"
+                    : "Material asignado, Almacén todavía no lo ha reservado"
+              }
+              className={`grid size-4 cursor-help place-items-center rounded text-[9px] shadow-sm ring-1 ring-black/10 ${
+                material === "reservado"
+                  ? "bg-teal-500/90"
+                  : material === "aMedias"
+                    ? "bg-amber-400/95"
+                    : "bg-white/95"
+              }`}
             >
               🧵
             </span>

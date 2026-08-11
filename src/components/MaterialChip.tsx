@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CompraOF, MaterialAsignado } from "@/lib/types";
-import { estadoMaterial } from "@/lib/types";
+import { comprasPendientes, estadoMaterial } from "@/lib/types";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
 // ─── El recorrido del material de la OF ──────────────────────────────────────
@@ -240,9 +240,10 @@ export function MaterialChip({
   const aMedias = lista.filter((m) => estadoMaterial(m) === "aMedias").length;
   const todoReservado = lista.length > 0 && reservadas === lista.length;
   // Lo que se ha comprado y no ha llegado: es lo único de aquí que puede parar
-  // el trabajo, así que sale en el propio botón sin tener que abrirlo.
-  const porLlegar = compras.filter((c) => c.recibida < c.pedida);
-  const tarde = porLlegar.filter((c) => c.estimada && c.estimada < hoy).length;
+  // el trabajo, así que sale en el propio botón sin tener que abrirlo. Se cuenta
+  // con el mismo helper que la esquina de la miniatura (types.ts), para que las
+  // dos no puedan decir cosas distintas del mismo pedido.
+  const { porLlegar, tarde } = comprasPendientes([{ compras: [...compras] }], hoy);
 
   return (
     <>
@@ -282,7 +283,7 @@ export function MaterialChip({
             {reservadas}/{lista.length}
           </span>
         )}
-        {porLlegar.length > 0 && (
+        {porLlegar > 0 && (
           <span
             className={`rounded-full px-1.5 text-[10px] font-bold text-white ${
               tarde > 0 ? "bg-red-600" : "bg-amber-500"
@@ -290,10 +291,10 @@ export function MaterialChip({
             title={
               tarde > 0
                 ? `${tarde} compra${tarde === 1 ? "" : "s"} con la fecha de entrega pasada`
-                : `${porLlegar.length} compra${porLlegar.length === 1 ? "" : "s"} por llegar`
+                : `${porLlegar} compra${porLlegar === 1 ? "" : "s"} por llegar`
             }
           >
-            📦 {porLlegar.length}
+            📦 {porLlegar}
           </span>
         )}
       </button>
