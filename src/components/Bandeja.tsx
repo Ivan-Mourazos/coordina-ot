@@ -183,11 +183,15 @@ export function Bandeja({
         meta: familiaMeta(fam),
         facets: items.sort(cmpPrioFecha),
       }))
-      // Antes las filas iban por número de pedidos: un criterio que nadie
-      // adivinaba mirándolas y que solo decía qué montón era más alto. Ahora
-      // manda la urgencia — como cada fila ya está ordenada, su primer parte es
-      // el más urgente que contiene, y ese decide el orden entre filas.
-      .sort((a, b) => cmpPrioFecha(a.facets[0], b.facets[0]));
+      // De más pedidos a menos, que es como se pidió: agrupar por familia se
+      // usa para ver DE QUÉ hay trabajo, y ahí lo primero que se busca es el
+      // montón más alto. La urgencia sigue mandando dentro de cada fila (y
+      // decide los empates entre filas del mismo tamaño), así que lo urgente
+      // no se pierde: está a la izquierda de su fila.
+      .sort(
+        (a, b) =>
+          b.facets.length - a.facets.length || cmpPrioFecha(a.facets[0], b.facets[0]),
+      );
   }, [facets]);
 
   /* ── agrupado por prioridad ── */
