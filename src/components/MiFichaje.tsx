@@ -625,18 +625,27 @@ function OFItem({
             {of.detenida ? "Detenida" : "No fichable"}
           </span>
         ) : fichando ? (
+          // Las mismas palabras y el mismo verde que en el tablero y en el
+          // detalle: "Parar" aquí y "Pausar" allí eran dos nombres para el
+          // mismo botón. Y en tono fantasma no se veía que fuera la acción.
           <button
             onClick={() => onDesfichar(of.id)}
-            className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+            title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
+            className="shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
           >
-            ⏸ Parar
+            ⏸ Pausar
           </button>
         ) : (
           <button
             onClick={() => onFichar([of.id], rolFichajeDe(of))}
-            className="shrink-0 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+            title={
+              minutos > 0
+                ? "Vuelve a poner el reloj en marcha"
+                : "Empieza el planteo y pone el reloj en marcha"
+            }
+            className="shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
           >
-            ⏱ Fichar
+            {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
           </button>
         )}
       </div>

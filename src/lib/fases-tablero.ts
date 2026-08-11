@@ -94,9 +94,30 @@ export function faseDeOF(of: OF): Fase {
 
 /** Fase del pedido entero. Manda lo que está más "en marcha": un pedido con
  *  una OF planteándose está planteándose, aunque las demás estén aprobadas. */
+/** Las OF que cuentan para hablar del PEDIDO: lo que Oficina Técnica tiene que
+ *  plantear, y nada más.
+ *
+ *  Quedan fuera tres cosas que no son trabajo pendiente nuestro y que, contadas,
+ *  dejaban el pedido colgado para siempre:
+ *
+ *  · Las ANULADAS: OT ya dijo que no las hace.
+ *  · Las de TALLER: no son nuestras (ver `ofDeTaller`).
+ *  · Las DETENIDAS por Producción: son nuestras pero no se pueden ni fichar, y
+ *    liberarlas no está en nuestra mano. El caso fue AR.26.03626: su toldo
+ *    estaba aprobado y el pedido seguía diciendo "Planteando" y sin dejar
+ *    pasarlo a Producción, por tres detenidas y una capota de taller.
+ *
+ *  Si NO queda ninguna, el pedido no tiene trabajo de OT: eso lo interpreta
+ *  cada quien (`faseDePedido` lo deja en "sin empezar", `pedidoListoParaPasar`
+ *  dice que no). */
+export function ofsQueCuentan(p: ConOFs): OF[] {
+  return p.ofs.filter((o) => o.estado !== "anulada" && !ofDeTaller(o) && !o.detenida);
+}
+
 export function faseDePedido(p: ConOFs): Fase {
-  if (p.ofs.length === 0) return "sinEmpezar";
-  const fases = p.ofs.map(faseDeOF);
+  const cuentan = ofsQueCuentan(p);
+  if (cuentan.length === 0) return "sinEmpezar";
+  const fases = cuentan.map(faseDeOF);
   if (fases.every((f) => f === "listoParaPasar")) return "listoParaPasar";
   // Manda sobre todo lo demás: si una OF del pedido volvió a corregir, eso es
   // lo primero que hay que saber del pedido, aunque las otras vayan bien.
@@ -113,16 +134,19 @@ export function faseDePedido(p: ConOFs): Fase {
  *  pasar" y, si el botón mirase solo eso, mandaría a Producción la OF que otro
  *  tiene a medias. Producción recibe el pedido completo o no lo recibe. */
 export function pedidoListoParaPasar(p: ConOFs): boolean {
-  const activas = p.ofs.filter((o) => o.estado !== "anulada");
-  return activas.length > 0 && activas.every((o) => o.estado === "aprobada");
+  const cuentan = ofsQueCuentan(p);
+  return cuentan.length > 0 && cuentan.every((o) => o.estado === "aprobada");
 }
 
 /** Quién tiene todavía trabajo en este pedido, para poder decir a quién se
  *  espera en vez de un botón apagado sin explicación. */
 export function autoresQueFaltan(p: ConOFs): Array<{ autorId: string | null; n: number }> {
   const cuenta = new Map<string | null, number>();
-  for (const of of p.ofs) {
-    if (of.estado === "anulada" || of.estado === "aprobada") continue;
+  // Las mismas que deciden si el pedido está listo (`ofsQueCuentan`): si no, el
+  // aviso decía "falta sin asignar (3 OF)" señalando OF detenidas o de taller,
+  // que no espera nadie.
+  for (const of of ofsQueCuentan(p)) {
+    if (of.estado === "aprobada") continue;
     cuenta.set(of.autorId, (cuenta.get(of.autorId) ?? 0) + 1);
   }
   return [...cuenta].map(([autorId, n]) => ({ autorId, n }));

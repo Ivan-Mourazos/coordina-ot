@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { OF } from "../types";
-import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "../accion-pedido";
+import {
+  accionAlFichar,
+  accionPrimariaDePedido,
+  ofsFichablesDe,
+  ofsPara,
+} from "../accion-pedido";
 
 const of = (p: Partial<OF>): OF =>
   ({
@@ -20,8 +25,13 @@ const of = (p: Partial<OF>): OF =>
   }) as OF;
 
 describe("accionPrimariaDePedido", () => {
-  it("pendiente con autor → empezar planteo", () => {
-    expect(accionPrimariaDePedido({ ofs: [of({})] })?.id).toBe("empezar_planteo");
+  it("pendiente no ofrece acción: empezar ES fichar, y eso lo hace el botón del reloj", () => {
+    // "Empezar planteo" ya arrancaba el reloj, así que al lado del botón de
+    // fichar eran dos botones para lo mismo — y en un pedido a medias llegaban
+    // a salir "Reanudar" y "Empezar planteo" juntos. La transición la hace
+    // ahora `accionAlFichar` en el momento de fichar.
+    expect(accionPrimariaDePedido({ ofs: [of({})] })).toBeNull();
+    expect(accionAlFichar(of({}))).toBe("empezar_planteo");
   });
 
   it("en curso → pasar a revisión", () => {
@@ -29,8 +39,11 @@ describe("accionPrimariaDePedido", () => {
       .toBe("terminar_planteo");
   });
 
-  it("devuelta → retomar planteo", () => {
-    expect(accionPrimariaDePedido({ ofs: [of({ estado: "devuelta" })] })?.id).toBe("retomar");
+  it("devuelta: retomar también es fichar, y la fila ofrece pasar a revisión", () => {
+    expect(accionAlFichar(of({ estado: "devuelta" }))).toBe("retomar");
+    expect(accionPrimariaDePedido({ ofs: [of({ estado: "devuelta" })] })?.id).toBe(
+      "terminar_planteo",
+    );
   });
 
   it("aprobada no ofrece accion primaria: lo que toca es pasar el pedido", () => {
@@ -52,12 +65,13 @@ describe("accionPrimariaDePedido", () => {
     expect(accionPrimariaDePedido({ ofs: [] })).toBeNull();
   });
 
-  it("pendiente con tiempo ya fichado (tras deshacer_empezar) sigue ofreciendo empezar planteo", () => {
+  it("pendiente con tiempo ya fichado (tras deshacer_empezar) se retoma fichando", () => {
     // deshacer_empezar devuelve la OF a "pendiente" conservando el tiempo:
-    // faseDeOF la clasifica como "planteando" por ese tiempo, pero la única
-    // acción que admite desde "pendiente" es empezar_planteo.
+    // faseDeOF la clasifica como "planteando" por ese tiempo, pero desde
+    // "pendiente" lo único que cabe es volver a empezar, y eso es fichar.
     const p = { ofs: [of({ estado: "pendiente", tiempoPlanteoMin: 12 })] };
-    expect(accionPrimariaDePedido(p)?.id).toBe("empezar_planteo");
+    expect(accionPrimariaDePedido(p)).toBeNull();
+    expect(accionAlFichar(p.ofs[0])).toBe("empezar_planteo");
   });
 
   it("en_curso + pendiente-con-tiempo en el mismo pedido: manda terminar_planteo", () => {

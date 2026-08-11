@@ -9,6 +9,7 @@ import {
   faseDePedido,
   motivoBloqueo,
   ofOcultaDeOT,
+  ofsQueCuentan,
   pedidoListoParaPasar,
 } from "../fases-tablero";
 
@@ -254,5 +255,49 @@ describe("OF que entran por una tarea de taller", () => {
 
   it("una OF normal sin autor no se esconde nunca", () => {
     expect(ofOcultaDeOT(of({ id: "n1", estado: "pendiente", autorId: null }))).toBe(false);
+  });
+});
+
+describe("ofsQueCuentan: lo que de verdad tiene que plantear Oficina Técnica", () => {
+  // El caso es AR.26.03626: su toldo estaba aprobado y el pedido seguía
+  // diciendo "Planteando" y sin dejar pasarlo a Producción, porque contaban
+  // tres OF detenidas por Producción y una capota que entra por taller.
+  const como03626 = {
+    ofs: [
+      of({ id: "toldo", estado: "aprobada" }),
+      of({ id: "det1", detenida: true }),
+      of({ id: "det2", detenida: true }),
+      of({ id: "capota", ajenaOT: true }),
+      of({ id: "anulada", estado: "anulada" }),
+    ],
+  };
+
+  it("deja fuera las anuladas, las de taller y las detenidas", () => {
+    expect(ofsQueCuentan(como03626).map((o) => o.id)).toEqual(["toldo"]);
+  });
+
+  it("y con eso el pedido SÍ está listo para pasar a Producción", () => {
+    expect(pedidoListoParaPasar(como03626)).toBe(true);
+    expect(faseDePedido(como03626)).toBe("listoParaPasar");
+  });
+
+  it("una detenida por Producción no es trabajo pendiente de OT: no la podemos ni fichar", () => {
+    // Antes bastaba una detenida para dejar el pedido colgado para siempre:
+    // liberarla no está en mano de Oficina Técnica.
+    const p = { ofs: [of({ estado: "aprobada" }), of({ id: "d", detenida: true })] };
+    expect(pedidoListoParaPasar(p)).toBe(true);
+  });
+
+  it("pero un pedido SIN nada que plantear no está 'listo para pasar'", () => {
+    // Todo detenido o de taller: no hay nada aprobado que mandar.
+    expect(pedidoListoParaPasar({ ofs: [of({ detenida: true }), of({ ajenaOT: true })] }))
+      .toBe(false);
+    expect(faseDePedido({ ofs: [of({ detenida: true })] })).toBe("sinEmpezar");
+  });
+
+  it("tampoco se espera a nadie por una OF que no cuenta", () => {
+    // "falta sin asignar (3 OF)" señalando detenidas y capotas mandaba a buscar
+    // trabajo que no espera nadie.
+    expect(autoresQueFaltan(como03626)).toEqual([]);
   });
 });

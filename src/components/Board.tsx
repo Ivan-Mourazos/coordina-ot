@@ -39,6 +39,7 @@ import {
 import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
+import { accionAlFichar } from "@/lib/accion-pedido";
 import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
 import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
@@ -1110,6 +1111,46 @@ export function Board({
     rol: Rol;
     codigos: string[];
   } | null>(null);
+  /** Fichar ES empezar a trabajar.
+   *
+   *  Antes eran dos gestos: "Empezar planteo" (que además arrancaba el reloj) y
+   *  "Fichar". Dos botones seguidos para lo mismo, y en un pedido a medias
+   *  llegaban a salir "Reanudar" y "Empezar planteo" juntos. Ahora el reloj es
+   *  el único camino: al ficharlas, las OF sin empezar pasan a "planteando" y
+   *  las devueltas se retoman. A partir de ahí solo quedan pausar, reanudar y
+   *  pasar a revisión.
+   *
+   *  El cambio de estado va DESPUÉS del fichaje y sin volver a arrancarlo (no
+   *  se pasa por `ejecutarAccion`, que ficharía otra vez). Solo con rol
+   *  "plantear": la revisión tiene su propia acción y sus propias reglas de
+   *  quién puede empezarla. */
+  const arrancarFichaje = useCallback(
+    (ofIds: string[], rol: Rol) => {
+      ficharOFs(ofIds, rol);
+      if (rol !== "plantear") return;
+      const ids = new Set(ofIds);
+      const porAccion = new Map<AccionOF, string[]>();
+      for (const p of pedidosRef.current) {
+        for (const of of p.ofs) {
+          if (!ids.has(of.id)) continue;
+          const accion = accionAlFichar(of);
+          if (!accion) continue;
+          porAccion.set(accion, [...(porAccion.get(accion) ?? []), of.id]);
+        }
+      }
+      for (const [accion, suyas] of porAccion) {
+        mut(new Set(suyas), (of) => {
+          try {
+            return aplicarAccion(of, accion);
+          } catch {
+            return of;
+          }
+        }, accion);
+      }
+    },
+    [ficharOFs, mut],
+  );
+
   // Último tramo del embudo de avisos: fichar en OFs asignadas a OTRO está
   // permitido (se hace, para echar una mano), pero no debe pasar sin querer.
   const ficharAvisandoSiEsAjeno = useCallback(
@@ -1124,13 +1165,13 @@ export function Board({
         }
       }
       if (ajenos.size === 0) {
-        ficharOFs(ofIds, rol);
+        arrancarFichaje(ofIds, rol);
         return;
       }
       const nombres = operarios.filter((o) => ajenos.has(o.id)).map((o) => o.nombre);
       setFichajeAjenoPendiente({ ofIds, rol, nombres });
     },
-    [miId, pedidos, operarios, ficharOFs],
+    [miId, pedidos, operarios, arrancarFichaje],
   );
 
   /** Embudo de avisos antes de arrancar el reloj, en orden: el doble fichaje
@@ -1757,7 +1798,7 @@ export function Board({
         mensaje={`Vas a fichar en OFs asignadas a ${fichajeAjenoPendiente?.nombres.join(", ") ?? ""}. El tiempo contará igual (va a Oficina Técnica), pero la OF sigue asignada a esa persona. ¿Continuar?`}
         onConfirmar={() => {
           if (fichajeAjenoPendiente) {
-            ficharOFs(fichajeAjenoPendiente.ofIds, fichajeAjenoPendiente.rol);
+            arrancarFichaje(fichajeAjenoPendiente.ofIds, fichajeAjenoPendiente.rol);
           }
           setFichajeAjenoPendiente(null);
         }}

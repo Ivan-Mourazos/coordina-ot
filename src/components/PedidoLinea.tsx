@@ -102,13 +102,6 @@ export function PedidoLinea({
   // ficha ahí es la revisión, que le toca al revisor, no a mí — así que no
   // se ofrece fichar en absoluto en esa fase.
   const fichables = fase === "esperandoRevision" ? [] : ofsFichablesDe(facet, "plantear");
-  // "Empezar planteo" y "Retomar" YA arrancan el reloj (efectoFichaje:
-  // "arranca" en lib/acciones.ts), así que al lado de un botón "Fichar" eran
-  // dos botones que parecían lo mismo — y casi lo son: la diferencia es que la
-  // acción, además, cambia el estado de la OF. Se enseña solo la acción, que
-  // hace las dos cosas. "Fichar" se queda para cuando NO hay nada que empezar:
-  // una OF ya en curso a la que solo hay que volver a ponerle el reloj.
-  const laAccionYaFicha = accion?.id === "empezar_planteo" || accion?.id === "retomar";
 
   return (
     <div
@@ -212,6 +205,10 @@ export function PedidoLinea({
         // adivinaba por la forma. Ahora 11 px y semibold, con algo más de aire.
         <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
         {/* Pausa: siempre visible mientras se ficha. */}
+        {/* Fichar es el único camino para empezar: arranca el reloj y saca la
+            OF de "sin empezar" (ver `arrancarFichaje` en Board). Verde, y
+            siempre visible mientras corre: pausar es lo que más se pulsa y
+            esconderlo hasta pasar el ratón obligaba a buscarlo. */}
         {fichando ? (
           <button
             onClick={() => onDesfichar(fichando.id)}
@@ -221,7 +218,6 @@ export function PedidoLinea({
             ⏸ Pausar
           </button>
         ) : (
-          !laAccionYaFicha &&
           fichables.length > 0 && (
             <button
               onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
@@ -229,12 +225,12 @@ export function PedidoLinea({
                 minutos > 0
                   ? "Vuelve a poner el reloj en marcha en este pedido"
                   : fichables.length === 1
-                    ? "Empezar a fichar en este pedido"
-                    : `Empezar a fichar en las ${fichables.length} OF de este pedido`
+                    ? "Empieza el planteo y pone el reloj en marcha"
+                    : `Empieza el planteo de las ${fichables.length} OF y pone el reloj en marcha`
               }
-              className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-text-muted opacity-0 transition-opacity hover:bg-[var(--glass-highlight)] hover:text-text focus-visible:opacity-100 group-hover:opacity-100"
+              className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
             >
-              {/* Mismas palabras que en el detalle: reanudar no es empezar. */}
+              {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
               {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
               {fichables.length > 1 && ` ${fichables.length}`}
             </button>

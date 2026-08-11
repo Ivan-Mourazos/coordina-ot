@@ -736,7 +736,7 @@ function AccionesOF({
     <div className="mt-2.5 flex flex-wrap gap-2">
       {of.fichandoRol ? (
         <Btn
-          tone="teal"
+          tone="verde"
           title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
           onClick={() => onDesfichar(of.id)}
         >
@@ -744,8 +744,12 @@ function AccionesOF({
         </Btn>
       ) : esFichable(of) ? (
         <Btn
-          tone="teal"
-          title={yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Empieza a contar tiempo en esta OF"}
+          tone="verde"
+          title={
+            yaEmpezada
+              ? "Vuelve a poner el reloj en marcha"
+              : "Empieza el planteo y pone el reloj en marcha"
+          }
           onClick={() => onFichar([of.id], rolFichajeDe(of))}
         >
           {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
@@ -814,13 +818,16 @@ function Btn({
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  tone: "amber" | "teal" | "ghost" | "rojo";
+  tone: "amber" | "teal" | "verde" | "ghost" | "rojo";
   className?: string;
   title?: string;
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
     teal: "bg-teal-600 text-white hover:bg-teal-700",
+    // Verde para el reloj, el mismo de "planteando" en todo el tablero: fichar
+    // es empezar a trabajar, y se reconoce por el color sin leer el boton.
+    verde: "bg-emerald-600 text-white hover:bg-emerald-700",
     ghost: "border border-border text-text-muted hover:text-text hover:border-border-strong",
     // Peligro (anular) en rojo pero SIN relleno: era lo que más gritaba de la
     // tarjeta, por encima de la acción que se hace a diario, y en una OF

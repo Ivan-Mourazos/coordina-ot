@@ -1,5 +1,5 @@
 import type { Pedido, Rol } from "./types";
-import { pedidoListoParaPasar } from "./fases-tablero";
+import { ofsQueCuentan, pedidoListoParaPasar } from "./fases-tablero";
 
 // ─── "Quién lo lleva y por dónde va", en una frase ───────────────────────────
 // La Lista tenía tres columnas para contar esto: los avatares del autor y del
@@ -54,7 +54,11 @@ const nombresDe = (ids: Array<string | null>, nombre: (id: string) => string): s
  *  Las anuladas no cuentan para nada — OT ya dijo que no las hace, y su tiempo
  *  fichado no debe inflar el del pedido. */
 export function estadoDePedido(p: Pedido, nombre: (id: string) => string): EstadoPedido {
-  const ofs = p.ofs.filter((o) => o.estado !== "anulada");
+  // Las mismas OF con las que se decide la fase del pedido (`ofsQueCuentan`):
+  // fuera anuladas, de taller y detenidas por Producción. Si no, un pedido con
+  // el planteo aprobado seguía diciendo "Planteando" por una OF que ni es
+  // nuestra ni podemos tocar.
+  const ofs = ofsQueCuentan(p);
 
   const planteoMin = ofs.reduce((n, o) => n + o.tiempoPlanteoMin, 0);
   const revisionMin = ofs.reduce((n, o) => n + o.tiempoRevisionMin, 0);
