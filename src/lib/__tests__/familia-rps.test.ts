@@ -9,9 +9,38 @@ describe("familiaDeTexto", () => {
     // Este era EL fallo: la descripción empieza por LONA y el grupo dice
     // CAMION, así que un remolque acababa en la familia Lona y los remolques
     // no aparecían en el filtro.
-    expect(familiaDeTexto("LONA SEPARA MERCANCIAS MONARD", "100 - CAMION")).toBe("REMOLQUE");
-    expect(familiaDeTexto("LATERAL CORREDERA TAUTLINER XL", "2 - CAMION")).toBe("REMOLQUE");
-    expect(familiaDeTexto("TECHO FIJO CAMION CISTERNA", "1 - CAMION")).toBe("REMOLQUE");
+    //
+    // El grupo CAMION ya no cae en REMOLQUE: RPS los tiene separados en su
+    // catálogo (grupos CAMION y CAPOTA) y no son el mismo trabajo — los
+    // juntábamos nosotros, y un camión salía bajo "Remolque".
+    expect(familiaDeTexto("LONA SEPARA MERCANCIAS MONARD", "100 - CAMION")).toBe("CAMION");
+    expect(familiaDeTexto("LATERAL CORREDERA TAUTLINER XL", "2 - CAMION")).toBe("CAMION");
+    expect(familiaDeTexto("TECHO FIJO CAMION CISTERNA", "1 - CAMION")).toBe("CAMION");
+    // Las capotas sí siguen siendo remolque.
+    expect(familiaDeTexto("CAPOTA NUEVA", "1 - CAPOTA")).toBe("REMOLQUE");
+  });
+
+  it("un cliente puede valer por una familia, y manda sobre todo lo demás", () => {
+    // De Assa Abloy entra trabajo sin parar y siempre del mismo tipo (34 de sus
+    // 40 OF pendientes eran SUMINISTRO/PUERTAS el 11/08/2026). Mezclado con el
+    // resto de "Suministro" —el cajón de sastre de RPS— quedaba escondido.
+    const assa = { cliente: "ASSA ABLOY ENTRANCE SYSTEMS PRODUCTION ROMANIA SRL" };
+    expect(familiaDeTexto("PUERTA RAPIDA ENROLLABLE", "18 - SUMINISTRO", assa)).toBe("ASSAABLOY");
+    // Manda incluso sobre un grupo que sí diría algo.
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", assa)).toBe("ASSAABLOY");
+    // Y sin cliente reconocido, todo sigue como estaba.
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { cliente: "MAHOU" })).toBe("TOLDO");
+  });
+
+  it("la subfamilia rescata lo que 'SUMINISTRO' no distingue", () => {
+    // "SUMINISTRO" es el cajón de sastre de RPS: ahí conviven las puertas
+    // rápidas y el material suelto. La subfamilia sí lo separa.
+    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTA");
+    // Sin subfamilia concluyente, se queda en su familia de siempre.
+    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO", { subfamilia: "CONFECCION" })).toBe(
+      "SUMINISTRO",
+    );
+    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO")).toBe("SUMINISTRO");
   });
 
   it("toldos: también cortinas, bambalinas y cambios de tela", () => {

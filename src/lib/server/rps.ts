@@ -131,11 +131,45 @@ function textoArticulo(articulo: string | null): string {
  *  descripción engaña: "LONA SEPARA MERCANCIAS" de un camión acababa en Lona
  *  cuando es un remolque, y por eso los remolques no aparecían en el filtro. */
 const FAMILIA_POR_GRUPO: [RegExp, Familia][] = [
-  [/CAMION|CAPOTA/, "REMOLQUE"],
+  // CAMION va aparte de REMOLQUE. Los dos son transporte, pero no son el mismo
+  // trabajo, y meterlos juntos hacía que un camión saliera bajo "Remolque".
+  // RPS ya los tiene separados en su catálogo (grupos CAMION y CAPOTA); éramos
+  // nosotros los que los juntábamos.
+  [/CAMION/, "CAMION"],
+  [/CAPOTA/, "REMOLQUE"],
   [/TOLDO/, "TOLDO"],
   [/ESPECTACULO/, "ESPECTACULO"],
   [/CARPA/, "CARPA"],
   [/SUMINISTRO/, "SUMINISTRO"],
+];
+
+/** Clientes que en la práctica SON una familia.
+ *
+ *  No es una rareza del programa: hay clientes de los que entra trabajo
+ *  continuamente y siempre del mismo tipo, y en la oficina se habla de ellos
+ *  por su nombre, no por lo que fabrican ("los de Assa Abloy"). Agruparlos con
+ *  el resto de "Suministro" —donde cae de todo— los escondía entre cosas que no
+ *  tienen nada que ver.
+ *
+ *  Manda sobre todo lo demás, a propósito: si el pedido es de uno de estos, eso
+ *  es lo primero que se quiere saber. Para añadir otro basta una línea. */
+const CLIENTES_FAMILIA: [RegExp, Familia][] = [
+  // 34 de las 40 OF suyas pendientes son SUMINISTRO/PUERTAS (11/08/2026).
+  [/\bASSA\s*ABLOY\b/, "ASSAABLOY"],
+];
+
+/** Subfamilias de RPS que dicen más que su familia.
+ *
+ *  La familia sola se queda corta donde el catálogo mete cosas dispares:
+ *  "SUMINISTRO" es el cajón de sastre de RPS y ahí conviven las puertas
+ *  rápidas con material suelto. La subfamilia sí lo distingue, así que cuando
+ *  es concluyente manda ella.
+ *
+ *  Solo las concluyentes: subfamilias como CONFECCION o LONASNUEVAS aparecen
+ *  colgando de familias muy distintas (CAMION, CARPAS, ESPECTACULO…) y no
+ *  dicen de qué es el trabajo, solo qué se hace con él. */
+const FAMILIA_POR_SUBFAMILIA: [RegExp, Familia][] = [
+  [/^PUERTAS$/, "PUERTA"],
 ];
 
 /** Y por descripción, con el vocabulario del taller (acordado con Iván): los
@@ -169,9 +203,20 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   [/LONA|ROLLO|OLLAO|RIEL/, "LONA"],
 ];
 
-export function familiaDeTexto(descripcionMO: string | null, articulo: string | null): Familia {
+/** De qué es este trabajo, de lo más decisivo a lo más adivinado: el cliente si
+ *  es de los que valen por una familia, luego la subfamilia de RPS cuando dice
+ *  algo, luego su familia, y solo al final la descripción. */
+export function familiaDeTexto(
+  descripcionMO: string | null,
+  articulo: string | null,
+  extra?: { cliente?: string | null; subfamilia?: string | null },
+): Familia {
   const grupo = textoArticulo(articulo).toUpperCase();
   const desc = (descripcionMO ?? "").toUpperCase();
+  const cliente = (extra?.cliente ?? "").toUpperCase();
+  const sub = (extra?.subfamilia ?? "").trim().toUpperCase();
+  for (const [re, familia] of CLIENTES_FAMILIA) if (re.test(cliente)) return familia;
+  for (const [re, familia] of FAMILIA_POR_SUBFAMILIA) if (sub && re.test(sub)) return familia;
   for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
   for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
   // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte
@@ -179,8 +224,11 @@ export function familiaDeTexto(descripcionMO: string | null, articulo: string | 
   return grupo || "OTRO";
 }
 
-function familiaDe(fila: FilaVista): Familia {
-  return familiaDeTexto(fila.DescripcionMO, fila.Articulo);
+function familiaDe(fila: FilaVista, subfamilia: string | undefined): Familia {
+  return familiaDeTexto(fila.DescripcionMO, fila.Articulo, {
+    cliente: fila.Cliente,
+    subfamilia,
+  });
 }
 
 /** ¿La tarea por la que esta OF entra en la vista es de TALLER y no de OT?
@@ -323,6 +371,9 @@ interface DatosOF {
   fechaLimitePlanteo: string | undefined;
   /** Día de la primera imputación de tiempo en RPS (undefined = ninguna). */
   fichadaDesde: string | undefined;
+  /** Subfamilia del artículo en RPS (CodProductSubFamily). Afina la familia
+   *  donde el catálogo de RPS la deja corta; ver FAMILIA_POR_SUBFAMILIA. */
+  subfamilia: string | undefined;
 }
 
 function aOF(fila: FilaVista, datos: DatosOF): OF {
@@ -334,7 +385,8 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     id: `${orden}:${(fila.CodTarea ?? "").trim()}`,
     codigo: orden,
     descripcion: descripcionDe(fila),
-    familia: familiaDe(fila),
+    familia: familiaDe(fila, datos.subfamilia),
+    subfamilia: datos.subfamilia,
     piezas: Math.max(1, Math.round(fila.Cantidad ?? 1)),
     // Autor: quien ficha ahora la OF o, si nadie, quien más tiempo le ha
     // imputado (según RPS). La asignación manual del tablero puede moverlo.
@@ -503,7 +555,8 @@ async function consultarTablero(): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, imputaciones, ventas, tareas, imputacionesHist] = await Promise.all([
+  const [fichajes, reservas, imputaciones, ventas, tareas, imputacionesHist, subfamilias] =
+    await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
     `),
@@ -602,7 +655,36 @@ async function consultarTablero(): Promise<Tablero> {
         )
       GROUP BY mo.CodManufacturingOrder, e.CodEmployee
     `),
+    // Subfamilia del artículo de cada OF. La vista no la trae: su `Articulo` es
+    // `cantidad - CodProductFamily`, y la familia sola se queda corta donde el
+    // catálogo de RPS mete cosas dispares ("SUMINISTRO" son puertas rápidas y
+    // material suelto en el mismo saco).
+    //
+    // Va en consulta aparte y AGREGADA (`MAX`) a propósito: una OF puede
+    // colgar de varias líneas de pedido, y repetir aquí el JOIN de la vista
+    // multiplicaría las filas del tablero. Agrupando por OF no hay forma de que
+    // eso pase. Medido: 380 ms para 17 283 OF de los últimos 18 meses, en
+    // paralelo con las demás.
+    pool.request().query<{ orden: string | null; subfamilia: string | null }>(`
+      SELECT mo.CodManufacturingOrder AS orden,
+             MAX(sf.CodProductSubFamily) AS subfamilia
+      FROM dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+      JOIN dbo.FACOrderLineSL l WITH (NOLOCK)
+        ON l.IDManufacturingOrder = mo.IDManufacturingOrder
+      JOIN dbo.STKArticle art WITH (NOLOCK) ON art.IDArticle = l.IDArticle
+      LEFT JOIN dbo.GENProductSubFamily sf WITH (NOLOCK)
+        ON sf.IDProductSubFamily = art.IDProductSubFamily
+      WHERE mo.CodCompany = '001'
+        AND mo.CodManufacturingOrder IN (${listaTareasIn})
+      GROUP BY mo.CodManufacturingOrder
+    `),
   ]);
+
+  const subfamiliaPorOF = new Map(
+    subfamilias.recordset
+      .map((s) => [(s.orden ?? "").trim(), (s.subfamilia ?? "").trim()] as const)
+      .filter(([, sub]) => sub !== ""),
+  );
 
   const ventaPorPedido = new Map(
     ventas.recordset.map((v) => [(v.pedido ?? "").trim(), v]),
@@ -896,6 +978,7 @@ async function consultarTablero(): Promise<Tablero> {
           // Misma clave OF+tarea que los minutos: el "desde cuándo" y el
           // "cuánto llevas" hablan siempre del mismo trabajo.
           fichadaDesde: desdePorTarea.get(clave),
+          subfamilia: subfamiliaPorOF.get(orden),
           avisos,
           fechaLimitePlanteo,
         });

@@ -520,6 +520,18 @@ function OFRow({
       <div className="flex items-center gap-2">
         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
         <FamiliaTag familia={of.familia} />
+        {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
+            Es el detalle que le falta a la familia, que en RPS es muy ancha, y
+            se enseña tal cual en vez de inventarle un sitio en nuestro
+            catálogo. Solo si dice algo que la familia no diga ya. */}
+        {of.subfamilia && of.subfamilia.toUpperCase() !== of.familia.toUpperCase() && (
+          <span
+            className="truncate text-[10px] uppercase tracking-wide text-text-muted"
+            title="Subfamilia en RPS"
+          >
+            {of.subfamilia}
+          </span>
+        )}
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
           {meta.label}
         </span>

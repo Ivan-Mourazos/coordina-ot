@@ -72,6 +72,20 @@ const M: Record<FamiliaConocida, FamiliaMeta> = {
     // puerta enrollable: dintel y lamas
     icon: "M4 4h16M5 8h14M5 12h14M5 16h14M7 20h10",
   },
+  CAMION: {
+    label: "Camión",
+    color: "#3f6212",
+    // cabina + caja + ruedas
+    icon: "M2 7h11v9H2zM13 10h4l3 3v3h-7M5.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0M15.5 19a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0",
+  },
+  ASSAABLOY: {
+    label: "Assa Abloy",
+    // Azul suyo, distinto de los tintes de producto: no es un QUÉ, es un QUIÉN,
+    // y conviene que se note a simple vista.
+    color: "#1d4ed8",
+    // edificio con puerta: es todo puertas automáticas
+    icon: "M4 21V6l8-3 8 3v15M9 21v-7h6v7M12 10h.01",
+  },
 };
 
 const FALLBACK: FamiliaMeta = {

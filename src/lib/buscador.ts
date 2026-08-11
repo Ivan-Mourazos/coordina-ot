@@ -147,7 +147,9 @@ export function indiceDePedido(p: Pedido): Indice {
     p.codigo,
     p.ofs.map((o) => o.codigo),
     `${p.cliente} ${p.negocio ?? ""}`,
-    p.ofs.map((o) => o.descripcion).join(" "),
+    // Con la subfamilia de RPS: "puertas" o "reparaciones" es como se llama al
+    // trabajo hablando, y no siempre está en la descripción de la OF.
+    p.ofs.map((o) => `${o.descripcion} ${o.familia} ${o.subfamilia ?? ""}`).join(" "),
   );
 }
 

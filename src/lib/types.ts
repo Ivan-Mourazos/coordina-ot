@@ -26,7 +26,14 @@ export type FamiliaConocida =
   | "REPARACION"
   | "ESPECTACULO"
   | "FUNDA"
-  | "PUERTA";
+  | "PUERTA"
+  // Separada de REMOLQUE: RPS ya las distingue en su catálogo (grupos CAMION y
+  // CAPOTA) y no son el mismo trabajo; los juntábamos nosotros.
+  | "CAMION"
+  // Un CLIENTE que vale por una familia. Entra trabajo suyo sin parar y siempre
+  // del mismo tipo, y en la oficina se habla de él por su nombre. La lista está
+  // en CLIENTES_FAMILIA (server/rps.ts).
+  | "ASSAABLOY";
 
 /** RPS trae familias fuera del catálogo (ESPECTACULO, CERRAMIENTOS…): se
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */
@@ -124,6 +131,17 @@ export interface OF {
    *
    *  undefined = nunca se le imputó tiempo (o mock, que no lo rellena). */
   fichadaDesde?: string;
+  /** Subfamilia del artículo en RPS ("PUERTAS", "TOLDO NUEVO", "REPARACIONES"…).
+   *
+   *  Es el nivel de detalle que le falta a `familia`, que en RPS es muy ancha:
+   *  bajo "SUMINISTRO" conviven las puertas rápidas de Assa Abloy con material
+   *  suelto. Algunas subfamilias ya deciden la familia (ver
+   *  FAMILIA_POR_SUBFAMILIA en server/rps.ts); el resto se enseñan tal cual,
+   *  porque afinan sin tener que inventarles un sitio en el catálogo propio.
+   *
+   *  undefined = el artículo no tiene subfamilia puesta en RPS, que es normal
+   *  (39 de las 136 OF pendientes el 11/08/2026). */
+  subfamilia?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   tiempoRevisionMin: number; // acumulado por el/los revisores
