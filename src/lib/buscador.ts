@@ -39,6 +39,19 @@ export function palabrasDe(s: string): string[] {
     .filter(Boolean);
 }
 
+/** Un pedido de venta tal cual sale de RPS, sin nada de Oficina Técnica.
+ *
+ *  Vive aquí y no junto a su consulta (server/buscar-db.ts) porque lo usa el
+ *  buscador, que es cliente: importar el tipo desde el módulo de servidor
+ *  arrastraría `mssql` al navegador. */
+export interface PedidoEncontrado {
+  codigo: string;
+  cliente: string | null;
+  negocio: string | null;
+  /** Fecha del pedido de venta (ISO), para poder decir de cuándo es. */
+  fecha: string | null;
+}
+
 /** Dónde vive el resultado. Solo para el color del distintivo; el texto va en
  *  `donde`, que es lo que se lee. */
 export type Ubicacion = "sinAsignar" | "conAutor" | "historial" | "taller" | "fuera";
@@ -56,7 +69,9 @@ export interface Resultado {
   /** Coletilla de segunda fila: lo que matiza sin ser la ubicación ("1 de
    *  taller", "2 detenidas", la fecha del historial). */
   extra?: string;
-  fuente: "tablero" | "historial";
+  /** De dónde salió, y en qué orden manda a igualdad de puntos: lo vivo antes
+   *  que lo archivado, y lo archivado antes que lo que nunca fue nuestro. */
+  fuente: "tablero" | "historial" | "rps";
   puntos: number;
 }
 
@@ -197,12 +212,22 @@ export interface FuentesBusqueda {
   pedidos: readonly Pedido[];
   /** Lo que devolvió /api/historial para esta misma consulta. */
   historial: readonly HistorialItem[];
+  /** Y lo que devolvió /api/buscar: CUALQUIER pedido de venta de RPS, aunque
+   *  nunca haya pasado por Oficina Técnica. Es lo que hace que "no encuentro el
+   *  3577" tenga siempre respuesta. */
+  otros?: readonly PedidoEncontrado[];
   nombre: (id: string) => string;
 }
 
 /** Cuántos se enseñan. Una lista larga en un desplegable no se lee: si no está
  *  en los diez primeros, lo que hay que hacer es escribir una letra más. */
 export const TOPE_RESULTADOS = 10;
+
+const ORDEN_FUENTE: Record<Resultado["fuente"], number> = {
+  tablero: 0,
+  historial: 1,
+  rps: 2,
+};
 
 export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
   const q = normaliza(consulta);
@@ -248,13 +273,34 @@ export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
     });
   }
 
+  for (const p of f.otros ?? []) {
+    // Los que ya salieron por el tablero o el Historial mandan: de esos se sabe
+    // dónde están y se pueden abrir con todo su detalle.
+    if (yaEstan.has(p.codigo)) continue;
+    const puntos = puntua(indice(p.codigo, [], p.cliente ?? "", ""), q, busca);
+    if (puntos === null) continue;
+    yaEstan.add(p.codigo);
+    salida.push({
+      clave: p.codigo,
+      codigo: p.codigo,
+      cliente: p.cliente ?? "Sin cliente",
+      negocio: p.negocio ?? undefined,
+      // No es trabajo de OT, o no lo fue nunca: eso es lo que hay que decir.
+      donde: "Fuera de Oficina Técnica",
+      ubicacion: "fuera",
+      extra: p.fecha ? `pedido de ${p.fecha.slice(8, 10)}/${p.fecha.slice(5, 7)}/${p.fecha.slice(0, 4)}` : undefined,
+      fuente: "rps",
+      puntos,
+    });
+  }
+
   return salida
     .sort(
       (a, b) =>
         b.puntos - a.puntos ||
         // A igualdad, lo vivo antes que lo archivado y lo nuevo antes que lo
         // viejo: el pedido que buscas casi siempre es el de esta semana.
-        Number(a.fuente === "historial") - Number(b.fuente === "historial") ||
+        ORDEN_FUENTE[a.fuente] - ORDEN_FUENTE[b.fuente] ||
         b.codigo.localeCompare(a.codigo),
     )
     .slice(0, TOPE_RESULTADOS);

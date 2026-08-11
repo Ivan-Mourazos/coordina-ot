@@ -214,3 +214,43 @@ describe("ubicacionDe", () => {
     expect(ubicacionDe(p, nombre).donde).toBe("Iván");
   });
 });
+
+describe("tercera fuente: cualquier pedido de RPS", () => {
+  const suelto = {
+    codigo: "AR.26.03649",
+    cliente: "FORMOSO PICO, S.L.",
+    negocio: null,
+    fecha: "2026-07-22T00:00:00.000Z",
+  };
+
+  it("encuentra pedidos que no están ni en el tablero ni en el historial", () => {
+    // El caso real: AR.26.03577 y AR.26.03649 no salían por ningún lado porque
+    // RPS daba su tarea de OT por terminada y no había registro de fin de fase.
+    const r = buscar("3649", { pedidos: [], historial: [], otros: [suelto], nombre });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ codigo: "AR.26.03649", donde: "Fuera de Oficina Técnica" });
+  });
+
+  it("dice de cuándo es, que es lo único que se sabe de ellos", () => {
+    const r = buscar("formoso", { pedidos: [], historial: [], otros: [suelto], nombre });
+    expect(r[0].extra).toBe("pedido de 22/07/2026");
+  });
+
+  it("no pisa al mismo pedido si ya salió por el tablero", () => {
+    const enTablero = pedido({ codigo: "AR.26.03649", cliente: "FORMOSO PICO, S.L." });
+    const r = buscar("3649", { pedidos: [enTablero], historial: [], otros: [suelto], nombre });
+    expect(r).toHaveLength(1);
+    expect(r[0].fuente).toBe("tablero");
+  });
+
+  it("y va detrás de lo vivo y de lo archivado, no delante", () => {
+    // A igualdad de puntos manda lo que se puede abrir y tocar.
+    const r = buscar("AR26", {
+      pedidos: [pedido({ id: "p", codigo: "AR.26.00001" })],
+      historial: [hist({ pedido: "AR.26.00002" })],
+      otros: [{ ...suelto, codigo: "AR.26.00003" }],
+      nombre,
+    });
+    expect(r.map((x) => x.fuente)).toEqual(["tablero", "historial", "rps"]);
+  });
+});

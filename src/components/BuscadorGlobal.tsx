@@ -2,8 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { HistorialItem } from "@/lib/historial";
+
 import type { Pedido } from "@/lib/types";
-import { MIN_LETRAS, buscar, type Resultado, type Ubicacion } from "@/lib/buscador";
+import {
+  MIN_LETRAS,
+  buscar,
+  type PedidoEncontrado,
+  type Resultado,
+  type Ubicacion,
+} from "@/lib/buscador";
 import { usePopover } from "@/lib/usePopover";
 
 // ─── Buscar un pedido sin saber en qué pestaña está ──────────────────────────
@@ -11,10 +18,11 @@ import { usePopover } from "@/lib/usePopover";
 // que salgan, con el teclado, y que cada línea diga DÓNDE está el pedido —que
 // es la pregunta de verdad cuando alguien busca uno.
 //
-// Dos fuentes con dos velocidades: el tablero ya está en memoria y responde en
-// la misma tecla; el historial vive en RPS y va con freno (debounce), porque su
-// consulta es cara. Los locales se pintan mientras el otro llega: la lista
-// crece por debajo sin que la primera respuesta se haga esperar.
+// TRES fuentes con dos velocidades: el tablero ya está en memoria y responde en
+// la misma tecla; el Historial y "cualquier pedido de RPS" son consultas caras y
+// van con freno (debounce), las dos a la vez. Los locales se pintan mientras
+// llegan: la lista crece por debajo sin que la primera respuesta se haga
+// esperar, y si RPS no contesta el buscador sigue sirviendo.
 
 const COLOR: Record<Ubicacion, string> = {
   sinAsignar: "bg-gray-400",
@@ -43,6 +51,7 @@ export function BuscadorGlobal({
 }) {
   const [q, setQ] = useState("");
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
+  const [otros, setOtros] = useState<PedidoEncontrado[]>([]);
   const [cargandoHist, setCargandoHist] = useState(false);
   const [cursor, setCursor] = useState(0);
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
@@ -72,33 +81,46 @@ export function BuscadorGlobal({
     const mio = ++seq.current;
     const t = setTimeout(async () => {
       setCargandoHist(true);
-      try {
-        const r = await fetch(`/api/historial?q=${encodeURIComponent(q.trim())}`, {
-          cache: "no-store",
-        });
-        if (!r.ok) throw new Error(String(r.status));
-        const data = (await r.json()) as { pedidos: HistorialItem[] };
-        if (mio === seq.current) setHistorial(data.pedidos);
-      } catch {
-        // El historial es el extra: si RPS no contesta, los del tablero ya
-        // están en pantalla y el buscador sigue sirviendo.
-        if (mio === seq.current) setHistorial([]);
-      } finally {
-        if (mio === seq.current) setCargandoHist(false);
-      }
+      const texto = encodeURIComponent(q.trim());
+      // Las dos consultas a RPS van a la vez y cada una se apaña sola: si una
+      // falla, la otra sigue dando resultados. `allSettled` y no `all`.
+      const [hist, todos] = await Promise.allSettled([
+        fetch(`/api/historial?q=${texto}`, { cache: "no-store" }).then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json() as Promise<{ pedidos: HistorialItem[] }>;
+        }),
+        fetch(`/api/buscar?q=${texto}`, { cache: "no-store" }).then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json() as Promise<{ pedidos: PedidoEncontrado[] }>;
+        }),
+      ]);
+      if (mio !== seq.current) return; // respuesta obsoleta
+      // Lo que venga de RPS es el extra: si no contesta, los del tablero ya
+      // están en pantalla y el buscador sigue sirviendo.
+      setHistorial(hist.status === "fulfilled" ? hist.value.pedidos : []);
+      setOtros(todos.status === "fulfilled" ? todos.value.pedidos : []);
+      setCargandoHist(false);
     }, ESPERA_MS);
     return () => clearTimeout(t);
   }, [q]);
 
   const abierto = open && q.trim().length >= MIN_LETRAS;
-  // El historial que queda de la consulta anterior no estorba —`buscar` lo
-  // filtra por la consulta de ahora— pero con el buscador vacío no pinta nada.
-  const resultados = buscar(q, { pedidos, historial: abierto ? historial : [], nombre });
+  // Lo que queda de la consulta anterior no estorba —`buscar` lo filtra por la
+  // consulta de ahora— pero con el buscador vacío no pinta nada.
+  const resultados = buscar(q, {
+    pedidos,
+    historial: abierto ? historial : [],
+    otros: abierto ? otros : [],
+    nombre,
+  });
   // El cursor no puede quedarse apuntando a un sitio que ya no existe: los
   // resultados cambian con cada tecla.
   const activo = Math.min(cursor, Math.max(0, resultados.length - 1));
 
   function elegir(r: Resultado) {
+    // Los del tablero se abren con todas sus acciones; el resto —historial y
+    // pedidos que nunca fueron de OT— en el panel de solo lectura, que es lo
+    // unico que se puede hacer con ellos.
     if (r.fuente === "tablero") onAbrirPedido(r.clave);
     else onAbrirHistorial(r.clave);
     setOpen(false);
@@ -175,7 +197,7 @@ export function BuscadorGlobal({
         >
           {resultados.length === 0 ? (
             <p className="px-2 py-3 text-center text-xs text-text-muted">
-              {cargandoHist ? "Buscando…" : "Nada con eso."}
+              {cargandoHist ? "Buscando…" : "Nada con eso, ni en el tablero ni en RPS."}
             </p>
           ) : (
             <ul className="scroll-thin max-h-96 overflow-y-auto">
@@ -210,7 +232,7 @@ export function BuscadorGlobal({
                 </li>
               ))}
               {cargandoHist && (
-                <li className="px-2 py-1.5 text-[11px] text-text-muted">Buscando en el historial…</li>
+                <li className="px-2 py-1.5 text-[11px] text-text-muted">Buscando en RPS…</li>
               )}
             </ul>
           )}
