@@ -26,6 +26,60 @@ function fmt(d: string) {
   return `${day}/${m}/${y.slice(2)}`;
 }
 
+// ─── Qué OF del pedido son trabajo de OT y cuáles no ─────────────────────────
+// El detalle es la ficha del pedido ENTERO, así que tiene todas sus OF; pero
+// enseñarlas todas de golpe engaña. En AR.26.03626, de cinco OF solo el toldo
+// era nuestro: tres estaban detenidas por Producción y la capota entra por una
+// tarea de taller. Se leía como si tocara plantear cinco.
+//
+// Así que se abre con lo tuyo y lo demás queda en cajones, uno por MOTIVO de no
+// estar: cada botón dice qué esconde y cuántas son, y se abre si hace falta
+// mirarlo. El motivo importa —"detenida" es tuya pero bloqueada, "para taller"
+// no es tuya, "anulada" la quitasteis vosotros—, y por eso no valía un único
+// "ver el resto".
+
+type GrupoOculto = "detenida" | "taller" | "anulada";
+
+/** Por qué NO se enseña de entrada, o null si es trabajo de OT.
+ *
+ *  El orden de los `if` es la precedencia, y va de lo más definitivo a lo más
+ *  reversible: una OF anulada Y detenida se cuenta como anulada, porque lo que
+ *  explica que no la vayas a plantear es que la anulasteis. Cada OF cae en un
+ *  cajón y solo en uno: si no, los recuentos de los botones sumarían más OF de
+ *  las que tiene el pedido. */
+function grupoOculto(of: OF): GrupoOculto | null {
+  if (of.estado === "anulada") return "anulada";
+  // Mismo criterio con el que el tablero decide no enseñarla: tarea de taller y
+  // nadie de OT que la haya rescatado asignándose autor.
+  if (ofOcultaDeOT(of)) return "taller";
+  if (of.detenida) return "detenida";
+  return null;
+}
+
+const GRUPOS: readonly {
+  id: GrupoOculto;
+  /** Con nº delante: "3 detenidas". Sin artículos, que van en el botón. */
+  nombre: (n: number) => string;
+  ayuda: string;
+}[] = [
+  {
+    id: "detenida",
+    nombre: (n) => (n === 1 ? "detenida" : "detenidas"),
+    ayuda: "Detenidas por Producción: no admiten fichaje hasta que las liberen.",
+  },
+  {
+    id: "taller",
+    nombre: () => "para taller",
+    ayuda:
+      "Entran por una tarea de taller: no son trabajo de Oficina Técnica. Asignarles autor las rescata.",
+  },
+  {
+    id: "anulada",
+    nombre: (n) => (n === 1 ? "anulada" : "anuladas"),
+    ayuda: "Anuladas en Oficina Técnica: no se plantean.",
+  },
+];
+
 function opcionesOperario(
   operarios: Operario[],
   miId: string | null,
@@ -74,6 +128,9 @@ export function Drawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [pedido, onClose]);
 
+  // Qué grupos de OF ajenas al trabajo de OT se han desplegado a mano.
+  const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
+  const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
@@ -81,6 +138,13 @@ export function Drawer({
   // sobre él movía la Lista de detrás, y al cerrar aparecías en otro sitio sin
   // haber tocado nada. Mismo bloqueo que usan los paneles del tablero.
   useScrollBloqueado(pedido !== null);
+
+  // Cambiar de pedido cierra lo que se hubiera desplegado: haber mirado las
+  // detenidas de uno no es motivo para abrir el siguiente ya destripado.
+  if (pedido && pedido.id !== ultimoPedido) {
+    setUltimoPedido(pedido.id);
+    if (mostrar.size > 0) setMostrar(new Set());
+  }
 
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;
@@ -93,14 +157,18 @@ export function Drawer({
   // pedido. Sin este check, el botón "Pasar a Producción" reaparecería para un
   // pedido que ya pasó.
   const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
-  // Lo que de verdad es trabajo de OT en este pedido. Mismo criterio que usa el
-  // tablero para no enseñarlas (`ofOcultaDeOT`): tarea de taller y sin rescatar.
-  const ofsDeOT = pedido.ofs.filter((o) => !ofOcultaDeOT(o));
-  // Las de OT primero, y dentro de cada grupo el orden en que vienen. `sort` es
-  // estable, así que basta con separar en dos.
-  const ofsOrdenadas = [...pedido.ofs].sort(
-    (a, b) => Number(ofOcultaDeOT(a)) - Number(ofOcultaDeOT(b)),
-  );
+  // Lo que de verdad hay que plantear, y lo que no, cada cosa en su cajón.
+  const todasLasOF = pedido.ofs;
+  const ofsDeOT = todasLasOF.filter((o) => grupoOculto(o) === null);
+  const ocultas = GRUPOS.map((g) => ({
+    grupo: g,
+    ofs: todasLasOF.filter((o) => grupoOculto(o) === g.id),
+  })).filter((c) => c.ofs.length > 0);
+  // Primero lo tuyo; debajo, en su orden, solo los cajones abiertos.
+  const ofsVisibles = [
+    ...ofsDeOT,
+    ...ocultas.filter((c) => mostrar.has(c.grupo.id)).flatMap((c) => c.ofs),
+  ];
 
   return (
     <div
@@ -227,21 +295,24 @@ export function Drawer({
             </div>
           </div>
 
-          {/* OFs. El detalle las trae TODAS —es la ficha del pedido entero, y
-              para eso se abre—, pero primero las que son trabajo de OT: en un
-              pedido de cinco donde solo una es tuya, tenerla entre medias
-              obligaba a leerlas una a una para dar con ella. El rótulo dice
-              cuántas son de OT cuando no son todas. */}
+          {/* OFs: el trabajo de OT arriba, lo demás en cajones (ver GRUPOS). */}
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Órdenes de fabricación ({pedido.ofs.length})
+            Órdenes de fabricación ({ofsDeOT.length})
             {ofsDeOT.length !== pedido.ofs.length && (
               <span className="ml-1.5 font-normal normal-case tracking-normal">
-                · {ofsDeOT.length} de Oficina Técnica
+                · {pedido.ofs.length - ofsDeOT.length} más en el pedido
               </span>
             )}
           </h3>
+
+          {ofsDeOT.length === 0 && (
+            <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-muted">
+              Ninguna OF de este pedido es trabajo de Oficina Técnica ahora mismo.
+            </p>
+          )}
+
           <ul className="space-y-2.5">
-            {ofsOrdenadas.map((of) => (
+            {ofsVisibles.map((of) => (
               <OFRow
                 key={of.id}
                 of={of}
@@ -256,6 +327,35 @@ export function Drawer({
               />
             ))}
           </ul>
+
+          {ocultas.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {ocultas.map(({ grupo, ofs }) => {
+                const abierto = mostrar.has(grupo.id);
+                return (
+                  <button
+                    key={grupo.id}
+                    onClick={() =>
+                      setMostrar((prev) => {
+                        const s = new Set(prev);
+                        if (!s.delete(grupo.id)) s.add(grupo.id);
+                        return s;
+                      })
+                    }
+                    aria-expanded={abierto}
+                    title={grupo.ayuda}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                      abierto
+                        ? "glass-chip-activo text-text"
+                        : "glass-chip text-text-muted hover:text-text"
+                    }`}
+                  >
+                    {abierto ? "Ocultar" : "Ver"} {ofs.length} {grupo.nombre(ofs.length)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <footer
