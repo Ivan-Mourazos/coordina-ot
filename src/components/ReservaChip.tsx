@@ -12,18 +12,29 @@ function ReservaPopover({
   n,
   detalle,
   anchor,
+  disparador,
   onClose,
 }: {
   n: number;
   detalle?: string[];
   anchor: DOMRect;
+  /** El botón que lo abrió. Va aquí porque el popover se pinta en un PORTAL,
+   *  así que el botón no está dentro de `ref` y el cierre por "clic fuera" lo
+   *  contaba como fuera: al pulsarlo por segunda vez, el `mousedown` cerraba y
+   *  el `click` que venía detrás lo volvía a abrir. Resultado, un panel que no
+   *  se podía cerrar con su propio botón. */
+  disparador: HTMLElement | null;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const destino = e.target as Node;
+      // El disparador NO es "fuera": de cerrarlo ya se encarga su propio
+      // onClick, que es quien sabe si toca abrir o cerrar.
+      if (disparador?.contains(destino)) return;
+      if (ref.current && !ref.current.contains(destino)) onClose();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -34,7 +45,7 @@ function ReservaPopover({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, disparador]);
 
   if (typeof document === "undefined") return null;
 
@@ -85,7 +96,12 @@ export function ReservaChip({
   n: number;
   detalle?: string[];
 }) {
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  // El sitio donde se pinta Y el botón que lo abrió, juntos: los dos se
+  // averiguan en el mismo clic, y el botón hace falta luego para que el cierre
+  // por "clic fuera" no lo cuente como fuera. Leer `btnRef.current` al pintar
+  // no vale —React lo prohíbe y además no dispara repintado—, así que se
+  // guarda aquí en el momento en que se pulsa.
+  const [abierto, setAbierto] = useState<{ rect: DOMRect; el: HTMLElement } | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
   if (n === 0) {
@@ -102,9 +118,10 @@ export function ReservaChip({
         ref={btnRef}
         onClick={(e) => {
           e.stopPropagation();
-          setAnchor((v) => (v ? null : btnRef.current?.getBoundingClientRect() ?? null));
+          const el = btnRef.current;
+          setAbierto((v) => (v || !el ? null : { rect: el.getBoundingClientRect(), el }));
         }}
-        aria-expanded={anchor !== null}
+        aria-expanded={abierto !== null}
         className="chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300"
       >
         🧵 Ver reserva
@@ -113,8 +130,14 @@ export function ReservaChip({
         </span>
       </button>
 
-      {anchor && (
-        <ReservaPopover n={n} detalle={detalle} anchor={anchor} onClose={() => setAnchor(null)} />
+      {abierto && (
+        <ReservaPopover
+          n={n}
+          detalle={detalle}
+          anchor={abierto.rect}
+          disparador={abierto.el}
+          onClose={() => setAbierto(null)}
+        />
       )}
     </>
   );
