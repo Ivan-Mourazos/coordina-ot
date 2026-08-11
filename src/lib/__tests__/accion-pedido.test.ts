@@ -65,10 +65,11 @@ describe("accionPrimariaDePedido", () => {
     expect(accionPrimariaDePedido({ ofs: [] })).toBeNull();
   });
 
-  it("pendiente con tiempo ya fichado (tras deshacer_empezar) se retoma fichando", () => {
-    // deshacer_empezar devuelve la OF a "pendiente" conservando el tiempo:
-    // faseDeOF la clasifica como "planteando" por ese tiempo, pero desde
-    // "pendiente" lo único que cabe es volver a empezar, y eso es fichar.
+  it("pendiente con tiempo ya fichado se retoma fichando", () => {
+    // Pasa con lo que viene de RPS: una OF con tiempo imputado en el terminal
+    // que aquí sigue "pendiente". `faseDeOF` la clasifica como "planteando" por
+    // ese tiempo, pero desde "pendiente" lo único que cabe es volver a empezar,
+    // y eso es fichar.
     const p = { ofs: [of({ estado: "pendiente", tiempoPlanteoMin: 12 })] };
     expect(accionPrimariaDePedido(p)).toBeNull();
     expect(accionAlFichar(p.ofs[0])).toBe("empezar_planteo");

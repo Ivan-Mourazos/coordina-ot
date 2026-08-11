@@ -38,15 +38,13 @@ export const ACCIONES: AccionDef[] = [
     desde: ["devuelta"], requiere: "autor", efectoFichaje: "arranca", destino: "en_curso" },
   { id: "terminar_planteo", label: "Pasar a revisión", tono: "primaria",
     desde: ["en_curso", "devuelta"], efectoFichaje: "corta", destino: "por_revisar" },
-  // "Dejar sin empezar" y no "Volver a pendiente": lo segundo suena a "pararla
-  // un rato" y no lo es —deshace el haberla empezado—, así que se usaba como
-  // pausa por no haber otra cosa a mano. La pausa de verdad es el botón del
-  // reloj, y el texto de confirmación lo dice para que no se confundan otra vez.
-  { id: "deshacer_empezar", label: "Dejar sin empezar", tono: "neutra",
-    confirmar:
-      "La OF vuelve a 'sin empezar' y deja de figurar como trabajo en curso. El tiempo ya fichado se conserva. " +
-      "Si solo quieres parar y seguir más tarde, usa Pausar: la OF se queda como está.",
-    desde: ["en_curso"], efectoFichaje: "corta", destino: "pendiente" },
+  // AQUÍ HABÍA un "deshacer empezar" que devolvía la OF a "sin empezar". Se
+  // quitó, y no por sitio: es que decía una mentira. Una OF con tiempo fichado
+  // NO está sin empezar, y ese botón la dejaba diciendo que sí.
+  //
+  // Además ya no cubre ningún hueco. Para dejar de trabajar un rato está
+  // Pausar, que para el reloj sin tocar la OF; y para soltarla del todo está
+  // quitar el autor, que la devuelve a la bandeja para que la coja otro.
   { id: "empezar_revision", label: "Empezar revisión", tono: "primaria",
     desde: ["por_revisar"], requiere: "revisor", soloEl: "revisor",
     efectoFichaje: "arranca", destino: "en_revision" },

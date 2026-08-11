@@ -214,7 +214,12 @@ export function Bandeja({
         facets: (map.get(p) ?? []).sort((a, b) =>
           a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion),
         ),
-      }));
+      }))
+      // De más pedidos a menos, igual que agrupando por familia: agrupar sirve
+      // para ver dónde está el bulto, y el montón más alto va arriba. La
+      // urgencia decide los empates, así que con el mismo número de pedidos la
+      // fila de urgentes sigue saliendo por encima.
+      .sort((a, b) => b.facets.length - a.facets.length || b.prioridad - a.prioridad);
   }, [facets]);
 
   return (

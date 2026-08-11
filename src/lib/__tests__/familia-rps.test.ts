@@ -3,163 +3,96 @@ import { familiaDeTexto } from "../server/rps";
 import { familiaMeta } from "../familia";
 
 // El vocabulario del taller, tal como lo definió Iván. Los casos vienen de
-// filas reales de TGM_PENDIENTE_OT: son los que estaban mal clasificados.
+// descripciones REALES de TGM_PENDIENTE_OT.
+//
+// La regla de oro: manda la DESCRIPCIÓN. El catálogo de RPS reparte lo mismo
+// entre "SUMINISTRO", "CONFECCION" y "LONASNUEVAS" sin criterio que sirva para
+// agrupar; la descripción sí distingue una lona de piscina de un lateral de
+// tautliner. La subfamilia solo entra cuando la descripción no dice nada.
 
-describe("familiaDeTexto", () => {
-  it("el grupo de RPS manda sobre la descripción", () => {
-    // Este era EL fallo: la descripción empieza por LONA y el grupo dice
-    // CAMION, así que un remolque acababa en la familia Lona y los remolques
-    // no aparecían en el filtro.
-    //
-    // El grupo CAMION ya no cae en REMOLQUE: RPS los tiene separados en su
-    // catálogo (grupos CAMION y CAPOTA) y no son el mismo trabajo — los
-    // juntábamos nosotros, y un camión salía bajo "Remolque".
-    expect(familiaDeTexto("LONA SEPARA MERCANCIAS MONARD", "100 - CAMION")).toBe("CAMION");
-    expect(familiaDeTexto("LATERAL CORREDERA TAUTLINER XL", "2 - CAMION")).toBe("CAMION");
-    expect(familiaDeTexto("TECHO FIJO CAMION CISTERNA", "1 - CAMION")).toBe("CAMION");
-    // Las capotas sí siguen siendo remolque.
-    expect(familiaDeTexto("CAPOTA NUEVA", "1 - CAPOTA")).toBe("REMOLQUE");
+describe("las seis familias grandes", () => {
+  const f = (d: string) => familiaDeTexto(d, null);
+
+  it("camiones: tautliner, cisterna y lo que se describe empezando por LONA", () => {
+    // Casi todo esto empieza por "LONA…", y por eso la regla de camión va la
+    // primera de todas: si no, acabarían en Lonas.
+    expect(f("LATERAL CORREDERA TAUTLINER XL HOMOLOGADO 12641")).toBe("CAMION");
+    expect(f("LATERAL CORREDERA SIN TENSORES INOX TAUTLINER 1")).toBe("CAMION");
+    expect(f("TECHO FIJO CAMION CISTERNA")).toBe("CAMION");
+    expect(f("LONA SEPARA MERCANCIAS MONARD:247,5X212,5CM")).toBe("CAMION");
+    expect(f("LONAS SISTEMA COMPOCAR:SISTEMA COMPLETO")).toBe("CAMION");
+    expect(f("SEMITAUTLINER TECHO")).toBe("CAMION");
+    expect(f("TECHO CAMIÓN")).toBe("CAMION");
   });
 
-  it("un cliente puede valer por una familia, y manda sobre todo lo demás", () => {
-    // De Assa Abloy entra trabajo sin parar y siempre del mismo tipo (34 de sus
-    // 40 OF pendientes eran SUMINISTRO/PUERTAS el 11/08/2026). Mezclado con el
-    // resto de "Suministro" —el cajón de sastre de RPS— quedaba escondido.
-    const assa = { cliente: "ASSA ABLOY ENTRANCE SYSTEMS PRODUCTION ROMANIA SRL" };
-    expect(familiaDeTexto("PUERTA RAPIDA ENROLLABLE", "18 - SUMINISTRO", assa)).toBe("ASSAABLOY");
-    // Manda incluso sobre la subfamilia, que es lo que manda en todo lo demás.
-    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", {
-      ...assa,
-      subfamilia: "TOLDO NUEVO",
-    })).toBe("ASSAABLOY");
-    // Y sin cliente reconocido, todo sigue como estaba.
-    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { cliente: "MAHOU" })).toBe("TOLDO");
+  it("remolques: baquetón, arquillado, ganado y caballos", () => {
+    expect(f("LONA REMOLQUE ARQUILLADA")).toBe("REMOLQUE");
+    expect(f("BAQUETÓN LATERAL")).toBe("REMOLQUE"); // toUpperCase() no quita tildes
+    expect(f("BAQUETON LATERAL")).toBe("REMOLQUE");
+    expect(f("LONA BOTELLERO")).toBe("REMOLQUE");
+    expect(f("LONA PARA REMOLQUE DE GANADO")).toBe("REMOLQUE");
+    expect(f("REMOLQUE PARA CABALLOS")).toBe("REMOLQUE");
+    expect(f("CAPOTA NUEVA :RECTA")).toBe("REMOLQUE");
   });
 
-  it("cada uno de los tres clientes tiene sus razones sociales, y no se pisan entre ellos", () => {
-    const f = (cliente: string) => familiaDeTexto("LONA", "1 - CAMION", { cliente });
-    // Assa Abloy: en RPS hay cuatro nombres, uno con la errata "PRDUCTION".
-    expect(f("ASSA ABLOY ENTRANCE  SYSTEMS PRDUCTION SPAIN")).toBe("ASSAABLOY");
-    expect(f("ASSA ABLOY ENTRANCE SYSTEM SPAIN S.A.")).toBe("ASSAABLOY");
-    // Layher: dos sociedades.
-    expect(f("LAYHER, S. A. ")).toBe("LAYHER");
-    expect(f("LAYHER IBERICA S.L.")).toBe("LAYHER");
-    // Carrocerías Inteligentes se pide por el nombre ENTERO: hay dos docenas de
-    // "CARROCERIAS <algo>" en RPS que no son este cliente, y buscar solo
-    // "CARROCERIAS" los metería a todos en el mismo saco.
-    expect(f("CCI CARROCERIAS INTELIGENTES S.L.")).toBe("CCI");
-    expect(f("CARROCERIAS TAMBRE, S. A.")).toBe("CAMION");
-    expect(f("CARROCEROS DEL NOROESTE, S. L.")).toBe("CAMION");
+  it("pero una capota de TERRAZA no es de remolque", () => {
+    // "ESTRUCTURA CAPOTA CON PIES PARA TERRAZA O SIMILAR" es de la casa, no de
+    // transporte, y con la regla de capota a secas acababa en Remolques.
+    expect(f("ESTRUCTURA CAPOTA CON PIES PARA TERRAZA O SIMILAR")).not.toBe("REMOLQUE");
   });
 
-  it("la subfamilia manda sobre la familia: es el nivel al que se distingue el trabajo", () => {
-    // Las familias de RPS son demasiado anchas para agrupar. "SUMINISTRO"
-    // mezcla 1313 puertas con 422 OF de material suelto, y "TOLDO FACHADA"
-    // junta 662 toldos nuevos con 700 reparaciones y 163 accesorios.
-    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTAS");
-    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { subfamilia: "TOLDO NUEVO" })).toBe(
-      "TOLDO NUEVO",
-    );
-    // Y REPARACIONES, que es genérica, se lleva su apellido (ver el test de
-    // abajo): lo que importa aquí es que la familia ancha ya no manda sola.
-    expect(familiaDeTexto("CAMBIO DE TELA", "1 - TOLDO FACHADA", { subfamilia: "REPARACIONES" }))
-      .toBe("TOLDO/REPARACIONES");
+  it("puertas: enrollables, plegables y apilables", () => {
+    expect(f("PUERTA RÁPIDA APILABLE")).toBe("PUERTA");
+    expect(f("PUERTA ENROLLABLE AUTOREPARABLE")).toBe("PUERTA");
+    // Empieza por LONA y aun así es una puerta: por eso la regla va antes.
+    expect(f("LONA PARA PUERTA PLEGABLE")).toBe("PUERTA");
   });
 
-  it("las subfamilias genéricas llevan la familia delante, que si no se juntaría todo", () => {
-    // LONASNUEVAS cuelga de REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA:
-    // sola, metía en un montón cosas que no se parecen en nada. Con apellido,
-    // un camión y una carpa siguen siendo cosas distintas.
-    const sub = { subfamilia: "LONASNUEVAS" };
-    expect(familiaDeTexto("LONA", "1 - CAMION", sub)).toBe("CAMION/LONASNUEVAS");
-    expect(familiaDeTexto("LONA", "1 - CARPAS", sub)).toBe("CARPA/LONASNUEVAS");
-    expect(familiaDeTexto("CAMBIO DE TELA", "1 - TOLDO FACHADA", { subfamilia: "REPARACIONES" }))
-      .toBe("TOLDO/REPARACIONES");
+  it("fundas, y antes que toldos: una funda para toldo es una funda", () => {
+    expect(f("TODO TIPO DE FUNDAS")).toBe("FUNDA");
+    expect(f("FUNDA PARA TOLDO NUEVA")).toBe("FUNDA");
+    expect(f("FUNDA A MEDIDA")).toBe("FUNDA");
   });
 
-  it("pero las que cuelgan de una sola familia van sin apellido", () => {
-    // "Suministro · Puertas" o "Toldo · Toldo nuevo" sería repetirse.
-    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTAS");
-    expect(familiaDeTexto("TOLDO", "1 - TOLDO FACHADA", { subfamilia: "TOLDO NUEVO" })).toBe(
-      "TOLDO NUEVO",
-    );
+  it("lonas: lo que EMPIEZA por lona", () => {
+    // La lista es de Iván: con riel, de techo para estructura, cerramiento
+    // textil, de piscina, confeccionada, con ollaos.
+    expect(f("LONA (TECHO, LATERAL,,,) PARA ESTRUCTURA CLIENTE")).toBe("LONA");
+    expect(f("LONA CUBRE PISCINAS BICOLOR")).toBe("LONA");
+    expect(f("LONA PLASTICA CONFECCIONADA NO RECTANGULAR")).toBe("LONA");
+    expect(f("LONA CON OLLAOS 3X2")).toBe("LONA");
+    expect(f("LONA CORTADA PARA SACOS PVC:NEGRO")).toBe("LONA");
+    expect(f("LONA SEMI CONFECCIONADA :PVC")).toBe("LONA");
+    expect(f("CERRAMIENTO TEXTIL CON LONA:FIJA TUBOS")).toBe("LONA");
   });
 
-  it("sin subfamilia se cae a la familia de RPS, que sigue haciendo falta", () => {
-    // Pasa de verdad y no es raro: 450 OF de OTR.ESTRUCTURAS y 422 de
-    // SUMINISTRO no tienen subfamilia puesta en el artículo.
-    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO")).toBe("SUMINISTRO");
-    expect(familiaDeTexto("MATERIAL", "18 - SUMINISTRO", { subfamilia: "" })).toBe("SUMINISTRO");
+  it("un cerramiento ENROLLABLE de lona sigue siendo lona, no una puerta", () => {
+    // "CERRAMIENTO TEXTIL CON LONA:ENROLLABLE CON MOTOR CORREDERA" lleva
+    // "enrollable" y caía en Puertas.
+    expect(f("CERRAMIENTO TEXTIL CON LONA:ENROLLABLE CON MOTOR CORREDERA")).toBe("LONA");
   });
 
-  it("toldos: también cortinas, bambalinas y cambios de tela", () => {
-    expect(familiaDeTexto("TOLDO COFRE 4X3", "1 - TOLDO FACHADA")).toBe("TOLDO");
-    expect(familiaDeTexto("CORTINA CRISTAL TERRAZA", null)).toBe("TOLDO");
-    expect(familiaDeTexto("BAMBALINA FRONTAL", null)).toBe("TOLDO");
-    expect(familiaDeTexto("CAMBIO DE TELA TOLDO BRAZO", null)).toBe("TOLDO");
-  });
-
-  it("remolques: arquillados, baquetones y tautliners", () => {
-    expect(familiaDeTexto("REMOLQUE ARQUILLADO 6M", null)).toBe("REMOLQUE");
-    expect(familiaDeTexto("BAQUETON PARA REMOLQUE", null)).toBe("REMOLQUE");
-    expect(familiaDeTexto("LONA TAUTLINER LATERAL", null)).toBe("REMOLQUE");
-  });
-
-  it("fundas y espectáculos tienen familia propia", () => {
-    expect(familiaDeTexto("FUNDA PROTECTORA BELTS VIGO", null)).toBe("FUNDA");
-    expect(familiaDeTexto("ESCENARIO ORQUESTA", null)).toBe("ESPECTACULO");
-    expect(familiaDeTexto("LONA FRONTAL", "2 - ESPECTACULO")).toBe("ESPECTACULO");
-  });
-
-  it("lonas: de estructura, con riel y con ollaos", () => {
-    expect(familiaDeTexto("LONA (TECHO, LATERAL) PARA ESTRUCTURA CLIENTE", "1 - OTR.ESTRUCTURAS"))
-      .toBe("LONA");
-    expect(familiaDeTexto("LONA CORTINA CON RIEL SUPERIOR", "1 - OTR.ESTRUCTURAS")).toBe("LONA");
-    expect(familiaDeTexto("LONA CON OLLAOS 3X2", null)).toBe("LONA");
-  });
-
-  it("suministros, incluido system dock", () => {
-    expect(familiaDeTexto("TORNILLERIA", "1 - SUMINISTRO")).toBe("SUMINISTRO");
-    expect(familiaDeTexto("SYSTEM DOCK COMPLETO", null)).toBe("SUMINISTRO");
-  });
-
-  it("lo que no se reconoce se queda con el nombre del grupo, no se fuerza", () => {
-    expect(familiaDeTexto("ALGO RARO", "1 - ACABADOS")).toBe("ACABADOS");
-    expect(familiaDeTexto(null, null)).toBe("OTRO");
-  });
-});
-
-describe("vocabulario ampliado del catálogo de Toldos Gómez", () => {
-  it("lonas para el transporte, con y sin tilde", () => {
+  it("toldos: todos, incluidos los modelos que se venden por su nombre", () => {
     for (const d of [
-      "LONA REMOLQUE ARQUILLADA",
-      "BAQUETÓN LATERAL",
-      "BAQUETON LATERAL",
-      "SEMITAUTLINER TECHO",
-      "LONA BOTELLERO",
-      "LONA CISTERNA",
-      "LONA GANADO",
-      "TECHO CAMIÓN",
+      "TOLDO VERTICAL ELECTRA (ELIT DE LLAZA):SIN COFRE:CON GUIA",
+      "TOLDO MODELO SCREEN ROLL-SYSTEM NUEVO Ø56",
+      "TOLDO BRAZOS INVISIBLES MODELO ART 325 NUEVO",
+      "TOLDO COFRE SPLENBOX 400 DE LLAZA",
+      "CAMBIO DE TELA A TOLDO DE FACHADA",
+      "FALDON LATERAL O FRONTAL NUEVO PARA TOLDO FACHADA",
+      "BAMBALINA NUEVA",
+      "CORTINA CRISTAL TERRAZA",
+      "PERLABOX 300",
+      "AMBAR BOX 250",
+      "ARZUA COFRE",
+      "XACOBEO PLANO",
     ]) {
-      expect(familiaDeTexto(d, null), d).toBe("REMOLQUE");
-    }
-  });
-
-  it("puertas rápidas industriales", () => {
-    expect(familiaDeTexto("PUERTA RÁPIDA APILABLE", null)).toBe("PUERTA");
-    expect(familiaDeTexto("PUERTA ENROLLABLE AUTOREPARABLE", null)).toBe("PUERTA");
-  });
-
-  it("protección solar: todos son toldos", () => {
-    for (const d of ["TOLDO VERTICAL", "TOLDO PLANO", "TOLDO DE FACHADA"]) {
       expect(familiaDeTexto(d, null), d).toBe("TOLDO");
     }
   });
 
-  it("confección textil: lonas y fundas", () => {
-    expect(familiaDeTexto("LONA RECTANGULAR 4X3", null)).toBe("LONA");
-    expect(familiaDeTexto("LONA PARA PISCINA", null)).toBe("LONA");
-    expect(familiaDeTexto("FUNDA A MEDIDA", null)).toBe("FUNDA");
+  it("una carpa es una carpa, aunque se describa como lona de techo", () => {
+    expect(f("LONA PARA TECHO DE CARPA")).toBe("CARPA");
   });
 });
 
@@ -177,21 +110,82 @@ describe("cortina: depende de con qué vaya", () => {
   });
 });
 
-describe("familiaMeta con familias compuestas", () => {
-  it("junta los dos nombres, con el color de la familia y el icono de la subfamilia", () => {
+describe("cuando la descripción no dice nada", () => {
+  it("entonces sí manda la subfamilia de RPS", () => {
+    expect(familiaDeTexto("PIEZA ESPECIAL", "18 - SUMINISTRO", { subfamilia: "PISCINA" })).toBe(
+      "PISCINA",
+    );
+    expect(familiaDeTexto("PIEZA ESPECIAL", "1 - CERRAMIENTOS", { subfamilia: "PORTALES" })).toBe(
+      "PORTALES",
+    );
+  });
+
+  it("las subfamilias genéricas llevan la familia delante", () => {
+    // LONASNUEVAS cuelga de REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA:
+    // sola, metería en un montón cosas que no se parecen en nada.
+    const sub = { subfamilia: "LONASNUEVAS" };
+    expect(familiaDeTexto("PIEZA", "1 - CAMION", sub)).toBe("CAMION/LONASNUEVAS");
+    expect(familiaDeTexto("PIEZA", "1 - CARPAS", sub)).toBe("CARPA/LONASNUEVAS");
+  });
+
+  it("y sin subfamilia, la familia de RPS", () => {
+    // Pasa de verdad: 450 OF de OTR.ESTRUCTURAS y 422 de SUMINISTRO no tienen
+    // subfamilia puesta en el artículo.
+    expect(familiaDeTexto("TORNILLERIA", "1 - SUMINISTRO")).toBe("SUMINISTRO");
+    expect(familiaDeTexto("PIEZA", "18 - SUMINISTRO", { subfamilia: "" })).toBe("SUMINISTRO");
+  });
+
+  it("lo que no se reconoce se queda con el nombre del grupo, no se fuerza", () => {
+    expect(familiaDeTexto("ALGO RARO", "1 - ACABADOS")).toBe("ACABADOS");
+    expect(familiaDeTexto(null, null)).toBe("OTRO");
+  });
+});
+
+describe("clientes que valen por una familia", () => {
+  it("mandan sobre todo lo demás, incluida la descripción", () => {
+    const assa = { cliente: "ASSA ABLOY ENTRANCE SYSTEMS PRODUCTION ROMANIA SRL" };
+    expect(familiaDeTexto("PUERTA RAPIDA ENROLLABLE", "18 - SUMINISTRO", assa)).toBe("ASSAABLOY");
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", assa)).toBe("ASSAABLOY");
+    // Y sin cliente reconocido, todo sigue como estaba.
+    expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { cliente: "MAHOU" })).toBe("TOLDO");
+  });
+
+  it("cada uno tiene sus razones sociales, y no se pisan entre ellos", () => {
+    const f = (cliente: string) => familiaDeTexto("PIEZA", "1 - CAMION", { cliente });
+    // Assa Abloy: en RPS hay cuatro nombres, uno con la errata "PRDUCTION".
+    expect(f("ASSA ABLOY ENTRANCE  SYSTEMS PRDUCTION SPAIN")).toBe("ASSAABLOY");
+    expect(f("ASSA ABLOY ENTRANCE SYSTEM SPAIN S.A.")).toBe("ASSAABLOY");
+    // Layher: dos sociedades.
+    expect(f("LAYHER, S. A. ")).toBe("LAYHER");
+    expect(f("LAYHER IBERICA S.L.")).toBe("LAYHER");
+    // Carrocerías Inteligentes se pide por el nombre ENTERO: hay dos docenas de
+    // "CARROCERIAS <algo>" en RPS que no son este cliente.
+    expect(f("CCI CARROCERIAS INTELIGENTES S.L.")).toBe("CCI");
+    expect(f("CARROCERIAS TAMBRE, S. A.")).toBe("CAMION");
+    expect(f("CARROCEROS DEL NOROESTE, S. L.")).toBe("CAMION");
+  });
+});
+
+describe("familiaMeta", () => {
+  it("los seis grandes se llaman en plural: son nombres de montón", () => {
+    expect(familiaMeta("TOLDO").label).toBe("Toldos");
+    expect(familiaMeta("LONA").label).toBe("Lonas");
+    expect(familiaMeta("PUERTA").label).toBe("Puertas");
+    expect(familiaMeta("FUNDA").label).toBe("Fundas");
+    expect(familiaMeta("REMOLQUE").label).toBe("Remolques");
+    expect(familiaMeta("CAMION").label).toBe("Camiones");
+  });
+
+  it("las compuestas juntan los dos nombres, con el color de la familia", () => {
     // El color va por la FAMILIA porque es el eje que la subfamilia sola
     // borraba: un camión y una carpa no son lo mismo aunque las dos lleven
     // lona nueva. El icono, por la subfamilia, que es lo que se hace.
     const camion = familiaMeta("CAMION/LONASNUEVAS");
     const carpa = familiaMeta("CARPA/LONASNUEVAS");
-    expect(camion.label).toBe("Camión · Lonas nuevas");
+    expect(camion.label).toBe("Camiones · Lonas nuevas");
     expect(carpa.label).toBe("Carpa · Lonas nuevas");
     expect(camion.color).not.toBe(carpa.color);
     expect(camion.icon).toBe(carpa.icon);
-  });
-
-  it("las puertas se llaman Puerta, sin apellido", () => {
-    expect(familiaMeta("PUERTAS").label).toBe("Puerta");
   });
 
   it("una compuesta con trozos desconocidos no revienta ni queda en mayúsculas", () => {

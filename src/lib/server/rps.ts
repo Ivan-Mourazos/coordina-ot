@@ -200,34 +200,86 @@ const SUBFAMILIAS_GENERICAS = new Set([
   "LONAS",
 ]);
 
+// ─── El vocabulario de la casa manda sobre el catálogo de RPS ────────────────
+// Las reglas de abajo se miran ANTES que la subfamilia, y eso es un cambio de
+// criterio pedido por Iván tras ver el resultado: la descripción de la OF dice
+// de qué es el trabajo mucho mejor que la clasificación de RPS, que reparte lo
+// mismo entre "SUMINISTRO", "CONFECCION" y "LONASNUEVAS" sin criterio útil.
+//
+// El ORDEN de las reglas es lo que las hace funcionar, porque casi todo empieza
+// por "LONA…". De lo más específico a lo más general:
+//
+//   1. Transporte  "LATERAL CORREDERA TAUTLINER XL"      → Camión
+//   2. Puertas     "LONA PARA PUERTA PLEGABLE"           → Puerta
+//   3. Fundas      "FUNDA PARA TOLDO NUEVA"              → Funda
+//   4. Lo que EMPIEZA por lona                           → Lona
+//   5. Toldos y sus modelos, cerramientos, carpas…
+//
+// Si se cambia el orden, "LONA PARA PUERTA PLEGABLE" acaba en Lonas y "LATERAL
+// CORREDERA TAUTLINER" en cualquier sitio.
+
 /** Y por descripción, con el vocabulario del taller (acordado con Iván): los
  *  toldos incluyen cortinas, bambalinas y cambios de tela; los remolques,
  *  arquillados, baquetones y tautliners; las lonas, las de estructura, riel y
  *  ollaos. Lo específico va primero: "lona de tautliner" es un remolque. */
 const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
-  // Transporte. Va lo primero porque casi todo esto se describe empezando por
-  // "LONA…" y si no, acabaría en lonas. Las tildes se contemplan a mano:
-  // toUpperCase() no las quita, y en RPS conviven "BAQUETON" y "BAQUETÓN".
+  // ── 1. CAMIÓN ────────────────────────────────────────────────────────────
+  // Lo primero, porque casi todo esto se describe empezando por "LONA…"
+  // ("LONA SEPARA MERCANCIAS MONARD") y si no acabaría en lonas.
+  [/TAUT?LINER|CAMI[OÓ]N|CISTERNA|COMPOCAR|SEPARA MERCANC/, "CAMION"],
+  // ── 2. REMOLQUE ──────────────────────────────────────────────────────────
+  // Las tildes se contemplan a mano: toUpperCase() no las quita y en RPS
+  // conviven "BAQUETON" y "BAQUETÓN". "Capota" es de remolque salvo cuando es
+  // de terraza, que entonces es una estructura de la casa
+  // ("ESTRUCTURA CAPOTA CON PIES PARA TERRAZA").
+  [/ARQUILLAD|BAQUET[OÓ]N|REMOLQUE|BOTELLERO|GANADO|CABALLO/, "REMOLQUE"],
+  [/CAPOTA(?!.*TERRAZA)/, "REMOLQUE"],
+  // ── 3. CERRAMIENTOS ──────────────────────────────────────────────────────
+  // Antes que PUERTA: "CERRAMIENTO TEXTIL CON LONA:ENROLLABLE CON MOTOR" lleva
+  // "enrollable" y no es una puerta, es un cerramiento de lona.
+  [/CERRAMIENTO TEXTIL CON LONA/, "LONA"],
+  // ── 4. PUERTA ────────────────────────────────────────────────────────────
+  // Antes que las lonas por "LONA PARA PUERTA PLEGABLE", que es una puerta.
   [
-    /TAUT?LINER|ARQUILLAD|BAQUET[OÓ]N|REMOLQUE|CAMI[OÓ]N|CAPOTA|BOTELLERO|CISTERNA|GANADO|CABALLO/,
-    "REMOLQUE",
+    /PUERTA|APILABLE|ENROLLABLE|PLEGABLE|AUTOREPARABLE|AUTORREPARABLE|SECCIONAL|MUELLE DE CARGA/,
+    "PUERTA",
   ],
-  [/FUNDA/, "FUNDA"],
-  [/PUERTA R[AÁ]PIDA|APILABLE|ENROLLABLE|AUTOREPARABLE|AUTORREPARABLE/, "PUERTA"],
-  [/ORQUESTA|ESPECTACULO|ESCENARIO/, "ESPECTACULO"],
-  // "Cortina" sirve para las dos cosas, y lo que decide es con qué va (Iván):
+  // ── 5. FUNDA ─────────────────────────────────────────────────────────────
+  // "FUNDA PARA TOLDO NUEVA" es una funda, no un toldo: va antes que TOLDO.
+  [/FUNDA|CUBRE\s?(?:COCHE|MOTO|BARCO)/, "FUNDA"],
+  // ── 6. CARPA ─────────────────────────────────────────────────────────────
+  // Antes que las lonas: "LONA PARA TECHO DE CARPA" es de una carpa, y la
+  // carpa es la familia que se reconoce.
+  [/CARPA|YURTA/, "CARPA"],
+  // ── 7. LONA ──────────────────────────────────────────────────────────────
+  // Lo que EMPIEZA por lona es una lona, dicho por Iván: con riel, de techo
+  // para estructura, de piscina, confeccionada, con ollaos, cortada… Lo que
+  // lleva "lona" en medio (un toldo, una capota) ya se decidió arriba.
+  [/^\s*LONAS?\b/, "LONA"],
+  [/LONA CON OLLAO|SACO CONFECCIONADO EN LONA/, "LONA"],
+  // "Cortina" sirve para las dos cosas y lo que decide es con qué va (Iván):
   // un toldo cortina y un cambio de tela de cortina son TOLDO, pero una
-  // cortina de lona con riel es LONA. Va antes que la regla de toldo, y mira
-  // los dos órdenes: en RPS aparece igual "LONA CORTINA…" que "CORTINA LONA…".
+  // cortina de lona con riel es LONA. Mira los dos órdenes, porque en RPS
+  // aparece igual "LONA CORTINA…" que "CORTINA LONA…".
   [/CORTINA(?!.*(?:TOLDO|CAMBIO DE TELA)).*(?:LONA|RIEL)|(?:LONA|RIEL).*CORTINA/, "LONA"],
+  // ── 8. TOLDO ─────────────────────────────────────────────────────────────
+  // Con los modelos que se venden por su nombre: en el parte pone "Perlabox",
+  // no "toldo cofre". Añadir modelos nuevos aquí.
   [
-    /TOLDO|CORTINA|ARZ[UÚ]A|BAMBALINA|CAMBIO DE TELA|CAMBIAR TELA|PROTECCI[OÓ]N SOLAR/,
+    /TOLDO|CORTINA|BAMBALINA|FALD[OÓ]N|CAMBIO DE TELA|CAMBIAR TELA|MARQUESINA|PROTECCI[OÓ]N SOLAR|BRAZOS INVISIBLES/,
     "TOLDO",
   ],
-  [/CARPA/, "CARPA"],
+  [
+    /ARZ[UÚ]A|XACOBEO|PERLA\s?BOX|[AÁ]MBAR\s?BOX|SPLEN\s?BOX|STOR|SCREEN|ELIT|IRIS\s?\d|COFRE/,
+    "TOLDO",
+  ],
+  // ── 7. El resto, sin cambios ─────────────────────────────────────────────
+  [/ORQUESTA|ESPECTACULO|ESCENARIO|TEL[OÓ]N/, "ESPECTACULO"],
+  [/CARPA|YURTA/, "CARPA"],
   [/TAPIZ/, "TAPIZADO"],
   [/REPARAC/, "REPARACION"],
   [/SUMINISTRO|SYSTEM DOCK/, "SUMINISTRO"],
+  // Red de seguridad: lleva "lona" en algún sitio y no ha encajado en nada.
   [/LONA|ROLLO|OLLAO|RIEL/, "LONA"],
 ];
 
@@ -259,16 +311,21 @@ export function familiaDeTexto(
   const sub = (extra?.subfamilia ?? "").trim().toUpperCase();
   for (const [re, familia] of CLIENTES_FAMILIA) if (re.test(cliente)) return familia;
 
+  // La DESCRIPCIÓN manda sobre la subfamilia de RPS. Es lo que dice de qué es
+  // el trabajo: el catálogo reparte lo mismo entre "SUMINISTRO", "CONFECCION" y
+  // "LONASNUEVAS" sin criterio que sirva para agrupar, y la descripción sí
+  // distingue una lona de piscina de un lateral de tautliner.
+  for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
+
   // La familia de siempre: hace falta igual, como respaldo cuando el artículo
   // no tiene subfamilia y como APELLIDO de las subfamilias genéricas.
-  const base = familiaBase(grupo, desc);
+  const base = familiaBase(grupo);
   if (!sub) return base;
   return SUBFAMILIAS_GENERICAS.has(sub) ? `${base}/${sub}` : sub;
 }
 
-function familiaBase(grupo: string, desc: string): Familia {
+function familiaBase(grupo: string): Familia {
   for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
-  for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
   // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte
   // neutro. Mejor un nombre feo que meterlo en una familia que no es.
   return grupo || "OTRO";
