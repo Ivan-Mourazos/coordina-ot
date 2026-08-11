@@ -611,7 +611,7 @@ function OFRow({
           "sin material asignado". */}
       {of.reservasMaterial !== undefined && (
         <div className="mt-1.5">
-          <MaterialChip materiales={of.materiales} />
+          <MaterialChip materiales={of.materiales} compras={of.compras} hoy={hoyISO()} />
         </div>
       )}
 

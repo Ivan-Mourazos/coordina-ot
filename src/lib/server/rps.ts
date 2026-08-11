@@ -1,5 +1,5 @@
 import type { Tablero } from "../data";
-import type { Familia, MaterialAsignado, OF, Pedido, Prioridad } from "../types";
+import type { CompraOF, Familia, MaterialAsignado, OF, Pedido, Prioridad } from "../types";
 import { hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
@@ -58,6 +58,16 @@ interface FilaReserva {
   /** Lo apartado del almacén para ella (suma de STKStockReserve). 0 = asignado
    *  pero sin reservar. */
   reservada: number | null;
+}
+
+interface FilaCompra {
+  orden: string | null;
+  articulo: string | null;
+  pedida: number | null;
+  recibida: number | null;
+  fechaPedido: Date | null;
+  estimada: Date | null;
+  proveedor: string | null;
 }
 
 interface FilaImputacion {
@@ -415,6 +425,8 @@ interface DatosOF {
   /** Subfamilia del artículo en RPS (CodProductSubFamily). Afina la familia
    *  donde el catálogo de RPS la deja corta; ver FAMILIA_POR_SUBFAMILIA. */
   subfamilia: string | undefined;
+  /** Lo que Compras ha pedido para la OF. */
+  compras: CompraOF[];
 }
 
 /** Los tres campos de material de la OF, del mismo sitio para que no se
@@ -460,6 +472,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     // Lo RESERVADO se sigue contando aparte de lo asignado: son dos cosas
     // distintas y la interfaz distingue una de otra.
     ...materialYReservas(datos.materiales),
+    compras: datos.compras.length ? datos.compras : undefined,
     avisos: datos.avisos.length ? datos.avisos : undefined,
     fechaLimitePlanteo: datos.fechaLimitePlanteo,
     fichadaDesde: datos.fichadaDesde,
@@ -612,7 +625,7 @@ async function consultarTablero(): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, imputaciones, ventas, tareas, imputacionesHist, subfamilias] =
+  const [fichajes, reservas, compras, imputaciones, ventas, tareas, imputacionesHist, subfamilias] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -641,6 +654,27 @@ async function consultarTablero(): Promise<Tablero> {
         WHERE r.ItemType = 5 AND r.IDItem = m.IDMOMaterial
       ) res
       WHERE mo.CodManufacturingOrder IN (${listaTareasIn})
+    `),
+    // Lo que COMPRAS ha pedido para cada OF: el tercer paso del recorrido del
+    // material (ver el comentario de CompraOF en types.ts). Va en su propia
+    // consulta y en su propia lista porque en RPS no encadena con lo asignado:
+    // de las 44 compras de las OF del tablero (11/08/2026) solo UNA
+    // corresponde a un material asignado, y `IDMOMaterial` viene vacío en las
+    // 44. Lo que se pide para una OF suele ser otra cosa —tubo, herrajes— o
+    // trabajo de fuera (lacado, vinilo, portes).
+    pool.request().query<FilaCompra>(`
+      SELECT mo.CodManufacturingOrder AS orden, art.Description AS articulo,
+             l.Quantity AS pedida, l.ReceivedQuantity AS recibida,
+             o.OrderDate AS fechaPedido, l.ReceptionDate AS estimada,
+             prov.Description AS proveedor
+      FROM dbo.PUROrderLine l
+      JOIN dbo.PUROrder o ON o.IDOrder = l.IDOrder
+      JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      LEFT JOIN dbo.STKArticle art ON art.IDArticle = l.IDArticle
+      LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = o.IDSupplier
+      WHERE l.CodCompany = '001'
+        AND mo.CodManufacturingOrder IN (${listaTareasIn})
     `),
     // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
     // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo, y
@@ -790,6 +824,26 @@ async function consultarTablero(): Promise<Tablero> {
       reservada: r.reservada ?? 0,
     });
     materialesPorOF.set(orden, lista);
+  }
+
+  // Compras por OF: lo más reciente primero, que es lo que se mira.
+  const comprasPorOF = new Map<string, CompraOF[]>();
+  for (const c of compras.recordset) {
+    const orden = (c.orden ?? "").trim();
+    if (!orden) continue;
+    const lista = comprasPorOF.get(orden) ?? [];
+    lista.push({
+      articulo: (c.articulo ?? "").trim().replace(/\s+/g, " ") || "(artículo sin nombre)",
+      pedida: c.pedida ?? 0,
+      recibida: c.recibida ?? 0,
+      fechaPedido: fechaISO(c.fechaPedido) ?? undefined,
+      estimada: fechaISO(c.estimada) ?? undefined,
+      proveedor: (c.proveedor ?? "").trim() || undefined,
+    });
+    comprasPorOF.set(orden, lista);
+  }
+  for (const lista of comprasPorOF.values()) {
+    lista.sort((a, b) => (b.fechaPedido ?? "").localeCompare(a.fechaPedido ?? ""));
   }
 
   // Fichajes con intervalo abierto ahora mismo, por OF+tarea → operario del
@@ -1046,6 +1100,7 @@ async function consultarTablero(): Promise<Tablero> {
         return aOF(f, {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
           materiales: materialesPorOF.get(orden) ?? [],
+          compras: comprasPorOF.get(orden) ?? [],
           autorImputado: autorPorTarea.get(clave)?.op ?? null,
           minutosImputados: minutosPorTarea.get(clave) ?? 0,
           // Misma clave OF+tarea que los minutos: el "desde cuándo" y el

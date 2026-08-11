@@ -62,14 +62,43 @@ export type FamiliaConocida =
  *  aceptan como texto y familiaMeta() les da un tinte neutro con su nombre. */
 export type Familia = FamiliaConocida | (string & {});
 
-/** Una línea de material de la OF, tal como la lleva RPS. */
+// ─── El recorrido del material, tal como lo cuenta IT ───────────────────────
+// Son tres manos y tres momentos, y en la oficina se llamaba "reservar" a la
+// primera, que es la única que hace Oficina Técnica:
+//
+//  1. ASIGNAR (Oficina Técnica). Al plantear se le dice a la OF qué material
+//     lleva. Queda en `CPRMOMaterial` y es lo que sale en `materiales`.
+//  2. RESERVAR (Almacén). Miran lo asignado y apartan ese material del stock.
+//     Queda en `STKStockReserve` y es el campo `reservada` de cada línea.
+//  3. COMPRAR (Compras). Si no hay, lo piden, y entonces aparecen la fecha de
+//     pedido, la de entrega estimada y la real cuando llega. Eso es `compras`.
+//
+// Los tres pasos NO van encadenados línea a línea, y por eso se enseñan como
+// dos listas y no como una: de las 44 compras de las OF del tablero (11/08/2026)
+// solo UNA corresponde a un material asignado. Lo que Compras pide para una OF
+// suele ser otra cosa —tubo, herrajes, o trabajo de fuera como lacado o vinilo—
+// y fingir una cadena por línea sería inventarse un dato que RPS no tiene.
+
+/** Una línea de material de la OF: lo que lleva y lo que Almacén ha apartado. */
 export interface MaterialAsignado {
   descripcion: string;
-  /** Lo que la OF necesita. */
+  /** Lo que la OF necesita (lo asignó Oficina Técnica al plantear). */
   cantidad: number;
-  /** Lo que se ha apartado del almacén para ella. 0 = asignado pero sin
-   *  reservar, que es el caso normal hasta que alguien lo reserva. */
+  /** Lo que Almacén ha apartado del stock. 0 = asignado y aún sin reservar. */
   reservada: number;
+}
+
+/** Una línea de compra hecha PARA esta OF. */
+export interface CompraOF {
+  articulo: string;
+  pedida: number;
+  recibida: number;
+  /** Cuándo se hizo el pedido al proveedor (ISO). */
+  fechaPedido?: string;
+  /** Entrega estimada (ISO). Cuando ya está recibida, es la fecha en que se
+   *  esperaba: RPS no guarda la de llegada real por línea. */
+  estimada?: string;
+  proveedor?: string;
 }
 
 /** Prioridad del trabajo: 1 = poca, 2 = normal, 3 = urgente. Si es 3, la
@@ -148,6 +177,10 @@ export interface OF {
    *  OF con material pero sin reservar parecía no llevar nada — que es justo
    *  lo que pasó con AR.26.03981, con 20 m de lona asignados y 0 reservas. */
   materiales?: MaterialAsignado[];
+  /** Lo que Compras ha pedido para esta OF, con sus fechas. Ver el comentario
+   *  de `CompraOF`: va aparte del material asignado porque en RPS no están
+   *  encadenados. */
+  compras?: CompraOF[];
   /** Avisos de producción: "tareas-nota" de la ruta de la OF en RPS
    *  (p.ej. "22/06 VISITA MEDIR"). Solo informativos. */
   avisos?: string[];
