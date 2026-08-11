@@ -9,11 +9,13 @@ import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
+import { AnularInline } from "./AnularInline";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
+import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
@@ -81,6 +83,14 @@ const GRUPOS: readonly {
     ayuda: "Anuladas en Oficina Técnica: no se plantean.",
   },
 ];
+
+/** "0230697 — La hace el taller". Para leer de un vistazo por qué se anuló cada
+ *  una sin tener que abrir el cajón. Las anuladas de antes de que esto existiera
+ *  no tienen motivo, y lo dicen. */
+function motivoDeAnulada(of: OF): string {
+  const a = leerAnulacion(of.observacion);
+  return `${of.codigo} — ${a ? textoAnulacion(a) : "sin motivo apuntado"}`;
+}
 
 function opcionesOperario(
   operarios: Operario[],
@@ -368,7 +378,13 @@ export function Drawer({
                       })
                     }
                     aria-expanded={abierto}
-                    title={grupo.ayuda}
+                    // En las anuladas, el porqué de cada una sin desplegarlas:
+                    // es lo que se busca al repasar por qué falta trabajo.
+                    title={
+                      grupo.id === "anulada"
+                        ? `${grupo.ayuda}\n${ofs.map((o) => motivoDeAnulada(o)).join("\n")}`
+                        : grupo.ayuda
+                    }
                     className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
                       abierto
                         ? "glass-chip-activo text-text"
@@ -512,6 +528,9 @@ function OFRow({
   onDesfichar: (ofId: string) => void;
 }) {
   const meta = ESTADO[of.estado];
+  // Solo en las anuladas: en una devuelta ese mismo campo lleva la nota del
+  // revisor (los dos usos lo comparten, ver lib/anulacion.ts).
+  const anulacion = of.estado === "anulada" ? leerAnulacion(of.observacion) : null;
   const autor = opById(of.autorId);
   const revisor = opById(of.revisorId);
 
@@ -532,8 +551,15 @@ function OFRow({
             {of.subfamilia}
           </span>
         )}
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
+        {/* El estado, y en las anuladas también POR QUÉ: "ANULADA · TALLER".
+            Va en el propio distintivo y no en una línea aparte porque es lo
+            que se busca al repasarlas, y así se lee sin abrir nada. */}
+        <span
+          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}
+          title={anulacion?.nota}
+        >
           {meta.label}
+          {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
         {/* Detenida por Producción: no se puede fichar y no depende de OT
@@ -620,7 +646,10 @@ function OFRow({
         </div>
       )}
 
-      {of.observacion && (
+      {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
+          motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
+          en rojo la haría parecer devuelta. */}
+      {of.observacion && !anulacion && (
         <p className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400">
           ⚠ {of.observacion}
         </p>
@@ -784,6 +813,9 @@ function AccionesOF({
       {acciones.map((a) => {
         if (a.conNota)
           return <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />;
+        // Anular pregunta POR QUÉ, y esa es la confirmación (ver AnularInline).
+        if (a.conMotivo)
+          return <AnularInline key={a.id} onAnular={(obs) => onAccion([of.id], a.id, obs)} />;
         // "Pasar a revisión" pide el revisor aquí mismo (flujo unificado con
         // el chip del tablero): sin revisor no se pasa.
         if (a.id === "terminar_planteo")

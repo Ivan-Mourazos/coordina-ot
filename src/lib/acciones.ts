@@ -6,7 +6,7 @@ import type { EstadoOF, OF } from "./types";
 // fichaje viven aquí y solo aquí.
 
 export type AccionOF =
-  | "empezar_planteo" | "terminar_planteo" | "deshacer_empezar"
+  | "empezar_planteo" | "terminar_planteo"
   | "empezar_revision" | "aprobar" | "devolver" | "reabrir" | "soltar_revision"
   | "retomar" | "anular" | "restaurar";
 
@@ -28,6 +28,9 @@ export interface AccionDef {
   soloEl?: "revisor";
   efectoFichaje?: "corta" | "arranca"; // lo ejecuta el Board sobre el motor
   conNota?: boolean; // requiere observación (devolver)
+  /** Requiere elegir POR QUÉ (anular). Viaja por el mismo sitio que `conNota`
+   *  —el campo `observacion`— pero codificado; ver lib/anulacion.ts. */
+  conMotivo?: boolean;
   destino: EstadoOF | ((of: OF) => EstadoOF);
 }
 
@@ -70,8 +73,9 @@ export const ACCIONES: AccionDef[] = [
   // el camino de vuelta es "reabrir"—, incluida `en_revision` y `devuelta`. El
   // tiempo ya fichado NO se borra: el corte cierra el tramo abierto con la hora
   // del servidor y se imputa igual (ver efectoFichaje en Board.ejecutarAccion).
-  { id: "anular", label: "Anular OF", tono: "peligro",
-    confirmar: "La OF quedará anulada (no se hace en Oficina Técnica). El tiempo ya fichado se conserva. Se puede restaurar.",
+  // Sin `confirmar`: la confirmación es elegir POR QUÉ, que además deja el
+  // motivo escrito. Un diálogo de sí/no encima sería preguntar dos veces.
+  { id: "anular", label: "Anular OF", tono: "peligro", conMotivo: true,
     desde: ["pendiente", "en_curso", "por_revisar", "en_revision", "devuelta"],
     efectoFichaje: "corta", destino: "anulada" },
   { id: "restaurar", label: "Restaurar", tono: "neutra",
@@ -103,7 +107,13 @@ export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
 export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
   const def = accionesDisponibles(of).find((a) => a.id === accion);
   if (!def) throw new Error(`Acción "${accion}" no disponible desde "${of.estado}"`);
-  if (def.conNota && !obs?.trim()) throw new Error(`La acción "${def.label}" requiere una nota`);
+  // `conMotivo` viaja por el mismo campo: sin texto no hay acción.
+  if ((def.conNota || def.conMotivo) && !obs?.trim())
+    throw new Error(`La acción "${def.label}" requiere una nota`);
   const estado = typeof def.destino === "function" ? def.destino(of) : def.destino;
-  return { ...of, estado, ...(def.conNota ? { observacion: obs!.trim() } : {}) };
+  return {
+    ...of,
+    estado,
+    ...(def.conNota || def.conMotivo ? { observacion: obs!.trim() } : {}),
+  };
 }

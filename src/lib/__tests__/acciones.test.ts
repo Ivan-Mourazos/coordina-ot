@@ -57,14 +57,21 @@ describe("aplicarAccion", () => {
   });
   it("anular conserva el tiempo ya fichado: solo cambia el estado", () => {
     const conTiempo = of("en_curso", { tiempoPlanteoMin: 101, tiempoRevisionMin: 12 });
-    const r = aplicarAccion(conTiempo, "anular");
+    const r = aplicarAccion(conTiempo, "anular", "taller");
     expect(r.estado).toBe("anulada");
     expect(r.tiempoPlanteoMin).toBe(101);
     expect(r.tiempoRevisionMin).toBe(12);
   });
-  it("aprobar y anular piden confirmación en su def", () => {
+  it("anular exige decir POR QUÉ: sin motivo no se anula", () => {
+    // Al repasar las anuladas, "anulada" a secas no dice nada. La causa se
+    // elige al anular y se guarda en `observacion` (ver lib/anulacion.ts).
+    expect(() => aplicarAccion(of("en_curso"), "anular")).toThrow();
+    expect(aplicarAccion(of("en_curso"), "anular", "taller").observacion).toBe("taller");
+  });
+  it("aprobar pide confirmación; anular no, porque elegir el motivo YA la es", () => {
     const porId = Object.fromEntries(ACCIONES.map((a) => [a.id, a]));
     expect(porId.aprobar.confirmar).toBeTruthy();
-    expect(porId.anular.confirmar).toBeTruthy();
+    expect(porId.anular.confirmar).toBeFalsy();
+    expect(porId.anular.conMotivo).toBe(true);
   });
 });

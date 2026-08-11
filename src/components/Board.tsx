@@ -1212,7 +1212,7 @@ export function Board({
       // ANTES de tocar nada. Si no, aplicarAccion() lanza (y mut() lo atrapa)
       // pero el bloque efectoFichaje==="corta" de abajo cortaría igual el
       // fichaje aunque la OF no haya cambiado de estado.
-      if (def?.conNota && !obs?.trim()) return;
+      if ((def?.conNota || def?.conMotivo) && !obs?.trim()) return;
       // Solo disparar el efecto de fichaje sobre las OFs donde la acción
       // realmente aplica: si aplicarAccion() la hubiera rechazado para
       // todas (p.ej. "empezar_planteo" sobre una OF "devuelta"), no hay que
