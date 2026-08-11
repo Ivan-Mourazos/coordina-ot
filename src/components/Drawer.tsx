@@ -734,7 +734,15 @@ function AccionesOF({
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   // Con `miId`: la revisión de otro no la empieza cualquiera, así que su botón
   // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
-  const acciones = accionesDisponibles(of, miId);
+  //
+  // Fuera "empezar planteo" y "retomar": las hace el botón del reloj, que las
+  // dos cosas a la vez (ver `accionAlFichar` en lib/accion-pedido.ts). Dejarlas
+  // aquí ponía dos botones para lo mismo, y en una OF ya empezada y pausada
+  // salían juntos "▶ Reanudar" y "Empezar planteo", que encima suena a
+  // empezar de cero.
+  const acciones = accionesDisponibles(of, miId).filter(
+    (a) => a.id !== "empezar_planteo" && a.id !== "retomar",
+  );
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
   // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
   // pausa, y llamarlo igual que empezar de cero borraba esa diferencia.

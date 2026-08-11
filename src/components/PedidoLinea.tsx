@@ -206,9 +206,11 @@ export function PedidoLinea({
         <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
         {/* Pausa: siempre visible mientras se ficha. */}
         {/* Fichar es el único camino para empezar: arranca el reloj y saca la
-            OF de "sin empezar" (ver `arrancarFichaje` en Board). Verde, y
-            siempre visible mientras corre: pausar es lo que más se pulsa y
-            esconderlo hasta pasar el ratón obligaba a buscarlo. */}
+            OF de "sin empezar" (ver `arrancarFichaje` en Board).
+            SIEMPRE visible solo PAUSAR, y solo mientras corre el reloj: es lo
+            que más se pulsa y esconderlo hasta pasar el ratón obligaba a
+            buscarlo. Los demás se revelan al pasar por encima, como el resto de
+            acciones de la fila: en reposo la fila es para leerla. */}
         {fichando ? (
           <button
             onClick={() => onDesfichar(fichando.id)}
@@ -228,7 +230,7 @@ export function PedidoLinea({
                     ? "Empieza el planteo y pone el reloj en marcha"
                     : `Empieza el planteo de las ${fichables.length} OF y pone el reloj en marcha`
               }
-              className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
+              className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-emerald-700 focus-visible:opacity-100 group-hover:opacity-100"
             >
               {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
               {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
