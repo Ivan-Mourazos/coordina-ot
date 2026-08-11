@@ -138,7 +138,9 @@ export function SelectorFecha({
             >
               ‹
             </button>
-            <span className="flex-1 text-center text-xs font-semibold capitalize text-text">
+            {/* `first-letter` y no `capitalize`: aquel sube la inicial de CADA
+                palabra y dejaba "Agosto De 2026". */}
+            <span className="flex-1 text-center text-xs font-semibold text-text first-letter:uppercase">
               {nombreMes(mes)}
             </span>
             <button

@@ -1,7 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePopover } from "@/lib/usePopover";
+import { createPortal } from "react-dom";
+
+// ─── Por qué el menú va en un PORTAL ─────────────────────────────────────────
+// Estaba `absolute` dentro del propio control, y eso le daba dos problemas que
+// solo se ven cuando el desplegable no está en mitad de la pantalla:
+//
+//  · Lo recorta cualquier ancestro con `overflow` — las filas con scroll
+//    horizontal de la bandeja, el drawer, la tabla—, así que el menú de
+//    "Asignar" de una tarjeta salía cortado por la mitad.
+//  · Y contra el borde de la ventana se salía de la pantalla, porque `left-0`
+//    no sabe cuánto sitio queda.
+//
+// En un portal a `document.body` y con posición fija calculada, el menú no lo
+// recorta nadie y se puede sujetar dentro de la ventana. Es el mismo patrón que
+// ya usaba el popover de reservas.
+
+/** Margen mínimo con los bordes de la ventana. */
+const MARGEN = 8;
+/** Alto máximo del menú (`max-h-64`), para decidir si abre arriba o abajo. */
+const ALTO_MAX = 256;
 
 export interface SelectOption {
   value: string;
@@ -39,7 +58,48 @@ export function Select({
   /** Texto de la opción que quita el valor, cuando no sirve el del botón. */
   etiquetaVaciar?: string;
 }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
+  // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
+  // DOM y necesita saber dónde pintarse.
+  const [caja, setCaja] = useState<DOMRect | null>(null);
+  const open = caja !== null;
+  const setOpen = (v: boolean) =>
+    setCaja(v ? (btnRef.current?.getBoundingClientRect() ?? null) : null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
+
+  // Cierre por Escape y por clic fuera. Se hace aquí y no con `usePopover`
+  // porque hay DOS trozos que cuentan como "dentro" y viven separados: el botón
+  // y el menú, que está en un portal. Con un solo contenedor vigilado, pulsar
+  // el menú se leía como clic fuera.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setCaja(null);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setCaja(null);
+    }
+    // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
+    // quedaría flotando donde estaba: se cierra, que es menos molesto que
+    // perseguirlo con un recálculo en cada píxel.
+    function onMover() {
+      setCaja(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onMover);
+    window.addEventListener("scroll", onMover, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onMover);
+      window.removeEventListener("scroll", onMover, true);
+    };
+  }, [open]);
+
   // El botón cerrado y la opción de vaciar dicen cosas distintas: el botón
   // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla
   // ("Todas"). Con un solo texto, el menú del filtro de familia ofrecía una
@@ -97,9 +157,32 @@ export function Select({
     }
   }
 
+  // Dónde cabe el menú. Se sujeta a la ventana por los dos lados y, si abajo no
+  // queda sitio, se abre hacia arriba: contra el borde inferior se quedaba
+  // medio menú fuera de la pantalla.
+  const sitio = (() => {
+    if (!caja || typeof window === "undefined") return null;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cabeAbajo = caja.bottom + 4 + ALTO_MAX <= vh - MARGEN;
+    // Se ancla por el lado que toque —izquierda, o derecha si `alignRight`— en
+    // vez de calcular el ancho del menú, que no se sabe hasta pintarlo. Así el
+    // borde anclado queda sujeto a la ventana sin adivinar nada, y el otro lo
+    // limita `maxWidth`.
+    return {
+      ...(alignRight
+        ? { right: Math.max(MARGEN, vw - caja.right) }
+        : { left: Math.min(Math.max(MARGEN, caja.left), vw - MARGEN) }),
+      ...(cabeAbajo ? { top: caja.bottom + 4 } : { bottom: vh - caja.top + 4 }),
+      minWidth: caja.width,
+      maxWidth: vw - 2 * MARGEN,
+    };
+  })();
+
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div className={`relative ${className}`}>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => (open ? setOpen(false) : abrir())}
         onKeyDown={onKeyDown}
@@ -133,13 +216,17 @@ export function Select({
         </svg>
       </button>
 
-      {open && (
+      {open &&
+        sitio &&
+        createPortal(
         <ul
-          ref={listRef}
+          ref={(el) => {
+            listRef.current = el;
+            menuRef.current = el;
+          }}
           role="listbox"
-          className={`glass-pop scroll-thin absolute top-full z-40 mt-1 max-h-64 w-max min-w-full overflow-y-auto rounded-xl p-1 ${
-            alignRight ? "right-0" : "left-0"
-          }`}
+          className="glass-pop scroll-thin fixed z-[60] max-h-64 w-max overflow-y-auto rounded-xl p-1"
+          style={sitio}
         >
           {items.map((o, ix) => {
             const isSel = (value ?? "") === o.value;
@@ -167,8 +254,9 @@ export function Select({
               </li>
             );
           })}
-        </ul>
-      )}
+        </ul>,
+          document.body,
+        )}
     </div>
   );
 }

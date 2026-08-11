@@ -176,7 +176,14 @@ export function tramosRecorrido(
 ): { desde: number; hasta: number; color: string }[] {
   const corte = (n: number) => Math.max(0, Math.min(100, n));
   const p = corte(pctPlanificacion);
-  const f = pctFabricacion === undefined ? p : Math.max(p, corte(pctFabricacion));
+  // Sin fecha de fabricación, el tramo de trabajo llega hasta el FINAL, no se
+  // queda en cero. Antes valía `p`, así que el naranja desaparecía y bastaba
+  // pasarse un día de la planificada para pintar la línea entera de rojo: un
+  // pedido con un día de retraso se veía igual de grave que uno vencido, y con
+  // la regla nueva que descarta fabricaciones imposibles eso le pasaba a media
+  // lista. Rojo solo cuando de verdad se come el margen de Producción, y para
+  // "ya se incumplió la entrega" está el morado de `vencido`.
+  const f = pctFabricacion === undefined ? 100 : Math.max(p, corte(pctFabricacion));
   return [
     { desde: 0, hasta: p, color: TRAMO.holgado },
     { desde: p, hasta: f, color: TRAMO.trabajo },
