@@ -18,7 +18,9 @@ export interface FamiliaMeta {
 // parentesco: lo que era toldo sigue en naranjas, lo de transporte en verdes.
 const SUBFAMILIAS: Record<string, FamiliaMeta> = {
   PUERTAS: {
-    label: "Puertas",
+    // "Puerta", en singular y sin apellido: es de las que cuelgan de una sola
+    // familia, así que "Suministro · Puertas" sobraría.
+    label: "Puerta",
     color: "#b45309",
     icon: "M4 4h16M5 8h14M5 12h14M5 16h14M7 20h10",
   },
@@ -193,13 +195,35 @@ const FALLBACK: FamiliaMeta = {
   icon: "M20 12l-8 8-9-9V4h7zM7.5 7.5h.01",
 };
 
+const bonito = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+
 /** Meta de una familia. Acepta valores desconocidos (RPS puede traer familias
- *  nuevas: ESCENARIO, ESTRUCTURA…) y devuelve un tinte neutro con su nombre. */
+ *  nuevas: ESCENARIO, ESTRUCTURA…) y devuelve un tinte neutro con su nombre.
+ *
+ *  También entiende las COMPUESTAS, "FAMILIA/SUBFAMILIA", que son las
+ *  subfamilias genéricas con su apellido (ver SUBFAMILIAS_GENERICAS en
+ *  server/rps.ts). Ahí el color lo pone la familia —que es justo el eje que la
+ *  subfamilia sola borraba: un camión y una carpa no son lo mismo aunque las
+ *  dos lleven lona nueva— y el icono, la subfamilia, que es lo que se hace. */
 export function familiaMeta(f: Familia | string): FamiliaMeta {
-  return (
-    M[f as FamiliaConocida] ?? {
-      ...FALLBACK,
-      label: f.charAt(0) + f.slice(1).toLowerCase(),
-    }
-  );
+  const directa = M[f as FamiliaConocida];
+  if (directa) return directa;
+
+  // La barra manda aunque no se conozca ninguno de los dos trozos: RPS puede
+  // clasificar mañana bajo una familia o una subfamilia que aquí no esté, y
+  // "Agrigana · Lonas nuevas" se lee; "Agrigana/lonasnuevas", no.
+  const corte = f.indexOf("/");
+  if (corte > 0) {
+    const base = M[f.slice(0, corte) as FamiliaConocida];
+    const sub = M[f.slice(corte + 1) as FamiliaConocida];
+    return {
+      label: `${base?.label ?? bonito(f.slice(0, corte))} · ${
+        sub?.label ?? bonito(f.slice(corte + 1))
+      }`,
+      color: base?.color ?? sub?.color ?? FALLBACK.color,
+      icon: sub?.icon ?? base?.icon ?? FALLBACK.icon,
+    };
+  }
+
+  return { ...FALLBACK, label: bonito(f) };
 }

@@ -919,8 +919,13 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
   // filtro pregunta por `CodProductSubFamily`, ver `clausulasDe`.
   const fam = f.familia?.trim();
   if (fam) {
+    // `endsWith("/…")` por las familias compuestas ("CAMION/LONASNUEVAS"): el
+    // chip filtra por la subfamilia, así que trae las lonas nuevas de todas las
+    // familias. Igual que contra la base, que pregunta por
+    // `CodProductSubFamily` sin mirar de qué cuelga.
+    const coincide = (familia: string) => familia === fam || familia.endsWith(`/${fam}`);
     const pedidosFam = new Set(
-      PEDIDOS.filter((p) => p.ofs.some((of) => of.familia === fam)).map((p) => p.codigo),
+      PEDIDOS.filter((p) => p.ofs.some((of) => coincide(of.familia))).map((p) => p.codigo),
     );
     todos = todos.filter((p) => pedidosFam.has(p.pedido));
   }

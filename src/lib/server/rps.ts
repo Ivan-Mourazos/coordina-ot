@@ -167,6 +167,25 @@ const CLIENTES_FAMILIA: [RegExp, Familia][] = [
   [/\bLAYHER\b/, "LAYHER"],
 ];
 
+/** Subfamilias que NO dicen de qué es el trabajo, solo qué se hace con él.
+ *
+ *  Cuelgan de familias muy distintas —LONASNUEVAS vive bajo REMOLQUE, CAMION,
+ *  CARPAS, SUMINISTRO y AGRIGANA; CONFECCION bajo ESPECTACULO, SUMINISTRO,
+ *  ACABADOS, TRABAJOSCLIENTE y más—, así que agrupar solo por ellas juntaba en
+ *  un montón cosas que no se parecen en nada. Estas llevan la familia delante
+ *  ("Camión · Lonas nuevas") y las demás van solas: "Toldo · Toldo nuevo" o
+ *  "Suministro · Puertas" sería repetirse.
+ *
+ *  Para decidir si una entra aquí: mírese si aparece bajo más de una familia en
+ *  el trabajo de OT. Las de la lista lo hacen; PUERTAS, TOLDO NUEVO, ACCESORIOS
+ *  TF, YURTAS, CLONA, PISCINA y compañía cuelgan de una sola. */
+const SUBFAMILIAS_GENERICAS = new Set([
+  "LONASNUEVAS",
+  "CONFECCION",
+  "REPARACIONES",
+  "LONAS",
+]);
+
 /** Y por descripción, con el vocabulario del taller (acordado con Iván): los
  *  toldos incluyen cortinas, bambalinas y cambios de tela; los remolques,
  *  arquillados, baquetones y tautliners; las lonas, las de estructura, riel y
@@ -225,7 +244,15 @@ export function familiaDeTexto(
   const cliente = (extra?.cliente ?? "").toUpperCase();
   const sub = (extra?.subfamilia ?? "").trim().toUpperCase();
   for (const [re, familia] of CLIENTES_FAMILIA) if (re.test(cliente)) return familia;
-  if (sub) return sub;
+
+  // La familia de siempre: hace falta igual, como respaldo cuando el artículo
+  // no tiene subfamilia y como APELLIDO de las subfamilias genéricas.
+  const base = familiaBase(grupo, desc);
+  if (!sub) return base;
+  return SUBFAMILIAS_GENERICAS.has(sub) ? `${base}/${sub}` : sub;
+}
+
+function familiaBase(grupo: string, desc: string): Familia {
   for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
   for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(desc)) return familia;
   // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte

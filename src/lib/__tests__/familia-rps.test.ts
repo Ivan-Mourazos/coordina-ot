@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { familiaDeTexto } from "../server/rps";
+import { familiaMeta } from "../familia";
 
 // El vocabulario del taller, tal como lo definió Iván. Los casos vienen de
 // filas reales de TGM_PENDIENTE_OT: son los que estaban mal clasificados.
@@ -59,17 +60,29 @@ describe("familiaDeTexto", () => {
     expect(familiaDeTexto("TOLDO COFRE", "1 - TOLDO FACHADA", { subfamilia: "TOLDO NUEVO" })).toBe(
       "TOLDO NUEVO",
     );
+    // Y REPARACIONES, que es genérica, se lleva su apellido (ver el test de
+    // abajo): lo que importa aquí es que la familia ancha ya no manda sola.
     expect(familiaDeTexto("CAMBIO DE TELA", "1 - TOLDO FACHADA", { subfamilia: "REPARACIONES" }))
-      .toBe("REPARACIONES");
+      .toBe("TOLDO/REPARACIONES");
   });
 
-  it("y junta a propósito lo que RPS tenía en familias distintas", () => {
-    // LONASNUEVAS cuelga de REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA.
-    // Agrupar por subfamilia las mete todas en el mismo sitio: es la decisión
-    // de Iván, porque en la oficina el trabajo se llama así.
+  it("las subfamilias genéricas llevan la familia delante, que si no se juntaría todo", () => {
+    // LONASNUEVAS cuelga de REMOLQUE, CAMION, CARPAS, SUMINISTRO y AGRIGANA:
+    // sola, metía en un montón cosas que no se parecen en nada. Con apellido,
+    // un camión y una carpa siguen siendo cosas distintas.
     const sub = { subfamilia: "LONASNUEVAS" };
-    expect(familiaDeTexto("LONA", "1 - CAMION", sub)).toBe("LONASNUEVAS");
-    expect(familiaDeTexto("LONA", "1 - CARPAS", sub)).toBe("LONASNUEVAS");
+    expect(familiaDeTexto("LONA", "1 - CAMION", sub)).toBe("CAMION/LONASNUEVAS");
+    expect(familiaDeTexto("LONA", "1 - CARPAS", sub)).toBe("CARPA/LONASNUEVAS");
+    expect(familiaDeTexto("CAMBIO DE TELA", "1 - TOLDO FACHADA", { subfamilia: "REPARACIONES" }))
+      .toBe("TOLDO/REPARACIONES");
+  });
+
+  it("pero las que cuelgan de una sola familia van sin apellido", () => {
+    // "Suministro · Puertas" o "Toldo · Toldo nuevo" sería repetirse.
+    expect(familiaDeTexto("PUERTA", "18 - SUMINISTRO", { subfamilia: "PUERTAS" })).toBe("PUERTAS");
+    expect(familiaDeTexto("TOLDO", "1 - TOLDO FACHADA", { subfamilia: "TOLDO NUEVO" })).toBe(
+      "TOLDO NUEVO",
+    );
   });
 
   it("sin subfamilia se cae a la familia de RPS, que sigue haciendo falta", () => {
@@ -161,5 +174,28 @@ describe("cortina: depende de con qué vaya", () => {
     expect(familiaDeTexto("CORTINA LONA CON RIEL", null)).toBe("LONA");
     expect(familiaDeTexto("LONA CORTINA CON RIEL SUPERIOR", null)).toBe("LONA");
     expect(familiaDeTexto("CORTINA CON RIEL SUPERIOR", null)).toBe("LONA");
+  });
+});
+
+describe("familiaMeta con familias compuestas", () => {
+  it("junta los dos nombres, con el color de la familia y el icono de la subfamilia", () => {
+    // El color va por la FAMILIA porque es el eje que la subfamilia sola
+    // borraba: un camión y una carpa no son lo mismo aunque las dos lleven
+    // lona nueva. El icono, por la subfamilia, que es lo que se hace.
+    const camion = familiaMeta("CAMION/LONASNUEVAS");
+    const carpa = familiaMeta("CARPA/LONASNUEVAS");
+    expect(camion.label).toBe("Camión · Lonas nuevas");
+    expect(carpa.label).toBe("Carpa · Lonas nuevas");
+    expect(camion.color).not.toBe(carpa.color);
+    expect(camion.icon).toBe(carpa.icon);
+  });
+
+  it("las puertas se llaman Puerta, sin apellido", () => {
+    expect(familiaMeta("PUERTAS").label).toBe("Puerta");
+  });
+
+  it("una compuesta con trozos desconocidos no revienta ni queda en mayúsculas", () => {
+    expect(familiaMeta("AGRIGANA/LONASNUEVAS").label).toBe("Agrigana · Lonas nuevas");
+    expect(familiaMeta("XXX/YYY").label).toBe("Xxx · Yyy");
   });
 });
