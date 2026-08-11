@@ -35,6 +35,43 @@ import {
 
 const ES_MOCK = process.env.DATASOURCE !== "rps";
 
+/** Rescate de lo que Oficina Técnica terminó pero nunca dijo que terminaba.
+ *
+ *  La señal de finalización es `tgm_estadosof_olanet.idestadoof = 3`, y a veces
+ *  no llega: la fase queda con su `2` (empezada) y RPS marca la tarea al 100 %
+ *  por otro camino. Esas OF se caían por una grieta — fuera del tablero, porque
+ *  la vista de pendientes solo trae tareas con `PercentProgress < 100`, y fuera
+ *  del Historial, porque le falta el `3`. El caso que lo destapó fue
+ *  AR.26.03577, planteado por Alberto y Adrián (34 min entre los dos) y
+ *  desaparecido de la web.
+ *
+ *  Es raro pero no anecdótico: 23 de 2896 tareas de OT terminadas en los
+ *  últimos 6 meses, y 1311 OF en total desde 2020.
+ *
+ *  Se busca AL REVÉS de lo que parece natural. Lo natural sería recorrer las
+ *  tareas de OT al 100 % y ver cuáles no tienen su `3`: son 4914 filas y tarda
+ *  97 SEGUNDOS. Partiendo de los movimientos de fase —que son 3353— y
+ *  preguntando por cada uno si su tarea está al 100 %, lo mismo sale en 540 ms.
+ *
+ *  La fecha es la del movimiento que sí quedó registrado, no la de la última
+ *  imputación: RPS acepta años mal tecleados y por ahí se colaban finalizaciones
+ *  en 2062 y 2201. */
+const RESCATE_SIN_FIN_DE_FASE = `
+        SELECT e.orden, e.fecha_cambio AS fin
+        FROM dbo.tgm_estadosof_olanet e
+        WHERE e.idestadoof = 2
+          AND NOT EXISTS (
+            SELECT 1 FROM dbo.tgm_estadosof_olanet e3
+            WHERE e3.orden = e.orden AND e3.fase = e.fase AND e3.idestadoof = 3
+          )
+          AND EXISTS (
+            SELECT 1
+            FROM dbo.CPRManufacturingOrder mo
+            JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+            WHERE mo.CodManufacturingOrder = e.orden AND mo.CodCompany = '001'
+              AND t.CodMOTask = e.fase AND t.PercentProgress >= 100
+          )`;
+
 const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
 export async function leerHistorialPagina(
@@ -54,10 +91,17 @@ export async function leerHistorialPagina(
 
   const r = await req.query<FilaPagina>(`
     ;WITH FinOT AS (
-      SELECT e.orden, MAX(e.fecha_cambio) AS fin
-      FROM dbo.tgm_estadosof_olanet e
-      WHERE e.idestadoof = 3
-      GROUP BY e.orden
+      SELECT orden, MAX(fin) AS fin FROM (
+        -- Lo normal: la fase de OT registró su "fin" (idestadoof = 3).
+        SELECT e.orden, e.fecha_cambio AS fin
+        FROM dbo.tgm_estadosof_olanet e
+        WHERE e.idestadoof = 3
+
+        UNION ALL
+
+        ${RESCATE_SIN_FIN_DE_FASE}
+      ) u
+      GROUP BY orden
     ),
     PedFin AS (
       SELECT o.CodOrder AS pedido, MAX(f.fin) AS finalizada,
@@ -295,7 +339,15 @@ export async function leerClientesHistorial(q: string): Promise<string[]> {
     .request()
     .input("q", `%${term}%`)
     .query<{ cliente: string | null }>(`
-      ;WITH FinOT AS (SELECT DISTINCT e.orden FROM dbo.tgm_estadosof_olanet e WHERE e.idestadoof=3)
+      -- Las mismas dos fuentes que la lista, para que el autocompletado no se
+      -- deje fuera al cliente de un pedido rescatado.
+      ;WITH FinOT AS (
+        SELECT DISTINCT orden FROM (
+          SELECT e.orden FROM dbo.tgm_estadosof_olanet e WHERE e.idestadoof = 3
+          UNION ALL
+          SELECT u.orden FROM (${RESCATE_SIN_FIN_DE_FASE}) u
+        ) t
+      )
       SELECT TOP 20 cli.Description AS cliente
       FROM FinOT f
       JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder=f.orden AND mo.CodCompany='001'
@@ -824,10 +876,22 @@ export async function leerHistorialPedidoDetalle(
 
   const fin = (
     await pool.request().input("pedido", pedido).query<{ finalizada: Date | null }>(`
-      SELECT MAX(e.fecha_cambio) AS finalizada
-      FROM dbo.tgm_estadosof_olanet e
-      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder = e.orden AND mo.CodCompany='001'
-      WHERE e.idestadoof = 3 AND EXISTS (
+      -- Las mismas dos fuentes que la lista (ver RESCATE_SIN_FIN_DE_FASE): si
+      -- no, un pedido rescatado salía en el Historial y al abrirlo decía que no
+      -- tenía fecha de finalización.
+      ;WITH FinOT AS (
+        SELECT e.orden, e.fecha_cambio AS fin
+        FROM dbo.tgm_estadosof_olanet e
+        WHERE e.idestadoof = 3
+
+        UNION ALL
+
+        ${RESCATE_SIN_FIN_DE_FASE}
+      )
+      SELECT MAX(f.fin) AS finalizada
+      FROM FinOT f
+      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder = f.orden AND mo.CodCompany='001'
+      WHERE EXISTS (
         SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
         WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
     `)
