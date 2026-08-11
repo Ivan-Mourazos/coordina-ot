@@ -15,7 +15,7 @@ import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
-import { pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { ReservaChip } from "./ReservaChip";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -93,6 +93,14 @@ export function Drawer({
   // pedido. Sin este check, el botón "Pasar a Producción" reaparecería para un
   // pedido que ya pasó.
   const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
+  // Lo que de verdad es trabajo de OT en este pedido. Mismo criterio que usa el
+  // tablero para no enseñarlas (`ofOcultaDeOT`): tarea de taller y sin rescatar.
+  const ofsDeOT = pedido.ofs.filter((o) => !ofOcultaDeOT(o));
+  // Las de OT primero, y dentro de cada grupo el orden en que vienen. `sort` es
+  // estable, así que basta con separar en dos.
+  const ofsOrdenadas = [...pedido.ofs].sort(
+    (a, b) => Number(ofOcultaDeOT(a)) - Number(ofOcultaDeOT(b)),
+  );
 
   return (
     <div
@@ -219,12 +227,21 @@ export function Drawer({
             </div>
           </div>
 
-          {/* OFs */}
+          {/* OFs. El detalle las trae TODAS —es la ficha del pedido entero, y
+              para eso se abre—, pero primero las que son trabajo de OT: en un
+              pedido de cinco donde solo una es tuya, tenerla entre medias
+              obligaba a leerlas una a una para dar con ella. El rótulo dice
+              cuántas son de OT cuando no son todas. */}
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             Órdenes de fabricación ({pedido.ofs.length})
+            {ofsDeOT.length !== pedido.ofs.length && (
+              <span className="ml-1.5 font-normal normal-case tracking-normal">
+                · {ofsDeOT.length} de Oficina Técnica
+              </span>
+            )}
           </h3>
           <ul className="space-y-2.5">
-            {pedido.ofs.map((of) => (
+            {ofsOrdenadas.map((of) => (
               <OFRow
                 key={of.id}
                 of={of}
@@ -391,6 +408,20 @@ function OFRow({
             title="Detenida por Producción: no admite fichaje hasta que la liberen"
           >
             Detenida
+          </span>
+        )}
+        {/* Entra por una tarea de TALLER (capotas, faldones): no es trabajo de
+            OT salvo que alguien la rescate asignándose autor. En el tablero y
+            en la Lista ni se enseña, pero el detalle sí las trae todas —es la
+            ficha del pedido entero— y sin marcarlas parecía trabajo tuyo: en
+            AR.26.03626, de cinco OF solo el toldo es de OT y la capota se leía
+            igual que él. */}
+        {ofOcultaDeOT(of) && (
+          <span
+            className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
+            title="Entra por una tarea de taller: no es trabajo de Oficina Técnica. Asignarle autor la rescata."
+          >
+            Para taller
           </span>
         )}
         <span className="ml-auto text-[11px] text-text-muted">{of.piezas} pz</span>
