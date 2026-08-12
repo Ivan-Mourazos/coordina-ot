@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import {
@@ -11,18 +10,23 @@ import {
   pedidoListoParaPasar,
   type Fase,
 } from "@/lib/fases-tablero";
-import { accionPrimariaDePedido, ofsFichablesDe, ofsPara } from "@/lib/accion-pedido";
+import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { fmtMin } from "@/lib/estado";
-import type { AccionOF } from "@/lib/acciones";
-import { PedirRevisor } from "./PedirRevisor";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
  *
- *  Las acciones se revelan al pasar el ratón para no gastar sitio en reposo.
- *  Dos excepciones quedan siempre visibles: la pausa del pedido que se está
- *  fichando (es la que más se pulsa, esconderla obligaría a buscarla) y el
- *  botón «Pasar» en "listo para pasar" (es la acción esperada de esa fase).
+ *  UN botón por fila, pegado al borde derecho, y se revela al pasar el ratón:
+ *  en reposo la fila es para leerla. La fase decide cuál — fichar/reanudar
+ *  mientras hay planteo, pasar cuando ya no queda nada— y lo demás vive en el
+ *  detalle, que es donde hay sitio para explicarlo.
+ *
+ *  Una sola excepción queda fija: la PAUSA del pedido que estás fichando. Es la
+ *  que más se pulsa y esconderla hasta pasar el ratón obligaba a buscarla.
+ *
+ *  "Pasar a revisión" estaba aquí y se fue: es la acción que hay que pensar
+ *  —hay que nombrar revisor— y no la que se pulsa de pasada. Se hace desde
+ *  dentro del pedido.
  *
  *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
  *  pintan en rojo: la prioridad tiene que verse sin leer. */
@@ -30,33 +34,27 @@ export function PedidoLinea({
   facet,
   fase,
   onOpen,
-  onAccion,
   onFichar,
   onDesfichar,
   completarPedido,
   operarios,
-  setRevisor,
   ofIdsFichandoYo,
   soloConsulta = false,
 }: {
   facet: Facet;
   fase: Fase;
   onOpen: (f: Facet) => void;
-  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
-  /** Para nombrar revisor al pulsar "Pasar a revisión" (ver PedirRevisor).
-   *  No hace falta en modo consulta: ahí no hay ninguna acción que lo pida. */
+  /** Solo para poner nombre a quien falta en "listo para pasar". */
   operarios?: Operario[];
-  setRevisor?: (ofId: string, revisorId: string | null) => void;
   /** OFs de MI intervalo abierto. Sin esto no se puede distinguir mi fichaje
    *  del de otra persona sobre la misma OF. */
   ofIdsFichandoYo?: ReadonlySet<string>;
   /** Panel de un compañero: sobre su trabajo no se ficha ni se cambia estado. */
   soloConsulta?: boolean;
 }) {
-  const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
   // OJO: `fichandoRol` significa "alguien está fichando esta OF", no "la estoy
@@ -84,8 +82,8 @@ export function PedidoLinea({
       : `${nombreDe(faltan[0].autorId)} (${faltan[0].n} OF) +${faltan.length - 1} más`;
   const listoParaPasar = pedidoListoParaPasar(pedido);
   // "Listo para pasar" pero con gente pendiente: el aviso ocupa el mismo
-  // hueco que la descripción (como pidiendoRevisor) en vez de superponerse,
-  // que era lo que tapaba código/cliente/descripción con pedidos repartidos.
+  // hueco que la descripción en vez de superponerse, que era lo que tapaba
+  // código/cliente/descripción con pedidos repartidos.
   const mostrandoFalta = !soloConsulta && fase === "listoParaPasar" && !listoParaPasar;
 
   // Solo las que son trabajo de OT. Una capota detenida en el taller no tiene
@@ -95,7 +93,6 @@ export function PedidoLinea({
   const deOT = ofs.filter((o) => !ofDeTaller(o));
   const detenidas = deOT.filter((o) => o.detenida).length;
 
-  const accion = accionPrimariaDePedido(facet);
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
   // comentario de ofsFichablesDe): esta fila solo ficha planteo. En
   // "esperandoRevision" el pedido es MI trabajo en manos de otro — lo que se
@@ -113,7 +110,7 @@ export function PedidoLinea({
       <button
         onClick={() => onOpen(facet)}
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-        className={`flex min-w-0 items-center gap-2 text-left ${pidiendoRevisor || mostrandoFalta ? "shrink-0" : "flex-1"}`}
+        className={`flex min-w-0 items-center gap-2 text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
       >
         {fichandoAlguien && (
           <span
@@ -141,7 +138,7 @@ export function PedidoLinea({
             solo el código: el hueco que suelta la descripción es el que
             necesita el selector o el aviso para no quedar apretados en
             filas estrechas (zona personal). */}
-        {!pidiendoRevisor && !mostrandoFalta && (
+        {!mostrandoFalta && (
           <>
             <span className="min-w-0 flex-1 truncate text-text-muted">
               {pedido.cliente}
@@ -160,26 +157,6 @@ export function PedidoLinea({
       {soloConsulta ? (
         <span className="shrink-0 text-[10px] text-text-muted">
           <span title={motivoBloqueo(facet)}>🔒 {motivoBloqueo(facet)}</span>
-        </span>
-      ) : pidiendoRevisor ? (
-        // "Pasar a revisión" pide el revisor aquí mismo (flujo unificado con
-        // el Drawer, ver AccionesOF en Drawer.tsx): terminar_planteo no
-        // exige revisor, pero empezar_revision sí — sin nombrarlo aquí, la
-        // OF quedaría "por revisar" sin nadie que pueda tomarla. Se fija el
-        // revisor ANTES de ejecutar la acción.
-        <span className="min-w-0 flex-1">
-          <PedirRevisor
-            operarios={operarios ?? []}
-            excluirIds={[facet.locationId, ...ofs.map((o) => o.autorId)]}
-            valorInicial={ofs.find((o) => o.revisorId)?.revisorId ?? null}
-            onConfirmar={(rev) => {
-              const ids = ofsPara(facet, "terminar_planteo").map((o) => o.id);
-              ids.forEach((id) => setRevisor?.(id, rev));
-              onAccion(ids, "terminar_planteo");
-              setPidiendoRevisor(false);
-            }}
-            onCancelar={() => setPidiendoRevisor(false)}
-          />
         </span>
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
@@ -239,25 +216,14 @@ export function PedidoLinea({
           )
         )}
 
-        {accion && (
-          <button
-            onClick={() =>
-              accion.id === "terminar_planteo"
-                ? setPidiendoRevisor(true)
-                : onAccion(ofsPara(facet, accion.id).map((o) => o.id), accion.id)
-            }
-            title={accion.label}
-            className="rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-brand-600 focus-visible:opacity-100 group-hover:opacity-100"
-          >
-            {accion.label}
-          </button>
-        )}
-
+        {/* Igual que el del reloj: se revela al pasar por encima. Estaba fijo
+            por ser "la acción esperada de la fase", pero eso hacía que la fila
+            en reposo se leyera distinta según la columna en la que cayera. */}
         {fase === "listoParaPasar" && listoParaPasar && (
           <button
             onClick={() => completarPedido(pedido.id)}
             title="Pasar el pedido a Producción"
-            className="rounded-md bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-cyan-700"
+            className="rounded-md bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-cyan-700 focus-visible:opacity-100 group-hover:opacity-100"
           >
             Pasar
           </button>

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { OF } from "../types";
 import {
   accionAlFichar,
-  accionPrimariaDePedido,
   ofsFichablesDe,
   ofsPara,
 } from "../accion-pedido";
@@ -24,45 +23,17 @@ const of = (p: Partial<OF>): OF =>
     ...p,
   }) as OF;
 
-describe("accionPrimariaDePedido", () => {
-  it("pendiente no ofrece acción: empezar ES fichar, y eso lo hace el botón del reloj", () => {
-    // "Empezar planteo" ya arrancaba el reloj, así que al lado del botón de
-    // fichar eran dos botones para lo mismo — y en un pedido a medias llegaban
-    // a salir "Reanudar" y "Empezar planteo" juntos. La transición la hace
-    // ahora `accionAlFichar` en el momento de fichar.
-    expect(accionPrimariaDePedido({ ofs: [of({})] })).toBeNull();
+describe("accionAlFichar", () => {
+  // La fila del tablero ya no ofrece una "acción primaria" por fase: solo el
+  // botón del reloj y, cuando no queda nada, el de pasar el pedido. Lo que
+  // antes hacía "Empezar planteo" o "Retomar" lo hace ahora fichar, y esta
+  // función es la que dice qué transición acompaña al reloj.
+  it("desde pendiente, fichar empieza el planteo", () => {
     expect(accionAlFichar(of({}))).toBe("empezar_planteo");
   });
 
-  it("en curso → pasar a revisión", () => {
-    expect(accionPrimariaDePedido({ ofs: [of({ estado: "en_curso" })] })?.id)
-      .toBe("terminar_planteo");
-  });
-
-  it("devuelta: retomar también es fichar, y la fila ofrece pasar a revisión", () => {
+  it("desde devuelta, fichar la retoma", () => {
     expect(accionAlFichar(of({ estado: "devuelta" }))).toBe("retomar");
-    expect(accionPrimariaDePedido({ ofs: [of({ estado: "devuelta" })] })?.id).toBe(
-      "terminar_planteo",
-    );
-  });
-
-  it("aprobada no ofrece accion primaria: lo que toca es pasar el pedido", () => {
-    expect(accionPrimariaDePedido({ ofs: [of({ estado: "aprobada" })] })).toBeNull();
-  });
-
-  it("pendiente SIN autor no ofrece empezar: la accion lo exige", () => {
-    expect(accionPrimariaDePedido({ ofs: [of({ autorId: null })] })).toBeNull();
-  });
-
-  it("con OFs en estados distintos manda la de la fase del pedido", () => {
-    // El pedido está "planteando" porque una OF está en curso; la acción tiene
-    // que ser la de esa fase, no la de la OF que sigue pendiente.
-    const p = { ofs: [of({ estado: "pendiente" }), of({ estado: "en_curso" })] };
-    expect(accionPrimariaDePedido(p)?.id).toBe("terminar_planteo");
-  });
-
-  it("un pedido sin OFs no ofrece nada", () => {
-    expect(accionPrimariaDePedido({ ofs: [] })).toBeNull();
   });
 
   it("pendiente con tiempo ya fichado se retoma fichando", () => {
@@ -70,18 +41,16 @@ describe("accionPrimariaDePedido", () => {
     // que aquí sigue "pendiente". `faseDeOF` la clasifica como "planteando" por
     // ese tiempo, pero desde "pendiente" lo único que cabe es volver a empezar,
     // y eso es fichar.
-    const p = { ofs: [of({ estado: "pendiente", tiempoPlanteoMin: 12 })] };
-    expect(accionPrimariaDePedido(p)).toBeNull();
-    expect(accionAlFichar(p.ofs[0])).toBe("empezar_planteo");
+    expect(accionAlFichar(of({ estado: "pendiente", tiempoPlanteoMin: 12 })))
+      .toBe("empezar_planteo");
   });
 
-  it("en_curso + pendiente-con-tiempo en el mismo pedido: manda terminar_planteo", () => {
-    // empezar_planteo va al final de las candidatas de "planteando" para que
-    // no le robe el turno a terminar_planteo cuando conviven las dos.
-    const p = {
-      ofs: [of({ estado: "pendiente", tiempoPlanteoMin: 12 }), of({ estado: "en_curso" })],
-    };
-    expect(accionPrimariaDePedido(p)?.id).toBe("terminar_planteo");
+  it("en curso no mueve nada: el reloj arranca y ya está", () => {
+    // Pasar a revisión se hace desde el detalle, que es donde se nombra al
+    // revisor. En la fila sería la acción que hay que pensar puesta donde se
+    // pulsa de pasada.
+    expect(accionAlFichar(of({ estado: "en_curso" }))).toBeNull();
+    expect(accionAlFichar(of({ estado: "aprobada" }))).toBeNull();
   });
 });
 

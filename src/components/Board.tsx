@@ -1490,12 +1490,10 @@ export function Board({
                 onOpen={openFacet}
                 onVerTodos={setFaseAbierta}
                 ofIdsFichandoYo={ofIdsFichandoYo}
-                onAccion={ejecutarAccion}
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
                 completarPedido={completarPedido}
                 operarios={operarios}
-                setRevisor={setRevisor}
               />
             </main>
 
@@ -1509,12 +1507,10 @@ export function Board({
                 }}
                 onClose={() => setFaseAbierta(null)}
     ofIdsFichandoYo={ofIdsFichandoYo}
-                onAccion={ejecutarAccion}
                 onFichar={ficharOFsConAviso}
                 onDesfichar={desficharOF}
                 completarPedido={completarPedido}
                 operarios={operarios}
-                setRevisor={setRevisor}
               />
             )}
 
@@ -1544,7 +1540,6 @@ export function Board({
                     onToggle={() => toggleExpanded(op.id)}
                     onClose={closeExpanded}
                     onOpen={openFacet}
-                    onAccion={ejecutarAccion}
                     onFichar={ficharOFsConAviso}
                     onDesfichar={desficharOF}
                     completarPedido={completarPedido}

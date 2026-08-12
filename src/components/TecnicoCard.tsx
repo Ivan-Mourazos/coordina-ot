@@ -7,7 +7,6 @@ import type { Facet } from "./PedidoCard";
 import { PanelCompanero } from "./PanelCompanero";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
-import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
@@ -22,7 +21,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle,
   onClose,
   onOpen,
-  onAccion,
   onFichar,
   onDesfichar,
   completarPedido,
@@ -34,7 +32,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   onToggle: () => void;
   onClose: () => void;
   onOpen: (f: Facet) => void;
-  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
@@ -121,7 +118,6 @@ export const TecnicoCard = memo(function TecnicoCard({
           live={live}
           onOpen={onOpen}
           onCerrar={onClose}
-          onAccion={onAccion}
           onFichar={onFichar}
           onDesfichar={onDesfichar}
           completarPedido={completarPedido}

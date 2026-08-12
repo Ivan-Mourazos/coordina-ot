@@ -1,7 +1,6 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
 import { PedidoLinea } from "./PedidoLinea";
@@ -15,25 +14,21 @@ export function FaseFlyout({
   faseId,
   onOpen,
   onClose,
-  onAccion,
   onFichar,
   onDesfichar,
   completarPedido,
   operarios,
-  setRevisor,
   ofIdsFichandoYo,
 }: {
   facets: Facet[];
   faseId: string;
   onOpen: (f: Facet) => void;
   onClose: () => void;
-  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
-  /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
+  /** Para poner nombre a quien falta en "listo para pasar" (ver PedidoLinea). */
   operarios: Operario[];
-  setRevisor: (ofId: string, revisorId: string | null) => void;
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
@@ -58,13 +53,11 @@ export function FaseFlyout({
             facet={f}
             fase={grupo.id}
             onOpen={onOpen}
-            onAccion={onAccion}
             onFichar={onFichar}
             onDesfichar={onDesfichar}
             completarPedido={completarPedido}
             operarios={operarios}
-            setRevisor={setRevisor}
-                      ofIdsFichandoYo={ofIdsFichandoYo}
+            ofIdsFichandoYo={ofIdsFichandoYo}
           />
         ))}
       </div>

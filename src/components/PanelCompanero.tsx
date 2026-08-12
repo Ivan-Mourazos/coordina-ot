@@ -1,7 +1,6 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
@@ -25,7 +24,6 @@ export function PanelCompanero({
   live,
   onOpen,
   onCerrar,
-  onAccion,
   onFichar,
   onDesfichar,
   completarPedido,
@@ -35,7 +33,6 @@ export function PanelCompanero({
   live: LiveInfo | null;
   onOpen: (f: Facet) => void;
   onCerrar: () => void;
-  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   completarPedido: (pedidoId: string) => void;
@@ -93,7 +90,6 @@ export function PanelCompanero({
                     facet={f}
                     fase={g.id}
                     onOpen={onOpen}
-                    onAccion={onAccion}
                     onFichar={onFichar}
                     onDesfichar={onDesfichar}
                     completarPedido={completarPedido}

@@ -1,7 +1,6 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import type { AccionOF } from "@/lib/acciones";
 import { agruparPorFase, conTope } from "@/lib/fases-tablero";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -27,12 +26,10 @@ export function ZonaPersonal({
   live,
   onOpen,
   onVerTodos,
-  onAccion,
   onFichar,
   onDesfichar,
   completarPedido,
   operarios,
-  setRevisor,
   ofIdsFichandoYo,
 }: {
   operario: Operario;
@@ -43,12 +40,10 @@ export function ZonaPersonal({
   completarPedido: (pedidoId: string) => void;
   /** Abre el desplegable con todos los pedidos de una fase. */
   onVerTodos: (faseId: string) => void;
-  onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
-  /** Para nombrar revisor al pasar a revisión desde la fila (ver PedidoLinea). */
+  /** Para poner nombre a quien falta en "listo para pasar" (ver PedidoLinea). */
   operarios: Operario[];
-  setRevisor: (ofId: string, revisorId: string | null) => void;
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
@@ -119,12 +114,10 @@ export function ZonaPersonal({
                       facet={f}
                       fase={g.id}
                       onOpen={onOpen}
-                      onAccion={onAccion}
                       onFichar={onFichar}
                       onDesfichar={onDesfichar}
                       completarPedido={completarPedido}
                       operarios={operarios}
-                      setRevisor={setRevisor}
                       ofIdsFichandoYo={ofIdsFichandoYo}
                     />
                   ))}
