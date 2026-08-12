@@ -13,7 +13,7 @@ import { AnularInline } from "./AnularInline";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
-import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
+import { accionesDisponibles, etiquetaAccion, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { minutosEnCoordina } from "@/lib/imputaciones";
@@ -185,7 +185,11 @@ export function Drawer({
   ];
   // Lo que se puede fichar de una tacada: solo lo que es trabajo de OT y admite
   // reloj. Las detenidas y las de taller no entran ni aunque estén desplegadas.
-  const fichablesDeOT = ofsDeOT.filter(esFichable);
+  //
+  // Y solo PLANTEO: un fichaje corriendo tiene un único rol (ver el comentario
+  // de `ofsFichablesDe`), así que meter aquí una OF que está en revisión le
+  // ficharía la revisión como si fuera planteo, a nombre de quien pulse.
+  const fichablesDeOT = ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear");
 
   return (
     <div
@@ -810,7 +814,7 @@ function AccionesOF({
     <div className="mt-2.5 flex flex-wrap gap-2">
       {of.fichandoRol ? (
         <Btn
-          tone="verde"
+          tone={of.fichandoRol === "revisar" ? "revisar" : "reloj"}
           title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
           onClick={() => onDesfichar(of.id)}
         >
@@ -818,12 +822,13 @@ function AccionesOF({
         </Btn>
       ) : esFichable(of) ? (
         <Btn
-          tone="verde"
-          title={
-            yaEmpezada
-              ? "Vuelve a poner el reloj en marcha"
-              : "Empieza el planteo y pone el reloj en marcha"
-          }
+          tone={rolFichajeDe(of) === "revisar" ? "revisar" : "reloj"}
+          // El texto dice de qué reloj se habla: sobre una OF en revisión el
+          // botón hablaba de "empezar el planteo", que es otro trabajo y de
+          // otra persona.
+          title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
+            rolFichajeDe(of) === "revisar" ? "la revisión" : "el planteo"
+          } de esta OF`}
           onClick={() => onFichar([of.id], rolFichajeDe(of))}
         >
           {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
@@ -864,7 +869,9 @@ function AccionesOF({
             className={a.tono === "peligro" ? "ml-auto" : ""}
             onClick={() => pedirConfirmacion(a)}
           >
-            {a.label}
+            {/* "Aprobar → Jaime": a quién le llega la OF aprobada. Ponía
+                "→ Producción" y se leía como que aprobar ya la mandaba allí. */}
+            {etiquetaAccion(a, of, (id) => operarios.find((o) => o.id === id)?.nombre)}
           </Btn>
         );
       })}
@@ -895,16 +902,18 @@ function Btn({
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  tone: "amber" | "teal" | "verde" | "ghost" | "rojo";
+  tone: "amber" | "teal" | "reloj" | "revisar" | "ghost" | "rojo";
   className?: string;
   title?: string;
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
     teal: "bg-teal-600 text-white hover:bg-teal-700",
-    // Verde para el reloj, el mismo de "planteando" en todo el tablero: fichar
-    // es empezar a trabajar, y se reconoce por el color sin leer el boton.
-    verde: "bg-emerald-600 text-white hover:bg-emerald-700",
+    // El reloj lleva el color de SU rol, el mismo de todo el tablero: verde
+    // planteo, violeta revision. Fichar se reconoce por el color sin leer el
+    // boton, y sobre una OF en revision el verde decia el rol equivocado.
+    reloj: ROL.plantear.solido,
+    revisar: ROL.revisar.solido,
     ghost: "border border-border text-text-muted hover:text-text hover:border-border-strong",
     // Peligro (anular) en rojo pero SIN relleno: era lo que más gritaba de la
     // tarjeta, por encima de la acción que se hace a diario, y en una OF

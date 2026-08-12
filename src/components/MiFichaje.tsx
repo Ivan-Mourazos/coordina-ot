@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { OF, Operario, Pedido, Rol } from "@/lib/types";
+import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
@@ -26,6 +27,29 @@ const AVISO_SIN_FICHAR_MIN = 10;
  *  si se ignora no pasa nada: solo ofrece el atajo de pausar por si a la
  *  persona se le olvidó. Nunca debe convertirse en un corte automático. */
 const AVISO_FICHAJE_LARGO_MIN = 180;
+
+/** Cuánto panel se enseña. Es preferencia de quien mira, no estado del
+ *  fichaje, así que vive en el navegador —igual que la identidad de operario—
+ *  y no en el servidor.
+ *
+ *  · completo → lo que corre Y lo que quedó a medias.
+ *  · compacto → solo el pedido que corre, con sus tiempos.
+ *  · pildora  → el resumen mínimo en una esquina. */
+type ModoPanel = "completo" | "compacto" | "pildora";
+const PANEL_MODO_KEY = "coordina-mi-fichaje-modo";
+
+/** Se lee al construir el estado, no en un efecto: el tablero no se pinta hasta
+ *  estar hidratado, así que aquí `window` ya existe. Mismo patrón que la
+ *  identidad de operario (ver `leerIdentidadGuardada` en Board). */
+function leerModoGuardado(): ModoPanel {
+  if (typeof window === "undefined") return "pildora";
+  try {
+    const v = localStorage.getItem(PANEL_MODO_KEY);
+    return v === "completo" || v === "compacto" || v === "pildora" ? v : "pildora";
+  } catch {
+    return "pildora";
+  }
+}
 
 /** Reloj del fichaje que corre AHORA, en h:mm:ss (p.ej. "1:05:42").
  *
@@ -153,7 +177,27 @@ export function MiFichaje({
   onPausarTodo: () => void;
   onReanudar: () => void;
 }) {
-  const [expandido, setExpandido] = useState(false);
+  // Cuánto panel se quiere ver, y se recuerda. Quien trabaja con el reloj
+  // delante lo quiere abierto toda la jornada; quien no, en la píldora. Que se
+  // cerrara solo en cada recarga obligaba a volver a abrirlo cada vez.
+  //
+  // En el server no se lee localStorage: arranca en píldora y se ajusta al
+  // montar, igual que hace la identidad de operario.
+  const [modo, setModo] = useState<ModoPanel>(leerModoGuardado);
+  const cambiarModo = (v: ModoPanel) => {
+    setModo(v);
+    try {
+      localStorage.setItem(PANEL_MODO_KEY, v);
+    } catch {}
+  };
+  const expandido = modo !== "pildora";
+  // Al que abre desde la píldora se le devuelve el tamaño que tenía; la primera
+  // vez, el cuadrito con lo que corre, que es lo que se quiere a la vista.
+  const [ultimoAbierto, setUltimoAbierto] = useState<Exclude<ModoPanel, "pildora">>(() => {
+    const guardado = leerModoGuardado();
+    return guardado === "pildora" ? "compacto" : guardado;
+  });
+  if (modo !== "pildora" && modo !== ultimoAbierto) setUltimoAbierto(modo);
 
   const ab = abierto(fichaje);
 
@@ -235,7 +279,7 @@ export function MiFichaje({
   useEffect(() => {
     if (!expandido) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setExpandido(false);
+      if (e.key === "Escape") cambiarModo("pildora");
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -249,7 +293,10 @@ export function MiFichaje({
   // importa: al pulsar "Pausar todo" el fichaje deja de correr y sin ello el
   // panel se desvanecía bajo el dedo, llevándose el botón de reanudar. Si no,
   // no molesta: el fichaje se inicia desde las tarjetas del tablero.
-  if (!ab && !aviso && !expandido) return null;
+  // La píldora se queda SIEMPRE. Antes el widget entero desaparecía con el
+  // reloj parado y sin avisos, así que en la pantalla no había ni rastro de que
+  // existiera un panel de fichaje: para encontrarlo había que ponerse a fichar.
+  // Ocupa una píldora en una esquina; el precio de que se vea es barato.
 
   // Los minutos del panel son de HOY; el histórico completo se conserva para
   // Olanet (solo se filtra la proyección que ve el técnico, no el fichaje).
@@ -290,7 +337,22 @@ export function MiFichaje({
 
   // Una sola lista para las dos caras del panel: los grupos tienen la misma
   // forma y GrupoPedido sabe en qué modo está por `enMarchaModo`.
-  const mostrados = ab ? grupos : aMediasOrden;
+  //
+  // En "todo" se ven las dos cosas a la vez: lo que corre y lo que quedó a
+  // medias, sin repetir el pedido que ya sale arriba. En "compacto" solo lo que
+  // corre — el cuadrito con el pedido y sus tiempos, que es lo que se quiere
+  // tener a la vista mientras se trabaja.
+  const aMediasSinRepetir = aMediasOrden.filter(
+    (g) => !grupos.some((x) => x.pedido.id === g.pedido.id),
+  );
+  const mostrados =
+    modo === "completo"
+      ? [...grupos, ...aMediasSinRepetir]
+      : ab
+        ? grupos
+        : // Compacto y sin reloj: el último que se dejó a medias, que es lo que
+          // se retoma. La lista entera es justo lo que distingue a "Todo".
+          aMediasOrden.slice(0, 1);
   const hoy = resumenDelDia(fichajeHoy, ahora);
 
   // Frase larga para el ratón (y para quien no pilla el rótulo corto de la
@@ -330,10 +392,37 @@ export function MiFichaje({
               // contador, no el trabajo (que puede estar empezado y esperando).
               <span className="text-xs font-semibold text-text-muted">⏸ Reloj parado</span>
             )}
+            {/* Cuánto panel se quiere: el cuadrito con lo que corre, o todo lo
+                que hay a medias. La elección se recuerda — cada uno trabaja de
+                una manera y no es cosa de volver a decidirlo en cada recarga. */}
+            <span className="ml-auto flex shrink-0 items-center gap-0.5 rounded-lg bg-surface-2 p-0.5 ring-1 ring-border">
+              {(
+                [
+                  ["compacto", "Pedido", "Solo el pedido que corre, con sus tiempos"],
+                  ["completo", "Todo", "Lo que corre y además lo que dejaste a medias"],
+                ] as const
+              ).map(([id, texto, ayuda]) => (
+                <button
+                  key={id}
+                  onClick={() => cambiarModo(id)}
+                  aria-pressed={modo === id}
+                  title={ayuda}
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                    modo === id ? "bg-surface text-text ring-1 ring-border" : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  {texto}
+                </button>
+              ))}
+            </span>
             <button
-              onClick={() => setExpandido(false)}
-              aria-label="Cerrar"
-              className="ml-auto grid size-6 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              onClick={() => cambiarModo("pildora")}
+              // "Minimizar" y no "Cerrar": el panel no se va, se queda en la
+              // píldora con el resumen — y así se queda hasta que se vuelva a
+              // abrir, también entre recargas.
+              aria-label="Minimizar el panel"
+              title="Minimizar: el reloj sigue corriendo en la píldora"
+              className="grid size-6 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             >
               ✕
             </button>
@@ -444,7 +533,9 @@ export function MiFichaje({
 
       {/* píldora colapsada/cabecera del panel */}
       <button
-        onClick={() => setExpandido((v) => !v)}
+        // Al abrir desde la pildora se vuelve al ultimo tamano elegido; la
+        // primera vez, al cuadrito con lo que corre.
+        onClick={() => cambiarModo(expandido ? "pildora" : ultimoAbierto)}
         aria-expanded={expandido}
         title={tituloPildora}
         // Con color, SIN `glass-chip`: el fondo del vidrio gana a las
@@ -452,12 +543,15 @@ export function MiFichaje({
         // quedaba en gris tanto fichando como avisando — el color que dice de
         // un vistazo si algo corre no llegaba a pantalla. Sin color sí lleva
         // vidrio, que es cuando no tiene nada que destacar.
-        className={`flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
+        // Fondo SÓLIDO también en reposo: con el vidrio, la píldora se
+        // transparentaba sobre lo que hubiera debajo y no se leía como un
+        // control. Es la puerta del panel; tiene que verse que está ahí.
+        className={`flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg ring-1 ring-border transition-colors ${
           ab
-            ? `ring-1 ring-border ${ROL[ab.rol].chip}`
+            ? ROL[ab.rol].chip
             : aviso
-              ? "bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 dark:bg-amber-400/15 dark:text-amber-300"
-              : "glass-chip text-text-muted"
+              ? "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
+              : "panel-solido text-text-muted"
         }`}
       >
         {ab ? (
@@ -599,7 +693,17 @@ function OFItem({
 }) {
   const meta = ESTADO[of.estado];
   const fichando = of.fichandoRol !== null;
-  const minutos = Math.round(minutosOF(fichaje, of.id, { ahora }));
+  // Sin redondear a minutos: `fmtMin` ya sabe enseñar segundos, y redondear
+  // dejaba en «0m» un fichaje de 40 s recién pausado.
+  const minutos = minutosOF(fichaje, of.id, { ahora });
+  // Qué se va a fichar aquí: una OF en revisión ficha REVISIÓN. El botón decía
+  // "empieza el planteo" también sobre una OF que estaba revisando.
+  const rol = rolFichajeDe(of);
+  // "Reanudar" en cuanto la OF tenga tiempo, venga de donde venga: se miraba
+  // solo MI tiempo de hoy y encima redondeado, así que al pausar una revisión
+  // de menos de medio minuto el botón volvía a decir "Fichar" — y una OF con
+  // horas fichadas en el terminal de RPS también.
+  const yaEmpezada = tiempoTotalOF(of) > 0 || minutos > 0;
 
   return (
     <li className="rounded-lg bg-surface-2/70 px-2 py-1.5 text-[11px]">
@@ -631,21 +735,21 @@ function OFItem({
           <button
             onClick={() => onDesfichar(of.id)}
             title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
-            className="shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
+            // Del color de SU rol: el verde es el del planteo en toda la app, y
+            // sobre una OF que se está revisando decía el rol equivocado.
+            className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[of.fichandoRol!].solido}`}
           >
             ⏸ Pausar
           </button>
         ) : (
           <button
-            onClick={() => onFichar([of.id], rolFichajeDe(of))}
-            title={
-              minutos > 0
-                ? "Vuelve a poner el reloj en marcha"
-                : "Empieza el planteo y pone el reloj en marcha"
-            }
-            className="shrink-0 rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-700"
+            onClick={() => onFichar([of.id], rol)}
+            title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
+              rol === "revisar" ? "la revisión" : "el planteo"
+            } de esta OF`}
+            className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[rol].solido}`}
           >
-            {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
+            {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
           </button>
         )}
       </div>

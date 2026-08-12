@@ -51,8 +51,12 @@ export const ACCIONES: AccionDef[] = [
   { id: "empezar_revision", label: "Empezar revisión", tono: "primaria",
     desde: ["por_revisar"], requiere: "revisor", soloEl: "revisor",
     efectoFichaje: "arranca", destino: "en_revision" },
-  { id: "aprobar", label: "Aprobar → Producción", tono: "primaria",
-    confirmar: "La OF quedará aprobada y lista para Producción.",
+  // "Aprobar → Producción" sonaba a que aprobar la mandaba a Producción, y no:
+  // la OF vuelve a su autor como lista, y el pedido se pasa entero (y a mano)
+  // cuando lo están todas. El "→ quién" lo pone `etiquetaAccion` con el nombre
+  // del autor, que es a quien le llega.
+  { id: "aprobar", label: "Aprobar", tono: "primaria",
+    confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
     desde: ["en_revision"], efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
     desde: ["en_revision"], efectoFichaje: "corta", conNota: true, destino: "devuelta" },
@@ -101,6 +105,23 @@ export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
       cumpleRequisito(a, of) &&
       !(a.soloEl === "revisor" && miId != null && of.revisorId !== miId),
   );
+}
+
+/** Cómo se llama la acción EN ESTA OF.
+ *
+ *  Solo "aprobar" cambia: lleva detrás a QUIÉN le llega la OF aprobada, que es
+ *  su autor. Antes ponía "→ Producción" y se leía como que aprobar ya la
+ *  mandaba allí; el pedido lo pasa alguien, después y a mano, cuando están
+ *  todas. Sin autor conocido se queda en "Aprobar" a secas: mejor corto que
+ *  una flecha que no apunta a nadie. */
+export function etiquetaAccion(
+  def: AccionDef,
+  of: OF,
+  nombreDe: (id: string) => string | undefined,
+): string {
+  if (def.id !== "aprobar") return def.label;
+  const autor = of.autorId ? nombreDe(of.autorId) : undefined;
+  return autor ? `${def.label} → ${autor}` : def.label;
 }
 
 /** Aplica la transición de estado. NO toca el fichaje (eso es del Board). */
