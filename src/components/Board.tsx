@@ -42,7 +42,15 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { contarRevisorEnEstado } from "@/lib/revision";
-import { FICHAJE_VACIO, abierto, fichar, pausar, type Fichaje } from "@/lib/fichaje";
+import {
+  FICHAJE_VACIO,
+  abierto,
+  esFichable,
+  fichar,
+  pausar,
+  rolFichajeDe,
+  type Fichaje,
+} from "@/lib/fichaje";
 import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
 import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
 import {
@@ -1370,6 +1378,18 @@ export function Board({
   const resto = operarios.filter((o) => o.id !== miId);
   const lives = [...liveByOp.values()];
 
+  // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué
+  // OF eran y cuáles se pueden volver a fichar AHORA (una que entretanto se
+  // aprobó, o que Producción detuvo, ya no). El rol sale de las propias OF, y
+  // se reanudan solo las de un rol —el del reloj, que es uno solo.
+  const ofsDelAviso = avisoCierreAuto
+    ? pedidos.flatMap((p) => p.ofs).filter((of) => avisoCierreAuto.ofIds.includes(of.id))
+    : [];
+  const rolDelAviso = ofsDelAviso.find(esFichable) ?? null;
+  const reanudables = rolDelAviso
+    ? ofsDelAviso.filter((of) => esFichable(of) && rolFichajeDe(of) === rolFichajeDe(rolDelAviso))
+    : [];
+
   return (
     <>
       <div className="flex min-h-full flex-col">
@@ -1460,18 +1480,50 @@ export function Board({
           <p className="text-xs font-bold text-text">⏱ Tu fichaje se cerró solo</p>
           <p className="min-w-0 flex-1 text-[11px] text-text-muted">
             {(() => {
-              const codigos = pedidos
-                .flatMap((p) => p.ofs)
-                .filter((of) => avisoCierreAuto.ofIds.includes(of.id))
-                .map((of) => of.codigo);
+              const codigos = ofsDelAviso.map((of) => of.codigo);
               const quien = codigos.length > 0 ? codigos.join(", ") : "Un fichaje";
               const hora = new Date(avisoCierreAuto.fin).toLocaleTimeString("es-ES", {
                 hour: "2-digit",
                 minute: "2-digit",
               });
-              return `${quien} dejó de avisar (pestaña cerrada o sin conexión) y se cerró a las ${hora}, la hora del último aviso.`;
+              // El MOTIVO, y no solo el hecho: lo único que sabe el servidor es
+              // que la pestaña dejó de dar señales, y las causas posibles son
+              // pocas y concretas. Decirlas evita la pregunta de siempre ("¿y
+              // por qué se cerró?") y, sobre todo, apunta a la que se puede
+              // arreglar: que el navegador duerma la pestaña.
+              return `${quien} se cerró a las ${hora}, la hora del último aviso. Pasa cuando la pestaña deja de dar señales: se cerró el navegador, se suspendió el equipo, o el navegador durmió la pestaña por llevar mucho rato de fondo.`;
             })()}
           </p>
+          {/* Volver a ponerlo en marcha sin ir a buscar el pedido: es lo que se
+              quiere hacer el 90% de las veces, porque el trabajo seguía. NO
+              recupera el tiempo perdido —ese no lo tiene nadie— sino que abre
+              un tramo nuevo desde ahora. */}
+          {reanudables.length > 0 && (
+            <button
+              onClick={() => {
+                ficharOFs(
+                  reanudables.map((of) => of.id),
+                  rolFichajeDe(reanudables[0]),
+                );
+                setAvisoCierreAuto(null);
+                if (miId) {
+                  fetch("/api/fichaje/aviso-visto", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ operarioId: miId }),
+                  }).catch(() => {});
+                }
+              }}
+              title={`Vuelve a poner el reloj en marcha en ${reanudables
+                .map((of) => of.codigo)
+                .join(", ")}. El tiempo que pasó con el reloj parado no se recupera: el tramo empieza ahora.`}
+              className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                ROL[rolFichajeDe(reanudables[0])].solido
+              }`}
+            >
+              ▶ Reanudar
+            </button>
+          )}
           <button
             onClick={() => {
               setAvisoCierreAuto(null);
