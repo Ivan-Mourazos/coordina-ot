@@ -366,29 +366,16 @@ export function MiFichaje({
     <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {expandido && (
         <div className="panel-solido relative flex max-h-[75vh] w-[22rem] flex-col rounded-2xl p-3 pt-4 shadow-2xl">
-          {/* Cabecera: lo primero que se mira al abrir es si algo está
-              corriendo y cuánto llevo, no cómo me llamo — eso ya está en la
-              barra de arriba. Antes había además dos formas de cerrar (un
-              tirador y la ✕), una encima de la otra: se queda la ✕, que es la
-              que usan el Drawer y el resto de paneles. */}
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          {/* Cabecera en DOS filas, y no en una.
+              En una sola no cabían el rótulo, el reloj, el selector de tamaño y
+              la ✕: el panel mide 22rem y todo junto se pasaba, así que "MI
+              FICHAJE" partía en dos líneas y el reloj dejaba el "·" colgando
+              solo. Arriba van los controles, que son pequeños y fijos; debajo,
+              el reloj a lo ancho, que es lo que se mira. */}
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               Mi fichaje
             </span>
-            {ab ? (
-              <span
-                className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-bold ${ROL[ab.rol].chip}`}
-              >
-                <LiveDot rol={ab.rol} className="size-1.5" />
-                {/* tabular-nums: sin ancho fijo de cifra, el reloj tiembla
-                    cada segundo y arrastra lo que tiene al lado. */}
-                {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
-              </span>
-            ) : (
-              // "Reloj parado", no "Parado" a secas: lo que está parado es el
-              // contador, no el trabajo (que puede estar empezado y esperando).
-              <span className="text-xs font-semibold text-text-muted">⏸ Reloj parado</span>
-            )}
             {/* Cuánto panel se quiere: el cuadrito con lo que corre, o todo lo
                 que hay a medias. La elección se recuerda — cada uno trabaja de
                 una manera y no es cosa de volver a decidirlo en cada recarga. */}
@@ -423,6 +410,24 @@ export function MiFichaje({
             >
               ✕
             </button>
+          </div>
+
+          {/* El reloj, en su propia fila y sin partirse. */}
+          <div className="mb-2">
+            {ab ? (
+              <span
+                className={`inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-sm font-bold ${ROL[ab.rol].chip}`}
+              >
+                <LiveDot rol={ab.rol} className="size-1.5" />
+                {/* tabular-nums: sin ancho fijo de cifra, el reloj tiembla
+                    cada segundo y arrastra lo que tiene al lado. */}
+                {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
+              </span>
+            ) : (
+              // "Reloj parado", no "Parado" a secas: lo que está parado es el
+              // contador, no el trabajo (que puede estar empezado y esperando).
+              <span className="text-xs font-semibold text-text-muted">⏸ Reloj parado</span>
+            )}
           </div>
 
           {/* ── AVISO TEMPORAL DEL PERIODO DE PRUEBAS ────────────────────────
