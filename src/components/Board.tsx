@@ -1045,23 +1045,51 @@ export function Board({
     };
   }, [miId]);
 
-  // ── Latido: mientras tengo un fichaje corriendo, aviso al server cada
-  // 60 s de que la pestaña sigue viva (ver /api/fichaje/latido). Se para al
-  // pausar (abierto(fichaje) pasa a null → el efecto se limpia y no arranca
-  // otro) y al desmontar. Si el aviso deja de llegar más de 5 min, el server
-  // cierra el intervalo con la hora del ÚLTIMO latido, no con la hora en que
-  // se dio cuenta (cerrarPorInactividad, lib/fichaje.ts).
+  // ── Latido: mientras tengo un fichaje corriendo, aviso al server de que la
+  // pestaña sigue viva (ver /api/fichaje/latido). Se para al pausar
+  // (`hayFichajeAbierto` pasa a false) y al desmontar. Si el aviso deja de
+  // llegar más de 5 min, el server cierra el intervalo con la hora del ÚLTIMO
+  // latido, no con la hora en que se dio cuenta (cerrarPorInactividad).
+  //
+  // OJO CON LAS DEPENDENCIAS. Este efecto dependía de `fichaje` entero, y el
+  // sondeo de arriba hace `setFichaje` con el objeto recién parseado CADA 30 s:
+  // referencia nueva, efecto desmontado y `setInterval` arrancado otra vez
+  // desde cero. Con el temporizador a 60 s eso significa que NO LLEGABA NINGÚN
+  // LATIDO NUNCA — el reloj se sostenía solo con los latidos que registra
+  // `guardarFichaje` en cada pulsación, así que bastaban 5 minutos sin tocar la
+  // web (por ejemplo, fichando en la herramienta de siempre) para que el
+  // servidor diera la pestaña por muerta y cerrara el fichaje. De ahí el
+  // "se cortó solo" y que la pausa dejara de responder: el intervalo ya estaba
+  // cerrado en el servidor.
+  //
+  // Así que la dependencia es un BOOLEANO ("¿hay algo corriendo?"), que solo
+  // cambia al fichar y al pausar. Y el periodo baja a 30 s: los navegadores
+  // frenan los temporizadores de las pestañas de fondo a uno por minuto, y con
+  // 60 s se rozaba justo el límite de la tolerancia.
+  const hayFichajeAbierto = abierto(fichaje) !== null;
   useEffect(() => {
-    if (!miId || !abierto(fichaje)) return;
-    const id = setInterval(() => {
+    if (!miId || !hayFichajeAbierto) return;
+    const latir = () =>
       fetch("/api/fichaje/latido", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ operarioId: miId }),
       }).catch(() => {}); // sin red: el siguiente tick lo reintenta
-    }, 60_000);
-    return () => clearInterval(id);
-  }, [miId, fichaje]);
+    latir(); // uno de entrada: al recargar con un fichaje ya abierto, el último
+    // latido puede ser de hace rato y no hay que esperar al primer tick.
+    const id = setInterval(latir, 30_000);
+    // Volver a la pestaña es la prueba de vida más fiable que hay: si el
+    // navegador congeló los temporizadores mientras estaba de fondo, este
+    // latido llega antes de que el servidor se plantee cerrar nada.
+    const alVolver = () => {
+      if (document.visibilityState === "visible") latir();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [miId, hayFichajeAbierto]);
 
   // Cambiar de identidad con un fichaje corriendo perdería de vista ese
   // tiempo (queda fichado a nombre del técnico anterior): se avisa y se deja
