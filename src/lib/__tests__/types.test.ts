@@ -71,12 +71,13 @@ describe("estaFinalizado", () => {
     expect(estaFinalizado(pedido([of("anulada", "a"), of("anulada", "b")]))).toBe(true);
   });
 
-  it("todas anuladas NO se puede pasar a Producción, y no es contradicción", () => {
-    // Son dos preguntas distintas: aquí "¿queda trabajo?" (no) y allí "¿hay
-    // algo que mandar?" (tampoco, así que el botón sigue apagado).
+  it("todas anuladas: finalizado y además se puede pasar, que es como se suelta", () => {
+    // Las dos preguntas ("¿queda trabajo?" y "¿se puede mandar?") contestan lo
+    // mismo cuando en OT no queda nada. Tenerlo por finalizado pero con el
+    // botón apagado dejaba el pedido dando vueltas sin salida.
     const p = pedido([of("anulada", "a"), of("anulada", "b")]);
     expect(estaFinalizado(p)).toBe(true);
-    expect(pedidoListoParaPasar(p)).toBe(false);
+    expect(pedidoListoParaPasar(p)).toBe(true);
   });
 
   it("un pedido sin OFs no está finalizado: aún no ha llegado", () => {

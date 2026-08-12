@@ -107,16 +107,25 @@ export function faseDeOF(of: OF): Fase {
  *    estaba aprobado y el pedido seguía diciendo "Planteando" y sin dejar
  *    pasarlo a Producción, por tres detenidas y una capota de taller.
  *
- *  Si NO queda ninguna, el pedido no tiene trabajo de OT: eso lo interpreta
- *  cada quien (`faseDePedido` lo deja en "sin empezar", `pedidoListoParaPasar`
- *  dice que no). */
+ *  Si NO queda ninguna, el pedido no tiene NADA pendiente en Oficina Técnica, y
+ *  eso es lo que dicen `faseDePedido` ("listo para pasar") y
+ *  `pedidoListoParaPasar` (sí). */
 export function ofsQueCuentan(p: ConOFs): OF[] {
   return p.ofs.filter((o) => o.estado !== "anulada" && !ofDeTaller(o) && !o.detenida);
 }
 
 export function faseDePedido(p: ConOFs): Fase {
+  // Un pedido sin ninguna OF no es un pedido sin trabajo: es un pedido del que
+  // todavía no sabemos nada.
+  if (p.ofs.length === 0) return "sinEmpezar";
   const cuentan = ofsQueCuentan(p);
-  if (cuentan.length === 0) return "sinEmpezar";
+  // Sin trabajo de OT: todo lo del pedido está detenido por Producción, es de
+  // taller o lo anulasteis. Antes esto caía en "sin empezar" por descarte, y el
+  // pedido volvía al panel de su autor como si hubiera algo que empezar cuando
+  // no se puede ni fichar (AR.26.03772: su única OF de OT está detenida, con el
+  // planteo ya pasado a Producción). Aquí no queda nada que hacer, así que va
+  // con lo terminado y se puede soltar.
+  if (cuentan.length === 0) return "listoParaPasar";
   const fases = cuentan.map(faseDeOF);
   if (fases.every((f) => f === "listoParaPasar")) return "listoParaPasar";
   // Manda sobre todo lo demás: si una OF del pedido volvió a corregir, eso es
@@ -134,8 +143,16 @@ export function faseDePedido(p: ConOFs): Fase {
  *  pasar" y, si el botón mirase solo eso, mandaría a Producción la OF que otro
  *  tiene a medias. Producción recibe el pedido completo o no lo recibe. */
 export function pedidoListoParaPasar(p: ConOFs): boolean {
-  const cuentan = ofsQueCuentan(p);
-  return cuentan.length > 0 && cuentan.every((o) => o.estado === "aprobada");
+  // Sin OF que cuente el `every` da true, y es lo correcto: no queda nada
+  // pendiente en OT. Antes se exigía que hubiera al menos una, y eso dejaba
+  // atrapado al pedido cuyo trabajo está todo detenido — el botón apagado sin
+  // más, sin nada que se pudiera hacer para encenderlo, porque liberar una OF
+  // detenida no está en nuestra mano. Pasarlo es justo lo que hay que poder
+  // hacer: OT dice "por mí, hecho", y deja de ocupar sitio.
+  //
+  // Un pedido sin OF ninguna sí sigue sin poder pasarse: ahí no es que no quede
+  // trabajo, es que todavía no se sabe cuál es.
+  return p.ofs.length > 0 && ofsQueCuentan(p).every((o) => o.estado === "aprobada");
 }
 
 /** Quién tiene todavía trabajo en este pedido, para poder decir a quién se

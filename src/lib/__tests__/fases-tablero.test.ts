@@ -188,10 +188,16 @@ describe("pedidoListoParaPasar", () => {
     };
     expect(pedidoListoParaPasar(p)).toBe(true);
   });
-  it("un pedido sin OF activas no se puede pasar", () => {
+  it("un pedido sin nada pendiente en OT SÍ se puede pasar", () => {
+    // Antes se exigía al menos una OF aprobada que mandar, y eso dejaba
+    // atrapados los pedidos donde OT ya no pinta nada: el botón apagado sin
+    // forma de encenderlo. Pasarlo es como se dice "por mí, hecho".
     expect(pedidoListoParaPasar({ ofs: [of({ estado: "anulada", autorId: "ivan" })] })).toBe(
-      false,
+      true,
     );
+  });
+  it("pero un pedido sin OF ninguna no: no es que no quede trabajo, es que no se sabe", () => {
+    expect(pedidoListoParaPasar({ ofs: [] })).toBe(false);
   });
 });
 
@@ -288,11 +294,16 @@ describe("ofsQueCuentan: lo que de verdad tiene que plantear Oficina Técnica", 
     expect(pedidoListoParaPasar(p)).toBe(true);
   });
 
-  it("pero un pedido SIN nada que plantear no está 'listo para pasar'", () => {
-    // Todo detenido o de taller: no hay nada aprobado que mandar.
+  it("un pedido SIN nada que plantear queda listo para pasar, no 'sin empezar'", () => {
+    // El caso AR.26.03772: su única OF de OT está detenida por Producción, el
+    // planteo ya se pasó, y el pedido volvía al panel de su autor en "Sin
+    // empezar" —por descarte, no porque hubiera nada que empezar— con el botón
+    // de pasar apagado. Nada que se pudiera hacer desde OT: liberar una OF
+    // detenida no está en nuestra mano. Si Producción la detiene, ya no es cosa
+    // nuestra; lo que no puede es volver al panel.
     expect(pedidoListoParaPasar({ ofs: [of({ detenida: true }), of({ ajenaOT: true })] }))
-      .toBe(false);
-    expect(faseDePedido({ ofs: [of({ detenida: true })] })).toBe("sinEmpezar");
+      .toBe(true);
+    expect(faseDePedido({ ofs: [of({ detenida: true })] })).toBe("listoParaPasar");
   });
 
   it("tampoco se espera a nadie por una OF que no cuenta", () => {
