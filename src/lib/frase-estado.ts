@@ -1,5 +1,5 @@
 import type { Pedido, Rol } from "./types";
-import { ofsQueCuentan, pedidoListoParaPasar } from "./fases-tablero";
+import { ofsQueCuentan, pedidoListoParaPasar, pedidoParado } from "./fases-tablero";
 
 // ─── "Quién lo lleva y por dónde va", en una frase ───────────────────────────
 // La Lista tenía tres columnas para contar esto: los avatares del autor y del
@@ -59,6 +59,9 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Estad
   // el planteo aprobado seguía diciendo "Planteando" por una OF que ni es
   // nuestra ni podemos tocar.
   const ofs = ofsQueCuentan(p);
+  // Parado por Producción: no hay trabajo que contar y tampoco es que falte
+  // asignarlo (ver faseDePedido).
+  const parado = pedidoParado(p);
 
   const planteoMin = ofs.reduce((n, o) => n + o.tiempoPlanteoMin, 0);
   const revisionMin = ofs.reduce((n, o) => n + o.tiempoRevisionMin, 0);
@@ -83,24 +86,29 @@ export function estadoDePedido(p: Pedido, nombre: (id: string) => string): Estad
     minutos: planteoMin,
     enMarcha: planteando,
     pendienteDeAlguien: autores.length === 0,
-    verbo: planteando
-      ? "Planteando"
-      : hayDevueltas
-        ? // Devuelta = la pelota vuelve al AUTOR. Los dos tramos decían
-          // "Devuelto", la misma palabra dos veces, y ninguna decía a quién le
-          // toca mover ficha: aquí es el autor quien tiene trabajo, y el
-          // revisor ya hizo el suyo.
-          "A corregir"
-        : todasEntregadas
-          ? "Planteado"
-          : planteoMin > 0
-            ? // Empezado y con el reloj parado. Es el caso que más se repite y
-              // el que antes no se distinguía de "Planteando".
-              "Planteado"
-            : autores.length > 0
-              ? "Sin empezar"
-              : "Sin asignar",
-    };
+    verbo: parado
+      ? // Sin OF que contar y con algo detenido, todo lo de abajo daría "Sin
+        // asignar", que es mentira: no es que no lo haya cogido nadie, es que
+        // Producción lo tiene parado y no se puede tocar.
+        "Parado por Producción"
+      : planteando
+        ? "Planteando"
+        : hayDevueltas
+          ? // Devuelta = la pelota vuelve al AUTOR. Los dos tramos decían
+            // "Devuelto", la misma palabra dos veces, y ninguna decía a quién
+            // le toca mover ficha: aquí es el autor quien tiene trabajo, y el
+            // revisor ya hizo el suyo.
+            "A corregir"
+          : todasEntregadas
+            ? "Planteado"
+            : planteoMin > 0
+              ? // Empezado y con el reloj parado. Es el caso que más se repite
+                // y el que antes no se distinguía de "Planteando".
+                "Planteado"
+              : autores.length > 0
+                ? "Sin empezar"
+                : "Sin asignar",
+  };
 
   // El tramo de revisión solo aparece cuando significa algo: hay revisor
   // nombrado, ya se ha fichado revisión, o el planteo está entregado y por

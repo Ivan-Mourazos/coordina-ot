@@ -10,7 +10,8 @@ export type Fase =
   | "sinEmpezar"
   | "planteando"
   | "esperandoRevision"
-  | "listoParaPasar";
+  | "listoParaPasar"
+  | "parado";
 
 export interface FaseMeta {
   id: Fase;
@@ -33,7 +34,23 @@ export const FASES: readonly FaseMeta[] = [
   // Lo que me toca revisar a mí vive en la pestaña Revisión.
   { id: "esperandoRevision", label: "Esperando revisión", color: "#7c3aed" },
   { id: "listoParaPasar", label: "Listo para pasar", color: "#0891b2" },
+  // Fuera del recorrido, y la última a propósito: aquí no hay trabajo que
+  // hacer ni decisión que tomar. Producción tiene el pedido detenido y OT no
+  // puede ni fichar ni darlo por terminado — liberarlo no está en nuestra mano.
+  //
+  // Existe para que estos pedidos dejen de disfrazarse: caían en "Sin empezar"
+  // por descarte (no tenían ninguna OF que contar) y volvían al panel como si
+  // tocara empezarlos. Quien pinta el tablero los saca de las columnas de
+  // trabajo y los deja a mano para consultarlos — ver ZonaPersonal.
+  //
+  // Se resuelve solo: en cuanto RPS deja de decir DETENIDA, el pedido vuelve a
+  // su fase de siempre sin que nadie tenga que acordarse de nada.
+  { id: "parado", label: "Parado por Producción", color: "#a16207" },
 ];
+
+/** Las fases que son TRABAJO, en el orden del recorrido. Es lo que se pinta en
+ *  columnas; "parado" queda fuera porque no hay nada que hacer con él. */
+export const FASES_DE_TRABAJO: readonly FaseMeta[] = FASES.filter((f) => f.id !== "parado");
 
 /** Pedido visto desde el tablero: solo hacen falta sus OFs. */
 export interface ConOFs {
@@ -114,18 +131,35 @@ export function ofsQueCuentan(p: ConOFs): OF[] {
   return p.ofs.filter((o) => o.estado !== "anulada" && !ofDeTaller(o) && !o.detenida);
 }
 
+/** OF nuestra que Producción tiene parada: es trabajo de OT (no de taller, no
+ *  anulada) pero está detenida, así que no se puede ni fichar ni terminar hasta
+ *  que la liberen. Es lo que distingue un pedido PARADO de uno que OT ya ha
+ *  despachado. */
+function hayQueEsperarAProduccion(of: OF): boolean {
+  return of.detenida === true && of.estado !== "anulada" && !ofDeTaller(of);
+}
+
+/** ¿Está el pedido parado por Producción, sin nada que OT pueda hacer? */
+export function pedidoParado(p: ConOFs): boolean {
+  return faseDePedido(p) === "parado";
+}
+
 export function faseDePedido(p: ConOFs): Fase {
   // Un pedido sin ninguna OF no es un pedido sin trabajo: es un pedido del que
   // todavía no sabemos nada.
   if (p.ofs.length === 0) return "sinEmpezar";
   const cuentan = ofsQueCuentan(p);
-  // Sin trabajo de OT: todo lo del pedido está detenido por Producción, es de
-  // taller o lo anulasteis. Antes esto caía en "sin empezar" por descarte, y el
-  // pedido volvía al panel de su autor como si hubiera algo que empezar cuando
-  // no se puede ni fichar (AR.26.03772: su única OF de OT está detenida, con el
-  // planteo ya pasado a Producción). Aquí no queda nada que hacer, así que va
-  // con lo terminado y se puede soltar.
-  if (cuentan.length === 0) return "listoParaPasar";
+  if (cuentan.length === 0) {
+    // Sin trabajo de OT y con algo detenido: PARADO. No es "sin empezar" (no
+    // hay nada que empezar, ni se puede fichar) ni "listo para pasar" (no hay
+    // nada que mandar, y RPS ni siquiera acepta darlo por terminado mientras
+    // esté detenido). Es el caso de AR.26.03703: dos OFs que Jaime ya tenía
+    // empezadas y que Producción paró para volver a medir.
+    if (p.ofs.some(hayQueEsperarAProduccion)) return "parado";
+    // Sin nada detenido: lo que queda es de taller o lo anulasteis vosotros.
+    // Ahí OT sí ha decidido, así que el pedido se puede soltar.
+    return "listoParaPasar";
+  }
   const fases = cuentan.map(faseDeOF);
   if (fases.every((f) => f === "listoParaPasar")) return "listoParaPasar";
   // Manda sobre todo lo demás: si una OF del pedido volvió a corregir, eso es
@@ -152,7 +186,19 @@ export function pedidoListoParaPasar(p: ConOFs): boolean {
   //
   // Un pedido sin OF ninguna sí sigue sin poder pasarse: ahí no es que no quede
   // trabajo, es que todavía no se sabe cuál es.
-  return p.ofs.length > 0 && ofsQueCuentan(p).every((o) => o.estado === "aprobada");
+  //
+  // Y tampoco los PARADOS. Pasarlos los sacaría del tablero para siempre, y
+  // esos vuelven: en cuanto Producción los libera hay que replantearlos. Se
+  // quedan en su cajón hasta que RPS diga otra cosa (o hasta que los cancelen,
+  // y entonces desaparecen solos de la vista).
+  if (p.ofs.length === 0) return false;
+  const cuentan = ofsQueCuentan(p);
+  // Ojo con el orden: mientras QUEDE trabajo de OT, una detenida al lado no
+  // estorba — es el caso AR.26.03626, con su toldo aprobado y tres detenidas
+  // que no están en nuestra mano. Solo cuando no queda nada hay que mirar por
+  // qué: si es por detenidas, el pedido está parado y no se suelta.
+  if (cuentan.length === 0) return !p.ofs.some(hayQueEsperarAProduccion);
+  return cuentan.every((o) => o.estado === "aprobada");
 }
 
 /** Quién tiene todavía trabajo en este pedido, para poder decir a quién se

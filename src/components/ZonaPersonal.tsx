@@ -48,8 +48,14 @@ export function ZonaPersonal({
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   const grupos = agruparPorFase(facets);
-  const conItems = grupos.filter((g) => g.items.length > 0);
-  const vacias = grupos.filter((g) => g.items.length === 0);
+  // Los parados por Producción NO son una columna: no hay nada que hacer con
+  // ellos y ocupar sitio con ellos es lo que hacía que volvieran al panel como
+  // si tocara empezarlos. Se cuentan aparte, en la cabecera, y se consultan
+  // desde ahí. Vuelven solos a su columna en cuanto RPS los libera.
+  const parados = grupos.find((g) => g.id === "parado");
+  const deTrabajo = grupos.filter((g) => g.id !== "parado");
+  const conItems = deTrabajo.filter((g) => g.items.length > 0);
+  const vacias = deTrabajo.filter((g) => g.items.length === 0);
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
   return (
@@ -71,6 +77,20 @@ export function ZonaPersonal({
         <span className="text-[11px] text-text-muted">
           {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>
+
+        {/* Parados por Producción: fuera del trabajo, pero a la vista y con su
+            lista a un clic. Interesa saber que están ahí —y poder reclamar—,
+            no tenerlos ocupando una columna que no se puede tocar. */}
+        {parados && parados.items.length > 0 && (
+          <button
+            onClick={() => onVerTodos("parado")}
+            title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Vuelven solos en cuanto los liberen."
+            className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-600/25 hover:bg-amber-500/20 dark:text-amber-300"
+          >
+            <span className="size-1.5 rounded-full" style={{ background: parados.color }} />
+            {parados.items.length} parado{parados.items.length === 1 ? "" : "s"} por Producción
+          </button>
+        )}
 
         {/* Fases vacías: contadores diminutos, sin gastar una columna. */}
         {vacias.length > 0 && (

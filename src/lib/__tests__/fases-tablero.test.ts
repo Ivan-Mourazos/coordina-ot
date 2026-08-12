@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { OF } from "../types";
 import {
   FASES,
+  FASES_DE_TRABAJO,
   agruparPorFase,
   autoresQueFaltan,
   conTope,
@@ -40,6 +41,10 @@ describe("FASES", () => {
       "planteando",
       "esperandoRevision",
       "listoParaPasar",
+      // Fuera del recorrido y la última: no es una etapa del trabajo, es la
+      // espera a que Producción libere el pedido. No se pinta como columna
+      // (ver FASES_DE_TRABAJO y el contador de ZonaPersonal).
+      "parado",
     ]);
     expect(FASES[0].label).toBe("A corregir");
     // "Esperando revisión" y no "Para revisar": es mi trabajo en manos de otro,
@@ -294,21 +299,70 @@ describe("ofsQueCuentan: lo que de verdad tiene que plantear Oficina Técnica", 
     expect(pedidoListoParaPasar(p)).toBe(true);
   });
 
-  it("un pedido SIN nada que plantear queda listo para pasar, no 'sin empezar'", () => {
-    // El caso AR.26.03772: su única OF de OT está detenida por Producción, el
-    // planteo ya se pasó, y el pedido volvía al panel de su autor en "Sin
-    // empezar" —por descarte, no porque hubiera nada que empezar— con el botón
-    // de pasar apagado. Nada que se pudiera hacer desde OT: liberar una OF
-    // detenida no está en nuestra mano. Si Producción la detiene, ya no es cosa
-    // nuestra; lo que no puede es volver al panel.
+  it("un pedido detenido por Producción está PARADO, no 'sin empezar'", () => {
+    // El caso AR.26.03703: dos OFs que Jaime ya tenía empezadas y que
+    // Producción paró para volver a medir. Caían en "Sin empezar" por descarte
+    // —no tenían ninguna OF que contar— y volvían al panel como si tocara
+    // empezarlas, cuando no se pueden ni fichar. Tampoco es "listo para pasar":
+    // no hay nada que mandar, y RPS ni siquiera acepta darlas por terminadas
+    // mientras estén detenidas.
+    expect(faseDePedido({ ofs: [of({ detenida: true })] })).toBe("parado");
+    expect(faseDePedido({ ofs: [of({ detenida: true }), of({ ajenaOT: true })] })).toBe("parado");
+    // Y no se sueltan: en cuanto Producción las libere hay que replantearlas,
+    // así que pasarlas las sacaría del tablero para siempre.
     expect(pedidoListoParaPasar({ ofs: [of({ detenida: true }), of({ ajenaOT: true })] }))
-      .toBe(true);
-    expect(faseDePedido({ ofs: [of({ detenida: true })] })).toBe("listoParaPasar");
+      .toBe(false);
+  });
+
+  it("pero una detenida NO estorba mientras quede trabajo de OT", () => {
+    // AR.26.03626 otra vez: su toldo aprobado manda, y las detenidas de al lado
+    // no bloquean el paso a Producción. La espera solo cuenta cuando no queda
+    // nada más.
+    const p = { ofs: [of({ estado: "aprobada" }), of({ id: "d", detenida: true })] };
+    expect(faseDePedido(p)).toBe("listoParaPasar");
+    expect(pedidoListoParaPasar(p)).toBe(true);
+  });
+
+  it("sin nada detenido, lo que queda es decisión de OT y sí se suelta", () => {
+    // Todo anulado o de taller: ahí OT ya ha dicho lo suyo.
+    const p = { ofs: [of({ estado: "anulada" }), of({ id: "t", ajenaOT: true })] };
+    expect(faseDePedido(p)).toBe("listoParaPasar");
+    expect(pedidoListoParaPasar(p)).toBe(true);
   });
 
   it("tampoco se espera a nadie por una OF que no cuenta", () => {
     // "falta sin asignar (3 OF)" señalando detenidas y capotas mandaba a buscar
     // trabajo que no espera nadie.
     expect(autoresQueFaltan(como03626)).toEqual([]);
+  });
+});
+
+// Dónde acaba un pedido parado según tenga autor o no. Son los dos caminos por
+// los que un pedido llega a la pantalla, y ninguno debe ofrecerlo como trabajo:
+// una OF detenida no se puede fichar ni terminar, la coja quien la coja.
+describe("parados: con autor y sin autor", () => {
+  it("con autor: sale de las columnas de trabajo y va a 'parado'", () => {
+    // El facet del autor lleva SOLO sus OF, así que la fase se decide con lo
+    // suyo: si todo lo suyo está detenido, su tarjeta está parada aunque otro
+    // compañero siga teniendo trabajo en el mismo pedido.
+    const mio = { ofs: [of({ detenida: true, autorId: "jaime", estado: "en_curso" })] };
+    expect(faseDePedido(mio)).toBe("parado");
+    expect(FASES_DE_TRABAJO.some((f) => f.id === "parado")).toBe(false);
+  });
+
+  it("sin autor: la bandeja no lo ofrece, porque no se puede coger", () => {
+    // La bandeja "Sin asignar" filtra por la categoría `normal`, que excluye
+    // las detenidas (ver lib/filtros.ts). Aquí se comprueba la otra mitad: que
+    // la fase tampoco lo disfrace de trabajo por empezar.
+    const suelto = { ofs: [of({ detenida: true, autorId: null })] };
+    expect(faseDePedido(suelto)).toBe("parado");
+    expect(pedidoListoParaPasar(suelto)).toBe(false);
+  });
+
+  it("en cuanto Producción lo libera vuelve solo a su sitio", () => {
+    // Sin marca de detenida, la misma OF es trabajo normal otra vez: no hay
+    // estado propio que mantener ni nada que deshacer a mano.
+    const liberado = { ofs: [of({ detenida: false, autorId: "jaime", estado: "en_curso" })] };
+    expect(faseDePedido(liberado)).toBe("planteando");
   });
 });

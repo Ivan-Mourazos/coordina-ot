@@ -7,10 +7,16 @@ export type Vista =
   | "visitas"
   | "historial";
 
+// Los `id` NO se tocan: viajan en la URL (`?v=asignar`) y hay enlaces
+// guardados por ahí. Lo que cambia es cómo se llaman las pestañas, que es lo
+// que se lee.
 const OPCIONES: { id: Vista; label: string }[] = [
-  { id: "asignar", label: "Asignar" },
-  { id: "lista", label: "Lista" },
-  { id: "revision", label: "Revisión" },
+  // "Asignar" contaba solo una de las cosas que se hacen aquí: es TU panel de
+  // trabajo, con tu zona, la del equipo y la bandeja.
+  { id: "asignar", label: "Panel" },
+  // "Lista" no decía lista de qué. Esto es todo lo que está por hacer.
+  { id: "lista", label: "Pendientes" },
+  { id: "revision", label: "Revisiones" },
   { id: "visitas", label: "Visitas" },
   { id: "historial", label: "Historial" },
 ];
