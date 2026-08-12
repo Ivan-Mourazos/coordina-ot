@@ -7,7 +7,8 @@ import type { EstadoOF, OF } from "./types";
 
 export type AccionOF =
   | "empezar_planteo" | "terminar_planteo"
-  | "empezar_revision" | "aprobar" | "devolver" | "reabrir" | "soltar_revision"
+  | "empezar_revision" | "aprobar" | "aprobar_corregida" | "devolver" | "reabrir"
+  | "soltar_revision"
   | "retomar" | "anular" | "restaurar";
 
 export interface AccionDef {
@@ -58,6 +59,21 @@ export const ACCIONES: AccionDef[] = [
   { id: "aprobar", label: "Aprobar", tono: "primaria",
     confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
     desde: ["en_revision"], efectoFichaje: "corta", destino: "aprobada" },
+  // Atajo para la segunda vuelta: la OF ya la revisó alguien, la devolvió con
+  // una nota y el autor ha hecho el retoque. Si el cambio era mínimo, obligar a
+  // otra ronda de revisión completa es papeleo — y lo que pasaba de verdad es
+  // que se mandaba a revisar y quedaba ahí parada esperando a que alguien la
+  // volviera a abrir para decir "sí, vale".
+  //
+  // NO sustituye a pasar a revisión: es la alternativa, y por eso va en tono
+  // neutro. El camino que se ofrece primero sigue siendo el de siempre.
+  //
+  // Acción propia y no "aprobar" desde `devuelta`: lo que se aprueba aquí es la
+  // CORRECCIÓN, no un planteo revisado, y el registro tiene que poder
+  // distinguirlas. Quién la revisó sigue guardado en `revisorId`.
+  { id: "aprobar_corregida", label: "Dar por corregida", tono: "neutra",
+    confirmar: "La corrección se da por buena y la OF queda aprobada, sin pasar otra vez por revisión. Para retoques pequeños: lo que se devolvió ya lo revisó alguien.",
+    desde: ["devuelta"], requiere: "autor", efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
     desde: ["en_revision"], efectoFichaje: "corta", conNota: true, destino: "devuelta" },
   // Salida de la revisión que no decide nada. Antes, una vez empezada, las dos

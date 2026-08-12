@@ -75,3 +75,34 @@ describe("aplicarAccion", () => {
     expect(porId.anular.conMotivo).toBe(true);
   });
 });
+
+// Segunda vuelta sin segunda revisión: la OF ya se revisó, volvió con nota y el
+// autor hizo el retoque. Si el cambio era mínimo, tiene que poder darse por
+// buena sin otra ronda — pero sin quitar el camino normal.
+describe("aprobar_corregida", () => {
+  it("una devuelta ofrece las DOS salidas: revisión o darla por corregida", () => {
+    expect(accionesDisponibles(of("devuelta")).map((a) => a.id))
+      .toEqual(["retomar", "terminar_planteo", "aprobar_corregida", "anular"]);
+  });
+
+  it("aprueba directamente, sin pasar por revisión", () => {
+    expect(aplicarAccion(of("devuelta"), "aprobar_corregida").estado).toBe("aprobada");
+  });
+
+  it("solo desde devuelta: no es un atajo para saltarse la primera revisión", () => {
+    for (const e of ["pendiente", "en_curso", "por_revisar", "en_revision"] as const)
+      expect(accionesDisponibles(of(e)).map((a) => a.id)).not.toContain("aprobar_corregida");
+  });
+
+  it("exige autor y corta el fichaje, como cualquier entrega", () => {
+    const porId = Object.fromEntries(ACCIONES.map((a) => [a.id, a]));
+    expect(porId.aprobar_corregida.requiere).toBe("autor");
+    expect(porId.aprobar_corregida.efectoFichaje).toBe("corta");
+    // En tono neutro: el camino que se ofrece primero sigue siendo mandar a
+    // revisar, que es "primaria".
+    expect(porId.aprobar_corregida.tono).toBe("neutra");
+    expect(porId.terminar_planteo.tono).toBe("primaria");
+    // Y pide confirmación: se salta un paso del flujo, no es un clic más.
+    expect(porId.aprobar_corregida.confirmar).toBeTruthy();
+  });
+});

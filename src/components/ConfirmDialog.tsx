@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AccionDef } from "@/lib/acciones";
 
 /** Estado compartido "acción pendiente de confirmar" (Drawer y otros sitios
@@ -86,8 +87,28 @@ export function ConfirmDialog({
         ? "bg-teal-600 text-white hover:bg-teal-700"
         : "bg-surface-2 text-text ring-1 ring-border hover:bg-[var(--glass-highlight)]";
 
-  return (
-    <div className="fixed inset-0 z-[60]" role="alertdialog" aria-modal="true" aria-label={titulo}>
+  // ─── Por qué va en un PORTAL ───────────────────────────────────────────────
+  // Se pintaba donde se declara —dentro de la fila de la OF, dentro del panel
+  // del Drawer— y ahí `position: fixed` deja de ir contra la pantalla: basta
+  // un ancestro con `filter`, `backdrop-filter` o `transform` (el telón
+  // difuminado del Drawer, las animaciones de los paneles) para que ese
+  // ancestro pase a ser el bloque contenedor. Resultado: el cuadro salía
+  // encajado sobre la propia OF, con el telón oscureciendo por su cuenta el
+  // resto de la pantalla —dos cosas a la vez, ninguna en su sitio— y el
+  // difuminado repintándose con cada movimiento del ratón, que es el parpadeo.
+  //
+  // Colgado del `body` no hay ancestro que valga: el cuadro se centra en la
+  // pantalla y el telón cubre lo que tiene que cubrir. Mismo patrón que el
+  // desplegable de Select, incluida la marca `data-en-portal` para que los
+  // paneles que se cierran al hacer clic fuera no se cierren al pulsar aquí.
+  return createPortal(
+    <div
+      data-en-portal
+      className="fixed inset-0 z-[60]"
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={titulo}
+    >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
       <div className="glass-panel-strong absolute left-1/2 top-1/3 w-full max-w-sm -translate-x-1/2 rounded-2xl p-4">
         <h3 className="text-sm font-bold text-text">{titulo}</h3>
@@ -111,6 +132,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
