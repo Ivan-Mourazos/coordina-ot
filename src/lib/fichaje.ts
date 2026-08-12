@@ -93,8 +93,20 @@ export function pausar(f: Fichaje, ahora: string): Fichaje {
 
 /** Tolerancia por defecto del latido: sin avisos del cliente durante más de
  *  esto, se asume que la pestaña se cerró (portátil apagado, navegador
- *  cerrado) y no que la persona sigue delante en silencio. */
-export const TOLERANCIA_LATIDO_MS = 5 * 60_000;
+ *  cerrado) y no que la persona sigue delante en silencio.
+ *
+ *  QUINCE minutos y no cinco. Este número NO decide cuánto tiempo se apunta:
+ *  el cierre se hace siempre a la hora del ÚLTIMO LATIDO (ver
+ *  `cerrarPorInactividad`), así que alargarlo no imputa ni un minuto de más —
+ *  solo se tarda más en darse cuenta, y lo único que se nota es que el punto
+ *  verde de quien cerró el portátil tarda más en apagarse para los demás.
+ *
+ *  Lo que se gana a cambio es el caso normal: trabajar con el navegador
+ *  minimizado o en otra pestaña. Ahí los navegadores frenan los temporizadores
+ *  de la página —Chrome los deja en uno por minuto— y algunos llegan a congelar
+ *  la pestaña un rato (Edge la "duerme" por su cuenta). Con cinco minutos, un
+ *  frenazo de esos cortaba un fichaje que estaba perfectamente vivo. */
+export const TOLERANCIA_LATIDO_MS = 15 * 60_000;
 
 /** Cierra el intervalo abierto de un fichaje cuya pestaña dejó de avisar
  *  ("latido") hace más de `toleranciaMs`. Lo cierra EN LA HORA DEL ÚLTIMO

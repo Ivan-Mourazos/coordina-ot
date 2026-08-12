@@ -53,7 +53,7 @@ describe("cerrarFichajesSinLatido", () => {
     });
     // guardarFichaje ya deja un latido "recién ahora" (hora real del test);
     // para simular una pestaña muerta hace falta uno viejo de verdad.
-    const latidoViejo = new Date(Date.now() - 6 * 60_000).toISOString();
+    const latidoViejo = new Date(Date.now() - 20 * 60_000).toISOString();
     fichajeDb.registrarLatido("angel", latidoViejo);
 
     fichajeWorker.cerrarFichajesSinLatido();
@@ -89,7 +89,7 @@ describe("cerrarFichajesSinLatido", () => {
     fichajeDb.guardarFichaje("raquel", {
       intervalos: [iv(inicio, null, ["0231104:1"], "raquel")],
     });
-    const latidoViejo = new Date(Date.now() - 6 * 60_000).toISOString();
+    const latidoViejo = new Date(Date.now() - 20 * 60_000).toISOString();
     fichajeDb.registrarLatido("raquel", latidoViejo);
 
     fichajeWorker.cerrarFichajesSinLatido();
