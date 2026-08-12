@@ -72,7 +72,7 @@ export const ACCIONES: AccionDef[] = [
   // CORRECCIÓN, no un planteo revisado, y el registro tiene que poder
   // distinguirlas. Quién la revisó sigue guardado en `revisorId`.
   { id: "aprobar_corregida", label: "Dar por corregida", tono: "neutra",
-    confirmar: "La corrección se da por buena y la OF queda aprobada, sin pasar otra vez por revisión. Para retoques pequeños: lo que se devolvió ya lo revisó alguien.",
+    confirmar: "La OF queda aprobada sin pasar otra vez por revisión.",
     desde: ["devuelta"], requiere: "autor", efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
     desde: ["en_revision"], efectoFichaje: "corta", conNota: true, destino: "devuelta" },
