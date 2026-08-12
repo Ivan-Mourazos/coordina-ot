@@ -166,7 +166,6 @@ export function MiFichaje({
   onFichar,
   onDesfichar,
   onPausarTodo,
-  onReanudar,
 }: {
   miId: string;
   operarios: Operario[];
@@ -175,7 +174,6 @@ export function MiFichaje({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   onPausarTodo: () => void;
-  onReanudar: () => void;
 }) {
   // Cuánto panel se quiere ver, y se recuerda. Quien trabaja con el reloj
   // delante lo quiere abierto toda la jornada; quien no, en la píldora. Que se
@@ -225,9 +223,6 @@ export function MiFichaje({
     ab && totalMin >= AVISO_FICHAJE_LARGO_MIN
       ? (pedidos.flatMap((p) => p.ofs).find((of) => ab.ofIds.includes(of.id)) ?? null)
       : null;
-
-  const ultimo = fichaje.intervalos[fichaje.intervalos.length - 1] ?? null;
-  const puedeReanudar = ultimo !== null && ultimo.fin !== null;
 
   // Mi trabajo empezado y sin terminar, agrupado por pedido. Se calcula
   // siempre (no solo al desplegar) porque de aquí salen las dos cosas: la
@@ -353,6 +348,9 @@ export function MiFichaje({
         : // Compacto y sin reloj: el último que se dejó a medias, que es lo que
           // se retoma. La lista entera es justo lo que distingue a "Todo".
           aMediasOrden.slice(0, 1);
+  // Con varios pedidos a la vez el cuadrito deja de ser un cuadrito: las filas
+  // se aprietan y se quedan solo el código, el estado, el tiempo y el botón.
+  const denso = modo === "compacto" && mostrados.length > 1;
   const hoy = resumenDelDia(fichajeHoy, ahora);
 
   // Frase larga para el ratón (y para quien no pilla el rótulo corto de la
@@ -451,7 +449,7 @@ export function MiFichaje({
           )}
 
           {/* mis OFs agrupadas por pedido */}
-          <ul className="scroll-thin -mx-1 flex-1 space-y-2 overflow-y-auto px-1">
+          <ul className={`scroll-thin -mx-1 flex-1 overflow-y-auto px-1 ${denso ? "space-y-1" : "space-y-2"}`}>
             {mostrados.length === 0 && (
               <li className="px-1 py-6 text-center text-xs text-text-muted">
                 {ab ? "No estás fichando nada ahora." : "No tienes nada empezado a medias."}
@@ -467,46 +465,32 @@ export function MiFichaje({
                 ahora={ahora}
                 enMarchaModo={ab !== null}
                 paradoDesde={paradoDe}
+                denso={denso}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
               />
             ))}
           </ul>
 
-          {/* pausar/reanudar + lo fichado hoy */}
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--glass-border)] pt-2.5">
-            {/* El reloj de la cabecera es el del tramo que corre AHORA; esto es
-                lo que llevo fichado HOY en total, que es la pregunta del final
-                de la jornada y la única que sigue teniendo respuesta con el
-                reloj parado. El desglose por rol solo sale si hoy hubo de los
-                dos: con uno solo repetiría el total. */}
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                Hoy
-              </p>
-              <p className="text-xs font-bold tabular-nums text-text">{fmtMin(hoy.total)}</p>
-              {hoy.plantear > 0 && hoy.revisar > 0 && (
-                <p className="text-[10px] text-text-muted">
-                  {ROL.plantear.label} {fmtMin(hoy.plantear)} · {ROL.revisar.label}{" "}
-                  {fmtMin(hoy.revisar)}
-                </p>
-              )}
-            </div>
-            {ab ? (
-              <button
-                onClick={onPausarTodo}
-                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600"
-              >
-                ⏸ Pausar todo
-              </button>
-            ) : (
-              <button
-                onClick={onReanudar}
-                disabled={!puedeReanudar}
-                className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                ▶ Reanudar
-              </button>
+          {/* Lo fichado HOY, y nada más.
+              Aquí abajo había un "Pausar todo" y un "Reanudar" que valían para
+              el fichaje entero, y no se sabía sobre qué actuaban: cada OF y
+              cada pedido tienen ya su propio botón, arriba y con nombre. El
+              reloj de la cabecera es el del tramo que corre AHORA; esto es el
+              acumulado del día, que es la pregunta del final de la jornada y la
+              única que sigue teniendo respuesta con el reloj parado. El
+              desglose por rol solo sale si hoy hubo de los dos: con uno solo
+              repetiría el total. */}
+          <div className="mt-3 flex items-baseline gap-2 border-t border-[var(--glass-border)] pt-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Hoy
+            </span>
+            <span className="text-xs font-bold tabular-nums text-text">{fmtMin(hoy.total)}</span>
+            {hoy.plantear > 0 && hoy.revisar > 0 && (
+              <span className="ml-auto text-[10px] text-text-muted">
+                {ROL.plantear.label} {fmtMin(hoy.plantear)} · {ROL.revisar.label}{" "}
+                {fmtMin(hoy.revisar)}
+              </span>
             )}
           </div>
         </div>
@@ -584,6 +568,7 @@ function GrupoPedido({
   ahora,
   enMarchaModo,
   paradoDesde,
+  denso,
   onFichar,
   onDesfichar,
 }: {
@@ -596,6 +581,8 @@ function GrupoPedido({
    *  Cambia los rótulos, no las reglas: lo que se puede fichar es lo mismo. */
   enMarchaModo: boolean;
   paradoDesde: (of: OF) => string | null;
+  /** Varios pedidos a la vez: filas apretadas y sin las líneas de contexto. */
+  denso?: boolean;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
 }) {
@@ -619,7 +606,7 @@ function GrupoPedido({
   const corriendo = misPlantear.filter((of) => of.fichandoRol !== null);
 
   return (
-    <li className="rounded-xl bg-surface-2/50 p-2">
+    <li className={`rounded-xl bg-surface-2/50 ${denso ? "p-1.5" : "p-2"}`}>
       <div className="flex items-center gap-2">
         <span className="min-w-0 truncate text-xs font-semibold text-text">
           {pedido.codigo} <span className="font-normal text-text-muted">· {pedido.cliente}</span>
@@ -656,14 +643,15 @@ function GrupoPedido({
           — {detenidas} detenida{detenidas === 1 ? "" : "s"}
         </p>
       )}
-      <ul className="mt-1.5 space-y-1">
+      <ul className={denso ? "mt-1 space-y-0.5" : "mt-1.5 space-y-1"}>
         {ofs.map((of) => (
           <OFItem
             key={of.id}
             of={of}
             fichaje={fichaje}
             ahora={ahora}
-            paradoDesde={enMarchaModo ? undefined : paradoDesde(of)}
+            paradoDesde={enMarchaModo || denso ? undefined : paradoDesde(of)}
+            denso={denso}
             onFichar={onFichar}
             onDesfichar={onDesfichar}
           />
@@ -678,6 +666,7 @@ function OFItem({
   fichaje,
   ahora,
   paradoDesde,
+  denso,
   onFichar,
   onDesfichar,
 }: {
@@ -688,6 +677,8 @@ function OFItem({
    *  enseñarlo (el panel está en modo "lo que corre AHORA"); `null` = está a
    *  medias pero nunca se llegó a fichar. */
   paradoDesde?: string | null;
+  /** Fila apretada: sin las líneas de contexto de debajo. */
+  denso?: boolean;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
 }) {
@@ -706,7 +697,7 @@ function OFItem({
   const yaEmpezada = tiempoTotalOF(of) > 0 || minutos > 0;
 
   return (
-    <li className="rounded-lg bg-surface-2/70 px-2 py-1.5 text-[11px]">
+    <li className={`rounded-lg bg-surface-2/70 px-2 text-[11px] ${denso ? "py-1" : "py-1.5"}`}>
       <div className="flex items-center gap-2">
         <span className="truncate font-mono font-semibold text-text">{of.codigo}</span>
         {/* Etiqueta entera, no la abreviatura: "REVIS." y "POR REV." se

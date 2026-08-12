@@ -987,24 +987,13 @@ export function Board({
     [postFichaje],
   );
 
-  // pausarTodo/reanudar: pausa global del fichaje, reservada para el panel
-  // "Mi fichaje" (Task 7). El Drawer ya no las usa: fichar/desfichar ahora
-  // es por OF (onFichar/onDesfichar).
+  // Pausa global del fichaje. Solo la usa el aviso de "llevas 3 h fichando"
+  // del panel "Mi fichaje": el resto de pausas y reanudaciones son por OF o
+  // por pedido, con su nombre delante (ver MiFichaje y AccionesOF).
   const pausarTodo = useCallback(() => {
     setFichaje((f) => pausar(f, ahora())); // optimista
     postFichaje([], "plantear"); // rol ignorado al pausar (ofIds vacío)
   }, [postFichaje]);
-
-  const reanudar = useCallback(() => {
-    if (!miId) return;
-    const ultimo = fichajeRef.current.intervalos[fichajeRef.current.intervalos.length - 1];
-    if (!ultimo || ultimo.fin === null) return;
-    // Reabre con la identidad ACTUAL (miId), no con la del último
-    // intervalo: si se reanuda tras un cambio de técnico, el tiempo debe
-    // quedar fichado a nombre de quien está delante del panel ahora.
-    setFichaje((f) => fichar(f, ultimo.ofIds, ultimo.rol, miId, ahora())); // optimista
-    postFichaje(ultimo.ofIds, ultimo.rol);
-  }, [miId, postFichaje]);
 
   // Si el servidor cerró un fichaje mío solo (latido perdido, ver el efecto
   // de más abajo), me entero al cargar: si no, mañana veo menos tiempo del
@@ -1714,7 +1703,6 @@ export function Board({
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
         onPausarTodo={pausarTodo}
-        onReanudar={reanudar}
       />
 
       <ConfirmDialog
