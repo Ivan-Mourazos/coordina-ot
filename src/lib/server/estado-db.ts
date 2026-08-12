@@ -111,6 +111,7 @@ function abrir(): Database.Database {
   `);
   prepararClaveIntervalo(db);
   prepararPasadoPor(db);
+  prepararTraspasado(db);
   globalThis.__coordinaDb = db;
   return db;
 }
@@ -149,6 +150,20 @@ function prepararClaveIntervalo(db: Database.Database): void {
     CREATE UNIQUE INDEX IF NOT EXISTS ux_fichaje_intervalo
       ON fichaje_intervalo(operario_id, inicio);
   `);
+}
+
+/** Cuándo se confirmó que un tramo ya está imputado en RPS.
+ *
+ *  Mientras esté a NULL, el tiempo del tramo lo cuenta CoordinaOT; en cuanto se
+ *  sella, lo cuenta RPS y deja de sumarse aquí, que es lo que evita contarlo dos
+ *  veces cuando el fichaje empiece a subir de verdad (ver traspaso-fichaje.ts).
+ *  La columna se añade sobre la marcha: la tabla ya existe en producción y
+ *  todo lo de antes queda a NULL, que es justo lo correcto — nada de eso se ha
+ *  traspasado nunca. */
+function prepararTraspasado(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(fichaje_intervalo)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "traspasado_at")) return;
+  db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
 }
 
 export function leerOverlay(): Overlay {

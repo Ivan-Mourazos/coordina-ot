@@ -217,3 +217,27 @@ test("cortarFichajeDeOF no fabrica un latido del operario cortado", () => {
 
   expect(db.leerUltimoLatido("ivan")).toBe(latidoTrasFichar);
 });
+
+// Preparación para cuando el fichaje suba de verdad a RPS (modo `activo`): un
+// tramo ya traspasado lo cuenta RPS, así que deja de contarlo CoordinaOT. Si
+// siguiera sumándose aquí, el mismo trabajo aparecería dos veces.
+test("un tramo traspasado deja de contar, pero no se pierde del fichaje", () => {
+  const t0 = "2026-08-06T08:00:00.000Z";
+  let f = fichar(FICHAJE_VACIO, ["0230900:5"], "plantear", "tamara", t0);
+  f = pausar(f, "2026-08-06T08:20:00.000Z");
+  db.guardarFichaje("tamara", f);
+
+  const suyos = () =>
+    db.leerTodosIntervalos().filter((iv) => iv.operarioId === "tamara");
+  expect(suyos()).toHaveLength(1);
+
+  expect(db.marcarTraspasados([{ operarioId: "tamara", inicio: t0 }])).toBe(1);
+  expect(suyos()).toHaveLength(0);
+
+  // El motor de fichaje sigue viéndolo: es su histórico, y la marca de la cola
+  // (olanet_watermark) cuenta posiciones sobre esa lista completa.
+  expect(db.leerFichaje("tamara").intervalos).toHaveLength(1);
+
+  // Sellar dos veces no cuenta doble ni revive nada.
+  expect(db.marcarTraspasados([{ operarioId: "tamara", inicio: t0 }])).toBe(0);
+});

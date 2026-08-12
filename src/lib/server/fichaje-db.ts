@@ -46,9 +46,40 @@ export function leerFichaje(operarioId: string): Fichaje {
   };
 }
 
+/** Los intervalos que TODAVÍA cuenta CoordinaOT.
+ *
+ *  Deja fuera los ya traspasados a RPS: esos minutos los cuenta RPS, y sumarlos
+ *  también aquí sería contarlos dos veces (ver traspaso-fichaje.ts). Hoy no hay
+ *  ninguno —nada sale de la cola mientras el modo no sea `activo`—, así que el
+ *  filtro no quita nada hasta que se dé ese paso.
+ *
+ *  `leerFichaje` NO filtra, a propósito: el motor de fichaje necesita la lista
+ *  completa del operario para añadir y cerrar tramos, y la marca de la cola
+ *  (olanet_watermark) cuenta posiciones sobre esa lista. */
 export function leerTodosIntervalos(): Intervalo[] {
-  const filas = getDb().prepare(`${SELECT} ORDER BY inicio`).all() as Fila[];
+  const filas = getDb()
+    .prepare(`${SELECT} WHERE traspasado_at IS NULL ORDER BY inicio`)
+    .all() as Fila[];
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
+}
+
+/** Sella los tramos que OLANET ya traspasó a RPS. La clave es (operario,
+ *  inicio), la misma con la que se guardan. Devuelve cuántos se sellaron. */
+export function marcarTraspasados(
+  tramos: readonly { operarioId: string; inicio: string }[],
+  cuando = new Date().toISOString(),
+): number {
+  if (tramos.length === 0) return 0;
+  const db = getDb();
+  const upd = db.prepare(
+    `UPDATE fichaje_intervalo SET traspasado_at = ?
+      WHERE operario_id = ? AND inicio = ? AND traspasado_at IS NULL`,
+  );
+  return db.transaction(() => {
+    let n = 0;
+    for (const t of tramos) n += upd.run(cuando, t.operarioId, t.inicio).changes;
+    return n;
+  })();
 }
 
 /** Deja constancia de que la pestaña de este operario sigue viva. La llama el

@@ -1,6 +1,7 @@
 import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
-import { leerTodosIntervalos } from "./fichaje-db";
+import { diasYOperariosDe, intervaloYaEnRps } from "../traspaso-fichaje";
+import { leerTodosIntervalos, marcarTraspasados } from "./fichaje-db";
 import {
   descartar,
   leerPendientes,
@@ -10,6 +11,7 @@ import {
   type Pendiente,
 } from "./olanet-outbox";
 import {
+  bonosTraspasados,
   buscarIdBoletin,
   insertarBono,
   moverFase,
@@ -142,6 +144,33 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
   return filas;
 }
 
+/** Sella los tramos cuyo tiempo ya está en RPS, para que dejen de contarse
+ *  desde aquí.
+ *
+ *  Es lo que impide que el mismo trabajo se cuente dos veces cuando el fichaje
+ *  sube de verdad: hasta que OLANET no lo traspasa, el tiempo lo pone
+ *  CoordinaOT; desde que lo traspasa, lo pone RPS —y ahí sale además con su
+ *  dueño en el desglose de la OF—. Entre una cosa y la otra no hay hueco: el
+ *  tramo cuenta por un lado o por el otro, nunca por los dos ni por ninguno.
+ *
+ *  SOLO en `activo`. En ensayo los bonos se escriben ya con `traspasado = 2`
+ *  para que OLANET no los procese, así que darlos por traspasados sería borrar
+ *  del panel un tiempo que no ha llegado a RPS ni va a llegar. */
+export async function confirmarTraspasos(): Promise<number> {
+  if (modoFichaje() !== "activo") return 0;
+  const pendientes = leerTodosIntervalos().filter((iv) => iv.fin !== null);
+  if (pendientes.length === 0) return 0;
+
+  const { dias, operarios } = diasYOperariosDe(pendientes, COD_RPS_POR_OPERARIO);
+  const yaEnRps = await bonosTraspasados(dias, operarios, MAQUINA_OT);
+  if (yaEnRps.size === 0) return 0;
+
+  const sellar = pendientes
+    .filter((iv) => intervaloYaEnRps(iv, COD_RPS_POR_OPERARIO, yaEnRps))
+    .map((iv) => ({ operarioId: iv.operarioId, inicio: iv.inicio }));
+  return marcarTraspasados(sellar);
+}
+
 export async function refrescarEnCurso(): Promise<void> {
   // Solo en activo. Esta tabla la comparte el mini-olanet, y la sincronización
   // empieza borrando las filas de A-OTEC: durante un ensayo se llevaría por
@@ -155,6 +184,9 @@ async function vuelta(): Promise<void> {
   corriendo = true;
   try {
     await drenarCola();
+    // Después de vaciar la cola: lo que acaba de salir ya puede estar
+    // traspasado, y así se sella en la misma vuelta en vez de en la siguiente.
+    await confirmarTraspasos();
     await refrescarEnCurso();
   } catch (e) {
     // Nunca se propaga: es un temporizador, y un fallo de red no puede tumbar

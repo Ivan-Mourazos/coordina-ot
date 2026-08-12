@@ -10,12 +10,14 @@ const insertarBono = vi.fn<(...a: unknown[]) => Promise<void>>();
 const moverFase = vi.fn<(...a: unknown[]) => Promise<void>>();
 const buscarIdBoletin = vi.fn<(...a: unknown[]) => Promise<string | null>>();
 const sincronizarFichajeEnCurso = vi.fn<(...a: unknown[]) => Promise<void>>();
+const bonosTraspasados = vi.fn<(...a: unknown[]) => Promise<Set<string>>>();
 
 vi.mock("../server/olanet", () => ({
   insertarBono: (...a: unknown[]) => insertarBono(...a),
   moverFase: (...a: unknown[]) => moverFase(...a),
   buscarIdBoletin: (...a: unknown[]) => buscarIdBoletin(...a),
   sincronizarFichajeEnCurso: (...a: unknown[]) => sincronizarFichajeEnCurso(...a),
+  bonosTraspasados: (...a: unknown[]) => bonosTraspasados(...a),
 }));
 
 let dir: string;
@@ -45,6 +47,7 @@ beforeEach(() => {
   moverFase.mockReset().mockResolvedValue(undefined);
   buscarIdBoletin.mockReset().mockResolvedValue("4063655");
   sincronizarFichajeEnCurso.mockReset().mockResolvedValue(undefined);
+  bonosTraspasados.mockReset().mockResolvedValue(new Set());
 });
 
 const iv = (inicio: string, fin: string | null, ofIds: string[], operarioId: string): Intervalo => ({
@@ -174,6 +177,64 @@ describe("modo ensayo", () => {
 
     const escrito = insertarBono.mock.calls.at(-1)?.[0] as { traspasado: number };
     expect(escrito.traspasado).toBe(0);
+    delete process.env.FICHAJE_OLANET;
+  });
+});
+
+// Lo que evita que el mismo trabajo se cuente dos veces cuando el fichaje
+// empiece a subir de verdad: en cuanto OLANET traspasa un tramo, el tiempo lo
+// pone RPS y CoordinaOT deja de sumarlo.
+describe("confirmarTraspasos", () => {
+  let fichajeDb: typeof import("../server/fichaje-db");
+
+  const tramo = (operarioId: string, inicio: string, fin: string, of: string) =>
+    iv(inicio, fin, [of], operarioId);
+
+  const guardar = async (operarioId: string, i: Intervalo) => {
+    fichajeDb ??= await import("../server/fichaje-db");
+    fichajeDb.guardarFichaje(operarioId, { intervalos: [i] });
+  };
+
+  const cuenta = async (operarioId: string) => {
+    fichajeDb ??= await import("../server/fichaje-db");
+    return fichajeDb.leerTodosIntervalos().filter((x) => x.operarioId === operarioId).length;
+  };
+
+  it("en sombra y en ensayo no sella nada: ahí el tiempo NO llega a RPS", async () => {
+    // En ensayo el bono se escribe ya con traspasado = 2 para que OLANET no lo
+    // procese. Si eso se leyera como "ya está en RPS", el tiempo desaparecería
+    // del panel sin haber llegado a ninguna parte.
+    const i = tramo("alberto", "2026-08-05T08:00:00Z", "2026-08-05T08:30:00Z", "0231010:5");
+    await guardar("alberto", i);
+
+    delete process.env.FICHAJE_OLANET;
+    expect(await worker.confirmarTraspasos()).toBe(0);
+    process.env.FICHAJE_OLANET = "ensayo";
+    expect(await worker.confirmarTraspasos()).toBe(0);
+    expect(bonosTraspasados).not.toHaveBeenCalled();
+    expect(await cuenta("alberto")).toBe(1);
+    delete process.env.FICHAJE_OLANET;
+  });
+
+  it("en activo sella el tramo que OLANET ya traspasó, y solo ese", async () => {
+    process.env.FICHAJE_OLANET = "activo";
+    const suyo = tramo("angel", "2026-08-05T09:00:00Z", "2026-08-05T09:30:00Z", "0231011:5");
+    await guardar("angel", suyo);
+    const otro = tramo("adrian", "2026-08-05T09:00:00Z", "2026-08-05T09:30:00Z", "0231012:5");
+    await guardar("adrian", otro);
+
+    const { bonosDe, claveBonoRps } = await import("../bonos");
+    const { COD_RPS_POR_OPERARIO } = await import("../server/operarios");
+    bonosTraspasados.mockResolvedValue(
+      new Set(bonosDe([suyo], COD_RPS_POR_OPERARIO).map(claveBonoRps)),
+    );
+
+    expect(await worker.confirmarTraspasos()).toBe(1);
+    expect(await cuenta("angel")).toBe(0);
+    expect(await cuenta("adrian")).toBe(1);
+
+    // Segunda vuelta: no vuelve a sellar lo mismo.
+    expect(await worker.confirmarTraspasos()).toBe(0);
     delete process.env.FICHAJE_OLANET;
   });
 });

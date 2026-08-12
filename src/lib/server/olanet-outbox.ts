@@ -1,4 +1,4 @@
-import { bonosDe, type FilaBono } from "../bonos";
+import { bonosDe, claveBonoRps, type FilaBono } from "../bonos";
 import { eventosFaseDe, eventosFinalizacion, type EventoFase } from "../fases";
 import type { Intervalo } from "../fichaje";
 import { getDb } from "./estado-db";
@@ -53,7 +53,9 @@ interface FilaCola {
 }
 
 function claveBono(f: FilaBono): string {
-  return ["bono", f.of, f.numope, f.operario, f.ini, f.horaini].join("|");
+  // Mismas columnas que identifican el bono en OLANET (ver claveBonoRps), con
+  // el tipo delante porque esta clave convive con las de fase en la cola.
+  return `bono|${claveBonoRps(f)}`;
 }
 
 /** La hora entra en la clave: una misma fase se inicia e interrumpe muchas

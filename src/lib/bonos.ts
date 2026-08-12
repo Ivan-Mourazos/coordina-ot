@@ -118,6 +118,20 @@ function siguienteMedianoche(ms: number): number {
   return hi - (hi % 1000); // al segundo exacto
 }
 
+/** Identifica una línea de tiempo en `sch_RPS_bonos` sin depender de su `id`,
+ *  que es IDENTITY y lo pone OLANET.
+ *
+ *  Estas cinco columnas son las que hacen única a una fila nuestra: la misma
+ *  persona no puede tener dos tramos que empiecen en el mismo segundo del mismo
+ *  día sobre la misma OF y tarea. Se usa para dos cosas que tienen que hablar
+ *  del mismo bono: no encolar dos veces el mismo evento (olanet-outbox) y
+ *  reconocer después cuáles ya se traspasaron a RPS (traspaso-fichaje). */
+export function claveBonoRps(
+  f: Pick<FilaBono, "of" | "numope" | "operario" | "ini" | "horaini">,
+): string {
+  return [f.of, f.numope, f.operario, f.ini, f.horaini].join("|");
+}
+
 /** El id de OF de CoordinaOT es "orden:codTarea" (ver rps.ts). `numope` es el
  *  codTarea; sin él el bono no se puede imputar a ninguna tarea de RPS. */
 export function partirOfId(ofId: string): { of: string; numope: string } | null {

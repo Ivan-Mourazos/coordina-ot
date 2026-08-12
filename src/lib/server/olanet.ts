@@ -1,5 +1,5 @@
 import sql from "mssql";
-import type { FilaBono } from "../bonos";
+import { claveBonoRps, type FilaBono } from "../bonos";
 import type { EstadoFase } from "../fases";
 import { getPoolOlanet } from "./db";
 
@@ -45,6 +45,57 @@ export async function buscarIdBoletin(
       "SELECT TOP 1 IdBoletin FROM scg_Fases WHERE Orden = @of AND Fase = @fase",
     );
   return r.recordset[0]?.IdBoletin ?? null;
+}
+
+/** Claves de los bonos NUESTROS que OLANET ya traspasó a RPS.
+ *
+ *  `traspasado = 0` es "pendiente de traspasar"; cualquier otro valor significa
+ *  que OLANET ya lo procesó y el tiempo está en RPS (ver bonos.ts). En la tabla
+ *  real no queda ni una fila en 0, ni siquiera del mismo día: el traspaso va
+ *  muy por delante de esta comprobación, que corre cada minuto.
+ *
+ *  Se acota por día y operario en vez de preguntar bono a bono: `sch_RPS_bonos`
+ *  ronda el medio millón de filas y son decenas de tramos por vuelta. El cruce
+ *  fino se hace en memoria con la clave exacta. Sin días u operarios no se
+ *  pregunta nada. */
+export async function bonosTraspasados(
+  dias: readonly string[],
+  operarios: readonly string[],
+  maquina: string,
+): Promise<Set<string>> {
+  if (dias.length === 0 || operarios.length === 0) return new Set();
+  const peticion = (await getPoolOlanet()).request().input("maquina", sql.VarChar(50), maquina);
+  const marcasDia = dias.map((d, i) => {
+    peticion.input(`d${i}`, sql.DateTime, new Date(`${d}T00:00:00Z`));
+    return `@d${i}`;
+  });
+  const marcasOp = operarios.map((o, i) => {
+    peticion.input(`o${i}`, sql.VarChar(50), o);
+    return `@o${i}`;
+  });
+  const r = await peticion.query<{
+    of: string; numope: string; operario: string; ini: Date; horaini: string | number;
+  }>(
+    `SELECT [of], numope, operario, ini, horaini
+       FROM sch_RPS_bonos
+      WHERE maquina = @maquina
+        AND traspasado <> 0
+        AND ini IN (${marcasDia.join(", ")})
+        AND operario IN (${marcasOp.join(", ")})`,
+  );
+  return new Set(
+    r.recordset.map((f) =>
+      claveBonoRps({
+        of: (f.of ?? "").trim(),
+        numope: (f.numope ?? "").trim(),
+        operario: (f.operario ?? "").trim(),
+        // `ini` es un DATETIME a medianoche UTC: se escribió así (ver
+        // insertarBono), así que se lee así.
+        ini: f.ini.toISOString().slice(0, 10),
+        horaini: Number(f.horaini),
+      }),
+    ),
+  );
 }
 
 /** Inserta una línea de tiempo. `id` es IDENTITY: no se cubre. */
