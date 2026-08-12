@@ -1,5 +1,7 @@
 import type { Tablero } from "../data";
-import type { CompraOF, Familia, MaterialAsignado, OF, Pedido, Prioridad } from "../types";
+import type {
+  CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, Pedido, Prioridad,
+} from "../types";
 import { hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
@@ -74,6 +76,9 @@ interface FilaImputacion {
   orden: string | null;
   tarea: string | null;
   empleado: string | null;
+  /** Nombre del empleado en RPS. Es el único que hay para quien no está en el
+   *  mapa de operarios de OT (ver operarioDeEmpleado). */
+  nombre?: string | null;
   minutos: number | null;
   /** Primera fecha en la que ESE empleado imputó tiempo en la tarea. Opcional
    *  porque la query del historial no la pide (allí no se usa). */
@@ -434,6 +439,63 @@ export function primeraImputacion(fechas: (Date | null | undefined)[]): string |
     .sort()[0];
 }
 
+function agrupaImputaciones(
+  filas: FilaImputacion[],
+  claveDe: (f: FilaImputacion) => string,
+): Map<string, FilaImputacion[]> {
+  const porClave = new Map<string, FilaImputacion[]>();
+  for (const f of filas) {
+    const clave = claveDe(f);
+    const suyas = porClave.get(clave);
+    if (suyas) suyas.push(f);
+    else porClave.set(clave, [f]);
+  }
+  return porClave;
+}
+
+/** Quién ha imputado tiempo en esta OF y cuánto cada uno, de más a menos.
+ *
+ *  Es el registro de RPS tal cual, sin filtrar por Oficina Técnica: en la tarea
+ *  de OT quien imputa es de OT, pero la consulta del historial agrupa por OF y
+ *  ahí puede aparecer gente de taller — y si aparece, se enseña, porque el
+ *  tiempo que se ve en el total es suyo. A quien no está en el mapa de
+ *  operarios le queda su nombre de RPS, que es el único que hay.
+ *
+ *  La SQL ya agrupa por empleado, pero se vuelve a sumar aquí: así la función
+ *  vale para cualquier lote de filas y no depende de que la query agrupe. */
+export function desgloseImputaciones(filas: FilaImputacion[]): ImputacionRps[] {
+  const porEmpleado = new Map<string, ImputacionRps>();
+  for (const f of filas) {
+    const empleado = String(f.empleado ?? "").trim();
+    if (!empleado) continue;
+    const desde = fechaISO(f.desde ?? null) ?? undefined;
+    const ya = porEmpleado.get(empleado);
+    if (ya) {
+      ya.minutos += f.minutos ?? 0;
+      if (desde && (!ya.desde || desde < ya.desde)) ya.desde = desde;
+      continue;
+    }
+    porEmpleado.set(empleado, {
+      empleado,
+      nombre: (f.nombre ?? "").trim() || `Empleado ${empleado}`,
+      operarioId: operarioDeEmpleado(empleado),
+      minutos: f.minutos ?? 0,
+      ...(desde ? { desde } : {}),
+    });
+  }
+  return [...porEmpleado.values()].sort((a, b) => b.minutos - a.minutos);
+}
+
+/** El autor que se deduce de RPS: el operario de OT con más minutos imputados.
+ *
+ *  Se saca del mismo desglose que se enseña, y no de un recorrido aparte, para
+ *  que el panel no pueda decir "Autor: Alberto" mientras el desglose de al lado
+ *  da más minutos a otro. Gente de fuera de OT no puede ser autor: en el tablero
+ *  no existe a quién asignarle la OF. */
+export function autorDeImputaciones(desglose: ImputacionRps[]): string | null {
+  return desglose.find((i) => i.operarioId !== null)?.operarioId ?? null;
+}
+
 /** Respaldo de `PermiteImputaciones` para cuando la vista no lo traiga (una
  *  versión anterior, o la fila sin valor). Son las situaciones que hoy tienen
  *  AllowImputations en CPRManufacturingOrderSituation; si IT añade una nueva,
@@ -469,10 +531,9 @@ interface DatosOF {
   fichandoOperario: string | null | undefined;
   /** Todo el material de la OF, con lo reservado de cada línea. */
   materiales: MaterialAsignado[];
-  /** Operario del tablero con más tiempo imputado en la tarea (autor real). */
-  autorImputado: string | null;
-  /** Minutos imputados en la tarea de OT (todos los empleados). */
-  minutosImputados: number;
+  /** Quién ha imputado tiempo en la tarea de OT y cuánto cada uno, según RPS.
+   *  De aquí salen los minutos de planteo (la suma) y el autor deducido. */
+  imputaciones: ImputacionRps[];
   /** Tareas-nota de la ruta ("22/06 VISITA MEDIR"). */
   avisos: string[];
   /** Arranque planificado de la primera fase de producción tras el planteo. */
@@ -501,9 +562,15 @@ function materialYReservas(
   };
 }
 
+/** Los minutos de planteo son la SUMA del desglose, nunca un dato aparte: así
+ *  el total y el "quién echó cuánto" no pueden contarse cosas distintas. */
+function minutosDe(desglose: ImputacionRps[]): number {
+  return desglose.reduce((n, i) => n + i.minutos, 0);
+}
+
 function aOF(fila: FilaVista, datos: DatosOF): OF {
   const orden = (fila.OF ?? "").trim();
-  const fichadoMin = datos.minutosImputados;
+  const fichadoMin = minutosDe(datos.imputaciones);
   const sit = (fila.SitOF ?? "").trim().toUpperCase();
   const fichadaAhora = datos.fichandoOperario !== undefined;
   return {
@@ -515,7 +582,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     piezas: Math.max(1, Math.round(fila.Cantidad ?? 1)),
     // Autor: quien ficha ahora la OF o, si nadie, quien más tiempo le ha
     // imputado (según RPS). La asignación manual del tablero puede moverlo.
-    autorId: datos.fichandoOperario ?? datos.autorImputado,
+    autorId: datos.fichandoOperario ?? autorDeImputaciones(datos.imputaciones),
     revisorId: null,
     // El fichaje del terminal de RPS solo cubre el planteo; la revisión es
     // propia de CoordinaOT y aún no existe en origen.
@@ -535,6 +602,10 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     fichadaDesde: datos.fichadaDesde,
     tiempoEstimadoMin: fila.TiempoPrevisto ?? 0,
     tiempoPlanteoMin: fichadoMin,
+    // El desglose de esos minutos. Sin él, una OF de antes de la web enseñaba
+    // el tiempo pero no de quién era, y el autor deducido se llevaba de cara
+    // también las horas que había echado otro.
+    imputaciones: datos.imputaciones.length ? datos.imputaciones : undefined,
     tiempoRevisionMin: 0,
     observacion: (fila.NotasOF ?? "").trim() || undefined,
   };
@@ -550,8 +621,7 @@ interface ExtrasOF {
 
 function aOFHistorial(
   fila: FilaHistorial,
-  minutosImputados: number,
-  autorImputado: string | null,
+  imputaciones: ImputacionRps[],
   extras: ExtrasOF,
 ): OF {
   const orden = (fila.orden ?? "").trim();
@@ -561,12 +631,13 @@ function aOFHistorial(
     descripcion: (fila.descripcionMO ?? "").trim() || "(sin descripción)",
     familia: familiaDeTexto(fila.descripcionMO, null),
     piezas: Math.max(1, Math.round(fila.cantidad ?? 1)),
-    autorId: autorImputado,
+    autorId: autorDeImputaciones(imputaciones),
     revisorId: null,
     estado: "aprobada",
     fichandoRol: null,
     tiempoEstimadoMin: 0,
-    tiempoPlanteoMin: minutosImputados,
+    tiempoPlanteoMin: minutosDe(imputaciones),
+    imputaciones: imputaciones.length ? imputaciones : undefined,
     tiempoRevisionMin: 0,
     ...materialYReservas(extras.materiales),
     avisos: extras.avisos.length ? extras.avisos : undefined,
@@ -763,7 +834,8 @@ async function consultarTablero(): Promise<Tablero> {
     // es 0217537, con 23 horas encima desde el 10/10/2025.
     pool.request().query<FilaImputacion>(`
       SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
-             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos,
+             e.CodEmployee AS empleado, e.Description AS nombre,
+             SUM(i.ExecutionTime) AS minutos,
              MIN(CASE WHEN i.ImputationDate <= GETDATE() THEN i.ImputationDate END) AS desde
       FROM dbo.CPRImputationMO i
       JOIN dbo.CPRManufacturingOrder mo
@@ -771,7 +843,7 @@ async function consultarTablero(): Promise<Tablero> {
       JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
       JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
       WHERE mo.CodManufacturingOrder IN (${listaIn})
-      GROUP BY mo.CodManufacturingOrder, t.CodMOTask, e.CodEmployee
+      GROUP BY mo.CodManufacturingOrder, t.CodMOTask, e.CodEmployee, e.Description
     `),
     // Contexto del pedido de venta: comentario, ciudad y fecha solicitada
     // (la de las líneas; la cabecera suele traer el centinela 1900-01-01).
@@ -803,7 +875,8 @@ async function consultarTablero(): Promise<Tablero> {
     // confección… y el "planteo" saldría inflado (p.ej. 6 min reales → 5 h).
     pool.request().query<FilaImputacion>(`
       SELECT mo.CodManufacturingOrder AS orden, NULL AS tarea,
-             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+             e.CodEmployee AS empleado, e.Description AS nombre,
+             SUM(i.ExecutionTime) AS minutos
       FROM dbo.CPRImputationMO i
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
@@ -815,7 +888,7 @@ async function consultarTablero(): Promise<Tablero> {
           WHERE rm.IDMOTask = t.IDMOTask
             AND rm.CodMOResourceMachine IN ('a-otec', 'otec-a')
         )
-      GROUP BY mo.CodManufacturingOrder, e.CodEmployee
+      GROUP BY mo.CodManufacturingOrder, e.CodEmployee, e.Description
     `),
     // Subfamilia del artículo de cada OF. La vista no la trae: su `Articulo` es
     // `cantidad - CodProductFamily`, y la familia sola se queda corta donde el
@@ -912,45 +985,31 @@ async function consultarTablero(): Promise<Tablero> {
     ]),
   );
 
-  // Por OF+tarea: minutos totales imputados (tiempo de planteo ya fichado,
-  // la vista dejó de traerlo) y autor real (operario del tablero con más
-  // minutos).
-  const minutosPorTarea = new Map<string, number>();
-  const autorPorTarea = new Map<string, { op: string; min: number }>();
-  // Fechas sueltas por OF+tarea: la query da una por empleado y la buena es la
-  // más temprana de todas (ver `primeraImputacion`), así que se juntan antes de
-  // decidir. Son 86 filas en la vista real: no compensa afinar más.
-  const fechasPorTarea = new Map<string, (Date | null | undefined)[]>();
-  for (const r of imputaciones.recordset) {
-    const clave = `${(r.orden ?? "").trim()}:${(r.tarea ?? "").trim()}`;
-    const min = r.minutos ?? 0;
-    minutosPorTarea.set(clave, (minutosPorTarea.get(clave) ?? 0) + min);
-    const suyas = fechasPorTarea.get(clave) ?? [];
-    suyas.push(r.desde);
-    fechasPorTarea.set(clave, suyas);
-    const op = operarioDeEmpleado(r.empleado);
-    if (!op) continue;
-    const actual = autorPorTarea.get(clave);
-    if (!actual || min > actual.min) autorPorTarea.set(clave, { op, min });
-  }
-
+  // Imputaciones de RPS por OF+tarea, agrupadas por persona. De aquí salen las
+  // tres cosas que antes se calculaban en tres sitios y podían no cuadrar: el
+  // desglose que se enseña, el total de minutos (su suma) y el autor deducido
+  // (el de OT con más). Las fechas se juntan y se decide con `primeraImputacion`
+  // (la buena es la MÁS temprana, no la de la primera fila que llegue).
+  const filasPorTarea = agrupaImputaciones(
+    imputaciones.recordset,
+    (r) => `${(r.orden ?? "").trim()}:${(r.tarea ?? "").trim()}`,
+  );
+  const desglosePorTarea = new Map<string, ImputacionRps[]>();
   const desdePorTarea = new Map<string, string>();
-  for (const [clave, fechas] of fechasPorTarea) {
-    const desde = primeraImputacion(fechas);
+  for (const [clave, filas] of filasPorTarea) {
+    desglosePorTarea.set(clave, desgloseImputaciones(filas));
+    const desde = primeraImputacion(filas.map((f) => f.desde));
     if (desde) desdePorTarea.set(clave, desde);
   }
 
-  // Autor/minutos del historial, por OF (una sola fase de OT por OF).
-  const minutosPorOFHist = new Map<string, number>();
-  const autorPorOFHist = new Map<string, { op: string; min: number }>();
-  for (const r of imputacionesHist.recordset) {
-    const orden = (r.orden ?? "").trim();
-    const min = r.minutos ?? 0;
-    minutosPorOFHist.set(orden, (minutosPorOFHist.get(orden) ?? 0) + min);
-    const op = operarioDeEmpleado(r.empleado);
-    if (!op) continue;
-    const actual = autorPorOFHist.get(orden);
-    if (!actual || min > actual.min) autorPorOFHist.set(orden, { op, min });
+  // Lo mismo para el historial, por OF (una sola fase de OT por OF, así que
+  // ahí la clave no lleva tarea).
+  const desglosePorOFHist = new Map<string, ImputacionRps[]>();
+  for (const [orden, filas] of agrupaImputaciones(
+    imputacionesHist.recordset,
+    (r) => (r.orden ?? "").trim(),
+  )) {
+    desglosePorOFHist.set(orden, desgloseImputaciones(filas));
   }
 
   // Una OF puede tener más de una fase de OT marcada finalizada en la
@@ -1019,12 +1078,10 @@ async function consultarTablero(): Promise<Tablero> {
       scanUrl,
       ofs: filas.map((f) => {
         const orden = (f.orden ?? "").trim();
-        return aOFHistorial(
-          f,
-          minutosPorOFHist.get(orden) ?? 0,
-          autorPorOFHist.get(orden)?.op ?? null,
-          { materiales: materialesPorOF.get(orden) ?? [], avisos: avisosDe(orden) },
-        );
+        return aOFHistorial(f, desglosePorOFHist.get(orden) ?? [], {
+          materiales: materialesPorOF.get(orden) ?? [],
+          avisos: avisosDe(orden),
+        });
       }),
       comentarioVenta:
         filas.map((f) => (f.comentario ?? "").trim()).find(Boolean) || undefined,
@@ -1158,8 +1215,7 @@ async function consultarTablero(): Promise<Tablero> {
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
           materiales: materialesPorOF.get(orden) ?? [],
           compras: comprasPorOF.get(orden) ?? [],
-          autorImputado: autorPorTarea.get(clave)?.op ?? null,
-          minutosImputados: minutosPorTarea.get(clave) ?? 0,
+          imputaciones: desglosePorTarea.get(clave) ?? [],
           // Misma clave OF+tarea que los minutos: el "desde cuándo" y el
           // "cuánto llevas" hablan siempre del mismo trabajo.
           fichadaDesde: desdePorTarea.get(clave),

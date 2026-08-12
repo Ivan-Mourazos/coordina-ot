@@ -16,9 +16,11 @@ import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
+import { minutosEnCoordina } from "@/lib/imputaciones";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
+import { FichadoEnRps } from "./FichadoEnRps";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
@@ -464,7 +466,13 @@ function LineaRol({
   /** Cómo se llama el tiempo: "planteo" / "revisión". */
   trabajo: string;
   op: Operario | null;
-  min: number;
+  /** Minutos fichados EN COORDINAOT, o null para no enseñar ninguno.
+   *
+   *  Lo que se fichó en el terminal de siempre no entra aquí: va al desglose de
+   *  "Ya fichado en RPS", que está justo debajo y lo reparte por persona.
+   *  Sumarlo también en esta línea sería el mismo dato dos veces, y encima peor
+   *  contado, porque aquí saldría todo bajo un solo nombre. */
+  min: number | null;
   live: boolean;
   /** Sustituye al nombre cuando la persona se puede cambiar desde aquí (el
    *  autor se traspasa mientras quede trabajo suyo). El revisor sigue siendo
@@ -474,7 +482,11 @@ function LineaRol({
   return (
     <div
       className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5"
-      title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. ${fmtMin(min)} de ${trabajo} fichados en esta OF, que pueden repartirse entre varias personas: el tiempo se imputa a quien lo echa, aunque la OF sea de otro.`}
+      title={
+        min === null
+          ? `${rotulo}: ${op ? op.nombre : "sin asignar"}. Sin tiempo de ${trabajo} fichado en CoordinaOT; el que se fichó en el terminal de siempre está desglosado por persona ahí abajo.`
+          : `${rotulo}: ${op ? op.nombre : "sin asignar"}. ${fmtMin(min)} de ${trabajo} fichados en CoordinaOT, que pueden repartirse entre varias personas: el tiempo se imputa a quien lo echa, aunque la OF sea de otro. Lo fichado en el terminal de siempre va aparte, en el desglose de RPS.`
+      }
     >
       <span
         className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[rol].chip}`}
@@ -499,9 +511,11 @@ function LineaRol({
       {/* El punto pulsante no repite el rol (el badge de la cabecera de la OF
           ya lo dice): solo señala CUÁL de las dos líneas está corriendo. */}
       {live && <LiveDot rol={rol} className="size-1.5" />}
-      <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-text-muted">
-        {trabajo} <b className="font-semibold text-text">{fmtMin(min)}</b>
-      </span>
+      {min !== null && (
+        <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-text-muted">
+          {trabajo} <b className="font-semibold text-text">{fmtMin(min)}</b>
+        </span>
+      )}
     </div>
   );
 }
@@ -533,6 +547,11 @@ function OFRow({
   const anulacion = of.estado === "anulada" ? leerAnulacion(of.observacion) : null;
   const autor = opById(of.autorId);
   const revisor = opById(of.revisorId);
+  // Cada minuto se enseña UNA vez y en su sitio: lo fichado en el terminal de
+  // siempre va al desglose de RPS (por persona), y en la línea de Autor queda
+  // solo lo fichado aquí. Si no se fichó aquí, la línea va sin tiempo: los
+  // minutos ya están abajo con su dueño. El "Total" sigue sumando los dos.
+  const planteoAqui = minutosEnCoordina(of);
 
   return (
     <li className="glass-chip rounded-xl p-3">
@@ -671,7 +690,7 @@ function OFRow({
           rotulo="Autor"
           trabajo="planteo"
           op={autor}
-          min={of.tiempoPlanteoMin}
+          min={planteoAqui > 0 ? planteoAqui : null}
           live={of.fichandoRol === "plantear"}
           control={
             puedeTraspasarAutor(of) ? (
@@ -691,10 +710,20 @@ function OFRow({
           rotulo="Revisor"
           trabajo="revisión"
           op={revisor}
-          min={of.tiempoRevisionMin}
+          // La revisión no existe en RPS: o se fichó aquí, o no hay nada que
+          // enseñar (un "revisión 0m" no informa de nada).
+          min={of.tiempoRevisionMin > 0 ? of.tiempoRevisionMin : null}
           live={of.fichandoRol === "revisar"}
         />
       </div>
+
+      {/* El desglose de RPS, debajo y aparte: la línea de Autor dice de quién
+          es la OF, y esto dice quién la fichó y cuánto. En los pedidos de antes
+          de la web lo primero no existe, y sin esto el panel solo enseñaba el
+          total sin dueño. */}
+      {of.imputaciones && (
+        <FichadoEnRps imputaciones={of.imputaciones} opById={opById} />
+      )}
 
       {/* El total contra lo estimado. El reloj ya NO va aquí: bajó a la fila de
           acciones, ver el comentario de AccionesOF. */}

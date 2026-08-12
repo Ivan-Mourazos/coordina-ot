@@ -192,6 +192,26 @@ export interface Operario {
   color: string; // acento del encabezado de su zona
 }
 
+/** Lo que UNA persona lleva imputado en la tarea de OT de una OF, según RPS.
+ *
+ *  Es el registro real del terminal de fichaje, y NO tiene por qué coincidir con
+ *  el autor asignado en CoordinaOT: en los pedidos de antes de la web no había
+ *  asignación ninguna, y el tiempo puede repartirse entre varios (en la vista
+ *  del 12/08/2026, 7 de las 18 OFs con tiempo lo tienen de más de uno; la 0217537
+ *  son 21 h 27 de Alberto y 1 h 33 de Jaime). */
+export interface ImputacionRps {
+  /** CodEmployee de RPS. Identifica la fila aunque no sea gente de OT. */
+  empleado: string;
+  /** Nombre en RPS ("CARBON SEXTO, ALBERTO"). Es el único que hay para quien
+   *  no está en el mapa de operarios (alguien de taller, o que ya no está). */
+  nombre: string;
+  /** Operario del tablero, o null si ese empleado no es de Oficina Técnica. */
+  operarioId: string | null;
+  minutos: number;
+  /** Día (ISO) de su primera imputación, si RPS lo da. */
+  desde?: string;
+}
+
 /** Orden de Fabricación: una unidad del pedido (p.ej. cada remolque). */
 export interface OF {
   id: string;
@@ -279,6 +299,16 @@ export interface OF {
   subfamilia?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
+  /** El desglose de ESOS mismos minutos, persona a persona, según RPS.
+   *
+   *  `tiempoPlanteoMin` es su suma, así que las dos cifras no pueden
+   *  contradecirse. Existe porque el total solo decía CUÁNTO: en un pedido de
+   *  antes de la web no había autor asignado y el panel enseñaba "23 h de
+   *  planteo" sin decir de quién, o —peor— colgadas del autor deducido, que es
+   *  el que más tiempo lleva y no siempre el único.
+   *
+   *  Ordenado de más minutos a menos. undefined = no hay dato de RPS (mock). */
+  imputaciones?: ImputacionRps[];
   tiempoRevisionMin: number; // acumulado por el/los revisores
   /** Archivos del planteamiento subidos a RPS (solo OF aprobadas). */
   archivosRps?: string[];
