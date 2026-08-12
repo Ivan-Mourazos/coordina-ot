@@ -145,19 +145,21 @@ function ofsMiasDe(p: Pedido, miId: string): OF[] {
   );
 }
 
-/** Panel flotante "Mi fichaje". Píldora colapsada en la esquina inferior
- *  derecha que se expande a un panel con DOS caras, según el reloj:
+/** Panel flotante "Mi fichaje": el RELOJ, no la lista de trabajo. Contesta a
+ *  dos preguntas y a ninguna más — "¿qué estoy contando ahora?" y "¿qué dejé
+ *  pausado?". Repartir trabajo es cosa del tablero.
  *
- *  · Corriendo → qué estoy fichando AHORA: el pedido en marcha con sus OF, el
- *    tiempo de cada una y el total del día.
- *  · Parado → qué tengo empezado y sin terminar, con el estado de cada OF y
- *    desde cuándo está parada. Antes esta cara no enseñaba nada ("no estás
- *    fichando"), que es justo cuando hace falta saber qué quedó a medias.
+ *  Tres tamaños, a elegir y se recuerdan (ver ModoPanel):
  *
- *  Un solo fichaje corre a la vez (un intervalo = un rol). Desde aquí se para
- *  OF a OF o el pedido entero, se retoma lo interrumpido y se pausa/reanuda el
- *  fichaje completo. Asignar trabajo nuevo sigue siendo cosa del tablero: este
- *  panel responde a "¿qué estoy contando?" y a "¿qué dejé a medias?". */
+ *  · Todo    → lo que corre AHORA y además lo pausado: empezado, sin terminar,
+ *    con su estado y desde cuándo está parado.
+ *  · Pedido  → solo lo que corre en directo, con sus tiempos. Con el reloj
+ *    parado no enseña nada, y así debe ser: para eso está "Todo".
+ *  · Píldora → el resumen mínimo en la esquina, siempre visible.
+ *
+ *  Un solo fichaje corre a la vez (un intervalo = un rol). Se para y se retoma
+ *  OF a OF o por pedido, siempre con el código delante: aquí no hay botones que
+ *  actúen sobre "todo" sin decir sobre qué. */
 export function MiFichaje({
   miId,
   operarios,
@@ -340,14 +342,11 @@ export function MiFichaje({
   const aMediasSinRepetir = aMediasOrden.filter(
     (g) => !grupos.some((x) => x.pedido.id === g.pedido.id),
   );
-  const mostrados =
-    modo === "completo"
-      ? [...grupos, ...aMediasSinRepetir]
-      : ab
-        ? grupos
-        : // Compacto y sin reloj: el último que se dejó a medias, que es lo que
-          // se retoma. La lista entera es justo lo que distingue a "Todo".
-          aMediasOrden.slice(0, 1);
+  //  · "Todo"   → lo que corre AHORA y además lo pausado (empezado y a medias).
+  //  · "Pedido" → solo lo que corre en directo. Con el reloj parado no enseña
+  //    nada, y está bien: para eso está "Todo". Este panel es el reloj, no la
+  //    lista de trabajo — eso es el tablero.
+  const mostrados = modo === "completo" ? [...grupos, ...aMediasSinRepetir] : grupos;
   // Con varios pedidos a la vez el cuadrito deja de ser un cuadrito: las filas
   // se aprietan y se quedan solo el código, el estado, el tiempo y el botón.
   const denso = modo === "compacto" && mostrados.length > 1;
@@ -442,7 +441,7 @@ export function MiFichaje({
 
           {/* Con el reloj parado hay que decir QUÉ es esta lista: no es lo que
               se está fichando (nada lo está), es lo que quedó a medias. */}
-          {!ab && mostrados.length > 0 && (
+          {!ab && modo === "completo" && mostrados.length > 0 && (
             <p className="mb-1.5 text-[11px] leading-snug text-text-muted">
               Tienes esto empezado y sin terminar:
             </p>
@@ -452,7 +451,11 @@ export function MiFichaje({
           <ul className={`scroll-thin -mx-1 flex-1 overflow-y-auto px-1 ${denso ? "space-y-1" : "space-y-2"}`}>
             {mostrados.length === 0 && (
               <li className="px-1 py-6 text-center text-xs text-text-muted">
-                {ab ? "No estás fichando nada ahora." : "No tienes nada empezado a medias."}
+                {modo === "compacto"
+                  ? "Nada corriendo ahora mismo."
+                  : ab
+                    ? "No estás fichando nada ahora."
+                    : "No tienes nada empezado a medias."}
               </li>
             )}
             {mostrados.map((g) => (
