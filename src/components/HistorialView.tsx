@@ -10,6 +10,7 @@ import { FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { RolChip } from "./RolChip";
 import { Desplegable } from "./Desplegable";
+import { Select } from "./Select";
 
 /** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
  *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
@@ -71,6 +72,7 @@ export function HistorialView({
 
   // Clave de filtros: al cambiar, se reinicia la lista.
   const filtrosKey = `${q}|${desde}|${hasta}|${familia ?? ""}|${cliente ?? ""}`;
+  const hayFiltros = Boolean(q.trim() || desde || hasta || familia || cliente);
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
   // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
@@ -168,61 +170,89 @@ export function HistorialView({
         </section>
       )}
 
-      {/* Filtros propios del historial */}
-      <div className="flex flex-wrap items-end gap-3">
+      {/* ── Filtros ───────────────────────────────────────────────────────
+          Estaban a medio hacer y desalineados con el resto de la app: los
+          rótulos hablaban solo de pedidos "AR" (existen también SA y BE, ver
+          `esCodigoPedido`), la familia se elegía en una fila de catorce chips
+          que ocupaba dos alturas, y no había forma de saber qué había puesto ni
+          de quitarlo todo de una vez — cosa que las otras dos vistas sí tienen.
+          Ahora la barra es una sola fila con los mismos controles que Pendientes
+          y Revisiones, y dice lo que está recortando. */}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
         <label className="flex flex-col text-xs text-text-muted">
-          Buscar (AR o cliente)
+          Pedido o cliente
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="AR.26… o cliente"
-            className="mt-1 w-56 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+            placeholder="AR.26.03376, SA.26…, MAHOU…"
+            className="mt-1 w-60 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
           />
         </label>
-        <label className="flex flex-col text-xs text-text-muted">
-          Desde
-          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-            className="mt-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text" />
-        </label>
-        <label className="flex flex-col text-xs text-text-muted">
-          Hasta
-          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-            className="mt-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text" />
-        </label>
         <ClienteAutocomplete value={cliente} onChange={setCliente} />
-      </div>
-
-      <div className="flex w-full flex-wrap gap-1.5">
-        {/* "Todas" explícito: sin él, volver a ver todo dependía de acordarse
-            de repulsar la familia activa, que no se ve por ningún lado. */}
-        <button
-          onClick={() => setFamilia(null)}
-          aria-pressed={familia === null}
-          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${
-            familia === null
-              ? "bg-text text-surface ring-transparent"
-              : "text-text-muted ring-border hover:text-text"
-          }`}
-        >
-          Todas
-        </button>
-        {FAMILIAS_FILTRABLES.map((fam) => {
-          const activa = familia === fam;
-          const meta = familiaMeta(fam);
-          return (
-            <button
-              key={fam}
-              onClick={() => setFamilia(activa ? null : fam)}
-              aria-pressed={activa}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${
-                activa ? "text-white ring-transparent" : "text-text-muted ring-border hover:text-text"
-              }`}
-              style={activa ? { background: meta.color } : undefined}
-            >
-              {meta.label ?? fam}
-            </button>
-          );
-        })}
+        <label className="flex flex-col text-xs text-text-muted">
+          Familia
+          <span className="mt-1">
+            <Select
+              value={familia}
+              onChange={setFamilia}
+              placeholder="Todas"
+              etiquetaVaciar="Todas las familias"
+              options={FAMILIAS_FILTRABLES.map((fam) => {
+                const meta = familiaMeta(fam);
+                return {
+                  value: fam,
+                  label: meta.label ?? fam,
+                  icon: (
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ background: meta.color }}
+                      aria-hidden="true"
+                    />
+                  ),
+                };
+              })}
+            />
+          </span>
+        </label>
+        {/* "Pasado a Producción entre…": las dos fechas van juntas y rotuladas
+            como lo que miden. Sueltas, "Desde" y "Hasta" no decían de qué
+            fecha hablaban — el historial tiene la de pasar y la de entrega. */}
+        <div className="flex flex-col text-xs text-text-muted">
+          Pasado a Producción
+          <span className="mt-1 flex items-center gap-1.5">
+            <input
+              type="date"
+              value={desde}
+              aria-label="Pasado a Producción desde"
+              max={hasta || undefined}
+              onChange={(e) => setDesde(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+            />
+            <span className="text-text-muted">a</span>
+            <input
+              type="date"
+              value={hasta}
+              aria-label="Pasado a Producción hasta"
+              min={desde || undefined}
+              onChange={(e) => setHasta(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+            />
+          </span>
+        </div>
+        {hayFiltros && (
+          <button
+            onClick={() => {
+              setQ("");
+              setDesde("");
+              setHasta("");
+              setFamilia(null);
+              setCliente(null);
+            }}
+            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
+          >
+            Limpiar
+          </button>
+        )}
       </div>
 
       {error && (
@@ -235,9 +265,28 @@ export function HistorialView({
       )}
 
       {!error && items.length === 0 && !cargando && (
-        <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border text-sm text-text-muted">
-          Sin resultados con estos filtros.
+        <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border px-6 text-center">
+          <div>
+            <p className="text-sm font-semibold text-text">
+              {hayFiltros ? "Ningún pedido pasa los filtros" : "El historial está vacío"}
+            </p>
+            <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
+              {hayFiltros
+                ? "Prueba con otro texto o amplía el periodo."
+                : "Aquí van cayendo los pedidos según Oficina Técnica los pasa a Producción."}
+            </p>
+          </div>
         </div>
+      )}
+
+      {/* Cuántos se están viendo. Con scroll infinito y filtros puestos, sin
+          este número no había forma de saber si la búsqueda había encontrado
+          tres pedidos o trescientos. */}
+      {!error && items.length > 0 && (
+        <p className="text-[11px] text-text-muted">
+          {items.length} pedido{items.length === 1 ? "" : "s"}
+          {hasMore ? " y subiendo — baja para cargar más" : ""}
+        </p>
       )}
 
       {/* Más juntas: el Historial se lee comparando filas —cuándo se pasó qué y
@@ -513,9 +562,9 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
           no ocupa nada (`Desplegable` devuelve null). */}
       <Desplegable abierto={desplegado}>
         <div className="border-t border-border px-4 py-2">
-          {cargando && <p className="py-1 text-xs text-text-muted">Cargando OFs…</p>}
-          {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OFs.</p>}
-          {ofs?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OFs.</p>}
+          {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
+          {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
+          {ofs?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OF.</p>}
           <ul className="space-y-1.5">
             {ofs?.map((of) => (
               <li key={of.codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

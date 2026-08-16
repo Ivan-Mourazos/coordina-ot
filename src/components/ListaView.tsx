@@ -1,13 +1,21 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import type { OF, Operario, Pedido } from "@/lib/types";
-import { estaFinalizado, familiasDe, hoyISO, tiempoTotalOF } from "@/lib/types";
+import type { EstadoMaterial, OF, Operario, Pedido } from "@/lib/types";
+import {
+  comprasPendientes,
+  estaFinalizado,
+  estadoMaterialDe,
+  familiasDe,
+  hoyISO,
+  piezasTotal,
+  tiempoTotalOF,
+} from "@/lib/types";
 import { ESTADO, fmtMin, PRIORIDAD, ROL } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { estadoDePedido } from "@/lib/frase-estado";
-import { diasEntre, relativoA, type TonoFecha } from "@/lib/fechas";
-import { lineaTiempo, repartirEtiquetas } from "@/lib/linea-tiempo";
+import { relativoA, type TonoFecha } from "@/lib/fechas";
+import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -139,58 +147,6 @@ const ANCHO_FECHA_PX = 36;
  *  cada fecha sobresale por los extremos (van centradas sobre su hito). */
 const ANCHO_FECHA_PCT = (ANCHO_FECHA_PX / (RECORRIDO_PX - CHIP_TARDE_PX)) * 100;
 
-/** Color de cada tramo del recorrido. Escalada, no degradado: el pedido
- *  cambia de tramo un día concreto, y verlo cambiar de golpe es la
- *  información. Hex y no clases de Tailwind porque van en un `style`. */
-// OJO con el significado: la fecha límite de OT es la PLANIFICADA, no la
-// solicitada. Es el día en que el pedido debería estar planteado, así que
-// pasarla ya es ir tarde aunque a Producción le sobren tres semanas. Por eso
-// la escalada arranca ahí y no al final.
-// Variables de tema y no hex fijos: estos colores van sobre el fondo de la
-// tabla y sobre blanco el verde y el ámbar de siempre se leían a 2,5:1 — la
-// fecha planificada, que es el dato central de esta columna, quedaba
-// prácticamente invisible en tema claro. Y al revés en oscuro, donde se
-// apagaban el rojo y el morado, justo los estados urgentes. Los valores de
-// cada tema están en globals.css; el patrón es el que ya usa
-// LineaTiempoPedido.tsx para lo mismo.
-const TRAMO = {
-  /** Hasta la planificación: OT llega a tiempo. */
-  holgado: "var(--tramo-holgado)",
-  /** Pasada la planificación: OT ya va tarde, pero Producción aún llega. */
-  trabajo: "var(--tramo-trabajo)",
-  /** Pasada la fabricación: el retraso se come el margen de Producción. */
-  ajustado: "var(--tramo-ajustado)",
-  /** Pasada la solicitada. Fuera de la escalada a propósito: no es "más
-   *  rojo", es otra cosa — la fecha ya se incumplió. */
-  fuera: "var(--tramo-fuera)",
-} as const;
-
-/** Los tramos de la línea, ya recortados a [0, 100].
- *
- *  Se calcula aquí y no en el pintado porque RPS da las fechas desordenadas
- *  (la fabricación puede caer después de la solicitada) y un tramo al revés
- *  dibujaría un trozo de ancho negativo. */
-export function tramosRecorrido(
-  pctPlanificacion: number,
-  pctFabricacion: number | undefined,
-): { desde: number; hasta: number; color: string }[] {
-  const corte = (n: number) => Math.max(0, Math.min(100, n));
-  const p = corte(pctPlanificacion);
-  // Sin fecha de fabricación, el tramo de trabajo llega hasta el FINAL, no se
-  // queda en cero. Antes valía `p`, así que el naranja desaparecía y bastaba
-  // pasarse un día de la planificada para pintar la línea entera de rojo: un
-  // pedido con un día de retraso se veía igual de grave que uno vencido, y con
-  // la regla nueva que descarta fabricaciones imposibles eso le pasaba a media
-  // lista. Rojo solo cuando de verdad se come el margen de Producción, y para
-  // "ya se incumplió la entrega" está el morado de `vencido`.
-  const f = pctFabricacion === undefined ? 100 : Math.max(p, corte(pctFabricacion));
-  return [
-    { desde: 0, hasta: p, color: TRAMO.holgado },
-    { desde: p, hasta: f, color: TRAMO.trabajo },
-    { desde: f, hasta: 100, color: TRAMO.ajustado },
-  ].filter((t) => t.hasta > t.desde);
-}
-
 /** El recorrido del pedido en una fila: los hitos a escala con su fecha
  *  encima, y el punto de hoy moviéndose por encima.
  *
@@ -202,37 +158,19 @@ export function tramosRecorrido(
  *  Los rótulos (Creación, Planificación…) NO se repiten por fila: el orden es
  *  el mismo en todas, así que viven una sola vez en la cabecera. */
 function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
-  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = lineaTiempo(pedido, hoy);
+  const linea = lineaTiempo(pedido, hoy);
+  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = linea;
   const etiquetas = repartirEtiquetas(
     hitos.map((h) => h.pct),
     ANCHO_FECHA_PCT,
     ANCHO_FECHA_PCT / 2,
   );
-  // Sin fecha de planteo NO se colorea nada: ni el tramo, ni la fecha de
-  // referencia, ni el chip de retraso. La escalada mide contra el día en que
-  // esto debería estar planteado, y aquí ese día no se sabe — lo que hay es la
-  // entrega, que en estos partes viene mal más veces que bien (7 de 25 la
-  // tienen ya pasada el día que entran). AR.26.03947 entró el 07/08 con la
-  // entrega el 13/08 y salía en rojo: la línea afirmaba un retraso que nadie
-  // había medido. Gris y un rótulo que lo explica dice la verdad.
-  const sinPlanificar = pedido.planificacionEstimada === true;
-  const pctPlan = hitos.find((h) => h.clave === "planificacion")?.pct;
-  const tramos =
-    pctPlan === undefined
-      ? []
-      : tramosRecorrido(pctPlan, hitos.find((h) => h.clave === "fabricacion")?.pct);
-  // El retraso que le importa a OT se cuenta desde la PLANIFICADA: ese es el
-  // día en que el pedido debería estar planteado. La solicitada es la del
-  // cliente y llega mucho después; medir contra ella diría "vas bien" con el
-  // planteo dos semanas pasado de fecha.
-  const diasTarde = diasEntre(pedido.fechaPlanificacion, hoy);
-  const vencido = diasParaEntrega < 0;
-  // El día planificado cuenta como EN PLAZO: quien lo tiene para hoy va a
-  // tiempo hasta que acabe la jornada. Antes `hoyPct` caía justo en el corte
-  // del tramo y la línea se ponía naranja a primera hora del día en que
-  // tocaba, avisando de un retraso que todavía no existía.
-  const enPlazo = diasTarde <= 0;
-  const esHoyLaPlanificada = diasTarde === 0;
+  // Dónde cae hoy en la escalada, y de qué color va. Lo decide
+  // `urgenciaRecorrido`, que es lo mismo que usa la línea del detalle: cuando
+  // cada una lo calculaba por su cuenta, el mismo pedido salía de un color en
+  // la lista y de otro al abrirlo.
+  const { actual, color, sinPlanificar, diasTarde, esHoyLaPlanificada, vencido } =
+    urgenciaRecorrido(linea, pedido, hoy);
   // Con el año cuando el recorrido cruza de un año a otro.
   //
   // Sin él, un pedido creado el 02/12/2024 y planificado el 16/06/2027 pintaba
@@ -244,15 +182,6 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   const aniosDistintos = new Set(hitos.map((h) => h.iso.slice(0, 4))).size > 1;
   const fmtHito = (iso: string) =>
     `${iso.slice(8)}/${iso.slice(5, 7)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
-  // SOLO se pinta el tramo en el que está el pedido hoy; el resto queda en
-  // gris. Pintarlos todos teñía de rojo el último trozo de cada fila, y ese
-  // tramo es normal: todos los pedidos pasan por él llegando a tiempo. Así el
-  // color aparece únicamente cuando dice algo de ESTE pedido, ahora.
-  const actual =
-    tramos.find((t) => hoyPct >= t.desde && hoyPct < t.hasta) ??
-    // Hoy pegado al extremo derecho (o pasado): el último tramo es el suyo.
-    (hoyPct >= 100 ? tramos[tramos.length - 1] : undefined);
-
   return (
     // `w-full` a secas: el ancho lo manda la COLUMNA (ver RECORRIDO_W) y la
     // línea solo tiene que llenarla.
@@ -278,17 +207,10 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           // (ahí no se pinta hito de planificación, porque sería la misma fecha
           // repetida). Así el color está siempre en el mismo sitio de la línea:
           // la fecha que manda.
-          const color =
-            !h.referencia || sinPlanificar
-              ? undefined
-              : enPlazo
-                ? TRAMO.holgado
-                : vencido
-                  ? TRAMO.fuera
-                  : (actual?.color ?? TRAMO.trabajo);
+          const colorHito = h.referencia ? color : undefined;
           const cuanto = esHoyLaPlanificada
             ? " (es hoy)"
-            : enPlazo
+            : diasTarde < 0
               ? ` (quedan ${-diasTarde} d)`
               : ` (pasada hace ${diasTarde} d)`;
           return (
@@ -297,7 +219,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
               className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px] leading-none ${
                 h.referencia ? "font-bold" : "text-text-muted"
               }`}
-              style={{ left: `${etiquetas[i]}%`, color }}
+              style={{ left: `${etiquetas[i]}%`, color: colorHito }}
               title={
                 !h.referencia
                   ? `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
@@ -321,11 +243,14 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
             Lo ya recorrido va a todo color y lo que queda apagado, así se ven
             a la vez el plan entero y por dónde se va. */}
         <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
-        {/* El día en que toca, la barra se queda ENTERA en gris y todo el aviso
-            lo lleva el punto verde. Es el único estado que no habla de margen
-            ni de retraso —habla de hoy—, y pintarle un tramo de color al lado
-            competía con el punto justo el día que hay que mirarlo. */}
-        {actual && !esHoyLaPlanificada && (
+        {/* El día exacto de la planificada, el tramo VERDE se sigue pintando.
+            Antes ese día la barra se quedaba entera en gris y todo el aviso lo
+            llevaba el punto: la fila se leía como "este pedido no tiene fecha",
+            que es lo que significa el gris en todas las demás, justo el día en
+            que hay que mirarlo. Sigue estando a tiempo, así que va en verde
+            como el día anterior; lo que cambia es el punto, que ese día también
+            se pinta de verde en vez de negro. */}
+        {actual && (
           <div
             className="absolute top-[3px] h-0.5 rounded-full"
             style={{
@@ -781,39 +706,69 @@ export function ListaView({
   );
 }
 
-/** Lo que se ve al desplegar una fila: el resto de fechas y el reparto del
- *  tiempo (que en la fila solo cabe sumado), y una línea por OF. Es la
- *  respuesta a "¿por qué este pedido está así?" sin tener que abrirlo. */
+/** Lo que se ve al desplegar una fila: lo que puede parar el trabajo, y una
+ *  línea por OF. Es la respuesta a "¿puedo ponerme con esto?" sin tener que
+ *  abrir el pedido.
+ *
+ *  AQUÍ HABÍA cuatro fechas (llegada, planificada, fabricación, solicitada), el
+ *  reparto del tiempo en planteo y revisión, y la ciudad de entrega. Las cuatro
+ *  fechas son EXACTAMENTE las de la línea de tiempo de la fila de arriba, a dos
+ *  centímetros y a escala; los dos tiempos son los mismos que ya lleva la
+ *  columna de estado, con el nombre de quien los echó al lado; y el destino no
+ *  se mira nunca desde Oficina Técnica: el pedido no lo lleva nadie allí. Así
+ *  que el desplegable repetía la fila y no añadía nada.
+ *
+ *  Lo que sí faltaba es lo que decide si se puede empezar: si hay material y si
+ *  está reservado, si Compras espera algo (y si llega tarde), los avisos que
+ *  Producción deja en la ruta, y cuánto se estimó frente a lo que lleva. Eso es
+ *  lo que hay ahora. */
 function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Operario[] }) {
-  const planteo = p.ofs.reduce((n, of) => n + of.tiempoPlanteoMin, 0);
-  const revision = p.ofs.reduce((n, of) => n + of.tiempoRevisionMin, 0);
+  const llevado = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
   const estimado = p.ofs.reduce((n, of) => n + of.tiempoEstimadoMin, 0);
+  const material = estadoMaterialDe(p.ofs);
+  const compras = comprasPendientes(p.ofs, hoy);
+  const avisos = [...new Set(p.ofs.flatMap((of) => of.avisos ?? []))];
+
   return (
     <div className="space-y-2.5">
-      <dl className="flex flex-wrap gap-x-6 gap-y-1.5 text-[11px]">
-        {/* Creación, no "solicitado": la solicitada es la entrega y ya está en
-            su columna. Aquí lo que aporta el desplegable es cuándo entró. */}
-        {p.fechaCreacion && (
-          <Dato label="Llegada a OT">
-            <Fecha iso={p.fechaCreacion} hoy={hoy} enfasis="ninguno" absoluta />
+      <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[11px]">
+        <Dato label="Piezas">{piezasTotal(p)}</Dato>
+        {/* Lo llevado CONTRA lo estimado, no cada uno por su lado: el número
+            solo dice algo comparado con el otro. */}
+        {estimado > 0 && (
+          <Dato label="Tiempo">
+            <span className={llevado > estimado ? "font-semibold text-text" : undefined}>
+              {fmtMin(llevado)}
+            </span>
+            <span className="text-text-muted"> / est. {fmtMin(estimado)}</span>
           </Dato>
         )}
-        <Dato label="Planificada">
-          <Fecha iso={p.fechaPlanificacion} hoy={hoy} />
-        </Dato>
-        {p.fechaFabricacion && (
-          <Dato label="Fabricación">
-            <Fecha iso={p.fechaFabricacion} hoy={hoy} enfasis="ninguno" />
+        {material && (
+          <Dato label="Material">
+            <span className={MATERIAL[material].clase}>{MATERIAL[material].texto}</span>
           </Dato>
         )}
-        <Dato label="Solicitada">
-          <Fecha iso={p.fechaEntrega} hoy={hoy} enfasis="suave" />
-        </Dato>
-        <Dato label="Planteo">{fmtMin(planteo)}</Dato>
-        <Dato label="Revisión">{fmtMin(revision)}</Dato>
-        {estimado > 0 && <Dato label="Estimado">{fmtMin(estimado)}</Dato>}
-        {p.ciudadEntrega && <Dato label="Destino">{p.ciudadEntrega}</Dato>}
+        {compras.porLlegar > 0 && (
+          <Dato label="Compras">
+            <span className={compras.tarde > 0 ? "font-semibold text-red-600 dark:text-red-400" : undefined}>
+              {compras.porLlegar} por llegar
+              {compras.tarde > 0 && ` · ${compras.tarde} con la fecha pasada`}
+            </span>
+          </Dato>
+        )}
       </dl>
+      {/* Las "tareas-nota" que Producción deja en la ruta de la OF ("22/06
+          VISITA MEDIR"). Se enseñan sin repetir: en un pedido de seis OF suele
+          ser el mismo aviso seis veces. */}
+      {avisos.length > 0 && (
+        <ul className="space-y-0.5 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
+          {avisos.map((a) => (
+            <li key={a} className="text-[11px] leading-5 text-indigo-800 dark:text-indigo-200">
+              📌 {a}
+            </li>
+          ))}
+        </ul>
+      )}
       {p.comentarioVenta && (
         <p className="rounded-lg bg-surface px-2.5 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
           <span className="font-semibold text-text-muted">Comercial: </span>
@@ -828,6 +783,15 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
     </div>
   );
 }
+
+/** Cómo se dice el estado del material del pedido. Los tres son estados de
+ *  ALMACÉN, no de OT: lo único que cambia para nosotros es si hay que contar
+ *  con que falte. */
+const MATERIAL: Record<EstadoMaterial, { texto: string; clase: string }> = {
+  reservado: { texto: "reservado", clase: "text-teal-700 dark:text-teal-300" },
+  aMedias: { texto: "a medias", clase: "font-semibold text-amber-700 dark:text-amber-300" },
+  sinReservar: { texto: "sin reservar", clase: "text-text-muted" },
+};
 
 function Dato({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -26,18 +26,29 @@ export interface HistorialFiltros {
  *  Técnica (12 meses a 11/08/2026, de más a menos: 1313 puertas, 700
  *  reparaciones, 662 toldos nuevos, 908 lonas nuevas, 488 confección, 163
  *  accesorios…). Una lista de 462 chips no es un filtro. */
+// Ordenadas por lo que de verdad entra, no por el orden del catálogo. Los
+// números son pedidos distintos de los dos últimos años (RPS, 08/2026):
+//   REPARACIONES 5252 · LONASNUEVAS 3092 · TOLDO NUEVO 1829 · PUERTAS 1176
+//   CONFECCION 1156 · ACCESORIOS TF 1084 · LONAS 266 · PISCINA 84 · CLONA 25
+//   CAPOTA NUEVA 22 · YURTAS 15 · SERIE50 15 · PORTALES 6 · CBASTIDOR 3
+// Las seis primeras son el 96 % del trabajo, así que quien busca por familia
+// las encuentra sin bajar. Faltaban LONAS, SERIE50 y CBASTIDOR —que existen y
+// no se podían filtrar— y el orden era el del catálogo, que no dice nada.
 export const FAMILIAS_FILTRABLES: readonly string[] = [
-  "PUERTAS",
-  "TOLDO NUEVO",
   "REPARACIONES",
   "LONASNUEVAS",
+  "TOLDO NUEVO",
+  "PUERTAS",
   "CONFECCION",
   "ACCESORIOS TF",
-  "YURTAS",
-  "CLONA",
+  "LONAS",
   "PISCINA",
-  "PORTALES",
+  "CLONA",
   "CAPOTA NUEVA",
+  "YURTAS",
+  "SERIE50",
+  "PORTALES",
+  "CBASTIDOR",
 ];
 
 export interface HistorialItem {

@@ -13,9 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CoordinaOT — Asignación de partes",
+  // El título de la pestaña lo reescribe el tablero con los avisos pendientes
+  // ("(2) CoordinaOT"), así que este es el de la carga inicial. "Asignación de
+  // partes" contaba solo lo primero que se hace aquí; el trabajo es el
+  // recorrido entero, de que llega el parte a que se pasa a Producción.
+  title: "CoordinaOT",
   description:
-    "Tablero de coordinación de órdenes de trabajo de oficina técnica.",
+    "Tablero de trabajo de Oficina Técnica: reparto de partes, planteo, revisión y paso a Producción.",
 };
 
 export default function RootLayout({
