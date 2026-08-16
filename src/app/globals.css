@@ -50,16 +50,24 @@
   --glass-shadow: rgba(24, 32, 48, 0.14);
   --glass-chip: rgba(255, 255, 255, 0.85);
 
-  /* Escalada de urgencia de la línea de tiempo (ver TRAMO en ListaView).
+  /* Escalada de urgencia de la línea de tiempo (ver TRAMO en lib/linea-tiempo).
      Aquí y no como hex en el JS porque va sobre el fondo de la tabla y NO
      valen los mismos tonos en los dos temas: sobre blanco, el verde y el
      ámbar de Tailwind -500 se leen a 2,5:1 y la fecha planificada —el dato
      central de esa columna— queda prácticamente invisible. En claro hacen
-     falta escalones oscuros. */
-  --tramo-holgado: #047857;
-  --tramo-trabajo: #b45309;
-  --tramo-ajustado: #b91c1c;
-  --tramo-fuera: #6b21a8;
+     falta escalones oscuros.
+
+     Los CUATRO tienen que distinguirse entre sí, y no basta con que cada uno
+     contraste contra el fondo. El ámbar #b45309 y el rojo #b91c1c que había
+     aquí quedaban a 21° de tono y ΔE 27: en un monitor mal calibrado (y en OT
+     los hay) eran el mismo marrón, así que "voy tarde pero Producción llega" y
+     "el retraso ya come el margen de Producción" se leían igual. El rojo pasa a
+     un carmín más frío, que sube la separación a 45° y ΔE 49 sin perder
+     contraste (6,1:1 sobre blanco). Ninguna pareja baja de ΔE 45. */
+  --tramo-holgado: #04785a;
+  --tramo-trabajo: #a15c07;
+  --tramo-ajustado: #c2143c;
+  --tramo-fuera: #6d28d9;
 }
 
 .dark {
@@ -84,11 +92,15 @@
   --glass-chip: rgba(44, 47, 54, 0.95);
 
   /* Sobre grafito se invierte el problema: los que se apagan son el rojo y el
-     morado, justo los estados urgentes. Escalones claros. */
+     morado, justo los estados urgentes. Escalones claros.
+     El rojo se mueve al mismo carmín que en claro (aquí, su versión clara) para
+     que el salto ámbar → rojo se vea igual en los dos temas: si cada tema
+     separase los tramos de una manera, cambiar de tema cambiaría lo que se
+     entiende de la línea. */
   --tramo-holgado: #34d399;
   --tramo-trabajo: #fbbf24;
-  --tramo-ajustado: #f87171;
-  --tramo-fuera: #c084fc;
+  --tramo-ajustado: #fb7185;
+  --tramo-fuera: #a78bfa;
 }
 
 @theme inline {
@@ -122,6 +134,41 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-brand-400);
   outline-offset: 1px;
+}
+
+/* ── La mano del ratón en lo que se puede pulsar ──
+   Faltaba en casi toda la app: 85 de los 90 botones salían con la flecha de
+   siempre, y solo cinco la tenían porque alguien la puso a mano.
+   No era descuido de quien los escribió — es un cambio de Tailwind v4. Su
+   preflight ya NO pone `cursor: pointer` en `button`, así que manda el valor
+   del navegador, que para un botón es `default`. En la v3 venía puesto y por
+   eso nadie lo echaba de menos.
+   Se arregla aquí, una vez, y no repitiendo la clase en noventa sitios: es
+   comportamiento de "esto se pulsa", no decoración de un componente concreto.
+
+   VA DENTRO DE `@layer base`, y no suelto, porque si no gana a las utilidades
+   que sí quieren otro cursor. `button:not(:disabled)` puntúa 0-1-1 y le gana a
+   un `.cursor-help` (0-1-0) por especificidad, y a `disabled:cursor-wait` —el
+   botón de actualizar de Visitas— por especificidad Y por orden. Metida en la
+   capa base, las utilidades viven en una capa posterior y mandan siempre, sin
+   depender de cómo puntúe cada selector. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"]):not(:disabled),
+  label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)) {
+    cursor: pointer;
+  }
+
+  /* Lo apagado se dice también con el cursor, no solo con el color: un botón
+     gris al que no le pasa nada al pulsarlo se lee como que la web se ha
+     colgado. Los que están esperando (`aria-busy`) no entran: eso es "espera",
+     no "no puedes", y ahí el componente pone su propio `cursor-wait`. */
+  button:disabled:not([aria-busy="true"]) {
+    cursor: not-allowed;
+  }
 }
 
 /* ── Vidrio ──

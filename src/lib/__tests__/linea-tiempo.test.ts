@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { lineaTiempo, repartirEtiquetas } from "../linea-tiempo";
+import {
+  TRAMO,
+  lineaTiempo,
+  repartirEtiquetas,
+  tramosRecorrido,
+  urgenciaRecorrido,
+} from "../linea-tiempo";
 
 // Vocabulario de la herramienta vieja, que es el del taller:
 //   llegada       = cuándo se crearon sus OF: el día que el parte llega a OT
@@ -249,5 +255,97 @@ describe("fabricación anterior a la creación del pedido", () => {
       "2026-08-10",
     );
     expect(conPlanteo.hitos.some((h) => h.clave === "fabricacion")).toBe(false);
+  });
+});
+
+// ─── La escalada de urgencia ─────────────────────────────────────────────────
+// Vivía dentro de ListaView y no se podía probar sin montar la tabla entera.
+// Ahora la comparten la fila de Pendientes y la línea del detalle, así que un
+// fallo aquí cambia el color en los dos sitios a la vez.
+
+describe("tramosRecorrido", () => {
+  it("parte la línea en holgado · trabajo · ajustado", () => {
+    expect(tramosRecorrido(40, 70)).toEqual([
+      { desde: 0, hasta: 40, color: TRAMO.holgado },
+      { desde: 40, hasta: 70, color: TRAMO.trabajo },
+      { desde: 70, hasta: 100, color: TRAMO.ajustado },
+    ]);
+  });
+
+  it("sin fabricación, el tramo de trabajo llega hasta el final", () => {
+    expect(tramosRecorrido(40, undefined)).toEqual([
+      { desde: 0, hasta: 40, color: TRAMO.holgado },
+      { desde: 40, hasta: 100, color: TRAMO.trabajo },
+    ]);
+  });
+
+  it("una fabricación anterior al planteo no dibuja un tramo negativo", () => {
+    expect(tramosRecorrido(70, 40).every((t) => t.hasta > t.desde)).toBe(true);
+  });
+
+  it("recorta fuera de [0, 100]", () => {
+    expect(tramosRecorrido(-20, 150)).toEqual([
+      { desde: 0, hasta: 100, color: TRAMO.trabajo },
+    ]);
+  });
+});
+
+describe("urgenciaRecorrido", () => {
+  // Planteo el 11, fabricación el 21, entrega el 31: el pedido entra el 01.
+  const pedido = {
+    fechaCreacion: "2026-08-01",
+    fechaPlanificacion: "2026-08-11",
+    fechaFabricacion: "2026-08-21",
+    fechaEntrega: "2026-08-31",
+  };
+  const el = (hoy: string) => urgenciaRecorrido(lineaTiempo(pedido, hoy), pedido, hoy);
+
+  it("antes de la planificada va en verde", () => {
+    const u = el("2026-08-05");
+    expect(u.color).toBe(TRAMO.holgado);
+    expect(u.actual?.color).toBe(TRAMO.holgado);
+  });
+
+  it("EL DÍA de la planificada sigue en verde y con tramo pintado", () => {
+    // Es el caso que se veía mal: `hoyPct` cae justo en el corte y el tramo de
+    // trabajo se lo llevaba, así que la línea se ponía naranja a primera hora
+    // del día en que tocaba plantear. Y luego, al dejar de pintar el tramo ese
+    // día, la barra se quedaba gris — que en el resto de la lista significa
+    // "sin fecha".
+    const u = el("2026-08-11");
+    expect(u.esHoyLaPlanificada).toBe(true);
+    expect(u.enPlazo).toBe(true);
+    expect(u.color).toBe(TRAMO.holgado);
+    expect(u.actual).toEqual({ desde: 0, hasta: expect.any(Number), color: TRAMO.holgado });
+  });
+
+  it("al día siguiente ya es tramo de trabajo", () => {
+    const u = el("2026-08-12");
+    expect(u.diasTarde).toBe(1);
+    expect(u.color).toBe(TRAMO.trabajo);
+  });
+
+  it("pasada la fabricación, el retraso come el margen de Producción", () => {
+    expect(el("2026-08-25").color).toBe(TRAMO.ajustado);
+  });
+
+  it("pasada la entrega manda el morado, fuera de la escalada", () => {
+    const u = el("2026-09-05");
+    expect(u.vencido).toBe(true);
+    expect(u.color).toBe(TRAMO.fuera);
+  });
+
+  it("sin fecha de planteo no se colorea nada: no hay retraso que afirmar", () => {
+    const prestada = {
+      fechaCreacion: "2026-08-07",
+      fechaPlanificacion: "2026-08-13",
+      planificacionEstimada: true,
+      fechaEntrega: "2026-08-13",
+    };
+    const u = urgenciaRecorrido(lineaTiempo(prestada, "2026-08-20"), prestada, "2026-08-20");
+    expect(u.sinPlanificar).toBe(true);
+    expect(u.color).toBeUndefined();
+    expect(u.tramos).toEqual([]);
+    expect(u.actual).toBeNull();
   });
 });

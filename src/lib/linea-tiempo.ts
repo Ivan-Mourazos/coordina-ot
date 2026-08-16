@@ -181,3 +181,147 @@ export function lineaTiempo(
     diasParaEntrega: diasEntre(hoy, p.fechaEntrega),
   };
 }
+
+// ─── La escalada de urgencia ─────────────────────────────────────────────────
+// El mismo pedido se pinta en dos sitios —la fila de Pendientes y el detalle—
+// y hasta ahora cada uno tenía su propio código de color: la fila usaba esta
+// escalada de cuatro tramos y el detalle, dos dorados de marca y un rojo. Eran
+// dos líneas que decían cosas distintas del mismo pedido, y el dorado 400
+// contra el 500 no se distinguía ni de cerca. De aquí sale ahora el color de
+// las dos.
+//
+// OJO con el significado: la fecha límite de OT es la PLANIFICADA, no la
+// solicitada. Es el día en que el pedido debería estar planteado, así que
+// pasarla ya es ir tarde aunque a Producción le sobren tres semanas. Por eso la
+// escalada arranca ahí y no al final.
+
+/** Color de cada tramo. Variables de tema y no hex: los mismos tonos no valen
+ *  en claro y en oscuro (ver el bloque `--tramo-*` en globals.css). Van en un
+ *  `style`, no en clases de Tailwind, porque el valor se elige en tiempo de
+ *  ejecución. */
+export const TRAMO = {
+  /** Hasta la planificación, el día incluido: OT llega a tiempo. */
+  holgado: "var(--tramo-holgado)",
+  /** Pasada la planificación: OT ya va tarde, pero Producción aún llega. */
+  trabajo: "var(--tramo-trabajo)",
+  /** Pasada la fabricación: el retraso se come el margen de Producción. */
+  ajustado: "var(--tramo-ajustado)",
+  /** Pasada la solicitada. Fuera de la escalada a propósito: no es "más rojo",
+   *  es otra cosa — la fecha ya se incumplió. */
+  fuera: "var(--tramo-fuera)",
+} as const;
+
+export interface Tramo {
+  desde: number;
+  hasta: number;
+  color: string;
+}
+
+/** Los tramos de la línea, ya recortados a [0, 100].
+ *
+ *  Se calcula aquí y no en el pintado porque RPS da las fechas desordenadas (la
+ *  fabricación puede caer después de la solicitada) y un tramo al revés
+ *  dibujaría un trozo de ancho negativo. */
+export function tramosRecorrido(
+  pctPlanificacion: number,
+  pctFabricacion: number | undefined,
+): Tramo[] {
+  const corte = (n: number) => Math.max(0, Math.min(100, n));
+  const p = corte(pctPlanificacion);
+  // Sin fecha de fabricación, el tramo de trabajo llega hasta el FINAL, no se
+  // queda en cero. Antes valía `p`, así que el naranja desaparecía y bastaba
+  // pasarse un día de la planificada para pintar la línea entera de rojo: un
+  // pedido con un día de retraso se veía igual de grave que uno vencido, y con
+  // la regla que descarta fabricaciones imposibles eso le pasaba a media lista.
+  const f = pctFabricacion === undefined ? 100 : Math.max(p, corte(pctFabricacion));
+  return [
+    { desde: 0, hasta: p, color: TRAMO.holgado },
+    { desde: p, hasta: f, color: TRAMO.trabajo },
+    { desde: f, hasta: 100, color: TRAMO.ajustado },
+  ].filter((t) => t.hasta > t.desde);
+}
+
+export interface Urgencia {
+  /** Los tramos a pintar. Vacío = el pedido no tiene fecha de planteo y no se
+   *  colorea nada (ver `sinPlanificar`). */
+  tramos: Tramo[];
+  /** El tramo en el que cae hoy, que es el ÚNICO que se pinta a color. */
+  actual: Tramo | null;
+  /** Color de la fecha de referencia y del tramo actual. `undefined` = no se
+   *  colorea: sin fecha de planteo no hay retraso que afirmar. */
+  color: string | undefined;
+  /** El pedido no trae fecha de planificación de RPS: la que se enseña es la
+   *  entrega, prestada, y contra ella no se mide retraso. */
+  sinPlanificar: boolean;
+  /** Días pasados de la planificada; negativo si aún queda margen. */
+  diasTarde: number;
+  /** Hoy ES el día planificado. Cuenta como en plazo: quien lo tiene para hoy
+   *  va a tiempo hasta que acabe la jornada. */
+  esHoyLaPlanificada: boolean;
+  /** Aún se llega (incluido el mismo día de la planificada). */
+  enPlazo: boolean;
+  /** La entrega al cliente ya se incumplió. */
+  vencido: boolean;
+}
+
+/** En qué punto de la escalada está el pedido HOY.
+ *
+ *  Solo se pinta a color el tramo en el que cae hoy; el resto queda en gris.
+ *  Pintarlos todos teñía de rojo el último trozo de cada fila, y ese tramo es
+ *  normal: todos los pedidos pasan por él llegando a tiempo. Así el color
+ *  aparece únicamente cuando dice algo de ESTE pedido, ahora. */
+export function urgenciaRecorrido(
+  l: Pick<LineaTiempo, "hitos" | "hoyPct" | "diasParaEntrega">,
+  pedido: { fechaPlanificacion: string; planificacionEstimada?: boolean },
+  hoy: string,
+): Urgencia {
+  // Sin fecha de planteo NO se colorea nada. La escalada mide contra el día en
+  // que esto debería estar planteado, y aquí ese día no se sabe: lo que hay es
+  // la entrega, que en estos partes viene mal más veces que bien (7 de 25 la
+  // traen ya pasada el día que entran). AR.26.03947 entró el 07/08 con la
+  // entrega el 13/08 y salía en rojo: la línea afirmaba un retraso que nadie
+  // había medido. Gris y un rótulo que lo explica dice la verdad.
+  const sinPlanificar = pedido.planificacionEstimada === true;
+  const pctPlan = l.hitos.find((h) => h.clave === "planificacion")?.pct;
+  const tramos =
+    pctPlan === undefined
+      ? []
+      : tramosRecorrido(pctPlan, l.hitos.find((h) => h.clave === "fabricacion")?.pct);
+
+  // El retraso que le importa a OT se cuenta desde la PLANIFICADA: ese es el
+  // día en que el pedido debería estar planteado. La solicitada es la del
+  // cliente y llega mucho después; medir contra ella diría "vas bien" con el
+  // planteo dos semanas pasado de fecha.
+  const diasTarde = diasEntre(pedido.fechaPlanificacion, hoy);
+  const esHoyLaPlanificada = diasTarde === 0;
+  const enPlazo = diasTarde <= 0;
+  const vencido = l.diasParaEntrega < 0;
+
+  // El día planificado, `hoyPct` cae JUSTO en el corte entre el tramo holgado y
+  // el de trabajo, y `hoyPct >= t.desde` se lo lleva el de trabajo: la línea se
+  // ponía naranja a primera hora del día en que tocaba, avisando de un retraso
+  // que todavía no existía. Ese día manda el verde, que es lo que dice la
+  // verdad — aún se llega.
+  const actual = esHoyLaPlanificada
+    ? (tramos[0] ?? null)
+    : (tramos.find((t) => l.hoyPct >= t.desde && l.hoyPct < t.hasta) ??
+      // Hoy pegado al extremo derecho (o pasado): el último tramo es el suyo.
+      (l.hoyPct >= 100 ? (tramos[tramos.length - 1] ?? null) : null));
+
+  return {
+    tramos,
+    actual,
+    color: sinPlanificar
+      ? undefined
+      : enPlazo
+        ? TRAMO.holgado
+        : vencido
+          ? TRAMO.fuera
+          : (actual?.color ?? TRAMO.trabajo),
+    sinPlanificar,
+    diasTarde,
+    esHoyLaPlanificada,
+    enPlazo,
+    vencido,
+  };
+}
