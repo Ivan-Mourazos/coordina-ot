@@ -138,10 +138,78 @@ Comportamiento ante fallos, ya contemplado en la app:
   trabajo de RPS igual) y se anota aviso en el log de PM2.
 - **Caída del proceso**: PM2 lo reinicia solo (`autorestart`).
 
-## 7. Qué NO hace esta app (por diseño)
+## 7. Fichaje: pasar de ensayo a activo
 
-- No escribe absolutamente nada en RPS ni en el share de PDFs.
+El fichaje tiene tres modos y se elige con **`FICHAJE_OLANET`** en `.env.local`:
+
+| Modo | Qué hace |
+|---|---|
+| `sombra` | Deriva los bonos y los acumula en la cola local. **No escribe en OLANET.** |
+| `ensayo` | Escribe en `sch_RPS_bonos` (tablas reales) con `traspasado = 2`, que OLANET no procesa: el tiempo **no** llega a RPS. No mueve fases ni toca `tgm_fichajes_olanet_ot`. |
+| `activo` | Escribe con `traspasado = 0`, mueve las fases y sincroniza el "fichando ahora". El tiempo **sí** sube a RPS. |
+
+### Antes de poner `activo`
+
+No es una decisión de calendario: hay que mirar el informe de contraste, que
+compara día a día lo que ha escrito CoordinaOT contra lo que ha escrito el
+mini-olanet en esa misma tabla.
+
+```bash
+curl -s http://localhost:4300/api/fichaje/contraste?dias=14 | jq .veredicto
+```
+
+Se puede pasar a `activo` cuando el veredicto diga `"listo": true`, que exige
+las dos cosas a la vez:
+
+- **`noEscritos` vacío** — todos los bonos de la cola están en OLANET. Si no lo
+  está, es un fallo técnico: avisar a desarrollo, no seguir adelante.
+- **Tres días seguidos por encima del 95 % de cobertura** — o sea, que la gente
+  esté fichando en la web prácticamente todo lo que apunta en la herramienta
+  vieja. Esto no se arregla con código: mientras se siga fichando solo en la
+  vieja, pasar a activo perdería esas horas.
+
+`descuadres` lista las OF donde las dos herramientas no coinciden, de peor a
+mejor: sirve para ver si falta algo concreto o es reparto normal.
+
+### El cambio
+
+```bash
+cd /opt/coordina-ot
+sed -i 's/^FICHAJE_OLANET=.*/FICHAJE_OLANET=activo/' .env.local
+pm2 restart coordina-ot
+curl -s http://localhost:4300/api/fichaje/cola?pendientes=1 | jq .total   # debe bajar a 0
+```
+
+Con `activo` puesto, OT deja de fichar en la herramienta vieja: fichar en las
+dos duplicaría el tiempo en RPS.
+
+### La comprobación del primer día
+
+Hay un tramo del circuito que **no se puede probar antes de dar el paso**: que
+el procedimiento de OLANET recoja nuestros bonos y los suba a RPS. En ensayo van
+con `traspasado = 2` justamente para que no los toque. Así que el día del cambio
+hay que mirarlo, y se ve en minutos:
+
+```bash
+curl -s http://localhost:4300/api/fichaje/contraste | jq .traspaso
+# { "subidos": 37, "pendientes": 0 }   ← bien: OLANET los está recogiendo
+# { "subidos": 0,  "pendientes": 37 }  ← mal: el tiempo se queda a medio camino
+```
+
+Si tras un rato de fichaje normal `pendientes` no baja, volver a `ensayo` y
+avisar a desarrollo. El tiempo no se pierde: los intervalos están guardados en
+el SQLite de CoordinaOT y se reencolan.
+
+### Marcha atrás
+
+El mismo `sed` con `ensayo` y otro `pm2 restart`. Los bonos ya escritos con
+`traspasado = 0` **no se deshacen solos** — si hubiera que retirarlos, es cosa
+de IT sobre `sch_RPS_bonos`, y hay que avisar antes.
+
+## 8. Qué NO hace esta app (por diseño)
+
+- No escribe nada en RPS ni en el share de PDFs. Lo único que escribe fuera de
+  su propio SQLite es el fichaje en OLANET, y solo cuando `FICHAJE_OLANET` no
+  es `sombra` (sección 7).
 - No expone nada fuera de la LAN (sin auth de momento: confiar en red interna;
   si se quiere publicar más allá de OT, hablar antes con desarrollo).
-- No sustituye al terminal de fichaje de taller: los tiempos de OT se
-  volcarán a RPS en una fase futura (sección 4).

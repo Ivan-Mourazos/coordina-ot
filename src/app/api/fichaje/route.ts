@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  leerFichaje,
-  guardarFichaje,
-  leerAvisoCierre,
-  marcarAvisoCierreVisto,
-} from "@/lib/server/fichaje-db";
+// `marcarAvisoCierreVisto` no se llama desde aquí: el acuse del aviso tiene su
+// propia ruta (POST /api/fichaje/aviso-visto), porque leerlo y darlo por visto
+// son dos momentos distintos — ver el comentario del GET de más abajo.
+import { leerFichaje, guardarFichaje, leerAvisoCierre } from "@/lib/server/fichaje-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
 import { fichar, pausar } from "@/lib/fichaje";
 import type { Rol } from "@/lib/types";
