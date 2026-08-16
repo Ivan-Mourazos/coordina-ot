@@ -4,10 +4,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 // GET /api/pedidos/AR.26.02711.pdf — sirve el PDF escaneado del pedido desde
-// el servidor de archivos (\\192.168.0.128\RPS\VENTAS\PEDIDOS\{año}\{codigo}.pdf,
-// indexado también en GENEntityDocument). El servidor web necesita acceso de
-// lectura al share. Si el fichero no existe se responde 404 y la tarjeta
-// enseña la réplica dibujada.
+// el servidor de archivos (\\192.168.0.128\RPS\VENTAS\PEDIDOS\{año}\{delegación}\
+// {codigo}.pdf, indexado también en GENEntityDocument). El servidor web
+// necesita acceso de lectura al share. Si el fichero no existe se responde 404
+// y la tarjeta enseña la réplica dibujada.
 //
 // GET /api/pedidos/AR.26.02711.png — miniatura PNG (~420 px de ancho) de la
 // 1ª página del mismo PDF, renderizada en el servidor con pdfjs-dist +
@@ -15,8 +15,27 @@ import { pathToFileURL } from "node:url";
 // como imagen de las tarjetas del tablero: tras el primer render, cada
 // petición se sirve directamente del fichero cacheado.
 
-/** Solo códigos de pedido reales: nada de path traversal ni comodines. */
-const ARCHIVO_RE = /^(AR\.(\d{2})\.\d{5})\.(pdf|png)$/i;
+/** Solo códigos de pedido reales: nada de path traversal ni comodines.
+ *
+ *  Tres prefijos, uno por delegación (ver DELEGACION más abajo). El grupo 2 es
+ *  el prefijo y el 3 el año. */
+const ARCHIVO_RE = /^((AR|SA|BE)\.(\d{2})\.\d{5})\.(pdf|png)$/i;
+
+/** Subcarpeta del año donde vive el PDF de cada delegación.
+ *
+ *  Los pedidos de Arteixo (AR) cuelgan del año a secas y los de las otras dos
+ *  de una carpeta con el nombre del sitio: `2026/SANTIAGO/SA.26.00844.pdf`. Sin
+ *  esto, los SA y los BE se buscaban en la carpeta del año, no estaban, y la
+ *  tarjeta salía con la réplica dibujada en vez del parte — que es lo que se
+ *  veía en el tablero.
+ *
+ *  Comprobado contra `GENEntityDocument`, que es el índice de RPS: las 1245
+ *  SA.26 y las 818 BE.26 apuntan todas a estas dos carpetas. */
+const DELEGACION: Record<string, string> = {
+  AR: "",
+  SA: "SANTIAGO",
+  BE: "BERGONDO",
+};
 
 // El share de PDFs se llega distinto según dónde corra la app:
 //   · Windows (desarrollo): ruta UNC \\192.168.0.128\RPS\VENTAS\PEDIDOS (por VPN).
@@ -197,13 +216,14 @@ export async function GET(
     return new Response("Código de pedido no válido", { status: 400 });
   }
 
-  // "AR.26.02711.pdf" → año 2026 (el 2º segmento del código es el año).
-  const anho = 2000 + Number(m[2]);
+  // "AR.26.02711.pdf" → año 2026 (el 3er segmento del código es el año).
   const codigo = m[1].toUpperCase();
-  const extension = m[3].toLowerCase();
+  const anho = 2000 + Number(m[3]);
+  const extension = m[4].toLowerCase();
   // path.join usa el separador del SO: en Windows preserva el UNC (\\host\share),
   // en Linux monta la ruta con "/". Así RPS_PEDIDOS_PDF_DIR vale tal cual en ambos.
-  const rutaPdf = path.join(RAIZ, String(anho), `${codigo}.pdf`);
+  // La subcarpeta vacía de AR desaparece sola: path.join("x", "", "y") = "x/y".
+  const rutaPdf = path.join(RAIZ, String(anho), DELEGACION[m[2].toUpperCase()], `${codigo}.pdf`);
 
   if (extension === "png") {
     let mtimePdf: number;

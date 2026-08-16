@@ -8,6 +8,7 @@ import type {
   MaterialOF,
 } from "@/lib/historial";
 import type { Rol } from "@/lib/types";
+import { esCodigoPedido } from "@/lib/types";
 import { repartirMateriales } from "@/lib/historial";
 import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -106,8 +107,10 @@ export function HistorialDrawer({
 
   if (!pedido) return null;
   const scanUrl = detalle?.scanUrl ?? `/api/pedidos/${pedido}.pdf`;
-  // La ruta de PDFs solo resuelve AR.*; para otras series se avisa en vez de romper.
-  const pdfSoportado = /^AR\./.test(pedido);
+  // La ruta de PDFs resuelve las tres delegaciones (AR, SA y BE); para lo que
+  // no sea un pedido de venta —trabajo interno, OF sueltas— se avisa en vez de
+  // pedir un fichero que no existe.
+  const pdfSoportado = esCodigoPedido(pedido);
 
   return (
     <div

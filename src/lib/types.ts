@@ -15,6 +15,18 @@
 // Estas formas son el contrato que consume la UI. El mock (lib/mock.ts) las
 // rellena hoy; mañana el adaptador SQL Server / RPS devolverá lo mismo.
 
+/** Código de un pedido de venta real de RPS: "AR.26.03376".
+ *
+ *  Los tres prefijos son las tres delegaciones —AR Arteixo, SA Santiago, BE
+ *  Bergondo— y los tres entran en Oficina Técnica. Se comprueba en varios
+ *  sitios (¿tiene PDF?, ¿es un pedido o trabajo interno?) y estaba escrito a
+ *  mano en cada uno de ellos SOLO con AR, así que los de las otras dos
+ *  delegaciones salían sin miniatura y sin enlace al parte. Una sola regla, y
+ *  con nombre, para que la siguiente delegación se añada en un sitio. */
+const CODIGO_PEDIDO_RE = /^(AR|SA|BE)\.\d{2}\.\d{5}$/;
+
+export const esCodigoPedido = (codigo: string): boolean => CODIGO_PEDIDO_RE.test(codigo);
+
 /** Familias con identidad visual propia (color + icono en familia.ts). */
 export type FamiliaConocida =
   // ── Subfamilias de RPS ─────────────────────────────────────────────────────
@@ -212,6 +224,17 @@ export interface ImputacionRps {
   desde?: string;
 }
 
+/** Lo que UNA persona lleva fichado en una OF desde CoordinaOT, por rol.
+ *
+ *  El gemelo de `ImputacionRps`, para el otro lado del doble fichaje. Aquí el
+ *  operario SÍ es siempre de Oficina Técnica (la identidad la elige quien ficha
+ *  en la web), así que basta con su id. */
+export interface FichajeWebOF {
+  operarioId: string;
+  planteoMin: number;
+  revisionMin: number;
+}
+
 /** Orden de Fabricación: una unidad del pedido (p.ej. cada remolque). */
 export interface OF {
   id: string;
@@ -299,6 +322,30 @@ export interface OF {
   subfamilia?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
+  /** Minutos de planteo y de revisión fichados EN COORDINAOT, aparte.
+   *
+   *  Mientras OT ficha en las dos herramientas, los minutos de la web y los de
+   *  RPS son EL MISMO TRABAJO apuntado dos veces: se ficha aquí y se vuelve a
+   *  fichar en el terminal de siempre, a la vez. Sumarlos daba el doble del
+   *  tiempo real —"23 h" en una OF de 12— y por eso `tiempoPlanteoMin` ya no
+   *  los suma: lleva el mayor de los dos (ver `aplicarTiemposFichaje`).
+   *
+   *  Estos dos campos guardan la parte de la web sin mezclar, que es lo que
+   *  hace falta para enseñar el contraste ("RPS 2h 10m · CoordinaOT 2h 05m") y
+   *  para saber si ya se puede dejar de fichar en la herramienta vieja.
+   *
+   *  Cuando el fichaje pase a `activo` se vuelve a sumar y estos campos siguen
+   *  valiendo: ahí el tiempo entra en RPS por la web, y `confirmarTraspasos`
+   *  sella el tramo para que no se cuente por los dos lados.
+   *
+   *  undefined = no hay fichaje de la web en esa OF (o es el mock). */
+  planteoWebMin?: number;
+  revisionWebMin?: number;
+  /** Lo mismo, persona a persona. Es el equivalente de `imputaciones` para el
+   *  fichaje de la web, y hace falta por lo mismo: el detalle de la OF enseña
+   *  quién ha echado cada rato, y un total agregado obliga a atribuírselo a
+   *  alguien a mano. Ordenado de más minutos a menos. */
+  fichadoWeb?: FichajeWebOF[];
   /** El desglose de ESOS mismos minutos, persona a persona, según RPS.
    *
    *  `tiempoPlanteoMin` es su suma, así que las dos cifras no pueden
