@@ -36,12 +36,10 @@ import {
   type AvisoSuelto,
   type NotifItem,
 } from "@/lib/notificaciones";
-import { LiveDot } from "./LiveBadge";
 import { useHydrated } from "@/lib/useHydrated";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
-import { contarRevisorEnEstado } from "@/lib/revision";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -178,9 +176,15 @@ function leerDescartes(operarioId: string | null): string[] {
 export function Board({
   operarios,
   pedidos: initial,
+  dobleFichaje = true,
 }: {
   operarios: Operario[];
   pedidos: Pedido[];
+  /** OT sigue fichando también en la herramienta vieja (`FICHAJE_OLANET` no es
+   *  `activo`). Se decide en el servidor y no cambia durante la sesión, así que
+   *  viaja como prop y no por el sondeo del tablero. Por defecto `true`: si el
+   *  dato no llegara, avisar de más molesta menos que dejar de avisar. */
+  dobleFichaje?: boolean;
 }) {
   const [pedidos, setPedidos] = useState<Pedido[]>(initial);
   // Espejo síncrono del estado: las mutaciones calculan su resultado sobre él
@@ -484,31 +488,10 @@ export function Board({
     return salida;
   }, [visiblesAsignar, hoy]);
 
-  // KPIs (solo sobre pedidos procesados = trabajo real de OT)
+  // Solo pedidos procesados = trabajo real de OT.
   const procesadosAll = procesados;
-  // Exactamente lo mismo que enseña la bandeja de abajo, y por eso se cuenta
-  // SOBRE ella: la cabecera decía 72 y el panel 47, porque cada uno excluía
-  // cosas distintas (el KPI no contaba anuladas ni taller, la bandeja tampoco
-  // las detenidas). Un número de cabecera que no cuadra con lo que hay debajo
-  // no sirve para nada, y hacerlo derivado es la única forma de que no se
-  // vuelvan a separar.
-  //
-  // Ojo: es la bandeja SIN filtrar por la barra. Filtrar es una decisión de
-  // quien mira; el KPI cuenta el trabajo que hay.
-  const sinAsignar = useMemo(
-    () =>
-      aplicarFiltros(procesados, FILTROS_INICIALES, hoy).reduce(
-        (n, p) => n + p.ofs.filter((o) => o.autorId === null).length,
-        0,
-      ),
-    [procesados, hoy],
-  );
-  // Lo mío como revisor, no lo de todos: casa con lo que muestra por defecto
-  // la pestaña Revisión (ver src/lib/revision.ts, misma fuente que usa ahí).
-  const porRevisar = contarRevisorEnEstado(procesadosAll, "por_revisar", miId);
-  const enRevision = contarRevisorEnEstado(procesadosAll, "en_revision", miId);
 
-  // ── Quién ficha AHORA (para tarjetas de equipo y cluster "En directo") ──
+  // ── Quién ficha AHORA (para las tarjetas del equipo y la zona personal) ──
   // El operario es el del INTERVALO abierto (quien ficha de verdad), no el
   // autor/revisor de la OF: fichar en OFs de un compañero está permitido y
   // el tiempo debe verse a nombre de quien lo está echando.
@@ -984,15 +967,29 @@ export function Board({
     [miId, mut, postFichaje],
   );
 
-  const desficharOF = useCallback(
-    (ofId: string) => {
+  /** Saca varias OF del reloj de una vez.
+   *
+   *  No es llamar N veces a `desficharOF`: cada llamada cierra el tramo abierto
+   *  y abre otro con lo que queda (ver `fichar`), así que parar un pedido de
+   *  cuatro OF dejaba tres tramos de duración cero por el camino y mandaba
+   *  cuatro POST seguidos, cada uno con una foto distinta. Un solo corte deja
+   *  un solo tramo y una sola petición. */
+  const desficharVarias = useCallback(
+    (ofIds: readonly string[]) => {
       const ab = abierto(fichajeRef.current);
       if (!ab) return;
-      const resto = ab.ofIds.filter((id) => id !== ofId);
+      const fuera = new Set(ofIds);
+      const resto = ab.ofIds.filter((id) => !fuera.has(id));
+      if (resto.length === ab.ofIds.length) return; // no corría ninguna
       setFichaje((f) => fichar(f, resto, ab.rol, ab.operarioId, ahora())); // optimista
       postFichaje(resto, ab.rol);
     },
     [postFichaje],
+  );
+
+  const desficharOF = useCallback(
+    (ofId: string) => desficharVarias([ofId]),
+    [desficharVarias],
   );
 
   // Pausa global del fichaje. Solo la usa el aviso de "llevas 3 h fichando"
@@ -1131,10 +1128,25 @@ export function Board({
   // veía por ningún lado: el botón dice "Fichar" y no cuántas cosas ficha. Se
   // pregunta solo con más de una —con una no hay nada que explicar— y de paso
   // se cuenta que dentro del pedido se puede fichar OF por OF.
+  //
+  // Y el aviso habla del conjunto RESULTANTE, no solo de lo que se acaba de
+  // pulsar. Fichar no sustituye lo que ya corre: lo SUMA (ver `ficharOFs`), y
+  // el tiempo se reparte entre todo lo que hay dentro del tramo. Así que
+  // ponerse a fichar un segundo pedido cambia lo que cuenta el primero, y eso
+  // no se veía por ninguna parte: el diálogo enseñaba las dos OF nuevas y decía
+  // "el tiempo se reparte entre ellas", cuando en realidad se repartía entre
+  // las cinco. Ahora se listan las cinco, agrupadas por pedido, y se dice
+  // cuántas venían de antes.
   const [fichajeVariasPendiente, setFichajeVariasPendiente] = useState<{
+    /** Lo que se acaba de pulsar: es lo que se manda a fichar (el motor ya
+     *  suma lo que corría). */
     ofIds: string[];
     rol: Rol;
-    codigos: string[];
+    /** El conjunto que quedará corriendo, agrupado por pedido, para enseñarlo. */
+    porPedido: { pedido: string; ofs: string[] }[];
+    total: number;
+    /** Cuántas de esas ya estaban corriendo antes de pulsar. */
+    yaCorrian: number;
   } | null>(null);
   /** Fichar ES empezar a trabajar.
    *
@@ -1152,8 +1164,31 @@ export function Board({
   const arrancarFichaje = useCallback(
     (ofIds: string[], rol: Rol) => {
       ficharOFs(ofIds, rol);
-      if (rol !== "plantear") return;
+      if (rol !== "plantear" || !miId) return;
       const ids = new Set(ofIds);
+
+      // Fichar en algo que no es de nadie ES cogerlo. Desde la bandeja de "Sin
+      // asignar" se podía poner el reloj en marcha sin quedarse la OF, y ahí
+      // pasaban dos cosas a la vez: la OF seguía en la bandeja, a la vista de
+      // todos como libre, y encima no salía a la persona en "Mi fichaje" —
+      // porque ese panel enseña lo tuyo y aquello no era de nadie—. Así que el
+      // reloj corría en un sitio que no aparecía por ninguna parte.
+      //
+      // Se asignan solo las que estaban SIN autor. Fichar en la OF de un
+      // compañero no te la quita: eso ya lo avisa `ficharAvisandoSiEsAjeno` y
+      // sigue siendo suya, que es como se echa una mano.
+      const huerfanas = pedidosRef.current
+        .flatMap((p) => p.ofs)
+        .filter((of) => ids.has(of.id) && of.autorId === null)
+        .map((of) => of.id);
+      if (huerfanas.length > 0) {
+        mut(new Set(huerfanas), (of) => ({ ...of, autorId: miId }), "asignar");
+      }
+
+      // El estado va después: `empezar_planteo` exige autor, así que sobre una
+      // OF de la bandeja `aplicarAccion` lanzaba y la dejaba en "pendiente"
+      // aunque el reloj estuviera corriendo. `mut` es síncrono sobre
+      // `pedidosRef`, así que aquí las recién adoptadas ya tienen autor.
       const porAccion = new Map<AccionOF, string[]>();
       for (const p of pedidosRef.current) {
         for (const of of p.ofs) {
@@ -1173,7 +1208,7 @@ export function Board({
         }, accion);
       }
     },
-    [ficharOFs, mut],
+    [ficharOFs, mut, miId],
   );
 
   // Último tramo del embudo de avisos: fichar en OFs asignadas a OTRO está
@@ -1210,23 +1245,39 @@ export function Board({
       // pero solo la PRIMERA vez del día: un diálogo en cada fichaje —y se
       // ficha muchas veces al día— se aprende a cerrar sin leerlo, que es peor
       // que no ponerlo. El resto del día lo recuerda el cartel fijo del panel
-      // de Mi fichaje. QUITAR los dos cuando el fichaje pase a "activo".
-      if (avisoAntiguaPendiente(miId)) {
+      // de Mi fichaje. Los dos se apagan solos al pasar el fichaje a "activo":
+      // ahí el tiempo entra en RPS por la web y fichar en las dos duplicaría.
+      if (dobleFichaje && avisoAntiguaPendiente(miId)) {
         setRecordatorioAntigua({ ofIds, rol });
         return;
       }
-      if (ofIds.length > 1) {
-        const ids = new Set(ofIds);
-        const codigos = pedidos
-          .flatMap((p) => p.ofs)
-          .filter((of) => ids.has(of.id))
-          .map((of) => `${of.codigo} · ${of.descripcion}`);
-        setFichajeVariasPendiente({ ofIds, rol, codigos });
+      // Lo que quedará corriendo: lo pulsado MÁS lo que ya corría con el mismo
+      // rol, que es lo que hace el motor. Con otro rol no se suma —un tramo
+      // tiene un solo rol—, así que ahí el conjunto es solo lo pulsado.
+      const ab = abierto(fichajeRef.current);
+      const yaCorriendo = ab && ab.rol === rol ? ab.ofIds : [];
+      const total = [...new Set([...yaCorriendo, ...ofIds])];
+      if (total.length === yaCorriendo.length) return; // ya corrían todas
+      if (total.length > 1) {
+        const ids = new Set(total);
+        const porPedido = pedidos
+          .map((p) => ({
+            pedido: `${p.codigo} · ${p.cliente}`,
+            ofs: p.ofs.filter((of) => ids.has(of.id)).map((of) => `${of.codigo} · ${of.descripcion}`),
+          }))
+          .filter((g) => g.ofs.length > 0);
+        setFichajeVariasPendiente({
+          ofIds,
+          rol,
+          porPedido,
+          total: total.length,
+          yaCorrian: yaCorriendo.length,
+        });
         return;
       }
       ficharAvisandoSiEsAjeno(ofIds, rol);
     },
-    [miId, pedidos, ficharAvisandoSiEsAjeno],
+    [miId, pedidos, dobleFichaje, ficharAvisandoSiEsAjeno],
   );
 
   // ── máquina de estados: ejecutarAccion sustituye a los switch de antes ──
@@ -1281,54 +1332,21 @@ export function Board({
     [mut, ficharOFs, soltarDeMiFichaje, pedidos, miId],
   );
 
-  // "Coger y empezar" revisión (columna "Por revisar" sin revisor): asigna al
-  // que pulsa como revisor Y arranca la revisión en la MISMA mutación, sobre
-  // el snapshot de pedidosRef. Antes RevisionView encadenaba onSetRevisor +
-  // onAccion("empezar_revision") en dos llamadas síncronas; como
-  // ejecutarAccion filtra las OFs aplicables leyendo `pedidos` (el estado del
-  // render actual, no pedidosRef), en el primer clic la OF todavía no tenía
-  // revisor, la lista de aplicables salía vacía y la acción se descartaba en
-  // silencio (quedaba el revisor puesto pero la OF seguía en por_revisar).
-  // Aquí la transición se aplica con aplicarAccion() sobre la OF que YA lleva
-  // el revisor puesto, no sobre la vieja: no se duplica la máquina de estados.
-  const cogerRevision = useCallback(
-    (ofIds: string[]) => {
-      if (!miId) return;
-      mut(
-        new Set(ofIds),
-        (of) => {
-          // Defensa además del filtro de la UI: revisor ≠ autor es regla dura
-          // del dominio, no se puede llegar aquí siendo autor de la propia OF.
-          if (of.autorId === miId) return of;
-          try {
-            const conRevisor = of.revisorId === miId ? of : { ...of, revisorId: miId };
-            return aplicarAccion(conRevisor, "empezar_revision");
-          } catch {
-            return of;
-          }
-        },
-        "empezar_revision",
-      );
-      // Solo arranca el fichaje de las OFs que de verdad pasaron a en_revision
-      // (pedidosRef ya refleja la mutación de arriba: mut() es síncrono).
-      const cogidas = pedidosRef.current
-        .flatMap((p) => p.ofs)
-        .filter(
-          (of) => ofIds.includes(of.id) && of.estado === "en_revision" && of.revisorId === miId,
-        )
-        .map((of) => of.id);
-      if (cogidas.length > 0) ficharOFs(cogidas, "revisar");
-    },
-    [miId, mut, ficharOFs],
-  );
-
   // Adaptador para no romper firmas aguas abajo todavía: RevisionView sigue
   // operando OF por OF con la firma antigua (ofId, accion, obs?). ZonaPersonal,
   // FaseFlyout, TecnicoCard y PedidoLinea ya llaman a ejecutarAccion
   // directamente; el adaptador accionFacet murió con ellas.
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
 
-  const completarPedido = useCallback(
+  // Pasar a Producción cierra el trabajo de OT: el pedido sale del tablero, sus
+  // fases se dan por terminadas en OLANET y a partir de ahí solo se consulta
+  // desde el Historial. Y se pulsa desde tres sitios (la fila del panel, el
+  // desplegable de una fase y el detalle), así que la pregunta va AQUÍ y no en
+  // cada botón: uno solo la hacía y desde los otros el pedido desaparecía de
+  // golpe, sin decir a dónde iba ni dar ocasión de rectificar.
+  const [pasarPendiente, setPasarPendiente] = useState<string | null>(null);
+  const completarPedido = useCallback((pedidoId: string) => setPasarPendiente(pedidoId), []);
+  const completarPedidoAhora = useCallback(
     (pedidoId: string) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       const ofIdsPedido = (pedidos.find((p) => p.id === pedidoId)?.ofs ?? [])
@@ -1342,6 +1360,8 @@ export function Board({
     },
     [pedidos, setPedidosSync, persistir],
   );
+  const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
+  const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;
 
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
@@ -1376,7 +1396,6 @@ export function Board({
   }
   const yo = operarios.find((o) => o.id === miId) as Operario;
   const resto = operarios.filter((o) => o.id !== miId);
-  const lives = [...liveByOp.values()];
 
   // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué
   // OF eran y cuáles se pueden volver a fichar AHORA (una que entretanto se
@@ -1395,12 +1414,18 @@ export function Board({
       <div className="flex min-h-full flex-col">
         {/* topbar */}
         {/* Tres zonas y no una fila que se reparte como puede: identidad y
-            navegación a la izquierda, el buscador CENTRADO, y a la derecha lo
-            que se consulta de reojo. Sin `flex-wrap`: al meter el buscador, la
-            cabecera saltaba a dos alturas en cuanto la ventana se estrechaba.
-            Lo de la derecha se va retirando por tamaño de pantalla (primero el
-            "en directo", luego los contadores), que es el orden inverso al de
-            su utilidad — los botones no se van nunca. */}
+            navegación a la izquierda, el buscador CENTRADO, y a la derecha los
+            botones. Sin `flex-wrap`: al meter el buscador, la cabecera saltaba
+            a dos alturas en cuanto la ventana se estrechaba.
+            AQUÍ HABÍA tres contadores (sin asignar, por revisar, en revisión) y
+            un "en directo" con los avatares de quien ficha. Los tres números ya
+            los da el sitio al que llevan —la bandeja cuenta lo suyo, las
+            pestañas llevan su badge, la vista de Revisiones enseña las columnas
+            con su total—, así que eran el mismo dato dicho dos veces y en el
+            único sitio donde no se puede pulsar. Y el "en directo" era el tercer
+            sitio que decía quién ficha, después del punto verde de cada fila y
+            de la zona de cada compañero. Sin ellos la cabecera es lo que tiene
+            que ser: dónde estoy, qué busco y quién soy. */}
         <header className="glass-header sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5">
           {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
           <Logo className="-my-3 shrink-0" />
@@ -1423,41 +1448,6 @@ export function Board({
             onAbrirHistorial={setHistorialAbierto}
           />
           <div className="flex shrink-0 items-center gap-2 text-xs">
-            {/* En directo: quién está fichando ahora mismo y con qué rol */}
-            {lives.length > 0 && (
-              <div
-                className="glass-chip hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 2xl:flex"
-                title="Fichando ahora mismo"
-              >
-                <span className="text-[11px] text-text-muted">En directo</span>
-                <div className="flex -space-x-1">
-                  {lives.map((l) => (
-                    <button
-                      key={l.operario.id}
-                      onClick={() => setOpenId(l.pedido.id)}
-                      title={`${l.operario.nombre} — ${ROL[l.rol].label.toLowerCase()} ${l.pedido.codigo} · ${l.of.descripcion}`}
-                      className="relative grid size-6 place-items-center rounded-full text-[9px] font-bold text-white ring-2 transition-transform hover:z-10 hover:scale-110"
-                      style={{
-                        background: l.operario.color,
-                        ["--tw-ring-color" as string]: ROL[l.rol].color,
-                      }}
-                    >
-                      {l.operario.iniciales}
-                      <span className="absolute -right-0.5 -top-0.5">
-                        <LiveDot rol={l.rol} className="size-2" />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/* Contadores: se consultan de reojo, no se pulsan. Son los
-                primeros en irse cuando la pantalla no da para todo. */}
-            <div className="hidden items-center gap-2 xl:flex">
-              <Kpi label="Sin asignar" value={sinAsignar} tone="muted" />
-              <Kpi label="Por revisar" value={porRevisar} tone="amber" />
-              <Kpi label="En revisión" value={enRevision} tone="violet" />
-            </div>
             <Herramientas />
             <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
@@ -1560,7 +1550,7 @@ export function Board({
                 onVerTodos={setFaseAbierta}
                 ofIdsFichandoYo={ofIdsFichandoYo}
                 onFichar={ficharOFsConAviso}
-                onDesfichar={desficharOF}
+                onDesficharVarias={desficharVarias}
                 completarPedido={completarPedido}
                 operarios={operarios}
               />
@@ -1577,7 +1567,7 @@ export function Board({
                 onClose={() => setFaseAbierta(null)}
     ofIdsFichandoYo={ofIdsFichandoYo}
                 onFichar={ficharOFsConAviso}
-                onDesfichar={desficharOF}
+                onDesficharVarias={desficharVarias}
                 completarPedido={completarPedido}
                 operarios={operarios}
               />
@@ -1610,7 +1600,7 @@ export function Board({
                     onClose={closeExpanded}
                     onOpen={openFacet}
                     onFichar={ficharOFsConAviso}
-                    onDesfichar={desficharOF}
+                    onDesficharVarias={desficharVarias}
                     completarPedido={completarPedido}
                   />
                 ))}
@@ -1734,7 +1724,6 @@ export function Board({
                 operarios={operarios}
                 miId={miId}
                 onOpen={openPedidoCb}
-                onCoger={cogerRevision}
                 onCambiarRevisor={cambiarRevisorOF}
                 onAccion={accionOF}
               />
@@ -1763,6 +1752,7 @@ export function Board({
         pedido={openPedido}
         operarios={operarios}
         miId={miId}
+        dobleFichaje={dobleFichaje}
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}
@@ -1780,9 +1770,28 @@ export function Board({
         operarios={operarios}
         pedidos={procesadosAll}
         fichaje={fichaje}
+        dobleFichaje={dobleFichaje}
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
+        onDesficharVarias={desficharVarias}
         onPausarTodo={pausarTodo}
+      />
+
+      <ConfirmDialog
+        abierto={pedidoAPasar !== null}
+        titulo={`Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
+        mensaje={
+          `Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido sale ` +
+          `del tablero: deja de estar en Pendientes y pasa al Historial.\n\n` +
+          `Es el final del trabajo de Oficina Técnica. Si después hubiera que retocar algo, habría ` +
+          `que hablarlo con Producción.`
+        }
+        onConfirmar={() => {
+          const id = pasarPendiente;
+          setPasarPendiente(null);
+          if (id) completarPedidoAhora(id);
+        }}
+        onCancelar={() => setPasarPendiente(null)}
       />
 
       <ConfirmDialog
@@ -1838,14 +1847,26 @@ export function Board({
       {/* Qué se va a fichar. El botón de la fila dice "Fichar" y arranca el
           reloj en todas las OF fichables del pedido: enseñarlas por su nombre
           es la única forma de que eso no sea una sorpresa, y de paso se aprende
-          que dentro del pedido se puede fichar una sola. */}
+          que dentro del pedido se puede fichar una sola.
+          Y se enseña el conjunto ENTERO, con lo que ya venía corriendo: el
+          reparto es sobre todo lo que hay dentro del tramo, así que ponerse con
+          un segundo pedido baja lo que cuenta el primero. */}
       <ConfirmDialog
         abierto={fichajeVariasPendiente !== null}
-        titulo={`Fichar ${fichajeVariasPendiente?.ofIds.length ?? 0} OF a la vez`}
+        titulo={
+          (fichajeVariasPendiente?.yaCorrian ?? 0) > 0
+            ? `El reloj pasa a repartirse entre ${fichajeVariasPendiente?.total} OF`
+            : `Fichar ${fichajeVariasPendiente?.total ?? 0} OF a la vez`
+        }
         mensaje={
-          `Se va a poner el reloj en marcha en:\n\n` +
-          `${(fichajeVariasPendiente?.codigos ?? []).map((c) => `· ${c}`).join("\n")}\n\n` +
-          `El tiempo se reparte entre ellas. Si solo quieres fichar una, abre el pedido y ficha esa OF.`
+          ((fichajeVariasPendiente?.yaCorrian ?? 0) > 0
+            ? `Ya tienes ${fichajeVariasPendiente?.yaCorrian} OF corriendo. Al añadir estas, el reloj queda repartido entre todas:\n\n`
+            : `Se va a poner el reloj en marcha en:\n\n`) +
+          (fichajeVariasPendiente?.porPedido ?? [])
+            .map((g) => `${g.pedido}\n${g.ofs.map((c) => `   · ${c}`).join("\n")}`)
+            .join("\n\n") +
+          `\n\nEl tiempo se reparte a partes iguales entre las ${fichajeVariasPendiente?.total} — cada una cuenta ` +
+          `1/${fichajeVariasPendiente?.total} de lo que marque el reloj. Si solo quieres fichar una, abre el pedido y ficha esa OF.`
         }
         onConfirmar={() => {
           const pendiente = fichajeVariasPendiente;
@@ -1871,21 +1892,3 @@ export function Board({
   );
 }
 
-function Kpi({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "amber" | "violet" | "muted";
-}) {
-  const color =
-    tone === "amber" ? "text-amber-700 dark:text-amber-400" : tone === "violet" ? "text-violet-700 dark:text-violet-400" : "text-text-muted";
-  return (
-    <div className="glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
-      <span className={`text-sm font-bold ${color}`}>{value}</span>
-      <span className="text-[11px] text-text-muted">{label}</span>
-    </div>
-  );
-}

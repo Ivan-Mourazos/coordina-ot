@@ -22,7 +22,7 @@ export const TecnicoCard = memo(function TecnicoCard({
   onClose,
   onOpen,
   onFichar,
-  onDesfichar,
+  onDesficharVarias,
   completarPedido,
 }: {
   operario: Operario;
@@ -33,7 +33,9 @@ export const TecnicoCard = memo(function TecnicoCard({
   onClose: () => void;
   onOpen: (f: Facet) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
-  onDesfichar: (ofId: string) => void;
+  /** Para el reloj en varias OF a la vez; lo usa la pausa por pedido de
+   *  PedidoLinea (ver desficharVarias en Board). */
+  onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -119,7 +121,7 @@ export const TecnicoCard = memo(function TecnicoCard({
           onOpen={onOpen}
           onCerrar={onClose}
           onFichar={onFichar}
-          onDesfichar={onDesfichar}
+          onDesficharVarias={onDesficharVarias}
           completarPedido={completarPedido}
         />
       )}

@@ -84,12 +84,15 @@ function fmtDia(iso: string): string {
   return `${Number(d)}/${Number(m)}/${a}`;
 }
 
-/** "1 OF empezada" / "3 OFs empezadas". El rótulo se repite en la píldora, en
- *  su título y en el panel; hacer la concordancia a mano en cada sitio acaba
- *  descuadrando en alguno. */
+/** "1 OF empezada" / "3 OF empezadas". El rótulo se repite en la píldora, en su
+ *  título y en el panel; hacer la concordancia a mano en cada sitio acaba
+ *  descuadrando en alguno.
+ *
+ *  La sigla NO lleva "s" en plural —"las OF", no "las OFs"—, que es como se
+ *  escribe y como está en el resto de la app ("3 OF", "Fichar las 4 OF"). Lo
+ *  que sí concuerda es el adjetivo. */
 function nOF(n: number, adjetivo?: string): string {
-  const s = n === 1 ? "" : "s";
-  return `${n} OF${s}${adjetivo ? ` ${adjetivo}${s}` : ""}`;
+  return `${n} OF${adjetivo ? ` ${adjetivo}${n === 1 ? "" : "s"}` : ""}`;
 }
 
 /** Instante en que dejó de correr el reloj de esta OF: el `fin` de su último
@@ -133,18 +136,6 @@ function resumenDelDia(
   return { plantear, revisar, total: plantear + revisar };
 }
 
-/** OFs donde soy autor o revisor, en estados que todavía tienen sentido
- *  fichar/consultar (fuera anuladas y ya aprobadas). Las detenidas SÍ se
- *  incluyen: se ven en el panel pero con el toggle deshabilitado. */
-function ofsMiasDe(p: Pedido, miId: string): OF[] {
-  return p.ofs.filter(
-    (of) =>
-      (of.autorId === miId || of.revisorId === miId) &&
-      of.estado !== "anulada" &&
-      of.estado !== "aprobada",
-  );
-}
-
 /** Panel flotante "Mi fichaje": el RELOJ, no la lista de trabajo. Contesta a
  *  dos preguntas y a ninguna más — "¿qué estoy contando ahora?" y "¿qué dejé
  *  pausado?". Repartir trabajo es cosa del tablero.
@@ -165,16 +156,26 @@ export function MiFichaje({
   operarios,
   pedidos,
   fichaje,
+  dobleFichaje = true,
   onFichar,
   onDesfichar,
+  onDesficharVarias,
   onPausarTodo,
 }: {
   miId: string;
   operarios: Operario[];
   pedidos: Pedido[];
   fichaje: Fichaje;
+  /** OT ficha también en la herramienta vieja: sale el cartel del periodo de
+   *  pruebas. Se apaga solo al pasar el fichaje a "activo". */
+  dobleFichaje?: boolean;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  /** Parar varias OF de una vez. NO es llamar N veces a `onDesfichar`: cada
+   *  llamada cierra el tramo y abre otro con lo que queda, así que parar un
+   *  pedido de cuatro OF generaba cuatro tramos de duración cero y cuatro POST
+   *  seguidos, cada uno pisando al anterior. */
+  onDesficharVarias: (ofIds: string[]) => void;
   onPausarTodo: () => void;
 }) {
   // Cuánto panel se quiere ver, y se recuerda. Quien trabaja con el reloj
@@ -312,9 +313,15 @@ export function MiFichaje({
   // cuál era el que estaba contando. Si fiché el pedido entero salen todas sus
   // OF; si fiché una sola, sale esa sola — el panel refleja lo que se decidió
   // al fichar.
+  //
+  // Y sale TODO lo que corre, sea mío o no. Antes se filtraba por "soy autor o
+  // revisor" y eso escondía justo dos casos normales: fichar desde la bandeja
+  // en un pedido sin asignar, y echarle una mano a un compañero en el suyo. El
+  // reloj de la cabecera contaba ese tiempo y el panel decía "No estás fichando
+  // nada ahora" — con lo cual no había forma de pararlo desde aquí.
   const enMarcha = new Set(ab?.ofIds ?? []);
   const grupos = pedidos
-    .map((p) => ({ pedido: p, ofs: ofsMiasDe(p, miId).filter((of) => enMarcha.has(of.id)) }))
+    .map((p) => ({ pedido: p, ofs: p.ofs.filter((of) => enMarcha.has(of.id)) }))
     .filter((g) => g.ofs.length > 0);
 
   // Con el reloj parado: lo que dejé a medias, de lo último a lo más viejo.
@@ -437,12 +444,15 @@ export function MiFichaje({
               Va en el panel del reloj, y no en un diálogo de una vez, porque el
               riesgo se repite en cada fichaje: un aviso que se cierra y no
               vuelve se olvida al tercer día.
-              QUITAR cuando el fichaje pase a "activo" y OT deje de usar la
-              herramienta antigua (ver FICHAJE_OLANET en .env.example). */}
-          <p className="mb-2 rounded-lg bg-amber-500/12 px-2 py-1.5 text-[11px] leading-snug text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/12 dark:text-amber-200">
-            <span className="font-bold">Periodo de pruebas:</span> de momento hay que fichar
-            también en la herramienta antigua, hasta nuevo aviso.
-          </p>
+              Se apaga solo cuando el fichaje pasa a "activo" (ver
+              FICHAJE_OLANET en .env.example): ahí el tiempo entra en RPS por la
+              web y fichar en las dos duplicaría las horas. */}
+          {dobleFichaje && (
+            <p className="mb-2 rounded-lg bg-amber-500/12 px-2 py-1.5 text-[11px] leading-snug text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/12 dark:text-amber-200">
+              <span className="font-bold">Periodo de pruebas:</span> de momento hay que fichar
+              también en la herramienta antigua, hasta nuevo aviso.
+            </p>
+          )}
 
           {/* Con el reloj parado hay que decir QUÉ es esta lista: no es lo que
               se está fichando (nada lo está), es lo que quedó a medias. */}
@@ -468,7 +478,6 @@ export function MiFichaje({
                 key={g.pedido.id}
                 pedido={g.pedido}
                 ofs={g.ofs}
-                miId={miId}
                 fichaje={fichajeHoy}
                 ahora={ahora}
                 enMarchaModo={ab !== null}
@@ -476,6 +485,7 @@ export function MiFichaje({
                 denso={denso}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
+                onDesficharVarias={onDesficharVarias}
               />
             ))}
           </ul>
@@ -571,7 +581,6 @@ export function MiFichaje({
 function GrupoPedido({
   pedido,
   ofs,
-  miId,
   fichaje,
   ahora,
   enMarchaModo,
@@ -579,10 +588,12 @@ function GrupoPedido({
   denso,
   onFichar,
   onDesfichar,
+  onDesficharVarias,
 }: {
   pedido: Pedido;
+  /** Las OF de este pedido que enseña el panel: las que corren, o las que
+   *  quedaron a medias. */
   ofs: OF[];
-  miId: string;
   fichaje: Fichaje;
   ahora: string;
   /** true = el panel enseña lo que corre AHORA; false = lo que quedó a medias.
@@ -593,25 +604,31 @@ function GrupoPedido({
   denso?: boolean;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  onDesficharVarias: (ofIds: string[]) => void;
 }) {
-  // Con el reloj en marcha aquí solo llegan OF que se están fichando (ver
-  // `enMarcha` arriba), así que manda la rama de "Parar pedido"; con el reloj
-  // parado llegan las que tengo a medias y manda la de fichar. Las dos ramas
-  // se quedan en los dos modos: la regla de qué se puede arrancar es de este
-  // componente, y quien la lea no debería tener que fiarse de un filtro que
-  // está en otro sitio.
+  // ── Un botón para el pedido entero ──────────────────────────────────────
+  // El de antes solo miraba las OF de las que YO era autor y que tocaba
+  // PLANTEAR, así que desaparecía en cuanto el pedido era de un compañero, o
+  // venía de la bandeja sin asignar, o lo que corría era una revisión. Y para
+  // parar solo salía con más de una OF corriendo: con una había que buscar el
+  // botón de su fila.
   //
-  // "Fichar pedido" solo ficha lo que me toca PLANTEAR (autor): un fichaje
-  // corriendo es un único rol, así que mezclar plantear+revisar en un solo
-  // botón no tendría un rol claro que pasarle a onFichar.
-  const misPlantear = ofs.filter((of) => of.autorId === miId && rolFichajeDe(of) === "plantear");
-  const fichablesPlantear = misPlantear.filter(esFichable);
-  const detenidas = misPlantear.length - fichablesPlantear.length;
-  // Lo que queda POR arrancar. Antes el botón salía igual con todas las OFs
-  // ya corriendo: ofrecía fichar lo que ya se estaba fichando, y ocupaba el
-  // sitio donde lo útil es lo contrario, pararlas todas de una vez.
-  const porArrancar = fichablesPlantear.filter((of) => of.fichandoRol === null);
-  const corriendo = misPlantear.filter((of) => of.fichandoRol !== null);
+  // Ahora el rol lo dicen las propias OF y no mi papel en ellas. Un fichaje
+  // corriendo tiene UN rol (ver `ofsFichablesDe`), así que el botón actúa sobre
+  // el grupo mayoritario: el rol de lo que ya corre si hay algo corriendo, y si
+  // no, el de la primera OF fichable.
+  const corriendo = ofs.filter((of) => of.fichandoRol !== null);
+  const rolGrupo: Rol =
+    corriendo[0]?.fichandoRol ?? rolFichajeDe(ofs.find(esFichable) ?? ofs[0]);
+  const delRol = ofs.filter((of) => rolFichajeDe(of) === rolGrupo);
+  const fichables = delRol.filter(esFichable);
+  const detenidas = delRol.length - fichables.length;
+  // Lo que queda POR arrancar. Con todas corriendo el botón ofrecía fichar lo
+  // que ya se estaba fichando, y ocupaba el sitio donde lo útil es lo
+  // contrario: pararlas todas de una vez.
+  const porArrancar = fichables.filter((of) => of.fichandoRol === null);
+  const paranDelRol = corriendo.filter((of) => rolFichajeDe(of) === rolGrupo);
+  const verbo = rolGrupo === "revisar" ? "la revisión" : "el pedido";
 
   return (
     <li className={`rounded-xl bg-surface-2/50 ${denso ? "p-1.5" : "p-2"}`}>
@@ -619,35 +636,46 @@ function GrupoPedido({
         <span className="min-w-0 truncate text-xs font-semibold text-text">
           {pedido.codigo} <span className="font-normal text-text-muted">· {pedido.cliente}</span>
         </span>
-        {porArrancar.length > 0 ? (
+        {/* Parar manda sobre arrancar: con el reloj en marcha, lo que se busca
+            aquí es el botón de parar, y con OF a medias el de "fichar el
+            resto" queda debajo, en su fila. */}
+        {paranDelRol.length > 0 ? (
           <button
-            onClick={() => onFichar(porArrancar.map((o) => o.id), "plantear")}
-            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL.plantear.solido}`}
+            onClick={() => onDesficharVarias(paranDelRol.map((o) => o.id))}
+            title={`Para el reloj en ${paranDelRol.length === 1 ? "la OF que corre" : `las ${paranDelRol.length} OF que corren`} de este pedido. Siguen como están: no se cierra nada.`}
+            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
+          >
+            ⏸ Pausar {paranDelRol.length > 1 ? `${verbo} (${paranDelRol.length})` : verbo}
+          </button>
+        ) : porArrancar.length > 0 ? (
+          <button
+            onClick={() => onFichar(porArrancar.map((o) => o.id), rolGrupo)}
+            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
           >
             {/* Con el reloj parado no se "empieza" nada: se retoma lo que ya
                 estaba empezado, y así se llama el botón. */}
-            {!enMarchaModo
-              ? "Retomar pedido"
-              : corriendo.length > 0
-                ? "Fichar el resto"
-                : "Fichar pedido"}
-          </button>
-        ) : corriendo.length > 1 ? (
-          <button
-            onClick={() => corriendo.forEach((o) => onDesfichar(o.id))}
-            className="ml-auto shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
-          >
-            Parar pedido
+            {!enMarchaModo ? `Retomar ${verbo}` : `Fichar ${verbo}`}
           </button>
         ) : null}
       </div>
-      {detenidas > 0 && fichablesPlantear.length > 0 && (
+      {/* Con algo corriendo Y algo por arrancar caben las dos cosas: arriba se
+          para lo que cuenta y aquí se suma el resto. */}
+      {paranDelRol.length > 0 && porArrancar.length > 0 && (
+        <button
+          onClick={() => onFichar(porArrancar.map((o) => o.id), rolGrupo)}
+          title="El tiempo se reparte entre todas las OF que corran, así que sumar una baja lo que cuenta cada una."
+          className="mt-1 rounded-lg border border-border px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+        >
+          + Fichar {porArrancar.length} más de este pedido
+        </button>
+      )}
+      {detenidas > 0 && fichables.length > 0 && (
         <p className="mt-0.5 text-[10px] text-text-muted">
           {/* "fichando X de Y" sería mentira con el reloj parado: ahí lo que
               cuenta es cuántas se PODRÍAN retomar. */}
           {enMarchaModo
-            ? `fichando ${fichablesPlantear.length} de ${misPlantear.length}`
-            : `${fichablesPlantear.length} de ${misPlantear.length} se pueden fichar`}{" "}
+            ? `fichando ${fichables.length} de ${delRol.length}`
+            : `${fichables.length} de ${delRol.length} se pueden fichar`}{" "}
           — {detenidas} detenida{detenidas === 1 ? "" : "s"}
         </p>
       )}

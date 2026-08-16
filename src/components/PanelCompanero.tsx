@@ -25,7 +25,7 @@ export function PanelCompanero({
   onOpen,
   onCerrar,
   onFichar,
-  onDesfichar,
+  onDesficharVarias,
   completarPedido,
 }: {
   operario: Operario;
@@ -34,7 +34,9 @@ export function PanelCompanero({
   onOpen: (f: Facet) => void;
   onCerrar: () => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
-  onDesfichar: (ofId: string) => void;
+  /** Para el reloj en varias OF a la vez; lo usa la pausa por pedido de
+   *  PedidoLinea (ver desficharVarias en Board). */
+  onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
   const grupos = agruparPorFase(facets);
@@ -91,7 +93,7 @@ export function PanelCompanero({
                     fase={g.id}
                     onOpen={onOpen}
                     onFichar={onFichar}
-                    onDesfichar={onDesfichar}
+                    onDesficharVarias={onDesficharVarias}
                     completarPedido={completarPedido}
                     soloConsulta
                   />

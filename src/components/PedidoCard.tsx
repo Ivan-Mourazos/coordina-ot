@@ -37,9 +37,6 @@ export const PedidoCardView = memo(function PedidoCardView({
   mostrarFecha?: boolean;
 }) {
   const { pedido, ofs } = facet;
-  const total = pedido.ofs.length;
-  const parcial = ofs.length < total;
-
   const fichando = ofs.find((o) => o.fichandoRol);
   const revisorId = ofs.find((o) => o.revisorId)?.revisorId ?? null;
   const revisor = operarios.find((o) => o.id === revisorId) ?? null;

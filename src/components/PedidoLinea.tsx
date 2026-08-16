@@ -35,7 +35,7 @@ export function PedidoLinea({
   fase,
   onOpen,
   onFichar,
-  onDesfichar,
+  onDesficharVarias,
   completarPedido,
   operarios,
   ofIdsFichandoYo,
@@ -45,7 +45,9 @@ export function PedidoLinea({
   fase: Fase;
   onOpen: (f: Facet) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
-  onDesfichar: (ofId: string) => void;
+  /** Para el reloj en varias OF de una vez. Aquí siempre son varias en
+   *  potencia: la fila es un PEDIDO, y se ficha entero. */
+  onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
   /** Solo para poner nombre a quien falta en "listo para pasar". */
   operarios?: Operario[];
@@ -62,7 +64,10 @@ export function PedidoLinea({
   // se ofrece «Pausar» si la OF está en MI intervalo abierto; si no, pausar
   // cortaría mi propio fichaje, que es otro.
   const fichandoAlguien = ofs.find((o) => o.fichandoRol);
-  const fichando = ofs.find((o) => ofIdsFichandoYo?.has(o.id));
+  // TODAS las mías que corren, no la primera. El botón paraba solo una, así que
+  // en un pedido de cuatro OF fichado entero había que pulsar "Pausar" cuatro
+  // veces y el reloj seguía andando entre pulsación y pulsación.
+  const fichandoYo = ofs.filter((o) => ofIdsFichandoYo?.has(o.id));
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
   const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
@@ -114,7 +119,7 @@ export function PedidoLinea({
       >
         {fichandoAlguien && (
           <span
-            title={fichando ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
+            title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
             className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
           />
         )}
@@ -188,13 +193,17 @@ export function PedidoLinea({
             que más se pulsa y esconderlo hasta pasar el ratón obligaba a
             buscarlo. Los demás se revelan al pasar por encima, como el resto de
             acciones de la fila: en reposo la fila es para leerla. */}
-        {fichando ? (
+        {fichandoYo.length > 0 ? (
           <button
-            onClick={() => onDesfichar(fichando.id)}
-            title="Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
+            onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
+            title={
+              fichandoYo.length === 1
+                ? "Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
+                : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
+            }
             className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
           >
-            ⏸ Pausar
+            ⏸ Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
           </button>
         ) : (
           fichables.length > 0 && (

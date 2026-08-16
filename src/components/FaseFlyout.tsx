@@ -15,7 +15,7 @@ export function FaseFlyout({
   onOpen,
   onClose,
   onFichar,
-  onDesfichar,
+  onDesficharVarias,
   completarPedido,
   operarios,
   ofIdsFichandoYo,
@@ -25,7 +25,9 @@ export function FaseFlyout({
   onOpen: (f: Facet) => void;
   onClose: () => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
-  onDesfichar: (ofId: string) => void;
+  /** Para el reloj en varias OF a la vez; lo usa la pausa por pedido de
+   *  PedidoLinea (ver desficharVarias en Board). */
+  onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
   /** Para poner nombre a quien falta en "listo para pasar" (ver PedidoLinea). */
   operarios: Operario[];
@@ -54,7 +56,7 @@ export function FaseFlyout({
             fase={grupo.id}
             onOpen={onOpen}
             onFichar={onFichar}
-            onDesfichar={onDesfichar}
+            onDesficharVarias={onDesficharVarias}
             completarPedido={completarPedido}
             operarios={operarios}
             ofIdsFichandoYo={ofIdsFichandoYo}

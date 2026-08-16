@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
-import { ESTADO, PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
+import { ESTADO, PRIORIDAD, ROL } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
-import { ScanViewer } from "./ScanViewer";
 import { DevolverInline } from "./DevolverInline";
 import { AnularInline } from "./AnularInline";
 import { PedirRevisor } from "./PedirRevisor";
@@ -16,11 +15,10 @@ import { Select, OpDot, type SelectOption } from "./Select";
 import { accionesDisponibles, etiquetaAccion, type AccionOF } from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
-import { minutosEnCoordina } from "@/lib/imputaciones";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
-import { FichadoEnRps } from "./FichadoEnRps";
+import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
@@ -112,6 +110,7 @@ export function Drawer({
   pedido,
   operarios,
   miId,
+  dobleFichaje = false,
   onClose,
   onAssignPedido,
   onCompletar,
@@ -124,6 +123,9 @@ export function Drawer({
   pedido: Pedido | null;
   operarios: Operario[];
   miId: string | null;
+  /** OT ficha también en la herramienta vieja: las dos cuentas de tiempo
+   *  hablan del mismo trabajo y hay que decirlo (ver aplicarTiemposFichaje). */
+  dobleFichaje?: boolean;
   onClose: () => void;
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
@@ -144,6 +146,8 @@ export function Drawer({
 
   // Qué grupos de OF ajenas al trabajo de OT se han desplegado a mano.
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
+  // Eligiendo el revisor del pedido entero (ver `paraRevisar` más abajo).
+  const [pidiendoRevisorPedido, setPidiendoRevisorPedido] = useState(false);
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
@@ -158,6 +162,7 @@ export function Drawer({
   if (pedido && pedido.id !== ultimoPedido) {
     setUltimoPedido(pedido.id);
     if (mostrar.size > 0) setMostrar(new Set());
+    if (pidiendoRevisorPedido) setPidiendoRevisorPedido(false);
   }
 
   if (!pedido) return null;
@@ -190,6 +195,22 @@ export function Drawer({
   // de `ofsFichablesDe`), así que meter aquí una OF que está en revisión le
   // ficharía la revisión como si fuera planteo, a nombre de quien pulse.
   const fichablesDeOT = ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear");
+
+  // ── Las OF del pedido que YO puedo mandar a revisar ahora mismo ──────────
+  // El planteo se termina pedido a pedido, no OF a OF: quien plantea un parte
+  // de cuatro OF las acaba a la vez y las manda juntas. Había que abrir cada
+  // una, pulsar su "Pasar a revisión" y elegir revisor CUATRO veces, siempre el
+  // mismo. La máquina de estados sigue siendo por OF —una puede quedarse atrás
+  // y se manda sola desde su fila—; lo que cambia es que hay un camino para el
+  // caso normal.
+  const paraRevisar = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "terminar_planteo"),
+  );
+  // Un solo revisor para todas: solo se puede si el autor es el MISMO en todas,
+  // porque el revisor no puede ser el autor y con dos autores no hay un único
+  // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
+  // manda desde su fila, que es donde se ve de quién es cada una.
+  const autoresParaRevisar = [...new Set(paraRevisar.map((o) => o.autorId))];
 
   return (
     <div
@@ -335,16 +356,53 @@ export function Drawer({
                 con una sola, este botón y el de su fila harían lo mismo y
                 sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
                 usa cuando de verdad solo tocas una. */}
-            {fichablesDeOT.length > 1 && (
-              <button
-                onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
-                title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
-                className="ml-auto shrink-0 rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
-              >
-                ⏱ Fichar las {fichablesDeOT.length}
-              </button>
-            )}
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+              {fichablesDeOT.length > 1 && (
+                <button
+                  onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
+                  title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
+                >
+                  ⏱ Fichar las {fichablesDeOT.length}
+                </button>
+              )}
+              {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
+                  más de una: con una sola, este botón y el de su fila harían lo
+                  mismo. */}
+              {paraRevisar.length > 1 && autoresParaRevisar.length === 1 && !pidiendoRevisorPedido && (
+                <button
+                  onClick={() => setPidiendoRevisorPedido(true)}
+                  title={`Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`}
+                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                >
+                  Pasar las {paraRevisar.length} a revisión
+                </button>
+              )}
+            </span>
           </div>
+
+          {/* El revisor se elige UNA vez y vale para todas. Va debajo del
+              rótulo y a lo ancho: metido en la misma fila que los botones se
+              quedaba sin sitio para el desplegable. */}
+          {pidiendoRevisorPedido && (
+            <div className="mb-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2">
+              <p className="mb-1.5 text-[11px] text-text-muted">
+                Se mandan a revisar las {paraRevisar.length} OF de{" "}
+                {opById(autoresParaRevisar[0])?.nombre ?? "este pedido"}, con el mismo revisor.
+              </p>
+              <PedirRevisor
+                operarios={operarios}
+                excluirIds={autoresParaRevisar}
+                etiquetaConfirmar={`Pasar las ${paraRevisar.length}`}
+                onConfirmar={(rev) => {
+                  for (const o of paraRevisar) onSetRevisor(o.id, rev);
+                  onAccion(paraRevisar.map((o) => o.id), "terminar_planteo");
+                  setPidiendoRevisorPedido(false);
+                }}
+                onCancelar={() => setPidiendoRevisorPedido(false)}
+              />
+            </div>
+          )}
 
           {ofsDeOT.length === 0 && (
             <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-muted">
@@ -359,6 +417,8 @@ export function Drawer({
                 of={of}
                 operarios={operarios}
                 miId={miId}
+                dobleFichaje={dobleFichaje}
+                pedidoDeUnaOF={pedido.ofs.length === 1}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
                 onTraspasarAutor={onTraspasarAutor}
@@ -409,12 +469,15 @@ export function Drawer({
           className="p-3 text-[11px] leading-snug text-text-muted"
           style={{ boxShadow: "inset 0 1px 0 0 var(--glass-border)" }}
         >
+          {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
+              botón está también en la fila del tablero y no puede preguntar
+              cada uno lo suyo (ver `pasarAProduccionPendiente`). */}
           {listoParaCompletar && (
             <button
               onClick={() => onCompletar(pedido.id)}
-              className="mb-2 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+              className="mb-2 w-full rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-700"
             >
-              📦 Pasar a Producción (Completar pedido)
+              📦 Pasar a Producción
             </button>
           )}
           {/* Ya no hace falta explicar que "planteo = autor" y "revisión =
@@ -430,35 +493,24 @@ export function Drawer({
   );
 }
 
-/** Una línea del bloque de roles de la OF: QUIÉN · con qué rol · cuánto tiempo
- *  hay fichado en ese rol.
+/** Una línea del bloque de roles de la OF: QUIÉN tiene el encargo.
  *
- *  Nace de una queja concreta sobre la ficha de un pedido: los mismos técnicos
- *  salían dos veces y encima en distinto orden —arriba "Jaime, Adrián" y
- *  debajo "planteo Adrián, Jaime" (pedido 3798)—, así que había que leerlo dos
- *  veces para descubrir que decían lo mismo. Esta tarjeta tenía la misma
- *  enfermedad en versión suave: la fila de tiempos daba "Planteo 1h 20m ·
- *  Revisión 30m" SIN nombres y, cuatro líneas más abajo (con los archivos de
- *  RPS metidos en medio), los chips "Autor / Revisor" daban los nombres SIN
- *  tiempos. Emparejar planteo↔autor y revisión↔revisor quedaba de cuenta del
- *  que mira; tanto, que hubo que explicarlo por escrito en el pie del panel.
- *
- *  OJO, que no son exactamente el mismo dato y por eso no vale con juntarlos y
- *  ya: el nombre es QUIEN TIENE EL ROL asignado, y el tiempo es TODO el
- *  fichado en ese rol, que puede haber echado un compañero (se ficha en la OF
- *  ajena y el tiempo se imputa a quien lo echa) o el autor anterior si la OF se
- *  traspasó. Por eso el tiempo va rotulado con el trabajo —"planteo",
- *  "revisión"— y no con la persona, y el title lo deja escrito: así la
- *  diferencia se ve, en vez de tener que deducirla.
+ *  Solo el nombre, sin minutos. Los llevaba, y era la primera de las cuatro
+ *  copias del tiempo que tenía esta tarjeta (ver la cabecera de TiempoOF.tsx).
+ *  Además decía otra cosa de la que parecía: el nombre es quien TIENE EL ROL
+ *  asignado y el número era TODO el tiempo fichado en ese rol, que puede haber
+ *  echado un compañero echando una mano, o el autor anterior si la OF se
+ *  traspasó. Los dos datos juntos en una línea se leían como "esto es lo que ha
+ *  echado esta persona", que no era verdad. Ahora el reparto real, persona a
+ *  persona, está debajo en su tabla, y aquí queda el encargo: de quién es la
+ *  OF y quién la repasa.
  *
  *  El color del chip sale de ROL (plantear = esmeralda, revisar = violeta),
  *  el mismo par que usan tarjetas, badges y el resto de la app. */
 function LineaRol({
   rol,
   rotulo,
-  trabajo,
   op,
-  min,
   live,
   control,
 }: {
@@ -467,16 +519,7 @@ function LineaRol({
    *  con las que se habla del trabajo en el resto del panel (traspasar autor,
    *  elegir revisor), no invento nuevo. */
   rotulo: string;
-  /** Cómo se llama el tiempo: "planteo" / "revisión". */
-  trabajo: string;
   op: Operario | null;
-  /** Minutos fichados EN COORDINAOT, o null para no enseñar ninguno.
-   *
-   *  Lo que se fichó en el terminal de siempre no entra aquí: va al desglose de
-   *  "Ya fichado en RPS", que está justo debajo y lo reparte por persona.
-   *  Sumarlo también en esta línea sería el mismo dato dos veces, y encima peor
-   *  contado, porque aquí saldría todo bajo un solo nombre. */
-  min: number | null;
   live: boolean;
   /** Sustituye al nombre cuando la persona se puede cambiar desde aquí (el
    *  autor se traspasa mientras quede trabajo suyo). El revisor sigue siendo
@@ -486,11 +529,7 @@ function LineaRol({
   return (
     <div
       className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5"
-      title={
-        min === null
-          ? `${rotulo}: ${op ? op.nombre : "sin asignar"}. Sin tiempo de ${trabajo} fichado en CoordinaOT; el que se fichó en el terminal de siempre está desglosado por persona ahí abajo.`
-          : `${rotulo}: ${op ? op.nombre : "sin asignar"}. ${fmtMin(min)} de ${trabajo} fichados en CoordinaOT, que pueden repartirse entre varias personas: el tiempo se imputa a quien lo echa, aunque la OF sea de otro. Lo fichado en el terminal de siempre va aparte, en el desglose de RPS.`
-      }
+      title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. Es de quién es el encargo; el tiempo que ha echado cada uno está justo debajo.`}
     >
       <span
         className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[rol].chip}`}
@@ -515,11 +554,6 @@ function LineaRol({
       {/* El punto pulsante no repite el rol (el badge de la cabecera de la OF
           ya lo dice): solo señala CUÁL de las dos líneas está corriendo. */}
       {live && <LiveDot rol={rol} className="size-1.5" />}
-      {min !== null && (
-        <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-text-muted">
-          {trabajo} <b className="font-semibold text-text">{fmtMin(min)}</b>
-        </span>
-      )}
     </div>
   );
 }
@@ -528,6 +562,8 @@ function OFRow({
   of,
   operarios,
   miId,
+  dobleFichaje,
+  pedidoDeUnaOF,
   opById,
   onSetRevisor,
   onTraspasarAutor,
@@ -538,6 +574,9 @@ function OFRow({
   of: OF;
   operarios: Operario[];
   miId: string | null;
+  dobleFichaje: boolean;
+  /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
+  pedidoDeUnaOF: boolean;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -551,11 +590,9 @@ function OFRow({
   const anulacion = of.estado === "anulada" ? leerAnulacion(of.observacion) : null;
   const autor = opById(of.autorId);
   const revisor = opById(of.revisorId);
-  // Cada minuto se enseña UNA vez y en su sitio: lo fichado en el terminal de
-  // siempre va al desglose de RPS (por persona), y en la línea de Autor queda
-  // solo lo fichado aquí. Si no se fichó aquí, la línea va sin tiempo: los
-  // minutos ya están abajo con su dueño. El "Total" sigue sumando los dos.
-  const planteoAqui = minutosEnCoordina(of);
+  // El tiempo NO se calcula aquí: todo el reparto —quién, cuánto y en qué
+  // herramienta— vive en TiempoOF, que es el único sitio de la tarjeta donde
+  // sale un minuto.
 
   return (
     <li className="glass-chip rounded-xl p-3">
@@ -618,7 +655,7 @@ function OFRow({
       {of.avisos && of.avisos.length > 0 && (
         <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2 py-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
-            Avisos de producción
+            Avisos de Producción
           </p>
           {of.avisos.map((a) => (
             <p key={a} className="text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
@@ -692,12 +729,16 @@ function OFRow({
         <LineaRol
           rol="plantear"
           rotulo="Autor"
-          trabajo="planteo"
           op={autor}
-          min={planteoAqui > 0 ? planteoAqui : null}
           live={of.fichandoRol === "plantear"}
           control={
-            puedeTraspasarAutor(of) ? (
+            // Con UNA sola OF el selector sobra: el de arriba, "Asignar autor
+            // (pedido entero)", ya cambia exactamente esta OF. Eran dos
+            // desplegables idénticos, uno encima del otro, y no había forma de
+            // saber en qué se diferenciaban — porque no se diferenciaban en
+            // nada. En cuanto hay dos OF vuelve, que ahí sí sirve: es como se
+            // reparte un pedido entre dos personas.
+            puedeTraspasarAutor(of) && !pedidoDeUnaOF ? (
               <Select
                 value={of.autorId}
                 onChange={(v) => v && onTraspasarAutor(of.id, v)}
@@ -712,31 +753,17 @@ function OFRow({
         <LineaRol
           rol="revisar"
           rotulo="Revisor"
-          trabajo="revisión"
           op={revisor}
-          // La revisión no existe en RPS: o se fichó aquí, o no hay nada que
-          // enseñar (un "revisión 0m" no informa de nada).
-          min={of.tiempoRevisionMin > 0 ? of.tiempoRevisionMin : null}
           live={of.fichandoRol === "revisar"}
         />
       </div>
 
-      {/* El desglose de RPS, debajo y aparte: la línea de Autor dice de quién
-          es la OF, y esto dice quién la fichó y cuánto. En los pedidos de antes
-          de la web lo primero no existe, y sin esto el panel solo enseñaba el
-          total sin dueño. */}
-      {of.imputaciones && (
-        <FichadoEnRps imputaciones={of.imputaciones} opById={opById} />
-      )}
-
-      {/* El total contra lo estimado. El reloj ya NO va aquí: bajó a la fila de
-          acciones, ver el comentario de AccionesOF. */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
-          Total {fmtMin(tiempoTotalOF(of))}
-          <span className="ml-1 font-normal text-text-muted">/ est. {fmtMin(of.tiempoEstimadoMin)}</span>
-        </span>
-      </div>
+      {/* Todo el tiempo de la OF, en UN sitio: quién, cuánto y dónde lo apuntó.
+          Antes esto estaba repartido en cuatro sitios de esta misma tarjeta —los
+          minutos en las líneas de rol, el desglose de RPS aparte, el total, y
+          una línea que volvía a comparar los dos— diciendo los mismos números.
+          Ver la cabecera de TiempoOF.tsx. */}
+      <TiempoOF of={of} opById={opById} dobleFichaje={dobleFichaje} />
 
       {/* archivos subidos a RPS */}
       {of.archivosRps && of.archivosRps.length > 0 && (

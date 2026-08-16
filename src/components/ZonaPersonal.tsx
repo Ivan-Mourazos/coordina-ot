@@ -27,7 +27,7 @@ export function ZonaPersonal({
   onOpen,
   onVerTodos,
   onFichar,
-  onDesfichar,
+  onDesficharVarias,
   completarPedido,
   operarios,
   ofIdsFichandoYo,
@@ -41,7 +41,9 @@ export function ZonaPersonal({
   /** Abre el desplegable con todos los pedidos de una fase. */
   onVerTodos: (faseId: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
-  onDesfichar: (ofId: string) => void;
+  /** Para el reloj en varias OF a la vez; lo usa la pausa por pedido de
+   *  PedidoLinea (ver desficharVarias en Board). */
+  onDesficharVarias: (ofIds: string[]) => void;
   /** Para poner nombre a quien falta en "listo para pasar" (ver PedidoLinea). */
   operarios: Operario[];
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
@@ -135,7 +137,7 @@ export function ZonaPersonal({
                       fase={g.id}
                       onOpen={onOpen}
                       onFichar={onFichar}
-                      onDesfichar={onDesfichar}
+                      onDesficharVarias={onDesficharVarias}
                       completarPedido={completarPedido}
                       operarios={operarios}
                       ofIdsFichandoYo={ofIdsFichandoYo}
