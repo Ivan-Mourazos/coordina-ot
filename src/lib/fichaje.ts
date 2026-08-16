@@ -216,6 +216,40 @@ export function agregarPorRol(
   return porOF;
 }
 
+/** Minutos que cada persona ha echado EN ESTA OF desde la web, por rol.
+ *
+ *  Es el mismo reparto que `minutosOF`, pero sin colapsar quién. Hace falta
+ *  porque el detalle de la OF enseña el tiempo persona a persona —RPS ya lo
+ *  hace con sus imputaciones— y con el total agregado había que atribuírselo a
+ *  alguien a mano, que es inventarse el dato: en una OF que empieza uno y
+ *  termina otro, o donde el revisor echa media hora, el total bajo un solo
+ *  nombre miente.
+ *
+ *  Ordenado de más minutos a menos, igual que `imputaciones`. */
+export function minutosPorOperarioOF(
+  f: Fichaje,
+  ofId: string,
+  opts: { ahora?: string } = {},
+): { operarioId: string; planteoMin: number; revisionMin: number }[] {
+  const porOp = new Map<string, { operarioId: string; planteoMin: number; revisionMin: number }>();
+  for (const iv of f.intervalos) {
+    if (!iv.ofIds.includes(ofId)) continue;
+    const fin = iv.fin ?? opts.ahora;
+    if (!fin || iv.ofIds.length === 0) continue; // abierto y sin `ahora`: no cuenta
+    const minutos = (Date.parse(fin) - Date.parse(iv.inicio)) / 60000 / iv.ofIds.length;
+    let e = porOp.get(iv.operarioId);
+    if (!e) {
+      e = { operarioId: iv.operarioId, planteoMin: 0, revisionMin: 0 };
+      porOp.set(iv.operarioId, e);
+    }
+    if (iv.rol === "plantear") e.planteoMin += minutos;
+    else e.revisionMin += minutos;
+  }
+  return [...porOp.values()].sort(
+    (a, b) => b.planteoMin + b.revisionMin - (a.planteoMin + a.revisionMin),
+  );
+}
+
 /** Rol con el que se ficharía esta OF según su estado: en revisión (o lista
  *  para revisar) se ficha como revisor; en cualquier otro caso, como autor. */
 export function rolFichajeDe(of: OF): Rol {

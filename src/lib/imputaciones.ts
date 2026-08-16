@@ -17,8 +17,12 @@ export function minutosDeRps(of: OF): number {
   return (of.imputaciones ?? []).reduce((n, i) => n + i.minutos, 0);
 }
 
-/** Minutos de planteo fichados EN COORDINAOT: el total menos lo que ya venía
- *  imputado en RPS.
+/** Minutos de planteo fichados EN COORDINAOT.
+ *
+ *  Lo normal es que venga puesto por el servidor (`planteoWebMin`), que es el
+ *  reparto exacto de los intervalos. La resta es el camino de vuelta para el
+ *  mock y para las OF que nunca se ficharon aquí: entonces el total es lo de
+ *  RPS y la diferencia sale cero, que es justo lo que hay que decir.
  *
  *  Cero significa que ese planteo se fichó entero con la herramienta antigua
  *  —hoy o hace dos años, da igual—, y entonces la línea de Autor no tiene nada
@@ -27,5 +31,15 @@ export function minutosDeRps(of: OF): number {
  *  Nunca negativo: si RPS trajera más de lo que suma el total (no debería), se
  *  queda en cero antes que enseñar un tiempo en rojo que no existe. */
 export function minutosEnCoordina(of: OF): number {
-  return Math.max(0, of.tiempoPlanteoMin - minutosDeRps(of));
+  return of.planteoWebMin ?? Math.max(0, of.tiempoPlanteoMin - minutosDeRps(of));
+}
+
+/** Todo lo fichado en CoordinaOT en esta OF, los dos roles juntos.
+ *
+ *  Es la cifra que se contrasta con la de RPS durante el doble fichaje: en la
+ *  ruta de RPS no existe la tarea de revisión, así que el rato de repasar que
+ *  se apunta en el terminal de siempre entra como planteo y hay que comparar
+ *  contra el total, no contra la mitad. */
+export function minutosWeb(of: OF): number {
+  return (of.planteoWebMin ?? 0) + (of.revisionWebMin ?? 0);
 }

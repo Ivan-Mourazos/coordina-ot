@@ -10,6 +10,11 @@ import { OPERARIOS, PEDIDOS } from "./mock";
 export interface Tablero {
   operarios: Operario[];
   pedidos: Pedido[];
+  /** OT sigue fichando también en la herramienta vieja (`FICHAJE_OLANET` no es
+   *  `activo`). Lo necesita la interfaz para explicar por qué una OF enseña dos
+   *  tiempos y para sacar el cartel del periodo de pruebas; el cálculo de los
+   *  minutos ya lo resuelve `aplicarTiemposFichaje`. */
+  dobleFichaje?: boolean;
 }
 
 export async function getTablero(): Promise<Tablero> {
@@ -29,11 +34,17 @@ export async function getTablero(): Promise<Tablero> {
 
     const { leerTodosIntervalos } = await import("./server/fichaje-db");
     const { aplicarTiemposFichaje } = await import("./server/tiempos");
-    return aplicarTiemposFichaje(
-      conFlujo,
-      leerTodosIntervalos(),
-      new Date().toISOString(),
-    );
+    const { modoFichaje } = await import("./server/olanet-outbox");
+    const dobleFichaje = modoFichaje() !== "activo";
+    return {
+      ...aplicarTiemposFichaje(
+        conFlujo,
+        leerTodosIntervalos(),
+        new Date().toISOString(),
+        { dobleFichaje },
+      ),
+      dobleFichaje,
+    };
   } catch (e) {
     console.warn("[coordina] overlay no disponible:", (e as Error).message);
     return base;
