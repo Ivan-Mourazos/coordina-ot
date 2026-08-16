@@ -1,5 +1,14 @@
 import { expect, test } from "vitest";
 import { GET } from "../../app/api/visitas-cot/route";
+import { sumarDias } from "../fechas";
+import { hoyISO } from "../types";
+
+// El mock de visitas se mueve con el calendario a propósito (ver ANCLA_VISITAS
+// en visitas-cot-db.ts): si no, al mes siguiente la agenda de simulación sale
+// entera atrasada y no se parece a un día normal. Así que las ventanas de fecha
+// de estas pruebas se calculan desde HOY igual que hace el mock. Con fechas
+// fijas, el test pasaba en julio de 2026 y empezó a fallar solo en agosto.
+const haceDias = (n: number) => sumarDias(hoyISO(), -n);
 
 test("GET devuelve las visitas pendientes desde el fallback mock", async () => {
   const res = await GET(
@@ -23,7 +32,7 @@ test("GET devuelve las visitas pendientes desde el fallback mock", async () => {
 test("GET historial admite búsqueda y fechas", async () => {
   const res = await GET(
     new Request(
-      "http://x/api/visitas-cot?ambito=historial&q=cliente&desde=2026-07-01&hasta=2026-07-31",
+      `http://x/api/visitas-cot?ambito=historial&q=cliente&desde=${haceDias(30)}&hasta=${hoyISO()}`,
     ),
   );
   expect(res.status).toBe(200);

@@ -34,8 +34,15 @@ const MOCK_BASE: VisitaCot[] = [
     pedido: "AR.26.02490",
     fechaAviso: "2026-07-28T09:15:00.000Z",
     fechaVisita: "2026-07-31",
-    texto: "Solicita visita del comercial con Oficina Técnica para revisar medidas.",
-    responsable: "Juan Castro",
+    // Con la forma real de RPS —encabezado, cuerpo y línea de OF— para que el
+    // mock ejercite el mismo desglose que los datos de verdad.
+    texto:
+      "28/07/2026 - CASTRO MOURIÑO, JUAN JOSE - I129576\r\n\r\n" +
+      "Solicita visita del comercial con Oficina Técnica para revisar medidas.\r\n" +
+      "OF 0230001 - PEDIDO AR.26.02490 - MAHOU, S.A.",
+    motivo: "Solicita visita del comercial con Oficina Técnica para revisar medidas.",
+    cliente: "MAHOU, S.A.",
+    responsable: "Juan José Castro Mouriño",
     estado: "pendiente",
     estadoRps: "Creado",
     solucion: null,
@@ -47,8 +54,12 @@ const MOCK_BASE: VisitaCot[] = [
     pedido: "AR.26.02531",
     fechaAviso: "2026-07-29T11:40:00.000Z",
     fechaVisita: "2026-08-01",
-    texto: "Visita para aclarar el cerramiento antes de pasar a fabricación.",
-    responsable: "Carlos Duro",
+    texto:
+      "29/07/2026 - DURO VILA, CARLOS JAVIER - I129611\r\n\r\n" +
+      "Visita para aclarar el cerramiento antes de pasar a fabricación.",
+    motivo: "Visita para aclarar el cerramiento antes de pasar a fabricación.",
+    cliente: null,
+    responsable: "Carlos Javier Duro Vila",
     estado: "pendiente",
     estadoRps: "Creado",
     solucion: null,
@@ -61,7 +72,9 @@ const MOCK_BASE: VisitaCot[] = [
     fechaAviso: "2026-07-29T11:40:00.000Z",
     fechaVisita: "2026-08-02",
     texto: "Segunda visita de comprobación de cotas.",
-    responsable: "Juan Castro",
+    motivo: "Segunda visita de comprobación de cotas.",
+    cliente: null,
+    responsable: "Juan José Castro Mouriño",
     estado: "pendiente",
     estadoRps: "Creado",
     solucion: null,
@@ -74,7 +87,9 @@ const MOCK_BASE: VisitaCot[] = [
     fechaAviso: "2026-07-20T08:00:00.000Z",
     fechaVisita: "2026-07-25",
     texto: "Comprobar anclajes y recorrido del toldo.",
-    responsable: "Carlos Duro",
+    motivo: "Comprobar anclajes y recorrido del toldo.",
+    cliente: null,
+    responsable: "Carlos Javier Duro Vila",
     estado: "cerrada",
     estadoRps: "Cerrado",
     solucion: "MEDICIÓN REALIZADA",
@@ -87,7 +102,9 @@ const MOCK_BASE: VisitaCot[] = [
     fechaAviso: "2026-07-16T10:20:00.000Z",
     fechaVisita: "2026-07-18",
     texto: "Visita previa sin pedido enlazado.",
-    responsable: "Juan Castro",
+    motivo: "Visita previa sin pedido enlazado.",
+    cliente: null,
+    responsable: "Juan José Castro Mouriño",
     estado: "cerrada",
     estadoRps: "Cerrado",
     solucion: "ACLARADO CON CLIENTE",
@@ -100,10 +117,11 @@ function paginaMock(filtros: VisitasCotFiltros): VisitasCotPagina {
   // llevar días levantado y "hoy" no puede quedarse congelado en el arranque.
   const desfase = diasEntre(ANCLA_VISITAS, hoyISO());
   const MOCK_VISITAS = MOCK_BASE.map((v) => alCalendario(v, desfase));
-  const estado = filtros.ambito === "pendientes" ? "pendiente" : "cerrada";
+  const estado =
+    filtros.ambito === "todas" ? null : filtros.ambito === "pendientes" ? "pendiente" : "cerrada";
   const q = filtros.q?.toLocaleLowerCase("es") ?? "";
   const visitas = MOCK_VISITAS.filter((visita) => {
-    if (visita.estado !== estado) return false;
+    if (estado !== null && visita.estado !== estado) return false;
     if (filtros.desde && (visita.fechaVisita ?? "") < filtros.desde) return false;
     if (filtros.hasta && (visita.fechaVisita ?? "") > filtros.hasta) return false;
     if (!q) return true;
@@ -117,7 +135,7 @@ function paginaMock(filtros: VisitasCotFiltros): VisitasCotPagina {
     ].some((value) => value.toLocaleLowerCase("es").includes(q));
   }).toSorted((a, b) => {
     const orden = (a.fechaVisita ?? "").localeCompare(b.fechaVisita ?? "");
-    return filtros.ambito === "pendientes" ? orden : -orden;
+    return filtros.ambito === "historial" ? -orden : orden;
   });
 
   const inicio = filtros.page * VISITAS_COT_PAGE_SIZE;
@@ -134,11 +152,12 @@ async function paginaRps(
 ): Promise<VisitasCotPagina> {
   const pool = await getPool();
   const request = pool.request();
-  const condiciones = [
-    filtros.ambito === "pendientes"
-      ? "b.idEstado = '001-0'"
-      : "b.idEstado = '001-9'",
-  ];
+  // "todas" no filtra por estado: el calendario enseña el mes entero y lo que
+  // distingue una visita hecha de una pendiente es su color, no que falte.
+  const condiciones =
+    filtros.ambito === "todas"
+      ? ["1 = 1"]
+      : [filtros.ambito === "pendientes" ? "b.idEstado = '001-0'" : "b.idEstado = '001-9'"];
 
   if (filtros.q) {
     condiciones.push(`(
@@ -167,7 +186,9 @@ async function paginaRps(
   );
   request.input("limit", sql.Int, VISITAS_COT_PAGE_SIZE + 1);
 
-  const direccion = filtros.ambito === "pendientes" ? "ASC" : "DESC";
+  // Las pendientes se leen hacia delante (lo que viene) y el historial hacia
+  // atrás (lo último). "todas" es una ventana de mes concreta: cronológica.
+  const direccion = filtros.ambito === "historial" ? "DESC" : "ASC";
   const resultado = await request.query<FilaVisitaCot>(`
     ;WITH Base AS (
       SELECT
