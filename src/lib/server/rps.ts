@@ -2,7 +2,7 @@ import type { Tablero } from "../data";
 import type {
   CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, Pedido, Prioridad,
 } from "../types";
-import { hoyISO } from "../types";
+import { esCodigoPedido, hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
 
@@ -109,20 +109,13 @@ interface FilaTarea {
   cancelada: boolean | null;
 }
 
-interface FilaHistorial {
-  orden: string | null;
-  codTarea: string | null;
-  /** Cuándo se marcó finalizada la fase de OT (tgm_estadosof_olanet). */
-  finalizada: Date | null;
-  descripcionMO: string | null;
-  cantidad: number | null;
-  /** Pedido de venta si se pudo enlazar (ver comentario en la query). */
-  pedido: string | null;
-  cliente: string | null;
-  creacion: Date | null;
-  solicitada: Date | null;
-  comentario: string | null;
-}
+// AQUÍ HABÍA una `FilaHistorial` y todo el aparato que la llenaba: dos
+// consultas a RPS, el agrupado por pedido y un `pedidosHistorial` que no leía
+// nadie. El historial dejó de salir del tablero hace tiempo —vive en su propia
+// pestaña, que lo pagina aparte— y esto se quedó calculándose en cada carga,
+// dentro de la ruta que ya tarda de 7 a 15 s. Quitado el 2026-08-14, con el
+// tablero contrastado antes y después contra RPS: mismos 81 pedidos, mismas
+// 134 OF, mismos avisos e imputaciones.
 
 /** "Tarea-nota" de la ruta: aviso apuntado como tarea ("22/06 VISITA MEDIR").
  *  Se reconocen por empezar con una fecha dd/mm. Heurística acordada tras ver
@@ -611,102 +604,24 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
   };
 }
 
-/** OF ya finalizada en OT (Historial): no hay fichaje vivo ni situación RPS
- *  que consultar, así que se rellena lo mínimo con lo que da la query. */
-interface ExtrasOF {
-  /** Todo el material de la OF, con lo reservado de cada línea. */
-  materiales: MaterialAsignado[];
-  avisos: string[];
-}
-
-function aOFHistorial(
-  fila: FilaHistorial,
-  imputaciones: ImputacionRps[],
-  extras: ExtrasOF,
-): OF {
-  const orden = (fila.orden ?? "").trim();
-  return {
-    id: `${orden}:${(fila.codTarea ?? "").trim()}`,
-    codigo: orden,
-    descripcion: (fila.descripcionMO ?? "").trim() || "(sin descripción)",
-    familia: familiaDeTexto(fila.descripcionMO, null),
-    piezas: Math.max(1, Math.round(fila.cantidad ?? 1)),
-    autorId: autorDeImputaciones(imputaciones),
-    revisorId: null,
-    estado: "aprobada",
-    fichandoRol: null,
-    tiempoEstimadoMin: 0,
-    tiempoPlanteoMin: minutosDe(imputaciones),
-    imputaciones: imputaciones.length ? imputaciones : undefined,
-    tiempoRevisionMin: 0,
-    ...materialYReservas(extras.materiales),
-    avisos: extras.avisos.length ? extras.avisos : undefined,
-  };
-}
-
 // ─── Consulta + agrupado ─────────────────────────────────────────────────────
 
 async function consultarTablero(): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
 
-  // La vista va primero (es LA consulta cara y da la lista de OFs pendientes);
-  // el resto de datos auxiliares se piden en paralelo contra tablas indexadas.
-  // El historial (Historial del Board) NO toca la vista pesada: sale de
-  // tgm_estadosof_olanet (fin de fase) cruzada con CPRMOTask/CPRManufacturingOrder,
-  // así que se lanza en paralelo con la vista sin depender de ella.
-  const [vista, historialFin] = await Promise.all([
-    pool.request().query<FilaVista>(`
-      SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
-             v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
-             v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
-             mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
-             mo.PlannedStartDate, mo.PlannedEndDate, mo.ManualEndDate
-      FROM dbo.TGM_PENDIENTE_OT v
-      LEFT JOIN dbo.CPRManufacturingOrder mo
-        ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
-    `),
-    // Historial de finalizados (últimos 60 días): tgm_estadosof_olanet marca
-    // fin de CUALQUIER fase (idestadoof=3), así que hay que quedarse solo con
-    // la fase de OT. Se identifica igual que la vista pesada: CPRMOTask cuyo
-    // recurso asignado es 'a-otec'/'otec-a' (comprobado con datos reales:
-    // coincide con las tareas "PLANTEAR…"). Vínculo OF→pedido de venta: no
-    // existe un FK directo, así que se busca vía FACOrderLineSL.IDManufacturingOrder
-    // (mejor esfuerzo con TOP 1; si no hay línea de venta ligada, el pedido
-    // queda "suelto" con cliente desconocido — se documenta la limitación,
-    // mejor mostrar algo que nada).
-    pool.request().query<FilaHistorial>(`
-      ;WITH Fin AS (
-        SELECT e.orden, e.fase AS codTarea, MAX(e.fecha_cambio) AS finalizada
-        FROM dbo.tgm_estadosof_olanet e
-        -- La ventana vuelve a 60 días porque ya da igual cuál sea: lo que
-        -- sale de aquí no llega al tablero (ver el return de la función). Se
-        -- deja corta para que la consulta sea barata mientras se quita.
-        WHERE e.idestadoof = 3 AND e.fecha_cambio > DATEADD(day, -60, GETDATE())
-        GROUP BY e.orden, e.fase
-      )
-      SELECT f.orden, f.codTarea, f.finalizada,
-             mo.Description AS descripcionMO, mo.Quantity AS cantidad,
-             v.CodOrder AS pedido, v.cliente, v.OrderDate AS creacion, v.solicitada
-      FROM Fin f
-      JOIN dbo.CPRManufacturingOrder mo
-        ON mo.CodManufacturingOrder = f.orden AND mo.CodCompany = '001'
-      JOIN dbo.CPRMOTask t
-        ON t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.CodMOTask = f.codTarea
-      OUTER APPLY (
-        SELECT TOP 1 o.CodOrder, o.OrderDate, cli.Description AS cliente,
-               l.ReceptionDemandDate AS solicitada, o.Comment AS comentario
-        FROM dbo.FACOrderLineSL l
-        JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder
-        LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
-        WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder
-      ) v
-      WHERE EXISTS (
-        SELECT 1 FROM dbo.CPRMOResourceMachine rm
-        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec', 'otec-a')
-      )
-    `),
-  ]);
+  // La vista es LA consulta cara y da la lista de OFs pendientes; el resto de
+  // datos auxiliares se piden después, en paralelo, contra tablas indexadas.
+  const vista = await pool.request().query<FilaVista>(`
+    SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
+           v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
+           v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
+           mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
+           mo.PlannedStartDate, mo.PlannedEndDate, mo.ManualEndDate
+    FROM dbo.TGM_PENDIENTE_OT v
+    LEFT JOIN dbo.CPRManufacturingOrder mo
+      ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
+  `);
 
   // Lista de OFs pendientes saneada para usar en IN (…): solo códigos limpios.
   const ordenes = [
@@ -719,41 +634,20 @@ async function consultarTablero(): Promise<Tablero> {
   const listaIn = ordenes.length
     ? ordenes.map((o) => `'${o}'`).join(",")
     : "''";
-  const ordenesEnTablero = new Set(ordenes);
-
-  // OFs del historial saneadas, excluyendo las que ya están pendientes en el
-  // tablero (evita duplicar tarjeta si una OF vuelve a estar en curso).
-  const ordenesHistorial = [
-    ...new Set(
-      historialFin.recordset
-        .map((f) => (f.orden ?? "").trim())
-        .filter((o) => /^[\w.-]+$/.test(o) && !ordenesEnTablero.has(o)),
-    ),
-  ];
-  const listaHistorialIn = ordenesHistorial.length
-    ? ordenesHistorial.map((o) => `'${o}'`).join(",")
-    : "''";
-
-  // Ruta de tareas: se piden para pendientes + historial (avisos de producción
-  // en ambas vistas). Reservas de material ya se traen para todas las OFs.
-  const listaTareasIn =
-    [...new Set([...ordenes, ...ordenesHistorial])]
-      .map((o) => `'${o}'`)
-      .join(",") || "''";
 
   // Pedidos de venta reales presentes en la vista (para el contexto de venta).
   const codigosPedido = [
     ...new Set(
       vista.recordset
         .map((f) => (f.Pedido ?? "").trim())
-        .filter((c) => /^AR\.\d{2}\.\d{5}$/.test(c)),
+        .filter(esCodigoPedido),
     ),
   ];
   const listaPedidosIn = codigosPedido.length
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, compras, imputaciones, ventas, tareas, imputacionesHist, subfamilias] =
+  const [fichajes, reservas, compras, imputaciones, ventas, tareas, subfamilias] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -781,7 +675,7 @@ async function consultarTablero(): Promise<Tablero> {
         FROM dbo.STKStockReserve r
         WHERE r.ItemType = 5 AND r.IDItem = m.IDMOMaterial
       ) res
-      WHERE mo.CodManufacturingOrder IN (${listaTareasIn})
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
     `),
     // Lo que COMPRAS ha pedido para cada OF: el tercer paso del recorrido del
     // material (ver el comentario de CompraOF en types.ts). Va en su propia
@@ -802,7 +696,7 @@ async function consultarTablero(): Promise<Tablero> {
       LEFT JOIN dbo.STKArticle art ON art.IDArticle = l.IDArticle
       LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = o.IDSupplier
       WHERE l.CodCompany = '001'
-        AND mo.CodManufacturingOrder IN (${listaTareasIn})
+        AND mo.CodManufacturingOrder IN (${listaIn})
     `),
     // Tiempo imputado por empleado en cada tarea de las OFs pendientes:
     // da el autor real (quién ha planteado) aunque nadie fiche ahora mismo, y
@@ -868,27 +762,7 @@ async function consultarTablero(): Promise<Tablero> {
       FROM dbo.CPRMOTask t
       JOIN dbo.CPRManufacturingOrder mo
         ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
-      WHERE mo.CodManufacturingOrder IN (${listaTareasIn})
-    `),
-    // Autor real y minutos del historial: SOLO la tarea de Oficina Técnica
-    // (recurso a-otec/otec-a). Sin este filtro se sumarían corte, soldadura,
-    // confección… y el "planteo" saldría inflado (p.ej. 6 min reales → 5 h).
-    pool.request().query<FilaImputacion>(`
-      SELECT mo.CodManufacturingOrder AS orden, NULL AS tarea,
-             e.CodEmployee AS empleado, e.Description AS nombre,
-             SUM(i.ExecutionTime) AS minutos
-      FROM dbo.CPRImputationMO i
-      JOIN dbo.CPRManufacturingOrder mo
-        ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
-      JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
-      JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      WHERE mo.CodManufacturingOrder IN (${listaHistorialIn})
-        AND EXISTS (
-          SELECT 1 FROM dbo.CPRMOResourceMachine rm
-          WHERE rm.IDMOTask = t.IDMOTask
-            AND rm.CodMOResourceMachine IN ('a-otec', 'otec-a')
-        )
-      GROUP BY mo.CodManufacturingOrder, e.CodEmployee, e.Description
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
     `),
     // Subfamilia del artículo de cada OF. La vista no la trae: su `Articulo` es
     // `cantidad - CodProductFamily`, y la familia sola se queda corta donde el
@@ -910,7 +784,7 @@ async function consultarTablero(): Promise<Tablero> {
       LEFT JOIN dbo.GENProductSubFamily sf WITH (NOLOCK)
         ON sf.IDProductSubFamily = art.IDProductSubFamily
       WHERE mo.CodCompany = '001'
-        AND mo.CodManufacturingOrder IN (${listaTareasIn})
+        AND mo.CodManufacturingOrder IN (${listaIn})
       GROUP BY mo.CodManufacturingOrder
     `),
   ]);
@@ -1002,95 +876,6 @@ async function consultarTablero(): Promise<Tablero> {
     if (desde) desdePorTarea.set(clave, desde);
   }
 
-  // Lo mismo para el historial, por OF (una sola fase de OT por OF, así que
-  // ahí la clave no lleva tarea).
-  const desglosePorOFHist = new Map<string, ImputacionRps[]>();
-  for (const [orden, filas] of agrupaImputaciones(
-    imputacionesHist.recordset,
-    (r) => (r.orden ?? "").trim(),
-  )) {
-    desglosePorOFHist.set(orden, desgloseImputaciones(filas));
-  }
-
-  // Una OF puede tener más de una fase de OT marcada finalizada en la
-  // ventana de 60 días (raro, p.ej. si se replanteó): nos quedamos con la
-  // más reciente.
-  const historialPorOF = new Map<string, FilaHistorial>();
-  for (const f of historialFin.recordset) {
-    const orden = (f.orden ?? "").trim();
-    if (!orden || ordenesEnTablero.has(orden)) continue;
-    const actual = historialPorOF.get(orden);
-    if (
-      !actual ||
-      (f.finalizada && (!actual.finalizada || f.finalizada > actual.finalizada))
-    ) {
-      historialPorOF.set(orden, f);
-    }
-  }
-
-  // Agrupa el historial por pedido de venta (best-effort, ver comentario en
-  // la query): sin vínculo fiable, la OF queda como pedido "suelto".
-  const porPedidoHist = new Map<string, { codigo: string; filas: FilaHistorial[] }>();
-  for (const fila of historialPorOF.values()) {
-    const codigo = (fila.pedido ?? "").trim();
-    const orden = (fila.orden ?? "").trim();
-    const clave = codigo || `hist-suelta:${orden}`;
-    const grupo = porPedidoHist.get(clave) ?? {
-      codigo: codigo || `OF ${orden}`,
-      filas: [],
-    };
-    grupo.filas.push(fila);
-    porPedidoHist.set(clave, grupo);
-  }
-
-  const pedidosHistorial: Pedido[] = [...porPedidoHist.entries()].map(([clave, grupo]) => {
-    const filas = grupo.filas;
-    const cliente =
-      filas.map((f) => (f.cliente ?? "").trim()).find(Boolean) ?? "Sin cliente";
-    const solicitada =
-      filas.map((f) => fechaISO(f.solicitada)).find((d): d is string => d !== null) ??
-      hoyISO();
-    const creacionHist = filas
-      .map((f) => fechaISO(f.creacion))
-      .find((d): d is string => d !== null);
-    // No hay fecha de planificación/entrega real para un pedido ya
-    // finalizado en OT: se usa la fecha en que se terminó el planteo.
-    const finalizadaISO =
-      filas
-        .map((f) => fechaISO(f.finalizada))
-        .filter((d): d is string => d !== null)
-        .sort()
-        .at(-1) ?? hoyISO();
-    const scanUrl = /^AR\.\d{2}\.\d{5}$/.test(grupo.codigo)
-      ? `/api/pedidos/${grupo.codigo}.pdf`
-      : undefined;
-    return {
-      id: `hist:${clave}`,
-      codigo: grupo.codigo,
-      cliente,
-      situacion: "completado",
-      fechaSolicitud: solicitada,
-      fechaCreacion: creacionHist,
-      fechaPlanificacion: finalizadaISO,
-      fechaEntrega: finalizadaISO,
-      // Sin dato de prioridad para un pedido ya terminado: normal por defecto.
-      prioridad: 2,
-      scanUrl,
-      ofs: filas.map((f) => {
-        const orden = (f.orden ?? "").trim();
-        return aOFHistorial(f, desglosePorOFHist.get(orden) ?? [], {
-          materiales: materialesPorOF.get(orden) ?? [],
-          avisos: avisosDe(orden),
-        });
-      }),
-      comentarioVenta:
-        filas.map((f) => (f.comentario ?? "").trim()).find(Boolean) || undefined,
-      accent: "ninguno",
-      lineas: 0,
-      croquis: false,
-    };
-  });
-
   // Agrupa filas (OFs) por pedido. Una OF sin pedido va en un pedido sintético
   // propio: sigue siendo trabajo real de OT y debe verse en el tablero.
   const porPedido = new Map<string, { codigo: string; filas: FilaVista[] }>();
@@ -1161,9 +946,9 @@ async function consultarTablero(): Promise<Tablero> {
       .map((f) => prioridadDe(f.Prioridad))
       .reduce<Prioridad>((a, b) => (b > a ? b : a), 1);
 
-    // El PDF escaneado existe para los pedidos de venta reales (AR.aa.nnnnn);
+    // El PDF escaneado existe para los pedidos de venta reales (AR/SA/BE);
     // el endpoint responde 404 si falta y la tarjeta enseña la réplica.
-    const scanUrl = /^AR\.\d{2}\.\d{5}$/.test(grupo.codigo)
+    const scanUrl = esCodigoPedido(grupo.codigo)
       ? `/api/pedidos/${grupo.codigo}.pdf`
       : undefined;
 
@@ -1240,8 +1025,9 @@ async function consultarTablero(): Promise<Tablero> {
   // tablero, y parecía desaparecido (AR.26.02187). Sin mezcla no hay corte que
   // elegir y el limbo no existe.
   //
-  // `pedidosHistorial` se sigue calculando y de momento no lo usa nadie: hay
-  // que quitarlo, junto con la consulta que lo alimenta.
+  // Quedaba el rastro de aquello: un `pedidosHistorial` que ya no leía nadie y
+  // las dos consultas que lo alimentaban, calculándose en cada carga dentro de
+  // la ruta que ya tarda de 7 a 15 s. Fuera desde el 2026-08-14.
   return { operarios: OPERARIOS, pedidos };
 }
 
