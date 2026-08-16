@@ -1,11 +1,12 @@
 import type { EstadoOF, OF, Pedido } from "./types";
 
 // ─── "Lo mío como revisor" ────────────────────────────────────────────────
-// Única definición de qué OF le tocan a un operario en su rol de REVISOR.
-// La comparten el modo "Solo mías" de la pestaña Revisión (src/components/
-// RevisionView.tsx) y los contadores "Por revisar" / "En revisión" de la
-// cabecera del tablero (Board.tsx), para que ambos digan siempre el mismo
-// número: antes cada uno hacía su propio recuento y podían desincronizarse.
+// Única definición de qué OF le tocan a un operario en su rol de REVISOR. La
+// usa el modo "Solo mías" de la pestaña Revisiones (RevisionView.tsx).
+//
+// La cabecera del tablero tenía unos contadores que salían de aquí, para que
+// dijeran el mismo número que la pestaña. Se quitaron: repetían un dato que ya
+// da la vista a la que llevan, y en el único sitio donde no se podía pulsar.
 //
 // `miId` nulo (identidad sin elegir todavía) no es revisor de nada: no
 // revienta, simplemente no hay nada "mío".

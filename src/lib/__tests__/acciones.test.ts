@@ -106,3 +106,58 @@ describe("aprobar_corregida", () => {
     expect(porId.aprobar_corregida.confirmar).toBeTruthy();
   });
 });
+
+// ─── Cada botón, a quien le toca ─────────────────────────────────────────────
+// El autor de una OF en revisión veía "Aprobar", "Devolver con nota" y "Dejar
+// sin revisar": las tres decisiones del compañero que estaba repasando SU
+// trabajo. Pulsarlas era aprobarse el planteo a sí mismo, contra la regla dura
+// del dominio (revisor ≠ autor).
+describe("de quién es cada acción", () => {
+  const AUTOR = "op1";
+  const REVISOR = "op2";
+  const OTRO = "op9";
+  const ids = (estado: OF["estado"], miId: string | null | undefined) =>
+    accionesDisponibles(of(estado), miId).map((a) => a.id);
+
+  it("en revisión: al revisor le tocan las tres decisiones", () => {
+    expect(ids("en_revision", REVISOR)).toEqual([
+      "aprobar", "devolver", "soltar_revision", "anular",
+    ]);
+  });
+
+  it("en revisión: al autor NO le sale ninguna de las tres", () => {
+    expect(ids("en_revision", AUTOR)).toEqual(["anular"]);
+  });
+
+  it("en revisión: a un tercero tampoco", () => {
+    expect(ids("en_revision", OTRO)).toEqual(["anular"]);
+  });
+
+  it("pasar a revisión es del autor, no de quien abra la OF", () => {
+    expect(ids("en_curso", AUTOR)).toContain("terminar_planteo");
+    expect(ids("en_curso", REVISOR)).not.toContain("terminar_planteo");
+  });
+
+  it("dar por corregida es del autor: la corrección la hizo él", () => {
+    expect(ids("devuelta", AUTOR)).toContain("aprobar_corregida");
+    expect(ids("devuelta", REVISOR)).not.toContain("aprobar_corregida");
+  });
+
+  it("reabrir la revisión la pueden pedir los dos", () => {
+    expect(ids("aprobada", AUTOR)).toEqual(["reabrir"]);
+    expect(ids("aprobada", REVISOR)).toEqual(["reabrir"]);
+  });
+
+  it("anular no tiene dueño: se decide al ver el pedido", () => {
+    expect(ids("en_curso", OTRO)).toContain("anular");
+  });
+
+  it("sin identidad elegida no se recorta nada: se contesta qué admite la OF", () => {
+    expect(ids("en_revision", null)).toEqual([
+      "aprobar", "devolver", "soltar_revision", "anular",
+    ]);
+    expect(ids("en_revision", undefined)).toEqual([
+      "aprobar", "devolver", "soltar_revision", "anular",
+    ]);
+  });
+});

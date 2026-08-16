@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
-import { ESTADO } from "@/lib/estado";
+import { ESTADO, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
-import { ACCIONES, type AccionOF } from "@/lib/acciones";
+import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -12,23 +12,31 @@ import { DevolverInline } from "./DevolverInline";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
 
-// "Listas para pasar", no "Aprobadas": es el mismo sitio al que el tablero
-// llama "Listo para pasar", y tener dos nombres para el final del recorrido
-// obliga a traducir mentalmente al cambiar de pestaña.
-const COLUMNAS: { estado: EstadoOF; titulo: string }[] = [
-  { estado: "por_revisar", titulo: "Por revisar" },
-  { estado: "en_revision", titulo: "En revisión" },
-  { estado: "aprobada", titulo: "Listas para pasar" },
-  { estado: "devuelta", titulo: "Devueltas" },
-];
+// ─── Vista Revisiones ────────────────────────────────────────────────────────
+// Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
+// Producción. Dos alcances: lo mío como revisor (por defecto) y lo del equipo.
+//
+// AQUÍ HABÍA una cola de "sin coger": OF en `por_revisar` sin revisor puesto,
+// con un botón "Coger y empezar" que te nombraba revisor a ti. Se ha ido, y no
+// por sitio: es que esa cola ya no puede existir. El revisor se nombra al pasar
+// la OF a revisión —es obligatorio, lo pide `PedirRevisor` y sin él no se
+// pasa—, así que toda OF por revisar llega con nombre. Lo que quedaba era una
+// puerta para quitarle el trabajo a un compañero sin avisarle, escondida detrás
+// de una etiqueta que decía "Sin coger".
+//
+// Si alguna llegara sin revisor (un pedido de antes de la web), no se esconde:
+// sale con el desplegable de revisor abierto para ponerle nombre, que es lo que
+// hay que hacer con ella. Cambiar de revisor sigue estando donde estaba, con su
+// nombre y avisando al interesado.
 
-// Vista por defecto: solo lo mío como revisor. Mismos estados que arriba
-// salvo "aprobada" (ya no es acción mía: pasó a Producción) y con nombres
-// que se leen desde MI lado, no desde el del autor.
-const COLUMNAS_MIAS: { estado: EstadoOF; titulo: string }[] = [
-  { estado: "por_revisar", titulo: "Por empezar" },
-  { estado: "en_revision", titulo: "Revisando" },
-  { estado: "devuelta", titulo: "Devueltas por mí" },
+const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
+  { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
+  { estado: "en_revision", titulo: "En revisión", mio: "Revisando" },
+  // "Listas para pasar", no "Aprobadas": es el mismo sitio al que el tablero
+  // llama "Listo para pasar", y tener dos nombres para el final del recorrido
+  // obliga a traducir mentalmente al cambiar de pestaña.
+  { estado: "aprobada", titulo: "Listas para pasar", mio: "Aprobadas por mí" },
+  { estado: "devuelta", titulo: "Devueltas", mio: "Devueltas por mí" },
 ];
 
 // La fase de revisión es violeta (#7c3aed) en toda la app: se reutiliza el
@@ -52,7 +60,6 @@ export function RevisionView({
   operarios,
   miId,
   onOpen,
-  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -60,10 +67,6 @@ export function RevisionView({
   operarios: Operario[];
   miId: string | null;
   onOpen: (p: Pedido) => void;
-  /** "Coger y empezar": asigna revisor + arranca la revisión + fichaje en un
-   *  único paso (ver cogerRevision en Board.tsx, evita la carrera del primer
-   *  clic). */
-  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -76,131 +79,103 @@ export function RevisionView({
       localStorage.setItem(ALCANCE_KEY, a);
     } catch {}
   };
+  const mias = alcance === "mias";
 
   const facetsDe = (estado: EstadoOF): RFacet[] =>
-    pedidos
-      .map((p) => ({ pedido: p, ofs: p.ofs.filter((o) => o.estado === estado) }))
-      .filter((f) => f.ofs.length > 0);
+    mias
+      ? facetsRevisorEnEstado(pedidos, estado, miId)
+      : pedidos
+          .map((p) => ({ pedido: p, ofs: p.ofs.filter((o) => o.estado === estado) }))
+          .filter((f) => f.ofs.length > 0);
 
-  const facetsMiasDe = (estado: EstadoOF): RFacet[] =>
-    facetsRevisorEnEstado(pedidos, estado, miId);
-  const totalMias = COLUMNAS_MIAS.reduce(
-    (n, col) => n + facetsMiasDe(col.estado).reduce((m, f) => m + f.ofs.length, 0),
-    0,
-  );
+  const columnas = COLUMNAS.map((col) => ({ ...col, facets: facetsDe(col.estado) }));
+  const total = columnas.reduce((n, c) => n + c.facets.reduce((m, f) => m + f.ofs.length, 0), 0);
 
-  // Resumen "para revisar" (sin login): cuántas sin revisor y quién debe revisar.
-  const sinRevisor = pedidos.reduce(
-    (n, p) => n + p.ofs.filter((o) => o.estado === "por_revisar" && !o.revisorId).length,
-    0,
-  );
+  // Quién tiene revisiones abiertas ahora mismo. Solo en el alcance de equipo:
+  // en "solo mías" la respuesta sería siempre yo, y ya la da la columna.
   const porRevisor = new Map<string, number>();
-  pedidos.forEach((p) =>
-    p.ofs.forEach((o) => {
+  for (const p of pedidos)
+    for (const o of p.ofs)
       if (o.estado === "en_revision" && o.revisorId)
         porRevisor.set(o.revisorId, (porRevisor.get(o.revisorId) ?? 0) + 1);
-    }),
-  );
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="text-sm font-semibold text-text">
-          {alcance === "mias" ? "Lo que tengo que revisar" : "Revisión del equipo"}
+          {mias ? "Lo que tengo que revisar" : "Revisión del equipo"}
         </h1>
-        <AlcanceToggle alcance={alcance} onChange={setAlcance} />
+        {/* Cuántas OF hay en total en lo que se está mirando. Es el número que
+            contesta "¿me queda mucho?" sin sumar las cuatro columnas. */}
+        <span className="text-[11px] text-text-muted">
+          {total} OF{total === 1 ? "" : "s"} en las cuatro columnas
+        </span>
+        {!mias && porRevisor.size > 0 && (
+          <span className="ml-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-text-muted">Revisando ahora:</span>
+            {[...porRevisor.entries()].map(([id, n]) => {
+              const op = operarios.find((o) => o.id === id);
+              if (!op) return null;
+              return (
+                <span
+                  key={id}
+                  className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text ring-1 ring-border"
+                  title={`${op.nombre} tiene ${n} OF en revisión`}
+                >
+                  <span
+                    className="grid size-4 place-items-center rounded-full text-[8px] font-bold text-white"
+                    style={{ background: op.color }}
+                  >
+                    {op.iniciales}
+                  </span>
+                  {op.nombre}
+                  <span className="font-bold text-violet-700 dark:text-violet-300">{n}</span>
+                </span>
+              );
+            })}
+          </span>
+        )}
+        <span className="ml-auto">
+          <AlcanceToggle alcance={alcance} onChange={setAlcance} />
+        </span>
       </div>
 
-      {alcance === "equipo" ? (
-        <>
-          <div className="glass-panel mb-4 flex flex-wrap items-center gap-2 rounded-xl p-3">
-            <span className="text-sm font-semibold text-text">Para revisar</span>
-            <span className="flex items-center gap-1.5 rounded-lg bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
-              <span className="size-2 rounded-full bg-amber-500" />
-              {sinRevisor} sin coger
-            </span>
-            <span className="mx-1 text-text-muted">·</span>
-            <span className="text-xs text-text-muted">En revisión por:</span>
-            {porRevisor.size === 0 ? (
-              <span className="text-xs text-text-muted italic">nadie</span>
-            ) : (
-              [...porRevisor.entries()].map(([id, n]) => {
-                const op = operarios.find((o) => o.id === id);
-                if (!op) return null;
-                return (
-                  <span
-                    key={id}
-                    className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1 text-xs font-medium text-text ring-1 ring-border"
-                  >
-                    <span
-                      className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-                      style={{ background: op.color }}
-                    >
-                      {op.iniciales}
-                    </span>
-                    {op.nombre}
-                    <span className="rounded-full bg-violet-600 px-1.5 text-[10px] font-bold text-white">
-                      {n}
-                    </span>
-                  </span>
-                );
-              })
-            )}
-          </div>
-
-          {/* items-start: cada columna mide lo que ocupa. Sin esto todas se
-              estiraban a la altura de la más larga, y "Devueltas" con dos
-              tarjetas dejaba medio metro de vacío enmarcado. */}
-          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {COLUMNAS.map((col) => (
-              <ColumnaRevision
-                key={col.estado}
-                titulo={col.titulo}
-                estado={col.estado}
-                dotClassName={ESTADO[col.estado].dot}
-                facets={facetsDe(col.estado)}
-                operarios={operarios}
-                miId={miId}
-                onOpen={onOpen}
-                onCoger={onCoger}
-                onCambiarRevisor={onCambiarRevisor}
-                onAccion={onAccion}
-              />
-            ))}
-          </div>
-        </>
-      ) : totalMias === 0 ? (
-        <div className="grid min-h-32 place-items-center rounded-xl border border-dashed border-border bg-zone text-sm text-text-muted">
-          No tienes nada pendiente de revisar.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
-          {COLUMNAS_MIAS.map((col) => (
-            <ColumnaRevision
-              key={col.estado}
-              titulo={col.titulo}
-              estado={col.estado}
-              dotColor={FASE_REVISION.color}
-              facets={facetsMiasDe(col.estado)}
-              operarios={operarios}
-              miId={miId}
-              onOpen={onOpen}
-              onCoger={onCoger}
-              onCambiarRevisor={onCambiarRevisor}
-              onAccion={onAccion}
-            />
-          ))}
-        </div>
-      )}
+      {/* Las CUATRO columnas siempre, tengan algo o no, en los dos alcances.
+          En "solo mías" faltaba la de aprobadas y, con todo vacío, se sustituía
+          el tablero entero por una frase: se perdía de vista el recorrido y no
+          se podía comparar con lo del equipo sin cambiar de sitio. Una columna
+          vacía dice "aquí no tienes nada", que es información; que no esté la
+          columna, no dice nada.
+          items-start: cada columna mide lo que ocupa. Sin esto todas se
+          estiraban a la altura de la más larga. */}
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {columnas.map((col) => (
+          <ColumnaRevision
+            key={col.estado}
+            titulo={mias ? col.mio : col.titulo}
+            estado={col.estado}
+            // En "solo mías" todas las columnas son la misma tarea —revisar— y
+            // el color de estado sobraba; en la del equipo, cada columna ES un
+            // estado y lleva el suyo, el de toda la app.
+            dotClassName={mias ? undefined : ESTADO[col.estado].dot}
+            dotColor={mias ? FASE_REVISION.color : undefined}
+            facets={col.facets}
+            operarios={operarios}
+            miId={miId}
+            onOpen={onOpen}
+            onCambiarRevisor={onCambiarRevisor}
+            onAccion={onAccion}
+          />
+        ))}
+      </div>
     </>
   );
 }
 
 // Una columna del tablero de revisión: cabecera con punto de color + título +
-// contador, y la lista de tarjetas (o el aviso de "Vacío"). La comparten la
-// vista "Todo el equipo" (color por ESTADO, vía dotClassName) y "Solo mías"
-// (color único de la fase de revisión, vía dotColor) para no duplicar el
-// layout de la columna en dos sitios.
+// contador, y la lista de tarjetas (o el aviso de "Vacío"). La comparten los
+// dos alcances —"Todo el equipo" colorea por ESTADO, "Solo mías" con el violeta
+// único de la revisión— para no duplicar el layout en dos sitios.
 function ColumnaRevision({
   titulo,
   estado,
@@ -210,7 +185,6 @@ function ColumnaRevision({
   operarios,
   miId,
   onOpen,
-  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -222,7 +196,6 @@ function ColumnaRevision({
   operarios: Operario[];
   miId: string | null;
   onOpen: (p: Pedido) => void;
-  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -253,7 +226,6 @@ function ColumnaRevision({
               operarios={operarios}
               miId={miId}
               onOpen={() => onOpen(f.pedido)}
-              onCoger={onCoger}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
             />
@@ -314,7 +286,6 @@ function ReviewCard({
   operarios,
   miId,
   onOpen,
-  onCoger,
   onCambiarRevisor,
   onAccion,
 }: {
@@ -323,7 +294,6 @@ function ReviewCard({
   operarios: Operario[];
   miId: string | null;
   onOpen: () => void;
-  onCoger: (ofIds: string[]) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
@@ -331,10 +301,9 @@ function ReviewCard({
   const meta = ESTADO[estado];
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
   const ofIds = ofs.map((o) => o.id);
-  // Regla dura: revisor ≠ autor. Si soy autor de alguna OF del grupo, "Coger
-  // y empezar" no se ofrece (mismo criterio que el Select de abajo, que ya
-  // filtra `operarios.filter(o => !autores.has(o.id))`).
-  const soyAutor = miId !== null && autores.has(miId);
+  // Cuánto lleva encima el grupo. En una cola de revisión es lo que dice si
+  // hay para diez minutos o para toda la tarde, y no salía por ningún lado.
+  const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
 
   function accionTodas(accion: AccionOF, obs?: string) {
     ofIds.forEach((id) => onAccion(id, accion, obs));
@@ -346,18 +315,49 @@ function ReviewCard({
     ofs.length > 0 && ofs.every((o) => o.revisorId === ofs[0].revisorId)
       ? ofs[0].revisorId
       : null;
-  const todasConRevisor = ofs.every((o) => o.revisorId);
+  const sinRevisor = ofs.filter((o) => !o.revisorId);
+
+  // Qué puedo hacer YO con este grupo. Es la máquina de estados la que decide
+  // (ver `soloEl` en lib/acciones.ts), no esta vista: al autor no se le ofrecen
+  // las decisiones del revisor ni al revés, y aquí solo se pinta lo que salga.
+  const puedo = (accion: AccionOF) =>
+    ofs.length > 0 && ofs.every((o) => accionesDisponibles(o, miId).some((a) => a.id === accion));
 
   // Confirmación de "Aprobar" desde la máquina de estados: mismo texto y tono
   // que el botón equivalente del Drawer.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
   const { pedirConfirmacion, dialogo } = useConfirmacion(() => accionTodas("aprobar"));
 
+  const selectorRevisor = (
+    <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+      Revisor:
+      <Select
+        value={revisorComun}
+        onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
+        placeholder={sinRevisor.length > 0 ? "Sin nombrar" : null}
+        alignRight
+        className="ml-auto"
+        options={operarios
+          .filter((o) => !autores.has(o.id))
+          .map((o) => ({
+            value: o.id,
+            label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
+            icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+          }))}
+      />
+    </div>
+  );
+
   return (
     <div className={`rounded-lg border border-l-4 border-border bg-surface p-2.5 ${meta.borderIzq}`}>
       <button onClick={onOpen} className="block w-full text-left">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-text">{pedido.codigo}</span>
+          {minutos > 0 && (
+            <span className="text-[10px] text-text-muted" title="Tiempo ya fichado en estas OF">
+              {fmtMin(minutos)}
+            </span>
+          )}
           <span className="ml-auto text-[10px] text-text-muted">{ofs.length} OF</span>
         </div>
         <div className="truncate text-[11px] text-text-muted">{pedido.cliente}</div>
@@ -391,61 +391,29 @@ function ReviewCard({
         )}
       </button>
 
-      {/* acciones por columna */}
+      {/* Acciones por columna. Solo sale lo que me toca a MÍ: la máquina de
+          estados ya filtra por rol, así que al autor esta tarjeta se le queda
+          en un resumen de lectura, que es lo que debe ser. */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {estado === "por_revisar" && (
           <>
-            {todasConRevisor ? (
-              <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
-                Revisor:
-                <Select
-                  value={revisorComun}
-                  onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
-                  placeholder={null}
-                  alignRight
-                  className="ml-auto"
-                  options={operarios
-                    .filter((o) => !autores.has(o.id))
-                    .map((o) => ({
-                      value: o.id,
-                      label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-                      icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-                    }))}
-                />
-              </div>
-            ) : soyAutor ? (
-              // Regla dura del dominio: revisor ≠ autor. No se ofrece el
-              // botón — se explica por qué en vez de dejarlo sin efecto.
-              <span className="text-[11px] text-text-muted">No puedes revisar lo tuyo</span>
-            ) : !miId ? (
-              // Sin identidad no hay a quién asignar como revisor: mismo
-              // criterio que soyAutor, no se pinta un botón que no hace nada.
-              <span className="text-[11px] text-text-muted">Identifícate para poder cogerla</span>
-            ) : (
-              // Sin revisor no se ofrece elegirlo: el revisor se nombra al
-              // mandar a revisar. Una OF que llega así (de RPS) es una cola de
-              // la que se coge trabajo — quien pulse se pone a sí mismo.
-              <span className="text-[11px] text-text-muted">Sin coger</span>
+            {/* Sin revisor no debería llegar ninguna (se nombra al pasar a
+                revisión). Si pasa, se dice y se ofrece ponerlo: es lo que
+                desatasca la OF, y con nombre, no cogiéndosela en silencio. */}
+            {sinRevisor.length > 0 && (
+              <p className="w-full text-[11px] text-text-muted">
+                {sinRevisor.length === ofs.length ? "Sin revisor" : `${sinRevisor.length} sin revisor`} —
+                viene de antes de la web. Ponle uno para que pueda empezar.
+              </p>
             )}
-            {(todasConRevisor || (!soyAutor && miId)) && (
+            {selectorRevisor}
+            {puedo("empezar_revision") && (
               <button
-                // Solo se coge lo que de verdad está sin coger: una tarjeta
-                // puede mezclar OF con revisor y sin él, y mandarlas todas
-                // reasignaría a mí la que ya estaba revisando otro, sin
-                // avisar y bajo una etiqueta que dice "Sin coger".
-                onClick={() =>
-                  todasConRevisor
-                    ? accionTodas("empezar_revision")
-                    : onCoger(ofs.filter((o) => !o.revisorId).map((o) => o.id))
-                }
-                title={
-                  todasConRevisor
-                    ? "Pasa a En revisión y arranca el fichaje del revisor"
-                    : "Te pone como revisor y arranca tu fichaje"
-                }
+                onClick={() => accionTodas("empezar_revision")}
+                title="Pasa a En revisión y arranca tu fichaje de revisor"
                 className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
               >
-                {todasConRevisor ? "Empezar revisión" : "Coger y empezar"}
+                Empezar revisión
               </button>
             )}
           </>
@@ -454,35 +422,20 @@ function ReviewCard({
           <>
             {/* Cambio de última hora con la revisión en marcha: al elegir a
                 otro, `cambiarRevisor` devuelve la OF a "por revisar" y el
-                servidor cierra el fichaje del anterior — sus minutos se
-                quedan a su nombre, pero dejan de correr. Sin guarda de
-                puedeCambiarRevisor: las facets de esta columna ya vienen
-                filtradas por estado "en_revision", así que siempre se cumple
-                — una guarda que nunca es falsa solo engañaba a quien la leía. */}
-            <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
-              Revisor:
-              <Select
-                value={revisorComun}
-                onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
-                placeholder={null}
-                alignRight
-                className="ml-auto"
-                options={operarios
-                  .filter((o) => !autores.has(o.id))
-                  .map((o) => ({
-                    value: o.id,
-                    label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-                    icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-                  }))}
-              />
-            </div>
-            <button
-              onClick={() => pedirConfirmacion(defAprobar)}
-              className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
-            >
-              Aprobar
-            </button>
-            <DevolverInline onDevolver={(obs) => accionTodas("devolver", obs)} />
+                servidor cierra el fichaje del anterior — sus minutos se quedan
+                a su nombre, pero dejan de correr. */}
+            {selectorRevisor}
+            {puedo("aprobar") && (
+              <button
+                onClick={() => pedirConfirmacion(defAprobar)}
+                className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+              >
+                Aprobar
+              </button>
+            )}
+            {puedo("devolver") && (
+              <DevolverInline onDevolver={(obs) => accionTodas("devolver", obs)} />
+            )}
             {dialogo}
           </>
         )}

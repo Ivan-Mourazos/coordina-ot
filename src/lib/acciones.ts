@@ -21,12 +21,19 @@ export interface AccionDef {
   /** Además de estar asignada, la acción es SOLO de esa persona.
    *
    *  Distinto de `requiere`: ese pide que haya alguien nombrado, esto pide que
-   *  seas tú. Se usa en la revisión porque el revisor es un encargo con nombre,
-   *  no una tarea que pueda echar una mano cualquiera: empezar la revisión de
-   *  Tamara le fichaba el trabajo a quien pulsara, dejando la OF diciendo que
-   *  la revisa ella. Para quedársela ya está "cambiar revisor", que es
-   *  explícito y avisa a la interesada. */
-  soloEl?: "revisor";
+   *  seas tú. Empezó siendo cosa de la revisión —empezar la revisión de Tamara
+   *  le fichaba el trabajo a quien pulsara, dejando la OF diciendo que la
+   *  revisa ella— y ahora cubre los dos roles, que es lo que hacía falta: al
+   *  autor de una OF en revisión se le ofrecían "Aprobar", "Devolver con nota"
+   *  y "Dejar sin revisar", o sea las tres decisiones del compañero que la
+   *  estaba repasando. Pulsarlas era aprobarse el trabajo a sí mismo, y la
+   *  regla dura del dominio dice justo lo contrario: revisor ≠ autor.
+   *
+   *  Cada estado tiene dueño y por eso la interfaz puede enseñar UNA fila de
+   *  botones sin pedir permiso: en_curso y devuelta son del autor, por_revisar
+   *  y en_revision son del revisor. Lo que no es tuyo no sale — no sale
+   *  apagado, no sale con un aviso: no sale. */
+  soloEl?: "autor" | "revisor";
   efectoFichaje?: "corta" | "arranca"; // lo ejecuta el Board sobre el motor
   conNota?: boolean; // requiere observación (devolver)
   /** Requiere elegir POR QUÉ (anular). Viaja por el mismo sitio que `conNota`
@@ -40,8 +47,12 @@ export const ACCIONES: AccionDef[] = [
     desde: ["pendiente"], requiere: "autor", efectoFichaje: "arranca", destino: "en_curso" },
   { id: "retomar", label: "Retomar planteo", tono: "primaria",
     desde: ["devuelta"], requiere: "autor", efectoFichaje: "arranca", destino: "en_curso" },
+  // Del AUTOR: es él quien da su planteo por terminado y nombra al revisor.
+  // Sin `soloEl`, cualquiera que abriera la OF podía mandar a revisar el
+  // trabajo a medias de otro.
   { id: "terminar_planteo", label: "Pasar a revisión", tono: "primaria",
-    desde: ["en_curso", "devuelta"], efectoFichaje: "corta", destino: "por_revisar" },
+    desde: ["en_curso", "devuelta"], requiere: "autor", soloEl: "autor",
+    efectoFichaje: "corta", destino: "por_revisar" },
   // AQUÍ HABÍA un "deshacer empezar" que devolvía la OF a "sin empezar". Se
   // quitó, y no por sitio: es que decía una mentira. Una OF con tiempo fichado
   // NO está sin empezar, y ese botón la dejaba diciendo que sí.
@@ -58,7 +69,8 @@ export const ACCIONES: AccionDef[] = [
   // del autor, que es a quien le llega.
   { id: "aprobar", label: "Aprobar", tono: "primaria",
     confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
-    desde: ["en_revision"], efectoFichaje: "corta", destino: "aprobada" },
+    desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
+    efectoFichaje: "corta", destino: "aprobada" },
   // Atajo para la segunda vuelta: la OF ya la revisó alguien, la devolvió con
   // una nota y el autor ha hecho el retoque. Si el cambio era mínimo, obligar a
   // otra ronda de revisión completa es papeleo — y lo que pasaba de verdad es
@@ -71,11 +83,16 @@ export const ACCIONES: AccionDef[] = [
   // Acción propia y no "aprobar" desde `devuelta`: lo que se aprueba aquí es la
   // CORRECCIÓN, no un planteo revisado, y el registro tiene que poder
   // distinguirlas. Quién la revisó sigue guardado en `revisorId`.
+  //
+  // Y es del AUTOR: la corrección la hace él, así que es él quien dice que ya
+  // está. El revisor que quiera cerrarla tiene "Aprobar" tras reabrirla.
   { id: "aprobar_corregida", label: "Dar por corregida", tono: "neutra",
     confirmar: "La OF queda aprobada sin pasar otra vez por revisión.",
-    desde: ["devuelta"], requiere: "autor", efectoFichaje: "corta", destino: "aprobada" },
+    desde: ["devuelta"], requiere: "autor", soloEl: "autor",
+    efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
-    desde: ["en_revision"], efectoFichaje: "corta", conNota: true, destino: "devuelta" },
+    desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
+    efectoFichaje: "corta", conNota: true, destino: "devuelta" },
   // Salida de la revisión que no decide nada. Antes, una vez empezada, las dos
   // únicas puertas eran aprobar y devolver: si la abrías para echar un vistazo,
   // o te ponías a discutir el planteo con quien lo hizo, no había forma de
@@ -83,7 +100,13 @@ export const ACCIONES: AccionDef[] = [
   // ("Volver a pendiente") desde el primer día.
   { id: "soltar_revision", label: "Dejar sin revisar", tono: "neutra",
     confirmar: "La OF vuelve a la cola de por revisar. El tiempo ya fichado se conserva y sigue nombrado el mismo revisor.",
-    desde: ["en_revision"], efectoFichaje: "corta", destino: "por_revisar" },
+    desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
+    efectoFichaje: "corta", destino: "por_revisar" },
+  // La única del ciclo que NO lleva dueño, y a propósito: deshacer una
+  // aprobación le puede tocar a los dos. El revisor se da cuenta de que se le
+  // pasó algo, y el autor —que es a quien vuelve la OF aprobada, y quien la va
+  // a pasar a Producción— ve el fallo justo al ir a pasarla. Cerrarle la puerta
+  // a uno de los dos obligaría a pedírselo al otro por el pasillo.
   { id: "reabrir", label: "Reabrir revisión", tono: "neutra",
     confirmar: "La OF volverá a revisión y dejará de estar lista para Producción.",
     desde: ["aprobada"], destino: "en_revision" },
@@ -103,23 +126,27 @@ export const ACCIONES: AccionDef[] = [
     desde: ["anulada"], destino: "pendiente" },
 ];
 
+const quienTiene = (rol: "autor" | "revisor", of: OF): string | null =>
+  rol === "autor" ? of.autorId : of.revisorId;
+
 const cumpleRequisito = (a: AccionDef, of: OF): boolean =>
-  a.requiere === "autor" ? of.autorId !== null
-  : a.requiere === "revisor" ? of.revisorId !== null
-  : true;
+  a.requiere === undefined || quienTiene(a.requiere, of) !== null;
+
+/** ¿Es MÍA esta acción? Sin `soloEl` lo es de cualquiera; sin identidad
+ *  elegida no se recorta nada (ver `accionesDisponibles`). */
+const esMia = (a: AccionDef, of: OF, miId: string | null | undefined): boolean =>
+  a.soloEl === undefined || miId == null || quienTiene(a.soloEl, of) === miId;
 
 /** Las acciones que se pueden ofrecer sobre esta OF.
  *
  *  `miId` es opcional a propósito: sin él se contesta "qué admite esta OF",
  *  que es lo que necesitan el reparto por pedido y los tests. Pasándolo se
  *  contesta "qué puedo hacer YO", que es lo que tiene que pintar la interfaz.
- *  Sin esa diferencia, cualquiera podía empezar la revisión de otro. */
+ *  Sin esa diferencia, el autor veía los tres botones del revisor sobre su
+ *  propia OF. */
 export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
   return ACCIONES.filter(
-    (a) =>
-      a.desde.includes(of.estado) &&
-      cumpleRequisito(a, of) &&
-      !(a.soloEl === "revisor" && miId != null && of.revisorId !== miId),
+    (a) => a.desde.includes(of.estado) && cumpleRequisito(a, of) && esMia(a, of, miId),
   );
 }
 
