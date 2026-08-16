@@ -40,6 +40,7 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
         id: "plantear-toldos",
         nombre: "Plantear toldos",
         descripcion: "Cálculo y despiece de toldos.",
+        url: "http://192.168.0.90:4400/",
       },
       {
         id: "plantear-remolques",
