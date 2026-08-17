@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { OF, Operario, Pedido, Rol } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
+import { ahoraDelServidor } from "@/lib/reloj-servidor";
 
 /** Minutos con trabajo mío a medias y NINGÚN fichaje corriendo antes de sacar
  *  la píldora en ámbar.
@@ -156,6 +157,7 @@ export function MiFichaje({
   operarios,
   pedidos,
   fichaje,
+  desfaseServidor,
   dobleFichaje = true,
   onFichar,
   onDesfichar,
@@ -166,6 +168,10 @@ export function MiFichaje({
   operarios: Operario[];
   pedidos: Pedido[];
   fichaje: Fichaje;
+  /** Cuánto se aparta el reloj del servidor del de este navegador, en ms.
+   *  Las horas del fichaje son suyas, así que el contador tiene que medir
+   *  contra su reloj (ver lib/reloj-servidor.ts). */
+  desfaseServidor: number | null;
   /** OT ficha también en la herramienta vieja: sale el cartel del periodo de
    *  pruebas. Se apaga solo al pasar el fichaje a "activo". */
   dobleFichaje?: boolean;
@@ -205,16 +211,33 @@ export function MiFichaje({
   // Reloj: la proyección avanza aunque nadie toque nada. Los intervalos
   // guardados no cambian; solo se recalcula con este `ahora`.
   //
-  // Con un fichaje corriendo va al segundo, que es lo que hace que el
-  // contador se vea subir; parado basta con medio minuto (ahí solo sirve para
-  // el aviso de trabajo a medias sin fichar, que se mide en minutos) y no
-  // tiene sentido repintar 60 veces más a cambio de nada.
-  const [ahora, setAhora] = useState(() => new Date().toISOString());
-  const corriendo = ab !== null;
+  // Y la hora es la DEL SERVIDOR, no la de este navegador. Todo lo que hay que
+  // medir —el `inicio` del intervalo, el `fin` de los tramos— lo sella el
+  // servidor, así que restarle la hora local es restar dos relojes distintos.
+  // El de producción iba 60 s adelantado (medido el 16/08/2026) y eso era justo
+  // lo que se veía al fichar: el contador clavado en 0:00:00 casi un minuto,
+  // porque el tiempo salía negativo y `fmtHMS` lo recorta a cero. Ver
+  // lib/reloj-servidor.ts.
+  const reloj = useCallback(
+    () => new Date(ahoraDelServidor(desfaseServidor)).toISOString(),
+    [desfaseServidor],
+  );
+  const [ahora, setAhora] = useState(reloj);
+  // SIEMPRE al segundo, también con el reloj parado. Antes, parado iba a 30 s
+  // "porque no tiene sentido repintar 60 veces más a cambio de nada", y sí lo
+  // tenía: `ahora` se quedaba hasta medio minuto viejo, así que al pulsar
+  // Fichar el `inicio` recién sellado era MÁS NUEVO que `ahora`, el tiempo
+  // salía negativo y `fmtHMS` lo recortaba a cero. El contador se quedaba
+  // clavado en 0:00:00 hasta que el siguiente tick lo alcanzaba — el otro
+  // medio minuto de los que se veían al fichar, aparte del desfase del reloj
+  // del servidor.
+  //
+  // Un render por segundo de un panel de este tamaño no se nota; un cronómetro
+  // que tarda medio minuto en arrancar, sí.
   useEffect(() => {
-    const id = setInterval(() => setAhora(new Date().toISOString()), corriendo ? 1_000 : 30_000);
+    const id = setInterval(() => setAhora(reloj()), 1_000);
     return () => clearInterval(id);
-  }, [corriendo]);
+  }, [reloj]);
 
   const nOFs = ab?.ofIds.length ?? 0;
   const totalSeg = ab ? (Date.parse(ahora) - Date.parse(ab.inicio)) / 1000 : 0;

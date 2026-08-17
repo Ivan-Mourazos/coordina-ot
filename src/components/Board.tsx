@@ -37,6 +37,7 @@ import {
   type NotifItem,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
+import { desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
@@ -220,6 +221,19 @@ export function Board({
   // localStorage de por medio): arranca vacío y se reconcilia con lo que
   // devuelve el server (ver postFichaje y el efecto de carga por miId).
   const [fichaje, setFichaje] = useState<Fichaje>(FICHAJE_VACIO);
+
+  // Cuánto se aparta el reloj del servidor del de este navegador. Las horas del
+  // fichaje las pone él, así que sin esto el contador resta dos relojes
+  // distintos y se queda parado en 0:00:00 mientras el local no lo alcance —
+  // sesenta segundos en el servidor de producción, medidos el 16/08/2026. Ver
+  // lib/reloj-servidor.ts.
+  const [desfaseServidor, setDesfaseServidor] = useState<number | null>(null);
+  const anotarDesfase = useCallback((cabecera: string | null) => {
+    const d = desfaseDeCabecera(cabecera, Date.now());
+    // Se guarda siempre el último: si a alguien le cambian la hora del portátil
+    // a media mañana, la siguiente respuesta lo recoloca sin recargar.
+    if (d !== null) setDesfaseServidor(d);
+  }, []);
 
   // fichandoRol de cada OF se DERIVA del intervalo abierto (denormalizado en
   // pedidos para que LiveBadge, chips y contadores existentes sigan
@@ -921,13 +935,20 @@ export function Board({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ operarioId: miId, ofIds, rol }),
       })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          // De aquí sale el `inicio` del intervalo, con la hora del SERVIDOR:
+          // es el momento de apuntar cuánto se aparta de la de este navegador
+          // (ver lib/reloj-servidor.ts). Sin esto, el contador se queda a cero
+          // hasta que el reloj local alcanza al del servidor.
+          anotarDesfase(r.headers.get("date"));
+          return r.ok ? r.json() : null;
+        })
         .then((d: { fichaje: Fichaje } | null) => {
           if (d?.fichaje) setFichaje(d.fichaje);
         })
         .catch(() => {});
     },
-    [miId],
+    [miId, anotarDesfase],
   );
 
   const ficharOFs = useCallback(
@@ -1017,7 +1038,13 @@ export function Board({
     const traer = (conAviso: boolean) => {
       const seqAlArrancar = postSeqRef.current;
       fetch(`/api/fichaje?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          // También al cargar: con un fichaje ya abierto de antes, el contador
+          // tiene que salir bien desde el primer pintado, sin esperar a que se
+          // pulse nada.
+          anotarDesfase(r.headers.get("date"));
+          return r.ok ? r.json() : null;
+        })
         .then(
           (
             d: {
@@ -1048,7 +1075,7 @@ export function Board({
       cancelado = true;
       clearInterval(id);
     };
-  }, [miId]);
+  }, [miId, anotarDesfase]);
 
   // ── Latido: mientras tengo un fichaje corriendo, aviso al server de que la
   // pestaña sigue viva (ver /api/fichaje/latido). Se para al pausar
@@ -1771,6 +1798,7 @@ export function Board({
         pedidos={procesadosAll}
         fichaje={fichaje}
         dobleFichaje={dobleFichaje}
+        desfaseServidor={desfaseServidor}
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
         onDesficharVarias={desficharVarias}

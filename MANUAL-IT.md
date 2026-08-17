@@ -206,6 +206,28 @@ El mismo `sed` con `ensayo` y otro `pm2 restart`. Los bonos ya escritos con
 `traspasado = 0` **no se deshacen solos** — si hubiera que retirarlos, es cosa
 de IT sobre `sch_RPS_bonos`, y hay que avisar antes.
 
+## 8. El reloj del servidor (pendiente para IT)
+
+Medido el 16/08/2026: **el servidor va 60 s por delante** de los PC de la
+oficina. Se comprueba en un segundo desde cualquier puesto:
+
+```bash
+curl -sI http://192.168.0.90:4300/api/health | grep -i '^date:'   # y compararlo con la hora del PC
+```
+
+Las horas del fichaje las pone el servidor, así que:
+
+- **Las duraciones salen bien.** El inicio y el fin del tramo vienen los dos de
+  su reloj, y la resta es correcta. Esto no compromete el paso a activo.
+- **La hora a la que dice que se trabajó, no.** Un bono que pone las 10:00:00
+  se echó de verdad a las 09:59:00. Un minuto no rompe nada hoy, pero la deriva
+  crece sola si nadie sincroniza, y `sch_RPS_bonos` es un registro de horas.
+
+Conviene ponerle NTP (`timedatectl set-ntp true` y comprobar con
+`timedatectl status`). La web ya no depende de ello para pintar el contador
+—descuenta el desfase por su cuenta, ver `lib/reloj-servidor.ts`— pero el dato
+que se guarda sigue siendo el del reloj de la máquina.
+
 ## 8. Qué NO hace esta app (por diseño)
 
 - No escribe nada en RPS ni en el share de PDFs. Lo único que escribe fuera de
