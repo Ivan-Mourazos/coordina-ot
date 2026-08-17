@@ -101,6 +101,35 @@ export function HistorialDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [pedido, ampliado, onClose]);
 
+  // ¿Está el parte escaneado? `null` = todavía sin comprobar, y ahí se pinta el
+  // marco: lo normal es que exista, y esperar a la comprobación para enseñarlo
+  // metería un parpadeo en todos los pedidos por culpa de los pocos que fallan.
+  // Solo un 404 explícito lo da por ausente; cualquier otra cosa (sin red, el
+  // share caído) se trata como "existe" y que el visor diga lo que quiera —
+  // esconder el parte porque falló una comprobación sería peor.
+  const [scanExiste, setScanExiste] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!pedido) return;
+    let vivo = true;
+    // Diferido con setTimeout(0), igual que la carga del detalle de aquí al
+    // lado: el efecto no puede llamar a setState de forma síncrona
+    // (react-hooks/set-state-in-effect) y así se evita sin desactivar la regla.
+    const id = setTimeout(() => {
+      setScanExiste(null);
+      fetch(`/api/pedidos/${pedido}.pdf`, { method: "HEAD" })
+        .then((r) => {
+          if (vivo) setScanExiste(r.status !== 404);
+        })
+        .catch(() => {
+          if (vivo) setScanExiste(true);
+        });
+    }, 0);
+    return () => {
+      vivo = false;
+      clearTimeout(id);
+    };
+  }, [pedido]);
+
   // Mismo trato que el drawer del tablero: con telón delante, el foco no puede
   // quedarse recorriendo la lista del historial que hay detrás.
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
@@ -108,9 +137,14 @@ export function HistorialDrawer({
   if (!pedido) return null;
   const scanUrl = detalle?.scanUrl ?? `/api/pedidos/${pedido}.pdf`;
   // La ruta de PDFs resuelve las tres delegaciones (AR, SA y BE); para lo que
-  // no sea un pedido de venta —trabajo interno, OF sueltas— se avisa en vez de
-  // pedir un fichero que no existe.
-  const pdfSoportado = esCodigoPedido(pedido);
+  // no sea un pedido de venta —trabajo interno, OF sueltas— no hay parte que
+  // pedir.
+  const esPedidoDeVenta = esCodigoPedido(pedido);
+  // Y aunque el código valga, el fichero puede no estar: no todos los partes se
+  // escanean, y en Santiago y Bergondo pasa más. Se comprueba antes de pintar
+  // el marco; si no, el visor del navegador enseñaba su propia página de error
+  // dentro del panel y parecía que la web se había roto (SA.26.00790).
+  const pdfSoportado = esPedidoDeVenta && scanExiste !== false;
 
   return (
     <div
@@ -140,8 +174,16 @@ export function HistorialDrawer({
               </button>
             </div>
           ) : (
-            <div className="grid h-full w-full place-items-center rounded-xl bg-surface-2 text-sm text-text-muted">
-              PDF no disponible para esta serie
+            <div className="grid h-full w-full place-items-center rounded-xl bg-surface-2 px-8 text-center text-sm text-text-muted">
+              {/* Dos motivos distintos y no se pueden confundir: o el código no
+                  es de un pedido de venta (trabajo interno, OF suelta), o lo es
+                  pero nadie escaneó el parte. Antes los dos caían en "PDF no
+                  disponible para esta serie", que sonaba a que la web no sabía
+                  abrirlo — y con los SA y BE, que se escanean menos, tocaba
+                  explicar cada vez que no era un fallo del programa. */}
+              {esPedidoDeVenta
+                ? `${pedido} no tiene el parte escaneado en RPS. No es un fallo: nadie lo subió al archivo.`
+                : "Esto no es un pedido de venta, así que no tiene parte escaneado."}
             </div>
           )}
         </div>

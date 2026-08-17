@@ -210,6 +210,47 @@ body {
     0 10px 34px -16px var(--glass-shadow);
 }
 
+/* ── La píldora de "Mi fichaje" ──
+   Flota sobre el tablero, así que su fondo tiene que TAPAR. Los chips de rol y
+   el ámbar del aviso son tintes (`bg-amber-500/15`, `bg-emerald-600/12`): en
+   claro cuelan porque debajo hay blanco, pero en oscuro se transparentaba y se
+   leían las tarjetas a través de ella.
+   Colores planos, uno por estado, con el texto elegido para contrastar contra
+   ese fondo y no contra el de la página. Es el mismo criterio que ya se aplicó
+   al estado en reposo (ver `panel-solido` y el comentario de la píldora). */
+.pildora-aviso {
+  background: #fbe7b8;
+  color: #6b4708;
+  border-color: #e6c877;
+}
+.dark .pildora-aviso {
+  background: #4a3611;
+  color: #f7d98d;
+  border-color: #6d5017;
+}
+
+.pildora-plantear {
+  background: #cdeade;
+  color: #0a5138;
+  border-color: #94cdb5;
+}
+.dark .pildora-plantear {
+  background: #123a2b;
+  color: #86e3bd;
+  border-color: #1d5943;
+}
+
+.pildora-revisar {
+  background: #e2dcfa;
+  color: #422a94;
+  border-color: #bdb0ee;
+}
+.dark .pildora-revisar {
+  background: #2c2350;
+  color: #c9b8ff;
+  border-color: #43376f;
+}
+
 /* Ficha compacta: tile casi sólido que descansa SOBRE el vidrio, con un canto
    inferior que le da cuerpo (no plano).
  *

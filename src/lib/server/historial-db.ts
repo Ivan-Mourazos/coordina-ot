@@ -484,33 +484,77 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   // minutos por OF a 16-28, AR.26.03631 de 6 a 24-60 y AR.26.03365 de 30 a 240,
   // ocho veces más. Los minutos y el material se piden a la vez pero por
   // separado, y así el detalle no se enlentece por tenerlos separados.
-  const [r, extrasOF] = await Promise.all([
+  // ── Por qué la consulta se puede tener que repetir ────────────────────────
+  // Se filtra por la tarea de OT (recurso a-otec/otec-a) para que los minutos
+  // sean los del PLANTEO y no los de corte, soldadura o confección — ese filtro
+  // es el que evita que "6 minutos" salgan como "5 horas" (ver el comentario de
+  // arriba).
+  //
+  // Pero hay pedidos que llegan al Historial SIN ninguna tarea de OT, y no es un
+  // caso raro de laboratorio: SA.26.00790 entró al tablero por una tarea de
+  // taller (S-CONF, "corte y confección"), alguien de OT le dio a "Pasar a
+  // Producción" y desde ese momento está en el Historial. Sus dos OF existen y
+  // están enlazadas al pedido, pero ninguna tiene tarea de OT, así que el filtro
+  // las tiraba todas y el detalle salía VACÍO: sin OF, sin cliente en la ficha,
+  // sin nada. Un panel en blanco que parecía que la web se había roto, cuando lo
+  // que pasaba es que OT no había tocado ese pedido.
+  //
+  // Se resuelve con una segunda consulta que SOLO se lanza cuando la primera no
+  // devuelve nada, y que trae las OF SIN tiempo: si no hay tarea de OT, el
+  // tiempo de OT es cero, y eso es lo que hay que decir. Sumar ahí las
+  // imputaciones de las otras tareas sería peor que el panel en blanco —
+  // probado: SA.26.00790 salía con 160 minutos que son de CONFECCIÓN, y el
+  // panel los reparte bajo los rótulos "planteo" y "revisión". Un dato de otro
+  // taller con la etiqueta de OT es mentira; un cero no.
+  //
+  // Así ningún pedido de los de siempre cambia ni un minuto: si tiene tarea de
+  // OT, manda la primera consulta y la segunda ni se pide.
+  const consultaOT = () =>
     pool
-    .request()
-    .input("pedido", pedido)
-    .query<FilaDetalle>(`
-      SELECT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
-             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
-      FROM dbo.CPRManufacturingOrder mo
-      JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
-      LEFT JOIN dbo.CPRImputationMO i
-        ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = mo.IDManufacturingOrder
-        AND i.ResourceType = 1
-      LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      WHERE mo.CodCompany = '001'
-        AND EXISTS (
-          SELECT 1 FROM dbo.FACOrderLineSL l
-          JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
-          WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
-        )
-        AND EXISTS (
-          SELECT 1 FROM dbo.CPRMOResourceMachine rm
-          WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
-        )
-      GROUP BY mo.CodManufacturingOrder, mo.Description, e.CodEmployee
-    `),
-    leerMaterialesPedido(pedido),
-  ]);
+      .request()
+      .input("pedido", pedido)
+      .query<FilaDetalle>(`
+        SELECT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
+               e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+        FROM dbo.CPRManufacturingOrder mo
+        JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+        LEFT JOIN dbo.CPRImputationMO i
+          ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = mo.IDManufacturingOrder
+          AND i.ResourceType = 1
+        LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
+        WHERE mo.CodCompany = '001'
+          AND EXISTS (
+            SELECT 1 FROM dbo.FACOrderLineSL l
+            JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+            WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
+          )
+          AND EXISTS (
+            SELECT 1 FROM dbo.CPRMOResourceMachine rm
+            WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
+          )
+        GROUP BY mo.CodManufacturingOrder, mo.Description, e.CodEmployee
+      `);
+
+  /** Las OF del pedido a secas, sin tiempo ni persona: para los pedidos en los
+   *  que OT no llegó a intervenir. */
+  const consultaSinOT = () =>
+    pool
+      .request()
+      .input("pedido", pedido)
+      .query<FilaDetalle>(`
+        SELECT DISTINCT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
+               CAST(NULL AS varchar(50)) AS empleado, CAST(0 AS int) AS minutos
+        FROM dbo.CPRManufacturingOrder mo
+        WHERE mo.CodCompany = '001'
+          AND EXISTS (
+            SELECT 1 FROM dbo.FACOrderLineSL l
+            JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+            WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
+          )
+      `);
+
+  const [rOT, extrasOF] = await Promise.all([consultaOT(), leerMaterialesPedido(pedido)]);
+  const r = rOT.recordset.length > 0 ? rOT : await consultaSinOT();
 
   // Agrupar por OF (orden): sumar minutos y juntar quién.
   const porOF = new Map<string, HistorialOF>();

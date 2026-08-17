@@ -563,19 +563,23 @@ export function MiFichaje({
         onClick={() => cambiarModo(expandido ? "pildora" : ultimoAbierto)}
         aria-expanded={expandido}
         title={tituloPildora}
-        // Con color, SIN `glass-chip`: el fondo del vidrio gana a las
-        // utilidades de Tailwind (ver globals.css), así que la píldora se
-        // quedaba en gris tanto fichando como avisando — el color que dice de
-        // un vistazo si algo corre no llegaba a pantalla. Sin color sí lleva
-        // vidrio, que es cuando no tiene nada que destacar.
-        // Fondo SÓLIDO también en reposo: con el vidrio, la píldora se
-        // transparentaba sobre lo que hubiera debajo y no se leía como un
-        // control. Es la puerta del panel; tiene que verse que está ahí.
-        className={`flex items-center gap-2 rounded-full px-3.5 py-2.5 text-xs font-bold shadow-lg ring-1 ring-border transition-colors ${
+        // Fondo SÓLIDO en los TRES estados. La píldora flota sobre el tablero,
+        // así que tiene que tapar lo que hay debajo. El reposo ya se arregló en
+        // su día; los otros dos seguían con el tinte de los chips
+        // (`bg-amber-500/15`, `bg-emerald-600/12`), que en claro cuela porque
+        // debajo hay blanco pero en oscuro dejaba ver las tarjetas a través.
+        // Los colores planos están en globals.css (`.pildora-*`), donde también
+        // va el color del texto: tiene que contrastar contra ESE fondo, no
+        // contra el de la página.
+        // El `ring-border` se va con ellos: cada píldora lleva su propio borde
+        // en el tono de su color, que si no el gris de fuera desentona.
+        className={`flex items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
           ab
-            ? ROL[ab.rol].chip
+            ? ab.rol === "revisar"
+              ? "pildora-revisar"
+              : "pildora-plantear"
             : aviso
-              ? "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
+              ? "pildora-aviso"
               : "panel-solido text-text-muted"
         }`}
       >
