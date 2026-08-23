@@ -35,6 +35,16 @@ function abrir(): Database.Database {
       completado INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS nota_pedido (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido      TEXT NOT NULL,
+      operario_id TEXT NOT NULL,
+      texto       TEXT NOT NULL,
+      creado_at   TEXT NOT NULL,
+      editado_at  TEXT,
+      borrado_at  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_nota_pedido ON nota_pedido(pedido);
     CREATE TABLE IF NOT EXISTS acciones_log (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       ts          TEXT NOT NULL,
