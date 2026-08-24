@@ -36,8 +36,14 @@ async function cuerpo(req: Request): Promise<Record<string, unknown> | null> {
 }
 
 /** Cadena corta y no vacía, o null. Vale para el pedido y para el operario. */
-const clave = (v: unknown): string | null =>
-  typeof v === "string" && v.length > 0 && v.length <= PEDIDO_MAX ? v : null;
+const clave = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  // Recortada, como el texto: una clave de espacios no es una clave, y así no
+  // se guarda una nota colgada de " AR.26.03914 ", que después no encontraría
+  // nadie al leer el hilo por el código de verdad.
+  const s = v.trim();
+  return s.length > 0 && s.length <= PEDIDO_MAX ? s : null;
+};
 
 /** El 400 de un texto que no vale, con el motivo escrito: "no has puesto nada"
  *  y "te has pasado" se arreglan de formas distintas. */

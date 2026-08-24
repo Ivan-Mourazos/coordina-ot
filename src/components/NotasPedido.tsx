@@ -28,12 +28,14 @@ export function NotasPedido({
    *  al paso al Historial, donde el id cambia. */
   pedido: string;
   miId: string | null;
-  operarios: Operario[];
+  operarios: readonly Operario[];
   /** El Historial no escribe: el pedido ya está cerrado para OT. */
   soloLectura?: boolean;
 }) {
   const [notas, setNotas] = useState<NotaPedido[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // El error lleva si se arregla recargando. Un fallo de CARGA sí (de ahí el
+  // botón "Reintentar"); uno de GUARDADO no, que recargar tiraría lo escrito.
+  const [error, setError] = useState<{ texto: string; recargable: boolean } | null>(null);
   const [borrador, setBorrador] = useState("");
   const [escribiendo, setEscribiendo] = useState(false);
   const [editando, setEditando] = useState<{ id: number; texto: string } | null>(null);
@@ -63,8 +65,11 @@ export function NotasPedido({
       setError(null);
     } catch {
       if (seq !== reqSeq.current) return;
-      setNotas([]);
-      setError("No se pudieron cargar las notas.");
+      // NO se pone `notas` a [], que pintaría "Sin notas" sobre un pedido que
+      // a lo mejor tiene el recado que se venía a leer. "No lo sé" y "no hay
+      // ninguna" tienen que poder distinguirse: es justo el fallo que esta
+      // función existe para evitar. Si ya había notas cargadas, se quedan.
+      setError({ texto: "No se pudieron cargar las notas.", recargable: true });
     }
   }, [pedido]);
 
@@ -105,7 +110,7 @@ export function NotasPedido({
         // este guard, pintaríamos aquí el error de un pedido sobre la ficha
         // de otro.
         if (pedidoVigenteRef.current !== pedido) return false;
-        setError(d?.error ?? "No se pudo guardar.");
+        setError({ texto: d?.error ?? "No se pudo guardar.", recargable: false });
         return false;
       }
       // Mismo guard antes de recargar: `cargar` cierra sobre ESTE pedido, y
@@ -116,7 +121,7 @@ export function NotasPedido({
       return true;
     } catch {
       if (pedidoVigenteRef.current !== pedido) return false; // idem
-      setError("No se pudo guardar. Comprueba la conexión.");
+      setError({ texto: "No se pudo guardar. Comprueba la conexión.", recargable: false });
       return false;
     } finally {
       setGuardando(false);
@@ -150,9 +155,12 @@ export function NotasPedido({
         )}
       </div>
 
-      {notas === null && <p className="text-[11px] text-text-muted">Cargando notas…</p>}
+      {/* Tres estados que NO se pueden confundir: aún no lo sé, falló, y no hay
+          ninguna. Con el error delante no se dice ni "Cargando" ni "Sin notas":
+          quien lee tiene que saber que puede haber un recado que no le llegó. */}
+      {notas === null && !error && <p className="text-[11px] text-text-muted">Cargando notas…</p>}
 
-      {notas !== null && notas.length === 0 && !escribiendo && (
+      {notas !== null && notas.length === 0 && !escribiendo && !error && (
         <p className="text-[11px] leading-snug text-text-muted">
           Sin notas. Aquí se apunta lo que hay que saber de este pedido y no está en RPS.
         </p>
@@ -254,9 +262,23 @@ export function NotasPedido({
       )}
 
       {error && (
-        <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">
-          {error}
-        </p>
+        <div
+          className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/5 px-2 py-1.5 text-[11px] text-text"
+          role="alert"
+        >
+          {error.texto}
+          {/* Mismo remedio que el drawer del historial: sin este botón la única
+              salida era cerrar el pedido y volver a abrirlo. */}
+          {error.recargable && (
+            <button
+              type="button"
+              onClick={() => void cargar()}
+              className="rounded-lg bg-surface px-2 py-0.5 text-[10px] font-semibold ring-1 ring-border hover:bg-surface-2"
+            >
+              Reintentar
+            </button>
+          )}
+        </div>
       )}
 
       <ConfirmDialog
@@ -318,7 +340,11 @@ function Editor({
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !vacio && !pasado) onGuardar();
         }}
         placeholder="Lo que hay que saber de este pedido…"
-        className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-[13px] leading-snug text-text"
+        aria-label="Nota del pedido"
+        // Bloqueado mientras se guarda: el camino de éxito limpia el borrador,
+        // así que lo que se teclease en esa ventana se iría sin avisar.
+        disabled={guardando}
+        className="w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-[13px] leading-snug text-text disabled:opacity-60"
       />
       <div className="mt-1 flex items-center gap-2">
         <button

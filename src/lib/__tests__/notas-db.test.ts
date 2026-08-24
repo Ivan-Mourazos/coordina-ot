@@ -36,8 +36,11 @@ test("una nota se guarda y se lee", () => {
 });
 
 test("el hilo sale de la más vieja a la más nueva: se lee como una conversación", () => {
-  db.crearNota("AR.1", "jaime", "primera", "2026-08-24T09:00:00.000Z");
-  db.crearNota("AR.1", "ivan", "segunda", "2026-08-24T10:00:00.000Z");
+  // La SEGUNDA que se inserta lleva una fecha ANTERIOR, así que su id es mayor
+  // pero su creado_at menor. Si se ordenara por id (o por orden de inserción)
+  // saldría al revés: así el test distingue de verdad por qué columna ordena.
+  db.crearNota("AR.1", "jaime", "segunda", "2026-08-24T10:00:00.000Z");
+  db.crearNota("AR.1", "ivan", "primera", "2026-08-24T09:00:00.000Z");
   expect(db.leerNotas("AR.1").map((n) => n.texto)).toEqual(["primera", "segunda"]);
 });
 

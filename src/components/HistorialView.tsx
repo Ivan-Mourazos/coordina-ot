@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
-import type { Pedido } from "@/lib/types";
+import type { Operario, Pedido } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
 import { fmtMin } from "@/lib/estado";
@@ -52,9 +52,13 @@ type ItemAmpliado = HistorialItem & {
 export function HistorialView({
   pasados = [],
   onAbrirPasado,
+  operarios = [],
 }: {
   pasados?: readonly Pedido[];
   onAbrirPasado?: (pedidoId: string) => void;
+  /** Solo para el hilo de notas del drawer: sin ellos las notas saldrían con el
+   *  id crudo ("jaime") en vez del nombre y su color. */
+  operarios?: readonly Operario[];
 } = {}) {
   const [items, setItems] = useState<HistorialItem[]>([]);
   const [page, setPage] = useState(0);
@@ -302,7 +306,7 @@ export function HistorialView({
       {cargando && <p className="py-2 text-center text-xs text-text-muted">Cargando…</p>}
       <div ref={sentinela} className="h-1" />
 
-      <HistorialDrawer pedido={abierto} onClose={() => setAbierto(null)} />
+      <HistorialDrawer pedido={abierto} operarios={operarios} onClose={() => setAbierto(null)} />
     </div>
   );
 }

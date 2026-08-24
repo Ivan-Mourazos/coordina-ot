@@ -1761,7 +1761,7 @@ export function Board({
         {/* ── VISTA HISTORIAL ── */}
         {vista === "historial" && (
           <div className="p-5">
-            <HistorialView pasados={pasadosSinCerrar} onAbrirPasado={abrirPedido} />
+            <HistorialView pasados={pasadosSinCerrar} onAbrirPasado={abrirPedido} operarios={operarios} />
           </div>
         )}
 
@@ -1790,7 +1790,11 @@ export function Board({
         onDesfichar={desficharOF}
       />
 
-      <HistorialDrawer pedido={historialAbierto} onClose={() => setHistorialAbierto(null)} />
+      <HistorialDrawer
+        pedido={historialAbierto}
+        operarios={operarios}
+        onClose={() => setHistorialAbierto(null)}
+      />
 
       <MiFichaje
         miId={miId}

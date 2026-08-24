@@ -7,7 +7,7 @@ import type {
   HistorialPedidoDetalle,
   MaterialOF,
 } from "@/lib/historial";
-import type { Rol } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
 import { repartirMateriales } from "@/lib/historial";
 import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
@@ -26,9 +26,13 @@ function fmtFecha(iso: string | null) {
 export function HistorialDrawer({
   pedido,
   onClose,
+  operarios = [],
 }: {
   pedido: string | null;
   onClose: () => void;
+  /** Solo para el hilo de notas: sin ellos cada nota saldría con el id crudo
+   *  ("jaime") en vez del nombre de la persona y su color. */
+  operarios?: readonly Operario[];
 }) {
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -285,7 +289,18 @@ export function HistorialDrawer({
                   que es justo la clave con la que se guardó la nota. La prop es
                   `string | null`, pero el `if (!pedido) return null` de arriba
                   ya la estrechó para todo lo que va debajo. */}
-              <NotasPedido pedido={pedido} miId={null} operarios={[]} soloLectura />
+              {/* `key` con el código: al saltar de pedido sin cerrar el drawer
+                  (Ctrl+K abre el buscador aunque esté delante) React desmonta y
+                  vuelve a montar, así no queda ni un frame con el hilo del
+                  anterior. NO sustituye a los guards de dentro del componente:
+                  esos cubren las carreras DENTRO de un mismo pedido. */}
+              <NotasPedido
+                key={pedido}
+                pedido={pedido}
+                miId={null}
+                operarios={operarios}
+                soloLectura
+              />
 
               <Documentos documentos={detalle.documentos} />
 

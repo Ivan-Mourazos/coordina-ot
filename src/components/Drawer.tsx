@@ -324,8 +324,18 @@ export function Drawer({
               lo que se decide, porque es contexto: primero se lee de qué va
               esto y después se actúa.
               Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
-              revisor ve el hilo al abrir el pedido sin nada más que hacer. */}
-          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={operarios} />
+              revisor ve el hilo al abrir el pedido sin nada más que hacer.
+              El `key` con el código: al saltar de pedido sin cerrar el drawer
+              (Ctrl+K abre el buscador aunque esté delante) React desmonta y
+              vuelve a montar, así no queda ni un frame con el hilo del anterior.
+              NO sustituye a los guards de dentro del componente: esos cubren
+              las carreras DENTRO de un mismo pedido. */}
+          <NotasPedido
+            key={pedido.codigo}
+            pedido={pedido.codigo}
+            miId={miId}
+            operarios={operarios}
+          />
 
           {/* asignar autor del pedido entero */}
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
