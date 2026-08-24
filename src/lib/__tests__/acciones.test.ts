@@ -111,14 +111,25 @@ describe("aprobar_corregida", () => {
     expect(aplicarAccion(of("devuelta"), "aprobar_corregida").estado).toBe("aprobada");
   });
 
-  it("solo desde devuelta: no es un atajo para saltarse la primera revisión", () => {
+  it("no es un atajo para saltarse la PRIMERA revisión", () => {
+    // Desde en_curso sí sale, pero solo con revisor nombrado —una OF que ya
+    // pasó por revisión y se está corrigiendo—; ese caso tiene su propio test
+    // más abajo. Sin revisor no aparece desde ningún estado.
     for (const e of ["pendiente", "en_curso", "por_revisar", "en_revision"] as const)
+      expect(accionesDisponibles(of(e, { revisorId: null })).map((a) => a.id))
+        .not.toContain("aprobar_corregida");
+    // Y con revisor tampoco desde los estados en que la pelota es del revisor.
+    for (const e of ["por_revisar", "en_revision"] as const)
       expect(accionesDisponibles(of(e)).map((a) => a.id)).not.toContain("aprobar_corregida");
   });
 
   it("exige autor y corta el fichaje, como cualquier entrega", () => {
     const porId = Object.fromEntries(ACCIONES.map((a) => [a.id, a]));
-    expect(porId.aprobar_corregida.requiere).toBe("autor");
+    // "revisor" y no "autor": lo que acota esta acción es que la OF YA pasó por
+    // revisión. Que sea del autor lo dice `soloEl`, que además implica que hay
+    // autor.
+    expect(porId.aprobar_corregida.requiere).toBe("revisor");
+    expect(porId.aprobar_corregida.soloEl).toBe("autor");
     expect(porId.aprobar_corregida.efectoFichaje).toBe("corta");
     // En tono neutro: el camino que se ofrece primero sigue siendo mandar a
     // revisar, que es "primaria".
@@ -217,5 +228,50 @@ describe("aprobar sin revisión", () => {
     // lo deja esta acción.
     expect(aprobadaSinRevision(of("aprobada"))).toBe(false);
     expect(aprobadaSinRevision(of("en_curso", { revisorId: null }))).toBe(false);
+  });
+});
+
+describe("pasar a aprobada sin una segunda revisión", () => {
+  const ids = (estado: OF["estado"], extra: Partial<OF>) =>
+    accionesDisponibles(of(estado, extra), "op1").map((a) => a.id);
+
+  it("fichar en una DEVUELTA no hace desaparecer 'Dar por corregida'", () => {
+    // EL BUG QUE SE ARREGLA: fichar dispara `retomar`, que la pasa a en_curso.
+    // Con el botón atado solo a `devuelta`, ponerte a corregir con el reloj en
+    // marcha lo borraba de la pantalla sin decir nada, y solo quedaba mandarla
+    // otra vez a revisión.
+    expect(ids("devuelta", { revisorId: "op2" })).toContain("aprobar_corregida");
+    expect(ids("en_curso", { revisorId: "op2" })).toContain("aprobar_corregida");
+  });
+
+  it("los dos botones NUNCA salen a la vez", () => {
+    // Son la misma transición contando cosas distintas; juntos habría que
+    // adivinar cuál pulsar.
+    const conRevisor = ids("en_curso", { revisorId: "op2" });
+    expect(conRevisor).toContain("aprobar_corregida");
+    expect(conRevisor).not.toContain("aprobar_sin_revision");
+
+    const sinRevisor = ids("en_curso", { revisorId: null });
+    expect(sinRevisor).toContain("aprobar_sin_revision");
+    expect(sinRevisor).not.toContain("aprobar_corregida");
+  });
+
+  it("sin revisor no se puede 'dar por corregida': no hubo quien la devolviera", () => {
+    expect(ids("en_curso", { revisorId: null })).not.toContain("aprobar_corregida");
+  });
+
+  it("las dos llevan a aprobada, y solo la de verdad sin revisar se marca así", () => {
+    const corregida = aplicarAccion(of("en_curso", { revisorId: "op2" }), "aprobar_corregida");
+    expect(corregida.estado).toBe("aprobada");
+    // Sí hubo revisión en su momento, así que NO es una "aprobada sin revisión".
+    expect(aprobadaSinRevision(corregida)).toBe(false);
+
+    const sinRevisar = aplicarAccion(of("en_curso", { revisorId: null }), "aprobar_sin_revision");
+    expect(aprobadaSinRevision(sinRevisar)).toBe(true);
+  });
+
+  it("sigue siendo del AUTOR: el revisor no la cierra por esta puerta", () => {
+    expect(accionesDisponibles(of("en_curso", { revisorId: "op2" }), "op2").map((a) => a.id))
+      .not.toContain("aprobar_corregida");
   });
 });

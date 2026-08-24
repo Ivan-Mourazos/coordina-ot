@@ -19,6 +19,14 @@ export interface AccionDef {
   confirmar?: string; // si existe, la UI pide confirmación con este texto
   desde: EstadoOF[];
   requiere?: "autor" | "revisor"; // asignación necesaria para ofrecerla
+  /** Solo se ofrece si la OF NO tiene revisor nombrado.
+   *
+   *  Es lo contrario de `requiere`, y hace falta para que "Dar por bueno sin
+   *  revisión" y "Dar por corregida" no salgan las dos a la vez: son la misma
+   *  transición —a `aprobada` sin pasar por revisión— pero cuentan cosas
+   *  distintas (una nunca se revisó, la otra ya la revisaron y se corrigió), y
+   *  ofrecerlas juntas obligaría a adivinar cuál pulsar. */
+  sinRevisor?: boolean;
   /** Además de estar asignada, la acción es SOLO de esa persona.
    *
    *  Distinto de `requiere`: ese pide que haya alguien nombrado, esto pide que
@@ -81,7 +89,7 @@ export const ACCIONES: AccionDef[] = [
   // OF que nadie revisó de una que sí. Ver `aprobadaSinRevision`.
   { id: "aprobar_sin_revision", label: "Dar por bueno sin revisión", tono: "neutra",
     confirmar: "La OF queda aprobada SIN que nadie la revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa \"Pasar a revisión\".",
-    desde: ["en_curso"], requiere: "autor", soloEl: "autor",
+    desde: ["en_curso"], requiere: "autor", soloEl: "autor", sinRevisor: true,
     efectoFichaje: "corta", destino: "aprobada" },
   { id: "aprobar", label: "Aprobar", tono: "primaria",
     confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
@@ -102,9 +110,19 @@ export const ACCIONES: AccionDef[] = [
   //
   // Y es del AUTOR: la corrección la hace él, así que es él quien dice que ya
   // está. El revisor que quiera cerrarla tiene "Aprobar" tras reabrirla.
+  // TAMBIÉN desde `en_curso`, y esto tapa un agujero que despistaba: fichar en
+  // una OF devuelta dispara `retomar` (ver accionAlFichar), que la pasa a
+  // `en_curso`. Con el botón atado solo a `devuelta`, ponerte a corregir con el
+  // reloj en marcha lo hacía DESAPARECER sin decir nada, y desde ahí lo único
+  // que quedaba era mandarla otra vez a revisión: una segunda vuelta que nadie
+  // pedía, provocada por haber fichado el rato que costó el arreglo.
+  //
+  // `requiere: "revisor"` es lo que lo acota: una OF en curso CON revisor
+  // nombrado es una que ya pasó por revisión. Sin revisor, lo que sale es "Dar
+  // por bueno sin revisión", que cuenta otra cosa.
   { id: "aprobar_corregida", label: "Dar por corregida", tono: "neutra",
     confirmar: "La OF queda aprobada sin pasar otra vez por revisión.",
-    desde: ["devuelta"], requiere: "autor", soloEl: "autor",
+    desde: ["devuelta", "en_curso"], requiere: "revisor", soloEl: "autor",
     efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
     desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
@@ -166,6 +184,10 @@ const cumpleRequisito = (a: AccionDef, of: OF): boolean =>
 
 /** ¿Es MÍA esta acción? Sin `soloEl` lo es de cualquiera; sin identidad
  *  elegida no se recorta nada (ver `accionesDisponibles`). */
+/** ¿Cumple el "y además, sin revisor"? Ver `AccionDef.sinRevisor`. */
+const cumpleSinRevisor = (a: AccionDef, of: OF): boolean =>
+  !a.sinRevisor || of.revisorId === null;
+
 const esMia = (a: AccionDef, of: OF, miId: string | null | undefined): boolean =>
   a.soloEl === undefined || miId == null || quienTiene(a.soloEl, of) === miId;
 
@@ -178,7 +200,11 @@ const esMia = (a: AccionDef, of: OF, miId: string | null | undefined): boolean =
  *  propia OF. */
 export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
   return ACCIONES.filter(
-    (a) => a.desde.includes(of.estado) && cumpleRequisito(a, of) && esMia(a, of, miId),
+    (a) =>
+      a.desde.includes(of.estado) &&
+      cumpleRequisito(a, of) &&
+      cumpleSinRevisor(a, of) &&
+      esMia(a, of, miId),
   );
 }
 
