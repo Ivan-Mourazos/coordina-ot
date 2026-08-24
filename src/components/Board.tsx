@@ -1788,6 +1788,8 @@ export function Board({
         onAccion={ejecutarAccion}
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
+        onDesficharVarias={desficharVarias}
+        ofIdsFichandoYo={ofIdsFichandoYo}
       />
 
       <HistorialDrawer

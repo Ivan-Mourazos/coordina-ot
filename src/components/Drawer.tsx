@@ -120,6 +120,8 @@ export function Drawer({
   onAccion,
   onFichar,
   onDesfichar,
+  onDesficharVarias,
+  ofIdsFichandoYo,
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
@@ -135,6 +137,14 @@ export function Drawer({
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  onDesficharVarias: (ofIds: string[]) => void;
+  /** Las OF que estoy fichando YO ahora mismo (mi intervalo abierto).
+   *
+   *  NO vale `of.fichandoRol` para esto: ese dice que la ficha ALGUIEN —el
+   *  revisor, o cualquiera desde el mini-olanet— y con él salía "Pausar" sobre
+   *  el reloj de otro, que este botón no puede parar. Mismo criterio que usa
+   *  PedidoLinea. */
+  ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   useEffect(() => {
     if (!pedido) return;
@@ -196,6 +206,10 @@ export function Drawer({
   // de `ofsFichablesDe`), así que meter aquí una OF que está en revisión le
   // ficharía la revisión como si fuera planteo, a nombre de quien pulse.
   const fichablesDeOT = ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear");
+  // Las de ESTE pedido que corren en MI reloj. `esFichable` no mira si la OF ya
+  // se está fichando, así que sin esto el botón de arriba seguía diciendo
+  // "Fichar las N" con el reloj ya en marcha: no cambiaba nunca a "Pausar".
+  const fichandoYo = ofsDeOT.filter((o) => ofIdsFichandoYo?.has(o.id));
 
   // ── Las OF del pedido que YO puedo mandar a revisar ahora mismo ──────────
   // El planteo se termina pedido a pedido, no OF a OF: quien plantea un parte
@@ -375,19 +389,48 @@ export function Drawer({
                 sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
                 usa cuando de verdad solo tocas una. */}
             <span className="ml-auto flex shrink-0 items-center gap-1.5">
-              {fichablesDeOT.length > 1 && (
+              {/* Con el reloj MÍO en marcha aquí, este botón para; si no, ficha.
+                  Mismo par que la fila del tablero (PedidoLinea): antes solo
+                  sabía fichar, así que tras fichar seguía ofreciendo fichar
+                  otra vez lo que ya estaba corriendo. */}
+              {fichandoYo.length > 0 ? (
                 <button
-                  onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
-                  title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
+                  onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
+                  title={
+                    fichandoYo.length === 1
+                      ? "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
+                      : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
+                  }
+                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
-                  ⏱ Fichar las {fichablesDeOT.length}
+                  ⏸ Pausar{fichandoYo.length > 1 && ` las ${fichandoYo.length}`}
                 </button>
+              ) : (
+                fichablesDeOT.length > 1 && (
+                  <button
+                    onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
+                    title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
+                  >
+                    ⏱ Fichar las {fichablesDeOT.length}
+                  </button>
+                )
+              )}
+              {/* Con el reloj corriendo no se manda nada a revisar: primero se
+                  para. Mandar a revisión da por terminado el planteo, y hacerlo
+                  con el reloj en marcha deja tiempo contando sobre un trabajo
+                  que ya dijiste que estaba acabado.
+                  Se dice POR QUÉ en vez de esconder el botón a secas: si no,
+                  parece que la web se ha roto. */}
+              {fichandoYo.length > 0 && paraRevisar.length > 0 && (
+                <span className="text-[11px] text-text-muted">
+                  Pausa el reloj para poder pasar a revisión
+                </span>
               )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
                   más de una: con una sola, este botón y el de su fila harían lo
                   mismo. */}
-              {paraRevisar.length > 1 && autoresParaRevisar.length === 1 && !pidiendoRevisorPedido && (
+              {fichandoYo.length === 0 && paraRevisar.length > 1 && autoresParaRevisar.length === 1 && !pidiendoRevisorPedido && (
                 <button
                   onClick={() => setPidiendoRevisorPedido(true)}
                   title={`Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`}
@@ -443,6 +486,7 @@ export function Drawer({
                 onAccion={onAccion}
                 onFichar={onFichar}
                 onDesfichar={onDesfichar}
+                fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
               />
             ))}
           </ul>
@@ -588,6 +632,7 @@ function OFRow({
   onAccion,
   onFichar,
   onDesfichar,
+  fichandoYoEsta,
 }: {
   of: OF;
   operarios: Operario[];
@@ -601,6 +646,8 @@ function OFRow({
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  /** ¿La estoy fichando YO? Ver el mismo campo en las props del Drawer. */
+  fichandoYoEsta: boolean;
 }) {
   const meta = ESTADO[of.estado];
   // Solo en las anuladas: en una devuelta ese mismo campo lleva la nota del
@@ -807,6 +854,7 @@ function OFRow({
         onSetRevisor={onSetRevisor}
         onFichar={onFichar}
         onDesfichar={onDesfichar}
+        fichandoYoEsta={fichandoYoEsta}
       />
     </li>
   );
@@ -828,6 +876,7 @@ function AccionesOF({
   onSetRevisor,
   onFichar,
   onDesfichar,
+  fichandoYoEsta,
 }: {
   of: OF;
   operarios: Operario[];
@@ -836,6 +885,8 @@ function AccionesOF({
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
+  /** ¿La estoy fichando YO? Ver el mismo campo en las props del Drawer. */
+  fichandoYoEsta: boolean;
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
@@ -847,8 +898,16 @@ function AccionesOF({
   // aquí ponía dos botones para lo mismo, y en una OF ya empezada y pausada
   // salían juntos "▶ Reanudar" y "Empezar planteo", que encima suena a
   // empezar de cero.
+  //
+  // Y fuera "terminar planteo" mientras YO la estoy fichando: mandarla a
+  // revisar da por terminado el planteo, así que hacerlo con el reloj en marcha
+  // dejaba tiempo contando sobre un trabajo ya declarado acabado. Primero se
+  // pausa —el botón de al lado— y entonces aparece.
   const acciones = accionesDisponibles(of, miId).filter(
-    (a) => a.id !== "empezar_planteo" && a.id !== "retomar",
+    (a) =>
+      a.id !== "empezar_planteo" &&
+      a.id !== "retomar" &&
+      !(fichandoYoEsta && a.id === "terminar_planteo"),
   );
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
   // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
@@ -857,7 +916,12 @@ function AccionesOF({
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
-      {of.fichandoRol ? (
+      {/* "La ficho YO", no "la ficha alguien": con `of.fichandoRol` salía
+          "Pausar" también sobre el reloj de otra persona (el revisor, o
+          cualquiera desde el mini-olanet), y este botón no puede parar ese
+          reloj —solo saca la OF del MÍO, donde no estaba—. Mismo criterio que
+          PedidoLinea y que el botón de arriba. */}
+      {fichandoYoEsta ? (
         <Btn
           tone={of.fichandoRol === "revisar" ? "revisar" : "reloj"}
           title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
