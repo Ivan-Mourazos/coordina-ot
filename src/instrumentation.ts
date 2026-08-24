@@ -23,4 +23,11 @@ export async function register() {
   // ecosystem.config.cjs), así que no hay dos workers compitiendo por la cola.
   const { arrancarSincronizacion } = await import("./lib/server/olanet-worker");
   arrancarSincronizacion();
+
+  // Vigilancia de partes re-escaneados. Va DESPUÉS del bloque de RPS y dentro
+  // de él a propósito: mira ficheros del share de VENTAS, que solo existe
+  // cuando la app corre contra los datos reales. Con datos mock no hay partes
+  // que mirar y la lista de vigilados estaría vacía igualmente.
+  const { arrancarVigilanciaDePartes } = await import("./lib/server/scan-worker");
+  arrancarVigilanciaDePartes();
 }

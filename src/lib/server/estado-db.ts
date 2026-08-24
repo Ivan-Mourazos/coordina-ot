@@ -45,6 +45,20 @@ function abrir(): Database.Database {
       borrado_at  TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_nota_pedido ON nota_pedido(pedido);
+    CREATE TABLE IF NOT EXISTS pedido_scan (
+      pedido        TEXT PRIMARY KEY,
+      -- mtime del PDF que alguien ya dio por visto: la referencia contra la
+      -- que se compara. NULL mientras no se haya mirado el fichero ni una vez.
+      mtime_visto   INTEGER,
+      -- Último mtime que vio el vigilante.
+      mtime_actual  INTEGER,
+      -- Cuándo entró este pedido en la lista de vigilados.
+      registrado_at TEXT NOT NULL,
+      -- Cuándo se le miró el PDF por última vez (haya cambiado o no): es lo
+      -- que ordena a quién le toca el siguiente vistazo.
+      revisado_at   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_pedido_scan_revisado ON pedido_scan(revisado_at);
     CREATE TABLE IF NOT EXISTS acciones_log (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       ts          TEXT NOT NULL,

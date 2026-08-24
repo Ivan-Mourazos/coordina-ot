@@ -36,12 +36,25 @@ export async function getTablero(): Promise<Tablero> {
     const { aplicarTiemposFichaje } = await import("./server/tiempos");
     const { modoFichaje } = await import("./server/olanet-outbox");
     const dobleFichaje = modoFichaje() !== "activo";
+    const conTiempos = aplicarTiemposFichaje(
+      conFlujo,
+      leerTodosIntervalos(),
+      new Date().toISOString(),
+      { dobleFichaje },
+    );
+
+    // Partes re-escaneados. Aquí NO se toca el disco: solo se apunta qué
+    // pedidos hay vivos —para que el vigilante sepa a quién mirar— y se lee lo
+    // que ya dejó dicho. El `stat` va contra un share por red y esto corre en
+    // cada vuelta del tablero, con 81 pedidos dentro.
+    const { registrarPedidos, pedidosCambiados } = await import("./server/scan-db");
+    registrarPedidos(conTiempos.pedidos.map((p) => p.codigo));
+    const cambiados = pedidosCambiados();
+
     return {
-      ...aplicarTiemposFichaje(
-        conFlujo,
-        leerTodosIntervalos(),
-        new Date().toISOString(),
-        { dobleFichaje },
+      ...conTiempos,
+      pedidos: conTiempos.pedidos.map((p) =>
+        cambiados.has(p.codigo) ? { ...p, scanCambiado: true } : p,
       ),
       dobleFichaje,
     };

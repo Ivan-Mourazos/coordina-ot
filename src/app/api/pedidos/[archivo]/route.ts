@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { rutaPdfPedido } from "@/lib/server/pdf-pedido";
 
 // GET /api/pedidos/AR.26.02711.pdf — sirve el PDF escaneado del pedido desde
 // el servidor de archivos (\\192.168.0.128\RPS\VENTAS\PEDIDOS\{año}\{delegación}\
@@ -17,37 +18,9 @@ import { pathToFileURL } from "node:url";
 
 /** Solo códigos de pedido reales: nada de path traversal ni comodines.
  *
- *  Tres prefijos, uno por delegación (ver DELEGACION más abajo). El grupo 2 es
- *  el prefijo y el 3 el año. */
+ *  Tres prefijos, uno por delegación. El grupo 1 es el código entero. La
+ *  carpeta donde vive cada uno la resuelve `rutaPdfPedido`. */
 const ARCHIVO_RE = /^((AR|SA|BE)\.(\d{2})\.\d{5})\.(pdf|png)$/i;
-
-/** Subcarpeta del año donde vive el PDF de cada delegación.
- *
- *  Los pedidos de Arteixo (AR) cuelgan del año a secas y los de las otras dos
- *  de una carpeta con el nombre del sitio: `2026/SANTIAGO/SA.26.00844.pdf`. Sin
- *  esto, los SA y los BE se buscaban en la carpeta del año, no estaban, y la
- *  tarjeta salía con la réplica dibujada en vez del parte — que es lo que se
- *  veía en el tablero.
- *
- *  Comprobado contra `GENEntityDocument`, que es el índice de RPS: las 1245
- *  SA.26 y las 818 BE.26 apuntan todas a estas dos carpetas. */
-const DELEGACION: Record<string, string> = {
-  AR: "",
-  SA: "SANTIAGO",
-  BE: "BERGONDO",
-};
-
-// El share de PDFs se llega distinto según dónde corra la app:
-//   · Windows (desarrollo): ruta UNC \\192.168.0.128\RPS\VENTAS\PEDIDOS (por VPN).
-//   · Linux (deploy): punto de montaje CIFS, p.ej. /mnt/rps-pedidos.
-// Se elige por plataforma para que el MISMO .env.local valga en ambas máquinas
-// (una ruta /mnt/... no resuelve en Windows y una UNC no resuelve en Linux).
-// Cada var tiene un valor por defecto útil, así en desarrollo funciona sin tocar
-// nada: en Windows cae al UNC, en Linux a /mnt/rps-pedidos.
-const RAIZ =
-  process.platform === "win32"
-    ? (process.env.RPS_PEDIDOS_PDF_DIR_WIN ?? "\\\\192.168.0.128\\RPS\\VENTAS\\PEDIDOS")
-    : (process.env.RPS_PEDIDOS_PDF_DIR ?? "/mnt/rps-pedidos");
 
 /** Carpeta de caché de miniaturas, dentro de la caché de Next. */
 const CACHE_DIR = path.join(process.cwd(), ".next", "cache", "pedidos-thumbs");
@@ -218,12 +191,13 @@ export async function GET(
 
   // "AR.26.02711.pdf" → año 2026 (el 3er segmento del código es el año).
   const codigo = m[1].toUpperCase();
-  const anho = 2000 + Number(m[3]);
   const extension = m[4].toLowerCase();
-  // path.join usa el separador del SO: en Windows preserva el UNC (\\host\share),
-  // en Linux monta la ruta con "/". Así RPS_PEDIDOS_PDF_DIR vale tal cual en ambos.
-  // La subcarpeta vacía de AR desaparece sola: path.join("x", "", "y") = "x/y".
-  const rutaPdf = path.join(RAIZ, String(anho), DELEGACION[m[2].toUpperCase()], `${codigo}.pdf`);
+  // La ruta la arma `rutaPdfPedido` (lib/server/pdf-pedido.ts), compartida con
+  // el vigilante de re-escaneos: dos copias se habrían separado a la primera
+  // reorganización del share, y entonces el que avisa miraría un sitio distinto
+  // del que sirve el fichero. Aquí no puede ser null: ARCHIVO_RE ya garantiza
+  // que el código es de un pedido de venta.
+  const rutaPdf = rutaPdfPedido(codigo)!;
 
   if (extension === "png") {
     let mtimePdf: number;

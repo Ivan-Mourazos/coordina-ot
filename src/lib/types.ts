@@ -400,6 +400,16 @@ export interface Pedido {
    *  tarjeta muestra la imagen real en lugar de la réplica dibujada. */
   scanUrl?: string;
 
+  /** Han vuelto a escanear el parte y nadie lo ha dado por visto todavía.
+   *
+   *  Lo pone `getTablero()` leyendo lo que dejó el vigilante (scan-worker), no
+   *  mirando el disco: el `stat` va contra un share por red y aquí hay 81
+   *  pedidos cada media vuelta de reloj.
+   *
+   *  Es del PEDIDO, no de cada persona: quien lo mira, lo mira por el equipo.
+   *  El registro permanente de cuándo pasó vive en el hilo de notas. */
+  scanCambiado?: boolean;
+
   /** Comentario del pedido de venta en RPS (condiciones, avisos del comercial). */
   comentarioVenta?: string;
   /** Ciudad de entrega del pedido de venta. */
