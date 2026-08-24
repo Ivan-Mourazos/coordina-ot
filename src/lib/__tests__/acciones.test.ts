@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCIONES, accionesDisponibles, aplicarAccion } from "../acciones";
+import { ACCIONES, accionesDisponibles, aplicarAccion, aprobadaSinRevision } from "../acciones";
 import type { OF } from "../types";
 
 const of = (estado: OF["estado"], extra: Partial<OF> = {}): OF => ({
@@ -181,5 +181,41 @@ describe("de quién es cada acción", () => {
     expect(ids("en_revision", undefined)).toEqual([
       "aprobar", "devolver", "soltar_revision", "anular",
     ]);
+  });
+});
+
+describe("aprobar sin revisión", () => {
+  it("el autor puede darla por buena desde en_curso", () => {
+    // Hay trabajo que siempre hace la misma persona (ASSA ABLOY es de Tamara):
+    // montar una revisión ahí es papeleo por el papeleo, y hasta ahora había
+    // que ir a la herramienta vieja para pasarlo.
+    const x = of("en_curso", { revisorId: null });
+    expect(accionesDisponibles(x, "op1").map((a) => a.id)).toContain("aprobar_sin_revision");
+  });
+
+  it("NO desde devuelta: ahí ya hay un revisor que opinó", () => {
+    // Saltárselo por esta puerta le quitaría la última palabra sobre un trabajo
+    // que él mismo marcó como incompleto.
+    expect(accionesDisponibles(of("devuelta"), "op1").map((a) => a.id))
+      .not.toContain("aprobar_sin_revision");
+  });
+
+  it("es del AUTOR, no de cualquiera", () => {
+    const x = of("en_curso", { revisorId: null });
+    expect(accionesDisponibles(x, "op2").map((a) => a.id)).not.toContain("aprobar_sin_revision");
+  });
+
+  it("deja la OF aprobada y sin revisor, y eso es lo que la distingue", () => {
+    const r = aplicarAccion(of("en_curso", { revisorId: null }), "aprobar_sin_revision");
+    expect(r.estado).toBe("aprobada");
+    expect(r.revisorId).toBeNull();
+    expect(aprobadaSinRevision(r)).toBe(true);
+  });
+
+  it("una aprobada NORMAL no se confunde con una sin revisar", () => {
+    // Los dos caminos normales a aprobada exigen revisor, así que el hueco solo
+    // lo deja esta acción.
+    expect(aprobadaSinRevision(of("aprobada"))).toBe(false);
+    expect(aprobadaSinRevision(of("en_curso", { revisorId: null }))).toBe(false);
   });
 });

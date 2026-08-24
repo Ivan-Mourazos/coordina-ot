@@ -7,7 +7,8 @@ import type { EstadoOF, OF } from "./types";
 
 export type AccionOF =
   | "empezar_planteo" | "terminar_planteo" | "recuperar_planteo"
-  | "empezar_revision" | "aprobar" | "aprobar_corregida" | "devolver" | "reabrir"
+  | "empezar_revision" | "aprobar" | "aprobar_corregida" | "aprobar_sin_revision"
+  | "devolver" | "reabrir"
   | "soltar_revision"
   | "retomar" | "anular" | "restaurar";
 
@@ -67,6 +68,21 @@ export const ACCIONES: AccionDef[] = [
   // la OF vuelve a su autor como lista, y el pedido se pasa entero (y a mano)
   // cuando lo están todas. El "→ quién" lo pone `etiquetaAccion` con el nombre
   // del autor, que es a quien le llega.
+  // Trabajo que NO lleva revisión: hay clientes que siempre hace la misma
+  // persona —ASSA ABLOY es de Tamara— y montar una revisión ahí es papeleo por
+  // el papeleo. Hasta ahora, para pasarlos había que ir a la herramienta vieja.
+  //
+  // Es del AUTOR y solo desde `en_curso`. NO desde `devuelta`: si te la
+  // devolvieron es que hay un revisor metido y ya opinó — saltárselo por esta
+  // puerta le quitaría la última palabra sobre un trabajo que él marcó como
+  // incompleto.
+  //
+  // El revisor se queda a null, y eso es lo que distingue en el histórico una
+  // OF que nadie revisó de una que sí. Ver `aprobadaSinRevision`.
+  { id: "aprobar_sin_revision", label: "Dar por bueno sin revisión", tono: "neutra",
+    confirmar: "La OF queda aprobada SIN que nadie la revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa \"Pasar a revisión\".",
+    desde: ["en_curso"], requiere: "autor", soloEl: "autor",
+    efectoFichaje: "corta", destino: "aprobada" },
   { id: "aprobar", label: "Aprobar", tono: "primaria",
     confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
     desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
@@ -196,4 +212,17 @@ export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
     estado,
     ...(def.conNota || def.conMotivo ? { observacion: obs!.trim() } : {}),
   };
+}
+
+/** ¿Esta OF llegó a "aprobada" sin que nadie la revisara?
+ *
+ *  Se sabe porque no tiene revisor: los dos caminos normales a `aprobada`
+ *  —"Aprobar" y "Dar por corregida"— exigen uno, así que un hueco ahí solo lo
+ *  deja `aprobar_sin_revision`.
+ *
+ *  Importa para que el histórico no mienta: "Aprobada" a secas se lee como
+ *  "alguien la repasó y le dio el visto bueno", y en estas no pasó.
+ */
+export function aprobadaSinRevision(of: OF): boolean {
+  return of.estado === "aprobada" && of.revisorId === null;
 }

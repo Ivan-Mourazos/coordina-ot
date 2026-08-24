@@ -12,7 +12,12 @@ import { AnularInline } from "./AnularInline";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
-import { accionesDisponibles, etiquetaAccion, type AccionOF } from "@/lib/acciones";
+import {
+  accionesDisponibles,
+  aprobadaSinRevision,
+  etiquetaAccion,
+  type AccionOF,
+} from "@/lib/acciones";
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
@@ -690,7 +695,10 @@ function OFRow({
           className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}
           title={anulacion?.nota}
         >
-          {meta.label}
+          {/* "Aprobada" a secas se lee como "alguien la repasó y le dio el
+              visto bueno". En las que van por "Dar por bueno sin revisión" eso
+              no pasó, y el histórico no puede decir que sí. */}
+          {aprobadaSinRevision(of) ? "Aprobada sin revisión" : meta.label}
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
