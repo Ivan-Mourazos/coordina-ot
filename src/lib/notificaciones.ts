@@ -22,7 +22,13 @@ export type NotifTipo =
   | "cedida"
   | "revisarNueva"
   | "revisarQuitada"
-  | "pedidoCompleto";
+  | "pedidoCompleto"
+  // Los dos siguientes son de TODO EL EQUIPO, no de una persona: una nota o un
+  // parte re-escaneado le importan a cualquiera que vaya a tocar ese pedido.
+  // Los demás avisos nacieron personales ("te toca a ti"), pero la regla de la
+  // campana —un hecho que no has provocado tú— vale igual para estos.
+  | "notaNueva"
+  | "parteNuevo";
 
 /** Un aviso tal y como se detecta: mirando UNA OF. */
 export interface AvisoSuelto {
@@ -34,6 +40,10 @@ export interface AvisoSuelto {
   quien?: string;
   otro?: string;
   clave?: string;
+  /** Lo que se enseña en la segunda línea cuando el aviso no habla de OF: el
+   *  texto de la nota. Sin esto habría que meterlo en `otro`, que significa
+   *  otra cosa (la otra persona de un traspaso). */
+  texto?: string;
 }
 
 /** Un aviso ya agrupado: lo que se pinta. */
@@ -50,6 +60,8 @@ export interface NotifItem {
   quien?: string;
   otro?: string;
   clave?: string;
+  /** Ver `AvisoSuelto.texto`. */
+  texto?: string;
 }
 
 /** Las OF que cuentan para decidir si un aviso cubre "el pedido entero".
@@ -79,6 +91,7 @@ export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
       quien: a.quien,
       otro: a.otro,
       clave: a.clave,
+      texto: a.texto,
     });
   }
 

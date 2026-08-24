@@ -892,7 +892,28 @@ async function consultarTablero(): Promise<Tablero> {
   }
 
   const pedidos: Pedido[] = [...porPedido.entries()].map(([clave, grupo]) => {
-    const filas = unaFilaPorOF(grupo.filas);
+    // De MENOR a MAYOR número de OF. La vista de RPS las devuelve en su
+    // orden, que sale del revés: en la ficha del pedido salía arriba la OF más
+    // alta, o sea la última, y se leía al contrario de como está el parte —
+    // donde la línea 01 es la primera.
+    //
+    // Se ordena AQUÍ, al construir el pedido, y no en la ficha: así el mismo
+    // orden vale para el detalle, la fila del tablero, los chips y el fichaje
+    // por pedido. Ordenarlo solo en un sitio dejaría cada vista contando las
+    // mismas OF en orden distinto.
+    //
+    // Numérico y no alfabético: los códigos vienen con ceros delante
+    // ("0227526") y ahí las dos ordenaciones coinciden, pero uno sin rellenar
+    // pondría "10" antes que "9". Con `localeCompare` de reserva para lo que
+    // no sea un número.
+    const filas = unaFilaPorOF(grupo.filas).sort((a, b) => {
+      const ca = (a.OF ?? "").trim();
+      const cb = (b.OF ?? "").trim();
+      const na = Number(ca);
+      const nb = Number(cb);
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+      return ca.localeCompare(cb);
+    });
     const cliente =
       filas.map((f) => (f.Cliente ?? "").trim()).find(Boolean) ?? "Sin cliente";
     const validas = (ds: (Date | null)[]) =>

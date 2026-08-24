@@ -106,3 +106,27 @@ export function borrarNota(
       .run(ahora, id, operarioId).changes > 0
   );
 }
+
+/** Las notas escritas en los últimos `dias`, de todos los pedidos.
+ *
+ *  Es lo que alimenta la campana: una nota es un HECHO del que el resto se
+ *  tiene que enterar, igual que un traspaso. Se limita por días —y no se
+ *  traen todas— porque la campana avisa de lo que acaba de pasar; una nota de
+ *  hace tres meses no es noticia y llenaría la lista de ruido.
+ *
+ *  La ventana es la misma que la de los avisos de movimiento
+ *  (VENTANA_AVISOS_DIAS): dos plazos distintos harían que un traspaso y la nota
+ *  que lo explica caducaran en días distintos. */
+export function leerNotasRecientes(dias: number, ahora = new Date()): NotaPedido[] {
+  const desde = new Date(ahora.getTime() - dias * 86_400_000).toISOString();
+  return (
+    getDb()
+      .prepare(
+        `SELECT id, pedido, operario_id, texto, creado_at, editado_at
+           FROM nota_pedido
+          WHERE creado_at >= ? AND borrado_at IS NULL
+          ORDER BY creado_at DESC, id DESC`,
+      )
+      .all(desde) as Fila[]
+  ).map(aNota);
+}

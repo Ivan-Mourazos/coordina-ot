@@ -14,10 +14,18 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisarNueva: { label: "Te toca revisar", vista: "revision", dot: "bg-violet-600" },
   revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: "bg-cyan-600" },
+  notaNueva: { label: "Nota nueva", vista: "asignar", dot: "bg-teal-600" },
+  parteNuevo: { label: "Han re-escaneado el parte", vista: "asignar", dot: "bg-amber-500" },
 };
 
 /** La segunda línea del aviso: de qué parte del pedido habla. */
 function detalleDe(item: NotifItem): string {
+  // Los avisos del pedido entero no hablan de OF, y cada uno dice lo suyo: sin
+  // esto, una nota nueva salía con "Todas sus OF aprobadas" debajo, que es el
+  // texto de OTRO aviso y además mentía.
+  if (item.tipo === "notaNueva") return item.texto ?? "Nota nueva en el pedido";
+  if (item.tipo === "parteNuevo")
+    return "Puede traer cambios: míralo antes de seguir";
   if (item.ofs.length === 0) return "Todas sus OF aprobadas";
   if (item.pedidoEntero)
     return item.totalOFs === 1

@@ -52,6 +52,8 @@ import {
 } from "@/lib/fichaje";
 import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/traspaso";
 import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
+import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
+import type { NotaPedido } from "@/lib/nota-pedido";
 import {
   FILTROS_INICIALES,
   ORDENES,
@@ -284,6 +286,29 @@ export function Board({
       clearInterval(id);
     };
   }, [miId]);
+
+  // Notas recientes de TODO el equipo: una nota es un hecho del que los demás
+  // se tienen que enterar, igual que un traspaso. No depende de quién soy —la
+  // nota de un pedido le importa a cualquiera que vaya a tocarlo—, así que se
+  // piden una vez y el filtro de "no las mías" se hace al armar el aviso.
+  const [notasRecientes, setNotasRecientes] = useState<NotaPedido[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    const cargar = () => {
+      fetch("/api/notas-recientes", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { notas: NotaPedido[] } | null) => {
+          if (vivo && d) setNotasRecientes(d.notas);
+        })
+        .catch(() => {});
+    };
+    cargar();
+    const id = setInterval(cargar, 30_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, []);
 
   // Fase cuyo "+N más" está desplegado en mi zona (null = ninguno).
   const [faseAbierta, setFaseAbierta] = useState<string | null>(null);
@@ -578,8 +603,40 @@ export function Board({
         clave: a.clave,
       });
     }
+    // Notas que ha dejado OTRA persona. Las mías no: la campana avisa de lo
+    // que ha pasado y no has provocado tú (ver notificaciones.ts), y avisarme
+    // de mi propia nota sería contarme lo que acabo de escribir.
+    //
+    // La nota cuelga del CÓDIGO del pedido, no de su id: es lo que sobrevive al
+    // paso al Historial. Por eso se busca por código.
+    for (const n of notasRecientes) {
+      if (n.operarioId === miId) continue;
+      // Las que escribe la propia web (el re-escaneo) tienen su propio aviso
+      // más abajo; contarlas dos veces sería repetir la misma noticia.
+      if (n.operarioId === OPERARIO_SISTEMA) continue;
+      const pedido = procesadosAll.find((p) => p.codigo === n.pedido);
+      if (!pedido) continue; // nota de un pedido que ya no está en el tablero
+      out.push({
+        pedido,
+        of: null,
+        tipo: "notaNueva",
+        quien: nombre(n.operarioId) ?? n.operarioId,
+        // La clave lleva el id de la nota: dos notas seguidas en el mismo
+        // pedido son dos noticias, y con `pedido:tipo` la segunda se habría
+        // agrupado con la primera y no habría sonado.
+        clave: `nota:${n.id}`,
+        texto: n.texto,
+      });
+    }
+
+    // Parte re-escaneado. Sale del propio tablero (`scanCambiado`, que pone
+    // getTablero leyendo lo que dejó el vigilante), así que no hace falta pedir
+    // nada más. Es de todos: se apaga para el equipo con "Ya lo he visto".
+    for (const p of procesadosAll) {
+      if (p.scanCambiado) out.push({ pedido: p, of: null, tipo: "parteNuevo" });
+    }
     return agruparAvisos(out);
-  }, [procesadosAll, miId, avisosMov, operarios]);
+  }, [procesadosAll, miId, avisosMov, operarios, notasRecientes]);
 
   // ── Avisos deducidos ya abiertos ──
   // En localStorage y no en el servidor como los de movimiento: estos se

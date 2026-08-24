@@ -108,3 +108,24 @@ test("editar o borrar una nota que no existe devuelve false, no revienta", () =>
   expect(db.editarNota(9999, "jaime", "hola", "2026-08-24T09:00:00.000Z")).toBe(false);
   expect(db.borrarNota(9999, "jaime", "2026-08-24T09:00:00.000Z")).toBe(false);
 });
+
+test("las notas recientes salen de la más nueva a la más vieja", () => {
+  // Al revés que el hilo de un pedido, que va como una conversación: la campana
+  // enseña primero lo último que ha pasado.
+  db.crearNota("AR.1", "jaime", "vieja", "2026-08-20T09:00:00.000Z");
+  db.crearNota("AR.2", "ivan", "nueva", "2026-08-24T09:00:00.000Z");
+  const r = db.leerNotasRecientes(30, new Date("2026-08-24T12:00:00.000Z"));
+  expect(r.map((n) => n.texto)).toEqual(["nueva", "vieja"]);
+});
+
+test("una nota vieja se queda fuera de la ventana", () => {
+  // Sin esto la campana arrastraría notas de hace meses, que ya no son noticia.
+  db.crearNota("AR.1", "jaime", "de hace tiempo", "2026-06-01T09:00:00.000Z");
+  expect(db.leerNotasRecientes(30, new Date("2026-08-24T12:00:00.000Z"))).toEqual([]);
+});
+
+test("una nota borrada no vuelve por la campana", () => {
+  const n = db.crearNota("AR.1", "jaime", "fuera", "2026-08-24T09:00:00.000Z");
+  db.borrarNota(n.id, "jaime", "2026-08-24T10:00:00.000Z");
+  expect(db.leerNotasRecientes(30, new Date("2026-08-24T12:00:00.000Z"))).toEqual([]);
+});

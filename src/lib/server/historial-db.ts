@@ -596,7 +596,16 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     if (suyo.notas) of.notasProduccion = suyo.notas;
   }
 
-  return anadirDesgloseRol([...porOF.values()]).map((of) =>
+  // De MENOR a MAYOR, igual que en el tablero (ver el mismo orden en rps.ts):
+  // el Map conserva el orden en que RPS devolvió las filas, que sale del revés.
+  // Un pedido tiene que leerse igual en el Historial que en el tablero.
+  const enOrden = [...porOF.values()].sort((a, b) => {
+    const na = Number(a.codigo);
+    const nb = Number(b.codigo);
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    return a.codigo.localeCompare(b.codigo);
+  });
+  return anadirDesgloseRol(enOrden).map((of) =>
     deducirRoles(of, minutosPorPersona.get(of.codigo)),
   );
 }
