@@ -6,7 +6,7 @@ import type { EstadoOF, OF } from "./types";
 // fichaje viven aquí y solo aquí.
 
 export type AccionOF =
-  | "empezar_planteo" | "terminar_planteo"
+  | "empezar_planteo" | "terminar_planteo" | "recuperar_planteo"
   | "empezar_revision" | "aprobar" | "aprobar_corregida" | "devolver" | "reabrir"
   | "soltar_revision"
   | "retomar" | "anular" | "restaurar";
@@ -102,6 +102,22 @@ export const ACCIONES: AccionDef[] = [
     confirmar: "La OF vuelve a la cola de por revisar. El tiempo ya fichado se conserva y sigue nombrado el mismo revisor.",
     desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
     efectoFichaje: "corta", destino: "por_revisar" },
+  // El autor se arrepiente: mandó la OF a revisar y al momento se da cuenta de
+  // que le faltaba algo. Sin esto había que pedirle al revisor que la soltara,
+  // o peor, que la revisara sabiendo que estaba mal.
+  //
+  // Solo desde `por_revisar`, NO desde `en_revision`: en cuanto el revisor la
+  // coge, el trabajo ya es suyo y quitársela de las manos sin avisar le borra
+  // el rato que lleva mirándola. Ahí lo que toca es hablarlo, y el revisor la
+  // devuelve o la suelta.
+  //
+  // El revisor nombrado se CONSERVA: la OF sale de su panel sola (Revisiones
+  // filtra por estado), y al volver a mandarla el selector ya viene con él
+  // puesto, que es lo normal cuando solo hubo que retocar un detalle.
+  { id: "recuperar_planteo", label: "Recuperar para plantear", tono: "neutra",
+    confirmar: "La OF vuelve a tu planteo y desaparece de la lista de quien la iba a revisar. El tiempo ya fichado se conserva.",
+    desde: ["por_revisar"], requiere: "autor", soloEl: "autor",
+    destino: "en_curso" },
   // La única del ciclo que NO lleva dueño, y a propósito: deshacer una
   // aprobación le puede tocar a los dos. El revisor se da cuenta de que se le
   // pasó algo, y el autor —que es a quien vuelve la OF aprobada, y quien la va

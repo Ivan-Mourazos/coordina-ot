@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
-import { hoyISO, piezasTotal, tiempoTotalOF } from "@/lib/types";
+import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, PRIORIDAD, ROL } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
@@ -915,9 +915,26 @@ function AccionesOF({
       !(fichandoYoEsta && a.id === "terminar_planteo"),
   );
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
+  // De qué reloj habla el botón: el del planteo o el de la revisión.
+  const rolReloj = rolFichajeDe(of);
   // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
   // pausa, y llamarlo igual que empezar de cero borraba esa diferencia.
-  const yaEmpezada = tiempoTotalOF(of) > 0;
+  //
+  // Se mide el tiempo DE ESE ROL, no el total de la OF. Con el total, una OF
+  // recién mandada a revisar decía "Reanudar" por los minutos del planteo —
+  // pero el reloj del que hablaba era el de la revisión, que no había corrido
+  // ni un segundo.
+  const yaEmpezada =
+    rolReloj === "revisar" ? of.tiempoRevisionMin > 0 : of.tiempoPlanteoMin > 0;
+  // El reloj de la REVISIÓN solo se le ofrece al revisor. Al autor le salía
+  // "▶ Reanudar" en morado sobre una OF que acababa de mandar a revisar, y
+  // pulsarlo no reanudaba su planteo: arrancaba el reloj de la revisión de
+  // otro. La fila del tablero ya lo hacía bien (ver PedidoLinea: en
+  // "esperando revisión" no ofrece fichar); el Drawer se lo había saltado.
+  //
+  // El de PLANTEO sí se deja abierto: echarle una mano a un compañero en su
+  // planteo es un caso real y el tablero lo contempla, con su aviso.
+  const relojEsMio = rolReloj !== "revisar" || of.revisorId === miId;
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
@@ -934,18 +951,26 @@ function AccionesOF({
         >
           ⏸ Pausar
         </Btn>
-      ) : esFichable(of) ? (
+      ) : esFichable(of) && relojEsMio ? (
         <Btn
-          tone={rolFichajeDe(of) === "revisar" ? "revisar" : "reloj"}
+          tone={rolReloj === "revisar" ? "revisar" : "reloj"}
           // El texto dice de qué reloj se habla: sobre una OF en revisión el
           // botón hablaba de "empezar el planteo", que es otro trabajo y de
           // otra persona.
           title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
-            rolFichajeDe(of) === "revisar" ? "la revisión" : "el planteo"
+            rolReloj === "revisar" ? "la revisión" : "el planteo"
           } de esta OF`}
-          onClick={() => onFichar([of.id], rolFichajeDe(of))}
+          onClick={() => onFichar([of.id], rolReloj)}
         >
-          {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
+          {/* El rótulo dice DE QUÉ reloj se habla. "Reanudar" a secas sobre una
+              OF en revisión se leía como volver a tu planteo. */}
+          {rolReloj === "revisar"
+            ? yaEmpezada
+              ? "▶ Reanudar revisión"
+              : "⏱ Fichar revisión"
+            : yaEmpezada
+              ? "▶ Reanudar"
+              : "⏱ Fichar"}
         </Btn>
       ) : (
         of.estado !== "aprobada" &&

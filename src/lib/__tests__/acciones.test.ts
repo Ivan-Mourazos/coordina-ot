@@ -18,8 +18,30 @@ describe("accionesDisponibles", () => {
       .toEqual(["anular"]);
   });
   it("por_revisar sin revisor no ofrece empezar revisión", () => {
+    // Sí ofrece recuperar: es del AUTOR y no depende de que haya revisor.
     expect(accionesDisponibles(of("por_revisar", { revisorId: null })).map((a) => a.id))
-      .toEqual(["anular"]);
+      .toEqual(["recuperar_planteo", "anular"]);
+  });
+  it("el autor puede recuperar de por_revisar; el revisor no", () => {
+    // La red de verdad de "solo el autor la recupera": sin esto, el revisor
+    // podría devolverle el trabajo al autor por una puerta que no es la suya
+    // (para eso está "devolver", que obliga a decir por qué).
+    const x = of("por_revisar");
+    expect(accionesDisponibles(x, "op1").map((a) => a.id)).toContain("recuperar_planteo");
+    expect(accionesDisponibles(x, "op2").map((a) => a.id)).not.toContain("recuperar_planteo");
+  });
+  it("recuperar devuelve la OF al planteo sin tocar al revisor", () => {
+    // El revisor se conserva a propósito: al volver a mandarla, el selector ya
+    // viene con él puesto.
+    const r = aplicarAccion(of("por_revisar"), "recuperar_planteo");
+    expect(r.estado).toBe("en_curso");
+    expect(r.revisorId).toBe("op2");
+  });
+  it("una vez el revisor la cogió, ya no se recupera a la fuerza", () => {
+    // Desde en_revision no: el trabajo ya es suyo y quitárselo sin avisar le
+    // borra el rato que lleva. Ahí toca hablarlo (devolver o soltar).
+    expect(accionesDisponibles(of("en_revision"), "op1").map((a) => a.id))
+      .not.toContain("recuperar_planteo");
   });
   it("anulada ofrece restaurar; aprobada ofrece reabrir", () => {
     expect(accionesDisponibles(of("anulada")).map((a) => a.id)).toEqual(["restaurar"]);
