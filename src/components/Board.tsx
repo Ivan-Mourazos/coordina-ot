@@ -1439,10 +1439,29 @@ export function Board({
       setPedidosSync((prev) =>
         prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
       );
-      persistir({ motivo: "completar", completarPedidoId: pedidoId, ofIdsPedido });
+      // Pasar a Producción CIERRA el reloj de este pedido, y lo cierra el
+      // servidor (que tiene la hora oficial) en la misma escritura.
+      //
+      // Hace falta desde que una OF aprobada se puede seguir fichando: quedaba
+      // trabajo real después de que te la aprobaran —archivos de corte,
+      // imprimir— y hasta entonces no había forma de imputarlo. El efecto
+      // secundario es este: puedes estar fichando cuando lo pasas. Sin cortar,
+      // el pedido sale del tablero con el intervalo abierto y el tiempo se
+      // seguiría imputando contra una fase que OLANET acaba de dar por
+      // finalizada.
+      persistir({
+        motivo: "completar",
+        completarPedidoId: pedidoId,
+        ofIdsPedido,
+        cortarFichajeDe: ofIdsPedido,
+      });
+      // Y mi navegador también tiene que enterarse: `ficharOFs` reenvía todo lo
+      // que cree tener abierto, así que si sigue contando estas OF el siguiente
+      // "Fichar" las reabriría en el servidor.
+      soltarDeMiFichaje(ofIdsPedido);
       setOpenId(null);
     },
-    [pedidos, setPedidosSync, persistir],
+    [pedidos, setPedidosSync, persistir, soltarDeMiFichaje],
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;

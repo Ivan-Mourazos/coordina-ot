@@ -67,7 +67,9 @@ describe("ofsPara", () => {
 });
 
 describe("ofsFichablesDe", () => {
-  it("excluye anuladas, aprobadas y detenidas", () => {
+  it("excluye anuladas y detenidas, pero NO las aprobadas", () => {
+    // Una aprobada sigue siendo de PLANTEO y se puede fichar: al autor le queda
+    // trabajo después de que se la aprueben (archivos de corte, imprimir).
     const ok = of({ id: "ok:1", estado: "en_curso" });
     const p = {
       ofs: [
@@ -77,7 +79,7 @@ describe("ofsFichablesDe", () => {
         of({ id: "z:1", estado: "en_curso", detenida: true }),
       ],
     };
-    expect(ofsFichablesDe(p, "plantear").map((o) => o.id)).toEqual(["ok:1"]);
+    expect(ofsFichablesDe(p, "plantear").map((o) => o.id)).toEqual(["ok:1", "x:1"]);
   });
 
   it("con OFs fichables de los dos roles a la vez, devuelve solo el grupo pedido", () => {

@@ -260,12 +260,7 @@ export function rolFichajeDe(of: OF): Rol {
  *  que RPS marca como no imputables (fichable === false): ese tiempo no
  *  subiría a RPS. `fichable` ausente (mock) no restringe. */
 export function esFichable(of: OF): boolean {
-  return (
-    !of.detenida &&
-    of.fichable !== false &&
-    of.estado !== "anulada" &&
-    of.estado !== "aprobada"
-  );
+  return !of.detenida && of.fichable !== false && of.estado !== "anulada";
 }
 
 /** Motivo legible por el que una OF no se puede fichar (null = sí se puede). */
@@ -274,7 +269,6 @@ export function motivoNoFichable(of: OF): string | null {
   if (of.fichable === false)
     return "La situación en RPS no admite fichar (el tiempo no subiría)";
   if (of.estado === "anulada") return "OF anulada";
-  if (of.estado === "aprobada") return "OF aprobada: ya está lista para Producción";
   return null;
 }
 

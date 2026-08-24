@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   FICHAJE_VACIO, abierto, agregarPorRol, cerrarPorInactividad, fichar, pausar, minutosOF,
-  parseFichaje, ofsFichables, rolFichajeDe, esFichable,
+  parseFichaje, ofsFichables, rolFichajeDe, esFichable, motivoNoFichable,
 } from "../fichaje";
+import { accionAlFichar } from "../accion-pedido";
 import type { OF, Pedido } from "../types";
 
 const T0 = "2026-07-06T08:00:00.000Z";
@@ -100,7 +101,9 @@ describe("ofsFichables", () => {
     autorId: "op1", revisorId: null, fichandoRol: null,
     tiempoEstimadoMin: 0, tiempoPlanteoMin: 0, tiempoRevisionMin: 0,
   };
-  it("excluye detenidas, anuladas y aprobadas", () => {
+  it("excluye detenidas y anuladas, pero NO las aprobadas", () => {
+    // La aprobada sigue entrando: al autor le queda trabajo real después de que
+    // se la aprueben (archivos de corte, imprimir) y ese tiempo es de planteo.
     const p = {
       ofs: [
         { ...base, id: "a", estado: "pendiente" },
@@ -109,7 +112,7 @@ describe("ofsFichables", () => {
         { ...base, id: "d", estado: "en_curso", detenida: true },
       ],
     } as unknown as Pedido;
-    expect(ofsFichables(p).map((o: OF) => o.id)).toEqual(["a"]);
+    expect(ofsFichables(p).map((o: OF) => o.id)).toEqual(["a", "c"]);
   });
 });
 
@@ -134,10 +137,24 @@ describe("esFichable", () => {
     expect(esFichable(of("por_revisar"))).toBe(true);
     expect(esFichable(of("devuelta"))).toBe(true);
   });
-  it("rechaza detenidas, anuladas y aprobadas", () => {
+  it("una OF APROBADA se sigue pudiendo fichar", () => {
+    // Que el revisor la apruebe no cierra el trabajo del autor: quedan los
+    // archivos de corte, imprimir, preparar lo que baja al taller. Ese tiempo
+    // es de planteo y hasta ahora no había forma de imputarlo — el reloj se
+    // cortaba justo cuando te aprobaban.
+    expect(esFichable(of("aprobada"))).toBe(true);
+    // Y es el reloj del PLANTEO, no el de la revisión: esa ya terminó.
+    expect(rolFichajeDe(of("aprobada"))).toBe("plantear");
+    // Sin motivo que enseñar, porque ya no hay nada que impida fichar.
+    expect(motivoNoFichable(of("aprobada"))).toBeNull();
+  });
+  it("fichar en una aprobada NO la devuelve a en curso", () => {
+    // El reloj no puede desaprobar lo que otro ya aprobó.
+    expect(accionAlFichar(of("aprobada"))).toBeNull();
+  });
+  it("rechaza detenidas y anuladas", () => {
     expect(esFichable(of("en_curso", true))).toBe(false);
     expect(esFichable(of("anulada"))).toBe(false);
-    expect(esFichable(of("aprobada"))).toBe(false);
   });
 });
 
