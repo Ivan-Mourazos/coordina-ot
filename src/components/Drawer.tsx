@@ -337,7 +337,9 @@ export function Drawer({
 
           {/* Encima del hilo, y lo primero que se ve tras el parte: si han
               vuelto a escanearlo, eso condiciona todo lo que se lea debajo. */}
-          {pedido.scanCambiado && <AvisoParteNuevo key={pedido.codigo} pedido={pedido.codigo} />}
+          {pedido.scanCambiado && (
+            <AvisoParteNuevo key={`aviso:${pedido.codigo}`} pedido={pedido.codigo} />
+          )}
 
           {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
               lo que se decide, porque es contexto: primero se lee de qué va
@@ -350,7 +352,7 @@ export function Drawer({
               NO sustituye a los guards de dentro del componente: esos cubren
               las carreras DENTRO de un mismo pedido. */}
           <NotasPedido
-            key={pedido.codigo}
+            key={`notas:${pedido.codigo}`}
             pedido={pedido.codigo}
             miId={miId}
             operarios={operarios}

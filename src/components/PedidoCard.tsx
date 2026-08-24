@@ -142,6 +142,20 @@ export const PedidoCardView = memo(function PedidoCardView({
           />
         )}
 
+        {/* Han vuelto a escanear el parte y nadie lo ha dado por visto.
+            Va SOBRE la miniatura, que es justo lo que ha cambiado: la tarjeta
+            enseña el parte y aquí se avisa de que ese parte ya no es el que
+            alguien leyó. Sin esto, en la bandeja de "Sin asignar" no había
+            forma de saberlo sin abrir el pedido uno a uno. */}
+        {facet.pedido.scanCambiado && (
+          <span
+            className="absolute bottom-1 right-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
+            title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
+          >
+            Parte nuevo
+          </span>
+        )}
+
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
           <span

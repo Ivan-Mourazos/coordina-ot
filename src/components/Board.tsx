@@ -1453,28 +1453,35 @@ export function Board({
             sitio que decía quién ficha, después del punto verde de cada fila y
             de la zona de cada compañero. Sin ellos la cabecera es lo que tiene
             que ser: dónde estoy, qué busco y quién soy. */}
+        {/* Tres bloques con los DOS laterales a `flex-1 basis-0`: reparten por
+            igual lo que sobra, así el buscador queda en el centro de la
+            PANTALLA. Antes iba con `mx-auto` dentro del flex, que lo centra en
+            el hueco libre — y como la izquierda (logo + pestañas) pesa mucho
+            más que la derecha, el buscador se iba escorado. */}
         <header className="glass-header sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5">
-          {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
-          <Logo className="-my-3 shrink-0" />
-          <div className="shrink-0">
-            <ViewSwitcher
-              vista={vista}
-              onChange={setVista}
-              badge={{ revision: misPorRevisar, asignar: misDevueltas }}
-            />
+          <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
+            {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
+            <Logo className="-my-3 shrink-0" />
+            <div className="shrink-0">
+              <ViewSwitcher
+                vista={vista}
+                onChange={setVista}
+                badge={{ revision: misPorRevisar, asignar: misDevueltas }}
+              />
+            </div>
           </div>
           {/* Busca en TODO: `pedidos` sin filtrar (con lo de taller, lo
               detenido, lo anulado y lo ya pasado) más el historial de RPS. Cada
               vista enseña un recorte distinto y sin esto encontrar un pedido
               concreto era adivinar en cuál cayó. */}
           <BuscadorGlobal
-            className="mx-auto w-full max-w-lg"
+            className="w-full max-w-lg"
             pedidos={pedidos}
             nombre={nombreDeOperario}
             onAbrirPedido={abrirPedido}
             onAbrirHistorial={setHistorialAbierto}
           />
-          <div className="flex shrink-0 items-center gap-2 text-xs">
+          <div className="flex flex-1 basis-0 items-center justify-end gap-2 text-xs">
             <Herramientas />
             <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />

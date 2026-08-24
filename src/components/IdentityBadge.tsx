@@ -20,7 +20,9 @@ export function IdentityBadge({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="glass-chip flex items-center gap-1.5 rounded-lg py-1 pl-1 pr-2 text-xs font-semibold text-text"
+        /* h-9: los mismos 36 px que los botones de al lado y que el buscador.
+           Con el padding suelto se quedaba en 34 y era el único que desentonaba. */
+        className="glass-chip flex h-9 items-center gap-1.5 rounded-lg pl-1 pr-2 text-xs font-semibold text-text"
         title="Cambiar de técnico"
       >
         <span

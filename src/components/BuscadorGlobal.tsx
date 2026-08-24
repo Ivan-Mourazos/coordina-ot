@@ -148,7 +148,10 @@ export function BuscadorGlobal({
 
   return (
     <div ref={ref} className={`relative min-w-0 ${className}`}>
-      <div className="glass-chip flex items-center gap-2 rounded-lg px-2.5 py-1.5">
+      {/* h-9 = los 36 px de las pestañas (ViewSwitcher) y de los botones de la
+          derecha (size-9). Con el padding suelto se quedaba en 28 y la cabecera
+          tenía tres alturas distintas en fila. */}
+      <div className="glass-chip flex h-9 items-center gap-2 rounded-lg px-2.5">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 shrink-0 text-text-muted"
           fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />

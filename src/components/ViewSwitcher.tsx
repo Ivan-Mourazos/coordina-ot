@@ -30,8 +30,11 @@ export function ViewSwitcher({
   onChange: (v: Vista) => void;
   badge?: Partial<Record<Vista, number>>;
 }) {
+  // p-[3px] y no p-1: el contenedor mide borde (2) + padding×2 + botón (28),
+  // así que con 4 px de padding salían 38 y el resto de la cabecera va a 36.
+  // Con 3 da 36 justos y las tres zonas quedan a la misma altura.
   return (
-    <div className="glass-chip inline-flex rounded-xl p-1">
+    <div className="glass-chip inline-flex rounded-xl p-[3px]">
       {OPCIONES.map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
