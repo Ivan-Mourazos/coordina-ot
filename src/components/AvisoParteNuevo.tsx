@@ -17,12 +17,9 @@ import { useState } from "react";
 
 export function AvisoParteNuevo({
   pedido,
-  onVisto,
 }: {
   /** CÓDIGO del pedido. */
   pedido: string;
-  /** Para que el tablero se entere sin esperar a la siguiente vuelta. */
-  onVisto?: () => void;
 }) {
   const [apagando, setApagando] = useState(false);
   // Optimista: al pulsar desaparece en el acto. El tablero tarda hasta 30 s en
@@ -44,7 +41,6 @@ export function AvisoParteNuevo({
       });
       if (!r.ok) throw new Error(String(r.status));
       setApagado(true);
-      onVisto?.();
     } catch {
       // Se vuelve atrás: si no, el aviso quedaría apagado en esta pantalla y
       // encendido para todos los demás, que es la peor de las dos mentiras.

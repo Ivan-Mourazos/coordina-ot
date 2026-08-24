@@ -74,13 +74,15 @@ export async function revisarUnaTanda(porTanda = POR_TANDA): Promise<number> {
   for (const pedido of pedidos) {
     const mtime = await mtimeDelParte(pedido);
     // `anotarMtime` devuelve true SOLO cuando estrena aviso, así que la nota
-    // se escribe una vez por re-escaneo y no en cada vuelta.
-    if (!anotarMtime(pedido, mtime)) continue;
+    // se escribe una vez por re-escaneo y no en cada vuelta. Y solo puede
+    // estrenarlo con un mtime de verdad (con null no toca la referencia), pero
+    // eso el tipo no lo sabe: se comprueba en vez de afirmarlo con un "!".
+    if (mtime === null || !anotarMtime(pedido, mtime)) continue;
     nuevos++;
     // La nota es el registro permanente que se pidió: se queda para siempre en
     // el hilo, también cuando el pedido pase al Historial. La firma
     // `sistema` no es de nadie, así que nadie puede editarla ni borrarla.
-    crearNota(pedido, OPERARIO_SISTEMA, textoNotaReescaneo(mtime!));
+    crearNota(pedido, OPERARIO_SISTEMA, textoNotaReescaneo(mtime));
   }
   return nuevos;
 }
