@@ -124,6 +124,18 @@ export function PedidoLinea({
           />
         )}
         <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
+        {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
+            la FILA y no solo dentro del pedido: la gracia es no ponerse a
+            trabajar con la versión vieja, y para eso hay que verlo ANTES de
+            abrirlo. Se apaga desde dentro, con el botón del aviso. */}
+        {pedido.scanCambiado && (
+          <span
+            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300"
+            title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
+          >
+            Parte nuevo
+          </span>
+        )}
         {/* Detenidas por Producción: no se pueden fichar y no está en mano de
             OT resolverlo. Se avisa en la fila para no coger un pedido que no
             se puede tocar y descubrirlo al intentar fichar. */}

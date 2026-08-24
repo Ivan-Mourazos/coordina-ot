@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Operario } from "@/lib/types";
 import { NOTA_MAX, fmtCuandoNota, validarTexto, type NotaPedido } from "@/lib/nota-pedido";
+import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -169,6 +170,12 @@ export function NotasPedido({
       <ul className="space-y-2">
         {(notas ?? []).map((n) => {
           const op = opPorId(n.operarioId);
+          // Las notas que escribe la propia web (p. ej. "han vuelto a escanear
+          // el parte"). No son de ningún operario, así que `mia` es falso para
+          // todo el mundo y nadie puede editarlas ni borrarlas: son el registro
+          // permanente. Solo se les pone cara y nombre, que si no salían con el
+          // id crudo, "sistema", y un círculo gris.
+          const delSistema = n.operarioId === OPERARIO_SISTEMA;
           const mia = n.operarioId === miId;
           if (editando?.id === n.id) {
             return (
@@ -191,7 +198,14 @@ export function NotasPedido({
           }
           return (
             <li key={n.id} className="flex gap-2">
-              {op ? (
+              {delSistema ? (
+                <span
+                  aria-hidden
+                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[9px] text-amber-800 ring-1 ring-inset ring-amber-500/40 dark:text-amber-300"
+                >
+                  !
+                </span>
+              ) : op ? (
                 <OpDot color={op.color} iniciales={op.iniciales} />
               ) : (
                 // Quien ya no está en la plantilla no tiene color ni iniciales,
@@ -201,7 +215,9 @@ export function NotasPedido({
               )}
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
-                  <span className="font-semibold text-text">{op?.nombre ?? n.operarioId}</span>
+                  <span className="font-semibold text-text">
+                    {delSistema ? "CoordinaOT" : (op?.nombre ?? n.operarioId)}
+                  </span>
                   <span className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</span>
                   {n.editadoAt && (
                     <span

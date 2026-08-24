@@ -21,6 +21,7 @@ import { MaterialChip } from "./MaterialChip";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
+import { AvisoParteNuevo } from "./AvisoParteNuevo";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
@@ -333,6 +334,10 @@ export function Drawer({
               </p>
             </div>
           )}
+
+          {/* Encima del hilo, y lo primero que se ve tras el parte: si han
+              vuelto a escanearlo, eso condiciona todo lo que se lea debajo. */}
+          {pedido.scanCambiado && <AvisoParteNuevo key={pedido.codigo} pedido={pedido.codigo} />}
 
           {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
               lo que se decide, porque es contexto: primero se lee de qué va
