@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Operario } from "@/lib/types";
-import { NOTA_MAX, fmtCuandoNota, type NotaPedido } from "@/lib/nota-pedido";
+import { NOTA_MAX, fmtCuandoNota, validarTexto, type NotaPedido } from "@/lib/nota-pedido";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -39,17 +39,21 @@ export function NotasPedido({
   const [editando, setEditando] = useState<{ id: number; texto: string } | null>(null);
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const reqSeq = useRef(0);
 
   const cargar = useCallback(async () => {
+    const seq = ++reqSeq.current;
     try {
       const r = await fetch(`/api/notas?pedido=${encodeURIComponent(pedido)}`, {
         cache: "no-store",
       });
       if (!r.ok) throw new Error(String(r.status));
       const d = (await r.json()) as { notas: NotaPedido[] };
+      if (seq !== reqSeq.current) return; // respuesta de un pedido anterior: la ignoramos
       setNotas(d.notas);
       setError(null);
     } catch {
+      if (seq !== reqSeq.current) return;
       setNotas([]);
       setError("No se pudieron cargar las notas.");
     }
@@ -60,9 +64,11 @@ export function NotasPedido({
     // llamar a setState de forma síncrona (react-hooks/set-state-in-effect).
     const id = setTimeout(() => {
       setNotas(null);
+      setError(null);
       setEditando(null);
       setEscribiendo(false);
       setBorrador("");
+      setBorrando(null);
       void cargar();
     }, 0);
     return () => clearTimeout(id);
@@ -72,6 +78,10 @@ export function NotasPedido({
    *  llama sepa si puede cerrar su editor. */
   async function mandar(init: RequestInit): Promise<boolean> {
     setGuardando(true);
+    // Se limpia al EMPEZAR el intento, no solo cuando sale bien: si no, un
+    // reintento tras un fallo seguiría enseñando el error del intento anterior
+    // mientras este está en marcha.
+    setError(null);
     try {
       const r = await fetch("/api/notas", {
         headers: { "Content-Type": "application/json" },
@@ -82,7 +92,6 @@ export function NotasPedido({
         setError(d?.error ?? "No se pudo guardar.");
         return false;
       }
-      setError(null);
       await cargar();
       return true;
     } catch {
@@ -96,6 +105,10 @@ export function NotasPedido({
   const opPorId = (id: string) => operarios.find((o) => o.id === id) ?? null;
   const ahora = new Date().toISOString();
   const puedeEscribir = !soloLectura && miId !== null;
+  // Con un editor abierto (nota nueva o edición) no se ofrece abrir otro: el
+  // clic cambiaría de objetivo y lo escrito en el primero se perdería sin
+  // avisar. Mismo candado que ya usa el botón "+ Añadir".
+  const hayEditorAbierto = escribiendo || editando !== null;
 
   return (
     <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
@@ -105,7 +118,7 @@ export function NotasPedido({
         </p>
         {/* El botón sale SIEMPRE que se pueda escribir, también con el hilo
             vacío: si no, nadie descubre que esto existe. */}
-        {puedeEscribir && !escribiendo && editando === null && (
+        {puedeEscribir && !hayEditorAbierto && (
           <button
             type="button"
             onClick={() => setEscribiendo(true)}
@@ -169,7 +182,7 @@ export function NotasPedido({
                       · editado
                     </span>
                   )}
-                  {mia && !soloLectura && (
+                  {mia && !soloLectura && !hayEditorAbierto && (
                     <span className="ml-auto flex shrink-0 gap-2">
                       <button
                         type="button"
@@ -260,9 +273,16 @@ function Editor({
   onCancelar: () => void;
   guardando: boolean;
 }) {
-  const largo = valor.trim().length;
-  const vacio = largo === 0;
-  const pasado = largo > NOTA_MAX;
+  // La validación es la misma que en la ruta (`validarTexto`): antes se
+  // recalculaba aquí a mano con `valor.trim().length` y divergía, porque
+  // `validarTexto` normaliza `\r\n` a `\n` antes de medir y esta copia no.
+  const validacion = validarTexto(valor);
+  const vacio = !validacion.ok && validacion.motivo === "vacio";
+  const pasado = !validacion.ok && validacion.motivo === "largo";
+  // El contador tiene que medir el mismo texto que acaba de medir
+  // `validarTexto` (normalizado), no el crudo del textarea: `validarTexto` no
+  // devuelve el texto cuando falla, así que se repite aquí la misma normalización.
+  const largo = valor.replace(/\r\n/g, "\n").trim().length;
   return (
     <div>
       <textarea
@@ -291,7 +311,8 @@ function Editor({
         <button
           type="button"
           onClick={onCancelar}
-          className="rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:text-text"
+          disabled={guardando}
+          className="rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:text-text disabled:opacity-50"
         >
           Cancelar
         </button>
