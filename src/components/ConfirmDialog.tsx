@@ -110,12 +110,22 @@ export function ConfirmDialog({
       aria-label={titulo}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
-      <div className="glass-panel-strong absolute left-1/2 top-1/3 w-full max-w-sm -translate-x-1/2 rounded-2xl p-4">
-        <h3 className="text-sm font-bold text-text">{titulo}</h3>
+      {/* Con techo (`max-h`) y en columna, y el que scrollea es el MENSAJE.
+          Antes el cuadro crecía sin freno desde `top-1/3`: al fichar muchas OF
+          el mensaje las enumera una por línea, así que a partir de unas cuantas
+          el cuadro se salía por abajo de la pantalla y se llevaba con él los
+          botones de Cancelar y Confirmar, sin forma de bajar hasta ellos —el
+          telón es `fixed inset-0` y no scrollea. Dejando fuera del scroll el
+          título y los botones, esos dos siempre se ven, y la lista larga se
+          recorre por dentro. */}
+      <div className="glass-panel-strong absolute left-1/2 top-1/3 flex max-h-[60vh] w-full max-w-sm -translate-x-1/2 flex-col rounded-2xl p-4">
+        <h3 className="shrink-0 text-sm font-bold text-text">{titulo}</h3>
         {/* `whitespace-pre-line`: hay mensajes que enumeran (qué OF se van a
             fichar), y una lista en un solo párrafo corrido no se lee. */}
-        <p className="mt-1.5 whitespace-pre-line text-sm text-text-muted">{mensaje}</p>
-        <div className="mt-4 flex justify-end gap-2">
+        <p className="scroll-thin mt-1.5 flex-1 overflow-y-auto whitespace-pre-line text-sm text-text-muted">
+          {mensaje}
+        </p>
+        <div className="mt-4 flex shrink-0 justify-end gap-2">
           <button
             ref={btnCancelarRef}
             onClick={onCancelar}
