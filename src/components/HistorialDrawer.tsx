@@ -12,6 +12,7 @@ import { esCodigoPedido } from "@/lib/types";
 import { repartirMateriales } from "@/lib/historial";
 import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
+import { NotasPedido } from "./NotasPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmtFecha(iso: string | null) {
@@ -276,6 +277,16 @@ export function HistorialDrawer({
                   </p>
                 </Bloque>
               )}
+
+              {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
+                  no cambia nada sería ruido. El momento de dejar el recado es
+                  antes de pasarlo, y eso lo cubre el Drawer del tablero.
+                  `pedido` aquí ya es el CÓDIGO (es lo que recibe este drawer),
+                  que es justo la clave con la que se guardó la nota.
+                  El guard `pedido &&` NO es adorno: la prop es `string | null` y
+                  este bloque está dentro de `detalle &&`, que no la estrecha.
+                  Sin él, `tsc` casca con "string | null no asignable a string". */}
+              {pedido && <NotasPedido pedido={pedido} miId={null} operarios={[]} soloLectura />}
 
               <Documentos documentos={detalle.documentos} />
 

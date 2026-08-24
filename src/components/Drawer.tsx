@@ -20,6 +20,7 @@ import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
+import { NotasPedido } from "./NotasPedido";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
@@ -318,6 +319,13 @@ export function Drawer({
               </p>
             </div>
           )}
+
+          {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
+              lo que se decide, porque es contexto: primero se lee de qué va
+              esto y después se actúa.
+              Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
+              revisor ve el hilo al abrir el pedido sin nada más que hacer. */}
+          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={operarios} />
 
           {/* asignar autor del pedido entero */}
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
