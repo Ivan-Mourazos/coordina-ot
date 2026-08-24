@@ -85,6 +85,14 @@ test("un cuerpo que no es JSON es 400 y no un 500", async () => {
   expect(res.status).toBe(400);
 });
 
+test("un cuerpo JSON que no es objeto también es 400", async () => {
+  const res1 = await ruta.POST(new Request("http://x/api/notas", { method: "POST", body: "null" }));
+  expect(res1.status).toBe(400);
+
+  const res2 = await ruta.POST(new Request("http://x/api/notas", { method: "POST", body: "42" }));
+  expect(res2.status).toBe(400);
+});
+
 test("PATCH cambia la mía", async () => {
   const n = notasDb.crearNota("AR.1", "jaime", "antes", "2026-08-24T09:00:00.000Z");
   const res = await patch({ id: n.id, operarioId: "jaime", texto: "después" });
