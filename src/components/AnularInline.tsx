@@ -13,15 +13,34 @@ import { CAUSAS, anulacionCompleta, codificarAnulacion, type CausaAnulacion } fr
  *
  *  Mismo patrón que `DevolverInline`, y por lo mismo: el botón de llamada va
  *  discreto y el rojo sólido se reserva para el punto de no retorno. */
-export function AnularInline({ onAnular }: { onAnular: (obs: string) => void }) {
-  const [abierto, setAbierto] = useState(false);
+export function AnularInline({
+  onAnular,
+  abierto: abiertoFuera,
+  onAbrirCambio,
+}: {
+  onAnular: (obs: string) => void;
+  /** Modo CONTROLADO: quien lo monta decide si está abierto.
+   *
+   *  Existe para poder llamarlo desde el menú de "⋯" de la OF, donde el botón
+   *  de anular ya vive como opción del menú: sin esto, el componente pintaba
+   *  ADEMÁS su propio botón y salía dos veces. Sin la prop se comporta como
+   *  siempre y trae su botón. */
+  abierto?: boolean;
+  onAbrirCambio?: (v: boolean) => void;
+}) {
+  const [abiertoPropio, setAbiertoPropio] = useState(false);
+  const controlado = abiertoFuera !== undefined;
+  const abierto = controlado ? abiertoFuera : abiertoPropio;
+  const cerrar = () => (controlado ? onAbrirCambio?.(false) : setAbiertoPropio(false));
   const [causa, setCausa] = useState<CausaAnulacion | null>(null);
   const [nota, setNota] = useState("");
 
   if (!abierto) {
+    // Controlado y cerrado: no pinta nada. Su botón es la opción del menú.
+    if (controlado) return null;
     return (
       <button
-        onClick={() => setAbierto(true)}
+        onClick={() => setAbiertoPropio(true)}
         className="ml-auto rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400"
       >
         Anular OF
@@ -60,7 +79,7 @@ export function AnularInline({ onAnular }: { onAnular: (obs: string) => void }) 
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setAbierto(false);
+            if (e.key === "Escape") cerrar();
           }}
           placeholder="¿Cuál es el motivo?"
           rows={2}
@@ -81,7 +100,7 @@ export function AnularInline({ onAnular }: { onAnular: (obs: string) => void }) 
           Anular OF
         </button>
         <button
-          onClick={() => setAbierto(false)}
+          onClick={() => cerrar()}
           className="rounded-md px-2.5 py-1 text-xs font-medium text-text-muted hover:text-text"
         >
           Cancelar

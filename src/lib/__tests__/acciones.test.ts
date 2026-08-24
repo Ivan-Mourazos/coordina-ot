@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ACCIONES, accionesDisponibles, aplicarAccion, aprobadaSinRevision } from "../acciones";
+import {
+  ACCIONES,
+  A_LA_VISTA,
+  accionesDisponibles,
+  aplicarAccion,
+  aprobadaSinRevision,
+} from "../acciones";
 import type { OF } from "../types";
 
 const of = (estado: OF["estado"], extra: Partial<OF> = {}): OF => ({
@@ -273,5 +279,38 @@ describe("pasar a aprobada sin una segunda revisión", () => {
   it("sigue siendo del AUTOR: el revisor no la cierra por esta puerta", () => {
     expect(accionesDisponibles(of("en_curso", { revisorId: "op2" }), "op2").map((a) => a.id))
       .not.toContain("aprobar_corregida");
+  });
+});
+
+describe("qué sale suelto y qué va al cajón de ⋯", () => {
+  it("fuera solo lo de todos los días", () => {
+    // El criterio es la FRECUENCIA, no la importancia: un botón que se pulsa
+    // una vez al mes no puede competir por el sitio con uno diario.
+    expect([...A_LA_VISTA].sort()).toEqual(
+      ["aprobar", "devolver", "empezar_revision", "terminar_planteo"].sort(),
+    );
+  });
+
+  it("devolver sale fuera aunque sea peligro: para el revisor es diario", () => {
+    expect(A_LA_VISTA.has("devolver")).toBe(true);
+  });
+
+  it("anular NUNCA sale suelto: es lo que menos se usa y lo más definitivo", () => {
+    expect(A_LA_VISTA.has("anular")).toBe(false);
+  });
+
+  it("ninguna acción del cajón se queda sin existir", () => {
+    // Si se renombra una acción, esta lista tiene que enterarse.
+    const ids = new Set(ACCIONES.map((a) => a.id));
+    for (const id of A_LA_VISTA) expect(ids.has(id)).toBe(true);
+  });
+
+  it("el peor caso deja como mucho 3 botones sueltos más el cajón", () => {
+    // Era el que partía la fila en dos líneas: el revisor revisando.
+    const revisando = accionesDisponibles(of("en_revision"), "op2");
+    const sueltas = revisando.filter((a) => A_LA_VISTA.has(a.id));
+    expect(sueltas.map((a) => a.id)).toEqual(["aprobar", "devolver"]);
+    // Y lo que queda dentro es más de uno, así que el cajón se justifica.
+    expect(revisando.filter((a) => !A_LA_VISTA.has(a.id)).length).toBeGreaterThan(1);
   });
 });

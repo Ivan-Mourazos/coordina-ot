@@ -13,6 +13,7 @@ import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import {
+  A_LA_VISTA,
   accionesDisponibles,
   aprobadaSinRevision,
   etiquetaAccion,
@@ -27,6 +28,7 @@ import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
+import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
@@ -905,6 +907,8 @@ function AccionesOF({
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
+  // Anular se abre desde el cajón de "⋯" (ver MenuAccionesOF).
+  const [anulando, setAnulando] = useState(false);
   // Con `miId`: la revisión de otro no la empieza cualquiera, así que su botón
   // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
   //
@@ -924,6 +928,22 @@ function AccionesOF({
       a.id !== "retomar" &&
       !(fichandoYoEsta && a.id === "terminar_planteo"),
   );
+  // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
+  //
+  // La fila llegaba a cinco botones (revisor revisando: reloj, Aprobar,
+  // Devolver, Dejar sin revisar, Anular), se partía en dos líneas y la altura
+  // de cada OF bailaba según su estado. Y "Anular OF", con su `ml-auto`, se
+  // quedaba flotando solo en la segunda como si fuera de otra cosa.
+  //
+  // `devolver` se queda FUERA aunque sea "peligro": para el revisor es tan
+  // diario como aprobar, y esconderlo sería castigar el caso de que algo esté
+  // mal. Lo que se va al cajón es lo de higos a brevas.
+  const aLaVista = acciones.filter((a) => A_LA_VISTA.has(a.id));
+  const enCajon = acciones.filter((a) => !A_LA_VISTA.has(a.id));
+  // Un cajón para UNA sola opción es peor que la opción: un clic de más para
+  // esconder algo que cabía. Con una, se saca fuera.
+  const menu = enCajon.length > 1 ? enCajon : [];
+  const sueltas = enCajon.length > 1 ? aLaVista : acciones;
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
   // De qué reloj habla el botón: el del planteo o el de la revisión.
   const rolReloj = rolFichajeDe(of);
@@ -993,7 +1013,7 @@ function AccionesOF({
           </span>
         )
       )}
-      {acciones.map((a) => {
+      {sueltas.map((a) => {
         if (a.conNota)
           return <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />;
         // Anular pregunta POR QUÉ, y esa es la confirmación (ver AnularInline).
@@ -1024,6 +1044,24 @@ function AccionesOF({
           </Btn>
         );
       })}
+      {/* Anular vive en el cajón, así que aquí va en modo controlado: cerrado
+          no pinta nada, y al elegirlo en el menú se abre su formulario. */}
+      {menu.some((a) => a.id === "anular") && (
+        <AnularInline
+          abierto={anulando}
+          onAbrirCambio={setAnulando}
+          onAnular={(obs) => onAccion([of.id], "anular", obs)}
+        />
+      )}
+      <MenuAccionesOF
+        acciones={menu}
+        etiqueta={(a) => etiquetaAccion(a, of, (id) => operarios.find((o) => o.id === id)?.nombre)}
+        onElegir={(a) => {
+          if (a.id === "anular") setAnulando(true);
+          else if (a.id === "terminar_planteo") setPidiendoRevisor(true);
+          else pedirConfirmacion(a);
+        }}
+      />
       {pidiendoRevisor && (
         <PedirRevisor
           operarios={operarios}

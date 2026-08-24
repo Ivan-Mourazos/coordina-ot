@@ -252,3 +252,22 @@ export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
 export function aprobadaSinRevision(of: OF): boolean {
   return of.estado === "aprobada" && of.revisorId === null;
 }
+
+/** Las acciones que salen SUELTAS en la ficha de la OF. El resto va al cajón
+ *  de "⋯" (ver MenuAccionesOF).
+ *
+ *  El criterio no es la importancia sino la FRECUENCIA: son los pasos que se
+ *  dan todos los días. Un botón que se pulsa una vez al mes no puede competir
+ *  por el sitio con uno que se pulsa veinte veces.
+ *
+ *  `devolver` entra aunque sea "peligro": para el revisor es tan diario como
+ *  aprobar, y esconderlo sería castigar el caso de que algo esté mal.
+ *
+ *  Vive aquí, al lado de ACCIONES, para que al añadir una acción nueva se vea
+ *  que hay que decidir de qué lado cae. */
+export const A_LA_VISTA: ReadonlySet<AccionOF> = new Set<AccionOF>([
+  "terminar_planteo",
+  "empezar_revision",
+  "aprobar",
+  "devolver",
+]);
