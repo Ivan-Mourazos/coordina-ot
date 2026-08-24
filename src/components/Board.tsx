@@ -1768,7 +1768,12 @@ export function Board({
         {/* ── VISTA HISTORIAL ── */}
         {vista === "historial" && (
           <div className="p-5">
-            <HistorialView pasados={pasadosSinCerrar} onAbrirPasado={abrirPedido} operarios={operarios} />
+            <HistorialView
+              pasados={pasadosSinCerrar}
+              onAbrirPasado={abrirPedido}
+              operarios={operarios}
+              miId={miId}
+            />
           </div>
         )}
 

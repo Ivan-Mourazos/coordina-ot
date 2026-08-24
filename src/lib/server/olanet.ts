@@ -227,3 +227,88 @@ export async function sincronizarFichajeEnCurso(
     throw e;
   }
 }
+
+// ─── Fases de OT sin finalizar ───────────────────────────────────────────────
+// Pasabas el pedido a Producción y la fase de OT se quedaba en pausa; tenían
+// que avisar desde el taller y había que abrir la herramienta vieja para
+// cerrarla. Esto es para el arrastre: de aquí en adelante "Pasar a Producción"
+// ya la mueve solo.
+
+/** Las fases que OLANET tiene cargadas para estas OF, con su estado.
+ *
+ *  Devuelve TODAS, también las del taller y las ya finalizadas: quién es de OT
+ *  y qué se puede tocar lo decide `lib/fase-pendiente.ts`, que es puro y está
+ *  probado. Aquí solo se lee.
+ *
+ *  `IdBoletin` viaja porque es lo que necesita `moverFase` para cerrar la fase,
+ *  y buscarlo otra vez por (Orden, Fase) abriría una carrera: entre la consulta
+ *  y el clic, la misma pareja podría resolver a otro boletín. */
+export async function fasesDeOFs(
+  ofs: readonly string[],
+): Promise<
+  { idBoletin: string; of: string; fase: string; descripcion: string; maquina: string; estado: number }[]
+> {
+  if (ofs.length === 0) return [];
+  const pool = await getPoolOlanet();
+  const peticion = pool.request();
+  // Lista parametrizada: los códigos vienen del historial, pero concatenarlos
+  // en el SQL sería abrir la puerta igual.
+  const marcas = ofs.map((of, i) => {
+    peticion.input(`of${i}`, sql.VarChar(50), of);
+    return `@of${i}`;
+  });
+  const r = await peticion.query<{
+    IdBoletin: string;
+    Orden: string | null;
+    Fase: string | null;
+    FaseDesc: string | null;
+    MaquinaTeo: string | null;
+    IdEstadoOF: number | null;
+  }>(
+    `SELECT IdBoletin, Orden, Fase, FaseDesc, MaquinaTeo, IdEstadoOF
+       FROM scg_Fases
+      WHERE Orden IN (${marcas.join(", ")})
+      ORDER BY Orden, Fase`,
+  );
+  return r.recordset.map((f) => ({
+    idBoletin: String(f.IdBoletin),
+    of: (f.Orden ?? "").trim(),
+    fase: (f.Fase ?? "").trim(),
+    descripcion: (f.FaseDesc ?? "").trim(),
+    maquina: (f.MaquinaTeo ?? "").trim(),
+    // NULL se trata como desconocido, no como cero: el 0 es "cargada de
+    // gestión", que SÍ se ofrece cerrar, y colar ahí un dato ausente pondría
+    // un botón que escribe en RPS sobre una fase de la que no sabemos nada.
+    estado: f.IdEstadoOF ?? -1,
+  }));
+}
+
+/** El estado que OLANET tiene AHORA para esa fase, o null si no existe.
+ *
+ *  Se relee justo antes de cerrar: entre que la ficha pintó el botón y alguien
+ *  lo pulsa pueden pasar minutos, y la fase puede haberse finalizado desde el
+ *  taller o haberla retirado OLANET. */
+export async function estadoDeFase(idBoletin: string): Promise<number | null> {
+  const pool = await getPoolOlanet();
+  const r = await pool
+    .request()
+    .input("idBoletin", sql.BigInt, idBoletin)
+    .query<{ IdEstadoOF: number | null; MaquinaTeo: string | null }>(
+      "SELECT IdEstadoOF, MaquinaTeo FROM scg_Fases WHERE IdBoletin = @idBoletin",
+    );
+  const fila = r.recordset[0];
+  if (!fila) return null;
+  return fila.IdEstadoOF ?? -1;
+}
+
+/** La máquina de esa fase, para volver a comprobar en el servidor que es de OT. */
+export async function maquinaDeFase(idBoletin: string): Promise<string | null> {
+  const pool = await getPoolOlanet();
+  const r = await pool
+    .request()
+    .input("idBoletin", sql.BigInt, idBoletin)
+    .query<{ MaquinaTeo: string | null }>(
+      "SELECT MaquinaTeo FROM scg_Fases WHERE IdBoletin = @idBoletin",
+    );
+  return r.recordset[0] ? (r.recordset[0].MaquinaTeo ?? "").trim() : null;
+}

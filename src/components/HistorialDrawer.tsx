@@ -13,6 +13,7 @@ import { repartirMateriales } from "@/lib/historial";
 import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { NotasPedido } from "./NotasPedido";
+import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmtFecha(iso: string | null) {
@@ -27,12 +28,15 @@ export function HistorialDrawer({
   pedido,
   onClose,
   operarios = [],
+  miId = null,
 }: {
   pedido: string | null;
   onClose: () => void;
   /** Solo para el hilo de notas: sin ellos cada nota saldría con el id crudo
    *  ("jaime") en vez del nombre de la persona y su color. */
   operarios?: readonly Operario[];
+  /** Quién soy: finalizar una fase en RPS se firma con mi código de operario. */
+  miId?: string | null;
 }) {
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -281,6 +285,12 @@ export function HistorialDrawer({
                   </p>
                 </Bloque>
               )}
+
+              {/* Lo único que se puede HACER desde el Historial: cerrar una
+                  fase de OT que se quedó a medias. Va lo primero porque es una
+                  tarea pendiente, no información; el resto de la ficha se lee.
+                  Se calla solo cuando está todo finalizado, que es lo normal. */}
+              <FasesSinFinalizar ofs={detalle.ofs.map((o) => o.codigo)} miId={miId} />
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es
