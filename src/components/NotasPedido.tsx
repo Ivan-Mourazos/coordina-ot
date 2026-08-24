@@ -40,6 +40,15 @@ export function NotasPedido({
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
   const [guardando, setGuardando] = useState(false);
   const reqSeq = useRef(0);
+  // El pedido que se ve AHORA. `cargar` está memoizado por pedido
+  // (`useCallback(..., [pedido])`) y `mandar` no: `mandar` cierra sobre el
+  // pedido de SU propio render, así que al volver de un await no puede
+  // fiarse de esa variable capturada para saber si sigue siendo el pedido en
+  // pantalla. Este ref es la única fuente que se actualiza sola.
+  const pedidoVigenteRef = useRef(pedido);
+  useEffect(() => {
+    pedidoVigenteRef.current = pedido;
+  }, [pedido]);
 
   const cargar = useCallback(async () => {
     const seq = ++reqSeq.current;
@@ -89,12 +98,24 @@ export function NotasPedido({
       });
       if (!r.ok) {
         const d = (await r.json().catch(() => null)) as { error?: string } | null;
+        // Guard de PEDIDO, no solo de orden de llegada: el reqSeq de `cargar`
+        // solo sabe qué respuesta es la más reciente, no de qué pedido es, y
+        // esta puede haber tardado tanto que la pantalla ya muestra otro
+        // pedido (sin key={pedido} la instancia sobrevive al cambio). Sin
+        // este guard, pintaríamos aquí el error de un pedido sobre la ficha
+        // de otro.
+        if (pedidoVigenteRef.current !== pedido) return false;
         setError(d?.error ?? "No se pudo guardar.");
         return false;
       }
+      // Mismo guard antes de recargar: `cargar` cierra sobre ESTE pedido, y
+      // si ya no es el que se ve, llamarlo pintaría sus notas sobre las del
+      // pedido actual.
+      if (pedidoVigenteRef.current !== pedido) return false;
       await cargar();
       return true;
     } catch {
+      if (pedidoVigenteRef.current !== pedido) return false; // idem
       setError("No se pudo guardar. Comprueba la conexión.");
       return false;
     } finally {
