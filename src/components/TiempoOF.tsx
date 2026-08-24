@@ -85,9 +85,16 @@ export function TiempoOF({
   const total = tiempoTotalOF(of);
   const hayWeb = gente.some((f) => f.webMin > 0);
   const hayRps = gente.some((f) => f.rpsMin > 0);
-  // Las dos columnas solo cuando hay algo en las dos. Con una sola herramienta
-  // por medio, una columna de guiones no dice nada.
-  const dosColumnas = hayWeb && hayRps;
+  // Las dos columnas SOLO durante el doble fichaje, y solo si hay algo en las
+  // dos. Una columna de guiones no dice nada.
+  //
+  // Fuera del periodo de pruebas no se parten: ya no son dos herramientas
+  // contando lo mismo, sino dos momentos de la MISMA cuenta —lo que ya subió a
+  // RPS y lo que todavía no— y el worker de OLANET tarda un minuto en igualarlo.
+  // Enseñarlo partido invitaba a sumar dos números que son el mismo trabajo, y
+  // encima sin la frase que lo explicaba (esa ya iba atada a `dobleFichaje`, así
+  // que en activo desaparecía y las columnas se quedaban mudas).
+  const dosColumnas = dobleFichaje && hayWeb && hayRps;
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
 
   return (
@@ -168,7 +175,7 @@ export function TiempoOF({
           {/* La única frase que hace falta, y solo cuando de verdad hay dos
               cuentas del mismo rato. Sin ella, ver 2h 10m y 2h 05m en la misma
               fila se lee como 4h 15m de trabajo. */}
-          {dobleFichaje && dosColumnas && (
+          {dosColumnas && (
             <p className="mt-1 text-[10px] leading-snug text-text-muted">
               Periodo de pruebas: lo mismo se ficha en los dos sitios, así que las dos
               columnas hablan del mismo rato y no se suman. El total lleva la mayor.
