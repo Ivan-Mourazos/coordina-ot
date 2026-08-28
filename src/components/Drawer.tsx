@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, PRIORIDAD, ROL } from "@/lib/estado";
@@ -13,6 +13,7 @@ import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
 import {
+  ACCIONES,
   A_LA_VISTA,
   accionesDisponibles,
   aprobadaSinRevision,
@@ -167,6 +168,16 @@ export function Drawer({
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
   // Eligiendo el revisor del pedido entero (ver `paraRevisar` más abajo).
   const [pidiendoRevisorPedido, setPidiendoRevisorPedido] = useState(false);
+  // Confirmación de las acciones de PEDIDO ENTERO ("Aprobar las N"); las de
+  // cada OF tienen la suya dentro de `AccionesOF`.
+  //
+  // Las OF se congelan al PULSAR, no al confirmar. Es lo correcto y no un
+  // atajo: entre que sale el cuadro y se dice que sí, el tablero se refresca
+  // solo cada 30 s, y sin esto se aprobaría un conjunto distinto del que decía
+  // el botón que acabas de leer. Y de paso, el hook queda aquí arriba, que es
+  // donde tienen que estar todos —debajo hay un `return` temprano—.
+  const idsAConfirmar = useRef<string[]>([]);
+  const confirmacionPedido = useConfirmacion((a) => onAccion(idsAConfirmar.current, a.id));
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
@@ -234,6 +245,29 @@ export function Drawer({
   // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
   // manda desde su fila, que es donde se ve de quién es cada una.
   const autoresParaRevisar = [...new Set(paraRevisar.map((o) => o.autorId))];
+
+  // ── Y lo mismo por el otro lado: lo que YO, de revisor, puedo hacer de una
+  // tacada ────────────────────────────────────────────────────────────────
+  // Un parte de ocho OF llega a revisión entero, y se repasa entero: había que
+  // abrir las ocho y pulsar en cada una. La vista de Revisión ya lo hacía por
+  // grupos; el Drawer, que es donde se mira el pedido, no.
+  //
+  // Mismo criterio que arriba: la máquina de estados sigue siendo por OF —una
+  // puede quedarse atrás y se resuelve desde su fila—, esto solo abre camino al
+  // caso normal.
+  //
+  // Empezar la revisión va por el RELOJ y no por la acción, igual que "Fichar
+  // las N" del planteo: fichar una OF "por revisar" siendo su revisor ya la
+  // pasa a `en_revision` (ver el ligado en Board.ficharOFs). Un botón, no dos.
+  const paraEmpezarRevision = ofsDeOT.filter(
+    (o) => esFichable(o) && rolFichajeDe(o) === "revisar" && o.revisorId === miId,
+  );
+  const paraAprobar = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "aprobar"),
+  );
+  // Aprobar de golpe pide confirmación, como la de una sola: es el final del
+  // camino y multiplicado por ocho, más.
+  const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
 
   return (
     <div
@@ -441,6 +475,31 @@ export function Drawer({
                   Pausa el reloj para poder pasar a revisión
                 </span>
               )}
+              {/* Empezar la revisión de todas. Como el "Fichar las N" del
+                  planteo: es el reloj quien las pasa a "En revisión". */}
+              {fichandoYo.length === 0 && paraEmpezarRevision.length > 1 && (
+                <button
+                  onClick={() => onFichar(paraEmpezarRevision.map((o) => o.id), "revisar")}
+                  title={`Pasa a "En revisión" las ${paraEmpezarRevision.length} OF que te tocan de este pedido y pone tu reloj en marcha`}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                >
+                  ⏱ Revisar las {paraEmpezarRevision.length}
+                </button>
+              )}
+              {/* Y darlas por buenas todas juntas, que es como se acaba un
+                  parte que estaba bien. */}
+              {paraAprobar.length > 1 && (
+                <button
+                  onClick={() => {
+                    idsAConfirmar.current = paraAprobar.map((o) => o.id);
+                    confirmacionPedido.pedirConfirmacion(defAprobar);
+                  }}
+                  title={`Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`}
+                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                >
+                  Aprobar las {paraAprobar.length}
+                </button>
+              )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
                   más de una: con una sola, este botón y el de su fila harían lo
                   mismo. */}
@@ -565,6 +624,10 @@ export function Drawer({
         </footer>
       </aside>
 
+      {/* La confirmación de "Aprobar las N". Va aquí, colgando del Drawer y no
+          de la fila de botones, porque el cuadro se pinta en un portal y lo
+          único que necesita es estar montado mientras el Drawer lo esté. */}
+      {confirmacionPedido.dialogo}
     </div>
   );
 }
@@ -909,42 +972,6 @@ function AccionesOF({
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   // Anular se abre desde el cajón de "⋯" (ver MenuAccionesOF).
   const [anulando, setAnulando] = useState(false);
-  // Con `miId`: la revisión de otro no la empieza cualquiera, así que su botón
-  // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
-  //
-  // Fuera "empezar planteo" y "retomar": las hace el botón del reloj, que las
-  // dos cosas a la vez (ver `accionAlFichar` en lib/accion-pedido.ts). Dejarlas
-  // aquí ponía dos botones para lo mismo, y en una OF ya empezada y pausada
-  // salían juntos "▶ Reanudar" y "Empezar planteo", que encima suena a
-  // empezar de cero.
-  //
-  // Y fuera "terminar planteo" mientras YO la estoy fichando: mandarla a
-  // revisar da por terminado el planteo, así que hacerlo con el reloj en marcha
-  // dejaba tiempo contando sobre un trabajo ya declarado acabado. Primero se
-  // pausa —el botón de al lado— y entonces aparece.
-  const acciones = accionesDisponibles(of, miId).filter(
-    (a) =>
-      a.id !== "empezar_planteo" &&
-      a.id !== "retomar" &&
-      !(fichandoYoEsta && a.id === "terminar_planteo"),
-  );
-  // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
-  //
-  // La fila llegaba a cinco botones (revisor revisando: reloj, Aprobar,
-  // Devolver, Dejar sin revisar, Anular), se partía en dos líneas y la altura
-  // de cada OF bailaba según su estado. Y "Anular OF", con su `ml-auto`, se
-  // quedaba flotando solo en la segunda como si fuera de otra cosa.
-  //
-  // `devolver` se queda FUERA aunque sea "peligro": para el revisor es tan
-  // diario como aprobar, y esconderlo sería castigar el caso de que algo esté
-  // mal. Lo que se va al cajón es lo de higos a brevas.
-  const aLaVista = acciones.filter((a) => A_LA_VISTA.has(a.id));
-  const enCajon = acciones.filter((a) => !A_LA_VISTA.has(a.id));
-  // Un cajón para UNA sola opción es peor que la opción: un clic de más para
-  // esconder algo que cabía. Con una, se saca fuera.
-  const menu = enCajon.length > 1 ? enCajon : [];
-  const sueltas = enCajon.length > 1 ? aLaVista : acciones;
-  const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
   // De qué reloj habla el botón: el del planteo o el de la revisión.
   const rolReloj = rolFichajeDe(of);
   // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
@@ -965,6 +992,57 @@ function AccionesOF({
   // El de PLANTEO sí se deja abierto: echarle una mano a un compañero en su
   // planteo es un caso real y el tablero lo contempla, con su aviso.
   const relojEsMio = rolReloj !== "revisar" || of.revisorId === miId;
+  // ¿Se está ofreciendo el botón del reloj? Lo usa el filtro de abajo para no
+  // pintar dos botones que hacen lo mismo.
+  const relojALaVista = esFichable(of) && relojEsMio;
+
+  // Con `miId`: la revisión de otro no la empieza cualquiera, así que su botón
+  // ni siquiera se ofrece (ver `soloEl` en lib/acciones.ts).
+  //
+  // Fuera "empezar planteo" y "retomar": las hace el botón del reloj, que las
+  // dos cosas a la vez (ver `accionAlFichar` en lib/accion-pedido.ts). Dejarlas
+  // aquí ponía dos botones para lo mismo, y en una OF ya empezada y pausada
+  // salían juntos "▶ Reanudar" y "Empezar planteo", que encima suena a
+  // empezar de cero.
+  //
+  // Y fuera "terminar planteo" mientras YO la estoy fichando: mandarla a
+  // revisar da por terminado el planteo, así que hacerlo con el reloj en marcha
+  // dejaba tiempo contando sobre un trabajo ya declarado acabado. Primero se
+  // pausa —el botón de al lado— y entonces aparece.
+  //
+  // Y fuera "empezar revisión" cuando el botón del reloj ya está ahí: fichar
+  // una OF "por revisar" como revisor la pasa a `en_revision` y arranca el
+  // reloj (ver el ligado en Board.ficharOFs), que es EXACTAMENTE lo que hace
+  // esta acción. Salían los dos, "⏱ Fichar revisión" y "Empezar revisión",
+  // haciendo lo mismo sin que nada dijera en qué se diferencian.
+  //
+  // Se quita solo cuando el reloj se ofrece de verdad: en una OF detenida o
+  // que RPS no deja imputar no hay botón de reloj, y ahí esta acción es la
+  // única forma de empezar la revisión.
+  const acciones = accionesDisponibles(of, miId).filter(
+    (a) =>
+      a.id !== "empezar_planteo" &&
+      a.id !== "retomar" &&
+      !(relojALaVista && a.id === "empezar_revision") &&
+      !(fichandoYoEsta && a.id === "terminar_planteo"),
+  );
+  // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
+  //
+  // La fila llegaba a cinco botones (revisor revisando: reloj, Aprobar,
+  // Devolver, Dejar sin revisar, Anular), se partía en dos líneas y la altura
+  // de cada OF bailaba según su estado. Y "Anular OF", con su `ml-auto`, se
+  // quedaba flotando solo en la segunda como si fuera de otra cosa.
+  //
+  // `devolver` se queda FUERA aunque sea "peligro": para el revisor es tan
+  // diario como aprobar, y esconderlo sería castigar el caso de que algo esté
+  // mal. Lo que se va al cajón es lo de higos a brevas.
+  const aLaVista = acciones.filter((a) => A_LA_VISTA.has(a.id));
+  const enCajon = acciones.filter((a) => !A_LA_VISTA.has(a.id));
+  // Un cajón para UNA sola opción es peor que la opción: un clic de más para
+  // esconder algo que cabía. Con una, se saca fuera.
+  const menu = enCajon.length > 1 ? enCajon : [];
+  const sueltas = enCajon.length > 1 ? aLaVista : acciones;
+  const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
