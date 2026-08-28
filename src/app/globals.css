@@ -24,6 +24,13 @@
    Claro  = "plata glass": neutros fríos, paneles blancos translúcidos.
    Oscuro = "carbón premium": grafito profundo, hairlines, dorado del logo. */
 :root {
+  /* Lo que el NAVEGADOR pinta por su cuenta: el icono del calendario de un
+     input de fecha, su desplegable, las barras de scroll nativas. Sin esto se
+     dibujan siempre en claro, porque el tema de la app es una clase `.dark` y
+     el navegador no la mira: en el Historial, el icono del calendario sobre
+     fondo oscuro se quedaba casi invisible. */
+  color-scheme: light;
+
   --bg: #dfe3e9; /* gris con cuerpo: los paneles blancos flotan encima */
   --bg-glow: #eaedf1; /* foco de luz ambiental del fondo */
   --surface: #ffffff;
@@ -71,6 +78,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /* Carbón mate: grafito suave, no negro puro. Los paneles flotan con
      jerarquía clara pero sin el aspecto "pantalla apagada". */
   --bg: #1a1b1f;
@@ -599,4 +608,11 @@ body {
 }
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Los controles nativos no heredan la fuente: los dos `input type="date"`
+   del Historial salían con la del sistema al lado del resto de la interfaz.
+   El color y el tamaño ya se los pone Tailwind; esto es solo la familia. */
+input[type="date"] {
+  font-family: inherit;
 }
