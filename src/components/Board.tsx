@@ -766,6 +766,13 @@ export function Board({
       ofIdsPedido?: string[];
       cortarFichajeDe?: string[];
     }) => {
+      // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
+      // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
+      // `postSeqRef` ha cambiado desde que arrancó. Sin esto, una consulta ya
+      // en vuelo al aprobar devolvía la foto de ANTES del corte, pasaba el
+      // guardián y reponía el reloj en pantalla —"Pausar" reaparecía sobre una
+      // OF ya aprobada— hasta el sondeo siguiente, o sea hasta 30 s.
+      if (payload.cortarFichajeDe?.length) postSeqRef.current += 1;
       fetch("/api/estado", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
