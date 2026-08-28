@@ -19,14 +19,21 @@ export interface AccionDef {
   confirmar?: string; // si existe, la UI pide confirmación con este texto
   desde: EstadoOF[];
   requiere?: "autor" | "revisor"; // asignación necesaria para ofrecerla
-  /** Solo se ofrece si la OF NO tiene revisor nombrado.
+  /** Solo se ofrece según si la OF pasó ya por revisión (`OF.revisada`):
+   *  `true` = solo si pasó, `false` = solo si no.
    *
-   *  Es lo contrario de `requiere`, y hace falta para que "Dar por bueno sin
-   *  revisión" y "Dar por corregida" no salgan las dos a la vez: son la misma
-   *  transición —a `aprobada` sin pasar por revisión— pero cuentan cosas
-   *  distintas (una nunca se revisó, la otra ya la revisaron y se corrigió), y
-   *  ofrecerlas juntas obligaría a adivinar cuál pulsar. */
-  sinRevisor?: boolean;
+   *  Es lo que separa "Dar por bueno sin revisión" de "Dar por corregida": son
+   *  la misma transición —a `aprobada` sin pasar (otra vez) por revisión—
+   *  pero cuentan cosas distintas, y ofrecerlas juntas obligaría a adivinar
+   *  cuál pulsar. Al ser una `true` y otra `false`, no pueden salir a la vez.
+   *
+   *  Antes esto se decidía por "tiene revisor nombrado", y era un agujero: el
+   *  revisor se nombra al MANDAR la OF a revisar, no al revisarla. Una OF que
+   *  el autor recuperaba antes de que nadie la mirase (`recuperar_planteo`)
+   *  llegaba a `en_curso` con el nombre puesto, así que le salía "Dar por
+   *  corregida" y quedaba registrada como aprobada normal: una revisión que no
+   *  existió. */
+  revisada?: boolean;
   /** Además de estar asignada, la acción es SOLO de esa persona.
    *
    *  Distinto de `requiere`: ese pide que haya alguien nombrado, esto pide que
@@ -85,11 +92,12 @@ export const ACCIONES: AccionDef[] = [
   // puerta le quitaría la última palabra sobre un trabajo que él marcó como
   // incompleto.
   //
-  // El revisor se queda a null, y eso es lo que distingue en el histórico una
-  // OF que nadie revisó de una que sí. Ver `aprobadaSinRevision`.
+  // Lo que la distingue en el histórico de una OF revisada es `revisada`, no
+  // que el revisor esté a null: puede haber uno nombrado que nunca llegó a
+  // mirarla. Ver `aprobadaSinRevision`.
   { id: "aprobar_sin_revision", label: "Dar por bueno sin revisión", tono: "neutra",
     confirmar: "La OF queda aprobada SIN que nadie la revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa \"Pasar a revisión\".",
-    desde: ["en_curso"], requiere: "autor", soloEl: "autor", sinRevisor: true,
+    desde: ["en_curso"], requiere: "autor", soloEl: "autor", revisada: false,
     efectoFichaje: "corta", destino: "aprobada" },
   { id: "aprobar", label: "Aprobar", tono: "primaria",
     confirmar: "La OF queda aprobada y vuelve a su autor como lista. El pedido se pasa a Producción aparte, cuando lo estén todas sus OF.",
@@ -117,12 +125,12 @@ export const ACCIONES: AccionDef[] = [
   // que quedaba era mandarla otra vez a revisión: una segunda vuelta que nadie
   // pedía, provocada por haber fichado el rato que costó el arreglo.
   //
-  // `requiere: "revisor"` es lo que lo acota: una OF en curso CON revisor
-  // nombrado es una que ya pasó por revisión. Sin revisor, lo que sale es "Dar
-  // por bueno sin revisión", que cuenta otra cosa.
+  // `revisada: true` es lo que lo acota: la revisión OCURRIÓ, alguien la miró
+  // y dijo algo. Si no ocurrió, lo que sale es "Dar por bueno sin revisión",
+  // que cuenta otra cosa.
   { id: "aprobar_corregida", label: "Dar por corregida", tono: "neutra",
     confirmar: "La OF queda aprobada sin pasar otra vez por revisión.",
-    desde: ["devuelta", "en_curso"], requiere: "revisor", soloEl: "autor",
+    desde: ["devuelta", "en_curso"], revisada: true, soloEl: "autor",
     efectoFichaje: "corta", destino: "aprobada" },
   { id: "devolver", label: "Devolver con nota", tono: "peligro",
     desde: ["en_revision"], requiere: "revisor", soloEl: "revisor",
@@ -184,9 +192,9 @@ const cumpleRequisito = (a: AccionDef, of: OF): boolean =>
 
 /** ¿Es MÍA esta acción? Sin `soloEl` lo es de cualquiera; sin identidad
  *  elegida no se recorta nada (ver `accionesDisponibles`). */
-/** ¿Cumple el "y además, sin revisor"? Ver `AccionDef.sinRevisor`. */
-const cumpleSinRevisor = (a: AccionDef, of: OF): boolean =>
-  !a.sinRevisor || of.revisorId === null;
+/** ¿Cumple el "y además, (no) revisada"? Ver `AccionDef.revisada`. */
+const cumpleRevisada = (a: AccionDef, of: OF): boolean =>
+  a.revisada === undefined || a.revisada === (of.revisada === true);
 
 const esMia = (a: AccionDef, of: OF, miId: string | null | undefined): boolean =>
   a.soloEl === undefined || miId == null || quienTiene(a.soloEl, of) === miId;
@@ -203,7 +211,7 @@ export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
     (a) =>
       a.desde.includes(of.estado) &&
       cumpleRequisito(a, of) &&
-      cumpleSinRevisor(a, of) &&
+      cumpleRevisada(a, of) &&
       esMia(a, of, miId),
   );
 }
@@ -236,21 +244,24 @@ export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
   return {
     ...of,
     estado,
+    // Pasar por `en_revision` es lo que enciende `revisada`, aquí y en el
+    // servidor (ver `guardarMutacion`). No se apaga nunca: la revisión ocurrió.
+    ...(estado === "en_revision" ? { revisada: true } : {}),
     ...(def.conNota || def.conMotivo ? { observacion: obs!.trim() } : {}),
   };
 }
 
 /** ¿Esta OF llegó a "aprobada" sin que nadie la revisara?
  *
- *  Se sabe porque no tiene revisor: los dos caminos normales a `aprobada`
- *  —"Aprobar" y "Dar por corregida"— exigen uno, así que un hueco ahí solo lo
- *  deja `aprobar_sin_revision`.
+ *  Se pregunta a `revisada`, que dice si la revisión ocurrió. Antes se miraba
+ *  si había revisor nombrado, y eso contaba otra cosa: una OF con revisor
+ *  puesto que nadie llegó a mirar pasaba por revisada.
  *
  *  Importa para que el histórico no mienta: "Aprobada" a secas se lee como
  *  "alguien la repasó y le dio el visto bueno", y en estas no pasó.
  */
 export function aprobadaSinRevision(of: OF): boolean {
-  return of.estado === "aprobada" && of.revisorId === null;
+  return of.estado === "aprobada" && of.revisada !== true;
 }
 
 /** Las acciones que salen SUELTAS en la ficha de la OF. El resto va al cajón

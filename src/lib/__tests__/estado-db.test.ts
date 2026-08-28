@@ -180,3 +180,52 @@ test("el overlay manda sobre el previo que dice el cliente", () => {
     .find((a) => a.motivo === "traspaso" && a.cambiosOF.some((c) => c.ofId === "of-mixta"))!;
   expect(traspaso.previos).toEqual([expect.objectContaining({ autorId: "ivan" })]);
 });
+
+test("`revisada` la pone el servidor al pasar por en_revision, y no se apaga", () => {
+  const base = {
+    ofId: "of-r1",
+    autorId: "ivan",
+    revisorId: "tamara",
+    estado: "por_revisar" as const,
+    observacion: null,
+  };
+  // Mandarla a revisar NO es haberla revisado: hay revisor nombrado y nada más.
+  db.guardarMutacion({ operarioId: "ivan", motivo: "accion", cambiosOF: [base] });
+  expect(db.leerOverlay().ofs.get("of-r1")?.revisada).toBe(false);
+
+  // El revisor la coge: ahí ocurre la revisión.
+  db.guardarMutacion({
+    operarioId: "tamara",
+    motivo: "accion",
+    cambiosOF: [{ ...base, estado: "en_revision" }],
+  });
+  expect(db.leerOverlay().ofs.get("of-r1")?.revisada).toBe(true);
+
+  // Y ningún movimiento posterior la apaga: pasó, y eso ya no se deshace.
+  db.guardarMutacion({
+    operarioId: "tamara",
+    motivo: "accion",
+    cambiosOF: [{ ...base, estado: "devuelta", observacion: "falta el croquis" }],
+  });
+  expect(db.leerOverlay().ofs.get("of-r1")?.revisada).toBe(true);
+});
+
+test("el cliente no puede colar un `revisada` que no se ha ganado", () => {
+  // Lo decide el estado que llega, no lo que diga el navegador: si no, bastaría
+  // un POST a mano para que una OF sin revisar quedara registrada como revisada.
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "accion",
+    cambiosOF: [
+      {
+        ofId: "of-r2",
+        autorId: "ivan",
+        revisorId: "tamara",
+        estado: "en_curso",
+        observacion: null,
+        revisada: true,
+      },
+    ],
+  });
+  expect(db.leerOverlay().ofs.get("of-r2")?.revisada).toBe(false);
+});

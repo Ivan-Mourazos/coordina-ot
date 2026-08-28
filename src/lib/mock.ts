@@ -186,6 +186,13 @@ function buildOF(pedidoId: string, codigoPedido: string, idx: number, spec: OFSp
     autorId: autorId ?? null,
     revisorId: revisorId ?? null,
     estado,
+    // A `en_revision` y `devuelta` solo se llega pasando por la revisión. Una
+    // `aprobada` puede haber llegado por "Dar por bueno sin revisión", así que
+    // ahí lo que marca es tener revisor.
+    revisada:
+      estado === "en_revision" ||
+      estado === "devuelta" ||
+      (estado === "aprobada" && revisorId != null),
     observacion: estado === "devuelta" ? OBSERVACIONES[codigoPedido] : undefined,
     fichandoRol: fichando ? (estado === "en_revision" ? "revisar" : "plantear") : null,
     tiempoEstimadoMin,

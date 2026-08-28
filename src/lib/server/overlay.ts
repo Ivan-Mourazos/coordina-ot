@@ -14,6 +14,10 @@ export interface CambioOF {
   revisorId: string | null;
   estado: EstadoOF;
   observacion: string | null;
+  /** Ver `OF.revisada`. Lo pone el SERVIDOR, no el cliente: se enciende solo
+   *  cuando el estado que llega es `en_revision` y nunca se apaga (ver
+   *  `guardarMutacion`). Va aquí para poder devolverlo al leer el overlay. */
+  revisada?: boolean;
 }
 
 export interface Overlay {
@@ -51,6 +55,7 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
           revisorId: o.revisorId,
           estado: o.estado,
           observacion: o.observacion ?? undefined,
+          revisada: o.revisada ?? false,
         };
       });
       if (!completado && ofs.every((of, i) => of === p.ofs[i])) return p;

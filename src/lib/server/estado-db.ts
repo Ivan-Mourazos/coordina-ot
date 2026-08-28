@@ -136,6 +136,7 @@ function abrir(): Database.Database {
   prepararClaveIntervalo(db);
   prepararPasadoPor(db);
   prepararTraspasado(db);
+  prepararRevisada(db);
   globalThis.__coordinaDb = db;
   return db;
 }
@@ -190,12 +191,44 @@ function prepararTraspasado(db: Database.Database): void {
   db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
 }
 
+/** "Esta OF pasó por revisión". La columna se añade sobre la marcha porque la
+ *  tabla ya existe en producción, y se rellena hacia atrás por dos vías:
+ *
+ *  1. El registro de acciones, que es la fuente buena: cada mutación guarda el
+ *     snapshot de las OF que tocó, así que cualquier paso por `en_revision`
+ *     dejó rastro ahí.
+ *  2. Para lo que el registro no alcance, la regla vieja: tener revisor
+ *     nombrado Y estar en un estado al que solo se llega pasando por revisión
+ *     (`devuelta` sale de "Devolver con nota", `aprobada` de "Aprobar").
+ *     `por_revisar` queda FUERA a propósito: ahí hay revisor nombrado pero
+ *     todavía no la ha mirado nadie, que es justo el caso que se arregla.
+ *
+ *  Sin este relleno, todo lo aprobado hasta hoy pasaría a leerse como
+ *  "Aprobada sin revisión", que es la misma mentira del revés. */
+function prepararRevisada(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(of_overlay)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "revisada")) return;
+  db.exec("ALTER TABLE of_overlay ADD COLUMN revisada INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    UPDATE of_overlay SET revisada = 1
+     WHERE of_id IN (
+       SELECT json_extract(c.value, '$.ofId')
+         FROM acciones_log l, json_each(l.detalle, '$.cambiosOF') c
+        WHERE json_extract(c.value, '$.estado') = 'en_revision'
+     );
+    UPDATE of_overlay SET revisada = 1
+     WHERE revisada = 0
+       AND revisor_id IS NOT NULL
+       AND estado IN ('en_revision', 'devuelta', 'aprobada');
+  `);
+}
+
 export function leerOverlay(): Overlay {
   const db = abrir();
   const ofs = new Map<string, CambioOF>();
   for (const fila of db
     .prepare(
-      "SELECT of_id, autor_id, revisor_id, estado, observacion FROM of_overlay",
+      "SELECT of_id, autor_id, revisor_id, estado, observacion, revisada FROM of_overlay",
     )
     .all() as Array<{
     of_id: string;
@@ -203,6 +236,7 @@ export function leerOverlay(): Overlay {
     revisor_id: string | null;
     estado: string;
     observacion: string | null;
+    revisada: number;
   }>) {
     if (!ESTADOS_OF.has(fila.estado)) continue; // fila corrupta: ignorar
     ofs.set(fila.of_id, {
@@ -211,6 +245,7 @@ export function leerOverlay(): Overlay {
       revisorId: fila.revisor_id,
       estado: fila.estado as CambioOF["estado"],
       observacion: fila.observacion,
+      revisada: fila.revisada === 1,
     });
   }
   const pedidosCompletados = new Set<string>(
@@ -257,15 +292,19 @@ export interface Mutacion {
 export function guardarMutacion(m: Mutacion): void {
   const db = abrir();
   const ahora = new Date().toISOString();
+  // `revisada` NO viene del cliente: se deduce aquí de que el estado que llega
+  // sea `en_revision`, y el MAX la hace de una sola dirección —una vez que
+  // alguien la revisó, eso ya pasó y ningún movimiento posterior lo borra—.
   const upsertOF = db.prepare(`
-    INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at)
-    VALUES (@ofId, @autorId, @revisorId, @estado, @observacion, @ahora)
+    INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at, revisada)
+    VALUES (@ofId, @autorId, @revisorId, @estado, @observacion, @ahora, @revisada)
     ON CONFLICT(of_id) DO UPDATE SET
       autor_id = excluded.autor_id,
       revisor_id = excluded.revisor_id,
       estado = excluded.estado,
       observacion = excluded.observacion,
-      updated_at = excluded.updated_at
+      updated_at = excluded.updated_at,
+      revisada = MAX(of_overlay.revisada, excluded.revisada)
   `);
   const upsertPedido = db.prepare(`
     INSERT INTO pedido_overlay (pedido_id, completado, updated_at, pasado_por)
@@ -298,7 +337,16 @@ export function guardarMutacion(m: Mutacion): void {
         (c) => (leerPrevio.get(c.ofId) as CambioOF | undefined) ?? previoCliente.get(c.ofId),
       )
       .filter((x): x is CambioOF => x !== undefined);
-    for (const c of m.cambiosOF ?? []) upsertOF.run({ ...c, ahora });
+    for (const c of m.cambiosOF ?? [])
+      upsertOF.run({
+        ofId: c.ofId,
+        autorId: c.autorId,
+        revisorId: c.revisorId,
+        estado: c.estado,
+        observacion: c.observacion,
+        ahora,
+        revisada: c.estado === "en_revision" ? 1 : 0,
+      });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);
     log.run(
       ahora,

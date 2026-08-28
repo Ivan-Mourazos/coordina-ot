@@ -249,6 +249,15 @@ export interface OF {
   revisorId: string | null;
   estado: EstadoOF;
   observacion?: string; // motivo si fue devuelta
+  /** ¿Ha llegado a estar en revisión alguna vez? Se enciende al pasar a
+   *  `en_revision` y ya no se apaga.
+   *
+   *  NO es lo mismo que "tiene revisor nombrado", y confundirlos era un
+   *  agujero: el revisor se nombra al MANDAR la OF a revisar, así que una OF
+   *  recuperada por su autor antes de que nadie la mirara conservaba el
+   *  nombre y pasaba por revisada. Este campo dice si la revisión ocurrió,
+   *  que es lo que tiene que quedar en el registro. */
+  revisada?: boolean;
 
   /** Si se está fichando ahora mismo, con qué rol. */
   fichandoRol: Rol | null;

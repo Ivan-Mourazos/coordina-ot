@@ -11,7 +11,13 @@ import type { OF } from "../types";
 const of = (estado: OF["estado"], extra: Partial<OF> = {}): OF => ({
   id: "of1", codigo: "OF-01", descripcion: "x", familia: "TOLDO", piezas: 1,
   autorId: "op1", revisorId: "op2", estado, fichandoRol: null,
-  tiempoEstimadoMin: 0, tiempoPlanteoMin: 0, tiempoRevisionMin: 0, ...extra,
+  tiempoEstimadoMin: 0, tiempoPlanteoMin: 0, tiempoRevisionMin: 0,
+  // A `en_revision` y `devuelta` solo se llega pasando por la revisión, y la
+  // `aprobada` de este molde lleva revisor. Se puede pisar desde `extra`:
+  // "en curso con revisor nombrado pero sin revisar" es un caso de verdad
+  // —una OF que el autor recuperó de la cola— y hay tests que lo montan.
+  revisada: estado === "en_revision" || estado === "devuelta" || estado === "aprobada",
+  ...extra,
 });
 
 describe("accionesDisponibles", () => {
@@ -118,11 +124,11 @@ describe("aprobar_corregida", () => {
   });
 
   it("no es un atajo para saltarse la PRIMERA revisión", () => {
-    // Desde en_curso sí sale, pero solo con revisor nombrado —una OF que ya
-    // pasó por revisión y se está corrigiendo—; ese caso tiene su propio test
-    // más abajo. Sin revisor no aparece desde ningún estado.
+    // Desde en_curso sí sale, pero solo si la OF ya pasó por revisión y se
+    // está corrigiendo; ese caso tiene su propio test más abajo. Sin revisión
+    // previa no aparece desde ningún estado.
     for (const e of ["pendiente", "en_curso", "por_revisar", "en_revision"] as const)
-      expect(accionesDisponibles(of(e, { revisorId: null })).map((a) => a.id))
+      expect(accionesDisponibles(of(e, { revisada: false })).map((a) => a.id))
         .not.toContain("aprobar_corregida");
     // Y con revisor tampoco desde los estados en que la pelota es del revisor.
     for (const e of ["por_revisar", "en_revision"] as const)
@@ -131,10 +137,11 @@ describe("aprobar_corregida", () => {
 
   it("exige autor y corta el fichaje, como cualquier entrega", () => {
     const porId = Object.fromEntries(ACCIONES.map((a) => [a.id, a]));
-    // "revisor" y no "autor": lo que acota esta acción es que la OF YA pasó por
-    // revisión. Que sea del autor lo dice `soloEl`, que además implica que hay
-    // autor.
-    expect(porId.aprobar_corregida.requiere).toBe("revisor");
+    // Lo que acota esta acción es que la OF YA pasó por revisión, y eso lo dice
+    // `revisada` — no "tiene revisor nombrado", que es otra cosa. Que sea del
+    // autor lo dice `soloEl`, que además implica que hay autor.
+    expect(porId.aprobar_corregida.revisada).toBe(true);
+    expect(porId.aprobar_sin_revision.revisada).toBe(false);
     expect(porId.aprobar_corregida.soloEl).toBe("autor");
     expect(porId.aprobar_corregida.efectoFichaje).toBe("corta");
     // En tono neutro: el camino que se ofrece primero sigue siendo mandar a
@@ -230,10 +237,14 @@ describe("aprobar sin revisión", () => {
   });
 
   it("una aprobada NORMAL no se confunde con una sin revisar", () => {
-    // Los dos caminos normales a aprobada exigen revisor, así que el hueco solo
-    // lo deja esta acción.
     expect(aprobadaSinRevision(of("aprobada"))).toBe(false);
     expect(aprobadaSinRevision(of("en_curso", { revisorId: null }))).toBe(false);
+  });
+
+  it("una aprobada CON revisor nombrado que nadie miró sí cuenta como sin revisar", () => {
+    // El caso que se escapaba: tener revisor puesto no es haber sido revisada.
+    expect(aprobadaSinRevision(of("aprobada", { revisorId: "op2", revisada: false })))
+      .toBe(true);
   });
 });
 
@@ -247,32 +258,65 @@ describe("pasar a aprobada sin una segunda revisión", () => {
     // marcha lo borraba de la pantalla sin decir nada, y solo quedaba mandarla
     // otra vez a revisión.
     expect(ids("devuelta", { revisorId: "op2" })).toContain("aprobar_corregida");
-    expect(ids("en_curso", { revisorId: "op2" })).toContain("aprobar_corregida");
+    expect(ids("en_curso", { revisorId: "op2", revisada: true })).toContain("aprobar_corregida");
   });
 
   it("los dos botones NUNCA salen a la vez", () => {
     // Son la misma transición contando cosas distintas; juntos habría que
-    // adivinar cuál pulsar.
-    const conRevisor = ids("en_curso", { revisorId: "op2" });
-    expect(conRevisor).toContain("aprobar_corregida");
-    expect(conRevisor).not.toContain("aprobar_sin_revision");
+    // adivinar cuál pulsar. Se excluyen por construcción: uno pide
+    // `revisada: true` y el otro `revisada: false`.
+    const revisada = ids("en_curso", { revisorId: "op2", revisada: true });
+    expect(revisada).toContain("aprobar_corregida");
+    expect(revisada).not.toContain("aprobar_sin_revision");
 
-    const sinRevisor = ids("en_curso", { revisorId: null });
-    expect(sinRevisor).toContain("aprobar_sin_revision");
-    expect(sinRevisor).not.toContain("aprobar_corregida");
+    const sinRevisar = ids("en_curso", { revisorId: null, revisada: false });
+    expect(sinRevisar).toContain("aprobar_sin_revision");
+    expect(sinRevisar).not.toContain("aprobar_corregida");
   });
 
-  it("sin revisor no se puede 'dar por corregida': no hubo quien la devolviera", () => {
-    expect(ids("en_curso", { revisorId: null })).not.toContain("aprobar_corregida");
+  it("sin revisión previa no se puede 'dar por corregida': no hubo quien la devolviera", () => {
+    expect(ids("en_curso", { revisada: false })).not.toContain("aprobar_corregida");
+  });
+
+  it("EL AGUJERO: recuperar de la cola deja revisor puesto, pero no revisada", () => {
+    // `recuperar_planteo` saca la OF de `por_revisar` y la devuelve al planteo
+    // conservando el revisor a propósito (el selector viene relleno al volver a
+    // mandarla). Nadie la miró: el botón que toca es el de "sin revisión".
+    const recuperada = aplicarAccion(of("por_revisar", { revisada: false }), "recuperar_planteo");
+    expect(recuperada.estado).toBe("en_curso");
+    expect(recuperada.revisorId).toBe("op2");
+    expect(recuperada.revisada).not.toBe(true);
+
+    const salidas = accionesDisponibles(recuperada, "op1").map((a) => a.id);
+    expect(salidas).toContain("aprobar_sin_revision");
+    expect(salidas).not.toContain("aprobar_corregida");
+
+    // Y si la aprueba, el registro lo dice: nadie la revisó.
+    expect(aprobadaSinRevision(aplicarAccion(recuperada, "aprobar_sin_revision"))).toBe(true);
+  });
+
+  it("empezar la revisión es lo que enciende la marca, y ya no se apaga", () => {
+    const enRevision = aplicarAccion(of("por_revisar", { revisada: false }), "empezar_revision");
+    expect(enRevision.revisada).toBe(true);
+    // Devolverla y corregirla no la apaga: la revisión ocurrió.
+    const devuelta = aplicarAccion(enRevision, "devolver", "falta el croquis");
+    expect(devuelta.revisada).toBe(true);
+    expect(accionesDisponibles(devuelta, "op1").map((a) => a.id)).toContain("aprobar_corregida");
   });
 
   it("las dos llevan a aprobada, y solo la de verdad sin revisar se marca así", () => {
-    const corregida = aplicarAccion(of("en_curso", { revisorId: "op2" }), "aprobar_corregida");
+    const corregida = aplicarAccion(
+      of("en_curso", { revisorId: "op2", revisada: true }),
+      "aprobar_corregida",
+    );
     expect(corregida.estado).toBe("aprobada");
     // Sí hubo revisión en su momento, así que NO es una "aprobada sin revisión".
     expect(aprobadaSinRevision(corregida)).toBe(false);
 
-    const sinRevisar = aplicarAccion(of("en_curso", { revisorId: null }), "aprobar_sin_revision");
+    const sinRevisar = aplicarAccion(
+      of("en_curso", { revisorId: null, revisada: false }),
+      "aprobar_sin_revision",
+    );
     expect(aprobadaSinRevision(sinRevisar)).toBe(true);
   });
 
