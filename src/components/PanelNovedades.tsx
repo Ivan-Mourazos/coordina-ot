@@ -37,25 +37,34 @@ export function PanelNovedades({
                   historial de cambios—; si no, la que sello el servidor. */}
               {n.fecha ? fecha(n.fecha) : fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
             </h4>
-            <ul className="mt-2 flex flex-col gap-2.5">
-              {n.cambios.map((c) => (
-                <li key={c.titulo} className="flex gap-2">
-                  <span
-                    className={`mt-0.5 h-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${COLOR[c.tipo]}`}
-                  >
-                    {ETIQUETA[c.tipo]}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-xs font-semibold text-text">{c.titulo}</span>
-                    {c.detalle && (
-                      <span className="mt-0.5 block text-[11px] leading-snug text-text-muted">
-                        {c.detalle}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {/* Agrupados por tipo y con un rótulo por grupo, en vez de una
+                insignia en cada línea: con catorce cambios seguidos eran
+                catorce insignias que descodificar una a una. Y cada grupo
+                dice QUÉ ES, porque «arreglado» y «mejor» se pisan si no se
+                explica la diferencia, y quien lo lee no tiene por qué
+                adivinarla. */}
+            {ORDEN.map((tipo) => {
+              const suyos = n.cambios.filter((c) => c.tipo === tipo);
+              if (suyos.length === 0) return null;
+              return (
+                <div key={tipo} className="mt-3">
+                  <p className={`text-[11px] font-bold ${COLOR[tipo]}`}>{ETIQUETA[tipo]}</p>
+                  <p className="text-[10px] text-text-muted">{QUE_ES[tipo]}</p>
+                  <ul className="mt-1.5 flex flex-col gap-2">
+                    {suyos.map((c) => (
+                      <li key={c.titulo} className="border-l-2 border-border pl-2">
+                        <span className="block text-xs font-semibold text-text">{c.titulo}</span>
+                        {c.detalle && (
+                          <span className="mt-0.5 block text-[11px] leading-snug text-text-muted">
+                            {c.detalle}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </section>
         ))}
       </div>
@@ -63,13 +72,29 @@ export function PanelNovedades({
   );
 }
 
-/** Verde lo que se gana, ámbar lo que se arregla, gris lo que solo mejora. No
- *  se usa el rojo de `devuelta` ni el violeta de `revisar`: aquí no se habla de
- *  OF, y repetir esos colores haría pensar que sí. */
+/** El orden en que se leen: primero lo que se gana, después lo que deja de
+ *  fallar, y al final lo que solo va mejor. */
+const ORDEN: TipoCambio[] = ["nuevo", "arreglado", "mejor"];
+
+/** La diferencia entre los tres, dicha y no supuesta. Con los rótulos a secas
+ *  "arreglado" y "mejor" se leen como lo mismo. */
+const QUE_ES: Record<TipoCambio, string> = {
+  nuevo: "Antes no se podía hacer",
+  arreglado: "Fallaba, y ya no",
+  mejor: "Funcionaba, pero ahora cuesta menos",
+};
+
+/** Verde lo que se gana, ámbar lo que se arregla, apagado lo que solo mejora.
+ *  Solo el color del texto del rótulo, sin fondo: son tres rótulos en toda la
+ *  entrada, y tres pastillas de color competirían con los títulos, que es lo
+ *  que hay que leer.
+ *
+ *  No se usa el rojo de `devuelta` ni el violeta de `revisar`: aquí no se habla
+ *  de OF, y repetir esos colores haría pensar que sí. */
 const COLOR: Record<TipoCambio, string> = {
-  nuevo: "bg-emerald-600/15 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300",
-  arreglado: "bg-amber-500/15 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300",
-  mejor: "bg-surface-2 text-text-muted ring-1 ring-border",
+  nuevo: "text-emerald-700 dark:text-emerald-300",
+  arreglado: "text-amber-700 dark:text-amber-300",
+  mejor: "text-text-muted",
 };
 
 /** "31 de agosto de 2026". Escrita entera: es una fecha que se lee una vez, no
