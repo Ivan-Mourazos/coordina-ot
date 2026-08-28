@@ -2,18 +2,28 @@
 
 import type { Vista } from "./ViewSwitcher";
 import { usePopover } from "@/lib/usePopover";
+import { ESTADO } from "@/lib/estado";
 import type { NotifItem, NotifTipo } from "@/lib/notificaciones";
 
 export type { NotifItem, NotifTipo };
 
+// El punto de cada aviso. Los que hablan DE UN ESTADO toman su color de
+// `ESTADO` en vez de repetirlo a mano: son el mismo concepto, y escritos aparte
+// se desincronizan en cuanto alguien retoque la paleta en `lib/estado.ts`.
+//
+// Los demás se quedan con su color literal A PROPÓSITO: "te han pasado
+// trabajo", "ya no lo tienes tú" o "nota nueva" no son estados de una OF, y
+// engancharlos a uno solo porque hoy coincida el tono crearía una atadura
+// falsa —cambiar el verde de "en curso" les cambiaría el punto sin motivo—.
 const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
-  revisar: { label: "Me toca revisar", vista: "revision", dot: "bg-violet-600" },
-  devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: "bg-red-600" },
+  revisar: { label: "Me toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
+  devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: ESTADO.devuelta.dot },
   recibida: { label: "Te han pasado trabajo", vista: "asignar", dot: "bg-emerald-600" },
   cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-gray-400" },
-  revisarNueva: { label: "Te toca revisar", vista: "revision", dot: "bg-violet-600" },
+  revisarNueva: { label: "Te toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
   revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
-  pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: "bg-cyan-600" },
+  // "Listo para pasar" es que están todas sus OF aprobadas.
+  pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: ESTADO.aprobada.dot },
   notaNueva: { label: "Nota nueva", vista: "asignar", dot: "bg-teal-600" },
   parteNuevo: { label: "Han re-escaneado el parte", vista: "asignar", dot: "bg-amber-500" },
 };
@@ -67,7 +77,17 @@ export function Notificaciones({
         title="Tus avisos"
         className="glass-chip relative grid size-9 place-items-center rounded-lg text-text-muted hover:text-text"
       >
-        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+        {/* Decorativo: el nombre del botón ya lo da su `aria-label`. Sin esto
+            un lector de pantalla puede anunciar el dibujo por su cuenta. Mismo
+            criterio que los iconos de Select y BuscadorGlobal. */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

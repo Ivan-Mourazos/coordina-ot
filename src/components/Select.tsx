@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
@@ -169,6 +169,14 @@ export function Select({
   // medio menú fuera de la pantalla.
   // La cuenta vive en lib/menu-flotante.ts: la comparten todos los menús que se
   // pintan en un portal, que si no cada uno se salía de la pantalla a su manera.
+  // Las flechas mueven un resaltado VISUAL (`activeIx`) pero el foco del DOM
+  // no se va del botón, así que un lector de pantalla no tenía forma de saber
+  // en qué opción estás: se oía abrir el menú y después, silencio. Con
+  // `aria-activedescendant` el botón dice cuál es la opción activa, y cada
+  // opción lleva el id con el que se la nombra.
+  const idOpcion = useId();
+  const idDe = (ix: number) => `${idOpcion}-${ix}`;
+
   const ventana = ventanaActual();
   const sitio =
     caja && ventana ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight }) : null;
@@ -182,6 +190,8 @@ export function Select({
         onKeyDown={onKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? idOpcion : undefined}
+        aria-activedescendant={open && activeIx >= 0 ? idDe(activeIx) : undefined}
         // `glass-chip-activo` y no un `bg-*` de Tailwind: el fondo de
         // `.glass-chip` gana siempre a las utilidades (ver globals.css), así
         // que el acento de "este filtro está recortando la lista" no llegaba a
@@ -218,6 +228,7 @@ export function Select({
             listRef.current = el;
             menuRef.current = el;
           }}
+          id={idOpcion}
           role="listbox"
           // Marca de "esto vive en un portal": lo que se cierra al hacer clic
           // fuera (los paneles flotantes) tiene que saber que este menú sigue
@@ -232,6 +243,7 @@ export function Select({
               <li key={o.value || "__empty"}>
                 <button
                   type="button"
+                  id={idDe(ix)}
                   data-ix={ix}
                   role="option"
                   aria-selected={isSel}

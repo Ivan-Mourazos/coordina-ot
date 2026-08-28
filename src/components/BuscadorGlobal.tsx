@@ -171,6 +171,12 @@ export function BuscadorGlobal({
           aria-expanded={abierto}
           aria-controls="buscador-global-resultados"
           aria-autocomplete="list"
+          // Las flechas mueven el resaltado (`activo`) sin sacar el foco del
+          // campo, así que sin esto un lector de pantalla no dice en qué
+          // resultado estás: se oye "hay 7 resultados" y luego nada al bajar.
+          aria-activedescendant={
+            abierto && resultados.length > 0 ? `buscador-global-op-${activo}` : undefined
+          }
           aria-label="Buscar pedidos"
           placeholder="Buscar pedido, cliente o nº de OF…"
           className="min-w-0 flex-1 bg-transparent text-xs text-text outline-none placeholder:text-text-muted"
@@ -203,10 +209,13 @@ export function BuscadorGlobal({
               {cargandoHist ? "Buscando…" : "Nada con eso, ni en el tablero ni en RPS."}
             </p>
           ) : (
-            <ul className="scroll-thin max-h-96 overflow-y-auto">
+            <ul role="listbox" aria-label="Resultados" className="scroll-thin max-h-96 overflow-y-auto">
               {resultados.map((r, i) => (
                 <li key={`${r.fuente}-${r.clave}`}>
                   <button
+                    id={`buscador-global-op-${i}`}
+                    role="option"
+                    aria-selected={i === activo}
                     onClick={() => elegir(r)}
                     onMouseEnter={() => setCursor(i)}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${
