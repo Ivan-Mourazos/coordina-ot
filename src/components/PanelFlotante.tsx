@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
 /** Cómo pide cerrar el contenido de un panel flotante (la ✕ de su cabecera).
@@ -54,11 +55,20 @@ export function BotonCerrarPanel({ className = "" }: { className?: string }) {
  *  distintos hacía pensar que eran cosas distintas. */
 const ANCHO = "46rem";
 
+// Es un modal de hecho —telón por encima de todo, el fondo congelado, Escape y
+// clic fuera para salir— pero para el teclado no lo era: sin `role`, sin nombre
+// y sin trampa de foco, el tabulador seguía recorriendo la bandeja de detrás
+// mientras la hoja tapaba la pantalla. Mismo arreglo que llevan los drawers.
 export function PanelFlotante({
   onCerrar,
   children,
+  titulo,
 }: {
   onCerrar: () => void;
+  /** Cómo se llama esta hoja, para el lector de pantalla: la fase, el nombre
+   *  del compañero. Corto y estable: el encabezado visible lleva además la
+   *  cuenta de OF, que cambia sola y no es parte del nombre. */
+  titulo: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -96,8 +106,20 @@ export function PanelFlotante({
   // la bandeja de detrás y al cerrar apareces en otro sitio.
   useScrollBloqueado(true);
 
+  // El foco entra al abrir y vuelve a donde estaba al cerrar. Se apaga en
+  // cuanto se PIDE el cierre, no al desmontar: entre las dos cosas corre la
+  // animación de salida, y seguir atrapando el foco durante ese rato dejaría
+  // el tabulador dando vueltas dentro de una hoja que ya se está yendo.
+  const focoRef = useFocoModal<HTMLDivElement>(!cerrando);
+
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center pt-24">
+    <div
+      ref={focoRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={titulo}
+      className="fixed inset-0 z-40 flex items-start justify-center pt-24"
+    >
       {/* Fondo suave: separa el panel sin apagar el tablero, que sigue siendo
           contexto útil mientras decides. */}
       <div

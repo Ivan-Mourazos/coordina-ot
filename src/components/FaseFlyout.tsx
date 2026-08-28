@@ -38,7 +38,7 @@ export function FaseFlyout({
   if (!grupo) return null;
 
   return (
-    <PanelFlotante onCerrar={onClose}>
+    <PanelFlotante titulo={grupo.label} onCerrar={onClose}>
       <div className="mb-2 flex items-center gap-2">
         <span className="size-2 rounded-full" style={{ background: grupo.color }} />
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-text-muted">
