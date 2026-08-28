@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
-import { ESTADO, fmtMin } from "@/lib/estado";
+import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
@@ -129,7 +129,7 @@ export function RevisionView({
                     {op.iniciales}
                   </span>
                   {op.nombre}
-                  <span className="font-bold text-violet-700 dark:text-violet-300">{n}</span>
+                  <span className={`font-bold ${ROL.revisar.texto}`}>{n}</span>
                 </span>
               );
             })}
@@ -411,7 +411,7 @@ function ReviewCard({
               <button
                 onClick={() => accionTodas("empezar_revision")}
                 title="Pasa a En revisión y arranca tu fichaje de revisor"
-                className="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700"
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
               >
                 Empezar revisión
               </button>
@@ -434,7 +434,10 @@ function ReviewCard({
               </button>
             )}
             {puedo("devolver") && (
-              <DevolverInline onDevolver={(obs) => accionTodas("devolver", obs)} />
+              <DevolverInline
+                label={ACCIONES.find((a) => a.id === "devolver")?.label}
+                onDevolver={(obs) => accionTodas("devolver", obs)}
+              />
             )}
             {dialogo}
           </>

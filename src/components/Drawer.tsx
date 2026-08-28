@@ -1050,7 +1050,13 @@ function AccionesOF({
       )}
       {sueltas.map((a) => {
         if (a.conNota)
-          return <DevolverInline key={a.id} onDevolver={(obs) => onAccion([of.id], a.id, obs)} />;
+          return (
+            <DevolverInline
+              key={a.id}
+              label={a.label}
+              onDevolver={(obs) => onAccion([of.id], a.id, obs)}
+            />
+          );
         // Anular pregunta POR QUÉ, y esa es la confirmación (ver AnularInline).
         if (a.conMotivo)
           return <AnularInline key={a.id} onAnular={(obs) => onAccion([of.id], a.id, obs)} />;

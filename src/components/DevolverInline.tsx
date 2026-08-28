@@ -10,7 +10,18 @@ import { useState } from "react";
  *  devolver es la excepción y se pide con un botón discreto. El rojo sólido
  *  se reserva para el "Confirmar devolución" de dentro, que sí es el punto
  *  de no retorno. */
-export function DevolverInline({ onDevolver }: { onDevolver: (obs: string) => void }) {
+export function DevolverInline({
+  onDevolver,
+  label = "Devolver con nota",
+}: {
+  onDevolver: (obs: string) => void;
+  /** Cómo se llama la acción, de `lib/acciones.ts`. El componente traía el
+   *  literal "Devolver" cosido, así que el botón decía una cosa y el dominio
+   *  otra —y quien cambiara el label en `ACCIONES` no cambiaba este—. El valor
+   *  por defecto es el mismo que hay allí, para que un olvido no deje el botón
+   *  en blanco. */
+  label?: string;
+}) {
   const [abierto, setAbierto] = useState(false);
   const [obs, setObs] = useState("");
 
@@ -20,7 +31,7 @@ export function DevolverInline({ onDevolver }: { onDevolver: (obs: string) => vo
         onClick={() => setAbierto(true)}
         className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400"
       >
-        Devolver
+        {label}
       </button>
     );
   }
