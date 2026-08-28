@@ -236,3 +236,47 @@ describe("aplicarDescartes", () => {
     expect(aplicarDescartes(items, [])).toEqual({ visibles: items, vigentes: [] });
   });
 });
+
+describe("avisos de nota", () => {
+  const p = pedido("1", [of("a")]);
+  const nota = (id: string, texto: string): AvisoSuelto => ({
+    pedido: p,
+    of: null,
+    tipo: "notaNueva",
+    quien: "Tamara",
+    clave: `nota:${id}`,
+    texto,
+  });
+
+  it("dos notas del mismo pedido son DOS avisos, no uno", () => {
+    // Agrupadas por `pedido:tipo`, la segunda desaparecía: salía el recado de
+    // la primera y del otro no quedaba rastro en ninguna parte.
+    const items = agruparAvisos([nota("n1", "falta el croquis"), nota("n2", "y el material")]);
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.texto)).toEqual(["falta el croquis", "y el material"]);
+  });
+
+  it("se puede descartar: leer el recado apaga la campana", () => {
+    expect(esDescartable(agruparAvisos([nota("n1", "x")])[0])).toBe(true);
+  });
+
+  it("descartar una nota no apaga la siguiente", () => {
+    // La identidad lleva el id de la nota. Sin eso, "pedido + tipo + las OF"
+    // era el mismo texto para las dos —una nota no cuelga de ninguna OF— y el
+    // recado de mañana nacía ya apagado.
+    const items = agruparAvisos([nota("n1", "x"), nota("n2", "y")]);
+    const [uno, dos] = items.map(identidadAviso);
+    expect(uno).not.toBe(dos);
+
+    const { visibles } = aplicarDescartes(items, [uno]);
+    expect(visibles.map((i) => i.texto)).toEqual(["y"]);
+  });
+
+  it("el descarte se poda cuando la nota deja de ser reciente", () => {
+    const items = agruparAvisos([nota("n2", "y")]);
+    // El descarte de una nota que ya no está no puede quedarse guardado: si
+    // no, volvería a apagar un aviso con esa misma identidad.
+    const { vigentes } = aplicarDescartes(items, ["1:notaNueva:nota:n1"]);
+    expect(vigentes).toEqual([]);
+  });
+});

@@ -72,11 +72,18 @@ export interface NotifItem {
 const vivas = (p: Pedido): OF[] => p.ofs.filter((o) => o.estado !== "anulada");
 
 /** Agrupa por pedido y tipo, conservando el orden de aparición: el primero que
- *  llega manda, que es el orden en que se detectaron y el que ya se veía. */
+ *  llega manda, que es el orden en que se detectaron y el que ya se veía.
+ *
+ *  `notaNueva` NO se agrupa: dos notas seguidas en el mismo pedido son dos
+ *  recados distintos, cada uno con su texto, y juntarlos se comía el segundo
+ *  —salía el primero y el otro no aparecía en ninguna parte—. Se separan por su
+ *  `clave`, que lleva el id de la nota. El resto sí se agrupa: ahí lo que se
+ *  junta son OF del mismo pedido bajo una misma noticia. */
 export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
   const porClave = new Map<string, NotifItem>();
   for (const a of sueltos) {
-    const clave = `${a.pedido.id}:${a.tipo}`;
+    const clave =
+      a.tipo === "notaNueva" ? `${a.pedido.id}:${a.tipo}:${a.clave}` : `${a.pedido.id}:${a.tipo}`;
     const ya = porClave.get(clave);
     if (ya) {
       if (a.of) ya.ofs.push(a.of);
@@ -134,6 +141,11 @@ const DEDUCIDOS: ReadonlySet<NotifTipo> = new Set<NotifTipo>([
   "revisar",
   "devuelta",
   "pedidoCompleto",
+  // La nota de un compañero no es un movimiento (no hay fila del registro que
+  // marcar) y tampoco se apagaba sola, así que se quedaba encendida hasta que
+  // la nota dejaba de contar como reciente: leías el recado y la campana
+  // seguía con el punto puesto durante días.
+  "notaNueva",
 ]);
 
 export const esDescartable = (item: NotifItem): boolean => DEDUCIDOS.has(item.tipo);
@@ -141,6 +153,10 @@ export const esDescartable = (item: NotifItem): boolean => DEDUCIDOS.has(item.ti
 /** Qué situación concreta es este aviso. Las OF van ordenadas para que el orden
  *  en que se recorra el pedido no invente una situación distinta. */
 export function identidadAviso(item: NotifItem): string {
+  // Una nota no va por OF sino por pedido, así que "las OF concretas" no la
+  // distingue de la siguiente: sin el id de la nota, apagar el recado de hoy
+  // apagaría también el de mañana. Su `clave` (`nota:<id>`) sí es única.
+  if (item.tipo === "notaNueva") return `${item.pedido.id}:${item.tipo}:${item.clave ?? ""}`;
   const ofs = item.ofs
     .map((o) => o.id)
     .sort()
