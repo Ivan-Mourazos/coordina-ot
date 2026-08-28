@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AccionDef } from "@/lib/acciones";
+import { useFocoModal } from "@/lib/useFocoModal";
 
 /** Estado compartido "acción pendiente de confirmar" (Drawer y otros sitios
  *  con botones de acción): pedirConfirmacion(a) abre el diálogo si la acción
@@ -32,7 +33,11 @@ export function useConfirmacion(ejecutar: (a: AccionDef) => void) {
 
 /** Confirmación ligera para acciones con consecuencias (aprobar, anular…).
  *  Escape o clic fuera cancelan; el botón de confirmar recibe el foco.
- *  Trap de foco: Tab circula entre Cancelar y Confirmar. */
+ *
+ *  El foco lo lleva `useFocoModal`, el mismo de los drawers. Antes iba a mano
+ *  y solo miraba sus dos botones: bastaba un clic en el mensaje o en el título
+ *  —que no se pueden enfocar— para que el foco cayera en el `body`, y desde
+ *  ahí el Tab se iba al tablero de detrás del telón con el diálogo abierto. */
 export function ConfirmDialog({
   abierto,
   titulo,
@@ -48,31 +53,18 @@ export function ConfirmDialog({
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
-  const btnConfirmarRef = useRef<HTMLButtonElement>(null);
-  const btnCancelarRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useFocoModal<HTMLDivElement>(abierto);
+  // Para `aria-labelledby`/`aria-describedby`: el título y el mensaje se
+  // anuncian leyendo el texto que ya está pintado, en vez de repetirlo en un
+  // `aria-label` que hay que mantener a la par del <h3>.
+  const idTitulo = useId();
+  const idMensaje = useId();
 
+  // Escape lo lleva este componente: `useFocoModal` solo se ocupa del foco.
   useEffect(() => {
     if (!abierto) return;
-    btnConfirmarRef.current?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancelar();
-      } else if (e.key === "Tab") {
-        // Focus trap: envolver el foco en los bordes; el resto lo maneja el navegador
-        if (e.shiftKey) {
-          // Shift+Tab desde el primero (Cancelar) → envolver a Confirmar
-          if (document.activeElement === btnCancelarRef.current) {
-            e.preventDefault();
-            btnConfirmarRef.current?.focus();
-          }
-        } else {
-          // Tab desde el último (Confirmar) → envolver a Cancelar
-          if (document.activeElement === btnConfirmarRef.current) {
-            e.preventDefault();
-            btnCancelarRef.current?.focus();
-          }
-        }
-      }
+      if (e.key === "Escape") onCancelar();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -103,11 +95,13 @@ export function ConfirmDialog({
   // paneles que se cierran al hacer clic fuera no se cierren al pulsar aquí.
   return createPortal(
     <div
+      ref={modalRef}
       data-en-portal
       className="fixed inset-0 z-[60]"
       role="alertdialog"
       aria-modal="true"
-      aria-label={titulo}
+      aria-labelledby={idTitulo}
+      aria-describedby={idMensaje}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
       {/* Con techo (`max-h`) y en columna, y el que scrollea es el MENSAJE.
@@ -119,22 +113,28 @@ export function ConfirmDialog({
           título y los botones, esos dos siempre se ven, y la lista larga se
           recorre por dentro. */}
       <div className="glass-panel-strong absolute left-1/2 top-1/3 flex max-h-[60vh] w-full max-w-sm -translate-x-1/2 flex-col rounded-2xl p-4">
-        <h3 className="shrink-0 text-sm font-bold text-text">{titulo}</h3>
+        <h3 id={idTitulo} className="shrink-0 text-sm font-bold text-text">
+          {titulo}
+        </h3>
         {/* `whitespace-pre-line`: hay mensajes que enumeran (qué OF se van a
             fichar), y una lista en un solo párrafo corrido no se lee. */}
-        <p className="scroll-thin mt-1.5 flex-1 overflow-y-auto whitespace-pre-line text-sm text-text-muted">
+        <p
+          id={idMensaje}
+          className="scroll-thin mt-1.5 flex-1 overflow-y-auto whitespace-pre-line text-sm text-text-muted"
+        >
           {mensaje}
         </p>
         <div className="mt-4 flex shrink-0 justify-end gap-2">
           <button
-            ref={btnCancelarRef}
             onClick={onCancelar}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-text"
           >
             Cancelar
           </button>
           <button
-            ref={btnConfirmarRef}
+            // El foco entra en Confirmar, no en el primero de la fila: es la
+            // respuesta que se espera, y con Shift+Tab se llega a Cancelar.
+            data-foco-inicial
             onClick={onConfirmar}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${toneCls}`}
           >
