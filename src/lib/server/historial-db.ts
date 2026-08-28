@@ -842,25 +842,42 @@ function anadirDesgloseRol(ofs: HistorialOF[]): HistorialOF[] {
   }
   if (porOfId.size === 0) return ofs;
 
-  const porOrden = new Map<string, { planteoMin: number; revisionMin: number; plantear: string[]; revisar: string[] }>();
+  // Una OF de RPS puede tener varias of-tarea, así que aquí se suman: los
+  // minutos del rol y los de cada persona dentro de ese rol.
+  const porOrden = new Map<
+    string,
+    {
+      planteoMin: number;
+      revisionMin: number;
+      plantear: Map<string, number>;
+      revisar: Map<string, number>;
+    }
+  >();
   for (const [ofId, t] of porOfId) {
     const partes = partirOfId(ofId);
     if (!partes) continue;
     const acc = porOrden.get(partes.of) ?? {
       planteoMin: 0,
       revisionMin: 0,
-      plantear: [] as string[],
-      revisar: [] as string[],
+      plantear: new Map<string, number>(),
+      revisar: new Map<string, number>(),
     };
     acc.planteoMin += t.planteoMin;
     acc.revisionMin += t.revisionMin;
     for (const rol of ["plantear", "revisar"] as const) {
-      for (const id of t.operarios[rol]) if (!acc[rol].includes(id)) acc[rol].push(id);
+      for (const [id, min] of Object.entries(t.operarios[rol]))
+        acc[rol].set(id, (acc[rol].get(id) ?? 0) + min);
     }
     porOrden.set(partes.of, acc);
   }
 
   const nombre = (id: string) => NOMBRE_POR_OPERARIO.get(id) ?? id;
+  // De más tiempo a menos: en un rol repartido, lo primero que se busca es
+  // quién lleva el peso.
+  const reparto = (m: Map<string, number>) =>
+    [...m.entries()]
+      .map(([id, min]) => ({ nombre: nombre(id), min }))
+      .sort((a, b) => b.min - a.min);
   return ofs.map((of) => {
     const t = porOrden.get(of.codigo);
     if (!t) return of;
@@ -869,8 +886,8 @@ function anadirDesgloseRol(ofs: HistorialOF[]): HistorialOF[] {
       rol: {
         planteoMin: t.planteoMin,
         revisionMin: t.revisionMin,
-        quienPlanteo: t.plantear.map(nombre),
-        quienReviso: t.revisar.map(nombre),
+        planteo: reparto(t.plantear),
+        revision: reparto(t.revisar),
       },
     };
   });
@@ -1057,7 +1074,8 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
 function detalleMock(pedido: string): HistorialOF[] {
   const p = PEDIDOS.find((x) => x.codigo === pedido);
   if (!p) return [];
-  const nombre = (id: string | null) => (id ? [NOMBRE_POR_OPERARIO.get(id) ?? id] : []);
+  const reparto = (id: string | null, min: number) =>
+    id ? [{ nombre: NOMBRE_POR_OPERARIO.get(id) ?? id, min }] : [];
   return p.ofs.map((of) => ({
     codigo: of.codigo,
     descripcion: of.descripcion,
@@ -1074,8 +1092,8 @@ function detalleMock(pedido: string): HistorialOF[] {
     rol: {
       planteoMin: of.tiempoPlanteoMin,
       revisionMin: of.tiempoRevisionMin,
-      quienPlanteo: nombre(of.autorId),
-      quienReviso: nombre(of.revisorId),
+      planteo: reparto(of.autorId, of.tiempoPlanteoMin),
+      revision: reparto(of.revisorId, of.tiempoRevisionMin),
     },
   }));
 }

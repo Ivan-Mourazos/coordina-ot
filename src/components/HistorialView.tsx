@@ -587,8 +587,16 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
                 </span>
                 {of.rol && (
                   <span className="flex gap-1.5">
-                    <RolChip rol="plantear" min={of.rol.planteoMin} quien={of.rol.quienPlanteo} />
-                    <RolChip rol="revisar" min={of.rol.revisionMin} quien={of.rol.quienReviso} />
+                    <RolChip
+                      rol="plantear"
+                      min={of.rol.planteoMin}
+                      quien={of.rol.planteo.map((p) => p.nombre)}
+                    />
+                    <RolChip
+                      rol="revisar"
+                      min={of.rol.revisionMin}
+                      quien={of.rol.revision.map((p) => p.nombre)}
+                    />
                   </span>
                 )}
               </li>

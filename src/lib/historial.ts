@@ -86,6 +86,12 @@ export interface HistorialItem {
   negocio?: string | null;
 }
 
+/** Lo que UNA persona fichó en UN rol sobre una OF. */
+export interface RepartoRol {
+  nombre: string;
+  min: number;
+}
+
 export interface HistorialOF {
   codigo: string;
   descripcion: string;
@@ -95,12 +101,17 @@ export interface HistorialOF {
   /** Desglose planteo/revisión. Solo existe para lo fichado en CoordinaOT: RPS
    *  no tiene tarea de revisión, así que de sus imputaciones no se puede
    *  deducir el rol. Ausente = no se sabe (OF anterior al fichaje en
-   *  CoordinaOT), que no es lo mismo que cero. */
+   *  CoordinaOT), que no es lo mismo que cero.
+   *
+   *  Lleva los minutos de CADA persona en su rol, no solo el total: con todo el
+   *  trabajo pasando ya por la web, se sabe de quién es cada minuto y no hay
+   *  por qué esconderlo detrás de un número de grupo. Es lo que distingue este
+   *  dato de `rolDeducido`, que son nombres y nada más. */
   rol?: {
     planteoMin: number;
     revisionMin: number;
-    quienPlanteo: string[]; // nombres
-    quienReviso: string[];
+    planteo: RepartoRol[];
+    revision: RepartoRol[];
   };
 
   /** Material que lleva la OF, cada línea marcada con si sigue apartado en el

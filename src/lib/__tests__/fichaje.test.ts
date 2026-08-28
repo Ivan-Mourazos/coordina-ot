@@ -226,7 +226,9 @@ describe("agregarPorRol", () => {
     expect(m.get("of1")).toMatchObject({ planteoMin: 30, revisionMin: 30 });
   });
 
-  it("guarda quién hizo cada rol, sin repetir", () => {
+  it("guarda cuánto puso cada persona en cada rol, sumando sus tramos", () => {
+    // Antes solo guardaba la lista de quiénes, y con eso el historial podía
+    // decir "lo plantearon ana y luis — 90m" pero no de quién era cada minuto.
     const m = agregarPorRol({
       intervalos: [
         iv(T0, T1, ["of1"], "plantear", "ana"),
@@ -234,7 +236,19 @@ describe("agregarPorRol", () => {
         iv(T1, T2, ["of1"], "revisar", "luis"),
       ],
     });
-    expect(m.get("of1")!.operarios).toEqual({ plantear: ["ana"], revisar: ["luis"] });
+    // Los dos tramos de ana se suman en su nombre, no se cuentan como dos
+    // personas ni se pierde el segundo.
+    expect(m.get("of1")!.operarios).toEqual({ plantear: { ana: 60 }, revisar: { luis: 30 } });
+    // Y el total del rol sigue cuadrando con la suma de las personas.
+    expect(m.get("of1")!.planteoMin).toBe(60);
+  });
+
+  it("un tramo compartido reparte los minutos de la persona entre las OF", () => {
+    // El reparto por OF ya existía para el total del rol; lo que se comprueba
+    // aquí es que el de cada persona se reparte igual y no cuenta doble.
+    const m = agregarPorRol({ intervalos: [iv(T0, T1, ["of1", "of2"], "plantear", "ana")] });
+    expect(m.get("of1")!.operarios.plantear).toEqual({ ana: 15 });
+    expect(m.get("of2")!.operarios.plantear).toEqual({ ana: 15 });
   });
 
   it("reparte el tramo compartido entre sus OFs, igual que minutosOF", () => {

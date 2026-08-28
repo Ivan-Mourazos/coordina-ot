@@ -181,8 +181,13 @@ export function minutosOF(
 export interface TiemposRolOF {
   planteoMin: number;
   revisionMin: number;
-  /** Ids de operario que han fichado en cada rol, en orden de aparición. */
-  operarios: { plantear: string[]; revisar: string[] };
+  /** Minutos de CADA operario en cada rol, por su id.
+   *
+   *  Era solo la lista de quiénes, y con eso el historial podía decir "lo
+   *  plantearon Adrián e Iván — 45m" pero no cuánto puso cada uno. El dato
+   *  estaba en los intervalos y se perdía al agregar. Quiénes son sigue
+   *  saliendo de aquí: son las claves. */
+  operarios: { plantear: Record<string, number>; revisar: Record<string, number> };
 }
 
 /** Reparte TODOS los intervalos por OF y rol de una pasada.
@@ -204,13 +209,13 @@ export function agregarPorRol(
     for (const ofId of iv.ofIds) {
       let e = porOF.get(ofId);
       if (!e) {
-        e = { planteoMin: 0, revisionMin: 0, operarios: { plantear: [], revisar: [] } };
+        e = { planteoMin: 0, revisionMin: 0, operarios: { plantear: {}, revisar: {} } };
         porOF.set(ofId, e);
       }
       if (iv.rol === "plantear") e.planteoMin += minutos;
       else e.revisionMin += minutos;
       const quienes = e.operarios[iv.rol];
-      if (!quienes.includes(iv.operarioId)) quienes.push(iv.operarioId);
+      quienes[iv.operarioId] = (quienes[iv.operarioId] ?? 0) + minutos;
     }
   }
   return porOF;

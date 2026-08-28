@@ -40,11 +40,16 @@ describe("deducirRoles", () => {
 
   it("los roles fichados en CoordinaOT mandan sobre la deducción", () => {
     const conRol = of({
-      rol: { planteoMin: 30, revisionMin: 5, quienPlanteo: ["Iván"], quienReviso: ["Ángel"] },
+      rol: {
+        planteoMin: 30,
+        revisionMin: 5,
+        planteo: [{ nombre: "Iván", min: 30 }],
+        revision: [{ nombre: "Ángel", min: 5 }],
+      },
     });
     const r = deducirRoles(conRol, new Map([["Alberto", 999]]));
     expect(r.rolDeducido).toBeUndefined();
-    expect(r.rol?.quienPlanteo).toEqual(["Iván"]);
+    expect(r.rol?.planteo).toEqual([{ nombre: "Iván", min: 30 }]);
   });
 
   it("sin minutos no deduce nada, en vez de inventarse un autor", () => {

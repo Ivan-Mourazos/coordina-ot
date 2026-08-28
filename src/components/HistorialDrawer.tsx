@@ -385,13 +385,18 @@ function Personas({ of }: { of: HistorialOF }) {
   // diferencia tiene que seguir viéndose: el tipo `HistorialOF` es explícito en
   // que quien lo pinte debe poder decir que es una suposición.
   const deducido = !of.rol && !!of.rolDeducido;
-  const planteo = of.rol?.quienPlanteo ?? of.rolDeducido?.quienPlanteo ?? [];
-  const revision = of.rol?.quienReviso ?? of.rolDeducido?.quienReviso ?? [];
+  // Lo registrado trae los minutos de cada uno; lo deducido, solo nombres. Se
+  // normalizan a la misma forma para que `FilaRol` no tenga que saber de dónde
+  // viene: si no hay minutos, pinta los nombres y ya.
+  const planteo =
+    of.rol?.planteo ?? (of.rolDeducido?.quienPlanteo ?? []).map((nombre) => ({ nombre }));
+  const revision =
+    of.rol?.revision ?? (of.rolDeducido?.quienReviso ?? []).map((nombre) => ({ nombre }));
 
   // Quien imputó tiempo en RPS pero no aparece en ningún rol: pasa cuando la OF
   // se fichó aquí y alguien más le metió horas por RPS. Se enseña sin rol antes
   // que dejarlo fuera.
-  const conRol = new Set([...planteo, ...revision]);
+  const conRol = new Set([...planteo, ...revision].map((p) => p.nombre));
   const sueltos = of.quien.filter((n) => !conRol.has(n)).sort(porNombre);
 
   // Un rol se pinta si tiene gente o si tiene tiempo fichado: 0 minutos y nadie
@@ -440,18 +445,24 @@ function FilaRol({
   deducido,
 }: {
   rol: Rol;
-  quien: string[];
+  /** Quién, y cuánto puso cada uno cuando se sabe (ver `RepartoRol`). */
+  quien: { nombre: string; min?: number }[];
   min?: number;
   deducido: boolean;
 }) {
   const etiqueta = rol === "plantear" ? "Planteo" : "Revisión";
+  // Con una sola persona, su reparto ES el total del rol: repetirlo al lado del
+  // nombre sería el mismo número dos veces en la misma línea.
+  const reparto = quien.length > 1 && quien.every((p) => p.min !== undefined);
   return (
     <div
       className="flex items-start gap-1.5 text-[11px]"
       title={
         deducido
           ? `${etiqueta} deducido del reparto de tiempo de RPS: quien más horas lleva planteó y quien lleva pocas revisó. Es una suposición, no un dato registrado.`
-          : `${etiqueta} fichado en CoordinaOT. El tiempo es el del rol y puede repartirse entre varias personas.`
+          : reparto
+            ? `${etiqueta} fichado en CoordinaOT, con lo que puso cada uno.`
+            : `${etiqueta} fichado en CoordinaOT.`
       }
     >
       <span
@@ -462,7 +473,23 @@ function FilaRol({
         {etiqueta}
       </span>
       <span className="min-w-0 flex-1 text-text">
-        {quien.length > 0 ? [...quien].sort(porNombre).join(", ") : "—"}
+        {quien.length === 0
+          ? "—"
+          : reparto
+            ? // De más tiempo a menos, que es el orden en que se lee "quién
+              // llevó el peso". Sin reparto manda el alfabético, que es el que
+              // se venía usando y no sugiere una jerarquía que no hay.
+              quien.map((p, i) => (
+                <span key={p.nombre}>
+                  {i > 0 && <span className="text-text-muted"> · </span>}
+                  {p.nombre}{" "}
+                  <span className="text-text-muted">{fmtMin(p.min ?? 0)}</span>
+                </span>
+              ))
+            : [...quien]
+                .map((p) => p.nombre)
+                .sort(porNombre)
+                .join(", ")}
       </span>
       {min !== undefined && (
         <span className="shrink-0 font-semibold text-text-muted">{fmtMin(min)}</span>
