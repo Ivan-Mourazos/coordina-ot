@@ -63,11 +63,28 @@ test("un parte más nuevo estrena aviso, y una sola vez", () => {
   expect(db.pedidosCambiados()).toEqual(new Set(["AR.1"]));
 });
 
-test("re-escanear OTRA vez con el aviso ya puesto no estrena nota nueva", () => {
+test("re-escanear OTRA vez con el aviso ya puesto SÍ estrena nota nueva", () => {
+  // Antes devolvía false aquí, y el efecto era que la nota del hilo —el
+  // registro permanente que se pidió— se quedaba solo con la fecha del PRIMER
+  // escaneo. Los siguientes desaparecían sin dejar rastro mientras nadie diera
+  // el aviso por visto.
+  //
+  // Que son dos noticias distintas ya lo daba por hecho el propio texto de la
+  // nota, que lleva la hora justamente para poder distinguir dos escaneos del
+  // mismo día (ver `textoNotaReescaneo`).
+  //
+  // El distintivo del tablero no cambia: sigue encendido una sola vez, porque
+  // lo pinta `pedidosCambiados()` contra `mtime_visto`. Lo que se arregla es
+  // el hilo, no el aviso.
   db.registrarPedidos(["AR.1"], "2026-08-24T09:00:00.000Z");
   db.anotarMtime("AR.1", 1000, "2026-08-24T09:05:00.000Z");
   expect(db.anotarMtime("AR.1", 2000, "2026-08-24T10:00:00.000Z")).toBe(true);
-  expect(db.anotarMtime("AR.1", 3000, "2026-08-24T11:00:00.000Z")).toBe(false);
+  expect(db.anotarMtime("AR.1", 3000, "2026-08-24T11:00:00.000Z")).toBe(true);
+  expect(db.pedidosCambiados()).toEqual(new Set(["AR.1"]));
+
+  // Y sin fichero nuevo sigue sin repetirse: lo que estrena nota es que el
+  // parte cambie, no que se pase por él.
+  expect(db.anotarMtime("AR.1", 3000, "2026-08-24T11:30:00.000Z")).toBe(false);
 });
 
 test("tras dar por visto, un escaneo posterior vuelve a avisar", () => {

@@ -152,3 +152,28 @@ test("un pedido sin parte cuenta como mirado y no atasca la cola", async () => {
   // cada minuto y al tercero no le llegaría el turno nunca.
   expect(scanDb.pedidosParaRevisar(1)).toEqual(["AR.26.00001"]);
 });
+
+test("un segundo re-escaneo, con el aviso todavía sin ver, deja su propia nota", async () => {
+  const T3 = Date.UTC(2026, 7, 25, 9, 30, 0);
+  ponerParte("AR.26.01829", T1);
+  scanDb.registrarPedidos(["AR.26.01829"]);
+  await worker.revisarUnaTanda();
+
+  ponerParte("AR.26.01829", T2);
+  expect(await worker.revisarUnaTanda()).toBe(1);
+
+  // Nadie ha dado por visto el aviso y vuelven a escanear el parte. Es una
+  // segunda noticia: el registro permanente tiene que llevar las dos fechas,
+  // que para eso la nota lleva la hora.
+  ponerParte("AR.26.01829", T3);
+  expect(await worker.revisarUnaTanda()).toBe(1);
+
+  const notas = notasDb.leerNotas("AR.26.01829");
+  expect(notas).toHaveLength(2);
+  const d = new Date(T3);
+  expect(notas[1].texto).toContain(`${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
+
+  // Y sin cambio de fichero sigue sin repetirse.
+  expect(await worker.revisarUnaTanda()).toBe(0);
+  expect(notasDb.leerNotas("AR.26.01829")).toHaveLength(2);
+});

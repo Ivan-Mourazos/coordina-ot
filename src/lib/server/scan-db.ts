@@ -1,4 +1,4 @@
-import { hayCambio, type EstadoScan } from "../pedido-scan";
+import { hayCambio } from "../pedido-scan";
 import { getDb } from "./estado-db";
 
 // ─── Vigilancia del PDF de cada pedido (SQLite propio) ───────────────────────
@@ -18,12 +18,6 @@ interface Fila {
   mtime_visto: number | null;
   mtime_actual: number | null;
 }
-
-const aEstado = (f: Fila): EstadoScan => ({
-  pedido: f.pedido,
-  mtimeVisto: f.mtime_visto,
-  mtimeActual: f.mtime_actual,
-});
 
 /** Apunta estos pedidos para que el vigilante les mire el PDF.
  *
@@ -88,7 +82,6 @@ export function anotarMtime(
     return false;
   }
 
-  const avisabaYa = hayCambio(aEstado(previo));
   const esElPrimero = previo.mtime_visto === null;
   db.prepare(
     `UPDATE pedido_scan
@@ -99,7 +92,24 @@ export function anotarMtime(
   ).run(mtimeMs, mtimeMs, ahora, pedido);
 
   if (esElPrimero) return false;
-  return !avisabaYa && hayCambio({ ...aEstado(previo), mtimeActual: mtimeMs });
+  // Un re-escaneo es que el parte sea mas nuevo QUE LA ULTIMA VEZ QUE SE MIRO
+  // (`mtime_actual`), no que la ultima vez que alguien lo dio por visto.
+  //
+  // Se comparaba contra `mtime_visto` y ademas se exigia que no hubiera aviso
+  // puesto ya (`!avisabaYa`), asi que un SEGUNDO escaneo con el primer aviso
+  // todavia sin ver no escribia nota: el "registro permanente" se quedaba solo
+  // con la fecha del primero, justo lo que la nota lleva hora para distinguir.
+  //
+  // El distintivo no cambia: lo pinta `pedidosCambiados()`, que sigue
+  // comparando contra `mtime_visto` —lo que nadie ha dado por visto—, y
+  // `marcarVisto` lo apaga igualando las dos marcas.
+  return hayCambio({
+    pedido: previo.pedido,
+    // La referencia aqui es lo ultimo que vio el vigilante, no lo ultimo que
+    // vio una persona.
+    mtimeVisto: previo.mtime_actual,
+    mtimeActual: mtimeMs,
+  });
 }
 
 /** Los pedidos con el parte re-escaneado y todavía sin dar por visto.
