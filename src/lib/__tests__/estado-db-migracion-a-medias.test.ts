@@ -85,5 +85,10 @@ test("queda sellada, para no repetir el relleno en cada arranque", () => {
   // Sin el sello, el relleno correría en cada reinicio: sobre una base grande
   // es trabajo por gusto, y peor, volvería a marcar lo que alguien hubiera
   // corregido a mano.
-  expect(db.getDb().pragma("user_version", { simple: true })).toBe(1);
+  //
+  // Se compara con ">= 1" y no con un número exacto a propósito: el sello es
+  // el de la ÚLTIMA migración aplicada, así que sube cada vez que se añade
+  // una. Lo que este test defiende es que la de `revisada` quedó sellada, no
+  // cuántas hay.
+  expect(db.getDb().pragma("user_version", { simple: true })).toBeGreaterThanOrEqual(1);
 });

@@ -134,9 +134,8 @@ function abrir(): Database.Database {
     );
   `);
   prepararClaveIntervalo(db);
-  prepararPasadoPor(db);
   prepararTraspasado(db);
-  prepararRevisada(db);
+  migrar(db);
   globalThis.__coordinaDb = db;
   return db;
 }
@@ -145,11 +144,17 @@ function abrir(): Database.Database {
  *  porque la tabla ya existe en producción, y se rellena hacia atrás desde
  *  `acciones_log`, que lleva registrando el autor de cada "completar" desde el
  *  principio: así el historial también sabe quién pasó los pedidos anteriores
- *  a este cambio. */
-function prepararPasadoPor(db: Database.Database): void {
+ *  a este cambio.
+ *
+ *  El relleno solo toca los HUECOS (`pasado_por IS NULL`). Sin ese filtro,
+ *  volver a pasar por aquí reescribiría los que ya están, y un pedido cuyo
+ *  "completar" no esté en el registro —porque se purgue, o porque se guardó con
+ *  otro motivo— perdería el nombre que sí tenía. Rellenar huecos se puede
+ *  repetir sin miedo; reescribirlo todo, no. */
+function pasadoPor(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(pedido_overlay)").all() as Array<{ name: string }>;
-  if (columnas.some((c) => c.name === "pasado_por")) return;
-  db.exec("ALTER TABLE pedido_overlay ADD COLUMN pasado_por TEXT");
+  if (!columnas.some((c) => c.name === "pasado_por"))
+    db.exec("ALTER TABLE pedido_overlay ADD COLUMN pasado_por TEXT");
   db.exec(`
     UPDATE pedido_overlay SET pasado_por = (
       SELECT l.operario_id FROM acciones_log l
@@ -157,6 +162,7 @@ function prepararPasadoPor(db: Database.Database): void {
          AND json_extract(l.detalle, '$.completarPedidoId') = pedido_overlay.pedido_id
        ORDER BY l.id DESC LIMIT 1
     )
+    WHERE pasado_por IS NULL
   `);
 }
 
@@ -218,18 +224,12 @@ function prepararTraspasado(db: Database.Database): void {
  *  terminado. Y como va dentro de la transacción, o entran las dos cosas o no
  *  entra ninguna: una base a medias vuelve a intentarlo sola en el siguiente
  *  arranque, que es justo lo que arregla las que ya se quedaron así. */
-const VERSION_REVISADA = 1;
-
-function prepararRevisada(db: Database.Database): void {
-  if ((db.pragma("user_version", { simple: true }) as number) >= VERSION_REVISADA) return;
+function revisada(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(of_overlay)").all() as Array<{ name: string }>;
-  const faltaColumna = !columnas.some((c) => c.name === "revisada");
-
-  db.transaction(() => {
-    // La columna puede estar ya de un intento que se quedó a medias.
-    if (faltaColumna)
-      db.exec("ALTER TABLE of_overlay ADD COLUMN revisada INTEGER NOT NULL DEFAULT 0");
-    db.exec(`
+  // La columna puede estar ya de un intento anterior que se quedó a medias.
+  if (!columnas.some((c) => c.name === "revisada"))
+    db.exec("ALTER TABLE of_overlay ADD COLUMN revisada INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
     UPDATE of_overlay SET revisada = 1
      WHERE of_id IN (
        SELECT json_extract(c.value, '$.ofId')
@@ -241,9 +241,53 @@ function prepararRevisada(db: Database.Database): void {
        AND revisor_id IS NOT NULL
        AND estado IN ('en_revision', 'devuelta', 'aprobada');
   `);
-    // Lo último: hasta aquí no hay nada que dar por hecho.
-    db.pragma(`user_version = ${VERSION_REVISADA}`);
-  })();
+}
+
+// ─── Las migraciones con relleno, y cómo se sabe cuáles faltan ───────────────
+// Añadir una columna y RELLENARLA son dos pasos, y el segundo puede fallar. Si
+// la marca de "ya está hecho" es "¿existe la columna?", un fallo entre medias
+// deja la columna puesta y el relleno sin correr: a partir de ahí cada arranque
+// sale por la puerta de atrás y no se reintenta nunca. Pasó de verdad con
+// `revisada`, y el histórico se quedó leyéndose como "aprobada sin revisión".
+//
+// Así que la marca es `user_version`, que se sella AL FINAL y dentro de la
+// misma transacción que el relleno: o entran las dos cosas o no entra ninguna.
+// Una base que se quedó a medias vuelve a intentarlo sola en el arranque
+// siguiente.
+//
+// REGLAS PARA AÑADIR UNA:
+//  · Al final de la lista y con el número siguiente. NO se renumera lo que ya
+//    está: hay bases por ahí selladas con esos números.
+//  · Que se pueda repetir sin estropear nada. Puede correr en una base donde ya
+//    se hizo a mano, o a medias. Rellenar huecos, no reescribir.
+//
+// Las que solo añaden una columna (`prepararTraspasado`) no hacen falta aquí:
+// sin relleno no hay nada que pueda quedarse a medias.
+const MIGRACIONES: ReadonlyArray<{
+  version: number;
+  nombre: string;
+  aplicar: (db: Database.Database) => void;
+}> = [
+  { version: 1, nombre: "revisada", aplicar: revisada },
+  // Estaba fuera, con la guarda de columna, y arrastraba el mismo problema: si
+  // su relleno se hubiera cortado, el "quién pasó el pedido" del historial se
+  // habría quedado vacío para siempre y sin avisar. Entra aquí para que se
+  // repare solo. Rellena únicamente los huecos, así que en una base sana no
+  // cambia nada.
+  { version: 2, nombre: "pasado_por", aplicar: pasadoPor },
+];
+
+/** Pone al día el esquema. Cada migración va en su transacción y sella su
+ *  número; la siguiente arranca solo si la anterior entró. */
+function migrar(db: Database.Database): void {
+  const hecho = () => db.pragma("user_version", { simple: true }) as number;
+  for (const m of MIGRACIONES) {
+    if (hecho() >= m.version) continue;
+    db.transaction(() => {
+      m.aplicar(db);
+      db.pragma(`user_version = ${m.version}`);
+    })();
+  }
 }
 
 export function leerOverlay(): Overlay {
