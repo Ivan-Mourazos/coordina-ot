@@ -82,6 +82,75 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
 (`sqlite3` CLI: `apt install sqlite3`. `.backup` es consistente aunque la
 app esté escribiendo.)
 
+### 2.5 Migraciones del esquema (se aplican solas al arrancar)
+
+La app pone al día su propio SQLite al arrancar. **No hay comando que
+lanzar**: ocurre en el primer acceso a la base después de reiniciar.
+
+Cada migración va en una transacción y sella `PRAGMA user_version` al
+terminar. Ese número es la comprobación de que entró **completa**:
+
+```bash
+sqlite3 /opt/coordina-ot/data/coordina.db "PRAGMA user_version;"
+```
+
+| Valor | Qué significa |
+|---|---|
+| `2` | Al día. Es lo que tiene que salir hoy. |
+| menos de `2` tras reiniciar | Algo falló. Mirar `pm2 logs coordina-ot` y avisar. |
+
+**Por qué importa el sello.** Estas migraciones no solo añaden una columna:
+la RELLENAN con datos deducidos del histórico. Son dos pasos, y si el
+segundo falla la base queda a medias **en silencio** — con la columna puesta
+y vacía, y sin nada que lo delate por pantalla. Ya pasó una vez en
+desarrollo. Por eso el sello se pone al final: mientras no esté, el arranque
+siguiente vuelve a intentarlo solo.
+
+**Antes de una actualización que traiga migración**, copia de seguridad del
+momento (no vale `cp` con la app escribiendo):
+
+```bash
+cd /opt/coordina-ot
+sqlite3 data/coordina.db ".backup /mnt/backups/coordina-antes-$(date +%F).db"
+```
+
+**Marcha atrás**: volver al commit anterior y reconstruir. Las columnas se
+quedan y no estorban — el código viejo nombra las suyas una a una y las
+ignora—, así que no hay que tocar la base.
+
+#### Comprobación del despliegue del 2026-08-31 (versión con `revisada`)
+
+Esta actualización trae las dos migraciones de golpe. Después de reiniciar:
+
+```bash
+# 1. Entró completa
+sqlite3 data/coordina.db "PRAGMA user_version;"   # -> 2
+
+# 2. El histórico no se ha vuelto "sin revisión"
+sqlite3 data/coordina.db \
+  "SELECT estado, revisada, COUNT(*) FROM of_overlay GROUP BY 1,2 ORDER BY 1;"
+
+# 3. Quién pasó cada pedido (esta migración llevaba tiempo y pudo quedar a medias)
+sqlite3 data/coordina.db \
+  "SELECT COUNT(*) total, COUNT(pasado_por) con_autor FROM pedido_overlay WHERE completado=1;"
+```
+
+Qué tiene que salir:
+
+- **(2)** las `aprobada` y `devuelta`, casi todas con `revisada = 1`. Las
+  `por_revisar` a `0` es correcto: tener revisor nombrado no es haber sido
+  revisada. Muchas `aprobada` a `0` **sí** es mala señal.
+- **(3)** `con_autor` cerca de `total`. Si queda muy por debajo, es que esos
+  pedidos no dejaron rastro en el registro y no hay de dónde sacar el nombre;
+  no se puede arreglar, pero conviene saberlo.
+
+Y a ojo, en la app: una OF aprobada de hace días tiene que decir
+**"Aprobada"** a secas. Si dice "Aprobada sin revisión" en OF que sí se
+revisaron, el relleno falló.
+
+Hacerlo **por la mañana de un día de trabajo**, no al irse: si algo va mal
+conviene tener gente delante para verlo.
+
 ## 3. Mejora de rendimiento pedida (solo añade objetos, no toca RPS)
 
 La vista `TGM_PENDIENTE_OT` tarda 7-15 s. La app ya lo esconde con caché,
