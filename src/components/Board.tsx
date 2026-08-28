@@ -1883,6 +1883,7 @@ export function Board({
       <HistorialDrawer
         pedido={historialAbierto}
         operarios={operarios}
+        miId={miId}
         onClose={() => setHistorialAbierto(null)}
       />
 
