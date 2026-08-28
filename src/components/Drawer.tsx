@@ -1006,21 +1006,35 @@ function AccionesOF({
         of.estado !== "aprobada" &&
         of.estado !== "anulada" &&
         (() => {
-          // Dos situaciones distintas que se pintaban con el mismo rótulo: la OF
-          // que NO se puede fichar (detenida, o RPS no admite imputar) y la que sí
-          // se puede, pero cuyo reloj es de otro —la revisión de un compañero—.
-          // La segunda salía como "No fichable", que es falso, y encima con el
-          // globo vacío, porque `motivoNoFichable` devuelve null en ese caso.
-          const revisionAjena = esFichable(of) && !relojEsMio;
+          // Aquí se juntaban situaciones distintas bajo un mismo rótulo falso.
+          // La OF que NO se puede fichar (detenida, o RPS no admite imputar) es
+          // una; la que sí se puede pero cuyo reloj es de la revisión, y la
+          // revisión no es tuya, es otra. Esta segunda salía como
+          // "No fichable" —que es mentira— y encima con el globo vacío, porque
+          // `motivoNoFichable` devuelve null en ese caso.
+          //
+          // Y dentro de esa segunda hay dos, que es lo que se ve al usarlo: una
+          // OF esperando en la cola SIN revisor nombrado no la está revisando
+          // nadie, así que decir "la revisa otra persona" es inventarse a una
+          // persona. Lo que le pasa es que está entregada y sin dueño.
+          const relojDeOtro = esFichable(of) && !relojEsMio;
           const quien = of.revisorId
-            ? operarios.find((o) => o.id === of.revisorId)?.nombre
-            : undefined;
-          const motivo = revisionAjena
-            ? `El reloj de la revisión es de ${quien ?? "quien la revisa"}: tu planteo ya está entregado`
-            : motivoNoFichable(of);
-          const rotulo = revisionAjena
-            ? `⏱ La revisa ${quien ?? "otra persona"}`
-            : "⏱ No fichable";
+            ? (operarios.find((o) => o.id === of.revisorId)?.nombre ?? "otra persona")
+            : null;
+          const motivo = !relojDeOtro
+            ? motivoNoFichable(of)
+            : quien === null
+              ? "Entregada y esperando a que alguien la revise. Tu planteo ya está hecho"
+              : `El reloj de la revisión es de ${quien}: tu planteo ya está entregado`;
+          const rotulo = !relojDeOtro
+            ? "⏱ No fichable"
+            : quien === null
+              ? "⏱ Esperando revisor"
+              // `en_revision` es que ya la cogió; `por_revisar`, que la tiene
+              // pendiente. No es lo mismo y el rótulo lo dice.
+              : of.estado === "en_revision"
+                ? `⏱ La revisa ${quien}`
+                : `⏱ Pendiente de ${quien}`;
           return (
             <span
               title={motivo ?? undefined}
