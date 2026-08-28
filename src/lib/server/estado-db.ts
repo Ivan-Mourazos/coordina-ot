@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
+import { claveDeCausa } from "../devolucion";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -126,6 +127,26 @@ function abrir(): Database.Database {
       intentos    INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_olanet_pendiente ON olanet_pendiente(enviado_at, id);
+    -- Por qué vuelve una OF al autor. La lista NO está en el código: se crea
+    -- sobre la marcha desde la propia devolución, porque cerrarla de antemano
+    -- exigía adivinar hoy las causas que van a hacer falta.
+    --
+    -- La columna clave es la etiqueta normalizada (ver claveDeCausa) y va con
+    -- índice único: dos personas creando "Error en cotas" y "error en cotas" a la vez
+    -- acaban en la MISMA fila, que es lo que permite contarlas después.
+    --
+    -- No se borran, se RETIRAN: las devoluciones guardan el id, y borrar la
+    -- causa dejaría el histórico apuntando a la nada.
+    CREATE TABLE IF NOT EXISTS causa_devolucion (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      etiqueta   TEXT NOT NULL,
+      clave      TEXT NOT NULL,
+      retirada   INTEGER NOT NULL DEFAULT 0,
+      creada_at  TEXT NOT NULL,
+      creada_por TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_causa_devolucion_clave
+      ON causa_devolucion(clave);
     CREATE TABLE IF NOT EXISTS aviso_visto (
       operario_id TEXT NOT NULL,
       clave       TEXT NOT NULL,
@@ -275,7 +296,29 @@ const MIGRACIONES: ReadonlyArray<{
   // repare solo. Rellena únicamente los huecos, así que en una base sana no
   // cambia nada.
   { version: 2, nombre: "pasado_por", aplicar: pasadoPor },
+  // Las tres de arranque, para que la lista no salga vacía el primer día: con
+  // ninguna delante, quien devuelve no entiende qué se le pide y tira de la
+  // nota libre. Son a propósito GENÉRICAS —"error en medidas" y no "el largo
+  // 2 cm"—: lo específico va en la nota, y las que falten se crean al usarlas.
+  { version: 3, nombre: "causas_devolucion", aplicar: causasDeArranque },
 ];
+
+const CAUSAS_ARRANQUE = ["Error en medidas", "Error en cotas", "Material equivocado"];
+
+/** Siembra las causas de devolución del primer día.
+ *
+ *  `ON CONFLICT DO NOTHING` sobre la clave: si alguien ya creó "Error en
+ *  cotas" a mano antes de que esto corra, se respeta la suya —con su id, al
+ *  que ya pueden apuntar devoluciones— en vez de duplicarla. */
+function causasDeArranque(db: Database.Database): void {
+  const ahora = new Date().toISOString();
+  const ins = db.prepare(
+    `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por)
+     VALUES (?, ?, ?, NULL)
+     ON CONFLICT(clave) DO NOTHING`,
+  );
+  for (const etiqueta of CAUSAS_ARRANQUE) ins.run(etiqueta, claveDeCausa(etiqueta), ahora);
+}
 
 /** Pone al día el esquema. Cada migración va en su transacción y sella su
  *  número; la siguiente arranca solo si la anterior entró. */
@@ -290,6 +333,75 @@ function migrar(db: Database.Database): void {
   }
 }
 
+export interface CausaDevolucion {
+  id: number;
+  etiqueta: string;
+  /** Retirada = ya no se ofrece al devolver, pero sigue existiendo para que
+   *  las devoluciones que la usaron se puedan leer. */
+  retirada: boolean;
+}
+
+/** Las causas de devolución. Con `incluirRetiradas` salen todas, que es lo
+ *  que hace falta para PINTAR una devolución vieja; sin ello, solo las que se
+ *  ofrecen al devolver hoy. */
+export function leerCausasDevolucion(incluirRetiradas = false): CausaDevolucion[] {
+  const filas = abrir()
+    .prepare(
+      `SELECT id, etiqueta, retirada FROM causa_devolucion
+        ${incluirRetiradas ? "" : "WHERE retirada = 0"}
+        ORDER BY etiqueta COLLATE NOCASE`,
+    )
+    .all() as Array<{ id: number; etiqueta: string; retirada: number }>;
+  return filas.map((f) => ({ id: f.id, etiqueta: f.etiqueta, retirada: f.retirada === 1 }));
+}
+
+/** Crea una causa, o devuelve la que ya decía lo mismo.
+ *
+ *  NO falla cuando ya existe, y es a propósito: dos revisores pueden crear
+ *  "Error en cotas" y "error en cotas" con segundos de diferencia, y lo que
+ *  tiene que pasar es que acaben usando la misma —si no, la lista se
+ *  deshilacha y las métricas dejan de contar—. Ninguno de los dos se entera,
+ *  que es lo correcto: los dos querían lo mismo.
+ *
+ *  Si la que existía estaba RETIRADA, vuelve a activarse: alguien la necesita
+ *  otra vez, y crear una gemela dejaría el histórico partido en dos.
+ */
+export function crearCausaDevolucion(
+  etiqueta: string,
+  operarioId: string | null,
+): CausaDevolucion {
+  const db = abrir();
+  const limpia = etiqueta.trim();
+  const clave = claveDeCausa(limpia);
+  return db.transaction(() => {
+    const ya = db
+      .prepare("SELECT id, etiqueta, retirada FROM causa_devolucion WHERE clave = ?")
+      .get(clave) as { id: number; etiqueta: string; retirada: number } | undefined;
+    if (ya) {
+      if (ya.retirada === 1)
+        db.prepare("UPDATE causa_devolucion SET retirada = 0 WHERE id = ?").run(ya.id);
+      return { id: ya.id, etiqueta: ya.etiqueta, retirada: false };
+    }
+    const r = db
+      .prepare(
+        `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(limpia, clave, new Date().toISOString(), operarioId);
+    return { id: Number(r.lastInsertRowid), etiqueta: limpia, retirada: false };
+  })();
+}
+
+/** Retira una causa (o la devuelve al servicio). No se borra nunca: las
+ *  devoluciones guardan su id, y borrarla dejaría el histórico apuntando a la
+ *  nada. */
+export function retirarCausaDevolucion(id: number, retirada: boolean): boolean {
+  return (
+    abrir()
+      .prepare("UPDATE causa_devolucion SET retirada = ? WHERE id = ?")
+      .run(retirada ? 1 : 0, id).changes > 0
+  );
+}
 export function leerOverlay(): Overlay {
   const db = abrir();
   const ofs = new Map<string, CambioOF>();
