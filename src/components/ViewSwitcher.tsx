@@ -5,7 +5,8 @@ export type Vista =
   | "lista"
   | "revision"
   | "visitas"
-  | "historial";
+  | "historial"
+  | "metricas";
 
 // Los `id` NO se tocan: viajan en la URL (`?v=asignar`) y hay enlaces
 // guardados por ahí. Lo que cambia es cómo se llaman las pestañas, que es lo
@@ -19,7 +20,19 @@ const OPCIONES: { id: Vista; label: string }[] = [
   { id: "revision", label: "Revisiones" },
   { id: "visitas", label: "Visitas" },
   { id: "historial", label: "Historial" },
+  // Mirar hacia atrás, no trabajo que tengas delante: por eso va la última y
+  // no dentro de Historial, donde quedaría escondida.
+  { id: "metricas", label: "Métricas" },
 ];
+
+/** Las vistas que existen, en el orden de las pestañas.
+ *
+ *  Se exporta para que la URL (`?v=…`) no tenga que repetir la lista: la
+ *  tenía copiada en Board y añadir una pestaña sin acordarse de la otra
+ *  copia dejaba `?v=metricas` aterrizando en el Panel, reescribiendo la URL
+ *  y sin decir por qué. Una lista, un sitio.
+ */
+export const VISTAS: Vista[] = OPCIONES.map((o) => o.id);
 
 export function ViewSwitcher({
   vista,

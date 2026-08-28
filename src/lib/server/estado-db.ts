@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
+import type { MovimientoRegistrado } from "../metricas";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -333,6 +334,47 @@ function migrar(db: Database.Database): void {
   }
 }
 
+/** Los movimientos que cuentan para las métricas de rechazo, del registro.
+ *
+ *  Del REGISTRO y no del estado de las OF: `observacion` guarda solo la
+ *  última devolución de cada una, así que una OF que vuelve tres veces
+ *  contaría una — y en cuanto se aprueba deja de parecer devuelta. Ver la
+ *  cabecera de lib/metricas.ts.
+ *
+ *  Se filtra por motivo EN SQL y se desdobla el JSON con `json_each`: el
+ *  registro lo guarda todo (asignaciones, traspasos, fichajes) y traérselo
+ *  entero a memoria para tirar el 90 % sería trabajo por gusto.
+ *
+ *  `desde`/`hasta` son ISO y opcionales. `hasta` se compara con `<` sobre el
+ *  día siguiente en quien llama: aquí llega ya listo.
+ */
+export function leerMovimientosMetricas(
+  desde?: string,
+  hasta?: string,
+): MovimientoRegistrado[] {
+  const filtros = ["l.motivo IN ('devolver','empezar_revision')"];
+  const args: string[] = [];
+  if (desde) {
+    filtros.push("l.ts >= ?");
+    args.push(desde);
+  }
+  if (hasta) {
+    filtros.push("l.ts < ?");
+    args.push(hasta);
+  }
+  const filas = abrir()
+    .prepare(
+      `SELECT l.ts AS at,
+              l.motivo AS motivo,
+              json_extract(c.value, '$.ofId') AS ofId,
+              json_extract(c.value, '$.observacion') AS observacion
+         FROM acciones_log l, json_each(l.detalle, '$.cambiosOF') c
+        WHERE ${filtros.join(" AND ")}
+        ORDER BY l.ts`,
+    )
+    .all(...args) as MovimientoRegistrado[];
+  return filas;
+}
 export interface CausaDevolucion {
   id: number;
   etiqueta: string;

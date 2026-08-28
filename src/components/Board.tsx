@@ -6,7 +6,7 @@ import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
-import { ViewSwitcher, type Vista } from "./ViewSwitcher";
+import { ViewSwitcher, VISTAS, type Vista } from "./ViewSwitcher";
 import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
 import { FaseFlyout } from "./FaseFlyout";
@@ -17,6 +17,7 @@ import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
 import { HistorialView } from "./HistorialView";
+import { MetricasView } from "./MetricasView";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
@@ -78,11 +79,9 @@ export interface LiveInfo {
   of: OF;
 }
 
-const VISTAS: Vista[] = ["asignar", "lista", "revision", "visitas", "historial"];
-
 /** Vista que pide la URL, si pide alguna.
  *
- *  Acepta las CINCO, no solo las que llevan barra de filtros: Historial y
+ *  Acepta TODAS, no solo las que llevan barra de filtros: Historial y
  *  Visitas tienen sus propios filtros pero siguen siendo sitios a los que se
  *  pasa un enlace, y limitarlo a las filtrables hacía que `?v=historial`
  *  aterrizara en Asignar y encima reescribiera la URL. */
@@ -1856,6 +1855,12 @@ export function Board({
         )}
 
         {/* ── VISTA HISTORIAL ── */}
+        {vista === "metricas" && (
+          <div className="p-5">
+            <MetricasView />
+          </div>
+        )}
+
         {vista === "historial" && (
           <div className="p-5">
             <HistorialView
