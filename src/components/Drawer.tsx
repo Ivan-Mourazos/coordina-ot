@@ -9,6 +9,7 @@ import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { DevolverInline } from "./DevolverInline";
 import { AnularInline } from "./AnularInline";
+import { NotaDevolucion } from "./NotaDevolucion";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
@@ -531,6 +532,7 @@ export function Drawer({
             <div className="mb-2 flex justify-end">
               <DevolverInline
                 label={`Devolver las ${paraDevolver.length}`}
+                miId={miId}
                 onDevolver={(obs) => onAccion(paraDevolver.map((o) => o.id), "devolver", obs)}
               />
             </div>
@@ -876,9 +878,10 @@ function OFRow({
           motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
           en rojo la haría parecer devuelta. */}
       {of.observacion && !anulacion && (
-        <p className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400">
-          ⚠ {of.observacion}
-        </p>
+        <NotaDevolucion
+          observacion={of.observacion}
+          className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400"
+        />
       )}
 
       {/* Quién y cuánto, en un solo bloque: una línea por rol con la persona y
@@ -1153,6 +1156,7 @@ function AccionesOF({
             <DevolverInline
               key={a.id}
               label={a.label}
+              miId={miId}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}
             />
           );

@@ -9,6 +9,7 @@ import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revis
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
+import { NotaDevolucion } from "./NotaDevolucion";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
 
@@ -385,9 +386,10 @@ function ReviewCard({
           ))}
         </ul>
         {estado === "devuelta" && ofs.find((o) => o.observacion) && (
-          <p className="mt-1.5 rounded bg-red-500/10 px-1.5 py-1 text-[10px] text-red-600 dark:text-red-400">
-            ⚠ {ofs.find((o) => o.observacion)?.observacion}
-          </p>
+          <NotaDevolucion
+            observacion={ofs.find((o) => o.observacion)!.observacion!}
+            className="mt-1.5 rounded bg-red-500/10 px-1.5 py-1 text-[10px] text-red-600 dark:text-red-400"
+          />
         )}
       </button>
 
@@ -436,6 +438,7 @@ function ReviewCard({
             {puedo("devolver") && (
               <DevolverInline
                 label={ACCIONES.find((a) => a.id === "devolver")?.label}
+                miId={miId}
                 onDevolver={(obs) => accionTodas("devolver", obs)}
               />
             )}
