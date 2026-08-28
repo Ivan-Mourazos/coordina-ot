@@ -204,12 +204,32 @@ function prepararTraspasado(db: Database.Database): void {
  *     todavía no la ha mirado nadie, que es justo el caso que se arregla.
  *
  *  Sin este relleno, todo lo aprobado hasta hoy pasaría a leerse como
- *  "Aprobada sin revisión", que es la misma mentira del revés. */
+ *  "Aprobada sin revisión", que es la misma mentira del revés.
+ *
+ *  POR QUÉ NO VALE "¿existe la columna?" COMO MARCA DE HECHO, y por qué va
+ *  todo en una transacción: son dos pasos, y el segundo puede fallar. Pasó de
+ *  verdad —el relleno se desplegó una vez con el SQL mal escrito—: el `ALTER`
+ *  entró, el relleno reventó, y a partir de ahí la columna ya estaba, así que
+ *  cada arranque salía por la puerta de atrás y el relleno no volvía a
+ *  intentarse NUNCA. La base quedaba a medias, en silencio y para siempre,
+ *  con todo el histórico leyéndose como "aprobada sin revisión".
+ *
+ *  La marca es `user_version`, que solo se sella cuando el relleno ha
+ *  terminado. Y como va dentro de la transacción, o entran las dos cosas o no
+ *  entra ninguna: una base a medias vuelve a intentarlo sola en el siguiente
+ *  arranque, que es justo lo que arregla las que ya se quedaron así. */
+const VERSION_REVISADA = 1;
+
 function prepararRevisada(db: Database.Database): void {
+  if ((db.pragma("user_version", { simple: true }) as number) >= VERSION_REVISADA) return;
   const columnas = db.prepare("PRAGMA table_info(of_overlay)").all() as Array<{ name: string }>;
-  if (columnas.some((c) => c.name === "revisada")) return;
-  db.exec("ALTER TABLE of_overlay ADD COLUMN revisada INTEGER NOT NULL DEFAULT 0");
-  db.exec(`
+  const faltaColumna = !columnas.some((c) => c.name === "revisada");
+
+  db.transaction(() => {
+    // La columna puede estar ya de un intento que se quedó a medias.
+    if (faltaColumna)
+      db.exec("ALTER TABLE of_overlay ADD COLUMN revisada INTEGER NOT NULL DEFAULT 0");
+    db.exec(`
     UPDATE of_overlay SET revisada = 1
      WHERE of_id IN (
        SELECT json_extract(c.value, '$.ofId')
@@ -221,6 +241,9 @@ function prepararRevisada(db: Database.Database): void {
        AND revisor_id IS NOT NULL
        AND estado IN ('en_revision', 'devuelta', 'aprobada');
   `);
+    // Lo último: hasta aquí no hay nada que dar por hecho.
+    db.pragma(`user_version = ${VERSION_REVISADA}`);
+  })();
 }
 
 export function leerOverlay(): Overlay {
