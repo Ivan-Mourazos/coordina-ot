@@ -1004,14 +1004,35 @@ function AccionesOF({
         </Btn>
       ) : (
         of.estado !== "aprobada" &&
-        of.estado !== "anulada" && (
-          <span
-            title={motivoNoFichable(of) ?? undefined}
-            className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
-          >
-            ⏱ No fichable
-          </span>
-        )
+        of.estado !== "anulada" &&
+        (() => {
+          // Dos situaciones distintas que se pintaban con el mismo rótulo: la OF
+          // que NO se puede fichar (detenida, o RPS no admite imputar) y la que sí
+          // se puede, pero cuyo reloj es de otro —la revisión de un compañero—.
+          // La segunda salía como "No fichable", que es falso, y encima con el
+          // globo vacío, porque `motivoNoFichable` devuelve null en ese caso.
+          const revisionAjena = esFichable(of) && !relojEsMio;
+          const quien = of.revisorId
+            ? operarios.find((o) => o.id === of.revisorId)?.nombre
+            : undefined;
+          const motivo = revisionAjena
+            ? `El reloj de la revisión es de ${quien ?? "quien la revisa"}: tu planteo ya está entregado`
+            : motivoNoFichable(of);
+          const rotulo = revisionAjena
+            ? `⏱ La revisa ${quien ?? "otra persona"}`
+            : "⏱ No fichable";
+          return (
+            <span
+              title={motivo ?? undefined}
+              // El motivo también por `aria-label`: el `title` no lo anuncia un
+              // lector de pantalla, y aquí es la única explicación que hay.
+              aria-label={motivo ? `${rotulo}. ${motivo}` : undefined}
+              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
+            >
+              {rotulo}
+            </span>
+          );
+        })()
       )}
       {sueltas.map((a) => {
         if (a.conNota)

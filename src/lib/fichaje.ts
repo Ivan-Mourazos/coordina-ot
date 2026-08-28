@@ -256,9 +256,12 @@ export function rolFichajeDe(of: OF): Rol {
   return of.estado === "por_revisar" || of.estado === "en_revision" ? "revisar" : "plantear";
 }
 
-/** ¿Se puede fichar en esta OF? Excluye detenidas, anuladas, aprobadas y las
+/** ¿Se puede fichar en esta OF? Excluye detenidas, anuladas y las
  *  que RPS marca como no imputables (fichable === false): ese tiempo no
- *  subiría a RPS. `fichable` ausente (mock) no restringe. */
+ *  subiría a RPS. `fichable` ausente (mock) no restringe.
+ *
+ *  Las APROBADAS sí se fichan: cerrar el planteo no cierra el trabajo, y hay
+ *  que poder apuntar el rato de un último retoque sin reabrir la OF. */
 export function esFichable(of: OF): boolean {
   return !of.detenida && of.fichable !== false && of.estado !== "anulada";
 }
