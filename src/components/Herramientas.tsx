@@ -2,6 +2,16 @@
 
 import { usePopover } from "@/lib/usePopover";
 import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
+import { ULTIMA } from "@/lib/novedades";
+
+/** "31 de agosto". Sin año: lo que se quiere saber de un vistazo es si es de
+ *  esta semana o de hace meses, y el año solo estorba para eso. */
+function fechaCorta(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "long",
+  });
+}
 
 /** Las otras páginas de Oficina Técnica, en un cajón de la cabecera.
  *
@@ -13,7 +23,7 @@ import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
  *  saber qué viene evita la pregunta de "¿esto existe ya?" y, cuando aparezca,
  *  se reconoce en el sitio donde ya se había visto. El catálogo está en
  *  lib/herramientas.ts. */
-export function Herramientas() {
+export function Herramientas({ onVerNovedades }: { onVerNovedades: () => void }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   const listas = cuantasDisponibles();
 
@@ -110,6 +120,30 @@ export function Herramientas() {
               Todavía no hay ninguna publicada. Irán apareciendo aquí según se vayan
               desplegando.
             </p>
+          )}
+
+          {/* Separado del resto: lo de arriba son OTRAS páginas y esto es de
+              ésta. Va aquí porque el aviso de la campana se apaga en cuanto se
+              lee una vez, y sin una puerta fija no habría forma de volver a
+              mirar qué cambió — que es justo lo que se quiere poder hacer al
+              volver de unos días fuera. */}
+          {ULTIMA && (
+            <div className="mt-2 border-t border-border pt-2">
+              <button
+                onClick={() => {
+                  onVerNovedades();
+                  setOpen(false);
+                }}
+                className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+              >
+                <span className="block text-xs font-semibold text-text">
+                  Novedades de la web
+                </span>
+                <span className="block text-[11px] leading-snug text-text-muted">
+                  Qué ha cambiado. Última actualización: {fechaCorta(ULTIMA)}
+                </span>
+              </button>
+            </div>
           )}
         </div>
       )}

@@ -1615,7 +1615,7 @@ export function Board({
             onAbrirHistorial={setHistorialAbierto}
           />
           <div className="flex flex-1 basis-0 items-center justify-end gap-2 text-xs">
-            <Herramientas />
+            <Herramientas onVerNovedades={() => setNovedadesAbiertas(true)} />
             <Notificaciones
               items={avisosVisibles}
               onNavigate={irANotificacion}
