@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { AccionDef } from "@/lib/acciones";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -48,7 +48,14 @@ export function ConfirmDialog({
 }: {
   abierto: boolean;
   titulo: string;
-  mensaje: string;
+  /** Texto corrido, o contenido montado por quien abre el cuadro.
+   *
+   *  Casi todos los avisos son una frase y se quedan en `string`. Pero los hay
+   *  que enseñan una LISTA —qué OF se van a fichar— y ahí una cadena con
+   *  saltos de línea sale como un bloque gris parejo: la frase de entrada, los
+   *  códigos y la advertencia del reparto pesan lo mismo y no se distingue
+   *  dónde empieza cada cosa. Esos montan su propio contenido. */
+  mensaje: ReactNode;
   tono?: "primaria" | "peligro" | "neutra";
   onConfirmar: () => void;
   onCancelar: () => void;
@@ -116,14 +123,20 @@ export function ConfirmDialog({
         <h3 id={idTitulo} className="shrink-0 text-sm font-bold text-text">
           {titulo}
         </h3>
-        {/* `whitespace-pre-line`: hay mensajes que enumeran (qué OF se van a
-            fichar), y una lista en un solo párrafo corrido no se lee. */}
-        <p
+        {/* El texto corriente sigue yendo en un `<p>` con `whitespace-pre-line`,
+            que es lo que necesitan las frases de una o dos líneas. Lo que llega
+            montado se pinta tal cual: pintarlo dentro del `<p>` metería bloques
+            dentro de un párrafo, que además es HTML inválido. */}
+        <div
           id={idMensaje}
-          className="scroll-thin mt-1.5 flex-1 overflow-y-auto whitespace-pre-line text-sm text-text-muted"
+          className="scroll-thin mt-1.5 flex-1 overflow-y-auto text-sm text-text-muted"
         >
-          {mensaje}
-        </p>
+          {typeof mensaje === "string" ? (
+            <p className="whitespace-pre-line">{mensaje}</p>
+          ) : (
+            mensaje
+          )}
+        </div>
         <div className="mt-4 flex shrink-0 justify-end gap-2">
           <button
             onClick={onCancelar}

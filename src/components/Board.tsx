@@ -1233,8 +1233,12 @@ export function Board({
      *  suma lo que corría). */
     ofIds: string[];
     rol: Rol;
-    /** El conjunto que quedará corriendo, agrupado por pedido, para enseñarlo. */
-    porPedido: { pedido: string; ofs: string[] }[];
+    /** El conjunto que quedará corriendo, agrupado por pedido, para enseñarlo.
+     *
+     *  En piezas y no en una cadena ya pegada: el cuadro las pinta con pesos
+     *  distintos —el código de pedido en mono, el cliente al lado en normal—, y
+     *  con `"AAA · BBB"` hecho de antemano no hay forma de separarlos. */
+    porPedido: { codigo: string; cliente: string; ofs: { codigo: string; descripcion: string }[] }[];
     total: number;
     /** Cuántas de esas ya estaban corriendo antes de pulsar. */
     yaCorrian: number;
@@ -1353,8 +1357,11 @@ export function Board({
         const ids = new Set(total);
         const porPedido = pedidos
           .map((p) => ({
-            pedido: `${p.codigo} · ${p.cliente}`,
-            ofs: p.ofs.filter((of) => ids.has(of.id)).map((of) => `${of.codigo} · ${of.descripcion}`),
+            codigo: p.codigo,
+            cliente: p.cliente,
+            ofs: p.ofs
+              .filter((of) => ids.has(of.id))
+              .map((of) => ({ codigo: of.codigo, descripcion: of.descripcion })),
           }))
           .filter((g) => g.ofs.length > 0);
         setFichajeVariasPendiente({
@@ -1989,14 +1996,56 @@ export function Board({
             : `Fichar ${fichajeVariasPendiente?.total ?? 0} OF a la vez`
         }
         mensaje={
-          ((fichajeVariasPendiente?.yaCorrian ?? 0) > 0
-            ? `Ya tienes ${fichajeVariasPendiente?.yaCorrian} OF corriendo. Al añadir estas, el reloj queda repartido entre todas:\n\n`
-            : `Se va a poner el reloj en marcha en:\n\n`) +
-          (fichajeVariasPendiente?.porPedido ?? [])
-            .map((g) => `${g.pedido}\n${g.ofs.map((c) => `   · ${c}`).join("\n")}`)
-            .join("\n\n") +
-          `\n\nEl tiempo se reparte a partes iguales entre las ${fichajeVariasPendiente?.total} — cada una cuenta ` +
-          `1/${fichajeVariasPendiente?.total} de lo que marque el reloj. Si solo quieres fichar una, abre el pedido y ficha esa OF.`
+          // Tres cosas distintas, y antes iban en una sola cadena con saltos de
+          // línea: la frase de entrada, la lista y la advertencia del reparto
+          // salían del mismo gris y del mismo tamaño, con los códigos de OF
+          // sangrados a base de espacios. Se leía como un bloque, que es justo
+          // lo que no puede pasar en el cuadro que dice QUÉ vas a fichar.
+          //
+          // Ahora cada una hace su trabajo: la entrada es una frase, la lista
+          // es una lista —el pedido en mono, como en todas partes— y el reparto
+          // va detrás de una raya, más pequeño. Lo ÚNICO en negrita es la
+          // fracción: es el dato que sorprende, y el que hace volver atrás a
+          // quien creía estar fichando una sola OF.
+          <>
+            <p>
+              {(fichajeVariasPendiente?.yaCorrian ?? 0) > 0
+                ? `Ya tienes ${fichajeVariasPendiente?.yaCorrian} OF corriendo. Al añadir estas, el reloj queda repartido entre todas:`
+                : "Se va a poner el reloj en marcha en:"}
+            </p>
+            <ul className="mt-2 flex flex-col gap-2.5">
+              {(fichajeVariasPendiente?.porPedido ?? []).map((g) => (
+                <li key={g.codigo}>
+                  <p className="flex items-baseline gap-1.5">
+                    {/* Mono solo el código, que es lo que se busca con el ojo.
+                        El nombre del cliente en mono se leía como si fuera otro
+                        código más. */}
+                    <span className="font-mono text-xs font-semibold text-text">{g.codigo}</span>
+                    <span className="truncate text-[11px]">{g.cliente}</span>
+                  </p>
+                  {/* Sangrada y sin viñeta: la sangría ya dice que cuelgan del
+                      pedido, y el punto sobraba —el código y su descripción ya
+                      van separados por uno—. */}
+                  <ul className="mt-1 flex flex-col gap-0.5 pl-3">
+                    {g.ofs.map((of) => (
+                      <li key={of.codigo} className="flex items-baseline gap-1.5 text-xs">
+                        <span className="font-mono text-text-muted">{of.codigo}</span>
+                        <span className="truncate">{of.descripcion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 border-t border-border pt-2 text-[11px]">
+              El tiempo se reparte a partes iguales: cada OF cuenta{" "}
+              <strong className="font-semibold text-text">
+                1/{fichajeVariasPendiente?.total}
+              </strong>{" "}
+              de lo que marque el reloj. Si solo quieres fichar una, abre el pedido y ficha esa
+              OF.
+            </p>
+          </>
         }
         onConfirmar={() => {
           const pendiente = fichajeVariasPendiente;
