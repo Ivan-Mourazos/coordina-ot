@@ -138,3 +138,17 @@ test("arrancar dos veces deja un solo temporizador", () => {
   expect(() => worker.arrancarVigilanciaDePartes()).not.toThrow();
   worker.pararVigilanciaDePartes();
 });
+
+test("un pedido sin parte cuenta como mirado y no atasca la cola", async () => {
+  // Trabajo interno (sin parte que escanear) y un pedido cuyo parte todavía no
+  // está: ninguno de los dos deja mtime, pero los dos se han mirado.
+  scanDb.registrarPedidos(["OF 0231158", "AR.26.09999"]);
+  ponerParte("AR.26.00001", T1);
+  scanDb.registrarPedidos(["AR.26.00001"]);
+
+  await worker.revisarUnaTanda(2);
+
+  // Si los dos primeros se quedaran sin marcar, volverían a encabezar la cola
+  // cada minuto y al tercero no le llegaría el turno nunca.
+  expect(scanDb.pedidosParaRevisar(1)).toEqual(["AR.26.00001"]);
+});

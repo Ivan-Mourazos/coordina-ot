@@ -74,10 +74,19 @@ export async function revisarUnaTanda(porTanda = POR_TANDA): Promise<number> {
   for (const pedido of pedidos) {
     const mtime = await mtimeDelParte(pedido);
     // `anotarMtime` devuelve true SOLO cuando estrena aviso, así que la nota
-    // se escribe una vez por re-escaneo y no en cada vuelta. Y solo puede
-    // estrenarlo con un mtime de verdad (con null no toca la referencia), pero
-    // eso el tipo no lo sabe: se comprueba en vez de afirmarlo con un "!".
-    if (mtime === null || !anotarMtime(pedido, mtime)) continue;
+    // se escribe una vez por re-escaneo y no en cada vuelta.
+    //
+    // SIEMPRE se llama, también con `mtime` null: con null no toca la
+    // referencia, pero sí deja apuntado que el pedido se ha mirado, y ese
+    // apunte es lo único que mueve la cola. Cortocircuitar aquí el null
+    // —como se hacía— dejaba a los pedidos sin parte (el trabajo interno,
+    // los partes todavía sin escanear) con `revisado_at` nulo para siempre;
+    // como la cola los pone primero, con POR_TANDA de ellos la tanda era
+    // siempre la misma y la vigilancia se paraba entera sin decir nada.
+    // El orden importa: `anotarMtime` va delante para que el apunte se haga
+    // siempre. Lo de `mtime === null` es solo estrechar el tipo para la nota de
+    // abajo —con null nunca devuelve true—, no una segunda regla.
+    if (!anotarMtime(pedido, mtime) || mtime === null) continue;
     nuevos++;
     // La nota es el registro permanente que se pidió: se queda para siempre en
     // el hilo, también cuando el pedido pase al Historial. La firma
