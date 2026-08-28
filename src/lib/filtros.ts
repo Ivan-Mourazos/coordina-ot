@@ -301,6 +301,17 @@ const CLAVES: Array<[keyof Filtros, string]> = [
   ["orden", "ord"],
 ];
 
+/** Los nombres de parámetro que gestionan los filtros, para que quien escriba
+ *  la URL sepa cuáles son suyos y cuáles no. Sin esta lista había que
+ *  reconstruir la barra de direcciones desde cero, y eso se llevaba por delante
+ *  lo que hubiera puesto otra vista (el apartado de Métricas, por ejemplo). */
+export const CLAVES_URL_FILTROS: readonly string[] = [
+  ...CLAVES.map(([, corta]) => corta),
+  "atr",
+  "mat",
+  "desc",
+];
+
 export function filtrosAParams(f: Filtros): URLSearchParams {
   const sp = new URLSearchParams();
   const neutro: Record<string, unknown> = { ...FILTROS_INICIALES };

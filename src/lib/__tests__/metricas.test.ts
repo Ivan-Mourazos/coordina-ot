@@ -109,3 +109,85 @@ describe("la proporción", () => {
     expect(proporcionDevueltas({ revisiones: 0, devoluciones: 0 })).toBeNull();
   });
 });
+
+describe("por qué se anulan", () => {
+  it("cuenta las causas de anulación, que llevan guardadas desde agosto", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "anular", "of1", "taller"),
+      mov("2026-08-04T10:00:00.000Z", "anular", "of2", "taller"),
+      mov("2026-08-05T10:00:00.000Z", "anular", "of3", "otro: se cayó todo"),
+    ]);
+    expect(m.anulaciones).toBe(3);
+    expect(m.porCausaAnulacion).toEqual([
+      { causa: "taller", n: 2 },
+      { causa: "otro", n: 1 },
+    ]);
+  });
+
+  it("las anuladas antes de que se pidiera causa van aparte, no se pierden", () => {
+    const m = calcularMetricas([mov("2026-07-01T10:00:00.000Z", "anular", "of1", null)]);
+    expect(m.porCausaAnulacion).toEqual([{ causa: null, n: 1 }]);
+  });
+});
+
+describe("dónde se para el trabajo", () => {
+  it("mide la espera en la cola, el repaso y la corrección", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"), // 120m de espera
+      mov("2026-08-03T10:30:00.000Z", "devolver", "of1", "[1] x"), // 30m de repaso
+      mov("2026-08-03T12:30:00.000Z", "aprobar_corregida", "of1"), // 120m de corrección
+    ]);
+    expect(m.tiempos.esperaCola).toEqual({ n: 1, medianaMin: 120 });
+    expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30 });
+    expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 120 });
+  });
+
+  it("una OF que da dos vueltas mide dos veces", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T09:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T09:10:00.000Z", "devolver", "of1", "[1] x"),
+      mov("2026-08-03T10:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T13:00:00.000Z", "empezar_revision", "of1"),
+    ]);
+    // Dos esperas: 60m y 180m. La mediana de dos es su media.
+    expect(m.tiempos.esperaCola).toEqual({ n: 2, medianaMin: 120 });
+  });
+
+  it("lo que sigue esperando NO cuenta", () => {
+    // Contarlo como si hubiera acabado ahora haría que los números bajaran
+    // solos según pasa el tiempo, que es justo al revés de la verdad.
+    const m = calcularMetricas([mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1")]);
+    expect(m.tiempos.esperaCola).toEqual({ n: 0, medianaMin: null });
+  });
+
+  it("recuperar una OF de la cola cancela su espera", () => {
+    // Salió de la cola sin que nadie la mirara: no hay espera de revisión que
+    // medir, y contarla inflaría el número con tiempo que no esperó a nadie.
+    const m = calcularMetricas([
+      mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T09:00:00.000Z", "recuperar_planteo", "of1"),
+      mov("2026-08-04T09:00:00.000Z", "empezar_revision", "of1"),
+    ]);
+    expect(m.tiempos.esperaCola.n).toBe(0);
+  });
+
+  it("la mediana aguanta un caso raro sin desviarse", () => {
+    // Una OF que se quedó un mes en la cola por unas vacaciones desplaza la
+    // MEDIA y hace pensar que todo va lento. La mediana dice cómo es lo normal.
+    const dia = (d: number, h: number) =>
+      `2026-08-${String(d).padStart(2, "0")}T${String(h).padStart(2, "0")}:00:00.000Z`;
+    const movs = [];
+    for (let i = 1; i <= 5; i++) {
+      movs.push(mov(dia(i, 8), "terminar_planteo", `of${i}`));
+      movs.push(mov(dia(i, 9), "empezar_revision", `of${i}`)); // 60m cada una
+    }
+    movs.push(mov(dia(1, 8), "terminar_planteo", "of-raro"));
+    movs.push(mov(dia(28, 8), "empezar_revision", "of-raro")); // 27 días
+    const m = calcularMetricas(movs);
+    expect(m.tiempos.esperaCola.n).toBe(6);
+    // Con media saldría más de un día; la mediana se queda donde está lo normal.
+    expect(m.tiempos.esperaCola.medianaMin).toBe(60);
+  });
+});

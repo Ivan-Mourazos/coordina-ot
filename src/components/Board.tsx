@@ -63,6 +63,7 @@ import {
   ORDEN_LABEL,
   aplicarFiltros,
   contarCategoriasVisibles,
+  CLAVES_URL_FILTROS,
   filtrosAParams,
   hayFiltrosActivos,
   opcionesDisponibles,
@@ -423,7 +424,13 @@ export function Board({
     // `vista` y no `vistaFiltrable`: en Historial o Visitas hay que escribir su
     // nombre, no el de la vista de la que se toman prestados los filtros.
     const enFiltrable = vista === "asignar" || vista === "lista" || vista === "revision";
-    const sp = enFiltrable ? filtrosAParams(filtros) : new URLSearchParams();
+    // Se parte de lo que YA hay en la barra y se quita solo lo propio, en vez de
+    // construirla desde cero: hay vistas que ponen sus propios parámetros —el
+    // apartado de Métricas, sin ir más lejos— y empezar en blanco se los
+    // llevaba por delante en cuanto este efecto volvía a correr.
+    const sp = new URLSearchParams(window.location.search);
+    for (const k of CLAVES_URL_FILTROS) sp.delete(k);
+    if (enFiltrable) for (const [k, v] of filtrosAParams(filtros)) sp.set(k, v);
     sp.set("v", vista);
     window.history.replaceState(null, "", `${window.location.pathname}?${sp}`);
   }, [filtros, vista]);

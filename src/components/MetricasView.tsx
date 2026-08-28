@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { proporcionDevueltas, type Metricas } from "@/lib/metricas";
+import { proporcionDevueltas, type Metricas, type Tramo } from "@/lib/metricas";
+import { CAUSAS } from "@/lib/anulacion";
+import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 
-// ─── Cuántas OF vuelven, y por qué ───────────────────────────────────────────
-// Tres preguntas y nada más, que son las que se pidieron. El orden es el de
-// quien mira: primero cuánto pasa, después por qué, y al final si va a mejor.
+// ─── Lo que se puede mirar hacia atrás ───────────────────────────────────────
+// Tres apartados, y UNO A LA VEZ. Apilarlos obligaría a leerlo todo para llegar
+// al que importaba, y son preguntas distintas con decisiones distintas detrás:
+// si sale bien a la primera, dónde se para el trabajo, y qué no hace OT.
+//
+// Píldoras y no una segunda fila de pestañas: dos barras de navegación apiladas
+// pesan mucho y se confunde cuál manda. El apartado va en la URL para poder
+// pasar un enlace directo al que interesa.
+//
+// El filtro de fechas queda FUERA de las píldoras y vale para los tres:
+// repetirlo dentro de cada uno haría pensar que es distinto en cada sitio.
+//
+// Dentro de cada apartado, el orden es el de quien mira: primero cuánto pasa,
+// después por qué, y al final si va a mejor.
 //
 // La primera NO es un gráfico. Lo que se quiere saber es "1 de cada 5", y eso
 // una barra no lo dice mejor que el número escrito.
@@ -23,7 +36,27 @@ interface Respuesta {
 /** Un día en formato de `input[type=date]`. */
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+const APARTADOS = [
+  { id: "devoluciones", label: "Devoluciones" },
+  { id: "tiempos", label: "Tiempos" },
+  { id: "anuladas", label: "Anuladas" },
+] as const;
+type Apartado = (typeof APARTADOS)[number]["id"];
+
+/** Qué contesta cada apartado, en una frase. Va debajo del título y cambia con
+ *  él: son preguntas distintas y conviene decir cuál se está mirando. */
+const DE_QUE_VA: Record<Apartado, string> = {
+  devoluciones: "Cuántas OF vuelven al autor tras la revisión, y por qué.",
+  tiempos: "Dónde se para el trabajo entre que se plantea y se aprueba.",
+  anuladas: "Qué trabajo no hace Oficina Técnica, y por qué.",
+};
+
 export function MetricasView() {
+  const [apartado, setApartado] = useState<Apartado>(() => {
+    if (typeof window === "undefined") return "devoluciones";
+    const m = new URLSearchParams(window.location.search).get("m");
+    return APARTADOS.some((a) => a.id === m) ? (m as Apartado) : "devoluciones";
+  });
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [datos, setDatos] = useState<Respuesta | null>(null);
@@ -51,6 +84,16 @@ export function MetricasView() {
     };
   }, [desde, hasta]);
 
+  // El apartado, en la URL. `replaceState` y no un push: moverse entre los
+  // tres no es navegar, y llenar el historial obligaría a pulsar Atrás cuatro
+  // veces para salir de Métricas.
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    if (apartado === "devoluciones") u.searchParams.delete("m");
+    else u.searchParams.set("m", apartado);
+    window.history.replaceState(null, "", u);
+  }, [apartado]);
+
   const m = datos?.metricas;
   const prop = m ? proporcionDevueltas(m) : null;
   const rotulo = (id: number | null) =>
@@ -62,10 +105,12 @@ export function MetricasView() {
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h2 className="text-sm font-bold text-text">Devoluciones</h2>
-          <p className="text-[11px] text-text-muted">
-            Cuántas OF vuelven al autor tras la revisión, y por qué.
-          </p>
+          {/* La cabecera sigue al apartado elegido: dejarla fija en
+              "Devoluciones" hacía que dijera una cosa y se enseñara otra. */}
+          <h2 className="text-sm font-bold text-text">
+            {APARTADOS.find((a) => a.id === apartado)?.label}
+          </h2>
+          <p className="text-[11px] text-text-muted">{DE_QUE_VA[apartado]}</p>
         </div>
         {/* Los filtros en una fila sobre los datos, no repartidos entre ellos. */}
         <div className="ml-auto flex items-end gap-1.5 text-xs text-text-muted">
@@ -104,6 +149,23 @@ export function MetricasView() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-1.5">
+        {APARTADOS.map((a) => (
+          <button
+            key={a.id}
+            onClick={() => setApartado(a.id)}
+            aria-pressed={apartado === a.id}
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ${
+              apartado === a.id
+                ? "bg-brand-500 text-white ring-transparent"
+                : "text-text-muted ring-border hover:text-text"
+            }`}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">
           No se pudieron cargar las métricas. Vuelve a intentarlo.
@@ -114,7 +176,7 @@ export function MetricasView() {
         <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">Contando…</p>
       )}
 
-      {m && (
+      {m && apartado === "devoluciones" && (
         <>
           {/* ── Cuánto pasa ── */}
           <section className="glass-panel rounded-xl p-4">
@@ -195,6 +257,80 @@ export function MetricasView() {
             </section>
           )}
         </>
+      )}
+
+      {/* ── Dónde se para el trabajo ── */}
+      {m && apartado === "tiempos" && (
+        <section className="glass-panel rounded-xl p-4">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">
+            Cuánto tarda cada paso
+          </h3>
+          <p className="mt-0.5 text-[11px] text-text-muted">
+            El tiempo típico, no el medio: una OF que se quedó parada por unas
+            vacaciones desviaría la media y haría pensar que todo va lento.
+          </p>
+          <ul className="mt-3 flex flex-col gap-3">
+            <FilaTramo
+              rotulo="Esperando a que la revisen"
+              explica="Desde que se manda a revisar hasta que alguien la coge"
+              tramo={m.tiempos.esperaCola}
+            />
+            <FilaTramo
+              rotulo="Revisándola"
+              explica="Desde que se empieza el repaso hasta que se aprueba o se devuelve"
+              tramo={m.tiempos.repaso}
+            />
+            <FilaTramo
+              rotulo="Corrigiéndola"
+              explica="Desde que vuelve al autor hasta que la da por corregida"
+              tramo={m.tiempos.correccion}
+            />
+          </ul>
+          <p className="mt-3 border-t border-border pt-2 text-[11px] text-text-muted">
+            Lo que todavía está esperando no cuenta: no se sabe cuánto va a tardar, y
+            darlo por acabado ahora haría que los números bajaran solos.
+          </p>
+        </section>
+      )}
+
+      {/* ── Qué no hace OT ── */}
+      {m && apartado === "anuladas" && (
+        <section className="glass-panel rounded-xl p-4">
+          {m.anulaciones === 0 ? (
+            <p className="text-xs text-text-muted">
+              No se ha anulado ninguna OF en este periodo.
+            </p>
+          ) : (
+            <>
+              <p className="text-3xl font-bold text-text">
+                {m.anulaciones}
+                <span className="ml-2 text-xs font-medium text-text-muted">
+                  {m.anulaciones === 1 ? "OF anulada" : "OF anuladas"}
+                </span>
+              </p>
+              <h3 className="mt-4 text-xs font-bold uppercase tracking-wide text-text-muted">
+                Por qué
+              </h3>
+              <ul className="mt-2 flex flex-col gap-2">
+                {m.porCausaAnulacion.map((c) => (
+                  <BarraCausa
+                    key={c.causa ?? "sin"}
+                    etiqueta={rotuloAnulacion(c.causa)}
+                    n={c.n}
+                    max={m.porCausaAnulacion[0].n}
+                    total={m.anulaciones}
+                    apagada={c.causa === null}
+                  />
+                ))}
+              </ul>
+              {m.porCausaAnulacion.some((c) => c.causa === null) && (
+                <p className="mt-2.5 border-t border-border pt-2 text-[11px] text-text-muted">
+                  Las anuladas sin causa son de antes de que anular la pidiera.
+                </p>
+              )}
+            </>
+          )}
+        </section>
       )}
     </div>
   );
@@ -277,4 +413,43 @@ function BarraMes({
       </div>
     </li>
   );
+}
+
+
+/** Un tramo del ciclo: cuánto tarda y sobre cuántos casos se ha medido.
+ *
+ *  El número de casos va al lado y no escondido: con tres medidas, «2 horas»
+ *  no es un dato, es una anécdota, y quien lo lea tiene que poder saberlo. */
+function FilaTramo({
+  rotulo,
+  explica,
+  tramo,
+}: {
+  rotulo: string;
+  explica: string;
+  tramo: Tramo;
+}) {
+  return (
+    <li>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-semibold text-text">{rotulo}</span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-text">
+          {tramo.medianaMin === null ? "—" : fmtMin(tramo.medianaMin)}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-2 text-[11px] text-text-muted">
+        <span>{explica}</span>
+        <span className="shrink-0 tabular-nums">
+          {tramo.n === 0 ? "sin datos todavía" : `${tramo.n} ${tramo.n === 1 ? "vez" : "veces"}`}
+        </span>
+      </div>
+    </li>
+  );
+}
+
+/** Cómo se llama una causa de anulación. Las de antes de que se pidiera van
+ *  con su propio rótulo en vez de en blanco: son un dato, no un hueco. */
+function rotuloAnulacion(id: string | null): string {
+  if (id === null) return "Sin causa apuntada";
+  return CAUSAS.find((c) => c.id === id)?.label ?? id;
 }

@@ -363,7 +363,12 @@ export function leerMovimientosMetricas(
   desde?: string,
   hasta?: string,
 ): MovimientoRegistrado[] {
-  const filtros = ["l.motivo IN ('devolver','empezar_revision')"];
+  // Los movimientos del ciclo que se miden. `recuperar_planteo` entra aunque no
+  // se cuente: cancela la espera en la cola, y sin él una OF recuperada seguiria
+  // sumando espera hasta que alguien la mirase meses despues.
+  const filtros = [
+    "l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','recuperar_planteo')",
+  ];
   const args: string[] = [];
   if (desde) {
     filtros.push("l.ts >= ?");
