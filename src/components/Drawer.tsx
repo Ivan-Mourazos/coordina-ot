@@ -265,6 +265,9 @@ export function Drawer({
   const paraAprobar = ofsDeOT.filter((o) =>
     accionesDisponibles(o, miId).some((a) => a.id === "aprobar"),
   );
+  const paraDevolver = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "devolver"),
+  );
   // Aprobar de golpe pide confirmación, como la de una sola: es el final del
   // camino y multiplicado por ocho, más.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
@@ -514,6 +517,24 @@ export function Drawer({
               )}
             </span>
           </div>
+
+          {/* Devolver el parte entero, con UNA nota para todas. Va en su propia
+              fila y no arriba con los demás porque al abrirse despliega el
+              campo del motivo a lo ancho, y en la fila de botones no cabe.
+              Mismo criterio que el selector de revisor de aquí debajo.
+
+              UNA nota para las N, como ya hace la vista de Revisión: lo que se
+              escribe es por qué vuelve el PARTE, y repetir el mismo texto ocho
+              veces no dice nada más. La que necesite un motivo propio se
+              devuelve desde su fila, que sigue teniendo el suyo. */}
+          {paraDevolver.length > 1 && (
+            <div className="mb-2 flex justify-end">
+              <DevolverInline
+                label={`Devolver las ${paraDevolver.length}`}
+                onDevolver={(obs) => onAccion(paraDevolver.map((o) => o.id), "devolver", obs)}
+              />
+            </div>
+          )}
 
           {/* El revisor se elige UNA vez y vale para todas. Va debajo del
               rótulo y a lo ancho: metido en la misma fila que los botones se
