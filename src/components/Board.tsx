@@ -684,6 +684,24 @@ export function Board({
   // localStorage, y leerlo antes de tiempo daría siempre "no visto".
   const [vistoNovedades, setVistoNovedades] = useState<string | null | undefined>(undefined);
   const [novedadesAbiertas, setNovedadesAbiertas] = useState(false);
+  // Cuándo salió cada entrada del log. Lo sella el servidor la primera vez que
+  // arranca con ella dentro, así que no cambia mientras la pestaña esté
+  // abierta: se pide una vez y no se vuelve a mirar.
+  //
+  // Si falla, el log se pinta sin fechas. Lo que importa es qué cambió.
+  const [fechasNovedades, setFechasNovedades] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/novedades", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { fechas?: Record<string, string> } | null) => {
+        if (vivo && d?.fechas) setFechasNovedades(d.fechas);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
   if (vistoNovedades === undefined && typeof window !== "undefined") {
     setVistoNovedades(leerVistoNovedades());
   }
@@ -1615,7 +1633,10 @@ export function Board({
             onAbrirHistorial={setHistorialAbierto}
           />
           <div className="flex flex-1 basis-0 items-center justify-end gap-2 text-xs">
-            <Herramientas onVerNovedades={() => setNovedadesAbiertas(true)} />
+            <Herramientas
+              fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
+              onVerNovedades={() => setNovedadesAbiertas(true)}
+            />
             <Notificaciones
               items={avisosVisibles}
               onNavigate={irANotificacion}
@@ -1906,6 +1927,7 @@ export function Board({
         {/* ── VISTA HISTORIAL ── */}
         {novedadesAbiertas && (
           <PanelNovedades
+            fechas={fechasNovedades}
             onCerrar={() => {
               setNovedadesAbiertas(false);
               // Se dan por vistas al CERRAR, no al abrir: si se marca al abrir

@@ -148,6 +148,17 @@ function abrir(): Database.Database {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS ux_causa_devolucion_clave
       ON causa_devolucion(clave);
+    -- Cuándo salió cada entrada del log de novedades.
+    --
+    -- No va escrita en el código porque al escribir las novedades no se sabe
+    -- qué día van a salir, y ponerla a mano significa acordarse de corregirla
+    -- antes de desplegar. Se sella la PRIMERA vez que el servidor arranca con
+    -- esa entrada dentro, y a partir de ahí no se mueve: reconstruir o
+    -- reiniciar no puede cambiar la fecha de algo que ya salió.
+    CREATE TABLE IF NOT EXISTS novedad_publicada (
+      novedad_id   TEXT PRIMARY KEY,
+      publicada_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS aviso_visto (
       operario_id TEXT NOT NULL,
       clave       TEXT NOT NULL,
@@ -375,6 +386,39 @@ export function leerMovimientosMetricas(
     .all(...args) as MovimientoRegistrado[];
   return filas;
 }
+/** La fecha de salida de cada entrada del log, sellando las que no la tengan.
+ *
+ *  Se llama al servirlas, no al arrancar: da igual el momento exacto —lo que
+ *  importa es que sea la primera vez— y así no hay que acordarse de encadenar
+ *  otra cosa al arranque.
+ *
+ *  `INSERT OR IGNORE`: si ya está, no se toca. Es lo que hace que la fecha no
+ *  se mueva nunca, ni al reconstruir ni al reiniciar.
+ *
+ *  Ojo con una rareza esperada: cada base sella la suya, así que en desarrollo
+ *  se ven fechas distintas a las del servidor. Es correcto —cada instalación
+ *  estrenó la versión cuando la estrenó— y no afecta a nadie: el log que lee el
+ *  equipo es el del servidor. */
+export function fechasDeNovedades(ids: readonly string[]): Record<string, string> {
+  if (ids.length === 0) return {};
+  const db = abrir();
+  const ahora = new Date().toISOString();
+  const ins = db.prepare(
+    "INSERT OR IGNORE INTO novedad_publicada (novedad_id, publicada_at) VALUES (?, ?)",
+  );
+  db.transaction(() => {
+    for (const id of ids) ins.run(id, ahora);
+  })();
+
+  const filas = db
+    .prepare(
+      `SELECT novedad_id, publicada_at FROM novedad_publicada
+        WHERE novedad_id IN (${ids.map(() => "?").join(",")})`,
+    )
+    .all(...ids) as Array<{ novedad_id: string; publicada_at: string }>;
+  return Object.fromEntries(filas.map((f) => [f.novedad_id, f.publicada_at]));
+}
+
 export interface CausaDevolucion {
   id: number;
   etiqueta: string;

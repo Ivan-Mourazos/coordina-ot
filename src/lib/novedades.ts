@@ -23,15 +23,25 @@ export interface Cambio {
 }
 
 export interface Novedad {
-  /** El día que sale, en ISO. Hace de identificador: no hay dos el mismo día. */
-  fecha: string;
+  /** Fijo y escrito a mano. NO cambia nunca una vez publicado: es lo que
+   *  compara "esto ya lo he leído", y moverlo le volvería a saltar el aviso a
+   *  todo el equipo. */
+  id: string;
   cambios: Cambio[];
 }
 
-/** De la más reciente a la más antigua, que es como se lee. */
+/** De la más reciente a la más antigua, que es como se lee.
+ *
+ *  AQUÍ NO HAY FECHAS. La fecha de una actualización no se sabe al escribirla:
+ *  se sabe cuando sale, y entre lo uno y lo otro pueden pasar días. Ponerla a
+ *  mano significa acordarse de corregirla antes de desplegar, y el día que se
+ *  olvide el log dirá una fecha falsa sin que nada chille.
+ *
+ *  La pone el servidor la primera vez que arranca con esta entrada dentro, y a
+ *  partir de ahí no se mueve (ver `fechasDeNovedades`). */
 export const NOVEDADES: readonly Novedad[] = [
   {
-    fecha: "2026-08-31",
+    id: "2026-08-31",
     cambios: [
       {
         tipo: "nuevo",
@@ -115,24 +125,26 @@ export const NOVEDADES: readonly Novedad[] = [
 ];
 
 /** La última actualización que hay. `null` si no hay ninguna. */
-export const ULTIMA: string | null = NOVEDADES[0]?.fecha ?? null;
+export const ULTIMA: string | null = NOVEDADES[0]?.id ?? null;
 
-/** ¿Hay algo que esta persona no haya visto?
+/** Cuántas actualizaciones se ha perdido esta persona.
  *
- *  `visto` es la fecha de la última que leyó. Sin nada guardado —navegador
- *  nuevo, o alguien que entra por primera vez— NO se avisa: estrenar la web con
- *  un aviso de "novedades" de cosas que nunca ha visto de otra forma es ruido.
- *  Se marca como visto al vuelo y a partir de ahí sí se entera de las próximas. */
-export function hayNuevas(visto: string | null): boolean {
-  if (ULTIMA === null || visto === null) return false;
-  return ULTIMA > visto;
-}
-
-/** Cuántas actualizaciones se ha perdido, para poder decirlo: quien no entra en
- *  dos semanas tiene que ver que hay varias, no solo la última. */
+ *  Por POSICIÓN en la lista, no comparando fechas: las fechas las pone el
+ *  servidor al arrancar y podrían no estar todavía, mientras que el orden de la
+ *  lista es fijo y es el que manda. Quien no entra en dos semanas tiene que ver
+ *  que hay varias, no solo la última.
+ *
+ *  Sin nada guardado —navegador nuevo, o quien entra por primera vez— NO se
+ *  avisa: estrenar la web con un aviso de "novedades" de cosas que nunca ha
+ *  visto de otra forma es ruido. Se da por leído al vuelo y a partir de ahí sí
+ *  se entera de las próximas.
+ *
+ *  Un `visto` que ya no existe en la lista (se borró una entrada) cuenta como
+ *  "no visto nada": es raro, y es mejor enseñar de más que tragarse el aviso. */
 export function cuantasNuevas(visto: string | null): number {
   if (visto === null) return 0;
-  return NOVEDADES.filter((n) => n.fecha > visto).length;
+  const i = NOVEDADES.findIndex((n) => n.id === visto);
+  return i < 0 ? NOVEDADES.length : i;
 }
 
 export const ETIQUETA: Record<TipoCambio, string> = {

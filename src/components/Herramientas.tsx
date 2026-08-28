@@ -7,10 +7,7 @@ import { ULTIMA } from "@/lib/novedades";
 /** "31 de agosto". Sin año: lo que se quiere saber de un vistazo es si es de
  *  esta semana o de hace meses, y el año solo estorba para eso. */
 function fechaCorta(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "long",
-  });
+  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
 }
 
 /** Las otras páginas de Oficina Técnica, en un cajón de la cabecera.
@@ -23,7 +20,14 @@ function fechaCorta(iso: string): string {
  *  saber qué viene evita la pregunta de "¿esto existe ya?" y, cuando aparezca,
  *  se reconoce en el sitio donde ya se había visto. El catálogo está en
  *  lib/herramientas.ts. */
-export function Herramientas({ onVerNovedades }: { onVerNovedades: () => void }) {
+export function Herramientas({
+  fechaUltimaNovedad,
+  onVerNovedades,
+}: {
+  /** Cuándo salió la última, si el servidor ya la ha sellado. */
+  fechaUltimaNovedad?: string;
+  onVerNovedades: () => void;
+}) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   const listas = cuantasDisponibles();
 
@@ -140,7 +144,8 @@ export function Herramientas({ onVerNovedades }: { onVerNovedades: () => void })
                   Novedades de la web
                 </span>
                 <span className="block text-[11px] leading-snug text-text-muted">
-                  Qué ha cambiado. Última actualización: {fechaCorta(ULTIMA)}
+                  Qué ha cambiado
+                  {fechaUltimaNovedad ? `. Última actualización: ${fechaCorta(fechaUltimaNovedad)}` : ""}
                 </span>
               </button>
             </div>

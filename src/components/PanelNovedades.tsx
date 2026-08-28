@@ -12,7 +12,16 @@ import { ETIQUETA, NOVEDADES, type TipoCambio } from "@/lib/novedades";
  *  Cada cambio lleva una marca de qué es —nuevo, arreglado, mejor—, porque no
  *  se leen igual: lo nuevo hay que aprenderlo, lo arreglado solo hay que saber
  *  que ya no pasa. */
-export function PanelNovedades({ onCerrar }: { onCerrar: () => void }) {
+export function PanelNovedades({
+  fechas,
+  onCerrar,
+}: {
+  /** Cuándo salió cada entrada, por su id. Puede faltar alguna —el sello lo
+   *  pone el servidor y quizá no ha contestado todavía—: en ese caso se pinta
+   *  el log sin fecha, que es el adorno, no el contenido. */
+  fechas: Record<string, string>;
+  onCerrar: () => void;
+}) {
   return (
     <PanelFlotante titulo="Novedades de la web" onCerrar={onCerrar}>
       <div className="mb-3 flex items-center gap-2">
@@ -22,9 +31,9 @@ export function PanelNovedades({ onCerrar }: { onCerrar: () => void }) {
 
       <div className="flex flex-col gap-5">
         {NOVEDADES.map((n) => (
-          <section key={n.fecha}>
+          <section key={n.id}>
             <h4 className="border-b border-border pb-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              {fecha(n.fecha)}
+              {fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
             </h4>
             <ul className="mt-2 flex flex-col gap-2.5">
               {n.cambios.map((c) => (
@@ -62,8 +71,14 @@ const COLOR: Record<TipoCambio, string> = {
 };
 
 /** "31 de agosto de 2026". Escrita entera: es una fecha que se lee una vez, no
- *  una columna que haya que comparar, así que gana lo legible sobre lo corto. */
+ *  una columna que haya que comparar, así que gana lo legible sobre lo corto.
+ *
+ *  Llega como instante completo (la selló el servidor con su reloj), no como
+ *  día suelto, así que se parsea tal cual. */
 function fecha(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
