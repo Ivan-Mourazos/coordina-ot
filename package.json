@@ -13,7 +13,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:introspect": "node --env-file=.env.local scripts/introspect-rps.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "novedades": "node scripts/novedades.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",

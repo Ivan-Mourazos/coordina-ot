@@ -12,6 +12,8 @@
 // Y solo lo que SE NOTA. Un arreglo de base de datos que nadie va a percibir no
 // va aquí: llenar esto de cosas invisibles enseña a saltárselo.
 
+import DATOS from "./novedades-datos.json";
+
 export type TipoCambio = "nuevo" | "arreglado" | "mejor";
 
 export interface Cambio {
@@ -27,103 +29,28 @@ export interface Novedad {
    *  compara "esto ya lo he leído", y moverlo le volvería a saltar el aviso a
    *  todo el equipo. */
   id: string;
+  /** Hasta qué commit llega esta entrada. Lo usa `pnpm novedades` para saber
+   *  desde dónde mirar la próxima vez; no se enseña en ningún sitio. */
+  hasta: string | null;
   cambios: Cambio[];
 }
 
 /** De la más reciente a la más antigua, que es como se lee.
  *
- *  AQUÍ NO HAY FECHAS. La fecha de una actualización no se sabe al escribirla:
- *  se sabe cuando sale, y entre lo uno y lo otro pueden pasar días. Ponerla a
- *  mano significa acordarse de corregirla antes de desplegar, y el día que se
- *  olvide el log dirá una fecha falsa sin que nada chille.
+ *  LAS ENTRADAS NO SE ESCRIBEN AQUÍ. Se generan con `pnpm novedades`, que las
+ *  saca de las líneas `Novedad:` de los commits desde la última publicada. La
+ *  frase se escribe al hacer el cambio, que es cuando se sabe lo que se hizo;
+ *  acordarse después, al desplegar, releyendo veinte commits, es lo que no se
+ *  hace nunca.
  *
- *  La pone el servidor la primera vez que arranca con esta entrada dentro, y a
- *  partir de ahí no se mueve (ver `fechasDeNovedades`). */
-export const NOVEDADES: readonly Novedad[] = [
-  {
-    id: "2026-08-31",
-    cambios: [
-      {
-        tipo: "nuevo",
-        titulo: "Al devolver una OF ahora dices por qué vuelve",
-        detalle:
-          "Marcas una o varias causas —error en cotas, error en medidas, material equivocado— y escribes qué hay que corregir, como hasta ahora. Si la causa que necesitas no está en la lista, la creas ahí mismo y queda para todos.",
-      },
-      {
-        tipo: "nuevo",
-        titulo: "Pestaña nueva: Métricas",
-        detalle:
-          "Cuántas OF vuelven después de la revisión y por qué. Los números empiezan a contarse ahora, así que tardarán unas semanas en decir algo.",
-      },
-      {
-        tipo: "nuevo",
-        titulo: "Revisar, aprobar y devolver el pedido entero de una vez",
-        detalle:
-          "En la ficha del pedido, cuando te tocan varias OF ya no hace falta ir una por una. La que necesite un motivo distinto se sigue devolviendo desde su fila.",
-      },
-      {
-        tipo: "nuevo",
-        titulo: "En el Historial se ve cuánto echó cada persona",
-        detalle:
-          "Antes ponía «Adrián, Iván — 45m» y no se sabía de quién era cada minuto. Ahora dice «Adrián 30m · Iván 15m».",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "El aviso de partes vueltos a escanear estaba parado",
-        detalle:
-          "Cuando alguien volvía a escanear el parte de un pedido, la web tenía que avisar. Llevaba tiempo sin hacerlo y no se notaba. Ya funciona otra vez.",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "Las notas de un compañero no se apagaban",
-        detalle:
-          "La campana se quedaba con el aviso puesto días después de haberlas leído. Y si te dejaban dos notas en el mismo pedido, solo salía una.",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "Una OF podía figurar como revisada sin que nadie la revisara",
-        detalle:
-          "Pasaba si la mandabas a revisar y la recuperabas antes de que la miraran. Ahora el histórico dice lo que ocurrió de verdad.",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "Una OF que revisaba otra persona ponía «No fichable»",
-        detalle: "Era mentira: se podía fichar. Ahora dice quién la tiene.",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "«Pausar» se quedaba en pantalla unos segundos después de aprobar",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "«Finalizar» no dejaba pulsarse si abrías el pedido desde el buscador",
-      },
-      {
-        tipo: "arreglado",
-        titulo: "En modo oscuro casi no se veían los calendarios del Historial",
-      },
-      {
-        tipo: "mejor",
-        titulo: "Un botón menos al revisar",
-        detalle:
-          "«Empezar revisión» y «Fichar revisión» hacían exactamente lo mismo. Queda uno.",
-      },
-      {
-        tipo: "mejor",
-        titulo: "El aviso de fichar varias OF se lee mejor",
-        detalle:
-          "Era un bloque de texto seguido. Ahora las OF salen en lista, con su pedido, y se ve claro que el tiempo se reparte entre todas.",
-      },
-      {
-        tipo: "mejor",
-        titulo: "Para quien se mueve con el teclado",
-        detalle:
-          "Los cuadros de confirmación y los paneles ya no dejan el cursor perdido por detrás, y al cerrarlos vuelve donde estaba.",
-      },
-    ],
-  },
-];
-
+ *  Van en un JSON y no aquí porque quien las escribe es un script, y
+ *  reescribir TypeScript a base de expresiones regulares se rompe solo.
+ *
+ *  Y AQUÍ NO HAY FECHAS: la de una actualización no se sabe al escribirla,
+ *  sino cuando sale. La sella el servidor la primera vez que arranca con la
+ *  entrada dentro (ver `fechasDeNovedades`), y ya no se mueve.
+ */
+export const NOVEDADES: readonly Novedad[] = DATOS as readonly Novedad[];
 /** La última actualización que hay. `null` si no hay ninguna. */
 export const ULTIMA: string | null = NOVEDADES[0]?.id ?? null;
 
