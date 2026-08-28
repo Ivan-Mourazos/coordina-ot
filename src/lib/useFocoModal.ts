@@ -76,7 +76,21 @@ export function useFocoModal<T extends HTMLElement>(activo: boolean) {
       document.removeEventListener("keydown", onKey);
       // Al cerrar, de vuelta a lo que abrió el diálogo (la tarjeta o la fila),
       // no al principio de la página.
-      previo?.focus?.();
+      //
+      // LÍMITE CONOCIDO, y por eso se comprueba en vez de llamar a secas: hay
+      // disparadores que no sobreviven a su propio clic. El ejemplo es el
+      // ConfirmDialog abierto desde una opción del menú "⋯": al ejecutarse la
+      // acción el menú se desmonta, así que al cerrar el diálogo `previo` es un
+      // nodo suelto, fuera del documento, y enfocarlo no hace absolutamente
+      // nada —el foco se queda en el `body`—. Aquí no se puede arreglar: no
+      // hay forma de adivinar a dónde debería volver.
+      //
+      // La solución sería que `usePopover` devolviese el foco a su propio
+      // botón al cerrarse. No se ha hecho todavía porque lo usan seis
+      // componentes (entre ellos el buscador, que al elegir un resultado abre
+      // el Drawer) y dos restauraciones de foco compitiendo no tienen un orden
+      // garantizado: hay que hacerlo con calma y mirándolo.
+      if (previo && document.contains(previo)) previo.focus?.();
     };
   }, [activo]);
 

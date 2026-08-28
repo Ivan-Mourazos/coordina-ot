@@ -9,7 +9,17 @@ const H = Math.round(W * 1.414) + 34; // hoja + pie
 
 /** Vista previa grande del parte al mantener el ratón encima (estilo
  *  Quick Look). Solo lectura: se posiciona junto a la tarjeta, sin robar
- *  el puntero (pointer-events none) para no interferir con drag ni clic. */
+ *  el puntero (pointer-events none) para no interferir con el clic.
+ *
+ *  SOLO CON EL RATÓN, y es a propósito: no hay equivalente por teclado ni se
+ *  puede enfocar. No es un agujero de accesibilidad porque no enseña NADA que
+ *  no esté ya en la tarjeta —código, cliente, número de OF— y va marcada
+ *  `aria-hidden`, así que para un lector de pantalla no existe: es un atajo
+ *  para el ojo, no una fuente de información.
+ *
+ *  Queda escrito porque no se ve a simple vista y la revisión de accesibilidad
+ *  tropieza aquí cada vez. Si algún día enseña algo que la tarjeta no tenga,
+ *  esto deja de valer y hace falta una vía por teclado. */
 export function QuickLook({ pedido, anchor }: { pedido: Pedido; anchor: DOMRect }) {
   if (typeof document === "undefined") return null;
 
