@@ -15,7 +15,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     return NextResponse.json(
-      { fechas: fechasDeNovedades(NOVEDADES.map((n) => n.id)) },
+      {
+        // Solo las que NO traen fecha propia. Las de antes de este log la
+        // llevan escrita —sacada del historial de cambios— y sellarlas ahora
+        // guardaria en la base una fecha de salida que no fue la suya.
+        fechas: fechasDeNovedades(NOVEDADES.filter((n) => !n.fecha).map((n) => n.id)),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

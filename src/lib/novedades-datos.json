@@ -71,5 +71,137 @@
         "detalle": "Los cuadros de confirmación y los paneles ya no dejan el cursor perdido por detrás, y al cerrarlos vuelve donde estaba."
       }
     ]
+  },
+  {
+    "id": "2026-08-24",
+    "hasta": null,
+    "fecha": "2026-08-24",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Notas en los pedidos",
+        "detalle": "Un hilo en cada pedido para apuntar lo que hay que saber y no está en RPS. Lo tuyo lo puedes editar y borrar, y llega a la campana de los demás."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Aviso cuando vuelven a escanear el parte de un pedido",
+        "detalle": "Si alguien re-escanea el parte, sale marcado en la fila y en la ficha: puede traer cambios y conviene mirarlo antes de seguir."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Dar por bueno un planteo sin pasar por revisión",
+        "detalle": "Para el trabajo que no lleva revisión. El histórico lo distingue del que sí se revisó."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Recuperar una OF que ya habías mandado a revisar",
+        "detalle": "Si te diste cuenta de que faltaba algo, vuelve a tu planteo sin pedírselo a nadie."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Cerrar desde la web una fase de OT que quedó a medias"
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Una OF aprobada se sigue pudiendo fichar",
+        "detalle": "Aprobar cierra el planteo, no el trabajo: un último retoque se puede apuntar."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Fichar mientras corregías hacía desaparecer «Dar por corregida»"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El cuadro de confirmación se salía de la pantalla",
+        "detalle": "Al fichar muchas OF a la vez se llevaba los botones fuera y no había forma de llegar a ellos."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un fallo de carga de las notas se leía como «no hay notas»"
+      }
+    ]
+  },
+  {
+    "id": "2026-08-17",
+    "hasta": null,
+    "fecha": "2026-08-17",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Pestaña de Visitas, con calendario y fichas"
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Pausar y fichar el pedido entero",
+        "detalle": "Y quien fiche algo suelto se lo queda, para que no aparezca trabajo sin dueño."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El contador del reloj arrancaba un minuto tarde"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El tiempo de una OF se contaba dos veces"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los pedidos SA y BE no encontraban su PDF",
+        "detalle": "Están en la carpeta de su delegación, y no se miraba ahí."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Revisiones salían botones que no te tocaban a ti"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido sin tarea de OT salía en blanco en el Historial"
+      }
+    ]
+  },
+  {
+    "id": "2026-08-12",
+    "hasta": null,
+    "fecha": "2026-08-12",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Anular una OF pide POR QUÉ",
+        "detalle": "Se elige la causa —la hace el taller, la hace un proveedor, se cayó el pedido— y se lee en el propio distintivo, sin abrir nada."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "El material de la OF, de principio a fin",
+        "detalle": "Qué se asignó, qué se reservó y cuándo llega lo que falta, con el estado en la esquina de la miniatura."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "«Dar por corregida» una OF devuelta",
+        "detalle": "Cuando el arreglo era mínimo, sin mandarla a una segunda ronda de revisión."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "El buscador encuentra cualquier pedido de venta de RPS",
+        "detalle": "No solo los del tablero y el historial."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Fase propia para lo parado por Producción",
+        "detalle": "Fuera de las columnas, que no depende de OT resolverlo."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El servidor cerraba tu fichaje aunque siguieras trabajando",
+        "detalle": "El aviso de «sigo aquí» no llegaba nunca. Ahora hay 15 minutos de margen y puedes minimizar el navegador."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El reloj decía un rol que no era"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido sin trabajo de OT salía como «sin empezar»",
+        "detalle": "Está listo para pasar, que no es lo mismo."
+      }
+    ]
   }
 ]

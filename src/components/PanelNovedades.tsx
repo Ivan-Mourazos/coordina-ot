@@ -33,7 +33,9 @@ export function PanelNovedades({
         {NOVEDADES.map((n) => (
           <section key={n.id}>
             <h4 className="border-b border-border pb-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              {fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
+              {/* La suya si la trae —las de antes de este log, sacadas del
+                  historial de cambios—; si no, la que sello el servidor. */}
+              {n.fecha ? fecha(n.fecha) : fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
             </h4>
             <ul className="mt-2 flex flex-col gap-2.5">
               {n.cambios.map((c) => (

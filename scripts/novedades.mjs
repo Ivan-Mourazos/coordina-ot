@@ -55,8 +55,12 @@ function rango(entradas) {
 /** Las novedades escritas en un mensaje de commit. */
 function novedadesDe(mensaje) {
   const salida = [];
+  // SIN recortar los espacios de delante: la línea tiene que empezar en la
+  // primera columna, como los pies de commit de git. Si no, un ejemplo
+  // sangrado dentro del propio mensaje —explicando el formato— se cuela como
+  // entrada de verdad. Pasó a la primera.
   for (const linea of mensaje.split(/\r?\n/)) {
-    const nov = /^Novedad:\s*(\w+)\s*\|\s*(.+)$/i.exec(linea.trim());
+    const nov = /^Novedad:\s*(\w+)\s*\|\s*(.+)$/i.exec(linea);
     if (nov) {
       const tipo = nov[1].toLowerCase();
       if (!TIPOS.has(tipo)) {
@@ -66,7 +70,7 @@ function novedadesDe(mensaje) {
       salida.push({ tipo, titulo: nov[2].trim() });
       continue;
     }
-    const det = /^Detalle:\s*(.+)$/i.exec(linea.trim());
+    const det = /^Detalle:\s*(.+)$/i.exec(linea);
     // El detalle acompaña a la novedad de encima; suelto no significa nada.
     if (det && salida.length > 0) salida[salida.length - 1].detalle = det[1].trim();
   }

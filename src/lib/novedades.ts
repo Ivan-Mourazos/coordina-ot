@@ -32,6 +32,13 @@ export interface Novedad {
   /** Hasta qué commit llega esta entrada. Lo usa `pnpm novedades` para saber
    *  desde dónde mirar la próxima vez; no se enseña en ningún sitio. */
   hasta: string | null;
+  /** Fecha escrita a mano, y solo para las entradas ANTERIORES a que existiera
+   *  este log: salieron antes de que nada las sellara, y su fecha se sacó del
+   *  historial de cambios. Cuando está, manda sobre el sello del servidor —que
+   *  si no las marcaría a todas con el día en que se estrenó esta versión.
+   *
+   *  Las nuevas NO la llevan: la pone el servidor al estrenarlas. */
+  fecha?: string;
   cambios: Cambio[];
 }
 
