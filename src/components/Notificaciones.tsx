@@ -60,12 +60,24 @@ function detalleDe(item: NotifItem): string {
  *  recibe el ITEM entero y no solo el id del pedido: lo que se apaga es el
  *  aviso que se ha abierto, no todos los del pedido —te tocan dos cosas
  *  distintas del mismo parte y solo has atendido una. */
+/** La novedad de la web va APARTE de la lista de avisos, y no como uno más.
+ *
+ *  Todos los de la lista son de un pedido —llevan el suyo dentro y al pulsarlos
+ *  te llevan allí—, y "la web ha cambiado" no es de ningún pedido. Meterla ahí
+ *  obligaría a que el pedido fuese opcional en todo el camino (agrupación,
+ *  descartes, identidad), que es de lo que depende que los avisos no se pierdan
+ *  ni se repitan. Una fila arriba se ve igual y no toca nada de eso. */
 export function Notificaciones({
   items,
   onNavigate,
+  novedades,
+  onVerNovedades,
 }: {
   items: NotifItem[];
   onNavigate: (vista: Vista, item: NotifItem) => void;
+  /** Cuántas actualizaciones no ha visto. 0 = ninguna, y no se pinta nada. */
+  novedades: number;
+  onVerNovedades: () => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
@@ -91,17 +103,44 @@ export function Notificaciones({
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        {items.length > 0 && (
+        {items.length + (novedades > 0 ? 1 : 0) > 0 && (
           <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-600 text-[9px] font-bold text-white">
-            {items.length}
+            {/* Las novedades cuentan UNA, no una por cambio: lo que hay que
+                mirar es "ha cambiado la web", y un 14 en la campana haría
+                pensar que hay catorce cosas que atender. */}
+            {items.length + (novedades > 0 ? 1 : 0)}
           </span>
         )}
       </button>
 
       {open && (
         <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-80 rounded-xl p-1">
+          {novedades > 0 && (
+            <button
+              onClick={() => {
+                onVerNovedades();
+                setOpen(false);
+              }}
+              className="mb-1 flex w-full items-start gap-2 rounded-lg border border-border px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+            >
+              <span className="mt-1 size-2 shrink-0 rounded-full bg-brand-500" />
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  La web ha cambiado
+                </span>
+                <span className="block text-xs font-semibold text-text">
+                  {novedades === 1
+                    ? "Hay novedades"
+                    : `Hay novedades de ${novedades} actualizaciones`}
+                </span>
+                <span className="block text-[11px] text-text-muted">Mira qué es nuevo</span>
+              </span>
+            </button>
+          )}
           {items.length === 0 ? (
-            <p className="px-2 py-3 text-center text-xs text-text-muted">Sin avisos pendientes</p>
+            <p className="px-2 py-3 text-center text-xs text-text-muted">
+              {novedades > 0 ? "No hay más avisos" : "Sin avisos pendientes"}
+            </p>
           ) : (
             <ul className="scroll-thin max-h-96 overflow-y-auto">
               {items.map((item, i) => {

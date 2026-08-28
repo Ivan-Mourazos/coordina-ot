@@ -18,6 +18,8 @@ import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
 import { HistorialView } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
+import { PanelNovedades } from "./PanelNovedades";
+import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { IdentityGate } from "./IdentityGate";
@@ -161,6 +163,29 @@ function leerIdentidadGuardada(): string | null {
  *  todos los implicados en el pedido: con una sola lista, apagarlo uno se lo
  *  apagaría al compañero que entrara después en el mismo puesto. */
 const DESCARTES_KEY = "coordina-avisos-descartados";
+/** La última actualización que este navegador ha dado por leída. Sin operario
+ *  en la clave: lo que ha cambiado en la web es lo mismo para todos, y quien
+ *  comparta equipo no tiene que volver a leerlo. */
+const NOVEDADES_KEY = "coordina-novedades-visto";
+
+/** La última actualización que este navegador dio por leída.
+ *
+ *  `null` cuando no hay nada guardado todavía —o cuando no se puede leer— y ahí
+ *  NO se avisa: a quien entra por primera vez contarle "novedades" de cosas que
+ *  nunca ha visto de otra forma es ruido. Se sella al vuelo con la última, y a
+ *  partir de ahí sí se entera de las siguientes. */
+function leerVistoNovedades(): string | null {
+  if (typeof window === "undefined") return ULTIMA;
+  try {
+    const guardado = localStorage.getItem(NOVEDADES_KEY);
+    if (guardado) return guardado;
+    if (ULTIMA) localStorage.setItem(NOVEDADES_KEY, ULTIMA);
+    return ULTIMA;
+  } catch {
+    // Modo privado o almacenamiento bloqueado: no se avisa, y no pasa nada.
+    return ULTIMA;
+  }
+}
 
 function leerDescartes(operarioId: string | null): string[] {
   if (typeof window === "undefined" || !operarioId) return [];
@@ -645,6 +670,25 @@ export function Board({
   // exige saber qué avisos siguen vivos, o sea el tablero entero: justo lo que
   // /api/avisos está diseñado para NO cargar (7-15 s contra RPS). Aquí el
   // tablero ya está en memoria.
+  // ── Novedades de la web ──
+  // En localStorage y no en el servidor: "ya he leído qué ha cambiado" es de
+  // cada persona y de cada sitio donde trabaja, y no pasa nada por leerlo dos
+  // veces si entra desde otro equipo. Mismo sitio que los descartes de avisos.
+  //
+  // Sin nada guardado NO se avisa: a quien entra por primera vez —o estrena
+  // navegador— contarle "novedades" de cosas que nunca ha visto de otra manera
+  // es ruido. Se marca como visto y a partir de ahí sí se entera de las
+  // próximas.
+  // `undefined` = todavía sin mirar el almacenamiento. Se lee en el primer
+  // render del navegador y no en un efecto: en el servidor no hay
+  // localStorage, y leerlo antes de tiempo daría siempre "no visto".
+  const [vistoNovedades, setVistoNovedades] = useState<string | null | undefined>(undefined);
+  const [novedadesAbiertas, setNovedadesAbiertas] = useState(false);
+  if (vistoNovedades === undefined && typeof window !== "undefined") {
+    setVistoNovedades(leerVistoNovedades());
+  }
+  const nuevasSinVer = vistoNovedades === undefined ? 0 : cuantasNuevas(vistoNovedades);
+
   const [descartes, setDescartes] = useState<{ opId: string | null; claves: string[] }>({
     opId: null,
     claves: [],
@@ -1572,7 +1616,12 @@ export function Board({
           />
           <div className="flex flex-1 basis-0 items-center justify-end gap-2 text-xs">
             <Herramientas />
-            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
+            <Notificaciones
+              items={avisosVisibles}
+              onNavigate={irANotificacion}
+              novedades={nuevasSinVer}
+              onVerNovedades={() => setNovedadesAbiertas(true)}
+            />
             <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
             <ThemeToggle />
           </div>
@@ -1855,6 +1904,23 @@ export function Board({
         )}
 
         {/* ── VISTA HISTORIAL ── */}
+        {novedadesAbiertas && (
+          <PanelNovedades
+            onCerrar={() => {
+              setNovedadesAbiertas(false);
+              // Se dan por vistas al CERRAR, no al abrir: si se marca al abrir
+              // y alguien cierra sin querer, el aviso desaparece sin haber
+              // leído nada y no vuelve.
+              if (ULTIMA) {
+                setVistoNovedades(ULTIMA);
+                try {
+                  localStorage.setItem(NOVEDADES_KEY, ULTIMA);
+                } catch {}
+              }
+            }}
+          />
+        )}
+
         {vista === "metricas" && (
           <div className="p-5">
             <MetricasView />
