@@ -1,3 +1,4 @@
+import { esFaseDe, SECCIONES } from "./secciones";
 // ─── Fases de OT que se quedaron sin finalizar ───────────────────────────────
 // Pasabas el pedido a Producción y la fase de OT se quedaba en pausa: nadie la
 // cerraba y tenían que avisar desde el taller. Antes no había forma de
@@ -59,9 +60,12 @@ export function situacionDe(estado: number): SituacionFase {
  *  Vale para A-OTEC, OTEC-A, U-A-OTEC (urgencias), S-OTEC y B-OTEC. El filtro
  *  es por el nombre del centro porque es lo único que trae `scg_Fases`, y en
  *  esa columna hay erratas reales (`A-OTECP`, `24A-OTEC`): buscar el trozo
- *  "OTEC" las recoge todas, y ninguna otra sección de la casa lo lleva. */
+ *  "OTEC" las recoge todas, y ninguna otra sección de la casa lo lleva.
+ *
+ *  Se queda como atajo de `esFaseDe(..., SECCIONES.ot)` porque lo llaman
+ *  bastantes sitios que solo hablan de OT; la regla vive en secciones.ts. */
 export function esFaseDeOT(maquina: string): boolean {
-  return maquina.toUpperCase().includes("OTEC");
+  return esFaseDe(maquina, SECCIONES.ot);
 }
 
 /** Las que se pueden cerrar desde aquí: de OT y sin finalizar.

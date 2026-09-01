@@ -1,3 +1,5 @@
+import { SECCIONES, SECCION_POR_DEFECTO, type Seccion, type SeccionId } from "../secciones";
+import { operariosDeSeccion } from "./operarios";
 import type { Tablero } from "../data";
 import type {
   CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, Pedido, Prioridad,
@@ -606,7 +608,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 
 // ─── Consulta + agrupado ─────────────────────────────────────────────────────
 
-async function consultarTablero(): Promise<Tablero> {
+async function consultarTablero(seccion: Seccion): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
 
@@ -618,7 +620,7 @@ async function consultarTablero(): Promise<Tablero> {
            v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
            mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
            mo.PlannedStartDate, mo.PlannedEndDate, mo.ManualEndDate
-    FROM dbo.TGM_PENDIENTE_OT v
+    FROM dbo.${seccion.vista} v
     LEFT JOIN dbo.CPRManufacturingOrder mo
       ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
   `);
@@ -1049,7 +1051,13 @@ async function consultarTablero(): Promise<Tablero> {
   // Quedaba el rastro de aquello: un `pedidosHistorial` que ya no leía nadie y
   // las dos consultas que lo alimentaban, calculándose en cada carga dentro de
   // la ruta que ya tarda de 7 a 15 s. Fuera desde el 2026-08-14.
-  return { operarios: OPERARIOS, pedidos };
+  // Solo los de ESTA sección: las zonas del tablero son personas, y a Carrón
+  // no le sirve de nada una columna de Jaime —ni al revés—. Si la sección no
+  // tuviera a nadie apuntado se devuelven todos, que es lo que había antes:
+  // más vale un tablero raro que uno vacío.
+  const suyos = new Set(operariosDeSeccion(seccion.id));
+  const operarios = OPERARIOS.filter((o) => suyos.has(o.id));
+  return { operarios: operarios.length > 0 ? operarios : OPERARIOS, pedidos };
 }
 
 // ─── Caché stale-while-revalidate + precalentamiento ─────────────────────────
@@ -1060,33 +1068,41 @@ async function consultarTablero(): Promise<Tablero> {
 //    de instrumentation.ts hace que eso ocurra al arrancar PM2, no al primer
 //    usuario.
 
-let cache: { data: Tablero; at: number } | null = null;
-let enVuelo: Promise<Tablero> | null = null;
+// UNA CACHÉ POR SECCIÓN. Son dos consultas distintas contra dos vistas
+// distintas, y con una sola entrada la última en refrescarse le serviría su
+// tablero a la otra sección: Carrón vería el trabajo de OT o al revés, según
+// quién hubiera entrado antes. El bug sería intermitente y dificilísimo de
+// leer, así que la clave es la sección.
+const cache = new Map<SeccionId, { data: Tablero; at: number }>();
+const enVuelo = new Map<SeccionId, Promise<Tablero>>();
 
-function refrescarTablero(): Promise<Tablero> {
-  if (!enVuelo) {
-    enVuelo = consultarTablero()
-      .then((data) => {
-        cache = { data, at: Date.now() };
-        return data;
-      })
-      .finally(() => {
-        enVuelo = null;
-      });
-  }
-  return enVuelo;
+function refrescarTablero(seccion: Seccion): Promise<Tablero> {
+  const yendo = enVuelo.get(seccion.id);
+  if (yendo) return yendo;
+  const p = consultarTablero(seccion)
+    .then((data) => {
+      cache.set(seccion.id, { data, at: Date.now() });
+      return data;
+    })
+    .finally(() => {
+      enVuelo.delete(seccion.id);
+    });
+  enVuelo.set(seccion.id, p);
+  return p;
 }
 
-export async function getTableroRPS(): Promise<Tablero> {
-  if (cache) {
-    if (Date.now() - cache.at >= TTL_MS) {
+export async function getTableroRPS(seccionId: SeccionId = SECCION_POR_DEFECTO): Promise<Tablero> {
+  const seccion = SECCIONES[seccionId];
+  const guardado = cache.get(seccion.id);
+  if (guardado) {
+    if (Date.now() - guardado.at >= TTL_MS) {
       // Caducada: dato viejo ya, refresco detrás. Si el refresco falla se
       // sigue sirviendo lo último bueno (mejor dato viejo que error).
-      refrescarTablero().catch(() => {});
+      refrescarTablero(seccion).catch(() => {});
     }
-    return cache.data;
+    return guardado.data;
   }
-  return refrescarTablero();
+  return refrescarTablero(seccion);
 }
 
 /** Frecuencia del refresco de fondo cuando nadie usa la app: mantiene la
@@ -1103,11 +1119,17 @@ declare global {
  *  ya (fire-and-forget) + refresco periódico de fondo. Idempotente. */
 export function precalentarTablero(): void {
   if (globalThis.__coordinaPrecalentado) return;
-  refrescarTablero().catch((e) => {
-    console.warn("[coordina] precalentado del tablero falló (se reintenta):", e?.message);
-  });
+  // Las dos secciones: si solo se calentara OT, el primero de diseño en entrar
+  // por la mañana se comería los 7-15 s de su vista, que es justo lo que este
+  // precalentado existe para evitar.
+  const todas = Object.values(SECCIONES);
+  for (const s of todas) {
+    refrescarTablero(s).catch((e) => {
+      console.warn(`[coordina] precalentado de ${s.nombre} falló (se reintenta):`, e?.message);
+    });
+  }
   globalThis.__coordinaPrecalentado = setInterval(() => {
-    refrescarTablero().catch(() => {});
+    for (const s of todas) refrescarTablero(s).catch(() => {});
   }, REFRESCO_FONDO_MS);
   // No mantener vivo el proceso solo por el timer.
   globalThis.__coordinaPrecalentado.unref?.();

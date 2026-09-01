@@ -43,7 +43,11 @@ export const BONO_FIJO = {
 } as const;
 
 /** Máquina de Oficina Técnica. Confirmado por IT el 2026-08-04: **A-OTEC** es
- *  la nuestra; A-OTECP es una máquina de OT en planta, para la fábrica. */
+ *  la nuestra; A-OTECP es una máquina de OT en planta, para la fábrica.
+ *
+ *  Diseño Gráfico ficha con la suya (A-DGRA). La lista está en
+ *  lib/secciones.ts; aquí se deja esta porque es el valor por defecto de
+ *  `bonosDe` y lo usan los sitios que solo hablan de OT. */
 export const MAQUINA_OT = "A-OTEC";
 
 /** Valores de `traspasado` (confirmado por IT):
@@ -150,6 +154,7 @@ function filasDeTramo(
   of: string,
   numope: string,
   operario: string,
+  maquina: string,
 ): FilaBono[] {
   const filas: FilaBono[] = [];
   let cursor = desde;
@@ -162,7 +167,7 @@ function filasDeTramo(
       of,
       numope,
       operario,
-      maquina: MAQUINA_OT,
+      maquina,
       ini: a.fecha,
       horaini: a.segundos,
       fin: a.fecha,
@@ -184,6 +189,18 @@ function filasDeTramo(
 export function bonosDe(
   intervalos: readonly Intervalo[],
   codigosRps: Readonly<Record<string, string>>,
+  /** La máquina con la que ficha cada operario, por su id de tablero. Lo que
+   *  la decide es su SECCIÓN: OT ficha en A-OTEC y Diseño Gráfico en A-DGRA,
+   *  y un bono en la máquina equivocada le mete el tiempo al departamento que
+   *  no es.
+   *
+   *  Se pasa desde fuera y no se deduce aquí porque este fichero lo comparten
+   *  cliente y servidor, y el mapa de operarios es de servidor. Mismo motivo
+   *  que `codigosRps`, y así los dos viajan juntos.
+   *
+   *  Sin mapa, todo el mundo ficha en A-OTEC: es lo que hacía antes de que
+   *  existiera diseño. */
+  maquinasRps: Readonly<Record<string, string>> = {},
 ): FilaBono[] {
   const filas: FilaBono[] = [];
   for (const iv of intervalos) {
@@ -209,7 +226,9 @@ export function bonosDe(
     for (let i = 0; i < ofs.length; i++) {
       const a = i === 0 ? desde : desde + Math.floor((total * i) / ofs.length);
       const b = i === ofs.length - 1 ? hasta : desde + Math.floor((total * (i + 1)) / ofs.length);
-      filas.push(...filasDeTramo(a, b, ofs[i].of, ofs[i].numope, operario));
+      filas.push(
+        ...filasDeTramo(a, b, ofs[i].of, ofs[i].numope, operario, maquinasRps[iv.operarioId] ?? MAQUINA_OT),
+      );
     }
   }
   return filas;

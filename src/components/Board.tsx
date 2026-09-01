@@ -22,6 +22,7 @@ import { PanelNovedades } from "./PanelNovedades";
 import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
+import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -202,7 +203,7 @@ function leerDescartes(operarioId: string | null): string[] {
 }
 
 export function Board({
-  operarios,
+  operarios: operariosIniciales,
   pedidos: initial,
   dobleFichaje = true,
 }: {
@@ -214,6 +215,11 @@ export function Board({
    *  dato no llegara, avisar de más molesta menos que dejar de avisar. */
   dobleFichaje?: boolean;
 }) {
+  // Las zonas del tablero son personas, y cada sección tiene las suyas. El
+  // servidor pinta el HTML sin saber quién mira —la identidad vive en el
+  // navegador—, así que arranca con las de Oficina Técnica y el primer sondeo
+  // trae las que toquen. Ver el efecto del tablero más abajo.
+  const [operarios, setOperarios] = useState<Operario[]>(operariosIniciales);
   const [pedidos, setPedidos] = useState<Pedido[]>(initial);
   // Espejo síncrono del estado: las mutaciones calculan su resultado sobre él
   // ANTES del re-render (para persistir el snapshot exacto) y el polling lo
@@ -365,11 +371,21 @@ export function Board({
   // debe pisar con un snapshot viejo un POST disparado después de arrancar.
   const postSeqRef = useRef(0);
   useEffect(() => {
-    const id = setInterval(async () => {
+    // El tablero se pide A NOMBRE DE QUIEN MIRA: de ahí sale su sección, y con
+    // ella su lista de trabajo (Oficina Técnica o Diseño Gráfico).
+    //
+    // Se trae una vez NADA MÁS SABER QUIÉN ERES y no solo cada 30 s: el HTML
+    // que sirve el servidor se pinta sin conocer la identidad —vive en el
+    // navegador— así que arranca con el de OT. Sin esta primera vuelta, quien
+    // sea de diseño se pasaría medio minuto mirando trabajo que no es suyo.
+    const traer = async () => {
       try {
-        const r = await fetch("/api/tablero", { cache: "no-store" });
+        const url = miId
+          ? `/api/tablero?operarioId=${encodeURIComponent(miId)}`
+          : "/api/tablero";
+        const r = await fetch(url, { cache: "no-store" });
         if (!r.ok) return;
-        const t = (await r.json()) as { pedidos: Pedido[] };
+        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[] };
         const ab = abierto(fichajeRef.current);
         setPedidosSync(
           t.pedidos.map((p) => ({
@@ -379,12 +395,19 @@ export function Board({
             ),
           })),
         );
+        // Las zonas del tablero son personas, y cada sección tiene las suyas.
+        if (t.operarios?.length) setOperarios(t.operarios);
       } catch {
         // sin red o servidor reiniciando: el siguiente tick lo reintenta
       }
-    }, 30_000);
+    };
+    void traer();
+    const id = setInterval(traer, 30_000);
     return () => clearInterval(id);
-  }, [setPedidosSync]);
+    // `miId` va en las dependencias a propósito: al elegir quién eres —o al
+    // cambiar de persona— hay que volver a preguntar, porque la sección puede
+    // ser otra y con ella toda la lista de trabajo.
+  }, [setPedidosSync, miId]);
   // ── Filtros: UNOS POR VISTA, no unos compartidos ──
   // Antes había un solo juego para Asignar, Lista y Revisión mientras cada
   // vista escondía controles distintos: ponías Estado="Aprobada" en la Lista,
@@ -1589,9 +1612,19 @@ export function Board({
   }
 
   if (!miId) {
-    return <IdentityGate operarios={operarios} onSelect={setMiId} />;
+    // TODOS, no los de la sección que se esté sirviendo: aquí es donde se dice
+    // quién eres, y con la lista filtrada nadie de Diseño Gráfico podría
+    // elegirse a sí mismo — el tablero arranca con el de Oficina Técnica.
+    return <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />;
   }
-  const yo = operarios.find((o) => o.id === miId) as Operario;
+  // QUIÉN ERES se busca en el catálogo completo, no en los de la sección que
+  // se esté sirviendo. Al cambiarte a alguien de otra sección, su tablero
+  // tarda una vuelta en llegar; mientras tanto `operarios` sigue siendo el de
+  // la sección anterior y aquí salía `undefined`, que reventaba el render
+  // entero con "Cannot read properties of undefined". Tu identidad no depende
+  // de qué lista de trabajo se haya cargado ya.
+  const yo = (TODOS_LOS_OPERARIOS.find((o) => o.id === miId) ??
+    operarios.find((o) => o.id === miId)) as Operario;
   const resto = operarios.filter((o) => o.id !== miId);
 
   // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué
@@ -1662,7 +1695,9 @@ export function Board({
               novedades={nuevasSinVer}
               onVerNovedades={() => setNovedadesAbiertas(true)}
             />
-            <IdentityBadge yo={yo} operarios={operarios} onChange={solicitarCambioIdentidad} />
+            {/* También todos, y por lo mismo: si solo saliera tu sección,
+                cambiarte a la otra sería imposible una vez dentro. */}
+            <IdentityBadge yo={yo} operarios={TODOS_LOS_OPERARIOS} onChange={solicitarCambioIdentidad} />
             <ThemeToggle />
           </div>
         </header>

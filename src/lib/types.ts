@@ -1,3 +1,5 @@
+import type { SeccionId } from "./secciones";
+
 // ─── Modelo de dominio CoordinaOT ───────────────────────────────────────────
 // Lo que se escanea y llega de Producción a Oficina Técnica es un PEDIDO (AR...).
 // Un pedido contiene una o varias OF (Órdenes de Fabricación). Los datos de las
@@ -198,6 +200,9 @@ export type EstadoOF =
 export type Rol = "plantear" | "revisar";
 
 export interface Operario {
+  /** En qué sección trabaja. Ausente = Oficina Técnica, que es la de siempre:
+   *  la web era solo suya hasta que entró Diseño Gráfico. Ver lib/secciones.ts. */
+  seccion?: SeccionId;
   id: string;
   nombre: string;
   iniciales: string;

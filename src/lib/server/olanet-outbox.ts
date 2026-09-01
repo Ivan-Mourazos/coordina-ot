@@ -2,7 +2,7 @@ import { bonosDe, claveBonoRps, type FilaBono } from "../bonos";
 import { eventosFaseDe, eventosFinalizacion, type EventoFase } from "../fases";
 import type { Intervalo } from "../fichaje";
 import { getDb } from "./estado-db";
-import { COD_RPS_POR_OPERARIO } from "./operarios";
+import { COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO } from "./operarios";
 
 // ─── Cola de salida hacia OLANET ─────────────────────────────────────────────
 // Patrón outbox: la verdad del fichaje es la BD de CoordinaOT, y lo que va a
@@ -133,7 +133,7 @@ export function encolarFichaje(operarioId: string, intervalos: readonly Interval
     const abierto = intervalos.findIndex((iv) => iv.fin === null);
     const procesados = abierto === -1 ? intervalos.length : abierto;
 
-    const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO);
+    const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO);
     const fases = eventosFaseDe(nuevos);
     const entradas = [
       ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
