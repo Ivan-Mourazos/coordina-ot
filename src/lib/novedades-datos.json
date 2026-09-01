@@ -1,18 +1,7 @@
 [
   {
-    "id": "2026-09-01-3",
-    "hasta": "a8e5c06",
-    "cambios": [
-      {
-        "tipo": "arreglado",
-        "titulo": "En el Historial faltaba el trabajo de Diseño Gráfico",
-        "detalle": "De un pedido con trabajo de las dos secciones se veía solo la parte de Oficina Técnica: faltaban las personas de diseño, sus minutos y su material. Ahora el pedido sale entero."
-      }
-    ]
-  },
-  {
     "id": "2026-09-01-2",
-    "hasta": "2cbc9e8",
+    "hasta": "e4e3055",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -23,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "Diseño Gráfico ya tiene su sitio en la web",
         "detalle": "Carrón, Manuel y Smith pueden entrar y ven su propio trabajo, con su equipo y su reloj. Quien es de Oficina Técnica sigue viendo lo de siempre; se cambia de uno a otro desde el nombre de arriba a la derecha."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las fotos y documentos de RPS se ven desde el pedido",
+        "detalle": "En la ficha hay un apartado \"Documentos de RPS\" con la rotulación, el planteamiento, el presupuesto y las fotos del trabajo. Las imágenes salen en pequeño y se abren al pulsarlas. Antes solo se podían mirar en el Historial, con el pedido ya cerrado."
       },
       {
         "tipo": "arreglado",
@@ -38,6 +32,21 @@
         "tipo": "arreglado",
         "titulo": "Los avisos de \"han re-escaneado el parte\" que no eran verdad",
         "detalle": "Un proceso del sistema vuelve a copiar los partes cada media hora, y la web se lo creía: AR.26.03891 llegó a soltar nueve avisos y nueve notas en una mañana sin que nadie hubiera tocado el parte. Ahora se mira si el papel ha cambiado de verdad."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial faltaba el trabajo de Diseño Gráfico",
+        "detalle": "De un pedido con trabajo de las dos secciones se veía solo la parte de Oficina Técnica: faltaban las personas de diseño, sus minutos y su material. Ahora el pedido sale entero."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En \"¿quién eres?\" se ve de qué equipo es cada uno",
+        "detalle": "Los nombres salen agrupados en Oficina Técnica y Diseño Gráfico, tanto al entrar como al cambiar de técnico desde arriba a la derecha."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El apartado de documentos ya no se pega al de notas",
+        "detalle": "Se veía como si fuera parte del hilo de notas. Ahora es un bloque suyo, separado igual que el resto de la ficha."
       }
     ]
   },
