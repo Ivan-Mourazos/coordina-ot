@@ -790,7 +790,28 @@ export function Board({
     };
   }, []);
   if (vistoNovedades === undefined && typeof window !== "undefined") {
-    setVistoNovedades(leerVistoNovedades());
+    const visto = leerVistoNovedades();
+    setVistoNovedades(visto);
+    // EL LOG SE ABRE SOLO la primera vez que se entra tras una actualización.
+    //
+    // Con la campana a secas no lo leía nadie: hay que fijarse en un punto
+    // rojo, saber que ahí hay algo y pulsarlo. El equipo se enteraba de los
+    // cambios tropezándose con ellos, que es justo lo que este log existe para
+    // evitar.
+    //
+    // UNA VEZ Y SE ACABÓ: al cerrarlo se da por leído (ver `onCerrar`), y esta
+    // rama no vuelve a entrar porque solo corre con `vistoNovedades` todavía
+    // sin leer — o sea, una vez por carga de página. Quien lo cierre no se lo
+    // encuentra otra vez ni recargando.
+    //
+    // A quien entra por PRIMERA VEZ no le salta: `leerVistoNovedades` sella la
+    // última al vuelo y `cuantasNuevas` devuelve 0. Contarle "novedades" de
+    // cosas que nunca ha visto de otra forma sería ruido.
+    //
+    // Van dos `setState` en la misma pasada, y aquí sí se puede: son estados
+    // DISTINTOS. Lo que no se puede es encadenar dos del mismo, que es de lo
+    // que avisa el comentario de los descartes más abajo.
+    if (cuantasNuevas(visto) > 0) setNovedadesAbiertas(true);
   }
   const nuevasSinVer = vistoNovedades === undefined ? 0 : cuantasNuevas(vistoNovedades);
 
