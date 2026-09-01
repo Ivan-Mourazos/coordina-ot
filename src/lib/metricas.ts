@@ -29,6 +29,13 @@ import { leerAnulacion } from "./anulacion";
 // registro, pero un tablero de "quién falla más" cambia cómo se usa la
 // herramienta —se devuelve menos para no señalar a nadie— y entonces los
 // números dejan de valer. Si se pide, se habla; por defecto no va.
+//
+// LOS NÚMEROS SON DE UNA SECCIÓN, no de las dos juntas. El "1 de cada 3
+// vuelve" de Oficina Técnica es un número suyo: mezclarle las devoluciones de
+// Diseño Gráfico lo haría incomparable con el de agosto y no diría nada de
+// ninguno de los dos equipos. El filtro se hace por el OPERARIO que firma el
+// movimiento (ver `leerMovimientosMetricas`), así que el histórico se reparte
+// solo: hasta septiembre de 2026 solo había gente de OT usando la web.
 
 /** Un movimiento del registro, con lo justo para contar. */
 export interface MovimientoRegistrado {
@@ -39,6 +46,13 @@ export interface MovimientoRegistrado {
   ofId: string;
   /** Solo la traen las devoluciones; lleva las causas codificadas. */
   observacion: string | null;
+  /** Quién lo hizo. De aquí sale de qué SECCIÓN es el movimiento: el registro
+   *  no guarda la sección y no hace falta que la guarde, porque cada uno
+   *  trabaja en la suya. Ver `leerMovimientosMetricas`.
+   *
+   *  `null` en los movimientos sin autor conocido, que los hay en el
+   *  histórico. */
+  operarioId?: string | null;
 }
 
 export interface CuentaCausa {

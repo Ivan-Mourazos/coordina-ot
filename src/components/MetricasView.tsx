@@ -5,6 +5,7 @@ import { proporcionDevueltas, type Metricas, type Tramo } from "@/lib/metricas";
 import { CAUSAS } from "@/lib/anulacion";
 import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
+import { SECCIONES, type SeccionId } from "@/lib/secciones";
 
 // ─── Lo que se puede mirar hacia atrás ───────────────────────────────────────
 // Tres apartados, y UNO A LA VEZ. Apilarlos obligaría a leerlo todo para llegar
@@ -51,7 +52,7 @@ const DE_QUE_VA: Record<Apartado, string> = {
   anuladas: "Qué trabajo no hace Oficina Técnica, y por qué.",
 };
 
-export function MetricasView() {
+export function MetricasView({ seccion }: { seccion: SeccionId }) {
   const [apartado, setApartado] = useState<Apartado>(() => {
     if (typeof window === "undefined") return "devoluciones";
     const m = new URLSearchParams(window.location.search).get("m");
@@ -71,6 +72,10 @@ export function MetricasView() {
     const q = new URLSearchParams();
     if (desde) q.set("desde", desde);
     if (hasta) q.set("hasta", hasta);
+    // La MISMA sección que se está mirando en el tablero: quien conmuta a
+    // Diseño Gráfico y entra en Métricas espera los números de diseño, no los
+    // de Oficina Técnica.
+    q.set("seccion", seccion);
     fetch(`/api/metricas?${q}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: Respuesta) => {
@@ -82,7 +87,7 @@ export function MetricasView() {
     return () => {
       vivo = false;
     };
-  }, [desde, hasta]);
+  }, [desde, hasta, seccion]);
 
   // El apartado, en la URL. `replaceState` y no un push: moverse entre los
   // tres no es navegar, y llenar el historial obligaría a pulsar Atrás cuatro
@@ -107,8 +112,14 @@ export function MetricasView() {
         <div>
           {/* La cabecera sigue al apartado elegido: dejarla fija en
               "Devoluciones" hacía que dijera una cosa y se enseñara otra. */}
-          <h2 className="text-sm font-bold text-text">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-text">
             {APARTADOS.find((a) => a.id === apartado)?.label}
+            {/* De quién son estos números. Con dos secciones, las mismas
+                pantallas enseñan dos juegos distintos y sin decirlo no hay
+                forma de saber cuál se está mirando. */}
+            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted ring-1 ring-border">
+              {SECCIONES[seccion].nombre}
+            </span>
           </h2>
           <p className="text-[11px] text-text-muted">{DE_QUE_VA[apartado]}</p>
         </div>

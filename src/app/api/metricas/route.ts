@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calcularMetricas } from "@/lib/metricas";
 import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
+import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
 
 // ─── /api/metricas ───────────────────────────────────────────────────────────
 // Cuántas OF vuelven y por qué. Todo sale del registro de acciones y de la
@@ -29,9 +30,15 @@ function limite(v: string | null, siguiente = false): string | undefined {
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams;
   try {
+    // Los números son DE UNA SECCIÓN. El "1 de cada 3 vuelve" de Oficina
+    // Técnica es suyo: mezclarle las devoluciones de Diseño Gráfico lo haría
+    // incomparable con el de agosto y no diría nada de ninguno de los dos.
+    // Sin sección se sirve la de siempre, que es lo que había.
+    const pedida = q.get("seccion");
     const movs = leerMovimientosMetricas(
       limite(q.get("desde")),
       limite(q.get("hasta"), true),
+      esSeccionId(pedida) ? pedida : SECCION_POR_DEFECTO,
     );
     return NextResponse.json(
       { metricas: calcularMetricas(movs), causas: leerCausasDevolucion(true) },

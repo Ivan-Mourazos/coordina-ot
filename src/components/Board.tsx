@@ -2045,7 +2045,7 @@ export function Board({
 
         {vista === "metricas" && (
           <div className="p-5">
-            <MetricasView />
+            <MetricasView seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)} />
           </div>
         )}
 

@@ -4,6 +4,8 @@ import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
 import type { MovimientoRegistrado } from "../metricas";
+import { SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
+import { operariosDeSeccion } from "./operarios";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -380,10 +382,22 @@ function migrar(db: Database.Database): void {
  *
  *  `desde`/`hasta` son ISO y opcionales. `hasta` se compara con `<` sobre el
  *  día siguiente en quien llama: aquí llega ya listo.
+ *
+ *  `seccion` acota a una de las dos: sus números son suyos y mezclarlos no
+ *  diría nada de ninguno de los dos equipos. Se filtra por el OPERARIO que
+ *  firma el movimiento, porque el registro no guarda la sección — y no hace
+ *  falta que la guarde: cada uno trabaja en la suya, así que el histórico se
+ *  reparte solo sin migrar nada.
+ *
+ *  LA APROXIMACIÓN, dicha: si alguien de una sección tocara una OF de la otra
+ *  —Ángel supervisa las dos y puede—, ese movimiento contaría en la SUYA y no
+ *  en la de la OF. Saber de qué sección es una OF exige preguntárselo a RPS por
+ *  cada una, y eso son 7-15 s para afinar un caso que casi no se da.
  */
 export function leerMovimientosMetricas(
   desde?: string,
   hasta?: string,
+  seccion?: SeccionId,
 ): MovimientoRegistrado[] {
   // Los movimientos del ciclo que se miden. `recuperar_planteo` entra aunque no
   // se cuente: cancela la espera en la cola, y sin él una OF recuperada seguiria
@@ -392,6 +406,15 @@ export function leerMovimientosMetricas(
     "l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','recuperar_planteo')",
   ];
   const args: string[] = [];
+  if (seccion) {
+    const suyos = operariosDeSeccion(seccion);
+    // Los movimientos SIN autor conocido entran en la sección de siempre: los
+    // hay en el histórico, y perderlos descuadraría los totales de OT por un
+    // detalle de cómo se registraron hace meses.
+    const sinAutor = seccion === SECCION_POR_DEFECTO ? " OR l.operario_id IS NULL" : "";
+    filtros.push(`(l.operario_id IN (${suyos.map(() => "?").join(",")})${sinAutor})`);
+    args.push(...suyos);
+  }
   if (desde) {
     filtros.push("l.ts >= ?");
     args.push(desde);
@@ -404,6 +427,7 @@ export function leerMovimientosMetricas(
     .prepare(
       `SELECT l.ts AS at,
               l.motivo AS motivo,
+              l.operario_id AS operarioId,
               json_extract(c.value, '$.ofId') AS ofId,
               json_extract(c.value, '$.observacion') AS observacion
          FROM acciones_log l, json_each(l.detalle, '$.cambiosOF') c
