@@ -96,3 +96,20 @@ export function recursosSql(s: Seccion): string {
 export function esFaseDe(maquina: string, s: Seccion): boolean {
   return maquina.toUpperCase().includes(s.marcaEnFases);
 }
+
+/** Los recursos de TODAS las secciones que usan CoordinaOT, listos para un
+ *  `IN (…)` de SQL.
+ *
+ *  Es lo que el Historial usa para decidir qué es trabajo de oficina: un pedido
+ *  se enseña entero, con las OF de OT y las de Diseño Gráfico, porque el parte
+ *  es del pedido y no de un departamento.
+ *
+ *  LO QUE NO ENTRA ES EL TALLER, y no por capricho: los minutos que se enseñan
+ *  salen de sumar las imputaciones de estas tareas, y quitando el filtro se
+ *  cuelan corte, soldadura y confección. Medido sobre pedidos reales
+ *  (2026-09-01): SA.26.00498 pasa de 14 minutos a 2010, y SA.26.00860 de 4 a
+ *  240. Un tiempo de oficina de "5 horas" que en realidad son 14 minutos no es
+ *  un dato de más, es un dato falso. */
+export function recursosDeLaWebSql(): string {
+  return Object.values(SECCIONES).map(recursosSql).join(",");
+}

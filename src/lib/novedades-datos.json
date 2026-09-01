@@ -1,5 +1,36 @@
 [
   {
+    "id": "2026-09-01-2",
+    "hasta": "2cbc9e8",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Si añaden trabajo a un pedido ya pasado, vuelve al tablero",
+        "detalle": "Cuando habilitan una OF en un pedido que ya diste por terminado, el pedido sale de \"Pasados a Producción\" y vuelve a la lista, marcado con \"OF nueva\" y con aviso en la campana. Antes se quedaba escondido allí con la OF sin hacer."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Diseño Gráfico ya tiene su sitio en la web",
+        "detalle": "Carrón, Manuel y Smith pueden entrar y ven su propio trabajo, con su equipo y su reloj. Quien es de Oficina Técnica sigue viendo lo de siempre; se cambia de uno a otro desde el nombre de arriba a la derecha."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El menú de «⋯» de una OF salía cortado",
+        "detalle": "En la última OF del pedido, opciones como «Dar por corregida» se veían a medias y tapadas por el borde del panel."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un mes podía salir con más devoluciones que revisiones",
+        "detalle": "Pasaba cuando una OF se revisaba a final de mes y volvía al mes siguiente. Septiembre llegó a marcar 150 % y la barra se salía de la pantalla. Ahora cada devolución cuenta en el mes en que se revisó la OF."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los avisos de \"han re-escaneado el parte\" que no eran verdad",
+        "detalle": "Un proceso del sistema vuelve a copiar los partes cada media hora, y la web se lo creía: AR.26.03891 llegó a soltar nueve avisos y nueve notas en una mañana sin que nadie hubiera tocado el parte. Ahora se mira si el papel ha cambiado de verdad."
+      }
+    ]
+  },
+  {
     "id": "2026-09-01",
     "hasta": "457045e",
     "cambios": [
