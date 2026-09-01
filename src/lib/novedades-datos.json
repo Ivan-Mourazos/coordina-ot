@@ -1,5 +1,36 @@
 [
   {
+    "id": "2026-09-01",
+    "hasta": "457045e",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Métricas: cuánto tarda cada paso y por qué se anulan las OF",
+        "detalle": "Además de las devoluciones, ahora se ve dónde se para el trabajo —esperando revisión, en el repaso o corrigiendo— y las causas de anulación, que se guardaban desde agosto sin que nadie las viera."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Ya se puede finalizar una operación desde el pedido pasado a Producción",
+        "detalle": "Si pasas un pedido y su operación de OT se queda abierta en RPS, ahora se cierra desde la propia ficha. Antes solo aparecía en el Historial y había que ir a la herramienta vieja."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El log de novedades se mantiene solo",
+        "detalle": "Las novedades se escriben al hacer cada cambio y la lista se genera sola al desplegar, así que ya no depende de que alguien se acuerde."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El log de novedades se lee más fácil",
+        "detalle": "Los cambios van agrupados en «nuevo», «arreglado» y «mejor», y cada grupo dice en qué se diferencia de los otros."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Lo que la web llamaba «fase» ahora se llama «operación»",
+        "detalle": "Es como se le llama en la oficina y en el taller."
+      }
+    ]
+  },
+  {
     "id": "2026-08-31",
     "hasta": "f3bfcd6",
     "cambios": [
