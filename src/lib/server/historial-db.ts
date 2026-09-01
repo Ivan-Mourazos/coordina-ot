@@ -702,7 +702,7 @@ export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRps
  *  Sin URL van los que no son un fichero del archivo (`gdoc://`, discos ajenos):
  *  se quedan en la lista con su descripción, pero no como enlace, para no
  *  enseñar algo que va a dar 404 siempre. */
-function aDocumentosDelCliente(
+export function aDocumentosDelCliente(
   pedido: string,
   crudos: DocumentoRpsCrudo[],
 ): DocumentoRps[] {
@@ -714,6 +714,22 @@ function aDocumentosDelCliente(
       ? `/api/historial/${encodeURIComponent(pedido)}/documento/${i}`
       : null,
   }));
+}
+
+/** Los documentos de un pedido listos para el cliente, sin pasar por el
+ *  detalle entero del Historial.
+ *
+ *  Lo usa la ficha del pedido VIVO: las fotos, la rotulación y el
+ *  planteamiento hacen falta MIENTRAS se trabaja el pedido, no solo cuando ya
+ *  está cerrado. Antes había que esperar a que llegara al Historial para
+ *  verlos, que es justo cuando ya no sirven para trabajar.
+ *
+ *  Es la MISMA lista y el MISMO orden que el Historial —llama a las mismas dos
+ *  funciones—, y eso es un requisito y no una comodidad: la URL de cada
+ *  documento es su POSICIÓN en esta lista, así que dos listas distintas
+ *  servirían ficheros cruzados. */
+export async function documentosDePedido(pedido: string): Promise<DocumentoRps[]> {
+  return aDocumentosDelCliente(pedido, await leerDocumentosPedido(pedido));
 }
 
 /** El documento nº `indice` del pedido, con su ruta al share, o null si ese

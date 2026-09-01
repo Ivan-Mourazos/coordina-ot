@@ -11,6 +11,7 @@ import { DevolverInline } from "./DevolverInline";
 import { AnularInline } from "./AnularInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
+import { DocumentosPedido } from "./DocumentosPedido";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
@@ -386,6 +387,17 @@ export function Drawer({
           {pedido.scanCambiado && (
             <AvisoParteNuevo key={`aviso:${pedido.codigo}`} pedido={pedido.codigo} />
           )}
+
+          {/* Lo que RPS tiene colgado: la rotulación, el planteamiento y las
+              fotos. Va ANTES del hilo de notas y después del parte porque es
+              del mismo orden de lectura: primero lo que hay que mirar para
+              hacer el trabajo, después lo que se ha dicho sobre él.
+
+              Plegado, y se pide solo al desplegarlo: son dos tablas grandes de
+              RPS por pedido y la mayoría de las veces la ficha se abre para
+              fichar, no para mirar documentos. El `key` con el código, por lo
+              mismo que el hilo de notas de abajo. */}
+          <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
 
           {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
               lo que se decide, porque es contexto: primero se lee de qué va
