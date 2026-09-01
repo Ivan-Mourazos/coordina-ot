@@ -26,6 +26,10 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: ESTADO.aprobada.dot },
   notaNueva: { label: "Nota nueva", vista: "asignar", dot: "bg-teal-600" },
   parteNuevo: { label: "Han re-escaneado el parte", vista: "asignar", dot: "bg-amber-500" },
+  // Ámbar como el parte re-escaneado, y por lo mismo: los dos dicen "esto ha
+  // cambiado por detrás, míralo antes de seguir". Suelen venir juntos —añaden
+  // trabajo al pedido y vuelven a escanear el parte.
+  ofNueva: { label: "OF nueva en un pedido pasado", vista: "asignar", dot: "bg-amber-500" },
 };
 
 /** La segunda línea del aviso: de qué parte del pedido habla. */
@@ -36,6 +40,10 @@ function detalleDe(item: NotifItem): string {
   if (item.tipo === "notaNueva") return item.texto ?? "Nota nueva en el pedido";
   if (item.tipo === "parteNuevo")
     return "Puede traer cambios: míralo antes de seguir";
+  if (item.tipo === "ofNueva")
+    return item.ofs.length === 1
+      ? `${item.ofs[0].codigo} — ${item.ofs[0].descripcion}`
+      : `${item.ofs.length} OF sin hacer`;
   if (item.ofs.length === 0) return "Todas sus OF aprobadas";
   if (item.pedidoEntero)
     return item.totalOFs === 1

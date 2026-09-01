@@ -28,7 +28,12 @@ export type NotifTipo =
   // Los demás avisos nacieron personales ("te toca a ti"), pero la regla de la
   // campana —un hecho que no has provocado tú— vale igual para estos.
   | "notaNueva"
-  | "parteNuevo";
+  | "parteNuevo"
+  // Trabajo que apareció DESPUÉS de dar el pedido por terminado: RPS habilitó
+  // una OF que antes no había que hacer. Es del equipo, como los dos de
+  // arriba, y es el más fácil de perderse: el pedido ya estaba archivado en la
+  // cabeza de todos.
+  | "ofNueva";
 
 /** Un aviso tal y como se detecta: mirando UNA OF. */
 export interface AvisoSuelto {
@@ -141,6 +146,10 @@ const DEDUCIDOS: ReadonlySet<NotifTipo> = new Set<NotifTipo>([
   "revisar",
   "devuelta",
   "pedidoCompleto",
+  // Sale de mirar el pedido (`reabiertoPor`), no de una fila del registro, así
+  // que tampoco tiene dónde marcarse. Su identidad lleva las OF concretas: si
+  // mañana habilitan OTRA, vuelve a sonar.
+  "ofNueva",
   // La nota de un compañero no es un movimiento (no hay fila del registro que
   // marcar) y tampoco se apagaba sola, así que se quedaba encendida hasta que
   // la nota dejaba de contar como reciente: leías el recado y la campana

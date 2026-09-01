@@ -666,6 +666,18 @@ export function Board({
     for (const p of procesadosAll) {
       if (p.scanCambiado) out.push({ pedido: p, of: null, tipo: "parteNuevo" });
     }
+
+    // Trabajo aparecido en un pedido que ya se había pasado a Producción. Lo
+    // deduce el servidor al fusionar el overlay (ver `aplicarOverlay`): el
+    // pedido vuelve al tablero y trae dentro qué OF lo han reabierto. Sin este
+    // aviso el pedido reaparecería sin más, y nadie sabría por qué está ahí
+    // uno que se dio por cerrado hace semanas.
+    for (const p of procesadosAll) {
+      for (const id of p.reabiertoPor ?? []) {
+        const of = p.ofs.find((o) => o.id === id);
+        if (of) out.push({ pedido: p, of, tipo: "ofNueva" });
+      }
+    }
     return agruparAvisos(out);
   }, [procesadosAll, miId, avisosMov, operarios, notasRecientes]);
 

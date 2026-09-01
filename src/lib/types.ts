@@ -376,6 +376,13 @@ export interface Pedido {
   codigo: string; // p.ej. "AR.26.03376"
   cliente: string;
   situacion: Situacion;
+  /** Las OF que han devuelto este pedido al tablero después de pasarlo a
+   *  Producción: trabajo de OT que apareció DESPUÉS de darlo por terminado.
+   *
+   *  Lo deduce `aplicarOverlay`, no se guarda: es la foto de cómo está el
+   *  pedido ahora, y en cuanto esas OF se resuelvan el pedido vuelve solo a
+   *  estar completado. undefined = no le ha pasado (el caso normal). */
+  reabiertoPor?: string[];
   fechaSolicitud: string; // ISO yyyy-mm-dd
   /** Fecha ISO yyyy-mm-dd en la que se creó el pedido de venta en RPS
    *  (FACOrderSL.OrderDate). undefined = sin dato (mock, OF sin pedido). */

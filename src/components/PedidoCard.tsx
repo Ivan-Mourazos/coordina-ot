@@ -156,6 +156,17 @@ export const PedidoCardView = memo(function PedidoCardView({
           </span>
         )}
 
+        {/* Trabajo aparecido después de pasar el pedido a Producción. Ver la
+            misma marca en PedidoLinea. */}
+        {(facet.pedido.reabiertoPor?.length ?? 0) > 0 && (
+          <span
+            className="absolute right-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
+            title="Este pedido ya se había pasado a Producción y ha aparecido trabajo nuevo sin hacer."
+          >
+            OF nueva
+          </span>
+        )}
+
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
           <span
