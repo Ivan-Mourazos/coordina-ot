@@ -813,7 +813,6 @@ export function Board({
     // que avisa el comentario de los descartes más abajo.
     if (cuantasNuevas(visto) > 0) setNovedadesAbiertas(true);
   }
-  const nuevasSinVer = vistoNovedades === undefined ? 0 : cuantasNuevas(vistoNovedades);
 
   const [descartes, setDescartes] = useState<{ opId: string | null; claves: string[] }>({
     opId: null,
@@ -1770,12 +1769,7 @@ export function Board({
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
             />
-            <Notificaciones
-              items={avisosVisibles}
-              onNavigate={irANotificacion}
-              novedades={nuevasSinVer}
-              onVerNovedades={() => setNovedadesAbiertas(true)}
-            />
+            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
             {/* Qué lista se mira. Va PEGADO a quién eres porque son la misma
                 pregunta partida en dos —quién soy y qué estoy viendo— y
                 separarlos por la cabecera haría buscar el conmutador. */}
