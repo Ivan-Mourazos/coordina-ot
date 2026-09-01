@@ -1,3 +1,5 @@
+import type { SeccionId } from "./secciones";
+
 // ─── Modelo de dominio CoordinaOT ───────────────────────────────────────────
 // Lo que se escanea y llega de Producción a Oficina Técnica es un PEDIDO (AR...).
 // Un pedido contiene una o varias OF (Órdenes de Fabricación). Los datos de las
@@ -198,6 +200,9 @@ export type EstadoOF =
 export type Rol = "plantear" | "revisar";
 
 export interface Operario {
+  /** En qué sección trabaja. Ausente = Oficina Técnica, que es la de siempre:
+   *  la web era solo suya hasta que entró Diseño Gráfico. Ver lib/secciones.ts. */
+  seccion?: SeccionId;
   id: string;
   nombre: string;
   iniciales: string;
@@ -376,6 +381,13 @@ export interface Pedido {
   codigo: string; // p.ej. "AR.26.03376"
   cliente: string;
   situacion: Situacion;
+  /** Las OF que han devuelto este pedido al tablero después de pasarlo a
+   *  Producción: trabajo de OT que apareció DESPUÉS de darlo por terminado.
+   *
+   *  Lo deduce `aplicarOverlay`, no se guarda: es la foto de cómo está el
+   *  pedido ahora, y en cuanto esas OF se resuelvan el pedido vuelve solo a
+   *  estar completado. undefined = no le ha pasado (el caso normal). */
+  reabiertoPor?: string[];
   fechaSolicitud: string; // ISO yyyy-mm-dd
   /** Fecha ISO yyyy-mm-dd en la que se creó el pedido de venta en RPS
    *  (FACOrderSL.OrderDate). undefined = sin dato (mock, OF sin pedido). */

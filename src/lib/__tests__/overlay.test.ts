@@ -90,7 +90,14 @@ describe("aplicarOverlay", () => {
   });
 
   it("pedido completado cambia situacion sin tocar sus OFs", () => {
-    const t: Tablero = { operarios: [], pedidos: [pedido("P1", [of("A")])] };
+    // La OF va aprobada porque es lo que tiene un pedido pasado a Producción:
+    // su trabajo hecho. Con una OF sin hacer el pedido ya no está completado
+    // —vuelve al tablero, ver el bloque de abajo—, y entonces esto mediría
+    // otra cosa.
+    const t: Tablero = {
+      operarios: [],
+      pedidos: [pedido("P1", [of("A", { estado: "aprobada" })])],
+    };
     const overlay: Overlay = { ofs: new Map(), pedidosCompletados: new Set(["P1"]) };
     const res = aplicarOverlay(t, overlay);
     expect(res.pedidos[0].situacion).toBe("completado");
@@ -108,5 +115,54 @@ describe("aplicarOverlay", () => {
     aplicarOverlay(t, overlay);
     expect(t.pedidos[0].ofs[0].autorId).toBeNull();
     expect(t.pedidos[0].situacion).toBe("procesado");
+  });
+});
+
+describe("una OF nueva en un pedido ya pasado a Producción", () => {
+  // El caso real (AR.26.03914): se pasó a Producción con su trabajo hecho y
+  // DESPUÉS habilitaron en RPS una OF que antes no había que hacer. Como la
+  // marca de "pasado" es del pedido entero y no se volvía a mirar nunca, el
+  // pedido seguía en Pasados y la OF nueva quedaba escondida ahí dentro, sin
+  // autor y sin que nadie supiera que existía.
+  const pasado = (ofs: OF[]) => ({
+    tablero: { operarios: [], pedidos: [pedido("P1", ofs)] },
+    overlay: { ofs: new Map(), pedidosCompletados: new Set(["P1"]) },
+  });
+
+  it("devuelve el pedido al tablero y lo marca como reabierto", () => {
+    const { tablero, overlay } = pasado([of("A", { estado: "aprobada" }), of("NUEVA")]);
+    const [p] = aplicarOverlay(tablero, overlay).pedidos;
+    expect(p.situacion).not.toBe("completado");
+    expect(p.reabiertoPor).toEqual(["NUEVA"]);
+  });
+
+  it("con todo el trabajo hecho se queda completado", () => {
+    const { tablero, overlay } = pasado([of("A", { estado: "aprobada" })]);
+    const [p] = aplicarOverlay(tablero, overlay).pedidos;
+    expect(p.situacion).toBe("completado");
+    expect(p.reabiertoPor).toBeUndefined();
+  });
+
+  it("las anuladas no lo reabren: no son trabajo que hacer", () => {
+    const { tablero, overlay } = pasado([
+      of("A", { estado: "aprobada" }),
+      of("B", { estado: "anulada" }),
+    ]);
+    expect(aplicarOverlay(tablero, overlay).pedidos[0].situacion).toBe("completado");
+  });
+
+  it("las que no son de OT tampoco: ese trabajo no es nuestro", () => {
+    const { tablero, overlay } = pasado([
+      of("A", { estado: "aprobada" }),
+      of("C", { ajenaOT: true }),
+    ]);
+    expect(aplicarOverlay(tablero, overlay).pedidos[0].situacion).toBe("completado");
+  });
+
+  it("un pedido que nunca se pasó no se toca", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [of("A")])] };
+    const r = aplicarOverlay(t, { ofs: new Map(), pedidosCompletados: new Set(["OTRO"]) });
+    expect(r.pedidos[0].situacion).toBe("procesado");
+    expect(r.pedidos[0].reabiertoPor).toBeUndefined();
   });
 });

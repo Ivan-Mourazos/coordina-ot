@@ -97,6 +97,41 @@ describe("si va a mejor", () => {
       { mes: "2026-09", revisiones: 1, devoluciones: 0 },
     ]);
   });
+
+  it("una devolución cuenta en el mes de SU revisión, no en el que se devuelve", () => {
+    // El caso real que sacó un 150 %: la revisión se empezó el 31 de agosto y
+    // la devolución llegó el 1 de septiembre. Contando cada movimiento en su
+    // propio mes, septiembre se quedaba con la devolución y agosto con la
+    // revisión: numerador y denominador de meses distintos, y un porcentaje
+    // que puede pasar del 100 % sin que nada esté mal.
+    const m = calcularMetricas([
+      mov("2026-08-31T16:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] la cota"),
+    ]);
+    expect(m.porMes).toEqual([{ mes: "2026-08", revisiones: 1, devoluciones: 1 }]);
+  });
+
+  it("ningún mes puede pasar del 100 %", () => {
+    // La garantía que da contar por cohorte: cada devolución tiene detrás una
+    // revisión del mismo mes, así que el numerador nunca supera al denominador.
+    const m = calcularMetricas([
+      mov("2026-08-30T10:00:00.000Z", "empezar_revision", "ofA"),
+      mov("2026-09-01T10:00:00.000Z", "devolver", "ofA", "[1] x"),
+      mov("2026-08-30T11:00:00.000Z", "empezar_revision", "ofB"),
+      mov("2026-09-01T11:00:00.000Z", "devolver", "ofB", "[1] x"),
+      mov("2026-09-02T10:00:00.000Z", "empezar_revision", "ofC"),
+    ]);
+    for (const mes of m.porMes) {
+      expect(mes.devoluciones).toBeLessThanOrEqual(mes.revisiones);
+    }
+  });
+
+  it("una devolución sin revisión registrada cae en su propio mes", () => {
+    // Las de antes de que existiera `empezar_revision` no tienen cohorte a la
+    // que ir. Se cuentan donde pasaron: perderlas sería peor que descuadrar.
+    const m = calcularMetricas([mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] x")]);
+    expect(m.porMes).toEqual([{ mes: "2026-09", revisiones: 0, devoluciones: 1 }]);
+  });
 });
 
 describe("la proporción", () => {

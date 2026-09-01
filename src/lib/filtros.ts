@@ -23,8 +23,12 @@ import { ofOcultaDeOT } from "./fases-tablero";
 export const CATEGORIAS = ["normal", "taller", "detenidas", "anuladas", "internos"] as const;
 export type Categoria = (typeof CATEGORIAS)[number];
 
+// LOS RÓTULOS NO NOMBRAN A OFICINA TÉCNICA. Estas mismas pantallas las usa
+// Diseño Gráfico, y a Carrón "Trabajo de OT" le decía que su propio trabajo era
+// de otro departamento. Se habla en segunda persona, que vale para las dos
+// secciones y además se lee mejor.
 export const CATEGORIA_LABEL: Record<Categoria, string> = {
-  normal: "Trabajo de OT",
+  normal: "Tu trabajo",
   taller: "Para taller",
   detenidas: "OF detenidas",
   anuladas: "OF anuladas",
@@ -32,9 +36,9 @@ export const CATEGORIA_LABEL: Record<Categoria, string> = {
 };
 
 export const CATEGORIA_AYUDA: Record<Categoria, string> = {
-  normal: "El trabajo normal de Oficina Técnica: sin las de taller, detenidas, anuladas ni los pedidos internos.",
-  taller: "SOLO las OF que entran por una tarea de taller (capotas, faldones) y no ha rescatado nadie. No son trabajo de OT.",
-  detenidas: "SOLO las OF que Producción tiene detenidas. No se pueden fichar y desatascarlas no es cosa de OT.",
+  normal: "El trabajo normal de tu sección: sin las de taller, detenidas, anuladas ni los pedidos internos.",
+  taller: "SOLO las OF que entran por una tarea de taller (capotas, faldones) y no ha rescatado nadie. No son trabajo tuyo.",
+  detenidas: "SOLO las OF que Producción tiene detenidas. No se pueden fichar y desatascarlas no está en tu mano.",
   anuladas: "SOLO las OF anuladas: las que OT decidió no hacer (las acaba el taller). Es el sitio para consultarlas y, si hace falta, restaurarlas.",
   internos: "SOLO el trabajo interno: sin pedido de venta o a nombre de la propia empresa.",
 };

@@ -136,6 +136,25 @@ export function PedidoLinea({
             Parte nuevo
           </span>
         )}
+        {/* Trabajo aparecido DESPUÉS de pasar el pedido a Producción: RPS ha
+            habilitado una OF que antes no había que hacer. Va en la fila
+            porque, sin ella, el pedido reaparece en el tablero semanas después
+            de darlo por cerrado y nadie entiende qué hace ahí.
+
+            Mismo ámbar que "parte nuevo", y suelen salir juntos: cuando añaden
+            trabajo a un pedido, vuelven a escanear el parte. */}
+        {(pedido.reabiertoPor?.length ?? 0) > 0 && (
+          <span
+            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300"
+            title={
+              pedido.reabiertoPor!.length === 1
+                ? "Este pedido ya se había pasado a Producción y ha aparecido una OF nueva sin hacer."
+                : `Este pedido ya se había pasado a Producción y han aparecido ${pedido.reabiertoPor!.length} OF nuevas sin hacer.`
+            }
+          >
+            OF nueva
+          </span>
+        )}
         {/* Detenidas por Producción: no se pueden fichar y no está en mano de
             OT resolverlo. Se avisa en la fila para no coger un pedido que no
             se puede tocar y descubrirlo al intentar fichar. */}

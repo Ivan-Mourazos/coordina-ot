@@ -1,4 +1,5 @@
 import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
+import { SECCIONES } from "../secciones";
 import { agregarPorRol } from "../fichaje";
 import { diasYOperariosDe, intervaloYaEnRps } from "../traspaso-fichaje";
 import { leerTodosIntervalos, marcarTraspasados } from "./fichaje-db";
@@ -18,7 +19,7 @@ import {
   sincronizarFichajeEnCurso,
   type FilaEnCurso,
 } from "./olanet";
-import { COD_RPS_POR_OPERARIO } from "./operarios";
+import { COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO } from "./operarios";
 
 // ─── Sincronización con OLANET ───────────────────────────────────────────────
 // Dos trabajos periódicos, los dos parados mientras el modo sea "sombra":
@@ -138,6 +139,7 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
         fase,
         minutos: t.planteoMin + t.revisionMin,
         operarioRps,
+        maquina: MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT,
       });
     }
   }
@@ -161,8 +163,17 @@ export async function confirmarTraspasos(): Promise<number> {
   const pendientes = leerTodosIntervalos().filter((iv) => iv.fin !== null);
   if (pendientes.length === 0) return 0;
 
-  const { dias, operarios } = diasYOperariosDe(pendientes, COD_RPS_POR_OPERARIO);
-  const yaEnRps = await bonosTraspasados(dias, operarios, MAQUINA_OT);
+  // Una consulta POR MÁQUINA: los bonos de OT viven en A-OTEC y los de diseño
+  // en A-DGRA, y preguntar por una sola dejaría a la otra sección sin sellar
+  // nunca — su tiempo se contaría dos veces, aquí y en RPS.
+  const yaEnRps = new Set<string>();
+  for (const maquina of maquinasEnJuego(pendientes)) {
+    const suyos = pendientes.filter(
+      (iv) => (MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT) === maquina,
+    );
+    const { dias, operarios } = diasYOperariosDe(suyos, COD_RPS_POR_OPERARIO);
+    for (const clave of await bonosTraspasados(dias, operarios, maquina)) yaEnRps.add(clave);
+  }
   if (yaEnRps.size === 0) return 0;
 
   const sellar = pendientes
@@ -173,10 +184,38 @@ export async function confirmarTraspasos(): Promise<number> {
 
 export async function refrescarEnCurso(): Promise<void> {
   // Solo en activo. Esta tabla la comparte el mini-olanet, y la sincronización
-  // empieza borrando las filas de A-OTEC: durante un ensayo se llevaría por
-  // delante a quien esté fichando ahora mismo en el sistema de verdad.
+  // empieza borrando las filas de esa máquina: durante un ensayo se llevaría
+  // por delante a quien esté fichando ahora mismo en el sistema de verdad.
   if (modoFichaje() !== "activo") return;
-  await sincronizarFichajeEnCurso(filasEnCurso(), MAQUINA_OT);
+
+  // UNA LLAMADA POR MÁQUINA, con solo las filas de esa máquina. La
+  // sincronización borra y reinserta lo de la máquina que se le pasa: mandarlo
+  // todo junto con una sola máquina borraría las filas de A-OTEC y volvería a
+  // meter dentro las de diseño, atribuyéndole a OT el tiempo de Carrón.
+  //
+  // Se recorren TODAS las máquinas conocidas y no solo las que tienen a
+  // alguien fichando: una sección donde acaban de parar el reloj necesita su
+  // borrado, y sin él se quedaría enseñando para siempre un fichaje que ya no
+  // corre.
+  const filas = filasEnCurso();
+  for (const maquina of TODAS_LAS_MAQUINAS) {
+    await sincronizarFichajeEnCurso(
+      filas.filter((f) => f.maquina === maquina),
+      maquina,
+    );
+  }
+}
+
+/** Las máquinas de todas las secciones. Fijas: salen de lib/secciones.ts. */
+const TODAS_LAS_MAQUINAS: readonly string[] = [
+  ...new Set(Object.values(SECCIONES).map((s) => s.maquina)),
+];
+
+/** Las máquinas que tocan estos intervalos, sin repetir. */
+function maquinasEnJuego(intervalos: readonly { operarioId: string }[]): string[] {
+  return [
+    ...new Set(intervalos.map((iv) => MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT)),
+  ];
 }
 
 async function vuelta(): Promise<void> {

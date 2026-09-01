@@ -1,4 +1,5 @@
 import type { Operario, Pedido } from "./types";
+import { SECCION_POR_DEFECTO, type SeccionId } from "./secciones";
 import { OPERARIOS, PEDIDOS } from "./mock";
 
 // ─── ÚNICO punto de acceso a datos ───────────────────────────────────────────
@@ -17,10 +18,16 @@ export interface Tablero {
   dobleFichaje?: boolean;
 }
 
-export async function getTablero(): Promise<Tablero> {
+/** El tablero de una sección. Sin decir cuál, la de siempre (Oficina Técnica):
+ *  así todo lo que ya llamaba a esto sigue viendo lo que veía.
+ *
+ *  El overlay, el fichaje y las notas NO se filtran por sección: son de la OF,
+ *  y una OF solo sale en la lista de su sección. Filtrarlos otra vez aquí sería
+ *  repetir el filtro que ya hizo la vista de RPS. */
+export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Promise<Tablero> {
   const base: Tablero =
     process.env.DATASOURCE === "rps"
-      ? await (await import("./server/rps")).getTableroRPS()
+      ? await (await import("./server/rps")).getTableroRPS(seccion)
       : { operarios: OPERARIOS, pedidos: PEDIDOS };
 
   // Overlay de CoordinaOT (SQLite): asignaciones, estados del flujo y

@@ -1,3 +1,4 @@
+import { recursosDeLaWebSql } from "../secciones";
 import { getPool } from "./db";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
@@ -73,6 +74,21 @@ const RESCATE_SIN_FIN_DE_FASE = `
           )`;
 
 const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
+
+/** Los centros de trabajo que cuentan como trabajo de oficina: los de TODAS
+ *  las secciones de la web, Oficina Técnica y Diseño Gráfico.
+ *
+ *  EL HISTORIAL NO SE PARTE POR SECCIONES. Un pedido se enseña entero, con sus
+ *  OF de OT y las de diseño, porque el parte es del pedido: quien lo abre
+ *  quiere saber qué se hizo con él, no qué hizo su departamento.
+ *
+ *  Antes esto era `'a-otec','otec-a'` escrito cinco veces, y las OF de diseño
+ *  no salían: sus autores no aparecían, sus minutos no se sumaban y su material
+ *  no se listaba.
+ *
+ *  El taller sigue fuera. Ver `recursosDeLaWebSql` para el porqué con números:
+ *  contarlo multiplica los tiempos de oficina por veinte o por ciento. */
+const RECURSOS_WEB = recursosDeLaWebSql();
 
 export async function leerHistorialPagina(
   f: HistorialFiltros,
@@ -230,7 +246,7 @@ async function extrasDePagina(
     WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})
       AND EXISTS (
         SELECT 1 FROM dbo.CPRMOResourceMachine rm
-        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
+        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
       )
     GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description,
              cli.Description, sf.CodProductSubFamily, e.CodEmployee
@@ -444,13 +460,13 @@ async function leerMaterialesPedido(
           WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
         )
         -- Mismo filtro de OT que el resto del detalle: solo las OF que pasaron
-        -- por Oficina Técnica, para no listar material de OF de taller que el
-        -- Historial no enseña.
+        -- por oficina (OT o Diseño Gráfico), para no listar material de OF de
+        -- taller que el Historial no enseña.
         AND EXISTS (
           SELECT 1 FROM dbo.CPRMOTask t
           JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
           WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder
-            AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
+            AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
         )
     `);
 
@@ -485,10 +501,10 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   // ocho veces más. Los minutos y el material se piden a la vez pero por
   // separado, y así el detalle no se enlentece por tenerlos separados.
   // ── Por qué la consulta se puede tener que repetir ────────────────────────
-  // Se filtra por la tarea de OT (recurso a-otec/otec-a) para que los minutos
-  // sean los del PLANTEO y no los de corte, soldadura o confección — ese filtro
-  // es el que evita que "6 minutos" salgan como "5 horas" (ver el comentario de
-  // arriba).
+  // Se filtra por las tareas de oficina (OT y Diseño Gráfico, ver
+  // RECURSOS_WEB) para que los minutos sean los del PLANTEO y no los de corte,
+  // soldadura o confección — ese filtro es el que evita que "6 minutos" salgan
+  // como "5 horas" (ver el comentario de arriba).
   //
   // Pero hay pedidos que llegan al Historial SIN ninguna tarea de OT, y no es un
   // caso raro de laboratorio: SA.26.00790 entró al tablero por una tarea de
@@ -530,7 +546,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
           )
           AND EXISTS (
             SELECT 1 FROM dbo.CPRMOResourceMachine rm
-            WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN ('a-otec','otec-a')
+            WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
           )
         GROUP BY mo.CodManufacturingOrder, mo.Description, e.CodEmployee
       `);
@@ -686,7 +702,7 @@ export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRps
  *  Sin URL van los que no son un fichero del archivo (`gdoc://`, discos ajenos):
  *  se quedan en la lista con su descripción, pero no como enlace, para no
  *  enseñar algo que va a dar 404 siempre. */
-function aDocumentosDelCliente(
+export function aDocumentosDelCliente(
   pedido: string,
   crudos: DocumentoRpsCrudo[],
 ): DocumentoRps[] {
@@ -698,6 +714,22 @@ function aDocumentosDelCliente(
       ? `/api/historial/${encodeURIComponent(pedido)}/documento/${i}`
       : null,
   }));
+}
+
+/** Los documentos de un pedido listos para el cliente, sin pasar por el
+ *  detalle entero del Historial.
+ *
+ *  Lo usa la ficha del pedido VIVO: las fotos, la rotulación y el
+ *  planteamiento hacen falta MIENTRAS se trabaja el pedido, no solo cuando ya
+ *  está cerrado. Antes había que esperar a que llegara al Historial para
+ *  verlos, que es justo cuando ya no sirven para trabajar.
+ *
+ *  Es la MISMA lista y el MISMO orden que el Historial —llama a las mismas dos
+ *  funciones—, y eso es un requisito y no una comodidad: la URL de cada
+ *  documento es su POSICIÓN en esta lista, así que dos listas distintas
+ *  servirían ficheros cruzados. */
+export async function documentosDePedido(pedido: string): Promise<DocumentoRps[]> {
+  return aDocumentosDelCliente(pedido, await leerDocumentosPedido(pedido));
 }
 
 /** El documento nº `indice` del pedido, con su ruta al share, o null si ese
@@ -940,7 +972,7 @@ export async function leerHistorialPedidoDetalle(
         AND EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
                     WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
         AND EXISTS (SELECT 1 FROM dbo.CPRMOTask t JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
-                    WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND rm.CodMOResourceMachine IN ('a-otec','otec-a'))
+                    WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND rm.CodMOResourceMachine IN (${RECURSOS_WEB}))
     `)
   ).recordset[0] ?? { prioridad: null, piezas: null };
 

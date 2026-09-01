@@ -1,37 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { hayCambio, textoNotaReescaneo, type EstadoScan } from "../pedido-scan";
 
-const e = (mtimeVisto: number | null, mtimeActual: number | null): EstadoScan => ({
+const e = (huellaVista: string | null, huellaActual: string | null): EstadoScan => ({
   pedido: "AR.26.01829",
-  mtimeVisto,
-  mtimeActual,
+  huellaVista,
+  huellaActual,
 });
 
 describe("hayCambio", () => {
-  it("el parte es más nuevo que lo que se dio por visto: hay cambio", () => {
-    expect(hayCambio(e(1000, 2000))).toBe(true);
+  it("el parte no es el que se dio por visto: hay cambio", () => {
+    expect(hayCambio(e("vieja", "nueva"))).toBe(true);
   });
 
-  it("el mismo mtime no es un cambio", () => {
-    expect(hayCambio(e(2000, 2000))).toBe(false);
+  it("el mismo contenido no es un cambio, aunque el fichero se haya re-copiado", () => {
+    // Es el caso que rompía esto cuando la señal era el mtime: el share
+    // re-copia el parte cada media hora y el contenido no cambia.
+    expect(hayCambio(e("misma", "misma"))).toBe(false);
   });
 
   it("un pedido recién vigilado NO avisa, aunque ya se le haya mirado el PDF", () => {
     // Es el caso del día del despliegue: los 81 pedidos vivos se registran de
     // golpe. Si el primer vistazo contara como cambio, saltarían todos a la vez
     // y el aviso nacería quemado.
-    expect(hayCambio(e(null, 2000))).toBe(false);
+    expect(hayCambio(e(null, "algo"))).toBe(false);
   });
 
   it("sin haber mirado todavía el PDF no hay nada que contar", () => {
-    expect(hayCambio(e(1000, null))).toBe(false);
+    expect(hayCambio(e("algo", null))).toBe(false);
     expect(hayCambio(e(null, null))).toBe(false);
   });
 
-  it("un mtime MENOR no es un cambio: el fichero no rejuvenece", () => {
-    // Pasa al restaurar una copia de seguridad del share. Avisar ahí sería
-    // contar como novedad algo más viejo de lo que ya se leyó.
-    expect(hayCambio(e(2000, 1000))).toBe(false);
+  it("volver a una copia vieja también es un cambio", () => {
+    // Una huella no se ordena: no hay "más nueva". Si en el share vuelve a
+    // estar el parte de antes, quien lo lea NO está leyendo el que leyó ayer,
+    // y tiene que saberlo.
+    expect(hayCambio(e("nueva", "vieja"))).toBe(true);
   });
 });
 

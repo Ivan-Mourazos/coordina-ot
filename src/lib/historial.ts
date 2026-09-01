@@ -486,6 +486,18 @@ export function comoServir(archivo: string): { tipo: string; incrustable: boolea
     : { tipo: "application/octet-stream", incrustable: false };
 }
 
+/** ¿Es una imagen que el navegador pinta? Lo decide la MISMA tabla que usa el
+  *  servidor para servirla, no una lista aparte: si las dos se separaran, la
+  *  ficha enseñaría una miniatura de algo que luego baja como fichero.
+  *
+  *  Se usa para sacar galería en la ficha del pedido: de un PDF no hay nada que
+  *  enseñar en pequeño, pero de una rotulación o una foto del trabajo sí, y
+  *  esas son 122 000 de los enlaces de RPS. */
+export function esImagen(archivo: string): boolean {
+  const ext = (archivo.split(".").pop() ?? "").toLowerCase();
+  return (TIPO_POR_EXTENSION[ext] ?? "").startsWith("image/");
+}
+
 export interface HistorialPedidoDetalle {
   codigo: string;
   cliente: string | null;

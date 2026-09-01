@@ -1,7 +1,19 @@
 import type { Tablero } from "../data";
-import type { EstadoOF } from "../types";
+import type { EstadoOF, Situacion } from "../types";
 
 // ─── Overlay: lo que CoordinaOT sabe y RPS no ────────────────────────────────
+// PASAR A PRODUCCIÓN NO ES PARA SIEMPRE. La marca de completado se guarda por
+// PEDIDO, y RPS puede habilitar una OF nueva en un pedido que ya se dio por
+// terminado — pasa cuando el cliente añade trabajo y vuelven a escanear el
+// parte. Con la marca mandando sola, ese pedido se quedaba en "Pasados a
+// Producción" con una OF que nadie había hecho, sin autor y sin que nadie la
+// viera (el caso AR.26.03914).
+//
+// Así que "completado" se DEDUCE: es completado si se pasó Y no le queda
+// trabajo de OT por hacer. Si aparece una OF nueva, el pedido vuelve al
+// tablero marcado con `reabiertoPor`, y cuando esa OF se resuelva volverá
+// solo a completado. No se toca lo guardado: quién y cuándo lo pasó sigue
+// siendo cierto y se conserva (ver `leerPedidosPasados`).
 // RPS es la fuente de los DATOS del trabajo (pedidos, OFs, tiempos, material);
 // el overlay es la fuente del FLUJO de OT: quién plantea, quién revisa, en qué
 // estado del ciclo está cada OF y qué pedidos se dieron por completados.
@@ -38,6 +50,29 @@ export const ESTADOS_OF: ReadonlySet<string> = new Set([
   "anulada",
 ]);
 
+/** ¿Esta OF es trabajo de OT que todavía está por hacer?
+ *
+ *  Las anuladas no cuentan (ese trabajo se decidió no hacerlo) ni las ajenas a
+ *  OT (no son nuestras). Del resto, solo `aprobada` está terminada: una OF
+ *  pendiente, en curso, por revisar, en revisión o devuelta es trabajo vivo. */
+function pendienteDeOT(of: { estado: string; ajenaOT?: boolean }): boolean {
+  if (of.ajenaOT) return false;
+  return of.estado !== "aprobada" && of.estado !== "anulada";
+}
+
+/** La situación que se enseña, que NO es la marca guardada.
+ *
+ *  Reabierto manda sobre completado, y se dice aquí en vez de en una condición
+ *  suelta: un pedido reabierto tiene que salir del cajón de "pasados" pase lo
+ *  que pase, también si la situación que traía ya venía en completado. Hoy RPS
+ *  no la manda así nunca —siempre llega "procesado"—, pero de eso depende que
+ *  un pedido con trabajo sin hacer no se quede escondido, y no puede depender
+ *  de un detalle de otro fichero. */
+function situacionDe(traida: Situacion, completado: boolean, reabierto: boolean): Situacion {
+  if (reabierto) return traida === "completado" ? "procesado" : traida;
+  return completado ? "completado" : traida;
+}
+
 /** Fusión pura tablero (mock o RPS) + overlay. No muta la entrada. */
 export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
   if (overlay.ofs.size === 0 && overlay.pedidosCompletados.size === 0)
@@ -58,10 +93,15 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
           revisada: o.revisada ?? false,
         };
       });
+      // Solo en los pasados: en un pedido normal, tener OF sin hacer es lo
+      // esperado y no significa nada.
+      const reabiertoPor = completado ? ofs.filter(pendienteDeOT).map((of) => of.id) : [];
+
       if (!completado && ofs.every((of, i) => of === p.ofs[i])) return p;
       return {
         ...p,
-        situacion: completado ? ("completado" as const) : p.situacion,
+        situacion: situacionDe(p.situacion, completado, reabiertoPor.length > 0),
+        ...(reabiertoPor.length > 0 ? { reabiertoPor } : {}),
         ofs,
       };
     }),

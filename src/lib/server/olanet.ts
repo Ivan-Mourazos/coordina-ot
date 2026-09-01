@@ -188,6 +188,10 @@ export interface FilaEnCurso {
   fase: number;
   minutos: number;
   operarioRps: string;
+  /** La máquina de su sección (A-OTEC, A-DGRA). Va en la fila porque el
+   *  borrado de esta tabla se acota por máquina: quien sincroniza tiene que
+   *  poder repartir las filas antes de llamar. Ver refrescarEnCurso. */
+  maquina: string;
 }
 
 /** Deja en `tgm_fichajes_olanet_ot` la foto de quién está fichando AHORA en

@@ -13,12 +13,16 @@ let scanDb: typeof import("../server/scan-db");
 let notasDb: typeof import("../server/notas-db");
 let estado: typeof import("../server/estado-db");
 
-/** Deja un PDF en el sitio donde lo buscaría la app, con el mtime que se pida. */
-function ponerParte(codigo: string, mtimeMs: number) {
+/** Deja un PDF en el sitio donde lo buscaría la app, con el mtime que se pida.
+ *
+ *  `contenido` por defecto es el mismo siempre: así, poner el mismo parte con
+ *  otro mtime simula lo que hace el share al re-copiar un fichero sin tocarlo
+ *  —que NO es un re-escaneo—. Para simular uno de verdad hay que cambiarlo. */
+function ponerParte(codigo: string, mtimeMs: number, contenido = "pdf de mentira") {
   const carpeta = path.join(share, "2026");
   mkdirSync(carpeta, { recursive: true });
   const f = path.join(carpeta, `${codigo}.pdf`);
-  writeFileSync(f, "pdf de mentira");
+  writeFileSync(f, contenido);
   const seg = mtimeMs / 1000;
   utimesSync(f, seg, seg);
 }
@@ -68,7 +72,7 @@ test("re-escanear deja UNA nota permanente y enciende el aviso", async () => {
   scanDb.registrarPedidos(["AR.26.01829"]);
   await worker.revisarUnaTanda();
 
-  ponerParte("AR.26.01829", T2);
+  ponerParte("AR.26.01829", T2, "otro escaneo");
   expect(await worker.revisarUnaTanda()).toBe(1);
 
   const notas = notasDb.leerNotas("AR.26.01829");
@@ -86,7 +90,7 @@ test("la nota lleva la fecha del escaneo, no la de ahora", async () => {
   ponerParte("AR.26.01829", T1);
   scanDb.registrarPedidos(["AR.26.01829"]);
   await worker.revisarUnaTanda();
-  ponerParte("AR.26.01829", T2);
+  ponerParte("AR.26.01829", T2, "otro escaneo");
   await worker.revisarUnaTanda();
 
   const d = new Date(T2);
@@ -159,13 +163,13 @@ test("un segundo re-escaneo, con el aviso todavía sin ver, deja su propia nota"
   scanDb.registrarPedidos(["AR.26.01829"]);
   await worker.revisarUnaTanda();
 
-  ponerParte("AR.26.01829", T2);
+  ponerParte("AR.26.01829", T2, "segundo escaneo");
   expect(await worker.revisarUnaTanda()).toBe(1);
 
   // Nadie ha dado por visto el aviso y vuelven a escanear el parte. Es una
   // segunda noticia: el registro permanente tiene que llevar las dos fechas,
   // que para eso la nota lleva la hora.
-  ponerParte("AR.26.01829", T3);
+  ponerParte("AR.26.01829", T3, "tercer escaneo");
   expect(await worker.revisarUnaTanda()).toBe(1);
 
   const notas = notasDb.leerNotas("AR.26.01829");
@@ -176,4 +180,21 @@ test("un segundo re-escaneo, con el aviso todavía sin ver, deja su propia nota"
   // Y sin cambio de fichero sigue sin repetirse.
   expect(await worker.revisarUnaTanda()).toBe(0);
   expect(notasDb.leerNotas("AR.26.01829")).toHaveLength(2);
+});
+
+test("el share re-copiando el mismo parte no deja nota ni enciende el aviso", async () => {
+  // El caso real de AR.26.03891: un proceso del share re-copia los partes cada
+  // media hora, y copiar rehace el mtime aunque el fichero sea idéntico. Antes
+  // eso eran nueve notas y la campana encendida toda la mañana por un parte
+  // que nadie había tocado.
+  ponerParte("AR.26.01829", T1);
+  scanDb.registrarPedidos(["AR.26.01829"]);
+  await worker.revisarUnaTanda();
+
+  for (const t of [T1 + 1_800_000, T1 + 3_600_000, T1 + 5_400_000]) {
+    ponerParte("AR.26.01829", t); // mismo contenido, otro mtime
+    expect(await worker.revisarUnaTanda()).toBe(0);
+  }
+  expect(notasDb.leerNotas("AR.26.01829")).toEqual([]);
+  expect(scanDb.pedidosCambiados()).toEqual(new Set());
 });

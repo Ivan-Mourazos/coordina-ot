@@ -58,7 +58,12 @@ function abrir(): Database.Database {
       registrado_at TEXT NOT NULL,
       -- Cuándo se le miró el PDF por última vez (haya cambiado o no): es lo
       -- que ordena a quién le toca el siguiente vistazo.
-      revisado_at   TEXT
+      revisado_at   TEXT,
+      -- Huella (sha1) del CONTENIDO del PDF. Es la señal de verdad: el mtime
+      -- solo dice si hay que volver a calcularla. Ver scan-db.ts.
+      huella_actual TEXT,
+      -- La huella que alguien ya dio por vista.
+      huella_vista  TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_pedido_scan_revisado ON pedido_scan(revisado_at);
     CREATE TABLE IF NOT EXISTS acciones_log (
@@ -313,7 +318,24 @@ const MIGRACIONES: ReadonlyArray<{
   // nota libre. Son a propósito GENÉRICAS —"error en medidas" y no "el largo
   // 2 cm"—: lo específico va en la nota, y las que falten se crean al usarlas.
   { version: 3, nombre: "causas_devolucion", aplicar: causasDeArranque },
+  // El aviso de parte re-escaneado pasa a mirar el CONTENIDO. Las filas que ya
+  // existen se quedan sin huella y la estrenan en el siguiente vistazo, con las
+  // dos marcas iguales: eso apaga los avisos vigentes, que es lo que se quiere
+  // —el único encendido al migrar era falso, 9 copias idénticas del mismo PDF.
+  { version: 4, nombre: "huella_del_parte", aplicar: huellaDelParte },
 ];
+
+/** Añade las columnas de huella a `pedido_scan`.
+ *
+ *  Con guarda de columna porque una base creada después de este cambio ya las
+ *  trae del CREATE TABLE, y ALTER sobre una columna que existe lanza. */
+function huellaDelParte(db: Database.Database): void {
+  const columnas = new Set(
+    (db.prepare("PRAGMA table_info(pedido_scan)").all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!columnas.has("huella_actual")) db.exec("ALTER TABLE pedido_scan ADD COLUMN huella_actual TEXT");
+  if (!columnas.has("huella_vista")) db.exec("ALTER TABLE pedido_scan ADD COLUMN huella_vista TEXT");
+}
 
 const CAUSAS_ARRANQUE = ["Error en medidas", "Error en cotas", "Material equivocado"];
 
