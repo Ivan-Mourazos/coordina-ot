@@ -10,6 +10,7 @@ import { PedidoScan } from "./PedidoScan";
 import { DevolverInline } from "./DevolverInline";
 import { AnularInline } from "./AnularInline";
 import { NotaDevolucion } from "./NotaDevolucion";
+import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
@@ -425,6 +426,27 @@ export function Drawer({
               />
             </div>
           </div>
+
+          {/* Cerrar una fase de OT que se quedó a medias, en el pedido YA PASADO
+              a Producción. Es justo el caso para el que se hizo este bloque
+              —lo dice su propia cabecera—, y era el único sitio donde no
+              estaba: la lista de "Pasados a Producción" del Historial abre
+              ESTA ficha, no la del historial, así que quien necesitaba cerrar
+              la fase no tenía botón y acababa en la herramienta vieja.
+
+              Solo en los pasados, y no en todos los pedidos: pregunta las
+              fases a RPS por cada OF, y hacerlo cada vez que se abre una ficha
+              del tablero serían decenas de consultas al día para un caso que
+              casi nunca se da. Un pedido que sigue en marcha tampoco tiene
+              nada que cerrar todavía.
+
+              Se calla solo cuando no hay nada pendiente, así que en el caso
+              normal no se ve. */}
+          {pedido.situacion === "completado" && (
+            <div className="mb-3">
+              <FasesSinFinalizar ofs={ofsDeOT.map((o) => o.codigo)} miId={miId} />
+            </div>
+          )}
 
           {/* OFs: el trabajo de OT arriba, lo demás en cajones (ver GRUPOS). */}
           <div className="mb-2 flex items-center gap-2">

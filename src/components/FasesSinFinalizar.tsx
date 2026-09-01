@@ -21,6 +21,12 @@ import { ConfirmDialog } from "./ConfirmDialog";
 //
 // SOLO FASES DE OT. Las del taller no son cosa nuestra ni aunque estén a
 // medias. Lo decide `esFaseDeOT` y lo vuelve a comprobar el servidor.
+//
+// SE LLAMA "OPERACIÓN" EN PANTALLA, no "fase". En RPS y aquí dentro el nombre
+// del dato es `fase`, pero en la oficina y en el taller a esto se le llama
+// operación, y quien lee la pantalla no tiene por qué saber cómo se llama por
+// dentro. Los nombres del código se quedan como están: lo que cambia es lo que
+// se lee.
 
 interface FaseConBoletin extends FaseDeOF {
   idBoletin: string;
@@ -115,9 +121,9 @@ export function FasesSinFinalizar({
       <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
         {pendientes.length > 0
           ? pendientes.length === 1
-            ? "Una fase de Oficina Técnica se quedó sin finalizar"
-            : `${pendientes.length} fases de Oficina Técnica se quedaron sin finalizar`
-          : "Fases de Oficina Técnica retiradas de OLANET"}
+            ? "Una operación de Oficina Técnica se quedó sin finalizar"
+            : `${pendientes.length} operaciones de Oficina Técnica se quedaron sin finalizar`
+          : "Operaciones de Oficina Técnica retiradas de OLANET"}
       </p>
 
       {pendientes.length > 0 && (
@@ -130,7 +136,7 @@ export function FasesSinFinalizar({
               <li key={f.idBoletin} className="flex flex-wrap items-center gap-2 text-[11px]">
                 <span className="font-mono font-semibold tabular-nums text-text">{f.of}</span>
                 <span className="text-text-muted">
-                  fase {f.fase} · {f.descripcion || "sin descripción"} · {f.maquina}
+                  operación {f.fase} · {f.descripcion || "sin descripción"} · {f.maquina}
                 </span>
                 <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300">
                   {NOMBRE_SITUACION[situacionDe(f.estado)]}
@@ -142,7 +148,7 @@ export function FasesSinFinalizar({
                   title={miId ? undefined : "Elige quién eres antes de finalizar"}
                   className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
                 >
-                  {cerrando === f.idBoletin ? "Finalizando…" : "Finalizar"}
+                  {cerrando === f.idBoletin ? "Finalizando…" : "Finalizar operación"}
                 </button>
               </li>
             ))}
@@ -155,8 +161,8 @@ export function FasesSinFinalizar({
       {(r?.eliminadas ?? 0) > 0 && (
         <p className="mt-1.5 text-[11px] leading-snug text-text-muted">
           {r!.eliminadas === 1
-            ? "Otra fase fue retirada de OLANET y ya no se puede cerrar."
-            : `Otras ${r!.eliminadas} fases fueron retiradas de OLANET y ya no se pueden cerrar.`}
+            ? "Otra operación fue retirada de OLANET y ya no se puede cerrar."
+            : `Otras ${r!.eliminadas} operaciones fueron retiradas de OLANET y ya no se pueden cerrar.`}
         </p>
       )}
 
@@ -168,11 +174,11 @@ export function FasesSinFinalizar({
 
       <ConfirmDialog
         abierto={confirmar !== null}
-        titulo="Finalizar la fase en RPS"
+        titulo="Finalizar la operación en RPS"
         tono="peligro"
         mensaje={
           confirmar
-            ? `Se cierra la fase ${confirmar.fase} de la OF ${confirmar.of} (${confirmar.maquina}).\n\nEsto escribe en RPS con la fecha de hoy y a tu nombre. Producción la verá como terminada.`
+            ? `Se cierra la operación ${confirmar.fase} de la OF ${confirmar.of} (${confirmar.maquina}).\n\nEsto escribe en RPS con la fecha de hoy y a tu nombre. Producción la verá como terminada.`
             : ""
         }
         onConfirmar={() => {
