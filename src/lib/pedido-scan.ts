@@ -3,15 +3,23 @@
 // porque cambió algo. Hasta ahora nada lo señalaba: quien ya lo había leído
 // seguía trabajando con lo que recordaba de la versión vieja.
 //
-// La señal es la fecha de modificación (mtime) del PDF en el share. No hace
-// falta nada de RPS: el fichero cambia y eso basta.
+// La señal es el CONTENIDO del PDF: su huella (sha1). El mtime del fichero
+// solo sirve para saber si hace falta volver a calcularla, no para decidir si
+// ha cambiado algo.
 //
-// OJO CON LO QUE ESTO SABE Y LO QUE NO. El mtime cambia también si alguien
-// vuelve a guardar el mismo fichero sin tocar nada. No podemos distinguir "lo
-// han modificado" de "lo han vuelto a subir igual", así que los textos dicen
-// "se ha vuelto a escanear" y NUNCA "el pedido ha cambiado": prometer lo
-// segundo con esta señal es mentir, y a la tercera falsa alarma nadie mira el
-// aviso.
+// POR QUÉ NO VALE EL MTIME, que era lo que se miraba antes. El share tiene un
+// proceso que re-copia los partes cada media hora, y copiar rehace el mtime
+// aunque el fichero sea idéntico. Comprobado sobre AR.26.03891 el 1/9/2026:
+// nueve avisos en una mañana, y el PDF de las 12:30 con el mismo MD5 que el de
+// las 12:00. Nueve notas en el hilo y la campana encendida toda la mañana por
+// un parte que nadie había tocado. A la tercera falsa alarma nadie mira el
+// aviso, y entonces el que importa pasa desapercibido — que es exactamente lo
+// que pasó con la OF nueva de AR.26.03914.
+//
+// OJO CON LO QUE ESTO SABE Y LO QUE NO. Dos escaneos del mismo papel dan
+// ficheros distintos (el ruido del escáner basta), así que un re-escaneo que no
+// cambie nada sigue avisando. Por eso los textos dicen "se ha vuelto a
+// escanear" y NUNCA "el pedido ha cambiado": lo segundo no lo sabemos.
 //
 // Client-safe: no toca la BD ni el disco. Lo comparten el vigilante del
 // servidor y los componentes.
@@ -26,10 +34,11 @@ export const OPERARIO_SISTEMA = "sistema";
 /** Lo que se sabe del PDF de un pedido. */
 export interface EstadoScan {
   pedido: string;
-  /** mtime que ya se dio por visto. null = todavía no hay referencia. */
-  mtimeVisto: number | null;
-  /** Último mtime que vio el vigilante. null = todavía no se ha mirado. */
-  mtimeActual: number | null;
+  /** Huella que ya se dio por vista. null = todavía no hay referencia. */
+  huellaVista: string | null;
+  /** Huella del contenido que vio el vigilante. null = todavía no se ha mirado
+   *  (o no se pudo leer el fichero). */
+  huellaActual: string | null;
 }
 
 /** ¿Han vuelto a escanear el parte desde la última vez que alguien lo dio por
@@ -38,9 +47,13 @@ export interface EstadoScan {
  *  Hace falta tener las DOS marcas: sin referencia previa no hay cambio que
  *  contar, solo un pedido que acabamos de empezar a vigilar. Por eso el primer
  *  vistazo a un pedido fija las dos iguales y no avisa — si no, el día que
- *  esto se despliegue saltarían de golpe los avisos de los 81 pedidos vivos. */
+ *  esto se despliegue saltarían de golpe los avisos de los 81 pedidos vivos.
+ *
+ *  Distintas, no "más nueva": una huella no se ordena. Restaurar una copia de
+ *  seguridad del share deja el parte VIEJO en el sitio, y eso también hay que
+ *  contarlo — el que trabaje con él tiene que saber que no es el que leyó. */
 export function hayCambio(e: EstadoScan): boolean {
-  return e.mtimeVisto !== null && e.mtimeActual !== null && e.mtimeActual > e.mtimeVisto;
+  return e.huellaVista !== null && e.huellaActual !== null && e.huellaActual !== e.huellaVista;
 }
 
 /** El texto de la nota permanente que queda en el hilo del pedido.

@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { OPERARIO_SISTEMA, textoNotaReescaneo } from "../pedido-scan";
 import { crearNota } from "./notas-db";
-import { anotarMtime, pedidosParaRevisar } from "./scan-db";
+import { anotarVistazo, mtimeConocido, pedidosParaRevisar } from "./scan-db";
 import { rutaPdfPedido } from "./pdf-pedido";
 
 // ─── Vigilante del parte escaneado ───────────────────────────────────────────
@@ -17,6 +19,13 @@ import { rutaPdfPedido } from "./pdf-pedido";
 //
 // A QUIÉN MIRA. Solo a lo que `getTablero()` haya registrado, así que este
 // worker NO le pregunta nada a RPS: esa consulta tarda de 7 a 15 s.
+//
+// DOS PASOS, Y EL SEGUNDO CASI NUNCA. El `stat` dice si el fichero se ha
+// tocado; solo entonces se lee entero para sacarle la huella. Mirar el mtime a
+// secas no vale —el share re-copia los partes cada media hora y eso lo rehace
+// aunque el contenido sea idéntico—, y leerse todos los PDF en cada vuelta
+// serían cientos de megas por red al día. Así se paga la lectura solo cuando
+// el fichero ha cambiado de verdad, que son unos pocos al día.
 
 /** Cada cuánto sale una tanda. */
 const CADA_MS = 60_000;
@@ -51,7 +60,7 @@ async function conTope<T>(p: Promise<T>, ms: number): Promise<T> {
 
 /** El mtime del parte, o null si no está o no se pudo mirar.
  *
- *  Los dos casos se responden igual A PROPÓSITO: `anotarMtime` no toca la
+ *  Los dos casos se responden igual A PROPÓSITO: `anotarVistazo` no toca la
  *  referencia con un null, así que un share caído no puede hacer que al volver
  *  el fichero de siempre parezca recién escaneado. */
 async function mtimeDelParte(pedido: string): Promise<number | null> {
@@ -59,6 +68,38 @@ async function mtimeDelParte(pedido: string): Promise<number | null> {
   if (!ruta) return null; // trabajo interno u OF suelta: no hay parte que escanear
   try {
     return (await conTope(stat(ruta), ESPERA_MAX_MS)).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/** Tope de lectura de un PDF entero. Más largo que el del `stat`: aquí se
+ *  traen megas por red, no cuatro bytes de metadatos. */
+const ESPERA_LECTURA_MS = 30_000;
+
+/** La huella (sha1) del contenido del parte, o null si no se pudo leer.
+ *
+ *  Sha1 y no un comparador byte a byte porque lo que se guarda es una marca de
+ *  40 caracteres, no el fichero. Que no sea seguro contra colisiones a
+ *  propósito da igual: aquí nadie está intentando engañar a nadie, solo se
+ *  distingue un escaneo de otro.
+ *
+ *  Se lee a trozos y no de golpe: son PDF de hasta varios megas y cargarlos
+ *  enteros en memoria por cada uno no hace falta para esto. */
+async function huellaDelParte(pedido: string): Promise<string | null> {
+  const ruta = rutaPdfPedido(pedido);
+  if (!ruta) return null;
+  try {
+    return await conTope(
+      new Promise<string>((ok, no) => {
+        const sha = createHash("sha1");
+        const flujo = createReadStream(ruta);
+        flujo.on("data", (t) => sha.update(t));
+        flujo.on("error", no);
+        flujo.on("end", () => ok(sha.digest("hex")));
+      }),
+      ESPERA_LECTURA_MS,
+    );
   } catch {
     return null;
   }
@@ -73,8 +114,13 @@ export async function revisarUnaTanda(porTanda = POR_TANDA): Promise<number> {
   let nuevos = 0;
   for (const pedido of pedidos) {
     const mtime = await mtimeDelParte(pedido);
-    // `anotarMtime` devuelve true SOLO cuando estrena aviso, así que la nota
-    // se escribe una vez por re-escaneo y no en cada vuelta.
+    // La huella solo cuando el fichero se ha tocado. Sin esta guarda, cada
+    // vuelta leería el share entero por gusto.
+    const huella =
+      mtime !== null && mtime !== mtimeConocido(pedido) ? await huellaDelParte(pedido) : null;
+    // `anotarVistazo` devuelve true SOLO cuando el contenido ha cambiado, así
+    // que la nota se escribe una vez por re-escaneo de verdad y no en cada
+    // vuelta ni cada vez que el share re-copia el fichero.
     //
     // SIEMPRE se llama, también con `mtime` null: con null no toca la
     // referencia, pero sí deja apuntado que el pedido se ha mirado, y ese
@@ -83,10 +129,10 @@ export async function revisarUnaTanda(porTanda = POR_TANDA): Promise<number> {
     // los partes todavía sin escanear) con `revisado_at` nulo para siempre;
     // como la cola los pone primero, con POR_TANDA de ellos la tanda era
     // siempre la misma y la vigilancia se paraba entera sin decir nada.
-    // El orden importa: `anotarMtime` va delante para que el apunte se haga
+    // El orden importa: `anotarVistazo` va delante para que el apunte se haga
     // siempre. Lo de `mtime === null` es solo estrechar el tipo para la nota de
     // abajo —con null nunca devuelve true—, no una segunda regla.
-    if (!anotarMtime(pedido, mtime) || mtime === null) continue;
+    if (!anotarVistazo(pedido, { mtimeMs: mtime, huella }) || mtime === null) continue;
     nuevos++;
     // La nota es el registro permanente que se pidió: se queda para siempre en
     // el hilo, también cuando el pedido pase al Historial. La firma

@@ -15,8 +15,31 @@ import { getDb } from "./estado-db";
 
 interface Fila {
   pedido: string;
-  mtime_visto: number | null;
   mtime_actual: number | null;
+  huella_actual: string | null;
+  huella_vista: string | null;
+}
+
+/** Lo que el vigilante acaba de ver en el disco. */
+export interface Vistazo {
+  /** mtime del PDF, o null si no está o no se pudo mirar. */
+  mtimeMs: number | null;
+  /** Huella (sha1) del contenido. null cuando NO se ha calculado —el mtime no
+   *  había cambiado, así que no hacía falta leerse los megas por red— o cuando
+   *  no se pudo leer el fichero. */
+  huella: string | null;
+}
+
+/** El último mtime que se le vio a este parte, para decidir si hace falta
+ *  volver a calcular la huella. null = nunca se ha mirado.
+ *
+ *  Existe para no leer el fichero entero en cada vuelta: el mtime sale de un
+ *  `stat` y la huella de traerse los megas por red. */
+export function mtimeConocido(pedido: string): number | null {
+  const f = getDb()
+    .prepare("SELECT mtime_actual FROM pedido_scan WHERE pedido = ?")
+    .get(pedido) as { mtime_actual: number | null } | undefined;
+  return f?.mtime_actual ?? null;
 }
 
 /** Apunta estos pedidos para que el vigilante les mire el PDF.
@@ -56,59 +79,66 @@ export function pedidosParaRevisar(limite: number): string[] {
 
 /** Guarda lo que el vigilante acaba de ver en el disco.
  *
- *  Devuelve `true` SOLO cuando esto estrena un aviso: el parte es más nuevo que
- *  la referencia y antes no había aviso puesto. Así el vigilante sabe cuándo
- *  escribir la nota del hilo y no la repite en cada vuelta.
+ *  Devuelve `true` SOLO cuando el CONTENIDO del parte ha cambiado, que es
+ *  cuando el vigilante escribe la nota del hilo. Un mtime nuevo con el mismo
+ *  contenido —el proceso del share re-copiando el fichero cada media hora— no
+ *  es noticia y no escribe nada.
  *
- *  El primer vistazo a un pedido fija las dos marcas iguales y no avisa (ver
+ *  El primer vistazo a un pedido fija las dos huellas iguales y no avisa (ver
  *  `hayCambio`): si no, al desplegar esto saltarían de golpe los avisos de
  *  todos los pedidos vivos. */
-export function anotarMtime(
+export function anotarVistazo(
   pedido: string,
-  mtimeMs: number | null,
+  vistazo: Vistazo,
   ahora = new Date().toISOString(),
 ): boolean {
   const db = getDb();
   const previo = db
-    .prepare(`SELECT pedido, mtime_visto, mtime_actual FROM pedido_scan WHERE pedido = ?`)
+    .prepare(
+      `SELECT pedido, mtime_actual, huella_actual, huella_vista
+         FROM pedido_scan WHERE pedido = ?`,
+    )
     .get(pedido) as Fila | undefined;
   if (!previo) return false;
 
-  // Sin PDF (todavía sin escanear, o el share caído) no se toca la referencia:
-  // solo se apunta que se miró. Poner las marcas a cero aquí haría que, al
-  // volver el fichero, su mtime pareciera un cambio y avisara sin motivo.
-  if (mtimeMs === null) {
+  const soloApuntarQueSeMiro = () => {
     db.prepare(`UPDATE pedido_scan SET revisado_at = ? WHERE pedido = ?`).run(ahora, pedido);
     return false;
-  }
+  };
 
-  const esElPrimero = previo.mtime_visto === null;
+  // Sin PDF (todavía sin escanear, o el share caído) no se toca la referencia:
+  // solo se apunta que se miró. Poner las marcas a cero aquí haría que, al
+  // volver el fichero, pareciera un cambio y avisara sin motivo.
+  if (vistazo.mtimeMs === null) return soloApuntarQueSeMiro();
+
+  // Sin huella hay dos casos, y se responden igual: no mover la referencia.
+  //   · El mtime no había cambiado y por eso no se calculó: el contenido
+  //     guardado ya es el bueno, no hay nada que anotar.
+  //   · El mtime cambió pero el fichero no se pudo leer: no se sabe si hay
+  //     noticia, así que no se inventa ninguna. La siguiente vuelta reintenta.
+  if (vistazo.huella === null) return soloApuntarQueSeMiro();
+
+  const esElPrimero = previo.huella_vista === null;
   db.prepare(
     `UPDATE pedido_scan
         SET mtime_actual = ?,
-            mtime_visto = COALESCE(mtime_visto, ?),
+            huella_actual = ?,
+            huella_vista = COALESCE(huella_vista, ?),
             revisado_at = ?
       WHERE pedido = ?`,
-  ).run(mtimeMs, mtimeMs, ahora, pedido);
+  ).run(vistazo.mtimeMs, vistazo.huella, vistazo.huella, ahora, pedido);
 
   if (esElPrimero) return false;
-  // Un re-escaneo es que el parte sea mas nuevo QUE LA ULTIMA VEZ QUE SE MIRO
-  // (`mtime_actual`), no que la ultima vez que alguien lo dio por visto.
+  // La referencia para la NOTA es lo ultimo que vio el vigilante, no lo ultimo
+  // que dio por visto una persona: dos re-escaneos seguidos sin que nadie mire
+  // el aviso son dos noticias, y el hilo tiene que guardar las dos.
   //
-  // Se comparaba contra `mtime_visto` y ademas se exigia que no hubiera aviso
-  // puesto ya (`!avisabaYa`), asi que un SEGUNDO escaneo con el primer aviso
-  // todavia sin ver no escribia nota: el "registro permanente" se quedaba solo
-  // con la fecha del primero, justo lo que la nota lleva hora para distinguir.
-  //
-  // El distintivo no cambia: lo pinta `pedidosCambiados()`, que sigue
-  // comparando contra `mtime_visto` —lo que nadie ha dado por visto—, y
-  // `marcarVisto` lo apaga igualando las dos marcas.
+  // El distintivo del tablero es otra cosa y va por `huella_vista`: lo pinta
+  // `pedidosCambiados()` y lo apaga `marcarVisto` igualando las dos huellas.
   return hayCambio({
     pedido: previo.pedido,
-    // La referencia aqui es lo ultimo que vio el vigilante, no lo ultimo que
-    // vio una persona.
-    mtimeVisto: previo.mtime_actual,
-    mtimeActual: mtimeMs,
+    huellaVista: previo.huella_actual,
+    huellaActual: vistazo.huella,
   });
 }
 
@@ -122,8 +152,8 @@ export function pedidosCambiados(): Set<string> {
       getDb()
         .prepare(
           `SELECT pedido FROM pedido_scan
-            WHERE mtime_visto IS NOT NULL AND mtime_actual IS NOT NULL
-              AND mtime_actual > mtime_visto`,
+            WHERE huella_vista IS NOT NULL AND huella_actual IS NOT NULL
+              AND huella_actual <> huella_vista`,
         )
         .all() as { pedido: string }[]
     ).map((f) => f.pedido),
@@ -137,8 +167,9 @@ export function marcarVisto(pedido: string, ahora = new Date().toISOString()): b
   return (
     getDb()
       .prepare(
-        `UPDATE pedido_scan SET mtime_visto = mtime_actual, revisado_at = ?
-          WHERE pedido = ? AND mtime_actual IS NOT NULL`,
+        `UPDATE pedido_scan
+            SET huella_vista = huella_actual, mtime_visto = mtime_actual, revisado_at = ?
+          WHERE pedido = ? AND huella_actual IS NOT NULL`,
       )
       .run(ahora, pedido).changes > 0
   );
