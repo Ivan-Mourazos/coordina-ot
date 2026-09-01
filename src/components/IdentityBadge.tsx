@@ -2,9 +2,15 @@
 
 import type { Operario } from "@/lib/types";
 import { usePopover } from "@/lib/usePopover";
+import { SECCIONES } from "@/lib/secciones";
+import { porSeccion } from "./IdentityGate";
 
 /** Control de cabecera: quién eres ahora mismo + desplegable para cambiar
- *  de técnico sin volver a la pantalla de selección inicial. */
+ *  de técnico sin volver a la pantalla de selección inicial.
+ *
+ *  La lista va POR SECCIONES, igual que la pantalla de entrada y con la misma
+ *  función: cambiarse de nombre es cambiarse de lista de trabajo, y con nueve
+ *  nombres seguidos no hay forma de saber cuál te lleva a dónde. */
 export function IdentityBadge({
   yo,
   operarios,
@@ -34,30 +40,40 @@ export function IdentityBadge({
         {yo.nombre}
       </button>
       {open && (
-        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-44 rounded-xl p-1">
+        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-48 rounded-xl p-1">
           <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             Cambiar de técnico
           </p>
-          {operarios.map((op) => (
-            <button
-              key={op.id}
-              onClick={() => {
-                onChange(op.id);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
-                op.id === yo.id ? "text-brand-600" : "text-text"
-              }`}
-            >
-              <span
-                className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-                style={{ background: op.color }}
-              >
-                {op.iniciales}
-              </span>
-              {op.nombre}
-              {op.id === yo.id && <span className="ml-auto text-[10px]">✓</span>}
-            </button>
+          {porSeccion(operarios).map(([seccion, suyos]) => (
+            <div key={seccion}>
+              {/* El rótulo de sección va separado del de arriba por una línea,
+                  no por más espacio: el desplegable es estrecho y el aire solo
+                  lo alarga sin dejar claro dónde acaba un grupo. */}
+              <p className="mt-1 border-t border-border px-2 pb-0.5 pt-1.5 text-[10px] font-semibold text-text-muted">
+                {SECCIONES[seccion].nombre}
+              </p>
+              {suyos.map((op) => (
+                <button
+                  key={op.id}
+                  onClick={() => {
+                    onChange(op.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
+                    op.id === yo.id ? "text-brand-600" : "text-text"
+                  }`}
+                >
+                  <span
+                    className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
+                    style={{ background: op.color }}
+                  >
+                    {op.iniciales}
+                  </span>
+                  {op.nombre}
+                  {op.id === yo.id && <span className="ml-auto text-[10px]">✓</span>}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}

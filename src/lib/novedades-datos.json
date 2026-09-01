@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-01-3",
+    "hasta": "a8e5c06",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial faltaba el trabajo de Diseño Gráfico",
+        "detalle": "De un pedido con trabajo de las dos secciones se veía solo la parte de Oficina Técnica: faltaban las personas de diseño, sus minutos y su material. Ahora el pedido sale entero."
+      }
+    ]
+  },
+  {
     "id": "2026-09-01-2",
     "hasta": "2cbc9e8",
     "cambios": [
