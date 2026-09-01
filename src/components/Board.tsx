@@ -23,6 +23,8 @@ import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
+import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
+import { SelectorSeccion } from "./SelectorSeccion";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -74,6 +76,8 @@ import {
 } from "@/lib/filtros";
 
 const IDENTITY_KEY = "coordina-operario-id";
+/** La sección que se está mirando, si se eligió a mano. */
+const SECCION_KEY = "coordina-seccion";
 
 /** Quién está fichando ahora mismo: en qué OF y con qué rol. */
 export interface LiveInfo {
@@ -150,6 +154,20 @@ function marcarAvisoAntiguaVisto(operarioId: string): void {
   }
 }
 
+/** La sección elegida a mano en este navegador, o null si no se ha tocado.
+ *
+ *  Se guarda para que no se pierda al recargar —Ángel mira diseño, refresca y
+ *  sigue en diseño— pero se borra al cambiar de persona (ver `setMiId`). */
+function leerSeccionGuardada(): SeccionId | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = localStorage.getItem(SECCION_KEY);
+    return esSeccionId(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 function leerIdentidadGuardada(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -220,6 +238,10 @@ export function Board({
   // navegador—, así que arranca con las de Oficina Técnica y el primer sondeo
   // trae las que toquen. Ver el efecto del tablero más abajo.
   const [operarios, setOperarios] = useState<Operario[]>(operariosIniciales);
+  // QUÉ LISTA se mira, que no es lo mismo que quién eres: Ángel supervisa las
+  // dos secciones y necesita ver la de diseño sin dejar de ser Ángel. `null` =
+  // todavía no ha elegido nada, así que manda la suya (ver el efecto de abajo).
+  const [seccionVista, setSeccionVista] = useState<SeccionId | null>(leerSeccionGuardada);
   const [pedidos, setPedidos] = useState<Pedido[]>(initial);
   // Espejo síncrono del estado: las mutaciones calculan su resultado sobre él
   // ANTES del re-render (para persistir el snapshot exacto) y el polling lo
@@ -246,6 +268,20 @@ export function Board({
     setMiIdState(id);
     try {
       localStorage.setItem(IDENTITY_KEY, id);
+    } catch {}
+    // Cambiar de persona te devuelve a SU lista: si no, quien entrara después
+    // de que Ángel mirase diseño se encontraría el tablero de otro equipo sin
+    // saber por qué. La elección de sección es de la sesión, no del navegador.
+    setSeccionVista(null);
+    try {
+      localStorage.removeItem(SECCION_KEY);
+    } catch {}
+  }, []);
+
+  const cambiarSeccion = useCallback((s: SeccionId) => {
+    setSeccionVista(s);
+    try {
+      localStorage.setItem(SECCION_KEY, s);
     } catch {}
   }, []);
 
@@ -380,9 +416,12 @@ export function Board({
     // sea de diseño se pasaría medio minuto mirando trabajo que no es suyo.
     const traer = async () => {
       try {
-        const url = miId
-          ? `/api/tablero?operarioId=${encodeURIComponent(miId)}`
-          : "/api/tablero";
+        const q = new URLSearchParams();
+        if (miId) q.set("operarioId", miId);
+        // Solo si se ha elegido a mano: sin esto manda la sección de quien
+        // mira, que es lo que hay que ver al entrar.
+        if (seccionVista) q.set("seccion", seccionVista);
+        const url = q.size > 0 ? `/api/tablero?${q}` : "/api/tablero";
         const r = await fetch(url, { cache: "no-store" });
         if (!r.ok) return;
         const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[] };
@@ -407,7 +446,7 @@ export function Board({
     // `miId` va en las dependencias a propósito: al elegir quién eres —o al
     // cambiar de persona— hay que volver a preguntar, porque la sección puede
     // ser otra y con ella toda la lista de trabajo.
-  }, [setPedidosSync, miId]);
+  }, [setPedidosSync, miId, seccionVista]);
   // ── Filtros: UNOS POR VISTA, no unos compartidos ──
   // Antes había un solo juego para Asignar, Lista y Revisión mientras cada
   // vista escondía controles distintos: ponías Estado="Aprobada" en la Lista,
@@ -1694,6 +1733,13 @@ export function Board({
               onNavigate={irANotificacion}
               novedades={nuevasSinVer}
               onVerNovedades={() => setNovedadesAbiertas(true)}
+            />
+            {/* Qué lista se mira. Va PEGADO a quién eres porque son la misma
+                pregunta partida en dos —quién soy y qué estoy viendo— y
+                separarlos por la cabecera haría buscar el conmutador. */}
+            <SelectorSeccion
+              seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
+              onCambiar={cambiarSeccion}
             />
             {/* También todos, y por lo mismo: si solo saliera tu sección,
                 cambiarte a la otra sería imposible una vez dentro. */}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { ESTADO_OF, esFaseDeOT, situacionDe } from "@/lib/fase-pendiente";
+import { ESTADO_OF, situacionDe } from "@/lib/fase-pendiente";
+import { esFaseDeLaWeb } from "@/lib/secciones";
 
 // ─── /api/fases ──────────────────────────────────────────────────────────────
 // GET: en qué estado tiene OLANET las fases de estas OF.
@@ -79,13 +80,18 @@ export async function POST(req: Request) {
     const maquina = await maquinaDeFase(idBoletin);
     if (maquina === null)
       return NextResponse.json({ error: "Esa fase ya no existe en OLANET" }, { status: 404 });
-    // La comprobación de que es de OT vive AQUÍ además de en la interfaz: el
-    // botón no se ofrece sobre una fase de taller, pero esto escribe en el
-    // sistema de la fábrica y la regla no puede depender de que nadie llame a
-    // la ruta a mano.
-    if (!esFaseDeOT(maquina))
+    // La comprobación de que es una fase NUESTRA vive AQUÍ además de en la
+    // interfaz: el botón no se ofrece sobre una fase de taller, pero esto
+    // escribe en el sistema de la fábrica y la regla no puede depender de que
+    // nadie llame a la ruta a mano.
+    //
+    // "Nuestra" son las dos secciones de la web, no solo Oficina Técnica: con
+    // esto en `esFaseDeOT` a secas, Carrón no podía cerrar sus propias
+    // operaciones de Diseño Gráfico —le salía un 403 diciéndole que su trabajo
+    // no era de Oficina Técnica, que es verdad y no venía a cuento.
+    if (!esFaseDeLaWeb(maquina))
       return NextResponse.json(
-        { error: `Esa fase es de ${maquina}, no de Oficina Técnica` },
+        { error: `Esa fase es de ${maquina}, que no es trabajo de oficina` },
         { status: 403 },
       );
 

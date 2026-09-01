@@ -1,4 +1,4 @@
-import { esFaseDe, SECCIONES } from "./secciones";
+import { esFaseDe, esFaseDeLaWeb, SECCIONES } from "./secciones";
 // ─── Fases de OT que se quedaron sin finalizar ───────────────────────────────
 // Pasabas el pedido a Producción y la fase de OT se quedaba en pausa: nadie la
 // cerraba y tenían que avisar desde el taller. Antes no había forma de
@@ -68,7 +68,9 @@ export function esFaseDeOT(maquina: string): boolean {
   return esFaseDe(maquina, SECCIONES.ot);
 }
 
-/** Las que se pueden cerrar desde aquí: de OT y sin finalizar.
+/** Las que se pueden cerrar desde aquí: DE LA OFICINA (Oficina Técnica o
+ *  Diseño Gráfico) y sin finalizar. No las del taller: ese trabajo no es
+ *  nuestro ni aunque esté a medias.
  *
  *  Las `eliminada` se quedan fuera A PROPÓSITO aunque tampoco estén
  *  finalizadas: OLANET ya las retiró y escribirles un movimiento nuevo sería
@@ -78,22 +80,26 @@ export function esFaseDeOT(maquina: string): boolean {
  *  campo se perdería por el camino y habría que volver a buscarlo por (OF,
  *  fase), que es justo la carrera que se quiere evitar. */
 export function finalizables<T extends FaseDeOF>(fases: readonly T[]): T[] {
-  return fases.filter((f) => esFaseDeOT(f.maquina) && situacionDe(f.estado) === "sin_finalizar");
+  return fases.filter(
+    (f) => esFaseDeLaWeb(f.maquina) && situacionDe(f.estado) === "sin_finalizar",
+  );
 }
 
 /** Cómo se cuenta en pantalla. Se separa `eliminadas` porque hay que DECIRLO
  *  —si no, una fase que no está finalizada y no ofrece botón parece un fallo—
  *  pero sin ofrecer nada que pulsar. */
 export function resumen(fases: readonly Pick<FaseDeOF, "maquina" | "estado">[]): {
-  deOT: number;
+  /** Cuántas son de la oficina: Oficina Técnica o Diseño Gráfico. Se llamaba
+   *  `deOT` cuando solo había una sección. */
+  deOficina: number;
   finalizadas: number;
   sinFinalizar: number;
   eliminadas: number;
 } {
-  const ot = fases.filter((f) => esFaseDeOT(f.maquina));
+  const ot = fases.filter((f) => esFaseDeLaWeb(f.maquina));
   const cuenta = (s: SituacionFase) => ot.filter((f) => situacionDe(f.estado) === s).length;
   return {
-    deOT: ot.length,
+    deOficina: ot.length,
     finalizadas: cuenta("finalizada"),
     sinFinalizar: cuenta("sin_finalizar"),
     eliminadas: cuenta("eliminada"),

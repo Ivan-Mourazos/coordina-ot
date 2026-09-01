@@ -90,7 +90,7 @@ describe("resumen", () => {
         f("U-A-OTEC", ESTADO_OF.eliminada, "3"),
         f("A-MONT", ESTADO_OF.interrumpida, "4"),
       ]),
-    ).toEqual({ deOT: 3, finalizadas: 1, sinFinalizar: 1, eliminadas: 1 });
+    ).toEqual({ deOficina: 3, finalizadas: 1, sinFinalizar: 1, eliminadas: 1 });
   });
 
   it("un pedido con todo cerrado no tiene nada que contar", () => {

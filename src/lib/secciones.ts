@@ -97,6 +97,20 @@ export function esFaseDe(maquina: string, s: Seccion): boolean {
   return maquina.toUpperCase().includes(s.marcaEnFases);
 }
 
+/** ¿Es una fase que gestiona CoordinaOT? O sea, de Oficina Técnica o de Diseño
+ *  Gráfico.
+ *
+ *  Es la regla de "esto lo puedo cerrar yo": el taller no, porque no es trabajo
+ *  nuestro y cerrarlo sería escribir en el sistema de la fábrica sobre algo que
+ *  no hemos hecho.
+ *
+ *  Antes esto era `esFaseDeOT` a secas, y con Diseño Gráfico dentro eso dejaba
+ *  a Carrón sin poder cerrar sus propias operaciones: el servidor se las
+ *  rechazaba con un 403. */
+export function esFaseDeLaWeb(maquina: string): boolean {
+  return Object.values(SECCIONES).some((s) => esFaseDe(maquina, s));
+}
+
 /** Los recursos de TODAS las secciones que usan CoordinaOT, listos para un
  *  `IN (…)` de SQL.
  *
