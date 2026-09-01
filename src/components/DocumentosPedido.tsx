@@ -44,11 +44,19 @@ export function DocumentosPedido({ pedido }: { pedido: string }) {
   const otros = docs?.filter((d) => !d.url || !esImagen(d.archivo)) ?? [];
 
   return (
-    <section className="rounded-xl border border-border">
+    // Mismo bloque que los demás de la ficha (comentario del pedido, notas,
+    // asignar autor): `mb-4`, borde y fondo de cristal. Nació con un borde
+    // suelto y sin margen, y el efecto era que se leía pegado al hilo de notas
+    // —como si fuera su cabecera— en vez de como un apartado propio.
+    //
+    // El padding NO va en el contenedor sino dentro: la cabecera es un botón y
+    // tiene que ocupar el ancho entero para que se pueda pulsar en cualquier
+    // punto de la fila, no solo sobre el texto.
+    <section className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]">
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text"
+        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-text"
       >
         <span className="text-text-muted">{abierto ? "▾" : "▸"}</span>
         Documentos de RPS
@@ -63,7 +71,7 @@ export function DocumentosPedido({ pedido }: { pedido: string }) {
       </button>
 
       {abierto && (
-        <div className="border-t border-border p-3">
+        <div className="border-t border-[var(--glass-border)] px-3 pb-3 pt-3">
           {error && (
             <p className="text-[11px] text-text-muted">
               No se pudieron cargar. Vuelve a plegar y desplegar para reintentarlo.
