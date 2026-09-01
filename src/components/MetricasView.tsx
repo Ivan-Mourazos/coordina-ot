@@ -254,6 +254,14 @@ export function MetricasView() {
                   <BarraMes key={mes.mes} {...mes} />
                 ))}
               </ul>
+              {/* Sin esto el mes en curso se lee como una mejora. Cada
+                  devolución cuenta en el mes de su revisión, así que las de las
+                  revisiones de estos días todavía no han llegado. */}
+              <p className="mt-3 text-[11px] text-text-muted">
+                Cada devolución cuenta en el mes en que se revisó la OF, no en el
+                que volvió. El mes en curso siempre sale bajo: le faltan las
+                devoluciones que aún no han pasado.
+              </p>
             </section>
           )}
         </>
@@ -405,9 +413,14 @@ function BarraMes({
           · {devoluciones} de {revisiones}
         </span>
       </div>
-      <div className="mt-1 h-2 w-full rounded-full bg-[var(--glass-highlight)]">
+      {/* La barra se capa al 100 % aunque la proporción no lo esté. Con un
+          150 % —que salía al contar la devolución en un mes y su revisión en
+          otro— la barra se pintaba media pantalla por fuera del panel. Eso ya
+          no pasa (ver metricas.ts), pero una barra no puede depender de que el
+          número que la alimenta esté bien: ninguna medida se sale de su caja. */}
+      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
         <div
-          style={{ width: `${(prop ?? 0) * 100}%` }}
+          style={{ width: `${Math.min(100, (prop ?? 0) * 100)}%` }}
           className="h-full rounded-full bg-red-600"
         />
       </div>

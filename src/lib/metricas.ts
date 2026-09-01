@@ -14,6 +14,17 @@ import { leerAnulacion } from "./anulacion";
 //   · por qué vuelven, ordenado
 //   · si eso mejora, mes a mes
 //
+// EL MES DE UNA DEVOLUCIÓN ES EL DE SU REVISIÓN, no el día en que se devolvió.
+// Contando cada movimiento en su propio mes, una revisión empezada el 31 de
+// agosto y devuelta el 1 de septiembre dejaba la revisión en agosto y la
+// devolución en septiembre: numerador y denominador de meses distintos. En
+// septiembre eso salió como "4 de 2" — un 150 % con todo funcionando bien.
+//
+// Así el mes se lee tal cual está escrito: "de las 214 revisiones de agosto,
+// 77 acabaron volviendo". El precio es que el mes en curso siempre parece
+// mejor de lo que acabará siendo, porque sus devoluciones todavía no han
+// llegado; eso lo dice la propia pantalla.
+//
 // Lo que NO lleva, a propósito: reparto por persona. El dato está en el
 // registro, pero un tablero de "quién falla más" cambia cómo se usa la
 // herramienta —se devuelve menos para no señalar a nadie— y entonces los
@@ -40,6 +51,10 @@ export interface MesMetricas {
   /** "2026-08". */
   mes: string;
   revisiones: number;
+  /** Las devoluciones DE ESAS revisiones, no las que ocurrieron este mes.
+   *
+   *  Ver `calcularMetricas`: una revisión empezada el 31 de agosto y devuelta
+   *  el 1 de septiembre cuenta en agosto por los dos lados. */
   devoluciones: number;
 }
 
@@ -104,6 +119,10 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
   const porCausaAnulacion = new Map<string | null, number>();
   const porMes = new Map<string, MesMetricas>();
   const cronometro = new Cronometro();
+  // Cuándo empezó la revisión que sigue abierta en cada OF, para poder llevar
+  // su devolución al mes que le toca. Se suelta al resolverse (devolver o
+  // aprobar): la siguiente vuelta de esa OF es otra revisión distinta.
+  const revisionAbierta = new Map<string, string>();
 
   const mes = (at: string) => {
     const k = mesDe(at);
@@ -125,12 +144,23 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
     if (mov.motivo === "empezar_revision") {
       revisiones++;
       mes(mov.at).revisiones++;
+      revisionAbierta.set(mov.ofId, mov.at);
+      continue;
+    }
+    if (mov.motivo === "aprobar") {
+      // Acabó bien: esa revisión ya no puede traer devolución.
+      revisionAbierta.delete(mov.ofId);
       continue;
     }
     if (mov.motivo !== "devolver") continue;
 
     devoluciones++;
-    mes(mov.at).devoluciones++;
+    // Sin revisión apuntada —las devoluciones anteriores a que se registrara
+    // `empezar_revision`— se cuenta en su propio mes: descuadra, pero perderla
+    // sería peor. Son pocas y solo al principio del histórico.
+    const desdeRevision = revisionAbierta.get(mov.ofId);
+    mes(desdeRevision ?? mov.at).devoluciones++;
+    revisionAbierta.delete(mov.ofId);
     const causas = leerDevolucion(mov.observacion).causas;
     if (causas.length === 0) porCausa.set(null, (porCausa.get(null) ?? 0) + 1);
     // `new Set`: si una devolución trajera la misma causa dos veces, cuenta
