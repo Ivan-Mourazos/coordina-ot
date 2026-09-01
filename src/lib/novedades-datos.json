@@ -1,5 +1,41 @@
 [
   {
+    "id": "2026-09-01-3",
+    "hasta": "56a8b74",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Se puede mirar la lista de la otra sección",
+        "detalle": "Arriba a la derecha, al lado de tu nombre, eliges si ves el trabajo de Oficina Técnica o el de Diseño Gráfico. Sigues siendo tú: tu reloj, tus avisos y tu trabajo no cambian."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Diseño Gráfico no podía cerrar sus propias operaciones",
+        "detalle": "El botón de \"Finalizar operación\" daba error en las OF de diseño porque solo aceptaba las de Oficina Técnica."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las notas ya leídas volvían a avisarte al recargar",
+        "detalle": "La campana sacaba otra vez notas viejas que ya habías abierto, cada vez que se refrescaba la página."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las métricas son de tu sección, no de las dos mezcladas",
+        "detalle": "Los números siguen a la lista que estés mirando, y el título dice de quién son. Lo de Oficina Técnica no cambia: sigue contando exactamente lo mismo que antes."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los cambios de la web se enseñan solos al entrar",
+        "detalle": "Cuando hay novedades, el resumen se abre al entrar en vez de esperar a que alguien pulse la campana. Se cierra y no vuelve a salir hasta la próxima actualización."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La campana solo avisa de tu trabajo",
+        "detalle": "Los cambios de la web ya no cuentan como un aviso más: ahora se enseñan al entrar. El log se puede volver a abrir cuando quieras desde el menú de herramientas."
+      }
+    ]
+  },
+  {
     "id": "2026-09-01-2",
     "hasta": "e4e3055",
     "cambios": [
