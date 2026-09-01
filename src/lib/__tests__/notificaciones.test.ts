@@ -161,6 +161,36 @@ describe("identidadAviso", () => {
 });
 
 describe("aplicarDescartes", () => {
+  it("con la lista INCOMPLETA se lleva por delante descartes que sí valían", () => {
+    // No es un fallo de esta función —hace lo que promete— sino la trampa que
+    // tiene, y por eso está escrita aquí: quien la llame tiene que pasarle
+    // TODOS los avisos vivos.
+    //
+    // Pasó de verdad. Los avisos de nota salen de un fetch, y en el primer
+    // render de la página todavía no habían llegado; la poda concluía que sus
+    // descartes ya no apagaban nada y los tiraba. Al contestar el fetch, las
+    // notas volvían a salir sin descarte y la campana las cantaba otra vez: en
+    // cada recarga resucitaban las notas ya vistas.
+    //
+    // Board no poda hasta que las notas han llegado alguna vez. Este test es
+    // para que se entienda POR QUÉ está esa espera, si alguien la quita.
+    const p = pedido("1", [of("a")]);
+    const nota = agruparAvisos([
+      { tipo: "notaNueva", pedido: p, of: null, clave: "nota:42", texto: "ojo con la cota" },
+    ]);
+    const yaVisto = [identidadAviso(nota[0])];
+
+    // Con la nota delante, el descarte la apaga y se conserva.
+    const conNota = aplicarDescartes(nota, yaVisto);
+    expect(conNota.visibles).toHaveLength(0);
+    expect(conNota.vigentes).toEqual(yaVisto);
+
+    // Sin ella —porque aún no ha cargado— el descarte se da por muerto…
+    expect(aplicarDescartes([], yaVisto).vigentes).toEqual([]);
+    // …y si se guardara eso, al llegar la nota volvería a sonar.
+    expect(aplicarDescartes(nota, []).visibles).toHaveLength(1);
+  });
+
   it("abrir un aviso apaga ese y nada más", () => {
     const p = pedido("1", [of("a"), of("b")]);
     const items = agruparAvisos([

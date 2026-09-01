@@ -359,13 +359,19 @@ export function Board({
   // nota de un pedido le importa a cualquiera que vaya a tocarlo—, así que se
   // piden una vez y el filtro de "no las mías" se hace al armar el aviso.
   const [notasRecientes, setNotasRecientes] = useState<NotaPedido[]>([]);
+  // Si las notas han llegado del servidor ALGUNA VEZ. Sin esto la poda de
+  // descartes de más abajo se lleva por delante los de las notas en el primer
+  // render, cuando todavía no ha contestado el fetch. Ver allí.
+  const [notasCargadas, setNotasCargadas] = useState(false);
   useEffect(() => {
     let vivo = true;
     const cargar = () => {
       fetch("/api/notas-recientes", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { notas: NotaPedido[] } | null) => {
-          if (vivo && d) setNotasRecientes(d.notas);
+          if (!vivo || !d) return;
+          setNotasRecientes(d.notas);
+          setNotasCargadas(true);
         })
         .catch(() => {});
     };
@@ -817,11 +823,26 @@ export function Board({
   if (descartes.opId !== miId) {
     // Cambio de técnico: los descartes son suyos, no se heredan.
     setDescartes({ opId: miId, claves: leerDescartes(miId) });
-  } else if (vigentes.length !== descartes.claves.length) {
+  } else if (notasCargadas && vigentes.length !== descartes.claves.length) {
     // Poda: un descarte solo vale mientras exista el aviso que apaga. Al
     // desaparecer la situación se borra, y si vuelve a darse el aviso suena
     // otra vez —te devuelven la misma OF por segunda vez y te enteras—. De
     // paso, la lista guardada no puede crecer más que los avisos vivos.
+    //
+    // NO SE PODA HASTA QUE HAYAN LLEGADO LAS NOTAS, y esto no es una
+    // precaución teórica: era un fallo que se veía. `notasRecientes` empieza
+    // vacío y se llena por fetch, así que en el primer render NINGÚN aviso de
+    // nota existe todavía; la poda concluía que sus descartes ya no apagaban
+    // nada y los borraba de localStorage. Cuando el fetch contestaba, las
+    // notas volvían a salir SIN descarte y la campana las cantaba otra vez.
+    // O sea: cada recarga de la página resucitaba los avisos de notas ya
+    // vistas, que es lo que el equipo describía como "vuelven a salir notas
+    // más antiguas".
+    //
+    // Los demás avisos deducidos salen del tablero, que llega con el HTML, así
+    // que a ellos no les pasa. Si el fetch de notas falla no se poda en toda la
+    // sesión, y eso está bien: no podar solo deja crecer una lista de textos,
+    // mientras que podar de más resucita avisos que alguien ya atendió.
     setDescartes({ opId: miId, claves: vigentes });
   }
   useEffect(() => {
