@@ -1,4 +1,10 @@
-import { SECCIONES, SECCION_POR_DEFECTO, type Seccion, type SeccionId } from "../secciones";
+import {
+  SECCIONES,
+  SECCION_POR_DEFECTO,
+  recursosSql,
+  type Seccion,
+  type SeccionId,
+} from "../secciones";
 import { operariosDeSeccion } from "./operarios";
 import type { Tablero } from "../data";
 import type {
@@ -652,13 +658,12 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 
 // ─── Consulta + agrupado ─────────────────────────────────────────────────────
 
-async function consultarTablero(seccion: Seccion): Promise<Tablero> {
-  const { getPool } = await import("./db");
-  const pool = await getPool();
-
-  // La vista es LA consulta cara y da la lista de OFs pendientes; el resto de
-  // datos auxiliares se piden después, en paralelo, contra tablas indexadas.
-  const vista = await pool.request().query<FilaVista>(`
+/** La consulta de siempre: la vista de la sección, que ya viene filtrada. */
+async function filasDeLaVista(
+  pool: import("mssql").ConnectionPool,
+  seccion: Seccion,
+): Promise<FilaVista[]> {
+  const r = await pool.request().query<FilaVista>(`
     SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
            v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
            v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
@@ -668,6 +673,98 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     LEFT JOIN dbo.CPRManufacturingOrder mo
       ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
   `);
+  return r.recordset;
+}
+
+/** Las mismas columnas que la vista, pero para unas fases concretas.
+ *
+ *  Es el cuerpo de `TGM_PENDIENTE_*` SIN sus dos filtros
+ *  (`e.PercentProgress < 100` y `sit.CodSituation NOT IN (6)`), que son justo
+ *  los que esconden el trabajo: el primero significa "alguien le fichó" y no
+ *  "está hecha", y el segundo tira lo que se lleva por delante un cierre
+ *  masivo de RPS (3.274 OFs el 28/07/2026, unas 12.000 entre el 27 y el 30/04).
+ *
+ *  Quién está pendiente lo decide OLANET; esto solo pone los datos del pedido.
+ *  Por eso se copia el SELECT a nuestro código en vez de pedirle otra vista a
+ *  IT: el filtrado ya no es cosa de la vista. */
+async function filasPorFase(
+  pool: import("mssql").ConnectionPool,
+  seccion: Seccion,
+  fases: readonly { of: string; fase: string }[],
+): Promise<FilaVista[]> {
+  const ordenes = [...new Set(fases.map((f) => f.of).filter((o) => /^[\w.-]+$/.test(o)))];
+  if (ordenes.length === 0) return [];
+  const enOrdenes = ordenes.map((o) => `'${o}'`).join(",");
+
+  const r = await pool.request().query<FilaVista>(`
+    SELECT d.CodManufacturingOrder AS [OF], e.CodMOTask AS CodTarea,
+           e.Description AS Tarea, b.CodOrder AS Pedido, cli.Description AS Cliente,
+           STR(a.Quantity, 3, 0) + ' - ' + fam.CodProductFamily AS Articulo,
+           (CASE WHEN ISNULL(l.TextoRotulacion, 'nulo') = 'nulo' THEN NULL
+                 ELSE l.TextoRotulacion END) AS Rotulacion,
+           a.ReceptionDemandDate AS FechaSolicitada, d.Priority AS Prioridad,
+           e.ExecutionTime AS TiempoPrevisto,
+           (SELECT MAX(ReceptionDate) FROM dbo.PUROrderLine
+             WHERE CodCompany = '001' AND IDManufacturingOrder = d.IDManufacturingOrder
+               AND Quantity > ReceivedQuantity) AS FechaCompras,
+           CONVERT(datetime,
+             (SELECT TOP (1) SUBSTRING(Planning, 28, 19) FROM dbo.PACResourcePlanning
+               WHERE CodCompany = '001' AND EntityCode = d.CodManufacturingOrder
+                 AND Planning LIKE '%CodTask="' + e.CodMOTask + '"%'), 101) AS FechaPlanificada,
+           sit.Description AS SitOF, sit.AllowImputations AS PermiteImputaciones,
+           d.Notes AS NotasOF,
+           d.Description AS DescripcionMO, d.Quantity AS Cantidad,
+           d.PlannedStartDate, d.PlannedEndDate, d.ManualEndDate
+      FROM dbo.CPRMOTask AS e
+      INNER JOIN dbo.CPRManufacturingOrder AS d WITH (NOLOCK)
+        ON e.IDManufacturingOrder = d.IDManufacturingOrder
+      INNER JOIN dbo.CPRManufacturingOrderSituation AS sit WITH (NOLOCK)
+        ON d.IDMOSituation = sit.IDManufacturingOrderSituation
+      INNER JOIN dbo.CPRMOResourceMachine AS f WITH (NOLOCK)
+        ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosSql(seccion)})
+      LEFT OUTER JOIN dbo.FACOrderLineSL AS a WITH (NOLOCK)
+        ON d.IDManufacturingOrder = a.IDManufacturingOrder
+      LEFT OUTER JOIN dbo.FACOrderSL AS b WITH (NOLOCK) ON a.IDOrder = b.IDOrder
+      LEFT OUTER JOIN dbo.FACCustomer AS cli WITH (NOLOCK) ON b.IDCustomer = cli.IDCustomer
+      LEFT OUTER JOIN dbo.STKArticle AS art WITH (NOLOCK) ON a.IDArticle = art.IDArticle
+      LEFT OUTER JOIN dbo.GENProductFamily AS fam WITH (NOLOCK)
+        ON art.IDProductFamily = fam.IDProductFamily
+      LEFT OUTER JOIN dbo._FACOrderLineSL_Custom AS l WITH (NOLOCK)
+        ON a.IDOrderLine = l.IDOrderLine
+     WHERE f.CodCompany = '001' AND d.CodManufacturingOrder IN (${enOrdenes})
+  `);
+
+  // La consulta trae TODAS las fases de la sección de esas OFs —una OF puede
+  // tener dos— y aquí nos quedamos solo con las que OLANET dio por pendientes.
+  const quiero = new Set(fases.map((f) => claveFase(f.of, f.fase)));
+  return r.recordset.filter((f) => quiero.has(claveFase(f.OF, f.CodTarea)));
+}
+
+/** De dónde sale la lista de trabajo de esta sección. Ver `Seccion.fuente`. */
+async function filasDeLaSeccion(
+  pool: import("mssql").ConnectionPool,
+  seccion: Seccion,
+): Promise<FilaVista[]> {
+  if (seccion.fuente === "vista") return filasDeLaVista(pool, seccion);
+
+  // OLANET manda, y la vista solo completa lo recién lanzado que OLANET aún no
+  // tenga. Las dos consultas van en paralelo: son servidores distintos.
+  const { fasesPendientesDe } = await import("./olanet");
+  const fases = await fasesPendientesDe(seccion);
+  const [deOlanet, deLaVista] = await Promise.all([
+    filasPorFase(pool, seccion, fases),
+    filasDeLaVista(pool, seccion),
+  ]);
+  return [...deOlanet, ...filasQueFaltan(deLaVista, fases)];
+}
+
+async function consultarTablero(seccion: Seccion): Promise<Tablero> {
+  const { getPool } = await import("./db");
+  const pool = await getPool();
+
+  // La lista de OFs pendientes es LA consulta cara; el resto de datos
+  // auxiliares se piden después, en paralelo, contra tablas indexadas.
+  const vista = { recordset: await filasDeLaSeccion(pool, seccion) };
 
   // Lista de OFs pendientes saneada para usar en IN (…): solo códigos limpios.
   const ordenes = [
