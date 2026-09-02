@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-02",
-    "hasta": "b7990e0",
+    "hasta": "05f9ce3",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -41,6 +41,11 @@
         "tipo": "mejor",
         "titulo": "Quién eres, la lista que miras y el claro/oscuro están ahora en un mismo menú",
         "detalle": "Es el botón con tus iniciales, arriba a la derecha. La cabecera queda más despejada y el buscador más ancho."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El tablero carga en menos de la mitad de tiempo",
+        "detalle": "Sobre todo al abrir la web por la mañana, que era cuando más se notaba la espera."
       }
     ]
   },
