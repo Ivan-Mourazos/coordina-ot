@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
-  DocumentoRps,
   HistorialOF,
   HistorialPedidoDetalle,
   MaterialOF,
@@ -14,6 +13,7 @@ import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { NotasPedido } from "./NotasPedido";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
+import { DocumentosRps } from "./DocumentosRps";
 import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmtFecha(iso: string | null) {
@@ -312,7 +312,9 @@ export function HistorialDrawer({
                 soloLectura
               />
 
-              <Documentos documentos={detalle.documentos} />
+              <Bloque titulo={`Documentos (${detalle.documentos.length})`}>
+                <DocumentosRps documentos={detalle.documentos} />
+              </Bloque>
 
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
                 Órdenes de fabricación ({detalle.ofs.length})
@@ -518,128 +520,6 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
       </h3>
       {children}
     </section>
-  );
-}
-
-/** Orden en el que se enseñan las clases de documento.
- *
- *  No es alfabético a propósito: va del trabajo de Oficina Técnica hacia fuera
- *  —planteamiento y diseño primero, luego el papeleo de venta, y al final lo de
- *  taller—, que es el orden en el que se busca cuando se abre un pedido viejo.
- *  Lo que no esté aquí (clase "Documento" y lo que RPS se invente mañana) cae al
- *  final, sin perderse. */
-const ORDEN_CLASES = [
-  "Planteamiento",
-  "Diseño",
-  "Presupuesto",
-  "Presupuesto escaneado",
-  "Pedido escaneado",
-  "Remates",
-  "Rotulación",
-  "Foto del trabajo",
-  "Etiquetas",
-  "Hoja de almacén",
-  "Adjunto de la OF",
-  "Mantenimiento (SAT)",
-];
-
-/** Todo lo que RPS tiene colgado del pedido, agrupado por clase.
- *
- *  Agrupado y no en una lista seguida porque la media (4,8 documentos) engaña:
- *  el adjunto de taller es uno POR OF, así que un pedido de 12 OFs trae 12
- *  "Adjunto OF …" seguidos y entre ellos se pierde el planteamiento, que es lo
- *  que se venía a buscar. Con los grupos, cada cosa está donde se espera.
- *
- *  Sin paginar: el pedido más cargado que se ha visto anda por los 60 y pico
- *  documentos y el panel ya tiene scroll. */
-function Documentos({ documentos }: { documentos: DocumentoRps[] }) {
-  if (documentos.length === 0) {
-    return (
-      <Bloque titulo="Documentos">
-        <p className="text-[11px] text-text-muted">RPS no tiene nada colgado de este pedido.</p>
-      </Bloque>
-    );
-  }
-
-  // Se agrupa conservando el orden de llegada dentro de cada clase: ese orden
-  // es el del id del enlace en RPS, o sea el de subida, y es el que hace que
-  // "version 1" salga antes que "version 2".
-  const porClase = new Map<string, DocumentoRps[]>();
-  for (const d of documentos) {
-    const suyos = porClase.get(d.clase) ?? [];
-    suyos.push(d);
-    porClase.set(d.clase, suyos);
-  }
-  const grupos = [...porClase.entries()].sort((a, b) => {
-    const ia = ORDEN_CLASES.indexOf(a[0]);
-    const ib = ORDEN_CLASES.indexOf(b[0]);
-    return (ia < 0 ? ORDEN_CLASES.length : ia) - (ib < 0 ? ORDEN_CLASES.length : ib);
-  });
-
-  return (
-    <Bloque titulo={`Documentos (${documentos.length})`}>
-      <div className="space-y-2.5">
-        {grupos.map(([clase, suyos]) => (
-          <div key={clase}>
-            <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold text-text-muted">
-              {clase}
-              {suyos.length > 1 && (
-                <span className="rounded bg-surface-2 px-1 text-[9px] font-bold text-text-muted ring-1 ring-border">
-                  {suyos.length}
-                </span>
-              )}
-            </p>
-            <ul className="space-y-0.5">
-              {/* La clave lleva el índice porque ni el nombre ni la URL sirven
-                  solos: dos documentos pueden llamarse igual, y los que no se
-                  pueden abrir no tienen URL con la que distinguirse. */}
-              {suyos.map((d, i) => (
-                <li key={`${i}-${d.url ?? d.archivo}`} className="text-[11px] leading-snug">
-                  <Documento doc={d} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </Bloque>
-  );
-}
-
-/** Un documento: enlace si hay fichero que abrir, texto apagado si no.
- *
- *  Se enseña la descripción de RPS ("Planteamiento del pedido AR.26.02932,
- *  version 1") y debajo el nombre del fichero, porque hay descripciones que se
- *  repiten clavadas entre versiones y el nombre es lo único que las distingue.
- *  Si la descripción viene vacía, el nombre hace de título y no se repite. */
-function Documento({ doc }: { doc: DocumentoRps }) {
-  const titulo = doc.descripcion || doc.archivo;
-  const subtitulo = doc.descripcion && doc.archivo !== doc.descripcion ? doc.archivo : null;
-
-  if (!doc.url) {
-    return (
-      <span
-        className="block text-text-muted/70"
-        title="RPS lo tiene guardado en su gestor documental, no como fichero del archivo: desde aquí no se puede abrir."
-      >
-        {titulo} <span className="text-[10px]">(no se puede abrir)</span>
-      </span>
-    );
-  }
-
-  return (
-    <a
-      href={doc.url}
-      target="_blank"
-      rel="noreferrer"
-      className="block text-text underline decoration-dotted underline-offset-2 hover:text-brand-600 dark:hover:text-brand-300"
-      title={`Abrir ${doc.archivo}`}
-    >
-      {titulo} ↗
-      {subtitulo && (
-        <span className="block font-mono text-[10px] text-text-muted">{subtitulo}</span>
-      )}
-    </a>
   );
 }
 

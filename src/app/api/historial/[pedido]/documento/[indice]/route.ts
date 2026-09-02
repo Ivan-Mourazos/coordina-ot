@@ -1,7 +1,15 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { CODIGO_PEDIDO_RE, archivoDeRuta, comoServir, segmentosEnShare } from "@/lib/historial";
+import {
+  CODIGO_PEDIDO_RE,
+  archivoDeRuta,
+  comoServir,
+  esImagen,
+  segmentosEnShare,
+} from "@/lib/historial";
 import { documentoDePedido } from "@/lib/server/historial-db";
+import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/server/miniaturas";
 
 // ─── GET /api/historial/AR.26.03453/documento/0 ──────────────────────────────
 // Sirve UNO de los documentos que RPS tiene colgados del pedido: el
@@ -26,6 +34,11 @@ import { documentoDePedido } from "@/lib/server/historial-db";
  *  llegue siquiera a abrir la conexión con la BD. */
 const INDICE_RE = /^\d{1,3}$/;
 
+/** Carpeta de caché de las miniaturas de documentos, dentro de la de Next.
+ *  Aparte de la de los partes (`pedidos-thumbs`): allí la clave es el código
+ *  del pedido y aquí la ruta del fichero, y mezclarlas invitaba a chocar. */
+const CACHE_MINIATURAS = path.join(process.cwd(), ".next", "cache", "docs-thumbs");
+
 // El share se llega distinto según dónde corra la app, igual que en
 // /api/pedidos/[archivo]:
 //   · Windows (desarrollo): ruta UNC \\192.168.0.128\RPS (por VPN).
@@ -42,10 +55,15 @@ const RAIZ =
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ pedido: string; indice: string }> },
 ) {
   const { pedido, indice } = await params;
+  // ?mini=1 → la versión pequeña, para la rejilla de documentos de la ficha y
+  // del Historial. Un parámetro y no otra ruta porque el fichero es EL MISMO y
+  // se localiza igual: duplicar la ruta duplicaba también todas las
+  // comprobaciones de abajo.
+  const mini = new URL(req.url).searchParams.get("mini") === "1";
   if (!CODIGO_PEDIDO_RE.test(pedido)) {
     return new Response("Código de pedido no válido", { status: 400 });
   }
@@ -88,6 +106,8 @@ export async function GET(
   const archivo = archivoDeRuta(doc.ruta);
   const { tipo, incrustable } = comoServir(archivo);
 
+  if (mini) return await miniatura(ruta, doc.ruta, archivo, tipo);
+
   let contenido: Buffer;
   try {
     contenido = await readFile(ruta);
@@ -112,6 +132,58 @@ export async function GET(
       "Cache-Control": "private, max-age=86400",
     },
   });
+}
+
+/** La versión pequeña del documento: la 1ª página si es PDF, la foto encogida
+ *  si es imagen.
+ *
+ *  Un 415 (y no un 500) para todo lo demás: un `.dwg` o un `.msg` no tienen
+ *  miniatura y eso no es un fallo — la rejilla lo pinta con su icono y sigue.
+ *  Lo mismo si el decodificador se atraganta con un `.tif` raro de los que hay
+ *  en el share: mejor un hueco con icono que la ficha entera en rojo.
+ *
+ *  La clave de caché es el hash de la RUTA del fichero, no el índice: el índice
+ *  cambia en cuanto RPS cuelga un documento más del pedido, y entonces la
+ *  miniatura cacheada sería la del documento de al lado. */
+async function miniatura(
+  ruta: string,
+  rutaOriginal: string,
+  archivo: string,
+  tipo: string,
+): Promise<Response> {
+  const esPdf = tipo === "application/pdf";
+  if (!esPdf && !esImagen(archivo)) {
+    return new Response("Ese documento no tiene miniatura", { status: 415 });
+  }
+
+  let mtime: number;
+  try {
+    mtime = (await stat(ruta)).mtimeMs;
+  } catch {
+    return new Response("Documento no encontrado", { status: 404 });
+  }
+
+  const clave = createHash("sha1").update(rutaOriginal).digest("hex");
+  try {
+    const bytes = await miniaturaCacheada(
+      CACHE_MINIATURAS,
+      `${clave}.${esPdf ? "png" : "jpg"}`,
+      mtime,
+      () => (esPdf ? renderizarPdf(ruta) : redimensionarImagen(ruta)),
+    );
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        "Content-Type": esPdf ? "image/png" : "image/jpeg",
+        "X-Content-Type-Options": "nosniff",
+        // Privada: lleva datos del cliente y no puede quedarse en ninguna
+        // caché compartida. Misma vida que el documento entero.
+        "Cache-Control": "private, max-age=86400",
+      },
+    });
+  } catch (e) {
+    console.error("[historial] miniatura fallida:", archivo, (e as Error).message);
+    return new Response("No se pudo generar la miniatura", { status: 415 });
+  }
 }
 
 /** Nombre para la cabecera `Content-Disposition`.
