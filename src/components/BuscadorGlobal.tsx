@@ -193,7 +193,10 @@ export function BuscadorGlobal({
             ✕
           </button>
         ) : (
-          <kbd className="shrink-0 rounded border border-border px-1 text-[9px] font-semibold text-text-muted">
+          /* El recordatorio del atajo se retira en ventanas estrechas: son 34
+             px que ahí hacen falta para que se lea lo que se escribe, y quien
+             use el atajo ya se lo sabe. */
+          <kbd className="hidden shrink-0 rounded border border-border px-1 text-[9px] font-semibold text-text-muted xl:block">
             Ctrl K
           </kbd>
         )}

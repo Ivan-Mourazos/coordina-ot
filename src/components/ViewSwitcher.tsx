@@ -55,7 +55,12 @@ export function ViewSwitcher({
           <button
             key={o.id}
             onClick={() => onChange(o.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            /* El padding se aprieta por debajo de 1280 px. Son seis pestañas:
+               con `px-3.5` ocupan 473 px, y a esas anchuras la cabecera no da
+               para eso más los botones de la derecha más el buscador. Se toca
+               el aire y no el texto porque no hay iconos que lo sustituyan, y
+               una pestaña sin nombre no se puede usar. */
+            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors xl:px-3.5 ${
               activo
                 ? "bg-brand-400 text-[#231903] shadow-sm"
                 : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"

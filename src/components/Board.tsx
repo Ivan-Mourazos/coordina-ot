@@ -1796,10 +1796,25 @@ export function Board({
             el hueco libre — y como la izquierda (logo + pestañas) pesa mucho
             más que la derecha, el buscador se iba escorado. */}
         <header className="glass-header sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5">
-          <div className="flex min-w-0 flex-1 basis-0 items-center gap-3">
+          {/* `shrink-0` y no `flex-1 basis-0 min-w-0`: las zonas de los lados
+              NO ceden. Cediendo se derrumbaban —esta llegó a medir 11 px— y el
+              logo y las pestañas se pintaban DEBAJO del buscador, que es lo que
+              se veía como "se agrupan los botones con el buscador".
+              El que cede es el buscador, que para eso se encoge por dentro.
+
+              Se pierde el centrado exacto del buscador, y se acepta: entre un
+              buscador centrado que tapa las pestañas y uno pegado a ellas que
+              se lee, no hay duda. Con la ventana ancha la diferencia no se
+              aprecia porque las dos zonas miden parecido. */}
+          <div className="flex min-w-0 items-center gap-3">
             {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
             <Logo className="-my-3 shrink-0" />
-            <div className="shrink-0">
+            {/* Las seis pestañas ocupan unos 500 px y no se pueden acortar
+                —no hay iconos, y una pestaña sin nombre no se usa—, así que
+                por debajo de cierto ancho no caben junto al buscador y los
+                botones. En vez de aplastarlas hasta que se pinten debajo del
+                buscador, que era el fallo, la tira SE DESPLAZA. */}
+            <div className="scroll-thin min-w-0 overflow-x-auto">
               <ViewSwitcher
                 vista={vista}
                 onChange={setVista}
@@ -1811,14 +1826,20 @@ export function Board({
               detenido, lo anulado y lo ya pasado) más el historial de RPS. Cada
               vista enseña un recorte distinto y sin esto encontrar un pedido
               concreto era adivinar en cuál cayó. */}
+          {/* `flex-1` y no `w-full`: sin crecer, el buscador se congelaba en sus
+              512 px y el sitio que faltaba lo pagaban las zonas de los lados,
+              que desbordaban por debajo de él. Creciendo como ellas, el reparto
+              es de los tres y el que cede al estrechar es este, que se encoge
+              por dentro sin romperse. */}
           <BuscadorGlobal
-            className="w-full max-w-lg"
+            className="min-w-36 max-w-lg flex-1"
             pedidos={pedidos}
             nombre={nombreDeOperario}
             onAbrirPedido={abrirPedido}
             onAbrirHistorial={setHistorialAbierto}
           />
-          <div className="flex flex-1 basis-0 items-center justify-end gap-2 text-xs">
+          {/* Mismo trato que la zona de la izquierda, y por lo mismo. */}
+          <div className="flex shrink-0 items-center justify-end gap-2 text-xs">
             <Herramientas
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
