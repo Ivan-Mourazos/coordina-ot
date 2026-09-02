@@ -658,22 +658,35 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
 
 // ─── Consulta + agrupado ─────────────────────────────────────────────────────
 
-/** La consulta de siempre: la vista de la sección, que ya viene filtrada. */
-async function filasDeLaVista(
+/** QUÉ tiene pendiente la vista de la sección, sin los datos del pedido.
+ *
+ *  Solo las claves y lo que hace falta para cruzarlas con OLANET. Los datos se
+ *  piden después, acotados a esas OF, y eso es lo que abarata la consulta: la
+ *  vista es cara por su cadena de LEFT JOIN a pedido de venta, cliente,
+ *  artículo y familia, y sin pedir esas columnas el optimizador se los salta
+ *  enteros.
+ *
+ *  Medido contra la BD real el 2026-09-02, tablero de Oficina Técnica:
+ *
+ *    vista completa, de una vez ......... 4.255 ms
+ *    solo las claves .......................587 ms
+ *    detalle de esas 60 OF por IN (…) ......492 ms
+ *
+ *  Las dos formas devuelven LO MISMO: mismas 67 filas y, comparadas campo a
+ *  campo las 20 columnas, cero diferencias. */
+async function clavesDeLaVista(
   pool: import("mssql").ConnectionPool,
   seccion: Seccion,
-): Promise<FilaVista[]> {
-  const r = await pool.request().query<FilaVista>(`
-    SELECT v.[OF], v.CodTarea, v.Tarea, v.Pedido, v.Cliente, v.Articulo,
-           v.Rotulacion, v.FechaSolicitada, v.Prioridad, v.TiempoPrevisto,
-           v.FechaCompras, v.FechaPlanificada, v.SitOF, v.PermiteImputaciones, v.NotasOF,
-           mo.Description AS DescripcionMO, mo.Quantity AS Cantidad,
-           mo.PlannedStartDate, mo.PlannedEndDate, mo.ManualEndDate
-    FROM dbo.${seccion.vista} v
-    LEFT JOIN dbo.CPRManufacturingOrder mo
-      ON mo.CodManufacturingOrder = v.[OF] AND mo.CodCompany = '001'
+): Promise<FilaCruzable[]> {
+  const r = await pool.request().query<FilaCruzable>(`
+    SELECT [OF], CodTarea, SitOF, PermiteImputaciones FROM dbo.${seccion.vista}
   `);
   return r.recordset;
+}
+
+/** Las claves de unas filas, como las quiere `filasPorFase`. */
+function paresDe(filas: readonly FilaCruzable[]): { of: string; fase: string }[] {
+  return filas.map((f) => ({ of: (f.OF ?? "").trim(), fase: (f.CodTarea ?? "").trim() }));
 }
 
 /** Las mismas columnas que la vista, pero para unas fases concretas.
@@ -740,22 +753,29 @@ async function filasPorFase(
   return r.recordset.filter((f) => quiero.has(claveFase(f.OF, f.CodTarea)));
 }
 
-/** De dónde sale la lista de trabajo de esta sección. Ver `Seccion.fuente`. */
+/** De dónde sale la lista de trabajo de esta sección. Ver `Seccion.fuente`.
+ *
+ *  Las dos fuentes dicen QUÉ (OF, tarea) está pendiente; los datos del pedido
+ *  los pone siempre `filasPorFase`, una sola vez y para las dos. Antes había
+ *  dos consultas con el mismo SELECT de 20 columnas y había que mantenerlas a
+ *  mano en sintonía. */
 async function filasDeLaSeccion(
   pool: import("mssql").ConnectionPool,
   seccion: Seccion,
 ): Promise<FilaVista[]> {
-  if (seccion.fuente === "vista") return filasDeLaVista(pool, seccion);
+  if (seccion.fuente === "vista") {
+    const claves = await clavesDeLaVista(pool, seccion);
+    return filasPorFase(pool, seccion, paresDe(claves));
+  }
 
   // OLANET manda, y la vista solo completa lo recién lanzado que OLANET aún no
   // tenga. Las dos consultas van en paralelo: son servidores distintos.
   const { fasesPendientesDe } = await import("./olanet");
-  const fases = await fasesPendientesDe(seccion);
-  const [deOlanet, deLaVista] = await Promise.all([
-    filasPorFase(pool, seccion, fases),
-    filasDeLaVista(pool, seccion),
+  const [fases, claves] = await Promise.all([
+    fasesPendientesDe(seccion),
+    clavesDeLaVista(pool, seccion),
   ]);
-  return [...deOlanet, ...filasQueFaltan(deLaVista, fases)];
+  return filasPorFase(pool, seccion, [...fases, ...paresDe(filasQueFaltan(claves, fases))]);
 }
 
 async function consultarTablero(seccion: Seccion): Promise<Tablero> {
