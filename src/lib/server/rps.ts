@@ -385,6 +385,50 @@ export function unaFilaPorOF<T extends { OF: string | null; Tarea: string | null
   return [...porOF.values()];
 }
 
+/** Lo mínimo de una fila para cruzarla con lo que dice OLANET. Se declara
+ *  aparte de `FilaVista` —que lo cumple— para no tener que construir las 20
+ *  columnas en cada test. */
+export interface FilaCruzable {
+  OF: string | null;
+  CodTarea: string | null;
+  SitOF: string | null;
+  PermiteImputaciones?: boolean | number | null;
+}
+
+/** La misma fase escrita por los dos sistemas: "0230700/3".
+ *
+ *  RPS guarda el código de tarea tal y como viene de la ruta ("03", "5", "42")
+ *  y OLANET lo suyo en `Fase`, con los ceros a la izquierda a veces sí y a
+ *  veces no. Sin normalizarlos, "03" y "3" son dos fases distintas y la OF
+ *  saldría dos veces en el tablero: una por cada fuente.
+ *
+ *  El recorte deja siempre un dígito (`(?=\d)`): la tarea "0" existe de verdad
+ *  en RPS —es la de Materiales— y comérsela dejaría la clave sin fase. */
+export function claveFase(of: string | null, fase: string | null): string {
+  const o = (of ?? "").trim();
+  const f = (fase ?? "").trim().replace(/^0+(?=\d)/, "");
+  return `${o}/${f}`;
+}
+
+/** Lo que la vista de RPS tiene y OLANET todavía no.
+ *
+ *  Manda OLANET, que es quien sabe si una fase está por hacer. Pero recibe las
+ *  fases con retraso —medido el 2026-09-02: mediana 0 días, 51 de 58 el mismo
+ *  día, máximo 3—, y sin esto el trabajo lanzado esta mañana no aparecería
+ *  hasta mañana.
+ *
+ *  Solo entra lo FICHABLE. Lo que no admite imputaciones no está en OLANET
+ *  precisamente por eso, y traerlo de la vista devolvería al tablero las
+ *  DETENIDAS y CREADAS: tarjetas con el reloj muerto, 10 de las 43 filas que
+ *  Diseño Gráfico veía ese día. */
+export function filasQueFaltan<T extends FilaCruzable>(
+  vista: readonly T[],
+  enOlanet: readonly { of: string; fase: string }[],
+): T[] {
+  const ya = new Set(enOlanet.map((f) => claveFase(f.of, f.fase)));
+  return vista.filter((f) => !ya.has(claveFase(f.OF, f.CodTarea)) && permiteImputaciones(f));
+}
+
 /** Escala nueva: 1 = poca, 2 = normal, 3 = urgente (si es 3, la fecha de
  *  planificación se respeta al 100%). Fuera de rango (null, 0, erróneo) → 1
  *  (poca), no la máxima: un dato ausente no debe disparar urgencia. */
@@ -505,7 +549,7 @@ const SITUACIONES_FICHABLES = new Set([
 /** ¿Se puede imputar tiempo en esta OF? Manda la columna `PermiteImputaciones`
  *  de la vista (bit, creada por IT el 2026-08-04 a petición nuestra); solo si
  *  falta se deduce de la situación. */
-function permiteImputaciones(fila: FilaVista): boolean {
+export function permiteImputaciones(fila: FilaCruzable): boolean {
   if (typeof fila.PermiteImputaciones === "boolean") return fila.PermiteImputaciones;
   if (fila.PermiteImputaciones === 1 || fila.PermiteImputaciones === 0) {
     return fila.PermiteImputaciones === 1;
