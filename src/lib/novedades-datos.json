@@ -1,5 +1,50 @@
 [
   {
+    "id": "2026-09-02",
+    "hasta": "8bc6f94",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Diseño Gráfico aparece anunciado como lo próximo que llega",
+        "detalle": "Todavía no enseña pedidos: primero tiene que ser de fiar su lista de trabajo. Oficina Técnica sigue igual."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los avisos que ya habías abierto volvían a salir al mirar la otra lista",
+        "detalle": "Cambiabas a Diseño Gráfico, volvías a Oficina Técnica y la campana repetía notas y avisos que ya habías leído."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Abrir un pedido ya apaga sus avisos, no solo pulsarlos en la campana",
+        "detalle": "Leías la nota abriendo el pedido desde el tablero y la campana seguía anunciándola. Ahora se apaga por donde quiera que lo abras."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Finalizar una operación ya no falla con \"esa fase ya no existe en OLANET\"",
+        "detalle": "Pasaba con operaciones que se podían fichar de sobra, y obligaba a cerrarlas con la herramienta vieja."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En ventanas estrechas la cabecera ya no se amontona",
+        "detalle": "Los botones y el buscador se montaban encima de las pestañas. Ahora las pestañas se deslizan y el buscador se encoge sin taparlas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El aviso de \"OF nueva\" se calla en cuanto alguien coge esa OF",
+        "detalle": "Antes se quedaba puesto en la tarjeta y en la campana hasta que la OF se aprobaba, aunque ya la estuvieras haciendo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las pestañas tienen el mismo borde que el buscador y el resto de la cabecera"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Quién eres, la lista que miras y el claro/oscuro están ahora en un mismo menú",
+        "detalle": "Es el botón con tus iniciales, arriba a la derecha. La cabecera queda más despejada y el buscador más ancho."
+      }
+    ]
+  },
+  {
     "id": "2026-09-01-3",
     "hasta": "56a8b74",
     "cambios": [
