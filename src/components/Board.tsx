@@ -23,8 +23,9 @@ import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
-import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
+import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
 import { SelectorSeccion } from "./SelectorSeccion";
+import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
 import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -1712,6 +1713,14 @@ export function Board({
     // quién eres, y con la lista filtrada nadie de Diseño Gráfico podría
     // elegirse a sí mismo — el tablero arranca con el de Oficina Técnica.
     return <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />;
+  }
+
+  // Sección anunciada pero todavía sin abrir: se dice y no se enseña nada. Va
+  // DESPUÉS de saber quién eres —para poder salir a la sección que sí está— y
+  // antes de todo lo demás, que es lo que no se debe pintar. El servidor
+  // tampoco consulta nada para ella (ver `Seccion.enObras`).
+  if (SECCIONES[seccionActual].enObras) {
+    return <SeccionEnObras seccion={SECCIONES[seccionActual]} onVolver={cambiarSeccion} />;
   }
   // QUIÉN ERES se busca en el catálogo completo, no en los de la sección que
   // se esté sirviendo. Al cambiarte a alguien de otra sección, su tablero

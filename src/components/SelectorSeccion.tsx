@@ -47,7 +47,11 @@ export function SelectorSeccion({
             /* El nombre entero en el `title` porque en el botón va abreviado:
                "Oficina Técnica" y "Diseño Gráfico" no caben en una cabecera que
                ya lleva buscador, avisos, tema y quién eres. */
-            title={`Ver el trabajo de ${s.nombre}`}
+            title={
+              s.enObras
+                ? `${s.nombre} todavía no está lista: se puede ver el anuncio, pero no enseña trabajo`
+                : `Ver el trabajo de ${s.nombre}`
+            }
             className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
               activa
                 ? "bg-brand-500 text-white"
@@ -55,6 +59,16 @@ export function SelectorSeccion({
             }`}
           >
             {ABREVIADO[s.id] ?? s.nombre}
+            {/* Un punto y ya: dice que ahí todavía no hay trabajo que mirar,
+                sin robarle sitio a una cabecera que va justa. Lo que hay
+                detrás lo cuenta el `title`, y la pantalla entera si se
+                pulsa. */}
+            {s.enObras && (
+              <span
+                aria-label="todavía no está lista"
+                className="ml-1 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+              />
+            )}
           </button>
         );
       })}

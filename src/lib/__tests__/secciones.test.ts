@@ -108,3 +108,16 @@ describe("de dónde saca cada sección su trabajo", () => {
     expect(SECCIONES.diseno.fuente).toBe("olanet");
   });
 });
+
+describe("secciones en obras", () => {
+  it("Diseño Gráfico está anunciada pero todavía no abierta", () => {
+    // Se anuncia y no enseña trabajo hasta que su lista sea de fiar. Enseñar
+    // una lista a medias es peor que no enseñar ninguna: el equipo aprende a
+    // no fiarse, y de eso no se vuelve con un despliegue.
+    expect(SECCIONES.diseno.enObras).toBe(true);
+  });
+
+  it("Oficina Técnica no lo está", () => {
+    expect(SECCIONES.ot.enObras).toBeUndefined();
+  });
+});

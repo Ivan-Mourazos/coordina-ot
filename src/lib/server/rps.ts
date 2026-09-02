@@ -1232,8 +1232,14 @@ function refrescarTablero(seccion: Seccion): Promise<Tablero> {
   return p;
 }
 
+/** Un tablero vacío, sin operarios ni pedidos. Lo que se sirve de una sección
+ *  en obras: ni una consulta a RPS, ni una fila que nadie deba creerse. */
+const TABLERO_VACIO: Tablero = { operarios: [], pedidos: [] };
+
 export async function getTableroRPS(seccionId: SeccionId = SECCION_POR_DEFECTO): Promise<Tablero> {
   const seccion = SECCIONES[seccionId];
+  // En obras: no se consulta nada. Ver `Seccion.enObras`.
+  if (seccion.enObras) return TABLERO_VACIO;
   const guardado = cache.get(seccion.id);
   if (guardado) {
     if (Date.now() - guardado.at >= TTL_MS) {
@@ -1260,10 +1266,11 @@ declare global {
  *  ya (fire-and-forget) + refresco periódico de fondo. Idempotente. */
 export function precalentarTablero(): void {
   if (globalThis.__coordinaPrecalentado) return;
-  // Las dos secciones: si solo se calentara OT, el primero de diseño en entrar
-  // por la mañana se comería los 7-15 s de su vista, que es justo lo que este
-  // precalentado existe para evitar.
-  const todas = Object.values(SECCIONES);
+  // Las secciones EN USO: si solo se calentara OT, el primero de diseño en
+  // entrar por la mañana se comería los 7-15 s de su vista, que es justo lo que
+  // este precalentado existe para evitar. Las que están en obras no se calientan
+  // porque no se consultan (ver `Seccion.enObras`).
+  const todas = Object.values(SECCIONES).filter((s) => !s.enObras);
   for (const s of todas) {
     refrescarTablero(s).catch((e) => {
       console.warn(`[coordina] precalentado de ${s.nombre} falló (se reintenta):`, e?.message);

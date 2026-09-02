@@ -1,5 +1,5 @@
 import type { Operario, Pedido } from "./types";
-import { SECCION_POR_DEFECTO, type SeccionId } from "./secciones";
+import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "./secciones";
 import { OPERARIOS, PEDIDOS } from "./mock";
 
 // ─── ÚNICO punto de acceso a datos ───────────────────────────────────────────
@@ -25,6 +25,13 @@ export interface Tablero {
  *  y una OF solo sale en la lista de su sección. Filtrarlos otra vez aquí sería
  *  repetir el filtro que ya hizo la vista de RPS. */
 export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Promise<Tablero> {
+  // Sección anunciada pero todavía sin abrir: nada de trabajo, venga de donde
+  // venga (ver `Seccion.enObras`). Se corta AQUÍ y no solo en la consulta a RPS
+  // porque el mock devuelve los mismos pedidos para cualquier sección, y quien
+  // levante la app sin BD vería un tablero lleno en una sección que en el
+  // servidor de verdad está vacía.
+  if (SECCIONES[seccion].enObras) return { operarios: [], pedidos: [] };
+
   const base: Tablero =
     process.env.DATASOURCE === "rps"
       ? await (await import("./server/rps")).getTableroRPS(seccion)

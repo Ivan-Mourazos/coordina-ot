@@ -52,6 +52,17 @@ export interface Seccion {
    *  Gráfico no: un trabajo a medias desaparecía del tablero, y lo que un
    *  cierre masivo de RPS daba por acabado no volvía nunca. */
   fuente: "vista" | "olanet";
+  /** Todavía no está lista para usarse: se anuncia, pero no enseña trabajo.
+   *
+   *  Una sección a medias es peor que una sección que no está. Si el tablero
+   *  enseña pedidos que no son los que hay que hacer, el equipo aprende a no
+   *  fiarse de la lista, y eso no se arregla luego con un despliegue. Mientras
+   *  se termina, la web dice que viene y no enseña nada: ni tablero, ni lista,
+   *  ni métricas, ni consultas a la BD.
+   *
+   *  Se quita cambiando esta línea, y con ella entra todo lo demás: la fuente
+   *  ya está hecha y probada. */
+  enObras?: boolean;
   /** El trozo que llevan en el nombre sus centros en `scg_Fases`.
    *
    *  Se busca un TROZO y no el nombre entero porque en esa columna hay erratas
@@ -77,6 +88,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     nombre: "Diseño Gráfico",
     vista: "TGM_PENDIENTE_DISENHO",
     fuente: "olanet",
+    enObras: true,
     recursos: ["a-dgra", "dgra-a"],
     maquina: "A-DGRA",
     marcaEnFases: "DGRA",
