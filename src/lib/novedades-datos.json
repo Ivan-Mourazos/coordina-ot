@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-02-2",
+    "hasta": "21aee73",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Los documentos del pedido se ven, y se abren sin salir de la web",
+        "detalle": "Cada planteamiento, presupuesto o foto sale dibujado en pequeño y se abre encima de la ficha; con las flechas pasas de uno a otro y con Escape vuelves. Se acabaron las pestañas sueltas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fotos del SAT ya no tardan en aparecer",
+        "detalle": "Se preparan en el servidor a tamaño pequeño: lo que eran 18 MB por pedido ahora son 100 KB."
+      }
+    ]
+  },
+  {
     "id": "2026-09-02",
     "hasta": "05f9ce3",
     "cambios": [
