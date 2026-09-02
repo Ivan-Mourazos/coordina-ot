@@ -1,6 +1,7 @@
 import sql from "mssql";
 import { claveBonoRps, type FilaBono } from "../bonos";
 import type { EstadoFase } from "../fases";
+import { esFaseDe, type Seccion } from "../secciones";
 import { getPoolOlanet } from "./db";
 
 // ─── Escritura del fichaje en OLANET ─────────────────────────────────────────
@@ -247,6 +248,56 @@ export async function sincronizarFichajeEnCurso(
  *  `IdBoletin` viaja porque es lo que necesita `moverFase` para cerrar la fase,
  *  y buscarlo otra vez por (Orden, Fase) abriría una carrera: entre la consulta
  *  y el clic, la misma pareja podría resolver a otro boletín. */
+export interface FasePendiente {
+  of: string;
+  fase: string;
+  idBoletin: string;
+  estado: number;
+}
+
+/** Lo que a una sección le queda por hacer, según OLANET.
+ *
+ *  Es la lista de trabajo de las secciones con `fuente: "olanet"`. Se lee de
+ *  aquí y no del `PercentProgress` de la vista de RPS porque ese número no mide
+ *  avance: cada imputación entra con 100, así que dice "alguien le fichó", no
+ *  "está hecha" (ver `Seccion.fuente`). `IdEstadoOF` sí es el estado real de la
+ *  fase.
+ *
+ *  Los TRES estados vivos, no solo el 0. Dejando fuera iniciada e interrumpida,
+ *  la tarjeta se desvanecería a media faena en cuanto se fichara desde la web,
+ *  que es justo el fallo que esto viene a arreglar. Fuera quedan la 3
+ *  (finalizada) y la 4 (eliminada por OLANET).
+ *
+ *  El LIKE de `MaquinaTeo` recoge las erratas y las urgencias —"U-A-DGRA" lleva
+ *  "DGRA" dentro—, y `esFaseDe` vuelve a filtrar en TypeScript para no fiar la
+ *  frontera entre secciones a un LIKE. */
+export async function fasesPendientesDe(seccion: Seccion): Promise<FasePendiente[]> {
+  const pool = await getPoolOlanet();
+  const r = await pool
+    .request()
+    .input("marca", sql.VarChar(30), `%${seccion.marcaEnFases}%`)
+    .query<{
+      Orden: string | null;
+      Fase: string | null;
+      IdBoletin: string;
+      MaquinaTeo: string | null;
+      IdEstadoOF: number | null;
+    }>(
+      `SELECT Orden, Fase, IdBoletin, MaquinaTeo, IdEstadoOF
+         FROM scg_Fases
+        WHERE MaquinaTeo LIKE @marca AND IdEstadoOF IN (0, 1, 2)`,
+    );
+  return r.recordset
+    .filter((f) => esFaseDe(f.MaquinaTeo ?? "", seccion))
+    .map((f) => ({
+      of: (f.Orden ?? "").trim(),
+      fase: (f.Fase ?? "").trim(),
+      idBoletin: String(f.IdBoletin),
+      estado: f.IdEstadoOF ?? -1,
+    }))
+    .filter((f) => f.of !== "" && f.fase !== "");
+}
+
 export async function fasesDeOFs(
   ofs: readonly string[],
 ): Promise<
