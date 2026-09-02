@@ -38,6 +38,7 @@ import { HistorialDrawer } from "./HistorialDrawer";
 import {
   agruparAvisos,
   aplicarDescartes,
+  descartesDePedido,
   esDescartable,
   identidadAviso,
   type AvisoSuelto,
@@ -839,6 +840,16 @@ export function Board({
     () => aplicarDescartes(notifItems, descartes.claves, seccionActual),
     [notifItems, descartes.claves, seccionActual],
   );
+  // Para `verAvisosDe`, que se llama al abrir un pedido y necesita los avisos
+  // de AHORA sin recrearse en cada vuelta del tablero. Se escriben en un efecto
+  // y no durante el render: es lo que pide react-hooks/refs, y es el mismo
+  // patrón de `avisosMovRef`.
+  const notifItemsRef = useRef<NotifItem[]>([]);
+  const seccionRef = useRef<SeccionId>(seccionActual);
+  useEffect(() => {
+    notifItemsRef.current = notifItems;
+    seccionRef.current = seccionActual;
+  }, [notifItems, seccionActual]);
 
   // Los números de las pestañas y del título salen de lo que la campana enseña
   // AHORA, no de todos los avisos deducidos. Contaban sobre la lista sin
@@ -896,6 +907,24 @@ export function Board({
   const verAvisosDe = useCallback(
     (pedidoId: string) => {
       if (!miId) return;
+
+      // Los DEDUCIDOS (nota nueva, listo para pasar, OF nueva, devuelta…) no
+      // tienen fila que marcar en el servidor: se apagan guardando su
+      // identidad, igual que al pulsarlos en la campana. Sin esto solo los
+      // apagaba la campana, así que quien abría el pedido desde el tablero y
+      // leía la nota se quedaba el aviso puesto para siempre.
+      //
+      // Por refs y no por dependencias: esto lo llama cada apertura de pedido,
+      // y meter `notifItems` en las dependencias recrearía el callback —y con
+      // él los de las tarjetas— en cada vuelta del tablero.
+      const vistos = descartesDePedido(notifItemsRef.current, pedidoId, seccionRef.current);
+      if (vistos.length > 0) {
+        setDescartes((prev) => {
+          const nuevas = vistos.filter((c) => !prev.claves.includes(c));
+          return nuevas.length === 0 ? prev : { ...prev, claves: [...prev.claves, ...nuevas] };
+        });
+      }
+
       const suyas = new Set(
         pedidosRef.current.find((p) => p.id === pedidoId)?.ofs.map((o) => o.id) ?? [],
       );

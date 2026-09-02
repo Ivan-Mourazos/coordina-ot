@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agruparAvisos,
   aplicarDescartes,
+  descartesDePedido,
   esDescartable,
   identidadAviso,
   type AvisoSuelto,
@@ -343,5 +344,41 @@ describe("dos secciones comparten la lista de descartes", () => {
     // dos listas, y la web era solo de OT.
     expect(aplicarDescartes([], ["1:devuelta:a"], "ot").vigentes).toEqual([]);
     expect(aplicarDescartes([], ["1:devuelta:a"], "diseno").vigentes).toEqual(["1:devuelta:a"]);
+  });
+});
+
+describe("abrir el pedido apaga sus avisos deducidos", () => {
+  // Los de movimiento se apagan contra el servidor al abrir el pedido, pero los
+  // deducidos solo se apagaban pulsando su entrada EN la campana. Quien abría
+  // el pedido desde el tablero y leía la nota se quedaba el aviso puesto para
+  // siempre: "siempre se repiten".
+  const p1 = pedido("1", [of("a"), of("b")]);
+  const p2 = pedido("2", [of("c")]);
+
+  it("apaga todos los del pedido que se abre", () => {
+    // Abrir el pedido enseña sus OF y sus notas: se han visto todas, no una.
+    const items = agruparAvisos([
+      { tipo: "revisar", pedido: p1, of: p1.ofs[0] },
+      { tipo: "notaNueva", pedido: p1, of: null, clave: "nota:7", texto: "ojo" },
+    ]);
+    expect(descartesDePedido(items, "1", "ot")).toHaveLength(2);
+  });
+
+  it("no toca los de otro pedido", () => {
+    const items = agruparAvisos([
+      { tipo: "revisar", pedido: p1, of: p1.ofs[0] },
+      { tipo: "revisar", pedido: p2, of: p2.ofs[0] },
+    ]);
+    expect(descartesDePedido(items, "2", "ot")).toEqual([identidadAviso(items[1], "ot")]);
+  });
+
+  it("los de movimiento no pasan por aquí: ya los apaga el servidor", () => {
+    const items = agruparAvisos([{ tipo: "recibida", pedido: p1, of: p1.ofs[0], clave: "9:x" }]);
+    expect(descartesDePedido(items, "1", "ot")).toEqual([]);
+  });
+
+  it("la identidad lleva la sección, como la de la campana", () => {
+    const items = agruparAvisos([{ tipo: "devuelta", pedido: p1, of: p1.ofs[0] }]);
+    expect(descartesDePedido(items, "1", "diseno")).toEqual([identidadAviso(items[0], "diseno")]);
   });
 });

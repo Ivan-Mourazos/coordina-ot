@@ -203,6 +203,26 @@ function partesDescarte(clave: string): { seccion: SeccionId; situacion: string 
     : { seccion: SECCION_POR_DEFECTO, situacion: clave };
 }
 
+/** Los descartes que deja abrir un pedido: sus avisos deducidos, todos.
+ *
+ *  Abrir el pedido ES haber visto sus avisos, se abra por donde se abra. Los de
+ *  movimiento se apagan contra el servidor por su `clave`; estos no tienen
+ *  dónde marcarse, así que se apagan igual que cuando se pulsan en la campana:
+ *  guardando su identidad.
+ *
+ *  TODOS los del pedido, y no el que se haya pulsado: el detalle enseña sus OF
+ *  y sus notas de una vez. Es la diferencia con pulsar una entrada de la
+ *  campana, que apaga solo esa porque solo se ha atendido esa. */
+export function descartesDePedido(
+  items: readonly NotifItem[],
+  pedidoId: string,
+  seccion: SeccionId,
+): string[] {
+  return items
+    .filter((i) => i.pedido.id === pedidoId && esDescartable(i))
+    .map((i) => identidadAviso(i, seccion));
+}
+
 export interface AvisosTrasDescartes {
   /** Lo que se pinta en la campana. */
   visibles: NotifItem[];
