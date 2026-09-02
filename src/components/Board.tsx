@@ -254,6 +254,14 @@ export function Board({
     },
     [],
   );
+  /** De qué sección son los pedidos que hay ahora mismo en `pedidos`.
+   *
+   *  NO es lo mismo que la sección que se está mirando: al cambiar de lista,
+   *  esa cambia en el acto y los pedidos tardan lo que tarde el fetch —contra
+   *  RPS, entre 7 y 15 segundos—. En esa ventana el tablero sigue enseñando los
+   *  de la lista anterior, o ninguno. Lo usa la poda de avisos ya vistos, que
+   *  no puede juzgar la lista de una sección con los pedidos de otra. */
+  const [seccionDeLosPedidos, setSeccionDeLosPedidos] = useState<SeccionId | null>(null);
   // El tablero depende de cosas que solo existen en el navegador (identidad
   // guardada, filtros de localStorage): se pinta tras montar para que la
   // hidratación case sin warnings.
@@ -426,6 +434,12 @@ export function Board({
         // Solo si se ha elegido a mano: sin esto manda la sección de quien
         // mira, que es lo que hay que ver al entrar.
         if (seccionVista) q.set("seccion", seccionVista);
+        // La que se está pidiendo, para poder decir luego de quién son los
+        // pedidos que lleguen. Si no se eligió a mano, la del operario.
+        const pedida =
+          seccionVista ??
+          TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
+          SECCION_POR_DEFECTO;
         const url = q.size > 0 ? `/api/tablero?${q}` : "/api/tablero";
         const r = await fetch(url, { cache: "no-store" });
         if (!r.ok) return;
@@ -441,6 +455,9 @@ export function Board({
         );
         // Las zonas del tablero son personas, y cada sección tiene las suyas.
         if (t.operarios?.length) setOperarios(t.operarios);
+        // DE QUÉ SECCIÓN son los pedidos que acaban de entrar. De esto depende
+        // que se pueda podar la lista de avisos ya vistos; ver allí.
+        setSeccionDeLosPedidos(pedida);
       } catch {
         // sin red o servidor reiniciando: el siguiente tick lo reintenta
       }
@@ -868,7 +885,19 @@ export function Board({
   if (descartes.opId !== miId) {
     // Cambio de técnico: los descartes son suyos, no se heredan.
     setDescartes({ opId: miId, claves: leerDescartes(miId) });
-  } else if (notasCargadas && vigentes.length !== descartes.claves.length) {
+  } else if (
+    notasCargadas &&
+    // Y los pedidos que hay delante tienen que ser LOS DE ESTA SECCIÓN. Al
+    // volver de Diseño Gráfico a Oficina Técnica, la sección cambia en el acto
+    // pero los pedidos siguen siendo los de antes —o ninguno— hasta que
+    // contesta el fetch; en esa ventana la poda creía estar mirando OT sin un
+    // solo aviso vivo y se llevaba por delante todos sus descartes. Al
+    // siguiente render los avisos volvían a salir sin apagar, y la campana los
+    // cantaba otra vez. Es el mismo fallo que ya cubría `notasCargadas`: podar
+    // contra una foto incompleta.
+    seccionDeLosPedidos === seccionActual &&
+    vigentes.length !== descartes.claves.length
+  ) {
     // Poda: un descarte solo vale mientras exista el aviso que apaga. Al
     // desaparecer la situación se borra, y si vuelve a darse el aviso suena
     // otra vez —te devuelven la misma OF por segunda vez y te enteras—. De
