@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-02-3",
+    "hasta": "3280a59",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Los documentos que RPS no guarda ya no salen como huecos vacíos",
+        "detalle": "Antes aparecían como fichas en blanco y parecía que la web fallaba. Ahora se dice en una línea cuántos son y por qué no se pueden abrir."
+      }
+    ]
+  },
+  {
     "id": "2026-09-02-2",
     "hasta": "21aee73",
     "cambios": [
