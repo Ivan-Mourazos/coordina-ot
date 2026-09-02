@@ -92,7 +92,15 @@ export function FasesSinFinalizar({
       const r = await fetch("/api/fases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idBoletin: f.idBoletin, operarioId: miId }),
+        // Van también la OF y la fase: el boletín puede haberse quedado viejo
+        // entre que se pintó la lista y se pulsa, y con (OF, fase) el servidor
+        // vuelve a encontrarla. Ver el comentario de la ruta.
+        body: JSON.stringify({
+          idBoletin: f.idBoletin,
+          operarioId: miId,
+          of: f.of,
+          fase: f.fase,
+        }),
       });
       const d = (await r.json().catch(() => null)) as { error?: string } | null;
       if (!r.ok) {

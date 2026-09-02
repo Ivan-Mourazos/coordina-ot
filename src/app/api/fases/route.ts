@@ -71,13 +71,43 @@ export async function POST(req: Request) {
       { status: 400 },
     );
 
+  // De qué fase se habla, por si el boletín ya no vale. Opcionales: si no
+  // llegan, se hace lo de siempre.
+  const of = typeof b.of === "string" && OF_RE.test(b.of) ? b.of : null;
+  const fase = typeof b.fase === "string" && /^[\w-]{1,20}$/.test(b.fase) ? b.fase : null;
+
   try {
-    const { estadoDeFase, maquinaDeFase, moverFase } = await import("@/lib/server/olanet");
+    const { buscarIdBoletin, estadoDeFase, maquinaDeFase, moverFase } =
+      await import("@/lib/server/olanet");
 
     // Se RELEE lo que hay ahora, no se cree lo que mande el navegador. Entre
     // que la ficha pintó el botón y alguien lo pulsa pueden pasar minutos: la
     // fase puede haberse cerrado desde el taller, o haberla retirado OLANET.
-    const maquina = await maquinaDeFase(idBoletin);
+    let boletin = idBoletin;
+    let maquina = await maquinaDeFase(boletin);
+
+    // EL BOLETÍN SE QUEDA VIEJO. Le pasó a Alberto con AR.25.02771: la fase 5
+    // de la OF 0217539 se podía fichar sin problema —fichar y parar dejaron
+    // sus movimientos, y ese camino resuelve la fase por (OF, fase)— pero
+    // finalizarla desde la ficha decía que ya no existía en OLANET, porque va
+    // por `IdBoletin` a pelo. Tuvo que cerrarla con la herramienta vieja.
+    //
+    // OLANET inserta filas nuevas para una misma OF: en esa OF conviven
+    // boletines del bloque 4003xxx con otros 4037xxx. Un id que la ficha
+    // cargó hace un rato puede dejar de ser el bueno.
+    //
+    // (Orden, Fase) es ÚNICO en scg_Fases —comprobado sobre la BD entera: cero
+    // pares repetidos—, así que volver a buscar por ahí es exacto: no puede
+    // acabar cerrando una fase que no sea. Y lo que se comprueba después
+    // (máquina y estado) se hace sobre la fase encontrada, no sobre la que
+    // trajo el navegador.
+    if (maquina === null && of && fase) {
+      const rebuscado = await buscarIdBoletin(of, fase);
+      if (rebuscado) {
+        boletin = rebuscado;
+        maquina = await maquinaDeFase(boletin);
+      }
+    }
     if (maquina === null)
       return NextResponse.json({ error: "Esa fase ya no existe en OLANET" }, { status: 404 });
     // La comprobación de que es una fase NUESTRA vive AQUÍ además de en la
@@ -95,7 +125,7 @@ export async function POST(req: Request) {
         { status: 403 },
       );
 
-    const estado = await estadoDeFase(idBoletin);
+    const estado = await estadoDeFase(boletin);
     if (estado === ESTADO_OF.finalizada)
       // No es un error: alguien se te adelantó. Se contesta 200 para que la
       // ficha simplemente deje de ofrecerla.
@@ -110,7 +140,7 @@ export async function POST(req: Request) {
     // sobre quién la cerró y cuándo. Retrodatarlo dejaría en el histórico un
     // apunte que nunca ocurrió ese día, y hay fases de 2020.
     await moverFase({
-      idBoletin,
+      idBoletin: boletin,
       estado: ESTADO_OF.finalizada,
       operarioRps,
       cuando: new Date(),

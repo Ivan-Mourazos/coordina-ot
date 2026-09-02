@@ -7,12 +7,14 @@ const maquinaDeFase = vi.fn<(id: string) => Promise<string | null>>();
 const estadoDeFase = vi.fn<(id: string) => Promise<number | null>>();
 const moverFase = vi.fn<(o: unknown) => Promise<void>>();
 const fasesDeOFs = vi.fn<(ofs: readonly string[]) => Promise<unknown[]>>();
+const buscarIdBoletin = vi.fn<(of: string, fase: string) => Promise<string | null>>();
 
 vi.mock("@/lib/server/olanet", () => ({
   maquinaDeFase: (id: string) => maquinaDeFase(id),
   estadoDeFase: (id: string) => estadoDeFase(id),
   moverFase: (o: unknown) => moverFase(o),
   fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
+  buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
 }));
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", jaime: "120", sinCodigo: undefined },
@@ -152,4 +154,53 @@ test("si OLANET falla al escribir, se dice: 503 y no un ok falso", async () => {
   estadoDeFase.mockResolvedValue(2);
   moverFase.mockRejectedValue(new Error("transacción caída"));
   expect((await post({ idBoletin: "456", operarioId: "ivan" })).status).toBe(503);
+});
+
+// ── El boletín se queda viejo ──────────────────────────────────────────────
+// A Alberto le pasó con AR.25.02771: la fase 5 de la OF 0217539 (U-A-OTEC)
+// existía y se podía fichar —fichar y parar dejaron sus movimientos, y ese
+// camino resuelve la fase por (OF, fase)—, pero finalizarla desde la ficha
+// decía "Esa fase ya no existe en OLANET", que va por IdBoletin a pelo. Tuvo
+// que cerrarla con la herramienta vieja.
+//
+// (Orden, Fase) es único en scg_Fases —comprobado sobre la BD entera: cero
+// pares repetidos—, así que volver a buscar por ahí es exacto y no puede
+// cerrar una fase que no sea.
+
+test("si el boletín ya no vale, la fase se busca por (OF, fase)", async () => {
+  maquinaDeFase.mockImplementation(async (id) => (id === "999" ? "U-A-OTEC" : null));
+  buscarIdBoletin.mockResolvedValue("999");
+  estadoDeFase.mockResolvedValue(2); // interrumpida
+
+  const res = await post({ idBoletin: "111", operarioId: "ivan", of: "0217539", fase: "5" });
+
+  expect(res.status).toBe(200);
+  expect(buscarIdBoletin).toHaveBeenCalledWith("0217539", "5");
+  // Se cierra la fase QUE SE ENCONTRÓ, no la que traía el navegador.
+  expect(moverFase).toHaveBeenCalledWith(expect.objectContaining({ idBoletin: "999" }));
+});
+
+test("sin OF y fase que rebuscar, sigue diciendo que no existe", async () => {
+  maquinaDeFase.mockResolvedValue(null);
+  const res = await post({ idBoletin: "111", operarioId: "ivan" });
+  expect(res.status).toBe(404);
+  expect(buscarIdBoletin).not.toHaveBeenCalled();
+  expect(moverFase).not.toHaveBeenCalled();
+});
+
+test("si tampoco está por (OF, fase), no se inventa nada", async () => {
+  maquinaDeFase.mockResolvedValue(null);
+  buscarIdBoletin.mockResolvedValue(null);
+  const res = await post({ idBoletin: "111", operarioId: "ivan", of: "0217539", fase: "5" });
+  expect(res.status).toBe(404);
+  expect(moverFase).not.toHaveBeenCalled();
+});
+
+test("la fase rebuscada también tiene que ser de la oficina", async () => {
+  // Rebuscar no puede ser una puerta de atrás para cerrar trabajo del taller.
+  maquinaDeFase.mockImplementation(async (id) => (id === "999" ? "P-COST" : null));
+  buscarIdBoletin.mockResolvedValue("999");
+  const res = await post({ idBoletin: "111", operarioId: "ivan", of: "0217539", fase: "5" });
+  expect(res.status).toBe(403);
+  expect(moverFase).not.toHaveBeenCalled();
 });
