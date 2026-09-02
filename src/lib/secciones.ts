@@ -34,6 +34,24 @@ export interface Seccion {
   recursos: readonly string[];
   /** La máquina con la que se escriben sus bonos en OLANET. */
   maquina: string;
+  /** De dónde sale su lista de trabajo pendiente.
+   *
+   *  `vista`  → la vista de RPS (`TGM_PENDIENTE_*`).
+   *  `olanet` → las fases vivas de `scg_Fases`, completadas con lo que la
+   *             vista tenga y OLANET todavía no.
+   *
+   *  No es un detalle de implementación, es una diferencia real entre las dos
+   *  secciones. Las vistas filtran por `PercentProgress < 100`, y ese número no
+   *  mide avance: cada imputación entra con 100, así que una tarea vale 0 hasta
+   *  que alguien ficha el primer minuto y 100 desde ese momento (medido el
+   *  2026-09-02: en A-DGRA, 1.710 tareas al 100 % todas con imputación y 52 por
+   *  debajo todas sin ninguna; en OTEC igual).
+   *
+   *  En Oficina Técnica eso coincide con "ya está planteada y pasada a
+   *  Producción", así que se nota como acierto y la vista se queda. En Diseño
+   *  Gráfico no: un trabajo a medias desaparecía del tablero, y lo que un
+   *  cierre masivo de RPS daba por acabado no volvía nunca. */
+  fuente: "vista" | "olanet";
   /** El trozo que llevan en el nombre sus centros en `scg_Fases`.
    *
    *  Se busca un TROZO y no el nombre entero porque en esa columna hay erratas
@@ -47,6 +65,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "ot",
     nombre: "Oficina Técnica",
     vista: "TGM_PENDIENTE_OT",
+    fuente: "vista",
     recursos: ["a-otec", "otec-a"],
     // Confirmado por IT el 2026-08-04: A-OTEC es la nuestra; A-OTECP es una
     // máquina de OT en planta, para la fábrica.
@@ -57,6 +76,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "diseno",
     nombre: "Diseño Gráfico",
     vista: "TGM_PENDIENTE_DISENHO",
+    fuente: "olanet",
     recursos: ["a-dgra", "dgra-a"],
     maquina: "A-DGRA",
     marcaEnFases: "DGRA",

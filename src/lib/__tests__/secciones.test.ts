@@ -96,3 +96,15 @@ describe("los recursos en SQL", () => {
     expect(recursosSql(inventada)).toBe("'a-o''tec'");
   });
 });
+
+describe("de dónde saca cada sección su trabajo", () => {
+  it("OT se queda con su vista y Diseño lee OLANET", () => {
+    // El `PercentProgress < 100` de las vistas no dice "sin acabar": cada
+    // imputación entra con 100, así que la tarea vale 0 hasta que alguien
+    // ficha el primer minuto. En OT eso coincide con "ya está planteada y
+    // pasada a Producción" y se nota como acierto; en Diseño esconde el
+    // trabajo a medias.
+    expect(SECCIONES.ot.fuente).toBe("vista");
+    expect(SECCIONES.diseno.fuente).toBe("olanet");
+  });
+});
