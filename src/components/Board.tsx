@@ -5,7 +5,6 @@ import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
 import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
-import { ThemeToggle } from "./ThemeToggle";
 import { ViewSwitcher, VISTAS, type Vista } from "./ViewSwitcher";
 import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
@@ -24,10 +23,8 @@ import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
 import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
-import { SelectorSeccion } from "./SelectorSeccion";
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
-import { IdentityBadge } from "./IdentityBadge";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
@@ -1840,22 +1837,23 @@ export function Board({
           />
           {/* Mismo trato que la zona de la izquierda, y por lo mismo. */}
           <div className="flex shrink-0 items-center justify-end gap-2 text-xs">
+            {/* TODO lo que no es trabajo vive aquí dentro: quién eres, qué
+                lista miras, claro u oscuro y las otras páginas. Estaban los
+                cuatro sueltos y sumaban 331 px de cabecera, que es lo que la
+                amontonaba en cuanto la ventana se estrechaba. Son cosas que se
+                tocan una vez al día, no a cada rato. */}
+            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
+            {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
+                aplicación y ahí es donde se busca. */}
             <Herramientas
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
-            />
-            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
-            {/* Qué lista se mira. Va PEGADO a quién eres porque son la misma
-                pregunta partida en dos —quién soy y qué estoy viendo— y
-                separarlos por la cabecera haría buscar el conmutador. */}
-            <SelectorSeccion
               seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
-              onCambiar={cambiarSeccion}
+              onCambiarSeccion={cambiarSeccion}
+              yo={yo}
+              operarios={TODOS_LOS_OPERARIOS}
+              onCambiarIdentidad={solicitarCambioIdentidad}
             />
-            {/* También todos, y por lo mismo: si solo saliera tu sección,
-                cambiarte a la otra sería imposible una vez dentro. */}
-            <IdentityBadge yo={yo} operarios={TODOS_LOS_OPERARIOS} onChange={solicitarCambioIdentidad} />
-            <ThemeToggle />
           </div>
         </header>
 

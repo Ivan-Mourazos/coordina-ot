@@ -1,8 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { usePopover } from "@/lib/usePopover";
 import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
 import { ULTIMA } from "@/lib/novedades";
+import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
+import type { Operario } from "@/lib/types";
+import { SelectorSeccion } from "./SelectorSeccion";
+import { ThemeToggle } from "./ThemeToggle";
+import { porSeccion } from "./IdentityGate";
 
 /** "31 de agosto". Sin año: lo que se quiere saber de un vistazo es si es de
  *  esta semana o de hace meses, y el año solo estorba para eso. */
@@ -23,25 +29,55 @@ function fechaCorta(iso: string): string {
 export function Herramientas({
   fechaUltimaNovedad,
   onVerNovedades,
+  seccion,
+  onCambiarSeccion,
+  yo,
+  operarios,
+  onCambiarIdentidad,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
   onVerNovedades: () => void;
+  /** Qué lista de trabajo se está mirando. */
+  seccion: SeccionId;
+  onCambiarSeccion: (s: SeccionId) => void;
+  yo: Operario;
+  /** TODOS, no los de la sección servida: si solo saliera la tuya, cambiarte a
+   *  alguien de la otra sería imposible una vez dentro. */
+  operarios: Operario[];
+  onCambiarIdentidad: (id: string) => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
+   *  quien lo vuelva a abrir espera encontrarlo como estaba al entrar, no a
+   *  medio cambiarse de nombre. */
+  const [cambiando, setCambiando] = useState(false);
+  // Ajuste durante el render y no en un efecto: React descarta este render y
+  // repite con el valor bueno, sin pintar el estado intermedio (y el lint no
+  // admite setState dentro de un efecto).
+  if (!open && cambiando) setCambiando(false);
   const listas = cuantasDisponibles();
 
   return (
     <div ref={ref} className="relative">
+      {/* El botón lleva TU avatar, como cualquier menú de cuenta: aquí dentro
+          está quién eres, y si el menú se lo tragara todo sin dejar rastro
+          fuera, saber en nombre de quién estás fichando costaría un clic. La
+          rejilla se queda al lado para que siga leyéndose como "más sitios a
+          los que ir" y no solo como "tu perfil". */}
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="Otras herramientas"
+        aria-label={`Menú de ${yo.nombre}`}
         aria-expanded={open}
-        title="Otras páginas de Oficina Técnica"
-        className="glass-chip grid size-9 place-items-center rounded-lg text-text-muted hover:text-text"
+        title="Quién eres, qué lista miras y otras herramientas"
+        className="glass-chip flex h-9 items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text"
       >
-        {/* Rejilla de aplicaciones: el icono que todo el mundo asocia a "más
-            sitios a los que ir", sin tener que rotularlo. */}
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
+          style={{ background: yo.color }}
+        >
+          {yo.iniciales}
+        </span>
         <svg viewBox="0 0 24 24" aria-hidden className="size-4" fill="currentColor">
           <circle cx="5" cy="5" r="1.8" />
           <circle cx="12" cy="5" r="1.8" />
@@ -56,8 +92,100 @@ export function Herramientas({
       </button>
 
       {open && (
-        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-80 rounded-xl p-2">
-          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        // Con todo dentro —nueve técnicos, la sección, el tema, las otras
+        // páginas y las novedades— el menú es largo y en una pantalla de
+        // portátil se salía por abajo: lo último no se podía ni ver. Con tope y
+        // scroll cabe siempre.
+        <div className="glass-pop scroll-thin absolute right-0 top-full z-40 mt-1.5 max-h-[80vh] w-80 overflow-y-auto rounded-xl p-2">
+          {/* QUIÉN ERES, lo primero: de esto dependen el reloj, los avisos y a
+              nombre de quién se escribe en RPS.
+              Se dice en UNA línea y la lista de técnicos vive detrás de
+              "Cambiar". Desplegada siempre son nueve filas y dos rótulos que
+              empujan hacia abajo todo lo demás, y cambiarse de nombre se hace
+              una vez al día como mucho. */}
+          <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-1.5">
+            <span
+              className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
+              style={{ background: yo.color }}
+            >
+              {yo.iniciales}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-text">{yo.nombre}</span>
+              <span className="block text-[10px] leading-tight text-text-muted">
+                {SECCIONES[yo.seccion ?? SECCION_POR_DEFECTO].nombre}
+              </span>
+            </span>
+            <button
+              onClick={() => setCambiando((v) => !v)}
+              aria-expanded={cambiando}
+              className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+            >
+              {cambiando ? "Cancelar" : "Cambiar"}
+            </button>
+          </div>
+
+          {cambiando &&
+            porSeccion(operarios).map(([sec, suyos]) => (
+            <div key={sec}>
+              {/* El rótulo de sección va separado por una línea y no por más
+                  aire: el menú es estrecho y el espacio solo lo alarga sin
+                  dejar claro dónde acaba un grupo. */}
+              <p className="mt-1 border-t border-border px-2 pb-0.5 pt-1.5 text-[10px] font-semibold text-text-muted">
+                {SECCIONES[sec].nombre}
+              </p>
+              {suyos.map((op) => (
+                <button
+                  key={op.id}
+                  onClick={() => {
+                    onCambiarIdentidad(op.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
+                    op.id === yo.id ? "text-brand-600" : "text-text"
+                  }`}
+                >
+                  <span
+                    className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
+                    style={{ background: op.color }}
+                  >
+                    {op.iniciales}
+                  </span>
+                  {op.nombre}
+                  {op.id === yo.id && <span className="ml-auto text-[10px]">✓</span>}
+                </button>
+              ))}
+            </div>
+          ))}
+
+          {/* QUÉ LISTA SE MIRA. No es "otra herramienta": es de qué trabajo va
+              todo lo que se está viendo, por eso va arriba y no en la lista. */}
+          <div className="mt-2 border-t border-border pt-2">
+            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Qué lista de trabajo se mira
+            </p>
+            <div className="px-1">
+              <SelectorSeccion
+                seccion={seccion}
+                onCambiar={(s) => {
+                  onCambiarSeccion(s);
+                  setOpen(false);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* El claro/oscuro. No se cierra el menú al cambiarlo: se elige
+              mirando, y cerrando habría que volver a abrirlo para probar el
+              otro. */}
+          <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
+            <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Claro u oscuro
+            </p>
+            <ThemeToggle />
+          </div>
+
+          <p className="mb-1.5 mt-2 border-t border-border px-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             Otras herramientas
           </p>
 
