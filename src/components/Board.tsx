@@ -1864,8 +1864,13 @@ export function Board({
             onAbrirPedido={abrirPedido}
             onAbrirHistorial={setHistorialAbierto}
           />
-          {/* Mismo trato que la zona de la izquierda, y por lo mismo. */}
-          <div className="flex shrink-0 items-center justify-end gap-2 text-xs">
+          {/* Mismo trato que la zona de la izquierda, y por lo mismo.
+              `ml-auto` la clava en la esquina: como aquí ya no crece nadie, en
+              una pantalla ancha el sitio que sobra —687 px en una de 1920— se
+              quedaba DETRÁS de estos botones y los dejaba flotando a media
+              cabecera. Con el margen automático, lo que sobra se pone delante y
+              la campana y el menú van siempre al borde. */}
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-2 text-xs">
             {/* TODO lo que no es trabajo vive aquí dentro: quién eres, qué
                 lista miras, claro u oscuro y las otras páginas. Estaban los
                 cuatro sueltos y sumaban 331 px de cabecera, que es lo que la
