@@ -740,10 +740,14 @@ export function Board({
     // pedido vuelve al tablero y trae dentro qué OF lo han reabierto. Sin este
     // aviso el pedido reaparecería sin más, y nadie sabría por qué está ahí
     // uno que se dio por cerrado hace semanas.
+    //
+    // Solo mientras la OF no tenga dueño: la misma regla que el chip de la
+    // tarjeta (`avisaDeOFNueva`). Coger la OF contesta la pregunta que hace el
+    // aviso, y hasta que se aprobara seguía sonando.
     for (const p of procesadosAll) {
       for (const id of p.reabiertoPor ?? []) {
         const of = p.ofs.find((o) => o.id === id);
-        if (of) out.push({ pedido: p, of, tipo: "ofNueva" });
+        if (of && of.autorId === null) out.push({ pedido: p, of, tipo: "ofNueva" });
       }
     }
     return agruparAvisos(out);

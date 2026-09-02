@@ -10,6 +10,7 @@ import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
+import { avisaDeOFNueva } from "@/lib/fases-tablero";
 
 export interface Facet {
   pedido: Pedido;
@@ -158,7 +159,7 @@ export const PedidoCardView = memo(function PedidoCardView({
 
         {/* Trabajo aparecido después de pasar el pedido a Producción. Ver la
             misma marca en PedidoLinea. */}
-        {(facet.pedido.reabiertoPor?.length ?? 0) > 0 && (
+        {avisaDeOFNueva(facet.pedido) && (
           <span
             className="absolute right-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
             title="Este pedido ya se había pasado a Producción y ha aparecido trabajo nuevo sin hacer."

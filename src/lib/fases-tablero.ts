@@ -250,3 +250,20 @@ export function motivoBloqueo(p: ConOFs): string {
   if (p.ofs.some((o) => o.revisorId)) return "con revisor";
   return "no disponible";
 }
+
+/** ¿Hay que avisar de que a este pedido le apareció trabajo nuevo?
+ *
+ *  El aviso —el chip de la tarjeta, la línea de la Lista y el de la campana—
+ *  contesta a UNA pregunta: por qué ha vuelto al tablero un pedido que ya se
+ *  dio por cerrado. En cuanto alguien coge la OF, la pregunta está contestada
+ *  y el aviso sobra; antes se quedaba puesto hasta que la OF se aprobaba, o
+ *  sea días, y acababa siendo parte del decorado.
+ *
+ *  NO decide si el pedido se ve: de eso se encarga `reabiertoPor` en el
+ *  overlay, y el pedido tiene que seguir en el tablero mientras le quede
+ *  trabajo. Si fueran la misma cosa, coger la OF haría desaparecer el pedido a
+ *  media faena, que es justo lo contrario de lo que hace falta. */
+export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean {
+  const nuevas = p.reabiertoPor ?? [];
+  return p.ofs.some((of) => nuevas.includes(of.id) && of.autorId === null);
+}

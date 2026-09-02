@@ -5,6 +5,7 @@ import type { Facet } from "./PedidoCard";
 import {
   FASES,
   autoresQueFaltan,
+  avisaDeOFNueva,
   motivoBloqueo,
   ofDeTaller,
   pedidoListoParaPasar,
@@ -86,6 +87,9 @@ export function PedidoLinea({
       ? faltanTexto
       : `${nombreDe(faltan[0].autorId)} (${faltan[0].n} OF) +${faltan.length - 1} más`;
   const listoParaPasar = pedidoListoParaPasar(pedido);
+  const ofNuevasSinCoger = pedido.ofs.filter(
+    (o) => (pedido.reabiertoPor ?? []).includes(o.id) && o.autorId === null,
+  ).length;
   // "Listo para pasar" pero con gente pendiente: el aviso ocupa el mismo
   // hueco que la descripción en vez de superponerse, que era lo que tapaba
   // código/cliente/descripción con pedidos repartidos.
@@ -143,13 +147,17 @@ export function PedidoLinea({
 
             Mismo ámbar que "parte nuevo", y suelen salir juntos: cuando añaden
             trabajo a un pedido, vuelven a escanear el parte. */}
-        {(pedido.reabiertoPor?.length ?? 0) > 0 && (
+        {avisaDeOFNueva(pedido) && (
           <span
             className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300"
+            /* Se cuentan las que siguen SIN DUEÑO, no todas las nuevas: el
+               aviso ya solo sale por esas (ver `avisaDeOFNueva`), y decir "3
+               OF nuevas" cuando dos ya las cogió alguien manda a buscar
+               trabajo que no está. */
             title={
-              pedido.reabiertoPor!.length === 1
+              ofNuevasSinCoger === 1
                 ? "Este pedido ya se había pasado a Producción y ha aparecido una OF nueva sin hacer."
-                : `Este pedido ya se había pasado a Producción y han aparecido ${pedido.reabiertoPor!.length} OF nuevas sin hacer.`
+                : `Este pedido ya se había pasado a Producción y han aparecido ${ofNuevasSinCoger} OF nuevas sin hacer.`
             }
           >
             OF nueva

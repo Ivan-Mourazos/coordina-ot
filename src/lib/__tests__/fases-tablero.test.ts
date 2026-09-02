@@ -4,6 +4,7 @@ import {
   FASES,
   FASES_DE_TRABAJO,
   agruparPorFase,
+  avisaDeOFNueva,
   autoresQueFaltan,
   conTope,
   faseDeOF,
@@ -364,5 +365,40 @@ describe("parados: con autor y sin autor", () => {
     // estado propio que mantener ni nada que deshacer a mano.
     const liberado = { ofs: [of({ detenida: false, autorId: "jaime", estado: "en_curso" })] };
     expect(faseDePedido(liberado)).toBe("planteando");
+  });
+});
+
+describe("avisaDeOFNueva", () => {
+  // El chip "OF nueva" contesta a una pregunta: por qué ha vuelto al tablero un
+  // pedido que ya se dio por cerrado. En cuanto alguien coge la OF, esa
+  // pregunta está contestada y el chip sobra — se quedaba puesto días, hasta
+  // que la OF se aprobaba.
+  //
+  // OJO: esto NO decide si el pedido se ve. De eso se encarga `reabiertoPor`
+  // en el overlay, y el pedido tiene que seguir en el tablero mientras le quede
+  // trabajo. Si las dos cosas fueran la misma, coger la OF haría desaparecer el
+  // pedido a media faena.
+  const nueva = (extra: Partial<OF>) => of({ id: "0231160:1", ...extra });
+
+  it("avisa mientras la OF no tenga dueño", () => {
+    const p = { ofs: [nueva({ autorId: null })], reabiertoPor: ["0231160:1"] };
+    expect(avisaDeOFNueva(p)).toBe(true);
+  });
+
+  it("se calla en cuanto alguien la coge", () => {
+    const p = { ofs: [nueva({ autorId: "carron" })], reabiertoPor: ["0231160:1"] };
+    expect(avisaDeOFNueva(p)).toBe(false);
+  });
+
+  it("con varias, basta con que quede una sin coger", () => {
+    const p = {
+      ofs: [nueva({ autorId: "carron" }), of({ id: "0231161:1", autorId: null })],
+      reabiertoPor: ["0231160:1", "0231161:1"],
+    };
+    expect(avisaDeOFNueva(p)).toBe(true);
+  });
+
+  it("un pedido que no ha vuelto no avisa de nada", () => {
+    expect(avisaDeOFNueva({ ofs: [nueva({ autorId: null })] })).toBe(false);
   });
 });
