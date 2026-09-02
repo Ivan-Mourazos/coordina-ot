@@ -45,7 +45,7 @@ const ORDEN_CLASES = [
 export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
   // Los abribles, en el orden en que se ven: es la lista por la que pasean las
   // flechas del visor, y por eso se calcula UNA vez aquí y no por grupo.
-  const { grupos, abribles } = useMemo(() => agrupar(documentos), [documentos]);
+  const { grupos, abribles, sinFichero } = useMemo(() => agrupar(documentos), [documentos]);
   const [enVisor, setEnVisor] = useState<number | null>(null);
 
   if (documentos.length === 0) {
@@ -70,6 +70,22 @@ export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
         ))}
       </div>
 
+      {/* Los que no se pueden abrir, dichos en una línea y no listados.
+          Enumerarlos era peor que no enseñarlos: siete renglones seguidos que
+          ponen "Document adjunto" y no abren nada no dicen qué documento es
+          ninguno —la descripción que trae RPS es esa para todos—, y lo que
+          transmiten es que la web está rota. Pero callarlos del todo tampoco:
+          el día que alguien compare con RPS y le salgan 24 documentos donde
+          aquí hay 17, pensará que se han perdido. Así que se cuentan. */}
+      {sinFichero > 0 && (
+        <p className="mt-2 text-[10px] text-text-muted">
+          {sinFichero === 1
+            ? "Hay 1 documento más que no se puede abrir"
+            : `Hay ${sinFichero} documentos más que no se pueden abrir`}
+          : RPS los tiene apuntados, pero el fichero no está en su archivo.
+        </p>
+      )}
+
       {enVisor !== null && (
         <VisorDocumento
           documentos={abribles}
@@ -82,14 +98,32 @@ export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
   );
 }
 
-/** Agrupa por clase y saca de paso la lista plana de los que se pueden abrir.
+/** Cuántos documentos de la lista se pueden llegar a abrir.
+ *
+ *  Lo usa quien pinta el rótulo del bloque ("Documentos (17)"): contar los 24
+ *  que trae RPS y enseñar 17 haría que el número no cuadrara con nada de lo
+ *  que se ve. Los que faltan los dice la línea del pie. */
+export function contarAbribles(documentos: readonly DocumentoRps[]): number {
+  return documentos.filter(esAbrible).length;
+}
+
+/** Agrupa por clase los que se pueden abrir, y cuenta aparte los que no.
+ *
+ *  Los que no tienen fichero NO entran en ningún grupo: un grupo entero de
+ *  enlaces muertos ("Documento 7") se lee como un apartado de la web que no
+ *  funciona. Salen contados en una línea al pie y ya está.
  *
  *  Dentro de cada clase se conserva el orden de llegada: es el del id del
  *  enlace en RPS, o sea el de subida, y es el que hace que "version 1" salga
  *  antes que "version 2". */
 function agrupar(documentos: DocumentoRps[]) {
-  const porClase = new Map<string, DocumentoRps[]>();
+  const porClase = new Map<string, DocumentoAbrible[]>();
+  let sinFichero = 0;
   for (const d of documentos) {
+    if (!esAbrible(d)) {
+      sinFichero++;
+      continue;
+    }
     const suyos = porClase.get(d.clase) ?? [];
     suyos.push(d);
     porClase.set(d.clase, suyos);
@@ -102,8 +136,8 @@ function agrupar(documentos: DocumentoRps[]) {
   // El recorrido del visor sigue el orden de la REJILLA (grupo a grupo), no el
   // que trae RPS: si no, la flecha derecha saltaría de un planteamiento a una
   // foto de mantenimiento y de vuelta.
-  const abribles = grupos.flatMap(([, suyos]) => suyos.filter(esAbrible));
-  return { grupos, abribles };
+  const abribles = grupos.flatMap(([, suyos]) => suyos);
+  return { grupos, abribles, sinFichero };
 }
 
 function esAbrible(d: DocumentoRps): d is DocumentoAbrible {
@@ -117,7 +151,7 @@ function Grupo({
   onAbrir,
 }: {
   clase: string;
-  documentos: DocumentoRps[];
+  documentos: DocumentoAbrible[];
   inicialAbierto: boolean;
   onAbrir: (doc: DocumentoAbrible) => void;
 }) {
@@ -144,11 +178,10 @@ function Grupo({
 
       <Desplegable abierto={abierto}>
         <ul className="grid grid-cols-3 gap-1.5 border-t border-[var(--glass-border)] p-2">
-          {/* La clave lleva el índice porque ni el nombre ni la URL sirven
-              solos: dos documentos pueden llamarse igual, y los que no se
-              pueden abrir no tienen URL con la que distinguirse. */}
+          {/* La clave lleva el índice porque el nombre no sirve solo: dos
+              documentos pueden llamarse igual. */}
           {documentos.map((d, i) => (
-            <li key={`${i}-${d.url ?? d.archivo}`}>
+            <li key={`${i}-${d.url}`}>
               <Tarjeta doc={d} onAbrir={onAbrir} />
             </li>
           ))}
@@ -158,17 +191,15 @@ function Grupo({
   );
 }
 
-/** Un documento: miniatura si el servidor sabe dibujarla, icono con la
- *  extensión si no (los `.dwg`, los `.msg` de Outlook, los `.xls`).
- *
- *  Los que RPS guarda en su gestor documental y no como fichero no tienen URL:
- *  se enseñan apagados y no se pueden pulsar. Son 344 de los casi 19 000 de la
- *  serie AR.26, así que esconderlos sería mentir sobre lo que hay. */
+/** Un documento que SÍ se puede abrir: miniatura si el servidor sabe
+ *  dibujarla, la extensión en grande si no (los `.dwg`, los `.msg` de Outlook,
+ *  los `.xls`). Los que no tienen fichero no llegan aquí: van en el renglón de
+ *  abajo del grupo, que es lo que ocupan. */
 function Tarjeta({
   doc,
   onAbrir,
 }: {
-  doc: DocumentoRps;
+  doc: DocumentoAbrible;
   onAbrir: (doc: DocumentoAbrible) => void;
 }) {
   const [sinMiniatura, setSinMiniatura] = useState(false);
@@ -176,20 +207,6 @@ function Tarjeta({
   const titulo = doc.descripcion || doc.archivo;
   const ext = extension(doc.archivo);
   const dibujable = comoServir(doc.archivo).incrustable;
-
-  if (!esAbrible(doc)) {
-    return (
-      <div
-        className="cursor-not-allowed rounded-lg border border-dashed border-border opacity-60"
-        title={`${titulo} — RPS lo tiene en su gestor documental, no como fichero del archivo: desde aquí no se puede abrir.`}
-      >
-        <div className="grid aspect-[3/4] place-items-center text-[10px] text-text-muted">
-          sin fichero
-        </div>
-        <span className="block truncate px-1.5 pb-1 text-[10px] text-text-muted">{etiqueta}</span>
-      </div>
-    );
-  }
 
   return (
     <button

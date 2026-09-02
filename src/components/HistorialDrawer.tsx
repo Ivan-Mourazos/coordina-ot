@@ -13,7 +13,7 @@ import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { NotasPedido } from "./NotasPedido";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
-import { DocumentosRps } from "./DocumentosRps";
+import { DocumentosRps, contarAbribles } from "./DocumentosRps";
 import { useFocoModal } from "@/lib/useFocoModal";
 
 function fmtFecha(iso: string | null) {
@@ -312,7 +312,10 @@ export function HistorialDrawer({
                 soloLectura
               />
 
-              <Bloque titulo={`Documentos (${detalle.documentos.length})`}>
+              {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
+                  que no tienen fichero no salen en la lista, así que meterlos
+                  en el número dejaría un rótulo que no cuadra con nada. */}
+              <Bloque titulo={`Documentos (${contarAbribles(detalle.documentos)})`}>
                 <DocumentosRps documentos={detalle.documentos} />
               </Bloque>
 

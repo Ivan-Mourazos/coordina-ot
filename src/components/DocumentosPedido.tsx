@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DocumentoRps } from "@/lib/historial";
-import { DocumentosRps } from "./DocumentosRps";
+import { DocumentosRps, contarAbribles } from "./DocumentosRps";
 
 // ─── Lo que RPS tiene colgado del pedido, EN LA FICHA ────────────────────────
 // La rotulación, el planteamiento, el presupuesto, las fotos del trabajo y el
@@ -60,7 +60,10 @@ export function DocumentosPedido({ pedido }: { pedido: string }) {
         Documentos de RPS
         {docs && (
           <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold text-text-muted ring-1 ring-border">
-            {docs.length}
+            {/* Los que se pueden abrir, no los que RPS trae: los que no tienen
+                fichero no se listan, y contarlos aquí dejaría un número que no
+                cuadra con lo que se ve al desplegar. */}
+            {contarAbribles(docs)}
           </span>
         )}
         <span className="ml-auto text-[10px] font-normal text-text-muted">
