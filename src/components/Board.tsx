@@ -818,9 +818,21 @@ export function Board({
     opId: null,
     claves: [],
   });
+  // Qué lista se está mirando. Hace falta AQUÍ —y no solo abajo, donde se pinta
+  // el conmutador— porque cada descarte se guarda sabiendo de qué lista es: la
+  // poda solo puede juzgar los avisos que tiene delante, y los de la otra
+  // sección no están. Sin esto, asomarse a Diseño Gráfico borraba los descartes
+  // de Oficina Técnica y al volver renacían los avisos ya atendidos.
+  //
+  // No se usa `yo` porque se define bastante más abajo, tras la puerta de
+  // identidad; el catálogo completo está disponible desde el principio.
+  const seccionActual =
+    seccionVista ??
+    TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
+    SECCION_POR_DEFECTO;
   const { visibles: avisosVisibles, vigentes } = useMemo(
-    () => aplicarDescartes(notifItems, descartes.claves),
-    [notifItems, descartes.claves],
+    () => aplicarDescartes(notifItems, descartes.claves, seccionActual),
+    [notifItems, descartes.claves, seccionActual],
   );
 
   // Los números de las pestañas y del título salen de lo que la campana enseña
@@ -907,7 +919,7 @@ export function Board({
   const irANotificacion = useCallback(
     (destino: Vista, item: NotifItem) => {
       if (esDescartable(item)) {
-        const clave = identidadAviso(item);
+        const clave = identidadAviso(item, seccionActual);
         setDescartes((prev) =>
           prev.claves.includes(clave) ? prev : { ...prev, claves: [...prev.claves, clave] },
         );
@@ -915,7 +927,7 @@ export function Board({
       setVista(destino);
       abrirPedido(item.pedido.id);
     },
-    [abrirPedido],
+    [abrirPedido, seccionActual],
   );
   const openFacet = useCallback((f: Facet) => abrirPedido(f.pedido.id), [abrirPedido]);
   const openPedidoCb = useCallback((p: Pedido) => abrirPedido(p.id), [abrirPedido]);

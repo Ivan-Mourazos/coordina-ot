@@ -1,3 +1,4 @@
+import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "./secciones";
 import type { OF, Pedido } from "./types";
 
 // ─── Avisos de la campana: uno por PEDIDO, no uno por OF ─────────────────────
@@ -159,9 +160,8 @@ const DEDUCIDOS: ReadonlySet<NotifTipo> = new Set<NotifTipo>([
 
 export const esDescartable = (item: NotifItem): boolean => DEDUCIDOS.has(item.tipo);
 
-/** Qué situación concreta es este aviso. Las OF van ordenadas para que el orden
- *  en que se recorra el pedido no invente una situación distinta. */
-export function identidadAviso(item: NotifItem): string {
+/** La situación que apaga un descarte, sin decir de qué lista es. */
+function situacionAviso(item: NotifItem): string {
   // Una nota no va por OF sino por pedido, así que "las OF concretas" no la
   // distingue de la siguiente: sin el id de la nota, apagar el recado de hoy
   // apagaría también el de mañana. Su `clave` (`nota:<id>`) sí es única.
@@ -171,6 +171,36 @@ export function identidadAviso(item: NotifItem): string {
     .sort()
     .join(",");
   return `${item.pedido.id}:${item.tipo}:${ofs}`;
+}
+
+/** Qué situación concreta es este aviso, Y EN QUÉ LISTA. Las OF van ordenadas
+ *  para que el orden en que se recorra el pedido no invente una situación
+ *  distinta.
+ *
+ *  La sección va delante porque la poda de `aplicarDescartes` juzga cada
+ *  descarte contra los avisos que tiene delante, y el tablero que se está
+ *  mirando es el de UNA lista: sin ella, mirar Diseño Gráfico un momento
+ *  declaraba caducados todos los descartes de Oficina Técnica —sus pedidos no
+ *  estaban a la vista— y al volver renacían los avisos ya atendidos. */
+/*  `seccion` NO tiene valor por defecto a propósito, aunque sería cómodo: con
+ *  uno, un `items.map(identidadAviso)` le cuela el ÍNDICE del array como
+ *  sección y las identidades salen con un "0:" delante que no apaga nada.
+ *  Pasó al escribir esto. Siendo obligatorio, el compilador lo canta. */
+export function identidadAviso(item: NotifItem, seccion: SeccionId): string {
+  return `${seccion}:${situacionAviso(item)}`;
+}
+
+/** De qué lista es un descarte guardado, y qué situación apaga.
+ *
+ *  Lo guardado SIN sección es de Oficina Técnica: son los descartes que ya
+ *  están en el navegador de todos, escritos cuando la web era solo de OT. Es la
+ *  misma regla que `SECCION_POR_DEFECTO` aplica en el resto del proyecto. */
+function partesDescarte(clave: string): { seccion: SeccionId; situacion: string } {
+  const corte = clave.indexOf(":");
+  const cabeza = corte < 0 ? "" : clave.slice(0, corte);
+  return esSeccionId(cabeza)
+    ? { seccion: cabeza, situacion: clave.slice(corte + 1) }
+    : { seccion: SECCION_POR_DEFECTO, situacion: clave };
 }
 
 export interface AvisosTrasDescartes {
@@ -184,13 +214,26 @@ export interface AvisosTrasDescartes {
 export function aplicarDescartes(
   items: readonly NotifItem[],
   descartados: readonly string[],
+  seccion: SeccionId = SECCION_POR_DEFECTO,
 ): AvisosTrasDescartes {
-  const fuera = new Set(descartados);
+  // Normalizados: lo viejo viene sin sección y aquí ya se sabe de quién es.
+  const fuera = new Set(
+    descartados.map((d) => {
+      const p = partesDescarte(d);
+      return `${p.seccion}:${p.situacion}`;
+    }),
+  );
   // Solo cuentan los deducidos: un descarte no debe sobrevivir agarrado a un
   // aviso de movimiento que casualmente sea del mismo pedido.
-  const vivas = new Set(items.filter(esDescartable).map(identidadAviso));
+  const vivas = new Set(items.filter(esDescartable).map((i) => identidadAviso(i, seccion)));
   return {
-    visibles: items.filter((i) => !esDescartable(i) || !fuera.has(identidadAviso(i))),
-    vigentes: descartados.filter((d) => vivas.has(d)),
+    visibles: items.filter((i) => !esDescartable(i) || !fuera.has(identidadAviso(i, seccion))),
+    // Los de OTRA lista no se juzgan desde aquí: sus avisos no están delante,
+    // así que "ya no apaga nada" sería mentira. Solo se poda lo de la lista que
+    // se está mirando.
+    vigentes: descartados.filter((d) => {
+      const p = partesDescarte(d);
+      return p.seccion !== seccion || vivas.has(`${p.seccion}:${p.situacion}`);
+    }),
   };
 }

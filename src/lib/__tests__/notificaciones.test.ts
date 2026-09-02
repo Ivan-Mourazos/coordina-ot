@@ -116,7 +116,7 @@ describe("identidadAviso", () => {
       { tipo: "revisar", pedido: p, of: p.ofs[0] },
       { tipo: "revisar", pedido: p, of: p.ofs[1] },
     ]);
-    expect(new Set([uno, dos, ambas].map(identidadAviso)).size).toBe(3);
+    expect(new Set([uno, dos, ambas].map((i) => identidadAviso(i, "ot"))).size).toBe(3);
   });
 
   it("no depende del orden en que se recorrieran las OF", () => {
@@ -129,7 +129,7 @@ describe("identidadAviso", () => {
       { tipo: "revisar", pedido: p, of: p.ofs[1] },
       { tipo: "revisar", pedido: p, of: p.ofs[0] },
     ]);
-    expect(identidadAviso(ab)).toBe(identidadAviso(ba));
+    expect(identidadAviso(ab, "ot")).toBe(identidadAviso(ba, "ot"));
   });
 
   it("distingue tipo y pedido", () => {
@@ -138,7 +138,7 @@ describe("identidadAviso", () => {
     const [revisar] = agruparAvisos([{ tipo: "revisar", pedido: p1, of: p1.ofs[0] }]);
     const [devuelta] = agruparAvisos([{ tipo: "devuelta", pedido: p1, of: p1.ofs[0] }]);
     const [otroPedido] = agruparAvisos([{ tipo: "revisar", pedido: p2, of: p2.ofs[0] }]);
-    expect(new Set([revisar, devuelta, otroPedido].map(identidadAviso)).size).toBe(3);
+    expect(new Set([revisar, devuelta, otroPedido].map((i) => identidadAviso(i, "ot"))).size).toBe(3);
   });
 
   it("solo son descartables los deducidos: los de movimiento ya se apagan por clave", () => {
@@ -178,7 +178,7 @@ describe("aplicarDescartes", () => {
     const nota = agruparAvisos([
       { tipo: "notaNueva", pedido: p, of: null, clave: "nota:42", texto: "ojo con la cota" },
     ]);
-    const yaVisto = [identidadAviso(nota[0])];
+    const yaVisto = [identidadAviso(nota[0], "ot")];
 
     // Con la nota delante, el descarte la apaga y se conserva.
     const conNota = aplicarDescartes(nota, yaVisto);
@@ -197,7 +197,7 @@ describe("aplicarDescartes", () => {
       { tipo: "revisar", pedido: p, of: p.ofs[0] },
       { tipo: "devuelta", pedido: p, of: p.ofs[1] },
     ]);
-    const { visibles } = aplicarDescartes(items, [identidadAviso(items[0])]);
+    const { visibles } = aplicarDescartes(items, [identidadAviso(items[0], "ot")]);
     expect(visibles.map((i) => i.tipo)).toEqual(["devuelta"]);
   });
 
@@ -207,14 +207,14 @@ describe("aplicarDescartes", () => {
       { tipo: "revisar", pedido: p, of: p.ofs[0] },
       { tipo: "recibida", pedido: p, of: p.ofs[0], clave: "7:recibida:a" },
     ]);
-    const { visibles } = aplicarDescartes(items, [identidadAviso(items[0])]);
+    const { visibles } = aplicarDescartes(items, [identidadAviso(items[0], "ot")]);
     expect(visibles.map((i) => i.tipo)).toEqual(["recibida"]);
   });
 
   it("mandarte OTRA OF del mismo pedido a revisar vuelve a avisar", () => {
     const p = pedido("1", [of("a"), of("b")]);
     const soloA = agruparAvisos([{ tipo: "revisar", pedido: p, of: p.ofs[0] }]);
-    const descartes = [identidadAviso(soloA[0])];
+    const descartes = [identidadAviso(soloA[0], "ot")];
     expect(aplicarDescartes(soloA, descartes).visibles).toHaveLength(0);
 
     const aYb = agruparAvisos([
@@ -227,14 +227,14 @@ describe("aplicarDescartes", () => {
   it("el descarte sigue vigente mientras el aviso siga ahí", () => {
     const p = pedido("1", [of("a")]);
     const items = agruparAvisos([{ tipo: "revisar", pedido: p, of: p.ofs[0] }]);
-    const descartes = [identidadAviso(items[0])];
+    const descartes = [identidadAviso(items[0], "ot")];
     expect(aplicarDescartes(items, descartes).vigentes).toEqual(descartes);
   });
 
   it("un descarte cuya situación ya no existe se poda", () => {
     const p = pedido("1", [of("a")]);
     const items = agruparAvisos([{ tipo: "revisar", pedido: p, of: p.ofs[0] }]);
-    const descartes = [identidadAviso(items[0]), "9:revisar:z"];
+    const descartes = [identidadAviso(items[0], "ot"), "9:revisar:z"];
     // Aviso resuelto (la OF ya está aprobada): no queda nada que apagar.
     expect(aplicarDescartes([], descartes).vigentes).toEqual([]);
     expect(aplicarDescartes(items, descartes).vigentes).toEqual([descartes[0]]);
@@ -244,7 +244,7 @@ describe("aplicarDescartes", () => {
     const p = pedido("1", [of("a")]);
     const devuelta = agruparAvisos([{ tipo: "devuelta", pedido: p, of: p.ofs[0] }]);
     // La abro: se apaga.
-    let descartes = aplicarDescartes(devuelta, [identidadAviso(devuelta[0])]).vigentes;
+    let descartes = aplicarDescartes(devuelta, [identidadAviso(devuelta[0], "ot")]).vigentes;
     expect(aplicarDescartes(devuelta, descartes).visibles).toHaveLength(0);
     // La corrijo y la mando: el aviso desaparece y con él su descarte.
     descartes = aplicarDescartes([], descartes).vigentes;
@@ -255,7 +255,7 @@ describe("aplicarDescartes", () => {
   it("el aviso de pedido completo se descarta y se poda como los demás", () => {
     const p = pedido("1", [of("a")]);
     const items = agruparAvisos([{ tipo: "pedidoCompleto", pedido: p, of: null }]);
-    const descartes = [identidadAviso(items[0])];
+    const descartes = [identidadAviso(items[0], "ot")];
     expect(aplicarDescartes(items, descartes).visibles).toHaveLength(0);
     expect(aplicarDescartes([], descartes).vigentes).toEqual([]);
   });
@@ -295,7 +295,7 @@ describe("avisos de nota", () => {
     // era el mismo texto para las dos —una nota no cuelga de ninguna OF— y el
     // recado de mañana nacía ya apagado.
     const items = agruparAvisos([nota("n1", "x"), nota("n2", "y")]);
-    const [uno, dos] = items.map(identidadAviso);
+    const [uno, dos] = items.map((i) => identidadAviso(i, "ot"));
     expect(uno).not.toBe(dos);
 
     const { visibles } = aplicarDescartes(items, [uno]);
@@ -308,5 +308,40 @@ describe("avisos de nota", () => {
     // no, volvería a apagar un aviso con esa misma identidad.
     const { vigentes } = aplicarDescartes(items, ["1:notaNueva:nota:n1"]);
     expect(vigentes).toEqual([]);
+  });
+});
+
+describe("dos secciones comparten la lista de descartes", () => {
+  // Ángel mira Diseño Gráfico y vuelve a Oficina Técnica, y le renacen los
+  // avisos que ya había abierto. La poda es correcta dentro de una sección
+  // —"un descarte solo vale mientras exista el aviso que apaga"— pero el
+  // tablero de Diseño no trae los pedidos de OT, así que desde allí TODOS los
+  // descartes de OT parecen caducados y se borran.
+  const p = pedido("1", [of("a")]);
+  const suyo = agruparAvisos([{ tipo: "devuelta", pedido: p, of: of("a") }]);
+
+  it("mirar la otra sección no toca los descartes de la tuya", () => {
+    const descartes = [identidadAviso(suyo[0], "ot")];
+    // El tablero de Diseño: ni un aviso de OT a la vista.
+    expect(aplicarDescartes([], descartes, "diseno").vigentes).toEqual(descartes);
+  });
+
+  it("y al volver, el aviso sigue apagado", () => {
+    let descartes = aplicarDescartes(suyo, [identidadAviso(suyo[0], "ot")], "ot").vigentes;
+    descartes = aplicarDescartes([], descartes, "diseno").vigentes;
+    expect(aplicarDescartes(suyo, descartes, "ot").visibles).toHaveLength(0);
+  });
+
+  it("cada sección sí poda lo suyo", () => {
+    // Lo de siempre dentro de una lista: si la situación desaparece, fuera.
+    const descartes = [identidadAviso(suyo[0], "ot")];
+    expect(aplicarDescartes([], descartes, "ot").vigentes).toEqual([]);
+  });
+
+  it("lo guardado sin sección es de Oficina Técnica", () => {
+    // Lo que ya está en el navegador de todos se guardó antes de que hubiera
+    // dos listas, y la web era solo de OT.
+    expect(aplicarDescartes([], ["1:devuelta:a"], "ot").vigentes).toEqual([]);
+    expect(aplicarDescartes([], ["1:devuelta:a"], "diseno").vigentes).toEqual(["1:devuelta:a"]);
   });
 });
