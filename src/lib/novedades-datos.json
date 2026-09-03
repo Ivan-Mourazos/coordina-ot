@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-03-2",
+    "hasta": "12b4ec2",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al revisar tienes delante los ocho puntos que hay que mirar",
+        "detalle": "Los vas marcando según los compruebas, y lo que marques como fallo llega ya puesto al devolver, sin buscar la causa. La lista entera está también en el menú."
+      }
+    ]
+  },
+  {
     "id": "2026-09-03",
     "hasta": "00ccf64",
     "cambios": [
