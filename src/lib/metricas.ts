@@ -25,6 +25,11 @@ import { leerAnulacion } from "./anulacion";
 // mejor de lo que acabará siendo, porque sus devoluciones todavía no han
 // llegado; eso lo dice la propia pantalla.
 //
+// Y UNA DEVOLUCIÓN SIN REVISIÓN APUNTADA CUENTA TAMBIÉN COMO REVISIÓN. Si no,
+// suma en el numerador sin sumar en el denominador y el mes puede pasar del
+// 100 %: septiembre llegó a enseñar "7 de 6". No es inventarse nada — si una
+// OF volvió, alguien la revisó; lo que faltaba era el apunte de que empezó.
+//
 // Lo que NO lleva, a propósito: reparto por persona. El dato está en el
 // registro, pero un tablero de "quién falla más" cambia cómo se usa la
 // herramienta —se devuelve menos para no señalar a nadie— y entonces los
@@ -161,19 +166,39 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
       revisionAbierta.set(mov.ofId, mov.at);
       continue;
     }
-    if (mov.motivo === "aprobar") {
-      // Acabó bien: esa revisión ya no puede traer devolución.
+    // Las TRES formas de acabar bien una revisión. Con "aprobar" a secas se
+    // quedaban abiertas las que se dan por corregidas o por buenas sin
+    // revisar, y una devolución posterior de esa misma OF se colgaba de una
+    // revisión ya cerrada — o sea, de un mes anterior equivocado.
+    if (
+      mov.motivo === "aprobar" ||
+      mov.motivo === "aprobar_corregida" ||
+      mov.motivo === "aprobar_sin_revision"
+    ) {
       revisionAbierta.delete(mov.ofId);
       continue;
     }
     if (mov.motivo !== "devolver") continue;
 
     devoluciones++;
-    // Sin revisión apuntada —las devoluciones anteriores a que se registrara
-    // `empezar_revision`— se cuenta en su propio mes: descuadra, pero perderla
-    // sería peor. Son pocas y solo al principio del histórico.
     const desdeRevision = revisionAbierta.get(mov.ofId);
     mes(desdeRevision ?? mov.at).devoluciones++;
+    // SIN REVISIÓN APUNTADA: se cuenta también una revisión en ese mes.
+    //
+    // Pasa de verdad —devoluciones anteriores a que se registrara
+    // `empezar_revision`, revisiones que firmó alguien de la otra sección (el
+    // filtro es por operario, no por OF), o una segunda devolución seguida sin
+    // volver a empezar—. Antes la devolución sumaba sola y el mes podía pasar
+    // del 100 %: septiembre salió "7 de 6", un 117 % que no quiere decir nada
+    // y que hace dudar del resto de la pantalla.
+    //
+    // Contarla no es inventarse un dato: si una OF volvió, alguien la revisó.
+    // Lo que faltaba era el apunte, no la revisión. Se suma al mes de la
+    // devolución, que es lo único que se sabe de ella.
+    if (!desdeRevision) {
+      revisiones++;
+      mes(mov.at).revisiones++;
+    }
     revisionAbierta.delete(mov.ofId);
     const causas = leerDevolucion(mov.observacion).causas;
     if (causas.length === 0) porCausa.set(null, (porCausa.get(null) ?? 0) + 1);

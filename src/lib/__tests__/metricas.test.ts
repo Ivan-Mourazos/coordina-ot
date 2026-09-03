@@ -126,11 +126,60 @@ describe("si va a mejor", () => {
     }
   });
 
-  it("una devolución sin revisión registrada cae en su propio mes", () => {
-    // Las de antes de que existiera `empezar_revision` no tienen cohorte a la
-    // que ir. Se cuentan donde pasaron: perderlas sería peor que descuadrar.
+  it("una devolución sin revisión registrada trae su revisión con ella", () => {
+    // Las de antes de que existiera `empezar_revision`, y las que empezó
+    // alguien de la otra sección (el filtro es por operario, no por OF). Se
+    // cuentan donde pasaron, y cuentan TAMBIÉN como revisión: si la OF volvió,
+    // alguien la revisó. Sumando solo la devolución, el mes pasaba del 100 %.
     const m = calcularMetricas([mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] x")]);
-    expect(m.porMes).toEqual([{ mes: "2026-09", revisiones: 0, devoluciones: 1 }]);
+    expect(m.porMes).toEqual([{ mes: "2026-09", revisiones: 1, devoluciones: 1 }]);
+    expect(m.revisiones).toBe(1);
+  });
+
+  it("el 117 % de septiembre: seis revisiones y siete devoluciones", () => {
+    // El caso tal cual salió en pantalla. Seis revisiones de septiembre que
+    // acaban volviendo, más una devolución cuya revisión no está en el
+    // registro: 7 sobre 6. Con la revisión implícita son 7 de 7.
+    const movs = [];
+    for (let i = 1; i <= 6; i++) {
+      movs.push(mov(`2026-09-0${i}T09:00:00.000Z`, "empezar_revision", `of${i}`));
+      movs.push(mov(`2026-09-0${i}T10:00:00.000Z`, "devolver", `of${i}`, "[1] x"));
+    }
+    movs.push(mov("2026-09-02T11:00:00.000Z", "devolver", "huerfana", "[1] x"));
+
+    const septiembre = calcularMetricas(movs).porMes.find((m) => m.mes === "2026-09")!;
+    expect(septiembre).toEqual({ mes: "2026-09", revisiones: 7, devoluciones: 7 });
+    expect(septiembre.devoluciones).toBeLessThanOrEqual(septiembre.revisiones);
+  });
+
+  it("dar por corregida cierra la revisión, como aprobar", () => {
+    // Solo se miraba "aprobar", así que una OF dada por corregida dejaba su
+    // revisión abierta para siempre y la siguiente devolución —meses después—
+    // se colgaba de ella, engordando un mes viejo.
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T12:00:00.000Z", "aprobar_corregida", "of1"),
+      mov("2026-09-10T10:00:00.000Z", "devolver", "of1", "[1] otra cosa"),
+    ]);
+    expect(m.porMes).toEqual([
+      { mes: "2026-08", revisiones: 1, devoluciones: 0 },
+      // La de septiembre no se cuelga de la revisión de agosto: se cuenta en
+      // septiembre, con su revisión implícita.
+      { mes: "2026-09", revisiones: 1, devoluciones: 1 },
+    ]);
+  });
+
+  it("dar por buena sin revisión también la cierra", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T12:00:00.000Z", "aprobar_sin_revision", "of1"),
+      mov("2026-09-10T10:00:00.000Z", "devolver", "of1", "[1] x"),
+    ]);
+    expect(m.porMes.find((x) => x.mes === "2026-09")).toEqual({
+      mes: "2026-09",
+      revisiones: 1,
+      devoluciones: 1,
+    });
   });
 });
 

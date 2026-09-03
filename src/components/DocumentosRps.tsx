@@ -113,9 +113,11 @@ export function contarAbribles(documentos: readonly DocumentoRps[]): number {
  *  enlaces muertos ("Documento 7") se lee como un apartado de la web que no
  *  funciona. Salen contados en una línea al pie y ya está.
  *
- *  Dentro de cada clase se conserva el orden de llegada: es el del id del
- *  enlace en RPS, o sea el de subida, y es el que hace que "version 1" salga
- *  antes que "version 2". */
+ *  Dentro de cada clase manda el NÚMERO DE VERSIÓN, de la última a la primera.
+ *  Antes se dejaba el orden que traía RPS dando por hecho que era el de subida,
+ *  y no lo es: AR.26.03555 enseñaba sus planteamientos como 0, 2, 1. Y aunque
+ *  viniera bien ordenado, lo primero que se busca es la ÚLTIMA versión, no la
+ *  primera. Lo que no lleva número se queda como venía, detrás. */
 function agrupar(documentos: DocumentoRps[]) {
   const porClase = new Map<string, DocumentoAbrible[]>();
   let sinFichero = 0;
@@ -128,6 +130,7 @@ function agrupar(documentos: DocumentoRps[]) {
     suyos.push(d);
     porClase.set(d.clase, suyos);
   }
+  for (const suyos of porClase.values()) ordenarPorVersion(suyos);
   const grupos = [...porClase.entries()].sort((a, b) => {
     const ia = ORDEN_CLASES.indexOf(a[0]);
     const ib = ORDEN_CLASES.indexOf(b[0]);
@@ -142,6 +145,31 @@ function agrupar(documentos: DocumentoRps[]) {
 
 function esAbrible(d: DocumentoRps): d is DocumentoAbrible {
   return typeof d.url === "string" && d.url.length > 0;
+}
+
+/** El número de versión de la descripción de RPS, si lo trae.
+ *
+ *  Se escribe de las dos formas —"version 2" y "versión 2", según quién lo
+ *  colgara— y ninguna es la buena: hay que aceptar las dos. */
+function versionDe(doc: DocumentoAbrible): number | null {
+  const m = /versi[oó]n?\s*(\d+)/i.exec(doc.descripcion || "");
+  return m ? Number(m[1]) : null;
+}
+
+/** Ordena un grupo dejando arriba la versión más alta. Estable en lo demás:
+ *  lo que no trae número mantiene el orden en que llegó y se va detrás, porque
+ *  no hay nada con lo que compararlo. */
+function ordenarPorVersion(docs: DocumentoAbrible[]): void {
+  const version = new Map(docs.map((d) => [d, versionDe(d)]));
+  const posicion = new Map(docs.map((d, i) => [d, i]));
+  docs.sort((a, b) => {
+    const va = version.get(a) ?? null;
+    const vb = version.get(b) ?? null;
+    if (va === null && vb === null) return posicion.get(a)! - posicion.get(b)!;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return vb - va;
+  });
 }
 
 function Grupo({

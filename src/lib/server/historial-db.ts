@@ -105,6 +105,9 @@ export async function leerHistorialPagina(
   req.input("off", off);
   req.input("size", PAGE_SIZE + 1); // una fila extra para saber si hay más
 
+  // Cuándo lo pasamos NOSOTROS a Producción, para poder ordenar por eso.
+  const pasados = pasadosParaOrden(req);
+
   const r = await req.query<FilaPagina>(`
     ;WITH FinOT AS (
       SELECT orden, MAX(fin) AS fin FROM (
@@ -131,6 +134,7 @@ export async function leerHistorialPagina(
       JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
       GROUP BY o.CodOrder
     )
+    ${pasados.cte}
     SELECT p.pedido, p.finalizada, p.n_of, cli.Description AS cliente,
            d.Description AS negocio
     FROM PedFin p
@@ -138,8 +142,16 @@ export async function leerHistorialPagina(
     -- Negocio/local de entrega: misma tabla y mismo join que la cabecera del
     -- detalle, para que la lista y el pedido abierto digan lo mismo.
     LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = p.idd
+    ${pasados.join}
     ${where}
-    ORDER BY p.finalizada DESC, p.pedido DESC
+    -- SE ORDENA POR LA MISMA FECHA QUE SE ENSEÑA. La lista pinta "Pasado el
+    -- tal" con pasadoAt cuando lo tenemos (cuándo se pulsó Pasar a Producción
+    -- aquí) y con finalizada cuando no (cuándo cerró RPS la fase de OT).
+    -- Ordenando solo por finalizada, las dos no coincidían: RPS cierra fases
+    -- en masa, así que un pedido que OT soltó en julio podía aparecer arriba
+    -- del todo con fecha de hoy. El orden decía una cosa y la fecha de al
+    -- lado otra.
+    ORDER BY COALESCE(${pasados.columna}, p.finalizada) DESC, p.pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
   `);
 
@@ -837,6 +849,50 @@ function anadirPasadoAt(item: HistorialItem): HistorialItem {
     // Si el id no está en el catálogo se enseña tal cual: mejor un id crudo
     // que perder la información de quién fue.
     ...(paso.operarioId ? { pasadoPor: nombre ?? paso.operarioId } : {}),
+  };
+}
+
+/** Cuántos pedidos pasados se llevan al SQL para poder ordenar por su fecha.
+ *
+ *  Cada uno gasta dos parámetros y SQL Server admite 2100 por consulta; con el
+ *  resto de filtros de la pantalla, 900 deja sitio de sobra. Los que se queden
+ *  fuera son los MÁS ANTIGUOS y caen al orden por `finalizada`, que para un
+ *  pedido viejo es la misma fecha o casi: lo que importa es que los recientes
+ *  —los que se miran— salgan donde toca. */
+const MAX_PASADOS_EN_ORDEN = 900;
+
+/** La tabla de "cuándo lo pasamos" para meterla en la consulta del historial.
+ *
+ *  Va como VALUES y no como tabla porque las dos fechas viven en bases
+ *  distintas: `finalizada` en RPS (SQL Server) y `pasado_at` en la nuestra
+ *  (SQLite). Sin esto no hay forma de ordenar por las dos a la vez.
+ *
+ *  Con la lista vacía —una instalación recién estrenada, o RPS respondiendo y
+ *  nuestra base no— devuelve un COALESCE de un NULL tipado y la consulta sigue
+ *  funcionando exactamente como antes. */
+function pasadosParaOrden(req: {
+  input: (nombre: string, valor: unknown) => unknown;
+}): { cte: string; join: string; columna: string } {
+  const pasados = [...pasadosAt().entries()]
+    .sort((a, b) => b[1].at.localeCompare(a[1].at))
+    .slice(0, MAX_PASADOS_EN_ORDEN);
+
+  if (pasados.length === 0) {
+    return { cte: "", join: "", columna: "CAST(NULL AS datetime2)" };
+  }
+
+  const filas = pasados.map(([pedido, paso], i) => {
+    req.input(`pp${i}`, pedido);
+    // ISO completo: `CONVERT(..., 127)` es el formato con la T y la Z, que es
+    // justo como lo guarda SQLite (`new Date().toISOString()`).
+    req.input(`pa${i}`, paso.at);
+    return `(@pp${i}, CONVERT(datetime2, @pa${i}, 127))`;
+  });
+
+  return {
+    cte: `, Pasados(pedido, at) AS (SELECT * FROM (VALUES ${filas.join(",")}) v(pedido, at))`,
+    join: "LEFT JOIN Pasados ps ON ps.pedido = p.pedido",
+    columna: "ps.at",
   };
 }
 
