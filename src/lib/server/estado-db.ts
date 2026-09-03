@@ -325,6 +325,11 @@ const MIGRACIONES: ReadonlyArray<{
   // dos marcas iguales: eso apaga los avisos vigentes, que es lo que se quiere
   // —el único encendido al migrar era falso, 9 copias idénticas del mismo PDF.
   { version: 4, nombre: "huella_del_parte", aplicar: huellaDelParte },
+  // Las causas de verdad, las que dictó Ángel (02/09/2026). Las tres de
+  // arranque eran de relleno y se retiran aquí: dejarlas al lado de las nuevas
+  // repartía los números entre dos que dicen lo mismo ("Error en medidas" y
+  // "Medidas de la lona mal") y luego no se sabe cuál pesa.
+  { version: 5, nombre: "causas_de_angel", aplicar: causasDeAngel },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -341,6 +346,31 @@ function huellaDelParte(db: Database.Database): void {
 
 const CAUSAS_ARRANQUE = ["Error en medidas", "Error en cotas", "Material equivocado"];
 
+/** Las causas por las que una OF vuelve, dictadas por Ángel el 02/09/2026.
+ *
+ *  Él las pasó como lista de lo que MIRA al revisar ("Están todos os elementos",
+ *  "Simetría feita"). Aquí van del revés, porque lo que se marca al devolver es
+ *  lo que FALLÓ: puestas en positivo, marcar "Están todos los elementos" para
+ *  decir que no están es justo lo contrario de lo que pasó.
+ *
+ *  No hay un "Otros": el cuadro de devolver ya obliga a escribir la nota y deja
+ *  crear una causa nueva sobre la marcha. Un cajón de sastre se acaba marcando
+ *  siempre y deja la estadística sin decir nada — que es exactamente lo que
+ *  pasa hoy con el 98 % de devoluciones sin causa.
+ *
+ *  En castellano, como el resto de la web, aunque él las escribiera en gallego.
+ *  Y genéricas: lo específico ("el largo 2 cm") va en la nota. */
+const CAUSAS_DE_ANGEL = [
+  "Medidas de la lona mal",
+  "Medidas de los aumentos mal",
+  "Tipo de lona equivocado",
+  "Faltan anotaciones de material",
+  "Faltan elementos",
+  "Faltan piezas en el corte",
+  "Medidas de corte no corresponden",
+  "Falta la simetría",
+];
+
 /** Siembra las causas de devolución del primer día.
  *
  *  `ON CONFLICT DO NOTHING` sobre la clave: si alguien ya creó "Error en
@@ -354,6 +384,33 @@ function causasDeArranque(db: Database.Database): void {
      ON CONFLICT(clave) DO NOTHING`,
   );
   for (const etiqueta of CAUSAS_ARRANQUE) ins.run(etiqueta, claveDeCausa(etiqueta), ahora);
+}
+
+/** Siembra las causas de Ángel y retira las tres de relleno.
+ *
+ *  Se puede repetir sin estropear nada, que es lo que se le pide a una
+ *  migración: las nuevas entran con `DO NOTHING` sobre la clave —si alguien ya
+ *  escribió "Faltan elementos" a mano, se respeta la suya con su id, al que ya
+ *  pueden apuntar devoluciones—, y las viejas se retiran POR CLAVE y solo esas
+ *  tres.
+ *
+ *  Retirar y no borrar: hay una devolución de agosto marcada con "Error en
+ *  medidas", y borrarla dejaría esa devolución apuntando a la nada. Retirada
+ *  sigue leyéndose en el historial; simplemente deja de ofrecerse al devolver.
+ *
+ *  Si alguna estaba retirada a mano y vuelve a hacer falta, se recupera desde
+ *  el propio cuadro de devolver (escribirla otra vez la reactiva). */
+function causasDeAngel(db: Database.Database): void {
+  const ahora = new Date().toISOString();
+  const ins = db.prepare(
+    `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por)
+     VALUES (?, ?, ?, NULL)
+     ON CONFLICT(clave) DO NOTHING`,
+  );
+  for (const etiqueta of CAUSAS_DE_ANGEL) ins.run(etiqueta, claveDeCausa(etiqueta), ahora);
+
+  const retirar = db.prepare("UPDATE causa_devolucion SET retirada = 1 WHERE clave = ?");
+  for (const etiqueta of CAUSAS_ARRANQUE) retirar.run(claveDeCausa(etiqueta));
 }
 
 /** Pone al día el esquema. Cada migración va en su transacción y sella su

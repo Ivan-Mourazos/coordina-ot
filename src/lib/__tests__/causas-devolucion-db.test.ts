@@ -20,14 +20,32 @@ afterAll(() => {
   }
 });
 
-test("la lista no nace vacía: trae las tres genéricas de arranque", () => {
+test("la lista nace con las causas que dictó Ángel", () => {
   // Con la lista vacía el primer día, quien devuelve no entiende qué se le
-  // pide y tira de la nota libre, que es de lo que se venía.
+  // pide y tira de la nota libre, que es de lo que se venía. Van en el orden
+  // en que las lee `leerCausasDevolucion` (alfabético), no en el que se
+  // siembran: es el que ve el revisor.
   expect(db.leerCausasDevolucion().map((c) => c.etiqueta)).toEqual([
-    "Error en cotas",
-    "Error en medidas",
-    "Material equivocado",
+    "Falta la simetría",
+    "Faltan anotaciones de material",
+    "Faltan elementos",
+    "Faltan piezas en el corte",
+    "Medidas de corte no corresponden",
+    "Medidas de la lona mal",
+    "Medidas de los aumentos mal",
+    "Tipo de lona equivocado",
   ]);
+});
+
+test("las tres de relleno quedan retiradas, no borradas", () => {
+  // Borrarlas dejaría sin causa a la devolución de agosto que apunta a "Error
+  // en medidas": el histórico tiene que seguir diciendo de qué fue.
+  const todas = db.leerCausasDevolucion(true);
+  for (const vieja of ["Error en cotas", "Error en medidas", "Material equivocado"]) {
+    const c = todas.find((x) => x.etiqueta === vieja);
+    expect(c, `${vieja} debería seguir existiendo`).toBeDefined();
+    expect(c!.retirada).toBe(true);
+  }
 });
 
 test("crear la misma causa dos veces devuelve la MISMA, no dos", () => {
