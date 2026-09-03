@@ -8,6 +8,7 @@ import {
   etiquetaValida,
   CAUSA_MAX,
 } from "@/lib/devolucion";
+import { idsDeCausas } from "@/lib/guia-revision";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { crearCausa, leerCausas } from "@/lib/causas-cliente";
 
@@ -31,10 +32,18 @@ export function DevolverInline({
   onDevolver,
   miId,
   label = "Devolver con nota",
+  causasSugeridas,
 }: {
   onDevolver: (obs: string) => void;
   /** Quién crea la causa, si crea alguna. Solo para dejarlo apuntado. */
   miId?: string | null;
+  /** Causas ya marcadas al abrir, por su etiqueta. Vienen de la guía de
+   *  revisión: lo que el revisor marcó como fallo mientras repasaba.
+   *
+   *  Marcadas, no impuestas: se pueden quitar como cualquier otra. Y se
+   *  resuelven contra la lista viva —las que no estén se caen sin ruido—,
+   *  porque los ids de las causas no son los mismos en cada instalación. */
+  causasSugeridas?: readonly string[];
   /** Cómo se llama la acción, de `lib/acciones.ts`. El componente traía el
    *  literal "Devolver" cosido, así que el botón decía una cosa y el dominio
    *  otra —y quien cambiara el label en `ACCIONES` no cambiaba este—. El valor
@@ -57,11 +66,22 @@ export function DevolverInline({
   useEffect(() => {
     if (!abierto) return;
     let vivo = true;
-    leerCausas().then((cs) => vivo && setCausas(cs));
+    leerCausas().then((cs) => {
+      if (!vivo) return;
+      setCausas(cs);
+      // Lo que la guía marcó como fallo llega ya elegido. Se hace AQUÍ y no al
+      // abrir porque hasta que no está la lista no se sabe qué id tiene cada
+      // etiqueta. Se añade a lo que hubiera —no se pisa—: quien abrió, cerró y
+      // volvió a abrir no debería perder lo que había marcado a mano.
+      if (causasSugeridas?.length) {
+        const ids = idsDeCausas(causasSugeridas, cs);
+        setElegidas((p) => [...new Set([...p, ...ids])]);
+      }
+    });
     return () => {
       vivo = false;
     };
-  }, [abierto]);
+  }, [abierto, causasSugeridas]);
 
   if (!abierto) {
     return (

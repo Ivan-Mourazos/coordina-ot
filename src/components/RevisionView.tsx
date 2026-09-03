@@ -6,9 +6,11 @@ import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
+import { causasDeLoQueFalla, type EstadoPunto } from "@/lib/guia-revision";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
+import { GuiaRevision } from "./GuiaRevision";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
@@ -329,6 +331,14 @@ function ReviewCard({
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
   const { pedirConfirmacion, dialogo } = useConfirmacion(() => accionTodas("aprobar"));
 
+  // Lo que la guía lleva marcado en ESTE grupo. Vive aquí y no en la guía
+  // porque de aquí sale lo que se le pasa a la devolución, que es el botón de
+  // al lado. No se guarda en ninguna parte: es el dedo sobre el papel mientras
+  // se repasa, y al cerrar la pantalla ya no hace falta.
+  const [marcas, setMarcas] = useState<Record<string, EstadoPunto>>({});
+  const [guiaAbierta, setGuiaAbierta] = useState(true);
+  const fallos = causasDeLoQueFalla(marcas);
+
   const selectorRevisor = (
     <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
       Revisor:
@@ -427,6 +437,16 @@ function ReviewCard({
                 servidor cierra el fichaje del anterior — sus minutos se quedan
                 a su nombre, pero dejan de correr. */}
             {selectorRevisor}
+            {/* La guía solo aquí: en "Por revisar" todavía no se está mirando
+                nada, y en las otras dos columnas ya se decidió. */}
+            {puedo("devolver") && (
+              <GuiaRevision
+                marcas={marcas}
+                onMarcar={(id, e) => setMarcas((p) => ({ ...p, [id]: e }))}
+                abierta={guiaAbierta}
+                onAbrir={setGuiaAbierta}
+              />
+            )}
             {puedo("aprobar") && (
               <button
                 onClick={() => pedirConfirmacion(defAprobar)}
@@ -437,8 +457,16 @@ function ReviewCard({
             )}
             {puedo("devolver") && (
               <DevolverInline
-                label={ACCIONES.find((a) => a.id === "devolver")?.label}
+                // El botón dice cuántas causas lleva puestas: es lo que
+                // convierte lo marcado arriba en algo que se ve antes de
+                // pulsar, en vez de una sorpresa al abrir el cuadro.
+                label={
+                  fallos.length > 0
+                    ? `Devolver con ${fallos.length} ${fallos.length === 1 ? "causa" : "causas"}`
+                    : ACCIONES.find((a) => a.id === "devolver")?.label
+                }
                 miId={miId}
+                causasSugeridas={fallos}
                 onDevolver={(obs) => accionTodas("devolver", obs)}
               />
             )}

@@ -18,6 +18,7 @@ import { VisitasCotView } from "./VisitasCotView";
 import { HistorialView } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
+import { PanelGuiaRevision } from "./PanelGuiaRevision";
 import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
@@ -791,6 +792,9 @@ export function Board({
   // localStorage, y leerlo antes de tiempo daría siempre "no visto".
   const [vistoNovedades, setVistoNovedades] = useState<string | null | undefined>(undefined);
   const [novedadesAbiertas, setNovedadesAbiertas] = useState(false);
+  // La guía de revisión, abierta desde el menú para leerla en frío. La de
+  // trabajar está en la propia tarjeta de "Revisando"; esta es la de consulta.
+  const [guiaAbierta, setGuiaAbierta] = useState(false);
   // Cuándo salió cada entrada del log. Lo sella el servidor la primera vez que
   // arranca con ella dentro, así que no cambia mientras la pestaña esté
   // abierta: se pide una vez y no se vuelve a mirar.
@@ -1882,6 +1886,7 @@ export function Board({
             <Herramientas
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
+              onVerGuiaRevision={() => setGuiaAbierta(true)}
               seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
               onCambiarSeccion={cambiarSeccion}
               yo={yo}
@@ -2166,6 +2171,8 @@ export function Board({
             </div>
           </>
         )}
+
+        {guiaAbierta && <PanelGuiaRevision onCerrar={() => setGuiaAbierta(false)} />}
 
         {/* ── VISTA HISTORIAL ── */}
         {novedadesAbiertas && (

@@ -29,6 +29,7 @@ function fechaCorta(iso: string): string {
 export function Herramientas({
   fechaUltimaNovedad,
   onVerNovedades,
+  onVerGuiaRevision,
   seccion,
   onCambiarSeccion,
   yo,
@@ -38,6 +39,7 @@ export function Herramientas({
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
   onVerNovedades: () => void;
+  onVerGuiaRevision: () => void;
   /** Qué lista de trabajo se está mirando. */
   seccion: SeccionId;
   onCambiarSeccion: (s: SeccionId) => void;
@@ -259,6 +261,25 @@ export function Herramientas({
               lee una vez, y sin una puerta fija no habría forma de volver a
               mirar qué cambió — que es justo lo que se quiere poder hacer al
               volver de unos días fuera. */}
+          {/* La guía de revisión va con las novedades y no arriba con las otras
+              páginas: aquellas son sitios a los que se va, y esto es de esta
+              misma web. Aquí se lee en frío o se le enseña a quien empieza;
+              mientras se revisa está en la propia tarjeta, que es donde sirve. */}
+          <div className="mt-2 border-t border-border pt-2">
+            <button
+              onClick={() => {
+                onVerGuiaRevision();
+                setOpen(false);
+              }}
+              className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+            >
+              <span className="block text-xs font-semibold text-text">Qué mirar al revisar</span>
+              <span className="block text-[11px] leading-snug text-text-muted">
+                Los ocho puntos que se repasan antes de dar una lona por buena.
+              </span>
+            </button>
+          </div>
+
           {ULTIMA && (
             <div className="mt-2 border-t border-border pt-2">
               <button
