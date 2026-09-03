@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-03",
+    "hasta": "00ccf64",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al devolver una OF ya puedes decir por qué con la lista de Ángel",
+        "detalle": "Ocho causas para elegir (medidas de la lona, faltan elementos, medidas de corte…). Puedes marcar varias, y si ninguna encaja escribes la tuya y queda para todos."
+      }
+    ]
+  },
+  {
     "id": "2026-09-02-3",
     "hasta": "3280a59",
     "cambios": [
