@@ -1,13 +1,15 @@
 "use client";
 
-import { GUIA_REVISION, type EstadoPunto } from "@/lib/guia-revision";
+import type { EstadoPunto, PuntoGuia } from "@/lib/guia-revision";
 
 // ─── Qué mirar al revisar ────────────────────────────────────────────────────
-// Los ocho puntos de Ángel, al lado de la OF que se está revisando.
+// Los puntos que se repasan, al lado de la OF que se está revisando. Salen de
+// las causas de devolución vistas del derecho (ver lib/guia-revision.ts) y solo
+// los de las familias de este pedido.
 //
 // MARCAR UN FALLO NO ABRE NADA. Es la decisión de la que depende que esto
 // sirva: si el primer fallo abriera el cuadro de devolver, el revisor lo
-// escribiría ahí mismo y los otros siete puntos no se llegarían a mirar — y la
+// escribiría ahí mismo y los puntos siguientes no se llegarían a mirar — y la
 // OF volvería otra vez la semana que viene por lo que había dos líneas más
 // abajo. Se marca, se sigue bajando, y al final se devuelve UNA vez con todo.
 //
@@ -21,18 +23,24 @@ import { GUIA_REVISION, type EstadoPunto } from "@/lib/guia-revision";
 // cosa distinta y nadie la ha pedido.
 
 export function GuiaRevision({
+  puntos,
   marcas,
   onMarcar,
   abierta,
   onAbrir,
 }: {
-  marcas: Readonly<Record<string, EstadoPunto>>;
-  onMarcar: (id: string, estado: EstadoPunto) => void;
+  puntos: readonly PuntoGuia[];
+  marcas: Readonly<Record<number, EstadoPunto>>;
+  onMarcar: (id: number, estado: EstadoPunto) => void;
   abierta: boolean;
   onAbrir: (abierta: boolean) => void;
 }) {
-  const fallos = GUIA_REVISION.filter((p) => marcas[p.id] === "falla").length;
-  const vistos = GUIA_REVISION.filter((p) => marcas[p.id] && marcas[p.id] !== "sin_mirar").length;
+  // Sin puntos no se pinta nada. Pasa cuando alguien retira todas las de una
+  // familia, y un recuadro vacío titulado "Qué mirar" sería peor que nada.
+  if (puntos.length === 0) return null;
+
+  const fallos = puntos.filter((p) => marcas[p.id] === "falla").length;
+  const vistos = puntos.filter((p) => marcas[p.id] && marcas[p.id] !== "sin_mirar").length;
 
   return (
     <div className="w-full overflow-hidden rounded-lg ring-1 ring-border">
@@ -49,7 +57,7 @@ export function GuiaRevision({
         {/* El avance, no el total: "3 de 8" dice si la revisión va por la mitad,
             que es lo que se pregunta uno al volver de una interrupción. */}
         <span className="ml-auto font-normal normal-case tabular-nums">
-          {vistos} de {GUIA_REVISION.length}
+          {vistos} de {puntos.length}
         </span>
         {fallos > 0 && (
           <span className="rounded bg-red-500/15 px-1 py-px text-[9px] font-bold normal-case text-red-600 dark:text-red-400">
@@ -60,7 +68,7 @@ export function GuiaRevision({
 
       {abierta && (
         <ul className="border-t border-border">
-          {GUIA_REVISION.map((p) => {
+          {puntos.map((p) => {
             const estado = marcas[p.id] ?? "sin_mirar";
             const falla = estado === "falla";
             return (
@@ -73,7 +81,7 @@ export function GuiaRevision({
                 {/* Al marcar el fallo, la frase se da la vuelta: deja de ser lo
                     que compruebas ("Medidas de la lona hecha") y pasa a ser lo
                     que se le va a decir al autor ("Medidas de la lona mal").
-                    Es la misma lista por las dos caras, y así se ve de dónde
+                    Es la misma fila por las dos caras, y así se ve de dónde
                     sale la causa que aparecerá marcada al devolver. */}
                 <span
                   className={`min-w-0 flex-1 ${
@@ -84,7 +92,7 @@ export function GuiaRevision({
                         : "text-text"
                   }`}
                 >
-                  {falla ? p.causa : p.mira}
+                  {falla ? p.etiqueta : p.mira}
                 </span>
                 <Marca
                   activa={estado === "bien"}

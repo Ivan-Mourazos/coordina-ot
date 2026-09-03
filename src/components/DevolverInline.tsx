@@ -8,7 +8,6 @@ import {
   etiquetaValida,
   CAUSA_MAX,
 } from "@/lib/devolucion";
-import { idsDeCausas } from "@/lib/guia-revision";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { crearCausa, leerCausas } from "@/lib/causas-cliente";
 
@@ -33,17 +32,20 @@ export function DevolverInline({
   miId,
   label = "Devolver con nota",
   causasSugeridas,
+  familias,
 }: {
   onDevolver: (obs: string) => void;
   /** Quién crea la causa, si crea alguna. Solo para dejarlo apuntado. */
   miId?: string | null;
-  /** Causas ya marcadas al abrir, por su etiqueta. Vienen de la guía de
-   *  revisión: lo que el revisor marcó como fallo mientras repasaba.
-   *
-   *  Marcadas, no impuestas: se pueden quitar como cualquier otra. Y se
-   *  resuelven contra la lista viva —las que no estén se caen sin ruido—,
-   *  porque los ids de las causas no son los mismos en cada instalación. */
-  causasSugeridas?: readonly string[];
+  /** Causas ya marcadas al abrir. Vienen de la guía de revisión: lo que el
+   *  revisor marcó como fallo mientras repasaba. Marcadas, no impuestas: se
+   *  pueden quitar como cualquier otra. */
+  causasSugeridas?: readonly number[];
+  /** De qué familias es el trabajo. Solo se ofrecen las causas genéricas y las
+   *  de estas familias: el que devuelve una funda no tiene por qué elegir entre
+   *  ocho causas sobre aumentos y simetría de lona. Sin familias, salen todas
+   *  —es lo que hay que hacer cuando no se sabe de qué es. */
+  familias?: readonly string[];
   /** Cómo se llama la acción, de `lib/acciones.ts`. El componente traía el
    *  literal "Devolver" cosido, así que el botón decía una cosa y el dominio
    *  otra —y quien cambiara el label en `ACCIONES` no cambiaba este—. El valor
@@ -69,13 +71,11 @@ export function DevolverInline({
     leerCausas().then((cs) => {
       if (!vivo) return;
       setCausas(cs);
-      // Lo que la guía marcó como fallo llega ya elegido. Se hace AQUÍ y no al
-      // abrir porque hasta que no está la lista no se sabe qué id tiene cada
-      // etiqueta. Se añade a lo que hubiera —no se pisa—: quien abrió, cerró y
-      // volvió a abrir no debería perder lo que había marcado a mano.
+      // Lo que la guía marcó como fallo llega ya elegido. Se añade a lo que
+      // hubiera —no se pisa—: quien abrió, cerró y volvió a abrir no debería
+      // perder lo que había marcado a mano.
       if (causasSugeridas?.length) {
-        const ids = idsDeCausas(causasSugeridas, cs);
-        setElegidas((p) => [...new Set([...p, ...ids])]);
+        setElegidas((p) => [...new Set([...p, ...causasSugeridas])]);
       }
     });
     return () => {
@@ -97,6 +97,19 @@ export function DevolverInline({
   const devolucion = { causas: elegidas, nota: obs };
   const alternar = (id: number) =>
     setElegidas((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  // Las genéricas y las de este trabajo. Las de otras familias no se ofrecen
+  // —sobran— pero una que ya esté marcada SÍ se enseña: puede venir de la guía
+  // o de un pedido con dos familias, y hacerla desaparecer sin poder quitarla
+  // dejaría marcada una causa invisible.
+  const suyas = new Set((familias ?? []).map((f) => f.toUpperCase()));
+  const ofrecidas = causas.filter(
+    (c) =>
+      c.familia === null ||
+      !familias ||
+      suyas.has(c.familia.toUpperCase()) ||
+      elegidas.includes(c.id),
+  );
 
   // Las que ya existen y se parecen a lo que se está escribiendo. Es la única
   // defensa real contra la lista deshilachada: si a quien escribe "falta cota"
@@ -123,7 +136,7 @@ export function DevolverInline({
       <p className="mb-1.5 text-[11px] font-semibold text-text">¿Por qué vuelve al autor?</p>
 
       <div className="flex flex-wrap gap-1.5">
-        {causas.map((c) => (
+        {ofrecidas.map((c) => (
           <button
             key={c.id}
             onClick={() => alternar(c.id)}

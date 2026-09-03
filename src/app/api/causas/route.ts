@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CAUSA_MAX, CAUSA_MIN, etiquetaValida } from "@/lib/devolucion";
 import {
   crearCausaDevolucion,
+  editarCausaDevolucion,
   leerCausasDevolucion,
   retirarCausaDevolucion,
 } from "@/lib/server/estado-db";
@@ -66,31 +67,77 @@ export async function POST(req: Request) {
 
   const operarioId = typeof b.operarioId === "string" && b.operarioId ? b.operarioId : null;
   try {
-    return NextResponse.json({ causa: crearCausaDevolucion(etiqueta, operarioId) });
+    return NextResponse.json({
+      causa: crearCausaDevolucion(etiqueta, operarioId, {
+        familia: typeof b.familia === "string" ? b.familia : null,
+        mira: typeof b.mira === "string" ? b.mira : null,
+      }),
+    });
   } catch (e) {
     console.error("[causas] no se pudo crear:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo crear la causa" }, { status: 500 });
   }
 }
 
-/** PATCH: retirar una causa, o devolverla al servicio. No hay DELETE a
- *  propósito: las devoluciones guardan el id y borrarla las dejaría apuntando
- *  a la nada. */
+/** PATCH: retirar una causa (o devolverla al servicio), y editarla.
+ *
+ *  Dos cosas en el mismo sitio porque son la misma fila y el mismo permiso.
+ *  Manda `retirada` y se retira; manda `etiqueta`, `familia` o `mira` y se
+ *  edita. No hay DELETE a propósito: las devoluciones guardan el id y borrarla
+ *  las dejaría apuntando a la nada. */
 export async function PATCH(req: Request) {
   const b = await cuerpo(req);
   if (!b) return noJson();
 
   const id = typeof b.id === "number" && Number.isInteger(b.id) ? b.id : null;
   if (id === null) return NextResponse.json({ error: "Falta el id" }, { status: 400 });
-  if (typeof b.retirada !== "boolean")
-    return NextResponse.json({ error: "Falta `retirada`" }, { status: 400 });
+
+  if (typeof b.retirada === "boolean") {
+    try {
+      if (!retirarCausaDevolucion(id, b.retirada))
+        return NextResponse.json({ error: "Esa causa no existe" }, { status: 404 });
+      return NextResponse.json({ ok: true });
+    } catch (e) {
+      console.error("[causas] no se pudo retirar:", (e as Error).message);
+      return NextResponse.json({ error: "No se pudo cambiar la causa" }, { status: 500 });
+    }
+  }
+
+  const edita =
+    typeof b.etiqueta === "string" || "familia" in b || "mira" in b || typeof b.orden === "number";
+  if (!edita)
+    return NextResponse.json({ error: "No hay nada que cambiar" }, { status: 400 });
+
+  // La etiqueta se valida igual que al crear: es la que se cuenta en las
+  // métricas y la que lee el autor de la OF.
+  if (typeof b.etiqueta === "string" && !etiquetaValida(b.etiqueta))
+    return NextResponse.json(
+      {
+        error:
+          b.etiqueta.trim().length < CAUSA_MIN
+            ? "La causa es demasiado corta"
+            : `La causa es demasiado larga: no puede pasar de ${CAUSA_MAX} caracteres`,
+      },
+      { status: 400 },
+    );
 
   try {
-    if (!retirarCausaDevolucion(id, b.retirada))
-      return NextResponse.json({ error: "Esa causa no existe" }, { status: 404 });
-    return NextResponse.json({ ok: true });
+    const causa = editarCausaDevolucion(id, {
+      ...(typeof b.etiqueta === "string" ? { etiqueta: b.etiqueta } : {}),
+      ...("familia" in b ? { familia: typeof b.familia === "string" ? b.familia : null } : {}),
+      ...("mira" in b ? { mira: typeof b.mira === "string" ? b.mira : null } : {}),
+      ...(typeof b.orden === "number" ? { orden: b.orden } : {}),
+    });
+    if (!causa)
+      // O no existe, o el texto nuevo choca con otra causa. Se dice lo segundo
+      // porque es lo que pasa de verdad: el id sale de la propia lista.
+      return NextResponse.json(
+        { error: "Ya hay otra causa que dice lo mismo" },
+        { status: 409 },
+      );
+    return NextResponse.json({ causa });
   } catch (e) {
-    console.error("[causas] no se pudo retirar:", (e as Error).message);
+    console.error("[causas] no se pudo editar:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo cambiar la causa" }, { status: 500 });
   }
 }

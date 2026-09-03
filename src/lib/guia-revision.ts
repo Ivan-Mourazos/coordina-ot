@@ -1,49 +1,59 @@
 import { claveDeCausa } from "./devolucion";
 
 // ─── Qué mirar al revisar ────────────────────────────────────────────────────
-// Los ocho puntos que Ángel repasa en una lona, dictados por él el 02/09/2026.
+// Los puntos que se repasan antes de dar un trabajo por bueno. Los primeros los
+// dictó Ángel el 02/09/2026 para las lonas; desde entonces se editan desde la
+// propia web (menú → Causas y guía de revisión), sin pasar por un despliegue.
 //
-// SON LA MISMA LISTA que las causas de devolución, vista del derecho. Él las
-// pasó en positivo —lo que comprueba— y en `causasDeAngel` (estado-db.ts) están
-// en negativo, porque al devolver se marca lo que falló. Aquí van del derecho
-// otra vez, que es como se usan mientras se revisa: "Medidas de la lona" es lo
-// que miras; "Medidas de la lona mal" es lo que apuntas si no cuadra.
+// NO HAY LISTA EN EL CÓDIGO, y es el punto: la guía son las CAUSAS DE
+// DEVOLUCIÓN vistas del derecho. Cada causa guarda su cara en positivo
+// (`mira`), así que "Medidas de la lona hecha" y "Medidas de la lona mal" son
+// la misma fila. En dos sitios se descuadraban: alguien afinaba la causa, la
+// guía seguía diciendo lo de antes, y lo que marcabas al revisar dejaba de ser
+// lo que se apuntaba al devolver.
 //
-// El vínculo entre las dos caras es la ETIQUETA de la causa, comparada por su
-// clave normalizada. No es un id porque los ids los pone la base al sembrar y
-// no son los mismos en desarrollo que en el servidor. Si alguien retira o
-// renombra una causa, el punto se queda sin atajo y la guía sigue sirviendo:
-// no se rompe nada, solo deja de preseleccionar.
-//
-// SON DE LONAS (lona, aumentos, simetría, corte). Para toldos o camiones harán
-// falta otros, y cuando Ángel los dicte se añaden aquí y en las causas.
+// POR FAMILIA. Una causa sin familia vale para todo; con familia, solo sale en
+// los trabajos de esa. Así el que revisa una funda no tiene delante ocho puntos
+// sobre aumentos y simetría de lona.
 
+/** Lo que hace falta de una causa para pintar la guía. Es un subconjunto de
+ *  `CausaDevolucion` a propósito: así esto no arrastra el tipo del servidor ni
+ *  el del cliente, y sirve para los dos. */
 export interface PuntoGuia {
-  id: string;
-  /** Lo que se comprueba, en positivo. Es lo que se lee mientras se revisa. */
+  id: number;
+  /** Lo que se comprueba, en positivo. */
   mira: string;
-  /** La causa que se marca si ese punto falla, tal cual está sembrada. */
-  causa: string;
+  /** Lo que se marca si ese punto falla. */
+  etiqueta: string;
+  familia: string | null;
 }
 
-export const GUIA_REVISION: readonly PuntoGuia[] = [
-  { id: "medidas-lona", mira: "Medidas de la lona hecha", causa: "Medidas de la lona mal" },
-  { id: "medidas-aumentos", mira: "Medidas de los aumentos", causa: "Medidas de los aumentos mal" },
-  { id: "tipo-lona", mira: "Tipo de lona", causa: "Tipo de lona equivocado" },
-  {
-    id: "anotaciones-material",
-    mira: "Anotaciones de materiales",
-    causa: "Faltan anotaciones de material",
-  },
-  { id: "elementos", mira: "Están todos los elementos", causa: "Faltan elementos" },
-  { id: "piezas-corte", mira: "Todas las piezas en el corte", causa: "Faltan piezas en el corte" },
-  {
-    id: "medidas-corte",
-    mira: "Las medidas de corte corresponden",
-    causa: "Medidas de corte no corresponden",
-  },
-  { id: "simetria", mira: "Simetría hecha, si hace falta", causa: "Falta la simetría" },
-];
+interface CausaParaGuia {
+  id: number;
+  etiqueta: string;
+  familia: string | null;
+  mira: string | null;
+  retirada?: boolean;
+}
+
+/** Los puntos que hay que repasar en un trabajo de estas familias.
+ *
+ *  Una OF tiene una familia; un pedido puede traer varias (un toldo y su lona),
+ *  y entonces se repasan las de todas — el revisor está mirando las dos cosas.
+ *
+ *  Las genéricas van primero: son las que valen para cualquier trabajo, y
+ *  empezar por ellas es el orden en que se revisa. Las retiradas no entran: se
+ *  retiran precisamente para dejar de pedirlas. */
+export function guiaDeFamilias(
+  causas: readonly CausaParaGuia[],
+  familias: readonly string[],
+): PuntoGuia[] {
+  const suyas = new Set(familias.map((f) => f.toUpperCase()));
+  return causas
+    .filter((c) => !c.retirada && c.mira)
+    .filter((c) => c.familia === null || suyas.has(c.familia.toUpperCase()))
+    .map((c) => ({ id: c.id, mira: c.mira!, etiqueta: c.etiqueta, familia: c.familia }));
+}
 
 /** Cómo está cada punto para quien revisa.
  *
@@ -53,30 +63,33 @@ export const GUIA_REVISION: readonly PuntoGuia[] = [
  *  saber si queda trabajo. */
 export type EstadoPunto = "sin_mirar" | "bien" | "falla";
 
-/** Las causas que hay que llevar a la devolución, según lo marcado.
+/** Los ids de las causas que hay que llevar marcadas a la devolución.
  *
- *  Devuelve ETIQUETAS y no ids: quien las pinta las resuelve contra la lista
- *  viva de causas (ver `idsDeCausas`), que es la que sabe los ids de esta
- *  instalación. */
-export function causasDeLoQueFalla(marcas: Readonly<Record<string, EstadoPunto>>): string[] {
-  return GUIA_REVISION.filter((p) => marcas[p.id] === "falla").map((p) => p.causa);
-}
-
-/** Los ids de esas causas dentro de la lista que hoy se ofrece.
- *
- *  Las que no estén —retiradas, o renombradas por alguien— se caen sin ruido:
- *  el revisor verá el cuadro de devolver con una causa menos marcada, que es
- *  mejor que un error por algo que él no ha hecho. */
-export function idsDeCausas(
-  etiquetas: readonly string[],
-  causas: ReadonlyArray<{ id: number; etiqueta: string }>,
+ *  Ids y no etiquetas: ahora los puntos vienen de la misma tabla que las
+ *  causas, así que ya se sabe cuál es cada una y no hay nada que resolver. */
+export function causasDeLoQueFalla(
+  puntos: readonly PuntoGuia[],
+  marcas: Readonly<Record<number, EstadoPunto>>,
 ): number[] {
-  const porClave = new Map(causas.map((c) => [claveDeCausa(c.etiqueta), c.id]));
-  return etiquetas.map((e) => porClave.get(claveDeCausa(e))).filter((id): id is number => id !== undefined);
+  return puntos.filter((p) => marcas[p.id] === "falla").map((p) => p.id);
 }
 
 /** Cuántos puntos quedan por mirar. Es lo que decide si se puede aprobar con
  *  tranquilidad o si la revisión se quedó a medias. */
-export function sinMirar(marcas: Readonly<Record<string, EstadoPunto>>): number {
-  return GUIA_REVISION.filter((p) => (marcas[p.id] ?? "sin_mirar") === "sin_mirar").length;
+export function sinMirar(
+  puntos: readonly PuntoGuia[],
+  marcas: Readonly<Record<number, EstadoPunto>>,
+): number {
+  return puntos.filter((p) => (marcas[p.id] ?? "sin_mirar") === "sin_mirar").length;
+}
+
+/** ¿Dice ya lo mismo que otra? Lo usa la pantalla de edición para avisar ANTES
+ *  de guardar, en vez de dejar que el servidor conteste con un choque. */
+export function yaExiste(
+  etiqueta: string,
+  causas: readonly { id: number; etiqueta: string }[],
+  exceptoId?: number,
+): boolean {
+  const clave = claveDeCausa(etiqueta);
+  return causas.some((c) => c.id !== exceptoId && claveDeCausa(c.etiqueta) === clave);
 }

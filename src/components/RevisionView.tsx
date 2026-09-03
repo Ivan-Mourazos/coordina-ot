@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
-import { causasDeLoQueFalla, type EstadoPunto } from "@/lib/guia-revision";
+import { causasDeLoQueFalla, guiaDeFamilias, type EstadoPunto } from "@/lib/guia-revision";
+import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
@@ -83,6 +84,18 @@ export function RevisionView({
     } catch {}
   };
   const mias = alcance === "mias";
+
+  // Las causas, una sola vez para toda la pantalla: de ellas salen la guía de
+  // cada tarjeta (su cara en positivo) y las píldoras del cuadro de devolver.
+  // Pedirlas por tarjeta serían decenas de consultas para la misma lista.
+  const [causas, setCausas] = useState<CausaDevolucion[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    leerCausas().then((cs) => vivo && setCausas(cs));
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const facetsDe = (estado: EstadoOF): RFacet[] =>
     mias
@@ -165,6 +178,7 @@ export function RevisionView({
             facets={col.facets}
             operarios={operarios}
             miId={miId}
+            causas={causas}
             onOpen={onOpen}
             onCambiarRevisor={onCambiarRevisor}
             onAccion={onAccion}
@@ -187,6 +201,7 @@ function ColumnaRevision({
   facets,
   operarios,
   miId,
+  causas,
   onOpen,
   onCambiarRevisor,
   onAccion,
@@ -198,6 +213,7 @@ function ColumnaRevision({
   facets: RFacet[];
   operarios: Operario[];
   miId: string | null;
+  causas: CausaDevolucion[];
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -228,6 +244,7 @@ function ColumnaRevision({
               estado={estado}
               operarios={operarios}
               miId={miId}
+              causas={causas}
               onOpen={() => onOpen(f.pedido)}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
@@ -288,6 +305,7 @@ function ReviewCard({
   estado,
   operarios,
   miId,
+  causas,
   onOpen,
   onCambiarRevisor,
   onAccion,
@@ -296,6 +314,10 @@ function ReviewCard({
   estado: EstadoOF;
   operarios: Operario[];
   miId: string | null;
+  /** Todas las que se ofrecen hoy. De aquí salen la guía de esta tarjeta (su
+   *  cara en positivo) y las píldoras del cuadro de devolver, unas y otras
+   *  acotadas a las familias del pedido. */
+  causas: CausaDevolucion[];
   onOpen: () => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -335,9 +357,14 @@ function ReviewCard({
   // porque de aquí sale lo que se le pasa a la devolución, que es el botón de
   // al lado. No se guarda en ninguna parte: es el dedo sobre el papel mientras
   // se repasa, y al cerrar la pantalla ya no hace falta.
-  const [marcas, setMarcas] = useState<Record<string, EstadoPunto>>({});
+  const [marcas, setMarcas] = useState<Record<number, EstadoPunto>>({});
   const [guiaAbierta, setGuiaAbierta] = useState(true);
-  const fallos = causasDeLoQueFalla(marcas);
+  // De qué es este trabajo: la guía y las causas se acotan a estas familias.
+  // Un pedido puede traer varias (un toldo y su lona) y se repasan las de
+  // todas, que es lo que hace el revisor.
+  const familias = [...new Set(ofs.map((o) => o.familia).filter(Boolean) as string[])];
+  const puntos = guiaDeFamilias(causas, familias);
+  const fallos = causasDeLoQueFalla(puntos, marcas);
 
   const selectorRevisor = (
     <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
@@ -441,6 +468,7 @@ function ReviewCard({
                 nada, y en las otras dos columnas ya se decidió. */}
             {puedo("devolver") && (
               <GuiaRevision
+                puntos={puntos}
                 marcas={marcas}
                 onMarcar={(id, e) => setMarcas((p) => ({ ...p, [id]: e }))}
                 abierta={guiaAbierta}
@@ -467,6 +495,7 @@ function ReviewCard({
                 }
                 miId={miId}
                 causasSugeridas={fallos}
+                familias={familias}
                 onDevolver={(obs) => accionTodas("devolver", obs)}
               />
             )}

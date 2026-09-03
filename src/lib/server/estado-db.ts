@@ -145,13 +145,24 @@ function abrir(): Database.Database {
     --
     -- No se borran, se RETIRAN: las devoluciones guardan el id, y borrar la
     -- causa dejaría el histórico apuntando a la nada.
+    -- La columna familia es de qué trabajo es esta causa (el código de RPS:
+    -- LONA, TOLDO, CAMION…). NULL = de todas, que son las genéricas.
+    --
+    -- La columna mira es la MISMA causa en positivo, para la guía de revisión:
+    -- "Medidas de la lona hecha" frente a "Medidas de la lona mal". Van en la
+    -- misma fila a propósito — en dos tablas se descuadran, y lo que se marca
+    -- al revisar tiene que ser exactamente lo que se apunta al devolver.
+    -- NULL = esta causa no sale en la guía.
     CREATE TABLE IF NOT EXISTS causa_devolucion (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       etiqueta   TEXT NOT NULL,
       clave      TEXT NOT NULL,
       retirada   INTEGER NOT NULL DEFAULT 0,
       creada_at  TEXT NOT NULL,
-      creada_por TEXT
+      creada_por TEXT,
+      familia    TEXT,
+      mira       TEXT,
+      orden      INTEGER NOT NULL DEFAULT 0
     );
     CREATE UNIQUE INDEX IF NOT EXISTS ux_causa_devolucion_clave
       ON causa_devolucion(clave);
@@ -330,6 +341,13 @@ const MIGRACIONES: ReadonlyArray<{
   // repartía los números entre dos que dicen lo mismo ("Error en medidas" y
   // "Medidas de la lona mal") y luego no se sabe cuál pesa.
   { version: 5, nombre: "causas_de_angel", aplicar: causasDeAngel },
+  // Las causas pasan a tener familia y cara en positivo, para que Ángel las
+  // edite desde la web en vez de pedírmelas a mí. Las suyas quedan como de
+  // LONA —hablan de aumentos, simetría y corte— y las tres que se retiraron en
+  // la migración 5 vuelven como genéricas: ahora que hay familias no compiten
+  // con las de lona, y con su id de siempre, así la devolución de agosto que
+  // apunta a "Error en medidas" sigue diciendo de qué fue.
+  { version: 6, nombre: "causas_por_familia", aplicar: causasPorFamilia },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -411,6 +429,70 @@ function causasDeAngel(db: Database.Database): void {
 
   const retirar = db.prepare("UPDATE causa_devolucion SET retirada = 1 WHERE clave = ?");
   for (const etiqueta of CAUSAS_ARRANQUE) retirar.run(claveDeCausa(etiqueta));
+}
+
+/** Las causas de Ángel, con su cara en positivo para la guía y su familia.
+ *
+ *  Van juntas y en el mismo sitio porque son la misma frase por las dos caras:
+ *  lo que se comprueba al revisar y lo que se apunta si falla. */
+const PUNTOS_DE_LONA: Array<{ mira: string; causa: string }> = [
+  { mira: "Medidas de la lona hecha", causa: "Medidas de la lona mal" },
+  { mira: "Medidas de los aumentos", causa: "Medidas de los aumentos mal" },
+  { mira: "Tipo de lona", causa: "Tipo de lona equivocado" },
+  { mira: "Anotaciones de materiales", causa: "Faltan anotaciones de material" },
+  { mira: "Están todos los elementos", causa: "Faltan elementos" },
+  { mira: "Todas las piezas en el corte", causa: "Faltan piezas en el corte" },
+  { mira: "Las medidas de corte corresponden", causa: "Medidas de corte no corresponden" },
+  { mira: "Simetría hecha, si hace falta", causa: "Falta la simetría" },
+];
+
+/** Las de TODOS los trabajos. Pocas y muy generales a propósito: son el punto
+ *  de partida para las familias que todavía no tienen las suyas, y lo que se
+ *  usa en un remolque o en una funda mientras nadie dicte las de ahí. */
+const PUNTOS_GENERICOS: Array<{ mira: string; causa: string }> = [
+  { mira: "Las medidas", causa: "Error en medidas" },
+  { mira: "Las cotas del croquis", causa: "Error en cotas" },
+  { mira: "El material apuntado", causa: "Material equivocado" },
+];
+
+/** Añade familia, cara en positivo y orden a las causas, y las reparte.
+ *
+ *  Con guarda de columna porque una base creada después de este cambio ya las
+ *  trae del CREATE TABLE, y ALTER sobre una columna que existe lanza.
+ *
+ *  Se puede repetir sin estropear nada: los textos se escriben POR CLAVE sobre
+ *  la fila que ya existe (sin tocar su id, al que apuntan las devoluciones), y
+ *  las que falten se crean. Lo que alguien haya editado a mano después se
+ *  vuelve a poner como aquí — es el precio de que la migración sea repetible, y
+ *  solo pasa una vez, al estrenar esta versión. */
+function causasPorFamilia(db: Database.Database): void {
+  const columnas = new Set(
+    (db.pragma("table_info(causa_devolucion)") as Array<{ name: string }>).map((c) => c.name),
+  );
+  if (!columnas.has("familia")) db.exec("ALTER TABLE causa_devolucion ADD COLUMN familia TEXT");
+  if (!columnas.has("mira")) db.exec("ALTER TABLE causa_devolucion ADD COLUMN mira TEXT");
+  if (!columnas.has("orden"))
+    db.exec("ALTER TABLE causa_devolucion ADD COLUMN orden INTEGER NOT NULL DEFAULT 0");
+
+  const ahora = new Date().toISOString();
+  const ins = db.prepare(
+    `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por, familia, mira, orden)
+     VALUES (?, ?, ?, NULL, ?, ?, ?)
+     ON CONFLICT(clave) DO UPDATE SET
+       familia  = excluded.familia,
+       mira     = excluded.mira,
+       orden    = excluded.orden,
+       -- Vuelven al servicio: las tres genéricas se habían retirado en la 5.
+       retirada = 0`,
+  );
+
+  const sembrar = (puntos: typeof PUNTOS_DE_LONA, familia: string | null) =>
+    puntos.forEach((p, i) =>
+      ins.run(p.causa, claveDeCausa(p.causa), ahora, familia, p.mira, i + 1),
+    );
+
+  sembrar(PUNTOS_GENERICOS, null);
+  sembrar(PUNTOS_DE_LONA, "LONA");
 }
 
 /** Pone al día el esquema. Cada migración va en su transacción y sella su
@@ -533,6 +615,16 @@ export interface CausaDevolucion {
   /** Retirada = ya no se ofrece al devolver, pero sigue existiendo para que
    *  las devoluciones que la usaron se puedan leer. */
   retirada: boolean;
+  /** De qué trabajo es (el código de familia de RPS: LONA, TOLDO…). null = de
+   *  todas. Las de una familia solo se ofrecen cuando la OF es de esa. */
+  familia: string | null;
+  /** La misma causa en positivo, para la guía de revisión ("Medidas de la lona
+   *  hecha" ↔ "Medidas de la lona mal"). null = no sale en la guía: se puede
+   *  marcar al devolver, pero no es un punto que haya que repasar. */
+  mira: string | null;
+  /** En qué orden se enseña dentro de su familia. Lo pone quien la escribe: el
+   *  orden de una guía no es alfabético, es el del repaso. */
+  orden: number;
 }
 
 /** Las causas de devolución. Con `incluirRetiradas` salen todas, que es lo
@@ -541,12 +633,32 @@ export interface CausaDevolucion {
 export function leerCausasDevolucion(incluirRetiradas = false): CausaDevolucion[] {
   const filas = abrir()
     .prepare(
-      `SELECT id, etiqueta, retirada FROM causa_devolucion
+      `SELECT id, etiqueta, retirada, familia, mira, orden FROM causa_devolucion
         ${incluirRetiradas ? "" : "WHERE retirada = 0"}
-        ORDER BY etiqueta COLLATE NOCASE`,
+        -- Primero las genéricas y luego cada familia; dentro, el orden que puso
+        -- quien las escribió. Alfabético dejaba la guía en un orden que no es
+        -- el del repaso, y el repaso tiene uno.
+        ORDER BY CASE WHEN familia IS NULL THEN 0 ELSE 1 END,
+                 familia COLLATE NOCASE,
+                 orden,
+                 etiqueta COLLATE NOCASE`,
     )
-    .all() as Array<{ id: number; etiqueta: string; retirada: number }>;
-  return filas.map((f) => ({ id: f.id, etiqueta: f.etiqueta, retirada: f.retirada === 1 }));
+    .all() as Array<{
+    id: number;
+    etiqueta: string;
+    retirada: number;
+    familia: string | null;
+    mira: string | null;
+    orden: number;
+  }>;
+  return filas.map((f) => ({
+    id: f.id,
+    etiqueta: f.etiqueta,
+    retirada: f.retirada === 1,
+    familia: f.familia,
+    mira: f.mira,
+    orden: f.orden,
+  }));
 }
 
 /** Crea una causa, o devuelve la que ya decía lo mismo.
@@ -563,26 +675,107 @@ export function leerCausasDevolucion(incluirRetiradas = false): CausaDevolucion[
 export function crearCausaDevolucion(
   etiqueta: string,
   operarioId: string | null,
+  extras: { familia?: string | null; mira?: string | null } = {},
 ): CausaDevolucion {
   const db = abrir();
   const limpia = etiqueta.trim();
   const clave = claveDeCausa(limpia);
+  const familia = extras.familia?.trim() || null;
+  const mira = extras.mira?.trim() || null;
   return db.transaction(() => {
     const ya = db
-      .prepare("SELECT id, etiqueta, retirada FROM causa_devolucion WHERE clave = ?")
-      .get(clave) as { id: number; etiqueta: string; retirada: number } | undefined;
+      .prepare(
+        "SELECT id, etiqueta, retirada, familia, mira, orden FROM causa_devolucion WHERE clave = ?",
+      )
+      .get(clave) as
+      | {
+          id: number;
+          etiqueta: string;
+          retirada: number;
+          familia: string | null;
+          mira: string | null;
+          orden: number;
+        }
+      | undefined;
     if (ya) {
       if (ya.retirada === 1)
         db.prepare("UPDATE causa_devolucion SET retirada = 0 WHERE id = ?").run(ya.id);
-      return { id: ya.id, etiqueta: ya.etiqueta, retirada: false };
+      return { ...ya, retirada: false };
     }
+    // Al final de su familia: quien la crea la está añadiendo, no colándola
+    // entre las que ya se repasan.
+    const ultimo = db
+      .prepare(
+        `SELECT MAX(orden) AS n FROM causa_devolucion
+          WHERE familia IS ?`,
+      )
+      .get(familia) as { n: number | null };
+    const orden = (ultimo.n ?? 0) + 1;
     const r = db
       .prepare(
-        `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO causa_devolucion (etiqueta, clave, creada_at, creada_por, familia, mira, orden)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(limpia, clave, new Date().toISOString(), operarioId);
-    return { id: Number(r.lastInsertRowid), etiqueta: limpia, retirada: false };
+      .run(limpia, clave, new Date().toISOString(), operarioId, familia, mira, orden);
+    return { id: Number(r.lastInsertRowid), etiqueta: limpia, retirada: false, familia, mira, orden };
+  })();
+}
+
+/** Cambia el texto, la familia o la cara en positivo de una causa.
+ *
+ *  Se edita la MISMA fila y no se crea otra: las devoluciones guardan el id, y
+ *  duplicarla partiría en dos el histórico de un mismo fallo. Corregir una
+ *  falta de ortografía o afinar la frase tiene que poder hacerse sin perder lo
+ *  contado hasta hoy.
+ *
+ *  La clave se recalcula al cambiar la etiqueta, que es lo que sigue evitando
+ *  que acaben existiendo "Falta la simetría" y "falta la simetria". Si ya hay
+ *  otra con esa clave, no se toca nada y se devuelve null: quien edita verá que
+ *  esa causa ya existe.
+ *
+ *  `mira` a cadena vacía la saca de la guía; a texto, la mete. Es la misma
+ *  edición porque son la misma frase por las dos caras. */
+export function editarCausaDevolucion(
+  id: number,
+  cambios: { etiqueta?: string; familia?: string | null; mira?: string | null; orden?: number },
+): CausaDevolucion | null {
+  const db = abrir();
+  return db.transaction(() => {
+    const fila = db
+      .prepare(
+        "SELECT id, etiqueta, retirada, familia, mira, orden FROM causa_devolucion WHERE id = ?",
+      )
+      .get(id) as
+      | {
+          id: number;
+          etiqueta: string;
+          retirada: number;
+          familia: string | null;
+          mira: string | null;
+          orden: number;
+        }
+      | undefined;
+    if (!fila) return null;
+
+    const etiqueta = cambios.etiqueta?.trim() || fila.etiqueta;
+    const clave = claveDeCausa(etiqueta);
+    const choca = db
+      .prepare("SELECT id FROM causa_devolucion WHERE clave = ? AND id <> ?")
+      .get(clave, id) as { id: number } | undefined;
+    if (choca) return null;
+
+    const familia =
+      cambios.familia === undefined ? fila.familia : (cambios.familia?.trim() || null);
+    const mira = cambios.mira === undefined ? fila.mira : (cambios.mira?.trim() || null);
+    const orden = cambios.orden === undefined ? fila.orden : cambios.orden;
+
+    db.prepare(
+      `UPDATE causa_devolucion
+          SET etiqueta = ?, clave = ?, familia = ?, mira = ?, orden = ?
+        WHERE id = ?`,
+    ).run(etiqueta, clave, familia, mira, orden, id);
+
+    return { id, etiqueta, retirada: fila.retirada === 1, familia, mira, orden };
   })();
 }
 
