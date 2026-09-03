@@ -1,5 +1,36 @@
 [
   {
+    "id": "2026-09-03-3",
+    "hasta": "4ced8a4",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes cambiar tú la lista de causas y la guía de revisión",
+        "detalle": "En el menú, «Qué mirar al revisar» › «Cambiar la lista». Ya no hace falta tener una OF que devolver para añadir o corregir una causa."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El porcentaje de devoluciones de un mes ya no puede pasar del 100 %",
+        "detalle": "Septiembre llegó a decir 117 %. Las devoluciones cuya revisión no quedó apuntada contaban a medias."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los planteamientos salen de la última versión a la primera",
+        "detalle": "Antes aparecían desordenados (la 0, luego la 2, luego la 1)."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El Historial vuelve a estar ordenado por cuándo se pasó cada pedido",
+        "detalle": "Los últimos, arriba. Antes mandaba la fecha en que RPS cerraba la ficha, que no es la misma y va a saltos."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Cada trabajo enseña sus propios puntos de revisión",
+        "detalle": "Las de lona salen en las lonas, y las de siempre en todo. Quien revisa una funda ya no tiene delante ocho puntos sobre aumentos y simetría."
+      }
+    ]
+  },
+  {
     "id": "2026-09-03-2",
     "hasta": "12b4ec2",
     "cambios": [
