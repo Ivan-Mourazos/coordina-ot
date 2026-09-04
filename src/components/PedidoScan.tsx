@@ -52,7 +52,21 @@ const INK = "#3b3a36"; // tinta impresa
 const INK_SOFT = "#8a877f";
 const LINE = "#d8d4ca";
 
-export function PedidoScan({ pedido }: { pedido: Pedido }) {
+export function PedidoScan({
+  pedido,
+  conAviso = false,
+}: {
+  pedido: Pedido;
+  /** Dice EN LA HOJA que lo que se ve es la réplica y no el parte de verdad.
+   *
+   *  Hace falta donde el parte se mira para trabajar —la ficha, el visor
+   *  grande—, porque la réplica se parece bastante al impreso y se lee como si
+   *  fuera el escaneo: AR.26.04359 llegó hoy, su parte no estaba escaneado
+   *  todavía, y la ficha lo enseñaba dibujado sin decir nada. En la tarjeta y
+   *  en el Quick Look no: ahí es un adorno de 200 px que se ve de refilón, y
+   *  una cinta encima sería ruido en la mitad del tablero. */
+  conAviso?: boolean;
+}) {
   // Imagen real del parte (miniatura del PDF o foto de RPS). Si carga bien se
   // muestra; si el endpoint da 404 (no hay PDF), se cae a la réplica dibujada.
   const imagen = imagenDe(pedido);
@@ -229,6 +243,42 @@ export function PedidoScan({ pedido }: { pedido: Pedido }) {
 
       {/* sombra de escaneo en el borde */}
       <rect x="0.5" y="0.5" width="209" height="296" rx="2.5" fill="url(#scanShade)" pointerEvents="none" />
+
+      {/* LO QUE SE ESTÁ VIENDO NO ES EL PARTE. Va sobre la hoja y no en un
+          rótulo al lado porque el equívoco lo produce la hoja: quien la mira de
+          reojo ve un impreso de Toldos Gómez con su número y su cliente, y da
+          por hecho que es el escaneo. Encima del papel no hay forma de
+          confundirse.
+          Ámbar y no rojo: no es un error de nadie: es que el parte todavía no
+          ha pasado por el escáner. */}
+      {conAviso && (
+        <g pointerEvents="none">
+          <rect x="0" y="126" width="210" height="26" fill="#fff4e0" opacity="0.94" />
+          <rect x="0" y="126" width="210" height="0.6" fill="#e0a33a" />
+          <rect x="0" y="151.4" width="210" height="0.6" fill="#e0a33a" />
+          <text
+            x="105"
+            y="137"
+            textAnchor="middle"
+            fontSize="7"
+            fontWeight="700"
+            fill="#8a5a10"
+            fontFamily="ui-sans-serif, system-ui, sans-serif"
+          >
+            El parte todavía no está escaneado
+          </text>
+          <text
+            x="105"
+            y="146.5"
+            textAnchor="middle"
+            fontSize="5"
+            fill="#8a5a10"
+            fontFamily="ui-sans-serif, system-ui, sans-serif"
+          >
+            Esto es una réplica con los datos del pedido, no el papel de verdad
+          </text>
+        </g>
+      )}
       <defs>
         <linearGradient id="scanShade" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#000" stopOpacity="0.05" />

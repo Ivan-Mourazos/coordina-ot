@@ -65,7 +65,7 @@ export function ScanViewer({ pedido, onClose }: { pedido: Pedido; onClose: () =>
             onClick={(e) => e.stopPropagation()}
             className="aspect-[210/297] h-full max-h-full overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-white/20"
           >
-            <PedidoScan pedido={pedido} />
+            <PedidoScan pedido={pedido} conAviso />
           </div>
         )}
       </div>

@@ -203,6 +203,33 @@ export function Drawer({
   }, []);
   const [marcasGuia, setMarcasGuia] = useState<Record<number, EstadoPunto>>({});
   const [guiaAbierta, setGuiaAbierta] = useState(true);
+
+  // ¿Está escaneado el parte? `null` = todavía sin comprobar, y ahí se pinta el
+  // marco: lo normal es que exista, y esperar a la comprobación metería un
+  // parpadeo en todos los pedidos por culpa de los pocos que faltan. Solo un
+  // 404 explícito lo da por ausente; sin red o con el share caído se sigue
+  // intentando enseñar, que esconder el parte por un fallo de camino sería
+  // peor. Copiado del drawer del Historial, que ya lo resolvió así.
+  const [scanExiste, setScanExiste] = useState<boolean | null>(null);
+  const scanUrl = pedido?.scanUrl ?? null;
+  useEffect(() => {
+    if (!scanUrl) return;
+    let vivo = true;
+    const id = setTimeout(() => {
+      setScanExiste(null);
+      fetch(scanUrl, { method: "HEAD" })
+        .then((r) => {
+          if (vivo) setScanExiste(r.status !== 404);
+        })
+        .catch(() => {
+          if (vivo) setScanExiste(true);
+        });
+    }, 0);
+    return () => {
+      vivo = false;
+      clearTimeout(id);
+    };
+  }, [scanUrl]);
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
@@ -318,7 +345,14 @@ export function Drawer({
         onClick={onClose}
       >
         <div className="min-h-0 flex-1">
-          {esPdf ? (
+          {/* SE COMPRUEBA QUE EL PDF ESTÁ ANTES DE PONERLO EN EL MARCO. Un
+              pedido de hoy suele llegar antes de que alguien escanee su parte
+              (AR.26.04359 llegó el 04/09 y en el share los escaneos de ese día
+              iban tres pedidos por detrás), y el visor del navegador enseñaba
+              su propia página de error —"PDF no encontrado", en crudo, sobre
+              fondo blanco—, que se lee como que la web está rota. Mismo
+              criterio que el drawer del Historial. */}
+          {esPdf && scanExiste !== false ? (
             <iframe
               src={`${pedido.scanUrl}#page=1&view=Fit`}
               title={`Pedido ${pedido.codigo}`}
@@ -330,7 +364,7 @@ export function Drawer({
               onClick={(e) => e.stopPropagation()}
               className="h-full w-full bg-[#525659] p-4"
             >
-              <PedidoScan pedido={pedido} />
+              <PedidoScan pedido={pedido} conAviso />
             </div>
           )}
         </div>
