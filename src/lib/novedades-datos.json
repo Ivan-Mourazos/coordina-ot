@@ -1,5 +1,31 @@
 [
   {
+    "id": "2026-09-04",
+    "hasta": "bce5ced",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes acercarte a las fotos sin bajarlas",
+        "detalle": "Con la rueda del ratón o los botones + y −. Ampliada se arrastra, y el doble clic acerca y aleja."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Salen las fotos de la instalación y las de todas las visitas del pedido",
+        "detalle": "Antes solo se veían algunas. Ahora está también lo que suben los instaladores al acabar el montaje, sin ir a RPS ni a Monitorización."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al devolver puedes elegir qué OF vuelve y cuál no",
+        "detalle": "Si el fallo es de una sola, la desmarcas del resto y las demás siguen su camino. Por defecto vuelven todas, como hasta ahora."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del Historial abre más rápido y va más al grano",
+        "detalle": "Se han quitado «Lo vendido» y «Montaje y envío»: es lo mismo que pone el parte que tienes al lado."
+      }
+    ]
+  },
+  {
     "id": "2026-09-03-3",
     "hasta": "4ced8a4",
     "cambios": [
