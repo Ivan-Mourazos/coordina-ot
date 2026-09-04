@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTablero } from "@/lib/data";
 import { seccionDeOperario } from "@/lib/server/operarios";
 import { esSeccionId } from "@/lib/secciones";
+import { versionDelServidor } from "@/lib/server/version";
 
 // ─── GET /api/tablero ────────────────────────────────────────────────────────
 // Tablero completo (RPS/mock + overlay) para el polling de sincronización del
@@ -33,6 +34,18 @@ export async function GET(req: Request) {
       : undefined;
   const tablero = await getTablero(seccion);
   return NextResponse.json(tablero, {
-    headers: { "Cache-Control": "no-store" },
+    headers: {
+      "Cache-Control": "no-store",
+      // QUÉ VERSIÓN ESTÁ SIRVIENDO ESTE SERVIDOR. Va como cabecera y no dentro
+      // del JSON para no tocar el tipo del tablero por algo que no es del
+      // tablero. El Board ya pregunta aquí cada 30 s: comparándola con la que
+      // tenía al cargar se entera de un despliegue sin una sola petición más.
+      //
+      // Hace falta porque una pestaña abierta desde antes se queda con el
+      // código viejo, y con Next eso además se rompe: los trozos de JavaScript
+      // de la versión anterior ya no existen en el servidor y al navegar dan
+      // 404. Ver `VersionNueva`.
+      "X-Coordina-Version": versionDelServidor(),
+    },
   });
 }
