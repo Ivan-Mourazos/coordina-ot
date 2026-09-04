@@ -10,6 +10,7 @@ import {
 } from "@/lib/devolucion";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { crearCausa, leerCausas } from "@/lib/causas-cliente";
+import { SelectorOFs, useElegidas } from "./SelectorOFs";
 
 /** Devolución con causas y motivo escrito ahí mismo (sustituye al window.prompt).
  *
@@ -73,26 +74,11 @@ export function DevolverInline({
   // A cuáles va. Empieza con TODAS marcadas: es lo que hacía antes este botón,
   // y lo normal sigue siendo que el pedido vuelva entero. Quitar las que están
   // bien es un gesto de más para el caso raro, no al revés.
-  const [ofsElegidas, setOfsElegidas] = useState<string[]>(() =>
-    (ofs ?? []).map((o) => o.id),
-  );
-
-  // DEVOLVER DE UNA EN UNA, cada una con su texto. Al confirmar la primera,
-  // esa OF deja de estar en revisión y desaparece de `ofs`; sin esto, el
-  // cuadro se quedaba abierto con la nota de la anterior escrita y marcando
-  // una OF que ya no está — y el siguiente "Confirmar" no habría devuelto
-  // nada. Se poda lo que ya no existe y, si no queda nada marcado, se marcan
-  // las que quedan: el revisor sigue escribiendo la nota de la siguiente.
   //
-  // Durante el render y no en un efecto, como el resto de la casa.
-  const idsActuales = (ofs ?? []).map((o) => o.id).join("|");
-  const [idsPrevios, setIdsPrevios] = useState(idsActuales);
-  if (idsActuales !== idsPrevios) {
-    setIdsPrevios(idsActuales);
-    const vivas = ofsElegidas.filter((id) => (ofs ?? []).some((o) => o.id === id));
-    setOfsElegidas(vivas.length > 0 ? vivas : (ofs ?? []).map((o) => o.id));
-  }
-
+  // El hook poda solo las que van desapareciendo al encadenar devoluciones
+  // (ver useElegidas): se devuelve una, sale de revisión, y el cuadro se
+  // queda con las que quedan.
+  const [ofsElegidas, setOfsElegidas] = useElegidas(ofs ?? []);
   // La lista se pide al abrir, no al montar: hay una de estas por cada OF de la
   // pantalla y pedirlas todas de golpe serían decenas de consultas para algo
   // que casi nunca se usa.
@@ -182,78 +168,59 @@ export function DevolverInline({
   return (
     <div className="w-full rounded-lg bg-red-500/10 p-2 ring-1 ring-red-500/30">
       {/* A CUÁLES VUELVE, lo primero: decide sobre qué va todo lo de abajo.
-          Solo con más de una — con una sola no hay nada que elegir y preguntar
-          sobraría. El fallo suele ser de UNA (la cota de la lona 2 de un pedido
-          de cinco), y hasta ahora la nota iba a las cinco: cuatro personas
-          leyendo que corrijan algo que está bien. */}
-      {ofs && ofs.length > 1 && (
-        <div className="mb-2">
-          <p className="mb-1 text-[11px] font-semibold text-text">¿Qué vuelve?</p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {ofs.map((o) => {
-              const puesta = ofsElegidas.includes(o.id);
-              return (
-                <button
-                  key={o.id}
-                  onClick={() =>
-                    setOfsElegidas((p) =>
-                      p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id],
-                    )
-                  }
-                  aria-pressed={puesta}
-                  className={`rounded-md px-2 py-1 font-mono text-[11px] font-semibold ring-1 ${
-                    puesta
-                      ? "bg-red-600 text-white ring-transparent"
-                      : "text-text-muted ring-border hover:text-text"
-                  }`}
-                >
-                  {o.codigo}
-                </button>
-              );
-            })}
-            {ofsElegidas.length !== ofs.length && (
-              <button
-                onClick={() => setOfsElegidas(ofs.map((o) => o.id))}
-                className="text-[10px] font-semibold text-text-muted underline underline-offset-2 hover:text-text"
-              >
-                todas
-              </button>
-            )}
-          </div>
-        </div>
+          El fallo suele ser de UNA (la cota de la lona 2 de un pedido de cinco),
+          y hasta ahora la nota iba a las cinco. */}
+      {ofs && (
+        <SelectorOFs ofs={ofs} elegidas={ofsElegidas} onCambiar={setOfsElegidas} tono="devolver" />
       )}
-
       <p className="mb-1.5 text-[11px] font-semibold text-text">¿Por qué vuelve al autor?</p>
 
-      <div className="flex flex-wrap gap-1.5">
-        {ofrecidas.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => alternar(c.id)}
-            aria-pressed={elegidas.includes(c.id)}
-            className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ${
-              elegidas.includes(c.id)
-                ? "bg-red-600 text-white ring-transparent"
-                : "text-text-muted ring-border hover:text-text"
-            }`}
-          >
-            {c.etiqueta}
-          </button>
-        ))}
-        {nueva === null && (
-          <button
-            onClick={() => {
-              setNueva("");
-              // El foco al campo en cuanto exista, que si no hay que volver a
-              // pulsar para escribir.
-              setTimeout(() => campoNueva.current?.focus(), 0);
-            }}
-            className="rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted ring-1 ring-dashed ring-border hover:text-text"
-          >
-            + Nueva causa
-          </button>
-        )}
-      </div>
+      {/* UNA POR LÍNEA, no en fila envuelta. Empezaron siendo tres píldoras y
+          cabían de sobra; ahora son once y se amontonaban en un panel de columna
+          —dos y media por renglón, cada una empezando donde acababa la anterior—
+          y había que leérselas todas para encontrar la que se busca. En columna
+          se recorren con la vista de arriba abajo, que es como se lee una lista.
+          Y la casilla delante dice de un vistazo cuáles llevas marcadas. */}
+      <ul className="flex flex-col gap-px">
+        {ofrecidas.map((c) => {
+          const puesta = elegidas.includes(c.id);
+          return (
+            <li key={c.id}>
+              <button
+                onClick={() => alternar(c.id)}
+                aria-pressed={puesta}
+                className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] leading-snug hover:bg-red-500/10 ${
+                  puesta ? "font-semibold text-text" : "text-text-muted"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`grid size-3.5 shrink-0 place-items-center rounded text-[9px] font-bold ${
+                    puesta ? "bg-red-600 text-white" : "ring-1 ring-border"
+                  }`}
+                >
+                  {puesta ? "✓" : ""}
+                </span>
+                {c.etiqueta}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {nueva === null && (
+        <button
+          onClick={() => {
+            setNueva("");
+            // El foco al campo en cuanto exista, que si no hay que volver a
+            // pulsar para escribir.
+            setTimeout(() => campoNueva.current?.focus(), 0);
+          }}
+          className="mt-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-text-muted underline underline-offset-2 hover:text-text"
+        >
+          + Nueva causa
+        </button>
+      )}
 
       {nueva !== null && (
         <div className="mt-1.5">

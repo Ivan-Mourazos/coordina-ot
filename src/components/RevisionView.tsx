@@ -12,8 +12,8 @@ import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
+import { AprobarInline } from "./AprobarInline";
 import { NotaDevolucion } from "./NotaDevolucion";
-import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot } from "./Select";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
@@ -350,8 +350,6 @@ function ReviewCard({
 
   // Confirmación de "Aprobar" desde la máquina de estados: mismo texto y tono
   // que el botón equivalente del Drawer.
-  const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
-  const { pedirConfirmacion, dialogo } = useConfirmacion(() => accionTodas("aprobar"));
 
   // Lo que la guía lleva marcado en ESTE grupo. Vive aquí y no en la guía
   // porque de aquí sale lo que se le pasa a la devolución, que es el botón de
@@ -475,19 +473,18 @@ function ReviewCard({
                 onAbrir={setGuiaAbierta}
               />
             )}
+            {/* Aprobar TAMBIÉN deja elegir a cuáles. Antes era del grupo
+                entero, y eso obligaba a un orden que no estaba escrito en
+                ninguna parte: había que devolver primero las malas, porque
+                aprobando se llevaba por delante las tres. Ahora se puede
+                aprobar la que está bien y después ir escribiendo las notas de
+                las otras, o al revés. */}
             {puedo("aprobar") && (
-              <button
-                onClick={() => pedirConfirmacion(defAprobar)}
-                className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
-              >
-                {/* Con varias, el botón DICE cuántas aprueba. Devolver ya deja
-                    elegir a cuáles va; aprobar sigue siendo del grupo entero, y
-                    un botón que pone "Aprobar" a secas delante de tres OF no
-                    avisa de que las está aprobando las tres. Si una no vale, se
-                    devuelve primero —sale del grupo— y este botón se queda con
-                    las que de verdad están bien. */}
-                {ofs.length > 1 ? `Aprobar las ${ofs.length}` : "Aprobar"}
-              </button>
+              <AprobarInline
+                ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
+                onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
+                label={ofs.length > 1 ? `Aprobar las ${ofs.length}` : "Aprobar"}
+              />
             )}
             {puedo("devolver") && (
               <DevolverInline
@@ -512,7 +509,7 @@ function ReviewCard({
                 }
               />
             )}
-            {dialogo}
+
           </>
         )}
         {estado === "aprobada" && (

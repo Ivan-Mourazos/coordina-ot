@@ -8,6 +8,9 @@ import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { DevolverInline } from "./DevolverInline";
+import { GuiaRevision } from "./GuiaRevision";
+import { causasDeLoQueFalla, guiaDeFamilias, type EstadoPunto } from "@/lib/guia-revision";
+import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
@@ -182,6 +185,24 @@ export function Drawer({
   const idsAConfirmar = useRef<string[]>([]);
   const confirmacionPedido = useConfirmacion((a) => onAccion(idsAConfirmar.current, a.id));
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
+
+  // La guía de revisión, la misma que en el panel de Revisiones. Las causas se
+  // piden una vez por ficha: de ellas salen los puntos que hay que repasar (su
+  // cara en positivo) y las píldoras del cuadro de devolver.
+  //
+  // Aquí arriba con el resto de hooks y no junto a lo que las usa: abajo hay un
+  // `if (!pedido) return null` de por medio, y un hook detrás de un return se
+  // salta en unos renders y en otros no.
+  const [causasRevision, setCausasRevision] = useState<CausaDevolucion[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    leerCausas().then((cs) => vivo && setCausasRevision(cs));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const [marcasGuia, setMarcasGuia] = useState<Record<number, EstadoPunto>>({});
+  const [guiaAbierta, setGuiaAbierta] = useState(true);
   // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
   // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
@@ -274,6 +295,12 @@ export function Drawer({
   // Aprobar de golpe pide confirmación, como la de una sola: es el final del
   // camino y multiplicado por ocho, más.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
+
+  const familiasDelPedido = [
+    ...new Set(ofsDeOT.map((o) => o.familia).filter(Boolean) as string[]),
+  ];
+  const puntosGuia = guiaDeFamilias(causasRevision, familiasDelPedido);
+  const fallosGuia = causasDeLoQueFalla(puntosGuia, marcasGuia);
 
   return (
     <div
@@ -553,20 +580,41 @@ export function Drawer({
             </span>
           </div>
 
-          {/* Devolver el parte entero, con UNA nota para todas. Va en su propia
-              fila y no arriba con los demás porque al abrirse despliega el
-              campo del motivo a lo ancho, y en la fila de botones no cabe.
-              Mismo criterio que el selector de revisor de aquí debajo.
+          {/* LA GUÍA TAMBIÉN AQUÍ. Estaba solo en el panel de Revisiones, y
+              revisar desde la ficha —que es donde se está cuando ya tienes el
+              pedido abierto— dejaba fuera los ocho puntos y las causas
+              marcadas. O se llevaba la guía aquí, o había que prohibir revisar
+              desde la ficha; prohibirlo obligaba a cambiar de pestaña para algo
+              de un clic, en el sitio donde el equipo está todo el día.
+              Se marca lo que falla y llega puesto al cuadro de devolver, igual
+              que allí. */}
+          {paraDevolver.length > 0 && (
+            <div className="mb-2">
+              <GuiaRevision
+                puntos={puntosGuia}
+                marcas={marcasGuia}
+                onMarcar={(id, e) => setMarcasGuia((p) => ({ ...p, [id]: e }))}
+                abierta={guiaAbierta}
+                onAbrir={setGuiaAbierta}
+              />
+            </div>
+          )}
 
-              UNA nota para las N, como ya hace la vista de Revisión: lo que se
-              escribe es por qué vuelve el PARTE, y repetir el mismo texto ocho
-              veces no dice nada más. La que necesite un motivo propio se
-              devuelve desde su fila, que sigue teniendo el suyo. */}
+          {/* Devolver el parte entero. Va en su propia fila y no arriba con los
+              demás porque al abrirse despliega el campo del motivo a lo ancho,
+              y en la fila de botones no cabe. Mismo criterio que el selector de
+              revisor de aquí debajo. */}
           {paraDevolver.length > 1 && (
             <div className="mb-2 flex justify-end">
               <DevolverInline
-                label={`Devolver las ${paraDevolver.length}`}
+                label={
+                  fallosGuia.length > 0
+                    ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "causa" : "causas"}`
+                    : `Devolver las ${paraDevolver.length}`
+                }
                 miId={miId}
+                causasSugeridas={fallosGuia}
+                familias={familiasDelPedido}
                 // Aquí también se pueden descartar las que están bien, aunque
                 // cada fila siga teniendo su propio botón: quien abre este ya
                 // tiene el cuadro delante y no debería cerrarlo para ir a la
