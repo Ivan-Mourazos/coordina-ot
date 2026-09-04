@@ -76,9 +76,19 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
   Técnica):
 
 ```bash
+# Node vive bajo nvm (/root/.nvm/versions/node/vXX/bin/node) y cron no hereda
+# el PATH: sin esto, la línea de abajo no encuentra `node` y la copia no se
+# hace, en silencio. El enlace deja un único sitio que tocar el día que se
+# actualice Node.
+ln -sf "$(which node)" /usr/local/bin/node
+
 # /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días)
-0 21 * * * root cd /webs/coordina-ot && /usr/bin/node scripts/backup-db.mjs /mnt/oftecnica/coordina-backups >> logs/backup.log 2>&1
+0 21 * * * root cd /webs/coordina-ot && /usr/local/bin/node scripts/backup-db.mjs /mnt/oftecnica/coordina-backups >> logs/backup.log 2>&1
 ```
+
+La copia va a DOS sitios: `data/backups/` (local, para recuperar rápido) y el
+share de Oficina Técnica (//192.168.4.113, para cuando el problema sea el
+disco de esta máquina).
 
 **NO se copia con `cp`.** La base va en modo WAL: lo escrito últimamente vive
 en `coordina.db-wal` hasta que SQLite lo integra, y ese fichero llega a ser
