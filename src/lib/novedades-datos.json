@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-04",
-    "hasta": "c07ba4c",
+    "hasta": "d93f34e",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -27,6 +27,11 @@
         "tipo": "nuevo",
         "titulo": "Al devolver puedes elegir qué OF vuelve y cuál no",
         "detalle": "Si el fallo es de una sola, la desmarcas del resto y las demás siguen su camino. Por defecto vuelven todas, como hasta ahora."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La web te avisa cuando se ha actualizado",
+        "detalle": "Sale una barra abajo con un botón para recargar. Puedes seguir a lo tuyo y pulsarla cuando te venga bien: no pierdes nada de lo que estés haciendo."
       },
       {
         "tipo": "arreglado",
