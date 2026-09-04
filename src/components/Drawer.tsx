@@ -567,7 +567,14 @@ export function Drawer({
               <DevolverInline
                 label={`Devolver las ${paraDevolver.length}`}
                 miId={miId}
-                onDevolver={(obs) => onAccion(paraDevolver.map((o) => o.id), "devolver", obs)}
+                // Aquí también se pueden descartar las que están bien, aunque
+                // cada fila siga teniendo su propio botón: quien abre este ya
+                // tiene el cuadro delante y no debería cerrarlo para ir a la
+                // fila de al lado.
+                ofs={paraDevolver.map((o) => ({ id: o.id, codigo: o.codigo }))}
+                onDevolver={(obs, ids) =>
+                  onAccion(ids ?? paraDevolver.map((o) => o.id), "devolver", obs)
+                }
               />
             </div>
           )}

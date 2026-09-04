@@ -496,7 +496,14 @@ function ReviewCard({
                 miId={miId}
                 causasSugeridas={fallos}
                 familias={familias}
-                onDevolver={(obs) => accionTodas("devolver", obs)}
+                // Se puede devolver SOLO la OF que falla. La nota iba al grupo
+                // entero: en un pedido de cinco, cuatro personas leían que
+                // corrigieran algo que estaba bien. Por defecto siguen
+                // marcadas todas, que es lo normal.
+                ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
+                onDevolver={(obs, ids) =>
+                  (ids ?? ofIds).forEach((id) => onAccion(id, "devolver", obs))
+                }
               />
             )}
             {dialogo}

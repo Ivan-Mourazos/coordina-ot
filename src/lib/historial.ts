@@ -513,19 +513,15 @@ export interface HistorialPedidoDetalle {
   ofs: HistorialOF[];
 
   /** Todo lo que RPS tiene colgado del pedido y de sus OF: planteamiento,
-   *  presupuesto, fotos, rotulación… Casi todos los pedidos llevan algo (3960
-   *  de 3962 en la serie AR.26, unos 4 documentos por pedido). */
+   *  presupuesto, fotos de la instalación y de las visitas, rotulación… Casi
+   *  todos los pedidos llevan algo (3960 de 3962 en la serie AR.26).
+   *
+   *  AQUÍ ESTABAN TAMBIÉN `comentariosLinea` (lo vendido, línea a línea) y
+   *  `comentarioEnvio` (el "FECHA SOLICITADA / PERSONAL / TIEMPO"). Se han ido
+   *  con los dos bloques que los pintaban: decían lo mismo que el parte
+   *  escaneado que se ve al lado a tamaño completo, y traerlos costaba una
+   *  consulta más a RPS en cada apertura de ficha. */
   documentos: DocumentoRps[];
-
-  /** Lo que se vendió, línea a línea (`FACOrderLineSL.Comment`). Es el texto
-   *  que describe el trabajo de verdad —medidas, modelo, color— y está casi
-   *  siempre relleno (7578 de 7585 líneas de 2026), al revés que el comentario
-   *  de cabecera. */
-  comentariosLinea: string[];
-
-  /** Instrucciones de montaje/envío del pedido ("FECHA SOLICITADA 07/09,
-   *  PERSONAL 2, TIEMPO 1 HORA"). La mitad de los pedidos lo llevan. */
-  comentarioEnvio: string | null;
 }
 
 /** Fila cruda de la cabecera del pedido (antes de mapear). */
@@ -552,8 +548,6 @@ function fechaSolicitudISO(v: Date | string | null): string | null {
  *  que el mock y los tests puedan armar un detalle sin tener que inventárselo. */
 export interface ExtrasDetalle {
   documentos?: DocumentoRps[];
-  comentariosLinea?: string[];
-  comentarioEnvio?: string | null;
 }
 
 export function cabeceraADetalle(
@@ -579,7 +573,5 @@ export function cabeceraADetalle(
     scanUrl: `/api/pedidos/${codigo}.pdf`,
     ofs,
     documentos: extras.documentos ?? [],
-    comentariosLinea: extras.comentariosLinea ?? [],
-    comentarioEnvio: extras.comentarioEnvio ?? null,
   };
 }

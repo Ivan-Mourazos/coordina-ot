@@ -251,33 +251,17 @@ export function HistorialDrawer({
                 </div>
               </dl>
 
-              {/* Lo que el pedido de venta dice, de lo concreto a lo general:
-                  primero qué se vendió, después cómo se monta, y al final el
-                  comentario de cabecera, que es el que menos se rellena (473 de
-                  3962 pedidos) y el que menos suele aportar. */}
-              {detalle.comentariosLinea.length > 0 && (
-                <Bloque titulo={`Lo vendido (${detalle.comentariosLinea.length})`}>
-                  <ul className="space-y-1.5">
-                    {detalle.comentariosLinea.map((c, i) => (
-                      <li
-                        key={i}
-                        className="whitespace-pre-line border-l-2 border-[var(--glass-border)] pl-2 text-[11px] leading-snug text-text"
-                      >
-                        {c}
-                      </li>
-                    ))}
-                  </ul>
-                </Bloque>
-              )}
+              {/* AQUÍ ESTABAN "Lo vendido" y "Montaje y envío", y se han ido.
+                  Los dos dicen lo mismo que el parte escaneado que se está
+                  viendo a la izquierda a tamaño completo —la descripción de lo
+                  vendido y el "FECHA SOLICITADA / PERSONAL / TIEMPO"—, y lo
+                  decían en bloques largos que empujaban hacia abajo lo que solo
+                  está aquí: las notas, los documentos y las OF con sus tiempos.
+                  Repetir lo que ya se ve al lado no es informar, es alargar.
 
-              {detalle.comentarioEnvio && (
-                <Bloque titulo="Montaje y envío">
-                  <p className="whitespace-pre-line text-[11px] leading-snug text-text">
-                    {detalle.comentarioEnvio}
-                  </p>
-                </Bloque>
-              )}
-
+                  El comentario del pedido SÍ se queda: ese no está en el parte,
+                  lo escribe quien vende y suele traer el aviso que no cabía en
+                  ninguna otra parte ("NO INCLUYE INSTALACIÓN ELÉCTRICA"). */}
               {detalle.comentarioVenta && (
                 <Bloque titulo="Comentario del pedido">
                   <p className="whitespace-pre-line text-[11px] leading-snug text-text">

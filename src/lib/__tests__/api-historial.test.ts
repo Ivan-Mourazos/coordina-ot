@@ -41,20 +41,18 @@ test("GET detalle con código inválido responde 400", async () => {
   expect(res.status).toBe(400);
 });
 
-test("GET detalle trae los campos nuevos, vacíos en mock pero presentes", async () => {
+test("GET detalle trae los documentos, vacíos en mock pero presentes", async () => {
   const res = await detalle.GET(new Request("http://x/api/historial/AR.26.03453"), {
     params: Promise.resolve({ pedido: "AR.26.03453" }),
   });
   const d = (await res.json()) as {
     documentos: unknown[];
-    comentariosLinea: unknown[];
-    comentarioEnvio: string | null;
   };
   // En mock no hay share ni pedido de venta que consultar: listas vacías, no
   // ausentes. El contrato con la UI es el mismo con BD y sin ella.
   expect(d.documentos).toEqual([]);
-  expect(d.comentariosLinea).toEqual([]);
-  expect(d.comentarioEnvio).toBeNull();
+
+
 });
 
 test("GET documento rechaza el código de pedido que no lo es", async () => {

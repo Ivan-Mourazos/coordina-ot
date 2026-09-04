@@ -921,52 +921,6 @@ export async function documentoDePedido(
   return docs[indice] ?? null;
 }
 
-/** Lo que el pedido de venta dice del trabajo: el comentario de cada línea y
- *  las instrucciones de montaje/envío.
- *
- *  Son dos campos distintos y los dos hacían falta, porque el que ya se
- *  enseñaba (`FACOrderSL.Comment`, el "comentario del pedido") resulta ser el
- *  que menos se rellena: 473 de los 3962 pedidos AR.26, un 12 %. Medido en vivo
- *  (08/2026):
- *    · `FACOrderLineSL.Comment` — 7578 de 7585 líneas, el 99,9 %. Es la
- *      descripción real del trabajo vendido ("CAMBIO DE TELA A TOLDO, 342,5 CM
- *      DE FRENTE X 175 DE SALIDA, ACRÍLICO TINTADO EN MASA, STILO FRAGOLA").
- *    · `FACOrderSL.CommentSend` — 1977 de 3962 pedidos, la mitad justa. Es el
- *      montaje: "FECHA SOLICITADA 07/09 / PERSONAL 2 / TIEMPO 1 HORA".
- *
- *  Las líneas van deduplicadas: un pedido de 13 líneas suele repetir el mismo
- *  texto en todas (AR.26.03453 repite "ROBA007621" 13 veces). Deduplicando, las
- *  7578 líneas de la serie se quedan en 7158 textos distintos. */
-async function leerComentariosPedido(
-  pedido: string,
-): Promise<{ lineas: string[]; envio: string | null }> {
-  if (ES_MOCK) return { lineas: [], envio: null };
-
-  const pool = await getPool();
-  const r = await pool
-    .request()
-    .input("pedido", pedido)
-    .query<{ linea: string | null; envio: string | null }>(`
-      SELECT l.Comment AS linea, o.CommentSend AS envio
-      FROM dbo.FACOrderSL o
-      JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-      WHERE o.CodCompany = '001' AND o.CodOrder = @pedido
-      ORDER BY l.NumLine
-    `);
-
-  const vistas = new Set<string>();
-  const lineas: string[] = [];
-  let envio = "";
-  for (const fila of r.recordset) {
-    if (!envio) envio = (fila.envio ?? "").trim();
-    const texto = (fila.linea ?? "").trim();
-    if (!texto || vistas.has(texto)) continue;
-    vistas.add(texto);
-    lineas.push(texto);
-  }
-  return { lineas, envio: envio || null };
-}
-
 /** Deduce quién planteó y quién revisó en los pedidos ANTIGUOS, los cerrados
  *  antes de que CoordinaOT registrara los roles.
  *
@@ -1154,14 +1108,12 @@ export async function leerHistorialPedidoDetalle(
 
   const pool = await getPool();
 
-  // Documentos y comentarios no dependen de la cabecera ni entre sí, así que
-  // van a la vez: son dos idas y vueltas más a RPS y en serie se notarían.
-  // Medido en vivo (08/2026, AR.26.03453): documentos 199 ms, comentarios
-  // 74 ms — en paralelo, los ~270 ms se quedan en los ~200 del más lento.
-  const [documentos, comentarios] = await Promise.all([
-    leerDocumentosPedido(pedido),
-    leerComentariosPedido(pedido),
-  ]);
+  // AQUÍ SE PEDÍAN TAMBIÉN los comentarios de línea y el de montaje, en
+  // paralelo con los documentos. Se han ido con los dos bloques que los
+  // pintaban ("Lo vendido" y "Montaje y envío"): decían lo mismo que el parte
+  // escaneado que se está viendo al lado, así que eran una consulta más a RPS
+  // en cada apertura de ficha para repetir lo que ya estaba en pantalla.
+  const documentos = await leerDocumentosPedido(pedido);
 
   const cab = (
     await pool.request().input("pedido", pedido).query<FilaCabecera>(`
@@ -1232,8 +1184,6 @@ export async function leerHistorialPedidoDetalle(
   const finalizada = fin ? fin.toISOString() : null;
   return cabeceraADetalle(fila, ofs, finalizada, familias, {
     documentos: aDocumentosDelCliente(pedido, documentos),
-    comentariosLinea: comentarios.lineas,
-    comentarioEnvio: comentarios.envio,
   });
 }
 

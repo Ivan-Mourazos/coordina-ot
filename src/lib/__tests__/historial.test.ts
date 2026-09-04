@@ -118,8 +118,6 @@ test("cabeceraADetalle deja vacíos los extras que no le pasan", () => {
     [], null, [],
   );
   expect(d.documentos).toEqual([]);
-  expect(d.comentariosLinea).toEqual([]);
-  expect(d.comentarioEnvio).toBeNull();
 });
 
 test("cabeceraADetalle propaga los extras cuando vienen", () => {
@@ -128,13 +126,13 @@ test("cabeceraADetalle propaga los extras cuando vienen", () => {
     [], null, [],
     {
       documentos: [{ descripcion: "Planteamiento", archivo: "x.pdf", clase: "Planteamiento", url: "/api/historial/AR.26.00001/documento/0" }],
-      comentariosLinea: ["CAMBIO DE TELA A TOLDO"],
-      comentarioEnvio: "FECHA SOLICITADA 07/09",
+
+
     },
   );
   expect(d.documentos).toHaveLength(1);
-  expect(d.comentariosLinea).toEqual(["CAMBIO DE TELA A TOLDO"]);
-  expect(d.comentarioEnvio).toBe("FECHA SOLICITADA 07/09");
+
+
 });
 
 test("claseDeDocumento deduce la clase de la carpeta del share", () => {

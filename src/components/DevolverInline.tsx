@@ -33,8 +33,17 @@ export function DevolverInline({
   label = "Devolver con nota",
   causasSugeridas,
   familias,
+  ofs,
 }: {
-  onDevolver: (obs: string) => void;
+  /** Devuelve. `ofIds` dice a CUÁLES: si no se pasa, a todas las del grupo.
+   *  Quien lo llama decide qué significa "todas" — este componente solo sabe
+   *  lo que le hayan dado en `ofs`. */
+  onDevolver: (obs: string, ofIds?: string[]) => void;
+  /** Las OF que están a punto de volver. Con más de una, se puede elegir a
+   *  cuáles va la nota: el fallo suele ser de UNA (la cota de la lona 2 de un
+   *  pedido de cinco) y devolver las cinco manda a corregir cuatro que están
+   *  bien. Con una sola no se pregunta nada. */
+  ofs?: readonly { id: string; codigo: string }[];
   /** Quién crea la causa, si crea alguna. Solo para dejarlo apuntado. */
   miId?: string | null;
   /** Causas ya marcadas al abrir. Vienen de la guía de revisión: lo que el
@@ -61,6 +70,12 @@ export function DevolverInline({
   const [nueva, setNueva] = useState<string | null>(null);
   const [creando, setCreando] = useState(false);
   const campoNueva = useRef<HTMLInputElement>(null);
+  // A cuáles va. Empieza con TODAS marcadas: es lo que hacía antes este botón,
+  // y lo normal sigue siendo que el pedido vuelva entero. Quitar las que están
+  // bien es un gesto de más para el caso raro, no al revés.
+  const [ofsElegidas, setOfsElegidas] = useState<string[]>(() =>
+    (ofs ?? []).map((o) => o.id),
+  );
 
   // La lista se pide al abrir, no al montar: hay una de estas por cada OF de la
   // pantalla y pedirlas todas de golpe serían decenas de consultas para algo
@@ -95,6 +110,12 @@ export function DevolverInline({
   }
 
   const devolucion = { causas: elegidas, nota: obs };
+  // Sin OF que elegir se manda undefined, que es lo que ya entendían los que
+  // llamaban a esto antes: "a todas las del grupo".
+  const confirmar = () =>
+    onDevolver(codificarDevolucion(devolucion), ofs ? ofsElegidas : undefined);
+  // Ni causas sin nota, ni una devolución que no vuelve a ninguna parte.
+  const listo = devolucionCompleta(devolucion) && (!ofs || ofsElegidas.length > 0);
   const alternar = (id: number) =>
     setElegidas((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -133,6 +154,48 @@ export function DevolverInline({
 
   return (
     <div className="w-full rounded-lg bg-red-500/10 p-2 ring-1 ring-red-500/30">
+      {/* A CUÁLES VUELVE, lo primero: decide sobre qué va todo lo de abajo.
+          Solo con más de una — con una sola no hay nada que elegir y preguntar
+          sobraría. El fallo suele ser de UNA (la cota de la lona 2 de un pedido
+          de cinco), y hasta ahora la nota iba a las cinco: cuatro personas
+          leyendo que corrijan algo que está bien. */}
+      {ofs && ofs.length > 1 && (
+        <div className="mb-2">
+          <p className="mb-1 text-[11px] font-semibold text-text">¿Qué vuelve?</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ofs.map((o) => {
+              const puesta = ofsElegidas.includes(o.id);
+              return (
+                <button
+                  key={o.id}
+                  onClick={() =>
+                    setOfsElegidas((p) =>
+                      p.includes(o.id) ? p.filter((x) => x !== o.id) : [...p, o.id],
+                    )
+                  }
+                  aria-pressed={puesta}
+                  className={`rounded-md px-2 py-1 font-mono text-[11px] font-semibold ring-1 ${
+                    puesta
+                      ? "bg-red-600 text-white ring-transparent"
+                      : "text-text-muted ring-border hover:text-text"
+                  }`}
+                >
+                  {o.codigo}
+                </button>
+              );
+            })}
+            {ofsElegidas.length !== ofs.length && (
+              <button
+                onClick={() => setOfsElegidas(ofs.map((o) => o.id))}
+                className="text-[10px] font-semibold text-text-muted underline underline-offset-2 hover:text-text"
+              >
+                todas
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <p className="mb-1.5 text-[11px] font-semibold text-text">¿Por qué vuelve al autor?</p>
 
       <div className="flex flex-wrap gap-1.5">
@@ -224,7 +287,7 @@ export function DevolverInline({
         onKeyDown={(e) => {
           if (e.key === "Escape") setAbierto(false);
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
-            onDevolver(codificarDevolucion(devolucion));
+            confirmar();
         }}
         placeholder="Qué hay que corregir (la cota, la medida, el color…)"
         rows={2}
@@ -233,8 +296,8 @@ export function DevolverInline({
 
       <div className="mt-1.5 flex items-center gap-1.5">
         <button
-          onClick={() => onDevolver(codificarDevolucion(devolucion))}
-          disabled={!devolucionCompleta(devolucion)}
+          onClick={confirmar}
+          disabled={!listo}
           className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Confirmar devolución
