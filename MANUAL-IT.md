@@ -72,15 +72,29 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
 - Guarda SOLO el flujo de OT: asignaciones OF→técnico, revisor, estado del
   ciclo (planteando/por revisar/en revisión/aprobada…), pedidos completados
   y un log de acciones. Nada de esto existe en RPS.
-- **Backup**: copiar el fichero. Cron sugerido (diario a un share):
+- **Backup**: `pnpm backup`. Cron sugerido (diario, al share de Oficina
+  Técnica):
 
 ```bash
 # /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días)
-0 21 * * * root sqlite3 /webs/coordina-ot/data/coordina.db ".backup /mnt/backups/coordina-$(date +\%F).db" && find /mnt/backups -name 'coordina-*.db' -mtime +30 -delete
+0 21 * * * root cd /webs/coordina-ot && /usr/bin/node scripts/backup-db.mjs /mnt/oftecnica/coordina-backups >> logs/backup.log 2>&1
 ```
 
-(`sqlite3` CLI: `apt install sqlite3`. `.backup` es consistente aunque la
-app esté escribiendo.)
+**NO se copia con `cp`.** La base va en modo WAL: lo escrito últimamente vive
+en `coordina.db-wal` hasta que SQLite lo integra, y ese fichero llega a ser
+más grande que la propia base (el 04/09/2026, en el servidor: 2,5 MB de `.db`
+y 4,0 MB de `-wal`). Un `cp coordina.db` se deja fuera esa mitad y da una
+copia que parece buena hasta el día que hace falta. `scripts/backup-db.mjs`
+usa la copia en caliente de SQLite, que se lleva el WAL, sale consistente con
+la app escribiendo, comprueba que la copia abre y rota las de más de 30 días.
+
+No hace falta el CLI `sqlite3` (el servidor no lo tiene): el script usa
+`better-sqlite3`, que ya es dependencia de la app.
+
+> Esto estuvo MAL desde el principio y conviene saberlo: el cron de aquí
+> apuntaba a `/opt/coordina-ot`, que en esa máquina no existe. Nadie lo montó,
+> así que hasta el 04/09/2026 esta base no tuvo ninguna copia. Es la única
+> fuente de autores, revisores, notas, causas y fichajes: no está en RPS.
 
 ### 2.5 Migraciones del esquema (se aplican solas al arrancar)
 

@@ -14,7 +14,8 @@
     "lint": "eslint",
     "db:introspect": "node --env-file=.env.local scripts/introspect-rps.mjs",
     "test": "vitest run",
-    "novedades": "node scripts/novedades.mjs"
+    "novedades": "node scripts/novedades.mjs",
+    "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
