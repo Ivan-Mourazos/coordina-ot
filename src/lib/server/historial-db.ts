@@ -1,4 +1,4 @@
-import { recursosDeLaWebSql } from "../secciones";
+import { SECCIONES, recursosSql } from "../secciones";
 import { getPool } from "./db";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
@@ -75,20 +75,28 @@ const RESCATE_SIN_FIN_DE_FASE = `
 
 const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
-/** Los centros de trabajo que cuentan como trabajo de oficina: los de TODAS
- *  las secciones de la web, Oficina Técnica y Diseño Gráfico.
+/** Los centros de trabajo que cuentan como trabajo de oficina en el Historial:
+ *  SOLO los de Oficina Técnica.
  *
- *  EL HISTORIAL NO SE PARTE POR SECCIONES. Un pedido se enseña entero, con sus
- *  OF de OT y las de diseño, porque el parte es del pedido: quien lo abre
- *  quiere saber qué se hizo con él, no qué hizo su departamento.
+ *  DE MOMENTO NO ENTRA DISEÑO GRÁFICO, y es una vuelta atrás pedida el
+ *  04/09/2026. El Historial llegó a enseñar el pedido entero —OF de OT y de
+ *  diseño— con el argumento de que el parte es del pedido y no de un
+ *  departamento. El efecto en la pantalla fue otro: en un historial que se lee
+ *  como "lo que hizo Oficina Técnica", las horas de diseño de Carrón salían
+ *  mezcladas con las de OT sin nada que las distinguiera, y un pedido parecía
+ *  haber costado el doble de lo que costó aquí.
  *
- *  Antes esto era `'a-otec','otec-a'` escrito cinco veces, y las OF de diseño
- *  no salían: sus autores no aparecían, sus minutos no se sumaban y su material
- *  no se listaba.
+ *  Se quita entero y no a medias: una OF de diseño con sus minutos en blanco se
+ *  lee como una OF que nadie hizo, que es peor mentira que no enseñarla.
  *
- *  El taller sigue fuera. Ver `recursosDeLaWebSql` para el porqué con números:
- *  contarlo multiplica los tiempos de oficina por veinte o por ciento. */
-const RECURSOS_WEB = recursosDeLaWebSql();
+ *  Para volver a meterlas basta cambiar esta línea por `recursosDeLaWebSql()`.
+ *  Lo que hace falta ANTES es decidir cómo se distingue en pantalla el trabajo
+ *  de cada sección; mientras no esté decidido, mezclar confunde más que informa.
+ *
+ *  El taller sigue fuera, como siempre. Ver `recursosDeLaWebSql` para el porqué
+ *  con números: contarlo multiplica los tiempos de oficina por veinte o por
+ *  ciento. */
+const RECURSOS_WEB = recursosSql(SECCIONES.ot);
 
 export async function leerHistorialPagina(
   f: HistorialFiltros,
