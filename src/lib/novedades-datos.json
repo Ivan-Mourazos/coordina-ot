@@ -1,5 +1,31 @@
 [
   {
+    "id": "2026-09-04-2",
+    "hasta": "4b6e603",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes aprobar unas OF y devolver otras, en el orden que quieras",
+        "detalle": "Antes había que devolver primero las que fallaban: al aprobar se aprobaban todas de golpe."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La guía de revisión también sale al abrir el pedido",
+        "detalle": "Ya no hace falta ir al panel de Revisiones para tener delante los ocho puntos."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Ya puedes devolver dos OF del mismo pedido con motivos distintos",
+        "detalle": "Al confirmar la primera, el cuadro se queda listo para la siguiente en vez de arrastrar el texto anterior."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las causas de devolución se leen mejor",
+        "detalle": "Van una por línea, con su casilla, en vez de amontonadas."
+      }
+    ]
+  },
+  {
     "id": "2026-09-04",
     "hasta": "bce5ced",
     "cambios": [
