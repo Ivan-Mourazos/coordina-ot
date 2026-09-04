@@ -51,7 +51,7 @@ Navegadores OT (6 usuarios)
 ### 2.3 Despliegue (todo ya configurado en el repo)
 
 ```bash
-git clone <repo> /opt/coordina-ot && cd /opt/coordina-ot
+git clone <repo> /webs/coordina-ot && cd /webs/coordina-ot
 cp .env.example .env.local     # rellenar credenciales (sección 5)
 pnpm install && pnpm build
 pm2 start ecosystem.config.cjs
@@ -76,7 +76,7 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
 
 ```bash
 # /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días)
-0 21 * * * root sqlite3 /opt/coordina-ot/data/coordina.db ".backup /mnt/backups/coordina-$(date +\%F).db" && find /mnt/backups -name 'coordina-*.db' -mtime +30 -delete
+0 21 * * * root sqlite3 /webs/coordina-ot/data/coordina.db ".backup /mnt/backups/coordina-$(date +\%F).db" && find /mnt/backups -name 'coordina-*.db' -mtime +30 -delete
 ```
 
 (`sqlite3` CLI: `apt install sqlite3`. `.backup` es consistente aunque la
@@ -91,7 +91,7 @@ Cada migración va en una transacción y sella `PRAGMA user_version` al
 terminar. Ese número es la comprobación de que entró **completa**:
 
 ```bash
-sqlite3 /opt/coordina-ot/data/coordina.db "PRAGMA user_version;"
+sqlite3 /webs/coordina-ot/data/coordina.db "PRAGMA user_version;"
 ```
 
 | Valor | Qué significa |
@@ -110,7 +110,7 @@ siguiente vuelve a intentarlo solo.
 momento (no vale `cp` con la app escribiendo):
 
 ```bash
-cd /opt/coordina-ot
+cd /webs/coordina-ot
 sqlite3 data/coordina.db ".backup /mnt/backups/coordina-antes-$(date +%F).db"
 ```
 
@@ -186,7 +186,7 @@ RPS_DB_TRUST_SERVER_CERTIFICATE=true
 RPS_DB_REQUEST_TIMEOUT=60000
 RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
 # Opcional: ruta del SQLite (por defecto ./data/coordina.db)
-# COORDINA_DB_PATH=/opt/coordina-ot/data/coordina.db
+# COORDINA_DB_PATH=/webs/coordina-ot/data/coordina.db
 ```
 
 ## 6. Operación diaria
@@ -196,7 +196,7 @@ RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
 | Estado / logs | `pm2 status` · `pm2 logs coordina-ot` |
 | Healthcheck | `curl http://localhost:4300/api/health` |
 | Reiniciar | `pm2 restart coordina-ot` |
-| Actualizar versión | `cd /opt/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot` |
+| Actualizar versión | `cd /webs/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot` |
 
 Comportamiento ante fallos, ya contemplado en la app:
 
@@ -243,7 +243,7 @@ mejor: sirve para ver si falta algo concreto o es reparto normal.
 ### El cambio
 
 ```bash
-cd /opt/coordina-ot
+cd /webs/coordina-ot
 sed -i 's/^FICHAJE_OLANET=.*/FICHAJE_OLANET=activo/' .env.local
 pm2 restart coordina-ot
 curl -s http://localhost:4300/api/fichaje/cola?pendientes=1 | jq .total   # debe bajar a 0

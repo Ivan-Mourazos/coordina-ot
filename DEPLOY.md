@@ -15,8 +15,13 @@
 
 ## Pasos
 
+> La instalación de Toldos Gómez vive en `/webs/coordina-ot` (192.168.0.90),
+> junto al resto de webs internas. Aquí se usa esa ruta porque es la de verdad:
+> esta guía decía `/opt/coordina-ot`, que no existe en esa máquina, y con ella
+> el cron de backup del manual copiaba una base que no estaba ahí.
+
 ```bash
-git clone <repo> /opt/coordina-ot && cd /opt/coordina-ot
+git clone <repo> /webs/coordina-ot && cd /webs/coordina-ot
 cp .env.example .env.local        # rellenar credenciales (ver abajo)
 mkdir -p logs                     # PM2 no crea el dir de logs; data/ se crea sola
 pnpm install
@@ -48,7 +53,7 @@ RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
 ## Actualizar versión
 
 ```bash
-cd /opt/coordina-ot && git pull && pnpm install && pnpm build
+cd /webs/coordina-ot && git pull && pnpm install && pnpm build
 pm2 restart coordina-ot
 ```
 
