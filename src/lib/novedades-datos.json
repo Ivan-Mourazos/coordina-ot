@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-04-3",
+    "hasta": "c07ba4c",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Cuando el parte no está escaneado, la ficha lo dice",
+        "detalle": "Antes salía un «PDF no encontrado» que parecía un fallo de la web. Ahora avisa de que lo que ves es una réplica y de que el papel aún no ha pasado por el escáner."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El Historial vuelve a contar solo las horas de Oficina Técnica",
+        "detalle": "Se habían colado las de Diseño Gráfico, y un pedido parecía haber costado aquí el doble de lo que costó."
+      }
+    ]
+  },
+  {
     "id": "2026-09-04-2",
     "hasta": "4b6e603",
     "cambios": [
