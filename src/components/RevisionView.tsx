@@ -480,7 +480,13 @@ function ReviewCard({
                 onClick={() => pedirConfirmacion(defAprobar)}
                 className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
               >
-                Aprobar
+                {/* Con varias, el botón DICE cuántas aprueba. Devolver ya deja
+                    elegir a cuáles va; aprobar sigue siendo del grupo entero, y
+                    un botón que pone "Aprobar" a secas delante de tres OF no
+                    avisa de que las está aprobando las tres. Si una no vale, se
+                    devuelve primero —sale del grupo— y este botón se queda con
+                    las que de verdad están bien. */}
+                {ofs.length > 1 ? `Aprobar las ${ofs.length}` : "Aprobar"}
               </button>
             )}
             {puedo("devolver") && (

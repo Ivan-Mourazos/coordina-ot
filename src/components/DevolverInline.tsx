@@ -77,6 +77,22 @@ export function DevolverInline({
     (ofs ?? []).map((o) => o.id),
   );
 
+  // DEVOLVER DE UNA EN UNA, cada una con su texto. Al confirmar la primera,
+  // esa OF deja de estar en revisión y desaparece de `ofs`; sin esto, el
+  // cuadro se quedaba abierto con la nota de la anterior escrita y marcando
+  // una OF que ya no está — y el siguiente "Confirmar" no habría devuelto
+  // nada. Se poda lo que ya no existe y, si no queda nada marcado, se marcan
+  // las que quedan: el revisor sigue escribiendo la nota de la siguiente.
+  //
+  // Durante el render y no en un efecto, como el resto de la casa.
+  const idsActuales = (ofs ?? []).map((o) => o.id).join("|");
+  const [idsPrevios, setIdsPrevios] = useState(idsActuales);
+  if (idsActuales !== idsPrevios) {
+    setIdsPrevios(idsActuales);
+    const vivas = ofsElegidas.filter((id) => (ofs ?? []).some((o) => o.id === id));
+    setOfsElegidas(vivas.length > 0 ? vivas : (ofs ?? []).map((o) => o.id));
+  }
+
   // La lista se pide al abrir, no al montar: hay una de estas por cada OF de la
   // pantalla y pedirlas todas de golpe serían decenas de consultas para algo
   // que casi nunca se usa.
@@ -112,8 +128,19 @@ export function DevolverInline({
   const devolucion = { causas: elegidas, nota: obs };
   // Sin OF que elegir se manda undefined, que es lo que ya entendían los que
   // llamaban a esto antes: "a todas las del grupo".
-  const confirmar = () =>
+  const confirmar = () => {
     onDevolver(codificarDevolucion(devolucion), ofs ? ofsElegidas : undefined);
+    // El cuadro se queda abierto y limpio cuando quedan OF por decidir: es lo
+    // que permite devolver dos con motivos distintos sin volver a abrirlo. La
+    // nota y las causas se borran a propósito — son de la que acaba de irse, y
+    // heredarlas sería mandar el fallo de una a otra.
+    if (ofs && ofs.length > ofsElegidas.length) {
+      setObs("");
+      setElegidas([]);
+    } else {
+      setAbierto(false);
+    }
+  };
   // Ni causas sin nota, ni una devolución que no vuelve a ninguna parte.
   const listo = devolucionCompleta(devolucion) && (!ofs || ofsElegidas.length > 0);
   const alternar = (id: number) =>
