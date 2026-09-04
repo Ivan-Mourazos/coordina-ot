@@ -40,6 +40,11 @@ const ORDEN_CLASES = [
   "Hoja de almacén",
   "Adjunto de la OF",
   "Mantenimiento (SAT)",
+  // Lo último: son de después de fabricar. Quien abre un pedido para trabajarlo
+  // busca el planteamiento, no la foto del toldo ya puesto — pero cuando lo que
+  // busca es "cómo quedó aquello", están.
+  "Fotos de la visita",
+  "Fotos de la instalación",
 ];
 
 export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {

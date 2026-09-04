@@ -7,7 +7,7 @@ import { familiaDeTexto } from "./rps";
 import { partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
-import { estaFinalizado } from "../types";
+import { esCodigoPedido, estaFinalizado } from "../types";
 import {
   PAGE_SIZE,
   aMaterialOF,
@@ -643,6 +643,11 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
 export interface DocumentoRpsCrudo {
   descripcion: string;
   ruta: string;
+  /** Qué es, cuando no se puede deducir de la carpeta. Las fotos de una
+   *  instalación y las de un mantenimiento están en la MISMA carpeta del share
+   *  (SAT\RECIBIDOS\OM); lo que las distingue es el tipo de la asistencia que
+   *  las trajo, y eso solo lo sabe quien hace la consulta. */
+  clase?: string;
 }
 
 /** Documentos que RPS tiene colgados de un pedido y de sus OF, en orden
@@ -671,15 +676,16 @@ export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRps
   const r = await pool
     .request()
     .input("pedido", pedido)
-    .query<{ descripcion: string | null; ruta: string | null }>(`
+    .query<{ descripcion: string | null; ruta: string | null; clase: string | null }>(`
       ;WITH Docs AS (
-        SELECT ed.IDEntityDocument AS id, ed.Description AS descripcion, ed.Path AS ruta
+        SELECT 1 AS fuente, CAST(ed.IDEntityDocument AS varchar(50)) AS id,
+               ed.Description AS descripcion, ed.Path AS ruta, NULL AS clase
         FROM dbo.FACOrderSL o
         JOIN dbo.GENEntityDocument ed
           ON ed.EntityID = o.IDOrder AND ed.EntityType = 'OrderSL'
         WHERE o.CodCompany = '001' AND o.CodOrder = @pedido
         UNION ALL
-        SELECT ed.IDEntityDocument, ed.Description, ed.Path
+        SELECT 1, CAST(ed.IDEntityDocument AS varchar(50)), ed.Description, ed.Path, NULL
         FROM dbo.CPRManufacturingOrder mo
         JOIN dbo.GENEntityDocument ed
           ON ed.EntityID = mo.IDManufacturingOrder AND ed.EntityType = 'ManufacturingOrder'
@@ -687,20 +693,171 @@ export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRps
           SELECT 1 FROM dbo.FACOrderLineSL l
           JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
           WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
+
+        -- Las fotos de las órdenes de mantenimiento del pedido. La tabla de
+        -- enlaces solo trae las de ALGUNAS: AR.26.03914 enseñaba las seis de
+        -- una orden y se dejaba fuera siete de otras dos del mismo pedido.
+        UNION ALL
+        SELECT 2, '', ISNULL(fo.DescripcionFoto, ''), fo.Foto, NULL
+        FROM dbo.TGM_FOTOS_OLANET fo
+        WHERE fo.CodCompany = '001' AND fo.Pedido = @pedido
+
       )
-      SELECT descripcion, ruta FROM Docs ORDER BY id
+      -- Por fuente y luego por id: primero lo que RPS tiene enlazado (que es lo
+      -- que ya se venía viendo, en su orden de siempre) y detrás las fotos.
+      SELECT descripcion, ruta, clase FROM Docs ORDER BY fuente, id
     `);
 
-  // Un mismo fichero puede estar enlazado más de una vez; se deja uno.
+  // Se deduplica por NOMBRE DE FICHERO y no por ruta: la misma foto llega por
+  // dos caminos con la ruta escrita distinta —una tabla la guarda como
+  // file://\\192.168.0.128\RPS\SAT\… y la otra como http://192.168.0.128/SAT/…—
+  // y comparando rutas saldría dos veces. De AR.26 son 3168 fotos repetidas.
   const vistos = new Set<string>();
   const salida: DocumentoRpsCrudo[] = [];
-  for (const fila of r.recordset) {
-    const ruta = (fila.ruta ?? "").trim();
-    if (!ruta || vistos.has(ruta)) continue;
-    vistos.add(ruta);
-    salida.push({ descripcion: (fila.descripcion ?? "").trim(), ruta });
-  }
+  const anadir = (fila: { descripcion: string | null; ruta: string | null; clase?: string | null }) => {
+    const ruta = rutaDeShare((fila.ruta ?? "").trim());
+    if (!ruta) return;
+    const clave = archivoDeRuta(ruta).toLowerCase();
+    if (vistos.has(clave)) return;
+    vistos.add(clave);
+    salida.push({
+      descripcion: (fila.descripcion ?? "").trim(),
+      ruta,
+      ...(fila.clase ? { clase: fila.clase } : {}),
+    });
+  };
+
+  for (const fila of r.recordset) anadir(fila);
+  // Y al final las de la app de instaladores, que van por su cuenta (ver
+  // `fotosDeVisita`). Detrás de lo demás a propósito: son el remate del trabajo,
+  // no lo que se viene a buscar al abrir un pedido.
+  for (const foto of await fotosDeVisita(pedido)) anadir(foto);
   return salida;
+}
+
+// ─── Las fotos que suben los instaladores ────────────────────────────────────
+// Van en `TGM_MONITORIZACION_FOTOS`, la tabla de la app de monitorización, y no
+// llegan a la de enlaces de RPS: son las 570 fotos de AR.26 que no se veían por
+// ningún otro sitio, casi todas del trabajo ya instalado.
+//
+// SE TRAEN TODAS DE GOLPE Y SE GUARDAN EN MEMORIA, que no es lo que uno haría
+// de primeras. El motivo: `tgm_monitorizacion` (49 988 filas) NO TIENE NINGÚN
+// ÍNDICE, y el aviso guarda el pedido como la URL de su PDF
+// ("http://…/AR.26.02210.pdf"), así que buscar uno obliga a un LIKE con
+// comodín delante — un barrido entero de la tabla por cada apertura de ficha,
+// medido en 4,5 s. Trayendo las ~19 000 filas que tienen pedido una vez cada
+// cinco minutos, la primera apertura paga ese barrido y las demás son
+// instantáneas. Crear el índice sería lo correcto, pero la BD es de RPS y
+// nuestro usuario es de solo lectura: hay que pedírselo a IT.
+
+interface FotoDeVisita {
+  descripcion: string;
+  ruta: string;
+  clase: string;
+}
+
+/** Cuánto vale la lista antes de volver a pedirla. Media hora: las fotos las
+ *  suben los instaladores al acabar, y media hora de retraso en verlas no le
+ *  cambia el día a nadie. */
+const VIDA_CACHE_FOTOS_MS = 30 * 60_000;
+let cacheFotos: { at: number; mapa: Map<string, FotoDeVisita[]> } | null = null;
+let cargaEnVuelo: Promise<Map<string, FotoDeVisita[]>> | null = null;
+
+async function fotosDeVisita(pedido: string): Promise<FotoDeVisita[]> {
+  if (ES_MOCK) return [];
+  try {
+    const mapa = await mapaFotosDeVisita();
+    return mapa.get(pedido.toUpperCase()) ?? [];
+  } catch (e) {
+    // Un fallo aquí no puede dejar sin documentos a quien abre la ficha: lo
+    // demás ya está y estas son un extra.
+    console.error("[historial] fotos de visita:", (e as Error).message);
+    return [];
+  }
+}
+
+function mapaFotosDeVisita(): Promise<Map<string, FotoDeVisita[]>> {
+  const vencida = !cacheFotos || Date.now() - cacheFotos.at >= VIDA_CACHE_FOTOS_MS;
+
+  if (vencida) {
+    // Una sola carga aunque entren diez fichas a la vez: sin esto, diez
+    // barridos simultáneos de la misma tabla.
+    cargaEnVuelo ??= cargarFotosDeVisita()
+      .then((mapa) => {
+        cacheFotos = { at: Date.now(), mapa };
+        return mapa;
+      })
+      .finally(() => {
+        cargaEnVuelo = null;
+      });
+  }
+
+  // Con lista vieja se sirve la vieja y se refresca por detrás. Si no, quien
+  // abriera la primera ficha pasada la media hora se comería los cinco
+  // segundos del barrido, y le pasaría a alguien distinto cada media hora
+  // —justo el tipo de lentitud que no se sabe a qué achacar—. Media hora de
+  // desfase en unas fotos no es nada; cinco segundos delante de la pantalla,
+  // sí. Solo se espera la PRIMERA vez, cuando no hay nada que enseñar.
+  if (cacheFotos) {
+    if (vencida) void cargaEnVuelo?.catch(() => {});
+    return Promise.resolve(cacheFotos.mapa);
+  }
+  return cargaEnVuelo!;
+}
+
+async function cargarFotosDeVisita(): Promise<Map<string, FotoDeVisita[]>> {
+  const pool = await getPool();
+  const r = await pool.request().query<{
+    pedido: string;
+    asistencia: string;
+    tipo: string | null;
+    foto: string;
+    n: number;
+  }>(`
+    SELECT SUBSTRING(m.pedido, LEN(m.pedido) - 14, 11) AS pedido,
+           m.asistencia, m.tipo, f.foto,
+           ROW_NUMBER() OVER (PARTITION BY m.asistencia ORDER BY f.foto) AS n
+      FROM dbo.TGM_MONITORIZACION_FOTOS f
+      JOIN dbo.tgm_monitorizacion m ON m.asistencia = f.asistencia
+     -- Solo los avisos que llevan pedido: el resto son visitas sueltas que no
+     -- cuelgan de ninguno y aquí no tienen dónde ir.
+     WHERE m.pedido LIKE '%.pdf' AND LEN(m.pedido) > 15
+  `);
+
+  const mapa = new Map<string, FotoDeVisita[]>();
+  for (const fila of r.recordset) {
+    const pedido = (fila.pedido ?? "").trim().toUpperCase();
+    if (!esCodigoPedido(pedido)) continue;
+    // "PM" es el parte de montaje: la foto del trabajo ya instalado. El resto
+    // (visita técnica, avería, ayuda) son de antes o de otra cosa, y llamarlas
+    // a todas "instalación" sería mentir sobre lo que se está viendo.
+    const instalacion = (fila.tipo ?? "").trim().toUpperCase() === "PM";
+    const suyas = mapa.get(pedido) ?? [];
+    suyas.push({
+      descripcion: `Foto ${fila.n} de ${instalacion ? "la instalación" : "la visita"} ${fila.asistencia}`,
+      ruta: fila.foto,
+      clase: instalacion ? "Fotos de la instalación" : "Fotos de la visita",
+    });
+    mapa.set(pedido, suyas);
+  }
+  return mapa;
+}
+
+/** La ruta del share correspondiente a lo que guarde RPS.
+ *
+ *  La app de monitorización apunta a la MISMA carpeta por HTTP
+ *  (`http://192.168.0.128/SAT/RECIBIDOS/OM/x.jpg`) que el resto de RPS por el
+ *  share (`file://\\192.168.0.128\RPS\SAT\RECIBIDOS\OM\x.jpg`): el servidor web
+ *  de esa máquina publica el share. Se traduce a la forma de share para que la
+ *  foto la sirva la MISMA ruta con las mismas comprobaciones que todo lo demás
+ *  —`segmentosEnShare` y su lista de lo que se puede leer— en vez de abrir un
+ *  proxy HTTP nuevo, que sería otra puerta que vigilar.
+ *
+ *  Lo que no sea de esa máquina se deja como viene: ya se rechaza más adelante. */
+function rutaDeShare(ruta: string): string {
+  const m = /^https?:\/\/192\.168\.0\.128\/(.+)$/i.exec(ruta);
+  if (!m) return ruta;
+  return `file://\\\\192.168.0.128\\RPS\\${decodeURI(m[1]).replace(/\//g, "\\")}`;
 }
 
 /** Los documentos del pedido tal y como los ve el CLIENTE: sin la ruta del
@@ -721,7 +878,10 @@ export function aDocumentosDelCliente(
   return crudos.map((d, i) => ({
     descripcion: d.descripcion,
     archivo: archivoDeRuta(d.ruta),
-    clase: claseDeDocumento(d.ruta),
+    // La que traiga la consulta manda sobre la carpeta: las fotos de una
+    // instalación y las de un mantenimiento viven en la misma y solo se
+    // distinguen por el aviso que las trajo.
+    clase: d.clase ?? claseDeDocumento(d.ruta),
     url: segmentosEnShare(d.ruta)
       ? `/api/historial/${encodeURIComponent(pedido)}/documento/${i}`
       : null,

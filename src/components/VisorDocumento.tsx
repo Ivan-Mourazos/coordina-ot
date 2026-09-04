@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
+import { FotoConZoom } from "./FotoConZoom";
 
 // ─── El documento, abierto DENTRO de la web ──────────────────────────────────
 // Antes cada documento era un enlace con target="_blank": para ver tres
@@ -118,13 +119,11 @@ export function VisorDocumento({
           />
         )}
         {!esPdf && incrustable && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={doc.url}
-            alt={doc.descripcion || doc.archivo}
-            className="mx-auto h-full w-auto max-w-full rounded-xl object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          // Con zoom: son fotos de móvil hechas en obra, y lo que hace falta
+          // ver —el número de serie de un motor, una cota escrita a mano— no se
+          // lee a tamaño de pantalla. El PDF no lo necesita: el visor del
+          // navegador ya trae el suyo.
+          <FotoConZoom src={doc.url} alt={doc.descripcion || doc.archivo} />
         )}
         {!incrustable && (
           <div
