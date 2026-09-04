@@ -1,23 +1,7 @@
 [
   {
-    "id": "2026-09-04-3",
+    "id": "2026-09-04",
     "hasta": "c07ba4c",
-    "cambios": [
-      {
-        "tipo": "arreglado",
-        "titulo": "Cuando el parte no está escaneado, la ficha lo dice",
-        "detalle": "Antes salía un «PDF no encontrado» que parecía un fallo de la web. Ahora avisa de que lo que ves es una réplica y de que el papel aún no ha pasado por el escáner."
-      },
-      {
-        "tipo": "arreglado",
-        "titulo": "El Historial vuelve a contar solo las horas de Oficina Técnica",
-        "detalle": "Se habían colado las de Diseño Gráfico, y un pedido parecía haber costado aquí el doble de lo que costó."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-04-2",
-    "hasta": "4b6e603",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -29,22 +13,6 @@
         "titulo": "La guía de revisión también sale al abrir el pedido",
         "detalle": "Ya no hace falta ir al panel de Revisiones para tener delante los ocho puntos."
       },
-      {
-        "tipo": "arreglado",
-        "titulo": "Ya puedes devolver dos OF del mismo pedido con motivos distintos",
-        "detalle": "Al confirmar la primera, el cuadro se queda listo para la siguiente en vez de arrastrar el texto anterior."
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Las causas de devolución se leen mejor",
-        "detalle": "Van una por línea, con su casilla, en vez de amontonadas."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-04",
-    "hasta": "bce5ced",
-    "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Ya puedes acercarte a las fotos sin bajarlas",
@@ -61,6 +29,26 @@
         "detalle": "Si el fallo es de una sola, la desmarcas del resto y las demás siguen su camino. Por defecto vuelven todas, como hasta ahora."
       },
       {
+        "tipo": "arreglado",
+        "titulo": "Cuando el parte no está escaneado, la ficha lo dice",
+        "detalle": "Antes salía un «PDF no encontrado» que parecía un fallo de la web. Ahora avisa de que lo que ves es una réplica y de que el papel aún no ha pasado por el escáner."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El Historial vuelve a contar solo las horas de Oficina Técnica",
+        "detalle": "Se habían colado las de Diseño Gráfico, y un pedido parecía haber costado aquí el doble de lo que costó."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Ya puedes devolver dos OF del mismo pedido con motivos distintos",
+        "detalle": "Al confirmar la primera, el cuadro se queda listo para la siguiente en vez de arrastrar el texto anterior."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las causas de devolución se leen mejor",
+        "detalle": "Van una por línea, con su casilla, en vez de amontonadas."
+      },
+      {
         "tipo": "mejor",
         "titulo": "La ficha del Historial abre más rápido y va más al grano",
         "detalle": "Se han quitado «Lo vendido» y «Montaje y envío»: es lo mismo que pone el parte que tienes al lado."
@@ -68,13 +56,23 @@
     ]
   },
   {
-    "id": "2026-09-03-3",
+    "id": "2026-09-03",
     "hasta": "4ced8a4",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Puedes cambiar tú la lista de causas y la guía de revisión",
         "detalle": "En el menú, «Qué mirar al revisar» › «Cambiar la lista». Ya no hace falta tener una OF que devolver para añadir o corregir una causa."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al revisar tienes delante los ocho puntos que hay que mirar",
+        "detalle": "Los vas marcando según los compruebas, y lo que marques como fallo llega ya puesto al devolver, sin buscar la causa. La lista entera está también en el menú."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al devolver una OF ya puedes decir por qué con la lista de Ángel",
+        "detalle": "Ocho causas para elegir (medidas de la lona, faltan elementos, medidas de corte…). Puedes marcar varias, y si ninguna encaja escribes la tuya y queda para todos."
       },
       {
         "tipo": "arreglado",
@@ -99,62 +97,18 @@
     ]
   },
   {
-    "id": "2026-09-03-2",
-    "hasta": "12b4ec2",
-    "cambios": [
-      {
-        "tipo": "nuevo",
-        "titulo": "Al revisar tienes delante los ocho puntos que hay que mirar",
-        "detalle": "Los vas marcando según los compruebas, y lo que marques como fallo llega ya puesto al devolver, sin buscar la causa. La lista entera está también en el menú."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-03",
-    "hasta": "00ccf64",
-    "cambios": [
-      {
-        "tipo": "nuevo",
-        "titulo": "Al devolver una OF ya puedes decir por qué con la lista de Ángel",
-        "detalle": "Ocho causas para elegir (medidas de la lona, faltan elementos, medidas de corte…). Puedes marcar varias, y si ninguna encaja escribes la tuya y queda para todos."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-02-3",
-    "hasta": "3280a59",
-    "cambios": [
-      {
-        "tipo": "arreglado",
-        "titulo": "Los documentos que RPS no guarda ya no salen como huecos vacíos",
-        "detalle": "Antes aparecían como fichas en blanco y parecía que la web fallaba. Ahora se dice en una línea cuántos son y por qué no se pueden abrir."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-02-2",
-    "hasta": "21aee73",
-    "cambios": [
-      {
-        "tipo": "mejor",
-        "titulo": "Los documentos del pedido se ven, y se abren sin salir de la web",
-        "detalle": "Cada planteamiento, presupuesto o foto sale dibujado en pequeño y se abre encima de la ficha; con las flechas pasas de uno a otro y con Escape vuelves. Se acabaron las pestañas sueltas."
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Las fotos del SAT ya no tardan en aparecer",
-        "detalle": "Se preparan en el servidor a tamaño pequeño: lo que eran 18 MB por pedido ahora son 100 KB."
-      }
-    ]
-  },
-  {
     "id": "2026-09-02",
-    "hasta": "05f9ce3",
+    "hasta": "3280a59",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Diseño Gráfico aparece anunciado como lo próximo que llega",
         "detalle": "Todavía no enseña pedidos: primero tiene que ser de fiar su lista de trabajo. Oficina Técnica sigue igual."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los documentos que RPS no guarda ya no salen como huecos vacíos",
+        "detalle": "Antes aparecían como fichas en blanco y parecía que la web fallaba. Ahora se dice en una línea cuántos son y por qué no se pueden abrir."
       },
       {
         "tipo": "arreglado",
@@ -178,6 +132,16 @@
       },
       {
         "tipo": "mejor",
+        "titulo": "Los documentos del pedido se ven, y se abren sin salir de la web",
+        "detalle": "Cada planteamiento, presupuesto o foto sale dibujado en pequeño y se abre encima de la ficha; con las flechas pasas de uno a otro y con Escape vuelves. Se acabaron las pestañas sueltas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fotos del SAT ya no tardan en aparecer",
+        "detalle": "Se preparan en el servidor a tamaño pequeño: lo que eran 18 MB por pedido ahora son 100 KB."
+      },
+      {
+        "tipo": "mejor",
         "titulo": "El aviso de \"OF nueva\" se calla en cuanto alguien coge esa OF",
         "detalle": "Antes se quedaba puesto en la tarjeta y en la campana hasta que la OF se aprobaba, aunque ya la estuvieras haciendo."
       },
@@ -198,7 +162,7 @@
     ]
   },
   {
-    "id": "2026-09-01-3",
+    "id": "2026-09-01",
     "hasta": "56a8b74",
     "cambios": [
       {
@@ -206,37 +170,6 @@
         "titulo": "Se puede mirar la lista de la otra sección",
         "detalle": "Arriba a la derecha, al lado de tu nombre, eliges si ves el trabajo de Oficina Técnica o el de Diseño Gráfico. Sigues siendo tú: tu reloj, tus avisos y tu trabajo no cambian."
       },
-      {
-        "tipo": "arreglado",
-        "titulo": "Diseño Gráfico no podía cerrar sus propias operaciones",
-        "detalle": "El botón de \"Finalizar operación\" daba error en las OF de diseño porque solo aceptaba las de Oficina Técnica."
-      },
-      {
-        "tipo": "arreglado",
-        "titulo": "Las notas ya leídas volvían a avisarte al recargar",
-        "detalle": "La campana sacaba otra vez notas viejas que ya habías abierto, cada vez que se refrescaba la página."
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Las métricas son de tu sección, no de las dos mezcladas",
-        "detalle": "Los números siguen a la lista que estés mirando, y el título dice de quién son. Lo de Oficina Técnica no cambia: sigue contando exactamente lo mismo que antes."
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Los cambios de la web se enseñan solos al entrar",
-        "detalle": "Cuando hay novedades, el resumen se abre al entrar en vez de esperar a que alguien pulse la campana. Se cierra y no vuelve a salir hasta la próxima actualización."
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "La campana solo avisa de tu trabajo",
-        "detalle": "Los cambios de la web ya no cuentan como un aviso más: ahora se enseñan al entrar. El log se puede volver a abrir cuando quieras desde el menú de herramientas."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-01-2",
-    "hasta": "e4e3055",
-    "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Si añaden trabajo a un pedido ya pasado, vuelve al tablero",
@@ -251,6 +184,21 @@
         "tipo": "nuevo",
         "titulo": "Las fotos y documentos de RPS se ven desde el pedido",
         "detalle": "En la ficha hay un apartado \"Documentos de RPS\" con la rotulación, el planteamiento, el presupuesto y las fotos del trabajo. Las imágenes salen en pequeño y se abren al pulsarlas. Antes solo se podían mirar en el Historial, con el pedido ya cerrado."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Métricas: cuánto tarda cada paso y por qué se anulan las OF",
+        "detalle": "Además de las devoluciones, ahora se ve dónde se para el trabajo —esperando revisión, en el repaso o corrigiendo— y las causas de anulación, que se guardaban desde agosto sin que nadie las viera."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Diseño Gráfico no podía cerrar sus propias operaciones",
+        "detalle": "El botón de \"Finalizar operación\" daba error en las OF de diseño porque solo aceptaba las de Oficina Técnica."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las notas ya leídas volvían a avisarte al recargar",
+        "detalle": "La campana sacaba otra vez notas viejas que ya habías abierto, cada vez que se refrescaba la página."
       },
       {
         "tipo": "arreglado",
@@ -273,6 +221,26 @@
         "detalle": "De un pedido con trabajo de las dos secciones se veía solo la parte de Oficina Técnica: faltaban las personas de diseño, sus minutos y su material. Ahora el pedido sale entero."
       },
       {
+        "tipo": "arreglado",
+        "titulo": "Ya se puede finalizar una operación desde el pedido pasado a Producción",
+        "detalle": "Si pasas un pedido y su operación de OT se queda abierta en RPS, ahora se cierra desde la propia ficha. Antes solo aparecía en el Historial y había que ir a la herramienta vieja."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las métricas son de tu sección, no de las dos mezcladas",
+        "detalle": "Los números siguen a la lista que estés mirando, y el título dice de quién son. Lo de Oficina Técnica no cambia: sigue contando exactamente lo mismo que antes."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los cambios de la web se enseñan solos al entrar",
+        "detalle": "Cuando hay novedades, el resumen se abre al entrar en vez de esperar a que alguien pulse la campana. Se cierra y no vuelve a salir hasta la próxima actualización."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La campana solo avisa de tu trabajo",
+        "detalle": "Los cambios de la web ya no cuentan como un aviso más: ahora se enseñan al entrar. El log se puede volver a abrir cuando quieras desde el menú de herramientas."
+      },
+      {
         "tipo": "mejor",
         "titulo": "En \"¿quién eres?\" se ve de qué equipo es cada uno",
         "detalle": "Los nombres salen agrupados en Oficina Técnica y Diseño Gráfico, tanto al entrar como al cambiar de técnico desde arriba a la derecha."
@@ -281,22 +249,6 @@
         "tipo": "mejor",
         "titulo": "El apartado de documentos ya no se pega al de notas",
         "detalle": "Se veía como si fuera parte del hilo de notas. Ahora es un bloque suyo, separado igual que el resto de la ficha."
-      }
-    ]
-  },
-  {
-    "id": "2026-09-01",
-    "hasta": "457045e",
-    "cambios": [
-      {
-        "tipo": "nuevo",
-        "titulo": "Métricas: cuánto tarda cada paso y por qué se anulan las OF",
-        "detalle": "Además de las devoluciones, ahora se ve dónde se para el trabajo —esperando revisión, en el repaso o corrigiendo— y las causas de anulación, que se guardaban desde agosto sin que nadie las viera."
-      },
-      {
-        "tipo": "arreglado",
-        "titulo": "Ya se puede finalizar una operación desde el pedido pasado a Producción",
-        "detalle": "Si pasas un pedido y su operación de OT se queda abierta en RPS, ahora se cierra desde la propia ficha. Antes solo aparecía en el Historial y había que ir a la herramienta vieja."
       },
       {
         "tipo": "mejor",

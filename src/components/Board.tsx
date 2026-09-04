@@ -19,7 +19,7 @@ import { HistorialView } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
-import { ULTIMA, cuantasNuevas } from "@/lib/novedades";
+import { MARCA_ULTIMA, ULTIMA, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
@@ -195,15 +195,19 @@ const NOVEDADES_KEY = "coordina-novedades-visto";
  *  nunca ha visto de otra forma es ruido. Se sella al vuelo con la última, y a
  *  partir de ahí sí se entera de las siguientes. */
 function leerVistoNovedades(): string | null {
-  if (typeof window === "undefined") return ULTIMA;
+  // Se guarda la MARCA (`id·cuántos cambios`) y no el id a secas: las entradas
+  // del mismo día se funden en una, así que el id no basta para saber si hay
+  // algo nuevo. Lo que ya estuviera guardado en formato viejo sigue valiendo
+  // (ver `cuantasNuevas`).
+  if (typeof window === "undefined") return MARCA_ULTIMA;
   try {
     const guardado = localStorage.getItem(NOVEDADES_KEY);
     if (guardado) return guardado;
-    if (ULTIMA) localStorage.setItem(NOVEDADES_KEY, ULTIMA);
-    return ULTIMA;
+    if (MARCA_ULTIMA) localStorage.setItem(NOVEDADES_KEY, MARCA_ULTIMA);
+    return MARCA_ULTIMA;
   } catch {
     // Modo privado o almacenamiento bloqueado: no se avisa, y no pasa nada.
-    return ULTIMA;
+    return MARCA_ULTIMA;
   }
 }
 
@@ -2183,10 +2187,12 @@ export function Board({
               // Se dan por vistas al CERRAR, no al abrir: si se marca al abrir
               // y alguien cierra sin querer, el aviso desaparece sin haber
               // leído nada y no vuelve.
-              if (ULTIMA) {
-                setVistoNovedades(ULTIMA);
+              // La MARCA y no el id: si hoy se despliega otra vez y a esta
+              // misma entrada se le añaden cambios, el aviso vuelve.
+              if (MARCA_ULTIMA) {
+                setVistoNovedades(MARCA_ULTIMA);
                 try {
-                  localStorage.setItem(NOVEDADES_KEY, ULTIMA);
+                  localStorage.setItem(NOVEDADES_KEY, MARCA_ULTIMA);
                 } catch {}
               }
             }}

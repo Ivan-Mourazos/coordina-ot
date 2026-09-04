@@ -77,15 +77,19 @@ function novedadesDe(mensaje) {
   return salida;
 }
 
-/** Un id que no choque con los que ya hay. El día basta salvo que se despliegue
- *  dos veces la misma jornada, que pasa. */
-function idLibre(entradas) {
+/** La entrada de HOY, si ya hay una.
+ *
+ *  Desplegar dos veces en la misma jornada es lo normal —se arregla algo por la
+ *  mañana y otra cosa por la tarde—, y antes cada pasada creaba su propia
+ *  entrada: `2026-09-04`, `-2`, `-3`. El equipo abría el log y veía tres
+ *  "actualizaciones" seguidas del mismo día, como si hubiera pasado tres veces
+ *  algo importante. Lo que hubo fue un día de trabajo.
+ *
+ *  Se busca por id y no por la fecha sellada porque esa la pone el servidor al
+ *  estrenar la entrada, y aquí todavía no existe. */
+function entradaDeHoy(entradas) {
   const hoy = new Date().toISOString().slice(0, 10);
-  if (!entradas.some((e) => e.id === hoy)) return hoy;
-  for (let n = 2; ; n++) {
-    const id = `${hoy}-${n}`;
-    if (!entradas.some((e) => e.id === id)) return id;
-  }
+  return { hoy, previa: entradas.find((e) => e.id === hoy) ?? null };
 }
 
 const soloVer = process.argv.includes("--ver");
@@ -108,16 +112,37 @@ if (cambios.length === 0) {
 const ORDEN = { nuevo: 0, arreglado: 1, mejor: 2 };
 cambios.sort((a, b) => ORDEN[a.tipo] - ORDEN[b.tipo]);
 
-const entrada = { id: idLibre(entradas), hasta: git("rev-parse", "--short", "HEAD"), cambios };
+const { hoy, previa } = entradaDeHoy(entradas);
 
-console.log(`\n${entrada.cambios.length} cambios para la entrada ${entrada.id}:\n`);
-for (const c of entrada.cambios) console.log(`  [${c.tipo}] ${c.titulo}`);
+// Si ya hay entrada de hoy, los cambios se AÑADEN a la suya en vez de abrir
+// otra. Se ordenan todos juntos —los de esta mañana y los de ahora— para que
+// el bloque se lea como una lista sola y no como dos pegadas.
+const todos = [...(previa?.cambios ?? []), ...cambios].sort(
+  (a, b) => ORDEN[a.tipo] - ORDEN[b.tipo],
+);
+const entrada = { id: hoy, hasta: git("rev-parse", "--short", "HEAD"), cambios: todos };
+
+console.log(
+  `\n${cambios.length} cambios nuevos ${previa ? `añadidos a` : `para`} la entrada ${hoy}` +
+    `${previa ? ` (queda con ${todos.length})` : ""}:\n`,
+);
+for (const c of cambios) console.log(`  [${c.tipo}] ${c.titulo}`);
+
+if (previa) {
+  console.log(
+    "\n· Se suman a la entrada de hoy, que ya tenía " +
+      `${previa.cambios.length}. Si el servidor ya la había publicado, quien la\n` +
+      "  hubiera leído vuelve a recibir el aviso: la campana mira cuántos cambios\n" +
+      "  trae, no solo cuál es la última entrada.",
+  );
+}
 
 if (soloVer) {
   console.log("\n(--ver: no se ha escrito nada)");
   process.exit(0);
 }
 
-writeFileSync(DATOS, JSON.stringify([entrada, ...entradas], null, 2) + "\n");
+const resto = entradas.filter((e) => e.id !== hoy);
+writeFileSync(DATOS, JSON.stringify([entrada, ...resto], null, 2) + "\n");
 console.log(`\nEscrito en ${DATOS}. Léelas antes de desplegar: las escribiste tú, pero
 hace días.`);

@@ -61,6 +61,20 @@ export const NOVEDADES: readonly Novedad[] = DATOS as readonly Novedad[];
 /** La última actualización que hay. `null` si no hay ninguna. */
 export const ULTIMA: string | null = NOVEDADES[0]?.id ?? null;
 
+/** La marca que se guarda como "ya lo he leído": el id de la última entrada Y
+ *  cuántos cambios traía.
+ *
+ *  El número hace falta desde que las entradas del mismo día se FUNDEN en una
+ *  (ver scripts/novedades.mjs). Con solo el id, el segundo despliegue de la
+ *  jornada no avisaba a nadie: la entrada seguía llamándose igual, así que para
+ *  la campana no había cambiado nada aunque llevara cinco novedades más.
+ *
+ *  Formato `id·n`. El separador es un punto volado porque no aparece en un id
+ *  (que es una fecha) y así partirlo no tiene vuelta de hoja. */
+export const MARCA_ULTIMA: string | null = NOVEDADES[0]
+  ? `${NOVEDADES[0].id}·${NOVEDADES[0].cambios.length}`
+  : null;
+
 /** Cuántas actualizaciones se ha perdido esta persona.
  *
  *  Por POSICIÓN en la lista, no comparando fechas: las fechas las pone el
@@ -74,11 +88,21 @@ export const ULTIMA: string | null = NOVEDADES[0]?.id ?? null;
  *  se entera de las próximas.
  *
  *  Un `visto` que ya no existe en la lista (se borró una entrada) cuenta como
- *  "no visto nada": es raro, y es mejor enseñar de más que tragarse el aviso. */
+ *  "no visto nada": es raro, y es mejor enseñar de más que tragarse el aviso.
+ *
+ *  ACEPTA LAS DOS FORMAS de marca: `id·n` (la de ahora) y el `id` a secas que
+ *  quedó guardado en los navegadores de antes. Sin esa compatibilidad, el día
+ *  del cambio todo el equipo se habría encontrado un aviso de "13 novedades"
+ *  por algo que ya había leído. */
 export function cuantasNuevas(visto: string | null): number {
   if (visto === null) return 0;
-  const i = NOVEDADES.findIndex((n) => n.id === visto);
-  return i < 0 ? NOVEDADES.length : i;
+  const [id, n] = visto.split("·");
+  const i = NOVEDADES.findIndex((x) => x.id === id);
+  if (i < 0) return NOVEDADES.length;
+  // La leyó, pero desde entonces le han añadido cambios a esa misma entrada:
+  // es un despliegue más del mismo día y cuenta como una novedad que atender.
+  if (i === 0 && n !== undefined && Number(n) < NOVEDADES[0].cambios.length) return 1;
+  return i;
 }
 
 export const ETIQUETA: Record<TipoCambio, string> = {

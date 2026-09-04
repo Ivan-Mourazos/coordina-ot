@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { NOVEDADES, cuantasNuevas } from "../novedades";
+import { MARCA_ULTIMA, NOVEDADES, cuantasNuevas } from "../novedades";
 
 describe("qué actualizaciones se ha perdido cada uno", () => {
   it("quien vio la última no tiene nada nuevo", () => {
@@ -31,6 +31,35 @@ describe("qué actualizaciones se ha perdido cada uno", () => {
   it("los ids no se repiten: son lo que compara «ya lo he leído»", () => {
     const ids = NOVEDADES.map((n) => n.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("un día = una entrada: no hay dos con la misma fecha", () => {
+    // Las de un mismo día se funden (ver scripts/novedades.mjs). Antes salían
+    // `2026-09-04`, `-2` y `-3`, y el equipo veía tres actualizaciones seguidas
+    // donde solo hubo una jornada de trabajo.
+    const dias = NOVEDADES.map((n) => n.id.slice(0, 10));
+    expect(new Set(dias).size).toBe(dias.length);
+  });
+
+  it("si a la entrada de hoy le añaden cambios, vuelve a avisar", () => {
+    // El segundo despliegue de la jornada. Con el id a secas no avisaba a
+    // nadie: la entrada se llama igual, así que para la campana no había
+    // cambiado nada aunque llevara cinco novedades más.
+    const vistoAntes = `${NOVEDADES[0].id}·${NOVEDADES[0].cambios.length - 1}`;
+    expect(cuantasNuevas(vistoAntes)).toBe(1);
+  });
+
+  it("quien vio la entrada entera no tiene nada nuevo", () => {
+    expect(cuantasNuevas(MARCA_ULTIMA)).toBe(0);
+    expect(MARCA_ULTIMA).toBe(`${NOVEDADES[0].id}·${NOVEDADES[0].cambios.length}`);
+  });
+
+  it("las marcas viejas (solo el id) siguen valiendo", () => {
+    // Lo que quedó guardado en los navegadores del equipo antes de este
+    // cambio. Sin esto, el día del despliegue todos se habrían encontrado un
+    // aviso de todas las novedades por algo que ya habían leído.
+    expect(cuantasNuevas(NOVEDADES[0].id)).toBe(0);
+    expect(cuantasNuevas(NOVEDADES[2].id)).toBe(2);
   });
 });
 
