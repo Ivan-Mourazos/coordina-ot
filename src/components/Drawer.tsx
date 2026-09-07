@@ -323,6 +323,16 @@ export function Drawer({
   // camino y multiplicado por ocho, más.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
 
+  // LO QUE YO TENGO QUE REVISAR en este pedido, haya empezado ya o no.
+  //
+  // Es lo que decide si sale la guía, y no `paraDevolver` como estaba: devolver
+  // exige que la OF esté YA en revisión y que la haya cogido yo, así que al
+  // revisor que abre la ficha nada más asignársela —o antes de fichar— no le
+  // salía ningún punto. Justo cuando más sirven: son los que va a mirar ahora.
+  const miasParaRevisar = ofsDeOT.filter(
+    (o) => o.revisorId === miId && (o.estado === "por_revisar" || o.estado === "en_revision"),
+  );
+
   const familiasDelPedido = [
     ...new Set(ofsDeOT.map((o) => o.familia).filter(Boolean) as string[]),
   ];
@@ -622,7 +632,7 @@ export function Drawer({
               de un clic, en el sitio donde el equipo está todo el día.
               Se marca lo que falla y llega puesto al cuadro de devolver, igual
               que allí. */}
-          {paraDevolver.length > 0 && (
+          {miasParaRevisar.length > 0 && (
             <div className="mb-2">
               <GuiaRevision
                 puntos={puntosGuia}
