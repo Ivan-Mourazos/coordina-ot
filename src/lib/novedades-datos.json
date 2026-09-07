@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-07",
+    "hasta": "d5833f4",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Para aprobar o devolver hay que repasar antes los puntos de la guía",
+        "detalle": "Los botones esperan a que marques cada punto como bien o mal, y te dicen cuántos faltan. Lo que marcas se guarda: puedes cerrar y seguir después donde lo dejaste."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La guía de revisión ya sale al abrir el pedido que te toca revisar",
+        "detalle": "Antes solo aparecía después de fichar, y lo que hace falta es tenerla delante desde el principio para ir marcando."
+      }
+    ]
+  },
+  {
     "id": "2026-09-04",
     "hasta": "d93f34e",
     "cambios": [
