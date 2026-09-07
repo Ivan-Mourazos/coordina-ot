@@ -9,7 +9,8 @@ import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
-import { causasDeLoQueFalla, guiaDeFamilias, type EstadoPunto } from "@/lib/guia-revision";
+import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
+import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
 import { NotaDevolucion } from "./NotaDevolucion";
@@ -201,7 +202,17 @@ export function Drawer({
       vivo = false;
     };
   }, []);
-  const [marcasGuia, setMarcasGuia] = useState<Record<number, EstadoPunto>>({});
+  // LAS OF DE ESTE PEDIDO QUE ME TOCA REVISAR. Se calcula aquí arriba, sobre
+  // el pedido crudo, porque de ello dependen las marcas —y las marcas son un
+  // hook, que no puede ir detrás del `if (!pedido) return null` de más abajo.
+  const idsParaRevisar = (pedido?.ofs ?? [])
+    .filter(
+      (o) => o.revisorId === miId && (o.estado === "por_revisar" || o.estado === "en_revision"),
+    )
+    .map((o) => o.id);
+  // Lo comprobado se guarda en el servidor: de ello depende poder aprobar, y
+  // perderlo al refrescar obligaría a repasar los puntos otra vez.
+  const { marcas: marcasGuia, marcar: marcarGuia } = useMarcasRevision(idsParaRevisar, miId);
   const [guiaAbierta, setGuiaAbierta] = useState(true);
 
   // ¿Está escaneado el parte? `null` = todavía sin comprobar, y ahí se pinta el
@@ -338,6 +349,15 @@ export function Drawer({
   ];
   const puntosGuia = guiaDeFamilias(causasRevision, familiasDelPedido);
   const fallosGuia = causasDeLoQueFalla(puntosGuia, marcasGuia);
+  // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR: la guía deja de ser un
+  // recordatorio y pasa a ser el paso previo. Con la guía vacía —una familia
+  // para la que nadie ha dictado puntos todavía— no se bloquea nada: no habría
+  // forma de desbloquearlo.
+  const faltanPuntos = sinMirar(puntosGuia, marcasGuia);
+  const impedidoPorGuia =
+    faltanPuntos > 0
+      ? `Faltan ${faltanPuntos} ${faltanPuntos === 1 ? "punto" : "puntos"} por mirar`
+      : null;
 
   return (
     <div
@@ -603,8 +623,12 @@ export function Drawer({
                     idsAConfirmar.current = paraAprobar.map((o) => o.id);
                     confirmacionPedido.pedirConfirmacion(defAprobar);
                   }}
-                  title={`Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`}
-                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                  disabled={!!impedidoPorGuia}
+                  title={
+                    impedidoPorGuia ??
+                    `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`
+                  }
+                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Aprobar las {paraAprobar.length}
                 </button>
@@ -637,7 +661,7 @@ export function Drawer({
               <GuiaRevision
                 puntos={puntosGuia}
                 marcas={marcasGuia}
-                onMarcar={(id, e) => setMarcasGuia((p) => ({ ...p, [id]: e }))}
+                onMarcar={marcarGuia}
                 abierta={guiaAbierta}
                 onAbrir={setGuiaAbierta}
               />
@@ -714,6 +738,7 @@ export function Drawer({
                 onTraspasarAutor={onTraspasarAutor}
                 onAccion={onAccion}
                 onFichar={onFichar}
+                impedidoRevision={impedidoPorGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
               />
@@ -866,10 +891,14 @@ function OFRow({
   onFichar,
   onDesfichar,
   fichandoYoEsta,
+  impedidoRevision,
 }: {
   of: OF;
   operarios: Operario[];
   miId: string | null;
+  /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
+   *  la guía sin mirar), o null si se puede. */
+  impedidoRevision?: string | null;
   dobleFichaje: boolean;
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
@@ -1092,6 +1121,7 @@ function OFRow({
         onFichar={onFichar}
         onDesfichar={onDesfichar}
         fichandoYoEsta={fichandoYoEsta}
+        impedidoRevision={impedidoRevision}
       />
     </li>
   );
@@ -1114,10 +1144,14 @@ function AccionesOF({
   onFichar,
   onDesfichar,
   fichandoYoEsta,
+  impedidoRevision,
 }: {
   of: OF;
   operarios: Operario[];
   miId: string | null;
+  /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
+   *  dar por buena una OF sin haberla repasado entera es lo que se evita. */
+  impedidoRevision?: string | null;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -1290,6 +1324,8 @@ function AccionesOF({
               key={a.id}
               label={a.label}
               miId={miId}
+              impedido={impedidoRevision}
+              familias={of.familia ? [of.familia] : undefined}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}
             />
           );
@@ -1306,6 +1342,7 @@ function AccionesOF({
               </Btn>
             )
           );
+        const frenada = a.id === "aprobar" ? impedidoRevision : null;
         return (
           <Btn
             key={a.id}
@@ -1313,6 +1350,8 @@ function AccionesOF({
             // Lo peligroso, al otro extremo de la fila: no se pulsa por
             // inercia después de la acción que sí se usa a diario.
             className={a.tono === "peligro" ? "ml-auto" : ""}
+            disabled={!!frenada}
+            title={frenada ?? undefined}
             onClick={() => pedirConfirmacion(a)}
           >
             {/* "Aprobar → Jaime": a quién le llega la OF aprobada. Ponía
@@ -1363,12 +1402,16 @@ function Btn({
   tone,
   className = "",
   title,
+  disabled = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   tone: "amber" | "teal" | "reloj" | "revisar" | "ghost" | "rojo";
   className?: string;
   title?: string;
+  /** Apagado y sin poder pulsarse. El motivo va en `title`: un botón apagado
+   *  sin explicación se lee como que la web falla. */
+  disabled?: boolean;
 }) {
   const cls = {
     amber: "bg-amber-500 text-white hover:bg-amber-600",
@@ -1390,7 +1433,8 @@ function Btn({
     <button
       onClick={onClick}
       title={title}
-      className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${cls} ${className}`}
+      disabled={disabled}
+      className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${cls} ${className}`}
     >
       {children}
     </button>

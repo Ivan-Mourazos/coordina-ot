@@ -153,6 +153,25 @@ function abrir(): Database.Database {
     -- misma fila a propósito — en dos tablas se descuadran, y lo que se marca
     -- al revisar tiene que ser exactamente lo que se apunta al devolver.
     -- NULL = esta causa no sale en la guía.
+    -- Lo que el revisor ya ha comprobado de una OF, punto por punto.
+    --
+    -- SE GUARDA porque sin aprobar ni devolver hasta tenerlo todo mirado, un
+    -- refresco a media revisión obligaría a repasar los ocho puntos otra vez
+    -- para poder seguir. La columna punto_id es el id de la causa (una fila de
+    -- causa_devolucion): la guía y las causas son la misma lista por las dos
+    -- caras.
+    --
+    -- SE BORRA al aprobar o devolver: eso cierra esa revisión, y si la OF
+    -- vuelve más adelante es otra distinta y se repasa entera. Ver
+    -- limpiarMarcasRevision y guardarMutacion.
+    CREATE TABLE IF NOT EXISTS marca_revision (
+      of_id       TEXT NOT NULL,
+      punto_id    INTEGER NOT NULL,
+      estado      TEXT NOT NULL,
+      operario_id TEXT,
+      at          TEXT NOT NULL,
+      PRIMARY KEY (of_id, punto_id)
+    );
     CREATE TABLE IF NOT EXISTS causa_devolucion (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       etiqueta   TEXT NOT NULL,
@@ -782,6 +801,73 @@ export function editarCausaDevolucion(
 /** Retira una causa (o la devuelve al servicio). No se borra nunca: las
  *  devoluciones guardan su id, y borrarla dejaría el histórico apuntando a la
  *  nada. */
+/** Lo que ya se ha comprobado en estas OF: `ofId → { puntoId: estado }`.
+ *
+ *  Vacío para las que no tengan nada marcado, que es lo normal: solo hay filas
+ *  mientras una revisión está en marcha. */
+export function leerMarcasRevision(
+  ofIds: readonly string[],
+): Record<string, Record<number, string>> {
+  if (ofIds.length === 0) return {};
+  const filas = abrir()
+    .prepare(
+      `SELECT of_id, punto_id, estado FROM marca_revision
+        WHERE of_id IN (${ofIds.map(() => "?").join(",")})`,
+    )
+    .all(...ofIds) as Array<{ of_id: string; punto_id: number; estado: string }>;
+
+  const salida: Record<string, Record<number, string>> = {};
+  for (const f of filas) {
+    (salida[f.of_id] ??= {})[f.punto_id] = f.estado;
+  }
+  return salida;
+}
+
+/** Marca (o desmarca, con `estado` null) un punto en varias OF a la vez.
+ *
+ *  VARIAS porque la guía es del PEDIDO: el revisor mira el trabajo entero y va
+ *  marcando una sola lista, aunque el pedido traiga cuatro OF. Guardarlo por OF
+ *  es lo que permite después dejar volver una sola. */
+export function marcarPuntoRevision(
+  ofIds: readonly string[],
+  puntoId: number,
+  estado: string | null,
+  operarioId: string | null,
+): void {
+  if (ofIds.length === 0) return;
+  const db = abrir();
+  const ahora = new Date().toISOString();
+  db.transaction(() => {
+    for (const ofId of ofIds) {
+      if (estado === null) {
+        db.prepare("DELETE FROM marca_revision WHERE of_id = ? AND punto_id = ?").run(
+          ofId,
+          puntoId,
+        );
+        continue;
+      }
+      db.prepare(
+        `INSERT INTO marca_revision (of_id, punto_id, estado, operario_id, at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(of_id, punto_id) DO UPDATE SET
+           estado = excluded.estado, operario_id = excluded.operario_id, at = excluded.at`,
+      ).run(ofId, puntoId, estado, operarioId, ahora);
+    }
+  })();
+}
+
+/** Borra lo comprobado de estas OF: su revisión ha terminado.
+ *
+ *  Se llama al aprobar y al devolver. Si la OF vuelve a revisión más adelante
+ *  es otra revisión distinta y se repasa entera; conservar los ✓ de la anterior
+ *  sería dar por mirado lo que nadie ha vuelto a mirar. */
+export function limpiarMarcasRevision(ofIds: readonly string[]): void {
+  if (ofIds.length === 0) return;
+  abrir()
+    .prepare(`DELETE FROM marca_revision WHERE of_id IN (${ofIds.map(() => "?").join(",")})`)
+    .run(...ofIds);
+}
+
 export function retirarCausaDevolucion(id: number, retirada: boolean): boolean {
   return (
     abrir()
@@ -914,6 +1000,32 @@ export function guardarMutacion(m: Mutacion): void {
         revisada: c.estado === "en_revision" ? 1 : 0,
       });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);
+
+    // La revisión de esta OF ha terminado: lo comprobado ya no vale para nada
+    // y se borra. Va AQUÍ, en la misma transacción que el cambio de estado, y
+    // no en el cliente: así no depende de que nadie se acuerde de pedirlo, y
+    // una OF que salga de revisión por cualquier camino —aprobar, devolver,
+    // darla por corregida, anularla— queda limpia igual.
+    const cierraRevision =
+      m.motivo === "aprobar" ||
+      m.motivo === "devolver" ||
+      m.motivo === "aprobar_corregida" ||
+      m.motivo === "aprobar_sin_revision" ||
+      m.motivo === "anular" ||
+      // Salir de la revisión sin decidir nada también la cierra: quien la
+      // suelta o la manda atrás no ha comprobado lo que quede marcado, y el
+      // siguiente que la coja tiene que repasarla entera.
+      m.motivo === "soltar_revision" ||
+      m.motivo === "recuperar_planteo";
+    if (cierraRevision) {
+      const ids = (m.cambiosOF ?? []).map((c) => c.ofId);
+      if (ids.length > 0) {
+        db.prepare(
+          `DELETE FROM marca_revision WHERE of_id IN (${ids.map(() => "?").join(",")})`,
+        ).run(...ids);
+      }
+    }
+
     log.run(
       ahora,
       m.operarioId,

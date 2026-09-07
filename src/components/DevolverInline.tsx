@@ -35,6 +35,7 @@ export function DevolverInline({
   causasSugeridas,
   familias,
   ofs,
+  impedido,
 }: {
   /** Devuelve. `ofIds` dice a CUÁLES: si no se pasa, a todas las del grupo.
    *  Quien lo llama decide qué significa "todas" — este componente solo sabe
@@ -45,6 +46,10 @@ export function DevolverInline({
    *  pedido de cinco) y devolver las cinco manda a corregir cuatro que están
    *  bien. Con una sola no se pregunta nada. */
   ofs?: readonly { id: string; codigo: string }[];
+  /** Por qué no se puede devolver todavía. Hoy: quedan puntos de la guía sin
+   *  mirar. Mandar una OF atrás sin haberla repasado entera deja al autor con
+   *  media corrección, y a la vuelta aparecerá lo que no se llegó a mirar. */
+  impedido?: string | null;
   /** Quién crea la causa, si crea alguna. Solo para dejarlo apuntado. */
   miId?: string | null;
   /** Causas ya marcadas al abrir. Vienen de la guía de revisión: lo que el
@@ -102,12 +107,17 @@ export function DevolverInline({
 
   if (!abierto) {
     return (
-      <button
-        onClick={() => setAbierto(true)}
-        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400"
-      >
-        {label}
-      </button>
+      <span className="inline-flex items-center gap-1.5">
+        <button
+          onClick={() => setAbierto(true)}
+          disabled={!!impedido}
+          title={impedido ?? undefined}
+          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
+        >
+          {label}
+        </button>
+        {impedido && <span className="text-[10px] text-text-muted">{impedido}</span>}
+      </span>
     );
   }
 

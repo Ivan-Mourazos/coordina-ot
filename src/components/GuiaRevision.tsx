@@ -41,33 +41,60 @@ export function GuiaRevision({
 
   const fallos = puntos.filter((p) => marcas[p.id] === "falla").length;
   const vistos = puntos.filter((p) => marcas[p.id] && marcas[p.id] !== "sin_mirar").length;
+  const faltan = puntos.length - vistos;
+
+  // MIENTRAS FALTA ALGO, SE VE. Nació como una caja gris más entre las otras y
+  // se perdía en la columna: siendo el paso que hay que dar antes de aprobar,
+  // pasar desapercibida es justo lo que no puede hacer. Con puntos pendientes
+  // va en violeta —el color de "revisar" en toda la app— con su barra de
+  // avance; en cuanto está entera, se apaga y se queda discreta, porque ya no
+  // hay nada que pedirle a nadie.
+  const pendiente = faltan > 0;
 
   return (
-    <div className="w-full overflow-hidden rounded-lg ring-1 ring-border">
+    <div
+      className={`w-full overflow-hidden rounded-lg ring-1 ${
+        pendiente
+          ? "bg-violet-500/10 ring-violet-500/40"
+          : "bg-teal-500/5 ring-teal-500/25"
+      }`}
+    >
       <button
         type="button"
         onClick={() => onAbrir(!abierta)}
         aria-expanded={abierta}
-        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+        className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide hover:bg-[var(--glass-highlight)] ${
+          pendiente ? "text-violet-700 dark:text-violet-300" : "text-teal-700 dark:text-teal-300"
+        }`}
       >
         <span aria-hidden="true" className="text-[9px]">
           {abierta ? "▾" : "▸"}
         </span>
-        Qué mirar
+        {pendiente ? "Qué mirar antes de aprobar" : "Repasado entero"}
         {/* El avance, no el total: "3 de 8" dice si la revisión va por la mitad,
             que es lo que se pregunta uno al volver de una interrupción. */}
-        <span className="ml-auto font-normal normal-case tabular-nums">
+        <span className="ml-auto shrink-0 tabular-nums">
           {vistos} de {puntos.length}
         </span>
         {fallos > 0 && (
-          <span className="rounded bg-red-500/15 px-1 py-px text-[9px] font-bold normal-case text-red-600 dark:text-red-400">
+          <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[9px] font-bold normal-case text-red-600 dark:text-red-400">
             {fallos === 1 ? "1 falla" : `${fallos} fallan`}
           </span>
         )}
       </button>
 
+      {/* Cuánto llevas, sin tener que abrirla ni contar. Dos píxeles de alto:
+          dice lo mismo que el "3 de 8" pero se ve de refilón desde el otro
+          extremo de la pantalla. */}
+      <div className="h-0.5 w-full bg-black/10 dark:bg-white/10">
+        <div
+          className={`h-full transition-all ${pendiente ? "bg-violet-500" : "bg-teal-500"}`}
+          style={{ width: `${puntos.length ? (vistos / puntos.length) * 100 : 0}%` }}
+        />
+      </div>
+
       {abierta && (
-        <ul className="border-t border-border">
+        <ul className="border-t border-border bg-surface">
           {puntos.map((p) => {
             const estado = marcas[p.id] ?? "sin_mirar";
             const falla = estado === "falla";

@@ -17,22 +17,35 @@ export function AprobarInline({
   ofs,
   onAprobar,
   label = "Aprobar",
+  impedido,
 }: {
   ofs: readonly OFElegible[];
   onAprobar: (ofIds: string[]) => void;
   label?: string;
+  /** Por qué no se puede aprobar todavía, dicho para leer. Hoy es "quedan
+   *  puntos de la guía sin mirar": dar por buena una OF sin haberla repasado
+   *  entera es exactamente lo que la guía viene a evitar.
+   *
+   *  Se dice el motivo y no se esconde el botón: un botón que desaparece
+   *  parece un fallo de la web, y uno apagado sin explicación, también. */
+  impedido?: string | null;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [elegidas, setElegidas] = useElegidas(ofs);
 
   if (!abierto) {
     return (
-      <button
-        onClick={() => setAbierto(true)}
-        className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
-      >
-        {label}
-      </button>
+      <span className="inline-flex items-center gap-1.5">
+        <button
+          onClick={() => setAbierto(true)}
+          disabled={!!impedido}
+          title={impedido ?? undefined}
+          className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {label}
+        </button>
+        {impedido && <span className="text-[10px] text-text-muted">{impedido}</span>}
+      </span>
     );
   }
 

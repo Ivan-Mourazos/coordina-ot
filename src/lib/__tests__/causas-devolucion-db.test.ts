@@ -133,3 +133,39 @@ test("volver a crear una retirada la reactiva, sin duplicarla", () => {
   expect(c.retirada).toBe(false);
   expect(db.leerCausasDevolucion().filter((x) => /anuló/i.test(x.etiqueta))).toHaveLength(1);
 });
+
+test("lo comprobado se guarda por OF y se borra al cerrar la revisión", () => {
+  // Sin guardarlo, un refresco a media revisión obligaría a repasar los ocho
+  // puntos otra vez para poder aprobar. Y sin borrarlo al cerrar, la segunda
+  // vuelta de una OF empezaría con los ✓ de la primera: dar por mirado lo que
+  // nadie ha vuelto a mirar.
+  const causa = db.leerCausasDevolucion()[0];
+
+  db.marcarPuntoRevision(["of-1", "of-2"], causa.id, "bien", "tamara");
+  expect(db.leerMarcasRevision(["of-1"])["of-1"][causa.id]).toBe("bien");
+  expect(db.leerMarcasRevision(["of-2"])["of-2"][causa.id]).toBe("bien");
+
+  // Desmarcar borra la fila: "sin mirar" no es un estado que guardar.
+  db.marcarPuntoRevision(["of-2"], causa.id, null, "tamara");
+  expect(db.leerMarcasRevision(["of-2"])["of-2"]).toBeUndefined();
+
+  // Y aprobar cierra la revisión de esa OF.
+  db.guardarMutacion({
+    operarioId: "tamara",
+    motivo: "aprobar",
+    cambiosOF: [
+      { ofId: "of-1", autorId: "alberto", revisorId: "tamara", estado: "aprobada", observacion: null },
+    ],
+  });
+  expect(db.leerMarcasRevision(["of-1"])["of-1"]).toBeUndefined();
+});
+
+test("marcar en varias OF a la vez, que es como se revisa un pedido", () => {
+  // La guía es del PEDIDO: se mira el trabajo entero y se marca una sola
+  // lista, aunque el pedido traiga cuatro OF.
+  const causa = db.leerCausasDevolucion()[1];
+  db.marcarPuntoRevision(["a", "b", "c"], causa.id, "falla", "angel");
+  const marcas = db.leerMarcasRevision(["a", "b", "c"]);
+  expect(Object.keys(marcas).sort()).toEqual(["a", "b", "c"]);
+  expect(marcas.a[causa.id]).toBe("falla");
+});

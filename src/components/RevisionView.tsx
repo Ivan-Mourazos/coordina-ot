@@ -6,8 +6,9 @@ import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
-import { causasDeLoQueFalla, guiaDeFamilias, type EstadoPunto } from "@/lib/guia-revision";
+import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
+import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
@@ -355,7 +356,10 @@ function ReviewCard({
   // porque de aquí sale lo que se le pasa a la devolución, que es el botón de
   // al lado. No se guarda en ninguna parte: es el dedo sobre el papel mientras
   // se repasa, y al cerrar la pantalla ya no hace falta.
-  const [marcas, setMarcas] = useState<Record<number, EstadoPunto>>({});
+  // Lo comprobado va al servidor: de ello depende poder aprobar, y perderlo al
+  // refrescar obligaría a repasar los ocho puntos otra vez (ver
+  // useMarcasRevision).
+  const { marcas, marcar } = useMarcasRevision(ofIds, miId);
   const [guiaAbierta, setGuiaAbierta] = useState(true);
   // De qué es este trabajo: la guía y las causas se acotan a estas familias.
   // Un pedido puede traer varias (un toldo y su lona) y se repasan las de
@@ -363,6 +367,14 @@ function ReviewCard({
   const familias = [...new Set(ofs.map((o) => o.familia).filter(Boolean) as string[])];
   const puntos = guiaDeFamilias(causas, familias);
   const fallos = causasDeLoQueFalla(puntos, marcas);
+  // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR. La guía deja de ser un
+  // recordatorio y pasa a ser el paso previo: dar por buena una OF sin haberla
+  // repasado entera es lo que esto viene a evitar, y devolverla a medias deja
+  // al autor con media corrección —lo que no se miró aparece en la vuelta
+  // siguiente—. Con la guía vacía (una familia sin puntos todavía) no se
+  // bloquea nada: no habría forma de desbloquearlo.
+  const faltan = sinMirar(puntos, marcas);
+  const impedido = faltan > 0 ? `Faltan ${faltan} ${faltan === 1 ? "punto" : "puntos"} por mirar` : null;
 
   const selectorRevisor = (
     <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
@@ -468,7 +480,7 @@ function ReviewCard({
               <GuiaRevision
                 puntos={puntos}
                 marcas={marcas}
-                onMarcar={(id, e) => setMarcas((p) => ({ ...p, [id]: e }))}
+                onMarcar={marcar}
                 abierta={guiaAbierta}
                 onAbrir={setGuiaAbierta}
               />
@@ -483,6 +495,7 @@ function ReviewCard({
               <AprobarInline
                 ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
                 onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
+                impedido={impedido}
                 label={ofs.length > 1 ? `Aprobar las ${ofs.length}` : "Aprobar"}
               />
             )}
@@ -499,6 +512,7 @@ function ReviewCard({
                 miId={miId}
                 causasSugeridas={fallos}
                 familias={familias}
+                impedido={impedido}
                 // Se puede devolver SOLO la OF que falla. La nota iba al grupo
                 // entero: en un pedido de cinco, cuatro personas leían que
                 // corrigieran algo que estaba bien. Por defecto siguen
