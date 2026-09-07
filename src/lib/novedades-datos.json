@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-07",
-    "hasta": "d5833f4",
+    "hasta": "94a55bc",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Para aprobar o devolver hay que repasar antes los puntos de la guía",
         "detalle": "Los botones esperan a que marques cada punto como bien o mal, y te dicen cuántos faltan. Lo que marcas se guarda: puedes cerrar y seguir después donde lo dejaste."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes abrir Plantear remolques desde el menú",
+        "detalle": "Estaba en la lista como «Pronto». Ya está publicada y se abre con un clic, como las demás."
       },
       {
         "tipo": "arreglado",
