@@ -60,8 +60,10 @@ export interface Seccion {
    *  se termina, la web dice que viene y no enseña nada: ni tablero, ni lista,
    *  ni métricas, ni consultas a la BD.
    *
-   *  Se quita cambiando esta línea, y con ella entra todo lo demás: la fuente
-   *  ya está hecha y probada. */
+   *  HOY NO LA LLEVA NINGUNA. La llevó Diseño Gráfico desde el 02/09/2026
+   *  hasta que su lista se comprobó contra las dos bases (ver ahí abajo), y se
+   *  deja puesta para la siguiente sección que entre: ponerla es una línea, y
+   *  detrás ya están el aviso en pantalla y el corte de las consultas. */
   enObras?: boolean;
   /** El trozo que llevan en el nombre sus centros en `scg_Fases`.
    *
@@ -87,8 +89,17 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "diseno",
     nombre: "Diseño Gráfico",
     vista: "TGM_PENDIENTE_DISENHO",
+    // ABIERTA el 08/09/2026. Estuvo anunciada y sin enseñar trabajo desde el
+    // 02/09 porque su lista no era de fiar. Comprobado contra RPS y OLANET a la
+    // vez, con la fuente de fases vivas puesta: de las 48 filas que da el
+    // tablero, las 48 son tareas de A-DGRA y las 48 cuelgan de una OF que
+    // admite imputaciones; ninguna clave sale duplicada por la trampa del cero
+    // delante (tarea 2 y tarea 02); y 11 son trabajo que la vista escondía.
+    //
+    // Lo que NO tapa: dos fases que OLANET da por vivas (0229965/03 y
+    // 0230576/06) no existen como tarea en RPS, y sin tarea no hay pedido,
+    // cliente ni fecha que enseñar, así que se caen de la lista en silencio.
     fuente: "olanet",
-    enObras: true,
     recursos: ["a-dgra", "dgra-a"],
     maquina: "A-DGRA",
     marcaEnFases: "DGRA",

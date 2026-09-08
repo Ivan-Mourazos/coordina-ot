@@ -110,14 +110,14 @@ describe("de dónde saca cada sección su trabajo", () => {
 });
 
 describe("secciones en obras", () => {
-  it("Diseño Gráfico está anunciada pero todavía no abierta", () => {
-    // Se anuncia y no enseña trabajo hasta que su lista sea de fiar. Enseñar
-    // una lista a medias es peor que no enseñar ninguna: el equipo aprende a
-    // no fiarse, y de eso no se vuelve con un despliegue.
-    expect(SECCIONES.diseno.enObras).toBe(true);
-  });
-
-  it("Oficina Técnica no lo está", () => {
-    expect(SECCIONES.ot.enObras).toBeUndefined();
+  it("ninguna lo está: las dos enseñan su trabajo", () => {
+    // Diseño Gráfico estuvo anunciada y sin trabajo mientras su lista no era
+    // de fiar; se abrió el 08/09/2026 tras comprobarla contra RPS y OLANET.
+    // Si alguien vuelve a poner `enObras` sin querer, media web deja de
+    // enseñar su sección —tablero, lista, métricas y consultas— y en pantalla
+    // solo queda el cartel de "ya viene", que es un fallo silencioso.
+    for (const s of Object.values(SECCIONES)) {
+      expect(s.enObras).toBeUndefined();
+    }
   });
 });
