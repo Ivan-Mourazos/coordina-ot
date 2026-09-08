@@ -4,7 +4,9 @@
 
 **Goal:** Que CoordinaOT sepa quién escribe: cada persona entra con un PIN y el servidor saca la identidad de la sesión en vez de creerse el `operarioId` que manda el navegador.
 
-**Architecture:** Una tabla `persona` en el SQLite de la app (migración 7) guarda quién puede entrar, con qué PIN cifrado y con qué roles. Al acertar el PIN el servidor deja una cookie firmada (HMAC-SHA256, httpOnly) con el id. Un único ayudante, `exigir(req, rol)`, resuelve la identidad leyendo la cookie de la cabecera `Cookie` de la `Request` y releyendo la persona de la base en cada petición; los diez endpoints de escritura lo llaman y dejan de mirar el cuerpo. En el navegador, la rejilla de caras que ya existe pide el PIN después de elegirse, y "Cambiar" pasa a ser "Salir".
+**Architecture:** Una tabla `persona` en el SQLite de la app (migración 7) guarda quién puede entrar, con qué PIN cifrado y con qué roles. Al acertar el PIN el servidor deja una cookie firmada (HMAC-SHA256, httpOnly) con el id. Un único ayudante, `identidad(req, delCuerpo, rol)`, decide de quién es cada acción: con el login encendido lee la cookie de la cabecera `Cookie` de la `Request` y relee la persona de la base en cada petición; apagado cae al `operarioId` del cuerpo, como hoy. Las once rutas de escritura lo llaman y dejan de decidirlo por su cuenta. En el navegador conviven las dos pantallas de entrar —la rejilla sin PIN de siempre y la nueva con teclado— y una prop elige cuál.
+
+**Se despliega APAGADO** (`COORDINA_LOGIN=off`), por decisión de Iván. Ver "El interruptor".
 
 **Tech Stack:** Next.js 16.2.9 (App Router, route handlers), React 19, TypeScript, better-sqlite3, vitest. Criptografía con `node:crypto` (`scrypt`, `createHmac`, `timingSafeEqual`) — **sin dependencias nuevas**.
 
@@ -16,10 +18,29 @@
 - **Los ids de persona NO cambian:** `alberto`, `jaime`, `tamara`, `adrian`, `ivan`, `angel`, `carron`, `manuel`, `smith`. Todo lo guardado (fichajes, autorías, notas, causas, marcas) apunta a ellos.
 - **El PIN nunca viaja de vuelta** ni aparece en ninguna respuesta, log o mensaje de error.
 - **Las bajas se desactivan (`activo = 0`), no se borran:** el histórico enseña "planteó Jaime" y necesita la fila.
-- **`COORDINA_SESION_SECRET` es obligatoria.** Si falta, la app no arranca. Arrancar "sin seguridad pero funcionando" es peor que no arrancar.
+- **El login nace APAGADO.** `COORDINA_LOGIN` vale `off` (por defecto) o `activo`. Ver "El interruptor" más abajo: no es un detalle de despliegue, ata a las Tasks 2, 4, 5 y 6.
+- **`COORDINA_SESION_SECRET` es obligatoria cuando `COORDINA_LOGIN=activo`.** Con el login apagado no hace falta: nada firma ni verifica. Con el login encendido y sin secreto, la app no arranca — arrancar "sin seguridad pero funcionando" es peor que no arrancar.
 - **Los tests corren con `pnpm test`** (vitest). Cada tarea deja la suite ENTERA en verde, no solo sus tests.
 - **Cada commit que note el equipo lleva línea `Novedad:`** en primera columna (ver AGENTS.md). Los refactors internos NO la llevan; aquí solo la llevan las tareas 5 y 6.
 - Las rutas se prueban con `Request` a pelo (ver `src/lib/__tests__/api-fases.test.ts`), así que **la sesión se lee de `req.headers.get("cookie")`**, nunca de `next/headers`.
+
+## El interruptor
+
+Decidido por Iván el 08/09/2026, después de escribir el plan: **esto se construye entero, se despliega, y se queda APAGADO hasta nuevo aviso.** El equipo sigue entrando como hoy. Es el mismo patrón que ya usa el fichaje (`FICHAJE_OLANET=sombra|ensayo|activo`), y sirve para lo mismo: encender contra el servidor de verdad, mirar, y apagar en un minuto si molesta.
+
+```
+COORDINA_LOGIN=off      # por defecto: se entra como hasta ahora
+COORDINA_LOGIN=activo   # pantalla de PIN y sesión
+```
+
+**Lo que hay que tener claro: con el login apagado NO se protege nada.** El servidor sigue creyéndose el `operarioId` que le manda el navegador, exactamente igual que hoy. El agujero se cierra el día que se encienda, no el día que se despliegue.
+
+**Consecuencias, que son las que hacen trabajo:**
+
+- **Los dos caminos de identidad conviven.** `IdentityGate` (rejilla sin PIN, identidad en `localStorage`) **NO se borra**, y el cliente sigue mandando `operarioId` en los cuerpos — apagado lo necesita, encendido se ignora. Mandarlo siempre evita ocho `if` repartidos por el Board.
+- **El seam es UNO solo, en el servidor:** `identidad(req, delCuerpo, rol)` de `sesion.ts`. Encendido se comporta como `exigir()`; apagado cae al `operarioId` del cuerpo, como hoy. Las once rutas llaman a esa, no a `exigir` directamente.
+- **En el cliente el seam es una prop**, `loginActivo`, que baja de `page.tsx` (componente de servidor) al `Board`, igual que ya viaja `dobleFichaje`. El navegador no lee variables de entorno.
+- **El día que se encienda no hay que tocar código**: se cambia la variable, se reinicia y ya. Y ese día es cuando aplica todo lo que dice `docs/despliegue-login.md`.
 
 ## Decisiones que la spec dejaba abiertas
 
@@ -39,7 +60,7 @@ Añadido que la spec no pedía y este plan incluye, por tratarse de un PIN de cu
 |---|---|
 | `src/lib/personas.ts` | Tipos compartidos cliente/servidor: `RolAcceso`, `PersonaPublica`. Nada de servidor dentro. |
 | `src/lib/server/personas-db.ts` | La tabla `persona`: leerla, verificar un PIN, ponerlo, resetearlo. La ÚNICA que sabe de hashes. |
-| `src/lib/server/sesion.ts` | Firmar y verificar la cookie, y el ayudante `exigir(req, rol)` que usan las rutas. |
+| `src/lib/server/sesion.ts` | Firmar y verificar la cookie, el interruptor, y el ayudante `identidad(req, delCuerpo, rol)` que usan las rutas. |
 | `src/app/api/sesion/route.ts` | GET (quién soy), POST (entrar), DELETE (salir). |
 | `src/app/api/personas/route.ts` | GET (la rejilla del login), PATCH (un supervisor resetea un PIN). |
 | `src/components/LoginGate.tsx` | La pantalla: rejilla de caras + teclado de PIN + alta de PIN la primera vez. |
@@ -504,7 +525,9 @@ los reales no se escriben en el código."
   - `interface Sesion { id: string; nombre: string; roles: RolAcceso[] }`
   - `firmarSesion(id: string): string` — el valor de la cookie
   - `quienEs(req: Request): Sesion | null`
-  - `exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse` — lo que llaman las rutas
+  - `exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse` — con el login encendido
+  - `loginActivo(): boolean`
+  - `identidad(req: Request, delCuerpo: unknown, rol?: RolAcceso): Sesion | NextResponse` — **lo que llaman las once rutas**
   - `cabeceraDeSesion(id: string): string` / `cabeceraDeSalida(): string` — el `Set-Cookie`
   - `COOKIE = "coordina_sesion"`
 
@@ -513,7 +536,7 @@ los reales no se escriben en el código."
 Crear `src/lib/__tests__/sesion.test.ts`:
 
 ```ts
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -526,6 +549,9 @@ beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-sesion-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   process.env.COORDINA_SESION_SECRET = "secreto-de-pruebas-no-usar-en-produccion";
+  // Se fija a mano y no se hereda de la máquina: si no, la suite daría un
+  // resultado en el portátil y otro en el servidor.
+  process.env.COORDINA_LOGIN = "off";
   s = await import("../server/sesion");
   estado = await import("../server/estado-db");
 });
@@ -638,6 +664,73 @@ test("sin COORDINA_SESION_SECRET no se firma nada: revienta", () => {
   delete process.env.COORDINA_SESION_SECRET;
   expect(() => s.firmarSesion("ivan")).toThrow(/COORDINA_SESION_SECRET/);
   process.env.COORDINA_SESION_SECRET = antes;
+});
+
+// ── El interruptor ─────────────────────────────────────────────────────────
+// El login se despliega APAGADO. Con él apagado, `identidad` tiene que
+// comportarse exactamente como el servidor de hoy, o el equipo se queda fuera
+// de su herramienta de trabajo el día del despliegue.
+
+test("apagado, la identidad sale del cuerpo, como hasta ahora", () => {
+  process.env.COORDINA_LOGIN = "off";
+  const r = s.identidad(con(), "tamara", "tecnico");
+  expect(r).not.toBeInstanceOf(Response);
+  expect((r as { id: string; nombre: string }).nombre).toBe("Tamara");
+});
+
+test("apagado, un operarioId que no existe se rechaza igual que hoy", () => {
+  // Hoy el servidor no comprueba nada, pero tampoco puede firmar una acción a
+  // nombre de alguien que no está: quedaría un registro apuntando a la nada.
+  process.env.COORDINA_LOGIN = "off";
+  expect((s.identidad(con(), "fulano", "tecnico") as Response).status).toBe(400);
+  expect((s.identidad(con(), "", "tecnico") as Response).status).toBe(400);
+  expect((s.identidad(con(), 42, "tecnico") as Response).status).toBe(400);
+});
+
+test("apagado, si HAY cookie válida manda ella y no el cuerpo", () => {
+  // Para poder encender, mirar, apagar y que quien ya entró siga siendo quien
+  // dice ser mientras dure su sesión.
+  process.env.COORDINA_LOGIN = "off";
+  const r = s.identidad(con(`coordina_sesion=${s.firmarSesion("ivan")}`), "tamara", "tecnico");
+  expect((r as { id: string }).id).toBe("ivan");
+});
+
+test("encendido, el cuerpo se ignora del todo", () => {
+  // Es el agujero que se viene a cerrar: da igual lo que mande el navegador.
+  process.env.COORDINA_LOGIN = "activo";
+  expect((s.identidad(con(), "angel", "tecnico") as Response).status).toBe(401);
+  const r = s.identidad(con(`coordina_sesion=${s.firmarSesion("tamara")}`), "angel", "tecnico");
+  expect((r as { id: string }).id).toBe("tamara");
+});
+
+test("apagado, un supervisor tampoco escribe", () => {
+  // El rol se hace cumplir esté el login como esté: si no, encenderlo cambiaría
+  // quién puede hacer qué, y eso hay que verlo ANTES de encenderlo.
+  process.env.COORDINA_LOGIN = "off";
+  estado.getDb().prepare("UPDATE persona SET activo = 1 WHERE id = 'cris'").run();
+  expect((s.identidad(con(), "cris", "tecnico") as Response).status).toBe(403);
+  estado.getDb().prepare("UPDATE persona SET activo = 0 WHERE id = 'cris'").run();
+});
+
+test("loginActivo solo es cierto con el valor exacto", () => {
+  // Un typo en la variable del servidor NO debe encender el login a medias.
+  for (const v of ["off", "", "Activo", "1", "true", undefined]) {
+    if (v === undefined) delete process.env.COORDINA_LOGIN;
+    else process.env.COORDINA_LOGIN = v;
+    expect(s.loginActivo(), `con ${JSON.stringify(v)}`).toBe(false);
+  }
+  process.env.COORDINA_LOGIN = "activo";
+  expect(s.loginActivo()).toBe(true);
+});
+```
+
+Y un `afterEach` que devuelva el interruptor a su sitio, porque estos tests lo mueven:
+
+```ts
+afterEach(() => {
+  // Sin esto, el último test que lo deja en "activo" cambiaría el significado
+  // de cualquier caso que se añada después.
+  process.env.COORDINA_LOGIN = "off";
 });
 ```
 
@@ -758,16 +851,16 @@ export function quienEs(req: Request): Sesion | null {
   return { id: persona.id, nombre: persona.nombre, roles: persona.roles };
 }
 
-/** Lo que llaman las rutas. Devuelve la sesión, o la respuesta con la que hay
- *  que cortar.
+/** La sesión, o la respuesta con la que hay que cortar. **Con el login
+ *  ENCENDIDO**: es lo que llama `identidad()`, y lo llaman directamente solo las
+ *  rutas que no pueden sacar identidad de ningún otro sitio (las lecturas y
+ *  pedido-scan), siempre dentro de un `if (loginActivo())`.
  *
- *  UNA sola función para las once rutas: repetir la comprobación en cada una
+ *  Las rutas de escritura llaman a `identidad()`, no a esto: una ruta que llame
+ *  aquí a secas se queda muerta con el login apagado, que es como se despliega.
+ *
+ *  UNA sola función para las once: repetir la comprobación en cada una
  *  garantiza que a la doceava se le olvide.
- *
- *  Uso:
- *      const yo = exigir(req, "tecnico");
- *      if (yo instanceof NextResponse) return yo;
- *      // a partir de aquí, yo.id es quien de verdad manda esto
  */
 export function exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse {
   const yo = quienEs(req);
@@ -781,6 +874,58 @@ export function exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse {
       { error: "Esta cuenta es de solo lectura" },
       { status: 403 },
     );
+  return yo;
+}
+
+// ── El interruptor ──────────────────────────────────────────────────────────
+// El login se despliega APAGADO y se enciende cambiando una variable en el
+// servidor, como ya se hace con el fichaje (FICHAJE_OLANET). Sirve para
+// encenderlo contra el servidor de verdad, mirar, y apagarlo en un minuto si
+// molesta, sin volver a desplegar.
+//
+// Con el login apagado el servidor sigue creyéndose el operarioId del cuerpo,
+// igual que hoy: NO protege nada. El agujero se cierra el día que se enciende.
+
+/** Comparación exacta contra "activo": cualquier otra cosa —vacío, "true", un
+ *  typo— deja el login apagado. Un interruptor de seguridad que se encienda por
+ *  accidente no es un interruptor. */
+export function loginActivo(): boolean {
+  return process.env.COORDINA_LOGIN === "activo";
+}
+
+/** Quién manda esta petición, con el interruptor de por medio. **Es lo que
+ *  llaman las rutas**, no `exigir`.
+ *
+ *  - Encendido: la sesión y solo la sesión. `delCuerpo` se ignora.
+ *  - Apagado: la sesión si la hay —para que encender, mirar y apagar no eche a
+ *    quien ya entró— y si no, el `operarioId` del cuerpo, como hasta ahora.
+ *
+ *  El ROL se hace cumplir en los dos casos. Si solo se comprobara con el login
+ *  encendido, encenderlo cambiaría quién puede hacer qué, y eso es justo lo que
+ *  no se quiere descubrir el día de encenderlo.
+ *
+ *  Apagado, un id que no existe (o que no es una persona activa) da 400 y no
+ *  pasa: hoy el servidor no comprueba nada, pero firmar una acción a nombre de
+ *  alguien que no está deja un registro apuntando a la nada. */
+export function identidad(
+  req: Request,
+  delCuerpo: unknown,
+  rol?: RolAcceso,
+): Sesion | NextResponse {
+  if (loginActivo()) return exigir(req, rol);
+
+  const yo =
+    quienEs(req) ??
+    (typeof delCuerpo === "string" && delCuerpo.length > 0
+      ? (() => {
+          const p = leerPersona(delCuerpo);
+          return p ? { id: p.id, nombre: p.nombre, roles: p.roles } : null;
+        })()
+      : null);
+
+  if (!yo) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  if (rol && !yo.roles.includes(rol))
+    return NextResponse.json({ error: "Esta cuenta es de solo lectura" }, { status: 403 });
   return yo;
 }
 
@@ -805,7 +950,7 @@ export function cabeceraDeSalida(): string {
 - [ ] **Step 4: Ejecutar los tests y verificar que pasan**
 
 Run: `pnpm vitest run src/lib/__tests__/sesion.test.ts`
-Expected: PASS, 12 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 5: Ejecutar la suite entera**
 
@@ -816,11 +961,16 @@ Expected: PASS.
 
 ```bash
 git add src/lib/server/sesion.ts src/lib/__tests__/sesion.test.ts
-git commit -m "feat(login): cookie de sesión firmada y guarda única para las rutas
+git commit -m "feat(login): cookie de sesión firmada, guarda única e interruptor
 
 Firmada con COORDINA_SESION_SECRET y httpOnly, para que no se pueda
 cambiar desde la consola del navegador. La persona se relee de la base
-en cada petición: desactivar a alguien le corta el paso en el acto."
+en cada petición: desactivar a alguien le corta el paso en el acto.
+
+identidad() es lo que llamarán las rutas: con COORDINA_LOGIN=activo manda
+la sesión, y apagado cae al operarioId del cuerpo, como hasta ahora. El
+rol se hace cumplir en los dos casos, para que encenderlo no cambie quién
+puede hacer qué."
 ```
 
 ---
@@ -1214,12 +1364,22 @@ export async function PATCH(req: Request) {
 Añadir al final de `.env.example`:
 
 ```
-# ── Sesión (login de operarios) ─────────────────────────────────────────────
+# ── Login de operarios ──────────────────────────────────────────────────────
+# El interruptor. Igual que FICHAJE_OLANET, sirve para encender contra el
+# servidor de verdad, mirar, y apagar en un minuto si molesta.
+#   · off (por defecto) → se entra como hasta siempre: se elige la cara en una
+#     rejilla, sin PIN, y el servidor se cree el operarioId que manda el
+#     navegador. NO protege nada; es lo que había.
+#   · activo → pantalla de PIN, cookie de sesión, y el operarioId del cuerpo
+#     deja de valer. Este es el día que hay que seguir docs/despliegue-login.md.
+COORDINA_LOGIN=off
+
 # Con lo que se FIRMA la cookie de sesión. Cualquier cadena larga y aleatoria
 # vale; genera una con:  node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 #
-# Es OBLIGATORIA: sin ella la app no arranca. Arrancar "sin seguridad pero
-# funcionando" sería peor que no arrancar, porque la cookie se podría falsificar
+# Obligatoria SOLO con COORDINA_LOGIN=activo: apagado no se firma ni se
+# verifica nada. Encendido y sin ella, la app no arranca — arrancar "sin
+# seguridad pero funcionando" sería peor, porque la cookie se podría falsificar
 # y cualquiera entraría como quien quisiera.
 #
 # Cambiarla cierra TODAS las sesiones abiertas. Es justo lo que se quiere el día
@@ -1269,17 +1429,26 @@ Es el grueso del trabajo, más que la pantalla del PIN. Once rutas de escritura 
 - Test: `src/lib/__tests__/api-estado.test.ts`, `api-avisos.test.ts`, `api-fichaje.test.ts`, `api-fichaje-latido.test.ts`, `api-notas.test.ts`, `api-fases.test.ts` (adaptar: ahora hace falta cookie)
 
 **Interfaces:**
-- Consumes: `exigir(req, rol?)` de `@/lib/server/sesion` (Task 2).
-- Produces: ningún endpoint acepta ya `operarioId` en el cuerpo ni en la query. Los clientes de la Task 5 dejan de mandarlo.
+- Consumes: `identidad(req, delCuerpo, rol?)` de `@/lib/server/sesion` (Task 2).
+- Produces: ningún endpoint decide ya por su cuenta de quién es una acción. Con el login encendido manda la sesión; apagado, el `operarioId` del cuerpo, como hoy. El cliente **sigue mandándolo** (ver "El interruptor").
 
-**El patrón, idéntico en las once.** Al principio del handler, antes de leer el cuerpo:
+**El patrón, idéntico en las once.** El cuerpo se lee primero, porque con el login apagado la identidad puede venir de él:
 
 ```ts
-const yo = exigir(req, "tecnico");
+const yo = identidad(req, body.operarioId, "tecnico");
 if (yo instanceof NextResponse) return yo;
 ```
 
-y después, donde antes se leía `body.operarioId`, se usa `yo.id`. El campo del cuerpo **se ignora**, no se compara: compararlo tentaría a "si coincide, adelante", que es el agujero otra vez.
+y después, donde antes se leía `body.operarioId`, se usa `yo.id`. Con el login encendido el campo del cuerpo **se ignora**, no se compara: compararlo tentaría a "si coincide, adelante", que es el agujero otra vez.
+
+**Se BORRA de cada ruta** la validación propia de "Falta operarioId" y su `if`: eso lo decide ahora `identidad()`, que es quien sabe si el login está encendido. Lo que **se queda** es el campo `operarioId` en las interfaces del cuerpo — sigue llegando.
+
+Las dos rutas que lo leían de la URL (`/api/fichaje` GET y `/api/avisos` GET) **conservan el parámetro**: apagado es de donde sale la identidad. Se lo pasan a `identidad()` igual que las demás:
+
+```ts
+const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");
+if (yo instanceof NextResponse) return yo;
+```
 
 **Quién pide qué:**
 
@@ -1296,16 +1465,25 @@ y después, donde antes se leía `body.operarioId`, se usa `yo.id`. El campo del
 | `/api/pedido-scan` | POST | `tecnico` |
 | `/api/revision/marcas` | PUT | `tecnico` |
 
-`/api/causas` GET, `/api/revision/marcas` GET y `/api/fases` GET **solo piden sesión** (`exigir(req)` sin rol): son lecturas, y el día que se abra la consulta sin login (fase 2) habrá que decidir si un invitado las ve. Hoy, con sesión.
+**Las lecturas van aparte.** `/api/causas` GET, `/api/revision/marcas` GET y `/api/fases` GET no llevan `operarioId` por ninguna vía, así que con el login apagado no hay identidad que sacar y pedirla dejaría la web muerta. Se piden **solo cuando el login está encendido**:
 
-`/api/fichaje` GET y `/api/avisos` GET dejan de leer `?operarioId=`: son *tu* fichaje y *tus* avisos, y con la sesión ya se sabe de quién.
+```ts
+  // Las lecturas se cierran solo con el login encendido: apagado no llega
+  // identidad por ningún lado y exigirla dejaría la ficha en blanco. El día que
+  // se abra la consulta sin login (fase 2) habrá que decidir si un invitado las
+  // ve; hoy, con sesión.
+  if (loginActivo()) {
+    const yo = exigir(req);
+    if (yo instanceof NextResponse) return yo;
+  }
+```
 
 - [ ] **Step 1: Escribir el test que falla**
 
 Crear `src/lib/__tests__/api-guardas.test.ts`. Es el test que fija LO QUE IMPORTA de esta tarea:
 
 ```ts
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1323,10 +1501,18 @@ beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-guardas-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   process.env.COORDINA_SESION_SECRET = "secreto-de-pruebas";
+  // ENCENDIDO: este fichero prueba el login funcionando. Que se despliegue
+  // apagado no puede querer decir que nadie compruebe nunca lo que hace al
+  // encenderlo — el interruptor se prueba al final del fichero.
+  process.env.COORDINA_LOGIN = "activo";
   s = await import("../server/sesion");
   estado = await import("../../app/api/estado/route");
   marcas = await import("../../app/api/revision/marcas/route");
   db = await import("../server/estado-db");
+});
+
+afterEach(() => {
+  process.env.COORDINA_LOGIN = "activo";
 });
 
 afterAll(() => {
@@ -1399,6 +1585,28 @@ test("una lectura tampoco sale sin sesión", async () => {
   const res = await marcas.GET(new Request("http://x/api/revision/marcas?ofIds=of-guardas-1"));
   expect(res.status).toBe(401);
 });
+
+// ── Con el interruptor apagado ─────────────────────────────────────────────
+// Es como se va a desplegar, así que es lo que de verdad hay que asegurar: el
+// día del despliegue, nadie del equipo puede notar nada.
+
+test("apagado, se escribe con el operarioId del cuerpo, como hasta ahora", async () => {
+  process.env.COORDINA_LOGIN = "off";
+  const res = await post({
+    ...mutacion,
+    cambiosOF: [{ ...mutacion.cambiosOF[0], ofId: "of-guardas-off" }],
+    operarioId: "alberto",
+  });
+  expect(res.status).toBe(200);
+  const acciones = db.leerAccionesDesde("1970-01-01T00:00:00.000Z");
+  expect(acciones[0].operarioId).toBe("alberto");
+});
+
+test("apagado, las lecturas siguen abiertas: si no, la ficha saldría en blanco", async () => {
+  process.env.COORDINA_LOGIN = "off";
+  const res = await marcas.GET(new Request("http://x/api/revision/marcas?ofIds=of-guardas-1"));
+  expect(res.status).toBe(200);
+});
 ```
 
 - [ ] **Step 2: Ejecutar el test y verificar que falla**
@@ -1410,40 +1618,34 @@ Expected: FAIL — el primer test da 200 en vez de 401 (hoy cualquiera escribe).
 
 En `src/app/api/estado/route.ts`, sustituir la cabecera del POST (línea 44) y el `operarioId` (línea 63):
 
+La guarda va **después** de leer y validar el cuerpo, porque con el login apagado la identidad sale de él. Justo antes del `guardarMutacion`, en lugar de `const operarioId = typeof body.operarioId === "string" ? … : null;`:
+
 ```ts
-export async function POST(req: Request) {
-  // La identidad sale de la SESIÓN. Hasta esta versión venía en el cuerpo, y
-  // eso quería decir que cualquiera en la red podía aprobar o devolver firmando
-  // con el nombre de otro. El campo operarioId del cuerpo se ignora: compararlo
-  // con la sesión tentaría a dejar pasar los que coincidan, que es el mismo
-  // agujero con un paso más.
-  const yo = exigir(req, "tecnico");
+  // Quién manda esto lo decide identidad(), no el cuerpo. Hasta esta versión el
+  // operarioId del cuerpo se creía a pies juntillas, y eso quería decir que
+  // cualquiera en la red podía aprobar o devolver firmando con el nombre de
+  // otro. Con el login encendido ese campo se ignora; apagado sigue siendo de
+  // donde sale, igual que hasta ahora (ver COORDINA_LOGIN en server/sesion.ts).
+  const yo = identidad(req, body.operarioId, "tecnico");
   if (yo instanceof NextResponse) return yo;
-
-  let body: Body;
-```
-
-y
-
-```ts
   const operarioId = yo.id;
 ```
 
-Quitar `operarioId` de la interfaz `Body` (línea 13) y añadir el import:
+La interfaz `Body` **conserva** `operarioId` (línea 13): el cliente lo sigue mandando. Añadir el import:
 
 ```ts
-import { exigir } from "@/lib/server/sesion";
+import { identidad } from "@/lib/server/sesion";
 ```
 
 - [ ] **Step 4: Poner la guarda en las otras diez rutas**
 
-El mismo patrón. En cada una: añadir el import de `exigir`, meter las dos líneas al principio de cada handler, sustituir la lectura del cuerpo/query por `yo.id`, y **borrar** la validación de "Falta operarioId" (ya no puede faltar) y el campo de la interfaz del cuerpo.
+El mismo patrón en todas: importar `identidad`, llamarla con lo que la ruta leía antes, usar `yo.id`, y **borrar** la validación propia de "Falta operarioId" (ahora la hace `identidad()`, que es quien sabe si el login está encendido). El campo del cuerpo **se conserva** en las interfaces.
 
-`src/app/api/fichaje/route.ts` — GET y POST:
+`src/app/api/fichaje/route.ts` — GET y POST. El GET conserva el parámetro de la URL, porque apagado es de donde sale:
 
 ```ts
 export async function GET(req: Request) {
-  const yo = exigir(req, "tecnico");
+  const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");
   if (yo instanceof NextResponse) return yo;
   return NextResponse.json(
     { fichaje: leerFichaje(yo.id), avisoCierre: leerAvisoCierre(yo.id) },
@@ -1452,33 +1654,29 @@ export async function GET(req: Request) {
 }
 ```
 
-`src/app/api/fichaje/latido/route.ts`:
+`src/app/api/fichaje/latido/route.ts` (el cuerpo ya está leído en `body`):
 
 ```ts
-export async function POST(req: Request) {
-  const yo = exigir(req, "tecnico");
+  const yo = identidad(req, body.operarioId, "tecnico");
   if (yo instanceof NextResponse) return yo;
   registrarLatido(yo.id, new Date().toISOString());
   return NextResponse.json({ ok: true });
-}
 ```
 
 `src/app/api/fichaje/aviso-visto/route.ts`:
 
 ```ts
-export async function POST(req: Request) {
-  const yo = exigir(req, "tecnico");
+  const yo = identidad(req, body.operarioId, "tecnico");
   if (yo instanceof NextResponse) return yo;
   marcarAvisoCierreVisto(yo.id);
   return NextResponse.json({ ok: true });
-}
 ```
 
-`src/app/api/avisos/route.ts` — el GET pierde el parámetro de la URL:
+`src/app/api/avisos/route.ts` — GET (conserva el parámetro de la URL) y POST (`body.operarioId`):
 
 ```ts
 export async function GET(req: Request) {
-  const yo = exigir(req, "tecnico");
+  const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");
   if (yo instanceof NextResponse) return yo;
 
   const desde = new Date(Date.now() - VENTANA_AVISOS_DIAS * 86_400_000).toISOString();
@@ -1487,75 +1685,87 @@ export async function GET(req: Request) {
 }
 ```
 
-`src/app/api/notas/route.ts` — en POST, PUT y DELETE, sustituir `const operarioId = clave(b.operarioId);` y su `if (!operarioId) …` por la guarda. La comprobación de propiedad en el SQL de editar y borrar **se queda**: ahora sí para al que quiera saltárselo, no solo al accidente.
+`src/app/api/notas/route.ts` — en POST, PUT y DELETE, sustituir `const operarioId = clave(b.operarioId);` y su `if (!operarioId) …` por la guarda con `b.operarioId`. La comprobación de propiedad en el SQL de editar y borrar **se queda**: encendido para al que quiera saltárselo, y apagado sigue parando el accidente, como hoy.
 
-`src/app/api/causas/route.ts` — POST y PATCH piden `tecnico`; el GET, solo sesión.
+`src/app/api/causas/route.ts` — POST y PATCH con `identidad(req, b.operarioId, "tecnico")`; el GET, la guarda de lectura.
 
-`src/app/api/fases/route.ts` — el POST pierde el `operarioId` del cuerpo y su validación; el GET pide solo sesión.
+`src/app/api/fases/route.ts` — el POST con `identidad(req, b.operarioId, "tecnico")`; sigue necesitando después su `COD_RPS_POR_OPERARIO[yo.id]` y su 400 si no lo tiene, que es otra cosa. El GET, la guarda de lectura.
 
-`src/app/api/pedido-scan/route.ts` — no leía `operarioId` (apaga el aviso para todos), pero **escribe**: pide `tecnico`. Actualizar de paso el comentario de la cabecera, que dice "por eso no lleva operarioId".
+`src/app/api/pedido-scan/route.ts` — es el único que **no lee `operarioId`** (apaga el aviso para todos, a propósito), pero escribe. Apagado no puede exigir nada; encendido sí:
 
-`src/app/api/revision/marcas/route.ts` — el PUT usa `yo.id`; el GET pide solo sesión.
+```ts
+  if (loginActivo()) {
+    const yo = exigir(req, "tecnico");
+    if (yo instanceof NextResponse) return yo;
+  }
+```
+
+Y actualizar el comentario de la cabecera, que hoy dice "por eso no lleva operarioId": sigue siendo cierto el motivo, pero ya no quiere decir que no haga falta identidad.
+
+`src/app/api/revision/marcas/route.ts` — el PUT con `identidad(req, b.operarioId, "tecnico")`; el GET, la guarda de lectura.
 
 - [ ] **Step 5: Adaptar los tests que ya existen**
 
-Seis ficheros de test llaman a estas rutas sin cookie y ahora recibirán 401. En cada uno, añadir arriba:
+Con el login apagado —que es como corre la suite— los seis ficheros existentes (`api-estado`, `api-avisos`, `api-fichaje`, `api-fichaje-latido`, `api-notas`, `api-fases`) **deberían seguir pasando tal cual**: siguen mandando `operarioId` en el cuerpo y `identidad()` cae a él. **No los toques a ciegas.** Ejecuta la suite y arregla solo lo que se rompa de verdad.
 
-```ts
-process.env.COORDINA_SESION_SECRET = "secreto-de-pruebas";
-```
+Lo que sí puede romperse, y por qué:
 
-y una ayuda que meta la cookie en cada petición:
+- **Tests con un `operarioId` inventado** (`"op1"`, `"x"`, `"alguien"`). Ahora `identidad()` comprueba que sea una persona ACTIVA de la tabla y devuelve 400 si no. Cámbialos a un id real (`tamara`, `ivan`, `alberto`…), no relajes la comprobación.
+- **Tests que esperaban 400 con `operarioId` ausente**: ese caso sigue existiendo apagado, así que probablemente siguen valiendo. Compruébalo antes de tocar nada.
+- `api-fases.test.ts` tiene un `vi.mock("@/lib/server/operarios")` con `COD_RPS_POR_OPERARIO`. El id que use tiene que estar en ese mapa simulado **y** ser una persona real de la tabla, o el POST se irá por uno de los dos 400.
 
-```ts
-/** Cabeceras de una petición de Tamara. Antes no hacía falta: la identidad iba
- *  en el cuerpo y el servidor se la creía. */
-const comoTamara = { cookie: `coordina_sesion=${firmarSesion("tamara")}` };
-```
-
-Ficheros: `api-estado.test.ts`, `api-avisos.test.ts`, `api-fichaje.test.ts`, `api-fichaje-latido.test.ts`, `api-notas.test.ts`, `api-fases.test.ts`.
-
-Los tests que comprobaban "sin operarioId da 400" cambian de sentido: ese caso ya no existe (el campo no se lee). **Sustituirlos** por su equivalente de verdad —"sin sesión da 401"— en vez de borrarlos.
-
-`api-fases.test.ts` tiene un `vi.mock("@/lib/server/operarios")` con `COD_RPS_POR_OPERARIO`; la persona de la sesión tiene que estar en ese mapa simulado o el POST dará el 400 de "no tiene código de operario en RPS".
+Anota en el informe cuántos ficheros tocaste y por qué. Si no se rompe ninguno, dilo: es la señal de que el despliegue apagado no cambia nada.
 
 - [ ] **Step 6: Ejecutar los tests y verificar que pasan**
 
 Run: `pnpm vitest run src/lib/__tests__/api-guardas.test.ts`
-Expected: PASS, 5 tests.
+Expected: PASS, 7 tests.
 
 Run: `pnpm test`
-Expected: PASS. Si alguno de los seis adaptados sigue rojo, es que le falta la cookie en alguna petición.
+Expected: PASS.
 
 - [ ] **Step 7: Verificar a mano que no queda ningún hueco**
 
+Ninguna ruta puede decidir por su cuenta de quién es una acción: todas pasan por `identidad()` o, las que no llevan identidad, por la guarda de lectura.
+
 Run: `git grep -n "operarioId" src/app/api/`
-Expected: **sin resultados**. Si sale alguno, es un endpoint que se quedó fiándose del cliente.
+
+Expected: cada resultado es **o** un argumento que se le pasa a `identidad(...)`, **o** un campo de una interfaz de cuerpo, **o** un comentario. Ninguno puede ser un `operarioId` que llegue a `guardarMutacion`, `crearNota`, `registrarLatido` o similar sin haber pasado por `identidad`. Repásalos uno a uno y déjalo escrito en el informe.
+
+Run: `git grep -n "exigir(" src/app/api/`
+
+Expected: solo dentro de un `if (loginActivo())`. Un `exigir` suelto en una ruta deja esa ruta muerta con el login apagado, que es como se va a desplegar.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add src/app/api src/lib/__tests__
-git commit -m "feat(login): el servidor saca la identidad de la sesión, no del cuerpo
+git commit -m "feat(login): la identidad de una acción deja de decidirla el cuerpo
 
 Once rutas aceptaban el operarioId que mandaba el navegador: cualquiera
-en la red podía fichar como otro o aprobar en su nombre. Ahora sale de
-la cookie firmada y el campo del cuerpo se ignora. Escribir es de
-tecnico; un supervisor recibe 403."
+en la red podía fichar como otro o aprobar en su nombre. Ahora todas
+pasan por identidad(), que con COORDINA_LOGIN=activo saca la identidad
+de la cookie firmada e ignora el cuerpo.
+
+Se despliega APAGADO: apagado sigue cayendo al operarioId del cuerpo,
+como hasta ahora, así que el equipo no nota nada. El rol sí se hace
+cumplir en los dos casos, para que encenderlo no cambie quién puede
+hacer qué."
 ```
 
 ---
 
 ### Task 5: La pantalla del PIN
 
+> **El interruptor cambia esta tarea de arriba abajo, y a menos.** `IdentityGate` **NO se borra**: es lo que se ve con el login apagado, que es como se despliega. Las llamadas del cliente **siguen mandando `operarioId`** — apagado hace falta, encendido el servidor lo ignora. Así que aquí no se quita nada: se AÑADE el camino nuevo al lado del de siempre, y una prop decide cuál se usa.
+
 **Files:**
 - Create: `src/components/LoginGate.tsx`
-- Delete: `src/components/IdentityGate.tsx` (en el Step 4, cuando ya no lo use nadie)
-- Modify: `src/components/Board.tsx` (líneas 26, 79, 172-178, 275-292, 1793-1797, y las llamadas con `operarioId` de 355, 990, 1061, 1282, 1386, 1454, 1967, 1991)
+- Modify: `src/app/page.tsx` (pasar `loginActivo` al Board)
+- Modify: `src/components/Board.tsx` (líneas 79, 172-178, 275-292, 1793-1797)
 - Modify: `src/components/Herramientas.tsx:104-161`
-- Modify: `src/components/NotasPedido.tsx:190,265,311`
-- Modify: `src/lib/causas-cliente.ts:43-50`
-- Modify: `src/lib/marcas-cliente.ts:37-78`
+
+**NO se tocan** (y es la mitad del ahorro): `IdentityGate.tsx`, `NotasPedido.tsx`, `causas-cliente.ts`, `marcas-cliente.ts`, ni las ocho llamadas con `operarioId` del Board.
 
 **Interfaces:**
 - Consumes: `GET/POST/DELETE /api/sesion` y `GET /api/personas` (Task 3); `PersonaPublica` y `RolAcceso` de `@/lib/personas`; `OPERARIOS` de `@/lib/mock` (solo para el color y las iniciales).
@@ -1653,6 +1863,10 @@ function Rejilla({
       </p>
     );
 
+  // OJO: esta rejilla es la del login CON PIN. La de siempre —sin PIN, con la
+  // identidad en localStorage— sigue viva en IdentityGate.tsx y es la que se ve
+  // mientras COORDINA_LOGIN esté apagado. Las dos existen a propósito.
+  //
   // Solo los TÉCNICOS salen en la rejilla: son las caras del tablero, y un
   // supervisor puro ahí sobra.
   //
@@ -1854,7 +2068,9 @@ function TecladoPin({
 
 - [ ] **Step 2: Comprobar a mano que la pantalla entra**
 
-Run: `pnpm dev` (con `COORDINA_SESION_SECRET` puesta en `.env.local`)
+En `.env.local`, para esta comprobación: `COORDINA_SESION_SECRET` con cualquier cadena y **`COORDINA_LOGIN=activo`** (por defecto está apagado, y apagado esta pantalla no sale).
+
+Run: `pnpm dev`
 
 Abrir `http://localhost:3000`, elegir un nombre, teclear cuatro dígitos dos veces.
 Expected: entra al tablero. Recargar: sigue dentro sin volver a pedir el PIN.
@@ -1865,21 +2081,54 @@ En las herramientas del navegador, pestaña Aplicación → Cookies: `coordina_s
 
 > **Ojo con el nombre.** `Board.tsx:1813` ya tiene `const yo = TODOS_LOS_OPERARIOS.find(...)`: el **`Operario`** del tablero, con su color, sus iniciales y su sección, y lo usan decenas de líneas más abajo. La sesión es otra cosa. Para no romper nada, **la sesión se llama `sesion`** y el `yo` de siempre se queda como está, resolviéndose ahora desde `sesion.id`.
 
-En `src/components/Board.tsx`:
+**El principio que ordena todo este paso:** `miId` no cambia de significado ni de tipo. Cambia de dónde sale. Apagado, de `localStorage` como siempre; encendido, del servidor. Todo lo que ya usaba `miId` —que es medio fichero— sigue igual, y las ocho llamadas con `operarioId` **se quedan tal cual**.
 
-1. Sustituir `leerIdentidadGuardada()` (líneas 172-178) y el estado `miId` (275) por la sesión del servidor:
+1. **La prop.** El navegador no lee variables de entorno, así que el interruptor baja desde el servidor. En `src/app/page.tsx`:
 
 ```tsx
-  // Quién eres lo dice el SERVIDOR, no el navegador. Antes vivía en
-  // localStorage y se mandaba en cada petición, así que cualquiera podía
-  // escribir en nombre de otro cambiándolo desde la consola.
+import { loginActivo } from "@/lib/server/sesion";
+
+export default async function Home() {
+  const { operarios, pedidos, dobleFichaje } = await getTablero();
+  return (
+    <Board
+      operarios={operarios}
+      pedidos={pedidos}
+      dobleFichaje={dobleFichaje ?? true}
+      loginActivo={loginActivo()}
+    />
+  );
+}
+```
+
+y en `Board`, junto a `dobleFichaje`:
+
+```tsx
+  /** Si el login con PIN está encendido (COORDINA_LOGIN). Viaja como prop y no
+   *  por el sondeo del tablero porque no cambia durante la sesión, igual que
+   *  `dobleFichaje`. Por defecto FALSE: si el dato no llegara, se entra como
+   *  siempre — dejar a la gente fuera de su herramienta es peor que no pedir
+   *  PIN un rato. */
+  loginActivo?: boolean;
+```
+
+2. **La identidad, según el interruptor.** `leerIdentidadGuardada()` (172-178) e `IDENTITY_KEY` (79) **se quedan**: son el camino de siempre. Se añade el otro al lado:
+
+```tsx
+  // Quién eres. Con el login apagado sale del navegador, como hasta ahora; con
+  // el login encendido lo dice el SERVIDOR, y entonces el navegador ya no puede
+  // mentir sobre quién es (que es el punto de todo esto).
   //
   // `undefined` = todavía no se ha preguntado; `null` = no hay sesión, toca
-  // entrar. Distinguirlos evita que la pantalla del PIN parpadee un instante
-  // en cada recarga de quien ya está dentro.
-  const [sesion, setSesion] = useState<Yo | null | undefined>(undefined);
+  // entrar. Distinguirlos evita que la pantalla del PIN parpadee un instante en
+  // cada recarga de quien ya está dentro. Apagado no hay nada que preguntar, así
+  // que arranca ya resuelto.
+  const [sesion, setSesion] = useState<Yo | null | undefined>(
+    loginActivo ? undefined : null,
+  );
 
   useEffect(() => {
+    if (!loginActivo) return;
     let vivo = true;
     fetch("/api/sesion", { cache: "no-store" })
       .then((r) => r.json())
@@ -1892,19 +2141,21 @@ En `src/components/Board.tsx`:
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [loginActivo]);
 
-  // Todo lo que ya usaba `miId` sigue igual: quién eres no ha cambiado de
-  // significado, solo de dónde sale.
-  const miId = sesion?.id ?? null;
+  const [miIdLocal, setMiIdLocal] = useState<string | null>(leerIdentidadGuardada);
+  const miId = loginActivo ? (sesion?.id ?? null) : miIdLocal;
 ```
 
-2. Borrar `IDENTITY_KEY` (79) y `leerIdentidadGuardada` (172-178). `SECCION_KEY` **se queda**: qué lista se mira sigue siendo del navegador.
+`setMiId` (el `useCallback` de la línea 276) se queda igual, escribiendo en `localStorage`, pero llamando a `setMiIdLocal`.
 
-3. Cambiar la puerta (1793-1797):
+3. **La puerta** (1793-1797), donde estaba la de `IdentityGate`: DESPUÉS del `if (!mounted)` y ANTES del `if (SECCIONES[seccionActual].enObras)`. El orden importa: la sección en obras ofrece salir a la otra, y para eso hay que saber ya quién eres.
 
 ```tsx
-  if (sesion === undefined) {
+  // Con el login encendido, mientras se pregunta al servidor no se pinta nada:
+  // ni el tablero (todavía no se sabe de quién) ni la pantalla de entrar (que
+  // parpadearía en cada recarga de quien ya está dentro).
+  if (loginActivo && sesion === undefined) {
     return (
       <div className="grid min-h-full place-items-center text-sm text-text-muted">
         Cargando…
@@ -1912,14 +2163,17 @@ En `src/components/Board.tsx`:
     );
   }
 
-  if (!sesion) {
-    return <LoginGate onEntrado={setSesion} />;
+  if (!miId) {
+    return loginActivo ? (
+      <LoginGate onEntrado={setSesion} />
+    ) : (
+      // La de siempre, sin PIN. Es la que se ve mientras el login esté apagado.
+      <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />
+    );
   }
 ```
 
-Va donde estaba la puerta de `IdentityGate` (1793-1797), es decir DESPUÉS del `if (!mounted)` y ANTES del `if (SECCIONES[seccionActual].enObras)`. El orden importa: la sección en obras ofrece salir a la otra, y para eso hay que saber ya quién eres.
-
-4. `setMiId` pasa a ser `salir()`, que es el único cambio de identidad que queda:
+4. **Salir**, que solo existe con el login encendido:
 
 ```tsx
   const salir = useCallback(async () => {
@@ -1935,46 +2189,57 @@ Va donde estaba la puerta de `IdentityGate` (1793-1797), es decir DESPUÉS del `
   }, []);
 ```
 
-`solicitarCambioIdentidad` (1476-1483) pasa a `solicitarSalida`, con el mismo aviso de "tienes un fichaje corriendo": salir con el reloj en marcha deja ese tiempo a medias igual que lo dejaba cambiarse de nombre. El `ConfirmDialog` de la línea 2307 cambia el título a "Salir" y el mensaje a hablar de salir en vez de cambiar.
+`solicitarCambioIdentidad` (1476-1483) **se queda** —es el camino de apagado— y se le añade el hermano para salir, con el mismo aviso de "tienes un fichaje corriendo": salir con el reloj en marcha deja ese tiempo a medias igual que lo dejaba cambiarse de nombre. El `ConfirmDialog` de la 2307 sirve para los dos casos: el título y el mensaje se eligen según `loginActivo`.
 
-5. Quitar `operarioId` de las ocho llamadas (355, 990, 1061, 1282, 1386, 1454, 1967, 1991). Las dos de GET pierden el parámetro de la URL:
-
-```tsx
-      fetch("/api/avisos", { cache: "no-store" })
-```
-```tsx
-      fetch("/api/fichaje", { cache: "no-store" })
-```
+5. **Las ocho llamadas con `operarioId` no se tocan.** Apagado hacen falta; encendido el servidor las ignora. Un `if` en cada una para ahorrarse cuatro campos de JSON sería peor código por menos.
 
 - [ ] **Step 4: Salir, en el menú donde el equipo ya busca su nombre**
 
-En `src/components/Herramientas.tsx`, la prop `onCambiarIdentidad` pasa a `onSalir: () => void` y la lista de técnicos desaparece del menú (líneas 129-161): ya no hay a quién cambiarse. El botón "Cambiar" pasa a "Salir":
+En `src/components/Herramientas.tsx`, el botón de la línea 121 dice "Cambiar" y despliega la lista de técnicos. Eso **se queda** para el login apagado. Encendido no hay a quién cambiarse: se sale.
+
+Añadir la prop `loginActivo: boolean` y `onSalir: () => void` (junto a `onCambiarIdentidad`, que sigue), y elegir:
 
 ```tsx
-            <button
-              onClick={onSalir}
-              className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-            >
-              Salir
-            </button>
+            {loginActivo ? (
+              <button
+                onClick={onSalir}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                Salir
+              </button>
+            ) : (
+              <button
+                onClick={() => setCambiando((v) => !v)}
+                aria-expanded={cambiando}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                {cambiando ? "Cancelar" : "Cambiar"}
+              </button>
+            )}
 ```
 
-También sobran la prop `operarios` y el estado `cambiando`.
+Y la lista de técnicos (129-161) se pinta solo si `!loginActivo`, porque `cambiando` no puede encenderse de otra forma. `IdentityGate.tsx`, `causas-cliente.ts`, `marcas-cliente.ts` y `NotasPedido.tsx` **no se tocan en toda la tarea**.
 
-Con eso, `src/components/IdentityGate.tsx` se queda sin usar: **borrarlo**. Su `porSeccion()` no lo hereda nadie (`LoginGate` tiene su propio `agrupar()`, con el mismo criterio pero sobre `PersonaPublica`). Comprobarlo antes de borrar:
+- [ ] **Step 5: Comprobar el camino APAGADO, que es como se despliega**
 
-Run: `git grep -n "IdentityGate"`
-Expected: solo el propio fichero. Si sale algo más, no borrarlo todavía.
+Es el paso que de verdad no puede fallar: el día del despliegue nadie del equipo puede notar nada.
 
-- [ ] **Step 5: Los clientes dejan de mandar operarioId**
+Quitar `COORDINA_LOGIN` de `.env.local` (o ponerla a `off`) y reiniciar el dev server — recuerda que `getDb()` cachea la conexión, así que un server viejo no ejecuta la migración 7.
 
-`src/lib/causas-cliente.ts` (43-50): quitar el parámetro `operarioId` de la firma y del cuerpo. Actualizar quien la llame.
+Run: `pnpm dev`
 
-`src/lib/marcas-cliente.ts` (37-78): igual con `useMarcasRevision(ofIds, operarioId)` → `useMarcasRevision(ofIds)`. Actualizar `RevisionView.tsx` y `Drawer.tsx`.
+1. Abrir `http://localhost:3000`. Sale la rejilla **sin PIN**, la de siempre.
+2. Elegir un nombre: entra directo.
+3. En el menú de arriba a la derecha, el botón dice **"Cambiar"**, no "Salir", y despliega la lista de técnicos.
+4. Cambiarse a otro: funciona como hoy.
+5. Fichar en una OF y escribir una nota: se guardan, y a nombre de quien seas.
+6. **No** hay bloque de "PIN olvidado" (eso es de la Task 6, y también va condicionado).
 
-`src/components/NotasPedido.tsx` (190, 265, 311): quitar `operarioId: miId` de los tres cuerpos. La prop `miId` **se queda** si se usa para pintar (saber qué notas son tuyas).
+Si cualquiera de estos seis puntos falla, no sigas: el despliegue apagado tiene que ser invisible.
 
-- [ ] **Step 6: Comprobar el circuito entero a mano**
+- [ ] **Step 6: Comprobar el circuito entero a mano, ENCENDIDO**
+
+Volver a poner `COORDINA_LOGIN=activo` en `.env.local` y reiniciar.
 
 Run: `pnpm dev`
 
@@ -1995,18 +2260,19 @@ Expected: PASS las dos. Ojo con las reglas del proyecto: nada de `setState` dent
 
 - [ ] **Step 8: Commit**
 
+**SIN línea `Novedad:`, y es a propósito.** El log de novedades lo lee el equipo para saber qué le ha cambiado hoy, y hoy no le cambia nada: esto se despliega apagado. Anunciar "ahora entras con un PIN" el día que nadie entra con PIN enseña al equipo a no fiarse del log, que es la única forma de estropearlo. Las líneas van el día que se encienda, y están escritas en `docs/despliegue-login.md` (Task 6) listas para copiar.
+
 ```bash
-git add -A src/components src/lib/causas-cliente.ts src/lib/marcas-cliente.ts
-git commit -m "feat(login): pantalla de PIN y salir
+git add -A src/app/page.tsx src/components
+git commit -m "feat(login): pantalla de PIN, tras el interruptor
 
-La rejilla de caras se queda y pide cuatro dígitos después de elegirse.
-Quien todavía no tiene PIN lo elige tecleándolo dos veces. Cambiar de
-nombre desaparece del menú: ahora se sale y entra el siguiente.
+La rejilla de caras se queda tal cual y pide cuatro dígitos después de
+elegirse; quien todavía no tiene PIN lo elige tecleándolo dos veces.
 
-Novedad: nuevo | Ahora entras con un PIN
-Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, para que no se cuele una errata. Cuando termines, en el menú de arriba a la derecha tienes Salir.
-Novedad: arreglado | Lo que escribías podía firmarlo otro
-Detalle: Hasta ahora el nombre viajaba desde el navegador y se podía cambiar. Ahora lo pone el servidor: lo que fichas, apruebas o escribes queda a tu nombre y solo al tuyo."
+Nada de esto se ve mientras COORDINA_LOGIN esté apagado, que es como se
+despliega: ahí sigue saliendo la rejilla de siempre, sin PIN, y el menú
+sigue diciendo Cambiar. Los dos caminos conviven a propósito hasta que
+se decida encenderlo."
 ```
 
 ---
@@ -2127,8 +2393,10 @@ export function ResetPin() {
 Y en `src/components/Herramientas.tsx`, después del bloque de "quién eres" (donde en la Task 5 quedó el botón Salir), pintarlo solo si procede:
 
 ```tsx
-          {roles.includes("supervisor") && <ResetPin />}
+          {loginActivo && roles.includes("supervisor") && <ResetPin />}
 ```
+
+`loginActivo` porque apagado no hay PIN que resetear: resetearlo no le arreglaría nada a nadie y el bloque solo confundiría. La prop ya llega a `Herramientas` desde la Task 5.
 
 `Herramientas` recibe los roles en una prop NUEVA. No se meten dentro de la prop `yo` que ya tiene: esa es un `Operario` —el del tablero, con su color, sus iniciales y su sección— y a quién deja escribir la web es otra cosa.
 
@@ -2155,35 +2423,94 @@ Run: `pnpm dev`
 Crear `docs/despliegue-login.md`:
 
 ```markdown
-# El día que se despliega el login
+# El login: cómo se despliega y cómo se enciende
 
-**Todos los navegadores del equipo pierden su identidad guardada** y se
-encuentran la pantalla del PIN. No es un fallo: la identidad ya no vive en el
-navegador.
+Son **dos días distintos**, y confundirlos es lo único que puede salir mal aquí.
 
-## Antes de subirlo
+---
+
+## Día 1 — subir el código (el login APAGADO)
+
+Esto no cambia nada para el equipo. `COORDINA_LOGIN` no está puesta, o está a
+`off`, y todo el mundo sigue entrando como siempre: elige su cara y adentro.
+
+1. Desplegar como cualquier otra versión.
+2. **Backup de `data/coordina.db` antes de arrancar** (`pnpm backup`): la
+   migración 7 crea la tabla `persona`. Es la práctica de siempre, y aquí más.
+3. Después de arrancar, comprobar dos cosas:
+   - `PRAGMA user_version` en `data/coordina.db` dice **7**.
+   - La web se ve exactamente igual que ayer. Si sale una pantalla de PIN, la
+     variable está encendida y no debería.
+
+**Nada está protegido todavía.** El servidor sigue creyéndose el `operarioId`
+que le manda el navegador, igual que siempre. Lo único que cambia es que la
+maquinaria está puesta y probada.
+
+---
+
+## Día 2 — encenderlo
+
+Aquí sí lo nota todo el mundo: **todos los navegadores del equipo pierden su
+identidad guardada** y se encuentran la pantalla del PIN. No es un fallo, es el
+cambio.
+
+### Antes
 
 1. **Avisar al equipo el día anterior.** El mensaje es corto: "mañana la web te
    va a pedir un PIN; es tu extensión, y la primera vez te la pide dos veces".
-2. **Poner `COORDINA_SESION_SECRET` en el `.env.local` del servidor.** Sin ella
-   la app NO arranca:
+2. **Tener a mano la lista de extensiones.** Quien no se acuerde de la suya se
+   queda fuera de su herramienta de trabajo hasta que alguien se la diga.
+3. **Generar el secreto EN el servidor** y ponerlo en su `.env.local`. Sin él la
+   app no arranca con el login encendido. No reutilizar el de desarrollo:
    ```
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
    ```
-   Generarla EN el servidor y no reutilizar la de desarrollo.
-3. **Tener a mano la lista de extensiones.** Quien no se acuerde de la suya se
-   queda fuera de su herramienta de trabajo hasta que alguien se la diga.
-4. **Backup de `data/coordina.db`** antes de arrancar: la migración 7 crea la
-   tabla `persona`. Es la práctica de siempre (`pnpm backup`), aquí más.
+4. Otro backup. Encender no migra nada, pero es el día de tocar producción.
 
-## Después
+### Encender
 
-- Comprobar que `PRAGMA user_version` en `data/coordina.db` dice **7**.
-- Comprobar que la cookie `coordina_sesion` sale **HttpOnly** (Aplicación →
-  Cookies en el navegador). Si `document.cookie` la enseña desde la consola,
-  algo se hizo mal y el login no protege nada.
-- Ángel es el único con rol de supervisor: si alguien se atasca, él le resetea
-  el PIN desde el menú.
+En el `.env.local` del servidor:
+
+```
+COORDINA_LOGIN=activo
+COORDINA_SESION_SECRET=<lo generado en el paso 3>
+```
+
+y reiniciar el proceso. **No hay que desplegar código.**
+
+### Comprobar, en este orden
+
+1. La pantalla de PIN sale.
+2. Entrar con una identidad de verdad y que el tablero salga bien.
+3. En las herramientas del navegador, Aplicación → Cookies: `coordina_sesion`
+   con **HttpOnly marcado**. Si `document.cookie` la enseña desde la consola,
+   algo se hizo mal y el login no protege nada.
+4. El menú de arriba a la derecha dice **Salir**, no "Cambiar".
+
+### Si algo va mal
+
+Quitar `COORDINA_LOGIN` (o ponerla a `off`) y reiniciar. Vuelve a estar como
+antes en un minuto, y nadie pierde nada: los ids de las personas son los de
+siempre, así que todo lo que se guardó con el login encendido sigue siendo suyo.
+
+### Las novedades, ese día
+
+El log de novedades sale de los mensajes de commit, y los commits del login se
+hicieron **sin** línea `Novedad:` a propósito: el día que se subió el código no
+le cambió nada a nadie. El día que se enciende sí. Poner estas dos líneas en el
+commit que cambie la configuración, y pasar `pnpm novedades`:
+
+    Novedad: nuevo | Ahora entras con un PIN
+    Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, para que no se cuele una errata. Cuando termines, en el menú de arriba a la derecha tienes Salir.
+    Novedad: arreglado | Lo que escribías podía firmarlo otro
+    Detalle: Hasta ahora el nombre viajaba desde el navegador y se podía cambiar. Ahora lo pone el servidor: lo que fichas, apruebas o escribes queda a tu nombre y solo al tuyo.
+
+### Después
+
+Ángel es el único con rol de supervisor: si alguien se atasca, él le resetea el
+PIN desde el menú.
+
+---
 
 ## Lo que NO entra en esta versión
 
@@ -2233,14 +2560,17 @@ Sin esto, cada olvido acaba en un UPDATE a mano en la base. Lo deja sin
 PIN y su dueño elige uno nuevo al entrar: restaurar un valor por defecto
 que supiera todo el mundo sería peor que no resetear.
 
-Novedad: nuevo | Si olvidas tu PIN, Ángel te lo puede reiniciar
-Detalle: Te lo deja en blanco y eliges uno nuevo la próxima vez que entres. Está en el menú de arriba a la derecha."
+Sin línea Novedad, como el resto del login: el bloque solo se ve con
+COORDINA_LOGIN=activo y esto se despliega apagado. Las novedades de
+encenderlo están en docs/despliegue-login.md, listas para copiar."
 ```
 
 ---
 
 ## Cuando esté todo
 
-Antes de desplegar, `pnpm novedades` recoge las líneas `Novedad:` de las tareas 5 y 6 y escribe la entrada en `src/lib/novedades-datos.json`. Con `--ver` enseña lo que haría sin tocar nada.
+**Ningún commit de esta rama lleva línea `Novedad:`**, y es a propósito: el login se despliega apagado, así que el día que suba no le cambia nada al equipo. Un log de novedades que anuncia cosas que no se ven enseña a saltárselo, y entonces deja de servir.
 
-Después, seguir `docs/despliegue-login.md`.
+Las dos líneas para el día de encenderlo están escritas en `docs/despliegue-login.md`, listas para copiar en el commit que cambie la configuración.
+
+Se despliega como cualquier otra versión, con su backup previo. Lo que hay que comprobar después —y sobre todo, cómo encenderlo cuando Iván lo diga— está en `docs/despliegue-login.md`.
