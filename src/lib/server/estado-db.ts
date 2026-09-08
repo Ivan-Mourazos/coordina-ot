@@ -367,6 +367,15 @@ const MIGRACIONES: ReadonlyArray<{
   // con las de lona, y con su id de siempre, así la devolución de agosto que
   // apunta a "Error en medidas" sigue diciendo de qué fue.
   { version: 6, nombre: "causas_por_familia", aplicar: causasPorFamilia },
+  // Las personas dejan de ser una constante del código y pasan a la base. El
+  // motivo no es el login en sí: es que Cris, Carlos y Esteban tienen que poder
+  // entrar sin aparecer en el tablero como si plantearan toldos, y una lista en
+  // el código no distingue "sale en el tablero" de "puede entrar".
+  //
+  // Sin PIN ninguno. Los reales no se escriben aquí —quedarían en el historial
+  // de git para siempre— y tampoco se piden por adelantado: cada uno teclea el
+  // suyo la primera vez que entra. Ver ponerPin en server/personas-db.ts.
+  { version: 7, nombre: "personas", aplicar: personas },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -512,6 +521,63 @@ function causasPorFamilia(db: Database.Database): void {
 
   sembrar(PUNTOS_GENERICOS, null);
   sembrar(PUNTOS_DE_LONA, "LONA");
+}
+
+/** Crea la tabla de personas y siembra a quien ya existe.
+ *
+ *  Los ids son LOS DE SIEMPRE (los de mock.ts): fichajes, autorías, notas,
+ *  causas y marcas de revisión apuntan a ellos, así que inventar otros dejaría
+ *  el histórico entero señalando a gente que no existe.
+ *
+ *  Se puede repetir sin estropear nada: las filas se insertan con OR IGNORE, de
+ *  modo que un PIN ya elegido no se borra si esto vuelve a pasar. */
+function personas(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS persona (
+      id       TEXT PRIMARY KEY,
+      nombre   TEXT NOT NULL,
+      -- NULL = todavía no ha elegido PIN. No es lo mismo que cadena vacía:
+      -- con NULL no abre nada, y la pantalla se lo pide dos veces.
+      pin_hash TEXT,
+      -- Lista separada por comas: una persona puede llevar varios.
+      roles    TEXT NOT NULL,
+      seccion  TEXT,
+      -- Las bajas se DESACTIVAN. Borrar la fila dejaría al historial sin saber
+      -- quién planteó lo de hace dos años.
+      activo   INTEGER NOT NULL DEFAULT 1
+    );
+  `);
+
+  const ins = db.prepare(
+    `INSERT OR IGNORE INTO persona (id, nombre, pin_hash, roles, seccion, activo)
+     VALUES (?, ?, NULL, ?, ?, ?)`,
+  );
+
+  // Oficina Técnica y Diseño Gráfico, en el orden en que salen en el tablero.
+  const tecnicos: Array<[string, string, string]> = [
+    ["alberto", "Alberto", "ot"],
+    ["jaime", "Jaime", "ot"],
+    ["tamara", "Tamara", "ot"],
+    ["adrian", "Adrián", "ot"],
+    ["ivan", "Iván", "ot"],
+    ["angel", "Ángel", "ot"],
+    ["carron", "Carrón", "diseno"],
+    ["manuel", "Manuel", "diseno"],
+    ["smith", "Smith", "diseno"],
+  ];
+  for (const [id, nombre, seccion] of tecnicos) {
+    // Ángel supervisa además de revisar, y es quien resetea PINs mientras las
+    // pantallas de supervisión sigan aplazadas.
+    const roles = id === "angel" ? "tecnico,supervisor" : "tecnico";
+    ins.run(id, nombre, roles, seccion, 1);
+  }
+
+  // DESACTIVADOS a propósito. La vista de supervisión (fase 3) está aplazada:
+  // si entraran hoy no tendrían nada que mirar. La fila se siembra ya para que
+  // el día que se abra no haya que migrar nada, solo poner activo = 1.
+  for (const [id, nombre] of [["cris", "Cris"], ["carlos", "Carlos"], ["esteban", "Esteban"]]) {
+    ins.run(id, nombre, "supervisor", null, 0);
+  }
 }
 
 /** Pone al día el esquema. Cada migración va en su transacción y sella su
