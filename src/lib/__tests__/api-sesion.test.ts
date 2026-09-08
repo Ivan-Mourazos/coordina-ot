@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -87,6 +87,19 @@ test("un nombre que no existe da EXACTAMENTE la misma respuesta", async () => {
   const res = await entrar({ id: "fulano", pin: "9999" });
   expect(res.status).toBe(401);
   expect((await res.json()) as { error: string }).toEqual({ error: "No es correcto" });
+});
+
+test("un id inexistente gasta el mismo scrypt que un PIN equivocado", async () => {
+  // No se mide tiempo (saldría intermitente): se comprueba, de forma
+  // estructural, que el camino del id inexistente SÍ pasa por el trabajo de
+  // descarte. Es la parte comprobable de "tarda lo mismo".
+  const espia = vi.spyOn(personas, "gastarComprobacion");
+  try {
+    await entrar({ id: "fulano", pin: "9999" });
+    expect(espia).toHaveBeenCalledTimes(1);
+  } finally {
+    espia.mockRestore();
+  }
 });
 
 test("a los cinco fallos se para un minuto", async () => {

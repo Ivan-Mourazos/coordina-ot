@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apuntarFallo, frenado, olvidarFallos } from "@/lib/server/freno";
-import { comprobarPin, leerPersona, ponerPin } from "@/lib/server/personas-db";
+import { comprobarPin, gastarComprobacion, leerPersona, ponerPin } from "@/lib/server/personas-db";
 import { cabeceraDeSalida, cabeceraDeSesion, quienEs } from "@/lib/server/sesion";
 
 // ─── /api/sesion ─────────────────────────────────────────────────────────────
@@ -53,8 +53,14 @@ export async function POST(req: Request) {
 
   const persona = leerPersona(id);
   if (!persona) {
-    // Se apunta el fallo igual que si existiera: si no, el tiempo de respuesta
-    // diría qué ids son reales.
+    // El cuerpo de la respuesta es igual que el de un PIN equivocado, pero sin
+    // esto NO tardaría lo mismo: un PIN equivocado pasa por scrypt (~60 ms) y
+    // un id inexistente respondería casi al instante, y ese tiempo delataría
+    // qué ids son reales aunque el JSON sea idéntico. `gastarComprobacion`
+    // hace el mismo trabajo de scrypt y lo tira, para igualar los dos caminos.
+    gastarComprobacion();
+    // Se apunta el fallo igual que si existiera: si no, el TOPE_FALLOS
+    // también diría qué ids son reales.
     apuntarFallo(id);
     return noEsCorrecto();
   }

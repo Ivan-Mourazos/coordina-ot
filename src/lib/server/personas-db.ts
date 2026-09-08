@@ -31,6 +31,11 @@ function cifrar(pin: string): string {
   return `scrypt$${sal.toString("base64")}$${hash.toString("base64")}`;
 }
 
+/** Sal fija para el scrypt de descarte de `gastarComprobacion`. No protege
+ *  nada —no hay ningún PIN real detrás— así que no necesita ser aleatoria:
+ *  solo necesita costar lo mismo que un scrypt de verdad. */
+const SAL_DE_DESCARTE = Buffer.alloc(16);
+
 /** Comparación en tiempo CONSTANTE. Con un `===` normal, lo que tarda en
  *  responder delata cuántos bytes del hash se acertaron. */
 function coincide(pin: string, guardado: string): boolean {
@@ -97,6 +102,19 @@ export function comprobarPin(id: string, pin: string): boolean {
     .get(id) as { pin_hash: string | null } | undefined;
   if (!f || f.pin_hash === null) return false;
   return coincide(pin, f.pin_hash);
+}
+
+/** Calcula un scrypt y lo tira. No comprueba nada: existe para que la ruta la
+ *  llame cuando el id NO existe, y así ese camino tarde los mismos ~60 ms que
+ *  `comprobarPin` tarda con un id real y PIN equivocado.
+ *
+ *  Sin esto, aunque el CUERPO de la respuesta sea idéntico en los dos casos,
+ *  lo RÁPIDO que responde uno frente al otro delataría qué ids son reales:
+ *  bastaría con medir el tiempo para reducir el ataque a solo los ids que
+ *  tardan lo lento. Que parezca trabajo "inútil" es la explicación de por qué
+ *  está — que no lo borre el siguiente que pase por "optimización". */
+export function gastarComprobacion(): void {
+  scryptSync("0000", SAL_DE_DESCARTE, 32);
 }
 
 /** Pone (o cambia) el PIN. `false` si no vale el formato o la persona no existe.
