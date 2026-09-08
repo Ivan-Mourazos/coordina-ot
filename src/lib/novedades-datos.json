@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-08",
+    "hasta": "16b4f73",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Diseño Gráfico ya enseña su trabajo",
+        "detalle": "Carrón, Manuel y Smith ven su tablero, su lista y sus métricas. Salen también trabajos a medias que antes no aparecían, y algunos muy viejos que siguen abiertos en OLANET."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El menú de la esquina cabe entero y ya no hay que buscar dentro",
+        "detalle": "Cada herramienta en una línea, con su nombre; para qué sirve sale al posar el ratón encima."
+      }
+    ]
+  },
+  {
     "id": "2026-09-07",
     "hasta": "94a55bc",
     "cambios": [
