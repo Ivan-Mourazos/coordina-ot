@@ -10,10 +10,12 @@ import { SelectorSeccion } from "./SelectorSeccion";
 import { ThemeToggle } from "./ThemeToggle";
 import { porSeccion } from "./IdentityGate";
 
-/** "31 de agosto". Sin año: lo que se quiere saber de un vistazo es si es de
- *  esta semana o de hace meses, y el año solo estorba para eso. */
+/** "31 ago". Sin año: lo que se quiere saber de un vistazo es si es de esta
+ *  semana o de hace meses, y el año solo estorba para eso. Mes abreviado
+ *  porque la fecha ya no ocupa su propia línea: va al final de la de
+ *  Novedades, y "31 de agosto" no cabe ahí sin partirla. */
 function fechaCorta(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+  return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
 /** Las otras páginas de Oficina Técnica, en un cajón de la cabecera.
@@ -160,56 +162,62 @@ export function Herramientas({
             </div>
           ))}
 
-          {/* QUÉ LISTA SE MIRA. No es "otra herramienta": es de qué trabajo va
-              todo lo que se está viendo, por eso va arriba y no en la lista. */}
-          <div className="mt-2 border-t border-border pt-2">
-            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Qué lista de trabajo se mira
-            </p>
-            <div className="px-1">
-              <SelectorSeccion
-                seccion={seccion}
-                onCambiar={(s) => {
-                  onCambiarSeccion(s);
-                  setOpen(false);
-                }}
-              />
-            </div>
-          </div>
+          {/* QUÉ LISTA SE MIRA y el claro/oscuro, en una fila y sin rótulos.
+              Eran dos secciones con su título en mayúsculas para dos mandos, y
+              en un menú de ocho cosas eso es más rótulo que contenido. Lo que
+              decían no se pierde: el conmutador lleva su `aria-label` ("Qué
+              lista de trabajo se mira") y cada botón su `title`, y la línea de
+              arriba ya dice en qué sección estás.
 
-          {/* El claro/oscuro. No se cierra el menú al cambiarlo: se elige
-              mirando, y cerrando habría que volver a abrirlo para probar el
-              otro. */}
-          <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
-            <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Claro u oscuro
-            </p>
+              La lista va PRIMERO y arriba porque no es "otra herramienta": es
+              de qué trabajo va todo lo que se está viendo.
+
+              El tema no cierra el menú al cambiarlo: se elige mirando, y
+              cerrando habría que volver a abrirlo para probar el otro. */}
+          <div className="mt-2 flex items-center justify-between gap-2 px-2">
+            <SelectorSeccion
+              seccion={seccion}
+              onCambiar={(s) => {
+                onCambiarSeccion(s);
+                setOpen(false);
+              }}
+            />
             <ThemeToggle />
           </div>
 
-          <p className="mb-1.5 mt-2 border-t border-border px-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            Otras herramientas
-          </p>
+          {/* LAS OTRAS PÁGINAS. Sin el rótulo "Otras herramientas" encima:
+              con la cabecera ya separada por su línea, lo único que queda
+              debajo son sitios a los que ir, y anidar dos niveles de título
+              (uno general y otro por grupo) para tres filas cada uno no
+              ordenaba nada.
 
-          {HERRAMIENTAS.map((grupo) => (
-            <div key={grupo.titulo} className="mb-2 last:mb-0">
-              <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
-                {grupo.titulo}
-              </p>
-              <ul className="space-y-0.5">
-                {grupo.items.map((h) =>
-                  h.url ? (
-                    <li key={h.id}>
-                      {/* `noopener` no es opcional: abrir en pestaña nueva sin
-                          él deja a la página destino tocar la nuestra. */}
-                      <a
-                        href={h.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setOpen(false)}
-                        className="block rounded-lg px-2 py-1.5 hover:bg-[var(--glass-highlight)]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-text">
+              Cada una en UNA línea: el nombre. La frase de para qué sirve se
+              va al `title` —sale al posar el ratón, y esto solo se usa en PC—
+              porque ocho descripciones seguidas convertían el menú en un
+              muro de texto que había que leer entero para encontrar el
+              enlace de siempre. */}
+          <div className="mt-2 border-t border-border pt-2">
+            {HERRAMIENTAS.map((grupo) => (
+              <div key={grupo.titulo} className="mb-2 last:mb-0">
+                {/* Mismo sangrado que las filas (px-2): con el rótulo a px-1
+                    el título quedaba 4 px a la izquierda de lo que titula. */}
+                <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+                  {grupo.titulo}
+                </p>
+                <ul>
+                  {grupo.items.map((h) =>
+                    h.url ? (
+                      <li key={h.id}>
+                        {/* `noopener` no es opcional: abrir en pestaña nueva sin
+                            él deja a la página destino tocar la nuestra. */}
+                        <a
+                          href={h.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={h.descripcion}
+                          onClick={() => setOpen(false)}
+                          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
+                        >
                           {h.nombre}
                           <svg
                             viewBox="0 0 24 24"
@@ -221,84 +229,78 @@ export function Herramientas({
                           >
                             <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
-                        </span>
-                        <span className="block text-[11px] leading-snug text-text-muted">
-                          {h.descripcion}
-                        </span>
-                      </a>
-                    </li>
-                  ) : (
-                    <li
-                      key={h.id}
-                      className="rounded-lg px-2 py-1.5 opacity-50"
-                      title="Todavía no está publicada. Aparecerá aquí en cuanto lo esté."
-                    >
-                      <span className="flex items-center gap-1.5 text-xs font-semibold text-text">
+                        </a>
+                      </li>
+                    ) : (
+                      <li
+                        key={h.id}
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text opacity-50"
+                        title={`${h.descripcion} Todavía no está publicada: aparecerá aquí en cuanto lo esté.`}
+                      >
                         {h.nombre}
                         <span className="rounded bg-surface-2 px-1 py-px text-[9px] font-bold uppercase text-text-muted ring-1 ring-border">
                           Pronto
                         </span>
-                      </span>
-                      <span className="block text-[11px] leading-snug text-text-muted">
-                        {h.descripcion}
-                      </span>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </div>
-          ))}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            ))}
 
-          {listas === 0 && (
-            <p className="px-2 pb-1 text-[11px] leading-snug text-text-muted">
-              Todavía no hay ninguna publicada. Irán apareciendo aquí según se vayan
-              desplegando.
-            </p>
-          )}
+            {listas === 0 && (
+              <p className="px-2 pb-1 text-[11px] leading-snug text-text-muted">
+                Todavía no hay ninguna publicada. Irán apareciendo aquí según se vayan
+                desplegando.
+              </p>
+            )}
+          </div>
 
-          {/* Separado del resto: lo de arriba son OTRAS páginas y esto es de
-              ésta. Va aquí porque el aviso de la campana se apaga en cuanto se
-              lee una vez, y sin una puerta fija no habría forma de volver a
-              mirar qué cambió — que es justo lo que se quiere poder hacer al
-              volver de unos días fuera. */}
-          {/* La guía de revisión va con las novedades y no arriba con las otras
-              páginas: aquellas son sitios a los que se va, y esto es de esta
-              misma web. Aquí se lee en frío o se le enseña a quien empieza;
-              mientras se revisa está en la propia tarjeta, que es donde sirve. */}
+          {/* LO DE ESTA WEB, en su propio bloque y con una sola línea encima:
+              lo de arriba son OTRAS páginas y esto es de ésta.
+
+              Las novedades van aquí porque el aviso de la campana se apaga en
+              cuanto se lee una vez, y sin una puerta fija no habría forma de
+              volver a mirar qué cambió — que es justo lo que se quiere poder
+              hacer al volver de unos días fuera. Y la guía de revisión las
+              acompaña en vez de irse arriba: mientras se revisa está en la
+              propia tarjeta, que es donde sirve; aquí se lee en frío o se le
+              enseña a quien empieza.
+
+              La fecha va al final de su fila, en gris, y no en una segunda
+              línea que dijera "Qué ha cambiado. Última actualización: …": el
+              título ya dice qué es, y lo único que se pregunta al verlo es de
+              cuándo es lo último. */}
           <div className="mt-2 border-t border-border pt-2">
             <button
               onClick={() => {
                 onVerGuiaRevision();
                 setOpen(false);
               }}
-              className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+              title="Los ocho puntos que se repasan antes de dar una lona por buena."
+              className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
             >
-              <span className="block text-xs font-semibold text-text">Qué mirar al revisar</span>
-              <span className="block text-[11px] leading-snug text-text-muted">
-                Los ocho puntos que se repasan antes de dar una lona por buena.
-              </span>
+              Qué mirar al revisar
             </button>
-          </div>
 
-          {ULTIMA && (
-            <div className="mt-2 border-t border-border pt-2">
+            {ULTIMA && (
               <button
                 onClick={() => {
                   onVerNovedades();
                   setOpen(false);
                 }}
-                className="block w-full rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+                title="Qué ha cambiado en la web."
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
               >
-                <span className="block text-xs font-semibold text-text">
-                  Novedades de la web
-                </span>
-                <span className="block text-[11px] leading-snug text-text-muted">
-                  Qué ha cambiado
-                  {fechaUltimaNovedad ? `. Última actualización: ${fechaCorta(fechaUltimaNovedad)}` : ""}
-                </span>
+                Novedades de la web
+                {fechaUltimaNovedad && (
+                  <span className="ml-auto shrink-0 text-[10px] font-medium text-text-muted">
+                    {fechaCorta(fechaUltimaNovedad)}
+                  </span>
+                )}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
