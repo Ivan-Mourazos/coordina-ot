@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OF } from "../types";
+import type { Fase } from "../fases-tablero";
 import {
   FASES,
   FASES_DE_TRABAJO,
@@ -126,13 +127,6 @@ describe("agruparPorFase", () => {
     expect(g.find((x) => x.id === "devuelta")!.items).toHaveLength(0);
   });
 
-  it("sin sección, el orden es el de siempre", () => {
-    // Es la garantía de que Oficina Técnica no se entera de este cambio: las
-    // llamadas que no pasan sección tienen que comportarse igual que antes.
-    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }]);
-    expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
-  });
-
   it("Oficina Técnica tampoco cambia: no declara orden propio", () => {
     const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.ot);
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
@@ -153,6 +147,33 @@ describe("agruparPorFase", () => {
       const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], s);
       expect([...g.map((x) => x.id)].sort()).toEqual([...FASES.map((f) => f.id)].sort());
     }
+  });
+
+  it("una sección que se olvida de una fase no la pierde: FASES manda, no seccion.ordenFases", () => {
+    // Esta es la garantía de verdad, y el test anterior no la pilla: con las
+    // seis secciones reales declarando las seis fases, un `fasesEnOrden` que
+    // usara `seccion.ordenFases` tal cual (el antipatrón que hay que impedir)
+    // pasaría igual. Aquí se construye una sección de mentira que deja fuera
+    // "esperandoRevision" y "parado" a propósito, partiendo de una real para
+    // no tocar la configuración de la casa.
+    const conOrden = (orden: readonly Fase[]) => ({ ...SECCIONES.ot, ordenFases: orden });
+    const seccion = conOrden(["listoParaPasar", "planteando"]);
+    const g = agruparPorFase([{ ofs: [] }], seccion);
+    const ids = g.map((x) => x.id);
+
+    // Las seis siguen apareciendo, las nombre la sección o no.
+    expect(new Set(ids)).toEqual(new Set(FASES.map((f) => f.id)));
+    expect(ids).toHaveLength(FASES.length);
+
+    // Las nombradas van primero, en el orden que pidió la sección.
+    expect(ids.slice(0, 2)).toEqual(["listoParaPasar", "planteando"]);
+
+    // Las que la sección no nombró van detrás, y entre ELLAS conservan el
+    // orden de FASES: no depende de cómo `sort` reparta los empates.
+    const sinNombrar = FASES.map((f) => f.id).filter(
+      (id) => id !== "listoParaPasar" && id !== "planteando",
+    );
+    expect(ids.slice(2)).toEqual(sinNombrar);
   });
 
   it("los pedidos caen en la misma fase, se ordene como se ordene", () => {
