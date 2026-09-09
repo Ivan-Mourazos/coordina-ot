@@ -653,7 +653,10 @@ export function Drawer({
                   }
                   className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Aprobar las {paraAprobar.length}
+                  {/* En Diseño el pedido casi siempre es una sola OF, y este
+                      botón sale desde que se revisa por pedido: sin la rama,
+                      se leería "Aprobar las 1" todos los días. */}
+                  {paraAprobar.length > 1 ? `Aprobar las ${paraAprobar.length}` : "Aprobar"}
                 </button>
               )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
@@ -665,7 +668,11 @@ export function Drawer({
                   title={`Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`}
                   className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
                 >
-                  Pasar las {paraRevisar.length} a revisión
+                  {/* Mismo motivo que en "Aprobar": con una sola OF (lo
+                      normal en Diseño) el número sobra. */}
+                  {paraRevisar.length > 1
+                    ? `Pasar las ${paraRevisar.length} a revisión`
+                    : "Pasar a revisión"}
                 </button>
               )}
             </span>
@@ -701,7 +708,11 @@ export function Drawer({
                 label={
                   fallosGuia.length > 0
                     ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "causa" : "causas"}`
-                    : `Devolver las ${paraDevolver.length}`
+                    : // La rama de causas ya concuerda bien; esta es la que faltaba:
+                      // con una sola OF (lo normal en Diseño) el número sobra.
+                      paraDevolver.length > 1
+                      ? `Devolver las ${paraDevolver.length}`
+                      : "Devolver"
                 }
                 miId={miId}
                 causasSugeridas={fallosGuia}
@@ -724,16 +735,33 @@ export function Drawer({
           {pidiendoRevisorPedido && (
             <div className="mb-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2">
               <p className="mb-1.5 text-[11px] text-text-muted">
-                Se mandan a revisar las {paraRevisar.length} OF de{" "}
-                {autoresParaRevisar.length === 1
-                  ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
-                  : "este pedido"}
-                , con el mismo revisor.
+                {/* Con una sola OF (lo normal en Diseño) "el mismo revisor"
+                    no dice nada -ya es uno solo- y "la 1 OF" tampoco es
+                    castellano: la frase se reescribe entera en singular. */}
+                {paraRevisar.length > 1 ? (
+                  <>
+                    Se mandan a revisar las {paraRevisar.length} OF de{" "}
+                    {autoresParaRevisar.length === 1
+                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
+                      : "este pedido"}
+                    , con el mismo revisor.
+                  </>
+                ) : (
+                  <>
+                    Se manda a revisar la OF de{" "}
+                    {autoresParaRevisar.length === 1
+                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
+                      : "este pedido"}
+                    .
+                  </>
+                )}
               </p>
               <PedirRevisor
                 operarios={operarios}
                 excluirIds={autoresParaRevisar}
-                etiquetaConfirmar={`Pasar las ${paraRevisar.length}`}
+                etiquetaConfirmar={
+                  paraRevisar.length > 1 ? `Pasar las ${paraRevisar.length}` : "Pasar"
+                }
                 onConfirmar={(rev) => {
                   for (const o of paraRevisar) onSetRevisor(o.id, rev);
                   onAccion(paraRevisar.map((o) => o.id), "terminar_planteo");
