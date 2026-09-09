@@ -85,6 +85,23 @@ export interface Seccion {
    *  de consulta y el desplegable de "ver todos"). Con un `if` en uno solo, el
    *  mismo trabajo saldría en dos órdenes distintos según dónde se mire. */
   ordenFases?: readonly Fase[];
+  /** Las acciones de estado se hacen sobre el PEDIDO entero, no OF por OF.
+   *  Ausente = como siempre, cada OF con las suyas.
+   *
+   *  En Oficina Técnica un pedido se reparte entre varios y cada uno manda lo
+   *  suyo cuando lo acaba, así que la OF es la unidad correcta. En Diseño
+   *  Gráfico no se reparte nada: una persona hace el pedido entero y lo pasa de
+   *  golpe, y si otro tiene que meter mano se lo pasa cuando termina. Mandarlo
+   *  OF por OF es repetir cinco veces un gesto que debería ser uno.
+   *
+   *  NO afecta a fichar ni a anular, y las dos excepciones son a propósito:
+   *  fichar es lo único que de verdad se hace sobre una OF suelta —arrancar el
+   *  reloj en lo que estás tocando ahora—, y anular no es el paso siguiente del
+   *  trabajo sino "esto no debería estar aquí". Las tareas que RPS duplica
+   *  cambiando solo el cero de delante (la 2 y la 02) salieron en 37 pedidos y
+   *  Diseño es la sección más afectada: con anular a nivel de pedido habría que
+   *  cargarse los trabajos buenos para tirar el malo. */
+  revisionPorPedido?: boolean;
 }
 
 export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
@@ -129,6 +146,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
       "esperandoRevision",
       "parado",
     ],
+    revisionPorPedido: true,
   },
 };
 

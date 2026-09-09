@@ -2368,6 +2368,7 @@ export function Board({
         pedido={openPedido}
         operarios={operarios}
         miId={miId}
+        seccion={laSeccion}
         dobleFichaje={dobleFichaje}
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
