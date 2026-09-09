@@ -64,7 +64,10 @@ export function Herramientas({
    *  con `Rol` (plantear/revisar), que es lo que se hace en una OF. */
   roles: RolAcceso[];
 }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  // Ignora los portales: es el único de los cuatro que abre un diálogo
+  // (ConfirmDialog, desde ResetPin) DESDE DENTRO de su propio desplegable.
+  // Ver el porqué de que sea opcional en usePopover.ts.
+  const { open, setOpen, ref } = usePopover<HTMLDivElement>({ ignorarPortales: true });
   /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
    *  quien lo vuelva a abrir espera encontrarlo como estaba al entrar, no a
    *  medio cambiarse de nombre. */
