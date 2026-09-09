@@ -149,12 +149,16 @@ test("apagado, un operarioId que no existe se rechaza igual que hoy", () => {
   expect((s.identidad(con(), 42, "tecnico") as Response).status).toBe(400);
 });
 
-test("apagado, si HAY cookie válida manda ella y no el cuerpo", () => {
-  // Para poder encender, mirar, apagar y que quien ya entró siga siendo quien
-  // dice ser mientras dure su sesión.
+test("apagado, si HAY cookie válida manda el cuerpo y no ella", () => {
+  // El caso de la cookie superviviente: alguien entró con el login encendido,
+  // se apaga el interruptor y su cookie sigue ahí un año entero. Apagado el
+  // tablero deja cambiarse de identidad libremente, así que si la cookie
+  // ganara, la pantalla diría un nombre y la acción se firmaría con otro, sin
+  // ningún aviso. Apagado no hay pantalla de login —la identidad la elige el
+  // tablero—, así que ignorar la cookie no deja a nadie fuera.
   process.env.COORDINA_LOGIN = "off";
   const r = s.identidad(con(`coordina_sesion=${s.firmarSesion("ivan")}`), "tamara", "tecnico");
-  expect((r as { id: string }).id).toBe("ivan");
+  expect((r as { id: string }).id).toBe("tamara");
 });
 
 test("encendido, el cuerpo se ignora del todo", () => {

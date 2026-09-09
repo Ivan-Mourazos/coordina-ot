@@ -65,6 +65,9 @@ test("con sesión de supervisor tampoco: es solo lectura", async () => {
   db.getDb().prepare("UPDATE persona SET activo = 1 WHERE id = 'cris'").run();
   const res = await post(mutacion, `coordina_sesion=${s.firmarSesion("cris")}`);
   expect(res.status).toBe(403);
+  // Igual que en el test de "sin sesión": no basta con el 403, hay que
+  // comprobar que el 403 corta ANTES de guardar nada.
+  expect(db.leerAccionesDesde("1970-01-01T00:00:00.000Z")).toHaveLength(0);
   db.getDb().prepare("UPDATE persona SET activo = 0 WHERE id = 'cris'").run();
 });
 

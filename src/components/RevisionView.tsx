@@ -70,7 +70,11 @@ export function RevisionView({
 }: {
   pedidos: Pedido[];
   operarios: Operario[];
-  miId: string | null;
+  // El único que monta esta vista es Board.tsx, después de su
+  // `if (!miId) return <IdentityGate .../>`: aquí siempre hay alguien
+  // identificado. Que dijera `| null` obligaba a `useMarcasRevision` (dentro
+  // de ReviewCard, más abajo) a aceptar un caso que en realidad no se da.
+  miId: string;
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -213,7 +217,7 @@ function ColumnaRevision({
   dotColor?: string;
   facets: RFacet[];
   operarios: Operario[];
-  miId: string | null;
+  miId: string; // Viene de RevisionView, ya identificado — ver su comentario.
   causas: CausaDevolucion[];
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
@@ -314,7 +318,7 @@ function ReviewCard({
   facet: RFacet;
   estado: EstadoOF;
   operarios: Operario[];
-  miId: string | null;
+  miId: string; // Viene de RevisionView, ya identificado — ver su comentario.
   /** Todas las que se ofrecen hoy. De aquí salen la guía de esta tarjeta (su
    *  cara en positivo) y las píldoras del cuadro de devolver, unas y otras
    *  acotadas a las familias del pedido. */

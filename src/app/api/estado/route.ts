@@ -109,7 +109,7 @@ export async function POST(req: Request) {
   // después de guardar y sin bloquear la respuesta — encolarFinalizacion no
   // lanza, y si algo falla el pedido queda "interrumpido" en vez de
   // "finalizado", que se ve y se puede volver a pasar.
-  if (completarPedidoId && operarioId) {
+  if (completarPedidoId) {
     const ofIds = Array.isArray(body.ofIdsPedido)
       ? body.ofIdsPedido.filter((x): x is string => typeof x === "string" && x.length > 0)
       : [];

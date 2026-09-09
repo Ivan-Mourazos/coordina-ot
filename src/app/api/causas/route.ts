@@ -20,8 +20,9 @@ import { exigir, loginActivo } from "@/lib/server/sesion";
 // PATCH no manda operarioId en absoluto—. identidad() exige un operarioId
 // válido y apagado contestaría 400, dejando "Cambiar la lista" roto el día
 // del despliegue. Lo que sí se cierra con el login encendido es el ACCESO:
-// hace falta sesión de técnico, igual que en el resto de rutas, y esa sesión
-// manda sobre lo que diga el cuerpo si hay las dos.
+// hace falta sesión de técnico, igual que en el resto de rutas. Apagado, el
+// autor sigue siendo el operarioId del cuerpo si lo trae (y null si no); la
+// sesión no entra en esto, ni siquiera si la hay.
 
 export const dynamic = "force-dynamic";
 

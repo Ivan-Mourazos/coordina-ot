@@ -27,7 +27,13 @@ export function GET() {
  *
  *  Cualquier supervisor puede resetear el de cualquiera, incluido el de otro
  *  supervisor. Con cuatro personas en ese papel, montar una jerarquía para esto
- *  sería inventarse un problema. */
+ *  sería inventarse un problema.
+ *
+ *  `exigir` va SUELTO aquí, sin el `if (loginActivo())` que lleva en el resto
+ *  de rutas de escritura, y es a propósito y no un descuido: resetear un PIN
+ *  no significa nada con el login apagado —no hay PIN que resetear si no hay
+ *  con qué entrar—, así que esto tiene que dar 401 pase lo que pase con el
+ *  interruptor, no solo cuando esté encendido. */
 export async function PATCH(req: Request) {
   const yo = exigir(req, "supervisor");
   if (yo instanceof NextResponse) return yo;

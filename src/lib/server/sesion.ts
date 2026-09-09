@@ -151,8 +151,19 @@ export function loginActivo(): boolean {
  *  llaman las rutas**, no `exigir`.
  *
  *  - Encendido: la sesión y solo la sesión. `delCuerpo` se ignora.
- *  - Apagado: la sesión si la hay —para que encender, mirar y apagar no eche a
- *    quien ya entró— y si no, el `operarioId` del cuerpo, como hasta ahora.
+ *  - Apagado: el `operarioId` del cuerpo, como hasta ahora. La cookie se
+ *    ignora del todo, aunque exista y sea válida.
+ *
+ *  Apagado NO mira la cookie a propósito, aunque parezca lo más precavido: el
+ *  interruptor existe para encender, mirar y apagar en un minuto, y la cookie
+ *  NO caduca en un año. Si apagado usara la cookie cuando la hay, alguien que
+ *  entró con el login encendido conservaría su identidad firmada después de
+ *  apagarlo —sin verlo, sin ningún aviso— mientras el tablero, ya apagado,
+ *  le sigue dejando cambiarse de identidad por su cuenta. La pantalla diría un
+ *  nombre y las acciones se firmarían con otro. Apagado no hay pantalla de
+ *  login: la identidad la elige el propio tablero, así que nadie se queda
+ *  fuera por ignorar la cookie. Regla en una frase: encendido manda la sesión,
+ *  apagado manda el cuerpo.
  *
  *  El ROL se hace cumplir en los dos casos. Si solo se comprobara con el login
  *  encendido, encenderlo cambiaría quién puede hacer qué, y eso es justo lo que
@@ -169,13 +180,12 @@ export function identidad(
   if (loginActivo()) return exigir(req, rol);
 
   const yo =
-    quienEs(req) ??
-    (typeof delCuerpo === "string" && delCuerpo.length > 0
+    typeof delCuerpo === "string" && delCuerpo.length > 0
       ? (() => {
           const p = leerPersona(delCuerpo);
           return p ? { id: p.id, nombre: p.nombre, roles: p.roles } : null;
         })()
-      : null);
+      : null;
 
   if (!yo) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
   if (rol && !yo.roles.includes(rol))

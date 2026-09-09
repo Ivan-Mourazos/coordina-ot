@@ -34,7 +34,15 @@ function fusionar(
   return comun;
 }
 
-export function useMarcasRevision(ofIds: readonly string[], operarioId: string | null) {
+// `operarioId` es `string`, no `string | null`: hoy el tablero no monta nada
+// de esto sin identidad (ver el `if (!miId) return <IdentityGate .../>` de
+// Board.tsx), así que un `null` aquí sería un caso que ya no puede pasar. Que
+// el tipo lo admitiera igual era un hueco: el día que alguien reutilizara este
+// hook desde un sitio sin identidad resuelta, el PUT se habría ido con
+// `operarioId: null`, la ruta ahora contesta 400, y como el fallo se tragaba
+// en silencio (ver más abajo) nadie se habría enterado de que la marca no se
+// guardó.
+export function useMarcasRevision(ofIds: readonly string[], operarioId: string) {
   const [marcas, setMarcas] = useState<Record<number, EstadoPunto>>({});
   // Las ids en una cadena: como dependencia, un array nuevo en cada render
   // volvería a pedirlas sin parar.
@@ -63,6 +71,13 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string |
       // servidor en cada uno se siente roto. Si falla el guardado, la próxima
       // carga dirá la verdad.
       setMarcas((p) => ({ ...p, [puntoId]: estado }));
+      // Antes esto acababa en un `.catch(() => {})` mudo, y encima solo
+      // atrapaba un fallo de RED: un 400 de la propia ruta (un `estado`
+      // suelto, un `operarioId` que ya no cuela) es una respuesta normal para
+      // `fetch`, no una promesa rechazada, así que ni el catch lo veía. La
+      // marca se pintaba en pantalla igual y solo se descubría que no se
+      // había guardado al refrescar y encontrar el punto otra vez "sin
+      // mirar". Esto no arregla el fallo, pero deja de ser invisible.
       void fetch("/api/revision/marcas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -73,7 +88,16 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string |
           estado: estado === "sin_mirar" ? null : estado,
           operarioId,
         }),
-      }).catch(() => {});
+      })
+        .then((r) => {
+          if (!r.ok)
+            console.error(
+              `[revision] no se pudo guardar el punto ${puntoId} de ${clave}: HTTP ${r.status}`,
+            );
+        })
+        .catch((e: unknown) => {
+          console.error(`[revision] no se pudo guardar el punto ${puntoId} de ${clave}:`, e);
+        });
     },
     [clave, operarioId],
   );
