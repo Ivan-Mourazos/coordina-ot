@@ -1927,6 +1927,11 @@ export function Board({
     ? ofsDelAviso.filter((of) => esFichable(of) && rolFichajeDe(of) === rolFichajeDe(rolDelAviso))
     : [];
 
+  // El objeto de la sección, no su id: es lo que consumen agruparPorFase y el
+  // Drawer, y resolverlo aquí evita que cada componente tenga que importar
+  // SECCIONES para hacer el mismo lookup.
+  const laSeccion = SECCIONES[seccionActual];
+
   return (
     <>
       <div className="flex min-h-full flex-col">
@@ -2116,6 +2121,7 @@ export function Board({
               <ZonaPersonal
                 operario={yo}
                 facets={facetsDe(yo.id)}
+                seccion={laSeccion}
                 live={liveByOp.get(yo.id) ?? null}
                 onOpen={openFacet}
                 onVerTodos={setFaseAbierta}
@@ -2130,6 +2136,7 @@ export function Board({
             {faseAbierta && (
               <FaseFlyout
                 facets={facetsDe(yo.id)}
+                seccion={laSeccion}
                 faseId={faseAbierta}
                 onOpen={(f) => {
                   setFaseAbierta(null);
@@ -2165,6 +2172,7 @@ export function Board({
                     key={op.id}
                     operario={op}
                     facets={facetsDe(op.id)}
+                    seccion={laSeccion}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}
                     onToggle={() => toggleExpanded(op.id)}

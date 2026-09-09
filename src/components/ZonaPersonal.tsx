@@ -2,6 +2,7 @@
 
 import type { Operario, Rol } from "@/lib/types";
 import { agruparPorFase, conTope } from "@/lib/fases-tablero";
+import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
@@ -23,6 +24,7 @@ const TOPE = 6;
 export function ZonaPersonal({
   operario,
   facets,
+  seccion,
   live,
   onOpen,
   onVerTodos,
@@ -34,6 +36,9 @@ export function ZonaPersonal({
 }: {
   operario: Operario;
   facets: Facet[];
+  /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
+   *  columnas (ver `ordenFases` en lib/secciones.ts). */
+  seccion: Seccion;
   live?: LiveInfo | null;
   onOpen: (f: Facet) => void;
   /** Saca el pedido a Producción (columna "Listo para pasar"). */
@@ -49,7 +54,7 @@ export function ZonaPersonal({
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
-  const grupos = agruparPorFase(facets);
+  const grupos = agruparPorFase(facets, seccion);
   // Los parados por Producción NO son una columna: no hay nada que hacer con
   // ellos y ocupar sitio con ellos es lo que hacía que volvieran al panel como
   // si tocara empezarlos. Se cuentan aparte, en la cabecera, y se consultan

@@ -8,6 +8,7 @@ import { PanelCompanero } from "./PanelCompanero";
 import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
 import { agruparPorFase } from "@/lib/fases-tablero";
+import type { Seccion } from "@/lib/secciones";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
  *  qué rol), y una barra con la distribución de sus OF por fase. Zona
@@ -16,6 +17,7 @@ import { agruparPorFase } from "@/lib/fases-tablero";
 export const TecnicoCard = memo(function TecnicoCard({
   operario,
   facets,
+  seccion,
   live,
   expanded,
   onToggle,
@@ -27,6 +29,9 @@ export const TecnicoCard = memo(function TecnicoCard({
 }: {
   operario: Operario;
   facets: Facet[];
+  /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
+   *  columnas (ver `ordenFases` en lib/secciones.ts). */
+  seccion: Seccion;
   live: LiveInfo | null;
   expanded: boolean;
   onToggle: () => void;
@@ -42,7 +47,7 @@ export const TecnicoCard = memo(function TecnicoCard({
 
   // La barra reparte PEDIDOS, no OFs, para que case con el "N ped" de al lado:
   // dos números distintos midiendo lo mismo obligan a mirar dos veces.
-  const porFase = agruparPorFase(facets).map((g) => ({ ...g, n: g.items.length }));
+  const porFase = agruparPorFase(facets, seccion).map((g) => ({ ...g, n: g.items.length }));
 
   return (
     <div
@@ -117,6 +122,7 @@ export const TecnicoCard = memo(function TecnicoCard({
         <PanelCompanero
           operario={operario}
           facets={facets}
+          seccion={seccion}
           live={live}
           onOpen={onOpen}
           onCerrar={onClose}
