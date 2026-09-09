@@ -395,7 +395,21 @@ export function Board({
     let vivo = true;
     const cargar = () => {
       fetch(`/api/avisos?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          // Con el login encendido, un 401 aquí quiere decir que el servidor
+          // ya no te reconoce —te desactivaron, o cambió el secreto de
+          // sesión—: seguir sondeando dejaría el tablero vivo en apariencia
+          // (avisos y reloj congelados) sin que la persona se entere de que
+          // ya no es ella quien manda. Volver a la pantalla de entrar es lo
+          // que hace que desactivar a alguien signifique algo de verdad.
+          // No hace falta cortar el `setInterval` a mano: en cuanto `sesion`
+          // pase a null, `miId` se queda a null y este efecto se desmonta.
+          if (loginActivo && r.status === 401) {
+            if (vivo) setSesion(null);
+            return null;
+          }
+          return r.ok ? r.json() : null;
+        })
         .then((d: { avisos: AvisoMovimiento[] } | null) => {
           if (vivo && d) setAvisosMov(d.avisos);
         })
@@ -407,7 +421,7 @@ export function Board({
       vivo = false;
       clearInterval(id);
     };
-  }, [miId]);
+  }, [miId, loginActivo]);
 
   // Notas recientes de TODO el equipo: una nota es un hecho del que los demás
   // se tienen que enterar, igual que un traspaso. No depende de quién soy —la
@@ -1431,6 +1445,13 @@ export function Board({
           // tiene que salir bien desde el primer pintado, sin esperar a que se
           // pulse nada.
           anotarDesfase(r.headers.get("date"));
+          // Mismo caso que en el sondeo de avisos: un 401 con el login
+          // encendido significa que el servidor ya no te reconoce, y seguir
+          // preguntando solo dejaría el reloj congelado sin decir por qué.
+          if (loginActivo && r.status === 401) {
+            if (!cancelado) setSesion(null);
+            return null;
+          }
           return r.ok ? r.json() : null;
         })
         .then(
@@ -1463,7 +1484,7 @@ export function Board({
       cancelado = true;
       clearInterval(id);
     };
-  }, [miId, anotarDesfase]);
+  }, [miId, anotarDesfase, loginActivo]);
 
   // ── Latido: mientras tengo un fichaje corriendo, aviso al server de que la
   // pestaña sigue viva (ver /api/fichaje/latido). Se para al pausar

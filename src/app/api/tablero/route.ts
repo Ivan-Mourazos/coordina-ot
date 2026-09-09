@@ -20,10 +20,18 @@ export async function GET(req: Request) {
   // todo eso en dos.
   //
   // Que cualquiera pueda pedir cualquier sección es deliberado y no es un
-  // agujero: aquí no hay nada que proteger. La app es sin login, el trabajo de
-  // las dos secciones es el mismo trabajo de la casa, y mirar la lista de al
-  // lado no deja hacer nada que no se pudiera hacer ya. Lo que NO cambia es
-  // quién eres: eso sigue viniendo del operario y no de la URL.
+  // agujero propio de esto: el trabajo de las dos secciones es el mismo
+  // trabajo de la casa, y mirar la lista de al lado no deja hacer nada que no
+  // se pudiera hacer ya. Lo que NUNCA cambia, con el login encendido o
+  // apagado, es quién eres: eso no ha venido de la URL ni un día — viene del
+  // operario (apagado) o de la sesión (encendido, en las rutas que la piden).
+  //
+  // OJO: esta ruta NO comprueba sesión, ni siquiera con el login encendido.
+  // No es un descuido de esta rama ni algo que se le olvidó a nadie: cerrar
+  // las lecturas —esta, el historial, las métricas, el buscador…— es la fase
+  // 2, aplazada a propósito (ver docs/despliegue-login.md). Con el login
+  // encendido el tablero deja de ser SIN login, pero esta ruta en concreto
+  // sigue siéndolo.
   const q = new URL(req.url).searchParams;
   const operarioId = q.get("operarioId");
   const pedida = q.get("seccion");

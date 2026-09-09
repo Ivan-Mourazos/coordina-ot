@@ -29,6 +29,23 @@ Aquí sí lo nota todo el mundo: **todos los navegadores del equipo pierden su
 identidad guardada** y se encuentran la pantalla del PIN. No es un fallo, es el
 cambio.
 
+### Qué cierra esto, y qué no
+
+No lo cuentes como "la web queda cerrada": **sigue sin estarlo, casi entera.**
+Lo que el login cierra son las ESCRITURAS (fichar, aprobar, devolver, notar,
+marcar una revisión…) y un puñado de lecturas que necesitan saber quién
+pregunta. Todo lo demás se queda exactamente como está, sin guarda ninguna,
+login encendido o no — es la fase 2, aplazada a propósito, no un olvido de
+esta rama.
+
+Entre lo que NO cierra: el **tablero entero** (`/api/tablero`, con todas sus
+OF y su reloj), el **historial** de un pedido y sus documentos, las
+**métricas**, el **buscador**, y unas cuantas más (health, novedades,
+notas-recientes, la lectura de notas, la cola y el contraste del fichaje, la
+lista de pedidos y sus documentos). Alguien de la red interna sin PIN sigue
+pudiendo leer casi todo lo que enseña la web el día después de encenderlo,
+igual que hoy. Lo que ya no puede es escribir a nombre de otro.
+
 ### Antes
 
 1. **Avisar al equipo el día anterior.** El mensaje es corto: "mañana la web te
@@ -89,7 +106,7 @@ le cambió nada a nadie. El día que se enciende sí. Poner estas dos líneas en
 commit que cambie la configuración, y pasar `pnpm novedades`:
 
     Novedad: nuevo | Ahora entras con un PIN
-    Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, para que no se cuele una errata. Cuando termines, en el menú de arriba a la derecha tienes Salir.
+    Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, para que no se cuele una errata. Cuando termines, en el menú de arriba a la derecha tienes Salir. Esto es para fichar, aprobar y escribir a tu nombre: mirar el tablero y lo demás sigue abierto en la red como hasta ahora.
     Novedad: arreglado | Lo que escribías podía firmarlo otro
     Detalle: Hasta ahora el nombre viajaba desde el navegador y se podía cambiar. Ahora lo pone el servidor: lo que fichas, apruebas o escribes queda a tu nombre y solo al tuyo.
 
@@ -119,5 +136,22 @@ PIN desde el menú.
 ## Lo que NO entra en esta versión
 
 La consulta sin login (fase 2) y la vista de supervisión de Cris, Carlos y
-Esteban (fase 3). Sus filas están sembradas en la tabla con `activo = 0`; el día
-que se abran, se activan y no hay que migrar nada.
+Esteban (fase 3). Sus filas están sembradas en la tabla con `activo = 0`, y
+migrar no hace falta: los datos ya están.
+
+**Pero ojo, activarlos (`activo = 1`) NO basta para que entren**, y no es un
+descuido que se arregle solo poniendo la fila a activo:
+
+- La rejilla del login solo enseña a quien tenga rol `tecnico`. Los tres son
+  supervisores puros y no saldrían en ella.
+- El enlace "Entrar con otro usuario" —para entrar tecleando nombre y PIN,
+  sin necesidad de salir en la rejilla— está SIN CONSTRUIR a propósito: hoy no
+  hay a quién llevar ahí, y una puerta a un cuarto vacío no se construye antes
+  de tiempo.
+- Y si aun así alguno consiguiera una cookie válida, el tablero busca a quien
+  entra en el catálogo de operarios (`TODOS_LOS_OPERARIOS`, de `lib/mock.ts`),
+  y los tres no están ahí: el render reventaría.
+
+Nada de esto es un fallo que corregir hoy: es la fase 2/3, con su propia
+pantalla, todavía sin diseñar. Activar la fila es un paso más de esa fase el
+día que se aborde, no el que la sustituye.

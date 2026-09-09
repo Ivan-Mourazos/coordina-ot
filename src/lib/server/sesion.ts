@@ -28,7 +28,15 @@ export const COOKIE = "coordina_sesion";
  *  equipo tendría que volver a entrar cada mañana. */
 const MAX_AGE = 60 * 60 * 24 * 365;
 
-function secreto(): string {
+/** El secreto de firma, o revienta si no está puesto.
+ *
+ *  Exportada para que dos sitios más puedan exigirla ANTES de que la falta
+ *  del secreto le cueste algo a alguien: `instrumentation.ts` la llama al
+ *  arrancar (si el login está encendido, sin secreto no arranca — así la
+ *  promesa de docs/despliegue-login.md es verdad), y `POST /api/sesion` la
+ *  llama al principio, antes de tocar `ponerPin`, para no guardar el PIN que
+ *  alguien acaba de elegir y reventar solo DESPUÉS al firmar su cookie. */
+export function secreto(): string {
   const v = process.env.COORDINA_SESION_SECRET;
   if (!v)
     throw new Error(
@@ -105,16 +113,30 @@ export function quienEs(req: Request): Sesion | null {
   return { id: persona.id, nombre: persona.nombre, roles: persona.roles };
 }
 
-/** La sesión, o la respuesta con la que hay que cortar. **Con el login
- *  ENCENDIDO**: es lo que llama `identidad()`, y lo llaman directamente solo las
- *  rutas que no pueden sacar identidad de ningún otro sitio (las lecturas y
- *  pedido-scan), siempre dentro de un `if (loginActivo())`.
+/** La sesión, o la respuesta con la que hay que cortar.
  *
- *  Las rutas de escritura llaman a `identidad()`, no a esto: una ruta que llame
- *  aquí a secas se queda muerta con el login apagado, que es como se despliega.
+ *  La llaman DIRECTAMENTE, envuelta en `if (loginActivo())`, las lecturas que
+ *  no pueden sacar identidad de ningún otro sitio —`causas` GET, `fases` GET,
+ *  `revision/marcas` GET— y las escrituras de `causas` (POST y PATCH, que no
+ *  guardan autor y solo necesitan cerrar el ACCESO) y de `pedido-scan` (que
+ *  tampoco tiene operarioId que leer del cuerpo; ver el comentario de esa
+ *  ruta). Cinco rutas en total.
  *
- *  UNA sola función para las once: repetir la comprobación en cada una
- *  garantiza que a la doceava se le olvide.
+ *  Y la llama SIN el `if`, a propósito: `personas` PATCH (resetear el PIN de
+ *  alguien), que tiene que exigir sesión de supervisor pase lo que pase con
+ *  el interruptor. No es un descuido ni la regla de arriba mal aplicada:
+ *  resetear un PIN no significa nada con el login apagado —no hay PIN que
+ *  resetear si no hay con qué entrar—, así que ahí el 401 no puede depender
+ *  de estar encendido (ver el comentario de esa ruta).
+ *
+ *  Las demás rutas de escritura —avisos, estado, `fases` POST, fichaje,
+ *  fichaje/aviso-visto, fichaje/latido, notas y `revision/marcas` PUT: ocho—
+ *  llaman a `identidad()`, no a esto: una ruta que llame aquí a secas se
+ *  queda muerta con el login apagado, que es como se despliega.
+ *
+ *  UNA sola función para las once rutas que usan una u otra (`fases` y
+ *  `revision/marcas` cuentan una vez cada una, aunque usen las dos): repetir
+ *  la comprobación en cada una garantiza que a la doceava se le olvide.
  */
 export function exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse {
   const yo = quienEs(req);

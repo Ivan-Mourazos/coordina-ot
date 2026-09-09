@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apuntarFallo, frenado, olvidarFallos } from "@/lib/server/freno";
 import { comprobarPin, gastarComprobacion, leerPersona, ponerPin } from "@/lib/server/personas-db";
-import { cabeceraDeSalida, cabeceraDeSesion, quienEs } from "@/lib/server/sesion";
+import { cabeceraDeSalida, cabeceraDeSesion, quienEs, secreto } from "@/lib/server/sesion";
 
 // ─── /api/sesion ─────────────────────────────────────────────────────────────
 // Entrar, salir y saber quién eres. Los tres verbos en un fichero, como hace
@@ -32,6 +32,25 @@ export async function GET(req: Request) {
  *  mismo, tecleándolo dos veces. Una errata en un alta de un solo intento la
  *  dejaría fuera de su herramienta de trabajo hasta que alguien se lo resetee. */
 export async function POST(req: Request) {
+  // Comprobar el secreto YA, antes de tocar nada del cuerpo. instrumentation.ts
+  // ya impide arrancar así con el login encendido, pero esta ruta no depende
+  // de haber pasado por `register()` para correr —un test, una instancia que
+  // lo saltara— y sin este corte el fallo llegaría DESPUÉS de `ponerPin`: la
+  // persona vería su PIN guardado y la petición reventando igual, y reintentar
+  // no arreglaría nada porque ya no habría PIN que volver a elegir.
+  try {
+    secreto();
+  } catch (e) {
+    console.error("[sesion] no se puede entrar:", (e as Error).message);
+    // Sin el motivo real —eso no se le enseña a nadie por la pantalla—, pero
+    // distinto de "No es correcto": esto no es un PIN equivocado, es que el
+    // servidor no puede firmar nada. "Reintenta" no ayuda; avisar sí.
+    return NextResponse.json(
+      { error: "Algo va mal en el servidor. Avisa a Iván." },
+      { status: 500 },
+    );
+  }
+
   let b: Record<string, unknown>;
   try {
     const crudo: unknown = await req.json();

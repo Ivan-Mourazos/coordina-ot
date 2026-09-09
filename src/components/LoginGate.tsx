@@ -199,8 +199,17 @@ function TecladoPin({
         onEntrado(j.yo);
         return;
       }
-      const j = (await r.json().catch(() => ({}))) as { error?: string };
-      setError(j.error ?? "No se pudo entrar");
+      // Un 500 no es "PIN equivocado": es el servidor, no la persona. Se
+      // distingue por el estado y no por el cuerpo porque un 500 de verdad
+      // —uno que no venga de este `catch` a propósito de la ruta— puede no
+      // traer JSON que parsear, y con el mensaje genérico de abajo alguien
+      // pensaría que se equivocó tecleando y lo seguiría intentando en bucle.
+      if (r.status >= 500) {
+        setError("Algo va mal en el servidor. Avisa a Iván.");
+      } else {
+        const j = (await r.json().catch(() => ({}))) as { error?: string };
+        setError(j.error ?? "No se pudo entrar");
+      }
     } catch {
       setError("No se pudo conectar");
     }

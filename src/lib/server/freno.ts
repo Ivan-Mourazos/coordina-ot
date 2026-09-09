@@ -17,7 +17,24 @@ export const ESPERA_MS = 60_000;
 /** A partir de cuántas entradas merece la pena parar a recorrer el mapa
  *  buscando las caducadas. Por debajo, el propio equipo (doce personas en una
  *  red interna) no se acerca ni de lejos, y recorrerlo en cada fallo saldría
- *  más caro que dejarlo crecer un poco. */
+ *  más caro que dejarlo crecer un poco.
+ *
+ *  Lo caro de un id inventado NO es esta entrada del Map —un puñado de
+ *  bytes—: es que `apuntarFallo` se llama DESPUÉS de que la ruta ya haya
+ *  pasado por `comprobarPin` o, si el id no existe, por su sustituto
+ *  `gastarComprobacion` (ver personas-db.ts:46 y :117), y las dos llaman a
+ *  `scryptSync`, que es SÍNCRONO y bloquea el event loop de Node entero unos
+ *  60 ms por vuelta. `frenado(id)` frena por id, así que con un id distinto
+ *  en cada petición —inventado, no hace falta que exista— nunca corta: un
+ *  bucle que solo varíe el id paga un scrypt entero cada vez, y a partir de
+ *  ~16 peticiones por segundo deja el servidor sin responder para TODO el
+ *  mundo, no solo para quien lo manda —Node solo tiene un hilo para esto—.
+ *  Nada aquí lo frena por IP ni de forma global.
+ *
+ *  Se asume así, sin arreglarlo, por el modelo de amenaza de esta casa: red
+ *  interna, nueve personas. Alguien tendría que estar ya dentro de la oficina
+ *  o de la VPN para mandar ese tráfico. Si eso cambiara —la app saliera a
+ *  Internet, por ejemplo— esto habría que revisarlo antes que nada. */
 const TECHO_PARA_PURGAR = 500;
 
 const fallos = new Map<string, { veces: number; hasta: number }>();

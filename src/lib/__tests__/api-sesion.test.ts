@@ -69,6 +69,28 @@ test("la primera vez se elige PIN, y hay que teclearlo dos veces igual", async (
   expect(bien.headers.get("set-cookie")).toContain("coordina_sesion=");
 });
 
+test("sin COORDINA_SESION_SECRET, el POST falla ANTES de guardar el PIN elegido", async () => {
+  // El bloqueante de la revisión: sin este corte, ponerPin ya habría guardado
+  // el PIN y LUEGO reventaría al firmar la cookie, dejando a la persona sin
+  // PIN que reintroducir. Se usa "smith" y se le resetea el PIN antes, para no
+  // depender de qué haya hecho un test anterior con "tamara".
+  personas.resetearPin("smith");
+  const antes = process.env.COORDINA_SESION_SECRET;
+  delete process.env.COORDINA_SESION_SECRET;
+  try {
+    const res = await entrar({ id: "smith", pin: "2222", pinRepetido: "2222" });
+    expect(res.status).toBe(500);
+    const j = (await res.json()) as { error?: string };
+    expect(j.error).toBeTruthy();
+    expect(j.error).not.toContain("COORDINA_SESION_SECRET"); // el motivo real no se enseña
+    // Lo que importa: el PIN que acababa de elegir NO se ha guardado. Puesto
+    // el secreto, puede reintentarlo desde cero.
+    expect(personas.leerPersona("smith")?.sinPin).toBe(true);
+  } finally {
+    process.env.COORDINA_SESION_SECRET = antes;
+  }
+});
+
 test("con el PIN ya puesto se entra tecleándolo una vez", async () => {
   const res = await entrar({ id: "tamara", pin: "1704" });
   expect(res.status).toBe(200);
