@@ -1,4 +1,5 @@
 import type { OF } from "./types";
+import type { Seccion } from "./secciones";
 
 // ─── Las cuatro fases del tablero ────────────────────────────────────────────
 // Definición ÚNICA. Antes vivía copiada en PedidosPorEstado (bucketDe),
@@ -219,13 +220,34 @@ export interface GrupoFase<T> extends FaseMeta {
   items: T[];
 }
 
-/** Reparte pedidos en las cuatro fases. Devuelve SIEMPRE las cuatro, también
- *  vacías: quien pinta decide si una fase vacía ocupa sitio o no. */
-export function agruparPorFase<T extends ConOFs>(pedidos: readonly T[]): GrupoFase<T>[] {
-  return FASES.map((meta) => ({
+/** Los pedidos repartidos por fase, TODAS las fases y en el orden de la
+ *  sección. Sin sección, el orden de siempre.
+ *
+ *  El orden es lo ÚNICO que cambia entre secciones: en qué fase cae cada
+ *  pedido lo decide `faseDePedido` y eso no se toca. */
+export function agruparPorFase<T extends ConOFs>(
+  pedidos: readonly T[],
+  seccion?: Seccion,
+): GrupoFase<T>[] {
+  return fasesEnOrden(seccion).map((meta) => ({
     ...meta,
     items: pedidos.filter((p) => faseDePedido(p) === meta.id),
   }));
+}
+
+/** Las fases en el orden que pida la sección.
+ *
+ *  Se parte SIEMPRE de `FASES` y se reordena: así una fase nueva aparece
+ *  aunque una sección se olvide de meterla en su lista, en vez de desaparecer
+ *  del panel en silencio. Lo que la lista de la sección decide es el orden de
+ *  las que nombra; lo que no nombre se va detrás, como esté en FASES. */
+function fasesEnOrden(seccion?: Seccion): readonly FaseMeta[] {
+  const orden = seccion?.ordenFases;
+  if (!orden) return FASES;
+  const puesto = new Map(orden.map((id, i) => [id, i]));
+  return [...FASES].sort(
+    (a, b) => (puesto.get(a.id) ?? FASES.length) - (puesto.get(b.id) ?? FASES.length),
+  );
 }
 
 /** Recorta a `tope` elementos y dice cuántos se quedan fuera. Es lo que hace

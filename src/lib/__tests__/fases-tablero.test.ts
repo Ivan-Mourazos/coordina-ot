@@ -14,6 +14,7 @@ import {
   ofsQueCuentan,
   pedidoListoParaPasar,
 } from "../fases-tablero";
+import { SECCIONES } from "../secciones";
 
 const of = (p: Partial<OF>): OF =>
   ({
@@ -123,6 +124,47 @@ describe("agruparPorFase", () => {
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
     expect(g.find((x) => x.id === "planteando")!.items).toHaveLength(1);
     expect(g.find((x) => x.id === "devuelta")!.items).toHaveLength(0);
+  });
+
+  it("sin sección, el orden es el de siempre", () => {
+    // Es la garantía de que Oficina Técnica no se entera de este cambio: las
+    // llamadas que no pasan sección tienen que comportarse igual que antes.
+    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }]);
+    expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
+  });
+
+  it("Oficina Técnica tampoco cambia: no declara orden propio", () => {
+    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.ot);
+    expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
+  });
+
+  it("Diseño pone 'listo para pasar' ANTES que 'esperando revisión'", () => {
+    // Lo que pueden cerrar hoy delante; lo que depende de otro, al final.
+    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.diseno);
+    const ids = g.map((x) => x.id);
+    expect(ids.indexOf("listoParaPasar")).toBeLessThan(ids.indexOf("esperandoRevision"));
+  });
+
+  it("el orden de una sección trae TODAS las fases, ni una de menos", () => {
+    // Si un orden se escribiera a mano y se dejara una fuera, esa fase
+    // desaparecería del panel entero y nadie vería ese trabajo. Vale para
+    // cualquier sección que declare orden, hoy y mañana.
+    for (const s of Object.values(SECCIONES)) {
+      const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], s);
+      expect([...g.map((x) => x.id)].sort()).toEqual([...FASES.map((f) => f.id)].sort());
+    }
+  });
+
+  it("los pedidos caen en la misma fase, se ordene como se ordene", () => {
+    // El orden es de presentación: no puede cambiar en qué columna está nada.
+    const pedidos = [{ ofs: [of({ estado: "en_curso" })] }];
+    const ot = agruparPorFase(pedidos, SECCIONES.ot);
+    const dis = agruparPorFase(pedidos, SECCIONES.diseno);
+    for (const f of FASES) {
+      expect(dis.find((g) => g.id === f.id)!.items).toEqual(
+        ot.find((g) => g.id === f.id)!.items,
+      );
+    }
   });
 });
 
