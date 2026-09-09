@@ -91,6 +91,42 @@ export function pausar(f: Fichaje, ahora: string): Fichaje {
   return cerrar(f, ahora);
 }
 
+/** Desde cuándo lleva el reloj corriendo SIN PARAR, o null si no corre.
+ *
+ *  No es lo mismo que el `inicio` del tramo abierto, y esa diferencia era un
+ *  fallo que se veía a diario: cambiar QUÉ OFs corren cierra un tramo y abre
+ *  otro (ver `fichar`), pero el reloj no se para ni un segundo — el `fin` de
+ *  uno es EXACTAMENTE el `inicio` del siguiente, porque los pone la misma
+ *  llamada con el mismo instante.
+ *
+ *  Así que quien fichaba seis pedidos y pausaba uno veía el contador saltar a
+ *  cero, y con la píldora diciendo solo "5 OF" no había forma de saber si
+ *  había pausado lo que quería, si había fallado, o si le quedaba otra cosa
+ *  corriendo. Pasó de verdad: Carrón, el 09/09/2026, estuvo fichando sin parar
+ *  de 07:55:35 a 08:16:26 en cinco tramos encadenados —seis OF, luego cinco,
+ *  luego cuatro…— y al final la píldora marcaba 0:00:01 con 21 minutos
+ *  corridos. Ningún minuto se perdía (`minutosOF` suma todos los tramos de
+ *  cada OF); lo que mentía era el número de la pantalla.
+ *
+ *  Un hueco de verdad SÍ rompe la cadena: si alguien paró y volvió a arrancar,
+ *  contar desde antes diría que lleva media hora fichando cuando estuvo parado
+ *  la mitad. Y un cambio de rol también, que planteo y revisión son dos relojes
+ *  distintos. */
+export function inicioDelTramoContinuo(f: Fichaje): string | null {
+  const ab = abierto(f);
+  if (!ab) return null;
+  let inicio = ab.inicio;
+  // Hacia atrás desde el abierto: se encadena mientras el tramo anterior
+  // termine justo cuando empieza éste, y sea del mismo reloj.
+  for (let i = f.intervalos.length - 2; i >= 0; i--) {
+    const previo = f.intervalos[i];
+    if (previo.fin !== inicio) break;
+    if (previo.rol !== ab.rol || previo.operarioId !== ab.operarioId) break;
+    inicio = previo.inicio;
+  }
+  return inicio;
+}
+
 /** Tolerancia por defecto del latido: sin avisos del cliente durante más de
  *  esto, se asume que la pestaña se cerró (portátil apagado, navegador
  *  cerrado) y no que la persona sigue delante en silencio.
