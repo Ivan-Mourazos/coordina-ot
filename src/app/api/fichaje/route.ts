@@ -5,13 +5,15 @@ import { NextResponse } from "next/server";
 import { leerFichaje, guardarFichaje, leerAvisoCierre } from "@/lib/server/fichaje-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
 import { fichar, pausar } from "@/lib/fichaje";
+import { identidad } from "@/lib/server/sesion";
 import type { Rol } from "@/lib/types";
 
 // ─── /api/fichaje ────────────────────────────────────────────────────────────
 // El cliente manda la INTENCIÓN (qué OFs deja corriendo y con qué rol); el
 // server aplica el motor con SU hora y persiste. Así todos los tiempos salen
-// del mismo reloj. Sin login: se confía en el operarioId que manda el cliente
-// (modelo "sin login" del proyecto; la verdad oficial será RPS en la fase 2b).
+// del mismo reloj. La identidad de quien ficha la decide identidad(): con el
+// login encendido sale de la sesión; apagado, sigue siendo el operarioId que
+// manda el cliente, como hasta ahora.
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +35,15 @@ export async function POST(req: Request) {
   if (typeof body !== "object" || body === null)
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
 
-  const operarioId = body.operarioId;
-  if (typeof operarioId !== "string" || operarioId.length === 0)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
-
   const ofIds = body.ofIds;
   if (!Array.isArray(ofIds) || !ofIds.every((x) => typeof x === "string"))
     return NextResponse.json({ error: "ofIds inválido" }, { status: 400 });
+
+  // Quién ficha lo decide identidad(), no el cuerpo: fichar en nombre de otro
+  // es exactamente el agujero que esta tarea cierra.
+  const yo = identidad(req, body.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
+  const operarioId = yo.id;
 
   const ahora = new Date().toISOString();
   const actual = leerFichaje(operarioId);
@@ -64,9 +68,10 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const operarioId = new URL(req.url).searchParams.get("operarioId");
-  if (!operarioId)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  // El parámetro de la URL se conserva: apagado es de donde sale la
+  // identidad, igual que en el POST.
+  const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");
+  if (yo instanceof NextResponse) return yo;
   // avisoCierre: si el latido dejó de llegar y cerrarFichajesSinLatido()
   // cerró un intervalo suyo mientras no miraba, se entera aquí, al cargar.
   // NO se borra al leerlo: sigue viniendo hasta que el cliente confirme que lo
@@ -74,7 +79,7 @@ export async function GET(req: Request) {
   // bastaba con que la respuesta se perdiera para que el aviso desapareciera
   // sin que nadie lo viera.
   return NextResponse.json(
-    { fichaje: leerFichaje(operarioId), avisoCierre: leerAvisoCierre(operarioId) },
+    { fichaje: leerFichaje(yo.id), avisoCierre: leerAvisoCierre(yo.id) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

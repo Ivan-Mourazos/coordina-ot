@@ -3,6 +3,7 @@ import { guardarMutacion } from "@/lib/server/estado-db";
 import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
 import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
+import { identidad } from "@/lib/server/sesion";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -60,7 +61,14 @@ export async function POST(req: Request) {
   if (cambios.length === 0 && !body.completarPedidoId)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
 
-  const operarioId = typeof body.operarioId === "string" ? body.operarioId : null;
+  // Quién manda esto lo decide identidad(), no el cuerpo. Hasta esta versión el
+  // operarioId del cuerpo se creía a pies juntillas, y eso quería decir que
+  // cualquiera en la red podía aprobar o devolver firmando con el nombre de
+  // otro. Con el login encendido ese campo se ignora; apagado sigue siendo de
+  // donde sale, igual que hasta ahora (ver COORDINA_LOGIN en server/sesion.ts).
+  const yo = identidad(req, body.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
+  const operarioId = yo.id;
   const completarPedidoId =
     typeof body.completarPedidoId === "string" ? body.completarPedidoId : undefined;
 

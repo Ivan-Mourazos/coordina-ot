@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ESTADO_OF, situacionDe } from "@/lib/fase-pendiente";
 import { esFaseDeLaWeb } from "@/lib/secciones";
+import { exigir, identidad, loginActivo } from "@/lib/server/sesion";
 
 // ─── /api/fases ──────────────────────────────────────────────────────────────
 // GET: en qué estado tiene OLANET las fases de estas OF.
@@ -26,6 +27,12 @@ const noJson = () => NextResponse.json({ error: "JSON inválido" }, { status: 40
 const OF_RE = /^\d{1,20}$/;
 
 export async function GET(req: Request) {
+  // Las lecturas se cierran solo con el login encendido: apagado no llega
+  // identidad por ningún lado y exigirla dejaría la ficha en blanco.
+  if (loginActivo()) {
+    const yo = exigir(req);
+    if (yo instanceof NextResponse) return yo;
+  }
   const crudo = new URL(req.url).searchParams.get("ofs") ?? "";
   const ofs = crudo.split(",").map((s) => s.trim()).filter(Boolean);
   if (ofs.length === 0) return NextResponse.json({ fases: [] }, { headers: { "Cache-Control": "no-store" } });
@@ -57,9 +64,13 @@ export async function POST(req: Request) {
   const b = cuerpo as Record<string, unknown>;
 
   const idBoletin = typeof b.idBoletin === "string" && /^\d{1,20}$/.test(b.idBoletin) ? b.idBoletin : null;
-  const operarioId = typeof b.operarioId === "string" && b.operarioId.length > 0 ? b.operarioId : null;
   if (!idBoletin) return NextResponse.json({ error: "Falta idBoletin" }, { status: 400 });
-  if (!operarioId) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+
+  // Quién finaliza esto lo decide identidad(), no el cuerpo: es lo que se
+  // firma en OLANET como autor del movimiento.
+  const yo = identidad(req, b.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
+  const operarioId = yo.id;
 
   // Sin código de RPS no se puede firmar el movimiento a nombre de nadie, y
   // dejarlo en blanco ensuciaría el histórico del taller.
