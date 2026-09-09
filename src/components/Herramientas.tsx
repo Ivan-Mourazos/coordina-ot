@@ -37,6 +37,8 @@ export function Herramientas({
   yo,
   operarios,
   onCambiarIdentidad,
+  loginActivo,
+  onSalir,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
@@ -50,6 +52,11 @@ export function Herramientas({
    *  alguien de la otra sería imposible una vez dentro. */
   operarios: Operario[];
   onCambiarIdentidad: (id: string) => void;
+  /** Si el login con PIN está encendido. Con él encendido no hay a quién
+   *  cambiarse desde aquí —la identidad la da el servidor—, así que el botón
+   *  de siempre ("Cambiar") se convierte en "Salir". */
+  loginActivo: boolean;
+  onSalir: () => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
@@ -120,16 +127,29 @@ export function Herramientas({
                 {SECCIONES[yo.seccion ?? SECCION_POR_DEFECTO].nombre}
               </span>
             </span>
-            <button
-              onClick={() => setCambiando((v) => !v)}
-              aria-expanded={cambiando}
-              className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-            >
-              {cambiando ? "Cancelar" : "Cambiar"}
-            </button>
+            {loginActivo ? (
+              <button
+                onClick={onSalir}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                Salir
+              </button>
+            ) : (
+              <button
+                onClick={() => setCambiando((v) => !v)}
+                aria-expanded={cambiando}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                {cambiando ? "Cancelar" : "Cambiar"}
+              </button>
+            )}
           </div>
 
-          {cambiando &&
+          {/* Con el login encendido no hay lista que desplegar: `cambiando`
+              no puede encenderse de otra forma que el botón de arriba, que
+              con el login encendido ya no existe. */}
+          {!loginActivo &&
+            cambiando &&
             porSeccion(operarios).map(([sec, suyos]) => (
             <div key={sec}>
               {/* El rótulo de sección va separado por una línea y no por más

@@ -27,6 +27,7 @@ import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
 import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
+import { LoginGate, type Yo } from "./LoginGate";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
@@ -229,6 +230,7 @@ export function Board({
   operarios: operariosIniciales,
   pedidos: initial,
   dobleFichaje = true,
+  loginActivo = false,
 }: {
   operarios: Operario[];
   pedidos: Pedido[];
@@ -237,6 +239,12 @@ export function Board({
    *  viaja como prop y no por el sondeo del tablero. Por defecto `true`: si el
    *  dato no llegara, avisar de más molesta menos que dejar de avisar. */
   dobleFichaje?: boolean;
+  /** Si el login con PIN está encendido (COORDINA_LOGIN). Viaja como prop y no
+   *  por el sondeo del tablero porque no cambia durante la sesión, igual que
+   *  `dobleFichaje`. Por defecto FALSE: si el dato no llegara, se entra como
+   *  siempre — dejar a la gente fuera de su herramienta es peor que no pedir
+   *  PIN un rato. */
+  loginActivo?: boolean;
 }) {
   // Las zonas del tablero son personas, y cada sección tiene las suyas. El
   // servidor pinta el HTML sin saber quién mira —la identidad vive en el
@@ -273,12 +281,46 @@ export function Board({
   // hidratación case sin warnings.
   const mounted = useHydrated();
 
+  // Quién eres. Con el login apagado sale del navegador, como hasta ahora; con
+  // el login encendido lo dice el SERVIDOR, y entonces el navegador ya no puede
+  // mentir sobre quién es (que es el punto de todo esto).
+  //
+  // `undefined` = todavía no se ha preguntado; `null` = no hay sesión, toca
+  // entrar. Distinguirlos evita que la pantalla del PIN parpadee un instante en
+  // cada recarga de quien ya está dentro. Apagado no hay nada que preguntar, así
+  // que arranca ya resuelto.
+  const [sesion, setSesion] = useState<Yo | null | undefined>(
+    loginActivo ? undefined : null,
+  );
+
+  useEffect(() => {
+    if (!loginActivo) return;
+    let vivo = true;
+    fetch("/api/sesion", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j: { yo: Yo | null }) => {
+        if (vivo) setSesion(j.yo);
+      })
+      .catch(() => {
+        if (vivo) setSesion(null);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [loginActivo]);
+
   // Identidad del técnico ("login sin login"): se recuerda por navegador,
   // igual que el tema. Se lee con inicializador perezoso para que coincida
   // desde el primer render tras la hidratación, sin parpadeo.
-  const [miId, setMiIdState] = useState<string | null>(leerIdentidadGuardada);
+  //
+  // `miIdLocal` es el camino de siempre (apagado). `miId` no cambia de
+  // significado ni de tipo respecto a como estaba: sigue siendo "quién eres"
+  // para todo lo que ya lo usaba —medio fichero—, solo que ahora, encendido,
+  // sale de la sesión del servidor en vez de este estado.
+  const [miIdLocal, setMiIdLocal] = useState<string | null>(leerIdentidadGuardada);
+  const miId = loginActivo ? (sesion?.id ?? null) : miIdLocal;
   const setMiId = useCallback((id: string) => {
-    setMiIdState(id);
+    setMiIdLocal(id);
     try {
       localStorage.setItem(IDENTITY_KEY, id);
     } catch {}
@@ -1482,6 +1524,27 @@ export function Board({
     [fichaje, miId, setMiId],
   );
 
+  // Salir de la sesión: solo existe con el login encendido (apagado no hay a
+  // quién salir, ahí sigue estando "Cambiar"). Mismo riesgo que cambiar de
+  // identidad —un fichaje corriendo se queda a medias— así que comparte el
+  // aviso y el diálogo de abajo.
+  const [salirPendiente, setSalirPendiente] = useState(false);
+  const salir = useCallback(async () => {
+    await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
+    setSesion(null);
+    // La sección elegida es de la SESIÓN, no del navegador: si no, el
+    // siguiente que entrase en este equipo se encontraría el tablero de otro
+    // equipo sin saber por qué.
+    setSeccionVista(null);
+    try {
+      localStorage.removeItem(SECCION_KEY);
+    } catch {}
+  }, []);
+  const solicitarSalir = useCallback(() => {
+    if (abierto(fichaje) !== null) setSalirPendiente(true);
+    else void salir();
+  }, [fichaje, salir]);
+
   // Fichar en OFs asignadas a OTRO operario está permitido (en el taller se
   // hace, p.ej. para revisar o echar una mano), pero se avisa antes para que
   // no ocurra sin querer desde el panel/tarjeta de un compañero.
@@ -1790,11 +1853,28 @@ export function Board({
     );
   }
 
+  // Con el login encendido, mientras se pregunta al servidor no se pinta nada:
+  // ni el tablero (todavía no se sabe de quién) ni la pantalla de entrar (que
+  // parpadearía en cada recarga de quien ya está dentro).
+  if (loginActivo && sesion === undefined) {
+    return (
+      <div className="grid min-h-full place-items-center text-sm text-text-muted">
+        Cargando…
+      </div>
+    );
+  }
+
   if (!miId) {
-    // TODOS, no los de la sección que se esté sirviendo: aquí es donde se dice
-    // quién eres, y con la lista filtrada nadie de Diseño Gráfico podría
-    // elegirse a sí mismo — el tablero arranca con el de Oficina Técnica.
-    return <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />;
+    return loginActivo ? (
+      <LoginGate onEntrado={setSesion} />
+    ) : (
+      // TODOS, no los de la sección que se esté sirviendo: aquí es donde se
+      // dice quién eres, y con la lista filtrada nadie de Diseño Gráfico
+      // podría elegirse a sí mismo — el tablero arranca con el de Oficina
+      // Técnica. Es la de siempre, sin PIN: la que se ve mientras el login
+      // esté apagado.
+      <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />
+    );
   }
 
   // Sección anunciada pero todavía sin abrir: se dice y no se enseña nada. Va
@@ -1915,6 +1995,8 @@ export function Board({
               yo={yo}
               operarios={TODOS_LOS_OPERARIOS}
               onCambiarIdentidad={solicitarCambioIdentidad}
+              loginActivo={loginActivo}
+              onSalir={solicitarSalir}
             />
           </div>
         </header>
@@ -2303,16 +2385,32 @@ export function Board({
         onCancelar={() => setPasarPendiente(null)}
       />
 
+      {/* Cambiar de técnico (login apagado) y salir (login encendido) comparten
+          el mismo diálogo: los dos avisan de lo mismo —un fichaje corriendo
+          se queda a medias— y solo uno de los dos estados puede estar activo,
+          porque el botón que los dispara depende de `loginActivo`. */}
       <ConfirmDialog
-        abierto={cambioIdentidadPendiente !== null}
-        titulo="Cambiar de técnico"
-        mensaje={`Tienes un fichaje corriendo a nombre de ${yo.nombre}. ¿Pausarlo antes de cambiar?`}
+        abierto={cambioIdentidadPendiente !== null || salirPendiente}
+        titulo={loginActivo ? "Salir" : "Cambiar de técnico"}
+        mensaje={
+          loginActivo
+            ? `Tienes un fichaje corriendo a nombre de ${yo.nombre}. ¿Pausarlo antes de salir?`
+            : `Tienes un fichaje corriendo a nombre de ${yo.nombre}. ¿Pausarlo antes de cambiar?`
+        }
         onConfirmar={() => {
           pausarTodo();
-          if (cambioIdentidadPendiente) setMiId(cambioIdentidadPendiente);
-          setCambioIdentidadPendiente(null);
+          if (loginActivo) {
+            setSalirPendiente(false);
+            void salir();
+          } else {
+            if (cambioIdentidadPendiente) setMiId(cambioIdentidadPendiente);
+            setCambioIdentidadPendiente(null);
+          }
         }}
-        onCancelar={() => setCambioIdentidadPendiente(null)}
+        onCancelar={() => {
+          setCambioIdentidadPendiente(null);
+          setSalirPendiente(false);
+        }}
       />
 
       <ConfirmDialog
