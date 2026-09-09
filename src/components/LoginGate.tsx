@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PersonaPublica, RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { OPERARIOS } from "@/lib/mock";
@@ -165,6 +165,16 @@ function TecladoPin({
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const cara = pinta(persona);
+  const primerDigitoRef = useRef<HTMLButtonElement>(null);
+
+  // Al elegir persona el foco se quedaba en el botón de la rejilla que ya no
+  // está: quien navega con teclado tenía que ir a buscar el teclado a mano.
+  // Este componente se remonta entero cada vez que cambia `persona` (el padre
+  // lo condiciona con `quien ? <TecladoPin .../> : <Rejilla .../>`), así que
+  // un efecto en el montaje es "cada vez que se elige a alguien".
+  useEffect(() => {
+    primerDigitoRef.current?.focus();
+  }, []);
 
   // Con PIN puesto se teclea uno; sin PIN, dos (lo está eligiendo).
   const segundoPaso = persona.sinPin && pin.length === PIN_LARGO;
@@ -232,16 +242,24 @@ function TecladoPin({
       </div>
 
       {/* Los cuatro huecos. Se ven puntos, nunca los números: por encima del
-          hombro se lee un PIN de cuatro cifras sin esfuerzo. */}
-      <div className="mb-4 flex justify-center gap-3" aria-live="polite">
+          hombro se lee un PIN de cuatro cifras sin esfuerzo.
+          Los `<span>` son puramente visuales y no dicen nada por sí solos:
+          el `aria-live` sin texto no tenía nada que anunciar. El texto que de
+          verdad se lee va aparte, en `sr-only`, y cuenta dígitos sin decir
+          cuáles —de lo contrario un lector de pantalla iría dictando el PIN. */}
+      <div className="mb-4 flex justify-center gap-3">
         {Array.from({ length: PIN_LARGO }, (_, i) => (
           <span
             key={i}
+            aria-hidden
             className={`size-4 rounded-full border-2 ${
               i < actual.length ? "border-brand-400 bg-brand-400" : "border-border"
             }`}
           />
         ))}
+        <span role="status" aria-live="polite" className="sr-only">
+          {actual.length} de {PIN_LARGO} números
+        </span>
       </div>
 
       {error && (
@@ -254,6 +272,10 @@ function TecladoPin({
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
           <button
             key={d}
+            // El "1" es donde aterriza el foco al elegir persona: es el
+            // primer botón del propio teclado numérico, así que el foco entra
+            // justo donde hay que teclear y no en un punto arbitrario.
+            ref={d === "1" ? primerDigitoRef : undefined}
             onClick={() => pulsar(d)}
             disabled={enviando}
             className="glass-panel rounded-xl py-3 text-lg font-semibold text-text hover:border-brand-400 disabled:opacity-50"

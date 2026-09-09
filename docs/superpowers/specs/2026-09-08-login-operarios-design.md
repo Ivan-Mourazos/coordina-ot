@@ -205,3 +205,23 @@ escritos entre nosotros y no para leerse fuera? ¿Y los datos del cliente?
 el corte por técnico y fechas y una pantalla que los junte. Antes hay que saber
 qué preguntas quieren responder Cris, Carlos y Esteban de verdad, para no
 construir una pantalla que se mire una vez.
+
+## Lo que cambió al implementarlo
+
+- **El PIN no se siembra: lo elige cada uno la primera vez**, tecleándolo dos
+  veces. La spec decía que los PIN los aporta Iván y que la migración no lleva
+  ninguno escrito; esto cumple las dos cosas sin traspaso de datos previo al
+  despliegue. La convención "tu PIN es tu extensión" sigue en pie, en la cabeza
+  del equipo y no en la base.
+- **Resetear deja SIN PIN**, en vez de restaurar el de la extensión: para
+  restaurarlo habría que guardarlo en claro, que es justo lo que se evitaba.
+- **Cris, Carlos y Esteban se siembran DESACTIVADOS.** Las fases 2 y 3 están
+  aplazadas y hoy no tendrían nada que mirar. Ángel lleva el rol de supervisor,
+  que es quien lo necesita para resetear PINs.
+- **Añadido un freno a la fuerza bruta** (5 fallos → 60 s). No estaba en la
+  spec, pero un PIN de cuatro dígitos son 10 000 combinaciones y sin freno se
+  prueban enteras en segundos.
+- **El enlace "Entrar con otro usuario" no se construyó.** Era para que los
+  supervisores entrasen sin salir en la rejilla, y hoy los tres supervisores
+  puros están desactivados: sería una puerta a un cuarto vacío. Se añade el día
+  que se abra la fase 3, junto a lo que van a mirar.

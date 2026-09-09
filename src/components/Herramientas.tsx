@@ -4,8 +4,10 @@ import { useState } from "react";
 import { usePopover } from "@/lib/usePopover";
 import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
 import { ULTIMA } from "@/lib/novedades";
+import type { RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import type { Operario } from "@/lib/types";
+import { ResetPin } from "./ResetPin";
 import { SelectorSeccion } from "./SelectorSeccion";
 import { ThemeToggle } from "./ThemeToggle";
 import { porSeccion } from "./IdentityGate";
@@ -39,6 +41,7 @@ export function Herramientas({
   onCambiarIdentidad,
   loginActivo,
   onSalir,
+  roles,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
@@ -57,6 +60,9 @@ export function Herramientas({
    *  de siempre ("Cambiar") se convierte en "Salir". */
   loginActivo: boolean;
   onSalir: () => void;
+  /** Roles de acceso de quien está dentro. Ver lib/personas.ts; no confundir
+   *  con `Rol` (plantear/revisar), que es lo que se hace en una OF. */
+  roles: RolAcceso[];
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
@@ -129,7 +135,10 @@ export function Herramientas({
             </span>
             {loginActivo ? (
               <button
-                onClick={onSalir}
+                onClick={() => {
+                  onSalir();
+                  setOpen(false);
+                }}
                 className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               >
                 Salir
@@ -144,6 +153,13 @@ export function Herramientas({
               </button>
             )}
           </div>
+
+          {/* Solo un supervisor y solo con el login encendido: apagado no hay
+              PIN que resetear, y esconder el botón aquí es solo para no
+              confundir — la protección de verdad la pone el servidor, que en
+              `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
+              con este `if`. */}
+          {loginActivo && roles.includes("supervisor") && <ResetPin />}
 
           {/* Con el login encendido no hay lista que desplegar: `cambiando`
               no puede encenderse de otra forma que el botón de arriba, que

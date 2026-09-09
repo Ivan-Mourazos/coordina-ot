@@ -11,7 +11,17 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>() {
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const donde = e.target as Node;
+      if (ref.current?.contains(donde)) return;
+      // Lo que sale por un PORTAL sigue siendo de este desplegable aunque en
+      // el DOM cuelgue del `body`. Sin esto, confirmar dentro de un
+      // ConfirmDialog abierto desde aquí (p.ej. "PIN olvidado" en
+      // Herramientas) se leía como clic fuera: el menú se cerraba —y con él
+      // ResetPin, que aún no había podido resetear nada— antes de que el
+      // clic en "Confirmar" llegara a ejecutarse. Mismo criterio que
+      // PanelFlotante.
+      if (donde instanceof Element && donde.closest("[data-en-portal]")) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);

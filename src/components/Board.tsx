@@ -1997,6 +1997,10 @@ export function Board({
               onCambiarIdentidad={solicitarCambioIdentidad}
               loginActivo={loginActivo}
               onSalir={solicitarSalir}
+              // De la SESIÓN, no del `Operario` del tablero (`yo`): ese no
+              // sabe nada de accesos. Apagado `sesion` es `null` y el bloque
+              // de resetear ni se pinta, así que el valor da igual.
+              roles={sesion?.roles ?? []}
             />
           </div>
         </header>
