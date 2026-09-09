@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { marcarVisto } from "@/lib/server/scan-db";
+import { exigir, loginActivo } from "@/lib/server/sesion";
 
 // ─── POST /api/pedido-scan ───────────────────────────────────────────────────
 // Dar por visto el parte re-escaneado de un pedido: apaga su distintivo.
@@ -11,8 +12,12 @@ import { marcarVisto } from "@/lib/server/scan-db";
 //
 // APAGA PARA TODOS, no solo para quien pulsa: lo acordado es que el aviso es
 // del pedido —quien mira el parte nuevo, lo mira por el equipo—. Por eso no
-// lleva `operarioId`: no habría nada que hacer con él. Lo que queda como
-// registro permanente de que pasó es la nota del hilo, que no la borra nadie.
+// lleva `operarioId`: no habría nada que hacer con él, ni siquiera con el
+// login encendido. Lo que sí hace falta encendido es una sesión: no es
+// identidad() porque no hay ningún operarioId que sacar del cuerpo con el
+// login apagado, y exigir una dejaría la ruta muerta ese día. Lo que queda
+// como registro permanente de que pasó es la nota del hilo, que no la borra
+// nadie.
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +26,11 @@ export const dynamic = "force-dynamic";
 const PEDIDO_MAX = 60;
 
 export async function POST(req: Request) {
+  if (loginActivo()) {
+    const yo = exigir(req, "tecnico");
+    if (yo instanceof NextResponse) return yo;
+  }
+
   let cuerpo: unknown;
   try {
     cuerpo = await req.json();

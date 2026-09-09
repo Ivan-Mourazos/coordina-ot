@@ -4,6 +4,20 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  // La promesa de docs/despliegue-login.md y .env.example es "con el login
+  // encendido y sin COORDINA_SESION_SECRET, la app no arranca". Se comprueba
+  // AQUÍ, en el arranque, y no dentro de sesion.ts al usarlo: `secreto()` solo
+  // revienta cuando alguien la llama, y la primera vez que se llama es dentro
+  // de POST /api/sesion, DESPUÉS de que `ponerPin` ya haya guardado el PIN que
+  // la persona acaba de elegir. Sin este corte, el día de encenderlo con un
+  // secreto mal puesto la app arrancaría igual, la pantalla de PIN saldría, y
+  // el primer fallo llegaría con el PIN de la persona ya guardado y sin forma
+  // de reintentarlo desde cero. Import dinámico (como todo lo de abajo): que
+  // instrumentation.ts no arrastre sesion.ts —y lo que cuelga de ella— al
+  // grafo estático del arranque.
+  const { loginActivo, secreto } = await import("./lib/server/sesion");
+  if (loginActivo()) secreto();
+
   // El cierre por inactividad va PRIMERO y sin condiciones: solo toca nuestra
   // SQLite (los intervalos de fichaje), no depende de RPS ni de OLANET. Si
   // colgara del bloque de abajo, en desarrollo con datos mock no correría

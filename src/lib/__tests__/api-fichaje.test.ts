@@ -35,36 +35,41 @@ function post(body: unknown): Request {
   });
 }
 
+// Los operarioId ya no pueden ser inventados ("op-1", "op-2"…): identidad()
+// exige apagado una persona ACTIVA de verdad (ver src/lib/server/sesion.ts),
+// así que se usan ids reales de la siembra de /lib/server/estado-db.ts. Cada
+// test usa uno distinto para no compartir fichaje entre ellos.
+
 test("POST abre un intervalo y lo devuelve", async () => {
-  const res = await route.POST(post({ operarioId: "op-1", ofIds: ["OF-1"], rol: "plantear" }));
+  const res = await route.POST(post({ operarioId: "alberto", ofIds: ["OF-1"], rol: "plantear" }));
   expect(res.status).toBe(200);
   const data = (await res.json()) as { fichaje: { intervalos: unknown[] } };
   expect(data.fichaje.intervalos).toHaveLength(1);
 });
 
 test("POST con ofIds vacío pausa (cierra el intervalo abierto)", async () => {
-  await route.POST(post({ operarioId: "op-2", ofIds: ["OF-1"], rol: "plantear" }));
-  const res = await route.POST(post({ operarioId: "op-2", ofIds: [] }));
+  await route.POST(post({ operarioId: "jaime", ofIds: ["OF-1"], rol: "plantear" }));
+  const res = await route.POST(post({ operarioId: "jaime", ofIds: [] }));
   const data = (await res.json()) as { fichaje: { intervalos: { fin: string | null }[] } };
   expect(data.fichaje.intervalos.every((i) => i.fin !== null)).toBe(true);
 });
 
 test("GET devuelve el fichaje del operario", async () => {
-  await route.POST(post({ operarioId: "op-3", ofIds: ["OF-7"], rol: "revisar" }));
-  const res = await route.GET(new Request("http://x/api/fichaje?operarioId=op-3"));
+  await route.POST(post({ operarioId: "tamara", ofIds: ["OF-7"], rol: "revisar" }));
+  const res = await route.GET(new Request("http://x/api/fichaje?operarioId=tamara"));
   const data = (await res.json()) as { fichaje: { intervalos: { ofIds: string[] }[] } };
   expect(data.fichaje.intervalos[0].ofIds).toEqual(["OF-7"]);
 });
 
 test("GET sin aviso pendiente devuelve avisoCierre: null", async () => {
-  const res = await route.GET(new Request("http://x/api/fichaje?operarioId=op-sin-aviso"));
+  const res = await route.GET(new Request("http://x/api/fichaje?operarioId=adrian"));
   const data = (await res.json()) as { avisoCierre: unknown };
   expect(data.avisoCierre).toBeNull();
 });
 
 test("GET repite el aviso de cierre hasta que el cliente acusa recibo", async () => {
-  fichajeDb.registrarAvisoCierre("op-aviso", ["OF-9"], "2026-08-04T18:05:00.000Z");
-  const pedir = () => route.GET(new Request("http://x/api/fichaje?operarioId=op-aviso"));
+  fichajeDb.registrarAvisoCierre("ivan", ["OF-9"], "2026-08-04T18:05:00.000Z");
+  const pedir = () => route.GET(new Request("http://x/api/fichaje?operarioId=ivan"));
   const esperado = { ofIds: ["OF-9"], fin: "2026-08-04T18:05:00.000Z" };
 
   const data1 = (await (await pedir()).json()) as { avisoCierre: unknown };
@@ -77,7 +82,7 @@ test("GET repite el aviso de cierre hasta que el cliente acusa recibo", async ()
     new Request("http://x/api/fichaje/aviso-visto", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operarioId: "op-aviso" }),
+      body: JSON.stringify({ operarioId: "ivan" }),
     }),
   );
   expect(ack.status).toBe(200);
@@ -103,7 +108,7 @@ test("POST sin operarioId responde 400", async () => {
 });
 
 test("POST con rol inválido y ofIds no vacío responde 400", async () => {
-  const res = await route.POST(post({ operarioId: "op-9", ofIds: ["OF-1"], rol: "xxx" }));
+  const res = await route.POST(post({ operarioId: "angel", ofIds: ["OF-1"], rol: "xxx" }));
   expect(res.status).toBe(400);
 });
 

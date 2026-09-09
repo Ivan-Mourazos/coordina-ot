@@ -5,6 +5,7 @@ import {
   marcarAvisosVistos,
 } from "@/lib/server/estado-db";
 import { avisosPara, VENTANA_AVISOS_DIAS } from "@/lib/avisos";
+import { identidad } from "@/lib/server/sesion";
 
 // ─── /api/avisos ─────────────────────────────────────────────────────────────
 // Los avisos de "te han movido el trabajo". Se derivan del registro de
@@ -16,16 +17,13 @@ import { avisosPara, VENTANA_AVISOS_DIAS } from "@/lib/avisos";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const operarioId = new URL(req.url).searchParams.get("operarioId");
-  if (!operarioId)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  // El parámetro de la URL se conserva: apagado es de donde sale la
+  // identidad, como hasta ahora.
+  const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");
+  if (yo instanceof NextResponse) return yo;
 
   const desde = new Date(Date.now() - VENTANA_AVISOS_DIAS * 86_400_000).toISOString();
-  const avisos = avisosPara(
-    leerAccionesDesde(desde),
-    operarioId,
-    leerAvisosVistos(operarioId),
-  );
+  const avisos = avisosPara(leerAccionesDesde(desde), yo.id, leerAvisosVistos(yo.id));
   return NextResponse.json({ avisos }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -46,14 +44,13 @@ export async function POST(req: Request) {
   if (typeof body !== "object" || body === null)
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
 
-  const operarioId = body.operarioId;
-  if (typeof operarioId !== "string" || operarioId.length === 0)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
-
   const claves = body.claves;
   if (!Array.isArray(claves) || !claves.every((x) => typeof x === "string" && x.length > 0))
     return NextResponse.json({ error: "claves inválido" }, { status: 400 });
 
-  marcarAvisosVistos(operarioId, claves as string[]);
+  const yo = identidad(req, body.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
+
+  marcarAvisosVistos(yo.id, claves as string[]);
   return NextResponse.json({ ok: true });
 }

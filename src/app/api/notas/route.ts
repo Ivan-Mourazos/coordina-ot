@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { NOTA_MAX, validarTexto } from "@/lib/nota-pedido";
 import { borrarNota, crearNota, editarNota, leerNotas } from "@/lib/server/notas-db";
+import { identidad } from "@/lib/server/sesion";
 
 // ─── /api/notas ──────────────────────────────────────────────────────────────
 // El hilo de notas de un pedido. Cuatro verbos en un fichero, como hace
@@ -11,9 +12,11 @@ import { borrarNota, crearNota, editarNota, leerNotas } from "@/lib/server/notas
 // refresca cada 30 s con 81 pedidos y mandar los hilos en cada vuelta sería
 // peso muerto.
 //
-// Sin login, el `operarioId` lo manda el navegador (mismo modelo que el
-// fichaje). Editar y borrar comprueban la propiedad en la sentencia SQL, así
-// que esto para el accidente; no al que quiera saltárselo a propósito.
+// Quién manda cada verbo lo decide identidad(): con el login encendido, la
+// sesión; apagado, el `operarioId` del cuerpo, como hasta ahora. Editar y
+// borrar comprueban ADEMÁS la propiedad en la sentencia SQL: eso para el
+// accidente aunque la identidad venga bien firmada (editar la nota de otro
+// sigue sin ser cosa de la ruta).
 
 export const dynamic = "force-dynamic";
 
@@ -72,13 +75,14 @@ export async function POST(req: Request) {
   const b = await cuerpo(req);
   if (!b) return noJson();
   const pedido = clave(b.pedido);
-  const operarioId = clave(b.operarioId);
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
-  if (!operarioId) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+
+  const yo = identidad(req, b.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);
-  return NextResponse.json({ nota: crearNota(pedido, operarioId, v.texto) });
+  return NextResponse.json({ nota: crearNota(pedido, yo.id, v.texto) });
 }
 
 /** Id de una nota: entero, tal como lo devolvió el POST. */
@@ -89,15 +93,16 @@ export async function PATCH(req: Request) {
   const b = await cuerpo(req);
   if (!b) return noJson();
   const id = idDe(b.id);
-  const operarioId = clave(b.operarioId);
   if (id === null) return NextResponse.json({ error: "Falta id" }, { status: 400 });
-  if (!operarioId) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+
+  const yo = identidad(req, b.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);
   // 403 y no 404: desde fuera no se distingue "no era tuya" de "ya no está", y
   // decir cuál de las dos es sería contar algo de una nota que no es tuya.
-  return editarNota(id, operarioId, v.texto)
+  return editarNota(id, yo.id, v.texto)
     ? NextResponse.json({ ok: true })
     : NextResponse.json({ error: "Esa nota no es tuya" }, { status: 403 });
 }
@@ -106,11 +111,12 @@ export async function DELETE(req: Request) {
   const b = await cuerpo(req);
   if (!b) return noJson();
   const id = idDe(b.id);
-  const operarioId = clave(b.operarioId);
   if (id === null) return NextResponse.json({ error: "Falta id" }, { status: 400 });
-  if (!operarioId) return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
 
-  return borrarNota(id, operarioId)
+  const yo = identidad(req, b.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
+
+  return borrarNota(id, yo.id)
     ? NextResponse.json({ ok: true })
     : NextResponse.json({ error: "Esa nota no es tuya" }, { status: 403 });
 }

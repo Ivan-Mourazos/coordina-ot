@@ -33,18 +33,21 @@ function post(body: unknown): Request {
   });
 }
 
+// "op-lat-1"/"op-lat-2" eran inventados: identidad() exige apagado una
+// persona ACTIVA de verdad, así que pasan a ids reales de la siembra.
+
 test("POST registra el latido del operario", async () => {
-  const res = await route.POST(post({ operarioId: "op-lat-1" }));
+  const res = await route.POST(post({ operarioId: "carron" }));
   expect(res.status).toBe(200);
-  expect(fichajeDb.leerUltimoLatido("op-lat-1")).not.toBeNull();
+  expect(fichajeDb.leerUltimoLatido("carron")).not.toBeNull();
 });
 
 test("dos latidos seguidos actualizan la misma fila (upsert, no acumula)", async () => {
-  await route.POST(post({ operarioId: "op-lat-2" }));
-  const primero = fichajeDb.leerUltimoLatido("op-lat-2");
+  await route.POST(post({ operarioId: "manuel" }));
+  const primero = fichajeDb.leerUltimoLatido("manuel");
   await new Promise((r) => setTimeout(r, 5));
-  await route.POST(post({ operarioId: "op-lat-2" }));
-  const segundo = fichajeDb.leerUltimoLatido("op-lat-2");
+  await route.POST(post({ operarioId: "manuel" }));
+  const segundo = fichajeDb.leerUltimoLatido("manuel");
   expect(segundo).not.toBe(primero);
 });
 

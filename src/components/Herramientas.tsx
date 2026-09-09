@@ -4,8 +4,10 @@ import { useState } from "react";
 import { usePopover } from "@/lib/usePopover";
 import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
 import { ULTIMA } from "@/lib/novedades";
+import type { RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import type { Operario } from "@/lib/types";
+import { ResetPin } from "./ResetPin";
 import { SelectorSeccion } from "./SelectorSeccion";
 import { ThemeToggle } from "./ThemeToggle";
 import { porSeccion } from "./IdentityGate";
@@ -37,6 +39,9 @@ export function Herramientas({
   yo,
   operarios,
   onCambiarIdentidad,
+  loginActivo,
+  onSalir,
+  roles,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
@@ -50,8 +55,19 @@ export function Herramientas({
    *  alguien de la otra sería imposible una vez dentro. */
   operarios: Operario[];
   onCambiarIdentidad: (id: string) => void;
+  /** Si el login con PIN está encendido. Con él encendido no hay a quién
+   *  cambiarse desde aquí —la identidad la da el servidor—, así que el botón
+   *  de siempre ("Cambiar") se convierte en "Salir". */
+  loginActivo: boolean;
+  onSalir: () => void;
+  /** Roles de acceso de quien está dentro. Ver lib/personas.ts; no confundir
+   *  con `Rol` (plantear/revisar), que es lo que se hace en una OF. */
+  roles: RolAcceso[];
 }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  // Ignora los portales: es el único de los cuatro que abre un diálogo
+  // (ConfirmDialog, desde ResetPin) DESDE DENTRO de su propio desplegable.
+  // Ver el porqué de que sea opcional en usePopover.ts.
+  const { open, setOpen, ref } = usePopover<HTMLDivElement>({ ignorarPortales: true });
   /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
    *  quien lo vuelva a abrir espera encontrarlo como estaba al entrar, no a
    *  medio cambiarse de nombre. */
@@ -120,16 +136,39 @@ export function Herramientas({
                 {SECCIONES[yo.seccion ?? SECCION_POR_DEFECTO].nombre}
               </span>
             </span>
-            <button
-              onClick={() => setCambiando((v) => !v)}
-              aria-expanded={cambiando}
-              className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-            >
-              {cambiando ? "Cancelar" : "Cambiar"}
-            </button>
+            {loginActivo ? (
+              <button
+                onClick={() => {
+                  onSalir();
+                  setOpen(false);
+                }}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                Salir
+              </button>
+            ) : (
+              <button
+                onClick={() => setCambiando((v) => !v)}
+                aria-expanded={cambiando}
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              >
+                {cambiando ? "Cancelar" : "Cambiar"}
+              </button>
+            )}
           </div>
 
-          {cambiando &&
+          {/* Solo un supervisor y solo con el login encendido: apagado no hay
+              PIN que resetear, y esconder el botón aquí es solo para no
+              confundir — la protección de verdad la pone el servidor, que en
+              `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
+              con este `if`. */}
+          {loginActivo && roles.includes("supervisor") && <ResetPin />}
+
+          {/* Con el login encendido no hay lista que desplegar: `cambiando`
+              no puede encenderse de otra forma que el botón de arriba, que
+              con el login encendido ya no existe. */}
+          {!loginActivo &&
+            cambiando &&
             porSeccion(operarios).map(([sec, suyos]) => (
             <div key={sec}>
               {/* El rótulo de sección va separado por una línea y no por más

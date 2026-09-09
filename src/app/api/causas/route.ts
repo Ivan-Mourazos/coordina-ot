@@ -6,6 +6,7 @@ import {
   leerCausasDevolucion,
   retirarCausaDevolucion,
 } from "@/lib/server/estado-db";
+import { exigir, loginActivo } from "@/lib/server/sesion";
 
 // ─── /api/causas ─────────────────────────────────────────────────────────────
 // Las causas por las que una OF vuelve al autor. La lista se crea sobre la
@@ -13,8 +14,15 @@ import {
 // una pantalla de administración: es lo que necesita el cuadro de devolver para
 // ofrecer las que hay y apuntar una nueva sin salir de ahí.
 //
-// Sin login, el `operarioId` lo manda el navegador, igual que en /api/notas y
-// en el fichaje. Aquí solo sirve para dejar apuntado quién la creó.
+// AQUÍ NO SE USA identidad(): el autor de una causa es OPCIONAL en este
+// dominio —el editor de la guía la crea sin que haya nadie identificado
+// delante (ver EditorCausas.tsx, que manda `operarioId: null` a propósito) y
+// PATCH no manda operarioId en absoluto—. identidad() exige un operarioId
+// válido y apagado contestaría 400, dejando "Cambiar la lista" roto el día
+// del despliegue. Lo que sí se cierra con el login encendido es el ACCESO:
+// hace falta sesión de técnico, igual que en el resto de rutas. Apagado, el
+// autor sigue siendo el operarioId del cuerpo si lo trae (y null si no); la
+// sesión no entra en esto, ni siquiera si la hay.
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +41,12 @@ async function cuerpo(req: Request): Promise<Record<string, unknown> | null> {
  *  que hacen falta para PINTAR una devolución vieja: su causa puede haberse
  *  retirado después y aun así hay que poder decir de qué fue. */
 export async function GET(req: Request) {
+  // Las lecturas se cierran solo con el login encendido: apagado no llega
+  // identidad por ningún lado y exigirla dejaría la lista en blanco.
+  if (loginActivo()) {
+    const yo = exigir(req);
+    if (yo instanceof NextResponse) return yo;
+  }
   const todas = new URL(req.url).searchParams.get("todas") === "1";
   try {
     return NextResponse.json(
@@ -65,7 +79,19 @@ export async function POST(req: Request) {
       { status: 400 },
     );
 
-  const operarioId = typeof b.operarioId === "string" && b.operarioId ? b.operarioId : null;
+  // Encendido, la sesión decide y el cuerpo se ignora (sí hay identidad real
+  // aquí, así que se aprovecha). Apagado, sigue siendo el operarioId del
+  // cuerpo si lo trae —y null si no, como hasta hoy—: no se exige, porque
+  // "sin autor conocido" es un valor válido para una causa.
+  let operarioId: string | null;
+  if (loginActivo()) {
+    const yo = exigir(req, "tecnico");
+    if (yo instanceof NextResponse) return yo;
+    operarioId = yo.id;
+  } else {
+    operarioId = typeof b.operarioId === "string" && b.operarioId ? b.operarioId : null;
+  }
+
   try {
     return NextResponse.json({
       causa: crearCausaDevolucion(etiqueta, operarioId, {
@@ -91,6 +117,16 @@ export async function PATCH(req: Request) {
 
   const id = typeof b.id === "number" && Number.isInteger(b.id) ? b.id : null;
   if (id === null) return NextResponse.json({ error: "Falta el id" }, { status: 400 });
+
+  // PATCH no guarda quién edita —ni lo ha pedido nunca (ver causas-cliente.ts:
+  // editarCausa/retirarCausa no mandan operarioId)—, así que no hay identidad
+  // que sacar del cuerpo apagado. Lo único que hace falta cerrar es el
+  // ACCESO: con el login encendido, sesión de técnico; sin eso cualquiera sin
+  // sesión podría retirar o editar una causa.
+  if (loginActivo()) {
+    const yo = exigir(req, "tecnico");
+    if (yo instanceof NextResponse) return yo;
+  }
 
   if (typeof b.retirada === "boolean") {
     try {

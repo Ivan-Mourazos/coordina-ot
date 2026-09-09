@@ -141,7 +141,12 @@ export function Drawer({
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
-  miId: string | null;
+  // El único que llama a este Drawer es Board.tsx, y solo después de su
+  // `if (!miId) return <IdentityGate .../>`: para cuando el Drawer se monta,
+  // ya hay alguien identificado. Que aquí dijera `| null` era una mentira que
+  // arrastraba `useMarcasRevision` (ver marcas-cliente.ts) hasta forzarlo a
+  // aceptar un caso que en realidad no puede darse.
+  miId: string;
   /** OT ficha también en la herramienta vieja: las dos cuentas de tiempo
    *  hablan del mismo trabajo y hay que decirlo (ver aplicarTiemposFichaje). */
   dobleFichaje?: boolean;

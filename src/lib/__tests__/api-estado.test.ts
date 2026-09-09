@@ -84,15 +84,19 @@ test("si el corte de fichaje falla, la mutación se guardó igual (respuesta 200
     throw new Error("error al cortar fichaje");
   });
 
+  // "carlos" era el id de este test, pero es un supervisor DESACTIVADO (ver
+  // la siembra en estado-db.ts): identidad() ya no lo acepta apagado, porque
+  // firmar una acción a nombre de alguien que no está deja un registro
+  // apuntando a la nada. Pasa a "jaime", que sí es una persona activa.
   const res = await route.POST(
     new Request("http://x/api/estado", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        operarioId: "carlos",
+        operarioId: "jaime",
         motivo: "traspaso-fallido",
         cambiosOF: [
-          { ofId: "of-y", autorId: "carlos", revisorId: null, estado: "en_curso", observacion: null },
+          { ofId: "of-y", autorId: "jaime", revisorId: null, estado: "en_curso", observacion: null },
         ],
         cortarFichajeDe: ["of-y"],
       }),
@@ -109,7 +113,7 @@ test("si el corte de fichaje falla, la mutación se guardó igual (respuesta 200
   const traspaso = acciones.find((a) => a.motivo === "traspaso-fallido");
   expect(traspaso).toBeDefined();
   expect(traspaso?.cambiosOF).toEqual([
-    expect.objectContaining({ ofId: "of-y", autorId: "carlos" }),
+    expect.objectContaining({ ofId: "of-y", autorId: "jaime" }),
   ]);
 });
 

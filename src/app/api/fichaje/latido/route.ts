@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { registrarLatido } from "@/lib/server/fichaje-db";
+import { identidad } from "@/lib/server/sesion";
 
 // ─── /api/fichaje/latido ─────────────────────────────────────────────────────
 // Aviso de "la pestaña sigue viva" mientras hay un fichaje corriendo. El
@@ -28,10 +29,11 @@ export async function POST(req: Request) {
   if (typeof body !== "object" || body === null)
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
 
-  const operarioId = body.operarioId;
-  if (typeof operarioId !== "string" || operarioId.length === 0)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  // El latido se firma con quien dice identidad(), no con el cuerpo: igual que
+  // el resto de rutas de escritura.
+  const yo = identidad(req, body.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
 
-  registrarLatido(operarioId, new Date().toISOString());
+  registrarLatido(yo.id, new Date().toISOString());
   return NextResponse.json({ ok: true });
 }

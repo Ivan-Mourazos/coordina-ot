@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { marcarAvisoCierreVisto } from "@/lib/server/fichaje-db";
+import { identidad } from "@/lib/server/sesion";
 
 // ─── /api/fichaje/aviso-visto ────────────────────────────────────────────────
 // Acuse de "ya he visto que mi fichaje se cerró solo". Existe porque antes el
@@ -27,10 +28,10 @@ export async function POST(req: Request) {
   if (typeof body !== "object" || body === null)
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
 
-  const operarioId = body.operarioId;
-  if (typeof operarioId !== "string" || operarioId.length === 0)
-    return NextResponse.json({ error: "Falta operarioId" }, { status: 400 });
+  // El acuse se firma con quien dice identidad(), no con el cuerpo.
+  const yo = identidad(req, body.operarioId, "tecnico");
+  if (yo instanceof NextResponse) return yo;
 
-  marcarAvisoCierreVisto(operarioId);
+  marcarAvisoCierreVisto(yo.id);
   return NextResponse.json({ ok: true });
 }
