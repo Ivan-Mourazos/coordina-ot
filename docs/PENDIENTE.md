@@ -7,8 +7,8 @@ no repetir errores ya cometidos.
 
 ## 1. Rama `feat/diseno-panel-y-revision` — HECHA, sin fusionar
 
-9 commits sobre `main` (`fc4613c..ad8be32`). **950 tests, `pnpm lint` y
-`npx tsc --noEmit` limpios.**
+Incluye también el Historial por centros (`4919e1e`). Última validación
+automática antes del repaso: **955 tests, lint y tipos limpios.**
 
 Contiene:
 - El orden de columnas del panel como dato de la sección (Diseño: "listo para
@@ -23,11 +23,19 @@ arreglos. Está lista para fusionar.
 **Lo que falta:**
 
 - [ ] Fusionar a `main` (`git checkout main && git merge --no-ff feat/diseno-panel-y-revision`), verificar tests **sobre el resultado de la fusión**, y borrar la rama.
-- [ ] `pnpm novedades` antes de desplegar: recoge las 3 líneas `Novedad:` de esta rama y escribe la entrada. Con `--ver` enseña lo que haría sin tocar nada.
-- [ ] **Repaso a ojo pendiente, contra RPS de verdad** (los agentes solo pudieron con datos simulados):
-  - En **Diseño**: que el orden de columnas sea el nuevo en los CUATRO sitios (panel, tarjeta de compañero, panel de consulta, desplegable de "ver todos").
-  - En **Diseño**: fichar una OF de un pedido de tres y comprobar que las otras dos **sí** se pueden mandar a revisión sin pausar.
-  - En **Oficina Técnica**: que NADA haya cambiado.
+- [ ] `pnpm novedades` antes de desplegar: recoge las líneas `Novedad:` de los commits y escribe la entrada. Con `--ver` enseña lo que haría sin tocar nada.
+- [x] **Repaso en navegador con pedidos de RPS real (10/09)**. Estados y
+  fichajes preparados en una copia aislada de SQLite, con OLANET en modo
+  sombra; las pruebas no escriben en producción.
+  - **Diseño**: «Listo para pasar» antes de «Esperando revisión» en el panel
+    personal, la tarjeta de Manuel y su panel de consulta. Corregida la leyenda
+    del equipo, que aún seguía el orden de OT. «Ver todos» abre los ocho pedidos
+    del bloque correcto; muestra una sola fase, no columnas entre fases.
+  - **Diseño**, pedido real **AR.26.04432**: fichar `0232008:7`, enviar las
+    otras dos OF a revisión y comprobar en pantalla y en los datos que quedan
+    `por_revisar` mientras el intervalo de la primera sigue abierto.
+  - **OT**: conserva «Planteando → Esperando revisión → Listo para pasar» y
+    la acción «Pasar a revisión» por OF (comprobada en **AR.26.04435**).
 
 ---
 
@@ -86,10 +94,19 @@ se desglosa por persona si corresponde a la sección seleccionada; en caso
 contrario se muestra el total. Abrir un bloque de otra sección no muestra
 los tiempos individuales.
 
-**El número que motivó la separación:** antes el Historial contaba solo el trabajo
-de **A-OTEC**. Meter el taller multiplica el total de un pedido por 60 y por
-143 (medido el 01/09: SA.26.00860 pasa de 4 min a 240; SA.26.00498, de 14 a
-2010). Por eso los bloques van separados y no hay un total único.
+**El motivo de la separación:** antes el Historial contaba solo el trabajo
+de **A-OTEC**. El taller pesa mucho más, por eso los bloques van separados y
+no hay un total único. Las medidas manuales del 01/09 (4/240 y 14/2010 min)
+incluían también máquinas: no eran los tiempos que enseñaba la aplicación.
+Comparadas las consultas anterior y nueva contra RPS el 10/09, ambas cuentan
+solo personas (`ResourceType = 1`): SA.26.00860 mantiene 2 min de OT y
+SA.26.00498 mantiene 7 min de OT. **Este cambio no corrige ni reduce tiempos.**
+
+La unión de la lista con líneas de venta podría duplicar minutos si una OF
+apareciera en varias líneas. No se encontraron casos entre los pedidos de
+2026 con tareas de OT/Diseño; queda como borde conocido, no como fallo observado.
+Lista y ficha consultan la misma API de detalle. El desglose por sección es
+una regla de presentación: la respuesta puede contener nombres de otros centros.
 
 Un pedido de Diseño que Manuel cierre desde la herramienta vieja **entra
 solo al Historial** (se alimenta de la fase cerrada en OLANET, no de que nadie

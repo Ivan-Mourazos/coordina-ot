@@ -48,7 +48,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
-import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { agruparPorFase, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -2176,7 +2176,7 @@ export function Board({
                   Equipo
                 </h2>
                 <span className="flex flex-wrap items-center gap-2.5 text-[10px] text-text-muted">
-                  {FASES.map((f) => (
+                  {agruparPorFase([], laSeccion).map((f) => (
                     <span key={f.id} className="flex items-center gap-1">
                       <span className="size-1.5 rounded-sm" style={{ background: f.color }} />
                       {f.label.toLowerCase()}
