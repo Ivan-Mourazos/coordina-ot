@@ -1,11 +1,29 @@
 import { describe, expect, test } from "vitest";
-import { agruparCentros, agruparTiemposPorCentro, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
+import { agruparCentros, agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 
 const fila = (extra: Partial<FilaTiempoCentro> = {}): FilaTiempoCentro => ({
   orden: "0230001", descripcion: "Lona", centro: "ot", tarea: "01", empleado: "Alberto", minutos: 7, ...extra,
 });
 
 describe("tiempos del Historial por centro", () => {
+  test("AR.26.03626: plantear en taller mueve la tarea completa, también los minutos de OT", () => {
+    const filas = [
+      fila({ orden: "0230697", empleado: "Iván", minutos: 35, descripcionTarea: "PLANTEAR " }),
+      fila({ orden: "0230697", empleado: "Jaime", minutos: 6, descripcionTarea: "PLANTEAR " }),
+      fila({ orden: "0230699", empleado: "127", minutos: 37, descripcionTarea: "PLANTEAR EN TALLER" }),
+      fila({ orden: "0230699", empleado: "Jaime", minutos: 1, descripcionTarea: "PLANTEAR EN TALLER" }),
+      fila({ orden: "0230699", empleado: "Iván", minutos: 0, descripcionTarea: "PLANTEAR EN TALLER" }),
+    ].map((f) => ({ ...f, centro: centroDeTareaHistorial(f.centro, f.descripcionTarea ?? null) }));
+    const [ot, , taller] = agruparCentros(agruparTiemposPorCentro(filas, (n) => n));
+    expect(ot.totalMin).toBe(41);
+    expect(ot.personas).toEqual([{ nombre: "Iván", min: 35 }, { nombre: "Jaime", min: 6 }]);
+    expect(taller.totalMin).toBe(38);
+    expect(taller.ofs.map((o) => o.codigo)).toEqual(["0230699"]);
+    expect(ot.totalMin + taller.totalMin).toBe(79);
+    expect(centroDeTareaHistorial("ot", " plantear  en taller ")).toBe("taller");
+    expect(centroDeTareaHistorial("ot", "PLANTEAR")).toBe("ot");
+    expect(centroDeTareaHistorial("diseno", "DISEÑAR ROTULACION")).toBe("diseno");
+  });
   test("una OF compartida conserva separados OT, Diseño y Taller", () => {
     const ofs = agruparTiemposPorCentro([
       fila(), fila({ empleado: "Tamara", minutos: 2 }),

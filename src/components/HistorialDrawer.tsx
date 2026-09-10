@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
   HistorialOF,
   HistorialPedidoDetalle,
@@ -17,6 +17,7 @@ import { DocumentosRps, contarAbribles } from "./DocumentosRps";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { agruparCentros } from "@/lib/historial-centros";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
+import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -106,6 +107,7 @@ export function HistorialDrawer({
     if (!pedido) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        if (document.querySelector("[data-historial-extra]:popover-open")) return;
         if (ampliado) setAmpliado(false);
         else onClose();
       }
@@ -196,7 +198,7 @@ export function HistorialDrawer({
                   explicar cada vez que no era un fallo del programa. */}
               {esPedidoDeVenta
                 ? `${pedido} no tiene el parte escaneado en RPS. No es un fallo: nadie lo subió al archivo.`
-                : "Esto no es un pedido de venta, así que no tiene parte escaneado."}
+                : "Este formato de pedido antiguo no admite el visor del parte. Consulta los documentos del pedido."}
             </div>
           )}
         </div>
@@ -348,12 +350,12 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
           <details key={centro.id} open={seleccionado} className="rounded-xl border border-border bg-surface-2/40">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
               {centro.nombre}
-              <span className="float-right ml-2 font-mono text-xs tabular-nums">{fmtMin(centro.totalMin)}</span>
+              <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>
             </summary>
             <div className="space-y-3 px-3 pb-3">
               {seleccionado && centro.personas.length > 0 && (
                 <div>
-                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
+                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona · RPS</p>
                   <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
                     {centro.personas.map((persona) => (
                       <li key={persona.nombre} className="flex justify-between gap-3">
@@ -372,7 +374,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
                     <li key={of.codigo} className="glass-chip rounded-xl p-3">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-                        <span className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
+                        <span title="Tiempo imputado en RPS" className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
                           {fmtMin(of.tiempoImputadoMin)}
                         </span>
                       </div>
@@ -524,7 +526,7 @@ function FilaRol({
                 .join(", ")}
       </span>
       {min !== undefined && (
-        <span className="shrink-0 font-semibold text-text-muted">{fmtMin(min)}</span>
+        <span className="shrink-0 font-semibold text-text-muted">Reloj {fmtMin(min)}</span>
       )}
     </div>
   );
@@ -572,7 +574,7 @@ function Materiales({ of }: { of: HistorialOF }) {
   if (!apartados.length && !apuntados.length && !of.notasProduccion) return null;
 
   return (
-    <div className="mt-2 space-y-1 border-t border-[var(--glass-border)] pt-2">
+    <div className="mt-2 flex flex-wrap gap-1.5">
       {apartados.length > 0 && (
         <GrupoMaterial
           etiqueta="Apartado"
@@ -592,24 +594,20 @@ function Materiales({ of }: { of: HistorialOF }) {
         />
       )}
       {of.notasProduccion && (
-        <p
-          className="flex items-start gap-1.5 text-[11px] text-text"
-          title="Nota que Producción dejó escrita en la OF."
+        <DetalleOFChip
+          etiqueta="Notas"
+          icono="📌"
+          titulo="Nota que Producción dejó escrita en la OF."
+          claseEtiqueta="text-text-muted"
         >
-          <span className="shrink-0 text-[10px]" aria-hidden>
-            📌
-          </span>
-          <span className="min-w-0 flex-1 whitespace-pre-line">{of.notasProduccion}</span>
-        </p>
+          <p className="whitespace-pre-line">{of.notasProduccion}</p>
+        </DetalleOFChip>
       )}
     </div>
   );
 }
 
-/** Un grupo de material con su rótulo: mismo esqueleto que `FilaRol` (chip a la
- *  izquierda, contenido a la derecha) para que el panel no se llene de formas
- *  distintas. El contador va en el chip cuando hay más de uno, igual que en
- *  `Documentos`. */
+/** Material plegado tras un botón, como en los pedidos del tablero. */
 function GrupoMaterial({
   etiqueta,
   materiales,
@@ -624,15 +622,9 @@ function GrupoMaterial({
   titulo: string;
 }) {
   return (
-    <div className="flex items-start gap-1.5 text-[11px]" title={titulo}>
-      <span
-        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${claseEtiqueta}`}
-      >
-        <span aria-hidden>{icono} </span>
-        {etiqueta}
-        {materiales.length > 1 && ` ${materiales.length}`}
-      </span>
-      <ul className="min-w-0 flex-1 space-y-0.5 text-text">
+    <DetalleOFChip etiqueta={etiqueta} contador={materiales.length} icono={icono}
+      claseEtiqueta={claseEtiqueta} titulo={titulo}>
+      <ul className="space-y-1 text-text">
         {/* La clave lleva el índice porque el texto puede repetirse: una misma
             OF puede apuntar dos veces la misma lona en cantidades distintas (la
             0230706 lleva la misma "LONA PLASTEL …" con 72,6 y con 2,4). */}
@@ -640,6 +632,45 @@ function GrupoMaterial({
           <li key={`${i}-${m.texto}`}>{m.texto}</li>
         ))}
       </ul>
-    </div>
+    </DetalleOFChip>
+  );
+}
+
+/** El popover nativo queda sobre el drawer sin que el scroll lo recorte.
+ *  Cierra con otro clic, clic fuera o Escape, sin agrandar la tarjeta. */
+function DetalleOFChip({ etiqueta, contador, icono, claseEtiqueta, titulo, children }: {
+  etiqueta: string;
+  contador?: number;
+  icono: string;
+  claseEtiqueta: string;
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  const [abierto, setAbierto] = useState(false);
+  const [sitio, setSitio] = useState<React.CSSProperties>({});
+  return (
+    <>
+      <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id}
+        title={titulo}
+        onClick={(e) => {
+          const ventana = ventanaActual();
+          if (ventana) setSitio(sitioDeMenu(e.currentTarget.getBoundingClientRect(), {
+            ventana, ancho: Math.min(320, ventana.ancho - 16), alto: 240,
+          }));
+        }}
+        className={`chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-accent ${claseEtiqueta}`}>
+        <span aria-hidden>{icono}</span>
+        {etiqueta}
+        {contador !== undefined && <span className="rounded-full bg-surface-2 px-1.5 text-[10px]">{contador}</span>}
+      </button>
+      <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
+        onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
+        className="glass-pop scroll-thin fixed inset-auto m-0 max-h-60 overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
+        style={{ ...sitio, background: "var(--surface)" }}>
+        <p className="mb-2 border-b border-border pb-1.5 font-semibold">{icono} {etiqueta}{contador !== undefined && ` (${contador})`}</p>
+        {children}
+      </div>
+    </>
   );
 }

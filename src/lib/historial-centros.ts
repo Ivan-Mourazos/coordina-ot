@@ -3,6 +3,12 @@ import { SECCIONES, type SeccionId } from "./secciones";
 
 export type CentroHistorialId = SeccionId | "taller";
 
+/** RPS asocia «PLANTEAR EN TALLER» a OTEC-A, pero el trabajo es de Taller.
+ *  Se mueve la tarea completa, con todas sus personas y minutos. */
+export function centroDeTareaHistorial(centro: CentroHistorialId, descripcion: string | null): CentroHistorialId {
+  return /^PLANTEAR\s+EN\s+TALLER\b/i.test(descripcion?.trim() ?? "") ? "taller" : centro;
+}
+
 export interface HistorialCentro {
   id: CentroHistorialId;
   nombre: string;
@@ -41,6 +47,7 @@ export interface FilaTiempoCentro {
   descripcion: string | null;
   centro: CentroHistorialId;
   tarea: string | null;
+  descripcionTarea?: string | null;
   empleado: string | null;
   minutos: number | null;
 }

@@ -13,9 +13,11 @@ test("q busca pedido, cliente y OF con parámetros y sin duplicar pedidos", () =
   const r = construirFiltros({ page: 0, q: "MAHOU" });
   expect(r.clausulas).toHaveLength(1);
   expect(r.clausulas[0]).toContain("cli.Description COLLATE Latin1_General_CI_AI LIKE @qPalabra0");
-  expect(r.clausulas[0]).toContain("EXISTS (");
+  expect(r.clausulas[0]).toContain("p.pedido IN (");
   expect(r.clausulas[0]).toContain("mb.CodManufacturingOrder LIKE @qCodigo");
   expect(r.clausulas[0]).toContain("mb.Description COLLATE Latin1_General_CI_AI LIKE @qPalabra0");
+  expect(r.clausulas[0]).toContain("lb.Description COLLATE Latin1_General_CI_AI LIKE @qPalabra0");
+  expect(r.clausulas[0]).toContain("LEFT JOIN dbo.CPRManufacturingOrder mb");
   expect(r.params).toContainEqual({ nombre: "qCodigo", valor: "%MAHOU%" });
   expect(r.params).toContainEqual({ nombre: "qPalabra0", valor: "%MAHOU%" });
 });
@@ -67,6 +69,7 @@ test("filaAItem normaliza fecha a ISO y recorta el pedido", () => {
 test("CODIGO_PEDIDO_RE acepta AR/BE/SA y rechaza basura", () => {
   expect(CODIGO_PEDIDO_RE.test("AR.26.03453")).toBe(true);
   expect(CODIGO_PEDIDO_RE.test("BE.25.01165")).toBe(true);
+  expect(CODIGO_PEDIDO_RE.test("AR.10N00595")).toBe(true);
   expect(CODIGO_PEDIDO_RE.test("'; DROP TABLE x --")).toBe(false);
 });
 

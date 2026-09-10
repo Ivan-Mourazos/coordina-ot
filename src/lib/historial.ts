@@ -7,14 +7,14 @@ import type { Pedido } from "./types";
 
 export const PAGE_SIZE = 40;
 
-/** Códigos de pedido de cualquier serie (AR/BE/SA…): 2 letras . 2 díg . 5 díg. */
-export const CODIGO_PEDIDO_RE = /^[A-Z]{2}\.\d{2}\.\d{5}$/;
+/** Incluye el formato antiguo de RPS, como AR.10N00595. */
+export const CODIGO_PEDIDO_RE = /^[A-Z]{2}\.\d{2}[.N]\d{5}$/;
 
 export interface HistorialFiltros {
   page: number;
   /** Cambia la autoría mostrada, nunca qué pedidos entran en la lista. */
   seccion?: import("./secciones").SeccionId;
-  q?: string; // pedido, cliente, número de OF o descripción de la OF
+  q?: string; // pedido, cliente, OF o descripción de venta/fabricación
   desde?: string; // ISO yyyy-mm-dd (inclusive)
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
   familia?: string;
@@ -65,6 +65,7 @@ export interface HistorialItem {
   pedido: string;
   cliente: string | null;
   finalizada: string; // ISO
+  fechaPedido?: string; // Fecha del pedido en RPS; ordena los resultados de búsqueda.
   nOf: number;
 
   /** Cuándo se pulsó "pasar a Producción" en CoordinaOT (ISO). Más fiel que
@@ -242,6 +243,7 @@ export function repartirMateriales(materiales: MaterialOF[] | undefined): {
 export interface FilaPagina {
   pedido: string;
   finalizada: Date | string | null;
+  fecha_pedido?: Date | string | null;
   cliente: string | null;
   n_of: number;
   negocio?: string | null;
@@ -265,16 +267,16 @@ export function construirFiltros(f: HistorialFiltros): {
       params.push({ nombre: "qCodigo", valor: `%${palabras.join("")}%` });
       palabras.forEach((palabra, i) => params.push({ nombre: `qPalabra${i}`, valor: `%${palabra}%` }));
       const texto = (columna: string) => palabras.map((_, i) => `${columna} COLLATE Latin1_General_CI_AI LIKE @qPalabra${i}`).join(" AND ");
-      // EXISTS busca en todas las OF del pedido sin multiplicar filas ni
-      // limitar los resultados a los 40 pedidos ya cargados en el navegador.
+      // Busca también líneas antiguas sin OF. El conjunto se calcula una vez,
+      // sin repetir la búsqueda de descripciones por cada pedido del histórico.
       clausulas.push(`(REPLACE(p.pedido, '.', '') LIKE @qCodigo
         OR (${texto("cli.Description")})
-        OR EXISTS (
-          SELECT 1 FROM dbo.FACOrderSL ob
+        OR p.pedido IN (
+          SELECT ob.CodOrder FROM dbo.FACOrderSL ob
           JOIN dbo.FACOrderLineSL lb ON lb.IDOrder = ob.IDOrder
-          JOIN dbo.CPRManufacturingOrder mb ON mb.IDManufacturingOrder = lb.IDManufacturingOrder
-          WHERE ob.CodOrder = p.pedido AND ob.CodCompany = '001' AND mb.CodCompany = '001'
-            AND (mb.CodManufacturingOrder LIKE @qCodigo OR (${texto("mb.Description")}))
+          LEFT JOIN dbo.CPRManufacturingOrder mb ON mb.IDManufacturingOrder = lb.IDManufacturingOrder AND mb.CodCompany = '001'
+          WHERE ob.CodCompany = '001'
+            AND (mb.CodManufacturingOrder LIKE @qCodigo OR (${texto("mb.Description")}) OR (${texto("lb.Description")}))
         ))`);
     }
   }
@@ -401,6 +403,7 @@ export function filaAItem(fila: FilaPagina): HistorialItem {
     pedido: (fila.pedido ?? "").trim(),
     cliente: fila.cliente,
     finalizada,
+    ...(fila.fecha_pedido ? { fechaPedido: fila.fecha_pedido instanceof Date ? fila.fecha_pedido.toISOString() : fila.fecha_pedido } : {}),
     nOf: fila.n_of ?? 0,
     ...(negocio ? { negocio } : {}),
   };

@@ -1,4 +1,4 @@
-import { agruparTiemposPorCentro, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
+import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
@@ -83,7 +83,11 @@ export async function leerHistorialPagina(
   if (ES_MOCK) return paginaMock(f);
 
   const { clausulas, params } = construirFiltros(f);
-  const where = clausulas.length ? `WHERE ${clausulas.join(" AND ")}` : "";
+  // Buscar antes de agregar el histórico: incluye ventas sin OF y evita
+  // calcular todos sus tiempos/fechas para descartar casi todos después.
+  const busqueda = f.q?.trim() ? clausulas[0] : undefined;
+  const otrosFiltros = busqueda ? clausulas.slice(1) : clausulas;
+  const where = otrosFiltros.length ? `WHERE ${otrosFiltros.join(" AND ")}` : "";
   const off = Math.max(0, f.page) * PAGE_SIZE;
 
   const pool = await getPool();
@@ -111,18 +115,23 @@ export async function leerHistorialPagina(
     ),
     PedFin AS (
       SELECT o.CodOrder AS pedido, MAX(f.fin) AS finalizada,
+             MAX(o.OrderDate) AS fecha_pedido,
              MAX(o.IDCustomer) AS idc,
              MAX(o.IDCustomerDeliveryAddress) AS idd,
              COUNT(DISTINCT mo.IDManufacturingOrder) AS n_of
-      FROM FinOT f
-      JOIN dbo.CPRManufacturingOrder mo
-        ON mo.CodManufacturingOrder = f.orden AND mo.CodCompany = '001'
-      JOIN dbo.FACOrderLineSL l ON l.IDManufacturingOrder = mo.IDManufacturingOrder
-      JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+      FROM dbo.FACOrderSL o
+      ${busqueda ? "LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer" : ""}
+      LEFT JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+      LEFT JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      LEFT JOIN FinOT f ON f.orden = mo.CodManufacturingOrder
+      WHERE o.CodCompany = '001'
+        ${busqueda ? `AND ${busqueda.replaceAll("p.pedido", "o.CodOrder")}` : ""}
       GROUP BY o.CodOrder
+      ${f.q?.trim() ? "" : "HAVING MAX(f.fin) IS NOT NULL"}
     )
     ${pasados.cte}
-    SELECT p.pedido, p.finalizada, p.n_of, cli.Description AS cliente,
+    SELECT p.pedido, p.finalizada, p.fecha_pedido, p.n_of, cli.Description AS cliente,
            d.Description AS negocio
     FROM PedFin p
     LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = p.idc
@@ -131,14 +140,15 @@ export async function leerHistorialPagina(
     LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = p.idd
     ${pasados.join}
     ${where}
-    -- SE ORDENA POR LA MISMA FECHA QUE SE ENSEÑA. La lista pinta "Pasado el
+    -- Al buscar manda la fecha del pedido (también se muestra), no su cierre.
+    -- Sin búsqueda, la lista pinta "Pasado el
     -- tal" con pasadoAt cuando lo tenemos (cuándo se pulsó Pasar a Producción
     -- aquí) y con finalizada cuando no (cuándo cerró RPS la fase de OT).
     -- Ordenando solo por finalizada, las dos no coincidían: RPS cierra fases
     -- en masa, así que un pedido que OT soltó en julio podía aparecer arriba
     -- del todo con fecha de hoy. El orden decía una cosa y la fecha de al
     -- lado otra.
-    ORDER BY COALESCE(${pasados.columna}, p.finalizada) DESC, p.pedido DESC
+    ORDER BY ${f.q?.trim() ? "p.fecha_pedido" : `COALESCE(${pasados.columna}, p.finalizada)`} DESC, p.pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
   `);
 
@@ -164,6 +174,7 @@ export async function leerHistorialPagina(
 /** Fila cruda del minutaje por pedido/orden/empleado (antes de agrupar). */
 interface FilaExtra {
   tarea: string | null;
+  descripcionTarea: string | null;
   pedido: string | null;
   orden: string | null;
   descripcion: string | null;
@@ -225,7 +236,7 @@ async function extrasDePagina(
   // registrado por OF y tarea.
   const r = await req.query<FilaExtra>(`
     SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
-           mo.Description AS descripcion, t.CodMOTask AS tarea,
+           mo.Description AS descripcion, t.CodMOTask AS tarea, t.Description AS descripcionTarea,
            cli.Description AS cliente, sf.CodProductSubFamily AS subfamilia,
            e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
     FROM dbo.FACOrderSL o
@@ -249,7 +260,7 @@ async function extrasDePagina(
         SELECT 1 FROM dbo.CPRMOResourceMachine rm
         WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES[seccion])})
       )
-    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, t.CodMOTask,
+    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, t.CodMOTask, t.Description,
              cli.Description, sf.CodProductSubFamily, e.CodEmployee
   `);
 
@@ -261,6 +272,7 @@ async function extrasDePagina(
   for (const fila of r.recordset) {
     const pedido = (fila.pedido ?? "").trim();
     if (!pedido) continue;
+    if (centroDeTareaHistorial(seccion, fila.descripcionTarea) !== seccion) continue;
 
     const orden = (fila.orden ?? "").trim();
     if (orden) {
@@ -486,6 +498,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
       WITH Tareas AS (
         SELECT mo.IDManufacturingOrder, mo.CodManufacturingOrder AS orden,
                mo.Description AS descripcion, t.IDMOTask, t.CodMOTask AS tarea,
+               t.Description AS descripcionTarea,
                CASE
                  WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
                    WHERE rm.IDMOTask = t.IDMOTask
@@ -503,19 +516,22 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
           WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
         )
       )
-      SELECT t.orden, t.descripcion, t.centro, t.tarea,
+      SELECT t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea,
              e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
       FROM Tareas t
       LEFT JOIN dbo.CPRImputationMO i
         ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = t.IDManufacturingOrder
         AND i.ResourceType = 1
       LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, e.CodEmployee
+      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, e.CodEmployee
     `),
     leerMaterialesPedido(pedido),
   ]);
 
-  const ofs = agruparTiemposPorCentro(r.recordset, (codigo) => {
+  const filas = r.recordset.map((fila) => ({
+    ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea ?? null),
+  }));
+  const ofs = agruparTiemposPorCentro(filas, (codigo) => {
     const id = operarioDeEmpleado(codigo);
     return (id && NOMBRE_POR_OPERARIO.get(id)) || codigo;
   });
@@ -523,7 +539,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   // eso atribuiría también el fichaje de Diseño al bloque de OT (y viceversa).
   // Limitar por tarea, no por la sección habitual de quien fichó.
   for (const centro of ["ot", "diseno"] as const) {
-    const tareas = new Set(r.recordset
+    const tareas = new Set(filas
       .filter((f) => f.centro === centro && f.orden && f.tarea)
       .map((f) => claveTareaHistorial(f.orden!, f.tarea!)));
     const conRoles = anadirDesgloseRol(ofs.filter((of) => of.centro === centro), tareas);

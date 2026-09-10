@@ -200,6 +200,34 @@ tanto en la caja del Historial como en la lupa de la cabecera.
 
 ---
 
+## 8. Ajustes del Historial — implementados, pendientes de despliegue
+
+- «PLANTEAR EN TALLER» pertenece a Taller aunque RPS la asocie a OTEC-A.
+  Se mueve la tarea completa, no se filtra por quién fichó. También se excluye
+  de la deducción de autores de OT en la lista.
+- Verificado AR.26.03626 contra RPS: OT **41 min** (Iván 35, Jaime 6), Diseño
+  **12 min**, Taller **2321 min**. Los **38 min** de la tarea de la OF 0230699
+  (Esteban 37, Jaime 1) quedan en Taller. Total **2374 min**, idéntico a la suma
+  directa de imputaciones de personas de RPS. El reloj de CoordinaOT se rotula
+  aparte: no se suma al total de RPS.
+- Apuntado, Apartado y notas de producción se abren con botones. Comprobado
+  en navegador con las ocho líneas reales de 0230697: tarjeta de 155 px tanto
+  cerrada como abierta; Escape cierra el material y mantiene abierta la ficha.
+- La búsqueda incluye descripciones de venta y pedidos sin OF o sin cierre
+  registrado. «Apilable» encuentra **13 pedidos**, antes solo uno. Se admite
+  el código antiguo AR.10N00595 en el detalle; su visor de escaneo no admite
+  ese formato y lo indica, manteniendo los documentos disponibles.
+- Al buscar, orden por **fecha del pedido descendente**, con código como
+  desempate, antes de paginar. «Enrollable»: **7048 pedidos / 177 páginas**;
+  páginas 0, 1 y 176 contrastadas con una consulta independiente de RPS,
+  coinciden exactamente y la última contiene ocho pedidos, sin más páginas.
+- Durante otra consulta no se muestran resultados de la anterior. El botón
+  «Volver arriba» lleva texto y queda sobre el reloj; comprobado en navegador.
+- Validación: 965 tests, TypeScript y lint limpios. Las comprobaciones locales
+  usan otra SQLite; no se han modificado fichajes ni pedidos de producción.
+
+---
+
 ## Avisos de método, que costaron caro
 
 - **Que la suite esté verde no prueba que algo funcione.** En estas dos ramas ha pasado tres veces: un reinicio de PIN completamente roto con 932 tests en verde (solo salió abriendo el navegador y pulsando el botón); un test que no probaba lo que decía (se descubrió rompiendo la función a propósito y viendo que solo él fallaba); y un botón que iba a leerse "Aprobar las 1" en cada pedido de Diseño.

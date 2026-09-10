@@ -72,6 +72,7 @@ export function HistorialView({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [claveResultado, setClaveResultado] = useState<string | null>(null);
 
   // Filtros (se aplican reiniciando desde la página 0).
   const [q, setQ] = useState("");
@@ -81,6 +82,8 @@ export function HistorialView({
 
   // Clave de filtros: al cambiar, se reinicia la lista.
   const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}`;
+  const resultadosVigentes = claveResultado === filtrosKey;
+  const itemsVisibles = resultadosVigentes ? items : [];
   const hayFiltros = Boolean(q.trim() || desde || hasta || familia);
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
@@ -107,35 +110,38 @@ export function HistorialView({
         setItems((prev) => (reemplazar ? data.pedidos : [...prev, ...data.pedidos]));
         setHasMore(data.hasMore);
         setPage(pageAcargar);
+        setClaveResultado(filtrosKey);
       } catch {
         if (seq !== reqSeq.current) return;
         setError(true);
+        if (reemplazar) setItems([]);
+        setClaveResultado(filtrosKey);
       } finally {
         if (seq === reqSeq.current) setCargando(false);
       }
     },
-    [seccion, q, desde, hasta, familia],
+    [seccion, q, desde, hasta, familia, filtrosKey],
   );
 
   // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
   // para no lanzar una query pesada por cada tecla del buscador.
   useEffect(() => {
+    reqSeq.current++;
     const t = setTimeout(() => cargar(0, true), 300);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosKey]);
+  }, [cargar]);
 
   // Scroll infinito: un centinela al final dispara la siguiente página.
   const sentinela = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinela.current;
-    if (!el || !hasMore || cargando || error) return;
+    if (!el || !hasMore || cargando || error || !resultadosVigentes) return;
     const io = new IntersectionObserver((entradas) => {
       if (entradas[0].isIntersecting) cargar(page + 1, false);
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore, cargando, error, page, cargar]);
+  }, [hasMore, cargando, error, page, cargar, resultadosVigentes]);
 
   return (
     <div className="space-y-3">
@@ -262,7 +268,7 @@ export function HistorialView({
         )}
       </div>
 
-      {error && (
+      {error && resultadosVigentes && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">
           No se pudo cargar el historial.
           <button onClick={() => cargar(0, true)} className="rounded-lg bg-surface px-2 py-1 text-xs font-semibold ring-1 ring-border hover:bg-surface-2">
@@ -271,7 +277,7 @@ export function HistorialView({
         </div>
       )}
 
-      {!error && items.length === 0 && !cargando && (
+      {!error && resultadosVigentes && itemsVisibles.length === 0 && !cargando && (
         <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border px-6 text-center">
           <div>
             <p className="text-sm font-semibold text-text">
@@ -289,10 +295,11 @@ export function HistorialView({
       {/* Cuántos se están viendo. Con scroll infinito y filtros puestos, sin
           este número no había forma de saber si la búsqueda había encontrado
           tres pedidos o trescientos. */}
-      {!error && items.length > 0 && (
+      {!error && itemsVisibles.length > 0 && (
         <p className="text-[11px] text-text-muted">
-          {items.length} pedido{items.length === 1 ? "" : "s"}
+          {itemsVisibles.length} pedido{itemsVisibles.length === 1 ? "" : "s"}
           {hasMore ? " y subiendo — baja para cargar más" : ""}
+          {q.trim() ? " · Más recientes primero" : ""}
         </p>
       )}
 
@@ -301,12 +308,12 @@ export function HistorialView({
           pantalla sin ganar nada a cambio. La Lista, que es la otra tabla larga
           de la app, no deja aire entre filas. */}
       <div className="space-y-1">
-        {items.map((it) => (
+        {itemsVisibles.map((it) => (
           <FilaHistorial key={it.pedido} item={it} onOpen={setAbierto} seccion={seccion} />
         ))}
       </div>
 
-      {cargando && <p className="py-2 text-center text-xs text-text-muted">Cargando…</p>}
+      {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{q.trim() ? "Buscando en todo el historial…" : "Cargando…"}</p>}
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer
@@ -466,9 +473,12 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           </span>
           <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
             <span>{item.nOf} OF</span>
+            {item.busqueda && item.fechaPedido && <span title="Fecha del pedido en RPS">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
             {item.estadoActual
               ? <span className="font-semibold text-amber-700 dark:text-amber-300" title="Estado actual en la sección seleccionada">{item.estadoActual}</span>
-              : <span title={tituloPasado}>Pasado {pasado.corta}</span>}
+              : item.pasadoAt || item.finalizada
+                ? <span title={tituloPasado}>Pasado{item.busqueda && item.fechaPedido ? "" : ` ${pasado.corta}`}</span>
+                : <span>Sin paso registrado</span>}
             <Autoria item={item} />
           </span>
         </button>
