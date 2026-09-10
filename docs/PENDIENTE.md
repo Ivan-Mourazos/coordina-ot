@@ -304,6 +304,21 @@ Notas de datos y rendimiento:
 
 ---
 
+## 10. Coherencia visual y de interacción — REVISADO, PENDIENTE DE IMPLEMENTAR
+
+Plan completo: [PLAN-MEJORAS-UI.md](PLAN-MEJORAS-UI.md).
+Iván pidió revisar el conjunto antes de retocar la fila del Historial.
+Revisadas las seis pestañas en producción en oscuro y Pendientes, Historial y
+Revisiones también en claro; contraste medido, móvil y Diseño quedan por validar.
+
+Prioridades: reconciliar los pedidos que aparecen arriba y abajo del Historial;
+distinguir OF aprobada de pedido listo para pasar; después unificar filas compactas,
+nombres, tiempos, filtros y fichas. Interacción solicitada: nombre abre la ficha,
+resto de cabecera/flecha despliega y se elimina el ojo. Cada fase se valida en
+**claro y oscuro**. Esta revisión solo añade documentación; no cambia la web.
+
+---
+
 ## Avisos de método, que costaron caro
 
 - **Que la suite esté verde no prueba que algo funcione.** En estas dos ramas ha pasado tres veces: un reinicio de PIN completamente roto con 932 tests en verde (solo salió abriendo el navegador y pulsando el botón); un test que no probaba lo que decía (se descubrió rompiendo la función a propósito y viendo que solo él fallaba); y un botón que iba a leerse "Aprobar las 1" en cada pedido de Diseño.
