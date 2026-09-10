@@ -2364,6 +2364,7 @@ export function Board({
         {vista === "historial" && (
           <div className="p-5">
             <HistorialView
+              seccion={seccionActual}
               pasados={pasadosSinCerrar}
               onAbrirPasado={abrirPedido}
               operarios={operarios}
@@ -2401,6 +2402,7 @@ export function Board({
       />
 
       <HistorialDrawer
+        seccion={seccionActual}
         pedido={historialAbierto}
         operarios={operarios}
         miId={miId}

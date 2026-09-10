@@ -15,6 +15,8 @@ import { NotasPedido } from "./NotasPedido";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosRps, contarAbribles } from "./DocumentosRps";
 import { useFocoModal } from "@/lib/useFocoModal";
+import { agruparCentros } from "@/lib/historial-centros";
+import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -29,6 +31,7 @@ export function HistorialDrawer({
   onClose,
   operarios = [],
   miId = null,
+  seccion = SECCION_POR_DEFECTO,
 }: {
   pedido: string | null;
   onClose: () => void;
@@ -37,6 +40,7 @@ export function HistorialDrawer({
   operarios?: readonly Operario[];
   /** Quién soy: finalizar una fase en RPS se firma con mi código de operario. */
   miId?: string | null;
+  seccion?: SeccionId;
 }) {
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -274,7 +278,7 @@ export function HistorialDrawer({
                   fase de OT que se quedó a medias. Va lo primero porque es una
                   tarea pendiente, no información; el resto de la ficha se lee.
                   Se calla solo cuando está todo finalizado, que es lo normal. */}
-              <FasesSinFinalizar ofs={detalle.ofs.map((o) => o.codigo)} miId={miId} />
+              <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} />
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es
@@ -303,24 +307,7 @@ export function HistorialDrawer({
                 <DocumentosRps documentos={detalle.documentos} />
               </Bloque>
 
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Órdenes de fabricación ({detalle.ofs.length})
-              </h3>
-              <ul className="space-y-2">
-                {detalle.ofs.map((of) => (
-                  <li key={of.codigo} className="glass-chip rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-                      <span className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
-                        {fmtMin(of.tiempoImputadoMin)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-text">{of.descripcion}</p>
-                    <Personas of={of} />
-                    <Materiales of={of} />
-                  </li>
-                ))}
-              </ul>
+              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
             </>
           )}
         </div>
@@ -345,6 +332,60 @@ export function HistorialDrawer({
         </div>
       )}
     </div>
+  );
+}
+
+/** El centro decide qué minutos se suman; la selección decide el desglose visible. */
+export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+  return (
+    <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">Trabajo por centro</h3>
+      {agruparCentros(ofs).map((centro) => {
+        const seleccionado = centro.id === seccion;
+        return (
+          <details key={centro.id} open={seleccionado} className="rounded-xl border border-border bg-surface-2/40">
+            <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
+              {centro.nombre}
+              <span className="float-right ml-2 font-mono text-xs tabular-nums">{fmtMin(centro.totalMin)}</span>
+            </summary>
+            <div className="space-y-3 px-3 pb-3">
+              {seleccionado && centro.personas.length > 0 && (
+                <div>
+                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
+                  <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
+                    {centro.personas.map((persona) => (
+                      <li key={persona.nombre} className="flex justify-between gap-3">
+                        <span>{persona.nombre}</span>
+                        <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {centro.ofs.length === 0 ? (
+                <p className="text-xs text-text-muted">Sin trabajo registrado en este centro.</p>
+              ) : (
+                <ul className="space-y-2" aria-label={`Órdenes de fabricación de ${centro.nombre}`}>
+                  {centro.ofs.map((of) => (
+                    <li key={of.codigo} className="glass-chip rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
+                        <span className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
+                          {fmtMin(of.tiempoImputadoMin)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-text">{of.descripcion}</p>
+                      {seleccionado && <Personas of={of} />}
+                      <Materiales of={of} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+        );
+      })}
+    </section>
   );
 }
 

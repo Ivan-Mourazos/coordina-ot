@@ -1,0 +1,83 @@
+import type { HistorialOF, RepartoRol } from "./historial";
+import { SECCIONES, type SeccionId } from "./secciones";
+
+export type CentroHistorialId = SeccionId | "taller";
+
+export interface HistorialCentro {
+  id: CentroHistorialId;
+  nombre: string;
+  totalMin: number;
+  personas: RepartoRol[];
+  ofs: HistorialOF[];
+}
+
+/** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
+export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
+  return [
+    { id: "ot" as const, nombre: SECCIONES.ot.nombre },
+    { id: "diseno" as const, nombre: SECCIONES.diseno.nombre },
+    { id: "taller" as const, nombre: "Taller" },
+  ].map(({ id, nombre }) => {
+    const propias = ofs.filter((of) => (of.centro ?? "ot") === id);
+    const personas = new Map<string, number>();
+    for (const of of propias) {
+      for (const p of of.personas ?? []) {
+        personas.set(p.nombre, (personas.get(p.nombre) ?? 0) + p.min);
+      }
+    }
+    return {
+      id,
+      nombre,
+      totalMin: propias.reduce((total, of) => total + of.tiempoImputadoMin, 0),
+      personas: [...personas].map(([nombre, min]) => ({ nombre, min }))
+        .sort((a, b) => b.min - a.min || a.nombre.localeCompare(b.nombre, "es")),
+      ofs: propias,
+    };
+  });
+}
+
+export interface FilaTiempoCentro {
+  orden: string | null;
+  descripcion: string | null;
+  centro: CentroHistorialId;
+  tarea: string | null;
+  empleado: string | null;
+  minutos: number | null;
+}
+
+/** Comparte el formato con los ids de fichaje, tolerando el cero de delante. */
+export function claveTareaHistorial(orden: string, tarea: string): string {
+  return `${orden.trim()}:${tarea.trim().replace(/^0+(?=\d)/, "")}`;
+}
+
+export function agruparTiemposPorCentro(
+  filas: readonly FilaTiempoCentro[],
+  nombreDeEmpleado: (codigo: string) => string,
+): HistorialOF[] {
+  const ordenes = new Map<string, HistorialOF>();
+  for (const fila of filas) {
+    const codigo = fila.orden?.trim();
+    if (!codigo) continue;
+    const clave = `${fila.centro}:${codigo}`;
+    const of = ordenes.get(clave) ?? {
+      codigo,
+      descripcion: fila.descripcion?.trim() ?? "",
+      centro: fila.centro,
+      tiempoImputadoMin: 0,
+      quien: [],
+      personas: [],
+    };
+    of.tiempoImputadoMin += fila.minutos ?? 0;
+    if (fila.empleado?.trim()) {
+      const nombre = nombreDeEmpleado(fila.empleado.trim());
+      const persona = of.personas!.find((p) => p.nombre === nombre);
+      if (persona) persona.min += fila.minutos ?? 0;
+      else {
+        of.personas!.push({ nombre, min: fila.minutos ?? 0 });
+        of.quien.push(nombre);
+      }
+    }
+    ordenes.set(clave, of);
+  }
+  return [...ordenes.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+}
