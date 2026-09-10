@@ -5,7 +5,7 @@ no repetir errores ya cometidos.
 
 ---
 
-## 0. Aprobación y paso a Producción — CORREGIDO, pendiente de despliegue
+## 0. Aprobación y paso a Producción — DESPLEGADO Y CONFIRMADO
 
 Caso **AR.26.04403**, comunicado por Iván el 10/09: Jaime lo aprobó y
 desapareció de «Listo para pasar» sin que Iván pulsara «Pasar». La marca del
@@ -32,7 +32,11 @@ Migración **8**: crea `pedido_paso_seccion`. Las marcas antiguas no guardaban
 sección: se atribuyen a la sección del firmante (inferencia para datos antiguos;
 en el 4403 se contrastó con la operación cerrada). La tabla original queda
 intacta. Las nuevas escrituras registran la sección elegida expresamente.
-**Backup antes de desplegar y comprobar `PRAGMA user_version = 8`.**
+Backup previo conservado. En producción se comprobó `PRAGMA user_version = 8`
+tras el despliegue de `16c2643`, con PM2 online y `/api/health` correcto contra RPS.
+
+**Confirmación de Iván en producción (10/09):** al aprobar el pedido se queda
+en «Listo para pasar» y hay que pulsar el botón para pasarlo. Flujo real verificado.
 
 Validado con el 4403 real y una copia aislada de SQLite en modo sombra:
 pendiente → API rechaza pasar (409); aprobación de Jaime → panel de Iván
@@ -60,7 +64,7 @@ arreglos. Repaso real y fusión completados el 10/09.
 **Lo que falta:**
 
 - [x] Fusionar a `main`, verificar tests **sobre el resultado de la fusión**, y borrar la rama local.
-- [x] Novedades generadas y versión desplegada, incluido el formato compacto (`e96efa8`), confirmado por Iván el 10/09. Los cambios posteriores de los puntos 0 y 5 requieren otra actualización.
+- [x] Novedades generadas y versión desplegada, incluido el formato compacto (`e96efa8`), confirmado por Iván el 10/09. También desplegados los cambios posteriores de los puntos 0, 5 y 8, hasta `16c2643`.
 - [x] **Repaso en navegador con pedidos de RPS real (10/09)**. Estados y
   fichajes preparados en una copia aislada de SQLite, con OLANET en modo
   sombra; las pruebas no escriben en producción.
@@ -167,7 +171,7 @@ plegados. Se conservan los documentos.
 
 ---
 
-## 5. El buscador del Historial — IMPLEMENTADO, pendiente de despliegue
+## 5. El buscador del Historial — DESPLEGADO
 
 Commit `e833998`: una caja para pedido, OF, cliente y descripción, con familia
 y fechas aparte y filas compactas. Busca en RPS antes de paginar, admite
@@ -183,11 +187,17 @@ tanto en la caja del Historial como en la lupa de la cabecera.
 
 ---
 
-## 6. Backup — sin terminar
+## 6. Backup — CONFIGURADO Y PROBADO
 
-- [ ] El cron quedó con la ruta mala de node. Node va bajo nvm, así que hace falta la ruta absoluta o un enlace en `/usr/local/bin/node`. **Un cron con `/usr/bin/node` no falla: no hace nada, y no se entera nadie.**
-  El 10/09 se intentó comprobarlo por SSH: `root@192.168.0.90` rechaza la clave
-  disponible. Iván confirma que usa contraseña; falta autenticar la conexión.
+- [x] Iván comprobó `/etc/cron.d/coordina-backup`: a las 21:00, usuario root,
+  Node `/root/.nvm/versions/node/v24.14.0/bin/node`, configuración `.env`.
+  Servicio cron activo y fichero con permisos 644, propietario root.
+- [x] Ejecución manual con entorno mínimo (`env -i`) correcta el 10/09 a las
+  09:58: copias local y en `/mnt/oftecnica/coordina-backups`, ambas de
+  3338240 bytes; 17 tablas y 2275 acciones. La ejecución programada de esa
+  noche no se ha observado; sí se ha probado el comando fuera del entorno nvm.
+- [x] Copia previa al despliegue conservada como
+  `data/backups/pre-despliegue-20260910T075521.db`.
 - [ ] Borrar el `data/coordina.db.2026-09-04-1314.bak` viejo.
 
 ---
@@ -200,7 +210,11 @@ tanto en la caja del Historial como en la lupa de la cabecera.
 
 ---
 
-## 8. Ajustes del Historial — implementados, pendientes de despliegue
+## 8. Ajustes del Historial — DESPLEGADOS
+
+Commits `ad00bca` y `16c2643` subidos a main y desplegados por Iván el 10/09.
+Compilación correcta, PM2 online, migración 8 y respuesta de RPS verificados
+con la salida de la terminal del servidor.
 
 - «PLANTEAR EN TALLER» pertenece a Taller aunque RPS la asocie a OTEC-A.
   Se mueve la tarea completa, no se filtra por quién fichó. También se excluye
