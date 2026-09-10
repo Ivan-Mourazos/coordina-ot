@@ -1,5 +1,35 @@
 [
   {
+    "id": "2026-09-10",
+    "hasta": "0240a00",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "El Historial separa los tiempos de OT, Diseño y Taller",
+        "detalle": "Tu sección muestra los tiempos por persona; las demás, solo sus totales."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El reloj de la esquina se ponía a cero al pausar",
+        "detalle": "Si fichabas varios pedidos a la vez y pausabas uno, el contador volvía a cero aunque llevaras un rato largo. El tiempo nunca se perdió —estaba bien apuntado en cada OF—, pero el número engañaba. Ahora sigue contando, y además la píldora dice qué pedido tienes en marcha."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La leyenda de Diseño sigue el orden de sus columnas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Diseño Gráfico, primero lo que puedes cerrar",
+        "detalle": "Las columnas de tu panel cambian de orden: lo que ya está listo para pasar a Producción va delante, y lo que está esperando a que otro lo revise queda al final. En Oficina Técnica no cambia nada."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Diseño Gráfico, el pedido se pasa entero de una vez",
+        "detalle": "Ya no hay que ir OF por OF: pasar a revisión, aprobar y devolver están arriba y van sobre el pedido completo, aunque solo tenga una. Fichar y anular siguen igual, sobre la OF que quieras. En Oficina Técnica no cambia nada."
+      }
+    ]
+  },
+  {
     "id": "2026-09-08",
     "hasta": "16b4f73",
     "cambios": [
