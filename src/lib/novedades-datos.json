@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-10",
-    "hasta": "ad00bca",
+    "hasta": "1c89ee4",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -38,6 +38,11 @@
         "detalle": "La tarea completa cuenta en Taller. El tiempo de RPS y el reloj de CoordinaOT quedan identificados por separado."
       },
       {
+        "tipo": "arreglado",
+        "titulo": "Al revisor le salía el botón de pasar a Producción",
+        "detalle": "Después de aprobar, el pedido queda listo para que lo pase uno de sus autores. El revisor ya no puede pasarlo por su cuenta."
+      },
+      {
         "tipo": "mejor",
         "titulo": "En Diseño Gráfico, primero lo que puedes cerrar",
         "detalle": "Las columnas de tu panel cambian de orden: lo que ya está listo para pasar a Producción va delante, y lo que está esperando a que otro lo revise queda al final. En Oficina Técnica no cambia nada."
@@ -65,6 +70,16 @@
       {
         "tipo": "mejor",
         "titulo": "El botón Volver arriba se ve junto al reloj cuando bajas por la página"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fotos de visitas e instalaciones cargan más rápido",
+        "detalle": "Al abrir un pedido se consultan solo sus fotos. Las nuevas se actualizan al volver a consultar tras cinco minutos, en lugar de media hora."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Más claras las comprobaciones de la revisión",
+        "detalle": "Se aclaran las indicaciones de medidas y cotas, y Notas queda al final de las causas de devolución. La lista sigue siendo editable."
       }
     ]
   },
