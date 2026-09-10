@@ -66,30 +66,46 @@ parar, y dice qué pedido está corriendo.
 
 ---
 
-## 4. El Historial — DISEÑADO A MEDIAS, sin escribir
+## 4. El Historial — IMPLEMENTADO, pendiente de despliegue
 
-Es el trabajo grande que queda, y **no es solo de Diseño: cambia las dos
+Commit `4919e1e` en `feat/diseno-panel-y-revision`.
+
+**No es solo de Diseño: cambia las dos
 secciones.** Decidido con Iván:
 
 - Un bloque **por centro de trabajo**: `Oficina Técnica · Diseño Gráfico ·
-  Taller`, cada uno con su total y con quién lo hizo.
+  Taller`, cada uno con su total.
+- **Tiempos por persona solo en la sección seleccionada**. Los bloques de
+  las demás secciones muestran únicamente su total, sin desglose por persona.
 - **El bloque de tu sección viene abierto**, los demás plegados.
 - La lista sigue enseñando **todos** los pedidos (el Historial también sirve
   para buscar uno viejo y ver sus fotos).
 
-**Lo que falta por decidir antes de construirlo:** si dentro del bloque de
-Taller se desglosa por persona o basta el total. Sería la primera vez que esta
-web enseña, con nombre y apellidos, cuánto echó cada uno de corte o confección.
-Es lo mismo que ya enseña RPS, pero no a la misma gente.
+**Decisión de Iván (10/09/2026):** la misma regla se aplica a Taller: solo
+se desglosa por persona si corresponde a la sección seleccionada; en caso
+contrario se muestra el total. Abrir un bloque de otra sección no muestra
+los tiempos individuales.
 
-**El número que hay que tener delante:** hoy el Historial cuenta solo el trabajo
+**El número que motivó la separación:** antes el Historial contaba solo el trabajo
 de **A-OTEC**. Meter el taller multiplica el total de un pedido por 60 y por
 143 (medido el 01/09: SA.26.00860 pasa de 4 min a 240; SA.26.00498, de 14 a
 2010). Por eso los bloques van separados y no hay un total único.
 
-Hoy, un pedido de Diseño que Manuel cierre desde la herramienta vieja **entra
+Un pedido de Diseño que Manuel cierre desde la herramienta vieja **entra
 solo al Historial** (se alimenta de la fase cerrada en OLANET, no de que nadie
-pulse nada en la web) pero **sale sin tiempos**, porque el filtro es solo de OT.
+pulse nada en la web). Ahora sus tiempos salen en el bloque de Diseño.
+
+Implementado en la ficha y en el desplegable de OF de la lista. La autoría de
+la lista corresponde a la sección seleccionada; las tareas de una misma OF
+se separan también al agregar los roles registrados en CoordinaOT.
+
+Validación (10/09/2026): 955 tests, tipos, lint y comprobación en navegador contra
+RPS real. SA.26.00498: OT 7 min y Taller 998 min, separados; al abrir Taller
+no se muestra desglose por persona. Al cambiar a Diseño, OT queda sin personas
+incluso desplegada. Ambas secciones devuelven los mismos 40 pedidos, en el
+mismo orden, en la primera página consultada. AR.26.04414: Diseño muestra
+28 min de Carrón y viene abierto; OT (100 min) y Taller (101 min) quedan
+plegados. Se conservan los documentos.
 
 ---
 
