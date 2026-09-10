@@ -5,10 +5,12 @@ no repetir errores ya cometidos.
 
 ---
 
-## 1. Rama `feat/diseno-panel-y-revision` — HECHA, sin fusionar
+## 1. Diseño e Historial — FUSIONADOS en `main`, sin desplegar
 
-Incluye también el Historial por centros (`4919e1e`). Última validación
-automática antes del repaso: **955 tests, lint y tipos limpios.**
+Merge `21f9d21`. Incluye el Historial por centros (`4919e1e`) y el arreglo
+de la leyenda (`eeab3ea`). Verificado **sobre el resultado de la fusión**:
+**955 tests (78 archivos), `pnpm lint` y `pnpm exec tsc --noEmit` limpios.**
+La rama local `feat/diseno-panel-y-revision` ya está borrada.
 
 Contiene:
 - El orden de columnas del panel como dato de la sección (Diseño: "listo para
@@ -18,11 +20,11 @@ Contiene:
 - El arreglo del reloj de la píldora (ver abajo).
 
 Pasó revisión por tarea **y** revisión final de rama, con dos rondas de
-arreglos. Está lista para fusionar.
+arreglos. Repaso real y fusión completados el 10/09.
 
 **Lo que falta:**
 
-- [ ] Fusionar a `main` (`git checkout main && git merge --no-ff feat/diseno-panel-y-revision`), verificar tests **sobre el resultado de la fusión**, y borrar la rama.
+- [x] Fusionar a `main`, verificar tests **sobre el resultado de la fusión**, y borrar la rama local.
 - [ ] `pnpm novedades` antes de desplegar: recoge las líneas `Novedad:` de los commits y escribe la entrada. Con `--ver` enseña lo que haría sin tocar nada.
 - [x] **Repaso en navegador con pedidos de RPS real (10/09)**. Estados y
   fichajes preparados en una copia aislada de SQLite, con OLANET en modo
@@ -58,7 +60,7 @@ como siempre y no nota nada.
 
 ---
 
-## 3. El fallo del reloj — ARREGLADO (dentro de la rama de Diseño)
+## 3. El fallo del reloj — ARREGLADO y fusionado en `main`
 
 Commit `2c390a8`. Causa raíz, confirmada con datos de producción:
 
@@ -76,7 +78,7 @@ parar, y dice qué pedido está corriendo.
 
 ## 4. El Historial — IMPLEMENTADO, pendiente de despliegue
 
-Commit `4919e1e` en `feat/diseno-panel-y-revision`.
+Commit `4919e1e`, integrado en `main` mediante `21f9d21`.
 
 **No es solo de Diseño: cambia las dos
 secciones.** Decidido con Iván:
