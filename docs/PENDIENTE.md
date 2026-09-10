@@ -5,7 +5,42 @@ no repetir errores ya cometidos.
 
 ---
 
-## 1. Diseño e Historial — FUSIONADOS en `main`, sin desplegar
+## 0. Aprobación y paso a Producción — CORREGIDO, pendiente de despliegue
+
+Caso **AR.26.04403**, comunicado por Iván el 10/09: Jaime lo aprobó y
+desapareció de «Listo para pasar» sin que Iván pulsara «Pasar». La marca del
+pedido era de Carrón, del 09/09, y se compartía entre OT y Diseño. Al quedar
+aprobada OT, esa marca antigua volvía a dar todo el pedido por completado.
+
+Confirmado leyendo producción: el cierre enviado corresponde a la operación
+9 de Diseño; en los eventos consultados de la operación 5 de OT solo constan
+inicio/pausa, sin cierre al aprobar Jaime. El fallo era de la situación que
+enseñaba CoordinaOT, no un paso automático enviado a OLANET.
+
+Corregido:
+- El paso se guarda por **pedido y sección**, con las OF incluidas.
+- Aprobar trabajo posterior o una OF nueva no reactiva un paso antiguo.
+- El servidor rechaza pasar si queda trabajo pendiente; obtiene las OF del
+  pedido real y no permite aprobar y pasar en la misma petición.
+- El navegador espera la confirmación del servidor antes de sacar el pedido.
+- **Decisión de Iván:** los pedidos activos siguen visibles en el Historial,
+  indicando «Esperando revisión», «Listo para pasar», etc., en vez de «Pasado».
+  La ficha también muestra su estado y no ofrece reparar cierres mientras
+  quede trabajo vivo.
+
+Migración **8**: crea `pedido_paso_seccion`. Las marcas antiguas no guardaban
+sección: se atribuyen a la sección del firmante (inferencia para datos antiguos;
+en el 4403 se contrastó con la operación cerrada). La tabla original queda
+intacta. Las nuevas escrituras registran la sección elegida expresamente.
+**Backup antes de desplegar y comprobar `PRAGMA user_version = 8`.**
+
+Validado con el 4403 real y una copia aislada de SQLite en modo sombra:
+pendiente → API rechaza pasar (409); aprobación de Jaime → panel de Iván
+«Listo para pasar» e Historial con el mismo estado; solo al pulsar y confirmar
+«Pasar» se registra el cierre de OT. No se modificó producción.
+Comprobaciones finales: **964 tests, lint y tipos limpios**.
+
+## 1. Diseño e Historial — DESPLEGADOS
 
 Merge `21f9d21`. Incluye el Historial por centros (`4919e1e`) y el arreglo
 de la leyenda (`eeab3ea`). Verificado **sobre el resultado de la fusión**:
@@ -25,7 +60,7 @@ arreglos. Repaso real y fusión completados el 10/09.
 **Lo que falta:**
 
 - [x] Fusionar a `main`, verificar tests **sobre el resultado de la fusión**, y borrar la rama local.
-- [ ] `pnpm novedades` antes de desplegar: recoge las líneas `Novedad:` de los commits y escribe la entrada. Con `--ver` enseña lo que haría sin tocar nada.
+- [x] Novedades generadas y versión desplegada, incluido el formato compacto (`e96efa8`), confirmado por Iván el 10/09. Los cambios posteriores de los puntos 0 y 5 requieren otra actualización.
 - [x] **Repaso en navegador con pedidos de RPS real (10/09)**. Estados y
   fichajes preparados en una copia aislada de SQLite, con OLANET en modo
   sombra; las pruebas no escriben en producción.
@@ -41,12 +76,12 @@ arreglos. Repaso real y fusión completados el 10/09.
 
 ---
 
-## 2. El login — HECHO y fusionado a `main`, SIN DESPLEGAR
+## 2. El login — DESPLEGADO APAGADO
 
 Ya está en `main` (merge `fc4613c`). **Se despliega APAGADO**: el equipo entra
 como siempre y no nota nada.
 
-- [ ] Desplegar. Lo único que pasa en el servidor es que se crea la tabla `persona` → **`pnpm backup` antes de arrancar**.
+- [x] Código desplegado, confirmado por Iván el 10/09. El login sigue apagado.
 - [ ] El día que se encienda: seguir `docs/despliegue-login.md`, que separa el día de subir el código del día de encenderlo.
 
 **Tres cosas de ese día que no se pueden saltar:**
@@ -76,7 +111,7 @@ parar, y dice qué pedido está corriendo.
 
 ---
 
-## 4. El Historial — IMPLEMENTADO, pendiente de despliegue
+## 4. El Historial — DESPLEGADO
 
 Commit `4919e1e`, integrado en `main` mediante `21f9d21`.
 
@@ -132,23 +167,27 @@ plegados. Se conservan los documentos.
 
 ---
 
-## 5. El buscador del Historial — sin empezar
+## 5. El buscador del Historial — IMPLEMENTADO, pendiente de despliegue
 
-Va **después** del punto 4: aquél cambia qué se enseña y éste cómo se busca
-dentro, así que hacerlo antes es rehacerlo.
+Commit `e833998`: una caja para pedido, OF, cliente y descripción, con familia
+y fechas aparte y filas compactas. Busca en RPS antes de paginar, admite
+códigos sin puntos y palabras de la descripción en cualquier orden.
 
-Hoy hay un campo "Pedido o cliente" y, al lado, un autocompletar de cliente:
-dos formas de buscar lo mismo. Se quiere **uno solo** que busque por OF, pedido,
-cliente y texto de la OF, con los filtros aparte.
-
-Antes de escribir nada: mirar si **el buscador global que ya tiene la web** (el
-de la lupa) sirve tal cual.
+Se revisó la lupa: su consulta de pedidos externos solo busca pedido/cliente
+y limita resultados, por lo que no sirve tal cual. Se reutilizó su normalización;
+la lupa conserva también las coincidencias por OF/descripción de la API ampliada.
+Consultas reales verificadas: `0231269`, `AR2603972`, `CLADDING NW3250` y
+`ASSA ABLOY`; todas encuentran AR.26.03972, y cliente conserva la paginación.
+Comprobado también en navegador: buscar `0231269` encuentra AR.26.03972
+tanto en la caja del Historial como en la lupa de la cabecera.
 
 ---
 
 ## 6. Backup — sin terminar
 
 - [ ] El cron quedó con la ruta mala de node. Node va bajo nvm, así que hace falta la ruta absoluta o un enlace en `/usr/local/bin/node`. **Un cron con `/usr/bin/node` no falla: no hace nada, y no se entera nadie.**
+  El 10/09 se intentó comprobarlo por SSH: `root@192.168.0.90` rechaza la clave
+  disponible. Iván confirma que usa contraseña; falta autenticar la conexión.
 - [ ] Borrar el `data/coordina.db.2026-09-04-1314.bak` viejo.
 
 ---

@@ -268,7 +268,7 @@ export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
       codigo: it.pedido,
       cliente: it.cliente ?? "Sin cliente",
       negocio: it.negocio ?? undefined,
-      donde: "En el historial",
+      donde: it.estadoActual ?? "En el historial",
       ubicacion: "historial",
       extra: it.autores?.length ? nombres(it.autores, (n) => n) : undefined,
       fuente: "historial",

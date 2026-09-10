@@ -63,7 +63,7 @@ export function HistorialDrawer({
     setCargando(true);
     setError(false);
     try {
-      const r = await fetch(`/api/historial/${cod}`, { cache: "no-store" });
+      const r = await fetch(`/api/historial/${cod}?seccion=${seccion}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const d = (await r.json()) as HistorialPedidoDetalle;
       if (seq !== reqSeq.current) return; // respuesta de un pedido anterior: la ignoramos
@@ -74,7 +74,7 @@ export function HistorialDrawer({
     } finally {
       if (seq === reqSeq.current) setCargando(false);
     }
-  }, []);
+  }, [seccion]);
 
   useEffect(() => {
     if (!pedido) return;
@@ -244,7 +244,9 @@ export function HistorialDrawer({
             <>
               <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
                 <Meta k="Solicitud" v={fmtFecha(detalle.fechaSolicitud)} />
-                <Meta k="Finalización" v={fmtFecha(detalle.fechaFinalizacion)} />
+                {detalle.estadoActual
+                  ? <Meta k="Estado actual" v={detalle.estadoActual} />
+                  : <Meta k="Finalización" v={fmtFecha(detalle.fechaFinalizacion)} />}
                 <Meta k="Piezas" v={String(detalle.piezas)} />
                 {detalle.ciudadEntrega && <Meta k="Entrega en" v={detalle.ciudadEntrega} />}
                 <div className="col-span-2">
@@ -278,7 +280,7 @@ export function HistorialDrawer({
                   fase de OT que se quedó a medias. Va lo primero porque es una
                   tarea pendiente, no información; el resto de la ficha se lee.
                   Se calla solo cuando está todo finalizado, que es lo normal. */}
-              <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} />
+              {!detalle.estadoActual && <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} />}
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es

@@ -44,6 +44,7 @@ beforeAll(async () => {
   // Éste ya tiene nombre, y en el registro figura OTRO. Si el relleno
   // reescribiera en vez de rellenar huecos, aquí se vería.
   ins.run("ped-ya-puesto", "tamara");
+  ins.run("AR.26.04403", "carron");
 
   const log = vieja.prepare(
     "INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, 'completar', ?)",
@@ -72,4 +73,10 @@ test("y lo que ya tenía nombre NO se reescribe", () => {
   // En el registro pone "angel"; en la tabla estaba "tamara". Manda la tabla:
   // un dato guardado no se pisa con uno deducido.
   expect(db.leerPedidosPasados().get("ped-ya-puesto")?.operarioId).toBe("tamara");
+});
+
+test("el cierre antiguo de Carrón solo se migra a Diseño; OT sigue sin pasar", () => {
+  expect(db.leerPedidosPasados("diseno").get("AR.26.04403")?.operarioId).toBe("carron");
+  expect(db.leerOverlay("ot").pedidosCompletados.has("AR.26.04403")).toBe(false);
+  expect(db.leerOverlay("diseno").pedidosCompletados.has("AR.26.04403")).toBe(true);
 });

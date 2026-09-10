@@ -5,7 +5,7 @@ import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
 import type { MovimientoRegistrado } from "../metricas";
 import { SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
-import { operariosDeSeccion } from "./operarios";
+import { operariosDeSeccion, seccionDeOperario } from "./operarios";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -333,6 +333,24 @@ function revisada(db: Database.Database): void {
 //
 // Las que solo añaden una columna (`prepararTraspasado`) no hacen falta aquí:
 // sin relleno no hay nada que pueda quedarse a medias.
+function pasosPorSeccion(db: Database.Database): void {
+  db.exec(`CREATE TABLE IF NOT EXISTS pedido_paso_seccion (
+    pedido_id TEXT NOT NULL,
+    seccion TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    pasado_por TEXT,
+    of_ids TEXT,
+    PRIMARY KEY (pedido_id, seccion)
+  )`);
+  // Las marcas antiguas no registraban la sección ni sus OF. Se conserva la
+  // última marca en la sección del firmante; la tabla original queda intacta.
+  const guardar = db.prepare(`INSERT OR IGNORE INTO pedido_paso_seccion
+    (pedido_id, seccion, updated_at, pasado_por) VALUES (?, ?, ?, ?)`);
+  for (const fila of db.prepare("SELECT pedido_id, updated_at, pasado_por FROM pedido_overlay WHERE completado = 1").all() as Array<{ pedido_id: string; updated_at: string; pasado_por: string | null }>) {
+    guardar.run(fila.pedido_id, seccionDeOperario(fila.pasado_por ?? ""), fila.updated_at, fila.pasado_por);
+  }
+}
+
 const MIGRACIONES: ReadonlyArray<{
   version: number;
   nombre: string;
@@ -376,6 +394,7 @@ const MIGRACIONES: ReadonlyArray<{
   // de git para siempre— y tampoco se piden por adelantado: cada uno teclea el
   // suyo la primera vez que entra. Ver ponerPin en server/personas-db.ts.
   { version: 7, nombre: "personas", aplicar: personas },
+  { version: 8, nombre: "pasos_por_seccion", aplicar: pasosPorSeccion },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -941,12 +960,12 @@ export function retirarCausaDevolucion(id: number, retirada: boolean): boolean {
       .run(retirada ? 1 : 0, id).changes > 0
   );
 }
-export function leerOverlay(): Overlay {
+export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
   const db = abrir();
   const ofs = new Map<string, CambioOF>();
   for (const fila of db
     .prepare(
-      "SELECT of_id, autor_id, revisor_id, estado, observacion, revisada FROM of_overlay",
+      "SELECT of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at FROM of_overlay",
     )
     .all() as Array<{
     of_id: string;
@@ -955,6 +974,7 @@ export function leerOverlay(): Overlay {
     estado: string;
     observacion: string | null;
     revisada: number;
+    updated_at: string;
   }>) {
     if (!ESTADOS_OF.has(fila.estado)) continue; // fila corrupta: ignorar
     ofs.set(fila.of_id, {
@@ -964,39 +984,37 @@ export function leerOverlay(): Overlay {
       estado: fila.estado as CambioOF["estado"],
       observacion: fila.observacion,
       revisada: fila.revisada === 1,
+      actualizadoAt: fila.updated_at,
     });
   }
-  const pedidosCompletados = new Set<string>(
-    (
-      db
-        .prepare("SELECT pedido_id FROM pedido_overlay WHERE completado = 1")
-        .all() as Array<{ pedido_id: string }>
-    ).map((f) => f.pedido_id),
-  );
-  return { ofs, pedidosCompletados };
+  const pasos = leerPedidosPasados(seccion);
+  return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos };
 }
 
 export interface PasoAProduccion {
   at: string; // ISO
   operarioId: string | null;
+  ofIds?: string[];
 }
 
 /** Cuándo y quién pasó cada pedido a Producción, por id de pedido. La hora es
  *  la del botón en CoordinaOT, más fiel que la de RPS: la de RPS es cuando
  *  OLANET registró el cambio de estado, y puede ir por detrás. Solo existe
  *  para lo pasado desde aquí. */
-export function leerPedidosPasados(): Map<string, PasoAProduccion> {
+export function leerPedidosPasados(seccion: SeccionId = SECCION_POR_DEFECTO): Map<string, PasoAProduccion> {
   const filas = abrir()
     .prepare(
-      "SELECT pedido_id, updated_at, pasado_por FROM pedido_overlay WHERE completado = 1",
+      "SELECT pedido_id, updated_at, pasado_por, of_ids FROM pedido_paso_seccion WHERE seccion = ?",
     )
-    .all() as Array<{ pedido_id: string; updated_at: string; pasado_por: string | null }>;
+    .all(seccion) as Array<{ pedido_id: string; updated_at: string; pasado_por: string | null; of_ids: string | null }>;
   return new Map(
-    filas.map((f) => [f.pedido_id, { at: f.updated_at, operarioId: f.pasado_por }]),
+    filas.map((f) => [f.pedido_id, { at: f.updated_at, operarioId: f.pasado_por, ...(f.of_ids ? { ofIds: JSON.parse(f.of_ids) as string[] } : {}) }]),
   );
 }
 
 export interface Mutacion {
+  seccion?: SeccionId;
+  ofIdsPedido?: string[];
   operarioId: string | null;
   motivo: string;
   cambiosOF?: CambioOF[];
@@ -1025,12 +1043,12 @@ export function guardarMutacion(m: Mutacion): void {
       revisada = MAX(of_overlay.revisada, excluded.revisada)
   `);
   const upsertPedido = db.prepare(`
-    INSERT INTO pedido_overlay (pedido_id, completado, updated_at, pasado_por)
-    VALUES (?, 1, ?, ?)
-    ON CONFLICT(pedido_id) DO UPDATE SET
-      completado = 1,
+    INSERT INTO pedido_paso_seccion (pedido_id, seccion, updated_at, pasado_por, of_ids)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(pedido_id, seccion) DO UPDATE SET
       updated_at = excluded.updated_at,
-      pasado_por = excluded.pasado_por
+      pasado_por = excluded.pasado_por,
+      of_ids = excluded.of_ids
   `);
   const log = db.prepare(
     "INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, ?, ?)",
@@ -1065,7 +1083,7 @@ export function guardarMutacion(m: Mutacion): void {
         ahora,
         revisada: c.estado === "en_revision" ? 1 : 0,
       });
-    if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, ahora, m.operarioId);
+    if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, m.seccion ?? seccionDeOperario(m.operarioId ?? ""), ahora, m.operarioId, m.ofIdsPedido ? JSON.stringify(m.ofIdsPedido) : null);
 
     // La revisión de esta OF ha terminado: lo comprobado ya no vale para nada
     // y se borra. Va AQUÍ, en la misma transacción que el cambio de estado, y
@@ -1100,6 +1118,7 @@ export function guardarMutacion(m: Mutacion): void {
         cambiosOF: m.cambiosOF ?? [],
         previos,
         completarPedidoId: m.completarPedidoId ?? null,
+        ...(m.completarPedidoId ? { seccion: m.seccion ?? seccionDeOperario(m.operarioId ?? ""), ofIdsPedido: m.ofIdsPedido ?? [] } : {}),
       }),
     );
   })();

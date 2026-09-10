@@ -12,6 +12,17 @@ beforeAll(async () => {
   db = await import("../server/estado-db");
 });
 
+test("pasar en una sección no cierra ni sobrescribe el paso de la otra", () => {
+  db.guardarMutacion({ operarioId: "carron", motivo: "completar", completarPedidoId: "P-dos-secciones", seccion: "diseno", ofIdsPedido: ["0231942:7"] });
+  expect(db.leerOverlay("ot").pedidosCompletados.has("P-dos-secciones")).toBe(false);
+  expect(db.leerOverlay("diseno").pedidosCompletados.has("P-dos-secciones")).toBe(true);
+  // La sección elegida manda incluso cuando Ángel trabaja en Diseño.
+  db.guardarMutacion({ operarioId: "angel", motivo: "completar", completarPedidoId: "P-dos-secciones", seccion: "ot", ofIdsPedido: ["0231942:5"] });
+  expect(db.leerPedidosPasados("ot").get("P-dos-secciones")?.operarioId).toBe("angel");
+  expect(db.leerPedidosPasados("diseno").get("P-dos-secciones")?.operarioId).toBe("carron");
+  expect(db.leerPedidosPasados("ot").get("P-dos-secciones")?.ofIds).toEqual(["0231942:5"]);
+});
+
 afterAll(() => {
   try {
     rmSync(dir, { recursive: true, force: true });

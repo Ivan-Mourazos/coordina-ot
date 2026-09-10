@@ -93,7 +93,7 @@ export async function leerHistorialPagina(
   req.input("size", PAGE_SIZE + 1); // una fila extra para saber si hay más
 
   // Cuándo lo pasamos NOSOTROS a Producción, para poder ordenar por eso.
-  const pasados = pasadosParaOrden(req);
+  const pasados = pasadosParaOrden(req, seccionDe(f.seccion).id);
 
   const r = await req.query<FilaPagina>(`
     ;WITH FinOT AS (
@@ -144,7 +144,7 @@ export async function leerHistorialPagina(
 
   const filas = r.recordset;
   const hasMore = filas.length > PAGE_SIZE;
-  const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map(anadirPasadoAt);
+  const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id));
 
   // Autores y familias se resuelven para la página ENTERA de una vez (ver
   // `extrasDePagina`): una query por pedido serían 40 idas y vueltas.
@@ -855,8 +855,8 @@ export function deducirRoles(
 /** Sella el item con la hora a la que se pulsó "pasar a Producción" en
  *  CoordinaOT, si fue desde aquí. Se lee una vez por página; son pocas filas y
  *  vive en SQLite, así que no compensa filtrar por ids. */
-function anadirPasadoAt(item: HistorialItem): HistorialItem {
-  const paso = pasadosAt().get(item.pedido);
+function anadirPasadoAt(item: HistorialItem, seccion: SeccionId): HistorialItem {
+  const paso = pasadosAt(seccion).get(item.pedido);
   if (!paso) return item;
   const nombre = paso.operarioId ? NOMBRE_POR_OPERARIO.get(paso.operarioId) : undefined;
   return {
@@ -888,8 +888,8 @@ const MAX_PASADOS_EN_ORDEN = 900;
  *  funcionando exactamente como antes. */
 function pasadosParaOrden(req: {
   input: (nombre: string, valor: unknown) => unknown;
-}): { cte: string; join: string; columna: string } {
-  const pasados = [...pasadosAt().entries()]
+}, seccion: SeccionId): { cte: string; join: string; columna: string } {
+  const pasados = [...pasadosAt(seccion).entries()]
     .sort((a, b) => b[1].at.localeCompare(a[1].at))
     .slice(0, MAX_PASADOS_EN_ORDEN);
 
@@ -913,12 +913,13 @@ function pasadosParaOrden(req: {
 }
 
 /** Cache muy corta: una misma página llama a esto una vez por pedido. */
-let cachePasados: { at: number; mapa: Map<string, PasoAProduccion> } | null = null;
-function pasadosAt(): Map<string, PasoAProduccion> {
-  if (cachePasados && Date.now() - cachePasados.at < 5_000) return cachePasados.mapa;
+const cachePasados = new Map<SeccionId, { at: number; mapa: Map<string, PasoAProduccion> }>();
+function pasadosAt(seccion: SeccionId): Map<string, PasoAProduccion> {
+  const cache = cachePasados.get(seccion);
+  if (cache && Date.now() - cache.at < 5_000) return cache.mapa;
   try {
-    const mapa = leerPedidosPasados();
-    cachePasados = { at: Date.now(), mapa };
+    const mapa = leerPedidosPasados(seccion);
+    cachePasados.set(seccion, { at: Date.now(), mapa });
     return mapa;
   } catch (e) {
     console.error("[historial] no se pudo leer pedido_overlay:", e);
@@ -1164,7 +1165,7 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
   const off = Math.max(0, f.page) * PAGE_SIZE;
   const pagina = todos.slice(off, off + PAGE_SIZE + 1);
   return {
-    pedidos: pagina.slice(0, PAGE_SIZE).map(anadirPasadoAt),
+    pedidos: pagina.slice(0, PAGE_SIZE).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id)),
     hasMore: pagina.length > PAGE_SIZE,
   };
 }

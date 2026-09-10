@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { leerHistorialPedidoDetalle } from "@/lib/server/historial-db";
-import { CODIGO_PEDIDO_RE } from "@/lib/historial";
+import { CODIGO_PEDIDO_RE, estadoActualHistorial } from "@/lib/historial";
+import { getTablero } from "@/lib/data";
+import { seccionDe } from "@/lib/secciones";
 
 // ─── GET /api/historial/[pedido] ─────────────────────────────────────────────
 // Detalle (lazy) del pedido: tiempos de sus OF separados por centro de trabajo.
@@ -9,7 +11,7 @@ import { CODIGO_PEDIDO_RE } from "@/lib/historial";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ pedido: string }> },
 ) {
   const { pedido } = await params;
@@ -17,8 +19,10 @@ export async function GET(
     return NextResponse.json({ error: "Código de pedido no válido" }, { status: 400 });
 
   try {
-    const detalle = await leerHistorialPedidoDetalle(pedido);
-    return NextResponse.json(detalle, { headers: { "Cache-Control": "no-store" } });
+    const seccion = seccionDe(new URL(req.url).searchParams.get("seccion")).id;
+    const [detalle, tablero] = await Promise.all([leerHistorialPedidoDetalle(pedido), getTablero(seccion)]);
+    const estadoActual = estadoActualHistorial(tablero.pedidos.find((p) => p.codigo === pedido));
+    return NextResponse.json({ ...detalle, ...(estadoActual ? { estadoActual } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[historial] detalle falló:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo cargar el pedido" }, { status: 500 });

@@ -44,7 +44,7 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
   try {
     const { leerOverlay } = await import("./server/estado-db");
     const { aplicarOverlay } = await import("./server/overlay");
-    const conFlujo = aplicarOverlay(base, leerOverlay());
+    const conFlujo = aplicarOverlay(base, leerOverlay(seccion));
 
     const { leerTodosIntervalos } = await import("./server/fichaje-db");
     const { aplicarTiemposFichaje } = await import("./server/tiempos");

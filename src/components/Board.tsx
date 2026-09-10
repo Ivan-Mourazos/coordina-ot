@@ -1111,21 +1111,23 @@ export function Board({
       // guardián y reponía el reloj en pantalla —"Pausar" reaparecía sobre una
       // OF ya aprobada— hasta el sondeo siguiente, o sea hasta 30 s.
       if (payload.cortarFichajeDe?.length) postSeqRef.current += 1;
-      fetch("/api/estado", {
+      return fetch("/api/estado", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, operarioId: miId }),
+        body: JSON.stringify({ ...payload, operarioId: miId, seccion: seccionActual }),
       })
         .then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return true;
         })
         .catch((e) => {
           // La UI ya aplicó el cambio (optimista). Si el guardado falla, el
           // siguiente polling repondrá la verdad del servidor.
           console.warn("[coordina] no se pudo guardar el cambio:", e);
+          return false;
         });
     },
-    [miId],
+    [miId, seccionActual],
   );
 
   const snapshotDe = (of: OF) => ({
@@ -1809,16 +1811,15 @@ export function Board({
   // cada botón: uno solo la hacía y desde los otros el pedido desaparecía de
   // golpe, sin decir a dónde iba ni dar ocasión de rectificar.
   const [pasarPendiente, setPasarPendiente] = useState<string | null>(null);
+  const [pasarError, setPasarError] = useState<string | null>(null);
   const completarPedido = useCallback((pedidoId: string) => setPasarPendiente(pedidoId), []);
   const completarPedidoAhora = useCallback(
-    (pedidoId: string) => {
+    async (pedidoId: string) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
+      setPasarError(null);
       const ofIdsPedido = (pedidos.find((p) => p.id === pedidoId)?.ofs ?? [])
         .filter((of) => of.estado !== "anulada")
         .map((of) => of.id);
-      setPedidosSync((prev) =>
-        prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
-      );
       // Pasar a Producción CIERRA el reloj de este pedido, y lo cierra el
       // servidor (que tiene la hora oficial) en la misma escritura.
       //
@@ -1829,12 +1830,19 @@ export function Board({
       // el pedido sale del tablero con el intervalo abierto y el tiempo se
       // seguiría imputando contra una fase que OLANET acaba de dar por
       // finalizada.
-      persistir({
+      const guardado = await persistir({
         motivo: "completar",
         completarPedidoId: pedidoId,
         ofIdsPedido,
         cortarFichajeDe: ofIdsPedido,
       });
+      if (!guardado) {
+        setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
+        return;
+      }
+      setPedidosSync((prev) =>
+        prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
+      );
       // Y mi navegador también tiene que enterarse: `ficharOFs` reenvía todo lo
       // que cree tener abierto, así que si sigue contando estas OF el siguiente
       // "Fichar" las reabriría en el servidor.
@@ -2056,6 +2064,12 @@ export function Board({
           plantaba encima de la cabecera de la tabla en la vista Lista y tapaba
           dos columnas. Aquí empuja el contenido hacia abajo, que para un aviso
           que sale una vez al día es mejor que esconder datos. */}
+      {pasarError && (
+        <div role="alert" className="flex items-center gap-3 border-b border-red-500/30 bg-red-500/10 px-5 py-2 text-sm text-text">
+          <span>{pasarError}</span>
+          <button className="ml-auto text-xs underline" onClick={() => setPasarError(null)}>Cerrar</button>
+        </div>
+      )}
       {avisoCierreAuto && (
         <div
           role="status"

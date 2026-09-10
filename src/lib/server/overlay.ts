@@ -11,9 +11,8 @@ import type { EstadoOF, Situacion } from "../types";
 //
 // Así que "completado" se DEDUCE: es completado si se pasó Y no le queda
 // trabajo de OT por hacer. Si aparece una OF nueva, el pedido vuelve al
-// tablero marcado con `reabiertoPor`, y cuando esa OF se resuelva volverá
-// solo a completado. No se toca lo guardado: quién y cuándo lo pasó sigue
-// siendo cierto y se conserva (ver `leerPedidosPasados`).
+// tablero marcado con `reabiertoPor`. Aprobarla NO lo vuelve a pasar: hace
+// falta pulsar «Pasar» otra vez. La marca se guarda por pedido Y sección.
 // RPS es la fuente de los DATOS del trabajo (pedidos, OFs, tiempos, material);
 // el overlay es la fuente del FLUJO de OT: quién plantea, quién revisa, en qué
 // estado del ciclo está cada OF y qué pedidos se dieron por completados.
@@ -21,6 +20,8 @@ import type { EstadoOF, Situacion } from "../types";
 // poder testearla sin base de datos.
 
 export interface CambioOF {
+  /** Hora persistida por el servidor, nunca tomada del cliente. */
+  actualizadoAt?: string;
   ofId: string;
   autorId: string | null;
   revisorId: string | null;
@@ -38,6 +39,7 @@ export interface Overlay {
   ofs: Map<string, CambioOF>;
   /** Ids de pedido marcados como completados (pasados a Producción). */
   pedidosCompletados: Set<string>;
+  pasos?: ReadonlyMap<string, { at: string; ofIds?: readonly string[] }>;
 }
 
 export const ESTADOS_OF: ReadonlySet<string> = new Set([
@@ -95,7 +97,15 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
       });
       // Solo en los pasados: en un pedido normal, tener OF sin hacer es lo
       // esperado y no significa nada.
-      const reabiertoPor = completado ? ofs.filter(pendienteDeOT).map((of) => of.id) : [];
+      const paso = overlay.pasos?.get(p.id);
+      const reabiertoPor = completado ? ofs.filter((of) => {
+        if (of.ajenaOT || of.estado === "anulada") return false;
+        const actualizada = overlay.ofs.get(of.id)?.actualizadoAt;
+        return pendienteDeOT(of) || Boolean(paso && (
+          (actualizada && actualizada > paso.at) ||
+          (paso.ofIds && !paso.ofIds.includes(of.id))
+        ));
+      }).map((of) => of.id) : [];
 
       if (!completado && ofs.every((of, i) => of === p.ofs[i])) return p;
       return {

@@ -448,7 +448,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           aria-expanded={desplegado}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
         >
-          <span className="size-2.5 shrink-0 rounded-full bg-cyan-600" />
+          <span className={`size-2.5 shrink-0 rounded-full ${item.estadoActual ? "bg-amber-500" : "bg-cyan-600"}`} />
           {/* Identidad en dos renglones, como va a quedar la Lista: arriba el
               código con su familia, abajo el cliente. Antes iba todo seguido en
               una línea y el cliente se comía el ancho que necesita el resto. */}
@@ -466,7 +466,9 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           </span>
           <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
             <span>{item.nOf} OF</span>
-            <span title={tituloPasado}>Pasado {pasado.corta}</span>
+            {item.estadoActual
+              ? <span className="font-semibold text-amber-700 dark:text-amber-300" title="Estado actual en la sección seleccionada">{item.estadoActual}</span>
+              : <span title={tituloPasado}>Pasado {pasado.corta}</span>}
             <Autoria item={item} />
           </span>
         </button>

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { guardarMutacion } from "@/lib/server/estado-db";
+import { guardarMutacion, leerOverlay } from "@/lib/server/estado-db";
 import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
 import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
-import { ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
+import { aplicarOverlay, ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
 import { identidad } from "@/lib/server/sesion";
+import { getTablero } from "@/lib/data";
+import { pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { esSeccionId } from "@/lib/secciones";
+import { seccionDeOperario } from "@/lib/server/operarios";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -11,6 +15,7 @@ import { identidad } from "@/lib/server/sesion";
 // cambio es el snapshot completo de los 4 campos de flujo de la OF.
 
 interface Body {
+  seccion?: string;
   operarioId?: string | null;
   motivo?: string;
   cambiosOF?: CambioOF[];
@@ -71,6 +76,28 @@ export async function POST(req: Request) {
   const operarioId = yo.id;
   const completarPedidoId =
     typeof body.completarPedidoId === "string" ? body.completarPedidoId : undefined;
+  if (body.seccion !== undefined && !esSeccionId(body.seccion)) {
+    return NextResponse.json({ error: "Sección inválida." }, { status: 400 });
+  }
+  const seccion = esSeccionId(body.seccion) ? body.seccion : seccionDeOperario(operarioId);
+  let ofIdsPedido: string[] | undefined;
+  if (completarPedidoId) {
+    const base = await getTablero(seccion);
+    // Releer tras la espera: otra persona puede haber devuelto una OF
+    // mientras llegaba RPS. No hay ningún await entre esta lectura y guardar.
+    const tablero = aplicarOverlay(base, leerOverlay(seccion));
+    const pedido = tablero.pedidos.find((p) => p.id === completarPedidoId);
+    if (!pedido || !pedidoListoParaPasar(pedido)) {
+      return NextResponse.json({ error: "El pedido todavía no está listo para pasar a Producción." }, { status: 409 });
+    }
+    // Validar lo que hay guardado, antes de aceptar ningún cambio del cuerpo.
+    // Los ids se obtienen del pedido real: el cliente no puede omitir una OF
+    // pendiente ni enviar operaciones de otra sección para finalizarlas.
+    if (cambios.length) {
+      return NextResponse.json({ error: "Aprobar y pasar a Producción son acciones separadas." }, { status: 400 });
+    }
+    ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
+  }
 
   guardarMutacion({
     operarioId,
@@ -78,14 +105,16 @@ export async function POST(req: Request) {
     cambiosOF: cambios,
     previosOF: previos,
     completarPedidoId,
+    seccion,
+    ofIdsPedido,
   });
 
   // Soltar una OF cierra el fichaje de quien la tenía. NO lo puede hacer su
   // navegador: puede estar en otro equipo o con la app cerrada, así que lo
   // hace el servidor con su reloj, que es la hora oficial de todo el fichaje.
-  const cortar = Array.isArray(body.cortarFichajeDe)
+  const cortar = ofIdsPedido ?? (Array.isArray(body.cortarFichajeDe)
     ? body.cortarFichajeDe.filter((x): x is string => typeof x === "string" && x.length > 0)
-    : [];
+    : []);
   if (cortar.length > 0) {
     const ahora = new Date().toISOString();
     // Cada corte va en su propio try: si uno falla, los demás se intentan
@@ -110,10 +139,7 @@ export async function POST(req: Request) {
   // lanza, y si algo falla el pedido queda "interrumpido" en vez de
   // "finalizado", que se ve y se puede volver a pasar.
   if (completarPedidoId) {
-    const ofIds = Array.isArray(body.ofIdsPedido)
-      ? body.ofIdsPedido.filter((x): x is string => typeof x === "string" && x.length > 0)
-      : [];
-    encolarFinalizacion(ofIds, operarioId);
+    encolarFinalizacion(ofIdsPedido ?? [], operarioId);
   }
   return NextResponse.json({ ok: true });
 }

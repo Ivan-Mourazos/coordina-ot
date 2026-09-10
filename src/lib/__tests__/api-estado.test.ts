@@ -2,6 +2,11 @@ import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { PEDIDOS } from "../mock";
+
+const { tableroMock, finalizarMock } = vi.hoisted(() => ({ tableroMock: vi.fn(), finalizarMock: vi.fn() }));
+vi.mock("../data", () => ({ getTablero: tableroMock }));
+vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
 const cortarFichajeMock = vi.fn<(ofId: string, ahora: string) => string[]>();
@@ -42,9 +47,49 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  tableroMock.mockReset();
+  finalizarMock.mockReset();
   cortarFichajeMock
     .mockReset()
     .mockImplementation((ofId, ahora) => cortarFichajeReal(ofId, ahora));
+});
+
+test("el servidor rechaza pasar un pedido que sigue por revisar aunque el cliente mande aprobado", async () => {
+  const pedido = { ...PEDIDOS[0], id: "P-no-pasar", ofs: [{ ...PEDIDOS[0].ofs[0], id: "of-no-pasar", estado: "por_revisar" }] };
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [pedido] });
+  const res = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: pedido.id,
+    cambiosOF: [{ ofId: "of-no-pasar", autorId: "ivan", revisorId: "jaime", estado: "aprobada", observacion: null }],
+    ofIdsPedido: [],
+  }) }));
+  expect(res.status).toBe(409);
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(pedido.id)).toBe(false);
+  expect(estadoDb.leerOverlay("ot").ofs.has("of-no-pasar")).toBe(false);
+  expect(finalizarMock).not.toHaveBeenCalled();
+  expect(cortarFichajeMock).not.toHaveBeenCalled();
+});
+
+test("aprobar solo no pasa el pedido y el paso explícito finaliza únicamente sus OF reales", async () => {
+  const ofId = "of-aprobar-y-pasar";
+  const id = "P-aprobar-y-pasar";
+  const aprobacion = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "jaime", seccion: "ot", motivo: "aprobar",
+    cambiosOF: [{ ofId, autorId: "ivan", revisorId: "jaime", estado: "aprobada", observacion: null }],
+  }) }));
+  expect(aprobacion.status).toBe(200);
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(false);
+  expect(finalizarMock).not.toHaveBeenCalled();
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [{ ...PEDIDOS[0], id, ofs: [{ ...PEDIDOS[0].ofs[0], id: ofId, estado: "por_revisar", ajenaOT: false, detenida: false }] }] });
+  const res = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id,
+    ofIdsPedido: ["operacion-ajena"], cortarFichajeDe: ["operacion-ajena"],
+  }) }));
+  expect(res.status).toBe(200);
+  expect(finalizarMock).toHaveBeenCalledWith([ofId], "ivan");
+  expect(cortarFichajeMock).toHaveBeenCalledWith(ofId, expect.any(String));
+  expect(cortarFichajeMock).not.toHaveBeenCalledWith("operacion-ajena", expect.anything());
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(true);
+  expect(estadoDb.leerOverlay("diseno").pedidosCompletados.has(id)).toBe(false);
 });
 
 test("traspasar una OF corta el fichaje que otro tenía sobre ella", async () => {

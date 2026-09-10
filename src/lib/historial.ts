@@ -2,6 +2,8 @@
 // Sin acceso a BD: solo los tipos que comparten API y UI, el constructor de
 // cláusulas de filtro (parametrizadas, NUNCA interpoladas) y el mapeo de fila.
 import { normaliza, palabrasDe } from "./buscador";
+import { FASES, faseDePedido } from "./fases-tablero";
+import type { Pedido } from "./types";
 
 export const PAGE_SIZE = 40;
 
@@ -55,6 +57,8 @@ export const FAMILIAS_FILTRABLES: readonly string[] = [
 ];
 
 export interface HistorialItem {
+  /** Trabajo todavía vivo en la sección seleccionada: no mostrar «Pasado». */
+  estadoActual?: string;
   /** Consulta que RPS ha encontrado, incluso en OFs ausentes de esta cabecera.
    *  Permite al buscador global conservarla solo mientras siga esa consulta. */
   busqueda?: string;
@@ -311,6 +315,11 @@ export function construirFiltros(f: HistorialFiltros): {
   return { clausulas, params };
 }
 
+export function estadoActualHistorial(pedido: Pick<Pedido, "situacion" | "ofs"> | undefined): string | undefined {
+  if (!pedido || pedido.situacion === "completado") return undefined;
+  return FASES.find((fase) => fase.id === faseDePedido(pedido))?.label;
+}
+
 /** Equivalente del filtro de búsqueda para el origen simulado. */
 export function coincideBusquedaHistorial(
   consulta: string,
@@ -544,6 +553,7 @@ export function esImagen(archivo: string): boolean {
 }
 
 export interface HistorialPedidoDetalle {
+  estadoActual?: string;
   codigo: string;
   cliente: string | null;
   negocio: string | null;
