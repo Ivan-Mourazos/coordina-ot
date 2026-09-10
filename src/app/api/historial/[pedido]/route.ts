@@ -20,7 +20,7 @@ export async function GET(
 
   try {
     const seccion = seccionDe(new URL(req.url).searchParams.get("seccion")).id;
-    const [detalle, tablero] = await Promise.all([leerHistorialPedidoDetalle(pedido), getTablero(seccion)]);
+    const [detalle, tablero] = await Promise.all([leerHistorialPedidoDetalle(pedido, seccion), getTablero(seccion)]);
     const estadoActual = estadoActualHistorial(tablero.pedidos.find((p) => p.codigo === pedido));
     return NextResponse.json({ ...detalle, ...(estadoActual ? { estadoActual } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

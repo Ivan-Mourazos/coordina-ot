@@ -19,6 +19,8 @@ export interface HistorialFiltros {
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
   familia?: string;
   cliente?: string;
+  /** Códigos con flujo pendiente en CoordinaOT. Solo los añade el servidor. */
+  pendientes?: readonly string[];
 }
 
 /** Las subfamilias de RPS por las que se puede filtrar el Historial, y que son
@@ -104,6 +106,12 @@ export interface RepartoRol {
 }
 
 export interface HistorialOF {
+  tareas?: Array<{
+    codigo: string;
+    descripcion: string;
+    tiempoImputadoMin: number;
+    personas: RepartoRol[];
+  }>;
   /** El minutaje y los roles de esta entrada pertenecen solo a este centro. */
   centro?: import("./historial-centros").CentroHistorialId;
   /** Reparto de los minutos imputados en RPS, sin deducir roles. */
@@ -111,7 +119,7 @@ export interface HistorialOF {
   codigo: string;
   descripcion: string;
   tiempoImputadoMin: number;
-  quien: string[]; // nombres (operario mapeado o código de empleado)
+  quien: string[]; // nombres y primer apellido, nunca códigos de empleado
 
   /** Desglose planteo/revisión. Solo existe para lo fichado en CoordinaOT: RPS
    *  no tiene tarea de revisión, así que de sus imputaciones no se puede

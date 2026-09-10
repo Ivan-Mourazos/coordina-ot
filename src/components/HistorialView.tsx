@@ -5,10 +5,10 @@ import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Operario, Pedido } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
-import { fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
-import { RolChip } from "./RolChip";
+import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
+import { HistorialTareas } from "./HistorialTareas";
 import { Desplegable } from "./Desplegable";
 import { Select } from "./Select";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
@@ -335,7 +335,7 @@ export function HistorialView({
  *  nuevos y deducido del reparto de horas de RPS en los viejos).
  *
  *  `autores` y `pasadoPor` son cosas distintas y NO se juntan en un mismo
- *  texto: el verbo dice cuál se está leyendo ("Planteó Ana" / "Lo pasó Ana"),
+ *  texto: el verbo dice cuál se está leyendo ("Autor: Ana" / "Lo pasó Ana"),
  *  y el title lo remata. Cuando hay autores, quien lo pasó no desaparece: está
  *  en el title de la fecha, al lado. Dos nombres es un resultado válido —se lo
  *  repartieron a partes iguales—, así que se enseñan los dos. */
@@ -346,9 +346,9 @@ function Autoria({ item }: { item: HistorialItem }) {
     return (
       <span
         className="text-text"
-        title={`Quién lo planteó: ${autores.join(", ")}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
+        title={`Autoría de las tareas: ${autores.join(", ")}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
       >
-        {autores.length > 1 ? "Plantearon" : "Planteó"} {visibles.join(" y ")}
+        {autores.length > 1 ? "Autores:" : "Autor:"} {visibles.join(" y ")}
         {autores.length > 2 && ` +${autores.length - 2}`}
       </span>
     );
@@ -367,15 +367,7 @@ function Autoria({ item }: { item: HistorialItem }) {
   return <span className="italic">sin autor</span>;
 }
 
-/** Una fila del historial: la barra entera DESPLIEGA sus OFs, y el detalle
- *  completo se abre con un botón propio.
- *
- *  Antes era al revés —la barra abría el drawer y solo la flecha desplegaba— y
- *  eso choca con la Lista, donde pulsar la fila despliega. Quien venía de la
- *  Lista pulsaba el pedido esperando ver sus OF y le saltaba el drawer encima.
- *  El detalle sigue haciendo falta (ahí van a ir los documentos y las reservas
- *  de material), así que tiene botón propio: rotulado, siempre visible y en el
- *  tabulador. En un hover no se encontraría, y con el teclado no se llegaría. */
+/** El nombre abre la ficha; la flecha izquierda despliega las OF compactas. */
 function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen: (pedido: string) => void; seccion: SeccionId }) {
   const [desplegado, setDesplegado] = useState(false);
   const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
@@ -392,7 +384,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
     setCargando(true);
     setError(false);
     try {
-      const r = await fetch(`/api/historial/${item.pedido}`, { cache: "no-store" });
+      const r = await fetch(`/api/historial/${item.pedido}?seccion=${seccion}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       const d = (await r.json()) as { ofs: HistorialOF[] };
       setOfs(d.ofs);
@@ -401,11 +393,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
     } finally {
       setCargando(false);
     }
-  }, [desplegado, ofs, cargando, item.pedido]);
-
-  // La lista conserva una línea por OF de la sección, como antes. El trabajo
-  // de los demás centros y los materiales se consultan en la ficha del pedido.
-  const ofsSeccion = ofs?.filter((of) => (of.centro ?? "ot") === seccion);
+  }, [desplegado, ofs, cargando, item.pedido, seccion]);
 
   // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
   // es cuando OLANET registró el cambio y puede ir por detrás.
@@ -448,11 +436,11 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
         </button>
         {/* Sin `aria-label`: todo lo que se lee de la fila (código, cliente,
             OFs, fecha) vive dentro de este botón y es su nombre accesible;
-            ponerle una etiqueta lo taparía entero. El estado lo da aria-expanded. */}
+            ponerle una etiqueta lo taparía entero. */}
         <button
           type="button"
-          onClick={alternar}
-          aria-expanded={desplegado}
+          onClick={() => onOpen(item.pedido)}
+          title="Abrir la ficha del pedido"
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
         >
           <span className={`size-2.5 shrink-0 rounded-full ${item.estadoActual ? "bg-amber-500" : "bg-cyan-600"}`} />
@@ -478,11 +466,11 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
               ? <span className="font-semibold text-amber-700 dark:text-amber-300" title="Estado actual en la sección seleccionada">{item.estadoActual}</span>
               : item.pasadoAt || item.finalizada
                 ? <span title={tituloPasado}>Pasado{item.busqueda && item.fechaPedido ? "" : ` ${pasado.corta}`}</span>
-                : <span>Sin paso registrado</span>}
+                : <span>Finalizado · sin fecha registrada</span>}
             <Autoria item={item} />
           </span>
         </button>
-        {/* El detalle completo, ahora que la barra despliega.
+        {/* Acceso alternativo a la ficha completa.
             Rotulado SOLO al pasar por encima: repetido en las 40 filas de la
             página, "Ver detalle" formaba una columna de texto que pesaba más
             que los datos del pedido. El icono se queda siempre (para saber que
@@ -512,32 +500,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
         <div className="border-t border-border px-4 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {ofsSeccion?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OF de esta sección. Puedes consultar los demás centros en la ficha del pedido.</p>}
-          <ul className="space-y-1.5">
-            {ofsSeccion?.map((of) => (
-              <li key={of.codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="font-mono font-semibold text-text">{of.codigo}</span>
-                <span className="min-w-0 flex-1 truncate text-text-muted" title={of.descripcion}>{of.descripcion}</span>
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
-                  {fmtMin(of.tiempoImputadoMin)}
-                </span>
-                {of.rol && (
-                  <span className="flex gap-1.5">
-                    <RolChip
-                      rol="plantear"
-                      min={of.rol.planteoMin}
-                      quien={of.rol.planteo.map((p) => p.nombre)}
-                    />
-                    <RolChip
-                      rol="revisar"
-                      min={of.rol.revisionMin}
-                      quien={of.rol.revision.map((p) => p.nombre)}
-                    />
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {ofs && <><HistorialTareas ofs={ofs} seccion={seccion} /><HistorialOFsCompactas ofs={ofs} seccion={seccion} /></>}
         </div>
       </Desplegable>
     </div>

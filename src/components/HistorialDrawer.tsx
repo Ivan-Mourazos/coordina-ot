@@ -14,6 +14,7 @@ import { FamiliaTag } from "./FamiliaTag";
 import { NotasPedido } from "./NotasPedido";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosRps, contarAbribles } from "./DocumentosRps";
+import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { agruparCentros } from "@/lib/historial-centros";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
@@ -311,6 +312,7 @@ export function HistorialDrawer({
                 <DocumentosRps documentos={detalle.documentos} />
               </Bloque>
 
+              <HistorialTareas ofs={detalle.ofs} seccion={seccion} />
               <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
             </>
           )}

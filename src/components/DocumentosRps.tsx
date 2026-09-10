@@ -20,14 +20,10 @@ import { VisorDocumento, type DocumentoAbrible } from "./VisorDocumento";
 // es uno POR OF, así que un pedido de 12 OFs trae 12 "Adjunto OF …" seguidos y
 // entre ellos se pierde el planteamiento, que es lo que se venía a buscar.
 
-/** Orden en el que se enseñan las clases de documento.
- *
- *  No es alfabético a propósito: va del trabajo de Oficina Técnica hacia fuera
- *  —planteamiento y diseño primero, luego el papeleo de venta, y al final lo de
- *  taller—, que es el orden en el que se busca cuando se abre un pedido.
- *  Lo que no esté aquí (clase "Documento" y lo que RPS se invente mañana) cae al
- *  final, sin perderse. */
+/** Fotos primero, después documentos técnicos y administrativos.
+ *  Todas las clases empiezan plegadas. Las desconocidas quedan al final. */
 const ORDEN_CLASES = [
+  "Fotos",
   "Planteamiento",
   "Diseño",
   "Presupuesto",
@@ -35,16 +31,10 @@ const ORDEN_CLASES = [
   "Pedido escaneado",
   "Remates",
   "Rotulación",
-  "Foto del trabajo",
   "Etiquetas",
   "Hoja de almacén",
   "Adjunto de la OF",
   "Mantenimiento (SAT)",
-  // Lo último: son de después de fabricar. Quien abre un pedido para trabajarlo
-  // busca el planteamiento, no la foto del toldo ya puesto — pero cuando lo que
-  // busca es "cómo quedó aquello", están.
-  "Fotos de la visita",
-  "Fotos de la instalación",
 ];
 
 export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
@@ -60,16 +50,11 @@ export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
   return (
     <>
       <div className="space-y-1.5">
-        {grupos.map(([clase, suyos], i) => (
+        {grupos.map(([clase, suyos]) => (
           <Grupo
             key={clase}
             clase={clase}
             documentos={suyos}
-            // Solo el primer grupo nace abierto. El orden ya pone delante lo
-            // que se viene a buscar (planteamiento, diseño), y así el bloque
-            // entero cabe de un vistazo en vez de empujar lo de abajo sesenta
-            // líneas. El resto, a un clic.
-            inicialAbierto={i === 0}
             onAbrir={(doc) => setEnVisor(abribles.indexOf(doc))}
           />
         ))}
@@ -131,9 +116,10 @@ function agrupar(documentos: DocumentoRps[]) {
       sinFichero++;
       continue;
     }
-    const suyos = porClase.get(d.clase) ?? [];
+    const clase = /^Fotos?\b/i.test(d.clase) || (d.clase === "Mantenimiento (SAT)" && /\.(?:jpe?g|png|gif|webp|bmp|heic|tiff?)$/i.test(d.archivo)) ? "Fotos" : d.clase;
+    const suyos = porClase.get(clase) ?? [];
     suyos.push(d);
-    porClase.set(d.clase, suyos);
+    porClase.set(clase, suyos);
   }
   for (const suyos of porClase.values()) ordenarPorVersion(suyos);
   const grupos = [...porClase.entries()].sort((a, b) => {
@@ -180,15 +166,13 @@ function ordenarPorVersion(docs: DocumentoAbrible[]): void {
 function Grupo({
   clase,
   documentos,
-  inicialAbierto,
   onAbrir,
 }: {
   clase: string;
   documentos: DocumentoAbrible[];
-  inicialAbierto: boolean;
   onAbrir: (doc: DocumentoAbrible) => void;
 }) {
-  const [abierto, setAbierto] = useState(inicialAbierto);
+  const [abierto, setAbierto] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-lg ring-1 ring-[var(--glass-border)]">

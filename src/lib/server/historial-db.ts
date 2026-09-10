@@ -2,6 +2,9 @@ import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, t
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
 import { fotosDeVisita } from "./fotos-visita";
+import { ctesFinalizacionHistorial } from "./historial-finalizacion-sql";
+import { nombresHistorial } from "./nombres-historial";
+import { nombreHistorial } from "../nombre-historial";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
@@ -9,7 +12,7 @@ import { familiaDeTexto } from "./rps";
 import { partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
-import { estaFinalizado } from "../types";
+import { esCodigoPedido, estaFinalizado } from "../types";
 import {
   PAGE_SIZE,
   aMaterialOF,
@@ -33,11 +36,12 @@ import {
 } from "../historial";
 
 // ─── Historial permanente: acceso a RPS (solo lectura) ───────────────────────
-// Señal de finalización: tgm_estadosof_olanet.idestadoof=3, agrupado por pedido.
-// Paginación OFFSET/FETCH (validada: <1 s incluso en profundidad). En modo mock
+// Cierre de todas las tareas de la sección; sin tareas propias, de todas.
+// Paginación OFFSET/FETCH después de excluir pendientes. En modo mock
 // se sirve un historial derivado de los pedidos mock, para desarrollo sin BD.
 
 const ES_MOCK = process.env.DATASOURCE !== "rps";
+const textoXml = (texto: string) => texto.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
 /** Rescate de lo que Oficina Técnica terminó pero nunca dijo que terminaba.
  *
@@ -84,61 +88,36 @@ export async function leerHistorialPagina(
   if (ES_MOCK) return paginaMock(f);
 
   const { clausulas, params } = construirFiltros(f);
-  // Buscar antes de agregar el histórico: incluye ventas sin OF y evita
-  // calcular todos sus tiempos/fechas para descartar casi todos después.
-  const busqueda = f.q?.trim() ? clausulas[0] : undefined;
+  // Buscar antes de agregar el histórico. El cierre se exige también al buscar.
+  const codigoExacto = f.q?.trim().toUpperCase();
+  const busqueda = codigoExacto && esCodigoPedido(codigoExacto) ? "o.CodOrder=@pedidoExacto" : f.q?.trim() ? clausulas[0] : undefined;
   const otrosFiltros = busqueda ? clausulas.slice(1) : clausulas;
-  const where = otrosFiltros.length ? `WHERE ${otrosFiltros.join(" AND ")}` : "";
   const off = Math.max(0, f.page) * PAGE_SIZE;
 
   const pool = await getPool();
   const req = pool.request();
   for (const p of params) req.input(p.nombre, p.valor);
+  if (codigoExacto && esCodigoPedido(codigoExacto)) req.input("pedidoExacto", codigoExacto);
+  req.input("pendientes", `<pedidos>${(f.pendientes ?? []).map((codigo) => `<p>${textoXml(codigo)}</p>`).join("")}</pedidos>`);
   req.input("off", off);
   req.input("size", PAGE_SIZE + 1); // una fila extra para saber si hay más
 
   // Cuándo lo pasamos NOSOTROS a Producción, para poder ordenar por eso.
   const pasados = pasadosParaOrden(req, seccionDe(f.seccion).id);
+  const cierre = `((p.tiene_seccion=1 AND (p.pendiente_seccion=0 OR ${pasados.columna} IS NOT NULL)) OR (p.tiene_seccion=0 AND p.pendiente_total=0))`;
+  const where = `WHERE ${[cierre, ...otrosFiltros].join(" AND ")}`;
 
   const r = await req.query<FilaPagina>(`
-    ;WITH FinOT AS (
-      SELECT orden, MAX(fin) AS fin FROM (
-        -- Lo normal: la fase de OT registró su "fin" (idestadoof = 3).
-        SELECT e.orden, e.fecha_cambio AS fin
-        FROM dbo.tgm_estadosof_olanet e
-        WHERE e.idestadoof = 3
-
-        UNION ALL
-
-        ${RESCATE_SIN_FIN_DE_FASE}
-      ) u
-      GROUP BY orden
-    ),
-    PedFin AS (
-      SELECT o.CodOrder AS pedido, MAX(f.fin) AS finalizada,
-             MAX(o.OrderDate) AS fecha_pedido,
-             MAX(o.IDCustomer) AS idc,
-             MAX(o.IDCustomerDeliveryAddress) AS idd,
-             COUNT(DISTINCT mo.IDManufacturingOrder) AS n_of
-      FROM dbo.FACOrderSL o
-      ${busqueda ? "LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer" : ""}
-      LEFT JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-      LEFT JOIN dbo.CPRManufacturingOrder mo
-        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
-      LEFT JOIN FinOT f ON f.orden = mo.CodManufacturingOrder
-      WHERE o.CodCompany = '001'
-        ${busqueda ? `AND ${busqueda.replaceAll("p.pedido", "o.CodOrder")}` : ""}
-      GROUP BY o.CodOrder
-      ${f.q?.trim() ? "" : "HAVING MAX(f.fin) IS NOT NULL"}
-    )
+    ${ctesFinalizacionHistorial(seccionDe(f.seccion).id, busqueda)}
     ${pasados.cte}
     SELECT p.pedido, p.finalizada, p.fecha_pedido, p.n_of, cli.Description AS cliente,
            d.Description AS negocio
     FROM PedFin p
-    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = p.idc
+    JOIN dbo.FACOrderSL cab ON cab.CodOrder=p.pedido AND cab.CodCompany='001'
+    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = cab.IDCustomer
     -- Negocio/local de entrega: misma tabla y mismo join que la cabecera del
     -- detalle, para que la lista y el pedido abierto digan lo mismo.
-    LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = p.idd
+    LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = cab.IDCustomerDeliveryAddress
     ${pasados.join}
     ${where}
     -- Al buscar manda la fecha del pedido (también se muestra), no su cierre.
@@ -151,11 +130,16 @@ export async function leerHistorialPagina(
     -- lado otra.
     ORDER BY ${f.q?.trim() ? "p.fecha_pedido" : `COALESCE(${pasados.columna}, p.finalizada)`} DESC, p.pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
+    ;IF OBJECT_ID('tempdb..#CoordinaHistorialOrdenes') IS NOT NULL DROP TABLE #CoordinaHistorialOrdenes;
+    IF OBJECT_ID('tempdb..#CoordinaHistorialPedidos') IS NOT NULL DROP TABLE #CoordinaHistorialPedidos;
+    DROP TABLE #CoordinaHistorialPendientes;
+    DROP TABLE #CoordinaHistorialFinalizados;
   `);
 
   const filas = r.recordset;
+  const nombres = await nombresHistorial();
   const hasMore = filas.length > PAGE_SIZE;
-  const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id));
+  const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id, nombres));
 
   // Autores y familias se resuelven para la página ENTERA de una vez (ver
   // `extrasDePagina`): una query por pedido serían 40 idas y vueltas.
@@ -176,6 +160,8 @@ export async function leerHistorialPagina(
 interface FilaExtra {
   tarea: string | null;
   descripcionTarea: string | null;
+  centro: "ot" | "diseno" | "taller";
+  nombreEmpleado: string | null;
   pedido: string | null;
   orden: string | null;
   descripcion: string | null;
@@ -190,35 +176,16 @@ interface FilaExtra {
   subfamilia: string | null;
 }
 
-/** Lo que la lista necesita de cada pedido y no cabe en la query de página:
- *  quién lo planteó y de qué familias es.
- *
- *  AUTORES, dos fuentes por orden de preferencia:
- *   1. El autor REGISTRADO en CoordinaOT, cuando el pedido se planteó ya con la
- *      web. Es un dato, no una suposición, y manda siempre.
- *   2. Para los anteriores, el reparto de minutos de RPS: quien más tiempo le
- *      echó al pedido es quien lo planteó, y si hay empate van los dos (mismo
- *      criterio y mismo umbral que el detalle — ver `repartirPorTiempo`).
- *
- *  El minutaje se agrega por PEDIDO, no por OF como en el detalle: lo que se
- *  pide fuera es "quién hizo este pedido", y un pedido de 11 OFs lo suele
- *  plantear una persona aunque otra le metiera mano a una OF suelta.
- *
- *  FAMILIAS: `familiaDeTexto` sobre la descripción de las OF, la misma función
- *  y el mismo conjunto de OFs (las de OT) que usa el detalle. Van aquí y no en
- *  la query de página porque la página agrupa por las órdenes YA TERMINADAS y
- *  el detalle mira todas las de OT: si se sacaran de sitios distintos, un
- *  pedido podría enseñar una familia fuera y otra dentro.
- *
- *  UNA sola query para los 40 pedidos de la página, no una por pedido. Medido
- *  en vivo contra RPS (08/2026, páginas 0, 5 y 15, media de 3 pasadas):
- *  113-135 ms, frente a los ~550-640 ms que ya cuesta la query de la página. */
+/** Autoría de las tareas de la sección seleccionada; sin tareas propias,
+ *  de los demás centros. Prefiere el autor registrado en CoordinaOT y recurre
+ *  al reparto de RPS para el histórico. Una sola consulta por página. */
 async function extrasDePagina(
   pedidos: string[],
   seccion: SeccionId,
 ): Promise<Map<string, { autores: string[]; familias: string[] }>> {
   const salida = new Map<string, { autores: string[]; familias: string[] }>();
   if (pedidos.length === 0) return salida;
+  const nombres = await nombresHistorial();
 
   const pool = await getPool();
   const req = pool.request();
@@ -239,7 +206,10 @@ async function extrasDePagina(
     SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
            mo.Description AS descripcion, t.CodMOTask AS tarea, t.Description AS descripcionTarea,
            cli.Description AS cliente, sf.CodProductSubFamily AS subfamilia,
-           e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+           e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos,
+           CASE WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.ot)})) THEN 'ot'
+                WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.diseno)})) THEN 'diseno'
+                ELSE 'taller' END AS centro
     FROM dbo.FACOrderSL o
     JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
     JOIN dbo.CPRManufacturingOrder mo
@@ -257,12 +227,8 @@ async function extrasDePagina(
       AND i.ResourceType = 1
     LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
     WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})
-      AND EXISTS (
-        SELECT 1 FROM dbo.CPRMOResourceMachine rm
-        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES[seccion])})
-      )
-    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, t.CodMOTask, t.Description,
-             cli.Description, sf.CodProductSubFamily, e.CodEmployee
+    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, t.IDMOTask, t.CodMOTask, t.Description,
+             cli.Description, sf.CodProductSubFamily, e.CodEmployee, e.Description
   `);
 
   // Por pedido: minutos de cada persona, qué órdenes lo componen (las órdenes
@@ -270,10 +236,12 @@ async function extrasDePagina(
   const minutos = new Map<string, Map<string, number>>();
   const ordenes = new Map<string, Set<string>>();
   const familias = new Map<string, Set<string>>();
-  for (const fila of r.recordset) {
+  const filasExtras = r.recordset.map((fila) => ({ ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea) }));
+  const conSeccion = new Set(filasExtras.filter((fila) => fila.centro === seccion).map((fila) => fila.pedido?.trim()));
+  for (const fila of filasExtras) {
     const pedido = (fila.pedido ?? "").trim();
     if (!pedido) continue;
-    if (centroDeTareaHistorial(seccion, fila.descripcionTarea) !== seccion) continue;
+    if (conSeccion.has(pedido) && fila.centro !== seccion) continue;
 
     const orden = (fila.orden ?? "").trim();
     if (orden) {
@@ -297,14 +265,14 @@ async function extrasDePagina(
     if (!fila.empleado) continue; // OF sin imputaciones: solo aporta su orden
     const codEmpleado = fila.empleado.trim();
     const idOperario = operarioDeEmpleado(codEmpleado);
-    const nombre = (idOperario && NOMBRE_POR_OPERARIO.get(idOperario)) || codEmpleado;
+    const nombre = nombres.get(codEmpleado) || (idOperario && nombres.get(idOperario)) || nombreHistorial(fila.nombreEmpleado);
     if (!nombre) continue;
     const porPersona = minutos.get(pedido) ?? new Map<string, number>();
     porPersona.set(nombre, (porPersona.get(nombre) ?? 0) + (fila.minutos ?? 0));
     minutos.set(pedido, porPersona);
   }
 
-  const registrados = autoresRegistrados();
+  const registrados = autoresRegistrados(nombres);
   for (const pedido of pedidos) {
     const deLaWeb = [
       ...new Set([...(ordenes.get(pedido) ?? [])].flatMap((o) => registrados.get(o) ?? [])),
@@ -325,11 +293,13 @@ async function extrasDePagina(
  *  que se conservan ambas claves para no mezclar autores entre secciones. Se lee
  *  entero de una vez — son pocas filas y vive en SQLite, igual que en
  *  `pasadosAt`, así que no compensa filtrar por ids. */
-function autoresRegistrados(): Map<string, string[]> {
+function autoresRegistrados(nombres: ReadonlyMap<string, string>): Map<string, string[]> {
   const porOrden = new Map<string, string[]>();
   let overlay;
   try {
-    overlay = leerOverlay();
+    const ot = leerOverlay("ot");
+    const diseno = leerOverlay("diseno");
+    overlay = { ofs: new Map([...ot.ofs, ...diseno.ofs]) };
   } catch (e) {
     // Como en `anadirDesgloseRol`: el historial vive de RPS, y si nuestra BD
     // local falla se sirve sin autor antes que devolver un error.
@@ -340,9 +310,8 @@ function autoresRegistrados(): Map<string, string[]> {
     if (!cambio.autorId) continue;
     const partes = partirOfId(ofId);
     if (!partes) continue;
-    // Si el id no está en el catálogo se enseña tal cual: mejor un id crudo que
-    // perder de vista quién fue (mismo criterio que `anadirPasadoAt`).
-    const nombre = NOMBRE_POR_OPERARIO.get(cambio.autorId) ?? cambio.autorId;
+    const nombre = nombres.get(cambio.autorId);
+    if (!nombre) continue; // Si no lo conocemos, se resolverá por la imputación de RPS.
     const clave = claveTareaHistorial(partes.of, partes.numope);
     const suyos = porOrden.get(clave) ?? [];
     if (!suyos.includes(nombre)) suyos.push(nombre);
@@ -489,6 +458,7 @@ async function leerMaterialesPedido(
 
 export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]> {
   if (ES_MOCK) return detalleMock(pedido);
+  const nombres = await nombresHistorial();
 
   const pool = await getPool();
   // Clasificar la TAREA antes de sumar. EXISTS no multiplica las imputaciones
@@ -518,13 +488,13 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
         )
       )
       SELECT t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea,
-             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+             e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos
       FROM Tareas t
       LEFT JOIN dbo.CPRImputationMO i
         ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = t.IDManufacturingOrder
         AND i.ResourceType = 1
       LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, e.CodEmployee
+      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, e.CodEmployee, e.Description
     `),
     leerMaterialesPedido(pedido),
   ]);
@@ -532,9 +502,11 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   const filas = r.recordset.map((fila) => ({
     ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea ?? null),
   }));
+  const nombresRps = new Map(filas.filter((f) => f.empleado?.trim() && f.nombreEmpleado?.trim())
+    .map((f) => [f.empleado!.trim(), f.nombreEmpleado!.trim()]));
   const ofs = agruparTiemposPorCentro(filas, (codigo) => {
     const id = operarioDeEmpleado(codigo);
-    return (id && NOMBRE_POR_OPERARIO.get(id)) || codigo;
+    return nombres.get(codigo) || (id && nombres.get(id)) || nombreHistorial(nombresRps.get(codigo));
   });
   // Los roles locales se sumaban por OF entera: con dos secciones en una OF,
   // eso atribuiría también el fichaje de Diseño al bloque de OT (y viceversa).
@@ -543,7 +515,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     const tareas = new Set(filas
       .filter((f) => f.centro === centro && f.orden && f.tarea)
       .map((f) => claveTareaHistorial(f.orden!, f.tarea!)));
-    const conRoles = anadirDesgloseRol(ofs.filter((of) => of.centro === centro), tareas);
+    const conRoles = anadirDesgloseRol(ofs.filter((of) => of.centro === centro), tareas, nombres);
     for (const of of conRoles) {
       const index = ofs.findIndex((o) => o.centro === centro && o.codigo === of.codigo);
       ofs[index] = deducirRoles(of, new Map(of.personas?.map((p) => [p.nombre, p.min])));
@@ -764,58 +736,34 @@ export function deducirRoles(
 /** Sella el item con la hora a la que se pulsó "pasar a Producción" en
  *  CoordinaOT, si fue desde aquí. Se lee una vez por página; son pocas filas y
  *  vive en SQLite, así que no compensa filtrar por ids. */
-function anadirPasadoAt(item: HistorialItem, seccion: SeccionId): HistorialItem {
+function anadirPasadoAt(item: HistorialItem, seccion: SeccionId, nombres: ReadonlyMap<string, string> = NOMBRE_POR_OPERARIO): HistorialItem {
   const paso = pasadosAt(seccion).get(item.pedido);
   if (!paso) return item;
-  const nombre = paso.operarioId ? NOMBRE_POR_OPERARIO.get(paso.operarioId) : undefined;
+  const nombre = paso.operarioId ? nombres.get(paso.operarioId) : undefined;
   return {
     ...item,
     pasadoAt: paso.at,
-    // Si el id no está en el catálogo se enseña tal cual: mejor un id crudo
-    // que perder la información de quién fue.
-    ...(paso.operarioId ? { pasadoPor: nombre ?? paso.operarioId } : {}),
+    ...(paso.operarioId ? { pasadoPor: nombre ?? "Nombre no disponible" } : {}),
   };
 }
 
-/** Cuántos pedidos pasados se llevan al SQL para poder ordenar por su fecha.
- *
- *  Cada uno gasta dos parámetros y SQL Server admite 2100 por consulta; con el
- *  resto de filtros de la pantalla, 900 deja sitio de sobra. Los que se queden
- *  fuera son los MÁS ANTIGUOS y caen al orden por `finalizada`, que para un
- *  pedido viejo es la misma fecha o casi: lo que importa es que los recientes
- *  —los que se miran— salgan donde toca. */
-const MAX_PASADOS_EN_ORDEN = 900;
-
-/** La tabla de "cuándo lo pasamos" para meterla en la consulta del historial.
- *
- *  Va como VALUES y no como tabla porque las dos fechas viven en bases
- *  distintas: `finalizada` en RPS (SQL Server) y `pasado_at` en la nuestra
- *  (SQLite). Sin esto no hay forma de ordenar por las dos a la vez.
- *
- *  Con la lista vacía —una instalación recién estrenada, o RPS respondiendo y
- *  nuestra base no— devuelve un COALESCE de un NULL tipado y la consulta sigue
- *  funcionando exactamente como antes. */
+/** Lleva las fechas de paso de SQLite a SQL Server en un solo parámetro XML.
+ *  Conserva también los pasos antiguos, sin el límite de 2100 parámetros. */
 function pasadosParaOrden(req: {
   input: (nombre: string, valor: unknown) => unknown;
 }, seccion: SeccionId): { cte: string; join: string; columna: string } {
-  const pasados = [...pasadosAt(seccion).entries()]
-    .sort((a, b) => b[1].at.localeCompare(a[1].at))
-    .slice(0, MAX_PASADOS_EN_ORDEN);
+  const pasados = [...pasadosAt(seccion).entries()];
 
   if (pasados.length === 0) {
     return { cte: "", join: "", columna: "CAST(NULL AS datetime2)" };
   }
 
-  const filas = pasados.map(([pedido, paso], i) => {
-    req.input(`pp${i}`, pedido);
-    // ISO completo: `CONVERT(..., 127)` es el formato con la T y la Z, que es
-    // justo como lo guarda SQLite (`new Date().toISOString()`).
-    req.input(`pa${i}`, paso.at);
-    return `(@pp${i}, CONVERT(datetime2, @pa${i}, 127))`;
-  });
+  req.input("pasadosXml", `<pasos>${pasados.map(([pedido, paso]) => `<p pedido="${textoXml(pedido)}" at="${textoXml(paso.at)}"/>`).join("")}</pasos>`);
 
   return {
-    cte: `, Pasados(pedido, at) AS (SELECT * FROM (VALUES ${filas.join(",")}) v(pedido, at))`,
+    cte: `, Pasados AS (SELECT p.n.value('@pedido','nvarchar(25)') AS pedido,
+      CONVERT(datetime2,p.n.value('@at','varchar(40)'),127) AS at
+      FROM (SELECT CAST(@pasadosXml AS xml) lista) x CROSS APPLY x.lista.nodes('/pasos/p') p(n))`,
     join: "LEFT JOIN Pasados ps ON ps.pedido = p.pedido",
     columna: "ps.at",
   };
@@ -842,7 +790,7 @@ function pasadosAt(seccion: SeccionId): Map<string, PasoAProduccion> {
  *  intervalos van por OF+tarea ("orden:codTarea"), así que se suman las tareas
  *  de la misma orden. Las OFs sin intervalos se quedan sin `rol`: no se sabe
  *  el desglose, que no es lo mismo que decir que la revisión fue cero. */
-function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>): HistorialOF[] {
+function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>, nombres: ReadonlyMap<string, string>): HistorialOF[] {
   if (ofs.length === 0) return ofs;
 
   let porOfId;
@@ -885,7 +833,7 @@ function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>): His
     porOrden.set(partes.of, acc);
   }
 
-  const nombre = (id: string) => NOMBRE_POR_OPERARIO.get(id) ?? id;
+  const nombre = (id: string) => nombres.get(id) ?? "Nombre no disponible";
   // De más tiempo a menos: en un rol repartido, lo primero que se busca es
   // quién lleva el peso.
   const reparto = (m: Map<string, number>) =>
@@ -914,6 +862,7 @@ function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>): His
  *  para no acoplar cabecera y detalle de OFs. */
 export async function leerHistorialPedidoDetalle(
   pedido: string,
+  seccion: SeccionId = "ot",
 ): Promise<HistorialPedidoDetalle> {
   const ofs = await leerHistorialPedido(pedido); // ya respeta mock/rps
   if (ES_MOCK) return detalleCabeceraMock(pedido, ofs);
@@ -955,25 +904,14 @@ export async function leerHistorialPedidoDetalle(
   ).recordset[0] ?? { prioridad: null, piezas: null };
 
   const fin = (
-    await pool.request().input("pedido", pedido).query<{ finalizada: Date | null }>(`
-      -- Las mismas dos fuentes que la lista (ver RESCATE_SIN_FIN_DE_FASE): si
-      -- no, un pedido rescatado salía en el Historial y al abrirlo decía que no
-      -- tenía fecha de finalización.
-      ;WITH FinOT AS (
-        SELECT e.orden, e.fecha_cambio AS fin
-        FROM dbo.tgm_estadosof_olanet e
-        WHERE e.idestadoof = 3
-
-        UNION ALL
-
-        ${RESCATE_SIN_FIN_DE_FASE}
-      )
-      SELECT MAX(f.fin) AS finalizada
-      FROM FinOT f
-      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder = f.orden AND mo.CodCompany='001'
-      WHERE EXISTS (
-        SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
-        WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
+    await pool.request().input("pedido", pedido).input("pendientes", "<pedidos/>")
+      .query<{ finalizada: Date | null }>(`
+      ${ctesFinalizacionHistorial(seccion, "o.CodOrder=@pedido")}
+      SELECT finalizada FROM PedFin;
+      DROP TABLE #CoordinaHistorialOrdenes;
+      DROP TABLE #CoordinaHistorialPedidos;
+      DROP TABLE #CoordinaHistorialPendientes;
+      DROP TABLE #CoordinaHistorialFinalizados;
     `)
   ).recordset[0]?.finalizada ?? null;
 
@@ -1048,6 +986,8 @@ function pedidosFinalizadosMock(): HistorialItem[] {
 
 function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: boolean } {
   let todos = pedidosFinalizadosMock();
+  const pendientes = new Set(f.pendientes ?? []);
+  todos = todos.filter((p) => !pendientes.has(p.pedido));
   const q = f.q?.trim();
   if (q)
     todos = todos.filter(

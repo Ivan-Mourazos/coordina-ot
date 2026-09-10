@@ -23,10 +23,9 @@ Corregido:
 - El servidor rechaza pasar si queda trabajo pendiente; obtiene las OF del
   pedido real y no permite aprobar y pasar en la misma petición.
 - El navegador espera la confirmación del servidor antes de sacar el pedido.
-- **Decisión de Iván:** los pedidos activos siguen visibles en el Historial,
-  indicando «Esperando revisión», «Listo para pasar», etc., en vez de «Pasado».
-  La ficha también muestra su estado y no ofrece reparar cierres mientras
-  quede trabajo vivo.
+- **Decisión inicial, sustituida por el punto 9:** se mostraban activos con su
+  estado pendiente. Iván ha pedido después excluirlos del Historial. La ficha
+  sigue mostrando el estado vivo y no ofrece reparar cierres pendientes.
 
 Migración **8**: crea `pedido_paso_seccion`. Las marcas antiguas no guardaban
 sección: se atribuyen a la sección del firmante (inferencia para datos antiguos;
@@ -208,7 +207,10 @@ tanto en la caja del Historial como en la lupa de la cabecera.
 - [x] Fotos optimizadas en código, **pendiente de despliegue**. `tgm_monitorizacion` es una **vista**, no una tabla donde pedir ese índice. El aviso tiene `IDPedidoVenta`: ahora se consulta el pedido concreto por esa relación, sin calcularlo desde la ruta del PDF ni cargar todas las asistencias. Sin cambios en RPS ni dependencia de IT. Comparación completa: 19.049 referencias en ambas rutas, sin referencias exclusivas. Consulta definitiva por pedido: 81–270 ms frente a 2,26 s de la carga global anterior, medición local contra RPS. Caché por pedido de 5 min, máximo 200 pedidos y una carga simultánea por código. Verificación con pedidos con fotos y sin ellas, manteniendo visita/instalación y orden estable.
 - [x] `.claude/skills/dominio-ot/SKILL.md` actualizado: login instalado pero apagado, identidad de navegador frente a sesión, alcance real de protección y activación separada. Guía de despliegue corregida: `.env` en producción, `.env.local` en desarrollo, migración 8 ya instalada. **No se ha activado el login.**
 
-### Botón de pasar tras aprobar — pendiente de despliegue
+### Botón de pasar tras aprobar — DESPLEGADO
+
+Iván confirmó el despliegue de `4d25fd9` el 10/09, incluidos este arreglo,
+las fotos por pedido y las novedades.
 
 Iván detectó que el revisor también veía «Pasar a Producción». La ficha solo
 comprobaba que el pedido estuviera listo. Ahora exige que quien pulsa sea un
@@ -250,6 +252,55 @@ con la salida de la terminal del servidor.
   «Volver arriba» lleva texto y queda sobre el reloj; comprobado en navegador.
 - Validación: 965 tests, TypeScript y lint limpios. Las comprobaciones locales
   usan otra SQLite; no se han modificado fichajes ni pedidos de producción.
+
+---
+
+## 9. Historial completo y documentos compactos — pendiente de despliegue
+
+Criterio definitivo de Iván (sustituye la visibilidad de pendientes del punto 0
+y la búsqueda de pedidos sin finalizar descrita en el punto 8):
+
+- En OT entra el pedido cuando acaba su trabajo de OT; en Diseño, el de Diseño.
+  Si no tiene tareas de la sección seleccionada, deben cerrar las demás tareas.
+  Aprobar en CoordinaOT sigue sin equivaler a Pasar: los pedidos vivos del tablero
+  se excluyen **antes de paginar**, también al buscar. Un paso antiguo no oculta
+  una reapertura. Las OF paradas de un pedido pasado no invalidan ese paso.
+- Se muestran **todas las OF**, una fila compacta por código, con sus centros y
+  tiempos. AR.26.04413 / OF 0231922: Taller, ADAPTAR LONA CLIENTE, **34 minutos**.
+  Contrastado con RPS: Silvia Lopez 12 y Jose Manuel Sanchez 22; sin tiempo de OT.
+- Autor de la sección cuando tiene tareas propias; de los demás centros cuando
+  no las tiene. Catálogo RPS: nombres y primer apellido, incluidos nombres
+  compuestos; no se sustituyen nombres desconocidos por códigos de operario.
+- El nombre del pedido abre la ficha; solo la flecha izquierda despliega las OF.
+- «Tareas y tiempos» en la lista desplegada y en la ficha: tareas, centros y
+  totales de RPS. Personas solo en la sección seleccionada. Escape cierra el
+  desglose sin cerrar la ficha. El reloj local no se suma a los minutos de RPS.
+- Documentos RPS: todos los grupos empiezan plegados. Fotos de visita,
+  instalación, trabajo y las imágenes del SAT se reúnen en **Fotos**, primero.
+  Los partes PDF del SAT conservan su grupo. Las URL originales no cambian.
+
+Validación: **981 tests / 84 archivos**, lint y tipos correctos; compilación
+correcta (aviso de Turbopack sobre trazado de archivos desde next.config.ts).
+Navegador local con RPS real: OF 0231922 visible en OT, autoría con primer apellido,
+abrir desde nombre, tareas en lista/ficha, Escape y documentos plegados.
+Prueba SQL aislada en tablas temporales: ocho escenarios en OT y Diseño,
+incluidos cierre parcial, tarea de Taller asociada a OTEC y aprobado sin pasar.
+Paso por XML y exclusión por reapertura contrastados con marca simulada en
+memoria; no se escribieron pedidos ni fichajes de producción.
+
+Notas de datos y rendimiento:
+- En RPS, PercentProgress=100 puede significar primer fichaje. Se conserva
+  únicamente el rescate histórico de OT; para las otras tareas se exige cierre
+  de fase. No basta una sola fase cerrada para dar por terminado el pedido.
+- «Enrollable» devuelve varias páginas y ordena por fecha del pedido descendente.
+  Los recuentos antiguos del punto 8 incluían pendientes y pedidos sin OF: ya
+  no son el universo del Historial. «Apilable» no devuelve finalizados en esta
+  copia local; el pedido AR.25.05551 conserva una tarea de OT sin cerrar en RPS.
+- Consulta global medida en unos 6 s tras agrupar primero por OF (antes 14–15 s
+  con el nuevo criterio). Búsqueda exacta por código: alrededor de 0,2 s.
+  No se han creado índices ni modificado tablas permanentes de RPS.
+- La SQLite local de validación no contiene los pasos de producción: no tomar
+  su ausencia como prueba de que un pedido pasado en el servidor está pendiente.
 
 ---
 

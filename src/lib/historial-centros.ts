@@ -49,6 +49,7 @@ export interface FilaTiempoCentro {
   tarea: string | null;
   descripcionTarea?: string | null;
   empleado: string | null;
+  nombreEmpleado?: string | null;
   minutos: number | null;
 }
 
@@ -73,10 +74,23 @@ export function agruparTiemposPorCentro(
       tiempoImputadoMin: 0,
       quien: [],
       personas: [],
+      tareas: [],
     };
     of.tiempoImputadoMin += fila.minutos ?? 0;
+    const tareaCodigo = fila.tarea?.trim();
+    let tarea = of.tareas!.find((t) => t.codigo === tareaCodigo);
+    if (tareaCodigo && !tarea) {
+      tarea = { codigo: tareaCodigo, descripcion: fila.descripcionTarea?.trim() || "Tarea sin descripción", tiempoImputadoMin: 0, personas: [] };
+      of.tareas!.push(tarea);
+    }
+    if (tarea) tarea.tiempoImputadoMin += fila.minutos ?? 0;
     if (fila.empleado?.trim()) {
       const nombre = nombreDeEmpleado(fila.empleado.trim());
+      if (tarea) {
+        const personaTarea = tarea.personas.find((p) => p.nombre === nombre);
+        if (personaTarea) personaTarea.min += fila.minutos ?? 0;
+        else tarea.personas.push({ nombre, min: fila.minutos ?? 0 });
+      }
       const persona = of.personas!.find((p) => p.nombre === nombre);
       if (persona) persona.min += fila.minutos ?? 0;
       else {

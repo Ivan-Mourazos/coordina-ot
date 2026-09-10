@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { leerHistorialPagina } from "@/lib/server/historial-db";
 import { seccionDe } from "@/lib/secciones";
 import { getTablero } from "@/lib/data";
-import { estadoActualHistorial } from "@/lib/historial";
 
 // ─── GET /api/historial ──────────────────────────────────────────────────────
-// Página del historial permanente de pedidos finalizados por OT. El page size
+// Página del historial permanente de pedidos finalizados según la sección. El page size
 // lo fija el server (no viene del cliente). Filtros opcionales: q, desde, hasta.
 
 export const dynamic = "force-dynamic";
@@ -17,7 +16,12 @@ export async function GET(req: Request) {
 
   try {
     const seccion = seccionDe(url.searchParams.get("seccion")).id;
-    const [data, tablero] = await Promise.all([leerHistorialPagina({
+    const tablero = await getTablero(seccion);
+    // Antes de paginar: quitar filas después deja huecos y un hasMore falso.
+    // Incluso aprobadas siguen pendientes hasta que el autor pulse Pasar.
+    const pendientes = tablero.pedidos.filter((p) => p.situacion !== "completado"
+      && p.ofs.some((of) => !of.ajenaOT)).map((p) => p.codigo);
+    const data = await leerHistorialPagina({
       page,
       seccion,
       q: url.searchParams.get("q") ?? undefined,
@@ -25,17 +29,12 @@ export async function GET(req: Request) {
       hasta: url.searchParams.get("hasta") ?? undefined,
       familia: url.searchParams.get("familia") ?? undefined,
       cliente: url.searchParams.get("cliente") ?? undefined,
-    }), getTablero(seccion)]);
-    const vigentes = new Map(tablero.pedidos.map((pedido) => [pedido.codigo, pedido]));
+      pendientes,
+    });
     const busqueda = url.searchParams.get("q")?.trim();
     return NextResponse.json({
       ...data,
-      pedidos: data.pedidos.map((pedido) => {
-        const estadoActual = estadoActualHistorial(vigentes.get(pedido.pedido));
-        return { ...pedido, ...(busqueda ? { busqueda } : {}), ...(estadoActual ? {
-          estadoActual, pasadoAt: undefined, pasadoPor: undefined,
-        } : {}) };
-      }),
+      pedidos: data.pedidos.map((pedido) => ({ ...pedido, ...(busqueda ? { busqueda } : {}) })),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[historial] página falló:", (e as Error).message);
