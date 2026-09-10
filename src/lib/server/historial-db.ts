@@ -1,4 +1,5 @@
-import { SECCIONES, recursosSql } from "../secciones";
+import { agruparTiemposPorCentro, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
+import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
@@ -75,29 +76,6 @@ const RESCATE_SIN_FIN_DE_FASE = `
 
 const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
-/** Los centros de trabajo que cuentan como trabajo de oficina en el Historial:
- *  SOLO los de Oficina Técnica.
- *
- *  DE MOMENTO NO ENTRA DISEÑO GRÁFICO, y es una vuelta atrás pedida el
- *  04/09/2026. El Historial llegó a enseñar el pedido entero —OF de OT y de
- *  diseño— con el argumento de que el parte es del pedido y no de un
- *  departamento. El efecto en la pantalla fue otro: en un historial que se lee
- *  como "lo que hizo Oficina Técnica", las horas de diseño de Carrón salían
- *  mezcladas con las de OT sin nada que las distinguiera, y un pedido parecía
- *  haber costado el doble de lo que costó aquí.
- *
- *  Se quita entero y no a medias: una OF de diseño con sus minutos en blanco se
- *  lee como una OF que nadie hizo, que es peor mentira que no enseñarla.
- *
- *  Para volver a meterlas basta cambiar esta línea por `recursosDeLaWebSql()`.
- *  Lo que hace falta ANTES es decidir cómo se distingue en pantalla el trabajo
- *  de cada sección; mientras no esté decidido, mezclar confunde más que informa.
- *
- *  El taller sigue fuera, como siempre. Ver `recursosDeLaWebSql` para el porqué
- *  con números: contarlo multiplica los tiempos de oficina por veinte o por
- *  ciento. */
-const RECURSOS_WEB = recursosSql(SECCIONES.ot);
-
 export async function leerHistorialPagina(
   f: HistorialFiltros,
 ): Promise<{ pedidos: HistorialItem[]; hasMore: boolean }> {
@@ -169,7 +147,7 @@ export async function leerHistorialPagina(
 
   // Autores y familias se resuelven para la página ENTERA de una vez (ver
   // `extrasDePagina`): una query por pedido serían 40 idas y vueltas.
-  const extras = await extrasDePagina(items.map((p) => p.pedido));
+  const extras = await extrasDePagina(items.map((p) => p.pedido), seccionDe(f.seccion).id);
   const pedidos = items.map((p) => {
     const suyos = extras.get(p.pedido);
     if (!suyos) return p;
@@ -184,6 +162,7 @@ export async function leerHistorialPagina(
 
 /** Fila cruda del minutaje por pedido/orden/empleado (antes de agrupar). */
 interface FilaExtra {
+  tarea: string | null;
   pedido: string | null;
   orden: string | null;
   descripcion: string | null;
@@ -223,6 +202,7 @@ interface FilaExtra {
  *  113-135 ms, frente a los ~550-640 ms que ya cuesta la query de la página. */
 async function extrasDePagina(
   pedidos: string[],
+  seccion: SeccionId,
 ): Promise<Map<string, { autores: string[]; familias: string[] }>> {
   const salida = new Map<string, { autores: string[]; familias: string[] }>();
   if (pedidos.length === 0) return salida;
@@ -237,14 +217,14 @@ async function extrasDePagina(
     return `@a${i}`;
   });
 
-  // Mismos joins y mismo filtro de OT que `leerHistorialPedido`, para que la
-  // lista y el detalle cuenten los mismos minutos. El LEFT JOIN a las
+  // Autoría de la sección seleccionada, sin filtrar la lista de pedidos.
+  // El LEFT JOIN a las
   // imputaciones es a propósito: una OF planteada con la web puede no tener ni
   // un minuto en RPS, y aun así hay que traerla para poder casar su autor
-  // registrado por número de orden.
+  // registrado por OF y tarea.
   const r = await req.query<FilaExtra>(`
     SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
-           mo.Description AS descripcion,
+           mo.Description AS descripcion, t.CodMOTask AS tarea,
            cli.Description AS cliente, sf.CodProductSubFamily AS subfamilia,
            e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
     FROM dbo.FACOrderSL o
@@ -266,9 +246,9 @@ async function extrasDePagina(
     WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})
       AND EXISTS (
         SELECT 1 FROM dbo.CPRMOResourceMachine rm
-        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
+        WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES[seccion])})
       )
-    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description,
+    GROUP BY o.CodOrder, mo.CodManufacturingOrder, mo.Description, t.CodMOTask,
              cli.Description, sf.CodProductSubFamily, e.CodEmployee
   `);
 
@@ -284,7 +264,7 @@ async function extrasDePagina(
     const orden = (fila.orden ?? "").trim();
     if (orden) {
       const suyas = ordenes.get(pedido) ?? new Set<string>();
-      suyas.add(orden);
+      if (fila.tarea) suyas.add(claveTareaHistorial(orden, fila.tarea));
       ordenes.set(pedido, suyas);
     }
 
@@ -325,10 +305,10 @@ async function extrasDePagina(
   return salida;
 }
 
-/** Autores registrados en CoordinaOT, indexados por ORDEN de fabricación.
+/** Autores registrados en CoordinaOT, indexados por OF y tarea.
  *
  *  El overlay va por OF+tarea ("orden:codTarea") y la lista va por pedido, así
- *  que se agrupa por orden: es la pieza que casa una cosa con la otra. Se lee
+ *  que se conservan ambas claves para no mezclar autores entre secciones. Se lee
  *  entero de una vez — son pocas filas y vive en SQLite, igual que en
  *  `pasadosAt`, así que no compensa filtrar por ids. */
 function autoresRegistrados(): Map<string, string[]> {
@@ -349,9 +329,10 @@ function autoresRegistrados(): Map<string, string[]> {
     // Si el id no está en el catálogo se enseña tal cual: mejor un id crudo que
     // perder de vista quién fue (mismo criterio que `anadirPasadoAt`).
     const nombre = NOMBRE_POR_OPERARIO.get(cambio.autorId) ?? cambio.autorId;
-    const suyos = porOrden.get(partes.of) ?? [];
+    const clave = claveTareaHistorial(partes.of, partes.numope);
+    const suyos = porOrden.get(clave) ?? [];
     if (!suyos.includes(nombre)) suyos.push(nombre);
-    porOrden.set(partes.of, suyos);
+    porOrden.set(clave, suyos);
   }
   return porOrden;
 }
@@ -395,13 +376,6 @@ export async function leerClientesHistorial(q: string): Promise<string[]> {
       ORDER BY cli.Description
     `);
   return r.recordset.map((x) => (x.cliente ?? "").trim()).filter(Boolean);
-}
-
-interface FilaDetalle {
-  orden: string | null;
-  descripcion: string | null;
-  empleado: string | null;
-  minutos: number | null;
 }
 
 /** Fila cruda del material, su reserva viva y las notas de cada OF del pedido. */
@@ -479,15 +453,6 @@ async function leerMaterialesPedido(
           JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
           WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
         )
-        -- Mismo filtro de OT que el resto del detalle: solo las OF que pasaron
-        -- por oficina (OT o Diseño Gráfico), para no listar material de OF de
-        -- taller que el Historial no enseña.
-        AND EXISTS (
-          SELECT 1 FROM dbo.CPRMOTask t
-          JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
-          WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder
-            AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
-        )
     `);
 
   for (const fila of r.recordset) {
@@ -512,138 +477,66 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   if (ES_MOCK) return detalleMock(pedido);
 
   const pool = await getPool();
-  // El material —y ahora también sus reservas— va en su propia query y NO unido
-  // a esta: `CPRMOMaterial` cuelga de la tarea, así que unirlo aquí
-  // multiplicaría las filas y el SUM de minutos saldría inflado tantas veces
-  // como materiales lleve la OF. No es teórico; probado en vivo (08/2026)
-  // uniendo material+reservas a esta misma query: AR.26.03453 pasaba de 4
-  // minutos por OF a 16-28, AR.26.03631 de 6 a 24-60 y AR.26.03365 de 30 a 240,
-  // ocho veces más. Los minutos y el material se piden a la vez pero por
-  // separado, y así el detalle no se enlentece por tenerlos separados.
-  // ── Por qué la consulta se puede tener que repetir ────────────────────────
-  // Se filtra por las tareas de oficina (OT y Diseño Gráfico, ver
-  // RECURSOS_WEB) para que los minutos sean los del PLANTEO y no los de corte,
-  // soldadura o confección — ese filtro es el que evita que "6 minutos" salgan
-  // como "5 horas" (ver el comentario de arriba).
-  //
-  // Pero hay pedidos que llegan al Historial SIN ninguna tarea de OT, y no es un
-  // caso raro de laboratorio: SA.26.00790 entró al tablero por una tarea de
-  // taller (S-CONF, "corte y confección"), alguien de OT le dio a "Pasar a
-  // Producción" y desde ese momento está en el Historial. Sus dos OF existen y
-  // están enlazadas al pedido, pero ninguna tiene tarea de OT, así que el filtro
-  // las tiraba todas y el detalle salía VACÍO: sin OF, sin cliente en la ficha,
-  // sin nada. Un panel en blanco que parecía que la web se había roto, cuando lo
-  // que pasaba es que OT no había tocado ese pedido.
-  //
-  // Se resuelve con una segunda consulta que SOLO se lanza cuando la primera no
-  // devuelve nada, y que trae las OF SIN tiempo: si no hay tarea de OT, el
-  // tiempo de OT es cero, y eso es lo que hay que decir. Sumar ahí las
-  // imputaciones de las otras tareas sería peor que el panel en blanco —
-  // probado: SA.26.00790 salía con 160 minutos que son de CONFECCIÓN, y el
-  // panel los reparte bajo los rótulos "planteo" y "revisión". Un dato de otro
-  // taller con la etiqueta de OT es mentira; un cero no.
-  //
-  // Así ningún pedido de los de siempre cambia ni un minuto: si tiene tarea de
-  // OT, manda la primera consulta y la segunda ni se pide.
-  const consultaOT = () =>
-    pool
-      .request()
-      .input("pedido", pedido)
-      .query<FilaDetalle>(`
-        SELECT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
-               e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+  // Clasificar la TAREA antes de sumar. EXISTS no multiplica las imputaciones
+  // cuando RPS tiene varios recursos de máquina asignados a una misma tarea.
+  // Materiales y líneas de venta tampoco se unen al minutaje por ese motivo.
+  const [r, extrasOF] = await Promise.all([
+    pool.request().input("pedido", pedido).query<FilaTiempoCentro>(`
+      WITH Tareas AS (
+        SELECT mo.IDManufacturingOrder, mo.CodManufacturingOrder AS orden,
+               mo.Description AS descripcion, t.IDMOTask, t.CodMOTask AS tarea,
+               CASE
+                 WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
+                   WHERE rm.IDMOTask = t.IDMOTask
+                     AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.ot)})) THEN 'ot'
+                 WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
+                   WHERE rm.IDMOTask = t.IDMOTask
+                     AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.diseno)})) THEN 'diseno'
+                 ELSE 'taller'
+               END AS centro
         FROM dbo.CPRManufacturingOrder mo
-        JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
-        LEFT JOIN dbo.CPRImputationMO i
-          ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = mo.IDManufacturingOrder
-          AND i.ResourceType = 1
-        LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-        WHERE mo.CodCompany = '001'
-          AND EXISTS (
-            SELECT 1 FROM dbo.FACOrderLineSL l
-            JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
-            WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
-          )
-          AND EXISTS (
-            SELECT 1 FROM dbo.CPRMOResourceMachine rm
-            WHERE rm.IDMOTask = t.IDMOTask AND rm.CodMOResourceMachine IN (${RECURSOS_WEB})
-          )
-        GROUP BY mo.CodManufacturingOrder, mo.Description, e.CodEmployee
-      `);
+        LEFT JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+        WHERE mo.CodCompany = '001' AND EXISTS (
+          SELECT 1 FROM dbo.FACOrderLineSL l
+          JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+          WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
+        )
+      )
+      SELECT t.orden, t.descripcion, t.centro, t.tarea,
+             e.CodEmployee AS empleado, SUM(i.ExecutionTime) AS minutos
+      FROM Tareas t
+      LEFT JOIN dbo.CPRImputationMO i
+        ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = t.IDManufacturingOrder
+        AND i.ResourceType = 1
+      LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
+      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, e.CodEmployee
+    `),
+    leerMaterialesPedido(pedido),
+  ]);
 
-  /** Las OF del pedido a secas, sin tiempo ni persona: para los pedidos en los
-   *  que OT no llegó a intervenir. */
-  const consultaSinOT = () =>
-    pool
-      .request()
-      .input("pedido", pedido)
-      .query<FilaDetalle>(`
-        SELECT DISTINCT mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
-               CAST(NULL AS varchar(50)) AS empleado, CAST(0 AS int) AS minutos
-        FROM dbo.CPRManufacturingOrder mo
-        WHERE mo.CodCompany = '001'
-          AND EXISTS (
-            SELECT 1 FROM dbo.FACOrderLineSL l
-            JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
-            WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
-          )
-      `);
-
-  const [rOT, extrasOF] = await Promise.all([consultaOT(), leerMaterialesPedido(pedido)]);
-  const r = rOT.recordset.length > 0 ? rOT : await consultaSinOT();
-
-  // Agrupar por OF (orden): sumar minutos y juntar quién.
-  const porOF = new Map<string, HistorialOF>();
-  const minutosPorPersona = new Map<string, Map<string, number>>();
-  for (const fila of r.recordset) {
-    const codigo = (fila.orden ?? "").trim();
-    if (!codigo) continue;
-    const of = porOF.get(codigo) ?? {
-      codigo,
-      descripcion: (fila.descripcion ?? "").trim(),
-      tiempoImputadoMin: 0,
-      quien: [] as string[],
-    };
-    of.tiempoImputadoMin += fila.minutos ?? 0;
-    if (fila.empleado) {
-      const codEmpleado = fila.empleado.trim();
-      const idOperario = operarioDeEmpleado(codEmpleado);
-      const nombre = (idOperario && NOMBRE_POR_OPERARIO.get(idOperario)) || codEmpleado;
-      if (nombre && !of.quien.includes(nombre)) of.quien.push(nombre);
-      // El minutaje por persona se guarda aparte para poder deducir quién
-      // planteó y quién revisó en los pedidos viejos (ver `deducirRoles`).
-      // `quien` se queda como está: es la lista que se enseña.
-      if (nombre) {
-        const porPersona = minutosPorPersona.get(codigo) ?? new Map<string, number>();
-        porPersona.set(nombre, (porPersona.get(nombre) ?? 0) + (fila.minutos ?? 0));
-        minutosPorPersona.set(codigo, porPersona);
-      }
-    }
-    porOF.set(codigo, of);
-  }
-
-  // Material y notas se cuelgan aquí, ya agrupado por OF: van omitidos cuando
-  // no hay nada, que es lo que dice el tipo (ausente = esta OF no lleva
-  // material apuntado, no "lleva cero").
-  for (const [codigo, of] of porOF) {
-    const suyo = extrasOF.get(codigo);
-    if (!suyo) continue;
-    if (suyo.materiales.length) of.materiales = suyo.materiales;
-    if (suyo.notas) of.notasProduccion = suyo.notas;
-  }
-
-  // De MENOR a MAYOR, igual que en el tablero (ver el mismo orden en rps.ts):
-  // el Map conserva el orden en que RPS devolvió las filas, que sale del revés.
-  // Un pedido tiene que leerse igual en el Historial que en el tablero.
-  const enOrden = [...porOF.values()].sort((a, b) => {
-    const na = Number(a.codigo);
-    const nb = Number(b.codigo);
-    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
-    return a.codigo.localeCompare(b.codigo);
+  const ofs = agruparTiemposPorCentro(r.recordset, (codigo) => {
+    const id = operarioDeEmpleado(codigo);
+    return (id && NOMBRE_POR_OPERARIO.get(id)) || codigo;
   });
-  return anadirDesgloseRol(enOrden).map((of) =>
-    deducirRoles(of, minutosPorPersona.get(of.codigo)),
-  );
+  // Los roles locales se sumaban por OF entera: con dos secciones en una OF,
+  // eso atribuiría también el fichaje de Diseño al bloque de OT (y viceversa).
+  // Limitar por tarea, no por la sección habitual de quien fichó.
+  for (const centro of ["ot", "diseno"] as const) {
+    const tareas = new Set(r.recordset
+      .filter((f) => f.centro === centro && f.orden && f.tarea)
+      .map((f) => claveTareaHistorial(f.orden!, f.tarea!)));
+    const conRoles = anadirDesgloseRol(ofs.filter((of) => of.centro === centro), tareas);
+    for (const of of conRoles) {
+      const index = ofs.findIndex((o) => o.centro === centro && o.codigo === of.codigo);
+      ofs[index] = deducirRoles(of, new Map(of.personas?.map((p) => [p.nombre, p.min])));
+    }
+  }
+  for (const of of ofs) {
+    const extras = extrasOF.get(of.codigo);
+    if (extras?.materiales.length) of.materiales = extras.materiales;
+    if (extras?.notas) of.notasProduccion = extras.notas;
+  }
+  return ofs;
 }
 
 /** Un documento tal y como lo guarda RPS: descripción + ruta al share. La ruta
@@ -1038,7 +931,7 @@ function pasadosAt(): Map<string, PasoAProduccion> {
  *  intervalos van por OF+tarea ("orden:codTarea"), así que se suman las tareas
  *  de la misma orden. Las OFs sin intervalos se quedan sin `rol`: no se sabe
  *  el desglose, que no es lo mismo que decir que la revisión fue cero. */
-function anadirDesgloseRol(ofs: HistorialOF[]): HistorialOF[] {
+function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>): HistorialOF[] {
   if (ofs.length === 0) return ofs;
 
   let porOfId;
@@ -1065,7 +958,7 @@ function anadirDesgloseRol(ofs: HistorialOF[]): HistorialOF[] {
   >();
   for (const [ofId, t] of porOfId) {
     const partes = partirOfId(ofId);
-    if (!partes) continue;
+    if (!partes || !tareas.has(claveTareaHistorial(partes.of, partes.numope))) continue;
     const acc = porOrden.get(partes.of) ?? {
       planteoMin: 0,
       revisionMin: 0,
@@ -1147,8 +1040,6 @@ export async function leerHistorialPedidoDetalle(
       WHERE mo.CodCompany = '001'
         AND EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
                     WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
-        AND EXISTS (SELECT 1 FROM dbo.CPRMOTask t JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
-                    WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND rm.CodMOResourceMachine IN (${RECURSOS_WEB}))
     `)
   ).recordset[0] ?? { prioridad: null, piezas: null };
 
@@ -1284,6 +1175,11 @@ function detalleMock(pedido: string): HistorialOF[] {
     id ? [{ nombre: NOMBRE_POR_OPERARIO.get(id) ?? id, min }] : [];
   return p.ofs.map((of) => ({
     codigo: of.codigo,
+    centro: "ot",
+    personas: [...new Set([of.autorId, of.revisorId])].filter((id): id is string => Boolean(id)).map((id) => ({
+      nombre: NOMBRE_POR_OPERARIO.get(id) ?? id,
+      min: (of.autorId === id ? of.tiempoPlanteoMin : 0) + (of.revisorId === id ? of.tiempoRevisionMin : 0),
+    })),
     descripcion: of.descripcion,
     tiempoImputadoMin: of.tiempoPlanteoMin + of.tiempoRevisionMin,
     quien: [],

@@ -48,7 +48,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
-import { FASES, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { agruparPorFase, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -1927,6 +1927,29 @@ export function Board({
     ? ofsDelAviso.filter((of) => esFichable(of) && rolFichajeDe(of) === rolFichajeDe(rolDelAviso))
     : [];
 
+  // El objeto de la sección, no su id: es lo que consumen agruparPorFase y el
+  // Drawer, y resolverlo aquí evita que cada componente tenga que importar
+  // SECCIONES para hacer el mismo lookup.
+  //
+  // OJO: sale de `seccionDeLosPedidos`, NO de `seccionActual`. `seccionActual`
+  // cambia en el acto al tocar el conmutador, pero los pedidos que hay en
+  // pantalla siguen siendo los de la sección anterior hasta que contesta el
+  // fetch —contra RPS, entre 7 y 15 segundos—. `laSeccion` no pinta un marco:
+  // la usan agruparPorFase y el Drawer para REINTERPRETAR esos pedidos (orden
+  // de columnas, revisar por pedido en vez de por OF...). Si aquí fuera
+  // `seccionActual`, en esa ventana un pedido de OT que sigue en pantalla se
+  // trataría como de Diseño: perdería los botones por OF y, sobre todo, se le
+  // aplicaría la revisión por pedido saltándose `autoresParaRevisar.length
+  // === 1` — la condición que impide mandar una OF con dos autores a un solo
+  // revisor. `seccionDeLosPedidos` es precisamente el campo que ya existe
+  // para esto (ver su declaración más arriba); no lo dupliques ni lo
+  // "simplifiques" de vuelta a `seccionActual`.
+  //
+  // `null` solo antes del primer fetch, que es el HTML que pinta el servidor:
+  // arranca con los pedidos de Oficina Técnica, así que caer en
+  // SECCION_POR_DEFECTO ("ot") es lo correcto y no un caso especial.
+  const laSeccion = SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO];
+
   return (
     <>
       <div className="flex min-h-full flex-col">
@@ -2116,6 +2139,7 @@ export function Board({
               <ZonaPersonal
                 operario={yo}
                 facets={facetsDe(yo.id)}
+                seccion={laSeccion}
                 live={liveByOp.get(yo.id) ?? null}
                 onOpen={openFacet}
                 onVerTodos={setFaseAbierta}
@@ -2130,6 +2154,7 @@ export function Board({
             {faseAbierta && (
               <FaseFlyout
                 facets={facetsDe(yo.id)}
+                seccion={laSeccion}
                 faseId={faseAbierta}
                 onOpen={(f) => {
                   setFaseAbierta(null);
@@ -2151,7 +2176,7 @@ export function Board({
                   Equipo
                 </h2>
                 <span className="flex flex-wrap items-center gap-2.5 text-[10px] text-text-muted">
-                  {FASES.map((f) => (
+                  {agruparPorFase([], laSeccion).map((f) => (
                     <span key={f.id} className="flex items-center gap-1">
                       <span className="size-1.5 rounded-sm" style={{ background: f.color }} />
                       {f.label.toLowerCase()}
@@ -2165,6 +2190,7 @@ export function Board({
                     key={op.id}
                     operario={op}
                     facets={facetsDe(op.id)}
+                    seccion={laSeccion}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}
                     onToggle={() => toggleExpanded(op.id)}
@@ -2338,6 +2364,7 @@ export function Board({
         {vista === "historial" && (
           <div className="p-5">
             <HistorialView
+              seccion={seccionActual}
               pasados={pasadosSinCerrar}
               onAbrirPasado={abrirPedido}
               operarios={operarios}
@@ -2360,6 +2387,7 @@ export function Board({
         pedido={openPedido}
         operarios={operarios}
         miId={miId}
+        seccion={laSeccion}
         dobleFichaje={dobleFichaje}
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
@@ -2374,6 +2402,7 @@ export function Board({
       />
 
       <HistorialDrawer
+        seccion={seccionActual}
         pedido={historialAbierto}
         operarios={operarios}
         miId={miId}

@@ -2,6 +2,7 @@
 
 import type { Operario, Rol } from "@/lib/types";
 import { agruparPorFase } from "@/lib/fases-tablero";
+import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import { PedidoLinea } from "./PedidoLinea";
 import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
@@ -11,6 +12,7 @@ import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
  *  PanelFlotante, compartido con el panel de compañero. */
 export function FaseFlyout({
   facets,
+  seccion,
   faseId,
   onOpen,
   onClose,
@@ -21,6 +23,9 @@ export function FaseFlyout({
   ofIdsFichandoYo,
 }: {
   facets: Facet[];
+  /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
+   *  columnas (ver `ordenFases` en lib/secciones.ts). */
+  seccion: Seccion;
   faseId: string;
   onOpen: (f: Facet) => void;
   onClose: () => void;
@@ -34,7 +39,12 @@ export function FaseFlyout({
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
-  const grupo = agruparPorFase(facets).find((g) => g.id === faseId);
+  // `seccion` solo entra aquí porque `agruparPorFase` la pide para saber el
+  // ORDEN de las columnas (ver su comentario arriba); pero este panel enseña
+  // UN grupo suelto —el que hace `.find` a continuación—, no la lista entera
+  // ordenada. El orden no llega a pintarse nunca: no busques aquí el efecto
+  // de `seccion` que sí tienen los otros sitios que agrupan por fase.
+  const grupo = agruparPorFase(facets, seccion).find((g) => g.id === faseId);
   if (!grupo) return null;
 
   return (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtMin } from "../estado";
+import { etiquetaCantidad, fmtMin } from "../estado";
 
 describe("fmtMin", () => {
   it("muestra los segundos de un fichaje recién empezado", () => {
@@ -32,5 +32,27 @@ describe("fmtMin", () => {
   it("sin tiempo", () => {
     expect(fmtMin(0)).toBe("0m");
     expect(fmtMin(-5)).toBe("0m");
+  });
+});
+
+describe("etiquetaCantidad", () => {
+  it("una sola no lleva número: el verbo ya lo dice", () => {
+    // El bug que esto reemplaza: "Aprobar las 1" con una sola OF.
+    expect(etiquetaCantidad("Aprobar", 1)).toBe("Aprobar");
+    expect(etiquetaCantidad("Devolver", 1)).toBe("Devolver");
+  });
+
+  it("más de una lleva 'las N' delante", () => {
+    expect(etiquetaCantidad("Aprobar", 3)).toBe("Aprobar las 3");
+    expect(etiquetaCantidad("Devolver", 2)).toBe("Devolver las 2");
+  });
+
+  it("con 'resto', va después del número (o del verbo si es singular)", () => {
+    expect(etiquetaCantidad("Pasar", 3, "a revisión")).toBe("Pasar las 3 a revisión");
+    expect(etiquetaCantidad("Pasar", 1, "a revisión")).toBe("Pasar a revisión");
+  });
+
+  it("cero también cuenta como singular: no hay 'las 0'", () => {
+    expect(etiquetaCantidad("Aprobar", 0)).toBe("Aprobar");
   });
 });

@@ -3,8 +3,8 @@ import { leerHistorialPedidoDetalle } from "@/lib/server/historial-db";
 import { CODIGO_PEDIDO_RE } from "@/lib/historial";
 
 // ─── GET /api/historial/[pedido] ─────────────────────────────────────────────
-// Detalle (lazy) de un pedido finalizado: sus OFs de OT con tiempo imputado y
-// quién lo hizo. Valida el código para no inyectar ni pedir basura.
+// Detalle (lazy) del pedido: tiempos de sus OF separados por centro de trabajo.
+// La selección de sección controla el desglose visible en la lista y la ficha.
 
 export const dynamic = "force-dynamic";
 

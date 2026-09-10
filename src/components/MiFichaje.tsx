@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { OF, Operario, Pedido, Rol } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
-import { abierto, esFichable, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
+import { abierto, esFichable, inicioDelTramoContinuo, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
 import { ahoraDelServidor } from "@/lib/reloj-servidor";
 
@@ -240,8 +240,37 @@ export function MiFichaje({
   }, [reloj]);
 
   const nOFs = ab?.ofIds.length ?? 0;
-  const totalSeg = ab ? (Date.parse(ahora) - Date.parse(ab.inicio)) / 1000 : 0;
+  // Desde que arrancó el reloj SIN PARAR, no desde el inicio del tramo abierto.
+  // Cambiar qué OFs corren abre un tramo nuevo sin parar nada (ver
+  // `inicioDelTramoContinuo`), así que con el inicio del tramo esto se ponía a
+  // cero al pausar un pedido de varios y parecía que se había roto algo.
+  const desde = ab ? (inicioDelTramoContinuo(fichaje) ?? ab.inicio) : null;
+  const totalSeg = desde ? (Date.parse(ahora) - Date.parse(desde)) / 1000 : 0;
   const totalMin = totalSeg / 60;
+
+  // QUÉ está corriendo, por su código de pedido. La píldora decía solo "5 OF",
+  // y con eso no hay forma de saber si pausaste lo que querías, si falló, o si
+  // te quedaba otra cosa en marcha: es la otra mitad de por qué el contador a
+  // cero parecía un fallo.
+  //
+  // Si las OF que corren no están en el tablero que se está mirando —fichas en
+  // una sección y te vas a la otra— no hay código que enseñar, y entonces se
+  // dice lo de siempre en vez de mentir con un pedido que no es.
+  const pedidosCorriendo = ab
+    ? pedidos.filter((p) => p.ofs.some((of) => ab.ofIds.includes(of.id)))
+    : [];
+  // Con un solo pedido y más de una OF corriendo, el código solo no cambiaba
+  // al pausar una de varias: mismo texto, reloj que sigue, y el aviso que se
+  // quería para ese caso (ver el motivo de `desde`, arriba) se quedaba sin
+  // señal. Con una sola OF el número no dice nada que el código no diga ya.
+  const queCorre =
+    pedidosCorriendo.length === 1
+      ? nOFs > 1
+        ? `${pedidosCorriendo[0].codigo} · ${nOF(nOFs)}`
+        : pedidosCorriendo[0].codigo
+      : pedidosCorriendo.length > 1
+        ? `${pedidosCorriendo.length} pedidos`
+        : nOF(nOFs);
 
   // Aviso de fichaje largo (ver AVISO_FICHAJE_LARGO_MIN): solo el rótulo, una
   // OF cualquiera de las que están corriendo basta para identificarlo.
@@ -387,7 +416,7 @@ export function MiFichaje({
   // nombre accesible y el control por voz dejaría de responder a lo que se lee
   // en pantalla; como `title` acompaña, que es lo que se quiere.
   const tituloPildora = ab
-    ? `${ROL[ab.rol].label} en ${nOF(nOFs)} · llevas ${fmtHMS(totalSeg)}`
+    ? `${ROL[ab.rol].label} en ${nOF(nOFs)}${pedidosCorriendo.length ? " (" + pedidosCorriendo.map((p) => p.codigo).join(", ") + ")" : ""} · llevas ${fmtHMS(totalSeg)} sin parar`
     : aviso
       ? `Tienes ${nOF(sinFichar.length, "empezada")} y el reloj parado`
       : "El reloj está parado";
@@ -587,7 +616,7 @@ export function MiFichaje({
           <>
             <LiveDot rol={ab.rol} className="size-2" />
             <span>
-              ⏱ {nOF(nOFs)} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
+              ⏱ {queCorre} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
             </span>
           </>
         ) : aviso ? (

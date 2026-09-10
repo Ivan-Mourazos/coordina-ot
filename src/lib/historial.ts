@@ -9,6 +9,8 @@ export const CODIGO_PEDIDO_RE = /^[A-Z]{2}\.\d{2}\.\d{5}$/;
 
 export interface HistorialFiltros {
   page: number;
+  /** Cambia la autoría mostrada, nunca qué pedidos entran en la lista. */
+  seccion?: import("./secciones").SeccionId;
   q?: string; // busca en código de pedido o nombre de cliente
   desde?: string; // ISO yyyy-mm-dd (inclusive)
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
@@ -93,6 +95,10 @@ export interface RepartoRol {
 }
 
 export interface HistorialOF {
+  /** El minutaje y los roles de esta entrada pertenecen solo a este centro. */
+  centro?: import("./historial-centros").CentroHistorialId;
+  /** Reparto de los minutos imputados en RPS, sin deducir roles. */
+  personas?: RepartoRol[];
   codigo: string;
   descripcion: string;
   tiempoImputadoMin: number;
@@ -510,6 +516,7 @@ export interface HistorialPedidoDetalle {
   familias: string[];
   comentarioVenta: string | null;
   scanUrl: string; // /api/pedidos/{codigo}.pdf (puede dar 404)
+  /** Una entrada por OF y centro: el código puede repetirse entre centros. */
   ofs: HistorialOF[];
 
   /** Todo lo que RPS tiene colgado del pedido y de sus OF: planteamiento,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FICHAJE_VACIO, abierto, agregarPorRol, cerrarPorInactividad, fichar, pausar, minutosOF,
-  parseFichaje, ofsFichables, rolFichajeDe, esFichable, motivoNoFichable,
+  parseFichaje, ofsFichables, rolFichajeDe, esFichable, motivoNoFichable, inicioDelTramoContinuo,
 } from "../fichaje";
 import { accionAlFichar } from "../accion-pedido";
 import type { OF, Pedido } from "../types";
@@ -266,5 +266,49 @@ describe("agregarPorRol", () => {
 
   it("una OF sin fichar no aparece: no se sabe su desglose, no es cero", () => {
     expect(agregarPorRol({ intervalos: [iv(T0, T1, ["of1"], "plantear")] }).has("of2")).toBe(false);
+  });
+});
+
+describe("inicioDelTramoContinuo", () => {
+  // Por qué existe: cambiar QUÉ OFs corren cierra el tramo y abre otro (ver
+  // `fichar`), pero el reloj no se ha parado ni un segundo — el `fin` de uno
+  // es exactamente el `inicio` del siguiente. La píldora contaba desde el
+  // último `inicio`, así que pausar un pedido de seis la mandaba a 0:00:01
+  // cuando llevaba 21 minutos corriendo. Pasó de verdad (Carrón, 09/09/2026,
+  // de 07:55:35 a 08:16:26 en cinco tramos encadenados).
+  it("sin cortes, es el inicio del primer tramo de la cadena", () => {
+    let f = fichar(FICHAJE_VACIO, ["of1", "of2", "of3"], "plantear", "op1", T0);
+    f = fichar(f, ["of1", "of2"], "plantear", "op1", T1); // se pausa una
+    f = fichar(f, ["of1"], "plantear", "op1", T2); // y otra
+    expect(inicioDelTramoContinuo(f)).toBe(T0);
+  });
+
+  it("un tramo solo se cuenta desde su propio inicio", () => {
+    const f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    expect(inicioDelTramoContinuo(f)).toBe(T0);
+  });
+
+  it("una PAUSA de verdad rompe la cadena", () => {
+    // Aquí sí hubo hueco: se paró el reloj y se volvió a arrancar. Contar
+    // desde antes de la pausa diría que lleva media hora fichando cuando
+    // estuvo parado la mitad.
+    let f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    f = pausar(f, T1);
+    f = fichar(f, ["of1"], "plantear", "op1", T2);
+    expect(inicioDelTramoContinuo(f)).toBe(T2);
+  });
+
+  it("cambiar de ROL rompe la cadena", () => {
+    // Planteo y revisión son relojes distintos: encadenarlos diría "llevas 40
+    // min revisando" contando los 30 que estuvo planteando.
+    let f = fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0);
+    f = fichar(f, ["of1"], "revisar", "op1", T1);
+    expect(inicioDelTramoContinuo(f)).toBe(T1);
+  });
+
+  it("sin nada corriendo, no hay tramo", () => {
+    expect(inicioDelTramoContinuo(FICHAJE_VACIO)).toBeNull();
+    expect(inicioDelTramoContinuo(pausar(fichar(FICHAJE_VACIO, ["of1"], "plantear", "op1", T0), T1)))
+      .toBeNull();
   });
 });

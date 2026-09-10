@@ -2,6 +2,7 @@
 
 import type { Operario, Rol } from "@/lib/types";
 import { agruparPorFase } from "@/lib/fases-tablero";
+import type { Seccion } from "@/lib/secciones";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -21,6 +22,7 @@ import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 export function PanelCompanero({
   operario,
   facets,
+  seccion,
   live,
   onOpen,
   onCerrar,
@@ -30,6 +32,9 @@ export function PanelCompanero({
 }: {
   operario: Operario;
   facets: Facet[];
+  /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
+   *  columnas (ver `ordenFases` en lib/secciones.ts). */
+  seccion: Seccion;
   live: LiveInfo | null;
   onOpen: (f: Facet) => void;
   onCerrar: () => void;
@@ -39,7 +44,7 @@ export function PanelCompanero({
   onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
 }) {
-  const grupos = agruparPorFase(facets);
+  const grupos = agruparPorFase(facets, seccion);
   const conItems = grupos.filter((g) => g.items.length > 0);
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 

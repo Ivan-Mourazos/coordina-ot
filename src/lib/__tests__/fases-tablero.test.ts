@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OF } from "../types";
+import type { Fase } from "../fases-tablero";
 import {
   FASES,
   FASES_DE_TRABAJO,
@@ -14,6 +15,7 @@ import {
   ofsQueCuentan,
   pedidoListoParaPasar,
 } from "../fases-tablero";
+import { SECCIONES } from "../secciones";
 
 const of = (p: Partial<OF>): OF =>
   ({
@@ -123,6 +125,67 @@ describe("agruparPorFase", () => {
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
     expect(g.find((x) => x.id === "planteando")!.items).toHaveLength(1);
     expect(g.find((x) => x.id === "devuelta")!.items).toHaveLength(0);
+  });
+
+  it("Oficina Técnica tampoco cambia: no declara orden propio", () => {
+    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.ot);
+    expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
+  });
+
+  it("Diseño pone 'listo para pasar' ANTES que 'esperando revisión'", () => {
+    // Lo que pueden cerrar hoy delante; lo que depende de otro, al final.
+    const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.diseno);
+    const ids = g.map((x) => x.id);
+    expect(ids.indexOf("listoParaPasar")).toBeLessThan(ids.indexOf("esperandoRevision"));
+  });
+
+  it("el orden de una sección trae TODAS las fases, ni una de menos", () => {
+    // Si un orden se escribiera a mano y se dejara una fuera, esa fase
+    // desaparecería del panel entero y nadie vería ese trabajo. Vale para
+    // cualquier sección que declare orden, hoy y mañana.
+    for (const s of Object.values(SECCIONES)) {
+      const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], s);
+      expect([...g.map((x) => x.id)].sort()).toEqual([...FASES.map((f) => f.id)].sort());
+    }
+  });
+
+  it("una sección que se olvida de una fase no la pierde: FASES manda, no seccion.ordenFases", () => {
+    // Esta es la garantía de verdad, y el test anterior no la pilla: con las
+    // seis secciones reales declarando las seis fases, un `fasesEnOrden` que
+    // usara `seccion.ordenFases` tal cual (el antipatrón que hay que impedir)
+    // pasaría igual. Aquí se construye una sección de mentira que deja fuera
+    // "esperandoRevision" y "parado" a propósito, partiendo de una real para
+    // no tocar la configuración de la casa.
+    const conOrden = (orden: readonly Fase[]) => ({ ...SECCIONES.ot, ordenFases: orden });
+    const seccion = conOrden(["listoParaPasar", "planteando"]);
+    const g = agruparPorFase([{ ofs: [] }], seccion);
+    const ids = g.map((x) => x.id);
+
+    // Las seis siguen apareciendo, las nombre la sección o no.
+    expect(new Set(ids)).toEqual(new Set(FASES.map((f) => f.id)));
+    expect(ids).toHaveLength(FASES.length);
+
+    // Las nombradas van primero, en el orden que pidió la sección.
+    expect(ids.slice(0, 2)).toEqual(["listoParaPasar", "planteando"]);
+
+    // Las que la sección no nombró van detrás, y entre ELLAS conservan el
+    // orden de FASES: no depende de cómo `sort` reparta los empates.
+    const sinNombrar = FASES.map((f) => f.id).filter(
+      (id) => id !== "listoParaPasar" && id !== "planteando",
+    );
+    expect(ids.slice(2)).toEqual(sinNombrar);
+  });
+
+  it("los pedidos caen en la misma fase, se ordene como se ordene", () => {
+    // El orden es de presentación: no puede cambiar en qué columna está nada.
+    const pedidos = [{ ofs: [of({ estado: "en_curso" })] }];
+    const ot = agruparPorFase(pedidos, SECCIONES.ot);
+    const dis = agruparPorFase(pedidos, SECCIONES.diseno);
+    for (const f of FASES) {
+      expect(dis.find((g) => g.id === f.id)!.items).toEqual(
+        ot.find((g) => g.id === f.id)!.items,
+      );
+    }
   });
 });
 

@@ -161,3 +161,17 @@ export function fmtMin(min: number): string {
   if (s) partes.push(`${s}s`);
   return partes.join(" ");
 }
+
+/** Etiqueta de un botón que actúa sobre 1..n OF a la vez: singular a secas,
+ *  plural con "las N" delante del resto. `resto` es lo que va DESPUÉS del
+ *  número ("a revisión" en "Pasar las 3 a revisión"); sin él, el verbo solo
+ *  ("Aprobar las 3" / "Aprobar").
+ *
+ *  Es el mismo ternario que se repetía suelto en Drawer y RevisionView —y
+ *  exactamente el sitio donde ya se coló un "Aprobar las 1" (con una sola OF,
+ *  el número no dice nada que el verbo no diga ya)—. Un solo sitio que lo
+ *  calcula bien es un solo sitio que puede volver a estar mal. */
+export function etiquetaCantidad(verbo: string, n: number, resto?: string): string {
+  const cola = resto ? ` ${resto}` : "";
+  return n > 1 ? `${verbo} las ${n}${cola}` : `${verbo}${cola}`;
+}

@@ -1,3 +1,5 @@
+import type { Fase } from "./fases-tablero";
+
 // ─── Las dos secciones que usan CoordinaOT ───────────────────────────────────
 // La web nació para Oficina Técnica. Diseño Gráfico hace lo mismo con otro
 // trabajo, y en RPS la única diferencia es el CENTRO DE TRABAJO al que cuelga
@@ -71,6 +73,35 @@ export interface Seccion {
    *  reales (`A-OTECP`, `24A-OTEC`): buscar "OTEC" las recoge todas, y ninguna
    *  otra sección de la casa lo lleva. Lo mismo vale para "DGRA". */
   marcaEnFases: string;
+  /** En qué orden se pintan las columnas del panel. Ausente = el de siempre
+   *  (ver FASES en lib/fases-tablero.ts).
+   *
+   *  Es de PRESENTACIÓN: no cambia en qué fase está un pedido, solo cuál se
+   *  enseña antes. Diseño Gráfico quiere delante lo que puede cerrar hoy y al
+   *  final lo que está esperando por otro, que es justo al revés que aquí.
+   *
+   *  Va aquí y no como un condicional dentro del panel porque no lo ordena un
+   *  sitio: lo ordenan cuatro (el panel, la tarjeta de cada compañero, su panel
+   *  de consulta y el desplegable de "ver todos"). Con un `if` en uno solo, el
+   *  mismo trabajo saldría en dos órdenes distintos según dónde se mire. */
+  ordenFases?: readonly Fase[];
+  /** Las acciones de estado se hacen sobre el PEDIDO entero, no OF por OF.
+   *  Ausente = como siempre, cada OF con las suyas.
+   *
+   *  En Oficina Técnica un pedido se reparte entre varios y cada uno manda lo
+   *  suyo cuando lo acaba, así que la OF es la unidad correcta. En Diseño
+   *  Gráfico no se reparte nada: una persona hace el pedido entero y lo pasa de
+   *  golpe, y si otro tiene que meter mano se lo pasa cuando termina. Mandarlo
+   *  OF por OF es repetir cinco veces un gesto que debería ser uno.
+   *
+   *  NO afecta a fichar ni a anular, y las dos excepciones son a propósito:
+   *  fichar es lo único que de verdad se hace sobre una OF suelta —arrancar el
+   *  reloj en lo que estás tocando ahora—, y anular no es el paso siguiente del
+   *  trabajo sino "esto no debería estar aquí". Las tareas que RPS duplica
+   *  cambiando solo el cero de delante (la 2 y la 02) salieron en 37 pedidos y
+   *  Diseño es la sección más afectada: con anular a nivel de pedido habría que
+   *  cargarse los trabajos buenos para tirar el malo. */
+  revisionPorPedido?: boolean;
 }
 
 export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
@@ -103,6 +134,19 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     recursos: ["a-dgra", "dgra-a"],
     maquina: "A-DGRA",
     marcaEnFases: "DGRA",
+    // Las seis, en el orden en que las quieren ver. Se escriben TODAS y no
+    // solo las dos que se mueven: una lista parcial invita a que la siguiente
+    // fase que se añada se quede fuera sin que nadie lo note, y una fase fuera
+    // de esta lista es una columna que desaparece del panel.
+    ordenFases: [
+      "devuelta",
+      "sinEmpezar",
+      "planteando",
+      "listoParaPasar",
+      "esperandoRevision",
+      "parado",
+    ],
+    revisionPorPedido: true,
   },
 };
 

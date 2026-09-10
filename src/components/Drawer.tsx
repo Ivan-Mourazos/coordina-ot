@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
+import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
-import { ESTADO, PRIORIDAD, ROL } from "@/lib/estado";
+import { ESTADO, PRIORIDAD, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
@@ -39,6 +40,23 @@ import { AvisoParteNuevo } from "./AvisoParteNuevo";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
+
+/** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
+ *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
+ *
+ *  Tampoco están `aprobar_sin_revision` ni `aprobar_corregida`, y esta vez SÍ
+ *  es a propósito y no un olvido: las dos llevan a `aprobada` igual que
+ *  `aprobar`, pero no tienen equivalente "de todo el pedido a la vez" —son
+ *  salidas EXCEPCIONALES (trabajo sin revisión, o la segunda vuelta de una
+ *  corrección), no el paso normal del día a día—, así que se quedan en la fila
+ *  de su OF y dentro del cajón de "⋯", donde no estorban al camino de
+ *  siempre. Meterlas aquí las haría desaparecer del todo en las secciones que
+ *  revisan por pedido, que es peor que dejarlas donde están. */
+const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
+  "terminar_planteo",
+  "aprobar",
+  "devolver",
+]);
 
 function fmt(d: string) {
   const [y, m, day] = d.split("-");
@@ -127,6 +145,7 @@ export function Drawer({
   pedido,
   operarios,
   miId,
+  seccion,
   dobleFichaje = false,
   onClose,
   onAssignPedido,
@@ -147,6 +166,9 @@ export function Drawer({
   // arrastraba `useMarcasRevision` (ver marcas-cliente.ts) hasta forzarlo a
   // aceptar un caso que en realidad no puede darse.
   miId: string;
+  /** De qué sección es este pedido. De ella sale si las acciones de estado van
+   *  por OF o por pedido (ver `revisionPorPedido` en lib/secciones.ts). */
+  seccion: Seccion;
   /** OT ficha también en la herramienta vieja: las dos cuentas de tiempo
    *  hablan del mismo trabajo y hay que decirlo (ver aplicarTiemposFichaje). */
   dobleFichaje?: boolean;
@@ -307,11 +329,6 @@ export function Drawer({
   const paraRevisar = ofsDeOT.filter((o) =>
     accionesDisponibles(o, miId).some((a) => a.id === "terminar_planteo"),
   );
-  // Un solo revisor para todas: solo se puede si el autor es el MISMO en todas,
-  // porque el revisor no puede ser el autor y con dos autores no hay un único
-  // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
-  // manda desde su fila, que es donde se ve de quién es cada una.
-  const autoresParaRevisar = [...new Set(paraRevisar.map((o) => o.autorId))];
 
   // ── Y lo mismo por el otro lado: lo que YO, de revisor, puedo hacer de una
   // tacada ────────────────────────────────────────────────────────────────
@@ -338,6 +355,44 @@ export function Drawer({
   // Aprobar de golpe pide confirmación, como la de una sola: es el final del
   // camino y multiplicado por ocho, más.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
+
+  // Con la revisión por pedido, el bloque del pedido es el ÚNICO sitio donde
+  // están estas acciones, así que tiene que salir también con una sola OF.
+  const porPedido = seccion.revisionPorPedido ?? false;
+  const minimoDelBloque = porPedido ? 1 : 2;
+
+  // Las candidatas que de verdad se mandarían si se pulsa el botón del bloque.
+  //
+  // En Oficina Técnica esta lista es `paraRevisar` tal cual: el guardián de
+  // más abajo sigue siendo "no hay nada fichándose en el pedido" —igual que
+  // siempre—, así que aquí no hace falta quitar nada. Tocar esto cambiaría la
+  // conducta de OT, que es justo lo que no puede pasar.
+  //
+  // En Diseño, en cambio, el bloque es el ÚNICO camino para pasar una OF a
+  // revisión: la fila lo quita a propósito en las secciones `porPedido` (ver
+  // `ACCIONES_DEL_PEDIDO`). Con el guardián de OT tal cual, fichar UNA sola OF
+  // del pedido —lo más normal del día— bloqueaba TODAS las demás aunque
+  // estuvieran listas, sin ninguna puerta alternativa donde mandarlas. Aquí se
+  // saca del envío la que estoy fichando yo mismo —no puede irse a revisión
+  // con el reloj corriendo encima, que es la razón de ser de la guarda
+  // original, y sigue en pie para ESA OF— pero ya no arrastra a las demás del
+  // mismo pedido.
+  const paraRevisarBloque = porPedido
+    ? paraRevisar.filter((o) => !fichandoYo.some((f) => f.id === o.id))
+    : paraRevisar;
+  // Un solo revisor para todas: solo se puede si el autor es el MISMO en todas,
+  // porque el revisor no puede ser el autor y con dos autores no hay un único
+  // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
+  // manda desde su fila, que es donde se ve de quién es cada una.
+  const autoresParaRevisar = [...new Set(paraRevisarBloque.map((o) => o.autorId))];
+  // Aviso de "para el reloj primero". En OT tal cual estaba: cualquier ficha en
+  // marcha en el pedido lo dispara, porque allí el bloque es todo o nada. En
+  // Diseño solo tiene sentido si YA no queda nada que mandar sin pausar —si
+  // aún hay otras OF sueltas, es el propio botón el que las ofrece, y este
+  // aviso al lado suyo solo confundiría—.
+  const avisoPausarPrimero = porPedido
+    ? fichandoYo.length > 0 && paraRevisarBloque.length === 0 && paraRevisar.length > 0
+    : fichandoYo.length > 0 && paraRevisar.length > 0;
 
   // LO QUE YO TENGO QUE REVISAR en este pedido, haya empezado ya o no.
   //
@@ -604,7 +659,7 @@ export function Drawer({
                   que ya dijiste que estaba acabado.
                   Se dice POR QUÉ en vez de esconder el botón a secas: si no,
                   parece que la web se ha roto. */}
-              {fichandoYo.length > 0 && paraRevisar.length > 0 && (
+              {avisoPausarPrimero && (
                 <span className="text-[11px] text-text-muted">
                   Pausa el reloj para poder pasar a revisión
                 </span>
@@ -622,7 +677,7 @@ export function Drawer({
               )}
               {/* Y darlas por buenas todas juntas, que es como se acaba un
                   parte que estaba bien. */}
-              {paraAprobar.length > 1 && (
+              {paraAprobar.length >= minimoDelBloque && (
                 <button
                   onClick={() => {
                     idsAConfirmar.current = paraAprobar.map((o) => o.id);
@@ -635,19 +690,33 @@ export function Drawer({
                   }
                   className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Aprobar las {paraAprobar.length}
+                  {/* En Diseño el pedido casi siempre es una sola OF, y este
+                      botón sale desde que se revisa por pedido: sin el
+                      singular de `etiquetaCantidad`, se leería "Aprobar las 1"
+                      todos los días. */}
+                  {etiquetaCantidad("Aprobar", paraAprobar.length)}
                 </button>
               )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
                   más de una: con una sola, este botón y el de su fila harían lo
                   mismo. */}
-              {fichandoYo.length === 0 && paraRevisar.length > 1 && autoresParaRevisar.length === 1 && !pidiendoRevisorPedido && (
+              {/* El guardián NO es "fichandoYo.length === 0" a secas: eso
+                  bloqueaba TODO el pedido por fichar una sola OF (ver el
+                  porqué de `paraRevisarBloque` más arriba). En OT el término
+                  `porPedido` de esta condición es siempre falso, así que aquí
+                  no cambia nada: sigue exigiendo el reloj parado del todo. */}
+              {(porPedido || fichandoYo.length === 0) &&
+                paraRevisarBloque.length >= minimoDelBloque &&
+                (autoresParaRevisar.length === 1 || porPedido) &&
+                !pidiendoRevisorPedido && (
                 <button
                   onClick={() => setPidiendoRevisorPedido(true)}
-                  title={`Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`}
+                  title={`Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`}
                   className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
                 >
-                  Pasar las {paraRevisar.length} a revisión
+                  {/* Mismo motivo que en "Aprobar": con una sola OF (lo
+                      normal en Diseño) el número sobra. */}
+                  {etiquetaCantidad("Pasar", paraRevisarBloque.length, "a revisión")}
                 </button>
               )}
             </span>
@@ -677,13 +746,15 @@ export function Drawer({
               demás porque al abrirse despliega el campo del motivo a lo ancho,
               y en la fila de botones no cabe. Mismo criterio que el selector de
               revisor de aquí debajo. */}
-          {paraDevolver.length > 1 && (
+          {paraDevolver.length >= minimoDelBloque && (
             <div className="mb-2 flex justify-end">
               <DevolverInline
                 label={
                   fallosGuia.length > 0
                     ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "causa" : "causas"}`
-                    : `Devolver las ${paraDevolver.length}`
+                    : // La rama de causas ya concuerda bien; esta es la que faltaba:
+                      // con una sola OF (lo normal en Diseño) el número sobra.
+                      etiquetaCantidad("Devolver", paraDevolver.length)
                 }
                 miId={miId}
                 causasSugeridas={fallosGuia}
@@ -706,16 +777,34 @@ export function Drawer({
           {pidiendoRevisorPedido && (
             <div className="mb-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2">
               <p className="mb-1.5 text-[11px] text-text-muted">
-                Se mandan a revisar las {paraRevisar.length} OF de{" "}
-                {opById(autoresParaRevisar[0])?.nombre ?? "este pedido"}, con el mismo revisor.
+                {/* Con una sola OF (lo normal en Diseño) "el mismo revisor"
+                    no dice nada -ya es uno solo- y "la 1 OF" tampoco es
+                    castellano: la frase se reescribe entera en singular. */}
+                {paraRevisarBloque.length > 1 ? (
+                  <>
+                    Se mandan a revisar las {paraRevisarBloque.length} OF de{" "}
+                    {autoresParaRevisar.length === 1
+                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
+                      : "este pedido"}
+                    , con el mismo revisor.
+                  </>
+                ) : (
+                  <>
+                    Se manda a revisar la OF de{" "}
+                    {autoresParaRevisar.length === 1
+                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
+                      : "este pedido"}
+                    .
+                  </>
+                )}
               </p>
               <PedirRevisor
                 operarios={operarios}
                 excluirIds={autoresParaRevisar}
-                etiquetaConfirmar={`Pasar las ${paraRevisar.length}`}
+                etiquetaConfirmar={etiquetaCantidad("Pasar", paraRevisarBloque.length)}
                 onConfirmar={(rev) => {
-                  for (const o of paraRevisar) onSetRevisor(o.id, rev);
-                  onAccion(paraRevisar.map((o) => o.id), "terminar_planteo");
+                  for (const o of paraRevisarBloque) onSetRevisor(o.id, rev);
+                  onAccion(paraRevisarBloque.map((o) => o.id), "terminar_planteo");
                   setPidiendoRevisorPedido(false);
                 }}
                 onCancelar={() => setPidiendoRevisorPedido(false)}
@@ -738,6 +827,7 @@ export function Drawer({
                 miId={miId}
                 dobleFichaje={dobleFichaje}
                 pedidoDeUnaOF={pedido.ofs.length === 1}
+                revisionPorPedido={porPedido}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
                 onTraspasarAutor={onTraspasarAutor}
@@ -889,6 +979,7 @@ function OFRow({
   miId,
   dobleFichaje,
   pedidoDeUnaOF,
+  revisionPorPedido,
   opById,
   onSetRevisor,
   onTraspasarAutor,
@@ -907,6 +998,9 @@ function OFRow({
   dobleFichaje: boolean;
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
+  /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
+   *  aprobar ni devolver: esas suben al bloque del pedido. */
+  revisionPorPedido: boolean;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -1121,6 +1215,7 @@ function OFRow({
         of={of}
         operarios={operarios}
         miId={miId}
+        revisionPorPedido={revisionPorPedido}
         onAccion={onAccion}
         onSetRevisor={onSetRevisor}
         onFichar={onFichar}
@@ -1144,6 +1239,7 @@ function AccionesOF({
   of,
   operarios,
   miId,
+  revisionPorPedido,
   onAccion,
   onSetRevisor,
   onFichar,
@@ -1157,6 +1253,9 @@ function AccionesOF({
   /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
    *  dar por buena una OF sin haberla repasado entera es lo que se evita. */
   impedidoRevision?: string | null;
+  /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
+   *  aprobar ni devolver: esas suben al bloque del pedido. */
+  revisionPorPedido: boolean;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -1220,7 +1319,11 @@ function AccionesOF({
       a.id !== "empezar_planteo" &&
       a.id !== "retomar" &&
       !(relojALaVista && a.id === "empezar_revision") &&
-      !(fichandoYoEsta && a.id === "terminar_planteo"),
+      !(fichandoYoEsta && a.id === "terminar_planteo") &&
+      // Las de estado suben al pedido en las secciones que trabajan así. Se
+      // quedan fichar —que no pasa por aquí, tiene su propio botón— y anular,
+      // que es la única que de verdad es de una OF suelta.
+      !(revisionPorPedido && ACCIONES_DEL_PEDIDO.has(a.id)),
   );
   // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
   //

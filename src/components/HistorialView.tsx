@@ -5,12 +5,11 @@ import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Operario, Pedido } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
-import { fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { HistorialDrawer } from "./HistorialDrawer";
-import { RolChip } from "./RolChip";
+import { HistorialDrawer, HistorialCentros } from "./HistorialDrawer";
 import { Desplegable } from "./Desplegable";
 import { Select } from "./Select";
+import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 
 /** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
  *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
@@ -54,6 +53,7 @@ export function HistorialView({
   onAbrirPasado,
   operarios = [],
   miId = null,
+  seccion = SECCION_POR_DEFECTO,
 }: {
   pasados?: readonly Pedido[];
   onAbrirPasado?: (pedidoId: string) => void;
@@ -62,6 +62,7 @@ export function HistorialView({
   operarios?: readonly Operario[];
   /** Quién soy: finalizar una fase en RPS se firma con mi código de operario. */
   miId?: string | null;
+  seccion?: SeccionId;
 } = {}) {
   const [items, setItems] = useState<HistorialItem[]>([]);
   const [page, setPage] = useState(0);
@@ -78,7 +79,7 @@ export function HistorialView({
   const [cliente, setCliente] = useState<string | null>(null);
 
   // Clave de filtros: al cambiar, se reinicia la lista.
-  const filtrosKey = `${q}|${desde}|${hasta}|${familia ?? ""}|${cliente ?? ""}`;
+  const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}|${cliente ?? ""}`;
   const hayFiltros = Boolean(q.trim() || desde || hasta || familia || cliente);
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
@@ -93,6 +94,7 @@ export function HistorialView({
       setError(false);
       try {
         const params = new URLSearchParams({ page: String(pageAcargar) });
+        params.set("seccion", seccion);
         if (q.trim()) params.set("q", q.trim());
         if (desde) params.set("desde", desde);
         if (hasta) params.set("hasta", hasta);
@@ -112,7 +114,7 @@ export function HistorialView({
         if (seq === reqSeq.current) setCargando(false);
       }
     },
-    [q, desde, hasta, familia, cliente],
+    [seccion, q, desde, hasta, familia, cliente],
   );
 
   // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
@@ -302,7 +304,7 @@ export function HistorialView({
           de la app, no deja aire entre filas. */}
       <div className="space-y-1">
         {items.map((it) => (
-          <FilaHistorial key={it.pedido} item={it} onOpen={setAbierto} />
+          <FilaHistorial key={it.pedido} item={it} onOpen={setAbierto} seccion={seccion} />
         ))}
       </div>
 
@@ -310,6 +312,7 @@ export function HistorialView({
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer
+        seccion={seccion}
         pedido={abierto}
         operarios={operarios}
         miId={miId}
@@ -449,7 +452,7 @@ function Autoria({ item }: { item: HistorialItem }) {
  *  El detalle sigue haciendo falta (ahí van a ir los documentos y las reservas
  *  de material), así que tiene botón propio: rotulado, siempre visible y en el
  *  tabulador. En un hover no se encontraría, y con el teclado no se llegaría. */
-function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido: string) => void }) {
+function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen: (pedido: string) => void; seccion: SeccionId }) {
   const [desplegado, setDesplegado] = useState(false);
   const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -577,31 +580,7 @@ function FilaHistorial({ item, onOpen }: { item: HistorialItem; onOpen: (pedido:
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
           {ofs?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OF.</p>}
-          <ul className="space-y-1.5">
-            {ofs?.map((of) => (
-              <li key={of.codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="font-mono font-semibold text-text">{of.codigo}</span>
-                <span className="min-w-0 flex-1 truncate text-text-muted">{of.descripcion}</span>
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
-                  {fmtMin(of.tiempoImputadoMin)}
-                </span>
-                {of.rol && (
-                  <span className="flex gap-1.5">
-                    <RolChip
-                      rol="plantear"
-                      min={of.rol.planteoMin}
-                      quien={of.rol.planteo.map((p) => p.nombre)}
-                    />
-                    <RolChip
-                      rol="revisar"
-                      min={of.rol.revisionMin}
-                      quien={of.rol.revision.map((p) => p.nombre)}
-                    />
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {ofs && ofs.length > 0 && <HistorialCentros key={seccion} ofs={ofs} seccion={seccion} />}
         </div>
       </Desplegable>
     </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leerHistorialPagina } from "@/lib/server/historial-db";
+import { seccionDe } from "@/lib/secciones";
 
 // ─── GET /api/historial ──────────────────────────────────────────────────────
 // Página del historial permanente de pedidos finalizados por OT. El page size
@@ -15,6 +16,7 @@ export async function GET(req: Request) {
   try {
     const data = await leerHistorialPagina({
       page,
+      seccion: seccionDe(url.searchParams.get("seccion")).id,
       q: url.searchParams.get("q") ?? undefined,
       desde: url.searchParams.get("desde") ?? undefined,
       hasta: url.searchParams.get("hasta") ?? undefined,
