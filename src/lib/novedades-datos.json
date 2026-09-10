@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-10",
-    "hasta": "1c89ee4",
+    "hasta": "6be5bd7",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "El Historial separa los tiempos de OT, Diseño y Taller",
         "detalle": "Tu sección muestra los tiempos por persona; las demás, solo sus totales."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes consultar las tareas y tiempos del pedido con un botón",
+        "detalle": "Cada tarea conserva su centro y su total; en la sección seleccionada se desglosa por persona."
       },
       {
         "tipo": "arreglado",
@@ -41,6 +46,11 @@
         "tipo": "arreglado",
         "titulo": "Al revisor le salía el botón de pasar a Producción",
         "detalle": "Después de aprobar, el pedido queda listo para que lo pase uno de sus autores. El revisor ya no puede pasarlo por su cuenta."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial se ven todas las OF del pedido",
+        "detalle": "También aparecen las de Taller y otros centros, en filas compactas."
       },
       {
         "tipo": "mejor",
@@ -80,6 +90,26 @@
         "tipo": "mejor",
         "titulo": "Más claras las comprobaciones de la revisión",
         "detalle": "Se aclaran las indicaciones de medidas y cotas, y Notas queda al final de las causas de devolución. La lista sigue siendo editable."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial muestra solo pedidos finalizados",
+        "detalle": "En OT cuenta el cierre de OT; en Diseño, el de Diseño. Si no hay tareas de esa sección, deben acabar las demás. Aprobar sigue dejando el pedido listo para que su autor pulse Pasar."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los autores salen con nombre y primer apellido",
+        "detalle": "Se muestra la autoría de tu sección o, si no tiene tareas, la de los demás centros."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El nombre del pedido abre su ficha en el Historial",
+        "detalle": "La flecha de la izquierda despliega las OF."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fotos del pedido están juntas y los documentos empiezan plegados",
+        "detalle": "Fotos aparece primero y reúne visita, instalación y mantenimiento. Abre cada apartado cuando lo necesites."
       }
     ]
   },
