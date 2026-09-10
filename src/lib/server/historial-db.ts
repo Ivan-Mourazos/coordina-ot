@@ -16,6 +16,7 @@ import {
   cabeceraADetalle,
   claseDeDocumento,
   construirFiltros,
+  coincideBusquedaHistorial,
   filaAItem,
   repartirPorTiempo,
   segmentosEnShare,
@@ -1137,10 +1138,10 @@ function pedidosFinalizadosMock(): HistorialItem[] {
 
 function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: boolean } {
   let todos = pedidosFinalizadosMock();
-  const q = f.q?.trim().toLowerCase();
+  const q = f.q?.trim();
   if (q)
     todos = todos.filter(
-      (p) => p.pedido.toLowerCase().includes(q) || (p.cliente ?? "").toLowerCase().includes(q),
+      (p) => coincideBusquedaHistorial(q, p.pedido, p.cliente ?? "", PEDIDOS.find((original) => original.codigo === p.pedido)?.ofs ?? []),
     );
   if (f.desde?.trim()) todos = todos.filter((p) => p.finalizada >= f.desde!.trim());
   if (f.hasta?.trim()) todos = todos.filter((p) => p.finalizada < f.hasta!.trim());

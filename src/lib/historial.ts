@@ -1,6 +1,7 @@
 // ─── Historial permanente: tipos + lógica pura (client-safe) ─────────────────
 // Sin acceso a BD: solo los tipos que comparten API y UI, el constructor de
 // cláusulas de filtro (parametrizadas, NUNCA interpoladas) y el mapeo de fila.
+import { normaliza, palabrasDe } from "./buscador";
 
 export const PAGE_SIZE = 40;
 
@@ -11,7 +12,7 @@ export interface HistorialFiltros {
   page: number;
   /** Cambia la autoría mostrada, nunca qué pedidos entran en la lista. */
   seccion?: import("./secciones").SeccionId;
-  q?: string; // busca en código de pedido o nombre de cliente
+  q?: string; // pedido, cliente, número de OF o descripción de la OF
   desde?: string; // ISO yyyy-mm-dd (inclusive)
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
   familia?: string;
@@ -54,6 +55,9 @@ export const FAMILIAS_FILTRABLES: readonly string[] = [
 ];
 
 export interface HistorialItem {
+  /** Consulta que RPS ha encontrado, incluso en OFs ausentes de esta cabecera.
+   *  Permite al buscador global conservarla solo mientras siga esa consulta. */
+  busqueda?: string;
   pedido: string;
   cliente: string | null;
   finalizada: string; // ISO
@@ -250,8 +254,25 @@ export function construirFiltros(f: HistorialFiltros): {
 
   const q = f.q?.trim();
   if (q) {
-    clausulas.push("(p.pedido LIKE @q OR cli.Description LIKE @q)");
-    params.push({ nombre: "q", valor: `%${q}%` });
+    const palabras = palabrasDe(q);
+    if (palabras.length === 0) {
+      clausulas.push("1 = 0");
+    } else {
+      params.push({ nombre: "qCodigo", valor: `%${palabras.join("")}%` });
+      palabras.forEach((palabra, i) => params.push({ nombre: `qPalabra${i}`, valor: `%${palabra}%` }));
+      const texto = (columna: string) => palabras.map((_, i) => `${columna} COLLATE Latin1_General_CI_AI LIKE @qPalabra${i}`).join(" AND ");
+      // EXISTS busca en todas las OF del pedido sin multiplicar filas ni
+      // limitar los resultados a los 40 pedidos ya cargados en el navegador.
+      clausulas.push(`(REPLACE(p.pedido, '.', '') LIKE @qCodigo
+        OR (${texto("cli.Description")})
+        OR EXISTS (
+          SELECT 1 FROM dbo.FACOrderSL ob
+          JOIN dbo.FACOrderLineSL lb ON lb.IDOrder = ob.IDOrder
+          JOIN dbo.CPRManufacturingOrder mb ON mb.IDManufacturingOrder = lb.IDManufacturingOrder
+          WHERE ob.CodOrder = p.pedido AND ob.CodCompany = '001' AND mb.CodCompany = '001'
+            AND (mb.CodManufacturingOrder LIKE @qCodigo OR (${texto("mb.Description")}))
+        ))`);
+    }
   }
   if (f.desde?.trim()) {
     clausulas.push("p.finalizada >= @desde");
@@ -288,6 +309,24 @@ export function construirFiltros(f: HistorialFiltros): {
   }
 
   return { clausulas, params };
+}
+
+/** Equivalente del filtro de búsqueda para el origen simulado. */
+export function coincideBusquedaHistorial(
+  consulta: string,
+  pedido: string,
+  cliente: string,
+  ofs: readonly { codigo: string; descripcion: string }[],
+): boolean {
+  const palabras = palabrasDe(consulta);
+  if (!palabras.length) return false;
+  const codigo = palabras.join("");
+  const texto = (valor: string) => {
+    const normalizado = palabrasDe(valor).join(" ");
+    return palabras.every((palabra) => normalizado.includes(palabra));
+  };
+  return normaliza(pedido).includes(codigo) || texto(cliente)
+    || ofs.some((of) => normaliza(of.codigo).includes(codigo) || texto(of.descripcion));
 }
 
 /** Cuánto del tiempo total tiene que llevar alguien para contar como autor.

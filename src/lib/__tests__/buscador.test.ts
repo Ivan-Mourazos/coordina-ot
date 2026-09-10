@@ -47,6 +47,14 @@ const hist = (p: Partial<HistorialItem> = {}): HistorialItem => ({
   ...p,
 });
 
+it("conserva la coincidencia remota por OF y descarta la de una consulta anterior", () => {
+  const remoto = hist({ busqueda: "0231269" });
+  const datos = { pedidos: [], historial: [remoto], nombre };
+  expect(buscar("0231269", datos).map((r) => r.codigo)).toEqual([remoto.pedido]);
+  expect(buscar("0231270", datos)).toEqual([]);
+  expect(buscar("texto diferente", datos)).toEqual([]);
+});
+
 const fuentes = (pedidos: Pedido[], historial: HistorialItem[] = []) => ({
   pedidos,
   historial,

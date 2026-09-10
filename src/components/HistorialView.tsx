@@ -78,11 +78,10 @@ export function HistorialView({
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [familia, setFamilia] = useState<string | null>(null);
-  const [cliente, setCliente] = useState<string | null>(null);
 
   // Clave de filtros: al cambiar, se reinicia la lista.
-  const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}|${cliente ?? ""}`;
-  const hayFiltros = Boolean(q.trim() || desde || hasta || familia || cliente);
+  const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}`;
+  const hayFiltros = Boolean(q.trim() || desde || hasta || familia);
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
   // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
@@ -101,7 +100,6 @@ export function HistorialView({
         if (desde) params.set("desde", desde);
         if (hasta) params.set("hasta", hasta);
         if (familia) params.set("familia", familia);
-        if (cliente) params.set("cliente", cliente);
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
         const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean };
@@ -116,7 +114,7 @@ export function HistorialView({
         if (seq === reqSeq.current) setCargando(false);
       }
     },
-    [seccion, q, desde, hasta, familia, cliente],
+    [seccion, q, desde, hasta, familia],
   );
 
   // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
@@ -190,16 +188,15 @@ export function HistorialView({
           Ahora la barra es una sola fila con los mismos controles que Pendientes
           y Revisiones, y dice lo que está recortando. */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
-        <label className="flex flex-col text-xs text-text-muted">
-          Pedido o cliente
+        <label className="flex min-w-60 flex-1 flex-col text-xs text-text-muted">
+          Buscar en el Historial
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="AR.26.03376, SA.26…, MAHOU…"
-            className="mt-1 w-60 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+            placeholder="Pedido, OF, cliente o descripción…"
+            className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
           />
         </label>
-        <ClienteAutocomplete value={cliente} onChange={setCliente} />
         <label className="flex flex-col text-xs text-text-muted">
           Familia
           <span className="mt-1">
@@ -257,7 +254,6 @@ export function HistorialView({
               setDesde("");
               setHasta("");
               setFamilia(null);
-              setCliente(null);
             }}
             className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
           >
@@ -321,87 +317,6 @@ export function HistorialView({
         onClose={() => setAbierto(null)}
       />
     </div>
-  );
-}
-
-function ClienteAutocomplete({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (cliente: string | null) => void;
-}) {
-  const [texto, setTexto] = useState("");
-  const [sug, setSug] = useState<string[]>([]);
-  const [abierto, setAbierto] = useState(false);
-
-  useEffect(() => {
-    const t = texto.trim();
-    // El reset (texto < 2 chars) también se difiere al timer: llamar a
-    // setState de forma síncrona en el cuerpo del efecto dispara el lint
-    // react-hooks/set-state-in-effect (cascading renders).
-    const timer = setTimeout(async () => {
-      if (t.length < 2) {
-        setSug([]);
-        return;
-      }
-      try {
-        const r = await fetch(`/api/historial/clientes?q=${encodeURIComponent(t)}`, { cache: "no-store" });
-        if (!r.ok) return;
-        const d = (await r.json()) as { clientes: string[] };
-        setSug(d.clientes);
-        setAbierto(true);
-      } catch {
-        /* sin sugerencias */
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [texto]);
-
-  if (value) {
-    return (
-      <label className="flex flex-col text-xs text-text-muted">
-        Cliente
-        <span className="mt-1 flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text">
-          {value}
-          <button onClick={() => onChange(null)} aria-label="Quitar cliente" className="ml-1 text-text-muted hover:text-text">
-            ✕
-          </button>
-        </span>
-      </label>
-    );
-  }
-
-  return (
-    <label className="relative flex flex-col text-xs text-text-muted">
-      Cliente
-      <input
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        onFocus={() => texto.trim().length >= 2 && sug.length > 0 && setAbierto(true)}
-        onBlur={() => setTimeout(() => setAbierto(false), 150)}
-        placeholder="Escribe 2+ letras…"
-        className="mt-1 w-56 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
-      />
-      {abierto && sug.length > 0 && (
-        <ul className="glass-pop absolute top-full z-30 mt-1 max-h-60 w-72 overflow-y-auto rounded-lg p-1">
-          {sug.map((c) => (
-            <li key={c}>
-              <button
-                onMouseDown={() => {
-                  onChange(c);
-                  setTexto("");
-                  setAbierto(false);
-                }}
-                className="block w-full truncate rounded px-2 py-1 text-left text-sm text-text hover:bg-[var(--glass-highlight)]"
-              >
-                {c}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </label>
   );
 }
 

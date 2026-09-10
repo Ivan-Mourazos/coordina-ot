@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { construirFiltros, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
+import { construirFiltros, coincideBusquedaHistorial, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
 import { FAMILIAS_FILTRABLES, archivoDeRuta, claseDeDocumento, comoServir, segmentosEnShare } from "../historial";
 import { aMaterialOF, repartirMateriales } from "../historial";
 
@@ -9,11 +9,36 @@ test("sin filtros no genera cláusulas ni params", () => {
   expect(r.params).toEqual([]);
 });
 
-test("q genera cláusula LIKE parametrizada sobre pedido y cliente", () => {
+test("q busca pedido, cliente y OF con parámetros y sin duplicar pedidos", () => {
   const r = construirFiltros({ page: 0, q: "MAHOU" });
   expect(r.clausulas).toHaveLength(1);
-  expect(r.clausulas[0]).toMatch(/p\.pedido LIKE @q OR cli\.Description LIKE @q/);
-  expect(r.params).toContainEqual({ nombre: "q", valor: "%MAHOU%" });
+  expect(r.clausulas[0]).toContain("cli.Description COLLATE Latin1_General_CI_AI LIKE @qPalabra0");
+  expect(r.clausulas[0]).toContain("EXISTS (");
+  expect(r.clausulas[0]).toContain("mb.CodManufacturingOrder LIKE @qCodigo");
+  expect(r.clausulas[0]).toContain("mb.Description COLLATE Latin1_General_CI_AI LIKE @qPalabra0");
+  expect(r.params).toContainEqual({ nombre: "qCodigo", valor: "%MAHOU%" });
+  expect(r.params).toContainEqual({ nombre: "qPalabra0", valor: "%MAHOU%" });
+});
+
+test("la búsqueda acepta código sin puntos, OF sin cero, cliente y palabras desordenadas", () => {
+  const coincide = (q: string) => coincideBusquedaHistorial(q, "AR.26.03972", "TOLDOS GÓMEZ", [
+    { codigo: "0231269", descripcion: "LONA PARA PUERTA ENROLLABLE" },
+    { codigo: "0231270", descripcion: "FACHADA AZUL" },
+  ]);
+  for (const q of ["AR2603972", "ar 26 03972", "3972", "0231269", "231269", "gomez", "enrollable lona"])
+    expect(coincide(q), q).toBe(true);
+  // Todas las palabras deben estar en la misma descripción, no repartidas.
+  for (const q of ["lona azul", "999999", "%_[]", ""])
+    expect(coincide(q), q).toBe(false);
+});
+
+test("la búsqueda no interpola texto ni interpreta comodines del usuario", () => {
+  const q = "x'; DROP TABLE ejemplo --";
+  const r = construirFiltros({ page: 0, q, familia: "PUERTAS" });
+  expect(r.clausulas.join(" ")).not.toContain("DROP TABLE");
+  expect(r.params).toContainEqual({ nombre: "qPalabra1", valor: "%DROP%" });
+  expect(r.params).toContainEqual({ nombre: "familia", valor: "PUERTAS" });
+  expect(construirFiltros({ page: 0, q: "%_[]" }).clausulas).toEqual(["1 = 0"]);
 });
 
 test("desde/hasta generan cláusulas de rango parametrizadas", () => {

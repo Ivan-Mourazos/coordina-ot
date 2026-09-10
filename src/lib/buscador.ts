@@ -258,7 +258,10 @@ export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
     // El mismo pedido puede estar en los dos sitios mientras RPS lo cierra.
     // Manda el del tablero: es el que se puede abrir y tocar.
     if (yaEstan.has(it.pedido)) continue;
-    const puntos = puntua(indiceDeHistorial(it), q, busca);
+    // RPS puede haber acertado por OF o descripción, que no viajan en la
+    // cabecera. La consulta exacta impide colar respuestas de búsquedas viejas.
+    const puntos = puntua(indiceDeHistorial(it), q, busca)
+      ?? (it.busqueda === consulta.trim() ? 200 : null);
     if (puntos === null) continue;
     salida.push({
       clave: it.pedido,

@@ -23,7 +23,11 @@ export async function GET(req: Request) {
       familia: url.searchParams.get("familia") ?? undefined,
       cliente: url.searchParams.get("cliente") ?? undefined,
     });
-    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+    const busqueda = url.searchParams.get("q")?.trim();
+    return NextResponse.json({
+      ...data,
+      pedidos: busqueda ? data.pedidos.map((pedido) => ({ ...pedido, busqueda })) : data.pedidos,
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[historial] página falló:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo cargar el historial" }, { status: 500 });
