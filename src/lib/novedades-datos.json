@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-10",
-    "hasta": "e96efa8",
+    "hasta": "9dbb5f5",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -23,6 +23,11 @@
         "detalle": "Al desplegar un pedido vuelves a ver sus OF de un vistazo. El detalle por centros y los materiales siguen en la ficha."
       },
       {
+        "tipo": "arreglado",
+        "titulo": "Al aprobar, un pedido podía desaparecer sin que pulsaras Pasar",
+        "detalle": "El cierre de Diseño podía dar por pasado también el trabajo de OT. Ahora cada sección tiene su propio paso y aprobar deja el pedido listo para que pulses Pasar."
+      },
+      {
         "tipo": "mejor",
         "titulo": "En Diseño Gráfico, primero lo que puedes cerrar",
         "detalle": "Las columnas de tu panel cambian de orden: lo que ya está listo para pasar a Producción va delante, y lo que está esperando a que otro lo revise queda al final. En Oficina Técnica no cambia nada."
@@ -31,6 +36,16 @@
         "tipo": "mejor",
         "titulo": "En Diseño Gráfico, el pedido se pasa entero de una vez",
         "detalle": "Ya no hay que ir OF por OF: pasar a revisión, aprobar y devolver están arriba y van sobre el pedido completo, aunque solo tenga una. Fichar y anular siguen igual, sobre la OF que quieras. En Oficina Técnica no cambia nada."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Busca por pedido, OF, cliente o descripción en una sola caja del Historial",
+        "detalle": "Los filtros de familia y fechas siguen al lado y la lista conserva sus filas compactas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial indica si el pedido sigue pendiente",
+        "detalle": "Si sigue en revisión o está listo para pasar en tu sección, verás ese estado en lugar de una fecha de pasado."
       }
     ]
   },
