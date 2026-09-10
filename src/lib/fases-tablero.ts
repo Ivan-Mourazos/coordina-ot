@@ -1,4 +1,4 @@
-import type { OF } from "./types";
+import type { OF, Pedido } from "./types";
 import type { Seccion } from "./secciones";
 
 // ─── Las cuatro fases del tablero ────────────────────────────────────────────
@@ -171,12 +171,17 @@ export function faseDePedido(p: ConOFs): Fase {
   return "sinEmpezar";
 }
 
-/** ¿Se puede mandar este pedido a Producción?
- *
- *  Mira el pedido ENTERO, no las OF de quien pregunta. El tablero reparte cada
- *  pedido por autor, así que quien acabe su parte vería su trozo "listo para
- *  pasar" y, si el botón mirase solo eso, mandaría a Producción la OF que otro
- *  tiene a medias. Producción recibe el pedido completo o no lo recibe. */
+/** Permiso para el paso explícito, compartido por la pantalla y el servidor. */
+export function puedePasarAProduccion(p: Pick<Pedido, "ofs" | "situacion">, operarioId: string | null): boolean {
+  // Revisar no da derecho a cerrar el trabajo del autor. En pedidos
+  // repartidos puede pasarlo cualquiera de sus autores, una vez listo todo.
+  // Una OF anulada conserva su autor: también puede liberar ese pedido.
+  return p.situacion !== "completado" && pedidoListoParaPasar(p) &&
+    operarioId !== null && p.ofs.some((of) => !ofDeTaller(of) && of.autorId === operarioId);
+}
+
+/** ¿Está listo el pedido ENTERO? El tablero lo reparte por autor, pero
+ *  Producción recibe el pedido completo: no basta con terminar mi parte. */
 export function pedidoListoParaPasar(p: ConOFs): boolean {
   // Sin OF que cuente el `every` da true, y es lo correcto: no queda nada
   // pendiente en OT. Antes se exigía que hubiera al menos una, y eso dejaba

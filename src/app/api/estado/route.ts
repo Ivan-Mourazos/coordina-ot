@@ -5,7 +5,7 @@ import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { aplicarOverlay, ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
 import { identidad } from "@/lib/server/sesion";
 import { getTablero } from "@/lib/data";
-import { pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { esSeccionId } from "@/lib/secciones";
 import { seccionDeOperario } from "@/lib/server/operarios";
 
@@ -95,6 +95,9 @@ export async function POST(req: Request) {
     // pendiente ni enviar operaciones de otra sección para finalizarlas.
     if (cambios.length) {
       return NextResponse.json({ error: "Aprobar y pasar a Producción son acciones separadas." }, { status: 400 });
+    }
+    if (!puedePasarAProduccion(pedido, operarioId)) {
+      return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
   }

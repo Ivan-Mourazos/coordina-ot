@@ -48,7 +48,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
-import { agruparPorFase, ofOcultaDeOT, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { agruparPorFase, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -1812,12 +1812,20 @@ export function Board({
   // golpe, sin decir a dónde iba ni dar ocasión de rectificar.
   const [pasarPendiente, setPasarPendiente] = useState<string | null>(null);
   const [pasarError, setPasarError] = useState<string | null>(null);
-  const completarPedido = useCallback((pedidoId: string) => setPasarPendiente(pedidoId), []);
+  const completarPedido = useCallback((pedidoId: string) => {
+    const pedido = pedidos.find((p) => p.id === pedidoId);
+    if (pedido && puedePasarAProduccion(pedido, miId)) setPasarPendiente(pedidoId);
+  }, [pedidos, miId]);
   const completarPedidoAhora = useCallback(
     async (pedidoId: string) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
-      const ofIdsPedido = (pedidos.find((p) => p.id === pedidoId)?.ofs ?? [])
+      const pedido = pedidos.find((p) => p.id === pedidoId);
+      if (!pedido || !puedePasarAProduccion(pedido, miId)) {
+        setPasarError("Solo un autor del pedido puede pasarlo a Producción cuando esté listo.");
+        return;
+      }
+      const ofIdsPedido = pedido.ofs
         .filter((of) => of.estado !== "anulada")
         .map((of) => of.id);
       // Pasar a Producción CIERRA el reloj de este pedido, y lo cierra el
@@ -1849,7 +1857,7 @@ export function Board({
       soltarDeMiFichaje(ofIdsPedido);
       setOpenId(null);
     },
-    [pedidos, setPedidosSync, persistir, soltarDeMiFichaje],
+    [pedidos, miId, setPedidosSync, persistir, soltarDeMiFichaje],
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;

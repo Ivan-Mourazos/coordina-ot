@@ -80,6 +80,13 @@ test("aprobar solo no pasa el pedido y el paso explícito finaliza únicamente s
   expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(false);
   expect(finalizarMock).not.toHaveBeenCalled();
   tableroMock.mockResolvedValue({ operarios: [], pedidos: [{ ...PEDIDOS[0], id, ofs: [{ ...PEDIDOS[0].ofs[0], id: ofId, estado: "por_revisar", ajenaOT: false, detenida: false }] }] });
+  const revisor = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "jaime", seccion: "ot", motivo: "completar", completarPedidoId: id,
+  }) }));
+  expect(revisor.status).toBe(403);
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(false);
+  expect(finalizarMock).not.toHaveBeenCalled();
+  expect(cortarFichajeMock).not.toHaveBeenCalled();
   const res = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
     operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id,
     ofIdsPedido: ["operacion-ajena"], cortarFichajeDe: ["operacion-ajena"],

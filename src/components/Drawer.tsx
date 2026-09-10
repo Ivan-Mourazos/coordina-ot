@@ -31,7 +31,7 @@ import {
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
-import { ofDeTaller, pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { ofDeTaller, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
@@ -287,14 +287,9 @@ export function Drawer({
   if (!pedido) return null;
   const opById = (id: string | null) => operarios.find((o) => o.id === id) ?? null;
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
-  // La regla de "¿están todas las OF aprobadas?" vive en pedidoListoParaPasar
-  // (fases-tablero.ts): es la definición única, ver su comentario de cabecera.
-  // Aquí se mantiene una condición extra que el helper no cubre: con el filtro
-  // de situación en "todos", la Lista puede reabrir un pedido ya completado, y
-  // sus OF siguen en "aprobada" porque pasarlo solo cambia la situación del
-  // pedido. Sin este check, el botón "Pasar a Producción" reaparecería para un
-  // pedido que ya pasó.
-  const listoParaCompletar = pedido.situacion !== "completado" && pedidoListoParaPasar(pedido);
+  // Estar aprobado no basta: quien pasa el pedido debe ser uno de sus autores.
+  // La regla compartida con el servidor también excluye pedidos ya pasados.
+  const listoParaCompletar = puedePasarAProduccion(pedido, miId);
   // Lo que de verdad hay que plantear, y lo que no, cada cosa en su cajón.
   const todasLasOF = pedido.ofs;
   const ofsDeOT = todasLasOF.filter((o) => grupoOculto(o) === null);

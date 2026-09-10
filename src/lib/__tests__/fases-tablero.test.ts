@@ -14,6 +14,7 @@ import {
   ofOcultaDeOT,
   ofsQueCuentan,
   pedidoListoParaPasar,
+  puedePasarAProduccion,
 } from "../fases-tablero";
 import { SECCIONES } from "../secciones";
 
@@ -33,6 +34,26 @@ const of = (p: Partial<OF>): OF =>
     tiempoRevisionMin: 0,
     ...p,
   }) as OF;
+
+describe("quién pasa un pedido a Producción", () => {
+  const pedido = { situacion: "procesado" as const, ofs: [of({ estado: "aprobada", autorId: "ivan", revisorId: "jaime" })] };
+  it("lo ofrece al autor y no al revisor ni a alguien sin identificar", () => {
+    expect(puedePasarAProduccion(pedido, "ivan")).toBe(true);
+    expect(puedePasarAProduccion(pedido, "jaime")).toBe(false);
+    expect(puedePasarAProduccion(pedido, null)).toBe(false);
+  });
+  it("no basta con ser autor si está pendiente o ya se pasó", () => {
+    expect(puedePasarAProduccion({ ...pedido, ofs: [of({ autorId: "ivan", estado: "por_revisar" })] }, "ivan")).toBe(false);
+    expect(puedePasarAProduccion({ ...pedido, situacion: "completado" }, "ivan")).toBe(false);
+  });
+  it("un autor de taller no adquiere el permiso sobre OT", () => {
+    expect(puedePasarAProduccion({ ...pedido, ofs: [...pedido.ofs, of({ autorId: "jaime", ajenaOT: true })] }, "jaime")).toBe(false);
+  });
+  it("admite varios autores y conserva la salida de un pedido anulado por su autor", () => {
+    expect(puedePasarAProduccion({ ...pedido, ofs: [...pedido.ofs, of({ autorId: "jaime", estado: "aprobada" })] }, "jaime")).toBe(true);
+    expect(puedePasarAProduccion({ ...pedido, ofs: [of({ autorId: "ivan", estado: "anulada" })] }, "ivan")).toBe(true);
+  });
+});
 
 describe("FASES", () => {
   it("van en orden de ciclo, con las devoluciones delante", () => {
