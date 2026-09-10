@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-10",
-    "hasta": "0240a00",
+    "hasta": "e96efa8",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -16,6 +16,11 @@
       {
         "tipo": "arreglado",
         "titulo": "La leyenda de Diseño sigue el orden de sus columnas"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El Historial vuelve a mostrar las OF en filas compactas",
+        "detalle": "Al desplegar un pedido vuelves a ver sus OF de un vistazo. El detalle por centros y los materiales siguen en la ficha."
       },
       {
         "tipo": "mejor",
