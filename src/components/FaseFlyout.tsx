@@ -39,6 +39,11 @@ export function FaseFlyout({
   /** OFs de mi intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
+  // `seccion` solo entra aquí porque `agruparPorFase` la pide para saber el
+  // ORDEN de las columnas (ver su comentario arriba); pero este panel enseña
+  // UN grupo suelto —el que hace `.find` a continuación—, no la lista entera
+  // ordenada. El orden no llega a pintarse nunca: no busques aquí el efecto
+  // de `seccion` que sí tienen los otros sitios que agrupan por fase.
   const grupo = agruparPorFase(facets, seccion).find((g) => g.id === faseId);
   if (!grupo) return null;
 

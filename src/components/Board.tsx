@@ -1930,7 +1930,25 @@ export function Board({
   // El objeto de la sección, no su id: es lo que consumen agruparPorFase y el
   // Drawer, y resolverlo aquí evita que cada componente tenga que importar
   // SECCIONES para hacer el mismo lookup.
-  const laSeccion = SECCIONES[seccionActual];
+  //
+  // OJO: sale de `seccionDeLosPedidos`, NO de `seccionActual`. `seccionActual`
+  // cambia en el acto al tocar el conmutador, pero los pedidos que hay en
+  // pantalla siguen siendo los de la sección anterior hasta que contesta el
+  // fetch —contra RPS, entre 7 y 15 segundos—. `laSeccion` no pinta un marco:
+  // la usan agruparPorFase y el Drawer para REINTERPRETAR esos pedidos (orden
+  // de columnas, revisar por pedido en vez de por OF...). Si aquí fuera
+  // `seccionActual`, en esa ventana un pedido de OT que sigue en pantalla se
+  // trataría como de Diseño: perdería los botones por OF y, sobre todo, se le
+  // aplicaría la revisión por pedido saltándose `autoresParaRevisar.length
+  // === 1` — la condición que impide mandar una OF con dos autores a un solo
+  // revisor. `seccionDeLosPedidos` es precisamente el campo que ya existe
+  // para esto (ver su declaración más arriba); no lo dupliques ni lo
+  // "simplifiques" de vuelta a `seccionActual`.
+  //
+  // `null` solo antes del primer fetch, que es el HTML que pinta el servidor:
+  // arranca con los pedidos de Oficina Técnica, así que caer en
+  // SECCION_POR_DEFECTO ("ot") es lo correcto y no un caso especial.
+  const laSeccion = SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO];
 
   return (
     <>

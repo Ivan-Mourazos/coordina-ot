@@ -259,9 +259,15 @@ export function MiFichaje({
   const pedidosCorriendo = ab
     ? pedidos.filter((p) => p.ofs.some((of) => ab.ofIds.includes(of.id)))
     : [];
+  // Con un solo pedido y más de una OF corriendo, el código solo no cambiaba
+  // al pausar una de varias: mismo texto, reloj que sigue, y el aviso que se
+  // quería para ese caso (ver el motivo de `desde`, arriba) se quedaba sin
+  // señal. Con una sola OF el número no dice nada que el código no diga ya.
   const queCorre =
     pedidosCorriendo.length === 1
-      ? pedidosCorriendo[0].codigo
+      ? nOFs > 1
+        ? `${pedidosCorriendo[0].codigo} · ${nOF(nOFs)}`
+        : pedidosCorriendo[0].codigo
       : pedidosCorriendo.length > 1
         ? `${pedidosCorriendo.length} pedidos`
         : nOF(nOFs);

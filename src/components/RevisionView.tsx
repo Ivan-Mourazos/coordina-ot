@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
-import { ESTADO, ROL, fmtMin } from "@/lib/estado";
+import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
 import { FASES } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
@@ -500,7 +500,7 @@ function ReviewCard({
                 ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
                 onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
                 impedido={impedido}
-                label={ofs.length > 1 ? `Aprobar las ${ofs.length}` : "Aprobar"}
+                label={etiquetaCantidad("Aprobar", ofs.length)}
               />
             )}
             {puedo("devolver") && (
