@@ -13,7 +13,7 @@ Esto no cambia nada para el equipo. `COORDINA_LOGIN` no está puesta, o está a
 2. **Backup de `data/coordina.db` antes de arrancar** (`pnpm backup`): la
    migración 7 crea la tabla `persona`. Es la práctica de siempre, y aquí más.
 3. Después de arrancar, comprobar dos cosas:
-   - `PRAGMA user_version` en `data/coordina.db` dice **7**.
+   - `PRAGMA user_version` en `data/coordina.db` es **al menos 7**. Producción ya tiene la **8**, verificada el 10/09/2026; no bajar la versión.
    - La web se ve exactamente igual que ayer. Si sale una pantalla de PIN, la
      variable está encendida y no debería.
 
@@ -52,7 +52,7 @@ igual que hoy. Lo que ya no puede es escribir a nombre de otro.
    va a pedir un PIN; es tu extensión, y la primera vez te la pide dos veces".
 2. **Tener a mano la lista de extensiones.** Quien no se acuerde de la suya se
    queda fuera de su herramienta de trabajo hasta que alguien se la diga.
-3. **Generar el secreto EN el servidor** y ponerlo en su `.env.local`. Sin él la
+3. **Generar el secreto EN el servidor** y ponerlo en su `.env`. Sin él la
    app no arranca con el login encendido. No reutilizar el de desarrollo:
    ```
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
@@ -61,7 +61,7 @@ igual que hoy. Lo que ya no puede es escribir a nombre de otro.
 
 ### Encender
 
-En el `.env.local` del servidor:
+En `/webs/coordina-ot/.env` del servidor (en desarrollo se usa `.env.local`):
 
 ```
 COORDINA_LOGIN=activo

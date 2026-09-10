@@ -204,9 +204,20 @@ tanto en la caja del Historial como en la lupa de la cabecera.
 
 ## 7. Cosas sueltas que conviene no perder
 
-- [ ] **Ángel tiene que repasar las tres causas genéricas de devolución.** Las escribí yo, no las dictó él. Y la causa "notas" (id 4, orden 0) sale la primera en producción y no debería.
-- [ ] Pedir a IT un índice en `tgm_monitorizacion(pedido)`: hoy es un escaneo de 4,5 s y por eso las fotos de visita van con caché de 30 min.
-- [ ] `.claude/skills/dominio-ot` dice "sin login: identidad en localStorage". Se queda corto desde que existe el login (apagado). Actualizar cuando se encienda.
+- [x] Causas existentes ajustadas en producción el 10/09, por indicación de Iván: medidas → «Las medidas del trabajo»; cotas → «Las cotas del croquis»; material conserva «El material apuntado». «Notas» (id 4) pasa de orden 0 a 4, al final. Mismos IDs, categorías y retiradas; copia previa local en `data/causas-antes-20260910.json`. Ángel podrá afinar los textos desde «Cambiar la lista».
+- [x] Fotos optimizadas en código, **pendiente de despliegue**. `tgm_monitorizacion` es una **vista**, no una tabla donde pedir ese índice. El aviso tiene `IDPedidoVenta`: ahora se consulta el pedido concreto por esa relación, sin calcularlo desde la ruta del PDF ni cargar todas las asistencias. Sin cambios en RPS ni dependencia de IT. Comparación completa: 19.049 referencias en ambas rutas, sin referencias exclusivas. Consulta definitiva por pedido: 81–270 ms frente a 2,26 s de la carga global anterior, medición local contra RPS. Caché por pedido de 5 min, máximo 200 pedidos y una carga simultánea por código. Verificación con pedidos con fotos y sin ellas, manteniendo visita/instalación y orden estable.
+- [x] `.claude/skills/dominio-ot/SKILL.md` actualizado: login instalado pero apagado, identidad de navegador frente a sesión, alcance real de protección y activación separada. Guía de despliegue corregida: `.env` en producción, `.env.local` en desarrollo, migración 8 ya instalada. **No se ha activado el login.**
+
+### Botón de pasar tras aprobar — pendiente de despliegue
+
+Iván detectó que el revisor también veía «Pasar a Producción». La ficha solo
+comprobaba que el pedido estuviera listo. Ahora exige que quien pulsa sea un
+autor del pedido de esa sección; misma regla en la ficha, confirmación y API.
+Un revisor sin autoría recibe 403, sin guardar el paso, cortar fichajes ni
+encolar la finalización. Los pedidos repartidos admiten cualquiera de sus
+autores cuando todo está listo. Prueba del HTML de la ficha con ambas identidades
+y prueba de aprobar → intento del revisor rechazado → paso del autor aceptado.
+Validación conjunta: **972 tests**, TypeScript y lint sin errores ni avisos.
 
 ---
 

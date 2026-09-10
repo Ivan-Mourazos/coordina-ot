@@ -1,6 +1,7 @@
 import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
+import { fotosDeVisita } from "./fotos-visita";
 import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-db";
 import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
@@ -8,7 +9,7 @@ import { familiaDeTexto } from "./rps";
 import { partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
-import { esCodigoPedido, estaFinalizado } from "../types";
+import { estaFinalizado } from "../types";
 import {
   PAGE_SIZE,
   aMaterialOF,
@@ -651,114 +652,6 @@ export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRps
   // no lo que se viene a buscar al abrir un pedido.
   for (const foto of await fotosDeVisita(pedido)) anadir(foto);
   return salida;
-}
-
-// ─── Las fotos que suben los instaladores ────────────────────────────────────
-// Van en `TGM_MONITORIZACION_FOTOS`, la tabla de la app de monitorización, y no
-// llegan a la de enlaces de RPS: son las 570 fotos de AR.26 que no se veían por
-// ningún otro sitio, casi todas del trabajo ya instalado.
-//
-// SE TRAEN TODAS DE GOLPE Y SE GUARDAN EN MEMORIA, que no es lo que uno haría
-// de primeras. El motivo: `tgm_monitorizacion` (49 988 filas) NO TIENE NINGÚN
-// ÍNDICE, y el aviso guarda el pedido como la URL de su PDF
-// ("http://…/AR.26.02210.pdf"), así que buscar uno obliga a un LIKE con
-// comodín delante — un barrido entero de la tabla por cada apertura de ficha,
-// medido en 4,5 s. Trayendo las ~19 000 filas que tienen pedido una vez cada
-// cinco minutos, la primera apertura paga ese barrido y las demás son
-// instantáneas. Crear el índice sería lo correcto, pero la BD es de RPS y
-// nuestro usuario es de solo lectura: hay que pedírselo a IT.
-
-interface FotoDeVisita {
-  descripcion: string;
-  ruta: string;
-  clase: string;
-}
-
-/** Cuánto vale la lista antes de volver a pedirla. Media hora: las fotos las
- *  suben los instaladores al acabar, y media hora de retraso en verlas no le
- *  cambia el día a nadie. */
-const VIDA_CACHE_FOTOS_MS = 30 * 60_000;
-let cacheFotos: { at: number; mapa: Map<string, FotoDeVisita[]> } | null = null;
-let cargaEnVuelo: Promise<Map<string, FotoDeVisita[]>> | null = null;
-
-async function fotosDeVisita(pedido: string): Promise<FotoDeVisita[]> {
-  if (ES_MOCK) return [];
-  try {
-    const mapa = await mapaFotosDeVisita();
-    return mapa.get(pedido.toUpperCase()) ?? [];
-  } catch (e) {
-    // Un fallo aquí no puede dejar sin documentos a quien abre la ficha: lo
-    // demás ya está y estas son un extra.
-    console.error("[historial] fotos de visita:", (e as Error).message);
-    return [];
-  }
-}
-
-function mapaFotosDeVisita(): Promise<Map<string, FotoDeVisita[]>> {
-  const vencida = !cacheFotos || Date.now() - cacheFotos.at >= VIDA_CACHE_FOTOS_MS;
-
-  if (vencida) {
-    // Una sola carga aunque entren diez fichas a la vez: sin esto, diez
-    // barridos simultáneos de la misma tabla.
-    cargaEnVuelo ??= cargarFotosDeVisita()
-      .then((mapa) => {
-        cacheFotos = { at: Date.now(), mapa };
-        return mapa;
-      })
-      .finally(() => {
-        cargaEnVuelo = null;
-      });
-  }
-
-  // Con lista vieja se sirve la vieja y se refresca por detrás. Si no, quien
-  // abriera la primera ficha pasada la media hora se comería los cinco
-  // segundos del barrido, y le pasaría a alguien distinto cada media hora
-  // —justo el tipo de lentitud que no se sabe a qué achacar—. Media hora de
-  // desfase en unas fotos no es nada; cinco segundos delante de la pantalla,
-  // sí. Solo se espera la PRIMERA vez, cuando no hay nada que enseñar.
-  if (cacheFotos) {
-    if (vencida) void cargaEnVuelo?.catch(() => {});
-    return Promise.resolve(cacheFotos.mapa);
-  }
-  return cargaEnVuelo!;
-}
-
-async function cargarFotosDeVisita(): Promise<Map<string, FotoDeVisita[]>> {
-  const pool = await getPool();
-  const r = await pool.request().query<{
-    pedido: string;
-    asistencia: string;
-    tipo: string | null;
-    foto: string;
-    n: number;
-  }>(`
-    SELECT SUBSTRING(m.pedido, LEN(m.pedido) - 14, 11) AS pedido,
-           m.asistencia, m.tipo, f.foto,
-           ROW_NUMBER() OVER (PARTITION BY m.asistencia ORDER BY f.foto) AS n
-      FROM dbo.TGM_MONITORIZACION_FOTOS f
-      JOIN dbo.tgm_monitorizacion m ON m.asistencia = f.asistencia
-     -- Solo los avisos que llevan pedido: el resto son visitas sueltas que no
-     -- cuelgan de ninguno y aquí no tienen dónde ir.
-     WHERE m.pedido LIKE '%.pdf' AND LEN(m.pedido) > 15
-  `);
-
-  const mapa = new Map<string, FotoDeVisita[]>();
-  for (const fila of r.recordset) {
-    const pedido = (fila.pedido ?? "").trim().toUpperCase();
-    if (!esCodigoPedido(pedido)) continue;
-    // "PM" es el parte de montaje: la foto del trabajo ya instalado. El resto
-    // (visita técnica, avería, ayuda) son de antes o de otra cosa, y llamarlas
-    // a todas "instalación" sería mentir sobre lo que se está viendo.
-    const instalacion = (fila.tipo ?? "").trim().toUpperCase() === "PM";
-    const suyas = mapa.get(pedido) ?? [];
-    suyas.push({
-      descripcion: `Foto ${fila.n} de ${instalacion ? "la instalación" : "la visita"} ${fila.asistencia}`,
-      ruta: fila.foto,
-      clase: instalacion ? "Fotos de la instalación" : "Fotos de la visita",
-    });
-    mapa.set(pedido, suyas);
-  }
-  return mapa;
 }
 
 /** La ruta del share correspondiente a lo que guarde RPS.
