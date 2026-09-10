@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-10",
-    "hasta": "9dbb5f5",
+    "hasta": "ad00bca",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -28,6 +28,16 @@
         "detalle": "El cierre de Diseño podía dar por pasado también el trabajo de OT. Ahora cada sección tiene su propio paso y aprobar deja el pedido listo para que pulses Pasar."
       },
       {
+        "tipo": "arreglado",
+        "titulo": "El Historial también encuentra pedidos antiguos y descripciones de venta",
+        "detalle": "Los resultados se ordenan por fecha del pedido, del más reciente al más antiguo, y siguen apareciendo al bajar."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Plantear en Taller ya no suma tiempo a Oficina Técnica",
+        "detalle": "La tarea completa cuenta en Taller. El tiempo de RPS y el reloj de CoordinaOT quedan identificados por separado."
+      },
+      {
         "tipo": "mejor",
         "titulo": "En Diseño Gráfico, primero lo que puedes cerrar",
         "detalle": "Las columnas de tu panel cambian de orden: lo que ya está listo para pasar a Producción va delante, y lo que está esperando a que otro lo revise queda al final. En Oficina Técnica no cambia nada."
@@ -46,6 +56,15 @@
         "tipo": "mejor",
         "titulo": "El Historial indica si el pedido sigue pendiente",
         "detalle": "Si sigue en revisión o está listo para pasar en tu sección, verás ese estado en lugar de una fecha de pasado."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El material del Historial se consulta con botones",
+        "detalle": "Apuntado, Apartado y las notas de producción se abren al pulsar, sin alargar las tarjetas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El botón Volver arriba se ve junto al reloj cuando bajas por la página"
       }
     ]
   },
