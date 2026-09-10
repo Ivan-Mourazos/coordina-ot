@@ -114,9 +114,13 @@ Un pedido de Diseño que Manuel cierre desde la herramienta vieja **entra
 solo al Historial** (se alimenta de la fase cerrada en OLANET, no de que nadie
 pulse nada en la web). Ahora sus tiempos salen en el bloque de Diseño.
 
-Implementado en la ficha y en el desplegable de OF de la lista. La autoría de
-la lista corresponde a la sección seleccionada; las tareas de una misma OF
-se separan también al agregar los roles registrados en CoordinaOT.
+El desglose por centros está en la ficha del pedido. **Corrección de Iván
+(10/09): la lista del Historial debe conservar su formato compacto anterior.**
+Al desplegar muestra una línea por OF de la sección seleccionada, con código,
+descripción, tiempo y roles registrados. Los materiales y el trabajo de otros
+centros se consultan en la ficha, sin tarjetas grandes dentro de la lista.
+La autoría de la lista corresponde a la sección seleccionada; las tareas de
+una misma OF se separan también al agregar los roles registrados en CoordinaOT.
 
 Validación (10/09/2026): 955 tests, tipos, lint y comprobación en navegador contra
 RPS real. SA.26.00498: OT 7 min y Taller 998 min, separados; al abrir Taller

@@ -5,8 +5,10 @@ import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Operario, Pedido } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
+import { fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { HistorialDrawer, HistorialCentros } from "./HistorialDrawer";
+import { HistorialDrawer } from "./HistorialDrawer";
+import { RolChip } from "./RolChip";
 import { Desplegable } from "./Desplegable";
 import { Select } from "./Select";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
@@ -479,6 +481,10 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
     }
   }, [desplegado, ofs, cargando, item.pedido]);
 
+  // La lista conserva una línea por OF de la sección, como antes. El trabajo
+  // de los demás centros y los materiales se consultan en la ficha del pedido.
+  const ofsSeccion = ofs?.filter((of) => (of.centro ?? "ot") === seccion);
+
   // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
   // es cuando OLANET registró el cambio y puede ir por detrás.
   const pasado = fmtFecha(item.pasadoAt ?? item.finalizada);
@@ -579,8 +585,32 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
         <div className="border-t border-border px-4 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {ofs?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OF.</p>}
-          {ofs && ofs.length > 0 && <HistorialCentros key={seccion} ofs={ofs} seccion={seccion} />}
+          {ofsSeccion?.length === 0 && <p className="py-1 text-xs text-text-muted">Sin OF de esta sección. Puedes consultar los demás centros en la ficha del pedido.</p>}
+          <ul className="space-y-1.5">
+            {ofsSeccion?.map((of) => (
+              <li key={of.codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="font-mono font-semibold text-text">{of.codigo}</span>
+                <span className="min-w-0 flex-1 truncate text-text-muted" title={of.descripcion}>{of.descripcion}</span>
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
+                  {fmtMin(of.tiempoImputadoMin)}
+                </span>
+                {of.rol && (
+                  <span className="flex gap-1.5">
+                    <RolChip
+                      rol="plantear"
+                      min={of.rol.planteoMin}
+                      quien={of.rol.planteo.map((p) => p.nombre)}
+                    />
+                    <RolChip
+                      rol="revisar"
+                      min={of.rol.revisionMin}
+                      quien={of.rol.revision.map((p) => p.nombre)}
+                    />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       </Desplegable>
     </div>
