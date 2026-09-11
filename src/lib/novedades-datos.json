@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "8417e70",
+    "hasta": "0821d1e",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Si te devuelven varias OF de un pedido, puedes darlas por corregidas todas a la vez",
         "detalle": "Sale en la ficha del pedido cuando hay dos o más; cada OF sigue teniendo su botón por si solo quieres una."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "El Historial va por días y se puede filtrar por persona",
+        "detalle": "Cada día dice cuántos pedidos salieron y cuánto tiempo llevaron. Puedes ver, por ejemplo, lo que pasó una persona la última semana, y ocultar los pedidos que no tienen trabajo de tu sección."
       },
       {
         "tipo": "arreglado",
