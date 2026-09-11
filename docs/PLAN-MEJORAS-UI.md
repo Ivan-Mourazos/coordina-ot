@@ -410,7 +410,11 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   del Historial del buscador de arriba 4,6 s, mientras `/api/buscar` tardaba
   20-80 ms). Ahora esa lista vive en memoria del servidor
   (`server/historial-indice.ts`, compartida por `globalThis`), se construye
-  al arrancar (~35 s de RPS, medido) y se refresca por detrás cada 10 min.
+  al arrancar (~35 s de RPS, medido) y se refresca por detrás cada 30 min.
+  Tras el primer despliegue el proceso quedó en 589 MB (límite de PM2: 1 GB),
+  así que las filas de RPS se leen en streaming y la lista es compacta.
+  Medido fuera de Next: lista 197 → 106 MB; pico al refrescar con la vieja
+  viva 792 → 551 MB.
   Filtrar, buscar y paginar se hace allí (`lib/historial-indice.ts`, con
   tests que fijan las mismas reglas que la consulta SQL); las 40 filas
   siguen pidiendo personas y tiempos a RPS. Medido: lista 0,17 s, página 2
@@ -423,9 +427,10 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
 
 ### Pendiente de decidir con Iván
 
-- La lista en memoria son ~35 s de consultas a RPS cada 10 min y unos
-  100 MB en el servidor (estimado en la medición, no medido en producción).
-  Vigilar tras el despliegue; si pesa, subir el intervalo.
+- Vigilar en producción, tras el segundo despliegue, la memoria de
+  coordina-ot y el contador de reinicios de PM2 pasado el primer refresco
+  (30 min). Un pedido cerrado en RPS tarda como mucho eso en entrar en el
+  Historial; lo pasado desde CoordinaOT entra al momento.
 - Cada OF desplegada enseña los chips de todos sus centros, también a cero
   («Diseño · 0m · Taller · 0m»). Se decidió conservar los centros con trabajo
   aunque tengan cero minutos; con la regla de «no repetir» quizá sobren.

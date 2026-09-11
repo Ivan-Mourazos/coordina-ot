@@ -357,7 +357,7 @@ Las personas no se repiten: fila y ficha siempre, por OF o por tarea solo
 cuando hay varias; en los «Solo Taller», la gente de Taller también en la ficha.
 El Historial va por días y se filtra por persona y por «solo con trabajo de
 la sección». El Historial filtra y busca en una lista en memoria (0,1-0,2 s en vez de
-4-11 s; se construye al arrancar, ~35 s, y se refresca cada 10 min) y su
+4-11 s; se construye al arrancar, ~35 s, y se refresca cada 30 min) y su
 filtro de Familia usa las familias del panel de Sin asignar.
 Siguen sin hacer: contraste fuera de la ficha; vigilar en producción el coste
 de la lista en memoria; si sobran los chips de centros a cero minutos;
