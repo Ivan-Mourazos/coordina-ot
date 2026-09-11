@@ -1,5 +1,7 @@
 "use client";
 
+import { PedidoCodigo } from "./PedidoCodigo";
+
 import { Fragment, useMemo, useState } from "react";
 import type { EstadoMaterial, OF, Operario, Pedido } from "@/lib/types";
 import {
@@ -554,7 +556,7 @@ export function ListaView({
                         }}
                         aria-expanded={abierto}
                         aria-label={`${abierto ? "Plegar" : "Desplegar"} ${p.codigo}`}
-                        className="grid place-items-center rounded p-0.5 hover:bg-surface-2"
+                        className="grid size-8 place-items-center rounded hover:bg-surface-2"
                       >
                         <svg
                           viewBox="0 0 24 24"
@@ -581,16 +583,7 @@ export function ListaView({
                             style={{ background: PRIORIDAD[p.prioridad].color }}
                             title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
                           />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpen(p);
-                            }}
-                            className="font-mono font-semibold text-text hover:underline"
-                            title="Abrir detalle del pedido"
-                          >
-                            {p.codigo}
-                          </button>
+                          <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
                           {/* El nº de OF pegado al código: es parte de QUÉ es
                               este pedido —"el de Mahou, el de tres"—, no una
                               medida que nadie compara en columna. */}

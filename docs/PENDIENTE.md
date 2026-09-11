@@ -304,7 +304,7 @@ Notas de datos y rendimiento:
 
 ---
 
-## 10. Coherencia visual y de interacción — REVISADO, PENDIENTE DE IMPLEMENTAR
+## 10. Coherencia visual y de interacción — PRIMERA ENTREGA IMPLEMENTADA, SIN DESPLEGAR
 
 Plan completo: [PLAN-MEJORAS-UI.md](PLAN-MEJORAS-UI.md).
 Iván pidió revisar el conjunto antes de retocar la fila del Historial.
@@ -315,7 +315,16 @@ Prioridades: reconciliar los pedidos que aparecen arriba y abajo del Historial;
 distinguir OF aprobada de pedido listo para pasar; después unificar filas compactas,
 nombres, tiempos, filtros y fichas. Interacción solicitada: nombre abre la ficha,
 resto de cabecera/flecha despliega y se elimina el ojo. Cada fase se valida en
-**claro y oscuro**. Esta revisión solo añade documentación; no cambia la web.
+**claro y oscuro**.
+
+Primera entrega del 11/09: el Historial usa su única lista paginada, que ya incluye
+pasos locales; las fechas filtran por el paso local cuando existe. Filas compactas
+y alineadas, código compartido con Pendientes, clic en el nombre abre y en el resto
+despliega; ojo retirado. Revisiones distingue OF aprobadas de pedido completo listo.
+983 tests correctos y prueba SQL adicional con tablas temporales, en OT y Diseño,
+para paso antes/después del cierre RPS, reapertura, fechas y búsqueda. Verificación
+visual en ambos temas y Historial sin desbordamiento horizontal a 390 px.
+El resto del plan sigue pendiente; no se ha desplegado esta entrega.
 
 ---
 

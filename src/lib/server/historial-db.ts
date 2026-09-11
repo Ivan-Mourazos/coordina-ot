@@ -104,8 +104,11 @@ export async function leerHistorialPagina(
 
   // Cuándo lo pasamos NOSOTROS a Producción, para poder ordenar por eso.
   const pasados = pasadosParaOrden(req, seccionDe(f.seccion).id);
+  const fechaPasado = `COALESCE(${pasados.columna}, p.finalizada)`;
   const cierre = `((p.tiene_seccion=1 AND (p.pendiente_seccion=0 OR ${pasados.columna} IS NOT NULL)) OR (p.tiene_seccion=0 AND p.pendiente_total=0))`;
-  const where = `WHERE ${[cierre, ...otrosFiltros].join(" AND ")}`;
+  // Los filtros de fecha usan la misma fecha que la fila y la ordenación.
+  // RPS puede seguir sin fecha de cierre después de pulsar Pasar aquí.
+  const where = `WHERE ${[cierre, ...otrosFiltros.map((filtro) => filtro.replaceAll("p.finalizada", fechaPasado))].join(" AND ")}`;
 
   const r = await req.query<FilaPagina>(`
     ${ctesFinalizacionHistorial(seccionDe(f.seccion).id, busqueda)}
@@ -128,7 +131,7 @@ export async function leerHistorialPagina(
     -- en masa, así que un pedido que OT soltó en julio podía aparecer arriba
     -- del todo con fecha de hoy. El orden decía una cosa y la fecha de al
     -- lado otra.
-    ORDER BY ${f.q?.trim() ? "p.fecha_pedido" : `COALESCE(${pasados.columna}, p.finalizada)`} DESC, p.pedido DESC
+    ORDER BY ${f.q?.trim() ? "p.fecha_pedido" : fechaPasado} DESC, p.pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
     ;IF OBJECT_ID('tempdb..#CoordinaHistorialOrdenes') IS NOT NULL DROP TABLE #CoordinaHistorialOrdenes;
     IF OBJECT_ID('tempdb..#CoordinaHistorialPedidos') IS NOT NULL DROP TABLE #CoordinaHistorialPedidos;

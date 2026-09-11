@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
-import type { Operario, Pedido } from "@/lib/types";
+import type { Operario } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaTag } from "./FamiliaTag";
@@ -11,7 +11,8 @@ import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
 import { Desplegable } from "./Desplegable";
 import { Select } from "./Select";
-import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
+import { PedidoCodigo } from "./PedidoCodigo";
+import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 
 /** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
  *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
@@ -29,36 +30,12 @@ function fmtFecha(iso: string): { corta: string; completa: string } {
   return { corta, completa: `${dd}/${mm}/${ano} a las ${hh}:${mi}` };
 }
 
-/** La página del historial NO trae hoy ni familia ni negocio: `filaAItem`
- *  (lib/historial.ts) mapea solo pedido, cliente, finalizada y nOf, y esos dos
- *  datos viven en la cabecera del detalle, una consulta aparte por pedido.
- *
- *  Se leen con un ensanchado LOCAL del tipo para que la barra los pinte en
- *  cuanto el backend los meta en la fila de la página, sin volver a tocar esta
- *  vista y —sobre todo— sin una petición por fila: son 40 filas por página
- *  contra RPS, cuya vista de pendientes ya tarda de 7 a 15 s ella sola.
- *  Se admiten los dos nombres posibles porque aún no está decidido cuál usará
- *  la query: el detalle ya llama `familias` (en plural) a lo mismo. */
-type ItemAmpliado = HistorialItem & {
-  familias?: string[];
-  familia?: string | null;
-  negocio?: string | null;
-};
-
-/** Historial permanente de pedidos finalizados por OT (datos de RPS, paginado).
- *
- *  `pasados` son los que pasaste a Producción pero RPS todavía no ha cerrado
- *  (ver el bloque de abajo). Van aparte porque no salen de la misma consulta:
- *  el historial lo pagina RPS y estos viven en el tablero. */
+/** La API incorpora los pasos locales antes del cierre en RPS y antes de paginar. */
 export function HistorialView({
-  pasados = [],
-  onAbrirPasado,
   operarios = [],
   miId = null,
   seccion = SECCION_POR_DEFECTO,
 }: {
-  pasados?: readonly Pedido[];
-  onAbrirPasado?: (pedidoId: string) => void;
   /** Solo para el hilo de notas del drawer: sin ellos las notas saldrían con el
    *  id crudo ("jaime") en vez del nombre y su color. */
   operarios?: readonly Operario[];
@@ -145,46 +122,6 @@ export function HistorialView({
 
   return (
     <div className="space-y-3">
-      {/* Los que pasaste a Producción y RPS aún no ha cerrado.
-          Iban a ninguna parte: la Lista los quita en cuanto se pasan (es la
-          lista de lo que QUEDA por hacer) y el Historial no los tiene hasta que
-          RPS marca la fase de OT como finalizada, que puede tardar. Entremedias
-          el pedido no aparecía por ningún lado — el caso fue AR.26.03948, que
-          se pasó y desapareció.
-          Arriba y fuera de los filtros de abajo, que son de la consulta a RPS:
-          esto es otra cosa y filtrarlo con ellos mentiría. */}
-      {pasados.length > 0 && (
-        <section className="rounded-xl border border-cyan-500/40 bg-cyan-500/5 p-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
-            Pasados a Producción ({pasados.length})
-          </h2>
-          <p className="mt-0.5 text-[11px] text-text-muted">
-            Ya no son trabajo de Oficina Técnica. Pasan al historial de abajo en cuanto
-            RPS cierre su fase.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {pasados.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => onAbrirPasado?.(p.id)}
-                  disabled={!onAbrirPasado}
-                  className="flex w-full items-center gap-2 rounded-lg bg-surface/60 px-2 py-1.5 text-left text-xs enabled:hover:bg-surface"
-                >
-                  <span className="font-mono font-semibold text-text">{p.codigo}</span>
-                  <span className="truncate text-text-muted">
-                    {p.cliente}
-                    {p.negocio ? ` · ${p.negocio}` : ""}
-                  </span>
-                  <span className="ml-auto shrink-0 text-[11px] text-text-muted">
-                    {p.ofs.length} OF
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {/* ── Filtros ───────────────────────────────────────────────────────
           Estaban a medio hacer y desalineados con el resto de la app: los
           rótulos hablaban solo de pedidos "AR" (existen también SA y BE, ver
@@ -286,7 +223,7 @@ export function HistorialView({
             <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
               {hayFiltros
                 ? "Prueba con otro texto o amplía el periodo."
-                : "Aquí van cayendo los pedidos según Oficina Técnica los pasa a Producción."}
+                : `Aquí aparecen los pedidos terminados en ${SECCIONES[seccion].nombre}; si no tienen tareas de esta sección, cuando termina el resto de su trabajo.`}
             </p>
           </div>
         </div>
@@ -299,17 +236,15 @@ export function HistorialView({
         <p className="text-[11px] text-text-muted">
           {itemsVisibles.length} pedido{itemsVisibles.length === 1 ? "" : "s"}
           {hasMore ? " y subiendo — baja para cargar más" : ""}
-          {q.trim() ? " · Más recientes primero" : ""}
+          {q.trim() ? " · Fecha del pedido: más recientes primero" : ""}
         </p>
       )}
 
-      {/* Más juntas: el Historial se lee comparando filas —cuándo se pasó qué y
-          quién lo hizo— y con 8 px entre tarjetas caben cinco pedidos menos por
-          pantalla sin ganar nada a cambio. La Lista, que es la otra tabla larga
-          de la app, no deja aire entre filas. */}
-      <div className="space-y-1">
+      {/* Filas continuas, con identidad, autoría y fecha en posiciones estables. */}
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+        {itemsVisibles.length > 0 && <div aria-hidden="true" className="hidden grid-cols-[32px_minmax(0,1fr)_minmax(180px,28%)_minmax(140px,18%)] gap-3 border-b border-border bg-surface-2 px-3 py-3 text-[11px] font-semibold text-text-muted md:grid"><span /><span>Pedido · cliente</span><span>Autoría</span><span>Finalizado</span></div>}
         {itemsVisibles.map((it) => (
-          <FilaHistorial key={it.pedido} item={it} onOpen={setAbierto} seccion={seccion} />
+          <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} />
         ))}
       </div>
 
@@ -364,7 +299,7 @@ function Autoria({ item }: { item: HistorialItem }) {
     );
   }
   // Ahora sí: ni autores ni quien lo pasó. Ningún minuto imputado a nadie.
-  return <span className="italic">sin autor</span>;
+  return <span className="italic">Sin autor registrado</span>;
 }
 
 /** El nombre abre la ficha; la flecha izquierda despliega las OF compactas. */
@@ -405,97 +340,51 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
     ? `${origen}: ${pasado.completa} · lo pasó ${item.pasadoPor}`
     : `${origen}: ${pasado.completa}`;
 
-  const ampliado = item as ItemAmpliado;
-  const familias = Array.isArray(ampliado.familias)
-    ? ampliado.familias.filter(Boolean)
-    : ampliado.familia
-      ? [ampliado.familia]
-      : [];
+  const familias = item.familias ?? [];
 
   return (
-    // `pl-1` reserva SIEMPRE el hueco de la barra de acento: si apareciera solo
-    // al abrir, el pedido daría un salto lateral justo cuando lo estás mirando.
-    <div className="relative overflow-hidden rounded-xl border border-border bg-surface pl-1">
-      {/* Cuál está desplegado: una barra de acento que recorre el bloque entero,
-          cabecera y OFs. De las tres marcas posibles es la única que dice DÓNDE
-          ACABA lo abierto, que es justo la queja ("parece todo pedidos"): un
-          fondo distinto en la cabecera marca el principio y deja el final a
-          ojo, y un borde alrededor no se nota porque cada fila ya trae el suyo.
-          Color de marca en plano: se ve igual en claro y en oscuro. */}
+    <div className="relative border-b border-border last:border-b-0">
       {desplegado && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />}
-
-      <div className="flex items-center gap-2 px-2 py-1.5">
+      <div className={`relative grid grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-3 py-2 md:grid-cols-[32px_minmax(0,1fr)_minmax(180px,28%)_minmax(140px,18%)] ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
+        {/* Fondo y nombre son botones hermanos: un clic produce una sola acción. */}
         <button
           type="button"
           onClick={alternar}
           aria-expanded={desplegado}
-          aria-label={desplegado ? `Ocultar OFs de ${item.pedido}` : `Ver OFs de ${item.pedido}`}
-          className="grid size-6 shrink-0 cursor-pointer place-items-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
-        >
-          <span className={`transition-transform ${desplegado ? "rotate-90" : ""}`}>›</span>
-        </button>
-        {/* Sin `aria-label`: todo lo que se lee de la fila (código, cliente,
-            OFs, fecha) vive dentro de este botón y es su nombre accesible;
-            ponerle una etiqueta lo taparía entero. */}
-        <button
-          type="button"
-          onClick={() => onOpen(item.pedido)}
-          title="Abrir la ficha del pedido"
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-2 py-0.5 text-left hover:bg-surface-2/60"
-        >
-          <span className={`size-2.5 shrink-0 rounded-full ${item.estadoActual ? "bg-amber-500" : "bg-cyan-600"}`} />
-          {/* Identidad en dos renglones, como va a quedar la Lista: arriba el
-              código con su familia, abajo el cliente. Antes iba todo seguido en
-              una línea y el cliente se comía el ancho que necesita el resto. */}
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              <span className="font-mono font-semibold text-text">{item.pedido}</span>
-              {familias.map((f) => (
-                <FamiliaTag key={f} familia={f} />
-              ))}
-            </span>
-            <span className="block truncate text-xs text-text-muted">
-              {item.cliente ?? "—"}
-              {ampliado.negocio && <span> · {ampliado.negocio}</span>}
-            </span>
-          </span>
-          <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-text-muted">
-            <span>{item.nOf} OF</span>
-            {item.busqueda && item.fechaPedido && <span title="Fecha del pedido en RPS">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
-            {item.estadoActual
-              ? <span className="font-semibold text-amber-700 dark:text-amber-300" title="Estado actual en la sección seleccionada">{item.estadoActual}</span>
-              : item.pasadoAt || item.finalizada
-                ? <span title={tituloPasado}>Pasado{item.busqueda && item.fechaPedido ? "" : ` ${pasado.corta}`}</span>
-                : <span>Finalizado · sin fecha registrada</span>}
-            <Autoria item={item} />
-          </span>
-        </button>
-        {/* Acceso alternativo a la ficha completa.
-            Rotulado SOLO al pasar por encima: repetido en las 40 filas de la
-            página, "Ver detalle" formaba una columna de texto que pesaba más
-            que los datos del pedido. El icono se queda siempre (para saber que
-            se puede) y la palabra aparece cuando hace falta, que es cuando se
-            está a punto de pulsarlo. Con teclado sale igual, por `focus`. */}
-        <button
-          type="button"
-          onClick={() => onOpen(item.pedido)}
-          aria-label={`Ver detalle de ${item.pedido}`}
-          title="Ficha del pedido: escaneo, fechas, comentario de ventas y sus OF"
-          className="group/detalle flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-semibold text-text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:bg-surface-2 focus-visible:text-text"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <span className="hidden group-hover/detalle:inline group-focus-visible/detalle:inline">
-            Ver detalle
-          </span>
-        </button>
+          aria-controls={`ofs-${seccion}-${item.pedido}`}
+          aria-label={`${desplegado ? "Plegar" : "Desplegar"} ${item.pedido}`}
+          title={`${tituloPasado}${item.autores?.length ? ` · Autoría: ${item.autores.join(", ")}` : ""}`}
+          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
+        />
+        <span aria-hidden="true" className="pointer-events-none grid size-8 place-items-center text-text-muted">
+          <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${desplegado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+        <div className="pointer-events-none min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
+            <span className="text-[11px] font-medium text-text-muted" title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}>· {item.nOf} OF</span>
+            {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
+          </div>
+          <p className="text-[11px] leading-4 text-text [overflow-wrap:anywhere]">
+            {item.cliente ?? "—"}
+            {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
+          </p>
+        </div>
+        <div className="pointer-events-none col-start-2 min-w-0 text-[11px] leading-4 text-text-muted [overflow-wrap:anywhere] md:col-start-auto">
+          <Autoria item={item} />
+        </div>
+        <div className="pointer-events-none col-start-2 flex flex-wrap gap-x-2 text-[11px] leading-4 text-text-muted md:col-start-auto md:flex-col md:items-start">
+          {item.estadoActual
+            ? <span className="font-semibold text-amber-700 dark:text-amber-300">{item.estadoActual}</span>
+            : <span title={tituloPasado}>{item.pasadoAt || item.finalizada ? `Pasado ${pasado.corta}` : "Finalizado · sin fecha registrada"}</span>}
+          {item.busqueda && item.fechaPedido && <span title="Fecha del pedido en RPS; orden de los resultados de búsqueda">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
+        </div>
       </div>
 
       {/* Envuelto y no `{desplegado && …}`: si React lo quitara al pulsar, el
           contenido desaparecería de golpe y no habría nada que animar. Cerrado
           no ocupa nada (`Desplegable` devuelve null). */}
+      <div id={`ofs-${seccion}-${item.pedido}`}>
       <Desplegable abierto={desplegado}>
         <div className="border-t border-border px-4 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
@@ -503,6 +392,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           {ofs && <><HistorialTareas ofs={ofs} seccion={seccion} /><HistorialOFsCompactas ofs={ofs} seccion={seccion} /></>}
         </div>
       </Desplegable>
+      </div>
     </div>
   );
 }

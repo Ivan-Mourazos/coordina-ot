@@ -9,7 +9,10 @@ También se han comparado los componentes de fichas, tiempos, materiales y docum
 No se han cambiado pedidos, fichajes ni aprobaciones durante la revisión.
 
 Iván pidió revisar el conjunto antes de tocar piezas aisladas. Este documento
-es el plan resultante; **sus cambios todavía no están implementados**.
+es el plan resultante. **Primera entrega implementada el 11/09, pendiente de desplegar:**
+lista única del Historial, filtro por fecha del paso local, aprobación parcial,
+filas compactas con columnas, código compartido que abre la ficha y resto que
+despliega, sin ojo. El resto del plan sigue pendiente.
 La comprobación visual de móvil, sección Diseño y del resto de pantallas en claro
 queda como requisito de la implementación, no como validación ya realizada.
 
@@ -214,3 +217,26 @@ no genera una novedad en la aplicación.
 
 Referencia de apoyo para accesibilidad y controles:
 [Web Interface Guidelines](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md).
+
+## Validación de la primera entrega — 11/09
+
+- La consulta ya incluía pasos locales antes de paginar. Se retiró la segunda
+  fuente visual; no hizo falta introducir otra unión en el navegador.
+- Prueba contra SQL Server con tablas temporales: paso local sin cierre RPS,
+  cierre posterior, reapertura, búsqueda, fechas y dos líneas de venta para una
+  misma OF. Probado en OT y Diseño, sin modificar datos de producción.
+- La prueba está en `scripts/verificar-historial-ui.test.ts`; requiere
+  `VALIDAR_RPS_UI=1` y cargar `.env.local`. La suite ordinaria la omite.
+- 983 tests de la suite ordinaria correctos. Tests de presentación comprueban
+  que una OF devuelta impide anunciar el pedido completo como listo.
+- Lint, tipos y compilación correctos. La compilación conserva el aviso previo
+  de Turbopack sobre trazado desde `next.config.ts` en la ruta de documentos.
+- Navegador local con RPS: abrir por código, desplegar por cabecera, teclado,
+  todas las OF, claro/oscuro y cambio OT/Diseño. Historial sin desbordamiento
+  horizontal a 390 px; inspección de escritorio a 1116 y 1440 px.
+- La copia local no tiene las marcas de paso de producción. Para los escenarios
+  de paso/reapertura se usaron las tablas temporales, no esa ausencia de marcas.
+
+Siguiente entrega: sección visible y nombres coherentes entre vistas; después,
+fichas, tiempos, materiales y filtros. El ajuste del recorrido de Pendientes y
+la revisión completa de pantallas pequeñas siguen pendientes.

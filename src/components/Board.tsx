@@ -1872,11 +1872,6 @@ export function Board({
   // abre el buscador global: un resultado del historial no se puede enseñar en
   // el Drawer normal, que espera un pedido vivo del tablero.
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
-  // Pasados a Producción pero todavía en la vista de pendientes de RPS: los
-  // enseña el Historial en un bloque aparte (ver su comentario). Se van solos
-  // de aquí en cuanto RPS cierra la fase y el pedido deja de venir.
-  const pasadosSinCerrar = pedidos.filter((p) => p.situacion === "completado");
-
   if (!mounted) {
     return (
       <div className="flex min-h-full flex-col">
@@ -2387,8 +2382,6 @@ export function Board({
           <div className="p-5">
             <HistorialView
               seccion={seccionActual}
-              pasados={pasadosSinCerrar}
-              onAbrirPasado={abrirPedido}
               operarios={operarios}
               miId={miId}
             />
