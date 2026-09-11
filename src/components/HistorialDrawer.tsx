@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   HistorialOF,
   HistorialPedidoDetalle,
@@ -16,9 +16,10 @@ import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import { agruparCentros } from "@/lib/historial-centros";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
-import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { BOTON_DETALLE, CabeceraVentana, VentanaAnclada, useVentanaAnclada } from "./VentanaAnclada";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -104,18 +105,11 @@ export function HistorialDrawer({
     };
   }, [pedido]);
 
-  useEffect(() => {
-    if (!pedido) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        if (document.querySelector("[data-historial-extra]:popover-open")) return;
-        if (ampliado) setAmpliado(false);
-        else onClose();
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [pedido, ampliado, onClose]);
+  // Dos capas: la ficha y, encima, el parte ampliado. Escape cierra la de
+  // arriba; los popovers nativos («Tareas y tiempos») se cierran solos y la
+  // pila les deja esa pulsación (ver capas-escape.ts).
+  useCapaEscape(pedido !== null, onClose);
+  useCapaEscape(ampliado, () => setAmpliado(false));
 
   // ¿Está el parte escaneado? `null` = todavía sin comprobar, y ahí se pinta el
   // marco: lo normal es que exista, y esperar a la comprobación para enseñarlo
@@ -555,122 +549,120 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
   );
 }
 
-/** Material que lleva la OF y lo que Producción apuntó en ella.
+/** Material que lleva la OF y lo que Producción apuntó en ella, tras botones
+ *  con cantidad. La ventana es la misma que la de Pendientes (VentanaAnclada).
  *
- *  El material se enseña en DOS grupos rotulados, y separarlos es el punto:
- *   · Apartado — sigue habiendo reserva viva en RPS. Dice que ese material está
- *     separado en el almacén para este trabajo, ahora mismo.
- *   · Apuntado — solo lo que Oficina Técnica escribió en la OF. Dice lo que
- *     hacía falta, se haya apartado o no.
- *  Dicho con las mismas letras y el mismo color, las dos cosas se leerían como
- *  una sola y no lo son. Lo apartado va primero y lleva el 🧵 verde azulado del
- *  tablero, que es donde la gente ya asocia ese icono a "material reservado".
+ *  Y las palabras también: «asignado en la OF» es el material que lleva;
+ *  «reservado», que sigue habiendo reserva viva en RPS. Aquí se llamaban
+ *  "Apuntado" y "Apartado", y el mismo material se nombraba de dos maneras
+ *  según la pestaña.
  *
- *  Casi siempre solo habrá apuntado: de las 36 918 OF de OT ya terminadas, 140
- *  conservan reserva y 14 419 conservan material apuntado. Lo apartado aparece
- *  en los pedidos recién cerrados, que es justo cuando alguien lo va a mirar. */
+ *  Lo que aquí NO puede decirse es "sin reservar": la reserva se borra al
+ *  consumir el material, así que en un pedido cerrado que no quede ninguna no
+ *  demuestra que nunca la hubiera. Por eso la línea sin reserva no lleva marca
+ *  y la cabecera habla de HOY.
+ *
+ *  Casi nunca quedará reserva: de las 36 918 OF de OT ya terminadas, 140
+ *  conservan reserva y 14 419 conservan material asignado. La reserva viva
+ *  sale en los pedidos recién cerrados, que es justo cuando alguien la mira. */
 function Materiales({ of }: { of: HistorialOF }) {
   const { apartados, apuntados } = repartirMateriales(of.materiales);
   if (!apartados.length && !apuntados.length && !of.notasProduccion) return null;
 
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
-      {apartados.length > 0 && (
-        <GrupoMaterial
-          etiqueta="Apartado"
-          materiales={apartados}
-          claseEtiqueta="bg-teal-600/12 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300"
-          icono="🧵"
-          titulo="Material con reserva VIVA en RPS: sigue apartado en el almacén para esta OF. Cuando la cantidad reservada no cubre la apuntada se enseñan las dos (“1 de 6”)."
-        />
+      {apartados.length + apuntados.length > 0 && (
+        <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
-      {apuntados.length > 0 && (
-        <GrupoMaterial
-          etiqueta="Apuntado"
-          materiales={apuntados}
-          claseEtiqueta="bg-surface-2 text-text-muted ring-1 ring-border"
-          icono="📝"
-          titulo="Material apuntado en la OF al plantear: lo que hacía falta. Ya no tiene reserva viva —se borra al consumir el material—, así que no dice que siga apartado."
-        />
-      )}
-      {of.notasProduccion && (
-        <DetalleOFChip
-          etiqueta="Notas"
-          icono="📌"
-          titulo="Nota que Producción dejó escrita en la OF."
-          claseEtiqueta="text-text-muted"
-        >
-          <p className="whitespace-pre-line">{of.notasProduccion}</p>
-        </DetalleOFChip>
-      )}
+      {of.notasProduccion && <NotasProduccion of={of.codigo} texto={of.notasProduccion} />}
     </div>
   );
 }
 
-/** Material plegado tras un botón, como en los pedidos del tablero. */
-function GrupoMaterial({
-  etiqueta,
-  materiales,
-  claseEtiqueta,
-  icono,
-  titulo,
+function MaterialHistorico({
+  of,
+  reservados,
+  resto,
 }: {
-  etiqueta: string;
-  materiales: MaterialOF[];
-  claseEtiqueta: string;
-  icono: string;
-  titulo: string;
+  of: string;
+  reservados: MaterialOF[];
+  resto: MaterialOF[];
 }) {
+  const { anclaje, alternar, cerrar } = useVentanaAnclada();
+  const total = reservados.length + resto.length;
+  const conReserva = reservados.length > 0;
   return (
-    <DetalleOFChip etiqueta={etiqueta} contador={materiales.length} icono={icono}
-      claseEtiqueta={claseEtiqueta} titulo={titulo}>
-      <ul className="space-y-1 text-text">
-        {/* La clave lleva el índice porque el texto puede repetirse: una misma
-            OF puede apuntar dos veces la misma lona en cantidades distintas (la
-            0230706 lleva la misma "LONA PLASTEL …" con 72,6 y con 2,4). */}
-        {materiales.map((m, i) => (
-          <li key={`${i}-${m.texto}`}>{m.texto}</li>
-        ))}
-      </ul>
-    </DetalleOFChip>
+    <>
+      <button
+        type="button"
+        onClick={(e) => alternar(e.currentTarget)}
+        aria-expanded={anclaje !== null}
+        aria-haspopup="dialog"
+        title="Material asignado en la OF. Se marca el que sigue reservado en RPS; la reserva se borra al consumir el material."
+        className={`${BOTON_DETALLE} ${conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
+      >
+        <span aria-hidden>🧵</span>
+        Material
+        <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
+          {total}
+        </span>
+      </button>
+      {anclaje && (
+        <VentanaAnclada anclaje={anclaje} onCerrar={cerrar} etiqueta={`Material de la OF ${of}`}>
+          <CabeceraVentana
+            titulo="Asignado en la OF"
+            cuantos={total}
+            nota={conReserva ? `${reservados.length} sigue${reservados.length === 1 ? "" : "n"} reservado${reservados.length === 1 ? "" : "s"}` : "Sin reserva viva hoy"}
+            claseNota={conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}
+            tituloNota="La reserva se borra al consumir el material: que hoy no quede ninguna no quiere decir que no se reservara."
+          />
+          <ul className="space-y-1">
+            {/* Lo reservado primero. La clave lleva el índice porque el texto
+                puede repetirse: una misma OF puede apuntar dos veces la misma
+                lona en cantidades distintas (la 0230706 lleva la misma "LONA
+                PLASTEL …" con 72,6 y con 2,4). */}
+            {[...reservados, ...resto].map((m, i) => (
+              <li key={`${i}-${m.texto}`} className="text-text">
+                {m.texto}
+                {m.apartado && (
+                  <span className="block text-[10px] text-teal-700 dark:text-teal-300">
+                    sigue reservado
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </VentanaAnclada>
+      )}
+    </>
   );
 }
 
-/** El popover nativo queda sobre el drawer sin que el scroll lo recorte.
- *  Cierra con otro clic, clic fuera o Escape, sin agrandar la tarjeta. */
-function DetalleOFChip({ etiqueta, contador, icono, claseEtiqueta, titulo, children }: {
-  etiqueta: string;
-  contador?: number;
-  icono: string;
-  claseEtiqueta: string;
-  titulo: string;
-  children: React.ReactNode;
-}) {
-  const id = useId();
-  const [abierto, setAbierto] = useState(false);
-  const [sitio, setSitio] = useState<React.CSSProperties>({});
+function NotasProduccion({ of, texto }: { of: string; texto: string }) {
+  const { anclaje, alternar, cerrar } = useVentanaAnclada();
   return (
     <>
-      <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id}
-        title={titulo}
-        onClick={(e) => {
-          const ventana = ventanaActual();
-          if (ventana) setSitio(sitioDeMenu(e.currentTarget.getBoundingClientRect(), {
-            ventana, ancho: Math.min(320, ventana.ancho - 16), alto: 240,
-          }));
-        }}
-        className={`chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-accent ${claseEtiqueta}`}>
-        <span aria-hidden>{icono}</span>
-        {etiqueta}
-        {contador !== undefined && <span className="rounded-full bg-surface-2 px-1.5 text-[10px]">{contador}</span>}
+      <button
+        type="button"
+        onClick={(e) => alternar(e.currentTarget)}
+        aria-expanded={anclaje !== null}
+        aria-haspopup="dialog"
+        title="Nota que Producción dejó escrita en la OF."
+        className={`${BOTON_DETALLE} text-text-muted`}
+      >
+        <span aria-hidden>📌</span>
+        Notas de Producción
       </button>
-      <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
-        onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
-        className="glass-pop scroll-thin fixed inset-auto m-0 max-h-60 overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
-        style={{ ...sitio, background: "var(--surface)" }}>
-        <p className="mb-2 border-b border-border pb-1.5 font-semibold">{icono} {etiqueta}{contador !== undefined && ` (${contador})`}</p>
-        {children}
-      </div>
+      {anclaje && (
+        <VentanaAnclada
+          anclaje={anclaje}
+          onCerrar={cerrar}
+          etiqueta={`Notas de Producción de la OF ${of}`}
+        >
+          <CabeceraVentana titulo="Notas de Producción" />
+          <p className="whitespace-pre-line">{texto}</p>
+        </VentanaAnclada>
+      )}
     </>
   );
 }
