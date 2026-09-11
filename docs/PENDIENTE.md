@@ -355,9 +355,11 @@ El Historial enseña nombre y tiempo, de más a menos, en lista, ficha y
 recuperar una OF aprobada se queda: decidido por Iván.
 Las personas no se repiten: fila y ficha siempre, por OF o por tarea solo
 cuando hay varias; en los «Solo Taller», la gente de Taller también en la ficha.
-Siguen sin hacer: contraste fuera de la ficha, si sobran los chips de centros a
-cero minutos en las OF desplegadas (a decidir con Iván), conservar
-páginas/posición y filtros de Visitas y Métricas.
+El Historial va por días y se filtra por persona y por «solo con trabajo de
+la sección». Siguen sin hacer: contraste fuera de la ficha; decidir qué
+vocabulario manda en Familia («Remolques» no se puede filtrar); optimizar el
+filtro por persona (11 s); si sobran los chips de centros a cero minutos;
+conservar páginas/posición y filtros de Visitas y Métricas.
 
 ---
 

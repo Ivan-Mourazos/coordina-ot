@@ -396,8 +396,22 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   varias; por tarea solo si la OF tiene varias tareas con tiempo. Comprobado
   con RPS en AR.26.04488 (1 OF), AR.26.04489 (2 OF) y SA.24.00312.
 
+- **Lista por días y filtro por persona (decidido por Iván).** Separador por
+  día con pedidos y tiempo de la sección; fila de una línea (código, cliente,
+  «N OF» solo si son varias, familia, nombres, un tiempo); «Solo Taller» en
+  gris. Filtros nuevos en la consulta: «Quién» y «Solo con trabajo de
+  OT/Diseño». El calendario de fechas se queda como estaba (Iván no quiere
+  botones de «hoy/esta semana»). Medido con RPS: 3,9 s sin filtros, 11,4 s
+  por persona, 6 s persona + semana.
+
 ### Pendiente de decidir con Iván
 
+- **Familia: dos vocabularios.** El filtro usa subfamilias de RPS
+  (Reparaciones, Lonas nuevas, Puertas…) y los chips de la fila salen de otra
+  clasificación (Remolques, Camiones, Carpa…). «Remolques» no se puede
+  filtrar. Hay que decidir cuál manda.
+- **Filtro por persona lento** (11 s solo, 6 s con fechas). Optimizar la
+  consulta antes de desplegar o aceptar el tiempo.
 - Cada OF desplegada enseña los chips de todos sus centros, también a cero
   («Diseño · 0m · Taller · 0m»). Se decidió conservar los centros con trabajo
   aunque tengan cero minutos; con la regla de «no repetir» quizá sobren.
