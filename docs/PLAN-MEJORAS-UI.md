@@ -237,6 +237,32 @@ Referencia de apoyo para accesibilidad y controles:
 - La copia local no tiene las marcas de paso de producción. Para los escenarios
   de paso/reapertura se usaron las tablas temporales, no esa ausencia de marcas.
 
-Siguiente entrega: sección visible y nombres coherentes entre vistas; después,
-fichas, tiempos, materiales y filtros. El ajuste del recorrido de Pendientes y
-la revisión completa de pantallas pequeñas siguen pendientes.
+## Segunda entrega — 11/09, pendiente de despliegue
+
+- Sección OT/Diseño visible junto al avatar. En pantallas inferiores a 1024 px,
+  la cabecera separa identidad, pestañas y búsqueda en tres filas: el buscador
+  ya no tapa el logotipo ni deja las pestañas sin espacio.
+- Nombre y primer apellido compartidos por el catálogo del equipo, tiempos,
+  autorías y responsables de visitas. Se conservan nombres compuestos y
+  partículas como «de la» y «da». La búsqueda de visitas sigue consultando
+  el nombre completo en SQL; no se recortan los datos de búsqueda.
+- Ambas fichas usan «Documentos de RPS», plegado al entrar. Sus grupos también
+  empiezan cerrados y Fotos sigue primero. Pendientes carga al desplegar;
+  Historial reutiliza los documentos ya recibidos, sin otra petición.
+- El desglose no muestra centros sin OF. Mantiene los centros con trabajo y
+  cero minutos; no se modifican los cálculos ni la separación RPS/reloj local.
+- Documentos y Métricas ofrecen «Reintentar» ante un fallo de carga. El filtro
+  compartido de pedidos tiene etiqueta accesible independiente del placeholder.
+
+Validación visual local con RPS: Pendientes de OT (autor y tiempos coincidentes),
+Historial de Diseño (José Luis Carrón, 16 min de Diseño y 29 min de Taller;
+personas solo en Diseño), documentos plegados en ambas fichas. Claro a 390 y
+1440 px; oscuro a 768 px y ficha a 1440 px. El recorrido de Pendientes aún se
+comprime en móvil; requiere una adaptación propia. No se ha certificado el
+contraste ni se ha provocado una caída de red en navegador para probar Reintentar.
+983 tests correctos; lint, tipos y compilación correctos. Se conserva el aviso
+previo de Turbopack sobre el trazado de archivos en la ruta de documentos.
+
+Pendiente del plan: recorrido/tabla de Pendientes en móvil, marco común de fichas,
+materiales y ventanas pequeñas, filtros y conservación del contexto, revisión de
+contraste y teclado de todas las pantallas. Esta entrega no completa esas fases.

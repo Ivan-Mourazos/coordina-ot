@@ -4,7 +4,7 @@ import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { fmtMin } from "@/lib/estado";
 import { fmtFechaLarga } from "@/lib/fechas";
-import { nombreRps } from "@/lib/nombre-rps";
+import { nombreHistorial } from "@/lib/nombre-historial";
 import { OpDot } from "./Select";
 
 // ─── El tiempo de una OF, en UN solo sitio ───────────────────────────────────
@@ -57,13 +57,13 @@ function filas(of: OF, opById: (id: string | null) => Operario | null): Fila[] {
 
   for (const i of of.imputaciones ?? []) {
     const op = opById(i.operarioId);
-    const f = dame(i.operarioId ?? `rps:${i.empleado}`, op?.nombre ?? nombreRps(i.nombre), op);
+    const f = dame(i.operarioId ?? `rps:${i.empleado}`, op?.nombre ?? nombreHistorial(i.nombre), op);
     f.rpsMin += i.minutos;
     if (i.desde && (!f.desde || i.desde < f.desde)) f.desde = i.desde;
   }
   for (const w of of.fichadoWeb ?? []) {
     const op = opById(w.operarioId);
-    const f = dame(w.operarioId, op?.nombre ?? w.operarioId, op);
+    const f = dame(w.operarioId, op?.nombre ?? "Nombre no disponible", op);
     f.webMin += w.planteoMin + w.revisionMin;
     if (w.revisionMin > 0 && w.planteoMin === 0) f.soloRevision = true;
   }

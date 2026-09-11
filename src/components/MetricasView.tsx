@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ErrorCarga } from "./ErrorCarga";
 import { proporcionDevueltas, type Metricas, type Tramo } from "@/lib/metricas";
 import { CAUSAS } from "@/lib/anulacion";
 import { fmtMin } from "@/lib/estado";
@@ -49,7 +50,7 @@ type Apartado = (typeof APARTADOS)[number]["id"];
 const DE_QUE_VA: Record<Apartado, string> = {
   devoluciones: "Cuántas OF vuelven al autor tras la revisión, y por qué.",
   tiempos: "Dónde se para el trabajo entre que se plantea y se aprueba.",
-  anuladas: "Qué trabajo no hace Oficina Técnica, y por qué.",
+  anuladas: "Qué trabajo se ha anulado en esta sección, y por qué.",
 };
 
 export function MetricasView({ seccion }: { seccion: SeccionId }) {
@@ -62,6 +63,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
   const [hasta, setHasta] = useState("");
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [error, setError] = useState(false);
+  const [intento, setIntento] = useState(0);
 
   // Al cambiar el filtro NO se vacía lo que hay: se dejan los números
   // anteriores hasta que llegan los nuevos. La consulta va contra nuestro
@@ -87,7 +89,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
     return () => {
       vivo = false;
     };
-  }, [desde, hasta, seccion]);
+  }, [desde, hasta, seccion, intento]);
 
   // El apartado, en la URL. `replaceState` y no un push: moverse entre los
   // tres no es navegar, y llenar el historial obligaría a pulsar Atrás cuatro
@@ -178,9 +180,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       </div>
 
       {error && (
-        <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">
-          No se pudieron cargar las métricas. Vuelve a intentarlo.
-        </p>
+        <ErrorCarga mensaje="No se pudieron cargar las métricas." onReintentar={() => { setError(false); setIntento((v) => v + 1); }} />
       )}
 
       {!datos && !error && (

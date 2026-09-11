@@ -16,20 +16,17 @@ import { diasEntre, sumarDias } from "./fechas";
 // sección de siempre y ponérsela a mano sería repetir en dos sitios lo que ya
 // dice server/operarios.ts.
 export const OPERARIOS: Operario[] = [
-  { id: "alberto", nombre: "Alberto", iniciales: "AL", color: "#e0533d" },
-  { id: "jaime", nombre: "Jaime", iniciales: "JA", color: "#3d7de0" },
-  { id: "tamara", nombre: "Tamara", iniciales: "TA", color: "#9b3de0" },
-  { id: "adrian", nombre: "Adrián", iniciales: "AD", color: "#1fa37a" },
-  { id: "ivan", nombre: "Iván", iniciales: "IV", color: "#d39a1c" },
-  { id: "angel", nombre: "Ángel", iniciales: "AN", color: "#5a6472" },
+  { id: "alberto", nombre: "Alberto Carbon", iniciales: "AL", color: "#e0533d" },
+  { id: "jaime", nombre: "Jaime Vázquez", iniciales: "JA", color: "#3d7de0" },
+  { id: "tamara", nombre: "Tamara Villar", iniciales: "TA", color: "#9b3de0" },
+  { id: "adrian", nombre: "Adrián Quinteiro", iniciales: "AD", color: "#1fa37a" },
+  { id: "ivan", nombre: "Iván Sánchez", iniciales: "IV", color: "#d39a1c" },
+  { id: "angel", nombre: "Ángel García", iniciales: "AN", color: "#5a6472" },
   // ── Diseño Gráfico ──
-  // Nombre de pila a secas, como los de arriba: en la casa se les llama así, y
-  // "Carrón" es como se le conoce a José Luis. Los colores se van a los azules
-  // y verdes fríos para que las dos secciones se distingan de un vistazo en el
-  // selector sin necesidad de leer.
-  { id: "carron", nombre: "Carrón", iniciales: "CA", color: "#0f8a8a", seccion: "diseno" },
-  { id: "manuel", nombre: "Manuel", iniciales: "MA", color: "#4a5fd0", seccion: "diseno" },
-  { id: "smith", nombre: "Smith", iniciales: "SM", color: "#7a4fc0", seccion: "diseno" },
+  // Nombre y primer apellido, también para los conocidos por su apellido.
+  { id: "carron", nombre: "José Luis Carrón", iniciales: "CA", color: "#0f8a8a", seccion: "diseno" },
+  { id: "manuel", nombre: "Manuel Ramón Gómez", iniciales: "MA", color: "#4a5fd0", seccion: "diseno" },
+  { id: "smith", nombre: "Francisco Javier Smith", iniciales: "SM", color: "#7a4fc0", seccion: "diseno" },
 ];
 
 type Accent = Pedido["accent"];

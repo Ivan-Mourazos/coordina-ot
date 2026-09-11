@@ -9,7 +9,8 @@ import { agruparTiemposPorCentro } from "../historial-centros";
 test("nombres y primer apellido, sin códigos y conservando nombres compuestos", () => {
   expect(nombreHistorial("SÁNCHEZ MERA, JOSÉ MANUEL")).toBe("José Manuel Sánchez");
   expect(nombreHistorial("LÓPEZ GARCÍA, SILVIA")).toBe("Silvia López");
-  expect(nombreHistorial("DE LA TORRE LÓPEZ, ANA")).toBe("Ana De La Torre");
+  expect(nombreHistorial("DE LA TORRE LÓPEZ, ANA")).toBe("Ana de la Torre");
+  expect(nombreHistorial("  DA   SILVA PEREIRA, JOSE LUIS  ")).toBe("José Luis da Silva");
   expect(nombreHistorial("167")).toBe("Nombre no disponible");
 });
 

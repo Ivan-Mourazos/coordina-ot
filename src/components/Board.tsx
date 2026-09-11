@@ -1978,23 +1978,10 @@ export function Board({
             sitio que decía quién ficha, después del punto verde de cada fila y
             de la zona de cada compañero. Sin ellos la cabecera es lo que tiene
             que ser: dónde estoy, qué busco y quién soy. */}
-        {/* Tres bloques con los DOS laterales a `flex-1 basis-0`: reparten por
-            igual lo que sobra, así el buscador queda en el centro de la
-            PANTALLA. Antes iba con `mx-auto` dentro del flex, que lo centra en
-            el hueco libre — y como la izquierda (logo + pestañas) pesa mucho
-            más que la derecha, el buscador se iba escorado. */}
-        <header className="glass-header sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5">
-          {/* `shrink-0` y no `flex-1 basis-0 min-w-0`: las zonas de los lados
-              NO ceden. Cediendo se derrumbaban —esta llegó a medir 11 px— y el
-              logo y las pestañas se pintaban DEBAJO del buscador, que es lo que
-              se veía como "se agrupan los botones con el buscador".
-              El que cede es el buscador, que para eso se encoge por dentro.
-
-              Se pierde el centrado exacto del buscador, y se acepta: entre un
-              buscador centrado que tapa las pestañas y uno pegado a ellas que
-              se lee, no hay duda. Con la ventana ancha la diferencia no se
-              aprecia porque las dos zonas miden parecido. */}
-          <div className="flex min-w-0 items-center gap-3">
+        {/* En pantallas estrechas: identidad, pestañas y búsqueda en filas
+            separadas. En escritorio comparten una sola línea. */}
+        <header className="glass-header sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-2.5 lg:flex lg:gap-3">
+          <div className="contents lg:flex lg:min-w-0 lg:items-center lg:gap-3">
             {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
             <Logo className="-my-3 shrink-0" />
             {/* Las seis pestañas ocupan unos 500 px y no se pueden acortar
@@ -2002,7 +1989,7 @@ export function Board({
                 por debajo de cierto ancho no caben junto al buscador y los
                 botones. En vez de aplastarlas hasta que se pinten debajo del
                 buscador, que era el fallo, la tira SE DESPLAZA. */}
-            <div className="scroll-thin min-w-0 overflow-x-auto">
+            <div className="scroll-thin order-3 col-span-2 min-w-0 overflow-x-auto lg:order-none">
               <ViewSwitcher
                 vista={vista}
                 onChange={setVista}
@@ -2020,7 +2007,7 @@ export function Board({
               es de los tres y el que cede al estrechar es este, que se encoge
               por dentro sin romperse. */}
           <BuscadorGlobal
-            className="min-w-36 max-w-lg flex-1"
+            className="order-4 col-span-2 w-full lg:order-none lg:min-w-36 lg:max-w-lg lg:flex-1"
             pedidos={pedidos}
             nombre={nombreDeOperario}
             onAbrirPedido={abrirPedido}
@@ -2032,7 +2019,7 @@ export function Board({
               quedaba DETRÁS de estos botones y los dejaba flotando a media
               cabecera. Con el margen automático, lo que sobra se pone delante y
               la campana y el menú van siempre al borde. */}
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-2 text-xs">
+          <div className="order-2 ml-auto flex shrink-0 items-center justify-end gap-2 text-xs lg:order-none">
             {/* TODO lo que no es trabajo vive aquí dentro: quién eres, qué
                 lista miras, claro u oscuro y las otras páginas. Estaban los
                 cuatro sueltos y sumaban 331 px de cabecera, que es lo que la

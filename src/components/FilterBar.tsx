@@ -197,7 +197,8 @@ export function FilterBar({
         <input
           value={filtros.query}
           onChange={(e) => setFiltros({ query: e.target.value })}
-          placeholder="Buscar AR, cliente o negocio…"
+          aria-label="Buscar pedidos en esta lista"
+          placeholder="Pedido, cliente o negocio…"
           className="glass-chip w-52 rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
         />
         {filtros.query && (

@@ -13,7 +13,7 @@ import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { NotasPedido } from "./NotasPedido";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
-import { DocumentosRps, contarAbribles } from "./DocumentosRps";
+import { DocumentosPedido } from "./DocumentosPedido";
 import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { agruparCentros } from "@/lib/historial-centros";
@@ -308,9 +308,7 @@ export function HistorialDrawer({
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
                   que no tienen fichero no salen en la lista, así que meterlos
                   en el número dejaría un rótulo que no cuadra con nada. */}
-              <Bloque titulo={`Documentos (${contarAbribles(detalle.documentos)})`}>
-                <DocumentosRps documentos={detalle.documentos} />
-              </Bloque>
+              <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
               <HistorialTareas ofs={detalle.ofs} seccion={seccion} />
               <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
@@ -346,7 +344,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
   return (
     <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">Trabajo por centro</h3>
-      {agruparCentros(ofs).map((centro) => {
+      {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
         const seleccionado = centro.id === seccion;
         return (
           <details key={centro.id} open={seleccionado} className="rounded-xl border border-border bg-surface-2/40">

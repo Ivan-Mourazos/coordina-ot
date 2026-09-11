@@ -1,4 +1,4 @@
-import { nombrePersona } from "./nombre-persona";
+import { nombreHistorial } from "./nombre-historial";
 
 // ─── Visitas COT: contrato compartido y lógica pura ──────────────────────────
 // Este módulo es client-safe: no importa mssql ni toca RPS.
@@ -27,8 +27,7 @@ export interface VisitaCot {
   /** Cliente, cuando el texto lo trae en la línea de OF. RPS no lo da en una
    *  columna de esta consulta. */
   cliente: string | null;
-  /** Comercial que pide la visita, ya puesto como se dice ("Juan José Castro
-   *  Mouriño"), no como lo guarda RPS. */
+  /** Comercial que pide la visita: nombre y primer apellido, como en las demás vistas. */
   responsable: string;
   estado: EstadoVisitaCot;
   estadoRps: string;
@@ -133,10 +132,8 @@ export function filaAVisitaCot(fila: FilaVisitaCot): VisitaCot {
     texto: crudo,
     motivo,
     cliente,
-    // RPS guarda "CASTRO MOURIÑO, JUAN JOSE"; en la oficina eso es "Juan José
-    // Castro Mouriño". Se traduce AQUÍ, al construir el contrato, para que
-    // ninguna vista tenga que acordarse de hacerlo.
-    responsable: nombrePersona(texto(fila.responsable)) || "Sin asignar",
+    // La búsqueda SQL conserva el nombre completo; solo abreviamos su presentación.
+    responsable: texto(fila.responsable) ? nombreHistorial(texto(fila.responsable)) : "Sin asignar",
     estado: idEstado === "001-0" ? "pendiente" : "cerrada",
     estadoRps: texto(fila.estado) || (idEstado === "001-0" ? "Creado" : "Cerrado"),
     solucion: texto(fila.solucion) || null,

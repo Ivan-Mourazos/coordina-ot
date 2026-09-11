@@ -182,7 +182,7 @@ describe("filaAVisitaCot", () => {
       texto: "x", responsable: "CASTRO MOURIÑO, JUAN JOSE", idEstado: "001-0",
       estado: null, solucion: null, notas: null,
     });
-    expect(v.responsable).toBe("Juan José Castro Mouriño");
+    expect(v.responsable).toBe("Juan José Castro");
   });
 
   it("sin responsable lo dice, no deja el hueco en blanco", () => {

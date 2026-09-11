@@ -304,7 +304,7 @@ Notas de datos y rendimiento:
 
 ---
 
-## 10. Coherencia visual y de interacción — PRIMERA ENTREGA IMPLEMENTADA, SIN DESPLEGAR
+## 10. Coherencia visual y de interacción — SEGUNDA ENTREGA IMPLEMENTADA, SIN DESPLEGAR
 
 Plan completo: [PLAN-MEJORAS-UI.md](PLAN-MEJORAS-UI.md).
 Iván pidió revisar el conjunto antes de retocar la fila del Historial.
@@ -324,7 +324,15 @@ despliega; ojo retirado. Revisiones distingue OF aprobadas de pedido completo li
 983 tests correctos y prueba SQL adicional con tablas temporales, en OT y Diseño,
 para paso antes/después del cierre RPS, reapertura, fechas y búsqueda. Verificación
 visual en ambos temas y Historial sin desbordamiento horizontal a 390 px.
-El resto del plan sigue pendiente; no se ha desplegado esta entrega.
+Segunda entrega del 11/09: sección visible en cabecera, nombres y primer apellido
+coherentes, documentos plegados con el mismo control en ambas fichas y botón
+Reintentar en Documentos/Métricas. Cabecera adaptada a pantallas estrechas sin
+solapar logo/buscador. Se omiten los centros sin OF, manteniendo los que tienen
+trabajo a cero minutos. No cambia el cálculo de tiempos ni los permisos.
+Comprobación visual local en claro/oscuro, OT/Diseño y anchos 390/768/1440.
+Pendientes todavía comprime demasiado el recorrido en móvil: siguiente ajuste,
+junto con fichas, materiales, filtros y contraste. Detalles y límites en el plan.
+No se ha desplegado esta segunda entrega.
 
 ---
 

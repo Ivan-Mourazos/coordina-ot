@@ -18,9 +18,9 @@ export async function nombresHistorial(): Promise<Map<string, string>> {
     for (const fila of r.recordset) {
       const codigo = fila.codigo?.trim();
       if (!codigo || !fila.nombre?.trim()) continue;
-      const nombre = nombreHistorial(fila.nombre);
-      nombres.set(codigo, nombre);
       const operario = operarioDeEmpleado(codigo);
+      const nombre = OPERARIOS.find((o) => o.id === operario)?.nombre ?? nombreHistorial(fila.nombre);
+      nombres.set(codigo, nombre);
       if (operario) nombres.set(operario, nombre);
     }
     cache = { at: Date.now(), nombres };

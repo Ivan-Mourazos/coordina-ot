@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DocumentoRps } from "@/lib/historial";
 import { DocumentosRps, contarAbribles } from "./DocumentosRps";
+import { ErrorCarga } from "./ErrorCarga";
 
 // ─── Lo que RPS tiene colgado del pedido, EN LA FICHA ────────────────────────
 // La rotulación, el planteamiento, el presupuesto, las fotos del trabajo y el
@@ -24,9 +25,10 @@ import { DocumentosRps, contarAbribles } from "./DocumentosRps";
  *  pone `key={\`docs:${codigo}\`}`, así que React lo desmonta y lo vuelve a
  *  montar entero. Mismo recurso que el hilo de notas, y por lo mismo: sin él
  *  quedaría un instante con los documentos del pedido anterior. */
-export function DocumentosPedido({ pedido }: { pedido: string }) {
+export function DocumentosPedido({ pedido, documentos }: { pedido: string; documentos?: DocumentoRps[] }) {
   const [abierto, setAbierto] = useState(false);
-  const [docs, setDocs] = useState<DocumentoRps[] | null>(null);
+  const [cargados, setDocs] = useState<DocumentoRps[] | null>(null);
+  const docs = documentos ?? cargados;
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -67,18 +69,16 @@ export function DocumentosPedido({ pedido }: { pedido: string }) {
           </span>
         )}
         <span className="ml-auto text-[10px] font-normal text-text-muted">
-          rotulación, planteamiento, fotos
+          Fotos y adjuntos
         </span>
       </button>
 
       {abierto && (
         <div className="border-t border-[var(--glass-border)] px-3 pb-3 pt-3">
           {error && (
-            <p className="text-[11px] text-text-muted">
-              No se pudieron cargar. Vuelve a plegar y desplegar para reintentarlo.
-            </p>
+            <ErrorCarga mensaje="No se pudieron cargar los documentos." onReintentar={() => setError(false)} />
           )}
-          {!docs && !error && <p className="text-[11px] text-text-muted">Buscando…</p>}
+          {!docs && !error && <p role="status" className="text-[11px] text-text-muted">Buscando…</p>}
           {docs && <DocumentosRps documentos={docs} />}
         </div>
       )}

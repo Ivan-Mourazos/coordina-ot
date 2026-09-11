@@ -27,8 +27,8 @@ test("la lectura real separa también los roles locales por tarea y no los atrib
   const ot = ofs.find((of) => of.centro === "ot")!;
   const diseno = ofs.find((of) => of.centro === "diseno")!;
   const taller = ofs.find((of) => of.centro === "taller")!;
-  expect(ot.rol?.planteo).toEqual([{ nombre: "Alberto", min: 7 }]);
-  expect(diseno.rol?.planteo).toEqual([{ nombre: "Carrón", min: 45 }]);
+  expect(ot.rol?.planteo).toEqual([{ nombre: "Alberto Carbon", min: 7 }]);
+  expect(diseno.rol?.planteo).toEqual([{ nombre: "José Luis Carrón", min: 45 }]);
   expect(taller.tiempoImputadoMin).toBe(998);
   expect(taller.rol).toBeUndefined();
   expect(taller.rolDeducido).toBeUndefined();
