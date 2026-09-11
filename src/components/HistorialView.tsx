@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Familia, Operario } from "@/lib/types";
-import { FAMILIAS_FILTRABLES } from "@/lib/historial";
+import { FAMILIAS_FILTRABLES, personasConRol } from "@/lib/historial";
 import { agruparPorDia } from "@/lib/historial-dias";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaIcon, FamiliaTag } from "./FamiliaTag";
@@ -15,7 +15,7 @@ import { Desplegable } from "./Desplegable";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
-import { fmtMin } from "@/lib/estado";
+import { fmtMin, ROL } from "@/lib/estado";
 
 /** Fecha corta con año (dd/mm/aa) y la completa con hora para el `title`.
  *  Siempre con año: la lista baja hasta pedidos de 2024. */
@@ -359,20 +359,42 @@ export function HistorialView({
  *  Si el pedido no tiene nada de la sección, delante va el centro ("Taller ·")
  *  y la fila entera va en gris (ver FilaHistorial). */
 function Quien({ item }: { item: HistorialItem }) {
-  const personas = item.personas ?? [];
   const autores = (item.autores ?? []).filter(Boolean);
+  // Quien planteó primero y con su punto de color, pero solo si el rol consta:
+  // con dos personas a la misma hora, el orden por minutos dejaba el pedido a
+  // nombre de quien lo repasó.
+  const personas = personasConRol(
+    item.personas ?? [],
+    autores,
+    item.revisores ?? [],
+    item.rolesRegistrados === true,
+  );
   const otros = item.otrosCentros ?? [];
   const centro = otros.length > 0 ? `${otros.map((c) => CENTRO_CORTO[c]).join(" y ")} · ` : "";
   const aviso = otros.length > 0 ? "Sin tareas de la sección: es trabajo de otro centro. " : "";
   if (personas.length > 0) {
+    const conRol = (p: (typeof personas)[number]) =>
+      `${p.nombre} ${fmtMin(p.min)}${p.rol ? ` (${p.rol === "plantear" ? "planteó" : "revisó"})` : ""}`;
     return (
       <span
         className="block truncate"
-        title={`${aviso}Tiempo imputado en RPS: ${personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}`}
+        title={`${aviso}Tiempo imputado en RPS: ${personas.map(conRol).join(" · ")}`}
       >
         {centro}
         <span className={otros.length > 0 ? "" : "text-text"}>
-          {personas.slice(0, 2).map((p) => p.nombre).join(" · ")}
+          {personas.slice(0, 2).map((p, i) => (
+            <span key={p.nombre}>
+              {i > 0 && " · "}
+              {p.rol && (
+                <span
+                  aria-hidden
+                  className="mr-1 inline-block size-1.5 rounded-full align-middle"
+                  style={{ background: ROL[p.rol].color }}
+                />
+              )}
+              {p.nombre}
+            </span>
+          ))}
         </span>
         {personas.length > 2 && ` +${personas.length - 2}`}
       </span>

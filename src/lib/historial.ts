@@ -97,10 +97,18 @@ export interface HistorialItem {
   revisores?: string[];
 
   /** Quién echó horas en lo que cuenta para esta fila (ver `minutos`), de más a
-   *  menos. Es lo que enseña la lista: nombre y tiempo, sin rol. Autor y
-   *  revisor se quedan para la búsqueda, pero ya no se pintan: un "autor"
-   *  arriba y cuatro nombres en el desglose se leía como una contradicción. */
+   *  menos. Es lo que enseña la lista: nombre y tiempo. Quien planteó va
+   *  delante y lleva su punto de color cuando el rol CONSTA (ver
+   *  `rolesRegistrados`); el rol en palabras se queda para la ficha. */
   personas?: RepartoRol[];
+
+  /** `autores` y `revisores` salen de CoordinaOT y no de una suposición.
+   *
+   *  Sin esto no se pueden distinguir: el mismo campo trae lo registrado y lo
+   *  deducido del reparto de horas (ver `deducirRoles`), y marcar con un color
+   *  quién planteó sería afirmar con un dato de verdad lo que a veces es un
+   *  cálculo. Ausente = deducido o desconocido: ni punto, ni orden por rol. */
+  rolesRegistrados?: boolean;
 
   /** Minutos imputados en RPS a lo que cuenta para esta fila: las tareas de la
    *  sección o, si el pedido no tiene ninguna, las de los otros centros.
@@ -467,6 +475,42 @@ export interface FilaTrabajoPedido {
  *  gente salga siempre en el mismo orden. */
 export const porMinutos = (a: RepartoRol, b: RepartoRol): number =>
   b.min - a.min || a.nombre.localeCompare(b.nombre, "es");
+
+/** Una persona de la fila con el papel que hizo, cuando CONSTA. */
+export interface PersonaConRol extends RepartoRol {
+  /** Ausente = no consta. No es lo mismo que "ni planteó ni revisó". */
+  rol?: "plantear" | "revisar";
+}
+
+/** Las personas de la fila, con su papel y en el orden en que se cuentan las
+ *  cosas: primero quien planteó, después quien revisó, y al final quien echó
+ *  horas sin constar en ningún rol.
+ *
+ *  Antes iban solo por minutos, y en un pedido donde el autor y el revisor
+ *  empatan a tiempo —que es lo normal en los cortos— salía primero el que
+ *  alfabéticamente tocara: el pedido parecía de quien lo repasó.
+ *
+ *  Sin roles registrados NO se marca nada (`registrados` en falso): el rol
+ *  deducido del reparto de horas es una suposición, y pintarla igual que un
+ *  dato sería mentir con colores. */
+export function personasConRol(
+  personas: readonly RepartoRol[],
+  autores: readonly string[] = [],
+  revisores: readonly string[] = [],
+  registrados = false,
+): PersonaConRol[] {
+  const orden = [...personas].sort(porMinutos);
+  if (!registrados) return orden;
+  const rolDe = (nombre: string): PersonaConRol["rol"] | undefined =>
+    autores.includes(nombre) ? "plantear" : revisores.includes(nombre) ? "revisar" : undefined;
+  const rango = (p: PersonaConRol) => (p.rol === "plantear" ? 0 : p.rol === "revisar" ? 1 : 2);
+  return orden
+    .map((p) => {
+      const rol = rolDe(p.nombre);
+      return rol ? { ...p, rol } : { ...p };
+    })
+    .sort((a, b) => rango(a) - rango(b));
+}
 
 /** Quién trabajó en esta OF y cuánto, de más a menos, sin rol.
  *

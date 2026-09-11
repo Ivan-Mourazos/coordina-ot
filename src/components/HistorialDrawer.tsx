@@ -8,8 +8,8 @@ import type {
 } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
-import { personasDeOF, personasDeOFs, repartirMateriales } from "@/lib/historial";
-import { fmtMin } from "@/lib/estado";
+import { personasConRol, personasDeOF, personasDeOFs, repartirMateriales } from "@/lib/historial";
+import { fmtMin, ROL } from "@/lib/estado";
 import {
   BloqueFicha,
   CabeceraFicha,
@@ -374,7 +374,17 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
  *  la lista y más gente en la ficha. El orden es el de `porMinutos` en todos
  *  los sitios, así que las mismas personas salen siempre en el mismo orden. */
 function PersonasOF({ of }: { of: HistorialOF }) {
-  const personas = personasDeOF(of);
+  // El papel de cada uno EN PALABRAS, que es lo que se busca al abrir la ficha:
+  // quién la planteó y quién la repasó. Solo con el rol registrado en
+  // CoordinaOT (`of.rol`); lo deducido de las horas no se nombra.
+  const dePlanteo = new Set((of.rol?.planteo ?? []).map((p) => p.nombre));
+  const deRevision = new Set((of.rol?.revision ?? []).map((p) => p.nombre));
+  const personas = personasConRol(
+    personasDeOF(of),
+    [...dePlanteo],
+    [...deRevision].filter((n) => !dePlanteo.has(n)),
+    Boolean(of.rol),
+  );
   if (personas.length === 0) {
     return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
   }
@@ -384,6 +394,9 @@ function PersonasOF({ of }: { of: HistorialOF }) {
         <span key={p.nombre}>
           {i > 0 && " · "}
           <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+          {p.rol && (
+            <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
+          )}
         </span>
       ))}
     </p>

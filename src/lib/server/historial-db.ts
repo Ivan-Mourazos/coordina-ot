@@ -201,6 +201,9 @@ async function completarPagina(
       ...p,
       ...(suyos.autores.length ? { autores: suyos.autores } : {}),
       ...(suyos.revisores.length ? { revisores: suyos.revisores } : {}),
+      // Solo cuando CONSTA en CoordinaOT: con el rol deducido de las horas no
+      // se marca nada (ver `HistorialItem.rolesRegistrados`).
+      ...(suyos.registrados ? { rolesRegistrados: true } : {}),
       ...(suyos.familias.length ? { familias: suyos.familias } : {}),
       ...(suyos.trabajo ? { minutos: suyos.trabajo.minutos } : {}),
       ...(suyos.trabajo?.personas.length ? { personas: suyos.trabajo.personas } : {}),
@@ -236,6 +239,8 @@ interface FilaExtra {
 interface ExtrasPedido {
   autores: string[];
   revisores: string[];
+  /** Los roles salen del registro de CoordinaOT, no del reparto de horas. */
+  registrados: boolean;
   familias: string[];
   trabajo?: TrabajoPedido;
 }
@@ -385,6 +390,7 @@ async function extrasDePagina(
     salida.set(pedido, {
       autores,
       revisores,
+      registrados: deLaWeb.length > 0,
       familias: [...(familias.get(pedido) ?? [])],
       trabajo: trabajo.get(pedido),
     });
