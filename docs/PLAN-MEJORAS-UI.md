@@ -404,14 +404,28 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   botones de «hoy/esta semana»). Medido con RPS: 3,9 s sin filtros, 11,4 s
   por persona, 6 s persona + semana.
 
+- **Historial en memoria (velocidad y familias, pedido por Iván).** Cada
+  página recalculaba en RPS los 153 451 pedidos de toda la historia antes de
+  paginar (3,8 s por petición; por persona 7-11 s; buscando 4-5 s; la parte
+  del Historial del buscador de arriba 4,6 s, mientras `/api/buscar` tardaba
+  20-80 ms). Ahora esa lista vive en memoria del servidor
+  (`server/historial-indice.ts`, compartida por `globalThis`), se construye
+  al arrancar (~35 s de RPS, medido) y se refresca por detrás cada 10 min.
+  Filtrar, buscar y paginar se hace allí (`lib/historial-indice.ts`, con
+  tests que fijan las mismas reglas que la consulta SQL); las 40 filas
+  siguen pidiendo personas y tiempos a RPS. Medido: lista 0,17 s, página 2
+  0,18 s, Iván + semana + Remolque 0,08 s, buscar 0,22 s; Diseño la primera
+  vez 1,5 s. Mientras la lista no existe (arranque), se sigue con la
+  consulta de siempre. El filtro de Familia usa ya las familias del panel de
+  Sin asignar (`familiaDeTexto`), solo las presentes.
+- «N OF» va dentro de la celda del código: como columna, el rótulo «OF»
+  quedaba sobre un hueco vacío en casi todas las filas.
+
 ### Pendiente de decidir con Iván
 
-- **Familia: dos vocabularios.** El filtro usa subfamilias de RPS
-  (Reparaciones, Lonas nuevas, Puertas…) y los chips de la fila salen de otra
-  clasificación (Remolques, Camiones, Carpa…). «Remolques» no se puede
-  filtrar. Hay que decidir cuál manda.
-- **Filtro por persona lento** (11 s solo, 6 s con fechas). Optimizar la
-  consulta antes de desplegar o aceptar el tiempo.
+- La lista en memoria son ~35 s de consultas a RPS cada 10 min y unos
+  100 MB en el servidor (estimado en la medición, no medido en producción).
+  Vigilar tras el despliegue; si pesa, subir el intervalo.
 - Cada OF desplegada enseña los chips de todos sus centros, también a cero
   («Diseño · 0m · Taller · 0m»). Se decidió conservar los centros con trabajo
   aunque tengan cero minutos; con la regla de «no repetir» quizá sobren.
