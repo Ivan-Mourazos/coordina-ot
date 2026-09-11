@@ -1,3 +1,4 @@
+import { pedidoParado } from "./fases-tablero";
 import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "./secciones";
 import type { OF, Pedido } from "./types";
 
@@ -35,6 +36,16 @@ export type NotifTipo =
   // arriba, y es el más fácil de perderse: el pedido ya estaba archivado en la
   // cabeza de todos.
   | "ofNueva";
+
+/** ¿Suena la campana por el parte re-escaneado de este pedido?
+ *
+ *  No mientras está PARADO (sin trabajo de OT y con algo detenido por
+ *  Producción): no se puede tocar, y el aviso solo hacía ruido. Tampoco se
+ *  pierde: el distintivo sigue hasta que alguien lo da por visto, así que en
+ *  cuanto Producción lo libera la campana avisa, que es cuando importa. */
+export function avisaParteNuevo(p: Pedido): boolean {
+  return p.scanCambiado === true && !pedidoParado(p);
+}
 
 /** Un aviso tal y como se detecta: mirando UNA OF. */
 export interface AvisoSuelto {

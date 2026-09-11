@@ -43,6 +43,7 @@ import {
   identidadAviso,
   type AvisoSuelto,
   type NotifItem,
+  avisaParteNuevo,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
 import { desfaseDeCabecera } from "@/lib/reloj-servidor";
@@ -828,8 +829,9 @@ export function Board({
     // Parte re-escaneado. Sale del propio tablero (`scanCambiado`, que pone
     // getTablero leyendo lo que dejó el vigilante), así que no hace falta pedir
     // nada más. Es de todos: se apaga para el equipo con "Ya lo he visto".
+    // Callado mientras el pedido está parado por Producción (ver avisaParteNuevo).
     for (const p of procesadosAll) {
-      if (p.scanCambiado) out.push({ pedido: p, of: null, tipo: "parteNuevo" });
+      if (avisaParteNuevo(p)) out.push({ pedido: p, of: null, tipo: "parteNuevo" });
     }
 
     // Trabajo aparecido en un pedido que ya se había pasado a Producción. Lo
