@@ -526,15 +526,18 @@ function FilaHistorial({
           no ocupa nada (`Desplegable` devuelve null). */}
       <div id={`ofs-${seccion}-${item.pedido}`}>
       <Desplegable abierto={desplegado}>
-        <div className="border-t border-border px-4 py-2">
+        <div className="border-t border-border px-3 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {/* El botón a la derecha de las OF, y no en una línea para él solo. */}
+          {/* Las OF en las mismas columnas que la fila del pedido, y el botón
+              en la línea de la primera, no en una para él solo. */}
           {ofs && (
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1"><HistorialOFsCompactas ofs={ofs} seccion={seccion} /></div>
-              <HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="" />
-            </div>
+            <HistorialOFsCompactas
+              ofs={ofs}
+              seccion={seccion}
+              columnas={columnas}
+              accion={<HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="-my-0.5" />}
+            />
           )}
         </div>
       </Desplegable>

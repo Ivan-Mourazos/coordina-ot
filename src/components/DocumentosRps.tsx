@@ -175,7 +175,7 @@ function Grupo({
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-lg ring-1 ring-[var(--glass-border)]">
+    <div className="glass-chip overflow-hidden rounded-lg">
       {/* Botón a ancho completo: la fila se pulsa en cualquier punto, no solo
           sobre el rótulo. */}
       <button

@@ -321,7 +321,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
         const personas = desglose ? personasDeOFs(centro.ofs) : [];
         const porOF = desglose && centro.ofs.length > 1;
         return (
-          <details key={centro.id} open={seleccionado || desglose} className="rounded-xl border border-border bg-surface-2/40">
+          <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
               {centro.nombre}
               <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>

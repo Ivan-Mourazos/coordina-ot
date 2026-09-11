@@ -52,7 +52,7 @@ export function DocumentosPedido({ pedido, documentos }: { pedido: string; docum
     // El padding NO va en el contenedor sino dentro: la cabecera es un botón y
     // tiene que ocupar el ancho entero para que se pueda pulsar en cualquier
     // punto de la fila, no solo sobre el texto.
-    <section className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]">
+    <section className="bloque-3d mb-4 rounded-xl">
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}

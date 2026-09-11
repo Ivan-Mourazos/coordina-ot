@@ -30,7 +30,7 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2" }: {
   const pinta = (centro: HistorialCentro) => <CentroTareas key={centro.id} centro={centro} conPersonas={conDesglose.has(centro.id)} />;
   return (
     <>
-      <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id} className={`${className} shrink-0 rounded-md border border-border px-2 py-1 text-xs font-semibold text-text hover:bg-surface-2`}>Tareas y tiempos</button>
+      <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id} className={`${className} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text`}>Tareas y tiempos</button>
       <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
         onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
         className="ventana-3d scroll-thin m-auto max-h-[75vh] w-[min(680px,92vw)] overflow-y-auto rounded-xl p-4 text-text backdrop:bg-black/30">

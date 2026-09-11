@@ -52,6 +52,18 @@ test("solo salen los centros con tiempo, con la sección consultada delante", ()
   expect(diseno.indexOf("Diseño · 9m")).toBeLessThan(diseno.indexOf("OT · 4m"));
 });
 
+test("en la lista, cada OF va en las columnas de la fila y el botón solo en la primera", () => {
+  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, {
+    ofs: [{ ...otra, codigo: "0232086" }, { ...otra, codigo: "0232087" }],
+    seccion: "ot",
+    columnas: "grid grid-cols-[28px_136px_minmax(0,1fr)]",
+    accion: createElement("button", null, "Tareas y tiempos"),
+  }));
+  expect(html.match(/<li class="grid grid-cols-\[28px_136px_minmax\(0,1fr\)\]/g)).toHaveLength(2);
+  expect(html.match(/Tareas y tiempos/g)).toHaveLength(1);
+  expect(html.indexOf("Tareas y tiempos")).toBeLessThan(html.indexOf("0232087"));
+});
+
 // Con varias OF, cada una dice quién la hizo: es información que la fila del
 // pedido (que suma todas) no da.
 const conGente: HistorialOF = {
