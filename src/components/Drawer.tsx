@@ -54,13 +54,14 @@ import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
  *
  *  Tampoco están `aprobar_sin_revision` ni `aprobar_corregida`, y esta vez SÍ
- *  es a propósito y no un olvido: las dos llevan a `aprobada` igual que
- *  `aprobar`, pero no tienen equivalente "de todo el pedido a la vez" —son
- *  salidas EXCEPCIONALES (trabajo sin revisión, o la segunda vuelta de una
- *  corrección), no el paso normal del día a día—, así que se quedan en la fila
- *  de su OF y dentro del cajón de "⋯", donde no estorban al camino de
- *  siempre. Meterlas aquí las haría desaparecer del todo en las secciones que
- *  revisan por pedido, que es peor que dejarlas donde están. */
+ *  es a propósito y no un olvido: son salidas EXCEPCIONALES (trabajo sin
+ *  revisión, o la segunda vuelta de una corrección) y se quedan en la fila de
+ *  su OF, dentro del cajón de "⋯". Meterlas en este conjunto las QUITARÍA de
+ *  la fila en las secciones que revisan por pedido.
+ *
+ *  `aprobar_corregida` tiene además un botón de pedido ("Dar por corregidas
+ *  las N") desde dos OF, pero se AÑADE al de cada fila, no lo sustituye: por
+ *  eso no está aquí. */
 const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
   "terminar_planteo",
   "aprobar",
@@ -354,6 +355,17 @@ export function Drawer({
   // Aprobar de golpe pide confirmación, como la de una sola: es el final del
   // camino y multiplicado por ocho, más.
   const defAprobar = ACCIONES.find((a) => a.id === "aprobar")!;
+  // Las devueltas que YO ya he corregido y puedo dar por buenas sin otra
+  // vuelta de revisión. Con varias en el mismo pedido había que ir OF por OF,
+  // abriendo el "⋯" de cada una; ahora sale también de una tacada, con su
+  // confirmación en plural.
+  const paraCorregir = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "aprobar_corregida"),
+  );
+  const defCorregidas = {
+    ...ACCIONES.find((a) => a.id === "aprobar_corregida")!,
+    confirmar: `Las ${paraCorregir.length} OF quedan aprobadas sin pasar otra vez por revisión.`,
+  };
 
   // Con la revisión por pedido, el bloque del pedido es el ÚNICO sitio donde
   // están estas acciones, así que tiene que salir también con una sola OF.
@@ -667,6 +679,22 @@ export function Drawer({
                       singular de `etiquetaCantidad`, se leería "Aprobar las 1"
                       todos los días. */}
                   {etiquetaCantidad("Aprobar", paraAprobar.length)}
+                </button>
+              )}
+              {/* Dar por corregidas las devueltas que ya arreglé. Desde dos:
+                  con una, el botón de su fila hace lo mismo. En tono neutro,
+                  como en la fila: es el atajo, no el camino de siempre (que
+                  sigue siendo mandarla otra vez a revisión). */}
+              {paraCorregir.length >= 2 && (
+                <button
+                  onClick={() => {
+                    idsAConfirmar.current = paraCorregir.map((o) => o.id);
+                    confirmacionPedido.pedirConfirmacion(defCorregidas);
+                  }}
+                  title={`Da por buenas las ${paraCorregir.length} OF devueltas que ya has corregido, sin otra vuelta de revisión`}
+                  className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text hover:border-border-strong"
+                >
+                  {etiquetaCantidad("Dar por corregidas", paraCorregir.length)}
                 </button>
               )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
