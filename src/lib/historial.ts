@@ -85,6 +85,20 @@ export interface HistorialItem {
    *  hay ni un minuto imputado a nadie. */
   autores?: string[];
 
+  /** Quién lo revisó: registrado en CoordinaOT o, en lo anterior, deducido del
+   *  reparto de minutos (quien echó poco). Nunca repite a un autor. */
+  revisores?: string[];
+
+  /** Minutos imputados en RPS a lo que cuenta para esta fila: las tareas de la
+   *  sección o, si el pedido no tiene ninguna, las de los otros centros.
+   *  Ausente = no se sabe (no se pudo leer), que no es lo mismo que 0. */
+  minutos?: number;
+
+  /** Solo cuando el pedido NO tiene tareas de la sección consultada: de qué
+   *  centros es el trabajo que se enseña (p. ej. solo Taller). Sin esto, la
+   *  lista de OT decía "Autor: Luis Santos" sin avisar de que era de taller. */
+  otrosCentros?: import("./historial-centros").CentroHistorialId[];
+
   /** Familias visuales del pedido, para los chips de la lista. Se sacan de la
    *  descripción de sus OF de OT con `familiaDeTexto`, el MISMO criterio y el
    *  mismo conjunto de OFs que usa `HistorialPedidoDetalle.familias`: si no,
@@ -397,6 +411,61 @@ export function repartirPorTiempo(
     else revisores.push(nombre);
   }
   return { autores, revisores };
+}
+
+/** Una fila del minutaje de la página, ya con su centro resuelto. */
+export interface FilaTrabajoPedido {
+  pedido: string;
+  orden: string;
+  /** Tarea y empleado: con pedido y orden, la clave de UN minutaje. */
+  tarea: string;
+  empleado: string;
+  centro: import("./historial-centros").CentroHistorialId;
+  minutos: number;
+}
+
+export interface TrabajoPedido {
+  minutos: number;
+  /** Ver `HistorialItem.otrosCentros`. */
+  otrosCentros?: import("./historial-centros").CentroHistorialId[];
+}
+
+const ORDEN_CENTROS = ["ot", "diseno", "taller"] as const;
+
+/** Cuánto trabajo enseña cada fila del Historial y de qué centro es.
+ *
+ *  La regla es la de la autoría de la misma lista: si el pedido tiene tareas de
+ *  la sección, solo cuentan esas (las de Taller no se suman a OT); si no tiene
+ *  ninguna, se enseña el de los otros centros y se dice cuáles. */
+export function resumirTrabajoPedidos(
+  filas: readonly FilaTrabajoPedido[],
+  seccion: import("./secciones").SeccionId,
+): Map<string, TrabajoPedido> {
+  const conSeccion = new Set(filas.filter((f) => f.centro === seccion).map((f) => f.pedido));
+  const suma = new Map<string, { minutos: number; centros: Set<string> }>();
+  // La consulta de la lista cuelga las OF de las LÍNEAS de venta: una OF en dos
+  // líneas trae dos veces el mismo minutaje (tarea y persona). Sumarlo tal cual
+  // daba 7h 48m en la lista de SA.24.00312 y 7h 12m al abrirlo.
+  const vistas = new Set<string>();
+  for (const f of filas) {
+    if (!f.pedido) continue;
+    if (conSeccion.has(f.pedido) && f.centro !== seccion) continue;
+    const clave = `${f.pedido}|${f.orden}|${f.tarea}|${f.empleado}`;
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    const s = suma.get(f.pedido) ?? { minutos: 0, centros: new Set<string>() };
+    s.minutos += f.minutos;
+    s.centros.add(f.centro);
+    suma.set(f.pedido, s);
+  }
+  return new Map(
+    [...suma].map(([pedido, s]) => [
+      pedido,
+      conSeccion.has(pedido)
+        ? { minutos: s.minutos }
+        : { minutos: s.minutos, otrosCentros: ORDEN_CENTROS.filter((c) => s.centros.has(c)) },
+    ]),
+  );
 }
 
 export function filaAItem(fila: FilaPagina): HistorialItem {

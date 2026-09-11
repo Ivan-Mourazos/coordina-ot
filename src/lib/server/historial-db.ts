@@ -23,6 +23,8 @@ import {
   coincideBusquedaHistorial,
   filaAItem,
   repartirPorTiempo,
+  resumirTrabajoPedidos,
+  type TrabajoPedido,
   segmentosEnShare,
   type DocumentoRps,
   type FilaCabecera,
@@ -153,7 +155,10 @@ export async function leerHistorialPagina(
     return {
       ...p,
       ...(suyos.autores.length ? { autores: suyos.autores } : {}),
+      ...(suyos.revisores.length ? { revisores: suyos.revisores } : {}),
       ...(suyos.familias.length ? { familias: suyos.familias } : {}),
+      ...(suyos.trabajo ? { minutos: suyos.trabajo.minutos } : {}),
+      ...(suyos.trabajo?.otrosCentros ? { otrosCentros: suyos.trabajo.otrosCentros } : {}),
     };
   });
   return { pedidos, hasMore };
@@ -182,11 +187,18 @@ interface FilaExtra {
 /** Autoría de las tareas de la sección seleccionada; sin tareas propias,
  *  de los demás centros. Prefiere el autor registrado en CoordinaOT y recurre
  *  al reparto de RPS para el histórico. Una sola consulta por página. */
+interface ExtrasPedido {
+  autores: string[];
+  revisores: string[];
+  familias: string[];
+  trabajo?: TrabajoPedido;
+}
+
 async function extrasDePagina(
   pedidos: string[],
   seccion: SeccionId,
-): Promise<Map<string, { autores: string[]; familias: string[] }>> {
-  const salida = new Map<string, { autores: string[]; familias: string[] }>();
+): Promise<Map<string, ExtrasPedido>> {
+  const salida = new Map<string, ExtrasPedido>();
   if (pedidos.length === 0) return salida;
   const nombres = await nombresHistorial();
 
@@ -237,10 +249,23 @@ async function extrasDePagina(
   // Por pedido: minutos de cada persona, qué órdenes lo componen (las órdenes
   // son la llave para buscar el autor registrado, que va por OF) y sus familias.
   const minutos = new Map<string, Map<string, number>>();
+  const minutosVistos = new Set<string>();
   const ordenes = new Map<string, Set<string>>();
   const familias = new Map<string, Set<string>>();
   const filasExtras = r.recordset.map((fila) => ({ ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea) }));
   const conSeccion = new Set(filasExtras.filter((fila) => fila.centro === seccion).map((fila) => fila.pedido?.trim()));
+  // Tiempo y centro de cada fila, con la misma regla que la autoría de abajo.
+  const trabajo = resumirTrabajoPedidos(
+    filasExtras.map((fila) => ({
+      pedido: (fila.pedido ?? "").trim(),
+      orden: (fila.orden ?? "").trim(),
+      tarea: (fila.tarea ?? "").trim(),
+      empleado: (fila.empleado ?? "").trim(),
+      centro: fila.centro,
+      minutos: fila.minutos ?? 0,
+    })),
+    seccion,
+  );
   for (const fila of filasExtras) {
     const pedido = (fila.pedido ?? "").trim();
     if (!pedido) continue;
@@ -266,6 +291,12 @@ async function extrasDePagina(
     familias.set(pedido, suyasFam);
 
     if (!fila.empleado) continue; // OF sin imputaciones: solo aporta su orden
+    // El mismo minutaje llega una vez por LÍNEA de venta de la OF (ver
+    // `resumirTrabajoPedidos`): se cuenta una sola vez, o el reparto que
+    // decide el autor pesaría doble las OF con dos líneas.
+    const claveMinuto = `${pedido}|${orden}|${(fila.tarea ?? "").trim()}|${fila.empleado.trim()}`;
+    if (minutosVistos.has(claveMinuto)) continue;
+    minutosVistos.add(claveMinuto);
     const codEmpleado = fila.empleado.trim();
     const idOperario = operarioDeEmpleado(codEmpleado);
     const nombre = nombres.get(codEmpleado) || (idOperario && nombres.get(idOperario)) || nombreHistorial(fila.nombreEmpleado);
@@ -275,29 +306,52 @@ async function extrasDePagina(
     minutos.set(pedido, porPersona);
   }
 
-  const registrados = autoresRegistrados(nombres);
+  const registrados = rolesRegistrados(nombres);
   for (const pedido of pedidos) {
-    const deLaWeb = [
-      ...new Set([...(ordenes.get(pedido) ?? [])].flatMap((o) => registrados.get(o) ?? [])),
-    ];
+    const suyas = [...(ordenes.get(pedido) ?? [])];
+    const deLaWeb = [...new Set(suyas.flatMap((o) => registrados.autores.get(o) ?? []))];
     // Registrado gana: si de un pedido se plantearon 2 OFs con la web y 3 son
     // viejas, se enseña a quien consta, no una mezcla de dato y suposición.
-    const autores = deLaWeb.length
-      ? deLaWeb
-      : (repartirPorTiempo(minutos.get(pedido))?.autores ?? []);
-    salida.set(pedido, { autores, familias: [...(familias.get(pedido) ?? [])] });
+    // Con los revisores, lo mismo: si hay autor registrado, el revisor es el
+    // registrado (o ninguno), no uno deducido de las horas.
+    const deducido = deLaWeb.length ? null : repartirPorTiempo(minutos.get(pedido));
+    const autores = deLaWeb.length ? deLaWeb : (deducido?.autores ?? []);
+    // Sin tareas de la sección, lo que se enseña es trabajo de otro centro
+    // (casi siempre Taller), y ahí no hay revisión: deducir un "revisó" de las
+    // horas de taller era inventarse un rol que no existe.
+    const deOtroCentro = Boolean(trabajo.get(pedido)?.otrosCentros);
+    const revisores = deOtroCentro
+      ? []
+      : (
+          deLaWeb.length
+            ? [...new Set(suyas.flatMap((o) => registrados.revisores.get(o) ?? []))]
+            : (deducido?.revisores ?? [])
+        ).filter((n) => !autores.includes(n));
+    salida.set(pedido, {
+      autores,
+      revisores,
+      familias: [...(familias.get(pedido) ?? [])],
+      trabajo: trabajo.get(pedido),
+    });
   }
   return salida;
 }
 
-/** Autores registrados en CoordinaOT, indexados por OF y tarea.
+/** Autores y revisores registrados en CoordinaOT, indexados por OF y tarea.
  *
  *  El overlay va por OF+tarea ("orden:codTarea") y la lista va por pedido, así
  *  que se conservan ambas claves para no mezclar autores entre secciones. Se lee
  *  entero de una vez — son pocas filas y vive en SQLite, igual que en
- *  `pasadosAt`, así que no compensa filtrar por ids. */
-function autoresRegistrados(nombres: ReadonlyMap<string, string>): Map<string, string[]> {
-  const porOrden = new Map<string, string[]>();
+ *  `pasadosAt`, así que no compensa filtrar por ids.
+ *
+ *  El revisor solo cuenta si la OF pasó de verdad por revisión (`revisada`):
+ *  nombrarlo al mandarla a revisar no es haberla revisado. */
+function rolesRegistrados(nombres: ReadonlyMap<string, string>): {
+  autores: Map<string, string[]>;
+  revisores: Map<string, string[]>;
+} {
+  const autores = new Map<string, string[]>();
+  const revisores = new Map<string, string[]>();
   let overlay;
   try {
     const ot = leerOverlay("ot");
@@ -307,20 +361,23 @@ function autoresRegistrados(nombres: ReadonlyMap<string, string>): Map<string, s
     // Como en `anadirDesgloseRol`: el historial vive de RPS, y si nuestra BD
     // local falla se sirve sin autor antes que devolver un error.
     console.error("[historial] no se pudo leer el overlay:", e);
-    return porOrden;
+    return { autores, revisores };
   }
+  const anota = (mapa: Map<string, string[]>, clave: string, id: string | null | undefined) => {
+    const nombre = id ? nombres.get(id) : undefined;
+    if (!nombre) return; // Si no lo conocemos, se resolverá por la imputación de RPS.
+    const suyos = mapa.get(clave) ?? [];
+    if (!suyos.includes(nombre)) suyos.push(nombre);
+    mapa.set(clave, suyos);
+  };
   for (const [ofId, cambio] of overlay.ofs) {
-    if (!cambio.autorId) continue;
     const partes = partirOfId(ofId);
     if (!partes) continue;
-    const nombre = nombres.get(cambio.autorId);
-    if (!nombre) continue; // Si no lo conocemos, se resolverá por la imputación de RPS.
     const clave = claveTareaHistorial(partes.of, partes.numope);
-    const suyos = porOrden.get(clave) ?? [];
-    if (!suyos.includes(nombre)) suyos.push(nombre);
-    porOrden.set(clave, suyos);
+    anota(autores, clave, cambio.autorId);
+    if (cambio.revisada) anota(revisores, clave, cambio.revisorId);
   }
-  return porOrden;
+  return { autores, revisores };
 }
 
 /** Autocompletar de cliente: hasta 20 nombres distintos (histórico de OT

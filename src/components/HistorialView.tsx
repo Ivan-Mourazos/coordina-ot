@@ -13,10 +13,14 @@ import { Desplegable } from "./Desplegable";
 import { Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
+import { fmtMin } from "@/lib/estado";
 
 /** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
  *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
- *  como el resto de la línea. El momento exacto sigue en el `title`. */
+ *  como el resto de la línea. El momento exacto sigue en el `title`.
+ *
+ *  Siempre con año (dos cifras): en una lista que baja hasta pedidos de 2024,
+ *  "11/09" sin año obligaba a adivinar de cuál se hablaba. */
 function fmtFecha(iso: string): { corta: string; completa: string } {
   if (!iso) return { corta: "—", completa: "" };
   const d = new Date(iso);
@@ -24,7 +28,7 @@ function fmtFecha(iso: string): { corta: string; completa: string } {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const ano = d.getFullYear();
-  const corta = ano === new Date().getFullYear() ? `${dd}/${mm}` : `${dd}/${mm}/${ano}`;
+  const corta = `${dd}/${mm}/${String(ano).slice(2)}`;
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return { corta, completa: `${dd}/${mm}/${ano} a las ${hh}:${mi}` };
@@ -256,7 +260,12 @@ export function HistorialView({
 
       {/* Filas continuas, con identidad, autoría y fecha en posiciones estables. */}
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        {itemsVisibles.length > 0 && <div aria-hidden="true" className="hidden grid-cols-[32px_minmax(0,1fr)_minmax(180px,28%)_minmax(140px,18%)] gap-3 border-b border-border bg-surface-2 px-3 py-3 text-[11px] font-semibold text-text-muted md:grid"><span /><span>Pedido · cliente</span><span>Autoría</span><span>Finalizado</span></div>}
+        {itemsVisibles.length > 0 && (
+          <div aria-hidden="true" className={`${COLUMNAS} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
+            <span /><span>Pedido · cliente</span><span>Autoría · revisión</span>
+            <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span><span>Pasado</span>
+          </div>
+        )}
         {itemsVisibles.map((it) => (
           <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} />
         ))}
@@ -290,31 +299,66 @@ export function HistorialView({
  *  repartieron a partes iguales—, así que se enseñan los dos. */
 function Autoria({ item }: { item: HistorialItem }) {
   const autores = (item.autores ?? []).filter(Boolean);
+  const revisores = (item.revisores ?? []).filter((n) => n && !autores.includes(n));
+  const otros = item.otrosCentros ?? [];
+  // El pedido no tiene tareas de la sección: lo que se enseña es trabajo de
+  // otro centro, y tiene que decirlo. Sin esto, la lista de OT ponía a gente
+  // de Taller como autora sin más.
+  const centro = otros.length > 0 && (
+    <span
+      className="mr-1.5 shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted ring-1 ring-border"
+      title="Este pedido no tiene tareas de la sección: la autoría y el tiempo son de este centro."
+    >
+      Solo {otros.map((c) => CENTRO_CORTO[c]).join(" y ")}
+    </span>
+  );
   if (autores.length > 0) {
     const visibles = autores.slice(0, 2);
     return (
       <span
-        className="text-text"
-        title={`Autoría de las tareas: ${autores.join(", ")}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
+        className="flex min-w-0 items-center"
+        title={`Autoría: ${autores.join(", ")}${revisores.length ? ` · Revisión: ${revisores.join(", ")}` : ""}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
       >
-        {autores.length > 1 ? "Autores:" : "Autor:"} {visibles.join(" y ")}
-        {autores.length > 2 && ` +${autores.length - 2}`}
+        {centro}
+        {/* Sin "Autor:" delante: lo dice la cabecera de la columna, y en cada
+            fila era la misma palabra repetida cuarenta veces. */}
+        <span className="truncate">
+          <span className="text-text">
+            {visibles.join(" y ")}
+            {autores.length > 2 && ` +${autores.length - 2}`}
+          </span>
+          {revisores.length > 0 && (
+            <span> · revisó {revisores[0]}{revisores.length > 1 && ` +${revisores.length - 1}`}</span>
+          )}
+        </span>
       </span>
     );
   }
   if (item.pasadoPor) {
     return (
       <span
-        className="text-text"
+        className="flex min-w-0 items-center"
         title={`${item.pasadoPor} pulsó "pasar a Producción". De este pedido no consta quién lo planteó, y no tienen por qué ser la misma persona.`}
       >
-        Lo pasó {item.pasadoPor}
+        {centro}
+        <span className="truncate text-text">Lo pasó {item.pasadoPor}</span>
       </span>
     );
   }
   // Ahora sí: ni autores ni quien lo pasó. Ningún minuto imputado a nadie.
-  return <span className="italic">Sin autor registrado</span>;
+  return (
+    <span className="flex min-w-0 items-center">
+      {centro}
+      <span className="italic">Sin autor registrado</span>
+    </span>
+  );
 }
+
+/** Nombre corto de cada centro, para la cabecera y la etiqueta "Solo …". */
+const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
+
+/** Las mismas columnas en la cabecera y en cada fila. */
+const COLUMNAS = "grid grid-cols-[32px_minmax(0,1fr)_minmax(200px,26%)_72px_76px] items-center gap-x-3";
 
 /** El nombre abre la ficha; la flecha izquierda despliega las OF compactas. */
 function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen: (pedido: string) => void; seccion: SeccionId }) {
@@ -359,7 +403,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
   return (
     <div className="relative border-b border-border last:border-b-0">
       {desplegado && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />}
-      <div className={`relative grid grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-3 py-2 md:grid-cols-[32px_minmax(0,1fr)_minmax(180px,28%)_minmax(140px,18%)] ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
+      <div className={`relative ${COLUMNAS} px-3 py-1.5 ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
         {/* Fondo y nombre son botones hermanos: un clic produce una sola acción. */}
         <button
           type="button"
@@ -370,28 +414,38 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           title={`${tituloPasado}${item.autores?.length ? ` · Autoría: ${item.autores.join(", ")}` : ""}`}
           className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
         />
-        <span aria-hidden="true" className="pointer-events-none grid size-8 place-items-center text-text-muted">
+        <span aria-hidden="true" className="pointer-events-none grid size-7 place-items-center text-text-muted">
           <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${desplegado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
-        <div className="pointer-events-none min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
-            <span className="text-[11px] font-medium text-text-muted" title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}>· {item.nOf} OF</span>
-            {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
-          </div>
-          <p className="text-[11px] leading-4 text-text [overflow-wrap:anywhere]">
+        {/* Una sola línea: código, OF, familias y cliente. El cliente es lo
+            que cede si no cabe (se corta con "…" y entero en el title). */}
+        <div className="pointer-events-none flex min-w-0 items-center gap-2 text-[11px]">
+          <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
+          <span className="shrink-0 font-medium text-text-muted" title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}>· {item.nOf} OF</span>
+          {familias.length > 0 && (
+            <span className="flex shrink-0 gap-1">{familias.map((f) => <FamiliaTag key={f} familia={f} />)}</span>
+          )}
+          <span className="min-w-0 truncate text-text" title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}>
             {item.cliente ?? "—"}
             {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
-          </p>
+          </span>
         </div>
-        <div className="pointer-events-none col-start-2 min-w-0 text-[11px] leading-4 text-text-muted [overflow-wrap:anywhere] md:col-start-auto">
+        <div className="pointer-events-none min-w-0 text-[11px] leading-4 text-text-muted">
           <Autoria item={item} />
         </div>
-        <div className="pointer-events-none col-start-2 flex flex-wrap gap-x-2 text-[11px] leading-4 text-text-muted md:col-start-auto md:flex-col md:items-start">
+        <div
+          className="pointer-events-none text-right font-mono text-[11px] tabular-nums text-text"
+          title={item.minutos === undefined
+            ? "No se pudo leer el tiempo imputado"
+            : `Tiempo imputado en RPS a las tareas de ${item.otrosCentros?.length ? item.otrosCentros.map((c) => CENTRO_CORTO[c]).join(" y ") : CENTRO_CORTO[seccion]}`}
+        >
+          {item.minutos === undefined ? "—" : fmtMin(item.minutos)}
+        </div>
+        <div className="pointer-events-none text-[11px] leading-4 text-text-muted">
           {item.estadoActual
             ? <span className="font-semibold text-amber-700 dark:text-amber-300">{item.estadoActual}</span>
-            : <span title={tituloPasado}>{item.pasadoAt || item.finalizada ? `Pasado ${pasado.corta}` : "Finalizado · sin fecha registrada"}</span>}
-          {item.busqueda && item.fechaPedido && <span title="Fecha del pedido en RPS; orden de los resultados de búsqueda">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
+            : <span title={tituloPasado}>{item.pasadoAt || item.finalizada ? pasado.corta : "Sin fecha"}</span>}
+          {item.busqueda && item.fechaPedido && <span className="block" title="Fecha del pedido en RPS; orden de los resultados de búsqueda">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
         </div>
       </div>
 
