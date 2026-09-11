@@ -353,8 +353,10 @@ También «Dar por corregidas las N» en la ficha, desde dos OF devueltas.
 El Historial enseña nombre y tiempo, de más a menos, en lista, ficha y
 «Tareas y tiempos», en vez de autor y revisor. «Dar por corregida» tras
 recuperar una OF aprobada se queda: decidido por Iván.
-Siguen sin hacer: contraste fuera de la ficha, si la ficha de un pedido «Solo
-Taller» enseña también a la gente de taller (a decidir con Iván), conservar
+Las personas no se repiten: fila y ficha siempre, por OF o por tarea solo
+cuando hay varias; en los «Solo Taller», la gente de Taller también en la ficha.
+Siguen sin hacer: contraste fuera de la ficha, si sobran los chips de centros a
+cero minutos en las OF desplegadas (a decidir con Iván), conservar
 páginas/posición y filtros de Visitas y Métricas.
 
 ---

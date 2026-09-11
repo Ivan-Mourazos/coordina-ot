@@ -389,9 +389,15 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   El caso raro de AR.26.04055 era una prueba de la base local (autor de 5 s el
   28/08), no un dato del servidor.
 
+- **Sin repetir personas (decidido por Iván).** Un desglose solo sale si dice
+  algo que el nivel de arriba no dice: fila siempre; OF desplegadas solo con
+  varias OF; centro de la ficha siempre en el centro que cuenta (en un «Solo
+  Taller», la gente de Taller); dentro de cada OF solo si el centro tiene
+  varias; por tarea solo si la OF tiene varias tareas con tiempo. Comprobado
+  con RPS en AR.26.04488 (1 OF), AR.26.04489 (2 OF) y SA.24.00312.
+
 ### Pendiente de decidir con Iván
 
-- En un pedido «Solo Taller», la fila enseña a la gente de taller con su
-  tiempo, pero la ficha solo da el total de Taller: la regla vigente es
-  desglose de personas solo para la sección consultada. ¿Se enseñan también
-  en la ficha cuando el pedido no tiene nada de la sección?
+- Cada OF desplegada enseña los chips de todos sus centros, también a cero
+  («Diseño · 0m · Taller · 0m»). Se decidió conservar los centros con trabajo
+  aunque tengan cero minutos; con la regla de «no repetir» quizá sobren.
