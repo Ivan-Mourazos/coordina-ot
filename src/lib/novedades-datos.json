@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "8cd6e11",
+    "hasta": "a187ba8",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -17,6 +17,11 @@
         "tipo": "nuevo",
         "titulo": "En el Historial puedes filtrar por las mismas familias que en Sin asignar",
         "detalle": "Remolques, camiones, carpas… y solo salen las que hay con los demás filtros puestos."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Diseño Gráfico ve en su tablero los trabajos de la casa",
+        "detalle": "Salen en Sin asignar y en la zona de cada uno, como cualquier otro pedido: se reparten y se pasan igual."
       },
       {
         "tipo": "arreglado",
@@ -145,6 +150,11 @@
       {
         "tipo": "mejor",
         "titulo": "Notas, documentos y tiempos de la ficha tienen el mismo relieve"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La barra de Diseño Gráfico se queda en el buscador y «Solo atrasados»",
+        "detalle": "Familia, Prioridad, «Tu trabajo» y agrupar ocupaban la fila entera sin que nadie los usara."
       }
     ]
   },
