@@ -349,10 +349,11 @@ Después, con el visto bueno de Iván: el autor recupera su OF aprobada con
 «Recuperar para corregir» y al reenviarla entra en «Por revisar»; filas del
 Historial en una línea, con tiempo de la sección, revisor, «Solo Taller» y
 fecha con año (tiempos de lista y ficha iguales en 12 pedidos reales).
+También «Dar por corregidas las N» en la ficha, desde dos OF devueltas.
 Siguen sin hacer: contraste fuera de la ficha, qué personas enseña «Tareas y
-tiempos» frente a la autoría (a mirar con Iván), «Dar por corregida» para
-varias OF a la vez (si lo pide), conservar páginas/posición y filtros de
-Visitas y Métricas.
+tiempos» frente a la autoría (a mirar con Iván), si «Dar por corregida» debe
+salir tras «Recuperar para corregir» una OF aprobada, conservar
+páginas/posición y filtros de Visitas y Métricas.
 
 ---
 

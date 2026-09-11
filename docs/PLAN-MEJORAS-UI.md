@@ -372,9 +372,11 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   colgada de dos líneas de venta; ahora cada (OF, tarea, persona) cuenta una
   vez. Comprobado con RPS: 12 pedidos con el mismo tiempo en lista y ficha.
   Probado en claro a 1280 × 720: el código abre la ficha, el resto despliega.
-- **«Dar por corregida» en pedidos con varias OF devueltas.** Es OF a OF; el
-  bloque del pedido no la ofrece (decisión antigua, está en el código). Si
-  Iván lo pide, se añade «Dar por corregida las N» con 2 o más.
+- **«Dar por corregidas las N».** Iván lo pidió: el bloque del pedido lo
+  ofrece desde dos OF que quien mira puede dar por corregidas (las suyas, ya
+  revisadas), con confirmación en plural. Cada fila conserva su botón. Probado
+  con test de renderizado (autor sí, revisor no, una sola OF no); no se ha
+  pulsado en el navegador para no escribir estados ni fichaje.
 
 ### Pendiente de mirar con Iván
 
