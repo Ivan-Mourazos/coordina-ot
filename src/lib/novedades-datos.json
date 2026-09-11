@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "a2fbc8a",
+    "hasta": "138aa46",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -36,6 +36,11 @@
       {
         "tipo": "arreglado",
         "titulo": "En Diseño, la ficha ya no dice «Oficina Técnica» cuando el pedido no tiene trabajo vuestro"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Recuperar una OF aprobada para corregirla ya no la mete en «Revisando» del revisor",
+        "detalle": "El autor tiene «Recuperar para corregir»: vuelve a su planteo y, al mandarla otra vez, entra en «Por revisar» con el mismo revisor."
       },
       {
         "tipo": "mejor",
@@ -86,6 +91,11 @@
         "tipo": "mejor",
         "titulo": "Textos secundarios y botones de color se leen mejor, sobre todo en oscuro",
         "detalle": "Fechas, rótulos y familias tenían poco contraste sobre los bloques de la ficha; los botones verdes y la prioridad Normal también."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial se lee en una línea por pedido, con el tiempo de la sección y quién lo revisó",
+        "detalle": "Los pedidos sin trabajo de la sección llevan «Solo Taller» junto al nombre, y la fecha lleva año."
       }
     ]
   },
