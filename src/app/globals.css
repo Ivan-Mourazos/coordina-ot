@@ -663,12 +663,9 @@ body {
   background: transparent;
 }
 
-/* Los controles nativos no heredan la fuente: los dos `input type="date"`
-   del Historial salían con la del sistema al lado del resto de la interfaz.
-   El color y el tamaño ya se los pone Tailwind; esto es solo la familia. */
-input[type="date"] {
-  font-family: inherit;
-}
+/* Ya no queda ningún `input[type=date]`: el Historial y Métricas usan el mismo
+   calendario propio que el tablero (SelectorFecha). Se quita el parche de la
+   fuente, que solo servía para disimular un control del navegador. */
 
 /* Portátiles y monitores de poca altura (720p, incluida la barra del navegador).
    Reducimos espacio entre bloques, conservando texto y controles a su tamaño. */

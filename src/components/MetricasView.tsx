@@ -7,6 +7,7 @@ import { CAUSAS } from "@/lib/anulacion";
 import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
+import { SelectorFecha } from "./SelectorFecha";
 
 // ─── Lo que se puede mirar hacia atrás ───────────────────────────────────────
 // Tres apartados, y UNO A LA VEZ. Apilarlos obligaría a leerlo todo para llegar
@@ -36,7 +37,6 @@ interface Respuesta {
 }
 
 /** Un día en formato de `input[type=date]`. */
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 const APARTADOS = [
   { id: "devoluciones", label: "Devoluciones" },
@@ -127,27 +127,15 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
         </div>
         {/* Los filtros en una fila sobre los datos, no repartidos entre ellos. */}
         <div className="ml-auto flex items-end gap-1.5 text-xs text-text-muted">
-          <label className="flex flex-col">
-            Desde
-            <input
-              type="date"
-              value={desde}
-              max={hasta || undefined}
-              onChange={(e) => setDesde(e.target.value)}
-              className="mt-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
-            />
-          </label>
-          <label className="flex flex-col">
-            Hasta
-            <input
-              type="date"
-              value={hasta}
-              min={desde || undefined}
-              max={iso(new Date())}
-              onChange={(e) => setHasta(e.target.value)}
-              className="mt-1 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
-            />
-          </label>
+          {/* El mismo calendario que el tablero y el Historial: eran dos
+              `input[type=date]` y los pintaba el navegador con su propio
+              fondo, su tipografía y su «Borrar / Hoy». */}
+          <div className="flex flex-col">
+            Entre fechas
+            <span className="mt-1 flex items-center">
+              <SelectorFecha desde={desde} hasta={hasta} onCambiar={(d, h) => { setDesde(d); setHasta(h); }} />
+            </span>
+          </div>
           {(desde || hasta) && (
             <button
               onClick={() => {

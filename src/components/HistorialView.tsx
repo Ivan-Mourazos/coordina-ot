@@ -8,6 +8,7 @@ import { agruparPorDia } from "@/lib/historial-dias";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaIcon, FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
+import { SelectorFecha } from "./SelectorFecha";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
 import { Desplegable } from "./Desplegable";
@@ -95,8 +96,6 @@ export function HistorialView({
   // campos no los traen.
   const { q, desde, hasta, familia, operario = null, soloSeccion = false } = filtros;
   const setQ = (q: string) => onFiltros({ q });
-  const setDesde = (desde: string) => onFiltros({ desde });
-  const setHasta = (hasta: string) => onFiltros({ hasta });
   const setFamilia = (familia: string | null) => onFiltros({ familia });
   const setOperario = (operario: string | null) => onFiltros({ operario });
   const setSoloSeccion = (soloSeccion: boolean) => onFiltros({ soloSeccion });
@@ -238,27 +237,17 @@ export function HistorialView({
             />
           </span>
         </label>
-        {/* "Pasado a Producción entre…": las dos fechas van juntas y rotuladas
-            como lo que miden. */}
+        {/* "Pasado a Producción entre…": el MISMO calendario que la barra de
+            Pendientes. Eran dos `input[type=date]` y los pintaba el navegador a
+            su manera —fondo blanco, su propia tipografía y su «Borrar / Hoy»—
+            en medio de una barra que es toda nuestra. */}
         <div className="flex flex-col text-xs text-text-muted">
           Pasado a Producción
-          <span className="mt-1 flex items-center gap-1.5">
-            <input
-              type="date"
-              value={desde}
-              aria-label="Pasado a Producción desde"
-              max={hasta || undefined}
-              onChange={(e) => setDesde(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
-            />
-            <span className="text-text-muted">a</span>
-            <input
-              type="date"
-              value={hasta}
-              aria-label="Pasado a Producción hasta"
-              min={desde || undefined}
-              onChange={(e) => setHasta(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
+          <span className="mt-1 flex items-center">
+            <SelectorFecha
+              desde={desde}
+              hasta={hasta}
+              onCambiar={(d, h) => onFiltros({ desde: d, hasta: h })}
             />
           </span>
         </div>
