@@ -176,10 +176,17 @@ export function FilterBar({
   ajustes?: React.ReactNode;
   rotuloAjustes?: string;
 }) {
-  const ver = seccion.barraSimple
-    ? { ...BARRA_SIMPLE, atrasados: CONTROLES[vista].atrasados }
-    : CONTROLES[vista];
+  // En la barra simple, «Solo atrasados» va en las TRES vistas. En Oficina
+  // Técnica la Lista lo esconde porque su columna Recorrido ya pinta la línea
+  // de tiempo, pero heredar aquí ese "no" dejaba a Diseño con el rótulo «Ver»
+  // sobre un hueco vacío.
+  const ver = seccion.barraSimple ? BARRA_SIMPLE : CONTROLES[vista];
   const activos = filtrosActivos(filtros);
+  // Un grupo sin un solo control no se pinta: el rótulo prometía algo que no
+  // estaba.
+  const hayVer =
+    ver.familia || ver.prioridad || ver.estado || ver.fechas ||
+    ver.categoria || ver.material || ver.atrasados;
 
   const opcionesPersona = [
     { value: SIN_ASIGNAR, label: "Sin asignar" },
@@ -233,6 +240,8 @@ export function FilterBar({
         )}
       </div>
 
+      {hayVer && (
+        <>
       <Separador />
 
       {/* VER: todo lo que recorta lo que sale en pantalla, en un solo bloque —
@@ -344,6 +353,8 @@ export function FilterBar({
           </Toggle>
         )}
       </Grupo>
+        </>
+      )}
 
       {/* DE QUIÉN es. "¿Qué le queda a Tamara por repasar?" no se podía
           preguntar en ningún sitio salvo mirando su zona del tablero. */}

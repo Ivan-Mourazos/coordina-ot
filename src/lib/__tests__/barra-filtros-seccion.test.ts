@@ -8,10 +8,10 @@ import { SECCIONES } from "../secciones";
 // Carrón (11/09/2026): en Diseño Gráfico no reparten el trabajo entre varios,
 // así que de la barra solo usan el buscador y ver lo que va tarde.
 
-const pinta = (seccion: "ot" | "diseno") =>
+const pinta = (seccion: "ot" | "diseno", vista: "asignar" | "lista" | "revision" = "asignar") =>
   renderToStaticMarkup(
     createElement(FilterBar, {
-      vista: "asignar" as const,
+      vista,
       seccion: SECCIONES[seccion],
       titulo: "Sin asignar",
       filtros: FILTROS_INICIALES,
@@ -33,6 +33,16 @@ test("en Diseño la barra se queda en buscador y «Solo atrasados»", () => {
   expect(html).not.toContain("Tu trabajo");
   // Ni el ajuste de agrupar: es otra cosa que colocar sin que nadie lo pida.
   expect(html).not.toContain("Sin agrupar");
+});
+
+test("«Solo atrasados» está en las tres vistas de Diseño, y el rótulo «Ver» no sale vacío", () => {
+  // En la Lista de OT ese botón se esconde (la columna Recorrido ya lo dice) y
+  // heredarlo dejaba a Diseño un rótulo sobre un hueco.
+  for (const vista of ["asignar", "lista", "revision"] as const) {
+    const html = pinta("diseno", vista);
+    expect(html, vista).toContain("Solo atrasados");
+    expect(html, vista).toContain("Pedido, cliente o negocio…");
+  }
 });
 
 test("en Oficina Técnica siguen todos los controles de siempre", () => {
