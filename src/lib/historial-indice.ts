@@ -28,9 +28,12 @@ export interface InfoPedidoHistorial {
   negocio: string | null;
   /** Las familias del panel de Sin asignar (familiaDeTexto), una por OF. */
   familias: string[];
-  ordenes: string[];
-  /** Cliente y descripciones (de la OF y de la línea), ya normalizados. */
-  textos: string[];
+  /** Códigos de OF separados por espacios. Un texto y no una lista: con
+   *  153 000 pedidos, cada lista de más son megas. */
+  ordenes: string;
+  /** Cliente y descripciones (de la OF y de la línea), ya normalizados, un
+   *  campo por línea ("\n"). */
+  textos: string;
 }
 
 export interface IndiceHistorial {
@@ -91,11 +94,14 @@ export function filtrarIndice(
     if (palabras.length === 0) return false;
     if (b.pedido.replaceAll(".", "").includes(codigo)) return true;
     if (!info) return false;
-    if (info.ordenes.some((o) => o.includes(codigo))) return true;
+    // El código no lleva espacios, así que no puede casar a caballo entre dos OF.
+    if (info.ordenes.includes(codigo)) return true;
     // Todas las palabras en el MISMO campo, como la consulta: "toldo fachada"
     // encuentra "TOLDO DE FACHADA", pero no un cliente "TOLDOS" con una OF de
-    // "FACHADA".
-    return info.textos.some((t) => palabras.every((p) => t.includes(p)));
+    // "FACHADA". Primero la prueba barata sobre todo el texto; solo si pasa,
+    // campo a campo.
+    if (!palabras.every((p) => info.textos.includes(p))) return false;
+    return info.textos.split("\n").some((t) => palabras.every((p) => t.includes(p)));
   };
 
   // Todo menos la familia: de aquí salen las opciones del desplegable.

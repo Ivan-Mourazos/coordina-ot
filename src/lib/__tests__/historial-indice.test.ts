@@ -23,8 +23,8 @@ const info = (extra: Partial<InfoPedidoHistorial> = {}): InfoPedidoHistorial => 
   cliente: "MAHOU, S.A.",
   negocio: null,
   familias: ["TOLDO"],
-  ordenes: ["0230001"],
-  textos: [normalizaBusqueda("MAHOU, S.A."), normalizaBusqueda("TOLDO DE FACHADA MANUAL")],
+  ordenes: "0230001",
+  textos: [normalizaBusqueda("MAHOU, S.A."), normalizaBusqueda("TOLDO DE FACHADA MANUAL")].join("\n"),
   ...extra,
 });
 
@@ -104,9 +104,9 @@ describe("búsqueda, igual que la consulta", () => {
   const i = indice(
     [base("AR.26.04488"), base("AR.26.04489"), base("AR.26.04490")],
     {
-      "AR.26.04488": { cliente: "ALUMAN SISTEMAS S.L.U.", textos: [normalizaBusqueda("ALUMAN SISTEMAS S.L.U."), normalizaBusqueda("TOLDO MODELO ANTICA NUEVO")], ordenes: ["0232070"] },
-      "AR.26.04489": { cliente: "TOLDOS RÍOS", textos: [normalizaBusqueda("TOLDOS RÍOS"), normalizaBusqueda("CAMBIO DE TELA FACHADA")], ordenes: ["0232086"] },
-      "AR.26.04490": { cliente: "PAMILAKAN SAS", textos: [normalizaBusqueda("PAMILAKAN SAS"), normalizaBusqueda("Lona de remolque")], ordenes: ["0232100"] },
+      "AR.26.04488": { cliente: "ALUMAN SISTEMAS S.L.U.", textos: [normalizaBusqueda("ALUMAN SISTEMAS S.L.U."), normalizaBusqueda("TOLDO MODELO ANTICA NUEVO")].join("\n"), ordenes: "0232070" },
+      "AR.26.04489": { cliente: "TOLDOS RÍOS", textos: [normalizaBusqueda("TOLDOS RÍOS"), normalizaBusqueda("CAMBIO DE TELA FACHADA")].join("\n"), ordenes: "0232086" },
+      "AR.26.04490": { cliente: "PAMILAKAN SAS", textos: [normalizaBusqueda("PAMILAKAN SAS"), normalizaBusqueda("Lona de remolque")].join("\n"), ordenes: "0232100" },
     },
   );
   const busca = (q: string) => pedidos(filtrarIndice(i, { page: 0, seccion: "ot", q }, sinPasados)).sort();
