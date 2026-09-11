@@ -7,13 +7,17 @@ import type { EstadoOF, OF, Prioridad, Rol } from "./types";
 export interface PrioridadMeta {
   label: string;
   color: string; // sólido para el badge (Pxx)
+  /** Letra sobre `color`. El ámbar de "Normal" es claro: en blanco se leía a
+   *  2,5:1, así que lleva tinta oscura y conserva su color, que es lo que se
+   *  reconoce. Los otros dos pasan de 4,5:1 en blanco. */
+  tinta: string;
   rank: number; // 3 urgente = más alto; para ordenar desc
 }
 
 export const PRIORIDAD: Record<Prioridad, PrioridadMeta> = {
-  3: { label: "Urgente", color: "#d23b3b", rank: 3 },
-  2: { label: "Normal", color: "#d39a1c", rank: 2 },
-  1: { label: "Poca", color: "#6b7280", rank: 1 },
+  3: { label: "Urgente", color: "#d23b3b", tinta: "#ffffff", rank: 3 },
+  2: { label: "Normal", color: "#d39a1c", tinta: "#2b1d04", rank: 2 },
+  1: { label: "Poca", color: "#6b7280", tinta: "#ffffff", rank: 1 },
 };
 
 // Clases Tailwind literales (deben aparecer como texto para que se compilen).
@@ -110,7 +114,7 @@ export const ROL: Record<Rol, RolMeta> = {
     color: "#059669",
     chip: "bg-emerald-600/12 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300",
     texto: "text-emerald-800 dark:text-emerald-300",
-    solido: "bg-emerald-600 text-white hover:bg-emerald-700",
+    solido: "bg-emerald-700 text-white hover:bg-emerald-800",
   },
   revisar: {
     label: "Revisando",

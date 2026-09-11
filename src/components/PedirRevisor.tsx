@@ -48,7 +48,7 @@ export function PedirRevisor({
       <button
         onClick={() => revisorId && onConfirmar(revisorId)}
         disabled={!revisorId}
-        className="rounded bg-teal-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+        className="rounded bg-teal-700 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
       >
         {etiquetaConfirmar}
       </button>

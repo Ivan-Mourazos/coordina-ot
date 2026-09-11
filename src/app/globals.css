@@ -47,7 +47,10 @@
 
   /* Vidrio: translúcido + saturado + highlight especular en el canto */
   --glass-bg: rgba(255, 255, 255, 0.52);
-  --glass-bg-strong: rgba(255, 255, 255, 0.7);
+  /* 0,82 y no 0,7: la ficha se abre sobre un telón negro, y a 0,7 el panel
+     dejaba pasar tanto que el cliente de la cabecera (texto secundario) se
+     quedaba a 3,9:1 medido sobre ese fondo. */
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
   /* Los menús desplegables TAPAN contenido, así que no pueden ser
      translúcidos: en claro se leían las miniaturas de la bandeja a través del
      menú abierto. El desenfoque no basta cuando detrás hay texto nítido. */
@@ -90,7 +93,11 @@
   --border: #35373d;
   --border-strong: #45484f;
   --text: #eef0f2;
-  --text-muted: #989ea8;
+  /* Medido sobre el fondo REAL de la ficha (telón + vidrio + el tinte de
+     `--glass-highlight` de los bloques): con #989ea8 los rótulos y las
+     familias quedaban a 3,4–3,7:1. Este da ≥4,6:1 incluso en una etiqueta de
+     familia, que es vidrio sobre vidrio. */
+  --text-muted: #b3b9c2;
 
   --glass-bg: rgba(36, 38, 44, 0.92);
   --glass-bg-strong: rgba(40, 42, 48, 0.95);

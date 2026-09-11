@@ -40,7 +40,7 @@ export function AprobarInline({
           onClick={() => setAbierto(true)}
           disabled={!!impedido}
           title={impedido ?? undefined}
-          className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {label}
         </button>
@@ -70,7 +70,7 @@ export function AprobarInline({
             setAbierto(false);
           }}
           disabled={elegidas.length === 0}
-          className="rounded-md bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {elegidas.length > 1 ? `Aprobar las ${elegidas.length}` : "Aprobar"}
         </button>

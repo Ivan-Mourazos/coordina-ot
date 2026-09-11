@@ -138,7 +138,7 @@ export const PedidoCardView = memo(function PedidoCardView({
         {mostrarPrioridad && (
           <span
             className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full ring-1 ring-white/80 shadow"
-            style={{ background: PRIORIDAD[pedido.prioridad].color }}
+            style={{ background: PRIORIDAD[pedido.prioridad].color, color: PRIORIDAD[pedido.prioridad].tinta }}
             title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
           />
         )}
@@ -150,7 +150,7 @@ export const PedidoCardView = memo(function PedidoCardView({
             forma de saberlo sin abrir el pedido uno a uno. */}
         {facet.pedido.scanCambiado && (
           <span
-            className="absolute bottom-1 right-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
+            className="absolute bottom-1 right-1 rounded-full bg-amber-700 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
             title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
           >
             Parte nuevo
@@ -161,7 +161,7 @@ export const PedidoCardView = memo(function PedidoCardView({
             misma marca en PedidoLinea. */}
         {avisaDeOFNueva(facet.pedido) && (
           <span
-            className="absolute right-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
+            className="absolute right-1 top-1 rounded-full bg-amber-700 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
             title="Este pedido ya se había pasado a Producción y ha aparecido trabajo nuevo sin hacer."
           >
             OF nueva

@@ -240,7 +240,7 @@ export function PedidoLinea({
                 ? "Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
                 : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
             }
-            className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700"
+            className="rounded-md bg-emerald-700 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-800"
           >
             ⏸ Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
           </button>
@@ -255,7 +255,7 @@ export function PedidoLinea({
                     ? "Empieza el planteo y pone el reloj en marcha"
                     : `Empieza el planteo de las ${fichables.length} OF y pone el reloj en marcha`
               }
-              className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-emerald-700 focus-visible:opacity-100 group-hover:opacity-100"
+              className="rounded-md bg-emerald-700 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-emerald-800 focus-visible:opacity-100 group-hover:opacity-100"
             >
               {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
               {minutos > 0 ? "▶ Reanudar" : "⏱ Fichar"}
@@ -271,7 +271,7 @@ export function PedidoLinea({
           <button
             onClick={() => completarPedido(pedido.id)}
             title="Pasar el pedido a Producción"
-            className="rounded-md bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-cyan-700 focus-visible:opacity-100 group-hover:opacity-100"
+            className="rounded-md bg-cyan-700 px-2 py-0.5 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-cyan-800 focus-visible:opacity-100 group-hover:opacity-100"
           >
             Pasar
           </button>

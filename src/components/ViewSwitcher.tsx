@@ -74,7 +74,7 @@ export function ViewSwitcher({
             {n ? (
               <span
                 className={`rounded-full px-1.5 text-[10px] font-bold ${
-                  activo ? "bg-black/15" : "bg-amber-500 text-white"
+                  activo ? "bg-black/15" : "bg-amber-700 text-white"
                 }`}
               >
                 {n}

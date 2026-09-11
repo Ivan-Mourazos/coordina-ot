@@ -572,7 +572,7 @@ export function MiFichaje({
           </span>
           <button
             onClick={onPausarTodo}
-            className="rounded-lg bg-amber-500 px-2 py-1 text-[10px] font-bold text-white hover:bg-amber-600"
+            className="rounded-lg bg-amber-700 px-2 py-1 text-[10px] font-bold text-white hover:bg-amber-800"
           >
             ⏸ Pausar
           </button>

@@ -157,7 +157,7 @@ function Marca({
 }) {
   const colores = activa
     ? tono === "bien"
-      ? "bg-teal-600 text-white"
+      ? "bg-teal-700 text-white"
       : "bg-red-600 text-white"
     : "text-text-muted/50 ring-1 ring-border hover:text-text";
   return (

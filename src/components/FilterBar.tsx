@@ -267,7 +267,7 @@ export function FilterBar({
             icon: (
               <span
                 className="size-2 shrink-0 rounded-full"
-                style={{ background: PRIORIDAD[p].color }}
+                style={{ background: PRIORIDAD[p].color, color: PRIORIDAD[p].tinta }}
               />
             ),
           }))}

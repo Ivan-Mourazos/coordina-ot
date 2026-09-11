@@ -235,7 +235,9 @@ export function MaterialChip({
         {lista.length > 0 && (
           <span
             className={`rounded-full px-1.5 text-[10px] font-bold text-white ${
-              todoReservado ? "bg-teal-600" : aMedias > 0 ? "bg-amber-500" : "bg-gray-500"
+              // -700 y no -600/-500: con texto blanco de 10 px, el teal-600 daba
+              // 3,7:1 y el ámbar-500 2,2:1. Estos pasan de 5.
+              todoReservado ? "bg-teal-700" : aMedias > 0 ? "bg-amber-700" : "bg-gray-600"
             }`}
           >
             {reservadas}/{lista.length}
@@ -244,7 +246,7 @@ export function MaterialChip({
         {porLlegar > 0 && (
           <span
             className={`rounded-full px-1.5 text-[10px] font-bold text-white ${
-              tarde > 0 ? "bg-red-600" : "bg-amber-500"
+              tarde > 0 ? "bg-red-600" : "bg-amber-700"
             }`}
             title={
               tarde > 0

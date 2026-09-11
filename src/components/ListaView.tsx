@@ -580,7 +580,7 @@ export function ListaView({
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span
                             className="h-3.5 w-1 shrink-0 rounded-full"
-                            style={{ background: PRIORIDAD[p.prioridad].color }}
+                            style={{ background: PRIORIDAD[p.prioridad].color, color: PRIORIDAD[p.prioridad].tinta }}
                             title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
                           />
                           <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />

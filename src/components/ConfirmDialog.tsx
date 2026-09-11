@@ -78,7 +78,7 @@ export function ConfirmDialog({
     tono === "peligro"
       ? "bg-red-600 text-white hover:bg-red-700"
       : tono === "primaria"
-        ? "bg-teal-600 text-white hover:bg-teal-700"
+        ? "bg-teal-700 text-white hover:bg-teal-800"
         : "bg-surface-2 text-text ring-1 ring-border hover:bg-[var(--glass-highlight)]";
 
   // ─── Por qué va en un PORTAL ───────────────────────────────────────────────

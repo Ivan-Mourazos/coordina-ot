@@ -371,7 +371,7 @@ function Editor({
           type="button"
           onClick={onGuardar}
           disabled={vacio || pasado || guardando}
-          className="rounded-lg bg-teal-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+          className="rounded-lg bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
