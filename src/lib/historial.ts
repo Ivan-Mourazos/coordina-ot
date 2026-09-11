@@ -19,6 +19,13 @@ export interface HistorialFiltros {
   hasta?: string; // ISO yyyy-mm-dd (exclusivo)
   familia?: string;
   cliente?: string;
+  /** Solo pedidos con tareas de la sección: fuera los «Solo Taller». */
+  soloSeccion?: boolean;
+  /** Pedidos en los que trabajó esta persona (id del equipo). */
+  operario?: string;
+  /** Su CodEmployee de RPS. Lo pone el SERVIDOR desde nuestra tabla, nunca el
+   *  navegador; con `operario` puesto y sin código válido no sale nada. */
+  empleado?: string;
   /** Códigos con flujo pendiente en CoordinaOT. Solo los añade el servidor. */
   pendientes?: readonly string[];
 }
@@ -340,6 +347,29 @@ export function construirFiltros(f: HistorialFiltros): {
   if (cliente) {
     clausulas.push("cli.Description = @cliente");
     params.push({ nombre: "cliente", valor: cliente });
+  }
+
+  // Fuera los pedidos sin nada de la sección («Solo Taller»). La columna ya la
+  // calcula la consulta de cierre (ver historial-finalizacion-sql).
+  if (f.soloSeccion) clausulas.push("p.tiene_seccion = 1");
+
+  // Los pedidos en los que ESTA persona imputó tiempo en RPS. El conjunto se
+  // calcula una vez (IN), como en la búsqueda, no una subconsulta por pedido.
+  if (f.operario?.trim()) {
+    const empleado = f.empleado?.trim() ?? "";
+    if (!/^\d+$/.test(empleado)) {
+      // Alguien que no es del equipo: ningún pedido, no todos.
+      clausulas.push("1 = 0");
+    } else {
+      clausulas.push(
+        `p.pedido IN (SELECT o3.CodOrder FROM dbo.FACOrderSL o3 ` +
+          `JOIN dbo.FACOrderLineSL l3 ON l3.IDOrder = o3.IDOrder ` +
+          `JOIN dbo.CPRImputationMO i3 ON i3.IDManufacturingOrder = l3.IDManufacturingOrder AND i3.ResourceType = 1 ` +
+          `JOIN dbo.GENEmployee e3 ON e3.IDEmployee = i3.IDEmployeeMachineTool ` +
+          `WHERE o3.CodCompany = '001' AND e3.CodEmployee = @empleado)`,
+      );
+      params.push({ nombre: "empleado", valor: empleado });
+    }
   }
 
   return { clausulas, params };

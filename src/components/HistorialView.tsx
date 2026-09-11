@@ -4,23 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
+import { agruparPorDia } from "@/lib/historial-dias";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
 import { Desplegable } from "./Desplegable";
-import { Select } from "./Select";
+import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
 
-/** Fecha en la que se pasó. Sin hora: en una lista de pedidos ya cerrados
- *  nadie consulta si fueron las 09:14 o las 09:15, y la hora ocupaba tanto
- *  como el resto de la línea. El momento exacto sigue en el `title`.
- *
- *  Siempre con año (dos cifras): en una lista que baja hasta pedidos de 2024,
- *  "11/09" sin año obligaba a adivinar de cuál se hablaba. */
+/** Fecha corta con año (dd/mm/aa) y la completa con hora para el `title`.
+ *  Siempre con año: la lista baja hasta pedidos de 2024. */
 function fmtFecha(iso: string): { corta: string; completa: string } {
   if (!iso) return { corta: "—", completa: "" };
   const d = new Date(iso);
@@ -35,8 +32,36 @@ function fmtFecha(iso: string): { corta: string; completa: string } {
 }
 
 /** La API incorpora los pasos locales antes del cierre en RPS y antes de paginar. */
-export type FiltrosHistorial = { q: string; desde: string; hasta: string; familia: string | null };
-export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = { q: "", desde: "", hasta: "", familia: null };
+export type FiltrosHistorial = {
+  q: string;
+  desde: string;
+  hasta: string;
+  familia: string | null;
+  /** Id del equipo: pedidos en los que trabajó esa persona. */
+  operario: string | null;
+  /** Fuera los pedidos sin trabajo de la sección («Solo Taller»). */
+  soloSeccion: boolean;
+};
+export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = {
+  q: "",
+  desde: "",
+  hasta: "",
+  familia: null,
+  operario: null,
+  soloSeccion: false,
+};
+
+/** Nombre corto de cada centro, para la cabecera y los pedidos de otro centro. */
+const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
+
+/** Las mismas columnas en la cabecera y en cada fila. Al buscar se añade la
+ *  fecha: los resultados van por fecha del pedido y no hay separadores de día.
+ *  Dos literales enteros y no uno construido: Tailwind solo compila las
+ *  clases que ve escritas. */
+const COLUMNAS_POR_DIA =
+  "grid grid-cols-[28px_104px_minmax(0,1fr)_40px_112px_minmax(150px,24%)_64px] items-center gap-x-3";
+const COLUMNAS_BUSCANDO =
+  "grid grid-cols-[28px_104px_minmax(0,1fr)_40px_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
 
 export function HistorialView({
   operarios = [],
@@ -45,8 +70,7 @@ export function HistorialView({
   filtros,
   onFiltros,
 }: {
-  /** Solo para el hilo de notas del drawer: sin ellos las notas saldrían con el
-   *  id crudo ("jaime") en vez del nombre y su color. */
+  /** El equipo: para el filtro por persona y para el hilo de notas del drawer. */
   operarios?: readonly Operario[];
   /** Quién soy: finalizar una fase en RPS se firma con mi código de operario. */
   miId?: string | null;
@@ -61,19 +85,29 @@ export function HistorialView({
   const [error, setError] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
+  // "Hoy" y "Ayer" de los separadores. Se fija al montar: leer el reloj en
+  // cada render haría el componente impuro.
+  const [hoy] = useState(() => new Date());
 
-  // Filtros (se aplican reiniciando desde la página 0).
-  const { q, desde, hasta, familia } = filtros;
+  // Filtros (se aplican reiniciando desde la página 0). Con valores por
+  // defecto: los filtros guardados en el tablero antes de existir estos dos
+  // campos no los traen.
+  const { q, desde, hasta, familia, operario = null, soloSeccion = false } = filtros;
   const setQ = (q: string) => onFiltros({ q });
   const setDesde = (desde: string) => onFiltros({ desde });
   const setHasta = (hasta: string) => onFiltros({ hasta });
   const setFamilia = (familia: string | null) => onFiltros({ familia });
+  const setOperario = (operario: string | null) => onFiltros({ operario });
+  const setSoloSeccion = (soloSeccion: boolean) => onFiltros({ soloSeccion });
+
+  const buscando = Boolean(q.trim());
+  const equipo = operarios.filter((o) => (o.seccion ?? "ot") === seccion);
 
   // Clave de filtros: al cambiar, se reinicia la lista.
-  const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}`;
+  const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}|${operario ?? ""}|${soloSeccion ? 1 : 0}`;
   const resultadosVigentes = claveResultado === filtrosKey;
   const itemsVisibles = resultadosVigentes ? items : [];
-  const hayFiltros = Boolean(q.trim() || desde || hasta || familia);
+  const hayFiltros = Boolean(q.trim() || desde || hasta || familia || operario || soloSeccion);
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
   // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
@@ -92,6 +126,8 @@ export function HistorialView({
         if (desde) params.set("desde", desde);
         if (hasta) params.set("hasta", hasta);
         if (familia) params.set("familia", familia);
+        if (operario) params.set("operario", operario);
+        if (soloSeccion) params.set("soloSeccion", "1");
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
         const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean };
@@ -109,7 +145,7 @@ export function HistorialView({
         if (seq === reqSeq.current) setCargando(false);
       }
     },
-    [seccion, q, desde, hasta, familia, filtrosKey],
+    [seccion, q, desde, hasta, familia, operario, soloSeccion, filtrosKey],
   );
 
   // Al cambiar filtros (o al montar) recarga desde la página 0, con debounce
@@ -132,18 +168,19 @@ export function HistorialView({
     return () => io.disconnect();
   }, [hasMore, cargando, error, page, cargar, resultadosVigentes]);
 
+  const columnas = buscando ? COLUMNAS_BUSCANDO : COLUMNAS_POR_DIA;
+  const dias = buscando ? null : agruparPorDia(itemsVisibles, { hayMas: hasMore, hoy });
+  const fila = (it: HistorialItem) => (
+    <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} columnas={columnas} conFecha={buscando} />
+  );
+
   return (
     <div className="space-y-3">
       {/* ── Filtros ───────────────────────────────────────────────────────
-          Estaban a medio hacer y desalineados con el resto de la app: los
-          rótulos hablaban solo de pedidos "AR" (existen también SA y BE, ver
-          `esCodigoPedido`), la familia se elegía en una fila de catorce chips
-          que ocupaba dos alturas, y no había forma de saber qué había puesto ni
-          de quitarlo todo de una vez — cosa que las otras dos vistas sí tienen.
-          Ahora la barra es una sola fila con los mismos controles que Pendientes
-          y Revisiones, y dice lo que está recortando. */}
+          Una sola fila: buscador, familia, persona, fechas y el interruptor
+          de la sección. Se combinan: "de Iván, remolques, la última semana". */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
-        <div className="flex min-w-60 flex-1 flex-col text-xs text-text-muted">
+        <div className="flex min-w-56 flex-1 flex-col text-xs text-text-muted">
           <label htmlFor="buscar-historial">Buscar en el Historial</label>
           <span className="relative mt-1">
             <input
@@ -186,9 +223,25 @@ export function HistorialView({
             />
           </span>
         </label>
+        {/* Por persona: los pedidos en los que imputó tiempo en RPS. */}
+        <label className="flex flex-col text-xs text-text-muted">
+          Quién
+          <span className="mt-1">
+            <Select
+              value={operario}
+              onChange={setOperario}
+              placeholder="Todo el equipo"
+              etiquetaVaciar="Todo el equipo"
+              options={equipo.map((o) => ({
+                value: o.id,
+                label: o.nombre,
+                icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+              }))}
+            />
+          </span>
+        </label>
         {/* "Pasado a Producción entre…": las dos fechas van juntas y rotuladas
-            como lo que miden. Sueltas, "Desde" y "Hasta" no decían de qué
-            fecha hablaban — el historial tiene la de pasar y la de entrega. */}
+            como lo que miden. */}
         <div className="flex flex-col text-xs text-text-muted">
           Pasado a Producción
           <span className="mt-1 flex items-center gap-1.5">
@@ -211,6 +264,15 @@ export function HistorialView({
             />
           </span>
         </div>
+        <label className="flex items-center gap-2 pb-1.5 text-xs text-text">
+          <input
+            type="checkbox"
+            checked={soloSeccion}
+            onChange={(e) => setSoloSeccion(e.target.checked)}
+            className="size-4 accent-brand-500"
+          />
+          Solo con trabajo de {CENTRO_CORTO[seccion]}
+        </label>
         {hayFiltros && (
           <button
             onClick={() => {
@@ -240,38 +302,49 @@ export function HistorialView({
             </p>
             <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
               {hayFiltros
-                ? "Prueba con otro texto o amplía el periodo."
+                ? "Prueba con otro texto, otra persona o amplía el periodo."
                 : `Aquí aparecen los pedidos terminados en ${SECCIONES[seccion].nombre}; si no tienen tareas de esta sección, cuando termina el resto de su trabajo.`}
             </p>
           </div>
         </div>
       )}
 
-      {/* Cuántos se están viendo. Con scroll infinito y filtros puestos, sin
-          este número no había forma de saber si la búsqueda había encontrado
-          tres pedidos o trescientos. */}
-      {!error && itemsVisibles.length > 0 && (
+      {/* Al buscar no hay días: se dice cuántos hay y por qué fecha van. */}
+      {buscando && !error && itemsVisibles.length > 0 && (
         <p className="text-[11px] text-text-muted">
           {itemsVisibles.length} pedido{itemsVisibles.length === 1 ? "" : "s"}
-          {hasMore ? " y subiendo — baja para cargar más" : ""}
-          {q.trim() ? " · Fecha del pedido: más recientes primero" : ""}
+          {hasMore ? " y más al bajar" : ""} · por fecha del pedido, más recientes primero
         </p>
       )}
 
-      {/* Filas continuas, con identidad, autoría y fecha en posiciones estables. */}
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {itemsVisibles.length > 0 && (
-          <div aria-hidden="true" className={`${COLUMNAS} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
-            <span /><span>Pedido · cliente</span><span>Quién · tiempo</span>
-            <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span><span>Pasado</span>
+          <div aria-hidden="true" className={`${columnas} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
+            <span /><span>Pedido</span><span>Cliente</span><span className="text-center">OF</span><span>Familia</span><span>Quién</span>
+            <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
+            {buscando && <span>Fecha</span>}
           </div>
         )}
-        {itemsVisibles.map((it) => (
-          <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} />
-        ))}
+        {dias
+          ? dias.map((dia, i) => (
+              <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
+                {/* El separador del día: cuántos salieron y cuánto tiempo de la
+                    sección llevaron. Con más páginas por cargar, el último día
+                    puede estar a medias y lo dice con "+". */}
+                <h3 className="flex items-baseline gap-2 border-b border-border bg-surface-2/60 px-3 py-1.5 text-[11px] font-semibold text-text">
+                  {dia.titulo}
+                  <span className="font-normal text-text-muted">
+                    · {dia.items.length}{dia.incompleto ? "+" : ""} pedido{dia.items.length === 1 && !dia.incompleto ? "" : "s"}
+                    {dia.minutos > 0 && ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
+                  </span>
+                </h3>
+                {dia.items.map(fila)}
+              </section>
+            ))
+          : itemsVisibles.map(fila)}
       </div>
 
-      {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{q.trim() ? "Buscando en todo el historial…" : "Cargando…"}</p>}
+      {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{buscando ? "Buscando en todo el historial…" : "Cargando…"}</p>}
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer
@@ -285,96 +358,67 @@ export function HistorialView({
   );
 }
 
-/** Quién hay detrás del pedido, en el hueco donde antes ponía "· sin autor".
+/** Quién trabajó en lo que cuenta para la fila, de más a menos horas. Solo el
+ *  nombre: el tiempo de cada uno va en el `title` y en el desplegable, y el
+ *  total en su columna. Con nombre y tiempo aquí, en una fila de una persona
+ *  el mismo número salía dos veces.
  *
- *  Ese literal salía en cuanto faltaba `pasadoPor` —o sea, en todo lo anterior
- *  a la web— y era mentira: al desplegar la fila aparecen los técnicos con sus
- *  horas. Ahora manda `autores` (quien lo planteó, registrado en los pedidos
- *  nuevos y deducido del reparto de horas de RPS en los viejos).
- *
- *  `autores` y `pasadoPor` son cosas distintas y NO se juntan en un mismo
- *  texto: el verbo dice cuál se está leyendo ("Autor: Ana" / "Lo pasó Ana"),
- *  y el title lo remata. Cuando hay autores, quien lo pasó no desaparece: está
- *  en el title de la fecha, al lado. Dos nombres es un resultado válido —se lo
- *  repartieron a partes iguales—, así que se enseñan los dos. */
-/** Quién trabajó en lo que cuenta para la fila, con su tiempo, de más a menos.
- *
- *  Sin roles: la fila decía "Autor: Ana · revisó Luis" y la ficha, debajo,
- *  enseñaba a cuatro personas con horas. Leído así parecía que faltaba gente o
- *  que sobraba. Nombre y tiempo dicen lo mismo en los dos sitios. */
+ *  Si el pedido no tiene nada de la sección, delante va el centro ("Taller ·")
+ *  y la fila entera va en gris (ver FilaHistorial). */
 function Quien({ item }: { item: HistorialItem }) {
   const personas = item.personas ?? [];
   const autores = (item.autores ?? []).filter(Boolean);
   const otros = item.otrosCentros ?? [];
-  // El pedido no tiene tareas de la sección: lo que se enseña es trabajo de
-  // otro centro, y tiene que decirlo. Sin esto, la lista de OT ponía a gente
-  // de Taller como autora sin más.
-  const centro = otros.length > 0 && (
-    <span
-      className="mr-1.5 shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted ring-1 ring-border"
-      title="Este pedido no tiene tareas de la sección: la autoría y el tiempo son de este centro."
-    >
-      Solo {otros.map((c) => CENTRO_CORTO[c]).join(" y ")}
-    </span>
-  );
+  const centro = otros.length > 0 ? `${otros.map((c) => CENTRO_CORTO[c]).join(" y ")} · ` : "";
+  const aviso = otros.length > 0 ? "Sin tareas de la sección: es trabajo de otro centro. " : "";
   if (personas.length > 0) {
-    const visibles = personas.slice(0, 2);
     return (
       <span
-        className="flex min-w-0 items-center"
-        title={`Tiempo imputado en RPS: ${personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}`}
+        className="block truncate"
+        title={`${aviso}Tiempo imputado en RPS: ${personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}`}
       >
         {centro}
-        <span className="truncate">
-          {visibles.map((p, i) => (
-            <span key={p.nombre}>
-              {i > 0 && " · "}
-              <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
-            </span>
-          ))}
-          {personas.length > 2 && ` +${personas.length - 2}`}
+        <span className={otros.length > 0 ? "" : "text-text"}>
+          {personas.slice(0, 2).map((p) => p.nombre).join(" · ")}
         </span>
+        {personas.length > 2 && ` +${personas.length - 2}`}
       </span>
     );
   }
-  // Registrado en CoordinaOT pero sin una hora en RPS: el nombre sin tiempo,
-  // que es todo lo que se sabe.
+  // Registrado en CoordinaOT pero sin una hora en RPS: el nombre, que es todo
+  // lo que se sabe.
   if (autores.length > 0) {
     return (
-      <span className="flex min-w-0 items-center" title="Registrado en CoordinaOT, sin horas imputadas en RPS">
-        {centro}
-        <span className="truncate text-text">{autores.join(" y ")}</span>
+      <span className="block truncate" title={`${aviso}Registrado en CoordinaOT, sin horas imputadas en RPS`}>
+        {centro}<span className="text-text">{autores.join(" y ")}</span>
       </span>
     );
   }
   if (item.pasadoPor) {
     return (
-      <span
-        className="flex min-w-0 items-center"
-        title={`${item.pasadoPor} pulsó "pasar a Producción". De este pedido no consta quién lo planteó, y no tienen por qué ser la misma persona.`}
-      >
-        {centro}
-        <span className="truncate text-text">Lo pasó {item.pasadoPor}</span>
+      <span className="block truncate" title={`${item.pasadoPor} pulsó "pasar a Producción"; no consta quién lo planteó.`}>
+        {centro}Lo pasó {item.pasadoPor}
       </span>
     );
   }
-  // Ahora sí: ni autores ni quien lo pasó. Ningún minuto imputado a nadie.
-  return (
-    <span className="flex min-w-0 items-center">
-      {centro}
-      <span className="italic">Sin autor registrado</span>
-    </span>
-  );
+  return <span className="block truncate italic">{centro}Sin horas registradas</span>;
 }
 
-/** Nombre corto de cada centro, para la cabecera y la etiqueta "Solo …". */
-const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
-
-/** Las mismas columnas en la cabecera y en cada fila. */
-const COLUMNAS = "grid grid-cols-[32px_minmax(0,1fr)_minmax(200px,26%)_72px_76px] items-center gap-x-3";
-
-/** El nombre abre la ficha; la flecha izquierda despliega las OF compactas. */
-function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen: (pedido: string) => void; seccion: SeccionId }) {
+/** El código abre la ficha; el resto de la fila despliega las OF. */
+function FilaHistorial({
+  item,
+  onOpen,
+  seccion,
+  columnas,
+  conFecha,
+}: {
+  item: HistorialItem;
+  onOpen: (pedido: string) => void;
+  seccion: SeccionId;
+  columnas: string;
+  /** Al buscar: sin separadores de día, la fecha va en su columna. */
+  conFecha: boolean;
+}) {
   const [desplegado, setDesplegado] = useState(false);
   const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -405,61 +449,74 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
   // es cuando OLANET registró el cambio y puede ir por detrás.
   const pasado = fmtFecha(item.pasadoAt ?? item.finalizada);
   const origen = item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS";
-  // Quién lo pasó viaja en el title de la fecha, que es el sitio que le
-  // corresponde: "pasar a Producción" es un acto con su hora, no la autoría.
   const tituloPasado = item.pasadoPor
     ? `${origen}: ${pasado.completa} · lo pasó ${item.pasadoPor}`
     : `${origen}: ${pasado.completa}`;
 
   const familias = item.familias ?? [];
+  // Sin nada de la sección: en gris, para que no compita con el trabajo
+  // propio. Con los colores de texto secundario y no con opacidad, que bajaría
+  // el contraste por debajo de lo legible.
+  const deOtroCentro = (item.otrosCentros?.length ?? 0) > 0;
 
   return (
     <div className="relative border-b border-border last:border-b-0">
       {desplegado && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />}
-      <div className={`relative ${COLUMNAS} px-3 py-1.5 ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
-        {/* Fondo y nombre son botones hermanos: un clic produce una sola acción. */}
+      <div className={`relative ${columnas} px-3 py-1 ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
+        {/* Fondo y código son botones hermanos: un clic produce una sola acción. */}
         <button
           type="button"
           onClick={alternar}
           aria-expanded={desplegado}
           aria-controls={`ofs-${seccion}-${item.pedido}`}
           aria-label={`${desplegado ? "Plegar" : "Desplegar"} ${item.pedido}`}
-          title={`${tituloPasado}${item.autores?.length ? ` · Autoría: ${item.autores.join(", ")}` : ""}`}
+          title={tituloPasado}
           className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
         />
-        <span aria-hidden="true" className="pointer-events-none grid size-7 place-items-center text-text-muted">
+        <span aria-hidden="true" className="pointer-events-none grid size-6 place-items-center text-text-muted">
           <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${desplegado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
-        {/* Una sola línea: código, OF, familias y cliente. El cliente es lo
-            que cede si no cabe (se corta con "…" y entero en el title). */}
-        <div className="pointer-events-none flex min-w-0 items-center gap-2 text-[11px]">
+        <div className="pointer-events-none min-w-0">
           <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
-          <span className="shrink-0 font-medium text-text-muted" title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}>· {item.nOf} OF</span>
-          {familias.length > 0 && (
-            <span className="flex shrink-0 gap-1">{familias.map((f) => <FamiliaTag key={f} familia={f} />)}</span>
-          )}
-          <span className="min-w-0 truncate text-text" title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}>
-            {item.cliente ?? "—"}
-            {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
-          </span>
         </div>
+        <span
+          className={`pointer-events-none min-w-0 truncate text-[11px] ${deOtroCentro ? "text-text-muted" : "text-text"}`}
+          title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}
+        >
+          {item.cliente ?? "—"}
+          {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
+          {item.estadoActual && <span className="font-semibold text-amber-700 dark:text-amber-300"> · {item.estadoActual}</span>}
+        </span>
+        {/* Solo cuando son varias: "1 OF" en casi todas las filas era ruido. */}
+        <span
+          className="pointer-events-none text-center text-[11px] font-medium text-text-muted"
+          title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}
+        >
+          {item.nOf > 1 ? `${item.nOf} OF` : ""}
+        </span>
+        <span className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden" title={familias.join(", ")}>
+          {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
+          {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
+        </span>
         <div className="pointer-events-none min-w-0 text-[11px] leading-4 text-text-muted">
           <Quien item={item} />
         </div>
         <div
-          className="pointer-events-none text-right font-mono text-[11px] tabular-nums text-text"
+          className={`pointer-events-none text-right font-mono text-[11px] tabular-nums ${deOtroCentro ? "text-text-muted" : "text-text"}`}
           title={item.minutos === undefined
             ? "No se pudo leer el tiempo imputado"
-            : `Tiempo imputado en RPS a las tareas de ${item.otrosCentros?.length ? item.otrosCentros.map((c) => CENTRO_CORTO[c]).join(" y ") : CENTRO_CORTO[seccion]}`}
+            : `Tiempo imputado en RPS a las tareas de ${deOtroCentro ? item.otrosCentros!.map((c) => CENTRO_CORTO[c]).join(" y ") : CENTRO_CORTO[seccion]}`}
         >
           {item.minutos === undefined ? "—" : fmtMin(item.minutos)}
         </div>
-        <div className="pointer-events-none text-[11px] leading-4 text-text-muted">
-          {item.estadoActual
-            ? <span className="font-semibold text-amber-700 dark:text-amber-300">{item.estadoActual}</span>
-            : <span title={tituloPasado}>{item.pasadoAt || item.finalizada ? pasado.corta : "Sin fecha"}</span>}
-          {item.busqueda && item.fechaPedido && <span className="block" title="Fecha del pedido en RPS; orden de los resultados de búsqueda">Pedido {fmtFecha(item.fechaPedido).corta}</span>}
-        </div>
+        {conFecha && (
+          <div
+            className="pointer-events-none text-[11px] leading-4 text-text-muted"
+            title={`${item.fechaPedido ? `Pedido del ${fmtFecha(item.fechaPedido).corta}. ` : ""}${tituloPasado}`}
+          >
+            {item.fechaPedido ? fmtFecha(item.fechaPedido).corta : pasado.corta}
+          </div>
+        )}
       </div>
 
       {/* Envuelto y no `{desplegado && …}`: si React lo quitara al pulsar, el

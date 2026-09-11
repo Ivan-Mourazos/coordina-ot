@@ -1066,6 +1066,12 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
   if (f.desde?.trim()) todos = todos.filter((p) => p.finalizada >= f.desde!.trim());
   if (f.hasta?.trim()) todos = todos.filter((p) => p.finalizada < f.hasta!.trim());
   if (f.cliente?.trim()) todos = todos.filter((p) => p.cliente === f.cliente!.trim());
+  // Por persona: en el mock no hay imputaciones, así que manda el autor de la OF.
+  if (f.operario?.trim()) {
+    const nombre = NOMBRE_POR_OPERARIO.get(f.operario.trim());
+    todos = todos.filter((p) => nombre !== undefined && (p.autores ?? []).includes(nombre));
+  }
+  // El mock no tiene pedidos de otros centros: todos tienen trabajo de la sección.
   // El mock no tiene subfamilias de RPS (es data inventada), así que aquí se
   // filtra por la familia que ya lleva cada OF. Contra la base de verdad el
   // filtro pregunta por `CodProductSubFamily`, ver `clausulasDe`.

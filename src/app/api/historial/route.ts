@@ -2,12 +2,22 @@ import { NextResponse } from "next/server";
 import { leerHistorialPagina } from "@/lib/server/historial-db";
 import { seccionDe } from "@/lib/secciones";
 import { getTablero } from "@/lib/data";
+import { codigoRpsDe } from "@/lib/server/operarios";
 
 // ─── GET /api/historial ──────────────────────────────────────────────────────
 // Página del historial permanente de pedidos finalizados según la sección. El page size
 // lo fija el server (no viene del cliente). Filtros opcionales: q, desde, hasta.
 
 export const dynamic = "force-dynamic";
+
+/** El filtro por persona. El código de RPS sale de NUESTRA tabla de equipo,
+ *  nunca del navegador: con un id que no es del equipo no hay código y la
+ *  consulta no devuelve nada (ver `construirFiltros`). */
+function filtroOperario(id: string | null): { operario?: string; empleado?: string } {
+  const operario = id?.trim();
+  if (!operario) return {};
+  return { operario, empleado: codigoRpsDe(operario) ?? undefined };
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -29,6 +39,8 @@ export async function GET(req: Request) {
       hasta: url.searchParams.get("hasta") ?? undefined,
       familia: url.searchParams.get("familia") ?? undefined,
       cliente: url.searchParams.get("cliente") ?? undefined,
+      soloSeccion: url.searchParams.get("soloSeccion") === "1",
+      ...filtroOperario(url.searchParams.get("operario")),
       pendientes,
     });
     const busqueda = url.searchParams.get("q")?.trim();
