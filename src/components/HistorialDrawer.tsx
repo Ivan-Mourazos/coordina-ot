@@ -6,10 +6,10 @@ import type {
   HistorialPedidoDetalle,
   MaterialOF,
 } from "@/lib/historial";
-import type { Operario, Rol } from "@/lib/types";
+import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
-import { repartirMateriales } from "@/lib/historial";
-import { ROL, fmtMin } from "@/lib/estado";
+import { personasDeOF, repartirMateriales } from "@/lib/historial";
+import { fmtMin } from "@/lib/estado";
 import {
   BloqueFicha,
   CabeceraFicha,
@@ -346,7 +346,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
-                      {seleccionado && <Personas of={of} />}
+                      {seleccionado && <PersonasOF of={of} />}
                       <Materiales of={of} />
                     </li>
                   ))}
@@ -360,142 +360,26 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
   );
 }
 
-/** Orden estable de nombres dentro de un rol.
+/** Quién imputó tiempo a esta OF en RPS, con el suyo, de más a menos.
  *
- *  Alfabético a propósito, NO por minutos: ordenando por tiempo, la misma OF se
- *  recolocaba sola según quién hubiera echado más horas ese día, y era justo lo
- *  que hacía que dos listas de las mismas personas salieran en orden distinto
- *  (el pedido AR.26.03798 enseñaba "Jaime, Adrián" arriba y "Adrián, Jaime"
- *  debajo). Alfabético siempre da lo mismo y se explica solo. */
-const porNombre = (a: string, b: string) => a.localeCompare(b, "es");
-
-/** Quién trabajó en la OF, cada persona UNA vez y con su rol al lado.
- *
- *  Antes había aquí dos renglones: `of.quien` (quién imputó tiempo en RPS) y
- *  debajo el desglose por rol. Como son casi el mismo conjunto de gente dicho
- *  dos veces, y encima en orden distinto, había que leer las dos listas y
- *  compararlas mentalmente para descubrir que no aportaban nada nueva la una
- *  sobre la otra. Ahora se funden: manda el rol, y quien imputó tiempo pero no
- *  encaja en ningún rol se recoge aparte para no perderlo.
- *
- *  El orden es el del flujo de trabajo — primero quien planteó, después quien
- *  revisó — y no depende de los minutos (ver `porNombre`). */
-function Personas({ of }: { of: HistorialOF }) {
-  // `rol` es dato registrado (fichado en CoordinaOT) y `rolDeducido` es una
-  // suposición sacada del reparto de minutos de RPS. Nunca vienen los dos, y la
-  // diferencia tiene que seguir viéndose: el tipo `HistorialOF` es explícito en
-  // que quien lo pinte debe poder decir que es una suposición.
-  const deducido = !of.rol && !!of.rolDeducido;
-  // Lo registrado trae los minutos de cada uno; lo deducido, solo nombres. Se
-  // normalizan a la misma forma para que `FilaRol` no tenga que saber de dónde
-  // viene: si no hay minutos, pinta los nombres y ya.
-  const planteo =
-    of.rol?.planteo ?? (of.rolDeducido?.quienPlanteo ?? []).map((nombre) => ({ nombre }));
-  const revision =
-    of.rol?.revision ?? (of.rolDeducido?.quienReviso ?? []).map((nombre) => ({ nombre }));
-
-  // Quien imputó tiempo en RPS pero no aparece en ningún rol: pasa cuando la OF
-  // se fichó aquí y alguien más le metió horas por RPS. Se enseña sin rol antes
-  // que dejarlo fuera.
-  const conRol = new Set([...planteo, ...revision].map((p) => p.nombre));
-  const sueltos = of.quien.filter((n) => !conRol.has(n)).sort(porNombre);
-
-  // Un rol se pinta si tiene gente o si tiene tiempo fichado: 0 minutos y nadie
-  // es "no hubo revisión", y una fila vacía solo estorba.
-  const hayPlanteo = planteo.length > 0 || (of.rol?.planteoMin ?? 0) > 0;
-  const hayRevision = revision.length > 0 || (of.rol?.revisionMin ?? 0) > 0;
-
-  if (!hayPlanteo && !hayRevision && sueltos.length === 0) {
-    return <p className="mt-1 text-[11px] text-text-muted">—</p>;
+ *  Sin rol, igual que la fila del pedido y «Tareas y tiempos». Aquí salían
+ *  "Planteo / ≈ Revisión / Imputó", y el mismo pedido parecía tener un autor en
+ *  la lista y más gente en la ficha. El orden es el de `porMinutos` en todos
+ *  los sitios, así que las mismas personas salen siempre en el mismo orden. */
+function PersonasOF({ of }: { of: HistorialOF }) {
+  const personas = personasDeOF(of);
+  if (personas.length === 0) {
+    return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
   }
-
   return (
-    <div className="mt-2 space-y-1">
-      {hayPlanteo && (
-        <FilaRol rol="plantear" quien={planteo} min={of.rol?.planteoMin} deducido={deducido} />
-      )}
-      {hayRevision && (
-        <FilaRol rol="revisar" quien={revision} min={of.rol?.revisionMin} deducido={deducido} />
-      )}
-      {sueltos.length > 0 && (
-        <div
-          className="flex items-start gap-1.5 text-[11px]"
-          title="Imputó tiempo a esta OF en RPS, pero sin rol registrado en CoordinaOT."
-        >
-          <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border">
-            Imputó
-          </span>
-          <span className="min-w-0 flex-1 text-text">{sueltos.join(", ")}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Una fila: rol + quién + cuánto. El color sale de ROL (plantear = esmeralda,
- *  revisar = violeta), el mismo par que usa el resto de la app.
- *
- *  El tiempo va rotulado con el ROL y no con la persona porque eso es lo que
- *  hay: RPS y el fichaje guardan minutos por rol, no por cabeza, así que con
- *  dos personas planteando el total es de las dos. Deducido no lleva tiempo
- *  ninguno — de esas OF solo se sabe el reparto, no el desglose. */
-function FilaRol({
-  rol,
-  quien,
-  min,
-  deducido,
-}: {
-  rol: Rol;
-  /** Quién, y cuánto puso cada uno cuando se sabe (ver `RepartoRol`). */
-  quien: { nombre: string; min?: number }[];
-  min?: number;
-  deducido: boolean;
-}) {
-  const etiqueta = rol === "plantear" ? "Planteo" : "Revisión";
-  // Con una sola persona, su reparto ES el total del rol: repetirlo al lado del
-  // nombre sería el mismo número dos veces en la misma línea.
-  const reparto = quien.length > 1 && quien.every((p) => p.min !== undefined);
-  return (
-    <div
-      className="flex items-start gap-1.5 text-[11px]"
-      title={
-        deducido
-          ? `${etiqueta} deducido del reparto de tiempo de RPS: quien más horas lleva planteó y quien lleva pocas revisó. Es una suposición, no un dato registrado.`
-          : reparto
-            ? `${etiqueta} fichado en CoordinaOT, con lo que puso cada uno.`
-            : `${etiqueta} fichado en CoordinaOT.`
-      }
-    >
-      <span
-        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[rol].chip}`}
-      >
-        {/* El "≈" marca que el rol es deducido, no registrado. */}
-        {deducido && "≈ "}
-        {etiqueta}
-      </span>
-      <span className="min-w-0 flex-1 text-text">
-        {quien.length === 0
-          ? "—"
-          : reparto
-            ? // De más tiempo a menos, que es el orden en que se lee "quién
-              // llevó el peso". Sin reparto manda el alfabético, que es el que
-              // se venía usando y no sugiere una jerarquía que no hay.
-              quien.map((p, i) => (
-                <span key={p.nombre}>
-                  {i > 0 && <span className="text-text-muted"> · </span>}
-                  {p.nombre}{" "}
-                  <span className="text-text-muted">{fmtMin(p.min ?? 0)}</span>
-                </span>
-              ))
-            : [...quien]
-                .map((p) => p.nombre)
-                .sort(porNombre)
-                .join(", ")}
-      </span>
-      {min !== undefined && (
-        <span className="shrink-0 font-semibold text-text-muted">Reloj {fmtMin(min)}</span>
-      )}
-    </div>
+    <p className="mt-2 text-[11px] text-text-muted" title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
+      {personas.map((p, i) => (
+        <span key={p.nombre}>
+          {i > 0 && " · "}
+          <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+        </span>
+      ))}
+    </p>
   );
 }
 

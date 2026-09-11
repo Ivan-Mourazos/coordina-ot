@@ -158,6 +158,7 @@ export async function leerHistorialPagina(
       ...(suyos.revisores.length ? { revisores: suyos.revisores } : {}),
       ...(suyos.familias.length ? { familias: suyos.familias } : {}),
       ...(suyos.trabajo ? { minutos: suyos.trabajo.minutos } : {}),
+      ...(suyos.trabajo?.personas.length ? { personas: suyos.trabajo.personas } : {}),
       ...(suyos.trabajo?.otrosCentros ? { otrosCentros: suyos.trabajo.otrosCentros } : {}),
     };
   });
@@ -254,13 +255,22 @@ async function extrasDePagina(
   const familias = new Map<string, Set<string>>();
   const filasExtras = r.recordset.map((fila) => ({ ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea) }));
   const conSeccion = new Set(filasExtras.filter((fila) => fila.centro === seccion).map((fila) => fila.pedido?.trim()));
-  // Tiempo y centro de cada fila, con la misma regla que la autoría de abajo.
+  // Nombre y primer apellido de quien imputó, con la misma resolución que la
+  // ficha: el catálogo del equipo primero y el nombre de RPS si no está.
+  const nombreDe = (fila: FilaExtra): string => {
+    const cod = (fila.empleado ?? "").trim();
+    if (!cod) return "";
+    const id = operarioDeEmpleado(cod);
+    return nombres.get(cod) || (id && nombres.get(id)) || nombreHistorial(fila.nombreEmpleado) || "";
+  };
+  // Tiempo, personas y centro de cada fila, con la misma regla que la autoría.
   const trabajo = resumirTrabajoPedidos(
     filasExtras.map((fila) => ({
       pedido: (fila.pedido ?? "").trim(),
       orden: (fila.orden ?? "").trim(),
       tarea: (fila.tarea ?? "").trim(),
       empleado: (fila.empleado ?? "").trim(),
+      nombre: nombreDe(fila),
       centro: fila.centro,
       minutos: fila.minutos ?? 0,
     })),

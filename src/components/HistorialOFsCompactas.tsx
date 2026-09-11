@@ -1,12 +1,15 @@
 import type { HistorialOF } from "@/lib/historial";
+import { personasDeOF } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
-import { RolChip } from "./RolChip";
 
 const CENTROS = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
 
 /** Una línea por OF, aunque haya trabajado más de un centro. La sección
- *  seleccionada limita el desglose personal, nunca qué OF se pueden ver. */
+ *  seleccionada limita el desglose personal, nunca qué OF se pueden ver.
+ *
+ *  Las personas van con su tiempo, de más a menos, y sin rol: igual que la
+ *  fila del pedido y la ficha. */
 export function HistorialOFsCompactas({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
   const porCodigo = new Map<string, HistorialOF[]>();
   for (const of of ofs) {
@@ -18,7 +21,8 @@ export function HistorialOFsCompactas({ ofs, seccion }: { ofs: HistorialOF[]; se
   return (
     <ul className="space-y-1.5">
       {[...porCodigo].map(([codigo, centros]) => {
-        const rol = centros.find((of) => (of.centro ?? "ot") === seccion)?.rol;
+        const deSeccion = centros.find((of) => (of.centro ?? "ot") === seccion);
+        const personas = deSeccion ? personasDeOF(deSeccion) : [];
         const descripcion = centros[0].descripcion;
         return (
           <li key={codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -29,10 +33,14 @@ export function HistorialOFsCompactas({ ofs, seccion }: { ofs: HistorialOF[]; se
                 {CENTROS[of.centro ?? "ot"]} · {fmtMin(of.tiempoImputadoMin)}
               </span>
             ))}
-            {rol && (
-              <span className="flex gap-1.5">
-                <RolChip rol="plantear" min={rol.planteoMin} quien={rol.planteo.map((p) => p.nombre)} />
-                <RolChip rol="revisar" min={rol.revisionMin} quien={rol.revision.map((p) => p.nombre)} />
+            {personas.length > 0 && (
+              <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
+                {personas.map((p, i) => (
+                  <span key={p.nombre}>
+                    {i > 0 && " · "}
+                    <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+                  </span>
+                ))}
               </span>
             )}
           </li>

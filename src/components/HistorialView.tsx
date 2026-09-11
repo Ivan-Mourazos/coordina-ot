@@ -262,7 +262,7 @@ export function HistorialView({
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {itemsVisibles.length > 0 && (
           <div aria-hidden="true" className={`${COLUMNAS} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
-            <span /><span>Pedido · cliente</span><span>Autoría · revisión</span>
+            <span /><span>Pedido · cliente</span><span>Quién · tiempo</span>
             <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span><span>Pasado</span>
           </div>
         )}
@@ -297,9 +297,14 @@ export function HistorialView({
  *  y el title lo remata. Cuando hay autores, quien lo pasó no desaparece: está
  *  en el title de la fecha, al lado. Dos nombres es un resultado válido —se lo
  *  repartieron a partes iguales—, así que se enseñan los dos. */
-function Autoria({ item }: { item: HistorialItem }) {
+/** Quién trabajó en lo que cuenta para la fila, con su tiempo, de más a menos.
+ *
+ *  Sin roles: la fila decía "Autor: Ana · revisó Luis" y la ficha, debajo,
+ *  enseñaba a cuatro personas con horas. Leído así parecía que faltaba gente o
+ *  que sobraba. Nombre y tiempo dicen lo mismo en los dos sitios. */
+function Quien({ item }: { item: HistorialItem }) {
+  const personas = item.personas ?? [];
   const autores = (item.autores ?? []).filter(Boolean);
-  const revisores = (item.revisores ?? []).filter((n) => n && !autores.includes(n));
   const otros = item.otrosCentros ?? [];
   // El pedido no tiene tareas de la sección: lo que se enseña es trabajo de
   // otro centro, y tiene que decirlo. Sin esto, la lista de OT ponía a gente
@@ -312,25 +317,33 @@ function Autoria({ item }: { item: HistorialItem }) {
       Solo {otros.map((c) => CENTRO_CORTO[c]).join(" y ")}
     </span>
   );
-  if (autores.length > 0) {
-    const visibles = autores.slice(0, 2);
+  if (personas.length > 0) {
+    const visibles = personas.slice(0, 2);
     return (
       <span
         className="flex min-w-0 items-center"
-        title={`Autoría: ${autores.join(", ")}${revisores.length ? ` · Revisión: ${revisores.join(", ")}` : ""}. En los pedidos anteriores a CoordinaOT se deduce del reparto de horas de RPS.`}
+        title={`Tiempo imputado en RPS: ${personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}`}
       >
         {centro}
-        {/* Sin "Autor:" delante: lo dice la cabecera de la columna, y en cada
-            fila era la misma palabra repetida cuarenta veces. */}
         <span className="truncate">
-          <span className="text-text">
-            {visibles.join(" y ")}
-            {autores.length > 2 && ` +${autores.length - 2}`}
-          </span>
-          {revisores.length > 0 && (
-            <span> · revisó {revisores[0]}{revisores.length > 1 && ` +${revisores.length - 1}`}</span>
-          )}
+          {visibles.map((p, i) => (
+            <span key={p.nombre}>
+              {i > 0 && " · "}
+              <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+            </span>
+          ))}
+          {personas.length > 2 && ` +${personas.length - 2}`}
         </span>
+      </span>
+    );
+  }
+  // Registrado en CoordinaOT pero sin una hora en RPS: el nombre sin tiempo,
+  // que es todo lo que se sabe.
+  if (autores.length > 0) {
+    return (
+      <span className="flex min-w-0 items-center" title="Registrado en CoordinaOT, sin horas imputadas en RPS">
+        {centro}
+        <span className="truncate text-text">{autores.join(" y ")}</span>
       </span>
     );
   }
@@ -431,7 +444,7 @@ function FilaHistorial({ item, onOpen, seccion }: { item: HistorialItem; onOpen:
           </span>
         </div>
         <div className="pointer-events-none min-w-0 text-[11px] leading-4 text-text-muted">
-          <Autoria item={item} />
+          <Quien item={item} />
         </div>
         <div
           className="pointer-events-none text-right font-mono text-[11px] tabular-nums text-text"

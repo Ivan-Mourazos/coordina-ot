@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
+import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
 import { agruparCentros } from "@/lib/historial-centros";
@@ -29,7 +30,7 @@ export function HistorialTareas({ ofs, seccion }: { ofs: HistorialOF[]; seccion:
                 {of.tareas?.length ? of.tareas.map((tarea) => (
                   <div key={tarea.codigo} className="py-1">
                     <p className="flex justify-between gap-3"><span>{tarea.codigo} · {tarea.descripcion}</span><span className="shrink-0 font-semibold">{fmtMin(tarea.tiempoImputadoMin)}</span></p>
-                    {centro.id === seccion && tarea.personas.map((p) => <p key={p.nombre} className="ml-3 flex justify-between gap-3 text-text-muted"><span>{p.nombre}</span><span>{fmtMin(p.min)}</span></p>)}
+                    {centro.id === seccion && [...tarea.personas].sort(porMinutos).map((p) => <p key={p.nombre} className="ml-3 flex justify-between gap-3 text-text-muted"><span>{p.nombre}</span><span>{fmtMin(p.min)}</span></p>)}
                   </div>
                 )) : <p className="text-text-muted">Sin desglose de tareas disponible.</p>}
               </div>

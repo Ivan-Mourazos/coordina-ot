@@ -89,6 +89,12 @@ export interface HistorialItem {
    *  reparto de minutos (quien echó poco). Nunca repite a un autor. */
   revisores?: string[];
 
+  /** Quién echó horas en lo que cuenta para esta fila (ver `minutos`), de más a
+   *  menos. Es lo que enseña la lista: nombre y tiempo, sin rol. Autor y
+   *  revisor se quedan para la búsqueda, pero ya no se pintan: un "autor"
+   *  arriba y cuatro nombres en el desglose se leía como una contradicción. */
+  personas?: RepartoRol[];
+
   /** Minutos imputados en RPS a lo que cuenta para esta fila: las tareas de la
    *  sección o, si el pedido no tiene ninguna, las de los otros centros.
    *  Ausente = no se sabe (no se pudo leer), que no es lo mismo que 0. */
@@ -420,12 +426,41 @@ export interface FilaTrabajoPedido {
   /** Tarea y empleado: con pedido y orden, la clave de UN minutaje. */
   tarea: string;
   empleado: string;
+  /** Nombre y primer apellido ya resuelto; vacío si no se sabe quién es. */
+  nombre: string;
   centro: import("./historial-centros").CentroHistorialId;
   minutos: number;
 }
 
+/** De más minutos a menos; a igualdad, por nombre. Es el orden de todas las
+ *  listas de personas del Historial (fila, ficha, tareas), para que la misma
+ *  gente salga siempre en el mismo orden. */
+export const porMinutos = (a: RepartoRol, b: RepartoRol): number =>
+  b.min - a.min || a.nombre.localeCompare(b.nombre, "es");
+
+/** Quién trabajó en esta OF y cuánto, de más a menos, sin rol.
+ *
+ *  Manda lo imputado en RPS. Si la OF no tiene ni un minuto en RPS pero sí se
+ *  fichó en CoordinaOT (el reloj de la web), se enseña ese reloj: si no, quien
+ *  la planteó con la web desaparecía de la ficha. Las dos fuentes NO se suman:
+ *  hablan del mismo trabajo. Quien echó cero no sale. */
+export function personasDeOF(of: Pick<HistorialOF, "personas" | "rol">): RepartoRol[] {
+  const rps = (of.personas ?? []).filter((p) => p.min > 0);
+  if (rps.length > 0) return [...rps].sort(porMinutos);
+  const reloj = new Map<string, number>();
+  for (const p of [...(of.rol?.planteo ?? []), ...(of.rol?.revision ?? [])]) {
+    reloj.set(p.nombre, (reloj.get(p.nombre) ?? 0) + p.min);
+  }
+  return [...reloj]
+    .map(([nombre, min]) => ({ nombre, min }))
+    .filter((p) => p.min > 0)
+    .sort(porMinutos);
+}
+
 export interface TrabajoPedido {
   minutos: number;
+  /** Quién echó esos minutos, con los suyos, de más a menos. */
+  personas: RepartoRol[];
   /** Ver `HistorialItem.otrosCentros`. */
   otrosCentros?: import("./historial-centros").CentroHistorialId[];
 }
@@ -442,10 +477,10 @@ export function resumirTrabajoPedidos(
   seccion: import("./secciones").SeccionId,
 ): Map<string, TrabajoPedido> {
   const conSeccion = new Set(filas.filter((f) => f.centro === seccion).map((f) => f.pedido));
-  const suma = new Map<string, { minutos: number; centros: Set<string> }>();
+  const suma = new Map<string, { minutos: number; centros: Set<string>; personas: Map<string, number> }>();
   // La consulta de la lista cuelga las OF de las LÍNEAS de venta: una OF en dos
-  // líneas trae dos veces el mismo minutaje (tarea y persona). Sumarlo tal cual
-  // daba 7h 48m en la lista de SA.24.00312 y 7h 12m al abrirlo.
+  // líneas trae dos veces el mismo minutaje (tarea y persona). Se cuenta una
+  // vez; si no, la lista podría sumar el doble que la ficha, que no lo repite.
   const vistas = new Set<string>();
   for (const f of filas) {
     if (!f.pedido) continue;
@@ -453,18 +488,26 @@ export function resumirTrabajoPedidos(
     const clave = `${f.pedido}|${f.orden}|${f.tarea}|${f.empleado}`;
     if (vistas.has(clave)) continue;
     vistas.add(clave);
-    const s = suma.get(f.pedido) ?? { minutos: 0, centros: new Set<string>() };
+    const s = suma.get(f.pedido) ?? { minutos: 0, centros: new Set<string>(), personas: new Map<string, number>() };
     s.minutos += f.minutos;
     s.centros.add(f.centro);
+    if (f.nombre) s.personas.set(f.nombre, (s.personas.get(f.nombre) ?? 0) + f.minutos);
     suma.set(f.pedido, s);
   }
   return new Map(
-    [...suma].map(([pedido, s]) => [
-      pedido,
-      conSeccion.has(pedido)
-        ? { minutos: s.minutos }
-        : { minutos: s.minutos, otrosCentros: ORDEN_CENTROS.filter((c) => s.centros.has(c)) },
-    ]),
+    [...suma].map(([pedido, s]) => {
+      // Solo quien echó algo: una fila de imputación a cero no es trabajo.
+      const personas = [...s.personas]
+        .filter(([, min]) => min > 0)
+        .map(([nombre, min]) => ({ nombre, min }))
+        .sort(porMinutos);
+      return [
+        pedido,
+        conSeccion.has(pedido)
+          ? { minutos: s.minutos, personas }
+          : { minutos: s.minutos, personas, otrosCentros: ORDEN_CENTROS.filter((c) => s.centros.has(c)) },
+      ];
+    }),
   );
 }
 

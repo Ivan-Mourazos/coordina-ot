@@ -34,3 +34,33 @@ test("una OF compartida ocupa una sola fila y separa los tiempos sin mostrar per
   expect(diseno).toContain("Carrón");
   expect(diseno).not.toContain("Iván");
 });
+
+test("las personas salen con su tiempo, de más a menos, y sin rol", () => {
+  const of: HistorialOF = {
+    ...taller,
+    centro: "ot",
+    tiempoImputadoMin: 20,
+    personas: [
+      { nombre: "Jaime Vázquez", min: 5 },
+      { nombre: "Adrián Quinteiro", min: 15 },
+      { nombre: "Tamara Villar", min: 0 },
+    ],
+  };
+  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, { ofs: [of], seccion: "ot" }));
+  expect(html.indexOf("Adrián Quinteiro")).toBeLessThan(html.indexOf("Jaime Vázquez"));
+  expect(html).not.toContain("Tamara Villar");
+  expect(html).not.toContain("Planteo");
+});
+
+test("con horas en RPS manda RPS: el reloj de la web no se suma ni se enseña aparte", () => {
+  const of: HistorialOF = {
+    ...taller,
+    centro: "ot",
+    tiempoImputadoMin: 47,
+    personas: [{ nombre: "Tamara Villar", min: 47 }],
+    rol: { planteoMin: 5, revisionMin: 0, planteo: [{ nombre: "Iván Sánchez", min: 5 }], revision: [] },
+  };
+  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, { ofs: [of], seccion: "ot" }));
+  expect(html).toContain("Tamara Villar");
+  expect(html).not.toContain("Iván Sánchez");
+});
