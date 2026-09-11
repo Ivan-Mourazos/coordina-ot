@@ -431,6 +431,13 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   coordina-ot y el contador de reinicios de PM2 pasado el primer refresco
   (30 min). Un pedido cerrado en RPS tarda como mucho eso en entrar en el
   Historial; lo pasado desde CoordinaOT entra al momento.
-- Cada OF desplegada enseña los chips de todos sus centros, también a cero
-  («Diseño · 0m · Taller · 0m»). Se decidió conservar los centros con trabajo
-  aunque tengan cero minutos; con la regla de «no repetir» quizá sobren.
+
+### Decidido el 11/09 (tras ver AR.26.04489 con Iván)
+
+- La OF desplegada solo enseña los centros con tiempo, la sección consultada
+  primero; sin ninguno, «Sin tiempo». El botón «Tareas y tiempos» va a la
+  derecha de las OF, no en una línea para él solo.
+- «Tareas y tiempos» lleva el pedido en el título, quién echó cada tarea en su
+  misma línea (siempre, del centro que cuenta), las tareas a 0 en gris y los
+  centros sin tiempo plegados en «Sin tiempo echado: …». Se quitó la frase que
+  explicaba cuándo salían las personas.
