@@ -318,7 +318,22 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
       {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
         const seleccionado = centro.id === seccion;
         const desglose = conDesglose.has(centro.id);
-        const personas = desglose ? personasDeOFs(centro.ofs) : [];
+        // Con el papel de cada uno, que es lo que se busca al abrir la ficha.
+        // Los roles se juntan de TODAS las OF del centro, igual que los
+        // minutos: quien planteó una y revisó otra sale como lo que más pesa,
+        // el planteo. Solo si consta en CoordinaOT (ver `personasConRol`).
+        const dePlanteo = new Set(centro.ofs.flatMap((of) => (of.rol?.planteo ?? []).map((p) => p.nombre)));
+        const deRevision = centro.ofs
+          .flatMap((of) => (of.rol?.revision ?? []).map((p) => p.nombre))
+          .filter((n) => !dePlanteo.has(n));
+        const personas = desglose
+          ? personasConRol(
+              personasDeOFs(centro.ofs),
+              [...dePlanteo],
+              [...new Set(deRevision)],
+              centro.ofs.some((of) => of.rol),
+            )
+          : [];
         const porOF = desglose && centro.ofs.length > 1;
         return (
           <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
@@ -333,7 +348,15 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
                   <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
                     {personas.map((persona) => (
                       <li key={persona.nombre} className="flex justify-between gap-3">
-                        <span>{persona.nombre}</span>
+                        <span>
+                          {persona.nombre}
+                          {persona.rol && (
+                            <span className={ROL[persona.rol].texto}>
+                              {" "}
+                              {persona.rol === "plantear" ? "planteó" : "revisó"}
+                            </span>
+                          )}
+                        </span>
                         <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
                       </li>
                     ))}
