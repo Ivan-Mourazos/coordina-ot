@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "126225b",
+    "hasta": "0f3c319",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -17,6 +17,11 @@
         "tipo": "arreglado",
         "titulo": "El filtro de fechas encuentra los pedidos recién pasados",
         "detalle": "Usa la fecha en que se pulsó Pasar, igual que la lista, aunque RPS todavía no tenga fecha de cierre."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Escape en Materiales ya no cierra también el pedido",
+        "detalle": "Primero cierra los materiales y vuelve a su botón. Pulsa Escape otra vez para cerrar la ficha."
       },
       {
         "tipo": "mejor",
@@ -47,6 +52,11 @@
         "tipo": "mejor",
         "titulo": "Las fichas aprovechan mejor las pantallas de poca altura",
         "detalle": "Hay menos espacio entre bloques para llegar antes a las OF, manteniendo el tamaño del texto, los botones y el cierre visible."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial recuerda tus filtros al cambiar de pestaña",
+        "detalle": "OT y Diseño conservan su propia búsqueda durante la sesión. Puedes vaciar solo el texto o limpiar todos los filtros."
       }
     ]
   },
