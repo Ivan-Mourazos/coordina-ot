@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "a187ba8",
+    "hasta": "d410bf5",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -155,6 +155,11 @@
         "tipo": "mejor",
         "titulo": "La barra de Diseño Gráfico se queda en el buscador y «Solo atrasados»",
         "detalle": "Familia, Prioridad, «Tu trabajo» y agrupar ocupaban la fila entera sin que nadie los usara."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el panel, los avisos de cada parte dejan de taparse entre ellos",
+        "detalle": "El botón de asignar va al pie del parte y ya no cubre los avisos de material; «Parte nuevo» se lee en una banda arriba."
       }
     ]
   },
