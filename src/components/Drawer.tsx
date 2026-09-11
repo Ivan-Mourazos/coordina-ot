@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
-import { ESTADO, PRIORIDAD, ROL, etiquetaCantidad } from "@/lib/estado";
+import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
@@ -33,6 +33,14 @@ import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
+import {
+  BloqueFicha,
+  CabeceraFicha,
+  DatoFicha,
+  DatosFicha,
+  FamiliasFicha,
+  MarcoFicha,
+} from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
@@ -411,21 +419,46 @@ export function Drawer({
       : null;
 
   return (
-    <div
-      ref={modalRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Pedido ${pedido.codigo}`}
-      className="fixed inset-0 z-50"
-    >
-      <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-
-      {/* PDF del pedido en grande, ocupando todo el hueco a la izquierda */}
-      <div
-        className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col"
-        onClick={onClose}
-      >
-        <div className="min-h-0 flex-1">
+    <MarcoFicha
+      refModal={modalRef}
+      etiqueta={`Pedido ${pedido.codigo}`}
+      onCerrar={onClose}
+      cabecera={
+        <CabeceraFicha
+          codigo={pedido.codigo}
+          prioridad={pedido.prioridad}
+          cliente={pedido.cliente}
+          negocio={pedido.negocio}
+        />
+      }
+      pie={
+        <>
+          {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
+              botón está también en la fila del tablero y no puede preguntar
+              cada uno lo suyo (ver `pasarAProduccionPendiente`). */}
+          {listoParaCompletar && (
+            <button
+              onClick={() => onCompletar(pedido.id)}
+              className="mb-2 w-full rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800"
+            >
+              📦 Pasar a Producción
+            </button>
+          )}
+          {/* Ya no hace falta explicar que "planteo = autor" y "revisión =
+              revisor": cada OF lo enseña en su línea. Aquí se queda solo lo que
+              la tarjeta NO puede enseñar: que el tiempo de un rol puede venir de
+              varias personas y que revisor y autor nunca coinciden. */}
+          El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El
+          revisor nunca puede ser el autor.
+        </>
+      }
+      // La confirmación de "Aprobar las N". Cuelga del marco y no de la fila
+      // de botones porque el cuadro se pinta en un portal y lo único que
+      // necesita es estar montado mientras la ficha lo esté.
+      encima={confirmacionPedido.dialogo}
+      // PDF del pedido en grande, ocupando todo el hueco a la izquierda.
+      visor={
+        <>
           {/* SE COMPRUEBA QUE EL PDF ESTÁ ANTES DE PONERLO EN EL MARCO. Un
               pedido de hoy suele llegar antes de que alguien escanee su parte
               (AR.26.04359 llegó el 04/09 y en el share los escaneos de ese día
@@ -448,80 +481,28 @@ export function Drawer({
               <PedidoScan pedido={pedido} conAviso />
             </div>
           )}
-        </div>
-      </div>
-
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
-        {/* cabecera */}
-        <header
-          className="flex items-start gap-3 p-4"
-          style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
-        >
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="font-mono text-lg font-bold text-text">{pedido.codigo}</h2>
-              <span
-                className="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
-                style={{ background: PRIORIDAD[pedido.prioridad].color }}
-                title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
-              >
-                P{pedido.prioridad} {PRIORIDAD[pedido.prioridad].label}
-              </span>
-            </div>
-            <p className="truncate text-sm text-text-muted">
-              {pedido.cliente}
-              {pedido.negocio && (
-                <>
-                  {" · "}
-                  <span className="font-semibold text-text">{pedido.negocio}</span>
-                </>
-              )}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            data-foco-inicial
-            className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        </header>
-
-        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
+        </>
+      }
+    >
           {/* meta: sin fechas — las cuatro del pedido están en la línea de
               tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
               sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor
               contado dos veces. */}
-          <div className="mb-4">
-            <dl className="grid grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">
-              <Meta k="Piezas" v={String(piezasTotal(pedido))} />
-              {pedido.ciudadEntrega && (
-                <Meta k="Entrega en" v={pedido.ciudadEntrega} />
-              )}
-              <div className="col-span-2">
-                <dt className="mb-1 text-text-muted">Familias</dt>
-                <dd className="flex flex-wrap gap-1">
-                  {[...new Set(pedido.ofs.map((o) => o.familia))].map((f) => (
-                    <FamiliaTag key={f} familia={f} />
-                  ))}
-                </dd>
-              </div>
-            </dl>
-          </div>
+          <DatosFicha>
+            <DatoFicha k="Piezas" v={String(piezasTotal(pedido))} />
+            {pedido.ciudadEntrega && <DatoFicha k="Entrega en" v={pedido.ciudadEntrega} />}
+            <FamiliasFicha familias={[...new Set(pedido.ofs.map((o) => o.familia))]} />
+          </DatosFicha>
 
           <LineaTiempoPedido pedido={pedido} />
 
           {/* comentario del pedido de venta (condiciones, avisos del comercial) */}
           {pedido.comentarioVenta && (
-            <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                Comentario del pedido
-              </p>
+            <BloqueFicha titulo="Comentario del pedido">
               <p className="whitespace-pre-line text-[11px] leading-snug text-text">
                 {pedido.comentarioVenta}
               </p>
-            </div>
+            </BloqueFicha>
           )}
 
           {/* Encima del hilo, y lo primero que se ve tras el parte: si han
@@ -629,7 +610,7 @@ export function Drawer({
                       ? "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
                       : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
                   }
-                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                  className="rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   ⏸ Pausar{fichandoYo.length > 1 && ` las ${fichandoYo.length}`}
                 </button>
@@ -679,7 +660,7 @@ export function Drawer({
                     impedidoPorGuia ??
                     `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`
                   }
-                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {/* En Diseño el pedido casi siempre es una sola OF, y este
                       botón sale desde que se revisa por pedido: sin el
@@ -703,7 +684,7 @@ export function Drawer({
                 <button
                   onClick={() => setPidiendoRevisorPedido(true)}
                   title={`Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`}
-                  className="rounded-lg bg-teal-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-700"
+                  className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
                 >
                   {/* Mismo motivo que en "Aprobar": con una sola OF (lo
                       normal en Diseño) el número sobra. */}
@@ -805,7 +786,7 @@ export function Drawer({
 
           {ofsDeOT.length === 0 && (
             <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-muted">
-              Ninguna OF de este pedido es trabajo de Oficina Técnica ahora mismo.
+              Ninguna OF de este pedido es trabajo de {seccion.nombre} ahora mismo.
             </p>
           )}
 
@@ -865,37 +846,7 @@ export function Drawer({
               })}
             </div>
           )}
-        </div>
-
-        <footer
-          className="p-3 text-[11px] leading-snug text-text-muted"
-          style={{ boxShadow: "inset 0 1px 0 0 var(--glass-border)" }}
-        >
-          {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
-              botón está también en la fila del tablero y no puede preguntar
-              cada uno lo suyo (ver `pasarAProduccionPendiente`). */}
-          {listoParaCompletar && (
-            <button
-              onClick={() => onCompletar(pedido.id)}
-              className="mb-2 w-full rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-700"
-            >
-              📦 Pasar a Producción
-            </button>
-          )}
-          {/* Ya no hace falta explicar que "planteo = autor" y "revisión =
-              revisor": cada OF lo enseña en su línea. Aquí se queda solo lo que
-              la tarjeta NO puede enseñar: que el tiempo de un rol puede venir de
-              varias personas y que revisor y autor nunca coinciden. */}
-          El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El
-          revisor nunca puede ser el autor.
-        </footer>
-      </aside>
-
-      {/* La confirmación de "Aprobar las N". Va aquí, colgando del Drawer y no
-          de la fila de botones, porque el cuadro se pinta en un portal y lo
-          único que necesita es estar montado mientras el Drawer lo esté. */}
-      {confirmacionPedido.dialogo}
-    </div>
+    </MarcoFicha>
   );
 }
 
@@ -1089,7 +1040,7 @@ function OFRow({
         <p
           className={`mt-1.5 px-2 text-[11px] ${
             of.fechaLimitePlanteo < hoyISO()
-              ? "font-semibold text-red-600 dark:text-red-400"
+              ? "font-semibold text-red-700 dark:text-red-400"
               : "text-text-muted"
           }`}
           title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
@@ -1513,8 +1464,8 @@ function Btn({
   disabled?: boolean;
 }) {
   const cls = {
-    amber: "bg-amber-500 text-white hover:bg-amber-600",
-    teal: "bg-teal-600 text-white hover:bg-teal-700",
+    amber: "bg-amber-700 text-white hover:bg-amber-800",
+    teal: "bg-teal-700 text-white hover:bg-teal-800",
     // El reloj lleva el color de SU rol, el mismo de todo el tablero: verde
     // planteo, violeta revision. Fichar se reconoce por el color sin leer el
     // boton, y sobre una OF en revision el verde decia el rol equivocado.
@@ -1537,14 +1488,5 @@ function Btn({
     >
       {children}
     </button>
-  );
-}
-
-function Meta({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt className="text-text-muted">{k}</dt>
-      <dd className="font-medium text-text">{v}</dd>
-    </div>
   );
 }

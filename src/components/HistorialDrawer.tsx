@@ -9,9 +9,17 @@ import type {
 import type { Operario, Rol } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
 import { repartirMateriales } from "@/lib/historial";
-import { PRIORIDAD, ROL, fmtMin } from "@/lib/estado";
-import { FamiliaTag } from "./FamiliaTag";
+import { ROL, fmtMin } from "@/lib/estado";
+import {
+  BloqueFicha,
+  CabeceraFicha,
+  DatoFicha,
+  DatosFicha,
+  FamiliasFicha,
+  MarcoFicha,
+} from "./MarcoFicha";
 import { NotasPedido } from "./NotasPedido";
+import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { HistorialTareas } from "./HistorialTareas";
@@ -96,21 +104,10 @@ export function HistorialDrawer({
   }, [pedido, cargar]);
 
   // Con el drawer abierto, la rueda seguía moviendo la lista del historial que
-  // hay detrás: al cerrarlo aparecías en otro sitio. Se congela el body y se
-  // compensa el ancho de la barra para que el fondo no dé un salto lateral.
-  useEffect(() => {
-    if (!pedido) return;
-    const { body } = document;
-    const overflowPrevio = body.style.overflow;
-    const paddingPrevio = body.style.paddingRight;
-    const hueco = window.innerWidth - document.documentElement.clientWidth;
-    body.style.overflow = "hidden";
-    if (hueco > 0) body.style.paddingRight = `${hueco}px`;
-    return () => {
-      body.style.overflow = overflowPrevio;
-      body.style.paddingRight = paddingPrevio;
-    };
-  }, [pedido]);
+  // hay detrás: al cerrarlo aparecías en otro sitio. El mismo bloqueo que la
+  // ficha de Pendientes, con su contador: dos cosas abiertas a la vez no se
+  // pisan el estilo del body al cerrarse.
+  useScrollBloqueado(pedido !== null);
 
   // Dos capas: la ficha y, encima, el parte ampliado. Escape cierra la de
   // arriba; los popovers nativos («Tareas y tiempos») se cierran solos y la
@@ -164,19 +161,42 @@ export function HistorialDrawer({
   const pdfSoportado = esPedidoDeVenta && scanExiste !== false;
 
   return (
-    <div
-      ref={modalRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Historial del pedido ${pedido}`}
-      className="fixed inset-0 z-50"
-    >
-      <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
-
-      {/* PDF mediano a la izquierda */}
-      <div className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col p-6" onClick={onClose}>
-        <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
-          {pdfSoportado ? (
+    <MarcoFicha
+      refModal={modalRef}
+      etiqueta={`Historial del pedido ${pedido}`}
+      onCerrar={onClose}
+      visorConMargen
+      cabecera={
+        <CabeceraFicha
+          codigo={pedido}
+          prioridad={detalle?.prioridad}
+          cliente={detalle?.cliente}
+          negocio={detalle?.negocio}
+        />
+      }
+      // Ampliado: PDF a pantalla casi completa, por encima de la ficha.
+      encima={
+        ampliado && pdfSoportado && (
+          <div className="overlay-in fixed inset-0 z-[80] bg-black/70 backdrop-blur-md" onClick={() => setAmpliado(false)}>
+            <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 p-4 text-white">
+              <span className="font-mono text-sm font-bold">{pedido}</span>
+              <a href={scanUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+                className="ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20">
+                Abrir original ↗
+              </a>
+              <button onClick={() => setAmpliado(false)} aria-label="Cerrar"
+                className="grid size-9 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20">✕</button>
+            </div>
+            <div className="grid h-full place-items-center p-10" onClick={() => setAmpliado(false)}>
+              <iframe src={scanUrl} title={`Pedido ${pedido}`} onClick={(e) => e.stopPropagation()}
+                className="h-full w-full max-w-5xl rounded-xl bg-white shadow-2xl" />
+            </div>
+          </div>
+        )
+      }
+      // PDF mediano a la izquierda.
+      visor={
+          pdfSoportado ? (
             <div className="relative h-full w-full">
               <iframe
                 src={`${scanUrl}#view=Fit`}
@@ -202,38 +222,10 @@ export function HistorialDrawer({
                 ? `${pedido} no tiene el parte escaneado en RPS. No es un fallo: nadie lo subió al archivo.`
                 : "Este formato de pedido antiguo no admite el visor del parte. Consulta los documentos del pedido."}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Panel derecho: datos + OFs */}
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
-        <header className="flex items-start gap-3 p-4" style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="font-mono text-lg font-bold text-text">{pedido}</h2>
-              {detalle && (
-                <span
-                  className="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
-                  style={{ background: PRIORIDAD[detalle.prioridad].color }}
-                  title={`Prioridad ${PRIORIDAD[detalle.prioridad].label}`}
-                >
-                  P{detalle.prioridad} {PRIORIDAD[detalle.prioridad].label}
-                </span>
-              )}
-            </div>
-            <p className="truncate text-sm text-text-muted">
-              {detalle?.cliente ?? "—"}
-              {detalle?.negocio && <span className="font-semibold text-text"> · {detalle.negocio}</span>}
-            </p>
-          </div>
-          <button onClick={onClose} aria-label="Cerrar" data-foco-inicial
-            className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text">
-            ✕
-          </button>
-        </header>
-
-        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
+          )
+      }
+    >
+          {/* Panel derecho: datos + OFs */}
           {cargando && <p className="text-sm text-text-muted">Cargando…</p>}
           {error && (
             <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">
@@ -246,20 +238,15 @@ export function HistorialDrawer({
 
           {detalle && !cargando && (
             <>
-              <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
-                <Meta k="Solicitud" v={fmtFecha(detalle.fechaSolicitud)} />
+              <DatosFicha>
+                <DatoFicha k="Solicitud" v={fmtFecha(detalle.fechaSolicitud)} />
                 {detalle.estadoActual
-                  ? <Meta k="Estado actual" v={detalle.estadoActual} />
-                  : <Meta k="Finalización" v={fmtFecha(detalle.fechaFinalizacion)} />}
-                <Meta k="Piezas" v={String(detalle.piezas)} />
-                {detalle.ciudadEntrega && <Meta k="Entrega en" v={detalle.ciudadEntrega} />}
-                <div className="col-span-2">
-                  <dt className="mb-1 text-text-muted">Familias</dt>
-                  <dd className="flex flex-wrap gap-1">
-                    {detalle.familias.map((f) => <FamiliaTag key={f} familia={f} />)}
-                  </dd>
-                </div>
-              </dl>
+                  ? <DatoFicha k="Estado actual" v={detalle.estadoActual} />
+                  : <DatoFicha k="Finalización" v={fmtFecha(detalle.fechaFinalizacion)} />}
+                <DatoFicha k="Piezas" v={String(detalle.piezas)} />
+                {detalle.ciudadEntrega && <DatoFicha k="Entrega en" v={detalle.ciudadEntrega} />}
+                <FamiliasFicha familias={detalle.familias} />
+              </DatosFicha>
 
               {/* AQUÍ ESTABAN "Lo vendido" y "Montaje y envío", y se han ido.
                   Los dos dicen lo mismo que el parte escaneado que se está
@@ -273,11 +260,11 @@ export function HistorialDrawer({
                   lo escribe quien vende y suele traer el aviso que no cabía en
                   ninguna otra parte ("NO INCLUYE INSTALACIÓN ELÉCTRICA"). */}
               {detalle.comentarioVenta && (
-                <Bloque titulo="Comentario del pedido">
+                <BloqueFicha titulo="Comentario del pedido">
                   <p className="whitespace-pre-line text-[11px] leading-snug text-text">
                     {detalle.comentarioVenta}
                   </p>
-                </Bloque>
+                </BloqueFicha>
               )}
 
               {/* Lo único que se puede HACER desde el Historial: cerrar una
@@ -315,28 +302,7 @@ export function HistorialDrawer({
               <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
             </>
           )}
-        </div>
-      </aside>
-
-      {/* Ampliado: PDF a pantalla casi completa */}
-      {ampliado && pdfSoportado && (
-        <div className="overlay-in fixed inset-0 z-[80] bg-black/70 backdrop-blur-md" onClick={() => setAmpliado(false)}>
-          <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 p-4 text-white">
-            <span className="font-mono text-sm font-bold">{pedido}</span>
-            <a href={scanUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-              className="ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20">
-              Abrir original ↗
-            </a>
-            <button onClick={() => setAmpliado(false)} aria-label="Cerrar"
-              className="grid size-9 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20">✕</button>
-          </div>
-          <div className="grid h-full place-items-center p-10" onClick={() => setAmpliado(false)}>
-            <iframe src={scanUrl} title={`Pedido ${pedido}`} onClick={(e) => e.stopPropagation()}
-              className="h-full w-full max-w-5xl rounded-xl bg-white shadow-2xl" />
-          </div>
-        </div>
-      )}
-    </div>
+    </MarcoFicha>
   );
 }
 
@@ -530,29 +496,6 @@ function FilaRol({
         <span className="shrink-0 font-semibold text-text-muted">Reloj {fmtMin(min)}</span>
       )}
     </div>
-  );
-}
-
-function Meta({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt className="text-text-muted">{k}</dt>
-      <dd className="font-medium text-text">{v}</dd>
-    </div>
-  );
-}
-
-/** Caja con rótulo del panel derecho. Existe porque ahora hay cuatro (lo
- *  vendido, montaje, comentario y documentos) y repetir el mismo borde y el
- *  mismo rótulo cuatro veces se desalineaba solo. */
-function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
-      <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-        {titulo}
-      </h3>
-      {children}
-    </section>
   );
 }
 
