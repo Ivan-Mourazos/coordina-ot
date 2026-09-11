@@ -28,9 +28,14 @@ export const PedidoCardView = memo(function PedidoCardView({
   operarios,
   mostrarPrioridad = false,
   mostrarFecha = false,
+  accion,
 }: {
   facet: Facet;
   operarios: Operario[];
+  /** Botón al pie de la MINIATURA (asignar). Va aquí dentro y no lo coloca
+   *  quien monta la tarjeta: por fuera, el pie de la tarjeta es el código del
+   *  pedido, y el botón caía encima tapándolo. */
+  accion?: React.ReactNode;
   /** Muestra prioridad + atrasado junto al código (pensado para la bandeja
    *  "Sin asignar", donde no hay agrupación por estado que ya lo indique). */
   mostrarPrioridad?: boolean;
@@ -54,6 +59,24 @@ export const PedidoCardView = memo(function PedidoCardView({
   // en types.ts): asignado sin reservar, a medias, o cubierto.
   const material = estadoMaterialDe(ofs);
   const compras = comprasPendientes(ofs, hoyISO());
+  // Lo que GRITA, en una banda arriba del todo y no como chip en una esquina:
+  // los chips tapaban el punto de prioridad y se peleaban con el botón de
+  // asignar por el mismo sitio. Nunca salen los dos: si han vuelto a escanear
+  // el parte, eso es lo que hay que mirar.
+  const avisoParte = pedido.scanCambiado
+    ? {
+        texto: "Parte nuevo",
+        title: "Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto.",
+      }
+    : avisaDeOFNueva(pedido)
+      ? {
+          texto: "OF nueva",
+          title: "Este pedido ya se había pasado a Producción y ha aparecido trabajo nuevo sin hacer.",
+        }
+      : null;
+  // Con banda, lo de las esquinas de arriba baja para no quedar debajo. Las dos
+  // clases enteras y no construidas: Tailwind solo compila lo que ve escrito.
+  const arriba = avisoParte ? "top-4" : "top-0.5";
 
   return (
     <div className="w-full select-none">
@@ -67,8 +90,20 @@ export const PedidoCardView = memo(function PedidoCardView({
       >
         <PedidoScan pedido={pedido} />
 
+        {/* Han vuelto a escanear el parte, o ha aparecido trabajo nuevo después
+            de pasarlo. Banda del ancho de la tarjeta: se lee de un vistazo en la
+            bandeja y no tapa nada de lo que hay en las esquinas. */}
+        {avisoParte && (
+          <span
+            className="absolute inset-x-0 top-0 truncate rounded-t-md bg-amber-700 px-1 py-0.5 text-center text-[9px] font-bold uppercase leading-tight text-white"
+            title={avisoParte.title}
+          >
+            {avisoParte.texto}
+          </span>
+        )}
+
         {/* familias: para saber QUÉ es antes de cogerlo */}
-        <span className="absolute left-0.5 top-0.5 flex flex-col gap-0.5">
+        <span className={`absolute left-0.5 ${arriba} flex flex-col gap-0.5`}>
           {familias.slice(0, 3).map((f) => (
             <span
               key={f}
@@ -80,8 +115,10 @@ export const PedidoCardView = memo(function PedidoCardView({
           ))}
         </span>
 
-        {/* avisos de datos de RPS: material sin recibir / lleva rotulación */}
-        <span className="absolute right-0.5 top-0.5 flex flex-col gap-0.5">
+        {/* avisos de datos de RPS: material sin recibir / lleva rotulación.
+            En FILA y no en columna: en columna bajaban por la derecha hasta
+            media tarjeta, justo por donde cae el botón de asignar. */}
+        <span className={`absolute right-0.5 ${arriba} flex gap-0.5`}>
           {(compras.porLlegar > 0 || materialPendiente) && (
             <span
               title={
@@ -134,40 +171,6 @@ export const PedidoCardView = memo(function PedidoCardView({
           )}
         </span>
 
-        {/* dot de prioridad dentro de la miniatura (solo bandeja) */}
-        {mostrarPrioridad && (
-          <span
-            className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full ring-1 ring-white/80 shadow"
-            style={{ background: PRIORIDAD[pedido.prioridad].color, color: PRIORIDAD[pedido.prioridad].tinta }}
-            title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
-          />
-        )}
-
-        {/* Han vuelto a escanear el parte y nadie lo ha dado por visto.
-            Va SOBRE la miniatura, que es justo lo que ha cambiado: la tarjeta
-            enseña el parte y aquí se avisa de que ese parte ya no es el que
-            alguien leyó. Sin esto, en la bandeja de "Sin asignar" no había
-            forma de saberlo sin abrir el pedido uno a uno. */}
-        {facet.pedido.scanCambiado && (
-          <span
-            className="absolute bottom-1 right-1 rounded-full bg-amber-700 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
-            title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
-          >
-            Parte nuevo
-          </span>
-        )}
-
-        {/* Trabajo aparecido después de pasar el pedido a Producción. Ver la
-            misma marca en PedidoLinea. */}
-        {avisaDeOFNueva(facet.pedido) && (
-          <span
-            className="absolute right-1 top-1 rounded-full bg-amber-700 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
-            title="Este pedido ya se había pasado a Producción y ha aparecido trabajo nuevo sin hacer."
-          >
-            OF nueva
-          </span>
-        )}
-
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
           <span
@@ -178,11 +181,26 @@ export const PedidoCardView = memo(function PedidoCardView({
             {fichando.fichandoRol === "revisar" ? "Revisando" : "Planteando"}
           </span>
         )}
+
+        {/* Asignar, como barra al pie de la miniatura y no como chip en la
+            esquina: ahí tapaba los avisos de material justo mientras decides a
+            quién se lo das, y caía encima de "OF nueva". El pie del parte es
+            sitio muerto y da un blanco ancho. */}
+        {accion && <div className="absolute inset-x-0 bottom-0 flex">{accion}</div>}
       </div>
 
       {/* pie con datos */}
       <div className="mt-1 px-0.5">
         <div className="flex items-center gap-1">
+          {/* La prioridad, junto al código y no sobre la miniatura: ahí la
+              tapaba el aviso de parte nuevo, que ocupa la franja de abajo. */}
+          {mostrarPrioridad && (
+            <span
+              className="size-2 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/20"
+              style={{ background: PRIORIDAD[pedido.prioridad].color }}
+              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
+            />
+          )}
           <span
             className={`truncate font-mono leading-tight ${
               mostrarPrioridad ? "text-[11px]" : "text-sm"
@@ -277,16 +295,22 @@ export const PedidoCard = memo(function PedidoCard({
       }}
       className="group relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
     >
-      <PedidoCardView facet={facet} operarios={operarios} mostrarPrioridad={mostrarPrioridad} mostrarFecha={mostrarFecha} />
-      {onAsignar && (
-        <div className="absolute right-1 top-1">
-          <MenuAsignar
-            operarios={operarios}
-            miId={miId}
-            onAsignar={(op) => onAsignar(facet, op)}
-          />
-        </div>
-      )}
+      <PedidoCardView
+        facet={facet}
+        operarios={operarios}
+        mostrarPrioridad={mostrarPrioridad}
+        mostrarFecha={mostrarFecha}
+        accion={
+          onAsignar && (
+            <MenuAsignar
+              operarios={operarios}
+              miId={miId}
+              onAsignar={(op) => onAsignar(facet, op)}
+              claseBoton="w-full rounded-b-md bg-brand-500/95 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600"
+            />
+          )
+        }
+      />
       {peek && <QuickLook pedido={facet.pedido} anchor={peek} />}
     </div>
   );

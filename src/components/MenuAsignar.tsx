@@ -30,10 +30,14 @@ export function MenuAsignar({
   operarios,
   miId,
   onAsignar,
+  claseBoton = "rounded-md bg-brand-500 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600",
 }: {
   operarios: Operario[];
   miId: string | null;
   onAsignar: (operarioId: string) => void;
+  /** Cómo se pinta el botón. En la bandeja es una barra al pie de la
+   *  miniatura; en su sitio de siempre, un chip. */
+  claseBoton?: string;
 }) {
   // El rectángulo del botón al abrir, no un booleano: el menú vive en otro
   // sitio del DOM y necesita saber dónde pintarse.
@@ -90,7 +94,7 @@ export function MenuAsignar({
 
   return (
     <div
-      className={`transition-opacity ${
+      className={`w-full transition-opacity ${
         open ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100"
       }`}
     >
@@ -104,7 +108,7 @@ export function MenuAsignar({
         aria-haspopup="menu"
         aria-expanded={open}
         title="Dar este parte a alguien"
-        className="rounded-md bg-brand-500 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600"
+        className={claseBoton}
       >
         Asignar
       </button>
