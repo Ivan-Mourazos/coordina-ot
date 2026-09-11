@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "08f37a9",
+    "hasta": "8cd6e11",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -56,6 +56,11 @@
         "tipo": "arreglado",
         "titulo": "Recuperar una OF aprobada para corregirla ya no la mete en «Revisando» del revisor",
         "detalle": "El autor tiene «Recuperar para corregir»: vuelve a su planteo y, al mandarla otra vez, entra en «Por revisar» con el mismo revisor."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El aviso de operaciones sin finalizar mezclaba las de Diseño Gráfico con las de OT",
+        "detalle": "Cada sección ve solo las suyas, y el aviso dice de qué sección son."
       },
       {
         "tipo": "mejor",
@@ -131,6 +136,15 @@
         "tipo": "mejor",
         "titulo": "«Tareas y tiempos» del Historial va más al grano",
         "detalle": "Dice de qué pedido es, pone quién echó cada tarea en su misma línea, deja plegado lo que no tiene tiempo y enseña tu sección primero. Al desplegar un pedido solo salen los centros con tiempo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al desplegar un pedido del Historial, cada OF queda debajo de su columna",
+        "detalle": "El tiempo de cada centro cae bajo la familia y la gente bajo «Quién», como en la fila del pedido."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Notas, documentos y tiempos de la ficha tienen el mismo relieve"
       }
     ]
   },
