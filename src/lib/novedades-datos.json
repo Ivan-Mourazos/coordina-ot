@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "6b55165",
+    "hasta": "08f37a9",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -126,6 +126,11 @@
         "tipo": "mejor",
         "titulo": "El Historial y el buscador de arriba responden al momento",
         "detalle": "Filtrar, buscar o bajar de página ya no tarda varios segundos. Al arrancar el servidor, la primera consulta puede esperar unos segundos mientras se prepara."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Tareas y tiempos» del Historial va más al grano",
+        "detalle": "Dice de qué pedido es, pone quién echó cada tarea en su misma línea, deja plegado lo que no tiene tiempo y enseña tu sección primero. Al desplegar un pedido solo salen los centros con tiempo."
       }
     ]
   },
