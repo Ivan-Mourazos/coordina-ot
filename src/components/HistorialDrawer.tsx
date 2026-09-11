@@ -26,7 +26,7 @@ import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { agruparCentros, centrosConDesglose } from "@/lib/historial-centros";
-import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
+import { SECCION_POR_DEFECTO, SECCIONES, type SeccionId } from "@/lib/secciones";
 import {
   BOTON_DETALLE,
   CabeceraVentana,
@@ -271,7 +271,7 @@ export function HistorialDrawer({
                   fase de OT que se quedó a medias. Va lo primero porque es una
                   tarea pendiente, no información; el resto de la ficha se lee.
                   Se calla solo cuando está todo finalizado, que es lo normal. */}
-              {!detalle.estadoActual && <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} />}
+              {!detalle.estadoActual && <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />}
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es

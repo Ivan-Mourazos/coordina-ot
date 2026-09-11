@@ -591,7 +591,7 @@ export function Drawer({
               normal no se ve. */}
           {pedido.situacion === "completado" && (
             <div className="mb-3">
-              <FasesSinFinalizar ofs={ofsDeOT.map((o) => o.codigo)} miId={miId} />
+              <FasesSinFinalizar ofs={ofsDeOT.map((o) => o.codigo)} miId={miId} seccion={seccion} />
             </div>
           )}
 

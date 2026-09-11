@@ -7,6 +7,7 @@ import {
   situacionDe,
   type FaseDeOF,
 } from "../fase-pendiente";
+import { SECCIONES } from "../secciones";
 
 const f = (maquina: string, estado: number, of = "0227619"): FaseDeOF => ({
   of,
@@ -78,6 +79,14 @@ describe("finalizables", () => {
 
   it("sin fases, lista vacía y sin reventar", () => {
     expect(finalizables([])).toEqual([]);
+  });
+
+  it("con sección, solo las suyas: la ficha de OT no enseña las de Diseño Gráfico", () => {
+    const fases = [f("A-DGRA", ESTADO_OF.interrumpida, "1"), f("A-OTEC", ESTADO_OF.interrumpida, "2")];
+    expect(finalizables(fases, SECCIONES.ot).map((x) => x.of)).toEqual(["2"]);
+    expect(finalizables(fases, SECCIONES.diseno).map((x) => x.of)).toEqual(["1"]);
+    expect(finalizables(fases).map((x) => x.of)).toEqual(["1", "2"]);
+    expect(resumen([...fases, f("A-DGRA", ESTADO_OF.eliminada, "3")], SECCIONES.ot).eliminadas).toBe(0);
   });
 });
 

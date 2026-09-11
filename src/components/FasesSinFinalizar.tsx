@@ -8,6 +8,7 @@ import {
   situacionDe,
   type FaseDeOF,
 } from "@/lib/fase-pendiente";
+import type { Seccion } from "@/lib/secciones";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // ─── "Esta OF se quedó sin finalizar" ────────────────────────────────────────
@@ -19,8 +20,10 @@ import { ConfirmDialog } from "./ConfirmDialog";
 // hacer, y un bloque que dice "todo correcto" en cada pedido del Historial es
 // ruido que enseña a no mirar. Solo aparece cuando hay algo pendiente.
 //
-// SOLO FASES DE OT. Las del taller no son cosa nuestra ni aunque estén a
-// medias. Lo decide `esFaseDeOT` y lo vuelve a comprobar el servidor.
+// SOLO LAS DE LA SECCIÓN QUE SE MIRA. Las del taller no son cosa nuestra ni
+// aunque estén a medias, y desde OT tampoco se enseñan las de Diseño Gráfico
+// (ni al revés): el título decía "de Oficina Técnica" sobre operaciones de
+// A-DGRA. El servidor sigue aceptando cerrar las de las dos secciones.
 //
 // SE LLAMA "OPERACIÓN" EN PANTALLA, no "fase". En RPS y aquí dentro el nombre
 // del dato es `fase`, pero en la oficina y en el taller a esto se le llama
@@ -35,10 +38,12 @@ interface FaseConBoletin extends FaseDeOF {
 export function FasesSinFinalizar({
   ofs,
   miId,
+  seccion,
 }: {
   /** Códigos de OF del pedido en RPS ("0227619"). */
   ofs: readonly string[];
   miId: string | null;
+  seccion: Seccion;
 }) {
   const [fases, setFases] = useState<FaseConBoletin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,8 +124,8 @@ export function FasesSinFinalizar({
   // algo que contar.
   if (fases === null && !error) return null;
 
-  const pendientes = fases ? finalizables(fases) : [];
-  const r = fases ? resumen(fases) : null;
+  const pendientes = fases ? finalizables(fases, seccion) : [];
+  const r = fases ? resumen(fases, seccion) : null;
   // Todo cerrado y sin errores: silencio. Es el caso normal.
   if (!error && pendientes.length === 0 && (r?.eliminadas ?? 0) === 0) return null;
 
@@ -129,9 +134,9 @@ export function FasesSinFinalizar({
       <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
         {pendientes.length > 0
           ? pendientes.length === 1
-            ? "Una operación de Oficina Técnica se quedó sin finalizar"
-            : `${pendientes.length} operaciones de Oficina Técnica se quedaron sin finalizar`
-          : "Operaciones de Oficina Técnica retiradas de OLANET"}
+            ? `Una operación de ${seccion.nombre} se quedó sin finalizar`
+            : `${pendientes.length} operaciones de ${seccion.nombre} se quedaron sin finalizar`
+          : `Operaciones de ${seccion.nombre} retiradas de OLANET`}
       </p>
 
       {pendientes.length > 0 && (

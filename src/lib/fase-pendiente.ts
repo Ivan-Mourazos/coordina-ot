@@ -1,4 +1,4 @@
-import { esFaseDe, esFaseDeLaWeb, SECCIONES } from "./secciones";
+import { esFaseDe, esFaseDeLaWeb, SECCIONES, type Seccion } from "./secciones";
 // ─── Fases de OT que se quedaron sin finalizar ───────────────────────────────
 // Pasabas el pedido a Producción y la fase de OT se quedaba en pausa: nadie la
 // cerraba y tenían que avisar desde el taller. Antes no había forma de
@@ -79,16 +79,22 @@ export function esFaseDeOT(maquina: string): boolean {
  *  hace falta para cerrarla— y si aquí se devolviera `FaseDeOF` a secas, ese
  *  campo se perdería por el camino y habría que volver a buscarlo por (OF,
  *  fase), que es justo la carrera que se quiere evitar. */
-export function finalizables<T extends FaseDeOF>(fases: readonly T[]): T[] {
+/*  Con `seccion`, solo las de esa sección: la ficha de OT no enseña las de
+ *  Diseño Gráfico ni al revés, igual que no enseña a su gente. Sin ella, las de
+ *  toda la oficina, que es lo que sigue aceptando el servidor al cerrar. */
+export function finalizables<T extends FaseDeOF>(fases: readonly T[], seccion?: Seccion): T[] {
   return fases.filter(
-    (f) => esFaseDeLaWeb(f.maquina) && situacionDe(f.estado) === "sin_finalizar",
+    (f) => deLaOficina(f.maquina, seccion) && situacionDe(f.estado) === "sin_finalizar",
   );
 }
+
+const deLaOficina = (maquina: string, seccion?: Seccion) =>
+  seccion ? esFaseDe(maquina, seccion) : esFaseDeLaWeb(maquina);
 
 /** Cómo se cuenta en pantalla. Se separa `eliminadas` porque hay que DECIRLO
  *  —si no, una fase que no está finalizada y no ofrece botón parece un fallo—
  *  pero sin ofrecer nada que pulsar. */
-export function resumen(fases: readonly Pick<FaseDeOF, "maquina" | "estado">[]): {
+export function resumen(fases: readonly Pick<FaseDeOF, "maquina" | "estado">[], seccion?: Seccion): {
   /** Cuántas son de la oficina: Oficina Técnica o Diseño Gráfico. Se llamaba
    *  `deOT` cuando solo había una sección. */
   deOficina: number;
@@ -96,7 +102,7 @@ export function resumen(fases: readonly Pick<FaseDeOF, "maquina" | "estado">[]):
   sinFinalizar: number;
   eliminadas: number;
 } {
-  const ot = fases.filter((f) => esFaseDeLaWeb(f.maquina));
+  const ot = fases.filter((f) => deLaOficina(f.maquina, seccion));
   const cuenta = (s: SituacionFase) => ot.filter((f) => situacionDe(f.estado) === s).length;
   return {
     deOficina: ot.length,
