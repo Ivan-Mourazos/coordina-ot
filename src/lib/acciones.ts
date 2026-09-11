@@ -8,7 +8,7 @@ import type { EstadoOF, OF } from "./types";
 export type AccionOF =
   | "empezar_planteo" | "terminar_planteo" | "recuperar_planteo"
   | "empezar_revision" | "aprobar" | "aprobar_corregida" | "aprobar_sin_revision"
-  | "devolver" | "reabrir"
+  | "devolver" | "reabrir" | "recuperar_aprobada"
   | "soltar_revision"
   | "retomar" | "anular" | "restaurar";
 
@@ -50,6 +50,10 @@ export interface AccionDef {
    *  y en_revision son del revisor. Lo que no es tuyo no sale — no sale
    *  apagado, no sale con un aviso: no sale. */
   soloEl?: "autor" | "revisor";
+  /** Lo contrario de `soloEl`: la acción es de cualquiera MENOS de esa
+   *  persona, porque ella tiene su propia puerta para lo mismo. Lo usa
+   *  "reabrir": el autor tiene "Recuperar para corregir". */
+  noEl?: "autor" | "revisor";
   efectoFichaje?: "corta" | "arranca"; // lo ejecuta el Board sobre el motor
   conNota?: boolean; // requiere observación (devolver)
   /** Requiere elegir POR QUÉ (anular). Viaja por el mismo sitio que `conNota`
@@ -160,14 +164,23 @@ export const ACCIONES: AccionDef[] = [
     confirmar: "La OF vuelve a tu planteo y desaparece de la lista de quien la iba a revisar. El tiempo ya fichado se conserva.",
     desde: ["por_revisar"], requiere: "autor", soloEl: "autor",
     destino: "en_curso" },
-  // La única del ciclo que NO lleva dueño, y a propósito: deshacer una
-  // aprobación le puede tocar a los dos. El revisor se da cuenta de que se le
-  // pasó algo, y el autor —que es a quien vuelve la OF aprobada, y quien la va
-  // a pasar a Producción— ve el fallo justo al ir a pasarla. Cerrarle la puerta
-  // a uno de los dos obligaría a pedírselo al otro por el pasillo.
+  // Deshacer una aprobación le puede tocar a los dos, pero NO por la misma
+  // puerta. Cuando era una sola ("Reabrir revisión" → en_revision), el autor
+  // que quería retocar su OF aprobada la mandaba directa a la columna
+  // "Revisando" del revisor, que no la estaba mirando, y él se quedaba sin
+  // poder tocarla: en_revision es del revisor.
+  //
+  // · El revisor (o un tercero) reabre la revisión: se le pasó algo y la vuelve
+  //   a mirar. Aquí sigue igual.
+  // · El autor la recupera para corregir: vuelve a su planteo (`en_curso`),
+  //   con el mismo revisor nombrado, y al mandarla otra vez entra en "Por
+  //   revisar" como cualquier otra.
   { id: "reabrir", label: "Reabrir revisión", tono: "neutra",
     confirmar: "La OF volverá a revisión y dejará de estar lista para Producción.",
-    desde: ["aprobada"], destino: "en_revision" },
+    desde: ["aprobada"], noEl: "autor", destino: "en_revision" },
+  { id: "recuperar_aprobada", label: "Recuperar para corregir", tono: "neutra",
+    confirmar: "La OF vuelve a tu planteo y deja de estar lista para Producción. Cuando la mandes otra vez, entra en «Por revisar».",
+    desde: ["aprobada"], requiere: "autor", soloEl: "autor", destino: "en_curso" },
   // Anular se decide al ver el pedido, y muchas veces con trabajo ya hecho: se
   // empezó a plantear y al final la hace el taller. Por eso vale desde
   // cualquier estado del ciclo salvo `aprobada` —esa ya se pasó a Producción y
@@ -197,7 +210,9 @@ const cumpleRevisada = (a: AccionDef, of: OF): boolean =>
   a.revisada === undefined || a.revisada === (of.revisada === true);
 
 const esMia = (a: AccionDef, of: OF, miId: string | null | undefined): boolean =>
-  a.soloEl === undefined || miId == null || quienTiene(a.soloEl, of) === miId;
+  miId == null ||
+  ((a.soloEl === undefined || quienTiene(a.soloEl, of) === miId) &&
+    (a.noEl === undefined || quienTiene(a.noEl, of) !== miId));
 
 /** Las acciones que se pueden ofrecer sobre esta OF.
  *

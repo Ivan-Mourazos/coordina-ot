@@ -57,7 +57,8 @@ describe("accionesDisponibles", () => {
   });
   it("anulada ofrece restaurar; aprobada ofrece reabrir", () => {
     expect(accionesDisponibles(of("anulada")).map((a) => a.id)).toEqual(["restaurar"]);
-    expect(accionesDisponibles(of("aprobada")).map((a) => a.id)).toEqual(["reabrir"]);
+    expect(accionesDisponibles(of("aprobada")).map((a) => a.id))
+      .toEqual(["reabrir", "recuperar_aprobada"]);
   });
   it("anular se ofrece en todo el ciclo menos en aprobada", () => {
     const estados: OF["estado"][] = [
@@ -189,9 +190,21 @@ describe("de quién es cada acción", () => {
     expect(ids("devuelta", REVISOR)).not.toContain("aprobar_corregida");
   });
 
-  it("reabrir la revisión la pueden pedir los dos", () => {
-    expect(ids("aprobada", AUTOR)).toEqual(["reabrir"]);
+  it("aprobada: el revisor reabre la revisión, el autor la recupera para corregir", () => {
     expect(ids("aprobada", REVISOR)).toEqual(["reabrir"]);
+    expect(ids("aprobada", OTRO)).toEqual(["reabrir"]);
+    expect(ids("aprobada", AUTOR)).toEqual(["recuperar_aprobada"]);
+  });
+
+  // El caso de Iván: aprobada, el autor quiere cambiar algo, la vuelve a
+  // mandar... y aparecía directa en "Revisando" del revisor, sin que nadie la
+  // estuviera revisando.
+  it("recuperada por el autor, al volver a mandarla entra en por_revisar", () => {
+    const recuperada = aplicarAccion(of("aprobada"), "recuperar_aprobada");
+    expect(recuperada.estado).toBe("en_curso");
+    expect(recuperada.revisorId).toBe(REVISOR);
+    expect(accionesDisponibles(recuperada, AUTOR).map((a) => a.id)).toContain("terminar_planteo");
+    expect(aplicarAccion(recuperada, "terminar_planteo").estado).toBe("por_revisar");
   });
 
   it("anular no tiene dueño: se decide al ver el pedido", () => {
