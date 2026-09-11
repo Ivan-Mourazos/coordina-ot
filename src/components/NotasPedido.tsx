@@ -350,7 +350,11 @@ function Editor({
         rows={3}
         onChange={(e) => onCambio(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") onCancelar();
+          // Cancela la nota y nada más: sin cortarlo, Escape cerraba la ficha.
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onCancelar();
+          }
           // Ctrl/Cmd+Enter guarda: el Enter suelto hace falta para el salto de
           // línea, que estas notas suelen llevar más de una.
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !vacio && !pasado) onGuardar();

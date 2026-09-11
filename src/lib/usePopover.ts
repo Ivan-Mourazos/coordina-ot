@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useCapaEscape } from "./useCapaEscape";
 
 /** Estado de un desplegable flotante: cierra con clic fuera y con Escape.
  *  Compartido por selects, notificaciones, identidad y paneles de equipo. */
@@ -35,16 +36,11 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
       if (ignorarPortales && donde instanceof Element && donde.closest("[data-en-portal]")) return;
       setOpen(false);
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [open, ignorarPortales]);
+  // Escape cierra este desplegable y no lo que tenga debajo (ver capas-escape.ts).
+  useCapaEscape(open, () => setOpen(false));
 
   return { open, setOpen, ref };
 }

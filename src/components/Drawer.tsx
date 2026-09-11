@@ -38,6 +38,7 @@ import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
 import { MenuAccionesOF } from "./MenuAccionesOF";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
@@ -189,14 +190,9 @@ export function Drawer({
    *  PedidoLinea. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
-  useEffect(() => {
-    if (!pedido) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [pedido, onClose]);
+  // La ficha es la capa de abajo: lo que se abra encima (un desplegable, la
+  // confirmación, los materiales) se cierra antes con su propio Escape.
+  useCapaEscape(pedido !== null, onClose);
 
   // Qué grupos de OF ajenas al trabajo de OT se han desplegado a mano.
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());

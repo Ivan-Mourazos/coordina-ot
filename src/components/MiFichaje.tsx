@@ -7,6 +7,7 @@ import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, inicioDelTramoContinuo, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
 import { ahoraDelServidor } from "@/lib/reloj-servidor";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 
 /** Minutos con trabajo mío a medias y NINGÚN fichaje corriendo antes de sacar
  *  la píldora en ámbar.
@@ -325,15 +326,8 @@ export function MiFichaje({
 
   const yo = operarios.find((o) => o.id === miId) ?? null;
 
-  // Escape colapsa el panel expandido (mismo patrón que el Drawer).
-  useEffect(() => {
-    if (!expandido) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") cambiarModo("pildora");
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [expandido]);
+  // Escape colapsa el panel expandido, como una capa más (ver capas-escape.ts).
+  useCapaEscape(expandido, () => cambiarModo("pildora"));
 
   if (!yo) return null;
 

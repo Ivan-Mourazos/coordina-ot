@@ -289,7 +289,12 @@ export function DevolverInline({
         value={obs}
         onChange={(e) => setObs(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setAbierto(false);
+          // Escape pliega el cuadro y se queda aquí: sin cortarlo, llegaba a
+          // la ficha y la cerraba también.
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            setAbierto(false);
+          }
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
             confirmar();
         }}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { Pedido } from "@/lib/types";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import { PedidoScan } from "./PedidoScan";
 
 /** Visor a pantalla completa del pedido original. Hoy muestra la réplica
@@ -10,16 +10,7 @@ import { PedidoScan } from "./PedidoScan";
  *  un PDF lo abre embebido a página completa. Cierra con Escape, clic fuera
  *  o el aspa. */
 export function ScanViewer({ pedido, onClose }: { pedido: Pedido; onClose: () => void }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [onClose]);
+  useCapaEscape(true, onClose);
 
   const esPdf = pedido.scanUrl?.toLowerCase().endsWith(".pdf") ?? false;
 

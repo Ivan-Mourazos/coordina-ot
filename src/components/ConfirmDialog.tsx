@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { AccionDef } from "@/lib/acciones";
 import { useFocoModal } from "@/lib/useFocoModal";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 
 /** Estado compartido "acción pendiente de confirmar" (Drawer y otros sitios
  *  con botones de acción): pedirConfirmacion(a) abre el diálogo si la acción
@@ -68,14 +69,8 @@ export function ConfirmDialog({
   const idMensaje = useId();
 
   // Escape lo lleva este componente: `useFocoModal` solo se ocupa del foco.
-  useEffect(() => {
-    if (!abierto) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancelar();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [abierto, onCancelar]);
+  // Como capa: cancelar la confirmación no puede cerrar también la ficha.
+  useCapaEscape(abierto, onCancelar);
 
   if (!abierto) return null;
 

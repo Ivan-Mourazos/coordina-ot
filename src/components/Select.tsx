@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 
 // ─── Por qué el menú va en un PORTAL ─────────────────────────────────────────
 // Estaba `absolute` dentro del propio control, y eso le daba dos problemas que
@@ -78,9 +79,6 @@ export function Select({
       if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setCaja(null);
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setCaja(null);
-    }
     // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
     // quedaría flotando donde estaba: se cierra, que es menos molesto que
     // perseguirlo con un recálculo en cada píxel.
@@ -96,16 +94,20 @@ export function Select({
       setCaja(null);
     }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onMover);
     window.addEventListener("scroll", onMover, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onMover);
       window.removeEventListener("scroll", onMover, true);
     };
   }, [open]);
+  // Escape cierra el menú y nada más: la ficha de debajo sigue abierta (ver
+  // capas-escape.ts). El foco vuelve al botón, que es donde estaba el teclado.
+  useCapaEscape(open, () => {
+    setCaja(null);
+    btnRef.current?.focus();
+  });
 
   // El botón cerrado y la opción de vaciar dicen cosas distintas: el botón
   // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla

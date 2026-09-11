@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import { FotoConZoom } from "./FotoConZoom";
 
 // ─── El documento, abierto DENTRO de la web ──────────────────────────────────
@@ -37,16 +38,14 @@ export function VisorDocumento({
 }) {
   const doc = documentos[indice];
 
-  // Escape, ← y →. En fase de captura y con stopPropagation porque este visor
-  // vive DENTRO de un drawer que también cierra con Escape: sin esto, la
-  // primera pulsación cerraría los dos y te dejaría en el tablero.
+  // Escape es una capa más: cierra el visor y deja la ficha de debajo abierta
+  // (ver capas-escape.ts).
+  useCapaEscape(true, onCerrar);
+
+  // ← y →. En fase de captura y con stopPropagation: las flechas son del
+  // visor mientras está abierto, no de lo que haya detrás.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onCerrar();
-        return;
-      }
       if (e.key === "ArrowLeft" && indice > 0) {
         e.stopPropagation();
         onIr(indice - 1);
@@ -58,7 +57,7 @@ export function VisorDocumento({
     }
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [indice, documentos.length, onIr, onCerrar]);
+  }, [indice, documentos.length, onIr]);
 
   if (!doc || typeof document === "undefined") return null;
 

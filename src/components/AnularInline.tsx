@@ -79,7 +79,11 @@ export function AnularInline({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Escape") cerrar();
+            // Solo este cuadro: sin cortarlo, Escape cerraba también la ficha.
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              cerrar();
+            }
           }}
           placeholder="¿Cuál es el motivo?"
           rows={2}

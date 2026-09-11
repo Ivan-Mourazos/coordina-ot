@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import type { AccionDef } from "@/lib/acciones";
 
 // ─── El cajón de "⋯" de una OF ───────────────────────────────────────────────
@@ -64,9 +65,6 @@ export function MenuAccionesOF({
       if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setCaja(null);
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setCaja(null);
-    }
     // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
     // quedaría flotando donde estaba: se cierra, que es menos molesto que
     // perseguirlo con un recálculo en cada píxel. Mismo criterio que Select.
@@ -74,16 +72,19 @@ export function MenuAccionesOF({
       setCaja(null);
     }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onMover);
     window.addEventListener("scroll", onMover, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onMover);
       window.removeEventListener("scroll", onMover, true);
     };
   }, [open]);
+  // Escape cierra el cajón y no la ficha (ver capas-escape.ts).
+  useCapaEscape(open, () => {
+    setCaja(null);
+    btnRef.current?.focus();
+  });
 
   if (acciones.length === 0) return null;
 

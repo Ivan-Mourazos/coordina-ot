@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Operario } from "@/lib/types";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 
 /** Alto máximo del menú, para decidir si abre hacia arriba o hacia abajo. */
 const ALTO_MAX = 260;
@@ -51,9 +52,6 @@ export function MenuAsignar({
       if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setCaja(null);
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setCaja(null);
-    }
     // Al mover la página el botón se va y el menú se quedaría flotando solo.
     // Salvo que lo que se mueva sea el menú por dentro: el listener va con
     // `capture` y si no, con la lista de nombres larga, la rueda lo cerraría
@@ -64,16 +62,19 @@ export function MenuAsignar({
       setCaja(null);
     }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onMover);
     window.addEventListener("scroll", onMover, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onMover);
       window.removeEventListener("scroll", onMover, true);
     };
   }, [open]);
+  // Escape cierra solo este menú (ver capas-escape.ts).
+  useCapaEscape(open, () => {
+    setCaja(null);
+    btnRef.current?.focus();
+  });
 
   // Yo primero: lo más frecuente es cogerse un parte uno mismo.
   const orden = [

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
@@ -91,16 +92,12 @@ export function PanelFlotante({
       if (donde instanceof Element && donde.closest("[data-en-portal]")) return;
       pedirCierre();
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") pedirCierre();
-    }
     document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDown);
   }, [pedirCierre]);
+  // Escape como capa: con un Select o una confirmación abiertos encima, se
+  // cierran ellos primero y el panel se queda (ver capas-escape.ts).
+  useCapaEscape(true, pedirCierre);
 
   // El fondo se congela mientras el panel está abierto: si no, la rueda mueve
   // la bandeja de detrás y al cerrar apareces en otro sitio.
