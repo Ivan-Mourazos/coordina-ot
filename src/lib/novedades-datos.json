@@ -1,5 +1,31 @@
 [
   {
+    "id": "2026-09-11",
+    "hasta": "2fba1b3",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Una OF aprobada podía dar a entender que todo el pedido estaba listo",
+        "detalle": "Revisiones indica cuántas OF están aprobadas y si queda trabajo pendiente. Solo anuncia el pedido listo cuando se puede pasar completo."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los pedidos recién pasados podían aparecer dos veces en el Historial",
+        "detalle": "Ahora hay una sola lista, con todas las OF del pedido, aunque RPS todavía no haya reflejado el cierre."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El filtro de fechas encuentra los pedidos recién pasados",
+        "detalle": "Usa la fecha en que se pulsó Pasar, igual que la lista, aunque RPS todavía no tenga fecha de cierre."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial comparte el manejo de Pendientes y se lee en filas compactas",
+        "detalle": "Pulsa el código para abrir la ficha y el resto de la cabecera para desplegar las OF. Se elimina el ojo y se alinean autores y fechas en claro y oscuro."
+      }
+    ]
+  },
+  {
     "id": "2026-09-10",
     "hasta": "6be5bd7",
     "cambios": [
