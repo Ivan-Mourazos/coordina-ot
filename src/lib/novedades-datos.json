@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "e35a715",
+    "hasta": "d628584",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -170,6 +170,11 @@
         "tipo": "mejor",
         "titulo": "En el calendario ya se puede saltar de mes o de año de golpe",
         "detalle": "Pulsa el nombre del mes y elígelo de la rejilla; con ella abierta, las flechas cambian de año."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial se distingue quién planteó un pedido y quién lo revisó",
+        "detalle": "Quien lo planteó sale primero, con un punto verde; el revisor, violeta. En la ficha lo pone con palabras. Solo en los pedidos cuyo reparto consta en la web."
       }
     ]
   },
