@@ -165,6 +165,19 @@ export interface HistorialOF {
    *  trabajo pasando ya por la web, se sabe de quién es cada minuto y no hay
    *  por qué esconderlo detrás de un número de grupo. Es lo que distingue este
    *  dato de `rolDeducido`, que son nombres y nada más. */
+  /** Quién consta como AUTOR de esta OF en CoordinaOT, y quién como revisor.
+   *
+   *  Es el registro, no el reloj: `rol` dice quién fichó planteo o revisión, y
+   *  eso deja fuera a quien planteó sin darle al botón —sus minutos vienen de
+   *  RPS— y marca como revisor a quien fichó la revisión en una OF y no en su
+   *  gemela. Para decir «lo planteó fulano» hay que mirar esto.
+   *
+   *  El revisor solo cuando la OF se revisó de verdad (ver `revisada` en el
+   *  overlay): nombrar revisor a quien tenía el turno pero no llegó a mirarla
+   *  sería atribuirle un trabajo que no hizo. */
+  autorRegistrado?: string;
+  revisorRegistrado?: string;
+
   rol?: {
     planteoMin: number;
     revisionMin: number;
@@ -475,6 +488,37 @@ export interface FilaTrabajoPedido {
  *  gente salga siempre en el mismo orden. */
 export const porMinutos = (a: RepartoRol, b: RepartoRol): number =>
   b.min - a.min || a.nombre.localeCompare(b.nombre, "es");
+
+/** El reparto de una OF (o de un grupo de ellas) tal y como consta en
+ *  CoordinaOT, listo para `personasConRol`.
+ *
+ *  Manda el REGISTRO (`autorRegistrado` / `revisorRegistrado`). El reloj —quién
+ *  fichó planteo o revisión— solo completa: deja fuera a quien planteó sin
+ *  darle al botón, y marca revisor en la OF donde se fichó la revisión pero no
+ *  en su gemela, así que por sí solo enseña medio reparto. */
+export function repartoDe(
+  ofs: readonly Pick<HistorialOF, "autorRegistrado" | "revisorRegistrado" | "rol">[],
+): { autores: string[]; revisores: string[]; consta: boolean } {
+  const autores = new Set<string>();
+  const revisores = new Set<string>();
+  let consta = false;
+  for (const of of ofs) {
+    if (of.autorRegistrado) {
+      autores.add(of.autorRegistrado);
+      consta = true;
+    }
+    if (of.revisorRegistrado) {
+      revisores.add(of.revisorRegistrado);
+      consta = true;
+    }
+    for (const p of of.rol?.planteo ?? []) if (p.min > 0) autores.add(p.nombre);
+    for (const p of of.rol?.revision ?? []) if (p.min > 0) revisores.add(p.nombre);
+    if ((of.rol?.planteo ?? []).length || (of.rol?.revision ?? []).length) consta = true;
+  }
+  // Quien planteó y además revisó otra OF del grupo cuenta como autor: es lo
+  // que más pesa, y dos papeles en el mismo nombre no se pueden pintar.
+  return { autores: [...autores], revisores: [...revisores].filter((n) => !autores.has(n)), consta };
+}
 
 /** Una persona de la fila con el papel que hizo, cuando CONSTA. */
 export interface PersonaConRol extends RepartoRol {

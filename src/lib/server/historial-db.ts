@@ -961,17 +961,46 @@ function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>, nomb
     [...m.entries()]
       .map(([id, min]) => ({ nombre: nombre(id), min }))
       .sort((a, b) => b.min - a.min);
+  // Quién consta como autor y revisor de cada OF (el REGISTRO, no el reloj).
+  // El overlay va por OF+tarea; aquí se agrupa por orden, que es la unidad de
+  // la ficha. Si dos tareas de la misma orden tienen autores distintos, manda
+  // la primera: es el caso raro, y enseñar dos nombres de autor para una sola
+  // OF confundiría más de lo que aclara.
+  const registrado = { autor: new Map<string, string>(), revisor: new Map<string, string>() };
+  try {
+    const overlay = leerOverlay();
+    for (const [ofId, cambio] of overlay.ofs) {
+      const partes = partirOfId(ofId);
+      if (!partes) continue;
+      if (cambio.autorId && !registrado.autor.has(partes.of))
+        registrado.autor.set(partes.of, nombre(cambio.autorId));
+      // Solo si se revisó de verdad, no si solo tenía revisor asignado.
+      if (cambio.revisada && cambio.revisorId && !registrado.revisor.has(partes.of))
+        registrado.revisor.set(partes.of, nombre(cambio.revisorId));
+    }
+  } catch (e) {
+    console.error("[historial] no se pudo leer el reparto registrado:", e);
+  }
+
   return ofs.map((of) => {
     const t = porOrden.get(of.codigo);
-    if (!t) return of;
+    const autor = registrado.autor.get(of.codigo);
+    const revisor = registrado.revisor.get(of.codigo);
+    if (!t && !autor && !revisor) return of;
     return {
       ...of,
-      rol: {
-        planteoMin: t.planteoMin,
-        revisionMin: t.revisionMin,
-        planteo: reparto(t.plantear),
-        revision: reparto(t.revisar),
-      },
+      ...(autor ? { autorRegistrado: autor } : {}),
+      ...(revisor && revisor !== autor ? { revisorRegistrado: revisor } : {}),
+      ...(t
+        ? {
+            rol: {
+              planteoMin: t.planteoMin,
+              revisionMin: t.revisionMin,
+              planteo: reparto(t.plantear),
+              revision: reparto(t.revisar),
+            },
+          }
+        : {}),
     };
   });
 }

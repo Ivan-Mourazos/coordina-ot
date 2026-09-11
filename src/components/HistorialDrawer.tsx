@@ -8,7 +8,7 @@ import type {
 } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
-import { personasConRol, personasDeOF, personasDeOFs, repartirMateriales } from "@/lib/historial";
+import { personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe } from "@/lib/historial";
 import { fmtMin, ROL } from "@/lib/estado";
 import {
   BloqueFicha,
@@ -319,20 +319,11 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
         const seleccionado = centro.id === seccion;
         const desglose = conDesglose.has(centro.id);
         // Con el papel de cada uno, que es lo que se busca al abrir la ficha.
-        // Los roles se juntan de TODAS las OF del centro, igual que los
-        // minutos: quien planteó una y revisó otra sale como lo que más pesa,
-        // el planteo. Solo si consta en CoordinaOT (ver `personasConRol`).
-        const dePlanteo = new Set(centro.ofs.flatMap((of) => (of.rol?.planteo ?? []).map((p) => p.nombre)));
-        const deRevision = centro.ofs
-          .flatMap((of) => (of.rol?.revision ?? []).map((p) => p.nombre))
-          .filter((n) => !dePlanteo.has(n));
+        // El reparto se junta de TODAS las OF del centro, igual que los
+        // minutos, y manda el registrado (ver `repartoDe`).
+        const reparto = repartoDe(centro.ofs);
         const personas = desglose
-          ? personasConRol(
-              personasDeOFs(centro.ofs),
-              [...dePlanteo],
-              [...new Set(deRevision)],
-              centro.ofs.some((of) => of.rol),
-            )
+          ? personasConRol(personasDeOFs(centro.ofs), reparto.autores, reparto.revisores, reparto.consta)
           : [];
         const porOF = desglose && centro.ofs.length > 1;
         return (
@@ -398,16 +389,10 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
  *  los sitios, así que las mismas personas salen siempre en el mismo orden. */
 function PersonasOF({ of }: { of: HistorialOF }) {
   // El papel de cada uno EN PALABRAS, que es lo que se busca al abrir la ficha:
-  // quién la planteó y quién la repasó. Solo con el rol registrado en
-  // CoordinaOT (`of.rol`); lo deducido de las horas no se nombra.
-  const dePlanteo = new Set((of.rol?.planteo ?? []).map((p) => p.nombre));
-  const deRevision = new Set((of.rol?.revision ?? []).map((p) => p.nombre));
-  const personas = personasConRol(
-    personasDeOF(of),
-    [...dePlanteo],
-    [...deRevision].filter((n) => !dePlanteo.has(n)),
-    Boolean(of.rol),
-  );
+  // quién la planteó y quién la repasó. Manda el reparto registrado en
+  // CoordinaOT; lo deducido de las horas no se nombra (ver `repartoDe`).
+  const reparto = repartoDe([of]);
+  const personas = personasConRol(personasDeOF(of), reparto.autores, reparto.revisores, reparto.consta);
   if (personas.length === 0) {
     return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
   }
