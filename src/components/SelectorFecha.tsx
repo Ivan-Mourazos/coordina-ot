@@ -6,8 +6,12 @@ import { hoyISO } from "@/lib/types";
 import { sumarDias } from "@/lib/fechas";
 import {
   DIAS_SEMANA,
+  MESES_CORTOS,
+  anoDe,
+  mesDe,
   nombreMes,
   primerDiaDelMes,
+  primeroDe,
   resumenRango,
   semanaDe,
   semanasDelMes,
@@ -44,6 +48,11 @@ export function SelectorFecha({
   // estabas, no a hoy.
   const [mes, setMes] = useState(() => primerDiaDelMes(desde || hoy));
   const [modo, setModo] = useState<Modo>(desde && hasta && desde !== hasta ? "rango" : "dia");
+  // Saltar de mes o de año sin pasar uno a uno: el nombre del mes abre una
+  // rejilla de doce. Ir a septiembre del año pasado eran doce clics en la
+  // flecha; ahora son dos. Va en lugar de los días y no debajo: el popover no
+  // cambia de alto y no hay dos rejillas compitiendo por la misma mirada.
+  const [eligiendoMes, setEligiendoMes] = useState(false);
   // En modo rango, el primer clic deja el principio "a la espera" del segundo.
   const [inicioRango, setInicioRango] = useState<string | null>(null);
 
@@ -72,6 +81,7 @@ export function SelectorFecha({
   function atajo(d: string, h: string) {
     setModo(d === h ? "dia" : "rango");
     setInicioRango(null);
+    setEligiendoMes(false);
     setMes(primerDiaDelMes(d));
     onCambiar(d, h);
     setOpen(false);
@@ -128,66 +138,110 @@ export function SelectorFecha({
             ))}
           </div>
 
-          {/* mes, con sus flechas */}
+          {/* Cabecera: las flechas mueven de mes (o de año, en la rejilla) y el
+              rótulo del medio abre y cierra la rejilla de meses. */}
           <div className="mb-1 flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setMes(sumarMeses(mes, -1))}
-              aria-label="Mes anterior"
+              onClick={() =>
+                eligiendoMes ? setMes(sumarMeses(mes, -12)) : setMes(sumarMeses(mes, -1))
+              }
+              aria-label={eligiendoMes ? "Año anterior" : "Mes anterior"}
               className="grid size-6 place-items-center rounded text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             >
               ‹
             </button>
             {/* `first-letter` y no `capitalize`: aquel sube la inicial de CADA
                 palabra y dejaba "Agosto De 2026". */}
-            <span className="flex-1 text-center text-xs font-semibold text-text first-letter:uppercase">
-              {nombreMes(mes)}
-            </span>
             <button
               type="button"
-              onClick={() => setMes(sumarMeses(mes, 1))}
-              aria-label="Mes siguiente"
+              onClick={() => setEligiendoMes((v) => !v)}
+              aria-expanded={eligiendoMes}
+              title="Saltar a otro mes o a otro año"
+              className="flex flex-1 items-center justify-center gap-1 rounded px-1 py-0.5 text-xs font-semibold text-text first-letter:uppercase hover:bg-[var(--glass-highlight)]"
+            >
+              {eligiendoMes ? anoDe(mes) : nombreMes(mes)}
+              <span aria-hidden className="text-[9px] text-text-muted">
+                {eligiendoMes ? "▴" : "▾"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                eligiendoMes ? setMes(sumarMeses(mes, 12)) : setMes(sumarMeses(mes, 1))
+              }
+              aria-label={eligiendoMes ? "Año siguiente" : "Mes siguiente"}
               className="grid size-6 place-items-center rounded text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             >
               ›
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold uppercase text-text-muted">
-            {DIAS_SEMANA.map((d, i) => (
-              <span key={i}>{d}</span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-0.5">
-            {semanasDelMes(mes).flatMap((semana) =>
-              semana.map((c) => {
-                const esHoy = c.iso === hoy;
-                const marcado = enRango(c.iso);
+          {eligiendoMes ? (
+            // Misma altura que las seis semanas de días (6 × 28 + huecos): así
+            // el popover no pega un salto al abrir y cerrar la rejilla.
+            <div className="grid h-[11.5rem] grid-cols-3 gap-1">
+              {MESES_CORTOS.map((nombre, i) => {
+                const esteMes = mesDe(mes) === i + 1;
                 return (
                   <button
-                    key={c.iso}
+                    key={nombre}
                     type="button"
-                    onClick={() => elegir(c.iso)}
-                    aria-current={esHoy ? "date" : undefined}
-                    aria-pressed={marcado}
-                    // Los días de los meses vecinos se pintan apagados pero se
-                    // pueden pulsar: al elegir el 1 de septiembre desde agosto,
-                    // obligar a cambiar de mes primero es un paso de más.
-                    className={`grid h-7 place-items-center rounded text-[11px] tabular-nums transition-colors ${
-                      marcado
-                        ? "bg-brand-500 font-bold text-white"
-                        : c.delMes
-                          ? "text-text hover:bg-[var(--glass-highlight)]"
-                          : "text-text-muted/50 hover:bg-[var(--glass-highlight)]"
-                    } ${esHoy && !marcado ? "ring-1 ring-brand-400" : ""}`}
+                    onClick={() => {
+                      setMes(primeroDe(anoDe(mes), i + 1));
+                      setEligiendoMes(false);
+                    }}
+                    aria-pressed={esteMes}
+                    className={`grid place-items-center rounded text-[11px] font-semibold capitalize transition-colors ${
+                      esteMes
+                        ? "bg-brand-500 text-white"
+                        : "text-text hover:bg-[var(--glass-highlight)]"
+                    }`}
                   >
-                    {Number(c.iso.slice(8))}
+                    {nombre}
                   </button>
                 );
-              }),
-            )}
-          </div>
+              })}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold uppercase text-text-muted">
+                {DIAS_SEMANA.map((d, i) => (
+                  <span key={i}>{d}</span>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-0.5">
+                {semanasDelMes(mes).flatMap((semana) =>
+                  semana.map((c) => {
+                    const esHoy = c.iso === hoy;
+                    const marcado = enRango(c.iso);
+                    return (
+                      <button
+                        key={c.iso}
+                        type="button"
+                        onClick={() => elegir(c.iso)}
+                        aria-current={esHoy ? "date" : undefined}
+                        aria-pressed={marcado}
+                        // Los días de los meses vecinos se pintan apagados pero
+                        // se pueden pulsar: al elegir el 1 de septiembre desde
+                        // agosto, obligar a cambiar de mes es un paso de más.
+                        className={`grid h-7 place-items-center rounded text-[11px] tabular-nums transition-colors ${
+                          marcado
+                            ? "bg-brand-500 font-bold text-white"
+                            : c.delMes
+                              ? "text-text hover:bg-[var(--glass-highlight)]"
+                              : "text-text-muted/50 hover:bg-[var(--glass-highlight)]"
+                        } ${esHoy && !marcado ? "ring-1 ring-brand-400" : ""}`}
+                      >
+                        {Number(c.iso.slice(8))}
+                      </button>
+                    );
+                  }),
+                )}
+              </div>
+            </>
+          )}
 
           {/* Los atajos de verdad: lo que se pregunta a diario. */}
           <div className="mt-2 flex flex-wrap gap-1 border-t border-[var(--glass-border)] pt-2">

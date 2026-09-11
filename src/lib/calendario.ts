@@ -32,6 +32,22 @@ export function nombreMes(isoDia: string): string {
   return `${MESES[m - 1]} de ${a}`;
 }
 
+/** Los doce meses en corto ("ene", "feb"…), para la rejilla de saltar de mes.
+ *
+ *  En corto y no enteros: doce nombres largos en tres columnas no caben en el
+ *  ancho del popover sin partirse por la mitad. */
+export const MESES_CORTOS = MESES.map((m) => m.slice(0, 3)) as readonly string[];
+
+/** El año de un ISO, para la cabecera de la rejilla de meses. */
+export const anoDe = (isoDia: string): number => partes(isoDia).a;
+
+/** El mes (1-12) de un ISO. */
+export const mesDe = (isoDia: string): number => partes(isoDia).m;
+
+/** El día 1 de ese mes de ese año. Para elegir mes en la rejilla sin contar
+ *  saltos desde el mes que se estaba mirando. */
+export const primeroDe = (a: number, m: number): string => iso(a, m, 1);
+
 /** El día 1 del mes que contiene `isoDia`. */
 export const primerDiaDelMes = (isoDia: string): string => {
   const { a, m } = partes(isoDia);
