@@ -330,8 +330,9 @@ Reintentar en Documentos/Métricas. Cabecera adaptada a pantallas estrechas sin
 solapar logo/buscador. Se omiten los centros sin OF, manteniendo los que tienen
 trabajo a cero minutos. No cambia el cálculo de tiempos ni los permisos.
 Comprobación visual local en claro/oscuro, OT/Diseño y anchos 390/768/1440.
-Pendientes todavía comprime demasiado el recorrido en móvil: siguiente ajuste,
-junto con fichas, materiales, filtros y contraste. Detalles y límites en el plan.
+Iván aclara que no se usa móvil: queda fuera del plan. Objetivo de pantalla:
+PC desde 1280 × 720, claro y oscuro. Fichas con espaciado compacto para poca
+altura; después, materiales, filtros y contraste. Detalles y límites en el plan.
 No se ha desplegado esta segunda entrega.
 
 ---

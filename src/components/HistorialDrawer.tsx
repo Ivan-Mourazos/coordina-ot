@@ -206,7 +206,7 @@ export function HistorialDrawer({
       </div>
 
       {/* Panel derecho: datos + OFs */}
-      <aside className="glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
         <header className="flex items-start gap-3 p-4" style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export function HistorialDrawer({
           </button>
         </header>
 
-        <div className="scroll-thin flex-1 overflow-y-auto p-4">
+        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
           {cargando && <p className="text-sm text-text-muted">Cargando…</p>}
           {error && (
             <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">

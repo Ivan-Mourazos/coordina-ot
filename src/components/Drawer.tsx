@@ -455,7 +455,7 @@ export function Drawer({
         </div>
       </div>
 
-      <aside className="glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
         {/* cabecera */}
         <header
           className="flex items-start gap-3 p-4"
@@ -492,7 +492,7 @@ export function Drawer({
           </button>
         </header>
 
-        <div className="scroll-thin flex-1 overflow-y-auto p-4">
+        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
           {/* meta: sin fechas — las cuatro del pedido están en la línea de
               tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
               sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor

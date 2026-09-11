@@ -199,7 +199,7 @@ no exige convertir las seis pestañas en la misma pantalla.
 | 2 | Filas comunes de Pendientes/Historial y gestos solicitados; retirar ojo | Ratón y teclado: nombre abre, resto despliega; una sola acción por pulsación |
 | 3 | Nombres, sección visible y presentación de tiempos | OT y Diseño; varias personas/centros; totales idénticos antes/después |
 | 4 | Fichas, materiales, documentos y filtros coherentes | Fotos plegadas, carga diferida, Escape/foco, búsqueda y retorno conservados |
-| 5 | Acabado global y adaptación a pantallas | Temas claro/oscuro; anchos 1440, 1920, 768 y 390; nombres y descripciones largos |
+| 5 | Acabado global para PC | Claro/oscuro; 1280 × 720 como base, 1366 × 768 y 1920 × 1080; nombres y descripciones largos |
 
 Cada fase debe quedar revisable por separado y comprobarse en claro y oscuro;
 la fase 5 amplía esa comprobación, no la pospone. Crear componentes compartidos
@@ -258,11 +258,25 @@ Validación visual local con RPS: Pendientes de OT (autor y tiempos coincidentes
 Historial de Diseño (José Luis Carrón, 16 min de Diseño y 29 min de Taller;
 personas solo en Diseño), documentos plegados en ambas fichas. Claro a 390 y
 1440 px; oscuro a 768 px y ficha a 1440 px. El recorrido de Pendientes aún se
-comprime en móvil; requiere una adaptación propia. No se ha certificado el
+comprime en móvil; esa adaptación queda fuera del alcance acordado posteriormente. No se ha certificado el
 contraste ni se ha provocado una caída de red en navegador para probar Reintentar.
 983 tests correctos; lint, tipos y compilación correctos. Se conserva el aviso
 previo de Turbopack sobre el trazado de archivos en la ruta de documentos.
 
-Pendiente del plan: recorrido/tabla de Pendientes en móvil, marco común de fichas,
+Pendiente del plan: marco común de fichas,
 materiales y ventanas pequeñas, filtros y conservación del contexto, revisión de
 contraste y teclado de todas las pantallas. Esta entrega no completa esas fases.
+
+## Alcance corregido por Iván — PC, desde 720p
+
+No se utiliza móvil. Se retira su adaptación del plan. Prioridad: 1280 × 720
+y superiores en claro y oscuro, incluyendo la menor altura útil que deja el
+navegador. Conservar listas compactas, pestañas, filtros y texto legible.
+En fichas de poca altura se reduce el espacio entre bloques y en cabecera/pie,
+sin encoger fuentes ni controles. Las acciones y el cierre permanecen accesibles.
+
+Comprobado en navegador local con RPS: Pendientes y ficha de tres OF en claro a
+1280 × 720; Historial y ficha en oscuro a 1280 × 630 (altura útil del navegador).
+Cabecera y filtros caben sin solaparse. En el pedido de prueba la primera OF
+sube unos 60 px; el cierre conserva su espacio y el contenido desplaza por dentro.
+Tipos y lint correctos. Cambio de espaciado; no cambian reglas ni cálculos.
