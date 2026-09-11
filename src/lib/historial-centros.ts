@@ -17,6 +17,20 @@ export interface HistorialCentro {
   ofs: HistorialOF[];
 }
 
+/** Qué centros enseñan el desglose por persona.
+ *
+ *  El de la sección consultada; si el pedido no tiene nada de ella (un pedido
+ *  «Solo Taller» visto desde OT), los que sí tienen trabajo. Es la misma regla
+ *  que la fila de la lista: si la fila enseña a la gente de Taller, la ficha no
+ *  puede enseñar solo el total. */
+export function centrosConDesglose(
+  ofs: readonly HistorialOF[],
+  seccion: SeccionId,
+): ReadonlySet<CentroHistorialId> {
+  const centros = new Set(ofs.map((of) => of.centro ?? "ot"));
+  return centros.has(seccion) ? new Set([seccion]) : centros;
+}
+
 /** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
 export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
   return [

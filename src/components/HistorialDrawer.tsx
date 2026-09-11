@@ -8,7 +8,7 @@ import type {
 } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
-import { personasDeOF, repartirMateriales } from "@/lib/historial";
+import { personasDeOF, personasDeOFs, repartirMateriales } from "@/lib/historial";
 import { fmtMin } from "@/lib/estado";
 import {
   BloqueFicha,
@@ -25,7 +25,7 @@ import { DocumentosPedido } from "./DocumentosPedido";
 import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
-import { agruparCentros } from "@/lib/historial-centros";
+import { agruparCentros, centrosConDesglose } from "@/lib/historial-centros";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import {
   BOTON_DETALLE,
@@ -308,23 +308,30 @@ export function HistorialDrawer({
 
 /** El centro decide qué minutos se suman; la selección decide el desglose visible. */
 export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+  // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
+  // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
+  // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
+  const conDesglose = centrosConDesglose(ofs, seccion);
   return (
     <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">Trabajo por centro</h3>
       {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
         const seleccionado = centro.id === seccion;
+        const desglose = conDesglose.has(centro.id);
+        const personas = desglose ? personasDeOFs(centro.ofs) : [];
+        const porOF = desglose && centro.ofs.length > 1;
         return (
-          <details key={centro.id} open={seleccionado} className="rounded-xl border border-border bg-surface-2/40">
+          <details key={centro.id} open={seleccionado || desglose} className="rounded-xl border border-border bg-surface-2/40">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
               {centro.nombre}
               <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>
             </summary>
             <div className="space-y-3 px-3 pb-3">
-              {seleccionado && centro.personas.length > 0 && (
+              {personas.length > 0 && (
                 <div>
-                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona · RPS</p>
+                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
                   <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
-                    {centro.personas.map((persona) => (
+                    {personas.map((persona) => (
                       <li key={persona.nombre} className="flex justify-between gap-3">
                         <span>{persona.nombre}</span>
                         <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
@@ -346,7 +353,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
-                      {seleccionado && <PersonasOF of={of} />}
+                      {porOF && <PersonasOF of={of} />}
                       <Materiales of={of} />
                     </li>
                   ))}

@@ -1,6 +1,7 @@
 import type { HistorialOF } from "@/lib/historial";
 import { personasDeOF } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
+import { centrosConDesglose } from "@/lib/historial-centros";
 import { fmtMin } from "@/lib/estado";
 
 const CENTROS = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
@@ -18,11 +19,15 @@ export function HistorialOFsCompactas({ ofs, seccion }: { ofs: HistorialOF[]; se
     porCodigo.set(of.codigo, centros);
   }
   if (!ofs.length) return <p className="py-1 text-xs text-text-muted">Sin OF vinculadas al pedido en RPS.</p>;
+  // Las personas por OF solo con varias OF: con una, ya están en la fila del
+  // pedido, justo encima. Del centro que cuenta (ver `centrosConDesglose`).
+  const conDesglose = centrosConDesglose(ofs, seccion);
+  const variasOF = porCodigo.size > 1;
   return (
     <ul className="space-y-1.5">
       {[...porCodigo].map(([codigo, centros]) => {
-        const deSeccion = centros.find((of) => (of.centro ?? "ot") === seccion);
-        const personas = deSeccion ? personasDeOF(deSeccion) : [];
+        const deDesglose = variasOF ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
+        const personas = deDesglose ? personasDeOF(deDesglose) : [];
         const descripcion = centros[0].descripcion;
         return (
           <li key={codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

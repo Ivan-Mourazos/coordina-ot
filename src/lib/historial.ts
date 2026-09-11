@@ -457,6 +457,17 @@ export function personasDeOF(of: Pick<HistorialOF, "personas" | "rol">): Reparto
     .sort(porMinutos);
 }
 
+/** Lo mismo para varias OF juntas (un centro de la ficha): suma por persona.
+ *  Cada OF aporta según `personasDeOF`; sumar entre OF distintas es sumar
+ *  trabajos distintos, no las dos fuentes del mismo. */
+export function personasDeOFs(ofs: readonly Pick<HistorialOF, "personas" | "rol">[]): RepartoRol[] {
+  const suma = new Map<string, number>();
+  for (const of of ofs) {
+    for (const p of personasDeOF(of)) suma.set(p.nombre, (suma.get(p.nombre) ?? 0) + p.min);
+  }
+  return [...suma].map(([nombre, min]) => ({ nombre, min })).sort(porMinutos);
+}
+
 export interface TrabajoPedido {
   minutos: number;
   /** Quién echó esos minutos, con los suyos, de más a menos. */

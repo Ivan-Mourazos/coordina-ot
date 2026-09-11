@@ -33,7 +33,9 @@ test("documentos plegados y todas las fotos juntas, antes del planteamiento", ()
 
 test("el desglose conserva tareas, totales y personas de la sección sin sumar dos veces", () => {
   const base = { orden: "0231922", descripcion: "Lona", centro: "ot" as const, tarea: "1", descripcionTarea: "Plantear", empleado: "Iván Sánchez", minutos: 7 };
+  // Dos tareas de OT con tiempo: ahí sí dice algo quién echó cada una.
   const ofs = agruparTiemposPorCentro([base, { ...base, empleado: "Jaime Vázquez", minutos: 3 },
+    { ...base, tarea: "2", descripcionTarea: "Preparar archivo", empleado: "Jaime Vázquez", minutos: 4 },
     { ...base, tarea: "5", centro: "taller", descripcionTarea: "Confeccionar", empleado: "Silvia López", minutos: 34 }], (n) => n);
   expect(ofs[0].tareas![0].tiempoImputadoMin).toBe(10);
   expect(ofs[0].tareas![0].personas).toHaveLength(2);
@@ -44,4 +46,14 @@ test("el desglose conserva tareas, totales y personas de la sección sin sumar d
   expect(html).toContain("Iván Sánchez");
   expect(html).toContain("Jaime Vázquez");
   expect(html).not.toContain("Silvia López");
+});
+
+test("con una sola tarea de la sección, «Tareas y tiempos» no repite a las personas", () => {
+  // Son las mismas que la ficha ya enseña para esa OF o su centro.
+  const base = { orden: "0231922", descripcion: "Lona", centro: "ot" as const, tarea: "1", descripcionTarea: "Plantear", empleado: "Iván Sánchez", minutos: 7 };
+  const ofs = agruparTiemposPorCentro([base, { ...base, empleado: "Jaime Vázquez", minutos: 3 }], (n) => n);
+  const html = renderToStaticMarkup(createElement(HistorialTareas, { ofs, seccion: "ot" }));
+  expect(html).toContain("Plantear");
+  expect(html).toContain("10m");
+  expect(html).not.toContain("Iván Sánchez");
 });
