@@ -5,6 +5,8 @@ import { comprasPendientes, estadoMaterial } from "@/lib/types";
 import {
   BOTON_DETALLE,
   CabeceraVentana,
+  LINEA,
+  LISTA,
   VentanaAnclada,
   useVentanaAnclada,
 } from "./VentanaAnclada";
@@ -83,13 +85,13 @@ function DetalleMaterial({
             }
             claseNota="text-teal-700 dark:text-teal-300"
           />
-          <ul className="space-y-1">
+          <ul className={LISTA}>
             {materiales.map((m, i) => {
               const estado = estadoMaterial(m);
               return (
                 <li
                   key={`${m.descripcion}-${i}`}
-                  className="flex items-start justify-between gap-2"
+                  className={`${LINEA} flex items-start justify-between gap-2`}
                 >
                   <span className="min-w-0 text-text">
                     {m.descripcion}
@@ -133,13 +135,13 @@ function DetalleMaterial({
             cuantos={compras.length}
             separada={materiales.length > 0}
           />
-          <ul className="space-y-1">
+          <ul className={LISTA}>
             {compras.map((c, i) => {
               const estado = estadoCompra(c, hoy);
               return (
                 <li
                   key={`${c.articulo}-${i}`}
-                  className="flex items-start justify-between gap-2"
+                  className={`${LINEA} flex items-start justify-between gap-2`}
                 >
                   <span className="min-w-0 text-text">
                     {c.articulo}

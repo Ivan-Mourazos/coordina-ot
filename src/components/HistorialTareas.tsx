@@ -14,7 +14,7 @@ export function HistorialTareas({ ofs, seccion }: { ofs: HistorialOF[]; seccion:
       <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id} className="mb-2 rounded-md border border-border px-2 py-1 text-xs font-semibold text-text hover:bg-surface-2">Tareas y tiempos</button>
       <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
         onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
-        className="m-auto max-h-[75vh] w-[min(680px,92vw)] overflow-y-auto rounded-xl border border-border bg-surface p-4 text-text shadow-xl backdrop:bg-black/30">
+        className="ventana-3d scroll-thin m-auto max-h-[75vh] w-[min(680px,92vw)] overflow-y-auto rounded-xl p-4 text-text backdrop:bg-black/30">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold">Tareas y tiempos del pedido</h3>
           <button type="button" popoverTarget={id} popoverTargetAction="hide" className="rounded px-2 py-1 text-xs hover:bg-surface-2">Cerrar</button>

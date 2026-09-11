@@ -456,6 +456,30 @@ body {
   }
 }
 
+/* Ventanitas que cuelgan de un botón de la ficha (material, notas de
+   Producción, tareas y tiempos). Mismo cuerpo que las fichas de las OF sobre
+   las que se abren: canto de luz arriba, canto inferior y sombra que la
+   despega del panel. Opaca: tapa texto y tiene que leerse sin lo de detrás. */
+.ventana-3d {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 60%, transparent), transparent 40%),
+    var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 3px 0 -1px color-mix(in srgb, var(--border-strong) 70%, transparent),
+    0 18px 40px -14px var(--glass-shadow);
+  animation: pop-in 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transform-origin: top;
+}
+.dark .ventana-3d {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 0 -1px rgba(0, 0, 0, 0.55),
+    0 20px 44px -14px rgba(0, 0, 0, 0.8);
+}
+
 /* Drawer de detalle: overlay + panel entrando desde la derecha */
 .overlay-in {
   animation: overlay-in 160ms ease-out;
@@ -578,6 +602,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .quicklook,
   .glass-pop,
+  .ventana-3d,
   .overlay-in,
   .drawer-in,
   .pedido-chip-3d,

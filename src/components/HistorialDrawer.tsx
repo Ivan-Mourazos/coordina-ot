@@ -19,7 +19,14 @@ import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { agruparCentros } from "@/lib/historial-centros";
 import { SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
-import { BOTON_DETALLE, CabeceraVentana, VentanaAnclada, useVentanaAnclada } from "./VentanaAnclada";
+import {
+  BOTON_DETALLE,
+  CabeceraVentana,
+  LINEA,
+  LISTA,
+  VentanaAnclada,
+  useVentanaAnclada,
+} from "./VentanaAnclada";
 
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
@@ -616,13 +623,13 @@ function MaterialHistorico({
             claseNota={conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}
             tituloNota="La reserva se borra al consumir el material: que hoy no quede ninguna no quiere decir que no se reservara."
           />
-          <ul className="space-y-1">
+          <ul className={LISTA}>
             {/* Lo reservado primero. La clave lleva el índice porque el texto
                 puede repetirse: una misma OF puede apuntar dos veces la misma
                 lona en cantidades distintas (la 0230706 lleva la misma "LONA
                 PLASTEL …" con 72,6 y con 2,4). */}
             {[...reservados, ...resto].map((m, i) => (
-              <li key={`${i}-${m.texto}`} className="text-text">
+              <li key={`${i}-${m.texto}`} className={`${LINEA} text-text`}>
                 {m.texto}
                 {m.apartado && (
                   <span className="block text-[10px] text-teal-700 dark:text-teal-300">

@@ -16,6 +16,13 @@ import { useCapaEscape } from "@/lib/useCapaEscape";
 // y scroll propio. Se cierra con su botón, con un clic fuera, con Escape (solo
 // ella: la ficha sigue abierta) o al mover lo que hay detrás.
 
+/** Lista de artículos con una raya fina entre uno y otro: sin ella, siete
+ *  descripciones largas de RPS seguidas se leían como un solo párrafo y no se
+ *  sabía dónde acababa cada una. `--border` y no el canto de cristal, que sobre
+ *  el fondo blanco de la ventana no se ve. */
+export const LISTA = "divide-y divide-border";
+export const LINEA = "py-1.5 first:pt-0 last:pb-0";
+
 /** Clases del botón que la abre, las mismas en las dos fichas. */
 export const BOTON_DETALLE =
   "chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold";
@@ -104,8 +111,8 @@ export function VentanaAnclada({
       // Ver Select.tsx: marca de portal para que los paneles flotantes no lo
       // tomen por un clic fuera y se cierren solos.
       data-en-portal=""
-      className="glass-pop scroll-thin fixed z-[70] overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
-      style={{ ...sitio, maxHeight: alto, background: "var(--surface)" }}
+      className="ventana-3d scroll-thin fixed z-[70] overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
+      style={{ ...sitio, maxHeight: alto }}
     >
       {children}
     </div>,
