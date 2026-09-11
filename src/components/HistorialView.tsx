@@ -59,9 +59,9 @@ const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
  *  Dos literales enteros y no uno construido: Tailwind solo compila las
  *  clases que ve escritas. */
 const COLUMNAS_POR_DIA =
-  "grid grid-cols-[28px_104px_minmax(0,1fr)_40px_112px_minmax(150px,24%)_64px] items-center gap-x-3";
+  "grid grid-cols-[28px_104px_40px_minmax(0,1fr)_112px_minmax(150px,24%)_64px] items-center gap-x-3";
 const COLUMNAS_BUSCANDO =
-  "grid grid-cols-[28px_104px_minmax(0,1fr)_40px_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
+  "grid grid-cols-[28px_104px_40px_minmax(0,1fr)_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
 
 export function HistorialView({
   operarios = [],
@@ -320,7 +320,7 @@ export function HistorialView({
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {itemsVisibles.length > 0 && (
           <div aria-hidden="true" className={`${columnas} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
-            <span /><span>Pedido</span><span>Cliente</span><span className="text-center">OF</span><span>Familia</span><span>Quién</span>
+            <span /><span>Pedido</span><span>OF</span><span>Cliente</span><span>Familia</span><span>Quién</span>
             <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
             {buscando && <span>Fecha</span>}
           </div>
@@ -479,6 +479,14 @@ function FilaHistorial({
         <div className="pointer-events-none min-w-0">
           <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
         </div>
+        {/* Pegado al código, que es a lo que califica ("este pedido, de 2
+            OF"). Solo cuando son varias: "1 OF" en casi todas era ruido. */}
+        <span
+          className="pointer-events-none text-[11px] font-medium text-text-muted"
+          title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}
+        >
+          {item.nOf > 1 ? `${item.nOf} OF` : ""}
+        </span>
         <span
           className={`pointer-events-none min-w-0 truncate text-[11px] ${deOtroCentro ? "text-text-muted" : "text-text"}`}
           title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}
@@ -486,13 +494,6 @@ function FilaHistorial({
           {item.cliente ?? "—"}
           {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
           {item.estadoActual && <span className="font-semibold text-amber-700 dark:text-amber-300"> · {item.estadoActual}</span>}
-        </span>
-        {/* Solo cuando son varias: "1 OF" en casi todas las filas era ruido. */}
-        <span
-          className="pointer-events-none text-center text-[11px] font-medium text-text-muted"
-          title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}
-        >
-          {item.nOf > 1 ? `${item.nOf} OF` : ""}
         </span>
         <span className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden" title={familias.join(", ")}>
           {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
