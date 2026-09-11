@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { nombreHistorial } from "../nombre-historial";
 import { DocumentosRps } from "../../components/DocumentosRps";
 import { HistorialTareas } from "../../components/HistorialTareas";
-import { agruparTiemposPorCentro } from "../historial-centros";
+import { agruparTiemposPorCentro, type FilaTiempoCentro } from "../historial-centros";
 
 test("nombres y primer apellido, sin códigos y conservando nombres compuestos", () => {
   expect(nombreHistorial("SÁNCHEZ MERA, JOSÉ MANUEL")).toBe("José Manuel Sánchez");
@@ -39,8 +39,9 @@ test("el desglose conserva tareas, totales y personas de la sección sin sumar d
     { ...base, tarea: "5", centro: "taller", descripcionTarea: "Confeccionar", empleado: "Silvia López", minutos: 34 }], (n) => n);
   expect(ofs[0].tareas![0].tiempoImputadoMin).toBe(10);
   expect(ofs[0].tareas![0].personas).toHaveLength(2);
-  const html = renderToStaticMarkup(createElement(HistorialTareas, { ofs, seccion: "ot" }));
+  const html = renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs, seccion: "ot" }));
   expect(html).toContain("Tareas y tiempos");
+  expect(html).toContain("AR.26.04489");
   expect(html).toContain("Confeccionar");
   expect(html).toContain("34m");
   expect(html).toContain("Iván Sánchez");
@@ -48,12 +49,29 @@ test("el desglose conserva tareas, totales y personas de la sección sin sumar d
   expect(html).not.toContain("Silvia López");
 });
 
-test("con una sola tarea de la sección, «Tareas y tiempos» no repite a las personas", () => {
-  // Son las mismas que la ficha ya enseña para esa OF o su centro.
-  const base = { orden: "0231922", descripcion: "Lona", centro: "ot" as const, tarea: "1", descripcionTarea: "Plantear", empleado: "Iván Sánchez", minutos: 7 };
-  const ofs = agruparTiemposPorCentro([base, { ...base, empleado: "Jaime Vázquez", minutos: 3 }], (n) => n);
-  const html = renderToStaticMarkup(createElement(HistorialTareas, { ofs, seccion: "ot" }));
-  expect(html).toContain("Plantear");
-  expect(html).toContain("10m");
-  expect(html).not.toContain("Iván Sánchez");
+const tarea: FilaTiempoCentro = { orden: "0232086", descripcion: "CAMBIO DE TELA", centro: "ot", tarea: "02", descripcionTarea: "Plantear", empleado: "Adrián Quinteiro", minutos: 2 };
+const pinta = (filas: FilaTiempoCentro[], seccion: "ot" | "diseno" = "ot") =>
+  renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs: agruparTiemposPorCentro(filas, (n) => n), seccion }));
+
+test("con una sola tarea, quién la echó sale en su misma línea, de más a menos", () => {
+  // Es el sitio del detalle: no hay que ir a la ficha a buscarlo.
+  const html = pinta([tarea, { ...tarea, empleado: "Iván Sánchez", minutos: 5 }]);
+  expect(html).toContain("Iván Sánchez 5m · Adrián Quinteiro 2m");
+  expect(html).toContain("7m");
+  expect(html).not.toContain("si no, está en la ficha");
+});
+
+test("los centros sin tiempo van plegados en una línea, y la sección consultada primero", () => {
+  const filas = [
+    { ...tarea, centro: "taller" as const, tarea: "04", descripcionTarea: "Imprimir", empleado: "", minutos: 0 },
+    { ...tarea, centro: "taller" as const, tarea: "09", descripcionTarea: "Cortar paños", empleado: "", minutos: 0 },
+    { ...tarea, centro: "diseno" as const, tarea: "03", descripcionTarea: "Impresión digital", empleado: "Carrón", minutos: 12 },
+    tarea,
+  ];
+  const html = pinta(filas);
+  expect(html).toContain("Sin tiempo echado: Taller (2 tareas)");
+  expect(html.indexOf("<details")).toBeLessThan(html.indexOf("Imprimir"));
+  expect(html.indexOf("Oficina Técnica")).toBeLessThan(html.indexOf("Diseño Gráfico"));
+  const diseno = pinta(filas, "diseno");
+  expect(diseno.indexOf("Diseño Gráfico")).toBeLessThan(diseno.indexOf("Oficina Técnica"));
 });

@@ -1,7 +1,7 @@
 import type { HistorialOF } from "@/lib/historial";
 import { personasDeOF } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
-import { centrosConDesglose } from "@/lib/historial-centros";
+import { centrosConDesglose, rangoCentro } from "@/lib/historial-centros";
 import { fmtMin } from "@/lib/estado";
 
 const CENTROS = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
@@ -29,15 +29,20 @@ export function HistorialOFsCompactas({ ofs, seccion }: { ofs: HistorialOF[]; se
         const deDesglose = variasOF ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
         const personas = deDesglose ? personasDeOF(deDesglose) : [];
         const descripcion = centros[0].descripcion;
+        // Solo los centros con tiempo, la sección consultada primero: «Diseño ·
+        // 0m» no dice nada y empujaba lo que importa.
+        const conTiempo = centros
+          .filter((of) => of.tiempoImputadoMin > 0)
+          .sort((a, b) => rangoCentro(a.centro ?? "ot", seccion) - rangoCentro(b.centro ?? "ot", seccion));
         return (
           <li key={codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             <span className="font-mono font-semibold text-text">{codigo}</span>
             <span className="min-w-0 flex-1 truncate text-text-muted" title={descripcion}>{descripcion}</span>
-            {centros.map((of) => (
+            {conTiempo.length ? conTiempo.map((of) => (
               <span key={of.centro ?? "ot"} title="Tiempo imputado en RPS en este centro" className="rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border">
                 {CENTROS[of.centro ?? "ot"]} · {fmtMin(of.tiempoImputadoMin)}
               </span>
-            ))}
+            )) : <span className="text-text-muted">Sin tiempo</span>}
             {personas.length > 0 && (
               <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
                 {personas.map((p, i) => (

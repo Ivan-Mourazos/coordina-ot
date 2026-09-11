@@ -30,12 +30,26 @@ test("una OF compartida ocupa una sola fila y separa los tiempos sin mostrar per
   expect(html).toContain("OT · 7m");
   expect(html).toContain("Diseño · 12m");
   expect(html).toContain("Taller · 34m");
-  expect(html).toContain("Taller · 0m");
   expect(html).toContain("Iván");
   expect(html).not.toContain("Carrón");
   const diseno = pinta(ofs, "diseno");
   expect(diseno).toContain("Carrón");
   expect(diseno).not.toContain("Iván");
+});
+
+test("solo salen los centros con tiempo, con la sección consultada delante", () => {
+  const ofs: HistorialOF[] = [
+    { ...taller, centro: "diseno", tiempoImputadoMin: 0 },
+    { ...taller, centro: "ot", tiempoImputadoMin: 4 },
+    taller,
+    { ...taller, codigo: "0231923", tiempoImputadoMin: 0 },
+  ];
+  const html = pinta(ofs);
+  expect(html).not.toContain("0m");
+  expect(html.indexOf("OT · 4m")).toBeLessThan(html.indexOf("Taller · 34m"));
+  expect(html).toContain("Sin tiempo");
+  const diseno = pinta([{ ...taller, centro: "ot", tiempoImputadoMin: 4 }, { ...taller, centro: "diseno", tiempoImputadoMin: 9 }], "diseno");
+  expect(diseno.indexOf("Diseño · 9m")).toBeLessThan(diseno.indexOf("OT · 4m"));
 });
 
 // Con varias OF, cada una dice quién la hizo: es información que la fila del

@@ -298,7 +298,7 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialTareas ofs={detalle.ofs} seccion={seccion} />
+              <HistorialTareas pedido={pedido} ofs={detalle.ofs} seccion={seccion} />
               <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
             </>
           )}

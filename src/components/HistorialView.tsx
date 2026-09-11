@@ -529,7 +529,13 @@ function FilaHistorial({
         <div className="border-t border-border px-4 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {ofs && <><HistorialTareas ofs={ofs} seccion={seccion} /><HistorialOFsCompactas ofs={ofs} seccion={seccion} /></>}
+          {/* El botón a la derecha de las OF, y no en una línea para él solo. */}
+          {ofs && (
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1"><HistorialOFsCompactas ofs={ofs} seccion={seccion} /></div>
+              <HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="" />
+            </div>
+          )}
         </div>
       </Desplegable>
       </div>

@@ -31,6 +31,13 @@ export function centrosConDesglose(
   return centros.has(seccion) ? new Set([seccion]) : centros;
 }
 
+const ORDEN_CENTROS: readonly CentroHistorialId[] = ["ot", "diseno", "taller"];
+
+/** Para ordenar: la sección consultada primero; los demás, en el orden de siempre. */
+export function rangoCentro(centro: CentroHistorialId, seccion: SeccionId): number {
+  return centro === seccion ? -1 : ORDEN_CENTROS.indexOf(centro);
+}
+
 /** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
 export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
   return [
