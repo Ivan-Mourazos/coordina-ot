@@ -1,8 +1,13 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "138aa46",
+    "hasta": "9187d93",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Si te devuelven varias OF de un pedido, puedes darlas por corregidas todas a la vez",
+        "detalle": "Sale en la ficha del pedido cuando hay dos o más; cada OF sigue teniendo su botón por si solo quieres una."
+      },
       {
         "tipo": "arreglado",
         "titulo": "Una OF aprobada podía dar a entender que todo el pedido estaba listo",
