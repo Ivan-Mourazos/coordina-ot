@@ -15,7 +15,7 @@ import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
-import { HistorialView } from "./HistorialView";
+import { HistorialView, FILTROS_HISTORIAL_INICIALES, type FiltrosHistorial } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
@@ -462,6 +462,8 @@ export function Board({
   const closeExpanded = useCallback(() => setExpandedId(null), []);
 
   const [vista, setVista] = useState<Vista>(() => vistaDeUrl() ?? "asignar");
+  // Cada sección conserva su consulta al salir de Historial y regresar.
+  const [filtrosHistorial, setFiltrosHistorial] = useState<Partial<Record<SeccionId, FiltrosHistorial>>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   // Cómo se reparte la bandeja en filas. NO es un filtro y por eso no vive con
   // ellos: el desplegable se llamaba "Orden" pero lo que hace es agrupar, y
@@ -2368,6 +2370,8 @@ export function Board({
         {vista === "historial" && (
           <div className="p-5">
             <HistorialView
+              filtros={filtrosHistorial[seccionActual] ?? FILTROS_HISTORIAL_INICIALES}
+              onFiltros={(cambio) => setFiltrosHistorial((prev) => ({ ...prev, [seccionActual]: { ...(prev[seccionActual] ?? FILTROS_HISTORIAL_INICIALES), ...cambio } }))}
               seccion={seccionActual}
               operarios={operarios}
               miId={miId}

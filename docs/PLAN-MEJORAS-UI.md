@@ -280,3 +280,22 @@ Comprobado en navegador local con RPS: Pendientes y ficha de tres OF en claro a
 Cabecera y filtros caben sin solaparse. En el pedido de prueba la primera OF
 sube unos 60 px; el cierre conserva su espacio y el contenido desplaza por dentro.
 Tipos y lint correctos. Cambio de espaciado; no cambian reglas ni cálculos.
+
+## Continuación: filtros del Historial y Escape en Materiales
+
+- Los filtros del Historial viven en el tablero, separados por sección, y
+  sobreviven a salir de la pestaña. Se vuelven a consultar los resultados al
+  regresar; todavía no se conservan las páginas cargadas ni el desplazamiento.
+- «Vaciar la búsqueda» quita solo el texto; «Limpiar filtros» borra el conjunto.
+- Escape en Materiales cierra únicamente esa ventana y devuelve el foco al
+  botón que la abrió; otra pulsación puede cerrar la ficha.
+- Comprobado en navegador: ida y vuelta Pendientes/Historial con «enrollable» y
+  familia Puerta; vaciado del texto sin perder la familia. Fecha comparte el
+  estado conservado, pero la automatización de su control nativo no confirmó
+  la edición y no se cuenta como prueba visual superada.
+- Probado Escape en AR.26.04082: primero desaparece Materiales con la ficha
+  abierta y el foco en su botón; segundo Escape cierra la ficha.
+
+Siguen pendientes: conservación de páginas/posición, filtros de otras pestañas,
+marco común de fichas, resto de ventanas, vocabulario de materiales y revisión
+completa de contraste/teclado. Estas comprobaciones no completan todo el plan.

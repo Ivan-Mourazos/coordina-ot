@@ -335,6 +335,11 @@ PC desde 1280 × 720, claro y oscuro. Fichas con espaciado compacto para poca
 altura; después, materiales, filtros y contraste. Detalles y límites en el plan.
 No se ha desplegado esta segunda entrega.
 
+Continuación: el Historial conserva sus filtros por sección al cambiar de
+pestaña; permite vaciar solo la búsqueda. Materiales cierra con Escape sin
+cerrar la ficha y devuelve el foco a su botón. Probado en navegador. Aún falta
+conservar páginas/posición y completar el resto del plan de coherencia visual.
+
 ---
 
 ## Avisos de método, que costaron caro

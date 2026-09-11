@@ -31,10 +31,15 @@ function fmtFecha(iso: string): { corta: string; completa: string } {
 }
 
 /** La API incorpora los pasos locales antes del cierre en RPS y antes de paginar. */
+export type FiltrosHistorial = { q: string; desde: string; hasta: string; familia: string | null };
+export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = { q: "", desde: "", hasta: "", familia: null };
+
 export function HistorialView({
   operarios = [],
   miId = null,
   seccion = SECCION_POR_DEFECTO,
+  filtros,
+  onFiltros,
 }: {
   /** Solo para el hilo de notas del drawer: sin ellos las notas saldrían con el
    *  id crudo ("jaime") en vez del nombre y su color. */
@@ -42,7 +47,9 @@ export function HistorialView({
   /** Quién soy: finalizar una fase en RPS se firma con mi código de operario. */
   miId?: string | null;
   seccion?: SeccionId;
-} = {}) {
+  filtros: FiltrosHistorial;
+  onFiltros: (cambio: Partial<FiltrosHistorial>) => void;
+}) {
   const [items, setItems] = useState<HistorialItem[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -52,10 +59,11 @@ export function HistorialView({
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
 
   // Filtros (se aplican reiniciando desde la página 0).
-  const [q, setQ] = useState("");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
-  const [familia, setFamilia] = useState<string | null>(null);
+  const { q, desde, hasta, familia } = filtros;
+  const setQ = (q: string) => onFiltros({ q });
+  const setDesde = (desde: string) => onFiltros({ desde });
+  const setHasta = (hasta: string) => onFiltros({ hasta });
+  const setFamilia = (familia: string | null) => onFiltros({ familia });
 
   // Clave de filtros: al cambiar, se reinicia la lista.
   const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}`;
@@ -131,15 +139,24 @@ export function HistorialView({
           Ahora la barra es una sola fila con los mismos controles que Pendientes
           y Revisiones, y dice lo que está recortando. */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
-        <label className="flex min-w-60 flex-1 flex-col text-xs text-text-muted">
-          Buscar en el Historial
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Pedido, OF, cliente o descripción…"
-            className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-1 text-sm text-text"
-          />
-        </label>
+        <div className="flex min-w-60 flex-1 flex-col text-xs text-text-muted">
+          <label htmlFor="buscar-historial">Buscar en el Historial</label>
+          <span className="relative mt-1">
+            <input
+              id="buscar-historial"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Pedido, OF, cliente o descripción…"
+              className="w-full rounded-lg border border-border bg-surface py-1 pl-2 pr-8 text-sm text-text"
+            />
+            {q && (
+              <button type="button" aria-label="Vaciar la búsqueda del Historial" onClick={() => setQ("")}
+                className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded text-text-muted hover:bg-surface-2">
+                ✕
+              </button>
+            )}
+          </span>
+        </div>
         <label className="flex flex-col text-xs text-text-muted">
           Familia
           <span className="mt-1">
@@ -193,14 +210,11 @@ export function HistorialView({
         {hayFiltros && (
           <button
             onClick={() => {
-              setQ("");
-              setDesde("");
-              setHasta("");
-              setFamilia(null);
+              onFiltros(FILTROS_HISTORIAL_INICIALES);
             }}
             className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
           >
-            Limpiar
+            Limpiar filtros
           </button>
         )}
       </div>
