@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "0f3c319",
+    "hasta": "a2fbc8a",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -22,6 +22,20 @@
         "tipo": "arreglado",
         "titulo": "Escape en Materiales ya no cierra también el pedido",
         "detalle": "Primero cierra los materiales y vuelve a su botón. Pulsa Escape otra vez para cerrar la ficha."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Escape ya no cierra la ficha entera cuando tienes algo abierto encima",
+        "detalle": "Cierra primero lo último que abriste (un desplegable, la confirmación, el visor de documentos o la nota que escribes). Otra pulsación cierra la ficha."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La campana ya no avisa de partes re-escaneados en pedidos detenidos",
+        "detalle": "Si Producción lo tiene parado no hay nada que hacer. Cuando lo liberen, el aviso sale si nadie lo había visto."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Diseño, la ficha ya no dice «Oficina Técnica» cuando el pedido no tiene trabajo vuestro"
       },
       {
         "tipo": "mejor",
@@ -57,6 +71,21 @@
         "tipo": "mejor",
         "titulo": "El Historial recuerda tus filtros al cambiar de pestaña",
         "detalle": "OT y Diseño conservan su propia búsqueda durante la sesión. Puedes vaciar solo el texto o limpiar todos los filtros."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El material se ve igual en Pendientes y en el Historial",
+        "detalle": "Mismo botón con la cantidad y la misma ventanita. En el Historial se marca el material que sigue reservado; si no queda reserva, lo dice sin dar a entender que nunca se reservó."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ventana del material separa cada artículo con una raya",
+        "detalle": "Y las ventanitas de la ficha (material, notas de Producción, tareas y tiempos) tienen el mismo relieve que las tarjetas de las OF."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Textos secundarios y botones de color se leen mejor, sobre todo en oscuro",
+        "detalle": "Fechas, rótulos y familias tenían poco contraste sobre los bloques de la ficha; los botones verdes y la prioridad Normal también."
       }
     ]
   },
