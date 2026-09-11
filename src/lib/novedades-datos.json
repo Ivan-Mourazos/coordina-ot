@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "9187d93",
+    "hasta": "8001857",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -101,6 +101,11 @@
         "tipo": "mejor",
         "titulo": "El Historial se lee en una línea por pedido, con el tiempo de la sección y quién lo revisó",
         "detalle": "Los pedidos sin trabajo de la sección llevan «Solo Taller» junto al nombre, y la fecha lleva año."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial, cada persona sale con su tiempo, de más a menos",
+        "detalle": "En vez de «autor» y «revisor», la lista, la ficha y «Tareas y tiempos» enseñan a quién echó horas y cuántas. Así ya no parece que falte o sobre gente."
       }
     ]
   },
