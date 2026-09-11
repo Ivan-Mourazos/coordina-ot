@@ -27,6 +27,14 @@ export async function GET(req: Request) {
   try {
     const seccion = seccionDe(url.searchParams.get("seccion")).id;
     const tablero = await getTablero(seccion);
+    // La lista del Historial en memoria (ver historial-indice.ts): al momento
+    // si ya está; si no, se espera a que se construya —una vez, al arrancar— o
+    // se sigue con la consulta de siempre. Solo contra RPS, e importada aquí
+    // dentro para que con datos mock no entre `mssql` en el grafo.
+    if (process.env.DATASOURCE === "rps") {
+      const { asegurarIndice } = await import("@/lib/server/historial-indice");
+      await asegurarIndice();
+    }
     // Antes de paginar: quitar filas después deja huecos y un hasMore falso.
     // Incluso aprobadas siguen pendientes hasta que el autor pulse Pasar.
     const pendientes = tablero.pedidos.filter((p) => p.situacion !== "completado"

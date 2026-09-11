@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
-import type { Operario } from "@/lib/types";
+import type { Familia, Operario } from "@/lib/types";
 import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { agruparPorDia } from "@/lib/historial-dias";
 import { familiaMeta } from "@/lib/familia";
-import { FamiliaTag } from "./FamiliaTag";
+import { FamiliaIcon, FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
@@ -59,9 +59,9 @@ const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
  *  Dos literales enteros y no uno construido: Tailwind solo compila las
  *  clases que ve escritas. */
 const COLUMNAS_POR_DIA =
-  "grid grid-cols-[28px_104px_40px_minmax(0,1fr)_112px_minmax(150px,24%)_64px] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px] items-center gap-x-3";
 const COLUMNAS_BUSCANDO =
-  "grid grid-cols-[28px_104px_40px_minmax(0,1fr)_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
 
 export function HistorialView({
   operarios = [],
@@ -85,6 +85,7 @@ export function HistorialView({
   const [error, setError] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
+  const [familiasDisponibles, setFamiliasDisponibles] = useState<string[] | null>(null);
   // "Hoy" y "Ayer" de los separadores. Se fija al montar: leer el reloj en
   // cada render haría el componente impuro.
   const [hoy] = useState(() => new Date());
@@ -130,9 +131,12 @@ export function HistorialView({
         if (soloSeccion) params.set("soloSeccion", "1");
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
-        const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean };
+        const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] };
         if (seq !== reqSeq.current) return; // respuesta obsoleta: la ignoramos
         setItems((prev) => (reemplazar ? data.pedidos : [...prev, ...data.pedidos]));
+        // Las familias del panel presentes con los demás filtros (las da la
+        // lista en memoria). Sin ellas —la consulta de respaldo—, las de siempre.
+        if (reemplazar) setFamiliasDisponibles(data.familias ?? null);
         setHasMore(data.hasMore);
         setPage(pageAcargar);
         setClaveResultado(filtrosKey);
@@ -206,20 +210,14 @@ export function HistorialView({
               onChange={setFamilia}
               placeholder="Todas"
               etiquetaVaciar="Todas las familias"
-              options={FAMILIAS_FILTRABLES.map((fam) => {
-                const meta = familiaMeta(fam);
-                return {
-                  value: fam,
-                  label: meta.label ?? fam,
-                  icon: (
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: meta.color }}
-                      aria-hidden="true"
-                    />
-                  ),
-                };
-              })}
+              // Las mismas familias que el panel de Sin asignar, y solo las que
+              // hay con los demás filtros puestos. La elegida se conserva
+              // aunque ya no esté, para poder quitarla.
+              options={[...new Set([...(familiasDisponibles ?? FAMILIAS_FILTRABLES), ...(familia ? [familia] : [])])].map((fam) => ({
+                value: fam,
+                label: familiaMeta(fam as Familia).label ?? fam,
+                icon: <FamiliaIcon familia={fam as Familia} className="size-3.5" />,
+              }))}
             />
           </span>
         </label>
@@ -320,7 +318,7 @@ export function HistorialView({
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
         {itemsVisibles.length > 0 && (
           <div aria-hidden="true" className={`${columnas} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
-            <span /><span>Pedido</span><span>OF</span><span>Cliente</span><span>Familia</span><span>Quién</span>
+            <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Quién</span>
             <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
             {buscando && <span>Fecha</span>}
           </div>
@@ -476,17 +474,20 @@ function FilaHistorial({
         <span aria-hidden="true" className="pointer-events-none grid size-6 place-items-center text-text-muted">
           <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${desplegado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </span>
-        <div className="pointer-events-none min-w-0">
+        {/* El código y, pegado a él, cuántas OF si son varias ("este pedido,
+            de 2 OF"). En su propia columna, con "OF" en la cabecera, dejaba un
+            rótulo sobre un hueco vacío en casi todas las filas. */}
+        <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
           <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
+          {item.nOf > 1 && (
+            <span
+              className="shrink-0 text-[11px] font-medium text-text-muted"
+              title={`${item.nOf} órdenes de fabricación en todo el pedido`}
+            >
+              {item.nOf} OF
+            </span>
+          )}
         </div>
-        {/* Pegado al código, que es a lo que califica ("este pedido, de 2
-            OF"). Solo cuando son varias: "1 OF" en casi todas era ruido. */}
-        <span
-          className="pointer-events-none text-[11px] font-medium text-text-muted"
-          title={`${item.nOf} ${item.nOf === 1 ? "orden" : "órdenes"} de fabricación en todo el pedido`}
-        >
-          {item.nOf > 1 ? `${item.nOf} OF` : ""}
-        </span>
         <span
           className={`pointer-events-none min-w-0 truncate text-[11px] ${deOtroCentro ? "text-text-muted" : "text-text"}`}
           title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}

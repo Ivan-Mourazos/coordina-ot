@@ -1,4 +1,6 @@
 import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
+import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
+import { indiceSiListo } from "./historial-indice";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
 import { fotosDeVisita } from "./fotos-visita";
@@ -86,8 +88,14 @@ const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
 export async function leerHistorialPagina(
   f: HistorialFiltros,
-): Promise<{ pedidos: HistorialItem[]; hasMore: boolean }> {
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
   if (ES_MOCK) return paginaMock(f);
+
+  // Con la lista en memoria ya hecha (la construye la ruta o el arranque), se
+  // filtra ahí: sin los 3,8 s de recalcular toda la historia en cada página.
+  // Sin ella, la consulta de siempre.
+  const enMemoria = indiceSiListo();
+  if (enMemoria) return paginaDesdeIndice(enMemoria, f);
 
   const { clausulas, params } = construirFiltros(f);
   // Buscar antes de agregar el histórico. El cierre se exige también al buscar.
@@ -141,7 +149,44 @@ export async function leerHistorialPagina(
     DROP TABLE #CoordinaHistorialFinalizados;
   `);
 
-  const filas = r.recordset;
+  return completarPagina(r.recordset, f);
+}
+
+/** La página desde la lista en memoria (ver historial-indice.ts). Filtra,
+ *  ordena y pagina allí; el resto —personas, tiempos, familias de las 40
+ *  filas— es el mismo camino que la consulta SQL. */
+function paginaDesdeIndice(
+  indice: IndiceHistorial,
+  f: HistorialFiltros,
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
+  const seccion = seccionDe(f.seccion).id;
+  const pasados = pasadosAt(seccion);
+  const { filas, familias } = filtrarIndice(indice, { ...f, seccion }, (pedido) => {
+    const paso = pasados.get(pedido);
+    const at = paso ? Date.parse(paso.at) : NaN;
+    return Number.isNaN(at) ? null : at;
+  });
+  const deIndice: FilaPagina[] = filas.map((b) => {
+    const info = indice.info.get(b.pedido);
+    return {
+      pedido: b.pedido,
+      finalizada: b.finalizada === null ? null : new Date(b.finalizada),
+      fecha_pedido: b.fechaPedido === null ? null : new Date(b.fechaPedido),
+      cliente: info?.cliente ?? null,
+      n_of: b.nOf,
+      negocio: info?.negocio ?? null,
+    };
+  });
+  return completarPagina(deIndice, f, familias);
+}
+
+/** Lo común a las dos formas de sacar la página: quién la pasó y, en una sola
+ *  consulta para las 40, personas, tiempos y familias. */
+async function completarPagina(
+  filas: FilaPagina[],
+  f: HistorialFiltros,
+  familiasDisponibles?: string[],
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
   const nombres = await nombresHistorial();
   const hasMore = filas.length > PAGE_SIZE;
   const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id, nombres));
@@ -162,7 +207,7 @@ export async function leerHistorialPagina(
       ...(suyos.trabajo?.otrosCentros ? { otrosCentros: suyos.trabajo.otrosCentros } : {}),
     };
   });
-  return { pedidos, hasMore };
+  return { pedidos, hasMore, ...(familiasDisponibles ? { familias: familiasDisponibles } : {}) };
 }
 
 /** Fila cruda del minutaje por pedido/orden/empleado (antes de agrupar). */

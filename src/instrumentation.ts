@@ -31,6 +31,11 @@ export async function register() {
   // Fire-and-forget dentro: register no debe retrasar el arranque 15 s.
   precalentarTablero();
 
+  // La lista del Historial en memoria (ver historial-indice.ts): ~14 s de RPS
+  // que se come el arranque y no el primero que abre el Historial.
+  const { precalentarHistorial } = await import("./lib/server/historial-indice");
+  precalentarHistorial();
+
   // Sincronización con OLANET. Arranca siempre: en modo sombra las vueltas no
   // hacen nada, así que activar el fichaje es cambiar una variable de entorno
   // y reiniciar, sin tocar código. PM2 corre UNA instancia en modo fork (ver
