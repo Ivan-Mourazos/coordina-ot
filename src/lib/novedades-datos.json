@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "8001857",
+    "hasta": "8417e70",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -106,6 +106,11 @@
         "tipo": "mejor",
         "titulo": "En el Historial, cada persona sale con su tiempo, de más a menos",
         "detalle": "En vez de «autor» y «revisor», la lista, la ficha y «Tareas y tiempos» enseñan a quién echó horas y cuántas. Así ya no parece que falte o sobre gente."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial ya no repite las mismas personas y tiempos en varios sitios",
+        "detalle": "Quién echó horas sale en la fila y en la ficha; el desglose por OF o por tarea solo aparece cuando hay varias."
       }
     ]
   },
