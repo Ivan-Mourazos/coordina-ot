@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "f0cef06",
+    "hasta": "126225b",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -42,6 +42,11 @@
         "tipo": "mejor",
         "titulo": "Puedes reintentar la carga de documentos y métricas con un botón",
         "detalle": "Si falla la consulta, pulsa Reintentar sin cerrar la ficha ni recargar la web."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fichas aprovechan mejor las pantallas de poca altura",
+        "detalle": "Hay menos espacio entre bloques para llegar antes a las OF, manteniendo el tamaño del texto, los botones y el cierre visible."
       }
     ]
   },
