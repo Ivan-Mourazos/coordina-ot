@@ -262,15 +262,21 @@ export function HistorialView({
             />
           </span>
         </div>
-        <label className="flex items-center gap-2 pb-1.5 text-xs text-text">
-          <input
-            type="checkbox"
-            checked={soloSeccion}
-            onChange={(e) => setSoloSeccion(e.target.checked)}
-            className="size-4 accent-brand-500"
-          />
+        {/* Un chip que se queda pulsado, como los filtros del tablero: la
+            casilla del navegador desentonaba con el resto de la barra. */}
+        <button
+          type="button"
+          onClick={() => setSoloSeccion(!soloSeccion)}
+          aria-pressed={soloSeccion}
+          title={`Deja fuera los pedidos sin trabajo de ${CENTRO_CORTO[seccion]}`}
+          className={`glass-chip self-end rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+            soloSeccion
+              ? "glass-chip-activo text-brand-700 dark:text-brand-300"
+              : "text-text-muted hover:text-text"
+          }`}
+        >
           Solo con trabajo de {CENTRO_CORTO[seccion]}
-        </label>
+        </button>
         {hayFiltros && (
           <button
             onClick={() => {
