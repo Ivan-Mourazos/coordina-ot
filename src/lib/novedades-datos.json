@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "2fba1b3",
+    "hasta": "f0cef06",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -22,6 +22,26 @@
         "tipo": "mejor",
         "titulo": "El Historial comparte el manejo de Pendientes y se lee en filas compactas",
         "detalle": "Pulsa el código para abrir la ficha y el resto de la cabecera para desplegar las OF. Se elimina el ojo y se alinean autores y fechas en claro y oscuro."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los nombres se muestran con el primer apellido",
+        "detalle": "El equipo, los tiempos y los responsables de visitas siguen el mismo formato y conservan los nombres compuestos."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La sección que estás consultando queda visible junto a tu avatar",
+        "detalle": "En pantallas estrechas, las pestañas y la búsqueda tienen su propio espacio y ya no se pisan con el logotipo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los documentos se abren igual desde Pendientes y desde el Historial",
+        "detalle": "El apartado empieza plegado en las dos fichas; las fotos siguen agrupadas en primer lugar."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Puedes reintentar la carga de documentos y métricas con un botón",
+        "detalle": "Si falla la consulta, pulsa Reintentar sin cerrar la ficha ni recargar la web."
       }
     ]
   },
