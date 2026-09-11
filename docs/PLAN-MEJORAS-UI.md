@@ -379,8 +379,19 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   con test de renderizado (autor sí, revisor no, una sola OF no); no se ha
   pulsado en el navegador para no escribir estados ni fichaje.
 
-### Pendiente de mirar con Iván
+- **Nombre y tiempo, sin rol (decidido por Iván).** La fila decía «Autor ·
+  revisó» y la ficha enseñaba a más gente con horas. Ahora fila, ficha (por
+  centro y por OF), OF desplegadas y «Tareas y tiempos» enseñan a cada persona
+  con su tiempo, de más a menos. Manda RPS; si una OF no tiene horas en RPS
+  pero se fichó en la web, se enseña ese reloj, sin sumar las dos fuentes.
+  Comprobado con RPS (AR.26.04488, SA.24.00312): mismas personas y mismo
+  orden en los cuatro sitios, y la suma cuadra con el tiempo de la fila.
+  El caso raro de AR.26.04055 era una prueba de la base local (autor de 5 s el
+  28/08), no un dato del servidor.
 
-- En la ficha del Historial, «Tareas y tiempos» y el desglose por centro
-  enseñan a más personas que la columna de autoría de la lista. Iván lo ve
-  raro; hay que decidir qué se enseña en cada sitio.
+### Pendiente de decidir con Iván
+
+- En un pedido «Solo Taller», la fila enseña a la gente de taller con su
+  tiempo, pero la ficha solo da el total de Taller: la regla vigente es
+  desglose de personas solo para la sección consultada. ¿Se enseñan también
+  en la ficha cuando el pedido no tiene nada de la sección?

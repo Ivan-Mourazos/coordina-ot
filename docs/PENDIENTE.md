@@ -350,10 +350,12 @@ Después, con el visto bueno de Iván: el autor recupera su OF aprobada con
 Historial en una línea, con tiempo de la sección, revisor, «Solo Taller» y
 fecha con año (tiempos de lista y ficha iguales en 12 pedidos reales).
 También «Dar por corregidas las N» en la ficha, desde dos OF devueltas.
-Siguen sin hacer: contraste fuera de la ficha, qué personas enseña «Tareas y
-tiempos» frente a la autoría (a mirar con Iván), conservar páginas/posición y
-filtros de Visitas y Métricas. «Dar por corregida» tras recuperar una OF
-aprobada se queda: decidido por Iván.
+El Historial enseña nombre y tiempo, de más a menos, en lista, ficha y
+«Tareas y tiempos», en vez de autor y revisor. «Dar por corregida» tras
+recuperar una OF aprobada se queda: decidido por Iván.
+Siguen sin hacer: contraste fuera de la ficha, si la ficha de un pedido «Solo
+Taller» enseña también a la gente de taller (a decidir con Iván), conservar
+páginas/posición y filtros de Visitas y Métricas.
 
 ---
 
