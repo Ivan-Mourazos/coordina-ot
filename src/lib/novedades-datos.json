@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "0821d1e",
+    "hasta": "6b55165",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "El Historial va por días y se puede filtrar por persona",
         "detalle": "Cada día dice cuántos pedidos salieron y cuánto tiempo llevaron. Puedes ver, por ejemplo, lo que pasó una persona la última semana, y ocultar los pedidos que no tienen trabajo de tu sección."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En el Historial puedes filtrar por las mismas familias que en Sin asignar",
+        "detalle": "Remolques, camiones, carpas… y solo salen las que hay con los demás filtros puestos."
       },
       {
         "tipo": "arreglado",
@@ -116,6 +121,11 @@
         "tipo": "mejor",
         "titulo": "El Historial ya no repite las mismas personas y tiempos en varios sitios",
         "detalle": "Quién echó horas sale en la fila y en la ficha; el desglose por OF o por tarea solo aparece cuando hay varias."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial y el buscador de arriba responden al momento",
+        "detalle": "Filtrar, buscar o bajar de página ya no tarda varios segundos. Al arrancar el servidor, la primera consulta puede esperar unos segundos mientras se prepara."
       }
     ]
   },
