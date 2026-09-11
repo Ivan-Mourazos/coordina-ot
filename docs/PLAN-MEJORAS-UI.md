@@ -299,3 +299,71 @@ Tipos y lint correctos. Cambio de espaciado; no cambian reglas ni cálculos.
 Siguen pendientes: conservación de páginas/posición, filtros de otras pestañas,
 marco común de fichas, resto de ventanas, vocabulario de materiales y revisión
 completa de contraste/teclado. Estas comprobaciones no completan todo el plan.
+
+## Tercera entrega — fichas, materiales y contraste (11/09, sin desplegar)
+
+**Escape por capas.** Cada ventana escuchaba Escape en el `document` y todas
+reaccionaban a la vez: con la ficha abierta, Escape en el desplegable de autor,
+la confirmación, el menú «⋯» o una nota a medias cerraba también la ficha.
+Ahora hay una pila común (`lib/capas-escape.ts`, `useCapaEscape`): las capas se
+apilan al abrirse y Escape cierra la última. La usan Drawer, HistorialDrawer
+(y su parte ampliado), Select, MenuAccionesOF, MenuAsignar, ConfirmDialog,
+ScanViewer, VisorDocumento, PanelFlotante, MiFichaje y `usePopover`. Los
+`textarea` de devolver, anular y notas cortan su propio Escape. Los popovers
+nativos («Tareas y tiempos») se respetan. Tests de la pila (7).
+Probado en navegador: Material, desplegable de autor y parte ampliado; en los
+tres, el primer Escape cierra solo esa capa (foco de vuelta a su botón) y el
+segundo cierra la ficha. Botones interiores de la confirmación, del menú «⋯» y
+del visor de documentos no se han recorrido uno a uno en navegador.
+
+**Materiales.** `VentanaAnclada` sustituye al portal propio de Pendientes y al
+popover nativo del Historial: anclada al botón, techo de 240 px con scroll,
+clic fuera, cierre al mover el panel, Escape como capa. Mismo vocabulario en
+las dos fichas: «Asignado en la OF» y «reservado». El Historial enseña un botón
+«Material N», marca lo que «sigue reservado» y, sin reserva viva, dice «Sin
+reserva viva hoy» (con la explicación de que la reserva se borra al consumir).
+La cabecera ya no dice «Asignado por Oficina Técnica»: en Diseño no está
+comprobado quién lo apunta. Raya fina (`--border`) entre artículos y cuerpo 3D
+(`.ventana-3d`) en claro y oscuro, también en «Tareas y tiempos».
+Probado: AR.26.04082 (compras) y AR.26.03798 (7 materiales, sin reserva viva)
+a 1280 × 720, claro y oscuro; la ventana cabe sin tapar el cierre.
+
+**Marco común de fichas.** `MarcoFicha` (telón, visor, cabecera, cuerpo, pie) con
+`CabeceraFicha`, `DatosFicha`, `FamiliasFicha` y `BloqueFicha`. La lógica de cada
+ficha sigue en su componente. Se conservan `pedido-panel`/`pedido-contenido`.
+El Historial usa `useScrollBloqueado`. Probado: las dos fichas en claro a 720p;
+Historial con parte ampliado y Escape por capas; el body queda libre al cerrar.
+
+**Contraste (medido).** Script en el navegador que compone telón (negro 60 %),
+vidrio y tintes de los bloques sobre el fondo de la página y calcula el ratio
+WCAG de cada texto de la ficha AR.26.04082. Límites del método: ignora el
+desenfoque y los degradados de brillo (estos aclaran un poco en oscuro).
+
+| Par medido | Antes | Después |
+|---|---|---|
+| Secundario oscuro sobre bloque de vidrio | 3,4–3,7 | ≥4,6 (`--text-muted` #b3b9c2) |
+| Cliente de la cabecera, claro | 3,95 | ≥4,6 (`--glass-bg-strong` 0,82) |
+| Blanco sobre prioridad Normal | 2,5 | 7+ (tinta oscura, mismo ámbar) |
+| Blanco sobre esmeralda/teal/cian-600 | 3,65–3,77 | 5,4–5,5 (-700) |
+| Blanco sobre ámbar-500 | 2,15 | 5,0 (ámbar-700) |
+| Rojo de «Producción empieza…», claro | 4,48 | rojo-700 |
+
+Resultado: 53 textos de la ficha ≥4,5:1 en los dos temas (peor 4,59 claro,
+4,64 oscuro). Queda: iniciales de avatares (3,2:1, color de cada persona).
+**No medido:** Historial, Panel, Revisiones, Visitas y Métricas fuera de la ficha.
+
+**Avisos.** La campana no avisa del parte re-escaneado mientras el pedido está
+parado por Producción; si nadie lo había visto, suena al liberarlo.
+
+### Hallazgos para decidir, no implementados
+
+- **OF aprobada que se reabre.** «Reabrir revisión» es la única salida de
+  `aprobada` y lleva siempre a `en_revision` (columna «Revisando» del revisor),
+  la pulse el autor o el revisor, sin reloj corriendo. Encaja con lo que
+  describe Iván. Propuesta: si la pulsa el autor, vuelve a `en_curso` y al
+  mandarla otra vez entra en «Por revisar»; si la pulsa el revisor, sigue igual.
+  Es regla de estados: pendiente de su visto bueno.
+- **Historial de OT con pedidos solo de Taller.** SA.24.00312, AR.26.04474 y
+  SA.26.00939 salen con «Autor: Luis Santos / Esteban Mosteiro / Hugo Millán»:
+  su única OF es de Taller y la autoría viene de las horas de taller, sin decir
+  el centro.

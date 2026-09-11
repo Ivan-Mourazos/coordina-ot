@@ -340,6 +340,16 @@ pestaña; permite vaciar solo la búsqueda. Materiales cierra con Escape sin
 cerrar la ficha y devuelve el foco a su botón. Probado en navegador. Aún falta
 conservar páginas/posición y completar el resto del plan de coherencia visual.
 
+Tercera entrega (11/09, sin desplegar): Escape por capas en toda la app, misma
+ventana y vocabulario de material en las dos fichas (con rayas y cuerpo 3D),
+marco común de fichas, contraste medido y corregido en la ficha (53 textos
+≥4,5:1 en claro y oscuro) y campana callada para partes re-escaneados de
+pedidos parados. Detalle, pares medidos y límites en el plan.
+**Decisión pendiente de Iván:** qué hace «Reabrir revisión» cuando la pulsa el
+autor (hoy manda la OF a «Revisando» del revisor). Siguen sin hacer: contraste
+fuera de la ficha, filas del Historial (pedidos solo de Taller en OT),
+conservar páginas/posición y filtros de Visitas y Métricas.
+
 ---
 
 ## Avisos de método, que costaron caro
