@@ -345,10 +345,14 @@ ventana y vocabulario de material en las dos fichas (con rayas y cuerpo 3D),
 marco común de fichas, contraste medido y corregido en la ficha (53 textos
 ≥4,5:1 en claro y oscuro) y campana callada para partes re-escaneados de
 pedidos parados. Detalle, pares medidos y límites en el plan.
-**Decisión pendiente de Iván:** qué hace «Reabrir revisión» cuando la pulsa el
-autor (hoy manda la OF a «Revisando» del revisor). Siguen sin hacer: contraste
-fuera de la ficha, filas del Historial (pedidos solo de Taller en OT),
-conservar páginas/posición y filtros de Visitas y Métricas.
+Después, con el visto bueno de Iván: el autor recupera su OF aprobada con
+«Recuperar para corregir» y al reenviarla entra en «Por revisar»; filas del
+Historial en una línea, con tiempo de la sección, revisor, «Solo Taller» y
+fecha con año (tiempos de lista y ficha iguales en 12 pedidos reales).
+Siguen sin hacer: contraste fuera de la ficha, qué personas enseña «Tareas y
+tiempos» frente a la autoría (a mirar con Iván), «Dar por corregida» para
+varias OF a la vez (si lo pide), conservar páginas/posición y filtros de
+Visitas y Métricas.
 
 ---
 

@@ -355,15 +355,29 @@ Resultado: 53 textos de la ficha ≥4,5:1 en los dos temas (peor 4,59 claro,
 **Avisos.** La campana no avisa del parte re-escaneado mientras el pedido está
 parado por Producción; si nadie lo había visto, suena al liberarlo.
 
-### Hallazgos para decidir, no implementados
+### Decididos por Iván y hechos después
 
-- **OF aprobada que se reabre.** «Reabrir revisión» es la única salida de
-  `aprobada` y lleva siempre a `en_revision` (columna «Revisando» del revisor),
-  la pulse el autor o el revisor, sin reloj corriendo. Encaja con lo que
-  describe Iván. Propuesta: si la pulsa el autor, vuelve a `en_curso` y al
-  mandarla otra vez entra en «Por revisar»; si la pulsa el revisor, sigue igual.
-  Es regla de estados: pendiente de su visto bueno.
-- **Historial de OT con pedidos solo de Taller.** SA.24.00312, AR.26.04474 y
-  SA.26.00939 salen con «Autor: Luis Santos / Esteban Mosteiro / Hugo Millán»:
-  su única OF es de Taller y la autoría viene de las horas de taller, sin decir
-  el centro.
+- **OF aprobada que se reabre.** «Reabrir revisión» llevaba siempre a
+  `en_revision` («Revisando» del revisor), la pulsara quien la pulsara. Ahora el
+  autor tiene «Recuperar para corregir» (aprobada → `en_curso`, conserva el
+  revisor) y al mandarla otra vez entra en «Por revisar». El revisor y los
+  demás siguen con «Reabrir revisión». Tests de la máquina de estados.
+  Queda abierto: tras recuperarla, el autor también ve «Dar por corregida»
+  (la OF ya pasó por revisión), que la aprobaría sin que el revisor vea el
+  cambio. No se ha tocado.
+- **Filas del Historial.** Una línea por pedido (40 px, antes 57), columna de
+  tiempo de la sección, «Solo Taller» cuando el pedido no tiene tareas de la
+  sección (SA.24.00312, AR.26.04474, SA.26.00939…), «revisó …» sin «Autor:»
+  delante y fecha con año. La lista contaba dos veces el minutaje de una OF
+  colgada de dos líneas de venta; ahora cada (OF, tarea, persona) cuenta una
+  vez. Comprobado con RPS: 12 pedidos con el mismo tiempo en lista y ficha.
+  Probado en claro a 1280 × 720: el código abre la ficha, el resto despliega.
+- **«Dar por corregida» en pedidos con varias OF devueltas.** Es OF a OF; el
+  bloque del pedido no la ofrece (decisión antigua, está en el código). Si
+  Iván lo pide, se añade «Dar por corregida las N» con 2 o más.
+
+### Pendiente de mirar con Iván
+
+- En la ficha del Historial, «Tareas y tiempos» y el desglose por centro
+  enseñan a más personas que la columna de autoría de la lista. Iván lo ve
+  raro; hay que decidir qué se enseña en cada sitio.
