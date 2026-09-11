@@ -362,9 +362,10 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
   autor tiene «Recuperar para corregir» (aprobada → `en_curso`, conserva el
   revisor) y al mandarla otra vez entra en «Por revisar». El revisor y los
   demás siguen con «Reabrir revisión». Tests de la máquina de estados.
-  Queda abierto: tras recuperarla, el autor también ve «Dar por corregida»
-  (la OF ya pasó por revisión), que la aprobaría sin que el revisor vea el
-  cambio. No se ha tocado.
+  Tras recuperarla, el autor también ve «Dar por corregida» (la OF ya pasó
+  por revisión). Iván lo quiere así: hay pedidos que no se revisan, y el
+  atajo tiene que seguir existiendo. Sin revisión previa, el botón es «Dar
+  por bueno sin revisión».
 - **Filas del Historial.** Una línea por pedido (40 px, antes 57), columna de
   tiempo de la sección, «Solo Taller» cuando el pedido no tiene tareas de la
   sección (SA.24.00312, AR.26.04474, SA.26.00939…), «revisó …» sin «Autor:»

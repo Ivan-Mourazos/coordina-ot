@@ -351,9 +351,9 @@ Historial en una línea, con tiempo de la sección, revisor, «Solo Taller» y
 fecha con año (tiempos de lista y ficha iguales en 12 pedidos reales).
 También «Dar por corregidas las N» en la ficha, desde dos OF devueltas.
 Siguen sin hacer: contraste fuera de la ficha, qué personas enseña «Tareas y
-tiempos» frente a la autoría (a mirar con Iván), si «Dar por corregida» debe
-salir tras «Recuperar para corregir» una OF aprobada, conservar
-páginas/posición y filtros de Visitas y Métricas.
+tiempos» frente a la autoría (a mirar con Iván), conservar páginas/posición y
+filtros de Visitas y Métricas. «Dar por corregida» tras recuperar una OF
+aprobada se queda: decidido por Iván.
 
 ---
 
