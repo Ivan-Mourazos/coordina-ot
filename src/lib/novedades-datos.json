@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-11",
-    "hasta": "d410bf5",
+    "hasta": "e35a715",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -160,6 +160,16 @@
         "tipo": "mejor",
         "titulo": "En el panel, los avisos de cada parte dejan de taparse entre ellos",
         "detalle": "El botón de asignar va al pie del parte y ya no cubre los avisos de material; «Parte nuevo» se lee en una banda arriba."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El calendario de fechas es el mismo en todas las pantallas",
+        "detalle": "En el Historial y en Métricas ya no sale el del navegador: es el del panel, con Hoy, Mañana y Esta semana."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el calendario ya se puede saltar de mes o de año de golpe",
+        "detalle": "Pulsa el nombre del mes y elígelo de la rejilla; con ella abierta, las flechas cambian de año."
       }
     ]
   },
