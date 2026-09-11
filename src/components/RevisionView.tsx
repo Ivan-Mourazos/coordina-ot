@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
-import { FASES } from "@/lib/fases-tablero";
+import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
@@ -37,10 +37,7 @@ import { Select, OpDot } from "./Select";
 const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
   { estado: "en_revision", titulo: "En revisión", mio: "Revisando" },
-  // "Listas para pasar", no "Aprobadas": es el mismo sitio al que el tablero
-  // llama "Listo para pasar", y tener dos nombres para el final del recorrido
-  // obliga a traducir mentalmente al cambiar de pestaña.
-  { estado: "aprobada", titulo: "Listas para pasar", mio: "Aprobadas por mí" },
+  { estado: "aprobada", titulo: "Aprobadas", mio: "Aprobadas por mí" },
   { estado: "devuelta", titulo: "Devueltas", mio: "Devueltas por mí" },
 ];
 
@@ -532,7 +529,9 @@ function ReviewCard({
         )}
         {estado === "aprobada" && (
           <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
-            ✓ Lista para pasar a Producción
+            {pedidoListoParaPasar(pedido)
+              ? "✓ Pedido listo para pasar a Producción"
+              : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
           </span>
         )}
         {estado === "devuelta" && (
