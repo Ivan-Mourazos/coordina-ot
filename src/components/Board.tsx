@@ -603,6 +603,18 @@ export function Board({
 
   const hoy = hoyISO();
 
+  // Cómo trata esta lista el trabajo de la casa. Sale de la sección de LOS
+  // PEDIDOS y no de la que se mira, por lo mismo que `laSeccion` (ver allí): al
+  // cambiar de lista, los pedidos de la anterior siguen en pantalla unos
+  // segundos y juzgarlos con las reglas de la nueva los movería de sitio.
+  const opcionesCategoria = useMemo(
+    () => ({
+      internosComoTrabajo:
+        SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO].internosComoTrabajo === true,
+    }),
+    [seccionDeLosPedidos],
+  );
+
   // Lista de TRABAJO = solo procesados por Producción (lo que llega a OT). Sin
   // ordenar: la Lista ordena por sus propias cabeceras y la Bandeja agrupa por
   // su cuenta. El "atrasados primero" que iba cableado aquí, por delante de
@@ -617,35 +629,35 @@ export function Board({
   // lib/filtros.ts): filtrar por TOLDO enseña el toldo del pedido, no sus
   // cuatro OF porque una fuese de toldo.
   const visiblesLista = useMemo(
-    () => aplicarFiltros(pedidos, filtrosPorVista.lista, hoy),
-    [pedidos, filtrosPorVista.lista, hoy],
+    () => aplicarFiltros(pedidos, filtrosPorVista.lista, hoy, opcionesCategoria),
+    [pedidos, filtrosPorVista.lista, hoy, opcionesCategoria],
   );
   // Revisión enseñaba una barra de filtros que no filtraba NADA: recibía los
   // pedidos sin pasar por ella, así que buscar o elegir familia ahí no hacía
   // nada y no había forma de saber por qué.
   const visiblesRevision = useMemo(
-    () => aplicarFiltros(procesados, filtrosPorVista.revision, hoy),
-    [procesados, filtrosPorVista.revision, hoy],
+    () => aplicarFiltros(procesados, filtrosPorVista.revision, hoy, opcionesCategoria),
+    [procesados, filtrosPorVista.revision, hoy, opcionesCategoria],
   );
   const visiblesAsignar = useMemo(
-    () => aplicarFiltros(procesados, filtrosPorVista.asignar, hoy),
-    [procesados, filtrosPorVista.asignar, hoy],
+    () => aplicarFiltros(procesados, filtrosPorVista.asignar, hoy, opcionesCategoria),
+    [procesados, filtrosPorVista.asignar, hoy, opcionesCategoria],
   );
 
   // Los conteos del desplegable "Ver": lo que saldría al elegir cada categoría
   // con el RESTO de la barra puesta. Si salieran de lo ya filtrado, elegir "OF
   // anuladas" pondría a cero todas las demás opciones.
   const conteosLista = useMemo(
-    () => contarCategoriasVisibles(pedidos, filtrosPorVista.lista, hoy),
-    [pedidos, filtrosPorVista.lista, hoy],
+    () => contarCategoriasVisibles(pedidos, filtrosPorVista.lista, hoy, opcionesCategoria),
+    [pedidos, filtrosPorVista.lista, hoy, opcionesCategoria],
   );
   const sinAutor = useMemo(
     () => procesados.map((p) => ({ ...p, ofs: p.ofs.filter((o) => o.autorId === null) })),
     [procesados],
   );
   const conteosAsignar = useMemo(
-    () => contarCategoriasVisibles(sinAutor, filtrosPorVista.asignar, hoy),
-    [sinAutor, filtrosPorVista.asignar, hoy],
+    () => contarCategoriasVisibles(sinAutor, filtrosPorVista.asignar, hoy, opcionesCategoria),
+    [sinAutor, filtrosPorVista.asignar, hoy, opcionesCategoria],
   );
 
   // Lo que ofrece cada desplegable sale de lo que HAY delante en esa vista, no
@@ -656,16 +668,16 @@ export function Board({
   // El desplegable de cliente ya no existe: obligaba a dar con el nombre exacto
   // entre cientos para hacer lo que el buscador hace escribiendo cuatro letras.
   const opcionesAsignar = useMemo(
-    () => opcionesDisponibles(sinAutor, filtrosPorVista.asignar, hoy),
-    [sinAutor, filtrosPorVista.asignar, hoy],
+    () => opcionesDisponibles(sinAutor, filtrosPorVista.asignar, hoy, opcionesCategoria),
+    [sinAutor, filtrosPorVista.asignar, hoy, opcionesCategoria],
   );
   const opcionesLista = useMemo(
-    () => opcionesDisponibles(pedidos, filtrosPorVista.lista, hoy),
-    [pedidos, filtrosPorVista.lista, hoy],
+    () => opcionesDisponibles(pedidos, filtrosPorVista.lista, hoy, opcionesCategoria),
+    [pedidos, filtrosPorVista.lista, hoy, opcionesCategoria],
   );
   const opcionesRevision = useMemo(
-    () => opcionesDisponibles(procesados, filtrosPorVista.revision, hoy),
-    [procesados, filtrosPorVista.revision, hoy],
+    () => opcionesDisponibles(procesados, filtrosPorVista.revision, hoy, opcionesCategoria),
+    [procesados, filtrosPorVista.revision, hoy, opcionesCategoria],
   );
 
   // Facets de las ZONAS del tablero (mi zona y las de los compañeros),
@@ -679,9 +691,10 @@ export function Board({
   const facetsByLoc = useMemo(() => {
     const map = new Map<string | null, Facet[]>();
     for (const p of procesados) {
-      // Proyectos internos (OFs sin pedido): no son trabajo de pedidos.
-      // Se fichan desde Mi fichaje y se consultan en la Lista.
-      if (p.interno) continue;
+      // Proyectos internos (OFs sin pedido): en OT no son trabajo de pedidos —
+      // se fichan desde Mi fichaje y se consultan en la Lista—. En Diseño
+      // Gráfico sí lo son, y allí se reparten como cualquier otro.
+      if (p.interno && !opcionesCategoria.internosComoTrabajo) continue;
       const atrasado = estaAtrasado(p, hoy);
       const porLoc = new Map<string | null, OF[]>();
       for (const of of p.ofs) {
@@ -705,7 +718,7 @@ export function Board({
       }
     }
     return map;
-  }, [procesados, hoy]);
+  }, [procesados, hoy, opcionesCategoria]);
   const facetsDe = useCallback(
     (loc: string | null) => facetsByLoc.get(loc) ?? [],
     [facetsByLoc],
@@ -2220,6 +2233,7 @@ export function Board({
                 <div className="min-w-0 flex-1">
                   <FilterBar
                     vista="asignar"
+                    seccion={laSeccion}
                     titulo="Sin asignar"
                     filtros={filtros}
                     setFiltros={setFiltros}
@@ -2263,6 +2277,7 @@ export function Board({
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
               <FilterBar
                 vista="lista"
+                seccion={laSeccion}
                 filtros={filtros}
                 setFiltros={setFiltros}
                 opciones={opcionesLista}
@@ -2316,6 +2331,7 @@ export function Board({
             <div className="border-b border-border bg-surface-2/40 px-5 py-2.5">
               <FilterBar
                 vista="revision"
+                seccion={laSeccion}
                 filtros={filtros}
                 setFiltros={setFiltros}
                 opciones={opcionesRevision}

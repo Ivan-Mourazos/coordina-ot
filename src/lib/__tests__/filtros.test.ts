@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
+  categoriasDe,
   contarCategorias,
   contarCategoriasVisibles,
   opcionesDisponibles,
@@ -57,6 +58,17 @@ describe("ofEnCategoria", () => {
     expect(ofEnCategoria(of({ ajenaOT: true }), false, "normal")).toBe(false);
     expect(ofEnCategoria(of(), true, "normal")).toBe(false);
   });
+  it("donde el trabajo de la casa es trabajo, sale en «Tu trabajo» y no como categoría", () => {
+    // Diseño Gráfico: rótulos y muestras de la propia empresa son trabajo suyo.
+    const interno = pedido({ id: "casa", cliente: "TOLDOS GOMEZ S.L.", interno: true });
+    const comoTrabajo = { internosComoTrabajo: true };
+    expect(aplicarFiltros([interno], FILTROS_INICIALES, HOY).map((p) => p.id)).toEqual([]);
+    expect(aplicarFiltros([interno], FILTROS_INICIALES, HOY, comoTrabajo).map((p) => p.id)).toEqual(["casa"]);
+    expect(contarCategorias([interno], comoTrabajo)).toMatchObject({ normal: 1, internos: 0 });
+    expect(categoriasDe(comoTrabajo)).not.toContain("internos");
+    expect(categoriasDe()).toContain("internos");
+  });
+
   it("una OF de taller rescatada (con autor) deja de ser de taller", () => {
     expect(ofEnCategoria(of({ ajenaOT: true }), false, "taller")).toBe(true);
     expect(ofEnCategoria(of({ ajenaOT: true, autorId: "ivan" }), false, "taller")).toBe(false);

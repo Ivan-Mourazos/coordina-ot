@@ -23,6 +23,22 @@ import { ofOcultaDeOT } from "./fases-tablero";
 export const CATEGORIAS = ["normal", "taller", "detenidas", "anuladas", "internos"] as const;
 export type Categoria = (typeof CATEGORIAS)[number];
 
+/** Cómo trata la sección el trabajo de la casa. Va como opción y no leyendo
+ *  `SECCIONES` aquí dentro para que esto siga siendo una función de datos a
+ *  datos, sin saber de secciones ni de pantallas. */
+export interface OpcionesCategoria {
+  /** El trabajo interno cuenta como trabajo normal: ni se esconde de «Tu
+   *  trabajo» ni tiene categoría propia (ver `Seccion.internosComoTrabajo`). */
+  internosComoTrabajo?: boolean;
+}
+
+/** Las categorías que se ofrecen en la barra. Donde el trabajo interno es
+ *  trabajo normal, «Pedidos internos» no es una categoría: enseñaría a medias
+ *  lo que ya está mezclado con el resto. */
+export function categoriasDe(opts?: OpcionesCategoria): readonly Categoria[] {
+  return opts?.internosComoTrabajo ? CATEGORIAS.filter((c) => c !== "internos") : CATEGORIAS;
+}
+
 // LOS RÓTULOS NO NOMBRAN A OFICINA TÉCNICA. Estas mismas pantallas las usa
 // Diseño Gráfico, y a Carrón "Trabajo de OT" le decía que su propio trabajo era
 // de otro departamento. Se habla en segunda persona, que vale para las dos
@@ -142,14 +158,20 @@ export function ofEnCategoria(of: OF, interno: boolean, c: Categoria): boolean {
  *
  *  Un número al lado de cada opción evita el paseo a ciegas: antes había que
  *  pulsar "OF anuladas" para descubrir que no había ninguna. */
-export function contarCategorias(pedidos: Pedido[]): Record<Categoria, number> {
+export function contarCategorias(pedidos: Pedido[], opts?: OpcionesCategoria): Record<Categoria, number> {
   const cuenta = { normal: 0, taller: 0, detenidas: 0, anuladas: 0, internos: 0 };
   for (const p of pedidos)
     for (const of of p.ofs)
       for (const c of CATEGORIAS)
-        if (ofEnCategoria(of, p.interno === true, c)) cuenta[c]++;
+        if (ofEnCategoria(of, esInterno(p, opts), c)) cuenta[c]++;
   return cuenta;
 }
+
+/** Si la sección trata lo interno como trabajo, deja de ser «interno» para
+ *  filtrar: sale en «Tu trabajo» con todo lo demás. La marca del pedido no se
+ *  toca — la Lista sigue enseñando su etiqueta. */
+const esInterno = (p: Pedido, opts?: OpcionesCategoria) =>
+  p.interno === true && !opts?.internosComoTrabajo;
 
 /** Lo mismo, pero contando lo que se vería DE VERDAD al elegir cada categoría:
  *  con el resto de la barra puesta. Un contador que no cuadra con lo que sale
@@ -159,10 +181,11 @@ export function contarCategoriasVisibles(
   pedidos: Pedido[],
   f: Filtros,
   hoy: string,
+  opts?: OpcionesCategoria,
 ): Record<Categoria, number> {
   const cuenta = { normal: 0, taller: 0, detenidas: 0, anuladas: 0, internos: 0 };
   for (const c of CATEGORIAS)
-    cuenta[c] = aplicarFiltros(pedidos, { ...f, categoria: c }, hoy).reduce(
+    cuenta[c] = aplicarFiltros(pedidos, { ...f, categoria: c }, hoy, opts).reduce(
       (n, p) => n + p.ofs.length,
       0,
     );
@@ -189,9 +212,10 @@ export function opcionesDisponibles(
   pedidos: Pedido[],
   f: Filtros,
   hoy: string,
+  opts?: OpcionesCategoria,
 ): OpcionesFiltro {
   const ofsDe = (sin: Partial<Filtros>) =>
-    aplicarFiltros(pedidos, { ...f, ...sin }, hoy);
+    aplicarFiltros(pedidos, { ...f, ...sin }, hoy, opts);
 
   const familias = new Set<Familia>();
   for (const p of ofsDe({ familia: "todas" })) for (const o of p.ofs) familias.add(o.familia);
@@ -250,11 +274,11 @@ function pasaOF(of: OF, interno: boolean, f: Filtros): boolean {
 
 /** Aplica la barra entera. Devuelve los pedidos con sus OF ya recortadas; los
  *  que se quedan sin ninguna desaparecen. */
-export function aplicarFiltros(pedidos: Pedido[], f: Filtros, hoy: string): Pedido[] {
+export function aplicarFiltros(pedidos: Pedido[], f: Filtros, hoy: string, opts?: OpcionesCategoria): Pedido[] {
   const salida: Pedido[] = [];
   for (const p of pedidos) {
     if (!pasaPedido(p, f, hoy)) continue;
-    const interno = p.interno === true;
+    const interno = esInterno(p, opts);
     const ofs = p.ofs.filter((of) => pasaOF(of, interno, f));
     if (ofs.length === 0) continue;
     // Sin recorte se devuelve el MISMO objeto: los `useMemo` de abajo comparan

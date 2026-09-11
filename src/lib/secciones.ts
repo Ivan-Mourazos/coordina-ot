@@ -102,6 +102,21 @@ export interface Seccion {
    *  Diseño es la sección más afectada: con anular a nivel de pedido habría que
    *  cargarse los trabajos buenos para tirar el malo. */
   revisionPorPedido?: boolean;
+  /** La barra de filtros se queda en buscador y «Solo atrasados».
+   *
+   *  Lo pidió Carrón el 11/09/2026: en Diseño Gráfico no reparten trabajo entre
+   *  varios ni por familia —lo lleva una persona de punta a punta—, así que
+   *  Familia, Prioridad, «Tu trabajo» y las fechas eran controles que nadie
+   *  tocaba ocupando la fila entera. Buscar un pedido y ver lo que va tarde es
+   *  todo lo que usan. */
+  barraSimple?: boolean;
+  /** El trabajo de la casa es trabajo del tablero, no una categoría aparte.
+   *
+   *  En Oficina Técnica un proyecto interno no tiene parte que plantear y vive
+   *  en la Lista. En Diseño Gráfico es trabajo suyo de pleno derecho (rótulos,
+   *  muestras, cosas de la propia empresa) y tiene que repartirse y pasarse
+   *  como cualquier pedido: fuera del tablero, no lo veían. */
+  internosComoTrabajo?: boolean;
 }
 
 export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
@@ -147,6 +162,8 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
       "parado",
     ],
     revisionPorPedido: true,
+    barraSimple: true,
+    internosComoTrabajo: true,
   },
 };
 

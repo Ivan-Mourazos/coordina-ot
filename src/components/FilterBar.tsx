@@ -4,9 +4,9 @@ import type { EstadoOF, Familia, Operario, Prioridad } from "@/lib/types";
 import { ESTADO, ESTADOS_ORDEN, PRIORIDAD } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import {
-  CATEGORIAS,
   CATEGORIA_AYUDA,
   CATEGORIA_LABEL,
+  categoriasDe,
   FILTROS_VACIOS,
   SIN_ASIGNAR,
   filtrosActivos,
@@ -14,6 +14,7 @@ import {
   type Filtros,
   type OpcionesFiltro,
 } from "@/lib/filtros";
+import type { Seccion } from "@/lib/secciones";
 import { Select, OpDot } from "./Select";
 import { FamiliaIcon } from "./FamiliaTag";
 import { SelectorFecha } from "./SelectorFecha";
@@ -58,22 +59,35 @@ export type VistaFiltrable = "asignar" | "lista" | "revision";
  *  · **"Con los pasados"**: un interruptor que prometía algo que no se
  *    entendía —pasados, ¿a dónde?—. Los pedidos ya pasados a Producción no
  *    salen y punto: esta es la lista de lo que queda por hacer. */
-const CONTROLES: Record<VistaFiltrable, {
+interface Controles {
+  familia: boolean;
+  prioridad: boolean;
   estado: boolean;
   roles: boolean;
   fechas: boolean;
   categoria: boolean;
   atrasados: boolean;
   material: boolean;
-}> = {
+}
+
+const CONTROLES: Record<VistaFiltrable, Controles> = {
   // Asignar reparte trabajo sin empezar: el estado no discrimina (casi todo es
   // "pendiente") y filtrar por autor no tiene sentido en un panel que es, por
   // definición, lo que no tiene autor.
-  asignar: { estado: false, roles: false, fechas: false, categoria: true, atrasados: true, material: false },
-  lista: { estado: true, roles: false, fechas: true, categoria: true, atrasados: false, material: true },
+  asignar: { familia: true, prioridad: true, estado: false, roles: false, fechas: false, categoria: true, atrasados: true, material: false },
+  lista: { familia: true, prioridad: true, estado: true, roles: false, fechas: true, categoria: true, atrasados: false, material: true },
   // Revisión ya está partida por estado de revisión y no enseña trabajo
   // terminado: el estado y las fechas sobran.
-  revision: { estado: false, roles: true, fechas: false, categoria: false, atrasados: false, material: false },
+  revision: { familia: true, prioridad: true, estado: false, roles: true, fechas: false, categoria: false, atrasados: false, material: false },
+};
+
+/** La barra de las secciones que no reparten trabajo entre varios: buscador y
+ *  «Solo atrasados», nada más (ver `Seccion.barraSimple`). Buscar un pedido y
+ *  ver lo que va tarde es lo que se usa; el resto de controles ocupaban la fila
+ *  sin que nadie los tocara. */
+const BARRA_SIMPLE: Controles = {
+  familia: false, prioridad: false, estado: false, roles: false,
+  fechas: false, categoria: false, atrasados: true, material: false,
 };
 
 /** División entre grupos de controles. */
@@ -127,6 +141,7 @@ function Toggle({
 
 export function FilterBar({
   vista,
+  seccion,
   titulo,
   filtros,
   setFiltros,
@@ -137,6 +152,9 @@ export function FilterBar({
   rotuloAjustes,
 }: {
   vista: VistaFiltrable;
+  /** La sección de los PEDIDOS que hay delante: decide qué controles se
+   *  enseñan y si el trabajo de la casa es una categoría o trabajo normal. */
+  seccion: Seccion;
   /** Rótulo a la izquierda cuando la barra no filtra la vista entera, sino un
    *  panel suelto ("Sin asignar"). Sin él, la barra de Asignar parece filtrar
    *  también las zonas del equipo, y no las toca. */
@@ -158,7 +176,9 @@ export function FilterBar({
   ajustes?: React.ReactNode;
   rotuloAjustes?: string;
 }) {
-  const ver = CONTROLES[vista];
+  const ver = seccion.barraSimple
+    ? { ...BARRA_SIMPLE, atrasados: CONTROLES[vista].atrasados }
+    : CONTROLES[vista];
   const activos = filtrosActivos(filtros);
 
   const opcionesPersona = [
@@ -227,18 +247,20 @@ export function FilterBar({
           doble de sitio para decir que no filtra nada. Al filtrar se pinta con
           el color de marca, así se ve de un vistazo cuál está recortando. */}
       <Grupo label="Ver">
-        <Select
-          value={filtros.familia === "todas" ? null : filtros.familia}
-          onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
-          placeholder="Familia"
-          etiquetaVaciar="Todas las familias"
-          acentuarActivo
-          options={opciones.familias.map((f) => ({
-            value: f,
-            label: familiaMeta(f).label,
-            icon: <FamiliaIcon familia={f} className="size-3.5" />,
-          }))}
-        />
+        {ver.familia && (
+          <Select
+            value={filtros.familia === "todas" ? null : filtros.familia}
+            onChange={(v) => setFiltros({ familia: (v as Familia) ?? "todas" })}
+            placeholder="Familia"
+            etiquetaVaciar="Todas las familias"
+            acentuarActivo
+            options={opciones.familias.map((f) => ({
+              value: f,
+              label: familiaMeta(f).label,
+              icon: <FamiliaIcon familia={f} className="size-3.5" />,
+            }))}
+          />
+        )}
 
         {ver.estado && (
           <Select
@@ -255,23 +277,25 @@ export function FilterBar({
           />
         )}
 
-        <Select
-          value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
-          onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
-          placeholder="Prioridad"
-          etiquetaVaciar="Todas las prioridades"
-          acentuarActivo
-          options={opciones.prioridades.map((p) => ({
-            value: String(p),
-            label: PRIORIDAD[p].label,
-            icon: (
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ background: PRIORIDAD[p].color, color: PRIORIDAD[p].tinta }}
-              />
-            ),
-          }))}
-        />
+        {ver.prioridad && (
+          <Select
+            value={filtros.prioridad === "todas" ? null : String(filtros.prioridad)}
+            onChange={(v) => setFiltros({ prioridad: v ? (Number(v) as Prioridad) : "todas" })}
+            placeholder="Prioridad"
+            etiquetaVaciar="Todas las prioridades"
+            acentuarActivo
+            options={opciones.prioridades.map((p) => ({
+              value: String(p),
+              label: PRIORIDAD[p].label,
+              icon: (
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: PRIORIDAD[p].color, color: PRIORIDAD[p].tinta }}
+                />
+              ),
+            }))}
+          />
+        )}
 
         {/* PARA CUÁNDO, en el mismo bloque: "los toldos del jueves" es una
             sola pregunta, no dos. */}
@@ -293,7 +317,7 @@ export function FilterBar({
             onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
             placeholder={null}
             acentuarActivo={filtros.categoria !== "normal"}
-            options={CATEGORIAS.map((c) => ({
+            options={categoriasDe(seccion).map((c) => ({
               value: c,
               label: conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
             }))}
@@ -349,7 +373,7 @@ export function FilterBar({
 
       {/* Los ajustes de PRESENTACIÓN, en su zona. Se leía "Familia" (filtro) y
           "Familia" (agrupación) seguidos y no se distinguía uno de otro. */}
-      {ajustes && (
+      {ajustes && !seccion.barraSimple && (
         <>
           <Separador />
           <Grupo label={rotuloAjustes ?? "Ver como"}>{ajustes}</Grupo>
