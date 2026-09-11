@@ -207,6 +207,20 @@ describe("de quién es cada acción", () => {
     expect(aplicarAccion(recuperada, "terminar_planteo").estado).toBe("por_revisar");
   });
 
+  // El camino del revisor, tal como lo cuenta Iván: revisa, aprueba, reabre la
+  // revisión y vuelve a decidir (aprobar o devolver). Solo él decide.
+  it("el revisor que reabre una aprobada vuelve a poder aprobar o devolver", () => {
+    const reabierta = aplicarAccion(of("aprobada"), "reabrir");
+    expect(reabierta.estado).toBe("en_revision");
+    expect(reabierta.revisorId).toBe(REVISOR);
+    const suyas = accionesDisponibles(reabierta, REVISOR).map((a) => a.id);
+    expect(suyas).toEqual(expect.arrayContaining(["aprobar", "devolver"]));
+    expect(aplicarAccion(reabierta, "aprobar").estado).toBe("aprobada");
+    expect(aplicarAccion(reabierta, "devolver", "falta la cota").estado).toBe("devuelta");
+    // Y el autor, con la revisión reabierta, no se aprueba ni se devuelve solo.
+    expect(accionesDisponibles(reabierta, AUTOR).map((a) => a.id)).not.toContain("aprobar");
+  });
+
   it("anular no tiene dueño: se decide al ver el pedido", () => {
     expect(ids("en_curso", OTRO)).toContain("anular");
   });
