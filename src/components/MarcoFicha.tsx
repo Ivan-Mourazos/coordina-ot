@@ -136,13 +136,6 @@ export function CabeceraFicha({
   );
 }
 
-/** Los datos sueltos del pedido, en dos columnas. */
-export function DatosFicha({ children }: { children: ReactNode }) {
-  return (
-    <dl className="mb-4 grid grid-cols-2 content-start gap-x-4 gap-y-2.5 text-xs">{children}</dl>
-  );
-}
-
 /** Los mismos datos, en UNA línea: el rótulo de cada uno al pasar el ratón.
  *
  *  La rejilla de dos por dos gastaba seis líneas para cuatro valores, y en una
@@ -178,28 +171,6 @@ export function DatosEnLinea({
         </div>
       )}
     </dl>
-  );
-}
-
-export function DatoFicha({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt className="text-text-muted">{k}</dt>
-      <dd className="font-medium text-text">{v}</dd>
-    </div>
-  );
-}
-
-export function FamiliasFicha({ familias }: { familias: readonly string[] }) {
-  return (
-    <div className="col-span-2">
-      <dt className="mb-1 text-text-muted">Familias</dt>
-      <dd className="flex flex-wrap gap-1">
-        {familias.map((f) => (
-          <FamiliaTag key={f} familia={f} />
-        ))}
-      </dd>
-    </div>
   );
 }
 

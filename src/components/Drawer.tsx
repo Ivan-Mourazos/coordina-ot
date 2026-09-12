@@ -36,9 +36,7 @@ import { MaterialChip } from "./MaterialChip";
 import {
   BloqueFicha,
   CabeceraFicha,
-  DatoFicha,
-  DatosFicha,
-  FamiliasFicha,
+  DatosEnLinea,
   MarcoFicha,
 } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
@@ -500,11 +498,13 @@ export function Drawer({
               tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
               sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor
               contado dos veces. */}
-          <DatosFicha>
-            <DatoFicha k="Piezas" v={String(piezasTotal(pedido))} />
-            {pedido.ciudadEntrega && <DatoFicha k="Entrega en" v={pedido.ciudadEntrega} />}
-            <FamiliasFicha familias={[...new Set(pedido.ofs.map((o) => o.familia))]} />
-          </DatosFicha>
+          <DatosEnLinea
+            datos={[
+              { k: "Piezas", v: `${piezasTotal(pedido)} ${piezasTotal(pedido) === 1 ? "pieza" : "piezas"}` },
+              ...(pedido.ciudadEntrega ? [{ k: "Entrega en", v: pedido.ciudadEntrega }] : []),
+            ]}
+            familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
+          />
 
           <LineaTiempoPedido pedido={pedido} />
 
