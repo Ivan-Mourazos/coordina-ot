@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-12",
+    "hasta": "e2eec67",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del Historial aprovecha mejor el alto de la pantalla",
+        "detalle": "Las fechas y las familias van en una línea y sobran rótulos, así que el trabajo por centro se ve sin bajar."
+      }
+    ]
+  },
+  {
     "id": "2026-09-11",
     "hasta": "d628584",
     "cambios": [
