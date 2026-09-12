@@ -13,9 +13,7 @@ import { fmtMin, ROL } from "@/lib/estado";
 import {
   BloqueFicha,
   CabeceraFicha,
-  DatoFicha,
-  DatosFicha,
-  FamiliasFicha,
+  DatosEnLinea,
   MarcoFicha,
 } from "./MarcoFicha";
 import { NotasPedido } from "./NotasPedido";
@@ -238,15 +236,26 @@ export function HistorialDrawer({
 
           {detalle && !cargando && (
             <>
-              <DatosFicha>
-                <DatoFicha k="Solicitud" v={fmtFecha(detalle.fechaSolicitud)} />
-                {detalle.estadoActual
-                  ? <DatoFicha k="Estado actual" v={detalle.estadoActual} />
-                  : <DatoFicha k="Finalización" v={fmtFecha(detalle.fechaFinalizacion)} />}
-                <DatoFicha k="Piezas" v={String(detalle.piezas)} />
-                {detalle.ciudadEntrega && <DatoFicha k="Entrega en" v={detalle.ciudadEntrega} />}
-                <FamiliasFicha familias={detalle.familias} />
-              </DatosFicha>
+              {/* En una línea y no en rejilla: son cuatro valores cortos que se
+                  leen de corrido ("24/09/26 → 11/09/26 · 2 piezas · VIGO"), y
+                  la rejilla gastaba seis líneas en lo alto de la ficha. */}
+              <DatosEnLinea
+                datos={[
+                  // Las dos fechas son UN dato ("del … al …"): separadas por un
+                  // punto quedaba "24/09/2026 · → 11/09/2026", con el punto y la
+                  // flecha peleándose por decir lo mismo.
+                  detalle.estadoActual
+                    ? { k: "Solicitud", v: fmtFecha(detalle.fechaSolicitud) }
+                    : {
+                        k: "De la solicitud a la finalización",
+                        v: `${fmtFecha(detalle.fechaSolicitud)} → ${fmtFecha(detalle.fechaFinalizacion)}`,
+                      },
+                  ...(detalle.estadoActual ? [{ k: "Estado actual", v: detalle.estadoActual }] : []),
+                  { k: "Piezas", v: `${detalle.piezas} ${detalle.piezas === 1 ? "pieza" : "piezas"}` },
+                  ...(detalle.ciudadEntrega ? [{ k: "Entrega en", v: detalle.ciudadEntrega }] : []),
+                ]}
+                familias={detalle.familias}
+              />
 
               {/* AQUÍ ESTABAN "Lo vendido" y "Montaje y envío", y se han ido.
                   Los dos dicen lo mismo que el parte escaneado que se está
@@ -298,8 +307,7 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialTareas pedido={pedido} ofs={detalle.ofs} seccion={seccion} />
-              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
+              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} accion={<HistorialTareas pedido={pedido} ofs={detalle.ofs} seccion={seccion} className="" />} />
             </>
           )}
     </MarcoFicha>
@@ -307,14 +315,17 @@ export function HistorialDrawer({
 }
 
 /** El centro decide qué minutos se suman; la selección decide el desglose visible. */
-export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[]; seccion: SeccionId; accion?: React.ReactNode }) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
   const conDesglose = centrosConDesglose(ofs, seccion);
   return (
+    // Sin rótulo "Trabajo por centro": debajo va un bloque por centro y cada
+    // uno se llama Oficina Técnica, Diseño Gráfico o Taller, que lo dice mejor.
+    // El botón de las tareas ocupa el sitio del rótulo, no una línea suya.
     <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">Trabajo por centro</h3>
+      {accion && <div className="flex">{accion}</div>}
       {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
         const seleccionado = centro.id === seccion;
         const desglose = conDesglose.has(centro.id);

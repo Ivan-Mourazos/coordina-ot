@@ -161,9 +161,14 @@ export function NotasPedido({
           quien lee tiene que saber que puede haber un recado que no le llegó. */}
       {notas === null && !error && <p className="text-[11px] text-text-muted">Cargando notas…</p>}
 
+      {/* Vacío es lo NORMAL, así que ocupa una línea y no un párrafo: el para
+          qué sirve va en el título, que es donde se busca cuando se duda. */}
       {notas !== null && notas.length === 0 && !escribiendo && !error && (
-        <p className="text-[11px] leading-snug text-text-muted">
-          Sin notas. Aquí se apunta lo que hay que saber de este pedido y no está en RPS.
+        <p
+          className="text-[11px] leading-snug text-text-muted"
+          title="Aquí se apunta lo que hay que saber de este pedido y no está en RPS."
+        >
+          Sin notas.
         </p>
       )}
 

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import type { HistorialOF } from "@/lib/historial";
-import { personasDeOF } from "@/lib/historial";
+import { personasConRol, personasDeOF, repartoDe } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { centrosConDesglose, rangoCentro } from "@/lib/historial-centros";
-import { fmtMin } from "@/lib/estado";
+import { fmtMin, ROL } from "@/lib/estado";
 
 const CENTROS = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
 
@@ -37,7 +37,12 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
     <ul className="space-y-1.5">
       {[...porCodigo].map(([codigo, centros], i) => {
         const deDesglose = variasOF ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
-        const personas = deDesglose ? personasDeOF(deDesglose) : [];
+        // Con el papel de cada uno, igual que la ficha: aquí salía "Adrián 2m ·
+        // Iván 2m" mientras la fila de arriba ya decía quién lo planteó.
+        const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false };
+        const personas = deDesglose
+          ? personasConRol(personasDeOF(deDesglose), reparto.autores, reparto.revisores, reparto.consta)
+          : [];
         const descripcion = centros[0].descripcion;
         // Solo los centros con tiempo, la sección consultada primero: «Diseño ·
         // 0m» no dice nada y empujaba lo que importa.
@@ -54,7 +59,11 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
             {personas.map((p, n) => (
               <span key={p.nombre}>
                 {n > 0 && " · "}
-                <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+                <span className="text-text">{p.nombre}</span>
+                {p.rol && (
+                  <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
+                )}{" "}
+                {fmtMin(p.min)}
               </span>
             ))}
           </span>

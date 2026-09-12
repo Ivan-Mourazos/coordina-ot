@@ -143,6 +143,44 @@ export function DatosFicha({ children }: { children: ReactNode }) {
   );
 }
 
+/** Los mismos datos, en UNA línea: el rótulo de cada uno al pasar el ratón.
+ *
+ *  La rejilla de dos por dos gastaba seis líneas para cuatro valores, y en una
+ *  ficha de 720 px de alto eso es la diferencia entre ver un centro de trabajo
+ *  o verlos los tres. Los rótulos no se pierden: van en el `title` y en el
+ *  lector de pantalla, que es donde hacen falta cuando el dato no se explica
+ *  solo. Las familias entran aquí como un dato más. */
+export function DatosEnLinea({
+  datos,
+  familias = [],
+}: {
+  datos: readonly { k: string; v: string }[];
+  familias?: readonly string[];
+}) {
+  return (
+    <dl className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+      {datos.map(({ k, v }, i) => (
+        <div key={k} className="flex items-center gap-2">
+          {i > 0 && <span aria-hidden className="text-text-muted">·</span>}
+          <dt className="sr-only">{k}</dt>
+          <dd className="font-medium text-text" title={k}>{v}</dd>
+        </div>
+      ))}
+      {familias.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="text-text-muted">·</span>
+          <dt className="sr-only">Familias</dt>
+          <dd className="flex flex-wrap gap-1">
+            {familias.map((f) => (
+              <FamiliaTag key={f} familia={f} />
+            ))}
+          </dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
 export function DatoFicha({ k, v }: { k: string; v: string }) {
   return (
     <div>
