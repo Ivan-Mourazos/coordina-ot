@@ -398,13 +398,16 @@ function PersonasOF({ of }: { of: HistorialOF }) {
   }
   return (
     <p className="mt-2 text-[11px] text-text-muted" title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
+      {/* El papel DELANTE del tiempo: detrás se leía "Iván Sánchez 2m planteó",
+          como si el minuto fuera lo planteado. */}
       {personas.map((p, i) => (
         <span key={p.nombre}>
           {i > 0 && " · "}
-          <span className="text-text">{p.nombre}</span> {fmtMin(p.min)}
+          <span className="text-text">{p.nombre}</span>
           {p.rol && (
             <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
-          )}
+          )}{" "}
+          {fmtMin(p.min)}
         </span>
       ))}
     </p>
