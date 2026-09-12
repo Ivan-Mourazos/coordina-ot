@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-12",
-    "hasta": "e2eec67",
+    "hasta": "78d63f7",
     "cambios": [
       {
         "tipo": "mejor",
         "titulo": "La ficha del Historial aprovecha mejor el alto de la pantalla",
         "detalle": "Las fechas y las familias van en una línea y sobran rótulos, así que el trabajo por centro se ve sin bajar."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha de un pedido deja más sitio para lo que se trabaja",
+        "detalle": "Las piezas, la ciudad y las familias van en una línea, y las notas vacías ya no ocupan un recuadro."
       }
     ]
   },
