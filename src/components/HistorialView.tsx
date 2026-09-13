@@ -3,19 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HistorialItem, HistorialOF } from "@/lib/historial";
 import type { Familia, Operario } from "@/lib/types";
-import { FAMILIAS_FILTRABLES, personasConRol } from "@/lib/historial";
+import { FAMILIAS_FILTRABLES } from "@/lib/historial";
 import { agruparPorDia } from "@/lib/historial-dias";
+import { CENTRO_CORTO } from "@/lib/historial-centros";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaIcon, FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { SelectorFecha } from "./SelectorFecha";
+import { Quien } from "./HistorialQuien";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
 import { Desplegable } from "./Desplegable";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
-import { fmtMin, ROL } from "@/lib/estado";
+import { fmtMin } from "@/lib/estado";
 
 /** Fecha corta con año (dd/mm/aa) y la completa con hora para el `title`.
  *  Siempre con año: la lista baja hasta pedidos de 2024. */
@@ -51,9 +53,6 @@ export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = {
   operario: null,
   soloSeccion: false,
 };
-
-/** Nombre corto de cada centro, para la cabecera y los pedidos de otro centro. */
-const CENTRO_CORTO = { ot: "OT", diseno: "Diseño", taller: "Taller" } as const;
 
 /** Las mismas columnas en la cabecera y en cada fila. Al buscar se añade la
  *  fecha: los resultados van por fecha del pedido y no hay separadores de día.
@@ -351,74 +350,6 @@ export function HistorialView({
   );
 }
 
-/** Quién trabajó en lo que cuenta para la fila, de más a menos horas. Solo el
- *  nombre: el tiempo de cada uno va en el `title` y en el desplegable, y el
- *  total en su columna. Con nombre y tiempo aquí, en una fila de una persona
- *  el mismo número salía dos veces.
- *
- *  Si el pedido no tiene nada de la sección, delante va el centro ("Taller ·")
- *  y la fila entera va en gris (ver FilaHistorial). */
-function Quien({ item }: { item: HistorialItem }) {
-  const autores = (item.autores ?? []).filter(Boolean);
-  // Quien planteó primero y con su punto de color, pero solo si el rol consta:
-  // con dos personas a la misma hora, el orden por minutos dejaba el pedido a
-  // nombre de quien lo repasó.
-  const personas = personasConRol(
-    item.personas ?? [],
-    autores,
-    item.revisores ?? [],
-    item.rolesRegistrados === true,
-  );
-  const otros = item.otrosCentros ?? [];
-  const centro = otros.length > 0 ? `${otros.map((c) => CENTRO_CORTO[c]).join(" y ")} · ` : "";
-  const aviso = otros.length > 0 ? "Sin tareas de la sección: es trabajo de otro centro. " : "";
-  if (personas.length > 0) {
-    const conRol = (p: (typeof personas)[number]) =>
-      `${p.nombre} ${fmtMin(p.min)}${p.rol ? ` (${p.rol === "plantear" ? "planteó" : "revisó"})` : ""}`;
-    return (
-      <span
-        className="block truncate"
-        title={`${aviso}Tiempo imputado en RPS: ${personas.map(conRol).join(" · ")}`}
-      >
-        {centro}
-        <span className={otros.length > 0 ? "" : "text-text"}>
-          {personas.slice(0, 2).map((p, i) => (
-            <span key={p.nombre}>
-              {i > 0 && " · "}
-              {p.rol && (
-                <span
-                  aria-hidden
-                  className="mr-1 inline-block size-1.5 rounded-full align-middle"
-                  style={{ background: ROL[p.rol].color }}
-                />
-              )}
-              {p.nombre}
-            </span>
-          ))}
-        </span>
-        {personas.length > 2 && ` +${personas.length - 2}`}
-      </span>
-    );
-  }
-  // Registrado en CoordinaOT pero sin una hora en RPS: el nombre, que es todo
-  // lo que se sabe.
-  if (autores.length > 0) {
-    return (
-      <span className="block truncate" title={`${aviso}Registrado en CoordinaOT, sin horas imputadas en RPS`}>
-        {centro}<span className="text-text">{autores.join(" y ")}</span>
-      </span>
-    );
-  }
-  if (item.pasadoPor) {
-    return (
-      <span className="block truncate" title={`${item.pasadoPor} pulsó "pasar a Producción"; no consta quién lo planteó.`}>
-        {centro}Lo pasó {item.pasadoPor}
-      </span>
-    );
-  }
-  return <span className="block truncate italic">{centro}Sin horas registradas</span>;
-}
-
 /** El código abre la ficha; el resto de la fila despliega las OF. */
 function FilaHistorial({
   item,
@@ -543,7 +474,9 @@ function FilaHistorial({
           no ocupa nada (`Desplegable` devuelve null). */}
       <div id={`ofs-${seccion}-${item.pedido}`}>
       <Desplegable abierto={desplegado}>
-        <div className="border-t border-border px-3 py-2">
+        {/* `group` para el botón de «Tareas»: sale al pasar el ratón por
+            cualquier sitio del desplegable, no solo por encima de él. */}
+        <div className="group border-t border-border px-3 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
           {/* Las OF en las mismas columnas que la fila del pedido, y el botón
@@ -553,7 +486,7 @@ function FilaHistorial({
               ofs={ofs}
               seccion={seccion}
               columnas={columnas}
-              accion={<HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="-my-0.5" />}
+              accion={<HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="-my-0.5" compacto />}
             />
           )}
         </div>

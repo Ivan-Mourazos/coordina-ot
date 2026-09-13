@@ -9,12 +9,20 @@ import { agruparCentros, centrosConDesglose, rangoCentro, type HistorialCentro }
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
 
-export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2" }: {
+export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", compacto = false }: {
   pedido: string;
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** Márgenes del botón, según dónde vaya. */
   className?: string;
+  /** En la lista va en la columna del tiempo, que es estrecha: rótulo corto y
+   *  solo visible al pasar el ratón por la OF desplegada. Escondido en reposo
+   *  porque ahí lo que se viene a leer es la OF, no un botón en cada línea.
+   *
+   *  Sale también con el foco del teclado, y se queda mientras la ventana esté
+   *  abierta: si no, al mover el ratón el panel se quedaría colgando de un
+   *  botón invisible. */
+  compacto?: boolean;
 }) {
   const id = useId();
   const [abierto, setAbierto] = useState(false);
@@ -30,7 +38,20 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2" }: {
   const pinta = (centro: HistorialCentro) => <CentroTareas key={centro.id} centro={centro} conPersonas={conDesglose.has(centro.id)} />;
   return (
     <>
-      <button type="button" popoverTarget={id} aria-expanded={abierto} aria-controls={id} className={`${className} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text`}>Tareas y tiempos</button>
+      <button
+        type="button"
+        popoverTarget={id}
+        aria-expanded={abierto}
+        aria-controls={id}
+        title={compacto ? "Tareas y tiempos" : undefined}
+        className={`${className} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text ${
+          compacto
+            ? `transition-opacity ${abierto ? "opacity-100" : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100"}`
+            : ""
+        }`}
+      >
+        {compacto ? "Tareas" : "Tareas y tiempos"}
+      </button>
       <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
         onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
         className="ventana-3d scroll-thin m-auto max-h-[75vh] w-[min(680px,92vw)] overflow-y-auto rounded-xl p-4 text-text backdrop:bg-black/30">

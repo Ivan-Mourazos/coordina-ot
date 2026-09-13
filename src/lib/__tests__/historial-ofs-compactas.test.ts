@@ -13,11 +13,10 @@ test("AR.26.04413 enseña su OF de Taller al consultar desde OT", () => {
   const html = pinta([taller]);
   expect(html).toContain("0231922");
   expect(html).toContain("ADAPTAR LONA DEL CLIENTE");
-  expect(html).toContain("Taller · 34m");
   expect(html).not.toContain("Sin OF");
 });
 
-test("una OF compartida ocupa una sola fila y separa los tiempos sin mostrar personas de otros centros", () => {
+test("una OF compartida ocupa una sola fila y no enseña personas de otros centros", () => {
   const rol = (nombre: string, min: number) => ({ planteoMin: min, revisionMin: 0, planteo: [{ nombre, min }], revision: [] });
   const ofs: HistorialOF[] = [
     { ...taller, centro: "ot", tiempoImputadoMin: 7, rol: rol("Iván", 7) },
@@ -27,29 +26,11 @@ test("una OF compartida ocupa una sola fila y separa los tiempos sin mostrar per
   ];
   const html = pinta(ofs);
   expect(html.match(/<li /g)).toHaveLength(2);
-  expect(html).toContain("OT · 7m");
-  expect(html).toContain("Diseño · 12m");
-  expect(html).toContain("Taller · 34m");
   expect(html).toContain("Iván");
   expect(html).not.toContain("Carrón");
   const diseno = pinta(ofs, "diseno");
   expect(diseno).toContain("Carrón");
   expect(diseno).not.toContain("Iván");
-});
-
-test("solo salen los centros con tiempo, con la sección consultada delante", () => {
-  const ofs: HistorialOF[] = [
-    { ...taller, centro: "diseno", tiempoImputadoMin: 0 },
-    { ...taller, centro: "ot", tiempoImputadoMin: 4 },
-    taller,
-    { ...taller, codigo: "0231923", tiempoImputadoMin: 0 },
-  ];
-  const html = pinta(ofs);
-  expect(html).not.toContain("0m");
-  expect(html.indexOf("OT · 4m")).toBeLessThan(html.indexOf("Taller · 34m"));
-  expect(html).toContain("Sin tiempo");
-  const diseno = pinta([{ ...taller, centro: "ot", tiempoImputadoMin: 4 }, { ...taller, centro: "diseno", tiempoImputadoMin: 9 }], "diseno");
-  expect(diseno.indexOf("Diseño · 9m")).toBeLessThan(diseno.indexOf("OT · 4m"));
 });
 
 test("en la lista, cada OF va en las columnas de la fila y el botón solo en la primera", () => {
@@ -101,4 +82,39 @@ test("con horas en RPS manda RPS: el reloj de la web no se suma ni se enseña ap
   const html = pinta([of, otra]);
   expect(html).toContain("Tamara Villar");
   expect(html).not.toContain("Iván Sánchez");
+});
+
+// El tiempo por centro se va de la línea de la OF: en un pedido de una sola OF
+// repetía el total que la fila del pedido ya enseña justo encima, y el reparto
+// entre centros vive ahora en «Tareas y tiempos», que es donde además se ve por
+// tarea y por persona.
+test("la línea de la OF ya no lleva el tiempo del centro", () => {
+  const html = pinta([taller]);
+  expect(html).toContain("0231922");
+  expect(html).toContain("ADAPTAR LONA DEL CLIENTE");
+  expect(html).not.toContain("Taller · 34m");
+  expect(html).not.toContain("Sin tiempo");
+});
+
+test("tampoco con varias OF y varios centros", () => {
+  const html = pinta([
+    { ...taller, centro: "ot", tiempoImputadoMin: 7 },
+    taller,
+    { ...otra, codigo: "0231999" },
+  ]);
+  expect(html).not.toContain("OT · 7m");
+  expect(html).not.toContain("Taller · 34m");
+});
+
+test("en la lista, el botón va al final de la línea, detrás de la gente", () => {
+  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, {
+    ofs: [conGente, { ...otra, codigo: "0232087" }],
+    seccion: "ot",
+    columnas: "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px]",
+    accion: createElement("button", null, "Tareas y tiempos"),
+  }));
+  // Pegado a la descripción empujaba el texto de la OF; al final cae bajo el
+  // tiempo del pedido, que es la columna con la que se corresponde.
+  expect(html.indexOf("Adrián Quinteiro")).toBeLessThan(html.indexOf("Tareas y tiempos"));
+  expect(html.match(/Tareas y tiempos/g)).toHaveLength(1);
 });

@@ -3,6 +3,15 @@ import { SECCIONES, type SeccionId } from "./secciones";
 
 export type CentroHistorialId = SeccionId | "taller";
 
+/** El nombre corto de cada centro: el de la cabecera, el de los pedidos de
+ *  otro centro y el del desglose. Uno solo para que no se llame igual en un
+ *  sitio y distinto en otro. */
+export const CENTRO_CORTO: Record<CentroHistorialId, string> = {
+  ot: "OT",
+  diseno: "Diseño",
+  taller: "Taller",
+};
+
 /** RPS asocia «PLANTEAR EN TALLER» a OTEC-A, pero el trabajo es de Taller.
  *  Se mueve la tarea completa, con todas sus personas y minutos. */
 export function centroDeTareaHistorial(centro: CentroHistorialId, descripcion: string | null): CentroHistorialId {
