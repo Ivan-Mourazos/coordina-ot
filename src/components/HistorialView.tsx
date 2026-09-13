@@ -86,6 +86,10 @@ export function HistorialView({
   const [abierto, setAbierto] = useState<string | null>(null);
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
   const [familiasDisponibles, setFamiliasDisponibles] = useState<string[] | null>(null);
+  // Cuántos pedidos tiene cada día en la consulta entera. Lo manda el servidor
+  // desde la lista en memoria: sin él, el separador contaba lo cargado y su
+  // número crecía según bajabas.
+  const [porDia, setPorDia] = useState<Record<string, number> | undefined>(undefined);
   // "Hoy" y "Ayer" de los separadores. Se fija al montar: leer el reloj en
   // cada render haría el componente impuro.
   const [hoy] = useState(() => new Date());
@@ -129,12 +133,13 @@ export function HistorialView({
         if (soloSeccion) params.set("soloSeccion", "1");
         const r = await fetch(`/api/historial?${params}`, { cache: "no-store" });
         if (!r.ok) throw new Error(String(r.status));
-        const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] };
+        const data = (await r.json()) as { pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> };
         if (seq !== reqSeq.current) return; // respuesta obsoleta: la ignoramos
         setItems((prev) => (reemplazar ? data.pedidos : [...prev, ...data.pedidos]));
         // Las familias del panel presentes con los demás filtros (las da la
         // lista en memoria). Sin ellas —la consulta de respaldo—, las de siempre.
         if (reemplazar) setFamiliasDisponibles(data.familias ?? null);
+        if (reemplazar) setPorDia(data.porDia);
         setHasMore(data.hasMore);
         setPage(pageAcargar);
         setClaveResultado(filtrosKey);
@@ -171,7 +176,7 @@ export function HistorialView({
   }, [hasMore, cargando, error, page, cargar, resultadosVigentes]);
 
   const columnas = buscando ? COLUMNAS_BUSCANDO : COLUMNAS_POR_DIA;
-  const dias = buscando ? null : agruparPorDia(itemsVisibles, { hayMas: hasMore, hoy });
+  const dias = buscando ? null : agruparPorDia(itemsVisibles, { hayMas: hasMore, hoy, totales: porDia });
   const fila = (it: HistorialItem) => (
     <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} columnas={columnas} conFecha={buscando} />
   );
@@ -321,13 +326,25 @@ export function HistorialView({
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
                 {/* El separador del día: cuántos salieron y cuánto tiempo de la
-                    sección llevaron. Con más páginas por cargar, el último día
-                    puede estar a medias y lo dice con "+". */}
+                    sección llevaron.
+
+                    Los PEDIDOS son los del día entero, aunque falten filas por
+                    cargar: el total lo manda el servidor. El TIEMPO no puede
+                    serlo —los minutos se piden a RPS por página—, así que en un
+                    día a medias lleva "+" y lo explica al pasar por encima. */}
                 <h3 className="flex items-baseline gap-2 border-b border-border bg-surface-2/60 px-3 py-1.5 text-[11px] font-semibold text-text">
                   {dia.titulo}
                   <span className="font-normal text-text-muted">
-                    · {dia.items.length}{dia.incompleto ? "+" : ""} pedido{dia.items.length === 1 && !dia.incompleto ? "" : "s"}
-                    {dia.minutos > 0 && ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
+                    · {dia.total ?? dia.items.length}
+                    {dia.total === null && dia.parcial ? "+" : ""} pedido
+                    {(dia.total ?? dia.items.length) === 1 && !dia.parcial ? "" : "s"}
+                    {dia.minutos > 0 && (
+                      <span
+                        title={dia.parcial ? "Tiempo de los pedidos cargados: al bajar y cargarse el resto del día, sube" : undefined}
+                      >
+                        {` · ${fmtMin(dia.minutos)}${dia.parcial ? "+" : ""} de ${CENTRO_CORTO[seccion]}`}
+                      </span>
+                    )}
                   </span>
                 </h3>
                 {dia.items.map(fila)}

@@ -64,6 +64,23 @@ export interface PaginaIndice {
    *  pedidos. Como el panel de Sin asignar: solo lo que hay, para que elegir
    *  una no deje la lista en blanco. */
   familias: string[];
+  /** Cuántos pedidos tiene cada día de la consulta entera, por clave de día
+   *  (yyyy-mm-dd en la zona de la oficina, o "sin-fecha"). */
+  porDia: Record<string, number>;
+}
+
+/** La clave de día de un instante, en la zona de la oficina. El servidor va en
+ *  UTC y el navegador en Europe/Madrid: cortando por UTC, lo cerrado de
+ *  madrugada caería en el día anterior y el total no cuadraría con el
+ *  separador que se ve. */
+const DIA_OFICINA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+function claveEnOficina(ms: number): string {
+  return DIA_OFICINA.format(new Date(ms));
 }
 
 export function filtrarIndice(
@@ -85,7 +102,7 @@ export function filtrarIndice(
   // Por persona: con un id que no es del equipo no hay código, y no sale nada.
   let empleado: string | null = null;
   if (f.operario?.trim()) {
-    if (!/^\d+$/.test(f.empleado?.trim() ?? "")) return { filas: [], familias: [] };
+    if (!/^\d+$/.test(f.empleado?.trim() ?? "")) return { filas: [], familias: [], porDia: {} };
     empleado = f.empleado!.trim();
   }
 
@@ -133,6 +150,20 @@ export function filtrarIndice(
   lista.sort((x, y) =>
     (q ? desc(x.b.fechaPedido, y.b.fechaPedido) : desc(x.orden, y.orden)) || y.b.pedido.localeCompare(x.b.pedido),
   );
+  // Cuántos pedidos tiene cada día en la consulta ENTERA, no en esta página.
+  // El separador del Historial contaba solo lo cargado y el número crecía
+  // según bajabas; aquí ya está la lista completa, así que sale gratis.
+  //
+  // El día se corta en la zona de la oficina y no en la del servidor, que va
+  // en UTC: un pedido cerrado a las 00:30 de Madrid son las 22:30 del día
+  // anterior en UTC, y el total caería en un día distinto del que pinta el
+  // navegador. Si aun así no coincidieran, el separador no encuentra su clave
+  // y vuelve a contar lo cargado (ver `agruparPorDia`).
+  const porDia: Record<string, number> = {};
+  for (const { orden } of lista) {
+    const clave = orden === null ? "sin-fecha" : claveEnOficina(orden);
+    porDia[clave] = (porDia[clave] ?? 0) + 1;
+  }
   const off = Math.max(0, f.page) * PAGE_SIZE;
-  return { filas: lista.slice(off, off + PAGE_SIZE + 1).map(({ b }) => b), familias };
+  return { filas: lista.slice(off, off + PAGE_SIZE + 1).map(({ b }) => b), familias, porDia };
 }

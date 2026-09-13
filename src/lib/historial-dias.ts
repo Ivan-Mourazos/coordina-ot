@@ -14,8 +14,18 @@ export interface DiaHistorial {
   /** Tiempo de la sección del día. Los «Solo Taller» no suman: su tiempo es
    *  de otro centro y mezclarlo inflaría el día de OT. */
   minutos: number;
-  /** El último día cargado cuando aún quedan páginas: puede tener más. */
-  incompleto: boolean;
+  /** Cuántos pedidos tuvo el día ENTERO, lo cargado y lo que falta, o null si
+   *  el servidor no lo sabe (la consulta SQL de respaldo no lo trae).
+   *
+   *  Contando solo lo cargado, el número crecía según bajabas: el mismo día
+   *  decía 16 y al rato 24, sin que hubiera pasado nada. La lista del
+   *  Historial vive entera en memoria del servidor, así que el total de cada
+   *  día sale de ahí sin trabajo extra (ver `filtrarIndice`). */
+  total: number | null;
+  /** Faltan filas de este día por cargar. Importa para el TIEMPO: los minutos
+   *  de cada fila se piden a RPS por página, no están en la lista en memoria,
+   *  así que en un día a medias el tiempo es solo el de lo que se ve. */
+  parcial: boolean;
 }
 
 const claveDe = (d: Date) =>
@@ -46,7 +56,14 @@ export function tituloDia(d: Date, hoy: Date): string {
  *  un día nuevo empieza cuando cambia la fecha. */
 export function agruparPorDia(
   items: readonly HistorialItem[],
-  opciones: { hayMas: boolean; hoy: Date },
+  opciones: {
+    hayMas: boolean;
+    hoy: Date;
+    /** Cuántos pedidos tiene cada día en la consulta entera, por clave de día.
+     *  Lo manda el servidor desde la lista en memoria; sin él se cuenta lo
+     *  cargado, como antes. */
+    totales?: Record<string, number>;
+  },
 ): DiaHistorial[] {
   const dias: DiaHistorial[] = [];
   for (const it of items) {
@@ -54,12 +71,26 @@ export function agruparPorDia(
     const clave = d ? claveDe(d) : "sin-fecha";
     let dia = dias.at(-1);
     if (!dia || dia.clave !== clave) {
-      dia = { clave, titulo: d ? tituloDia(d, opciones.hoy) : "Sin fecha", items: [], minutos: 0, incompleto: false };
+      dia = {
+        clave,
+        titulo: d ? tituloDia(d, opciones.hoy) : "Sin fecha",
+        items: [],
+        minutos: 0,
+        total: opciones.totales?.[clave] ?? null,
+        parcial: false,
+      };
       dias.push(dia);
     }
     dia.items.push(it);
     if (!it.otrosCentros?.length) dia.minutos += it.minutos ?? 0;
   }
-  if (opciones.hayMas && dias.length > 0) dias[dias.length - 1].incompleto = true;
+  for (const dia of dias) {
+    // Con total del servidor la cuenta es exacta: falta lo que falte. Sin él,
+    // solo se puede sospechar del último día cargado mientras queden páginas.
+    dia.parcial =
+      dia.total !== null
+        ? dia.items.length < dia.total
+        : opciones.hayMas && dia === dias.at(-1);
+  }
   return dias;
 }

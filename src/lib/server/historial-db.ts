@@ -88,7 +88,7 @@ const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
 export async function leerHistorialPagina(
   f: HistorialFiltros,
-): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
   if (ES_MOCK) return paginaMock(f);
 
   // Con la lista en memoria ya hecha (la construye la ruta o el arranque), se
@@ -158,10 +158,10 @@ export async function leerHistorialPagina(
 function paginaDesdeIndice(
   indice: IndiceHistorial,
   f: HistorialFiltros,
-): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
   const seccion = seccionDe(f.seccion).id;
   const pasados = pasadosAt(seccion);
-  const { filas, familias } = filtrarIndice(indice, { ...f, seccion }, (pedido) => {
+  const { filas, familias, porDia } = filtrarIndice(indice, { ...f, seccion }, (pedido) => {
     const paso = pasados.get(pedido);
     const at = paso ? Date.parse(paso.at) : NaN;
     return Number.isNaN(at) ? null : at;
@@ -177,7 +177,7 @@ function paginaDesdeIndice(
       negocio: info?.negocio ?? null,
     };
   });
-  return completarPagina(deIndice, f, familias);
+  return completarPagina(deIndice, f, familias, porDia);
 }
 
 /** Lo común a las dos formas de sacar la página: quién la pasó y, en una sola
@@ -186,7 +186,10 @@ async function completarPagina(
   filas: FilaPagina[],
   f: HistorialFiltros,
   familiasDisponibles?: string[],
-): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[] }> {
+  /** Cuántos pedidos tiene cada día de la consulta entera. Solo lo sabe la
+   *  lista en memoria; la consulta SQL de respaldo no lo trae. */
+  porDia?: Record<string, number>,
+): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
   const nombres = await nombresHistorial();
   const hasMore = filas.length > PAGE_SIZE;
   const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id, nombres));
@@ -210,7 +213,12 @@ async function completarPagina(
       ...(suyos.trabajo?.otrosCentros ? { otrosCentros: suyos.trabajo.otrosCentros } : {}),
     };
   });
-  return { pedidos, hasMore, ...(familiasDisponibles ? { familias: familiasDisponibles } : {}) };
+  return {
+    pedidos,
+    hasMore,
+    ...(familiasDisponibles ? { familias: familiasDisponibles } : {}),
+    ...(porDia ? { porDia } : {}),
+  };
 }
 
 /** Fila cruda del minutaje por pedido/orden/empleado (antes de agrupar). */

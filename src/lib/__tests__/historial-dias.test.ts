@@ -51,12 +51,12 @@ describe("agruparPorDia", () => {
     expect(dias[0].clave).toBe("2026-09-11");
   });
 
-  it("con más páginas por cargar, el último día queda marcado como incompleto", () => {
+  it("con más páginas por cargar, el último día queda marcado como parcial", () => {
     const dias = agruparPorDia(
       [item("A", new Date(2026, 8, 11, 10)), item("B", new Date(2026, 8, 10, 10))],
       { hayMas: true, hoy },
     );
-    expect(dias.map((d) => d.incompleto)).toEqual([false, true]);
+    expect(dias.map((d) => d.parcial)).toEqual([false, true]);
   });
 
   it("sin fecha va a su propio grupo", () => {
@@ -70,5 +70,47 @@ describe("tituloDia", () => {
     expect(tituloDia(new Date(2026, 8, 11, 9), hoy)).toBe("Hoy, viernes 11/09/26");
     expect(tituloDia(new Date(2026, 8, 10, 9), hoy)).toBe("Ayer, jueves 10/09/26");
     expect(tituloDia(new Date(2026, 8, 8, 9), hoy)).toBe("Martes 08/09/26");
+  });
+});
+
+describe("cuántos pedidos tuvo el día de verdad", () => {
+  // El separador contaba solo lo cargado, así que el número crecía según
+  // bajabas: «16+ pedidos» pasaba a 24 sin que hubiera cambiado nada. El
+  // servidor sabe el total de cada día —la lista entera está en su memoria—,
+  // así que lo manda y aquí se usa.
+  it("usa el total del servidor aunque falten filas por cargar", () => {
+    const dias = agruparPorDia(
+      [item("A", new Date(2026, 8, 11, 10), { minutos: 12 })],
+      { hayMas: true, hoy, totales: { "2026-09-11": 24 } },
+    );
+    expect(dias[0].total).toBe(24);
+    // Y queda dicho que el TIEMPO sí es solo el de lo cargado: los minutos de
+    // cada fila se piden a RPS por página, no están en la lista en memoria.
+    expect(dias[0].parcial).toBe(true);
+  });
+
+  it("con el día entero cargado, ni total que corregir ni parcial", () => {
+    const dias = agruparPorDia(
+      [
+        item("A", new Date(2026, 8, 11, 10), { minutos: 12 }),
+        item("B", new Date(2026, 8, 11, 9), { minutos: 30 }),
+      ],
+      { hayMas: true, hoy, totales: { "2026-09-11": 2 } },
+    );
+    expect(dias[0].total).toBe(2);
+    expect(dias[0].parcial).toBe(false);
+  });
+
+  it("sin totales del servidor se sigue como hasta ahora", () => {
+    // La consulta SQL de respaldo no los trae. Ahí el número es el de lo
+    // cargado y se dice con un «+», que es lo honesto.
+    const dias = agruparPorDia(
+      [item("A", new Date(2026, 8, 11, 10)), item("C", new Date(2026, 8, 10, 17))],
+      { hayMas: true, hoy },
+    );
+    expect(dias.map((d) => [d.total, d.parcial])).toEqual([
+      [null, false],
+      [null, true],
+    ]);
   });
 });
