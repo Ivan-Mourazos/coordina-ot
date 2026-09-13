@@ -1,5 +1,7 @@
 import { leerDevolucion } from "./devolucion";
 import { leerAnulacion } from "./anulacion";
+import type { Intervalo } from "./fichaje";
+import { diasEntre, sumarDias } from "./fechas";
 
 // ─── Cuántas OF vuelven, y por qué ───────────────────────────────────────────
 // Sale del REGISTRO DE ACCIONES, no del estado de las OF, y la diferencia no es
@@ -75,10 +77,33 @@ export interface MesMetricas {
    *  Ver `calcularMetricas`: una revisión empezada el 31 de agosto y devuelta
    *  el 1 de septiembre cuenta en agosto por los dos lados. */
   devoluciones: number;
+  /** Planteos entregados a revisión. A diferencia de las devoluciones, va en
+   *  SU mes: no cuelga de nada anterior. */
+  planteos: number;
+  /** OF dadas por buenas, de cualquiera de las tres formas. */
+  terminadas: number;
 }
 
-/** Un tramo de tiempo medido entre dos momentos del ciclo. */
-export interface Tramo {
+/** Cuánto trabajo sale, que es el contexto que le falta a todo lo demás.
+ *
+ *  Un 33 % de devoluciones no se puede leer sin saber si son 3 de 9 o 70 de
+ *  210: en el primer caso no hay nada que decir todavía y en el segundo hay un
+ *  problema. El dato estaba entero en el registro y no se miraba. */
+export interface Volumen {
+  /** Planteos entregados a revisión (`terminar_planteo`). Cuenta las SEGUNDAS
+   *  vueltas: corregir y volver a entregar es trabajo hecho otra vez, y sin
+   *  contarlo un mes de correcciones parece un mes vacío. */
+  planteos: number;
+  /** Veces que se cerró trabajo: aprobar, dar por corregida o dar por bueno
+   *  sin revisión. Una OF reabierta y vuelta a aprobar suma DOS. */
+  terminadas: number;
+  /** OF distintas que se terminaron. La de arriba dice cuántas veces costó
+   *  cerrar; esta, cuánto trabajo distinto salió. */
+  ofTerminadas: number;
+}
+
+/** Una medida repetida: cuántas veces se pudo tomar y cómo es el caso normal. */
+export interface Medida {
   /** Cuántas veces se ha podido medir. Con pocas, la mediana no dice gran cosa
    *  y quien la pinte tiene que poder avisarlo. */
   n: number;
@@ -86,6 +111,21 @@ export interface Tramo {
    *  fue de vacaciones desplaza la media y hace pensar que todo va lento. La
    *  mediana dice cómo es el caso normal, que es lo que se pregunta. */
   medianaMin: number | null;
+}
+
+/** Un tramo de tiempo medido entre dos momentos del ciclo. */
+export interface Tramo extends Medida {
+  /** Lo mismo, pero contando solo los minutos FICHADOS dentro del tramo.
+   *
+   *  El reloj de pared y el trabajo son dos cosas, y confundirlas lleva a la
+   *  decisión contraria: "corregir tarda dos días" hace pensar en poner más
+   *  gente, cuando lo que pasa es que son veinte minutos de trabajo repartidos
+   *  en dos días de espera.
+   *
+   *  Un tramo SIN fichaje no cuenta como cero, y por eso `n` va aparte: los
+   *  meses en que el equipo fichaba en el terminal viejo y no aquí arrastrarían
+   *  la mediana al suelo y la pantalla diría que el trabajo no cuesta nada. */
+  trabajo: Medida;
 }
 
 export interface Tiempos {
@@ -120,6 +160,9 @@ export interface Metricas {
 
   /** Dónde se para el trabajo. */
   tiempos: Tiempos;
+
+  /** Cuánto trabajo sale. */
+  volumen: Volumen;
 }
 
 const mesDe = (iso: string) => iso.slice(0, 7);
@@ -130,14 +173,22 @@ const mesDe = (iso: string) => iso.slice(0, 7);
  *  `id: null`. Son las devoluciones anteriores a que existieran las causas —y
  *  las que se escribieron sin marcar ninguna—, y esconderlas haría que los
  *  porcentajes no cuadraran con el total sin decir por qué. */
-export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metricas {
+export function calcularMetricas(
+  movs: readonly MovimientoRegistrado[],
+  /** El fichaje de la web, para poder separar el reloj de pared del trabajo.
+   *  Sin él los tramos se miden igual y la columna de trabajo sale vacía. */
+  intervalos: readonly Intervalo[] = [],
+): Metricas {
   let revisiones = 0;
   let devoluciones = 0;
   let anulaciones = 0;
+  let planteos = 0;
+  let terminadas = 0;
+  const ofTerminadas = new Set<string>();
   const porCausa = new Map<number | null, number>();
   const porCausaAnulacion = new Map<string | null, number>();
   const porMes = new Map<string, MesMetricas>();
-  const cronometro = new Cronometro();
+  const cronometro = new Cronometro(intervalos);
   // Cuándo empezó la revisión que sigue abierta en cada OF, para poder llevar
   // su devolución al mes que le toca. Se suelta al resolverse (devolver o
   // aprobar): la siguiente vuelta de esa OF es otra revisión distinta.
@@ -145,7 +196,13 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
 
   const mes = (at: string) => {
     const k = mesDe(at);
-    const m = porMes.get(k) ?? { mes: k, revisiones: 0, devoluciones: 0 };
+    const m = porMes.get(k) ?? {
+      mes: k,
+      revisiones: 0,
+      devoluciones: 0,
+      planteos: 0,
+      terminadas: 0,
+    };
     porMes.set(k, m);
     return m;
   };
@@ -158,6 +215,11 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
       const a = leerAnulacion(mov.observacion);
       const causa = a?.causa ?? null;
       porCausaAnulacion.set(causa, (porCausaAnulacion.get(causa) ?? 0) + 1);
+      continue;
+    }
+    if (mov.motivo === "terminar_planteo") {
+      planteos++;
+      mes(mov.at).planteos++;
       continue;
     }
     if (mov.motivo === "empezar_revision") {
@@ -176,6 +238,9 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
       mov.motivo === "aprobar_sin_revision"
     ) {
       revisionAbierta.delete(mov.ofId);
+      terminadas++;
+      ofTerminadas.add(mov.ofId);
+      mes(mov.at).terminadas++;
       continue;
     }
     if (mov.motivo !== "devolver") continue;
@@ -212,6 +277,7 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
     revisiones,
     devoluciones,
     anulaciones,
+    volumen: { planteos, terminadas, ofTerminadas: ofTerminadas.size },
     porCausaAnulacion: [...porCausaAnulacion.entries()]
       .map(([causa, n]) => ({ causa, n }))
       .sort((a, b) => b.n - a.n || (a.causa === null ? 1 : b.causa === null ? -1 : 0)),
@@ -223,6 +289,33 @@ export function calcularMetricas(movs: readonly MovimientoRegistrado[]): Metrica
       .sort((a, b) => b.n - a.n || (a.id === null ? 1 : b.id === null ? -1 : a.id - b.id)),
     porMes: [...porMes.values()].sort((a, b) => a.mes.localeCompare(b.mes)),
   };
+}
+
+/** Un periodo de días, los dos extremos dentro (como el filtro de la pantalla). */
+export interface Periodo {
+  desde: string;
+  hasta: string;
+}
+
+/** Los últimos `dias` días, contando hoy.
+ *
+ *  Contando hoy, no desde hoy: con `hoy − 90` la ventana tendría 91 días, y al
+ *  compararla con la anterior —que sí tendría 90— la diferencia saldría del
+ *  calendario y no del trabajo. */
+export function ventanaDeDias(dias: number, hoy: string): Periodo {
+  return { desde: sumarDias(hoy, -(dias - 1)), hasta: hoy };
+}
+
+/** El periodo de la MISMA longitud que acaba justo antes, para comparar.
+ *
+ *  Null si no hay periodo cerrado: comparar "todo el histórico" con lo que
+ *  había antes de existir la herramienta no es una comparación. */
+export function periodoAnterior(desde: string, hasta: string): Periodo | null {
+  if (!desde || !hasta) return null;
+  const largo = diasEntre(desde, hasta);
+  if (largo < 0) return null;
+  const fin = sumarDias(desde, -1);
+  return { desde: sumarDias(fin, -largo), hasta: fin };
 }
 
 /** Cuántas de cada N vuelven. Null cuando no hubo revisiones: sin denominador
@@ -253,6 +346,51 @@ class Cronometro {
     repaso: [],
     correccion: [],
   };
+  /** Los minutos fichados dentro de cada tramo, solo de los tramos en los que
+   *  hubo alguno. Ver `Tramo.trabajo`. */
+  private trabajado: Record<keyof Tiempos, number[]> = {
+    esperaCola: [],
+    repaso: [],
+    correccion: [],
+  };
+  /** El fichaje indexado por OF: se recorre una vez y se consulta por tramo.
+   *  Con la lista entera por cada cierre, un año de registro son millones de
+   *  comparaciones para nada. */
+  private porOF = new Map<string, Intervalo[]>();
+
+  constructor(intervalos: readonly Intervalo[]) {
+    for (const iv of intervalos) {
+      // Un tramo abierto no se mide: todavía no se sabe cuánto durará, igual
+      // que con los tramos del ciclo.
+      if (!iv.fin) continue;
+      for (const ofId of iv.ofIds) {
+        const lista = this.porOF.get(ofId);
+        if (lista) lista.push(iv);
+        else this.porOF.set(ofId, [iv]);
+      }
+    }
+  }
+
+  /** Minutos fichados de esta OF entre dos momentos. Solo la parte de dentro:
+   *  un fichaje que empieza antes del corte o acaba después cuenta lo que le
+   *  toca, no entero.
+   *
+   *  Se reparte entre las OF del tramo, igual que en el resto de la app (ver
+   *  `minutosOF` en fichaje.ts): un rato dedicado a dos OF a la vez no es el
+   *  doble de trabajo. */
+  private trabajoEntre(ofId: string, desde: string, hasta: string): number {
+    const lista = this.porOF.get(ofId);
+    if (!lista) return 0;
+    const a = Date.parse(desde);
+    const b = Date.parse(hasta);
+    let total = 0;
+    for (const iv of lista) {
+      const ini = Math.max(a, Date.parse(iv.inicio));
+      const fin = Math.min(b, Date.parse(iv.fin!));
+      if (fin > ini) total += (fin - ini) / 60000 / iv.ofIds.length;
+    }
+    return total;
+  }
 
   /** Qué abre y qué cierra cada tramo. Un movimiento puede cerrar uno y abrir
    *  otro: `empezar_revision` cierra la espera y abre el repaso. */
@@ -285,7 +423,11 @@ class Cronometro {
         const min = (Date.parse(mov.at) - Date.parse(desde)) / 60000;
         // Negativo solo puede salir de un registro desordenado; se ignora en
         // vez de restar tiempo al resto.
-        if (min >= 0) this.medidas[cierra].push(min);
+        if (min >= 0) {
+          this.medidas[cierra].push(min);
+          const trabajo = this.trabajoEntre(mov.ofId, desde, mov.at);
+          if (trabajo > 0) this.trabajado[cierra].push(trabajo);
+        }
         this.abiertos.delete(k);
       }
     }
@@ -295,10 +437,14 @@ class Cronometro {
   }
 
   resultado(): Tiempos {
+    const arma = (k: keyof Tiempos): Tramo => ({
+      ...medida(this.medidas[k]),
+      trabajo: medida(this.trabajado[k]),
+    });
     return {
-      esperaCola: tramo(this.medidas.esperaCola),
-      repaso: tramo(this.medidas.repaso),
-      correccion: tramo(this.medidas.correccion),
+      esperaCola: arma("esperaCola"),
+      repaso: arma("repaso"),
+      correccion: arma("correccion"),
     };
   }
 
@@ -307,7 +453,7 @@ class Cronometro {
   }
 }
 
-function tramo(minutos: number[]): Tramo {
+function medida(minutos: number[]): Medida {
   if (minutos.length === 0) return { n: 0, medianaMin: null };
   const orden = [...minutos].sort((a, b) => a - b);
   const m = Math.floor(orden.length / 2);

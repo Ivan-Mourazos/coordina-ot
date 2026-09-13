@@ -3,6 +3,8 @@ import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
 import { encolarFichaje } from "./olanet-outbox";
+import { operariosDeSeccion } from "./operarios";
+import type { SeccionId } from "../secciones";
 
 // ─── Persistencia del fichaje (SQLite propio) ────────────────────────────────
 // Los intervalos de tiempo por operario. La HORA la pone siempre el server al
@@ -60,6 +62,48 @@ export function leerTodosIntervalos(): Intervalo[] {
   const filas = getDb()
     .prepare(`${SELECT} WHERE traspasado_at IS NULL ORDER BY inicio`)
     .all() as Fila[];
+  return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
+}
+
+/** El fichaje que miran las Métricas: TODO, traspasado o no.
+ *
+ *  Es la diferencia con `leerTodosIntervalos`, y es a propósito. Allí se están
+ *  sumando minutos que van a acabar en RPS y contar dos veces los ya subidos
+ *  sería inflar el total; aquí se está midiendo cuánto costó nuestro trabajo,
+ *  y un tramo que ya subió pasó igual. Con el filtro puesto, el histórico de
+ *  la pantalla se vaciaría solo en cuanto el fichaje pase a `activo`.
+ *
+ *  El periodo se filtra por SOLAPE, no por el inicio: un repaso que empezó a
+ *  las 23:00 del día anterior y acabó dentro cuenta su parte (el recorte fino
+ *  lo hace `calcularMetricas`). Los abiertos entran y los descarta el cálculo,
+ *  que es donde vive la regla de "lo que no ha acabado no se mide".
+ *
+ *  La sección se filtra por el operario que ficha, igual que los movimientos
+ *  (ver `leerMovimientosMetricas`). */
+export function leerIntervalosMetricas(
+  desde?: string,
+  hasta?: string,
+  seccion?: SeccionId,
+): Intervalo[] {
+  const filtros: string[] = [];
+  const args: string[] = [];
+  if (seccion) {
+    const suyos = operariosDeSeccion(seccion);
+    filtros.push(`operario_id IN (${suyos.map(() => "?").join(",")})`);
+    args.push(...suyos);
+  }
+  if (desde) {
+    filtros.push("(fin IS NULL OR fin > ?)");
+    args.push(desde);
+  }
+  if (hasta) {
+    filtros.push("inicio < ?");
+    args.push(hasta);
+  }
+  const where = filtros.length > 0 ? ` WHERE ${filtros.join(" AND ")}` : "";
+  const filas = getDb()
+    .prepare(`${SELECT}${where} ORDER BY inicio`)
+    .all(...args) as Fila[];
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
 }
 

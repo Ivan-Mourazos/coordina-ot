@@ -646,7 +646,10 @@ export function leerMovimientosMetricas(
   // se cuente: cancela la espera en la cola, y sin él una OF recuperada seguiria
   // sumando espera hasta que alguien la mirase meses despues.
   const filtros = [
-    "l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','recuperar_planteo')",
+    // `aprobar_sin_revision` entra desde que las métricas cuentan volumen: es
+    // una de las TRES formas de dar por buena una OF, y sin ella todo el
+    // trabajo que no lleva revisión salía de los números como si no existiera.
+    "l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','aprobar_sin_revision','recuperar_planteo')",
   ];
   const args: string[] = [];
   if (seccion) {

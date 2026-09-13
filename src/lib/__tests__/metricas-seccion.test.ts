@@ -12,11 +12,13 @@ import path from "node:path";
 
 let dir: string;
 let db: typeof import("../server/estado-db");
+let fdb: typeof import("../server/fichaje-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-msec-"));
   process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
   db = await import("../server/estado-db");
+  fdb = await import("../server/fichaje-db");
 });
 
 afterAll(() => {
@@ -29,6 +31,7 @@ afterAll(() => {
 
 beforeEach(() => {
   db.getDb().prepare("DELETE FROM acciones_log").run();
+  db.getDb().prepare("DELETE FROM fichaje_intervalo").run();
 });
 
 /** Una revisión y su devolución, a nombre de quien sea. */
@@ -88,4 +91,64 @@ test("el filtro de fechas sigue valiendo dentro de una sección", () => {
   const soloSept = db.leerMovimientosMetricas("2026-09-01T00:00:00.000Z", undefined, "diseno");
   expect(soloSept).toHaveLength(2);
   expect(soloSept.every((m) => m.at.startsWith("2026-09"))).toBe(true);
+});
+
+test("el trabajo dado por bueno sin revisión llega a las métricas", () => {
+  // `aprobar_sin_revision` estaba fuera de la consulta: la acción existe desde
+  // hace meses, la trata el cálculo, y los movimientos nunca llegaban. Todo el
+  // trabajo que no lleva revisión —ASSA ABLOY y demás— salía de los números
+  // como si no se hubiera hecho.
+  const ins = db
+    .getDb()
+    .prepare("INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, ?, ?)");
+  const det = JSON.stringify({ cambiosOF: [{ ofId: "of9", observacion: null }] });
+  ins.run("2026-09-03T09:00:00.000Z", "jaime", "aprobar_sin_revision", det);
+
+  const ot = db.leerMovimientosMetricas(undefined, undefined, "ot");
+  expect(ot.filter((m) => m.motivo === "aprobar_sin_revision")).toHaveLength(1);
+});
+
+/** Un tramo de fichaje ya cerrado, tal cual lo guarda el motor. */
+function fichaje(operarioId: string, ofIds: string[], inicio: string, fin: string, traspasado = false) {
+  db.getDb()
+    .prepare(
+      `INSERT INTO fichaje_intervalo (operario_id, of_ids, rol, inicio, fin, updated_at, traspasado_at)
+       VALUES (?, ?, 'revisar', ?, ?, ?, ?)`,
+    )
+    .run(operarioId, JSON.stringify(ofIds), inicio, fin, fin, traspasado ? fin : null);
+}
+
+test("el fichaje de las métricas lo trae TODO, traspasado o no", () => {
+  // A diferencia del tablero, aquí no se están sumando minutos para RPS: se
+  // está midiendo cuánto costó nuestro trabajo. Un tramo que ya subió a RPS
+  // pasó igual, y dejarlo fuera vaciaría el histórico en cuanto el fichaje se
+  // ponga en activo.
+  fichaje("jaime", ["of1"], "2026-09-02T09:00:00.000Z", "2026-09-02T09:30:00.000Z");
+  fichaje("jaime", ["of2"], "2026-09-02T10:00:00.000Z", "2026-09-02T10:30:00.000Z", true);
+
+  expect(fdb.leerIntervalosMetricas(undefined, undefined, "ot")).toHaveLength(2);
+});
+
+test("cada sección mide su propio fichaje", () => {
+  fichaje("jaime", ["of1"], "2026-09-02T09:00:00.000Z", "2026-09-02T09:30:00.000Z");
+  fichaje("carron", ["of3"], "2026-09-02T09:00:00.000Z", "2026-09-02T09:30:00.000Z");
+
+  expect(fdb.leerIntervalosMetricas(undefined, undefined, "ot")).toHaveLength(1);
+  const diseno = fdb.leerIntervalosMetricas(undefined, undefined, "diseno");
+  expect(diseno).toHaveLength(1);
+  expect(diseno[0].operarioId).toBe("carron");
+});
+
+test("un fichaje que cruza el principio del periodo entra, no se pierde su parte", () => {
+  // El tramo empezó antes del corte y acabó dentro. Dejándolo fuera, el trabajo
+  // de ese repaso saldría a cero justo en el primer día del periodo.
+  fichaje("jaime", ["of1"], "2026-08-31T23:00:00.000Z", "2026-09-01T01:00:00.000Z");
+
+  expect(fdb.leerIntervalosMetricas("2026-09-01T00:00:00.000Z", undefined, "ot")).toHaveLength(1);
+});
+
+test("el fichaje de fuera del periodo no entra", () => {
+  fichaje("jaime", ["of1"], "2026-07-10T09:00:00.000Z", "2026-07-10T09:30:00.000Z");
+
+  expect(fdb.leerIntervalosMetricas("2026-09-01T00:00:00.000Z", undefined, "ot")).toHaveLength(0);
 });

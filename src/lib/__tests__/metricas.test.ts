@@ -4,6 +4,7 @@ import {
   proporcionDevueltas,
   type MovimientoRegistrado,
 } from "../metricas";
+import type { Intervalo } from "../fichaje";
 
 const mov = (
   at: string,
@@ -28,10 +29,12 @@ describe("cuántas vuelven", () => {
     expect(m.revisiones).toBe(2);
   });
 
-  it("lo que no es revisar ni devolver no entra", () => {
+  it("lo que no es del ciclo no entra", () => {
+    // Asignar, soltar o restaurar pasan por el registro y no son ni un repaso
+    // ni un cierre: no pueden crear un mes donde no hubo trabajo medible.
     const m = calcularMetricas([
-      mov("2026-08-03T10:00:00.000Z", "aprobar", "of1"),
       mov("2026-08-03T10:00:00.000Z", "asignar", "of1"),
+      mov("2026-08-03T11:00:00.000Z", "restaurar", "of1"),
     ]);
     expect(m).toMatchObject({ revisiones: 0, devoluciones: 0, porCausa: [], porMes: [] });
   });
@@ -93,8 +96,8 @@ describe("si va a mejor", () => {
       mov("2026-08-10T10:00:00.000Z", "empezar_revision", "of2"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-08", revisiones: 2, devoluciones: 1 },
-      { mes: "2026-09", revisiones: 1, devoluciones: 0 },
+      { mes: "2026-08", revisiones: 2, devoluciones: 1, planteos: 0, terminadas: 0 },
+      { mes: "2026-09", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 0 },
     ]);
   });
 
@@ -108,7 +111,9 @@ describe("si va a mejor", () => {
       mov("2026-08-31T16:00:00.000Z", "empezar_revision", "of1"),
       mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] la cota"),
     ]);
-    expect(m.porMes).toEqual([{ mes: "2026-08", revisiones: 1, devoluciones: 1 }]);
+    expect(m.porMes).toEqual([
+      { mes: "2026-08", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
+    ]);
   });
 
   it("ningún mes puede pasar del 100 %", () => {
@@ -132,7 +137,9 @@ describe("si va a mejor", () => {
     // cuentan donde pasaron, y cuentan TAMBIÉN como revisión: si la OF volvió,
     // alguien la revisó. Sumando solo la devolución, el mes pasaba del 100 %.
     const m = calcularMetricas([mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] x")]);
-    expect(m.porMes).toEqual([{ mes: "2026-09", revisiones: 1, devoluciones: 1 }]);
+    expect(m.porMes).toEqual([
+      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
+    ]);
     expect(m.revisiones).toBe(1);
   });
 
@@ -148,7 +155,13 @@ describe("si va a mejor", () => {
     movs.push(mov("2026-09-02T11:00:00.000Z", "devolver", "huerfana", "[1] x"));
 
     const septiembre = calcularMetricas(movs).porMes.find((m) => m.mes === "2026-09")!;
-    expect(septiembre).toEqual({ mes: "2026-09", revisiones: 7, devoluciones: 7 });
+    expect(septiembre).toEqual({
+      mes: "2026-09",
+      revisiones: 7,
+      devoluciones: 7,
+      planteos: 0,
+      terminadas: 0,
+    });
     expect(septiembre.devoluciones).toBeLessThanOrEqual(septiembre.revisiones);
   });
 
@@ -162,10 +175,10 @@ describe("si va a mejor", () => {
       mov("2026-09-10T10:00:00.000Z", "devolver", "of1", "[1] otra cosa"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-08", revisiones: 1, devoluciones: 0 },
+      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1 },
       // La de septiembre no se cuelga de la revisión de agosto: se cuenta en
       // septiembre, con su revisión implícita.
-      { mes: "2026-09", revisiones: 1, devoluciones: 1 },
+      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
     ]);
   });
 
@@ -179,6 +192,8 @@ describe("si va a mejor", () => {
       mes: "2026-09",
       revisiones: 1,
       devoluciones: 1,
+      planteos: 0,
+      terminadas: 0,
     });
   });
 });
@@ -222,9 +237,9 @@ describe("dónde se para el trabajo", () => {
       mov("2026-08-03T10:30:00.000Z", "devolver", "of1", "[1] x"), // 30m de repaso
       mov("2026-08-03T12:30:00.000Z", "aprobar_corregida", "of1"), // 120m de corrección
     ]);
-    expect(m.tiempos.esperaCola).toEqual({ n: 1, medianaMin: 120 });
-    expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30 });
-    expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 120 });
+    expect(m.tiempos.esperaCola).toEqual({ n: 1, medianaMin: 120, trabajo: { n: 0, medianaMin: null } });
+    expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30, trabajo: { n: 0, medianaMin: null } });
+    expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 120, trabajo: { n: 0, medianaMin: null } });
   });
 
   it("una OF que da dos vueltas mide dos veces", () => {
@@ -236,14 +251,14 @@ describe("dónde se para el trabajo", () => {
       mov("2026-08-03T13:00:00.000Z", "empezar_revision", "of1"),
     ]);
     // Dos esperas: 60m y 180m. La mediana de dos es su media.
-    expect(m.tiempos.esperaCola).toEqual({ n: 2, medianaMin: 120 });
+    expect(m.tiempos.esperaCola).toEqual({ n: 2, medianaMin: 120, trabajo: { n: 0, medianaMin: null } });
   });
 
   it("lo que sigue esperando NO cuenta", () => {
     // Contarlo como si hubiera acabado ahora haría que los números bajaran
     // solos según pasa el tiempo, que es justo al revés de la verdad.
     const m = calcularMetricas([mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1")]);
-    expect(m.tiempos.esperaCola).toEqual({ n: 0, medianaMin: null });
+    expect(m.tiempos.esperaCola).toEqual({ n: 0, medianaMin: null, trabajo: { n: 0, medianaMin: null } });
   });
 
   it("recuperar una OF de la cola cancela su espera", () => {
@@ -273,5 +288,155 @@ describe("dónde se para el trabajo", () => {
     expect(m.tiempos.esperaCola.n).toBe(6);
     // Con media saldría más de un día; la mediana se queda donde está lo normal.
     expect(m.tiempos.esperaCola.medianaMin).toBe(60);
+  });
+});
+
+describe("cuánto trabajo sale", () => {
+  it("cuenta como terminado las TRES formas de dar por buena una OF", () => {
+    // Las tres dejan la OF lista para que el pedido pase a Producción, así que
+    // las tres son trabajo que sale. Contando solo "aprobar" se perdería todo
+    // el trabajo que no lleva revisión, que es real y es de OT.
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "aprobar", "of1"),
+      mov("2026-08-04T10:00:00.000Z", "aprobar_corregida", "of2"),
+      mov("2026-08-05T10:00:00.000Z", "aprobar_sin_revision", "of3"),
+    ]);
+    expect(m.volumen.terminadas).toBe(3);
+    expect(m.volumen.ofTerminadas).toBe(3);
+  });
+
+  it("una OF reabierta y vuelta a aprobar es UNA OF, aunque sean dos cierres", () => {
+    // Los dos números dicen cosas distintas y hacen falta los dos: `terminadas`
+    // es cuántas veces se cerró trabajo (dos, y la segunda costó), `ofTerminadas`
+    // es cuánto trabajo distinto salió (una).
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "aprobar", "of1"),
+      mov("2026-08-10T10:00:00.000Z", "reabrir", "of1"),
+      mov("2026-08-11T10:00:00.000Z", "aprobar", "of1"),
+    ]);
+    expect(m.volumen.terminadas).toBe(2);
+    expect(m.volumen.ofTerminadas).toBe(1);
+  });
+
+  it("los planteos entregados incluyen la segunda vuelta de una devuelta", () => {
+    // Volver a entregar un planteo corregido es trabajo hecho otra vez, no el
+    // mismo de antes. Si no contara, un mes lleno de correcciones parecería un
+    // mes vacío.
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T11:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T12:00:00.000Z", "devolver", "of1", "[1] la cota"),
+      mov("2026-08-04T10:00:00.000Z", "terminar_planteo", "of1"),
+    ]);
+    expect(m.volumen.planteos).toBe(2);
+  });
+
+  it("reparte el volumen por mes, cada movimiento en el suyo", () => {
+    const m = calcularMetricas([
+      mov("2026-07-30T10:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-01T10:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-01T11:00:00.000Z", "aprobar", "of1"),
+    ]);
+    expect(m.porMes).toEqual([
+      { mes: "2026-07", revisiones: 0, devoluciones: 0, planteos: 1, terminadas: 0 },
+      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1 },
+    ]);
+  });
+});
+
+describe("cuánto de ese tiempo se trabajó de verdad", () => {
+  // El reloj de pared y el trabajo son dos cosas, y confundirlas lleva a la
+  // decisión contraria: "corregir tarda dos días" hace pensar en poner más
+  // gente, cuando lo que pasa es que son veinte minutos de trabajo repartidos
+  // en dos días de espera.
+  const iv = (
+    inicio: string,
+    fin: string | null,
+    ofIds: string[],
+    rol: "plantear" | "revisar" = "revisar",
+  ): Intervalo => ({ inicio, fin, ofIds, rol, operarioId: "jaime" });
+
+  it("cuenta solo el fichaje que cae DENTRO del tramo", () => {
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+      ],
+      [
+        iv("2026-08-03T09:00:00.000Z", "2026-08-03T09:30:00.000Z", ["of1"]), // antes
+        iv("2026-08-03T10:15:00.000Z", "2026-08-03T10:45:00.000Z", ["of1"]), // dentro
+      ],
+    );
+    expect(m.tiempos.repaso.medianaMin).toBe(120);
+    expect(m.tiempos.repaso.trabajo).toEqual({ n: 1, medianaMin: 30 });
+  });
+
+  it("un fichaje a caballo del final cuenta solo su parte de dentro", () => {
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+      ],
+      [iv("2026-08-03T11:45:00.000Z", "2026-08-03T12:30:00.000Z", ["of1"])],
+    );
+    expect(m.tiempos.repaso.trabajo.medianaMin).toBe(15);
+  });
+
+  it("un fichaje de varias OF reparte sus minutos, como en el resto de la app", () => {
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+      ],
+      [iv("2026-08-03T10:00:00.000Z", "2026-08-03T11:00:00.000Z", ["of1", "of2"])],
+    );
+    expect(m.tiempos.repaso.trabajo.medianaMin).toBe(30);
+  });
+
+  it("el fichaje de OTRA OF no se cuela", () => {
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+      ],
+      [iv("2026-08-03T10:15:00.000Z", "2026-08-03T10:45:00.000Z", ["of9"])],
+    );
+    expect(m.tiempos.repaso.trabajo).toEqual({ n: 0, medianaMin: null });
+  });
+
+  it("un tramo sin fichaje no cuenta como cero: no se midió", () => {
+    // Si contara, los meses en los que el equipo fichaba en el terminal viejo
+    // y no aquí arrastrarían la mediana a cero y la pantalla diría que el
+    // trabajo no cuesta nada. `n` dice sobre cuántos se pudo mirar.
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+        mov("2026-08-04T10:00:00.000Z", "empezar_revision", "of2"),
+        mov("2026-08-04T11:00:00.000Z", "aprobar", "of2"),
+      ],
+      [iv("2026-08-03T10:00:00.000Z", "2026-08-03T10:20:00.000Z", ["of1"])],
+    );
+    expect(m.tiempos.repaso.n).toBe(2);
+    expect(m.tiempos.repaso.trabajo).toEqual({ n: 1, medianaMin: 20 });
+  });
+
+  it("sin fichaje que mirar, no hay trabajo que enseñar", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+    ]);
+    expect(m.tiempos.repaso.trabajo).toEqual({ n: 0, medianaMin: null });
+  });
+
+  it("un fichaje abierto no cierra nada: todavía no se sabe cuánto durará", () => {
+    const m = calcularMetricas(
+      [
+        mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+        mov("2026-08-03T12:00:00.000Z", "aprobar", "of1"),
+      ],
+      [iv("2026-08-03T10:15:00.000Z", null, ["of1"])],
+    );
+    expect(m.tiempos.repaso.trabajo).toEqual({ n: 0, medianaMin: null });
   });
 });

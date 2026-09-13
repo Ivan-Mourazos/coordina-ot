@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calcularMetricas } from "@/lib/metricas";
 import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
+import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
 
 // ─── /api/metricas ───────────────────────────────────────────────────────────
@@ -35,13 +36,17 @@ export async function GET(req: Request) {
     // incomparable con el de agosto y no diría nada de ninguno de los dos.
     // Sin sección se sirve la de siempre, que es lo que había.
     const pedida = q.get("seccion");
-    const movs = leerMovimientosMetricas(
-      limite(q.get("desde")),
-      limite(q.get("hasta"), true),
-      esSeccionId(pedida) ? pedida : SECCION_POR_DEFECTO,
-    );
+    const seccion = esSeccionId(pedida) ? pedida : SECCION_POR_DEFECTO;
+    const desde = limite(q.get("desde"));
+    const hasta = limite(q.get("hasta"), true);
+    const movs = leerMovimientosMetricas(desde, hasta, seccion);
+    // El fichaje va con los movimientos porque responde a la otra mitad de la
+    // pregunta: los movimientos dicen cuánto tardó, el fichaje cuánto se
+    // trabajó. Separadas, "corregir tarda dos días" hace pensar en poner más
+    // gente cuando son veinte minutos repartidos en dos días de espera.
+    const intervalos = leerIntervalosMetricas(desde, hasta, seccion);
     return NextResponse.json(
-      { metricas: calcularMetricas(movs), causas: leerCausasDevolucion(true) },
+      { metricas: calcularMetricas(movs, intervalos), causas: leerCausasDevolucion(true) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
