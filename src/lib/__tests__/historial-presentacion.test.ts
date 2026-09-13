@@ -31,7 +31,7 @@ test("documentos plegados y todas las fotos juntas, antes del planteamiento", ()
   expect(html).not.toContain("<img");
 });
 
-test("el desglose conserva tareas, totales y personas de la sección sin sumar dos veces", () => {
+test("el desglose conserva tareas y totales sin sumar dos veces, con la gente de cada centro", () => {
   const base = { orden: "0231922", descripcion: "Lona", centro: "ot" as const, tarea: "1", descripcionTarea: "Plantear", empleado: "Iván Sánchez", minutos: 7 };
   // Dos tareas de OT con tiempo: ahí sí dice algo quién echó cada una.
   const ofs = agruparTiemposPorCentro([base, { ...base, empleado: "Jaime Vázquez", minutos: 3 },
@@ -46,7 +46,8 @@ test("el desglose conserva tareas, totales y personas de la sección sin sumar d
   expect(html).toContain("34m");
   expect(html).toContain("Iván Sánchez");
   expect(html).toContain("Jaime Vázquez");
-  expect(html).not.toContain("Silvia López");
+  // La de Taller también: esta ventana es la del detalle y las enseña todas.
+  expect(html).toContain("Silvia López");
 });
 
 const tarea: FilaTiempoCentro = { orden: "0232086", descripcion: "CAMBIO DE TELA", centro: "ot", tarea: "02", descripcionTarea: "Plantear", empleado: "Adrián Quinteiro", minutos: 2 };
@@ -74,4 +75,33 @@ test("los centros sin tiempo van plegados en una línea, y la sección consultad
   expect(html.indexOf("Oficina Técnica")).toBeLessThan(html.indexOf("Diseño Gráfico"));
   const diseno = pinta(filas, "diseno");
   expect(diseno.indexOf("Diseño Gráfico")).toBeLessThan(diseno.indexOf("Oficina Técnica"));
+});
+
+test("con una sola persona en la tarea, el nombre no repite el tiempo", () => {
+  // Era "Jaime Vázquez 12m ... 12m": el mismo número dos veces en la misma
+  // línea, porque si solo hay uno su tiempo ES el de la tarea. Con varios sí
+  // hace falta el de cada uno, que es lo que el total no dice.
+  const html = pinta([{ ...tarea, empleado: "Jaime Vázquez", minutos: 12 }]);
+  expect(html).toContain("Jaime Vázquez");
+  expect(html).not.toContain("Jaime Vázquez 12m");
+  expect(html).toContain("12m");
+});
+
+test("con varios, cada uno sigue con su tiempo", () => {
+  const html = pinta([tarea, { ...tarea, empleado: "Iván Sánchez", minutos: 5 }]);
+  expect(html).toContain("Iván Sánchez 5m · Adrián Quinteiro 2m");
+});
+
+test("los nombres salen en TODOS los centros, no solo en el consultado", () => {
+  // Es la ventana del detalle: se abre justo para saber quién echó cada cosa,
+  // y dejar Diseño y Taller con un número y sin nadie obligaba a preguntar por
+  // el pasillo. Fuera de aquí la regla no cambia: la lista y la ficha siguen
+  // enseñando la gente de la sección que se está mirando.
+  const html = pinta([
+    tarea,
+    { ...tarea, centro: "diseno", tarea: "07", descripcionTarea: "Impresión digital", empleado: "José Luis Carrón", minutos: 3 },
+    { ...tarea, centro: "taller", tarea: "11", descripcionTarea: "Cortar vinilo", empleado: "Silvia López", minutos: 1 },
+  ]);
+  expect(html).toContain("José Luis Carrón");
+  expect(html).toContain("Silvia López");
 });

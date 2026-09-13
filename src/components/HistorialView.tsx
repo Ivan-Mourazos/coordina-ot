@@ -474,9 +474,7 @@ function FilaHistorial({
           no ocupa nada (`Desplegable` devuelve null). */}
       <div id={`ofs-${seccion}-${item.pedido}`}>
       <Desplegable abierto={desplegado}>
-        {/* `group` para el botón de «Tareas»: sale al pasar el ratón por
-            cualquier sitio del desplegable, no solo por encima de él. */}
-        <div className="group border-t border-border px-3 py-2">
+        <div className="border-t border-border px-3 py-2">
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
           {/* Las OF en las mismas columnas que la fila del pedido, y el botón
