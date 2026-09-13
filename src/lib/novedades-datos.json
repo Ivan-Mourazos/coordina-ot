@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-13",
-    "hasta": "9f916ba",
+    "hasta": "f0b39af",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -21,6 +21,16 @@
       {
         "tipo": "arreglado",
         "titulo": "El trabajo dado por bueno sin revisión ya cuenta en Métricas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial caben más nombres en \"Quién\"",
+        "detalle": "Antes salían dos y un \"+3\" aunque sobrara sitio. Ahora se ponen los que quepan según lo ancha que tengas la ventana."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La línea de cada OF va más limpia",
+        "detalle": "El tiempo ya no se repite ahí (está en la fila del pedido) y el botón de tareas se aparta a la derecha, saliendo al pasar el ratón."
       }
     ]
   },
