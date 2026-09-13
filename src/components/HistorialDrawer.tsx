@@ -197,7 +197,7 @@ export function HistorialDrawer({
           pdfSoportado ? (
             <div className="relative h-full w-full">
               <iframe
-                src={`${scanUrl}#view=Fit&toolbar=0`}
+                src={`${scanUrl}#view=Fit`}
                 title={`Pedido ${pedido}`}
                 className="h-full w-full rounded-xl border-none bg-white"
               />
