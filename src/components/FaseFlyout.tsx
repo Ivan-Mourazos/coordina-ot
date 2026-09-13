@@ -1,7 +1,7 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import { agruparPorFase } from "@/lib/fases-tablero";
+import { agruparPorFase, pedidoParado } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import { PedidoLinea } from "./PedidoLinea";
@@ -44,7 +44,15 @@ export function FaseFlyout({
   // UN grupo suelto —el que hace `.find` a continuación—, no la lista entera
   // ordenada. El orden no llega a pintarse nunca: no busques aquí el efecto
   // de `seccion` que sí tienen los otros sitios que agrupan por fase.
-  const grupo = agruparPorFase(facets, seccion).find((g) => g.id === faseId);
+  const encontrado = agruparPorFase(facets, seccion).find((g) => g.id === faseId);
+  // «Parado» ya no es una columna —los pedidos se quedan en la suya con su
+  // «Detenido», ver `faseDeColumna`—, así que su grupo llega siempre vacío. La
+  // cuenta de la cabecera sigue abriendo esta lista, y aquí se rellena con los
+  // que de verdad están parados.
+  const grupo =
+    encontrado && faseId === "parado"
+      ? { ...encontrado, items: facets.filter(pedidoParado) }
+      : encontrado;
   if (!grupo) return null;
 
   return (

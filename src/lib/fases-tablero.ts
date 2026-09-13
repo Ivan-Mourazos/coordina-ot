@@ -161,7 +161,14 @@ export function faseDePedido(p: ConOFs): Fase {
     // Ahí OT sí ha decidido, así que el pedido se puede soltar.
     return "listoParaPasar";
   }
-  const fases = cuentan.map(faseDeOF);
+  return faseDeVarias(cuentan);
+}
+
+/** La fase que sale de un puñado de OF. Separado de `faseDePedido` para poder
+ *  preguntárselo también a las detenidas (ver `faseDeColumna`). */
+function faseDeVarias(ofs: readonly OF[]): Fase {
+  const fases = ofs.map(faseDeOF);
+  if (fases.length === 0) return "sinEmpezar";
   if (fases.every((f) => f === "listoParaPasar")) return "listoParaPasar";
   // Manda sobre todo lo demás: si una OF del pedido volvió a corregir, eso es
   // lo primero que hay que saber del pedido, aunque las otras vayan bien.
@@ -169,6 +176,28 @@ export function faseDePedido(p: ConOFs): Fase {
   if (fases.some((f) => f === "planteando")) return "planteando";
   if (fases.some((f) => f === "esperandoRevision")) return "esperandoRevision";
   return "sinEmpezar";
+}
+
+/** En qué COLUMNA del panel se pinta el pedido.
+ *
+ *  Igual que `faseDePedido` salvo en los parados: esos vuelven a la fase que
+ *  tenían cuando Producción los detuvo, contando las OF detenidas que
+ *  `ofsQueCuentan` deja fuera. Un pedido que estaba planteándose sigue en
+ *  «Planteando», con su «Detenido» al lado (lo pinta PedidoLinea).
+ *
+ *  Antes salían de las columnas y se resumían en la cabecera: no había nada que
+ *  hacer con ellos y ocupaban sitio. El precio era que desaparecían de la vista
+ *  de quien los tenía, y volvían semanas después sin que nadie se acordara.
+ *  Quedarse donde estaban los mantiene delante, y el aviso de cuántos hay sigue
+ *  arriba (ver ZonaPersonal).
+ *
+ *  `faseDePedido` NO cambia: de ella dependen el permiso para pasar a
+ *  Producción, los avisos y `pedidoParado`, y ahí «parado» sigue siendo la
+ *  respuesta correcta. */
+export function faseDeColumna(p: ConOFs): Fase {
+  const fase = faseDePedido(p);
+  if (fase !== "parado") return fase;
+  return faseDeVarias(p.ofs.filter((o) => o.estado !== "anulada" && !ofDeTaller(o)));
 }
 
 /** Permiso para el paso explícito, compartido por la pantalla y el servidor. */
@@ -234,9 +263,12 @@ export function agruparPorFase<T extends ConOFs>(
   pedidos: readonly T[],
   seccion?: Seccion,
 ): GrupoFase<T>[] {
+  // Por COLUMNA, no por fase a secas: los parados vuelven a la suya en vez de
+  // salirse del panel (ver `faseDeColumna`). El grupo «parado» queda vacío a
+  // propósito y quien quiera contarlos usa `pedidoParado`.
   return fasesEnOrden(seccion).map((meta) => ({
     ...meta,
-    items: pedidos.filter((p) => faseDePedido(p) === meta.id),
+    items: pedidos.filter((p) => faseDeColumna(p) === meta.id),
   }));
 }
 

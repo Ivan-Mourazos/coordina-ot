@@ -10,6 +10,8 @@ import {
   conTope,
   faseDeOF,
   faseDePedido,
+  faseDeColumna,
+  pedidoParado,
   motivoBloqueo,
   ofOcultaDeOT,
   ofsQueCuentan,
@@ -484,5 +486,43 @@ describe("avisaDeOFNueva", () => {
 
   it("un pedido que no ha vuelto no avisa de nada", () => {
     expect(avisaDeOFNueva({ ofs: [nueva({ autorId: null })] })).toBe(false);
+  });
+});
+
+// Los parados por Producción salían de las columnas de trabajo y se contaban
+// aparte, en la cabecera. Iván pidió lo contrario: que se queden donde estaban
+// cuando los pararon —con su «Detenido», que ya pinta PedidoLinea— y que arriba
+// siga diciendo cuántos hay. Así no desaparecen de la vista de quien los tiene.
+describe("un pedido parado se queda en su columna", () => {
+  it("vuelve a la fase que tenía, contando las OF detenidas", () => {
+    // Dos OF que su autor tenía empezadas y Producción paró para volver a
+    // medir (el caso de AR.26.03703). Estaba en «Planteando» y ahí se queda.
+    const p = { ofs: [of({ estado: "en_curso", detenida: true }), of({ estado: "en_curso", detenida: true })] };
+    expect(faseDePedido(p)).toBe("parado");
+    expect(faseDeColumna(p)).toBe("planteando");
+  });
+
+  it("una devuelta parada sigue mandando: es lo primero que hay que saber", () => {
+    const p = { ofs: [of({ estado: "devuelta", detenida: true }), of({ estado: "en_curso", detenida: true })] };
+    expect(faseDeColumna(p)).toBe("devuelta");
+  });
+
+  it("lo que no está parado no cambia de sitio", () => {
+    const p = { ofs: [of({ estado: "en_curso" })] };
+    expect(faseDeColumna(p)).toBe(faseDePedido(p));
+  });
+
+  it("el reparto por fases los coloca ahí, y «parado» deja de ser una columna", () => {
+    const parado = { ofs: [of({ estado: "en_curso", detenida: true })] };
+    const normal = { ofs: [of({ estado: "en_curso" })] };
+    const grupos = agruparPorFase([parado, normal]);
+    expect(grupos.find((g) => g.id === "planteando")?.items).toHaveLength(2);
+    expect(grupos.find((g) => g.id === "parado")?.items).toHaveLength(0);
+  });
+
+  it("pero se siguen pudiendo contar, que es lo que va en la cabecera", () => {
+    const parado = { ofs: [of({ estado: "en_curso", detenida: true })] };
+    const normal = { ofs: [of({ estado: "en_curso" })] };
+    expect([parado, normal].filter(pedidoParado)).toHaveLength(1);
   });
 });

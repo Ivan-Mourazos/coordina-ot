@@ -1,7 +1,7 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import { agruparPorFase, conTope } from "@/lib/fases-tablero";
+import { agruparPorFase, conTope, pedidoParado } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -55,11 +55,13 @@ export function ZonaPersonal({
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   const grupos = agruparPorFase(facets, seccion);
-  // Los parados por Producción NO son una columna: no hay nada que hacer con
-  // ellos y ocupar sitio con ellos es lo que hacía que volvieran al panel como
-  // si tocara empezarlos. Se cuentan aparte, en la cabecera, y se consultan
-  // desde ahí. Vuelven solos a su columna en cuanto RPS los libera.
-  const parados = grupos.find((g) => g.id === "parado");
+  // Los parados por Producción se quedan en LA COLUMNA QUE TENÍAN (ver
+  // faseDeColumna), con su «Detenido» al lado. Salían de las columnas y se
+  // resumían aquí arriba: no había nada que hacer con ellos, pero así
+  // desaparecían de la vista de quien los tenía y volvían semanas después sin
+  // que nadie se acordara. La cuenta de la cabecera se queda, que es lo que
+  // avisa de que hay trabajo tuyo parado en otras manos.
+  const parados = facets.filter(pedidoParado);
   const deTrabajo = grupos.filter((g) => g.id !== "parado");
   const conItems = deTrabajo.filter((g) => g.items.length > 0);
   const vacias = deTrabajo.filter((g) => g.items.length === 0);
@@ -85,17 +87,17 @@ export function ZonaPersonal({
           {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>
 
-        {/* Parados por Producción: fuera del trabajo, pero a la vista y con su
-            lista a un clic. Interesa saber que están ahí —y poder reclamar—,
-            no tenerlos ocupando una columna que no se puede tocar. */}
-        {parados && parados.items.length > 0 && (
+        {/* Cuántos hay parados, con su lista a un clic. Los pedidos siguen en
+            su columna; esto es el aviso de que parte de tu trabajo está en
+            manos de Producción y no avanza. */}
+        {parados.length > 0 && (
           <button
             onClick={() => onVerTodos("parado")}
-            title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Vuelven solos en cuanto los liberen."
+            title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Siguen en su columna, marcados como «Detenido», y se liberan solos."
             className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-600/25 hover:bg-amber-500/20 dark:text-amber-300"
           >
-            <span className="size-1.5 rounded-full" style={{ background: parados.color }} />
-            {parados.items.length} parado{parados.items.length === 1 ? "" : "s"} por Producción
+            <span className="size-1.5 rounded-full bg-amber-500" />
+            {parados.length} parado{parados.length === 1 ? "" : "s"} por Producción
           </button>
         )}
 
