@@ -40,6 +40,71 @@ function fmtFecha(iso: string | null) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+/** El parte escaneado con sus botones, en el idioma de la ficha.
+ *
+ *  La barra del visor de PDF de Chrome se oculta (`toolbar=0`): es gris oscura,
+ *  vive dentro del iframe —ninguna clase nuestra la alcanza— y encima de una
+ *  ficha en relieve canta. Lo que hacía falta de ella se rehace aquí con los
+ *  mismos chips que «Material» y «Tareas y tiempos».
+ *
+ *  El zoom NO se rehace: lo lleva el visor por dentro (Ctrl + rueda) y sigue
+ *  funcionando con la barra escondida.
+ *
+ *  Imprimir va por el iframe, que es del mismo dominio (`/api/pedidos/…`) y por
+ *  eso se deja mandar a imprimir. Si el visor se negara —otro navegador, el PDF
+ *  aún cargando—, se abre en otra pestaña y se imprime desde ahí: nunca se
+ *  queda el botón sin hacer nada. */
+function BarraDelParte({
+  pedido,
+  scanUrl,
+  onAmpliar,
+}: {
+  pedido: string;
+  scanUrl: string;
+  onAmpliar: () => void;
+}) {
+  const marco = useRef<HTMLIFrameElement>(null);
+  const chip = "chip-3d rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text";
+
+  function imprimir() {
+    const ventana = marco.current?.contentWindow;
+    try {
+      if (!ventana) throw new Error("sin visor");
+      ventana.focus();
+      ventana.print();
+    } catch {
+      window.open(scanUrl, "_blank", "noopener");
+    }
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <iframe
+        ref={marco}
+        src={`${scanUrl}#view=Fit&toolbar=0`}
+        title={`Pedido ${pedido}`}
+        className="h-full w-full rounded-xl border-none bg-white"
+      />
+      <div className="absolute right-3 top-3 flex items-center gap-1.5">
+        <a
+          href={scanUrl}
+          download={`${pedido}.pdf`}
+          title="Descargar el parte"
+          className={chip}
+        >
+          Descargar ↓
+        </a>
+        <button type="button" onClick={imprimir} title="Imprimir el parte" className={chip}>
+          Imprimir ⎙
+        </button>
+        <button type="button" onClick={onAmpliar} title="Ver el parte a pantalla casi completa" className={chip}>
+          Ampliar ⤢
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Drawer read-only del historial: PDF (mediano, ampliable) + datos del pedido y
  *  sus OFs con tiempos. Sin acciones (el pedido está finalizado). */
 export function HistorialDrawer({
@@ -195,22 +260,7 @@ export function HistorialDrawer({
       // PDF mediano a la izquierda.
       visor={
           pdfSoportado ? (
-            <div className="relative h-full w-full">
-              <iframe
-                src={`${scanUrl}#view=Fit`}
-                title={`Pedido ${pedido}`}
-                className="h-full w-full rounded-xl border-none bg-white"
-              />
-              {/* El mismo botón que «Material» o «Tareas y tiempos»: era una
-                  pastilla negra suelta, la única de la ficha que no hablaba el
-                  idioma de las demás. */}
-              <button
-                onClick={() => setAmpliado(true)}
-                className="chip-3d absolute right-3 top-3 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text"
-              >
-                Ampliar ⤢
-              </button>
-            </div>
+            <BarraDelParte pedido={pedido} scanUrl={scanUrl} onAmpliar={() => setAmpliado(true)} />
           ) : (
             /* `bloque-3d`, el mismo relieve que los bloques de la ficha. Era un
                gris plano y, al lado de la ficha en relieve, parecía un hueco
