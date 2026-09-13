@@ -197,19 +197,25 @@ export function HistorialDrawer({
           pdfSoportado ? (
             <div className="relative h-full w-full">
               <iframe
-                src={`${scanUrl}#view=Fit`}
+                src={`${scanUrl}#view=Fit&toolbar=0`}
                 title={`Pedido ${pedido}`}
                 className="h-full w-full rounded-xl border-none bg-white"
               />
+              {/* El mismo botón que «Material» o «Tareas y tiempos»: era una
+                  pastilla negra suelta, la única de la ficha que no hablaba el
+                  idioma de las demás. */}
               <button
                 onClick={() => setAmpliado(true)}
-                className="absolute right-3 top-3 rounded-lg bg-black/60 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black/80"
+                className="chip-3d absolute right-3 top-3 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text"
               >
                 Ampliar ⤢
               </button>
             </div>
           ) : (
-            <div className="grid h-full w-full place-items-center rounded-xl bg-surface-2 px-8 text-center text-sm text-text-muted">
+            /* `bloque-3d`, el mismo relieve que los bloques de la ficha. Era un
+               gris plano y, al lado de la ficha en relieve, parecía un hueco
+               sin terminar en vez de un aviso. */
+            <div className="bloque-3d grid h-full w-full place-items-center rounded-xl px-8 text-center text-sm text-text-muted">
               {/* Dos motivos distintos y no se pueden confundir: o el código no
                   es de un pedido de venta (trabajo interno, OF suelta), o lo es
                   pero nadie escaneó el parte. Antes los dos caían en "PDF no
