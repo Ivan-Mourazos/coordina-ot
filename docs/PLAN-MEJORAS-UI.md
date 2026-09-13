@@ -425,12 +425,33 @@ parado por Producción; si nadie lo había visto, suena al liberarlo.
 - «N OF» va dentro de la celda del código: como columna, el rótulo «OF»
   quedaba sobre un hueco vacío en casi todas las filas.
 
-### Pendiente de decidir con Iván
+### La memoria de la lista, comprobada en producción el 13/09 — CERRADO
 
-- Vigilar en producción, tras el segundo despliegue, la memoria de
-  coordina-ot y el contador de reinicios de PM2 pasado el primer refresco
-  (30 min). Un pedido cerrado en RPS tarda como mucho eso en entrar en el
-  Historial; lo pasado desde CoordinaOT entra al momento.
+Iván midió el servidor con la versión en streaming ya desplegada:
+
+- **71,3 MB** de proceso, contra los 589 MB de la primera versión y con el
+  límite de PM2 en 1 GB.
+- **0,26 s** en `/api/historial?page=0` — la lista está en memoria; por la
+  consulta SQL serían 4-11 s.
+- Lo que de verdad lo cierra son las marcas de los registros: del **12/09 a
+  las 02:58 al 13/09 a las 19:28**, reconstrucciones cada 30 min clavadas en
+  el :28 y el :58, **81 seguidas en 40 horas y media sin un solo hueco**.
+  Cada arranque del proceso dispara una reconstrucción inmediata
+  (`precalentarHistorial`), así que un reinicio habría roto la cadencia. No
+  hay ninguno, y `unstable restarts` marca 0. El pico de refrescar con la
+  lista vieja viva ocurrió 81 veces sin que PM2 matara el proceso.
+
+`restarts 62` es el acumulado desde que la app entró en PM2, despliegues
+incluidos: no dice nada por sí solo.
+
+Queda anotado para el día que RPS vaya justo: son 153 451 pedidos
+reconstruidos enteros cada media hora, ~29 s cada vez, o sea unos **24
+minutos de consultas a RPS al día**. Hoy no molesta; si molestara, el margen
+está en subir `VIDA_MS`.
+
+Un pedido cerrado en RPS tarda como mucho media hora en entrar en el
+Historial; lo pasado desde CoordinaOT entra al momento (la ruta lo añade
+sobre la lista, ver `api/historial/route.ts`).
 
 ### Decidido el 11/09 (tras ver AR.26.04489 con Iván)
 

@@ -359,11 +359,17 @@ El Historial va por días y se filtra por persona y por «solo con trabajo de
 la sección». El Historial filtra y busca en una lista en memoria (0,1-0,2 s en vez de
 4-11 s; se construye al arrancar, ~35 s, y se refresca cada 30 min) y su
 filtro de Familia usa las familias del panel de Sin asignar.
-Al desplegar una OF solo salen los centros con tiempo, y «Tareas y tiempos»
-pone a cada persona en la línea de su tarea y pliega lo que va a cero.
-Siguen sin hacer: contraste fuera de la ficha; vigilar en producción el coste
-de la lista en memoria; conservar páginas/posición y filtros de Visitas y
-Métricas.
+La OF desplegada ya no lleva el tiempo por centro —en un pedido de una sola OF
+repetía el total de la fila de arriba—, el botón «Tareas» va en la columna del
+tiempo, y los nombres de «Quién» ya no son dos y un «+N»: se miden y caben los
+que caben. «Tareas y tiempos» pone a cada persona en la línea de su tarea, en
+TODOS los centros (es la ventana del detalle), sin repetir el número cuando
+solo trabajó una persona, y pliega lo que va a cero.
+La memoria de la lista en memoria está comprobada en producción (13/09): 71 MB,
+81 reconstrucciones seguidas en 40 h sin un reinicio. Detalle y cifras en
+[PLAN-MEJORAS-UI.md](PLAN-MEJORAS-UI.md).
+Siguen sin hacer: contraste fuera de la ficha; conservar páginas/posición y
+filtros de Visitas y Métricas.
 
 ---
 
