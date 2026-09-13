@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-13",
-    "hasta": "151745e",
+    "hasta": "dc68e17",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -23,6 +23,16 @@
         "titulo": "El trabajo dado por bueno sin revisión ya cuenta en Métricas"
       },
       {
+        "tipo": "arreglado",
+        "titulo": "La cabecera ya no deja ver los pedidos que pasan por debajo",
+        "detalle": "Al bajar por el Historial se transparentaban las líneas en la barra de arriba y en el botón de volver arriba."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El número de pedidos de cada día del Historial ya no crece según bajas",
+        "detalle": "Decía \"16+ pedidos\" y acababa en 28. Ahora sale el del día entero desde el principio. El tiempo sí lleva \"+\" mientras falten pedidos por cargar, porque ese se pide por páginas."
+      },
+      {
         "tipo": "mejor",
         "titulo": "En el Historial caben más nombres en \"Quién\"",
         "detalle": "Antes salían dos y un \"+3\" aunque sobrara sitio. Ahora se ponen los que quepan según lo ancha que tengas la ventana."
@@ -36,6 +46,21 @@
         "tipo": "mejor",
         "titulo": "«Tareas y tiempos» dice quién hizo cada cosa también en Diseño y en Taller",
         "detalle": "Antes esos centros salían con el tiempo y sin nombres. Y cuando solo trabajó una persona, su tiempo ya no aparece dos veces en la misma línea."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial se distingue mejor dónde acaba un día y empieza otro",
+        "detalle": "La línea del día es ahora una banda gris con canto, y la lista se despega del fondo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los pedidos parados por Producción vuelven a verse en tu columna",
+        "detalle": "Se quedan donde estaban, marcados como \"Detenido\", en vez de salirse del panel. Arriba sigue diciendo cuántos tienes parados."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El parte escaneado se ve mejor y gana botones propios",
+        "detalle": "Se va la barra gris del visor de PDF y el parte ocupa todo el panel. Descargar, imprimir y ampliar van en una línea encima, y el zoom sigue con Ctrl y la rueda."
       }
     ]
   },
