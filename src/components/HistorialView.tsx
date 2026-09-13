@@ -314,7 +314,11 @@ export function HistorialView({
         </p>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      {/* La lista, levantada del fondo: era un blanco con un canto muy suave
+          sobre el gris de la página y las dos superficies se confundían. Canto
+          fuerte y una sombra corta, el mismo relieve que los bloques de la
+          ficha. */}
+      <div className="overflow-hidden rounded-xl border border-border-strong bg-surface shadow-[0_10px_24px_-16px_var(--glass-shadow)]">
         {itemsVisibles.length > 0 && (
           <div aria-hidden="true" className={`${columnas} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
             <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Quién</span>
@@ -332,7 +336,7 @@ export function HistorialView({
                     cargar: el total lo manda el servidor. El TIEMPO no puede
                     serlo —los minutos se piden a RPS por página—, así que en un
                     día a medias lleva "+" y lo explica al pasar por encima. */}
-                <h3 className="flex items-baseline gap-2 border-b border-border bg-surface-2/60 px-3 py-1.5 text-[11px] font-semibold text-text">
+                <h3 className="flex items-baseline gap-2 border-y border-border-strong bg-surface-2 px-3 py-1.5 text-[11px] font-semibold text-text">
                   {dia.titulo}
                   <span className="font-normal text-text-muted">
                     · {dia.total ?? dia.items.length}
