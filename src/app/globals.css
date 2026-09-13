@@ -188,13 +188,24 @@ body {
 }
 
 /* ── Vidrio ──
+   NUNCA escribir aquí `-webkit-backdrop-filter` a mano. Estaba puesto al lado
+   del estándar «por compatibilidad» y hacía justo lo contrario: Lightning CSS
+   (el compilador de Next 16) junta los dos en uno solo y se queda con el
+   ÚLTIMO, o sea con el prefijado; y Chrome ya no reconoce ese alias
+   —`CSS.supports('-webkit-backdrop-filter', 'blur(24px)')` da false—, así que
+   el navegador lo tiraba y no quedaba desenfoque en ninguna parte. Con el
+   fondo al 82 % y sin desenfoque, la cabecera dejaba leer los pedidos que
+   pasaban por debajo al bajar por el Historial.
+
+   El prefijo lo pone el compilador según los navegadores de destino. Aquí va
+   solo la propiedad estándar.
+
    Panel: bandeja/estantería sobre la que descansan los partes. */
 .glass-panel {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 30%, transparent), transparent 30%),
     var(--glass-bg);
   backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
@@ -206,7 +217,6 @@ body {
 .glass-panel-strong {
   background: var(--glass-bg-strong);
   backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
@@ -457,7 +467,6 @@ body {
 .glass-header {
   background: var(--glass-bg-strong);
   backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
   box-shadow: inset 0 -1px 0 0 var(--glass-border);
 }
 
@@ -465,7 +474,6 @@ body {
 .glass-pop {
   background: var(--glass-bg-pop);
   backdrop-filter: blur(28px) saturate(1.8);
-  -webkit-backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
     inset 0 1px 0 0 var(--glass-highlight),
