@@ -78,20 +78,13 @@ function BarraDelParte({
   }
 
   return (
-    <div className="relative h-full w-full">
-      <iframe
-        ref={marco}
-        src={`${scanUrl}#view=Fit&toolbar=0`}
-        title={`Pedido ${pedido}`}
-        className="h-full w-full rounded-xl border-none bg-white"
-      />
-      <div className="absolute right-3 top-3 flex items-center gap-1.5">
-        <a
-          href={scanUrl}
-          download={`${pedido}.pdf`}
-          title="Descargar el parte"
-          className={chip}
-        >
+    <div className="flex h-full w-full flex-col gap-2">
+      {/* Los botones ENCIMA del parte, en su propia línea, no flotando sobre
+          él. Flotando se pegaban a la barra de desplazamiento del visor y, en
+          cuanto la ventana se estrechaba, caían sobre la cabecera del parte:
+          texto nuestro sobre un formulario escrito a mano, ilegible los dos. */}
+      <div className="flex shrink-0 items-center justify-end gap-1.5">
+        <a href={scanUrl} download={`${pedido}.pdf`} title="Descargar el parte" className={chip}>
           Descargar ↓
         </a>
         <button type="button" onClick={imprimir} title="Imprimir el parte" className={chip}>
@@ -101,6 +94,12 @@ function BarraDelParte({
           Ampliar ⤢
         </button>
       </div>
+      <iframe
+        ref={marco}
+        src={`${scanUrl}#view=Fit&toolbar=0`}
+        title={`Pedido ${pedido}`}
+        className="min-h-0 flex-1 rounded-xl border-none bg-white"
+      />
     </div>
   );
 }
