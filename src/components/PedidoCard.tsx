@@ -94,11 +94,13 @@ export const PedidoCardView = memo(function PedidoCardView({
             de pasarlo. Banda del ancho de la tarjeta: se lee de un vistazo en la
             bandeja y no tapa nada de lo que hay en las esquinas. */}
         {avisoParte && (
-          <span
-            className="absolute inset-x-0 top-0 truncate rounded-t-md bg-amber-700 px-1 py-0.5 text-center text-[9px] font-bold uppercase leading-tight text-white"
-            title={avisoParte.title}
-          >
-            {avisoParte.texto}
+          <span className="absolute inset-x-0 top-0 flex overflow-hidden rounded-t-md">
+            <span
+              className="w-full truncate bg-amber-700 px-1 py-0.5 text-center text-[9px] font-bold uppercase leading-tight text-white"
+              title={avisoParte.title}
+            >
+              {avisoParte.texto}
+            </span>
           </span>
         )}
 
@@ -186,7 +188,14 @@ export const PedidoCardView = memo(function PedidoCardView({
             esquina: ahí tapaba los avisos de material justo mientras decides a
             quién se lo das, y caía encima de "OF nueva". El pie del parte es
             sitio muerto y da un blanco ancho. */}
-        {accion && <div className="absolute inset-x-0 bottom-0 flex">{accion}</div>}
+        {/* Recortado con el mismo redondeo de la tarjeta: la barra llega hasta
+            el borde y las esquinas las corta el contenedor, así no queda el
+            pico blanco entre el arco del botón y el de la tarjeta. */}
+        {accion && (
+          <div className="absolute inset-x-0 bottom-0 flex overflow-hidden rounded-b-md">
+            {accion}
+          </div>
+        )}
       </div>
 
       {/* pie con datos */}
@@ -306,7 +315,7 @@ export const PedidoCard = memo(function PedidoCard({
               operarios={operarios}
               miId={miId}
               onAsignar={(op) => onAsignar(facet, op)}
-              claseBoton="w-full rounded-b-md bg-brand-500/95 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600"
+              claseBoton="w-full bg-brand-500/95 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600"
             />
           )
         }
