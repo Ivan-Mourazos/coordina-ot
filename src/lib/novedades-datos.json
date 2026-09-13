@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-13",
-    "hasta": "f0b39af",
+    "hasta": "151745e",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -31,6 +31,11 @@
         "tipo": "mejor",
         "titulo": "La línea de cada OF va más limpia",
         "detalle": "El tiempo ya no se repite ahí (está en la fila del pedido) y el botón de tareas se aparta a la derecha, saliendo al pasar el ratón."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Tareas y tiempos» dice quién hizo cada cosa también en Diseño y en Taller",
+        "detalle": "Antes esos centros salían con el tiempo y sin nombres. Y cuando solo trabajó una persona, su tiempo ya no aparece dos veces en la misma línea."
       }
     ]
   },
