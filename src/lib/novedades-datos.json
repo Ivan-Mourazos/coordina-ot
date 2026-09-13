@@ -1,5 +1,30 @@
 [
   {
+    "id": "2026-09-13",
+    "hasta": "9f916ba",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Métricas abre en \"Trabajo\": cuántas OF salen y a qué ritmo",
+        "detalle": "Planteos entregados, revisiones y OF terminadas, mes a mes. Arranca en los últimos 90 días y cada cifra se compara con el periodo anterior."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En Tiempos ya se ve cuánto se trabajó de verdad en cada paso",
+        "detalle": "Junto al tiempo de reloj sale lo fichado dentro de ese rato, diciendo sobre cuántos casos se pudo medir."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La barra de \"Asignar\" ya tapa las esquinas del parte",
+        "detalle": "Asomaba un pico blanco en las esquinas de abajo de la miniatura. Igual con la banda de aviso de arriba."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El trabajo dado por bueno sin revisión ya cuenta en Métricas"
+      }
+    ]
+  },
+  {
     "id": "2026-09-12",
     "hasta": "78d63f7",
     "cambios": [
