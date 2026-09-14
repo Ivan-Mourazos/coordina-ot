@@ -109,6 +109,24 @@ test("los comparadores desempatan igual en las dos direcciones", () => {
   expect(filas.map((f) => f.pedido)).toEqual(["A", "B"]);
 });
 
+test("pendientes sin buscar no baja de 2025: RPS nunca cerró pedidos viejos y eso no es lo que está en marcha", () => {
+  const i = indice([
+    base({ pedido: "AR.19.05555", pendienteTotal: true, fechaPedido: Date.UTC(2019, 5, 1) }),
+    base({ pedido: "AR.25.05555", pendienteTotal: true, fechaPedido: Date.UTC(2025, 0, 1) }),
+  ]);
+  const sinBuscar = filtrarPublico(i, { lista: "pendientes", page: 0 }).filas.map((f) => f.pedido);
+  expect(sinBuscar).not.toContain("AR.19.05555");
+  expect(sinBuscar).toContain("AR.25.05555");
+});
+
+test("buscando su código, el pendiente de 2019 sí sale: quien busca un pedido sabe lo que busca", () => {
+  const i = indice([
+    base({ pedido: "AR.19.05555", pendienteTotal: true, fechaPedido: Date.UTC(2019, 5, 1) }),
+  ]);
+  const { filas } = filtrarPublico(i, { lista: "pendientes", page: 0, q: "AR.19.05555" });
+  expect(filas.map((f) => f.pedido)).toEqual(["AR.19.05555"]);
+});
+
 test("los filtros llegan de la URL con valores sanos", () => {
   const f = normalizarFiltrosPublicos(new URLSearchParams("lista=realizados&page=3&q=mahou"));
   expect(f).toMatchObject({ lista: "realizados", page: 3, q: "mahou" });

@@ -85,6 +85,25 @@ const porEntrega = (a: BaseHistorial, b: BaseHistorial): number =>
 const porCierre = (a: BaseHistorial, b: BaseHistorial): number =>
   (b.finalizada ?? -Infinity) - (a.finalizada ?? -Infinity) || a.pedido.localeCompare(b.pedido, "es");
 
+// Medido contra RPS el 14/09/2026 con la web levantada: la lista de
+// pendientes SIN BUSCAR abría con pedidos de 2021 cuya entrega seguía
+// figurando en 2001. No es un fallo del código — RPS nunca cerró esos
+// pedidos, y los cierres de OLANET no empiezan hasta 2020 — pero enseñarlos
+// de entrada enterraba lo que de verdad está en marcha bajo chatarra de hace
+// un lustro. Pendientes por año de pedido: 2026 → 777, 2025 → 2.260,
+// 2024 → 2.450, 2023 → 2.545, 2022 → 2.504, 2021 → 3.459, 2020 → 4.600,
+// 2019 → 9.622, 2018 → 10.346, anteriores a 2023 → 110.576 (!). Por eso la
+// lista sin buscar solo llega hasta 2025 (3.037 pedidos: lo que sigue en
+// marcha o se acaba de quedar atrás). Con búsqueda no hay corte (más abajo,
+// en el bucle): quien escribe un código, un cliente o una descripción sabe lo
+// que busca, y decirle "no existe" porque es de 2019 sería mentirle.
+//
+// Decidido que esto NO aplica a "realizados": esa lista ya sale ordenada por
+// cierre más reciente (porCierre) y la chatarra antigua queda sola al fondo,
+// sin necesidad de un corte que además le escondería a alguien un pedido
+// viejo que sí sabe buscar.
+const CORTE_PENDIENTES_SIN_BUSQUEDA = Date.UTC(2025, 0, 1);
+
 export function filtrarPublico(
   indice: IndiceHistorial,
   f: FiltrosPublicos,
@@ -109,6 +128,9 @@ export function filtrarPublico(
   // recorre una sola: contarlas las dos duplicaría cada pedido.
   for (const b of indice.base[SECCION_POR_DEFECTO]) {
     if (estaPendiente(b) !== pendientes) continue;
+    // Corte de pendientes sin buscar — ver CORTE_PENDIENTES_SIN_BUSQUEDA.
+    // fechaPedido null no pasa el corte: no hay forma de saber si es de 2025.
+    if (pendientes && !q && (b.fechaPedido === null || b.fechaPedido < CORTE_PENDIENTES_SIN_BUSQUEDA)) continue;
 
     const fecha = pendientes ? b.fechaEntrega : b.finalizada;
     if (desde !== null && (fecha === null || fecha < desde)) continue;
