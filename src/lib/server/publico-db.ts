@@ -82,8 +82,27 @@ async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string
       -- única tarea abierta en A-DGRA al 100 % (sin cierre en OLANET) salía
       -- "pendiente" en el índice pero esta consulta lo daba por rescatado, y
       -- la fila decía "Entregado" dentro de la lista de los que no lo están.
+      --
+      -- El rescate mira la TAREA (EXISTS), no la fila de rm que se está
+      -- enseñando: el índice (ctesFinalizacionHistorial, CTE Recursos) lo
+      -- hace por tarea, con DISTINCT IDMOTask, y las otras cinco consultas
+      -- del repo que rescatan (historial-db.ts:284-285, :603, :606, y los
+      -- planes de julio) usan el mismo EXISTS. Si aquí se mirara la fila,
+      -- una tarea con dos filas de rm en centros distintos (una A-OTEC al
+      -- 100 % y otra en CALDERERIA) quedaría rescatada por la de A-OTEC y
+      -- CALDERERIA no volvería a salir como centro abierto, aunque el
+      -- índice diera la tarea entera por terminada igual. Medido el
+      -- 14/09/2026 contra RPS: las 28.534 tareas de 2026 tienen EXACTAMENTE
+      -- una fila en CPRMOResourceMachine y no hay ninguna, en toda la
+      -- historia, que mezcle un centro de OT con otro distinto — pero el
+      -- código no puede depender de que esa propiedad de los datos se
+      -- mantenga, así que se escribe igual que las otras cinco.
       AND NOT (
-        rm.CodMOResourceMachine IN (${recursosSql(SECCIONES[SECCION_POR_DEFECTO])})
+        EXISTS (
+          SELECT 1 FROM dbo.CPRMOResourceMachine rescate
+          WHERE rescate.IDMOTask = t.IDMOTask
+            AND rescate.CodMOResourceMachine IN (${recursosSql(SECCIONES[SECCION_POR_DEFECTO])})
+        )
         AND COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
         AND t.PercentProgress >= 100
       )`);
