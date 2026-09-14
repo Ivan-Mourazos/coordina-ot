@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "dcdfab0",
+    "hasta": "d264a60",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -12,6 +12,11 @@
         "tipo": "arreglado",
         "titulo": "En el panel de un compañero, los textos de cada pedido ya no se montan unos encima de otros",
         "detalle": "Con varias columnas se pisaban el nº de OF, el tiempo y el aviso del candado. Ahora, si no cabe, se va lo menos importante y queda el código."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Con \"Tareas y tiempos\" abierto ya no se mueve la lista de detrás",
+        "detalle": "La rueda movía el Historial por debajo del panel y al cerrarlo aparecías en otro sitio."
       },
       {
         "tipo": "mejor",
