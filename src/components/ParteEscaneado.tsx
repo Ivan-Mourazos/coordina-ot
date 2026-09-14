@@ -1,6 +1,19 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+
+/** Cómo encaja la hoja en el hueco. Son los valores que entiende el visor de
+ *  PDF del navegador en el fragmento de la URL (`#view=`), no un invento
+ *  nuestro: `Fit` es la página entera, `FitH` ajusta al ancho y `FitV` al alto.
+ *
+ *  Cambiarlo recarga el iframe. Es el propio parte, ya en la caché del
+ *  navegador, así que se nota poco; hacerlo sin recargar exigiría hablar con el
+ *  visor por dentro, y eso no se puede. */
+const AJUSTES = [
+  { id: "FitH", icono: "↔", nombre: "Ajustar al ancho" },
+  { id: "FitV", icono: "↕", nombre: "Ajustar al alto" },
+] as const;
+type Ajuste = "Fit" | (typeof AJUSTES)[number]["id"];
 
 /** El parte escaneado, con sus botones en una barra estrecha a la izquierda.
  *
@@ -31,6 +44,7 @@ export function ParteEscaneado({
   onAmpliar?: () => void;
 }) {
   const marco = useRef<HTMLIFrameElement>(null);
+  const [ajuste, setAjuste] = useState<Ajuste>("Fit");
   // Cuadrados: en una barra estrecha el rótulo no cabe, así que el nombre va
   // en el `title` y en el `aria-label` —el lector de pantalla lo lee igual—.
   const chip = "chip-3d grid size-8 place-items-center rounded-lg text-sm text-text";
@@ -51,6 +65,27 @@ export function ParteEscaneado({
     // cierra, y pulsar un botón del parte no es salirse de ella.
     <div className="flex h-full w-full gap-2" onClick={(e) => e.stopPropagation()}>
       <div className="flex shrink-0 flex-col gap-1.5">
+        {/* Ajustar al ancho o al alto. Pulsado otra vez vuelve a la página
+            entera, que es como empieza: así dos botones cubren los tres
+            encajes sin gastar un tercero en el carril. */}
+        {AJUSTES.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => setAjuste((antes) => (antes === a.id ? "Fit" : a.id))}
+            aria-pressed={ajuste === a.id}
+            title={ajuste === a.id ? "Volver a la página entera" : a.nombre}
+            aria-label={a.nombre}
+            // Anillo y color de marca para el que está puesto. NO
+            // `glass-chip-activo`: esa tiñe el fondo, y `chip-3d` va después en
+            // la hoja, así que con la misma especificidad se lo comería.
+            className={`${chip} ${
+              ajuste === a.id ? "ring-2 ring-brand-400 text-brand-700 dark:text-brand-300" : ""
+            }`}
+          >
+            {a.icono}
+          </button>
+        ))}
         <a href={scanUrl} download={`${codigo}.pdf`} title="Descargar el parte" aria-label="Descargar el parte" className={chip}>
           ↓
         </a>
@@ -71,7 +106,7 @@ export function ParteEscaneado({
       </div>
       <iframe
         ref={marco}
-        src={`${scanUrl}#page=1&view=Fit&toolbar=0`}
+        src={`${scanUrl}#page=1&view=${ajuste}&toolbar=0`}
         title={`Pedido ${codigo}`}
         className="h-full min-w-0 flex-1 rounded-xl border-none bg-white"
       />
