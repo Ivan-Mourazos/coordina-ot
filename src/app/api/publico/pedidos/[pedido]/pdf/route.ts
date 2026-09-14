@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { rutaPdfPedido } from "@/lib/server/pdf-pedido";
 
+export const dynamic = "force-dynamic";
+
 // ─── GET /api/publico/pedidos/AR.26.02711/pdf ────────────────────────────────
 // La gemela pública de `/api/pedidos/[archivo].pdf` (que pasa a pedir sesión
 // en la Task 5): sirve el PDF escaneado del pedido para quien lo abre sin

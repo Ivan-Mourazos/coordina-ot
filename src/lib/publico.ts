@@ -94,9 +94,11 @@ const porCierre = (a: BaseHistorial, b: BaseHistorial): number =>
 // 2024 → 2.450, 2023 → 2.545, 2022 → 2.504, 2021 → 3.459, 2020 → 4.600,
 // 2019 → 9.622, 2018 → 10.346, anteriores a 2023 → 110.576 (!). Por eso la
 // lista sin buscar solo llega hasta 2025 (3.037 pedidos: lo que sigue en
-// marcha o se acaba de quedar atrás). Con búsqueda no hay corte (más abajo,
-// en el bucle): quien escribe un código, un cliente o una descripción sabe lo
-// que busca, y decirle "no existe" porque es de 2019 sería mentirle.
+// marcha o se acaba de quedar atrás). El corte se levanta con búsqueda (q)
+// o con un cliente concreto: quien escribe un código, un cliente o una
+// descripción sabe lo que busca, y decirle "no existe" porque es de 2019
+// sería mentirle. La familia NO levanta el corte: mirar por encima una
+// categoría entera no es buscar algo concreto, y el corte la hace legible.
 //
 // Decidido que esto NO aplica a "realizados": esa lista ya sale ordenada por
 // cierre más reciente (porCierre) y la chatarra antigua queda sola al fondo,
@@ -130,7 +132,7 @@ export function filtrarPublico(
     if (estaPendiente(b) !== pendientes) continue;
     // Corte de pendientes sin buscar — ver CORTE_PENDIENTES_SIN_BUSQUEDA.
     // fechaPedido null no pasa el corte: no hay forma de saber si es de 2025.
-    if (pendientes && !q && (b.fechaPedido === null || b.fechaPedido < CORTE_PENDIENTES_SIN_BUSQUEDA)) continue;
+    if (pendientes && !q && !cliente && (b.fechaPedido === null || b.fechaPedido < CORTE_PENDIENTES_SIN_BUSQUEDA)) continue;
 
     const fecha = pendientes ? b.fechaEntrega : b.finalizada;
     if (desde !== null && (fecha === null || fecha < desde)) continue;

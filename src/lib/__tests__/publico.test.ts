@@ -157,3 +157,18 @@ test("los filtros llegan de la URL con valores sanos", () => {
   expect(normalizarFiltrosPublicos(new URLSearchParams("lista=inventada&page=-7")))
     .toMatchObject({ lista: "pendientes", page: 0 });
 });
+
+test("buscar por cliente levanta el corte: un pedido de 2019 sale si lo filtro por su cliente", () => {
+  const i = indice([
+    base({ pedido: "AR.19.05555", pendienteTotal: true, fechaPedido: Date.UTC(2019, 5, 1) }),
+  ]);
+  // Sin filtros: el corte de 2025 lo deja fuera
+  const sinFiltros = filtrarPublico(i, { lista: "pendientes", page: 0 }).filas.map((f) => f.pedido);
+  expect(sinFiltros).not.toContain("AR.19.05555");
+  // Filtrando por cliente: sale igual
+  const porCliente = filtrarPublico(i, { lista: "pendientes", page: 0, cliente: "MAHOU" }).filas.map((f) => f.pedido);
+  expect(porCliente).toContain("AR.19.05555");
+  // Filtrando solo por familia: el corte sigue activo
+  const porFamilia = filtrarPublico(i, { lista: "pendientes", page: 0, familia: "TOLDO" }).filas.map((f) => f.pedido);
+  expect(porFamilia).not.toContain("AR.19.05555");
+});
