@@ -1,6 +1,6 @@
 import { getPool } from "./db";
 import { asegurarIndice, indiceSiListo } from "./historial-indice";
-import { recursosDeLaWebSql } from "../secciones";
+import { recursosSql, SECCIONES, SECCION_POR_DEFECTO } from "../secciones";
 import {
   filtrarPublico,
   frasePublica,
@@ -70,8 +70,20 @@ async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string
       AND e.fin IS NULL
       -- El rescate de OT: una tarea NUESTRA al 100 % está terminada aunque
       -- OLANET no lo diga (ver historial-finalizacion-sql.ts).
+      --
+      -- OJO: recursosSql(SECCIONES[SECCION_POR_DEFECTO]) y NO
+      -- recursosDeLaWebSql(). Parece que tocaría la de las dos secciones
+      -- (así junta 'a-otec','otec-a','a-dgra','dgra-a'), pero el índice que
+      -- decide quién es "pendiente" (estaPendiente, en publico.ts) se
+      -- construye con ctesFinalizacionHistorial(SECCION_POR_DEFECTO), y ahí
+      -- el rescate SOLO alcanza a los recursos de esa sección ('a-otec',
+      -- 'otec-a'); para diseño el rescate está apagado del todo
+      -- (rescateOt = "1=0"). Con recursosDeLaWebSql() aquí, un pedido con su
+      -- única tarea abierta en A-DGRA al 100 % (sin cierre en OLANET) salía
+      -- "pendiente" en el índice pero esta consulta lo daba por rescatado, y
+      -- la fila decía "Entregado" dentro de la lista de los que no lo están.
       AND NOT (
-        rm.CodMOResourceMachine IN (${recursosDeLaWebSql()})
+        rm.CodMOResourceMachine IN (${recursosSql(SECCIONES[SECCION_POR_DEFECTO])})
         AND COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
         AND t.PercentProgress >= 100
       )`);

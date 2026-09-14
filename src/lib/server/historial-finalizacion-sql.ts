@@ -34,6 +34,18 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
     ;WITH Recursos AS (
       SELECT DISTINCT IDMOTask FROM dbo.CPRMOResourceMachine
       WHERE CodMOResourceMachine IN (${recursos})
+    ), Centros AS (
+      -- Cualquier centro de trabajo, no solo los de esta sección: es la marca
+      -- de que la tarea es trabajo de verdad y no una pseudo-tarea de RPS.
+      -- "0 · Materiales" (187 en 2026, ninguna llega jamás al 100 %), notas
+      -- sueltas tecleadas como tarea ("99 · 03/09 VISITA PARA DURO CON
+      -- JUSTA", 124 en 2026) y trabajo que se manda fuera (LACAR, CINCAR,
+      -- APLICAR VINILO, 35 abiertas) no cuelgan de ningún centro, y NINGUNA
+      -- de las tres cierra jamás en OLANET (0 de todas las de 2026): sin este
+      -- filtro dejaban el pedido pendiente para siempre. Medido el
+      -- 14/09/2026 contra RPS: 151 de 551 pedidos pendientes desde junio no
+      -- tenían ni un centro que enseñar.
+      SELECT DISTINCT IDMOTask FROM dbo.CPRMOResourceMachine
     ), FinFase AS (
       SELECT orden, fase, MAX(fecha_cambio) AS fin
       FROM dbo.tgm_estadosof_olanet WHERE idestadoof=3 GROUP BY orden, fase
@@ -42,6 +54,7 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         CASE WHEN r.IDMOTask IS NOT NULL
           AND COALESCE(t.Description,'') NOT LIKE 'PLANTEAR EN TALLER%'
           THEN 1 ELSE 0 END AS de_seccion,
+        CASE WHEN c.IDMOTask IS NOT NULL THEN 1 ELSE 0 END AS tiene_centro,
         CASE WHEN e.fin IS NOT NULL OR (${rescateOt}) THEN 1 ELSE 0 END AS terminada,
         COALESCE(e.fin, CASE WHEN ${rescateOt}
           AND t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day,1,GETDATE())
@@ -50,12 +63,24 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
       ${busqueda ? "JOIN #CoordinaHistorialOrdenes candidatas ON candidatas.IDManufacturingOrder=mo.IDManufacturingOrder" : ""}
       LEFT JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder=mo.IDManufacturingOrder
       LEFT JOIN Recursos r ON r.IDMOTask=t.IDMOTask
+      LEFT JOIN Centros c ON c.IDMOTask=t.IDMOTask
       LEFT JOIN FinFase e ON e.orden=mo.CodManufacturingOrder AND e.fase=t.CodMOTask
       WHERE mo.CodCompany='001'
     ), ResumenOF AS (
       SELECT IDManufacturingOrder, MAX(de_seccion) AS tiene_seccion,
         MAX(CASE WHEN de_seccion=1 THEN 1-terminada ELSE 0 END) AS pendiente_seccion,
-        MAX(1-terminada) AS pendiente_total,
+        -- Solo cuenta para "pendiente" el trabajo que cuelga de un centro
+        -- (ver Centros arriba). Dos motivos: (1) sin centro la fila no puede
+        -- decir por dónde va el pedido, que es justo lo que esta pantalla
+        -- contesta; (2) separar una nota de un trabajo por el texto es
+        -- adivinar ("19/8 - SACAR PIÑON A BRAZOS" es trabajo y "17/8 -
+        -- VISITA DE JAIME CON PITA" es una nota, y están escritas igual), y
+        -- enseñar ese texto al invitado sacaría notas internas fuera de
+        -- casa. Lo que se manda a lacar no se pierde: mientras no salga, el
+        -- pedido sigue pendiente por la entrega (pendiente_entrega).
+        -- pendiente_seccion y tiene_seccion NO cambian: ya miran solo tareas
+        -- de la sección, que siempre tienen centro (Recursos ⊆ Centros).
+        MAX(CASE WHEN tiene_centro=1 THEN 1-terminada ELSE 0 END) AS pendiente_total,
         MAX(CASE WHEN de_seccion=1 THEN fin END) AS fin_seccion, MAX(fin) AS fin_total
       FROM Tareas GROUP BY IDManufacturingOrder
     ), ResumenPedido AS (
