@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "384930d",
+    "hasta": "9fceeb8",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -62,6 +62,11 @@
         "tipo": "mejor",
         "titulo": "En la bandeja, la prioridad se lee en palabra",
         "detalle": "Encima del parte, junto a la fecha, pone \"URGENTE\", \"NORMAL\" o \"POCA\" en vez de un punto de color."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los partes de \"Sin asignar\" van más separados",
+        "detalle": "Sobre todo entre filas, donde el cliente de una se juntaba con la fecha de la de abajo."
       }
     ]
   },
