@@ -51,7 +51,10 @@ export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = {
   hasta: "",
   familia: null,
   operario: null,
-  soloSeccion: false,
+  // ENCENDIDO de salida: lo que se viene a ver aquí es el trabajo de tu
+  // sección. Los pedidos que solo tocó Taller salían mezclados y había que
+  // apagarlos a mano cada vez; quien los quiera, los enciende.
+  soloSeccion: true,
 };
 
 /** Las mismas columnas en la cabecera y en cada fila. Al buscar se añade la
@@ -97,7 +100,7 @@ export function HistorialView({
   // Filtros (se aplican reiniciando desde la página 0). Con valores por
   // defecto: los filtros guardados en el tablero antes de existir estos dos
   // campos no los traen.
-  const { q, desde, hasta, familia, operario = null, soloSeccion = false } = filtros;
+  const { q, desde, hasta, familia, operario = null, soloSeccion = true } = filtros;
   const setQ = (q: string) => onFiltros({ q });
   const setFamilia = (familia: string | null) => onFiltros({ familia });
   const setOperario = (operario: string | null) => onFiltros({ operario });
@@ -110,7 +113,14 @@ export function HistorialView({
   const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}|${operario ?? ""}|${soloSeccion ? 1 : 0}`;
   const resultadosVigentes = claveResultado === filtrosKey;
   const itemsVisibles = resultadosVigentes ? items : [];
-  const hayFiltros = Boolean(q.trim() || desde || hasta || familia || operario || soloSeccion);
+  // Filtrado = algo DISTINTO de lo de salida. «Solo OT» viene encendido, así
+  // que tenerlo puesto no es haber filtrado: si contara, el botón de limpiar
+  // estaría siempre encendido y el vacío diría "ningún pedido pasa los filtros"
+  // cuando no se ha tocado ninguno.
+  const hayFiltros = Boolean(
+    q.trim() || desde || hasta || familia || operario ||
+      soloSeccion !== FILTROS_HISTORIAL_INICIALES.soloSeccion,
+  );
 
   // Secuencia de peticiones: permite descartar respuestas obsoletas cuando
   // una petición más reciente (p.ej. tras cambiar filtros rápido) responde
@@ -268,18 +278,21 @@ export function HistorialView({
               : "text-text-muted hover:text-text"
           }`}
         >
-          Solo con trabajo de {CENTRO_CORTO[seccion]}
+          Solo {CENTRO_CORTO[seccion]}
         </button>
-        {hayFiltros && (
-          <button
-            onClick={() => {
-              onFiltros(FILTROS_HISTORIAL_INICIALES);
-            }}
-            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
-          >
-            Limpiar filtros
-          </button>
-        )}
+        {/* Siempre puesto, apagado cuando no hay nada que limpiar. Salía y se
+            iba según tocabas los filtros, y la barra entera se encogía y se
+            estiraba con cada cambio: los botones de al lado bailaban de sitio
+            justo mientras los estabas usando. */}
+        <button
+          type="button"
+          disabled={!hayFiltros}
+          onClick={() => onFiltros(FILTROS_HISTORIAL_INICIALES)}
+          title={hayFiltros ? "Deja los filtros como estaban" : "No hay filtros que limpiar"}
+          className="self-end rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted transition-colors enabled:hover:border-border-strong enabled:hover:text-text disabled:opacity-40"
+        >
+          Limpiar filtros
+        </button>
       </div>
 
       {error && resultadosVigentes && (
