@@ -10,6 +10,7 @@ import {
 } from "@/lib/historial";
 import { documentoDePedido } from "@/lib/server/historial-db";
 import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/server/miniaturas";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/historial/AR.26.03453/documento/0 ──────────────────────────────
 // Sirve UNO de los documentos que RPS tiene colgados del pedido: el
@@ -58,6 +59,9 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ pedido: string; indice: string }> },
 ) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const { pedido, indice } = await params;
   // ?mini=1 → la versión pequeña, para la rejilla de documentos de la ficha y
   // del Historial. Un parámetro y no otra ruta porque el fichero es EL MISMO y

@@ -231,3 +231,19 @@ export function cabeceraDeSesion(id: string): string {
 export function cabeceraDeSalida(): string {
   return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
+
+/** La puerta de las LECTURAS del equipo. Devuelve la respuesta con la que hay
+ *  que cortar, o null para seguir.
+ *
+ *  Una función y no la comprobación repetida en catorce rutas: repetirla
+ *  garantiza que a la quinceava se le olvide, y aquí lo que se olvida es una
+ *  ruta que enseña las notas internas a toda la casa.
+ *
+ *  Con el login APAGADO deja pasar a todo el mundo, como hasta hoy: apagado no
+ *  hay invitados ni sesiones, y cerrar las lecturas dejaría al equipo fuera de
+ *  su propia herramienta. */
+export function soloConSesion(req: Request): NextResponse | null {
+  if (!loginActivo()) return null;
+  const yo = exigir(req);
+  return yo instanceof NextResponse ? yo : null;
+}

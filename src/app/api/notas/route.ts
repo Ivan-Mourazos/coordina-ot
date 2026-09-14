@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NOTA_MAX, validarTexto } from "@/lib/nota-pedido";
 import { borrarNota, crearNota, editarNota, leerNotas } from "@/lib/server/notas-db";
-import { identidad } from "@/lib/server/sesion";
+import { identidad, soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/notas ──────────────────────────────────────────────────────────────
 // El hilo de notas de un pedido. Cuatro verbos en un fichero, como hace
@@ -63,6 +63,9 @@ function errorTexto(motivo: "vacio" | "largo") {
 }
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const pedido = clave(new URL(req.url).searchParams.get("pedido"));
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
   return NextResponse.json(

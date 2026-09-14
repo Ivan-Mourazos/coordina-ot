@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { NOVEDADES } from "@/lib/novedades";
 import { fechasDeNovedades } from "@/lib/server/estado-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/novedades ──────────────────────────────────────────────────────────
 // Solo las FECHAS. El contenido del log viaja con la app —está escrito en
@@ -12,7 +13,10 @@ import { fechasDeNovedades } from "@/lib/server/estado-db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   try {
     return NextResponse.json(
       {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/buscar?q= ──────────────────────────────────────────────────────
 // Cualquier pedido de venta de RPS, sin filtrar por si es trabajo de OT ni por
@@ -9,6 +10,9 @@ import { buscarPedidosRps } from "@/lib/server/buscar-db";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const q = new URL(req.url).searchParams.get("q") ?? "";
   try {
     return NextResponse.json(

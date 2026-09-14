@@ -2,6 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { miniaturaCacheada, renderizarPdf } from "@/lib/server/miniaturas";
 import { rutaPdfPedido } from "@/lib/server/pdf-pedido";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // GET /api/pedidos/AR.26.02711.pdf — sirve el PDF escaneado del pedido desde
 // el servidor de archivos (\\192.168.0.128\RPS\VENTAS\PEDIDOS\{año}\{delegación}\
@@ -33,9 +34,12 @@ const CABECERAS_PNG = {
 } as const;
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ archivo: string }> },
 ) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const { archivo } = await params;
   const m = ARCHIVO_RE.exec(archivo);
   if (!m) {

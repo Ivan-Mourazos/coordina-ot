@@ -3,6 +3,7 @@ import { leerHistorialPedidoDetalle } from "@/lib/server/historial-db";
 import { CODIGO_PEDIDO_RE, estadoActualHistorial } from "@/lib/historial";
 import { getTablero } from "@/lib/data";
 import { seccionDe } from "@/lib/secciones";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/historial/[pedido] ─────────────────────────────────────────────
 // Detalle (lazy) del pedido: tiempos de sus OF separados por centro de trabajo.
@@ -14,6 +15,9 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ pedido: string }> },
 ) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const { pedido } = await params;
   if (!CODIGO_PEDIDO_RE.test(pedido))
     return NextResponse.json({ error: "Código de pedido no válido" }, { status: 400 });

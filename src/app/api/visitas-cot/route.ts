@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizarFiltrosVisitasCot } from "@/lib/visitas-cot";
 import { leerVisitasCot } from "@/lib/server/visitas-cot-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/visitas-cot ───────────────────────────────────────────────────
 // Consulta paginada de solo lectura. Pendientes e historial viven fuera del
@@ -9,6 +10,9 @@ import { leerVisitasCot } from "@/lib/server/visitas-cot-db";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const filtros = normalizarFiltrosVisitasCot(new URL(req.url).searchParams);
   try {
     const pagina = await leerVisitasCot(filtros);

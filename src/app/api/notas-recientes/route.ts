@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { VENTANA_AVISOS_DIAS } from "@/lib/avisos";
 import { leerNotasRecientes } from "@/lib/server/notas-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/notas-recientes ────────────────────────────────────────────────
 // Las notas de los últimos días, para que la campana avise al resto del equipo
@@ -13,7 +14,10 @@ import { leerNotasRecientes } from "@/lib/server/notas-db";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
+export function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   return NextResponse.json(
     { notas: leerNotasRecientes(VENTANA_AVISOS_DIAS) },
     { headers: { "Cache-Control": "no-store" } },
