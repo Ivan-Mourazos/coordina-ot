@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
@@ -10,7 +10,7 @@ import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/histori
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
 
-export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", compacto = false }: {
+export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", compacto = false, abrirAlMontar = false }: {
   pedido: string;
   ofs: HistorialOF[];
   seccion: SeccionId;
@@ -23,9 +23,17 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
    *  desplegado, y desplegarlos todos no es lo normal: un botón por pedido
    *  abierto no llega a ser ruido, y esconderlo obliga a descubrirlo. */
   compacto?: boolean;
+  /** Abrir la ventana nada más montar. Lo usa `TareasDelPedido`: allí el botón
+   *  de verdad es otro —el que dispara la carga—, y al llegar los datos este
+   *  aparece ya abierto en vez de pedir un segundo clic. */
+  abrirAlMontar?: boolean;
 }) {
   const id = useId();
   const [abierto, setAbierto] = useState(false);
+  useEffect(() => {
+    if (!abrirAlMontar) return;
+    (document.getElementById(id) as HTMLElement | null)?.showPopover?.();
+  }, [abrirAlMontar, id]);
   // Con la ventana abierta, la rueda seguía moviendo lo de detrás —la lista del
   // Historial o la ficha— y al cerrar aparecías en otro sitio. Es un popover
   // nativo: vive en la capa de arriba, pero no congela el `body` por su cuenta.
@@ -115,5 +123,59 @@ function CentroTareas({ centro }: { centro: HistorialCentro }) {
         </div>
       ))}
     </section>
+  );
+}
+
+/** «Tareas y tiempos» para un pedido que TODAVÍA no está en el Historial.
+ *
+ *  El desglose por tarea y centro sale del detalle del Historial, y ese dato
+ *  no lo tiene el tablero: hay que pedirlo a RPS, y cuesta entre 2,5 y 5
+ *  segundos (medido). Por eso NO se carga al abrir la ficha —como los
+ *  documentos, por lo mismo—, sino al pulsar; cuando llega, la ventana se abre
+ *  sola para no cobrar un segundo clic.
+ *
+ *  Sirve para un pedido a medias: enseña lo que lleva imputado hasta ahora. */
+export function TareasDelPedido({
+  pedido,
+  seccion,
+  className,
+}: {
+  pedido: string;
+  seccion: SeccionId;
+  className?: string;
+}) {
+  const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
+  const [estado, setEstado] = useState<"quieto" | "cargando" | "error">("quieto");
+
+  async function cargar() {
+    setEstado("cargando");
+    try {
+      const r = await fetch(`/api/historial/${pedido}?seccion=${seccion}`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { ofs?: HistorialOF[] };
+      setOfs(d.ofs ?? []);
+      setEstado("quieto");
+    } catch {
+      setEstado("error");
+    }
+  }
+
+  if (ofs) {
+    return <HistorialTareas pedido={pedido} ofs={ofs} seccion={seccion} className={className} abrirAlMontar />;
+  }
+  return (
+    <button
+      type="button"
+      onClick={cargar}
+      disabled={estado === "cargando"}
+      title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
+      className={`${className ?? "mb-2"} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text disabled:opacity-60`}
+    >
+      {estado === "cargando"
+        ? "Cargando tareas…"
+        : estado === "error"
+          ? "No se pudo cargar · reintentar"
+          : "Tareas y tiempos"}
+    </button>
   );
 }

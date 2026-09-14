@@ -41,8 +41,10 @@ function fmtFecha(iso: string | null) {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
-/** Drawer read-only del historial: PDF (mediano, ampliable) + datos del pedido y
- *  sus OFs con tiempos. Sin acciones (el pedido está finalizado). */
+/** Ficha del historial: parte escaneado + datos del pedido y sus OF con
+ *  tiempos. Sin acciones sobre el trabajo —el pedido ya está cerrado para OT—,
+ *  salvo las NOTAS, que sí se escriben: una nota no es trabajo, es lo que hay
+ *  que saber la próxima vez, y ese momento llega mirando el Historial. */
 export function HistorialDrawer({
   pedido,
   onClose,
@@ -285,13 +287,13 @@ export function HistorialDrawer({
                   vuelve a montar, así no queda ni un frame con el hilo del
                   anterior. NO sustituye a los guards de dentro del componente:
                   esos cubren las carreras DENTRO de un mismo pedido. */}
-              <NotasPedido
-                key={pedido}
-                pedido={pedido}
-                miId={null}
-                operarios={operarios}
-                soloLectura
-              />
+              {/* SE ESCRIBE, no solo se lee. El pedido está cerrado para
+                  Producción, pero la nota no es trabajo: es lo que hay que
+                  saber la próxima vez que ese cliente pida algo parecido, y ese
+                  momento llega justo cuando lo estás mirando en el Historial.
+                  La nota va por CÓDIGO de pedido, así que la escrita aquí es la
+                  misma que se ve en el tablero. */}
+              <NotasPedido key={pedido} pedido={pedido} miId={miId} operarios={operarios} />
 
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
                   que no tienen fichero no salen en la lista, así que meterlos

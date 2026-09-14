@@ -18,6 +18,7 @@ import { AnularInline } from "./AnularInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
+import { TareasDelPedido } from "./HistorialTareas";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
 import { Select, OpDot, type SelectOption } from "./Select";
@@ -533,6 +534,16 @@ export function Drawer({
               fichar, no para mirar documentos. El `key` con el código, por lo
               mismo que el hilo de notas de abajo. */}
           <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
+
+          {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
+              una. Es la misma ventana del Historial, pero aquí sirve para un
+              pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
+              pulsar, no al abrir la ficha (ver TareasDelPedido). */}
+          <TareasDelPedido
+            key={`tareas:${pedido.codigo}`}
+            pedido={pedido.codigo}
+            seccion={seccion.id}
+          />
 
           {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
               lo que se decide, porque es contexto: primero se lee de qué va

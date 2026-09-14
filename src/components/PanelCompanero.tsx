@@ -10,10 +10,13 @@ import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
 import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 
-/** El trabajo de un compañero, con la MISMA forma que tu propia zona: cuatro
- *  fases en columnas y una línea por pedido. Que se lea igual es el punto —
- *  antes era un popup estrecho con otro formato, y comparar dos personas
- *  obligaba a traducir mentalmente entre dos maneras de enseñar lo mismo.
+/** El trabajo de un compañero: sus fases EN LISTA, una debajo de otra y cada
+ *  una en su bloque con relieve, con una línea por pedido.
+ *
+ *  En columnas —como tu propia zona— no cabía: cuatro fases repartiéndose el
+ *  ancho del panel dejaban la línea del pedido sin sitio para el cliente, y
+ *  aquí se viene justo a ver en qué anda alguien. A lo largo caben todas, y el
+ *  panel ya trae su propio scroll.
  *
  *  Es de SOLO CONSULTA: sobre el trabajo de otro no se ficha ni se cambia de
  *  estado ni se reasigna nada. Cada pedido lleva un candado con el motivo
@@ -80,16 +83,14 @@ export function PanelCompanero({
       {conItems.length === 0 ? (
         <p className="py-2 text-[11px] text-text-muted">Sin pedidos asignados.</p>
       ) : (
-        // Las fases, SIEMPRE en una fila de columnas. Se envolvían al no caber
-        // y entonces la mitad de las fases aparecía debajo: leyendo de arriba
-        // abajo parecían dos bloques distintos en vez de un reparto. Ahora se
-        // estrechan hasta donde haga falta.
-        <div className="flex items-start gap-3">
+        // Las fases EN LISTA, una debajo de otra y cada una en su bloque con
+        // relieve. En columnas repartidas el ancho no daba: el cliente del
+        // pedido se recortaba o desaparecía, y aquí se viene justo a ver en qué
+        // anda un compañero. A lo ancho solo caben tres o cuatro fases; a lo
+        // largo caben todas, y el panel ya tiene su propio scroll.
+        <div className="flex flex-col gap-2.5">
           {conItems.map((g) => (
-            // `@container`: cada columna mide su propio ancho y la fila del
-            // pedido decide qué le cabe (ver PedidoLinea). `min-w-0` es lo que
-            // le permite encogerse por debajo de su contenido.
-            <div key={g.id} className="@container min-w-0 flex-1">
+            <section key={g.id} className="bloque-3d rounded-xl p-2.5">
               <h3 className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-text-muted">
                 <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                 {g.label} · {g.items.length}
@@ -111,7 +112,7 @@ export function PanelCompanero({
                   />
                 ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}
