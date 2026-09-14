@@ -64,7 +64,6 @@ export function HistorialDrawer({
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
-  const [ampliado, setAmpliado] = useState(false);
   const reqSeq = useRef(0);
 
   const [prevPedido, setPrevPedido] = useState<string | null>(null);
@@ -74,7 +73,6 @@ export function HistorialDrawer({
     setPrevPedido(pedido);
     setDetalle(null);
     setError(false);
-    setAmpliado(false);
   }
 
   const cargar = useCallback(async (cod: string) => {
@@ -110,11 +108,9 @@ export function HistorialDrawer({
   // pisan el estilo del body al cerrarse.
   useScrollBloqueado(pedido !== null);
 
-  // Dos capas: la ficha y, encima, el parte ampliado. Escape cierra la de
-  // arriba; los popovers nativos («Tareas y tiempos») se cierran solos y la
-  // pila les deja esa pulsación (ver capas-escape.ts).
+  // Escape cierra la ficha. Los popovers nativos («Tareas y tiempos») se
+  // cierran solos y la pila les deja esa pulsación (ver capas-escape.ts).
   useCapaEscape(pedido !== null, onClose);
-  useCapaEscape(ampliado, () => setAmpliado(false));
 
   // ¿Está el parte escaneado? `null` = todavía sin comprobar, y ahí se pinta el
   // marco: lo normal es que exista, y esperar a la comprobación para enseñarlo
@@ -174,30 +170,10 @@ export function HistorialDrawer({
           negocio={detalle?.negocio}
         />
       }
-      // Ampliado: PDF a pantalla casi completa, por encima de la ficha.
-      encima={
-        ampliado && pdfSoportado && (
-          <div className="overlay-in fixed inset-0 z-[80] bg-black/70 backdrop-blur-md" onClick={() => setAmpliado(false)}>
-            <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 p-4 text-white">
-              <span className="font-mono text-sm font-bold">{pedido}</span>
-              <a href={scanUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-                className="ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20">
-                Abrir original ↗
-              </a>
-              <button onClick={() => setAmpliado(false)} aria-label="Cerrar"
-                className="grid size-9 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20">✕</button>
-            </div>
-            <div className="grid h-full place-items-center p-10" onClick={() => setAmpliado(false)}>
-              <iframe src={scanUrl} title={`Pedido ${pedido}`} onClick={(e) => e.stopPropagation()}
-                className="h-full w-full max-w-5xl rounded-xl bg-white shadow-2xl" />
-            </div>
-          </div>
-        )
-      }
       // PDF mediano a la izquierda.
       visor={
           pdfSoportado ? (
-            <ParteEscaneado codigo={pedido} scanUrl={scanUrl} onAmpliar={() => setAmpliado(true)} />
+            <ParteEscaneado codigo={pedido} scanUrl={scanUrl} />
           ) : (
             /* `bloque-3d`, el mismo relieve que los bloques de la ficha. Era un
                gris plano y, al lado de la ficha en relieve, parecía un hueco

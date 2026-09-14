@@ -36,12 +36,9 @@ type Ajuste = "Fit" | (typeof AJUSTES)[number]["id"];
 export function ParteEscaneado({
   codigo,
   scanUrl,
-  onAmpliar,
 }: {
   codigo: string;
   scanUrl: string;
-  /** Solo donde hay sitio al que ampliar. */
-  onAmpliar?: () => void;
 }) {
   const marco = useRef<HTMLIFrameElement>(null);
   const [ajuste, setAjuste] = useState<Ajuste>("Fit");
@@ -92,19 +89,14 @@ export function ParteEscaneado({
         <button type="button" onClick={imprimir} title="Imprimir el parte" aria-label="Imprimir el parte" className={chip}>
           ⎙
         </button>
-        {onAmpliar && (
-          <button
-            type="button"
-            onClick={onAmpliar}
-            title="Ver el parte a pantalla casi completa"
-            aria-label="Ampliar el parte"
-            className={chip}
-          >
-            ⤢
-          </button>
-        )}
       </div>
       <iframe
+        // `key` CON EL ENCAJE, y no es cosmética: cambiar solo el fragmento de
+        // la URL no recarga nada —para el navegador es la misma página— y el
+        // visor se quedaba con el encaje anterior. Medido: pulsar «al ancho» y
+        // luego «al alto» daba dos capturas idénticas. Con la clave, React tira
+        // el iframe y monta otro, que es una navegación de verdad.
+        key={ajuste}
         ref={marco}
         src={`${scanUrl}#page=1&view=${ajuste}&toolbar=0`}
         title={`Pedido ${codigo}`}
