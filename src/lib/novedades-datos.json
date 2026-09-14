@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "eeddab8",
+    "hasta": "1cf76be",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -17,6 +17,11 @@
         "tipo": "nuevo",
         "titulo": "El parte escaneado se puede ajustar al ancho o al alto",
         "detalle": "Dos botones nuevos en la barra del parte. Pulsando otra vez el que esté puesto, vuelve a la página entera."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "El parte se abre como tú lo prefieras",
+        "detalle": "Si eliges verlo ajustado al ancho, se abrirá así a partir de entonces. Cada uno el suyo, en su propio navegador."
       },
       {
         "tipo": "arreglado",
