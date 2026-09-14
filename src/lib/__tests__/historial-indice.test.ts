@@ -15,6 +15,8 @@ const base = (pedido: string, extra: Partial<BaseHistorial> = {}): BaseHistorial
   tieneSeccion: true,
   pendienteSeccion: false,
   pendienteTotal: false,
+  fechaEntrega: null,
+  pendienteEntrega: false,
   finalizada: dia(10),
   ...extra,
 });

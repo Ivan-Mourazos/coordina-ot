@@ -15,6 +15,17 @@ export interface BaseHistorial {
   /** Fechas en milisegundos: 153 000 pedidos en memoria, mejor números que textos. */
   fechaPedido: number | null;
   nOf: number;
+  /** La entrega que pide el cliente: MIN de las líneas del pedido, en ms.
+   *  Es lo que ORDENA la lista del invitado, así que se guarda en el índice y
+   *  no se pide por página: ordenar solo se puede con todo delante. */
+  fechaEntrega: number | null;
+  /** Queda alguna línea sin entregar (`FACOrderLineSL.PendingDelivery`).
+   *
+   *  Terminar en fábrica no es entregar: medido el 14/09/2026, 184 pedidos de
+   *  2026 tienen todas las tareas al 100 y la entrega pendiente. Sin esto, el
+   *  invitado vería «terminado» un pedido que sigue en el almacén sin salir,
+   *  que es justo la etapa por la que llaman. */
+  pendienteEntrega: boolean;
   tieneSeccion: boolean;
   pendienteSeccion: boolean;
   pendienteTotal: boolean;

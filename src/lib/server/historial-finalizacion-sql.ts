@@ -65,6 +65,8 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         MAX(t.pendiente_seccion) AS pendiente_seccion,
         MAX(t.pendiente_total) AS pendiente_total,
         MAX(t.fin_seccion) AS fin_seccion, MAX(t.fin_total) AS fin_total
+        , MIN(l.ReceptionDemandDate) AS fecha_entrega
+        , MAX(CASE WHEN l.PendingDelivery = 1 THEN 1 ELSE 0 END) AS pendiente_entrega
       FROM ${busqueda ? "#CoordinaHistorialPedidos" : "dbo.FACOrderSL"} o
       JOIN dbo.FACOrderLineSL l ON l.IDOrder=o.IDOrder
       JOIN ResumenOF t ON t.IDManufacturingOrder=l.IDManufacturingOrder
@@ -72,6 +74,7 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
       GROUP BY o.CodOrder
     ), PedFin AS (
       SELECT pedido, fecha_pedido, n_of, tiene_seccion, pendiente_seccion, pendiente_total,
+        fecha_entrega, pendiente_entrega,
         CASE WHEN tiene_seccion=1 THEN fin_seccion ELSE fin_total END AS finalizada
       FROM ResumenPedido
     )
