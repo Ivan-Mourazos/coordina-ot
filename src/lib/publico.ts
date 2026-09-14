@@ -1,4 +1,5 @@
 import { palabrasDe } from "./buscador";
+import type { DocumentoRps, HistorialOF, HistorialPedidoDetalle } from "./historial";
 import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial } from "./historial-indice";
 import { SECCION_POR_DEFECTO } from "./secciones";
 import { esCodigoPedido } from "./types";
@@ -156,5 +157,80 @@ export function normalizarFiltrosPublicos(sp: URLSearchParams): FiltrosPublicos 
     familia: texto("familia"),
     desde: texto("desde"),
     hasta: texto("hasta"),
+  };
+}
+
+// ─── El detalle de un pedido, para quien no tiene sesión ─────────────────────
+// `HistorialPedidoDetalle` (historial.ts) es el mismo objeto que ve el equipo:
+// cabecera, OF con su reparto de roles, notas de Producción… Aquí se recorta a
+// lo que puede leer toda la casa, campo a campo y a propósito: cada línea de
+// abajo es un "sí" explícito, y lo que no está escrito no sale, aunque el
+// Historial le añada un campo mañana.
+
+/** Una OF tal y como la ve el invitado: identidad, tareas, tiempos y personas.
+ *  Fuera quedan `autorRegistrado`/`revisorRegistrado` y `rol` —el reparto
+ *  planteo/revisión es la marca de revisión interna, justo lo que este plan
+ *  prohíbe—, `materiales` (no lo pidió nadie) y `notasProduccion` (una nota,
+ *  como las que ya están prohibidas para el pedido). */
+export type OfPublica = Pick<
+  HistorialOF,
+  "codigo" | "descripcion" | "tiempoImputadoMin" | "quien" | "tareas" | "personas" | "centro"
+>;
+
+function ofPublica(of: HistorialOF): OfPublica {
+  return {
+    codigo: of.codigo,
+    descripcion: of.descripcion,
+    tiempoImputadoMin: of.tiempoImputadoMin,
+    quien: of.quien,
+    tareas: of.tareas,
+    personas: of.personas,
+    centro: of.centro,
+  };
+}
+
+const PREFIJO_DOCUMENTO_INTERNO = "/api/historial/";
+const PREFIJO_DOCUMENTO_PUBLICO = "/api/publico/pedidos/";
+
+/** La URL de descarga apunta a `/api/historial/...`, que en la Task 5 pasa a
+ *  pedir sesión: aquí se reescribe a su gemela pública para que el invitado
+ *  pueda abrir lo que ve en la lista. `null` (nada que abrir) se queda como
+ *  está: inventar una URL que va a dar 404 sería peor que no ponerla. */
+function documentoPublico(doc: DocumentoRps): DocumentoRps {
+  if (!doc.url?.startsWith(PREFIJO_DOCUMENTO_INTERNO)) return doc;
+  return { ...doc, url: PREFIJO_DOCUMENTO_PUBLICO + doc.url.slice(PREFIJO_DOCUMENTO_INTERNO.length) };
+}
+
+/** Lo que sale de casa del detalle de un pedido: cabecera básica, sus OF ya
+ *  recortadas (`ofPublica`) y los documentos con su URL pública. Fuera de aquí
+ *  se quedan `estadoActual`, `prioridad` y `comentarioVenta` —ninguno está
+ *  autorizado, y lo dice el hecho de que esta función no los toca ni una vez. */
+export interface PedidoPublicoDetalle {
+  codigo: string;
+  cliente: string | null;
+  negocio: string | null;
+  ciudadEntrega: string | null;
+  fechaSolicitud: string | null;
+  fechaFinalizacion: string | null;
+  piezas: number;
+  familias: string[];
+  scanUrl: string;
+  ofs: OfPublica[];
+  documentos: DocumentoRps[];
+}
+
+export function detallePublico(detalle: HistorialPedidoDetalle): PedidoPublicoDetalle {
+  return {
+    codigo: detalle.codigo,
+    cliente: detalle.cliente,
+    negocio: detalle.negocio,
+    ciudadEntrega: detalle.ciudadEntrega,
+    fechaSolicitud: detalle.fechaSolicitud,
+    fechaFinalizacion: detalle.fechaFinalizacion,
+    piezas: detalle.piezas,
+    familias: detalle.familias,
+    scanUrl: detalle.scanUrl,
+    ofs: detalle.ofs.map(ofPublica),
+    documentos: detalle.documentos.map(documentoPublico),
   };
 }
