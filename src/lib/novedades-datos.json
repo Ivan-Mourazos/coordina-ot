@@ -1,8 +1,18 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "f380152",
+    "hasta": "c883005",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes escribir notas de un pedido desde el Historial",
+        "detalle": "Antes solo se leían. Es la misma nota que se ve en el tablero."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "\"Tareas y tiempos\" también en los pedidos que aún están en marcha",
+        "detalle": "Dentro de la ficha del pedido, enseña qué tareas lleva en RPS y cuánto se ha echado en cada una hasta ahora."
+      },
       {
         "tipo": "arreglado",
         "titulo": "El tiempo de cada día del Historial ya no cambia mientras bajas",
@@ -72,6 +82,11 @@
         "tipo": "mejor",
         "titulo": "Los partes de \"Sin asignar\" van más separados",
         "detalle": "Sobre todo entre filas, donde el cliente de una se juntaba con la fecha de la de abajo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El panel de un compañero se lee en lista, con los nombres enteros",
+        "detalle": "Sus fases van una debajo de otra, cada una en su bloque, en vez de repartirse el ancho en columnas."
       }
     ]
   },
