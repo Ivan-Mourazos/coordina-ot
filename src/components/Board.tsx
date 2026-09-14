@@ -49,7 +49,7 @@ import { useHydrated } from "@/lib/useHydrated";
 import { desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
-import { agruparPorFase, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -2192,18 +2192,15 @@ export function Board({
 
             {/* equipo: siempre pegado a la división, altura propia */}
             <div className="shrink-0 px-4 pb-3">
-              <div className="mb-1.5 flex flex-wrap items-center gap-3">
+              {/* Solo el rótulo. Al lado iba la leyenda de las seis fases con
+                  su color, y era la tercera vez que se nombraban en la misma
+                  pantalla: las columnas de tu zona ya las titulan, y el panel
+                  de cada compañero también. El color de las barras se aprende
+                  de esas columnas, no de una lista de nombres a 10 px. */}
+              <div className="mb-1.5">
                 <h2 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   Equipo
                 </h2>
-                <span className="flex flex-wrap items-center gap-2.5 text-[10px] text-text-muted">
-                  {agruparPorFase([], laSeccion).map((f) => (
-                    <span key={f.id} className="flex items-center gap-1">
-                      <span className="size-1.5 rounded-sm" style={{ background: f.color }} />
-                      {f.label.toLowerCase()}
-                    </span>
-                  ))}
-                </span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {resto.map((op) => (
