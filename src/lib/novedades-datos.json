@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "9fceeb8",
+    "hasta": "f380152",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -22,6 +22,11 @@
         "tipo": "arreglado",
         "titulo": "En la bandeja vuelve a verse el número de pedido completo",
         "detalle": "Salía cortado (\"AR.26.044…\") porque el punto de prioridad le quitaba sitio. La prioridad pasa a la línea de la fecha, encima del parte."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El aviso de \"lleva rotulación\" volvía a verse como un cuadro en blanco",
+        "detalle": "En la esquina del parte salía un recuadro vacío en vez del icono. Se notaba sobre todo en Diseño."
       },
       {
         "tipo": "mejor",
