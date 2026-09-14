@@ -799,10 +799,14 @@ import { esCodigoPedido } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Los campos del detalle que no salen de casa. Se enumeran por NOMBRE y se
- *  borran uno a uno en vez de elegir los que sí: así, el día que el Historial
- *  añada un campo nuevo, el invitado NO lo ve hasta que alguien lo decida. */
-const INTERNOS = ["notas", "nota", "causas", "devolucion", "marcas", "observacion"] as const;
+/** Lo que SÍ sale de casa. Es una lista de lo permitido y no de lo prohibido,
+ *  a propósito: con una lista de prohibidos, el día que el Historial añada un
+ *  campo nuevo el invitado lo ve sin que nadie lo haya decidido, y el que se
+ *  añada será justo el que no tocaba. Añadir aquí es un acto voluntario. */
+const PUBLICOS = [
+  "codigo", "cliente", "negocio", "ciudadEntrega", "fechaSolicitud",
+  "fechaFinalizacion", "piezas", "familias", "scanUrl", "ofs", "documentos",
+] as const;
 
 export async function GET(
   _req: Request,
@@ -817,9 +821,7 @@ export async function GET(
     const detalle = await leerHistorialPedido(codigo);
     if (!detalle) return NextResponse.json({ error: "Ese pedido no existe" }, { status: 404 });
     const limpio = Object.fromEntries(
-      Object.entries(detalle).filter(
-        ([clave]) => !INTERNOS.some((i) => clave.toLowerCase().includes(i)),
-      ),
+      Object.entries(detalle).filter(([clave]) => (PUBLICOS as readonly string[]).includes(clave)),
     );
     return NextResponse.json(limpio, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
