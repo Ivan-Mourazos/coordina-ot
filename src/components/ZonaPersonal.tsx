@@ -87,18 +87,18 @@ export function ZonaPersonal({
           {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>
 
-        {/* Cuántos hay parados, con su lista a un clic. Los pedidos siguen en
-            su columna; esto es el aviso de que parte de tu trabajo está en
-            manos de Producción y no avanza. */}
+        {/* Cuántos hay parados, y nada más. NO abre lista: los pedidos están
+            en su columna con su «Detenido», así que un panel que los repitiera
+            enseñaría lo mismo dos veces. Esto solo avisa de que parte de tu
+            trabajo está en manos de Producción y no avanza. */}
         {parados.length > 0 && (
-          <button
-            onClick={() => onVerTodos("parado")}
-            title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Siguen en su columna, marcados como «Detenido», y se liberan solos."
-            className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-600/25 hover:bg-amber-500/20 dark:text-amber-300"
+          <span
+            title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Están en su columna, marcados como «Detenido», y se liberan solos."
+            className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-600/25 dark:text-amber-300"
           >
             <span className="size-1.5 rounded-full bg-amber-500" />
             {parados.length} parado{parados.length === 1 ? "" : "s"} por Producción
-          </button>
+          </span>
         )}
 
         {/* Fases vacías: contadores diminutos, sin gastar una columna. */}

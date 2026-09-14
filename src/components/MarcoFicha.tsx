@@ -23,7 +23,6 @@ export function MarcoFicha({
   etiqueta,
   onCerrar,
   visor,
-  visorConMargen = false,
   cabecera,
   pie,
   encima,
@@ -38,7 +37,6 @@ export function MarcoFicha({
   visor: ReactNode;
   /** El Historial deja aire alrededor del parte y lo amplía aparte; en
    *  Pendientes ocupa todo el hueco. */
-  visorConMargen?: boolean;
   cabecera: ReactNode;
   pie?: ReactNode;
   /** Lo que se abre por encima de la ficha (el parte ampliado, confirmar). */
@@ -57,7 +55,7 @@ export function MarcoFicha({
 
       {/* El parte, en el hueco que deja el panel. Pulsar alrededor cierra. */}
       <div
-        className={`overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col ${visorConMargen ? "p-6" : ""}`}
+        className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col p-4"
         onClick={onCerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
@@ -65,7 +63,7 @@ export function MarcoFicha({
         </div>
       </div>
 
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-2xl">
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-xl">
         <header
           className="flex items-start gap-3 p-4"
           style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}

@@ -20,6 +20,7 @@ import { NotasPedido } from "./NotasPedido";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
+import { ParteEscaneado } from "./ParteEscaneado";
 import { HistorialTareas } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
@@ -38,70 +39,6 @@ function fmtFecha(iso: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-/** El parte escaneado con sus botones, en el idioma de la ficha.
- *
- *  La barra del visor de PDF de Chrome se oculta (`toolbar=0`): es gris oscura,
- *  vive dentro del iframe —ninguna clase nuestra la alcanza— y encima de una
- *  ficha en relieve canta. Lo que hacía falta de ella se rehace aquí con los
- *  mismos chips que «Material» y «Tareas y tiempos».
- *
- *  El zoom NO se rehace: lo lleva el visor por dentro (Ctrl + rueda) y sigue
- *  funcionando con la barra escondida.
- *
- *  Imprimir va por el iframe, que es del mismo dominio (`/api/pedidos/…`) y por
- *  eso se deja mandar a imprimir. Si el visor se negara —otro navegador, el PDF
- *  aún cargando—, se abre en otra pestaña y se imprime desde ahí: nunca se
- *  queda el botón sin hacer nada. */
-function BarraDelParte({
-  pedido,
-  scanUrl,
-  onAmpliar,
-}: {
-  pedido: string;
-  scanUrl: string;
-  onAmpliar: () => void;
-}) {
-  const marco = useRef<HTMLIFrameElement>(null);
-  const chip = "chip-3d rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text";
-
-  function imprimir() {
-    const ventana = marco.current?.contentWindow;
-    try {
-      if (!ventana) throw new Error("sin visor");
-      ventana.focus();
-      ventana.print();
-    } catch {
-      window.open(scanUrl, "_blank", "noopener");
-    }
-  }
-
-  return (
-    <div className="flex h-full w-full flex-col gap-2">
-      {/* Los botones ENCIMA del parte, en su propia línea, no flotando sobre
-          él. Flotando se pegaban a la barra de desplazamiento del visor y, en
-          cuanto la ventana se estrechaba, caían sobre la cabecera del parte:
-          texto nuestro sobre un formulario escrito a mano, ilegible los dos. */}
-      <div className="flex shrink-0 items-center justify-end gap-1.5">
-        <a href={scanUrl} download={`${pedido}.pdf`} title="Descargar el parte" className={chip}>
-          Descargar ↓
-        </a>
-        <button type="button" onClick={imprimir} title="Imprimir el parte" className={chip}>
-          Imprimir ⎙
-        </button>
-        <button type="button" onClick={onAmpliar} title="Ver el parte a pantalla casi completa" className={chip}>
-          Ampliar ⤢
-        </button>
-      </div>
-      <iframe
-        ref={marco}
-        src={`${scanUrl}#view=Fit&toolbar=0`}
-        title={`Pedido ${pedido}`}
-        className="min-h-0 flex-1 rounded-xl border-none bg-white"
-      />
-    </div>
-  );
 }
 
 /** Drawer read-only del historial: PDF (mediano, ampliable) + datos del pedido y
@@ -227,7 +164,6 @@ export function HistorialDrawer({
       refModal={modalRef}
       etiqueta={`Historial del pedido ${pedido}`}
       onCerrar={onClose}
-      visorConMargen
       cabecera={
         <CabeceraFicha
           codigo={pedido}
@@ -259,7 +195,7 @@ export function HistorialDrawer({
       // PDF mediano a la izquierda.
       visor={
           pdfSoportado ? (
-            <BarraDelParte pedido={pedido} scanUrl={scanUrl} onAmpliar={() => setAmpliado(true)} />
+            <ParteEscaneado codigo={pedido} scanUrl={scanUrl} onAmpliar={() => setAmpliado(true)} />
           ) : (
             /* `bloque-3d`, el mismo relieve que los bloques de la ficha. Era un
                gris plano y, al lado de la ficha en relieve, parecía un hueco

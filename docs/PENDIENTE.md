@@ -371,6 +371,15 @@ La memoria de la lista en memoria está comprobada en producción (13/09): 71 MB
 Siguen sin hacer: contraste fuera de la ficha; conservar páginas/posición y
 filtros de Visitas y Métricas.
 
+**Pendiente de mirar: el mismo tiempo, repetido tres veces.** En un pedido de
+una sola OF con una sola persona, la ficha dice «Taller 4m», «Esteban Mosteiro
+4m» y «0232080 … 4m»: tres veces el mismo número, uno debajo de otro (caso real,
+AR.26.04474). Es el mismo vicio que ya se corrigió en la lista y en «Tareas y
+tiempos» —un desglose solo dice algo si el nivel de arriba no lo dice—, pero
+aplicado a los tres niveles de la ficha: centro, persona y OF. Hay que decidir
+cuál manda cuando los tres coinciden y callar los otros dos. Lo pidió Iván el
+14/09.
+
 ---
 
 ## Avisos de método, que costaron caro

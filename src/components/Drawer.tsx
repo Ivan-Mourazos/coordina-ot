@@ -8,6 +8,7 @@ import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
+import { ParteEscaneado } from "./ParteEscaneado";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
@@ -477,12 +478,11 @@ export function Drawer({
               fondo blanco—, que se lee como que la web está rota. Mismo
               criterio que el drawer del Historial. */}
           {esPdf && scanExiste !== false ? (
-            <iframe
-              src={`${pedido.scanUrl}#page=1&view=Fit`}
-              title={`Pedido ${pedido.codigo}`}
-              onClick={(e) => e.stopPropagation()}
-              className="h-full w-full border-none bg-white"
-            />
+            // El mismo parte que la ficha del Historial: sin la barra gris de
+            // Chrome y con los botones de descargar, imprimir y ampliar en el
+            // idioma de la casa. Estaba solo allí y aquí se quedó el visor
+            // crudo (ver ParteEscaneado).
+            <ParteEscaneado codigo={pedido.codigo} scanUrl={pedido.scanUrl!} />
           ) : (
             <div
               onClick={(e) => e.stopPropagation()}
