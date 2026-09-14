@@ -53,9 +53,17 @@ export function MarcoFicha({
     >
       <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onCerrar} />
 
-      {/* El parte, en el hueco que deja el panel. Pulsar alrededor cierra. */}
+      {/* Las DOS piezas flotan sobre el telón y miden lo mismo: arrancan y
+          acaban a la misma altura, con el mismo aire alrededor.
+
+          Antes el parte llevaba su margen y el panel iba pegado a los tres
+          bordes: dos hermanos con reglas distintas, y se notaba justo en la
+          línea de arriba, donde uno empezaba 16 px más abajo que el otro.
+
+          El hueco del parte acaba en 33rem —el ancho del panel (32rem) más su
+          margen— y su propio `p-4` deja la calle entre los dos. */}
       <div
-        className="overlay-in absolute inset-y-0 left-0 right-[32rem] flex flex-col p-4"
+        className="overlay-in absolute inset-y-0 left-0 right-[33rem] flex flex-col p-4"
         onClick={onCerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
@@ -63,7 +71,7 @@ export function MarcoFicha({
         </div>
       </div>
 
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute right-0 top-0 flex h-full w-full max-w-lg flex-col rounded-l-xl">
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-lg flex-col rounded-xl">
         <header
           className="flex items-start gap-3 p-4"
           style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
