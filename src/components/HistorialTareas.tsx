@@ -5,6 +5,7 @@ import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
+import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
@@ -25,6 +26,12 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
 }) {
   const id = useId();
   const [abierto, setAbierto] = useState(false);
+  // Con la ventana abierta, la rueda seguía moviendo lo de detrás —la lista del
+  // Historial o la ficha— y al cerrar aparecías en otro sitio. Es un popover
+  // nativo: vive en la capa de arriba, pero no congela el `body` por su cuenta.
+  // El bloqueo lleva contador, así que convive con el de la ficha sin que uno
+  // pise el estilo del otro (ver useScrollBloqueado).
+  useScrollBloqueado(abierto);
   const centros = agruparCentros(ofs)
     .filter((centro) => centro.ofs.length)
     .sort((a, b) => rangoCentro(a.id, seccion) - rangoCentro(b.id, seccion));
