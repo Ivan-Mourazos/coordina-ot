@@ -1,8 +1,13 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "94c54b4",
+    "hasta": "6fbd158",
     "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "El tiempo de cada día del Historial ya no cambia mientras bajas",
+        "detalle": "Salía un tiempo parcial que iba subiendo según se cargaban más pedidos. Ahora aparece cuando el día está entero; el número de pedidos sigue siendo exacto desde el principio."
+      },
       {
         "tipo": "mejor",
         "titulo": "El parte escaneado se ve entero, y en Pendientes también tiene los botones nuevos",
@@ -12,6 +17,26 @@
         "tipo": "mejor",
         "titulo": "La ficha del pedido queda cuadrada: el parte y los datos miden lo mismo",
         "detalle": "Los dos paneles arrancan y acaban a la misma altura, con el mismo aire alrededor."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El panel de un compañero reparte las fases en columnas, sin partirse en dos filas",
+        "detalle": "Si una columna se queda estrecha, la fila enseña solo el código del pedido. Y se van los contadores a cero de tu cabecera, que repetían la leyenda de debajo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El panel va más despejado: fuera las listas de fases repetidas",
+        "detalle": "Los nombres de las fases salían tres veces en la misma pantalla. Se quedan donde de verdad hacen falta: en las columnas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Cada día del Historial es ahora un bloque aparte",
+        "detalle": "Los pedidos de cada día van en su propia tarjeta y la fecha queda encima, sobre el fondo. Se ve de un vistazo dónde acaba un día y empieza el siguiente."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial abre ya filtrado por el trabajo de tu sección",
+        "detalle": "El botón se llama ahora \"Solo OT\" y viene puesto. Y \"Limpiar filtros\" no salta: está siempre, apagado mientras no haya nada que limpiar."
       }
     ]
   },
