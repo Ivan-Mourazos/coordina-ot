@@ -119,7 +119,7 @@ export function PedidoLinea({
       <button
         onClick={() => onOpen(facet)}
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-        className={`flex min-w-0 items-center gap-2 text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
+        className={`flex min-w-0 items-center gap-2 overflow-hidden text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
       >
         {fichandoAlguien && (
           <span
@@ -193,11 +193,11 @@ export function PedidoLinea({
             que es lo de siempre. */}
         {!mostrandoFalta && (
           <>
-            <span className="min-w-0 flex-1 truncate text-text-muted @max-[15rem]:hidden">
+            <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
               {pedido.cliente}
               {descripcion && ` · ${descripcion}`}
             </span>
-            <span className="shrink-0 text-[10px] text-text-muted @max-[11rem]:hidden">
+            <span className="shrink-0 text-[10px] text-text-muted @max-[18rem]:hidden">
               {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
             </span>
           </>
@@ -208,8 +208,11 @@ export function PedidoLinea({
           solo consulta. El candado dice por qué no está disponible, para
           que no haga falta adivinarlo. */}
       {soloConsulta ? (
-        <span className="shrink-0 text-[10px] text-text-muted">
-          <span title={motivoBloqueo(facet)}>🔒 {motivoBloqueo(facet)}</span>
+        // En columna estrecha se queda el candado y se va su explicación: el
+        // texto («no disponible», «empezado») no cabía y acababa montado sobre
+        // la cuenta de OF. El motivo sigue al pasar el ratón.
+        <span className="shrink-0 text-[10px] text-text-muted" title={motivoBloqueo(facet)}>
+          🔒 <span className="@max-[18rem]:hidden">{motivoBloqueo(facet)}</span>
         </span>
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
