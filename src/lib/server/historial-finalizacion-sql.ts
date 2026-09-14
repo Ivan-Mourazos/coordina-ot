@@ -64,9 +64,14 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         MAX(t.tiene_seccion) AS tiene_seccion,
         MAX(t.pendiente_seccion) AS pendiente_seccion,
         MAX(t.pendiente_total) AS pendiente_total,
-        MAX(t.fin_seccion) AS fin_seccion, MAX(t.fin_total) AS fin_total
-        , MIN(l.ReceptionDemandDate) AS fecha_entrega
-        , MAX(CASE WHEN l.PendingDelivery = 1 THEN 1 ELSE 0 END) AS pendiente_entrega
+        MAX(t.fin_seccion) AS fin_seccion, MAX(t.fin_total) AS fin_total,
+        -- RPS usa 1900-01-01 como "sin fecha" en ReceptionDemandDate: 86.061 de 427.221
+        -- líneas llevan ese centinela, y un MIN sin filtrar se queda con él en cuanto
+        -- una sola línea del pedido no tiene fecha (270 pedidos afectados hoy, p.ej.
+        -- SA.26.00537 diría 1900-01-01 cuando su entrega real es 2026-05-25). Mismo
+        -- filtro que rps.ts:906-912 y el mismo umbral que usa fechaISO.
+        MIN(CASE WHEN l.ReceptionDemandDate > '2000-01-01' THEN l.ReceptionDemandDate END) AS fecha_entrega,
+        MAX(CASE WHEN l.PendingDelivery = 1 THEN 1 ELSE 0 END) AS pendiente_entrega
       FROM ${busqueda ? "#CoordinaHistorialPedidos" : "dbo.FACOrderSL"} o
       JOIN dbo.FACOrderLineSL l ON l.IDOrder=o.IDOrder
       JOIN ResumenOF t ON t.IDManufacturingOrder=l.IDManufacturingOrder
