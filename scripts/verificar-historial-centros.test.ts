@@ -58,8 +58,8 @@ test.skipIf(process.env.VALIDAR_RPS_UI !== "1")(
       INSERT INTO #UI_FACOrderSL VALUES (1,'AR.26.00001','2026-09-10','001',1,NULL);
       INSERT INTO #UI_FACOrderLineSL VALUES (1,1,'2026-09-20',0);
       INSERT INTO #UI_CPRManufacturingOrder VALUES (1,'0000001','001');
-      INSERT INTO #UI_CPRMOTask VALUES (1,1,'5','19/8 TRABAJO DE VERDAD',0,NULL);
-      INSERT INTO #UI_CPRMOResourceMachine VALUES (1,'CALDERERIA');
+      INSERT INTO #UI_CPRMOTask VALUES (1,501,'5','19/8 TRABAJO DE VERDAD',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (501,'CALDERERIA');
 
       -- AR.26.00002: la MISMA tarea (sin cerrar, sin recurso de OT) pero SIN
       -- ninguna fila en CPRMOResourceMachine — como "0 · Materiales" o una
@@ -69,7 +69,7 @@ test.skipIf(process.env.VALIDAR_RPS_UI !== "1")(
       INSERT INTO #UI_FACOrderSL VALUES (2,'AR.26.00002','2026-09-10','001',1,NULL);
       INSERT INTO #UI_FACOrderLineSL VALUES (2,2,'2026-09-20',0);
       INSERT INTO #UI_CPRManufacturingOrder VALUES (2,'0000002','001');
-      INSERT INTO #UI_CPRMOTask VALUES (2,2,'5','99 · NOTA SIN CENTRO',0,NULL);
+      INSERT INTO #UI_CPRMOTask VALUES (2,502,'5','99 · NOTA SIN CENTRO',0,NULL);
     `;
 
     const req = pool.request();
