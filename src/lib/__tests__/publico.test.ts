@@ -80,6 +80,35 @@ test("buscar por código encuentra el pedido", () => {
   expect(filas.map((f) => f.pedido)).toEqual(["AR.26.00123"]);
 });
 
+test("hasta es inclusive: el cierre de media tarde de ese día entra entero", () => {
+  const i = indice([
+    // "hasta" se pone a medianoche LOCAL del día 9; este pedido cierra ese
+    // mismo día 9 pero a las 17:00, así que tiene que salir igualmente.
+    base({ pedido: "A", finalizada: new Date(2026, 0, 9, 17, 0).getTime() }),
+    base({ pedido: "B", finalizada: new Date(2026, 0, 10, 0, 0).getTime() }),
+  ]);
+  const { filas } = filtrarPublico(i, { lista: "realizados", page: 0, hasta: "2026-01-09" });
+  expect(filas.map((f) => f.pedido)).toEqual(["A"]);
+});
+
+test("desde es inclusive: entrar justo el día de desde", () => {
+  const i = indice([
+    base({ pedido: "A", pendienteTotal: true, fechaEntrega: new Date(2026, 0, 9, 0, 0).getTime() }),
+    base({ pedido: "B", pendienteTotal: true, fechaEntrega: new Date(2026, 0, 8, 23, 0).getTime() }),
+  ]);
+  const { filas } = filtrarPublico(i, { lista: "pendientes", page: 0, desde: "2026-01-09" });
+  expect(filas.map((f) => f.pedido)).toEqual(["A"]);
+});
+
+test("los comparadores desempatan igual en las dos direcciones", () => {
+  const i = indice([
+    base({ pedido: "B", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 1, 1) }),
+    base({ pedido: "A", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 1, 1) }),
+  ]);
+  const { filas } = filtrarPublico(i, { lista: "pendientes", page: 0 });
+  expect(filas.map((f) => f.pedido)).toEqual(["A", "B"]);
+});
+
 test("los filtros llegan de la URL con valores sanos", () => {
   const f = normalizarFiltrosPublicos(new URLSearchParams("lista=realizados&page=3&q=mahou"));
   expect(f).toMatchObject({ lista: "realizados", page: 3, q: "mahou" });

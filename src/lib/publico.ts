@@ -64,19 +64,25 @@ export function frasePublica(centros: readonly string[], pendienteEntrega: boole
   return pendienteEntrega ? "Fabricado, pendiente de entregar" : "Entregado";
 }
 
-/** yyyy-mm-dd → medianoche LOCAL, como compara SQL Server una fecha sin hora. */
-function medianoche(iso: string | undefined): number | null {
+/** yyyy-mm-dd → medianoche LOCAL, como compara SQL Server una fecha sin hora.
+ *  `dias` desplaza el día (se usa para llegar a la medianoche del día
+ *  SIGUIENTE); se lo pasamos al constructor de Date en vez de sumar ms a
+ *  mano para que el cambio de hora (DST) lo resuelva el propio Date. */
+function medianoche(iso: string | undefined, dias = 0): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso?.trim() ?? "");
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime() : null;
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + dias).getTime() : null;
 }
 
 /** Lo que entrega antes, primero. Sin fecha, al final: un pedido sin entrega
- *  puesta no es urgente, es un pedido del que no se sabe. */
+ *  puesta no es urgente, es un pedido del que no se sabe. El desempate usa
+ *  localeCompare (como el gemelo de historial-indice.ts) y no `<`: con `<` el
+ *  resultado es 1 en los dos sentidos cuando los códigos son iguales, lo que
+ *  rompe la simetría que un comparador tiene que cumplir. */
 const porEntrega = (a: BaseHistorial, b: BaseHistorial): number =>
-  (a.fechaEntrega ?? Infinity) - (b.fechaEntrega ?? Infinity) || (a.pedido < b.pedido ? -1 : 1);
+  (a.fechaEntrega ?? Infinity) - (b.fechaEntrega ?? Infinity) || a.pedido.localeCompare(b.pedido, "es");
 
 const porCierre = (a: BaseHistorial, b: BaseHistorial): number =>
-  (b.finalizada ?? -Infinity) - (a.finalizada ?? -Infinity) || (a.pedido < b.pedido ? -1 : 1);
+  (b.finalizada ?? -Infinity) - (a.finalizada ?? -Infinity) || a.pedido.localeCompare(b.pedido, "es");
 
 export function filtrarPublico(
   indice: IndiceHistorial,
@@ -90,7 +96,11 @@ export function filtrarPublico(
   const cliente = f.cliente?.trim() ? normalizaBusqueda(f.cliente.trim()) : null;
   const familia = f.familia?.trim() || null;
   const desde = medianoche(f.desde);
-  const hasta = medianoche(f.hasta);
+  // "hasta" es inclusive (ver FiltrosPublicos): un pedido cerrado a mitad de
+  // tarde de ESE día tiene que salir. Comparar con la medianoche del propio
+  // día lo dejaba fuera en cuanto llevaba hora real (como `finalizada`), así
+  // que el límite es la medianoche del día SIGUIENTE, con `<` estricto.
+  const hasta = medianoche(f.hasta, 1);
 
   const elegidas: BaseHistorial[] = [];
   // Las dos secciones del índice llevan los MISMOS pedidos de la casa (lo que
@@ -101,9 +111,13 @@ export function filtrarPublico(
 
     const fecha = pendientes ? b.fechaEntrega : b.finalizada;
     if (desde !== null && (fecha === null || fecha < desde)) continue;
-    if (hasta !== null && (fecha === null || fecha > hasta)) continue;
+    if (hasta !== null && (fecha === null || fecha >= hasta)) continue;
 
     const info = indice.info.get(b.pedido);
+    // A propósito distinto del gemelo filtrarIndice (historial-indice.ts), que
+    // compara con `!==`: ahí el equipo elige el cliente de un desplegable, aquí
+    // el invitado escribe de memoria un trozo del nombre, así que hace falta
+    // coincidencia parcial.
     if (cliente && !normalizaBusqueda(info?.cliente ?? "").includes(cliente)) continue;
     if (familia && !(info?.familias ?? []).includes(familia)) continue;
 
