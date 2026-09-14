@@ -62,3 +62,41 @@ describe("centrosConDesglose", () => {
     expect([...centrosConDesglose([of("1", "taller", [])], "ot")]).toEqual(["taller"]);
   });
 });
+
+// El mismo principio, un paso más: cuando el desglose no reparte nada, su
+// número es el del centro escrito otra vez. En AR.26.04474 salía «Taller 47m»,
+// «Esteban Mosteiro 47m» y «0232080 … 47m»: el mismo minuto tres veces, uno
+// debajo de otro.
+//
+// Manda el del CENTRO y no el más pequeño: es el único que se sigue viendo con
+// la sección plegada, y el que deja comparar OT, Diseño y Taller de un vistazo.
+describe("el tiempo no se repite por los tres niveles", () => {
+  it("con una persona y una OF, el tiempo solo sale en la cabecera del centro", () => {
+    const html = pinta([of("0232080", "taller", [{ nombre: "Esteban Mosteiro", min: 47 }])]);
+    expect(veces(html, "47m")).toBe(1);
+    // El nombre y el código se quedan: eso el total no lo dice.
+    expect(html).toContain("Esteban Mosteiro");
+    expect(html).toContain("0232080");
+  });
+
+  it("con dos personas, cada una lleva el suyo: ahí sí reparten", () => {
+    const html = pinta([
+      of("0232080", "taller", [
+        { nombre: "Esteban Mosteiro", min: 30 },
+        { nombre: "Silvia López", min: 17 },
+      ]),
+    ]);
+    expect(veces(html, "47m")).toBe(1); // el del centro
+    expect(html).toContain("30m");
+    expect(html).toContain("17m");
+  });
+
+  it("con dos OF, cada una lleva el suyo", () => {
+    const html = pinta([
+      of("0232080", "taller", [{ nombre: "Esteban Mosteiro", min: 30 }]),
+      of("0232081", "taller", [{ nombre: "Esteban Mosteiro", min: 17 }]),
+    ]);
+    expect(html).toContain("30m");
+    expect(html).toContain("17m");
+  });
+});

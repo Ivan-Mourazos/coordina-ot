@@ -328,6 +328,8 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
           ? personasConRol(personasDeOFs(centro.ofs), reparto.autores, reparto.revisores, reparto.consta)
           : [];
         const porOF = desglose && centro.ofs.length > 1;
+        // Su tiempo ES el del centro: no se repite (ver abajo).
+        const unaSolaPersona = personas.length === 1 && personas[0].min === centro.totalMin;
         return (
           <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
@@ -337,7 +339,13 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
             <div className="space-y-3 px-3 pb-3">
               {personas.length > 0 && (
                 <div>
-                  <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
+                  {/* El rótulo solo si de verdad hay tiempos que leer: con
+                      una sola persona el número se calla (es el del centro) y
+                      «Tiempo por persona» quedaba encabezando una lista de
+                      nombres a secas. */}
+                  {!unaSolaPersona && (
+                    <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
+                  )}
                   <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
                     {personas.map((persona) => (
                       <li key={persona.nombre} className="flex justify-between gap-3">
@@ -350,7 +358,13 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
                             </span>
                           )}
                         </span>
-                        <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
+                        {/* Con una sola persona su tiempo ES el del centro,
+                            que está tres líneas más arriba: escribirlo aquí
+                            otra vez no añade nada. Con varias sí reparten, y
+                            entonces vuelve. */}
+                        {!unaSolaPersona && (
+                          <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -364,9 +378,14 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
                     <li key={of.codigo} className="glass-chip rounded-xl p-3">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-                        <span title="Tiempo imputado en RPS" className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
-                          {fmtMin(of.tiempoImputadoMin)}
-                        </span>
+                        {/* Lo mismo con la OF: si es la única del centro, su
+                            tiempo es el del centro. El código y la descripción
+                            se quedan; el número, no. */}
+                        {!(centro.ofs.length === 1 && of.tiempoImputadoMin === centro.totalMin) && (
+                          <span title="Tiempo imputado en RPS" className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
+                            {fmtMin(of.tiempoImputadoMin)}
+                          </span>
+                        )}
                       </div>
                       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
                       {porOF && <PersonasOF of={of} />}
