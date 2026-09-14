@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "6fbd158",
+    "hasta": "dcdfab0",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "El tiempo de cada día del Historial ya no cambia mientras bajas",
         "detalle": "Salía un tiempo parcial que iba subiendo según se cargaban más pedidos. Ahora aparece cuando el día está entero; el número de pedidos sigue siendo exacto desde el principio."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el panel de un compañero, los textos de cada pedido ya no se montan unos encima de otros",
+        "detalle": "Con varias columnas se pisaban el nº de OF, el tiempo y el aviso del candado. Ahora, si no cabe, se va lo menos importante y queda el código."
       },
       {
         "tipo": "mejor",
