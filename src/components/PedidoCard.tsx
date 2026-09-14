@@ -12,6 +12,16 @@ import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { avisaDeOFNueva } from "@/lib/fases-tablero";
 
+/** El color de la prioridad CUANDO ES TEXTO. No sale de `PRIORIDAD.color`:
+ *  ese ámbar es para fondos y como letra de 9 px da 2,5:1 sobre blanco, que no
+ *  se lee. Son los mismos tonos que la app ya usa para texto en color (los
+ *  avisos de parado, las bandas de parte nuevo). */
+const TINTA_PRIORIDAD: Record<1 | 2 | 3, string> = {
+  3: "text-red-700 dark:text-red-300",
+  2: "text-amber-700 dark:text-amber-300",
+  1: "text-text-muted",
+};
+
 export interface Facet {
   pedido: Pedido;
   /** ubicación actual: id de operario autor, o null = bandeja */
@@ -93,12 +103,18 @@ export const PedidoCardView = memo(function PedidoCardView({
               {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
             </span>
           )}
+          {/* «11/09 · P3». En letra y no en punto de color: un punto hay que
+              saber descifrarlo, y aquí hay sitio de sobra para decirlo. */}
           {mostrarPrioridad && (
-            <span
-              className="size-1.5 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/20"
-              style={{ background: PRIORIDAD[pedido.prioridad].color }}
-              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
-            />
+            <>
+              <span aria-hidden className="shrink-0 text-text-muted">·</span>
+              <span
+                className={`shrink-0 font-semibold ${TINTA_PRIORIDAD[pedido.prioridad]}`}
+                title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
+              >
+                {PRIORIDAD[pedido.prioridad].label.toUpperCase()}
+              </span>
+            </>
           )}
         </div>
       )}
