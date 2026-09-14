@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "66aaf2b",
+    "hasta": "eeddab8",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -42,6 +42,11 @@
         "tipo": "arreglado",
         "titulo": "El aviso de \"lleva rotulación\" volvía a verse como un cuadro en blanco",
         "detalle": "En la esquina del parte salía un recuadro vacío en vez del icono. Se notaba sobre todo en Diseño."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El botón de ajustar el parte al ancho ya funciona",
+        "detalle": "No llegaba a redibujar el parte. \"Al alto\" coincide con la vista normal, porque el parte ya entra entero de alto."
       },
       {
         "tipo": "mejor",
