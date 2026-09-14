@@ -1,0 +1,312 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { PedidoPublico, PedidoPublicoDetalle } from "@/lib/publico";
+import { lineaTiempo } from "@/lib/linea-tiempo";
+import { hoyISO } from "@/lib/types";
+import { fmtDiaMes, fmtFechaLarga } from "@/lib/fechas";
+import { SECCION_POR_DEFECTO } from "@/lib/secciones";
+import { ErrorCarga } from "./ErrorCarga";
+import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
+import { HistorialTareas } from "./HistorialTareas";
+import { FamiliaTag } from "./FamiliaTag";
+
+// ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
+// La misma pregunta de siempre —"¿por dónde va mi pedido?"— hoy se hace por
+// teléfono. Esta lista es la respuesta sin llamar: lo que se entrega antes
+// arriba, lo vencido en rojo, y al desplegar, las OF con sus tareas y quién
+// las hizo. Nada que escribir: ni un botón que guarde, solo "Actualizar".
+//
+// "Pendientes" y "Realizados" son la MISMA fila con otra fecha (entrega o
+// cierre) — no dos componentes, que es como acababan diciendo cosas
+// distintas del mismo pedido dentro de un mes.
+
+/** Qué fecha se enseña, el título de la pestaña y qué se dice cuando no hay
+ *  resultados, según la lista. Quien llega aquí no ha visto la web nunca: el
+ *  título dice sin ambigüedad qué se está mirando. */
+const TEXTOS: Record<
+  "pendientes" | "realizados",
+  { columna: string; titulo: string; sub: string; vacio: string }
+> = {
+  pendientes: {
+    columna: "Entrega",
+    titulo: "Pedidos pendientes",
+    sub: "Lo que se entrega antes, primero. Lo vencido, en rojo.",
+    vacio: "No hay pedidos pendientes con esa búsqueda.",
+  },
+  realizados: {
+    columna: "Cierre",
+    titulo: "Pedidos realizados",
+    sub: "Lo cerrado más recientemente, primero.",
+    vacio: "No hay pedidos realizados con esa búsqueda.",
+  },
+};
+
+export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizados" }) {
+  const [pedidos, setPedidos] = useState<PedidoPublico[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [q, setQ] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
+
+  const cargar = useCallback(
+    async (paginaAcargar: number, reemplazar: boolean) => {
+      setCargando(true);
+      setError(false);
+      try {
+        const sp = new URLSearchParams({ lista, page: String(paginaAcargar) });
+        if (q.trim()) sp.set("q", q.trim());
+        const res = await fetch(`/api/publico/pedidos?${sp}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const json: { pedidos: PedidoPublico[]; hasMore: boolean } = await res.json();
+        setPedidos((previos) => (reemplazar ? json.pedidos : [...previos, ...json.pedidos]));
+        setHasMore(json.hasMore);
+        setPage(paginaAcargar);
+      } catch {
+        setError(true);
+      } finally {
+        setCargando(false);
+      }
+    },
+    [lista, q],
+  );
+
+  // Al cambiar de pestaña o de búsqueda se vuelve a la página 0. Con debounce
+  // para no lanzar una consulta por cada tecla del buscador.
+  useEffect(() => {
+    const t = setTimeout(() => void cargar(0, true), 300);
+    return () => clearTimeout(t);
+  }, [cargar]);
+
+  const texto = TEXTOS[lista];
+  const cargaInicial = cargando && pedidos.length === 0;
+
+  return (
+    <main className="mx-auto w-full max-w-[1100px] space-y-3 p-4">
+      <header className="glass-panel space-y-3 rounded-2xl px-4 py-3">
+        <div>
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-700 dark:text-brand-300">
+            Consulta pública · solo lectura
+          </p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">{texto.titulo}</h1>
+          <p className="mt-0.5 text-xs text-text-muted">{texto.sub}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative min-w-56 flex-1 text-xs text-text-muted">
+            <span className="sr-only">Buscar pedidos</span>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Pedido, cliente o descripción…"
+              className="h-9 w-full rounded-lg border border-border bg-surface px-3 pr-8 text-sm text-text outline-none focus:border-brand-400"
+            />
+            {q && (
+              <button
+                type="button"
+                aria-label="Vaciar la búsqueda"
+                onClick={() => setQ("")}
+                className="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded text-text-muted hover:bg-surface-2"
+              >
+                ✕
+              </button>
+            )}
+          </label>
+          <button
+            type="button"
+            onClick={() => void cargar(0, true)}
+            disabled={cargando}
+            className="chip-3d h-9 shrink-0 rounded-lg px-3 text-xs font-semibold text-text disabled:cursor-wait disabled:opacity-60"
+          >
+            Actualizar
+          </button>
+        </div>
+
+        {/* Sin esto, quien busca un pedido de hace tres años y no lo encuentra
+            en la lista de siempre pensará que no existe. La lista sin buscar
+            se para en 2025 a propósito (ver lib/publico.ts): detrás hay más
+            de 100.000 pedidos que RPS nunca cerró, y enseñarlos de entrada
+            enterraría lo que de verdad está en marcha. Buscando, no hay corte. */}
+        {lista === "pendientes" && (
+          <p className="text-[11px] text-text-muted">
+            La lista, sin buscar, solo baja hasta 2025. Escribe el pedido, el cliente o la
+            descripción y aparece aunque sea de hace años.
+          </p>
+        )}
+      </header>
+
+      {error && <ErrorCarga mensaje="No se pudieron cargar los pedidos." onReintentar={() => void cargar(0, true)} />}
+
+      {!error && !cargaInicial && pedidos.length === 0 && (
+        <div className="glass-panel grid min-h-32 place-items-center rounded-2xl px-6 text-center">
+          <p className="text-sm text-text-muted">{texto.vacio}</p>
+        </div>
+      )}
+
+      <ul className="flex flex-col gap-2">
+        {pedidos.map((p) => (
+          <FilaPublica key={p.codigo} pedido={p} lista={lista} />
+        ))}
+      </ul>
+
+      {cargaInicial && <p role="status" className="py-2 text-center text-xs text-text-muted">Cargando…</p>}
+      {/* El botón se queda montado mientras haya más que traer, también
+          mientras carga: si desaparece justo al pulsarlo, quien lo tocó con
+          el teclado pierde el foco y no sabe dónde ha ido a parar. */}
+      {hasMore && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => void cargar(page + 1, false)}
+            disabled={cargando}
+            className="chip-3d h-9 rounded-lg px-4 text-xs font-semibold text-text disabled:cursor-wait disabled:opacity-60"
+          >
+            {cargando ? "Cargando…" : "Ver más"}
+          </button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendientes" | "realizados" }) {
+  const [abierto, setAbierto] = useState(false);
+  // Una vez abierta la primera vez, el detalle se queda montado (solo oculto)
+  // para no repetir la consulta a RPS cada vez que se pliega y despliega la
+  // misma fila.
+  const [tocado, setTocado] = useState(false);
+  const texto = TEXTOS[lista];
+  // La fecha que se enseña cambia con la pestaña: la entrega en Pendientes,
+  // el cierre en Realizados. Es lo único que distingue una fila de la otra.
+  const fecha = lista === "pendientes" ? pedido.fechaEntrega : pedido.fechaFinalizacion;
+
+  // Regla que no puede romperse (ver consulta-fila.test.ts): el invitado no
+  // tiene la fecha de planificación de OT — la recalcula en bloque el
+  // planificador de RPS y fuera de OT no significa nada —, así que el
+  // recorrido se mide siempre contra la ENTREGA, con `planificacionEstimada`
+  // puesto para que `lineaTiempo` sepa que esa fecha es prestada.
+  const vencido =
+    lista === "pendientes" &&
+    pedido.fechaEntrega !== null &&
+    lineaTiempo(
+      {
+        fechaCreacion: pedido.fechaPedido ?? undefined,
+        fechaPlanificacion: pedido.fechaEntrega,
+        planificacionEstimada: true,
+        fechaEntrega: pedido.fechaEntrega,
+      },
+      hoyISO(),
+    ).diasParaEntrega < 0;
+
+  return (
+    <li className="glass-panel overflow-hidden rounded-xl">
+      <button
+        type="button"
+        onClick={() => {
+          setAbierto((a) => !a);
+          setTocado(true);
+        }}
+        aria-expanded={abierto}
+        aria-controls={`detalle-${pedido.codigo}`}
+        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+      >
+        <span className="font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-text-muted">
+          {pedido.cliente ?? "—"}
+          {pedido.negocio && <span> · {pedido.negocio}</span>}
+        </span>
+        <span
+          className={`shrink-0 text-xs font-semibold ${
+            vencido ? "text-red-700 dark:text-red-300" : "text-text-muted"
+          }`}
+          title={fecha ? `${texto.columna}: ${fmtFechaLarga(fecha)}` : `Sin fecha de ${texto.columna.toLowerCase()}`}
+        >
+          {vencido && "Vencido · "}
+          {texto.columna} {fecha ? fmtDiaMes(fecha) : "—"}
+        </span>
+        <span
+          aria-hidden="true"
+          className={`shrink-0 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
+        >
+          <ChevronIcon />
+        </span>
+      </button>
+      <p className="px-4 pb-2 text-[13px] text-text-muted">{pedido.estado}</p>
+      {/* El contenedor va SIEMPRE montado (con `hidden`, no desmontado): si
+          desapareciera al cerrar, `aria-controls` del botón de arriba
+          apuntaría a un id que no existe en el DOM mientras la fila está
+          cerrada, que es la mayoría del tiempo. */}
+      <div id={`detalle-${pedido.codigo}`} hidden={!abierto} className="border-t border-border px-4 py-3">
+        {tocado && <DetallePublico codigo={pedido.codigo} />}
+      </div>
+    </li>
+  );
+}
+
+/** Las OF con sus tareas y tiempos, y el PDF del pedido. Se pide al abrir y no
+ *  con la lista: son 40 pedidos por página y casi ninguno se abre. */
+function DetallePublico({ codigo }: { codigo: string }) {
+  const [detalle, setDetalle] = useState<PedidoPublicoDetalle | null>(null);
+  const [error, setError] = useState(false);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = useCallback(() => {
+    setCargando(true);
+    setError(false);
+    fetch(`/api/publico/pedidos/${encodeURIComponent(codigo)}`, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<PedidoPublicoDetalle>;
+      })
+      .then(setDetalle)
+      .catch(() => setError(true))
+      .finally(() => setCargando(false));
+  }, [codigo]);
+
+  useEffect(() => {
+    const id = setTimeout(() => cargar(), 0);
+    return () => clearTimeout(id);
+  }, [cargar]);
+
+  if (cargando) return <p className="text-sm text-text-muted">Cargando…</p>;
+  if (error || !detalle) return <ErrorCarga mensaje="No se pudo cargar el pedido." onReintentar={cargar} />;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {detalle.familias.map((f) => (
+          <FamiliaTag key={f} familia={f} />
+        ))}
+        {detalle.ciudadEntrega && (
+          <span className="text-xs text-text-muted">Entrega en {detalle.ciudadEntrega}</span>
+        )}
+        <a
+          href={detalle.scanUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="chip-3d ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-text"
+        >
+          Ver PDF del pedido
+        </a>
+      </div>
+      <div className="bloque-3d overflow-hidden rounded-xl px-3 py-2">
+        <HistorialOFsCompactas
+          ofs={detalle.ofs}
+          seccion={SECCION_POR_DEFECTO}
+          accion={
+            <HistorialTareas pedido={detalle.codigo} ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} compacto />
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

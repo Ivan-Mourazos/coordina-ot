@@ -86,7 +86,7 @@ function colorDe(nombre: string): string {
 // un gesto más natural: pulsándolo en el calendario.
 type Ambito = "proximas" | "mes";
 
-export function VisitasCotView() {
+export function VisitasCotView({ base = "/api/visitas-cot" }: { base?: string } = {}) {
   const [mes, setMes] = useState(() => primerDiaDelMes(hoyISO()));
   const [dia, setDia] = useState<string | null>(null);
   const [ambito, setAmbito] = useState<Ambito>("proximas");
@@ -117,7 +117,7 @@ export function VisitasCotView() {
           hasta: ultimoDiaDelMes(mes),
         });
         if (queryDebounced) params.set("q", queryDebounced);
-        const res = await fetch(`/api/visitas-cot?${params}`, { cache: "no-store" });
+        const res = await fetch(`${base}?${params}`, { cache: "no-store" });
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as VisitasCotPagina;
         if (seq !== requestSeq.current) return; // llegó tarde: manda la última
@@ -137,7 +137,7 @@ export function VisitasCotView() {
     } finally {
       if (seq === requestSeq.current) setCargando(false);
     }
-  }, [mes, queryDebounced]);
+  }, [mes, queryDebounced, base]);
 
   useEffect(() => {
     const id = setTimeout(() => void cargar(), 0);
