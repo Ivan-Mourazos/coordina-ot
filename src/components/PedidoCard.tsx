@@ -80,9 +80,26 @@ export const PedidoCardView = memo(function PedidoCardView({
 
   return (
     <div className="w-full select-none">
-      {mostrarFecha && (
-        <div className="truncate px-0.5 text-[9px] leading-tight text-text-muted">
-          {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
+      {/* La línea de encima del parte: la fecha y, detrás, la prioridad.
+          Aquí sobra sitio —la fecha son cinco caracteres de setenta y siete— y
+          las dos cosas se leen juntas, que es como se decide qué coger.
+          Estaba en el pie, delante del código, y le comía los 8 px justos que
+          le faltaban para entrar entero: medido, el código necesita 73 px y
+          con el punto solo le quedaban 65. */}
+      {(mostrarFecha || mostrarPrioridad) && (
+        <div className="flex items-center gap-1 px-0.5 text-[9px] leading-tight text-text-muted">
+          {mostrarFecha && (
+            <span className="truncate">
+              {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
+            </span>
+          )}
+          {mostrarPrioridad && (
+            <span
+              className="size-1.5 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/20"
+              style={{ background: PRIORIDAD[pedido.prioridad].color }}
+              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
+            />
+          )}
         </div>
       )}
       <div
@@ -201,15 +218,6 @@ export const PedidoCardView = memo(function PedidoCardView({
       {/* pie con datos */}
       <div className="mt-1 px-0.5">
         <div className="flex items-center gap-1">
-          {/* La prioridad, junto al código y no sobre la miniatura: ahí la
-              tapaba el aviso de parte nuevo, que ocupa la franja de abajo. */}
-          {mostrarPrioridad && (
-            <span
-              className="size-2 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/20"
-              style={{ background: PRIORIDAD[pedido.prioridad].color }}
-              title={`Prioridad ${PRIORIDAD[pedido.prioridad].label}`}
-            />
-          )}
           <span
             className={`truncate font-mono leading-tight ${
               mostrarPrioridad ? "text-[11px]" : "text-sm"
