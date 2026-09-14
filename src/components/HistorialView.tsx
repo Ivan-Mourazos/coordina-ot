@@ -342,13 +342,14 @@ export function HistorialView({
                     · {dia.total ?? dia.items.length}
                     {dia.total === null && dia.parcial ? "+" : ""} pedido
                     {(dia.total ?? dia.items.length) === 1 && !dia.parcial ? "" : "s"}
-                    {dia.minutos > 0 && (
-                      <span
-                        title={dia.parcial ? "Tiempo de los pedidos cargados: al bajar y cargarse el resto del día, sube" : undefined}
-                      >
-                        {` · ${fmtMin(dia.minutos)}${dia.parcial ? "+" : ""} de ${CENTRO_CORTO[seccion]}`}
-                      </span>
-                    )}
+                    {/* El tiempo SOLO con el día entero cargado. Los minutos de
+                        cada fila se piden a RPS por página, así que en un día a
+                        medias son los de lo que se ve: el número crecía solo
+                        según bajabas, y un dato que se mueve no se puede leer
+                        aunque lleve un «+» al lado. Aparece cuando el día está
+                        completo, que es cuando quiere decir algo. */}
+                    {dia.minutos > 0 && !dia.parcial &&
+                      ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
                   </span>
                 </h3>
                 {dia.items.map(fila)}
