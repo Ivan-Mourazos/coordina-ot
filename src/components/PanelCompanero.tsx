@@ -80,9 +80,16 @@ export function PanelCompanero({
       {conItems.length === 0 ? (
         <p className="py-2 text-[11px] text-text-muted">Sin pedidos asignados.</p>
       ) : (
-        <div className="flex flex-wrap items-start gap-3">
+        // Las fases, SIEMPRE en una fila de columnas. Se envolvían al no caber
+        // y entonces la mitad de las fases aparecía debajo: leyendo de arriba
+        // abajo parecían dos bloques distintos en vez de un reparto. Ahora se
+        // estrechan hasta donde haga falta.
+        <div className="flex items-start gap-3">
           {conItems.map((g) => (
-            <div key={g.id} className="min-w-[240px] flex-1">
+            // `@container`: cada columna mide su propio ancho y la fila del
+            // pedido decide qué le cabe (ver PedidoLinea). `min-w-0` es lo que
+            // le permite encogerse por debajo de su contenido.
+            <div key={g.id} className="@container min-w-0 flex-1">
               <h3 className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-text-muted">
                 <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                 {g.label} · {g.items.length}

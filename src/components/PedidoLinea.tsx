@@ -182,13 +182,22 @@ export function PedidoLinea({
             solo el código: el hueco que suelta la descripción es el que
             necesita el selector o el aviso para no quedar apretados en
             filas estrechas (zona personal). */}
+        {/* En una columna estrecha (el panel de un compañero, con cuatro fases
+            repartiéndose el ancho) el cliente no llega a decir nada: se queda
+            en «TARRIO ALV…» y encima empuja la cuenta de OF fuera. Por debajo
+            de 15rem desaparece y la fila se queda con el código, que es lo que
+            identifica el pedido; el nombre completo sigue en el `title`.
+
+            Es `@max-`, no `@min-`: donde no hay contenedor que medir —la zona
+            personal, el desplegable— la consulta no casa y el cliente se ve,
+            que es lo de siempre. */}
         {!mostrandoFalta && (
           <>
-            <span className="min-w-0 flex-1 truncate text-text-muted">
+            <span className="min-w-0 flex-1 truncate text-text-muted @max-[15rem]:hidden">
               {pedido.cliente}
               {descripcion && ` · ${descripcion}`}
             </span>
-            <span className="shrink-0 text-[10px] text-text-muted">
+            <span className="shrink-0 text-[10px] text-text-muted @max-[11rem]:hidden">
               {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
             </span>
           </>

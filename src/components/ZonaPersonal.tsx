@@ -18,9 +18,10 @@ import { ROL } from "@/lib/estado";
  *  zona personal se coma la bandeja. */
 const TOPE = 6;
 
-/** La zona del operario actual. Solo pinta las fases con contenido: las vacías
- *  se resumen como contadores en la cabecera, en vez de reservar una columna
- *  cada una (que era lo que gastaba ~270 px para no decir nada). */
+/** La zona del operario actual. Solo pinta las fases CON contenido: una fase
+ *  vacía no gasta una columna (eran ~270 px para no decir nada) y tampoco un
+ *  contador a cero en la cabecera, que es lo que llevaba hasta ahora. La
+ *  leyenda del equipo, justo debajo, ya nombra las fases con su color. */
 export function ZonaPersonal({
   operario,
   facets,
@@ -63,8 +64,11 @@ export function ZonaPersonal({
   // avisa de que hay trabajo tuyo parado en otras manos.
   const parados = facets.filter(pedidoParado);
   const deTrabajo = grupos.filter((g) => g.id !== "parado");
+  // Las fases VACÍAS no se enseñan: llevaban su contador a cero en la
+  // cabecera («0 a corregir · 0 planteando · …») y decían dos veces lo mismo,
+  // porque la leyenda del equipo, justo debajo, ya nombra las fases con su
+  // color. Un cero no es una noticia.
   const conItems = deTrabajo.filter((g) => g.items.length > 0);
-  const vacias = deTrabajo.filter((g) => g.items.length === 0);
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
 
   return (
@@ -98,18 +102,6 @@ export function ZonaPersonal({
           >
             <span className="size-1.5 rounded-full bg-amber-500" />
             {parados.length} parado{parados.length === 1 ? "" : "s"} por Producción
-          </span>
-        )}
-
-        {/* Fases vacías: contadores diminutos, sin gastar una columna. */}
-        {vacias.length > 0 && (
-          <span className="flex flex-wrap items-center gap-2 text-[10px] text-text-muted">
-            {vacias.map((g) => (
-              <span key={g.id} className="flex items-center gap-1">
-                <span className="size-1.5 rounded-full" style={{ background: g.color }} />
-                0 {g.label.toLowerCase()}
-              </span>
-            ))}
           </span>
         )}
 
