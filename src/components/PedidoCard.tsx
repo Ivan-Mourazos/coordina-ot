@@ -181,7 +181,12 @@ export const PedidoCardView = memo(function PedidoCardView({
               title="Lleva rotulación"
               className="grid size-4 cursor-help place-items-center rounded bg-white/95 text-[9px] shadow-sm ring-1 ring-black/10"
             >
-              🏷
+              {/* CON el selector U+FE0F. U+1F3F7 (etiqueta) es de los emoji
+                  que Unicode marca como presentación de TEXTO por defecto:
+                  sin él el navegador pinta el glifo monocromo, y en un cuadro
+                  blanco de 16 px eso se ve como un recuadro vacío. El paquete
+                  y el hilo no lo necesitan, son emoji de salida. */}
+              🏷️
             </span>
           )}
           {material && (
