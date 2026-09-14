@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-14",
+    "hasta": "94c54b4",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "El parte escaneado se ve entero, y en Pendientes también tiene los botones nuevos",
+        "detalle": "Descargar, imprimir y ampliar van en una barra lateral, así la hoja aprovecha todo el alto y entra completa. El zoom sigue con Ctrl y la rueda."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del pedido queda cuadrada: el parte y los datos miden lo mismo",
+        "detalle": "Los dos paneles arrancan y acaban a la misma altura, con el mismo aire alrededor."
+      }
+    ]
+  },
+  {
     "id": "2026-09-13",
     "hasta": "dc68e17",
     "cambios": [
