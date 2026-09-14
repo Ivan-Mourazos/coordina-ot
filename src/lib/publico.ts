@@ -223,6 +223,23 @@ function documentoPublico(doc: DocumentoRps): DocumentoRps {
   return { ...doc, url: PREFIJO_DOCUMENTO_PUBLICO + doc.url.slice(PREFIJO_DOCUMENTO_INTERNO.length) };
 }
 
+const PREFIJO_SCAN_INTERNO = "/api/pedidos/";
+const SUFIJO_SCAN_INTERNO = ".pdf";
+
+/** `scanUrl` (armada en `cabeceraADetalle`, historial.ts) apunta a
+ *  `/api/pedidos/{codigo}.pdf`, que en la Task 5 pasa a exigir sesión. El PDF
+ *  del pedido SÍ está aprobado para el invitado —junto con los datos de
+ *  cliente—, así que aquí se reescribe a su gemela pública
+ *  (`/api/publico/pedidos/[pedido]/pdf`), igual que `documentoPublico` hace
+ *  con cada documento. Si algún día `scanUrl` no tiene esta forma exacta, se
+ *  deja tal cual: mejor un enlace que no se toca que uno que apunta a donde no
+ *  toca. */
+function scanUrlPublica(scanUrl: string): string {
+  if (!scanUrl.startsWith(PREFIJO_SCAN_INTERNO) || !scanUrl.endsWith(SUFIJO_SCAN_INTERNO)) return scanUrl;
+  const codigo = scanUrl.slice(PREFIJO_SCAN_INTERNO.length, -SUFIJO_SCAN_INTERNO.length);
+  return `${PREFIJO_DOCUMENTO_PUBLICO}${codigo}/pdf`;
+}
+
 /** Lo que sale de casa del detalle de un pedido: cabecera básica, sus OF ya
  *  recortadas (`ofPublica`) y los documentos con su URL pública. Fuera de aquí
  *  se quedan `estadoActual`, `prioridad` y `comentarioVenta` —ninguno está
@@ -251,7 +268,7 @@ export function detallePublico(detalle: HistorialPedidoDetalle): PedidoPublicoDe
     fechaFinalizacion: detalle.fechaFinalizacion,
     piezas: detalle.piezas,
     familias: detalle.familias,
-    scanUrl: detalle.scanUrl,
+    scanUrl: scanUrlPublica(detalle.scanUrl),
     ofs: detalle.ofs.map(ofPublica),
     documentos: detalle.documentos.map(documentoPublico),
   };

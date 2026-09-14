@@ -63,7 +63,10 @@ test("el detalle de un pedido responde 200 con lo básico", async () => {
   const data = (await res.json()) as { codigo: string; ofs: unknown[]; scanUrl: string; documentos: unknown[] };
   expect(data.codigo).toBe("AR.26.03453");
   expect(Array.isArray(data.ofs)).toBe(true);
-  expect(data.scanUrl).toBe("/api/pedidos/AR.26.03453.pdf");
+  // El PDF sí está aprobado para el invitado, pero por una ruta pública: la
+  // interna (/api/pedidos/...) pasa a exigir sesión en la Task 5 (ver
+  // scanUrlPublica en lib/publico.ts).
+  expect(data.scanUrl).toBe("/api/publico/pedidos/AR.26.03453/pdf");
   expect(Array.isArray(data.documentos)).toBe(true);
 });
 

@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
+import type { HistorialPedidoDetalle } from "../historial";
 import type { BaseHistorial, IndiceHistorial } from "../historial-indice";
 import {
+  detallePublico,
   estaPendiente,
   filtrarPublico,
   frasePublica,
@@ -125,6 +127,27 @@ test("buscando su código, el pendiente de 2019 sí sale: quien busca un pedido 
   ]);
   const { filas } = filtrarPublico(i, { lista: "pendientes", page: 0, q: "AR.19.05555" });
   expect(filas.map((f) => f.pedido)).toEqual(["AR.19.05555"]);
+});
+
+test("el pdf del pedido no se queda en la ruta que va a exigir sesión", () => {
+  const detalle: HistorialPedidoDetalle = {
+    codigo: "AR.26.02711",
+    cliente: "MAHOU, S.A.",
+    negocio: null,
+    ciudadEntrega: null,
+    prioridad: 1,
+    fechaSolicitud: null,
+    fechaFinalizacion: null,
+    piezas: 0,
+    familias: [],
+    comentarioVenta: null,
+    scanUrl: "/api/pedidos/AR.26.02711.pdf",
+    ofs: [],
+    documentos: [],
+  };
+  const { scanUrl } = detallePublico(detalle);
+  expect(scanUrl).not.toMatch(/^\/api\/pedidos\//);
+  expect(scanUrl).toBe("/api/publico/pedidos/AR.26.02711/pdf");
 });
 
 test("los filtros llegan de la URL con valores sanos", () => {
