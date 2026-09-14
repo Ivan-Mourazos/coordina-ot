@@ -21,7 +21,7 @@ import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
-import { HistorialTareas } from "./HistorialTareas";
+import { TareasDeOF } from "./HistorialTareas";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { agruparCentros, centrosConDesglose } from "@/lib/historial-centros";
@@ -276,7 +276,7 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} accion={<HistorialTareas pedido={pedido} ofs={detalle.ofs} seccion={seccion} className="" />} />
+              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
             </>
           )}
     </MarcoFicha>
@@ -284,7 +284,7 @@ export function HistorialDrawer({
 }
 
 /** El centro decide qué minutos se suman; la selección decide el desglose visible. */
-export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[]; seccion: SeccionId; accion?: React.ReactNode }) {
+export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
@@ -292,9 +292,7 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
   return (
     // Sin rótulo "Trabajo por centro": debajo va un bloque por centro y cada
     // uno se llama Oficina Técnica, Diseño Gráfico o Taller, que lo dice mejor.
-    // El botón de las tareas ocupa el sitio del rótulo, no una línea suya.
     <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
-      {accion && <div className="flex">{accion}</div>}
       {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
         const seleccionado = centro.id === seccion;
         const desglose = conDesglose.has(centro.id);
@@ -366,7 +364,21 @@ export function HistorialCentros({ ofs, seccion, accion }: { ofs: HistorialOF[];
                         )}
                       </div>
                       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
-                      {porOF && <PersonasOF of={of} />}
+                      {/* Las personas de la OF solo cuando NO hay tareas: con
+                          ellas, cada línea ya dice quién la echó, y el resumen
+                          de arriba repetía los mismos nombres dos líneas más
+                          abajo. */}
+                      {porOF && !of.tareas?.length && <PersonasOF of={of} />}
+                      {/* El desglose de tareas, aquí y no en una ventana que se
+                          abre encima de la ficha tapando lo que se está
+                          mirando. Quién echó cada tarea sale en TODOS los
+                          centros —también en Taller—: era lo único que la
+                          ventana enseñaba y esto no. */}
+                      {of.tareas?.length ? (
+                        <div className="mt-2 border-t border-border pt-2 text-xs">
+                          <TareasDeOF of={of} />
+                        </div>
+                      ) : null}
                       <Materiales of={of} />
                     </li>
                   ))}

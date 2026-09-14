@@ -21,6 +21,28 @@ const of = (codigo: string, centro: HistorialOF["centro"], personas: { nombre: s
 const veces = (html: string, texto: string) => html.split(texto).length - 1;
 const pinta = (ofs: HistorialOF[]) => renderToStaticMarkup(createElement(HistorialCentros, { ofs, seccion: "ot" }));
 
+/** Una OF con el desglose de tareas que trae el detalle del Historial. */
+const conTareas = (
+  codigo: string,
+  centro: HistorialOF["centro"],
+  tareas: { codigo: string; descripcion: string; personas: { nombre: string; min: number }[] }[],
+): HistorialOF => {
+  const total = tareas.reduce((n, t) => n + t.personas.reduce((m, p) => m + p.min, 0), 0);
+  return {
+    codigo,
+    descripcion: `OF ${codigo}`,
+    centro,
+    tiempoImputadoMin: total,
+    quien: [...new Set(tareas.flatMap((t) => t.personas.map((p) => p.nombre)))],
+    tareas: tareas.map((t) => ({
+      codigo: t.codigo,
+      descripcion: t.descripcion,
+      tiempoImputadoMin: t.personas.reduce((m, p) => m + p.min, 0),
+      personas: t.personas,
+    })),
+  };
+};
+
 describe("personas en la ficha del Historial", () => {
   it("con una sola OF, las personas salen una vez: en el centro", () => {
     const html = pinta([of("0232070", "ot", [{ nombre: "Adrián Quinteiro", min: 10 }, { nombre: "Jaime Vázquez", min: 2 }])]);
@@ -98,5 +120,56 @@ describe("el tiempo no se repite por los tres niveles", () => {
     ]);
     expect(html).toContain("30m");
     expect(html).toContain("17m");
+  });
+});
+
+// Las tareas estaban DOS veces: plegadas en el lateral de la ficha (centro,
+// personas, OF) y otra vez enteras en la ventana «Tareas y tiempos», que se
+// abría encima tapando lo que ya se estaba mirando. Ahora el lateral las lleva
+// dentro de su OF y la ventana desaparece de la ficha.
+describe("las tareas van en el lateral, no en una ventana aparte", () => {
+  it("cada OF enseña sus tareas con quién las echó, sin abrir nada", () => {
+    const html = pinta([
+      conTareas("0231973", "ot", [
+        {
+          codigo: "5",
+          descripcion: "PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE",
+          personas: [
+            { nombre: "Iván Sánchez", min: 17 },
+            { nombre: "Jaime Vázquez", min: 2 },
+          ],
+        },
+      ]),
+    ]);
+    expect(html).toContain("PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE");
+    expect(html).toContain("Iván Sánchez 17m");
+    expect(html).toContain("Jaime Vázquez 2m");
+    // Y no queda botón que abra la misma información encima.
+    expect(html).not.toContain("Tareas y tiempos");
+  });
+
+  it("una tarea sin un minuto se enseña igual: es trabajo que falta por hacer", () => {
+    const html = pinta([
+      conTareas("0231973", "taller", [
+        { codigo: "15", descripcion: "CORTAR", personas: [{ nombre: "Rocío Castro", min: 42 }] },
+        { codigo: "20", descripcion: "SOLDAR", personas: [] },
+      ]),
+    ]);
+    expect(html).toContain("SOLDAR");
+    expect(html).toContain("0m");
+  });
+
+  it("quién echó cada tarea sale también en Taller, que es lo que se venía a ver", () => {
+    // La regla del resumen por persona no cambia (con trabajo de OT, Taller da
+    // solo el total); el DETALLE de la tarea sí lleva su gente, en todos los
+    // centros. Era lo único que justificaba abrir la ventana.
+    const html = pinta([
+      of("0231973", "ot", [{ nombre: "Iván Sánchez", min: 19 }]),
+      conTareas("0231973", "taller", [
+        { codigo: "10", descripcion: "CORTAR ROTULACION", personas: [{ nombre: "José Luis Carrón", min: 2 }] },
+      ]),
+    ]);
+    expect(html).toContain("José Luis Carrón");
+    expect(html).not.toContain("Tiempos por persona de Taller");
   });
 });

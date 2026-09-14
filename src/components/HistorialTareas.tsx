@@ -97,32 +97,49 @@ function CentroTareas({ centro }: { centro: HistorialCentro }) {
       {centro.ofs.map((of) => (
         <div key={of.codigo} className="mb-2 border-t border-border pt-2 text-xs">
           <p className="mb-1 font-semibold">{of.codigo} · {of.descripcion}</p>
-          {of.tareas?.length ? of.tareas.map((tarea) => {
-            const personas = tarea.personas.filter((p) => p.min > 0).sort(porMinutos);
-            const vacia = tarea.tiempoImputadoMin <= 0;
-            // Con UNA sola persona su tiempo es el de la tarea, que está al
-            // final de la misma línea: ponerlo detrás del nombre era escribir
-            // dos veces el mismo número. Con varias sí hace falta el de cada
-            // uno, que es lo que el total no dice.
-            const solaEllaEntera =
-              personas.length === 1 && personas[0].min === tarea.tiempoImputadoMin;
-            return (
-              <p key={tarea.codigo} className={`flex items-baseline gap-3 py-1 ${vacia ? "text-text-muted" : ""}`}>
-                <span className="min-w-0 flex-1">{tarea.codigo} · {tarea.descripcion}</span>
-                {personas.length > 0 && (
-                  <span className="text-right text-text-muted">
-                    {solaEllaEntera
-                      ? personas[0].nombre
-                      : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
-                  </span>
-                )}
-                <span className={`shrink-0 ${vacia ? "" : "font-semibold"}`}>{fmtMin(tarea.tiempoImputadoMin)}</span>
-              </p>
-            );
-          }) : <p className="text-text-muted">Sin desglose de tareas disponible.</p>}
+          <TareasDeOF of={of} />
         </div>
       ))}
     </section>
+  );
+}
+
+/** Las tareas de una OF: qué se hace, quién la echó y cuánto lleva.
+ *
+ *  Vive aquí y la pintan DOS sitios —esta ventana y el lateral de la ficha del
+ *  Historial— porque son la misma información. Estuvo duplicada un tiempo y la
+ *  ventana acabó enseñando cosas que el lateral no: quien tiene que acordarse
+ *  de tocar los dos, tarde o temprano toca uno. */
+export function TareasDeOF({ of }: { of: HistorialOF }) {
+  if (!of.tareas?.length) {
+    return <p className="text-text-muted">Sin desglose de tareas disponible.</p>;
+  }
+  return (
+    <>
+      {of.tareas.map((tarea) => {
+        const personas = tarea.personas.filter((p) => p.min > 0).sort(porMinutos);
+        const vacia = tarea.tiempoImputadoMin <= 0;
+        // Con UNA sola persona su tiempo es el de la tarea, que está al
+        // final de la misma línea: ponerlo detrás del nombre era escribir
+        // dos veces el mismo número. Con varias sí hace falta el de cada
+        // uno, que es lo que el total no dice.
+        const solaEllaEntera =
+          personas.length === 1 && personas[0].min === tarea.tiempoImputadoMin;
+        return (
+          <p key={tarea.codigo} className={`flex items-baseline gap-3 py-1 ${vacia ? "text-text-muted" : ""}`}>
+            <span className="min-w-0 flex-1">{tarea.codigo} · {tarea.descripcion}</span>
+            {personas.length > 0 && (
+              <span className="text-right text-text-muted">
+                {solaEllaEntera
+                  ? personas[0].nombre
+                  : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
+              </span>
+            )}
+            <span className={`shrink-0 ${vacia ? "" : "font-semibold"}`}>{fmtMin(tarea.tiempoImputadoMin)}</span>
+          </p>
+        );
+      })}
+    </>
   );
 }
 
