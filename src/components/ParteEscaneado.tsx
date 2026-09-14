@@ -15,6 +15,26 @@ const AJUSTES = [
 ] as const;
 type Ajuste = "Fit" | (typeof AJUSTES)[number]["id"];
 
+/** Dónde se recuerda cómo prefiere cada uno abrir el parte. En el navegador y
+ *  no en el servidor: es una preferencia de cómo se MIRA, no un dato del
+ *  trabajo, y va con la pantalla en la que se está sentado — el mismo de
+ *  siempre puede querer una cosa en el portátil y otra en el de sobremesa. */
+const CLAVE_ENCAJE = "coordina-parte-encaje";
+
+/** El encaje guardado, o la página entera si no hay ninguno. Se lee de forma
+ *  SÍNCRONA al montar (no en un efecto): así el visor arranca ya con el encaje
+ *  bueno en vez de cargar el parte dos veces, una por cada valor. */
+function encajeGuardado(): Ajuste {
+  if (typeof window === "undefined") return "Fit";
+  try {
+    const v = window.localStorage.getItem(CLAVE_ENCAJE);
+    return v === "Fit" || v === "FitH" || v === "FitV" ? v : "Fit";
+  } catch {
+    // Navegador con el almacenamiento capado: se sigue, sin recordar nada.
+    return "Fit";
+  }
+}
+
 /** El parte escaneado, con sus botones en una barra estrecha a la izquierda.
  *
  *  LA ALTURA ES DE LA HOJA. El parte es un A4 vertical y lo que se viene a
@@ -41,7 +61,7 @@ export function ParteEscaneado({
   scanUrl: string;
 }) {
   const marco = useRef<HTMLIFrameElement>(null);
-  const [ajuste, setAjuste] = useState<Ajuste>("Fit");
+  const [ajuste, setAjuste] = useState<Ajuste>(encajeGuardado);
   // Cuadrados: en una barra estrecha el rótulo no cabe, así que el nombre va
   // en el `title` y en el `aria-label` —el lector de pantalla lo lee igual—.
   const chip = "chip-3d grid size-8 place-items-center rounded-lg text-sm text-text";
@@ -69,9 +89,21 @@ export function ParteEscaneado({
           <button
             key={a.id}
             type="button"
-            onClick={() => setAjuste((antes) => (antes === a.id ? "Fit" : a.id))}
+            onClick={() =>
+              setAjuste((antes) => {
+                const nuevo = antes === a.id ? "Fit" : a.id;
+                // Se recuerda para la próxima vez que se abra un parte, aquí o
+                // en otra ficha: quien prefiere verlo al ancho lo elige una vez.
+                try {
+                  window.localStorage.setItem(CLAVE_ENCAJE, nuevo);
+                } catch {
+                  // Sin almacenamiento el botón sigue funcionando; solo no dura.
+                }
+                return nuevo;
+              })
+            }
             aria-pressed={ajuste === a.id}
-            title={ajuste === a.id ? "Volver a la página entera" : a.nombre}
+            title={`${ajuste === a.id ? "Volver a la página entera" : a.nombre} · se recuerda para la próxima vez`}
             aria-label={a.nombre}
             // Anillo y color de marca para el que está puesto. NO
             // `glass-chip-activo`: esa tiñe el fondo, y `chip-3d` va después en
