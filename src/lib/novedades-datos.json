@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-14",
-    "hasta": "d264a60",
+    "hasta": "384930d",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -17,6 +17,11 @@
         "tipo": "arreglado",
         "titulo": "Con \"Tareas y tiempos\" abierto ya no se mueve la lista de detrás",
         "detalle": "La rueda movía el Historial por debajo del panel y al cerrarlo aparecías en otro sitio."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la bandeja vuelve a verse el número de pedido completo",
+        "detalle": "Salía cortado (\"AR.26.044…\") porque el punto de prioridad le quitaba sitio. La prioridad pasa a la línea de la fecha, encima del parte."
       },
       {
         "tipo": "mejor",
@@ -47,6 +52,16 @@
         "tipo": "mejor",
         "titulo": "El Historial abre ya filtrado por el trabajo de tu sección",
         "detalle": "El botón se llama ahora \"Solo OT\" y viene puesto. Y \"Limpiar filtros\" no salta: está siempre, apagado mientras no haya nada que limpiar."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del pedido deja de repetir el mismo tiempo tres veces",
+        "detalle": "Cuando lo hizo una sola persona en una sola OF, el minuto salía en el centro, en la persona y en la OF. Ahora sale una vez, arriba."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la bandeja, la prioridad se lee en palabra",
+        "detalle": "Encima del parte, junto a la fecha, pone \"URGENTE\", \"NORMAL\" o \"POCA\" en vez de un punto de color."
       }
     ]
   },
