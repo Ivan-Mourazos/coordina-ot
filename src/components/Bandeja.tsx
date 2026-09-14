@@ -112,7 +112,7 @@ function ScrollRow({
         onMouseMove={onMove}
         onMouseUp={onUp}
         onMouseLeave={onLeave}
-        className="scroll-thin flex gap-1.5 overflow-x-auto pb-1"
+        className="scroll-thin flex gap-2 overflow-x-auto pb-1"
         style={{ cursor: "grab" }}
       >
         {facets.map((f) => (
@@ -294,8 +294,14 @@ export function Bandeja({
            `1fr` les da el sobrante a partes iguales: con 21 por fila, en vez de
            una franja muerta al final cada tarjeta crece un pelín. El PDF de
            dentro escala con ella, así que se lee mejor cuanto más ancha. */
+        // Más aire ENTRE FILAS que entre columnas, y no por gusto: cada
+        // tarjeta lleva ahora una línea de texto encima (fecha y prioridad) y
+        // dos debajo (código y cliente), así que lo que se tocaba era el
+        // cliente de una fila con la fecha de la siguiente. El hueco vertical
+        // sale gratis; el horizontal se paga en tarjetas por fila, así que ahí
+        // se sube lo justo.
         <div
-          className="grid gap-1.5"
+          className="grid gap-x-2 gap-y-3"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))" }}
         >
           {flat.map((f) => (
