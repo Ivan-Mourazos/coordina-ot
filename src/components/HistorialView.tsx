@@ -314,13 +314,19 @@ export function HistorialView({
         </p>
       )}
 
-      {/* La lista, levantada del fondo: era un blanco con un canto muy suave
-          sobre el gris de la página y las dos superficies se confundían. Canto
-          fuerte y una sombra corta, el mismo relieve que los bloques de la
-          ficha. */}
-      <div className="overflow-hidden rounded-xl border border-border-strong bg-surface shadow-[0_10px_24px_-16px_var(--glass-shadow)]">
+      {/* UN BLOQUE POR DÍA, y la fecha fuera de él.
+
+          Antes era una sola caja blanca con los días separados por bandas
+          grises por dentro: para saber dónde acababa un día había que leer la
+          banda. Ahora cada día es su propia tarjeta con relieve —el mismo
+          `bloque-3d` de la ficha— y su fecha va encima, sobre el fondo: el
+          corte entre un día y otro se ve sin leer nada.
+
+          Buscando no hay días (los resultados van por fecha del pedido, sin
+          separadores), así que ahí todo cae en una sola tarjeta. */}
+      <div className="flex flex-col gap-3">
         {itemsVisibles.length > 0 && (
-          <div aria-hidden="true" className={`${columnas} border-b border-border bg-surface-2 px-3 py-2 text-[11px] font-semibold text-text-muted`}>
+          <div aria-hidden="true" className={`${columnas} px-3 text-[11px] font-semibold text-text-muted`}>
             <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Quién</span>
             <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
             {buscando && <span>Fecha</span>}
@@ -329,14 +335,13 @@ export function HistorialView({
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
-                {/* El separador del día: cuántos salieron y cuánto tiempo de la
-                    sección llevaron.
+                {/* La fecha del día, sobre el fondo y no dentro de la tarjeta:
+                    es el rótulo del bloque, no una fila más de la lista.
 
                     Los PEDIDOS son los del día entero, aunque falten filas por
-                    cargar: el total lo manda el servidor. El TIEMPO no puede
-                    serlo —los minutos se piden a RPS por página—, así que en un
-                    día a medias lleva "+" y lo explica al pasar por encima. */}
-                <h3 className="flex items-baseline gap-2 border-y border-border-strong bg-surface-2 px-3 py-1.5 text-[11px] font-semibold text-text">
+                    cargar: el total lo manda el servidor. El TIEMPO solo sale
+                    con el día completo (ver abajo). */}
+                <h3 className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
                   {dia.titulo}
                   <span className="font-normal text-text-muted">
                     · {dia.total ?? dia.items.length}
@@ -352,10 +357,12 @@ export function HistorialView({
                       ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
                   </span>
                 </h3>
-                {dia.items.map(fila)}
+                <div className="bloque-3d overflow-hidden rounded-xl">{dia.items.map(fila)}</div>
               </section>
             ))
-          : itemsVisibles.map(fila)}
+          : (
+            <div className="bloque-3d overflow-hidden rounded-xl">{itemsVisibles.map(fila)}</div>
+          )}
       </div>
 
       {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{buscando ? "Buscando en todo el historial…" : "Cargando…"}</p>}
