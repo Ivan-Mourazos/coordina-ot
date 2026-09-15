@@ -313,6 +313,36 @@ test("quitarRetenida se ignora si el motivo no es «volver_a_plantear»", async 
   expect(estadoDb.leerOfsRetenidas("ot").some((r) => r.ofId === "0232202:9")).toBe(true);
 });
 
+// Remate pendiente de la Task 7 (spec §3, "Al pasar el pedido"): una OF que
+// volvió "del_pedido" (sin marcar al recuperar, así que siguió aprobada y
+// terminada en RPS sin que nadie la tocara) no manda su 3 otra vez. No es un
+// fallo de corrección —`enviarUno` ya no reescribe una fase que sigue en
+// 3—, pero ahorra la consulta y el apunte de más en `sch_FasesMov`.
+test("al pasar el pedido no se reenvía el 3 de las OF retenidas 'del_pedido'", async () => {
+  const id = "P-del-pedido";
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "recuperar_pedido", seccion: "ot",
+    ofRetenida: { ofId: "of-del-pedido", pedido: id, motivo: "del_pedido", por: "ivan", at: "x" },
+  });
+  const pedido = {
+    ...PEDIDOS[0], id, codigo: id,
+    ofs: [
+      { ...PEDIDOS[0].ofs[0], id: "of-del-pedido", autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false },
+      { ...PEDIDOS[0].ofs[0], id: "of-recuperada", autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false },
+    ],
+  };
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [pedido] });
+  const res = await postEstado({
+    operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id,
+  });
+  expect(res.status).toBe(200);
+  // Las dos siguen en la lista que se guarda como "OF que se pasaron" —esa es
+  // la que evita que el overlay reabra el pedido—, pero solo se encola el 3
+  // de la que de verdad se reabrió.
+  expect(finalizarMock).toHaveBeenCalledWith(["of-recuperada"], "ivan");
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(true);
+});
+
 test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
   const res = await route.POST(
     new Request("http://x/api/estado", {

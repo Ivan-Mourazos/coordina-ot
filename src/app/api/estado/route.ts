@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { guardarMutacion, leerOverlay } from "@/lib/server/estado-db";
+import { guardarMutacion, leerOfsRetenidas, leerOverlay } from "@/lib/server/estado-db";
 import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
 import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { aplicarOverlay, ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
@@ -98,6 +98,15 @@ export async function POST(req: Request) {
   }
   const seccion = esSeccionId(body.seccion) ? body.seccion : seccionDeOperario(operarioId);
   let ofIdsPedido: string[] | undefined;
+  // OF retenidas "del_pedido": las que NO se marcaron al recuperar el pedido
+  // (spec §3, tabla "Qué estado toma cada OF") y que ya seguían aprobadas y
+  // terminadas en RPS sin que nadie las tocara. El worker (`enviarUno`) ya no
+  // reescribe un 3 sobre una fase que sigue en 3 — no es un fallo de
+  // corrección—, pero mandarlo de todos modos es una consulta y un apunte de
+  // más en `sch_FasesMov` que no hace falta. Se lee ANTES de `guardarMutacion`
+  // porque esa llamada borra estas filas de `of_retenida` en la misma
+  // transacción que completa el pedido (`deleteRetenidaDelPedido`).
+  let ofIdsSinFinalizar: Set<string> | undefined;
   if (completarPedidoId) {
     const base = await getTablero(seccion);
     // Releer tras la espera: otra persona puede haber devuelto una OF
@@ -117,6 +126,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
+    ofIdsSinFinalizar = new Set(
+      leerOfsRetenidas(seccion)
+        .filter((r) => r.pedido === pedido.codigo && r.motivo === "del_pedido")
+        .map((r) => r.ofId),
+    );
   }
 
   // La marca «cerrada en RPS» NO la decide el cliente en esta ruta. Solo la
@@ -199,7 +213,14 @@ export async function POST(req: Request) {
   // lanza, y si algo falla el pedido queda "interrumpido" en vez de
   // "finalizado", que se ve y se puede volver a pasar.
   if (completarPedidoId) {
-    encolarFinalizacion(ofIdsPedido ?? [], operarioId);
+    // "del_pedido" (sección 3 de la spec) no manda su 3: en RPS ya seguía
+    // terminada, y solo se reenvía el 3 de lo que de verdad se reabrió
+    // ("recuperada"). `ofIdsPedido` SÍ las sigue incluyendo a todas —esa lista
+    // es la que evita que `aplicarOverlay` reabra el pedido (overlay.ts:101-108).
+    const aFinalizar = ofIdsSinFinalizar
+      ? (ofIdsPedido ?? []).filter((id) => !ofIdsSinFinalizar!.has(id))
+      : ofIdsPedido ?? [];
+    encolarFinalizacion(aFinalizar, operarioId);
   }
   return NextResponse.json({ ok: true });
 }

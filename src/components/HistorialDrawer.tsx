@@ -13,6 +13,7 @@ import {
 import { NotasPedido } from "./NotasPedido";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
+import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -259,7 +260,15 @@ export function HistorialDrawer({
                   fase de OT que se quedó a medias. Va lo primero porque es una
                   tarea pendiente, no información; el resto de la ficha se lee.
                   Se calla solo cuando está todo finalizado, que es lo normal. */}
-              {!detalle.estadoActual && <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />}
+              {!detalle.estadoActual && (
+                <>
+                  <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />
+                  {/* "Volver a plantear el pedido": sección 3 de la spec del
+                      15/09/2026. Solo sale si el pedido no está ya en el
+                      panel — lo mismo que decide FasesSinFinalizar de arriba. */}
+                  <RecuperarPedido pedido={pedido} seccion={seccion} miId={miId} operarios={operarios} onRecuperado={onClose} />
+                </>
+              )}
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es
