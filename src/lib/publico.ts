@@ -1,5 +1,7 @@
 import { palabrasDe } from "./buscador";
 import type { DocumentoRps, HistorialOF, HistorialPedidoDetalle } from "./historial";
+import type { SituacionPedido } from "./consulta";
+import type { DondeOF } from "./consulta-donde";
 import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial } from "./historial-indice";
 import { SECCION_POR_DEFECTO } from "./secciones";
 import { esCodigoPedido } from "./types";
@@ -610,6 +612,82 @@ export function detallePublico(
     piezas: detalle.piezas,
     familias: detalle.familias,
     ofs: detalle.ofs.map((of) => ofPublica(of, cerradas, terminado)),
+    documentos: detalle.documentos.map(documentoPublico),
+  };
+}
+
+// ─── El detalle, segunda versión: la ficha del equipo ───────────────────────
+// Corrección de Iván al rehacer la consulta: el invitado ve la MISMA ficha que
+// el equipo —por centro, quién trabajó y cuánto, y dentro de cada OF sus
+// tareas con nombres y tiempos—, porque un comercial necesita saber a quién
+// llamar. Lo que sigue sin salir nunca: notas (del pedido, de producción, de
+// devolución), causas de rechazo, marcas de revisión, comentario de venta,
+// prioridad y estado interno.
+//
+// Campo a campo y a propósito: cada línea es un «sí» explícito, y lo que no
+// está escrito no sale aunque el Historial añada un campo mañana.
+
+export interface PedidoConsultaDetalle {
+  codigo: string;
+  cliente: string | null;
+  negocio: string | null;
+  ciudadEntrega: string | null;
+  fechaSolicitud: string | null;
+  piezas: number;
+  familias: string[];
+  /** null si la lista en memoria todavía no está hecha. */
+  situacion: SituacionPedido | null;
+  /** ISO yyyy-mm-dd del último albarán, solo si ya salió. */
+  fechaEntregado: string | null;
+  donde: DondeOF[];
+  ofs: HistorialOF[];
+  documentos: DocumentoRps[];
+}
+
+function ofConsulta(of: HistorialOF): HistorialOF {
+  const salida: HistorialOF = {
+    codigo: of.codigo,
+    descripcion: of.descripcion,
+    tiempoImputadoMin: of.tiempoImputadoMin,
+    quien: of.quien,
+  };
+  if (of.centro !== undefined) salida.centro = of.centro;
+  if (of.personas) salida.personas = of.personas;
+  if (of.tareas) {
+    salida.tareas = of.tareas.map((t) => ({
+      codigo: t.codigo,
+      descripcion: t.descripcion,
+      tiempoImputadoMin: t.tiempoImputadoMin,
+      personas: t.personas,
+    }));
+  }
+  // Quién consta como autor y revisor, y el reparto planteo/revisión: es quién
+  // LLEVA el pedido, no a quién se lo devolvieron ni por qué.
+  if (of.autorRegistrado !== undefined) salida.autorRegistrado = of.autorRegistrado;
+  if (of.revisorRegistrado !== undefined) salida.revisorRegistrado = of.revisorRegistrado;
+  if (of.rol) salida.rol = of.rol;
+  if (of.rolDeducido) salida.rolDeducido = of.rolDeducido;
+  if (of.materiales) salida.materiales = of.materiales;
+  // notasProduccion NO: es una nota, y las notas no salen de casa.
+  return salida;
+}
+
+export function detalleConsulta(
+  detalle: HistorialPedidoDetalle,
+  extra: { situacion: SituacionPedido | null; fechaEntregado: string | null; donde: DondeOF[] },
+): PedidoConsultaDetalle {
+  return {
+    codigo: detalle.codigo,
+    cliente: detalle.cliente,
+    negocio: detalle.negocio,
+    ciudadEntrega: detalle.ciudadEntrega,
+    fechaSolicitud: detalle.fechaSolicitud,
+    piezas: detalle.piezas,
+    familias: detalle.familias,
+    situacion: extra.situacion,
+    fechaEntregado: extra.fechaEntregado,
+    donde: extra.donde,
+    ofs: detalle.ofs.map(ofConsulta),
     documentos: detalle.documentos.map(documentoPublico),
   };
 }
