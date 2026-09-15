@@ -4,6 +4,7 @@ import { contrastar, veredicto } from "@/lib/contraste";
 import { leerBonosDe } from "@/lib/server/contraste-db";
 import { bonosTraspasados } from "@/lib/server/olanet";
 import { leerCola, modoFichaje } from "@/lib/server/olanet-outbox";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/fichaje/contraste ──────────────────────────────────────────────────
 // El informe que decide si se puede pasar el fichaje a `activo`: compara, día a
@@ -28,6 +29,9 @@ function haceDias(n: number): string {
 }
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const modo = modoFichaje();
   if (modo === "sombra") {
     return NextResponse.json(

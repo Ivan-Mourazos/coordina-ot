@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leerClientesHistorial } from "@/lib/server/historial-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/historial/clientes?q=texto ─────────────────────────────────────
 // Autocompletar de cliente: hasta 20 nombres distintos del histórico de OT que
@@ -8,6 +9,9 @@ import { leerClientesHistorial } from "@/lib/server/historial-db";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const q = new URL(req.url).searchParams.get("q") ?? "";
   try {
     const clientes = await leerClientesHistorial(q);

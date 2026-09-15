@@ -92,9 +92,14 @@ como siempre y no nota nada.
 2. **Ángel entra el primero**: es la única cuenta de supervisor activa, la única que puede reiniciar PINs.
 3. Repasar al rato que no quede nadie sin PIN puesto.
 
-**Y dos cosas que el login encendido NO hace** (no prometerlas):
-- **No cierra la web.** Quedan ~14 rutas de lectura abiertas: tablero, historial con documentos, métricas, buscador. Cerrarlas es la fase 2.
+**Y una cosa que el login encendido NO hace** (no prometerla):
 - **No echa a nadie de una pestaña ya abierta.** Impide entrar de nuevo, que es distinto.
+
+**Actualización:** la fase 2 (cerrar esas rutas de lectura al invitado) ya
+está construida, en la rama `consulta-publica` — sin fusionar todavía a este
+traspaso. Login y consulta comparten el mismo interruptor (`COORDINA_LOGIN`)
+y se encienden juntos: ver `docs/despliegue-login.md`, sección «El día que se
+enciende», para el porqué del orden.
 
 ---
 

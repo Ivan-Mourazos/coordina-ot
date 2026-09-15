@@ -3,6 +3,7 @@ import { calcularMetricas } from "@/lib/metricas";
 import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/metricas ───────────────────────────────────────────────────────────
 // Cuántas OF vuelven y por qué. Todo sale del registro de acciones y de la
@@ -29,6 +30,9 @@ function limite(v: string | null, siguiente = false): string | undefined {
 }
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const q = new URL(req.url).searchParams;
   try {
     // Los números son DE UNA SECCIÓN. El "1 de cada 3 vuelve" de Oficina

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CODIGO_PEDIDO_RE } from "@/lib/historial";
 import { documentosDePedido } from "@/lib/server/historial-db";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/pedidos/AR.26.04116/documentos ─────────────────────────────────
 // Lo que RPS tiene colgado de un pedido: la rotulación, el planteamiento, el
@@ -27,9 +28,12 @@ import { documentosDePedido } from "@/lib/server/historial-db";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ archivo: string }> },
 ) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   // El segmento se llama `archivo` porque lo comparte con la ruta hermana que
   // sirve el PDF escaneado (/api/pedidos/AR.26.04116.pdf): Next no admite dos
   // nombres distintos de parámetro en el mismo nivel. Aquí es un CÓDIGO de

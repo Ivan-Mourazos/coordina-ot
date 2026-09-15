@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
 import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
@@ -27,7 +28,7 @@ import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
 import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
-import { LoginGate, type Yo } from "./LoginGate";
+import type { Yo } from "./LoginGate";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
@@ -281,6 +282,7 @@ export function Board({
   // guardada, filtros de localStorage): se pinta tras montar para que la
   // hidratación case sin warnings.
   const mounted = useHydrated();
+  const router = useRouter();
 
   // Quién eres. Con el login apagado sale del navegador, como hasta ahora; con
   // el login encendido lo dice el SERVIDOR, y entonces el navegador ya no puede
@@ -303,12 +305,32 @@ export function Board({
         if (vivo) setSesion(j.yo);
       })
       .catch(() => {
-        if (vivo) setSesion(null);
+        // SE QUEDA EN `undefined`, que es "todavía no se sabe", y NO en null,
+        // que es "no hay sesión". La diferencia importa desde que el servidor
+        // reparte: `null` dispara el salto a la consulta, así que tratar un
+        // fallo de red como falta de sesión encadenaría recargas de página
+        // entera mientras la red esté mal. Sin sesión de verdad, la respuesta
+        // llega y dice null; si no llega, se espera.
+        if (vivo) console.warn("[sesion] no se pudo preguntar quién soy");
       });
     return () => {
       vivo = false;
     };
   }, [loginActivo]);
+
+  // Sin sesión y con el login encendido, aquí dentro no hay pantalla de
+  // entrar —vive en /entrar, fuera del tablero— así que se manda al navegador
+  // a "/" para que el SERVIDOR vuelva a decidir: sin cookie, esta vez enseña
+  // la consulta. Pasa al pulsar "Salir" (aquí al lado, `salir`) y también si
+  // el servidor corta la sesión a mitad de faena (a alguien lo desactivan).
+  // `sesion === null` y no solo "!miId": así no salta mientras todavía no se
+  // ha preguntado (`undefined`, ver el estado de arriba).
+  useEffect(() => {
+    if (loginActivo && sesion === null) {
+      router.replace("/");
+      router.refresh();
+    }
+  }, [loginActivo, sesion, router]);
 
   // Identidad del técnico ("login sin login"): se recuerda por navegador,
   // igual que el tema. Se lee con inicializador perezoso para que coincida
@@ -1902,10 +1924,13 @@ export function Board({
     );
   }
 
-  // Con el login encendido, mientras se pregunta al servidor no se pinta nada:
-  // ni el tablero (todavía no se sabe de quién) ni la pantalla de entrar (que
-  // parpadearía en cada recarga de quien ya está dentro).
-  if (loginActivo && sesion === undefined) {
+  // Con el login encendido no se pinta nada propio mientras no hay identidad:
+  // ni preguntando todavía (`sesion === undefined`) ni sin sesión de verdad
+  // (`sesion === null`, tras Salir o un 401 a mitad de faena). En los dos
+  // casos el efecto de arriba manda a "/" para que decida el servidor —aquí
+  // dentro no hay pantalla de entrar, vive en /entrar— así que esto es solo
+  // el instante entre que se pide y que se llega.
+  if (loginActivo && !miId) {
     return (
       <div className="grid min-h-full place-items-center text-sm text-text-muted">
         Cargando…
@@ -1914,16 +1939,13 @@ export function Board({
   }
 
   if (!miId) {
-    return loginActivo ? (
-      <LoginGate onEntrado={setSesion} />
-    ) : (
-      // TODOS, no los de la sección que se esté sirviendo: aquí es donde se
-      // dice quién eres, y con la lista filtrada nadie de Diseño Gráfico
-      // podría elegirse a sí mismo — el tablero arranca con el de Oficina
-      // Técnica. Es la de siempre, sin PIN: la que se ve mientras el login
-      // esté apagado.
-      <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />
-    );
+    // Login apagado: el camino de SIEMPRE, elegirse en la rejilla de caras,
+    // sin PIN.
+    //
+    // TODOS, no los de la sección que se esté sirviendo: con la lista filtrada
+    // nadie de Diseño Gráfico podría elegirse a sí mismo, porque el tablero
+    // arranca con el de Oficina Técnica.
+    return <IdentityGate operarios={TODOS_LOS_OPERARIOS} onSelect={setMiId} />;
   }
 
   // Sección anunciada pero todavía sin abrir: se dice y no se enseña nada. Va

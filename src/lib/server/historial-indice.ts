@@ -44,6 +44,10 @@ interface FilaBase {
   tiene_seccion: number | null;
   pendiente_seccion: number | null;
   pendiente_total: number | null;
+  fecha_entrega: Date | null;
+  pendiente_entrega: number | null;
+  trabajo_abierto: number | null;
+  fecha_entregado: Date | null;
   finalizada: Date | null;
 }
 
@@ -51,6 +55,7 @@ interface FilaTexto {
   pedido: string | null;
   cliente: string | null;
   negocio: string | null;
+  ciudad: string | null;
   orden: string | null;
   descripcion: string | null;
   linea: string | null;
@@ -108,7 +113,8 @@ async function baseDe(seccion: SeccionId): Promise<BaseHistorial[]> {
   req.input("pendientes", "<pedidos></pedidos>");
   const base: BaseHistorial[] = [];
   await porFilas<FilaBase>(req, `${ctesFinalizacionHistorial(seccion)}
-    SELECT pedido, fecha_pedido, n_of, tiene_seccion, pendiente_seccion, pendiente_total, finalizada FROM PedFin;
+    SELECT pedido, fecha_pedido, n_of, tiene_seccion, pendiente_seccion, pendiente_total,
+           fecha_entrega, pendiente_entrega, trabajo_abierto, fecha_entregado, finalizada FROM PedFin;
     DROP TABLE #CoordinaHistorialPendientes;
     DROP TABLE #CoordinaHistorialFinalizados;`, (f) => {
     const pedido = (f.pedido ?? "").trim();
@@ -120,6 +126,10 @@ async function baseDe(seccion: SeccionId): Promise<BaseHistorial[]> {
       tieneSeccion: f.tiene_seccion === 1,
       pendienteSeccion: f.pendiente_seccion === 1,
       pendienteTotal: f.pendiente_total === 1,
+      fechaEntrega: ms(f.fecha_entrega),
+      pendienteEntrega: f.pendiente_entrega === 1,
+      trabajoAbierto: f.trabajo_abierto === 1,
+      fechaEntregado: ms(f.fecha_entregado),
       finalizada: ms(f.finalizada),
     });
   });
@@ -131,12 +141,14 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
   const comparte = compartidor();
   // Mientras llegan, por pedido: conjuntos para no repetir. Al acabar se
   // pliegan a un texto por pedido (ver InfoPedidoHistorial).
-  const obra = new Map<string, { cliente: string | null; negocio: string | null; familias: Set<string>; ordenes: Set<string>; textos: Set<string> }>();
+  const obra = new Map<string, { cliente: string | null; negocio: string | null; ciudadEntrega: string | null; familias: Set<string>; ordenes: Set<string>; textos: Set<string> }>();
   // Lo que busca el Historial (cliente, OF, descripciones de la OF y de la
-  // línea de venta) y lo que decide la familia, igual que la fila y el panel
-  // de Sin asignar (familiaDeTexto con cliente y subfamilia).
+  // línea de venta), lo que decide la familia (familiaDeTexto con cliente y
+  // subfamilia) y la ciudad de entrega (o.CityDelivery, la MISMA columna que
+  // lee `cabeceraADetalle` en historial-db.ts para el detalle del equipo).
   await porFilas<FilaTexto>(pool.request(), `
     SELECT o.CodOrder AS pedido, cli.Description AS cliente, d.Description AS negocio,
+      o.CityDelivery AS ciudad,
       mo.CodManufacturingOrder AS orden, mo.Description AS descripcion, l.Description AS linea,
       sf.CodProductSubFamily AS subfamilia
     FROM dbo.FACOrderSL o
@@ -153,9 +165,11 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
     if (!i) {
       const cliente = (f.cliente ?? "").trim();
       const negocio = (f.negocio ?? "").trim();
+      const ciudad = (f.ciudad ?? "").trim();
       i = {
         cliente: cliente ? comparte(cliente) : null,
         negocio: negocio ? comparte(negocio) : null,
+        ciudadEntrega: ciudad ? comparte(ciudad) : null,
         familias: new Set(),
         ordenes: new Set(),
         textos: new Set(cliente ? [comparte(normalizaBusqueda(cliente))] : []),
@@ -177,6 +191,7 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
     info.set(pedido, {
       cliente: i.cliente,
       negocio: i.negocio,
+      ciudadEntrega: i.ciudadEntrega,
       familias: [...i.familias],
       ordenes: [...i.ordenes].join(" "),
       textos: [...i.textos].join("\n"),

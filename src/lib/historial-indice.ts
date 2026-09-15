@@ -15,6 +15,24 @@ export interface BaseHistorial {
   /** Fechas en milisegundos: 153 000 pedidos en memoria, mejor números que textos. */
   fechaPedido: number | null;
   nOf: number;
+  /** La entrega que pide el cliente: MIN de las líneas del pedido, en ms.
+   *  Es lo que ORDENA la lista del invitado, así que se guarda en el índice y
+   *  no se pide por página: ordenar solo se puede con todo delante. */
+  fechaEntrega: number | null;
+  /** Queda alguna línea sin entregar (`FACOrderLineSL.PendingDelivery`).
+   *
+   *  Terminar en fábrica no es entregar: medido el 14/09/2026, 184 pedidos de
+   *  2026 tienen todas las tareas al 100 y la entrega pendiente. Sin esto, el
+   *  invitado vería «terminado» un pedido que sigue en el almacén sin salir,
+   *  que es justo la etapa por la que llaman. */
+  pendienteEntrega: boolean;
+  /** Le queda trabajo en fábrica, con la regla de FINALIZAR (ver
+   *  historial-finalizacion-sql.ts, ResumenOF). Solo lo usa la consulta sin
+   *  login, para decir «en fábrica» o «esperando salir». */
+  trabajoAbierto: boolean;
+  /** Fecha del último albarán de sus líneas (ms), o null si no hay ninguno
+   *  enlazado (antes de 2020, casi todos). */
+  fechaEntregado: number | null;
   tieneSeccion: boolean;
   pendienteSeccion: boolean;
   pendienteTotal: boolean;
@@ -26,6 +44,12 @@ export interface BaseHistorial {
 export interface InfoPedidoHistorial {
   cliente: string | null;
   negocio: string | null;
+  /** Localidad de entrega (`FACOrderSL.CityDelivery`). Solo la usa hoy la
+   *  consulta pública, para ponerla en la cabecera de la fila junto al
+   *  cliente (corrección de Iván): es un texto que se repite mucho (Arzúa,
+   *  Santiago…) y se comparte igual que `cliente`/`negocio`, así que cuesta
+   *  poco más guardarla aquí que dejarla fuera del índice. */
+  ciudadEntrega: string | null;
   /** Las familias del panel de Sin asignar (familiaDeTexto), una por OF. */
   familias: string[];
   /** Códigos de OF separados por espacios. Un texto y no una lista: con
@@ -81,6 +105,30 @@ const DIA_OFICINA = new Intl.DateTimeFormat("en-CA", {
 });
 function claveEnOficina(ms: number): string {
   return DIA_OFICINA.format(new Date(ms));
+}
+
+/** Cómo busca el Historial: código de pedido exacto, trozo de código de pedido
+ *  o de OF, o todas las palabras en el MISMO campo de texto. Compartido con la
+ *  consulta sin login: quien busca un pedido tiene que encontrar lo mismo en
+ *  las dos pantallas. `q` llega ya recortado y no vacío. */
+export function coincideBusqueda(q: string): (pedido: string, info: InfoPedidoHistorial | undefined) => boolean {
+  const palabras = palabrasDe(q);
+  const codigo = palabras.join("");
+  const exacto = esCodigoPedido(q.toUpperCase()) ? q.toUpperCase() : null;
+  return (pedido, info) => {
+    if (exacto) return pedido === exacto;
+    if (palabras.length === 0) return false;
+    if (pedido.replaceAll(".", "").includes(codigo)) return true;
+    if (!info) return false;
+    // El código no lleva espacios, así que no puede casar a caballo entre dos OF.
+    if (info.ordenes.includes(codigo)) return true;
+    // Todas las palabras en el MISMO campo, como la consulta: "toldo fachada"
+    // encuentra "TOLDO DE FACHADA", pero no un cliente "TOLDOS" con una OF de
+    // "FACHADA". Primero la prueba barata sobre todo el texto; solo si pasa,
+    // campo a campo.
+    if (!palabras.every((p) => info.textos.includes(p))) return false;
+    return info.textos.split("\n").some((t) => palabras.every((p) => t.includes(p)));
+  };
 }
 
 export function filtrarIndice(

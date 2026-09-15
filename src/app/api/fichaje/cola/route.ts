@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { leerCola, leerPendientes, modoFichaje } from "@/lib/server/olanet-outbox";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/fichaje/cola ───────────────────────────────────────────────────────
 // Ventana a la cola de salida hacia OLANET: líneas de tiempo (tipo "bono") y
@@ -11,6 +12,9 @@ import { leerCola, leerPendientes, modoFichaje } from "@/lib/server/olanet-outbo
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const soloPendientes = new URL(req.url).searchParams.get("pendientes") === "1";
   const eventos = soloPendientes ? leerPendientes() : leerCola();
   return NextResponse.json(

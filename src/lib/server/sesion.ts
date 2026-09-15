@@ -134,9 +134,21 @@ export function quienEs(req: Request): Sesion | null {
  *  llaman a `identidad()`, no a esto: una ruta que llame aquí a secas se
  *  queda muerta con el login apagado, que es como se despliega.
  *
- *  UNA sola función para las once rutas que usan una u otra (`fases` y
- *  `revision/marcas` cuentan una vez cada una, aunque usen las dos): repetir
- *  la comprobación en cada una garantiza que a la doceava se le olvide.
+ *  Y hay una TERCERA vía, la más numerosa: `soloConSesion` (más abajo en este
+ *  fichero), que llama aquí sin rol por las dieciséis rutas de solo LECTURA
+ *  del equipo —avisos GET, buscar, fichaje/cola, fichaje/contraste, historial
+ *  y sus tres variantes (pedido, clientes, documento), metricas, notas GET,
+ *  notas-recientes, novedades, pedidos/[archivo] y su ruta de documentos,
+ *  tablero y visitas-cot—. Ahí no hay ACCESO que cerrar por rol, solo saber
+ *  si hay alguien al otro lado antes de enseñar algo que no es para toda la
+ *  red.
+ *
+ *  UNA sola función para las once rutas que usan una u otra de las dos
+ *  primeras vías (`fases` y `revision/marcas` cuentan una vez cada una,
+ *  aunque usen las dos) más las dieciséis de `soloConSesion` —`avisos` y
+ *  `notas` ya estaban en las once, así que la cuenta real son veinticinco
+ *  rutas, no veintisiete—: repetir la comprobación en cada una garantiza que
+ *  a la siguiente se le olvide.
  */
 export function exigir(req: Request, rol?: RolAcceso): Sesion | NextResponse {
   const yo = quienEs(req);
@@ -230,4 +242,20 @@ export function cabeceraDeSesion(id: string): string {
 /** El Set-Cookie de salir: la misma cookie, vacía y ya caducada. */
 export function cabeceraDeSalida(): string {
   return `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+/** La puerta de las LECTURAS del equipo. Devuelve la respuesta con la que hay
+ *  que cortar, o null para seguir.
+ *
+ *  Una función y no la comprobación repetida en dieciséis rutas: repetirla
+ *  garantiza que a la diecisieteava se le olvide, y aquí lo que se olvida es
+ *  una ruta que enseña las notas internas a toda la casa.
+ *
+ *  Con el login APAGADO deja pasar a todo el mundo, como hasta hoy: apagado no
+ *  hay invitados ni sesiones, y cerrar las lecturas dejaría al equipo fuera de
+ *  su propia herramienta. */
+export function soloConSesion(req: Request): NextResponse | null {
+  if (!loginActivo()) return null;
+  const yo = exigir(req);
+  return yo instanceof NextResponse ? yo : null;
 }

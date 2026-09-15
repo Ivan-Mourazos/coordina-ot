@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getTablero } from "@/lib/data";
 import { seccionDeOperario } from "@/lib/server/operarios";
 import { esSeccionId } from "@/lib/secciones";
+import { soloConSesion } from "@/lib/server/sesion";
 import { versionDelServidor } from "@/lib/server/version";
 
 // ─── GET /api/tablero ────────────────────────────────────────────────────────
@@ -11,6 +12,9 @@ import { versionDelServidor } from "@/lib/server/version";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   // Por defecto la sección se deduce de QUIÉN pregunta: cada uno entra en la
   // suya sin tener que elegir nada.
   //
@@ -24,14 +28,7 @@ export async function GET(req: Request) {
   // trabajo de la casa, y mirar la lista de al lado no deja hacer nada que no
   // se pudiera hacer ya. Lo que NUNCA cambia, con el login encendido o
   // apagado, es quién eres: eso no ha venido de la URL ni un día — viene del
-  // operario (apagado) o de la sesión (encendido, en las rutas que la piden).
-  //
-  // OJO: esta ruta NO comprueba sesión, ni siquiera con el login encendido.
-  // No es un descuido de esta rama ni algo que se le olvidó a nadie: cerrar
-  // las lecturas —esta, el historial, las métricas, el buscador…— es la fase
-  // 2, aplazada a propósito (ver docs/despliegue-login.md). Con el login
-  // encendido el tablero deja de ser SIN login, pero esta ruta en concreto
-  // sigue siéndolo.
+  // operario (apagado) o de la sesión (encendido, ya exigida arriba).
   const q = new URL(req.url).searchParams;
   const operarioId = q.get("operarioId");
   const pedida = q.get("seccion");

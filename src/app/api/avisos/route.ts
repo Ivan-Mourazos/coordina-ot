@@ -5,7 +5,7 @@ import {
   marcarAvisosVistos,
 } from "@/lib/server/estado-db";
 import { avisosPara, VENTANA_AVISOS_DIAS } from "@/lib/avisos";
-import { identidad } from "@/lib/server/sesion";
+import { identidad, soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/avisos ─────────────────────────────────────────────────────────────
 // Los avisos de "te han movido el trabajo". Se derivan del registro de
@@ -17,6 +17,9 @@ import { identidad } from "@/lib/server/sesion";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   // El parámetro de la URL se conserva: apagado es de donde sale la
   // identidad, como hasta ahora.
   const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"), "tecnico");

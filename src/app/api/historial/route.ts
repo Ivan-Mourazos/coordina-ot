@@ -3,6 +3,7 @@ import { leerHistorialPagina } from "@/lib/server/historial-db";
 import { seccionDe } from "@/lib/secciones";
 import { getTablero } from "@/lib/data";
 import { codigoRpsDe } from "@/lib/server/operarios";
+import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/historial ──────────────────────────────────────────────────────
 // Página del historial permanente de pedidos finalizados según la sección. El page size
@@ -20,6 +21,9 @@ function filtroOperario(id: string | null): { operario?: string; empleado?: stri
 }
 
 export async function GET(req: Request) {
+  const corte = soloConSesion(req);
+  if (corte) return corte;
+
   const url = new URL(req.url);
   const pageRaw = Number(url.searchParams.get("page"));
   const page = Number.isInteger(pageRaw) && pageRaw >= 0 ? pageRaw : 0;

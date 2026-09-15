@@ -53,6 +53,16 @@ export function fmtFechaLarga(iso: string): string {
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
+/** dd/mm/aa — como `fmtDiaMes` pero con el año en dos cifras, para las listas
+ *  que mezclan campañas (la de pendientes públicos baja a 2025 sin buscar, y
+ *  buscando aparece hasta de 2019): un "09/01" solo, ahí, no dice de qué año
+ *  es. Dos cifras y no cuatro porque es texto de fila, no de `title` (para
+ *  eso está `fmtFechaLarga`). */
+export function fmtDiaMesAno(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return y && m && d ? `${d}/${m}/${y.slice(2)}` : iso;
+}
+
 /** Lee una fecha en relación a hoy.
  *
  *  El "atrasado" del tablero era un badge rojo que salía en casi todas las

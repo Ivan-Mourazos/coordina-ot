@@ -15,6 +15,10 @@ const base = (pedido: string, extra: Partial<BaseHistorial> = {}): BaseHistorial
   tieneSeccion: true,
   pendienteSeccion: false,
   pendienteTotal: false,
+  fechaEntrega: null,
+  pendienteEntrega: false,
+  trabajoAbierto: false,
+  fechaEntregado: null,
   finalizada: dia(10),
   ...extra,
 });
@@ -22,6 +26,7 @@ const base = (pedido: string, extra: Partial<BaseHistorial> = {}): BaseHistorial
 const info = (extra: Partial<InfoPedidoHistorial> = {}): InfoPedidoHistorial => ({
   cliente: "MAHOU, S.A.",
   negocio: null,
+  ciudadEntrega: null,
   familias: ["TOLDO"],
   ordenes: "0230001",
   textos: [normalizaBusqueda("MAHOU, S.A."), normalizaBusqueda("TOLDO DE FACHADA MANUAL")].join("\n"),

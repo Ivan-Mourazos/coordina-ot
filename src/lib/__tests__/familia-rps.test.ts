@@ -32,13 +32,22 @@ describe("las seis familias grandes", () => {
     expect(f("LONA BOTELLERO")).toBe("REMOLQUE");
     expect(f("LONA PARA REMOLQUE DE GANADO")).toBe("REMOLQUE");
     expect(f("REMOLQUE PARA CABALLOS")).toBe("REMOLQUE");
-    expect(f("CAPOTA NUEVA :RECTA")).toBe("REMOLQUE");
   });
 
-  it("pero una capota de TERRAZA no es de remolque", () => {
-    // "ESTRUCTURA CAPOTA CON PIES PARA TERRAZA O SIMILAR" es de la casa, no de
-    // transporte, y con la regla de capota a secas acababa en Remolques.
-    expect(f("ESTRUCTURA CAPOTA CON PIES PARA TERRAZA O SIMILAR")).not.toBe("REMOLQUE");
+  it("la capota es de terraza: va con los toldos, no con los remolques", () => {
+    // Estaba al revés: todas las capotas caían en Remolques y solo se salvaban
+    // las que decían "TERRAZA". Medido sobre RPS (OF desde 2024): las capotas
+    // las piden Hijos de Rivera (22), Mahou (17), bares y furanchos, y lo que
+    // se hace es cambiarles la tela o repararlas. Ninguna es de transporte.
+    expect(f("CAMBIO DE TELA DE CAPOTA")).toBe("TOLDO");
+    expect(f("REPARACION  CAPOTA")).toBe("TOLDO");
+    expect(f("CAPOTA NUEVA :RECTA")).toBe("TOLDO");
+    expect(f("ESTRUCTURA CAPOTA CON PIES PARA TERRAZA O SIMILAR")).toBe("TOLDO");
+  });
+
+  it("pero una capota DE REMOLQUE sigue siendo un remolque", () => {
+    // La palabra "remolque" la caza la regla de arriba, que va primero.
+    expect(f("CAPOTA PARA REMOLQUE")).toBe("REMOLQUE");
   });
 
   it("puertas: enrollables, plegables y apilables", () => {

@@ -3,6 +3,12 @@
 Fecha: 2026-09-14 · Fase 2 de lo que pidió Esteban Raposo (ver
 `2026-09-08-login-operarios-design.md`)
 
+> **Sustituida por `2026-09-15-consulta-publica-v2-design.md`.** Esta versión se
+> construyó y se probó con datos reales; la pantalla se rehízo porque las dos
+> pestañas obligaban a adivinar dónde estaba un pedido y porque «pendiente»,
+> medido por tareas, enseñaba sobre todo lo que RPS no cierra. Se conserva como
+> registro de por qué se decidió lo que se decidió.
+
 ## Por qué
 
 El login separa quién escribe de quién solo mira. Esto es la otra mitad: **qué
