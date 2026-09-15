@@ -59,6 +59,14 @@ export function CerrarEnRpsInline({
   const [error, setError] = useState<string | null>(null);
   const [confirmar, setConfirmar] = useState(false);
   const [pendientes, setPendientes] = useState<FaseConBoletin[]>([]);
+  // «Reintentar envío» (Confirmado con Iván, punto 5): solo cuando el bloqueo
+  // es justo ESE — tiempo que RPS ya rechazó 5 veces (`descartado: true` en
+  // la respuesta), no un simple "todavía no ha llegado". Reintentar antes de
+  // eso no arreglaría nada: lo pendiente se resuelve solo con el drenado de
+  // siempre.
+  const [descartado, setDescartado] = useState(false);
+  const [reintentandoEnvio, setReintentandoEnvio] = useState(false);
+  const [avisoReintento, setAvisoReintento] = useState<string | null>(null);
 
   async function cargarYConfirmar() {
     setError(null);
@@ -105,6 +113,8 @@ export function CerrarEnRpsInline({
     setConfirmar(false);
     setEnviando(true);
     setError(null);
+    setDescartado(false);
+    setAvisoReintento(null);
     try {
       const r = await fetch("/api/fases/cerrar-of", {
         method: "POST",
@@ -113,12 +123,13 @@ export function CerrarEnRpsInline({
       });
       const d = (await r.json().catch(() => null)) as
         | ({ ok: true; modo: "sombra" | "ensayo" | "activo" } & RespuestaCierreRps)
-        | { error: string }
+        | { error: string; descartado?: boolean }
         | null;
       if (!r.ok || !d || !("ok" in d)) {
         // Los textos de error los pone la ruta, ya en el idioma del taller
         // ("Queda tiempo de esta OF por subir…", "RPS ya retiró…").
         setError((d as { error?: string } | null)?.error ?? SIN_ESCRIBIR);
+        setDescartado(Boolean((d as { descartado?: boolean } | null)?.descartado));
         cerrarPanel();
         return;
       }
@@ -129,6 +140,37 @@ export function CerrarEnRpsInline({
       cerrarPanel();
     } finally {
       setEnviando(false);
+    }
+  }
+
+  /** «Reintentar envío»: vuelve a poner en la cola los eventos DESCARTADOS de
+   *  esta orden/operación (reinicia sus intentos) para que RPS pueda
+   *  aceptarlos en la próxima vuelta. No escribe nada por sí misma: eso lo
+   *  sigue haciendo la cola de siempre, con el modo de fichaje de siempre.
+   *  Tras esto se puede volver a pulsar «Dar por terminada en RPS». */
+  async function reintentarEnvio() {
+    setReintentandoEnvio(true);
+    setAvisoReintento(null);
+    try {
+      const r = await fetch("/api/fases/cerrar-of/reintentar-envio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ofId: of.id, seccion: seccion.id, operarioId: miId }),
+      });
+      const d = (await r.json().catch(() => null)) as { ok: true; reencolados: number } | { error: string } | null;
+      if (!r.ok || !d || !("ok" in d)) {
+        setAvisoReintento((d as { error?: string } | null)?.error ?? "No se ha podido reintentar el envío.");
+        return;
+      }
+      setAvisoReintento(
+        d.reencolados > 0
+          ? "Los tiempos han vuelto a la cola de envío a RPS. Vuelve a pulsar «Dar por terminada en RPS» en un momento; si RPS los rechaza otra vez, avisa a quien lleva IT."
+          : "No había nada que reintentar (puede que ya se hayan enviado). Vuelve a pulsar «Dar por terminada en RPS» para comprobarlo.",
+      );
+    } catch {
+      setAvisoReintento("No se puede hablar con el servidor ahora mismo.");
+    } finally {
+      setReintentandoEnvio(false);
     }
   }
 
@@ -158,9 +200,22 @@ export function CerrarEnRpsInline({
         </p>
       )}
       {error && (
-        <p className="w-full text-[11px] text-red-600 dark:text-red-400" role="alert">
-          {error}
-        </p>
+        <div className="w-full space-y-1">
+          <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </p>
+          {descartado && !avisoReintento && (
+            <button
+              type="button"
+              onClick={() => void reintentarEnvio()}
+              disabled={reintentandoEnvio}
+              className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text-muted ring-1 ring-border hover:bg-[var(--glass-highlight)] disabled:opacity-50"
+            >
+              {reintentandoEnvio ? "Reintentando envío…" : "Reintentar envío"}
+            </button>
+          )}
+          {avisoReintento && <p className="text-[11px] text-text-muted">{avisoReintento}</p>}
+        </div>
       )}
       {abierto && (
         <ConfirmDialog

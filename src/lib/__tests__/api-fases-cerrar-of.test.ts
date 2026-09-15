@@ -451,6 +451,23 @@ test("sin trampa (una sola operación), la marca no lleva gemelaSinEscribir", as
   expect(marcaDe()?.gemelaSinEscribir).toBeUndefined();
 });
 
+test("el 409 de tiempo descartado dice `descartado: true`, para que la web ofrezca «Reintentar envío»", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  for (let i = 0; i < 6; i++) await cerrar();
+  const d = await (await cerrar()).json();
+  expect(d.descartado).toBe(true);
+});
+
+test("el 409 de tiempo simplemente pendiente NO lleva `descartado`", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: "2026-09-15T10:00:00.000Z", fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  outbox.encolarFichaje("ivan", [{ inicio: "2026-09-15T10:00:00.000Z", fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }]);
+  const d = await (await cerrar()).json();
+  expect(d.descartado).toBeUndefined();
+});
+
 test("M3: si OLANET se cae al escribir la de la fila, 503 y sin marca", async () => {
   process.env.FICHAJE_OLANET = "activo";
   finalizarFase.mockResolvedValue({ ok: false, status: 503, error: "OLANET no responde" });

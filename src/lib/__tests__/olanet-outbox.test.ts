@@ -133,6 +133,58 @@ describe("marcado de envío", () => {
   });
 });
 
+describe("reencolarDescartados", () => {
+  // Un solo operario ("manuel", sin usar en el resto del fichero) con la
+  // lista COMPLETA y CRECIENTE de intervalos en cada llamada — el contrato
+  // real de `encolarFichaje` (ver el comentario de `encolarFichajeOLanzar`).
+  // Pasar cada vez un array nuevo de un solo elemento no vale: la marca de
+  // agua ya habría "procesado" esa posición y no encolaría nada.
+  const ops = "manuel";
+  let intervalos: Intervalo[] = [];
+  const encolarUno = (i: Intervalo) => {
+    intervalos = [...intervalos, i];
+    outbox.encolarFichaje(ops, intervalos);
+  };
+
+  it("un evento DESCARTADO de verdad vuelve a pendiente, con los intentos a cero", () => {
+    encolarUno(iv("2026-09-15T08:00:00Z", "2026-09-15T08:30:00Z", ["0240100:9"], ops));
+    const bono = outbox.leerPendientes().find((p) => p.tipo === "bono" && p.datos.of === "0240100")!;
+    outbox.marcarError(bono.id, "RPS no contesta");
+    outbox.descartar(bono.id, "5 intentos fallidos — RPS no contesta");
+    expect(outbox.leerPendientes().some((p) => p.id === bono.id)).toBe(false);
+
+    const n = outbox.reencolarDescartados("0240100", "9");
+    expect(n).toBe(1);
+    const tras = outbox.leerPendientes().find((p) => p.id === bono.id)!;
+    expect(tras).toBeDefined();
+    expect(tras.error).toBeNull();
+    expect(tras.intentos).toBe(0);
+  });
+
+  it("no toca lo descartado en ENSAYO a propósito: eso no es un rechazo de RPS", () => {
+    encolarUno(iv("2026-09-15T09:00:00Z", "2026-09-15T09:30:00Z", ["0240200:9"], ops));
+    const fase = outbox.leerPendientes().find((p) => p.tipo === "fase" && p.datos.of === "0240200")!;
+    outbox.descartar(fase.id, "ensayo: no se mueve la fase 0240200/9 a 1");
+
+    expect(outbox.reencolarDescartados("0240200", "9")).toBe(0);
+    expect(outbox.leerPendientes().some((p) => p.id === fase.id)).toBe(false);
+  });
+
+  it("la gemela 2/02 cuenta igual, sin ceros a la izquierda", () => {
+    encolarUno(iv("2026-09-15T10:00:00Z", "2026-09-15T10:30:00Z", ["0240300:02"], ops));
+    const bono = outbox.leerPendientes().find((p) => p.tipo === "bono" && p.datos.of === "0240300")!;
+    outbox.descartar(bono.id, "5 intentos fallidos");
+    expect(outbox.reencolarDescartados("0240300", "2")).toBe(1);
+  });
+
+  it("no toca lo pendiente ni lo enviado de verdad, solo lo descartado", () => {
+    encolarUno(iv("2026-09-15T11:00:00Z", "2026-09-15T11:30:00Z", ["0240400:9"], ops));
+    const pendientesAntes = outbox.leerPendientes().filter((p) => p.datos.of === "0240400").length;
+    expect(outbox.reencolarDescartados("0240400", "9")).toBe(0);
+    expect(outbox.leerPendientes().filter((p) => p.datos.of === "0240400")).toHaveLength(pendientesAntes);
+  });
+});
+
 describe("modoFichaje", () => {
   it("por defecto es sombra: escribir en OLANET hay que pedirlo", () => {
     delete process.env.FICHAJE_OLANET;

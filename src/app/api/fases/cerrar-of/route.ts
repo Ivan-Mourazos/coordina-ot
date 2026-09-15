@@ -132,12 +132,20 @@ async function cerrar({
       { status: 409 },
     );
   /** ¿Está TODO el tiempo de la operación en OLANET? Si no, la respuesta que
-   *  toca. Lo descartado va primero: no se arregla solo esperando. */
+   *  toca. Lo descartado va primero: no se arregla solo esperando.
+   *
+   *  `descartado: true` en el JSON es lo que la web usa para ofrecer
+   *  «Reintentar envío» (spec, «Confirmado con Iván» punto 5): sin ese
+   *  distintivo no hay forma de saber, desde el error de texto, si vale la
+   *  pena volver a probar sola o si hace falta ese botón. */
   const tiempoQueFalta = (): NextResponse | null => {
     const { pendientes, descartados } = sinLlegarAOlanet(orden, tareaFila);
     if (descartados > 0)
       return NextResponse.json(
-        { error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha cerrado nada; el reloj sí se ha parado. Hay que revisar ese tiempo antes de darla por terminada: avisa a quien lleva CoordinaOT." },
+        {
+          error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha cerrado nada; el reloj sí se ha parado. Hay que revisar ese tiempo antes de darla por terminada: avisa a quien lleva CoordinaOT.",
+          descartado: true,
+        },
         { status: 409 },
       );
     return pendientes > 0 ? tiempoSinSubir() : null;

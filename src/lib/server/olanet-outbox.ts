@@ -257,6 +257,32 @@ export function sinLlegarAOlanet(orden: string, numope: string): { pendientes: n
   return { pendientes: fila.pendientes, descartados: fila.descartados };
 }
 
+/** Vuelve a poner en la cola lo DESCARTADO de una operación, reiniciando sus
+ *  intentos: es «Reintentar envío» (spec 2026-09-15, «Confirmado con Iván»
+ *  punto 5). Solo se toca lo que de verdad rechazó RPS (`enviado_at` puesto
+ *  con `error LIKE 'DESCARTADO:%'`, salvo lo de ensayo, que no es un rechazo):
+ *  ni lo pendiente ni lo ya enviado de verdad. `enviado_at = NULL` es
+ *  literalmente "vuelve a la cola" (ver `leerPendientes`), y borrar el error
+ *  no esconde nada — el intento anterior queda en el log del servidor, y aquí
+ *  lo que importa es dejarlo limpio para los cinco intentos siguientes.
+ *
+ *  No escribe nada en OLANET por sí mismo: quien procesa la cola de verdad es
+ *  `drenarCola`, con las mismas reglas de siempre (`modoFichaje`). Devuelve
+ *  cuántos eventos volvieron. */
+export function reencolarDescartados(orden: string, numope: string): number {
+  const r = getDb()
+    .prepare(
+      `UPDATE olanet_pendiente
+          SET enviado_at = NULL, error = NULL, intentos = 0
+        WHERE json_extract(datos, '$.of') = ?
+          AND ltrim(json_extract(datos, '$.numope'), '0') = ltrim(?, '0')
+          AND enviado_at IS NOT NULL
+          AND error LIKE 'DESCARTADO:%' AND error NOT LIKE 'DESCARTADO: ensayo:%'`,
+    )
+    .run(orden, numope);
+  return r.changes;
+}
+
 /** Todo lo encolado, enviado o no. Para revisar el modo sombra. */
 export function leerCola(limite = 500): Pendiente[] {
   const filas = getDb()
