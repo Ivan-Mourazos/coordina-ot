@@ -144,8 +144,10 @@ export function nombreBonito(texto: string): string {
     .split(" ")
     .map((palabra, i) => {
       const sinPuntuacion = palabra.replace(/[.,]/g, "");
-      // Siglas: con puntos entre letras, o cortas y sin vocales.
-      if (/^(?:[A-ZÑ]\.){2,}$/.test(palabra)) return palabra;
+      // Siglas: cualquier grupo de mayúsculas con un punto dentro («S.L.»,
+      // «A.U», «S.C.G.»), o corto y sin vocales («SL», «CB», «UTE»).
+      const sinComa = palabra.replace(/,+$/, "");
+      if (sinComa.includes(".") && /^[A-ZÑ.]+$/.test(sinComa)) return palabra;
       if (sinPuntuacion.length <= 3 && /^[A-ZÑ]+$/.test(sinPuntuacion) && !/[AEIOU]/.test(sinPuntuacion)) {
         return palabra;
       }

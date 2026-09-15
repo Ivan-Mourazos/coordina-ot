@@ -29,6 +29,10 @@ test("los clientes y las localidades dejan de gritar, y las siglas se quedan", (
   expect(nombreBonito("HIJOS DE RIVERA, S.A.U.")).toBe("Hijos de Rivera, S.A.U.");
   expect(nombreBonito("BRICOSYL, S.L.")).toBe("Bricosyl, S.L.");
   expect(nombreBonito("TOLDOS GOMEZ SL")).toBe("Toldos Gomez SL");
+  // Sin el punto final, y con la sigla partida en dos palabras: en RPS salen
+  // las dos formas ("ALUMINIOS CORTIZO S. A.U").
+  expect(nombreBonito("ALUMINIOS CORTIZO S. A.U")).toBe("Aluminios Cortizo S. A.U");
+  expect(nombreBonito("RAMOS REY, S. L.")).toBe("Ramos Rey, S. L.");
   // Números y partículas gallegas.
   expect(nombreBonito("2006 PORTANOVA, S.L.")).toBe("2006 Portanova, S.L.");
   expect(nombreBonito("CASA DO CANTO")).toBe("Casa do Canto");
