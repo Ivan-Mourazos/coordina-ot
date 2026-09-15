@@ -4,6 +4,103 @@ import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial } from "./h
 import { SECCION_POR_DEFECTO } from "./secciones";
 import { esCodigoPedido } from "./types";
 
+// ─── Nombres de centro para quien no es del taller ───────────────────────────
+// RPS guarda el centro en mayúsculas, sin acentos, y a veces literalmente el
+// nombre de la máquina ("PLOTER DE CORTE MASCARA ULTRA SIGN PAL GRC1325").
+// Quien lee esto es comercial o administración: no distingue una máquina de
+// otra, distingue EN QUÉ PASO está su pedido. Aquí se traduce el centro al
+// paso de trabajo; lo que no está en la tabla sale tal cual lo escribió RPS
+// (mejor un texto feo que uno inventado).
+//
+// MANTENIMIENTO: la tabla la actualiza quien dé de alta un centro nuevo en
+// RPS (o note que uno de los de abajo cambió de nombre). Añadir uno es una
+// línea más aquí; no hace falta tocar nada más.
+//
+// La localidad SOLO entra en el nombre cuando distingue algo de verdad.
+// Arzúa, Santiago, Bergondo y el Parque Empresarial son sitios reales
+// distintos (con trabajo abierto desde 2025, medido en RPS), así que si el
+// mismo paso se hace en más de uno se dice dónde; si solo hay un sitio para
+// ese paso, repetirlo no informa y se calla — por eso "Oficina Técnica" y
+// "Diseño Gráfico" no llevan Arzúa, aunque RPS se lo ponga.
+//
+// "POLIGONO" se trata como el mismo sitio que "PARQUE EMPRESARIAL": no hay
+// indicio de un quinto sitio real y ambos nombran la misma nave con otra
+// palabra. Si resultara ser un sitio distinto de verdad, esta nota es la que
+// hay que corregir y separar sus entradas.
+//
+// La máquina se sustituye por el paso que hace, no por la familia del
+// material: "CORTE ACRILICO" y "CORTE AUTOMÁTICO ..." son los dos "Corte",
+// porque a quien lee esto no le dice nada si fue a máquina o a mano, ni con
+// qué material — solo en qué paso está.
+const NOMBRE_DE_CENTRO: Record<string, string> = {
+  "OFICINA TECNICA ARZUA": "Oficina Técnica",
+  "OFICINA TECNICA": "Oficina Técnica",
+  "DISEÑO GRAFICO ARZUA": "Diseño Gráfico",
+  "DISEÑO GRAFICO": "Diseño Gráfico",
+
+  "SOLDADURA ALTA FRECUENCIA PARQUE EMPRESARIAL": "Soldadura (Parque Empresarial)",
+  "SOLDADURA AIRE CALIENTE PARQUE EMPRESARIAL": "Soldadura (Parque Empresarial)",
+  "SOLDADURA CUÑA AIRE CALIENTE": "Soldadura",
+  "MAQUINA SOLDAR AIRE CALIENTE": "Soldadura",
+  // Forsstrom: máquina de soldadura de alta frecuencia, no un paso aparte.
+  "FORSSTROM SIN BANCADA": "Soldadura",
+
+  "FINALIZACION": "Finalización",
+
+  "COSTURA PARQUE EMPRESARIAL": "Costura (Parque Empresarial)",
+  "COSTURA POLIGONO": "Costura (Parque Empresarial)",
+
+  "CORTE AUTOMÁTICO PARQUE EMPRESARIAL": "Corte (Parque Empresarial)",
+  "CORTE MANUAL PARQUE EMPRESARIAL": "Corte (Parque Empresarial)",
+  "CORTE MANUAL ARZUA": "Corte (Arzúa)",
+  "CORTE ACRILICO": "Corte",
+  // Cinta/correaje es un material bien distinto de la lona: se deja aparte.
+  "CORTE DE CINTA": "Corte de cinta",
+
+  "PLOTER DE CORTE MASCARA ULTRA SIGN PAL GRC1325": "Plotter de corte",
+  "PLOTTER CORTE VINILO MUTOH SC-1400D": "Plotter de corte",
+
+  "COLOCACION DE OLLAOS PARQUE EMPRESARIAL": "Colocación de ollaos (Parque Empresarial)",
+  "COLOCACION DE OLLAOS ARZUA": "Colocación de ollaos (Arzúa)",
+
+  "CONFECCION SANTIAGO": "Confección (Santiago)",
+  "CONFECCION BERGONDO": "Confección (Bergondo)",
+  "CONFECCION ACRILICO": "Confección",
+  "CONFECCION RAIDO": "Confección",
+
+  "ROTULACIONES ARZUA": "Rotulación (Arzúa)",
+  "ROTULACIONES SANTIAGO": "Rotulación (Santiago)",
+  "ROTULACIONES PARQUE EMPRESARIAL": "Rotulación (Parque Empresarial)",
+  "ROTULACIONES BERGONDO": "Rotulación (Bergondo)",
+
+  "IMPRESION DIGITAL": "Impresión digital",
+  "PLOTTER IMPRESIÓN 162 CM HP LATEX 8002": "Impresión digital",
+
+  "CALDERERIA": "Calderería",
+
+  "REPARACION Y MONTAJE SANTIAGO": "Reparación y montaje (Santiago)",
+  "REPARACIONES Y MONTAJES BERGONDO": "Reparaciones y montajes (Bergondo)",
+  // "Nave" es un detalle del edificio, no del sitio: Parque Empresarial ya lo dice.
+  "REPARACIONES NAVE PARQUE EMPRESARIAL": "Reparaciones (Parque Empresarial)",
+
+  "MONTAJE DE TOLDOS": "Montaje",
+  "MONTAJE TOLDO PLANO": "Montaje",
+
+  "CAPOTAS": "Capotas",
+
+  "BARNIZADO EN ROTULACIONES POLIGONO": "Barnizado (Parque Empresarial)",
+  "BARNIZADO EN ROTULACIONES ARZUA": "Barnizado (Arzúa)",
+};
+
+/** Igual que compara RPS: mayúsculas y sin espacios de más. La trampa ya
+ *  conocida en este proyecto es el mismo centro escrito de dos formas
+ *  ("CONFECCION  BERGONDO" con doble espacio, "MONTAJE TOLDO PLANO " con uno
+ *  de sobra); sin esto, esas dos filas se caerían de la tabla y saldrían con
+ *  el texto crudo aunque estén dadas de alta. */
+function normalizaCentro(centro: string): string {
+  return centro.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
 // ─── Lo que ve quien no tiene sesión ─────────────────────────────────────────
 // Toda la casa pregunta lo mismo —"¿por dónde va este pedido?"— y hasta ahora
 // lo preguntaba por teléfono. Aquí se decide qué es estar pendiente, en qué
@@ -26,6 +123,10 @@ export interface FiltrosPublicos {
    *  cierre en realizados: en cada lista, la fecha que se está mirando. */
   desde?: string;
   hasta?: string;
+  /** Solo en "pendientes" (ver el apartado de vencidos en `filtrarPublico`):
+   *  en vez de lo que viene, trae solo lo vencido. Es como se piden las
+   *  filas de dentro del apartado plegado, página a página. */
+  soloVencidos?: boolean;
 }
 
 export interface PedidoPublico {
@@ -52,9 +153,14 @@ export function estaPendiente(b: BaseHistorial): boolean {
   return b.pendienteTotal || b.pendienteEntrega;
 }
 
-/** "CORTE AUTOMÁTICO PARQUE EMPRESARIAL" → "Corte automático parque empresarial".
- *  RPS los guarda a gritos; en una fila de lista eso no se lee. */
+/** "PLOTER DE CORTE MASCARA ULTRA SIGN PAL GRC1325" → "Plotter de corte": el
+ *  paso de trabajo de la tabla de arriba. Sin entrada en la tabla, se cae al
+ *  texto de RPS con solo la mayúscula inicial arreglada (RPS los guarda a
+ *  gritos, y en una fila de lista eso no se lee) — mejor un texto feo que
+ *  cuadra con RPS que uno bonito que no significa nada. */
 function enFrase(centro: string): string {
+  const bonito = NOMBRE_DE_CENTRO[normalizaCentro(centro)];
+  if (bonito) return bonito;
   const limpio = centro.trim().toLowerCase();
   return limpio.charAt(0).toUpperCase() + limpio.slice(1);
 }
@@ -109,7 +215,15 @@ const CORTE_PENDIENTES_SIN_BUSQUEDA = Date.UTC(2025, 0, 1);
 export function filtrarPublico(
   indice: IndiceHistorial,
   f: FiltrosPublicos,
-): { filas: BaseHistorial[]; hasMore: boolean } {
+  /** ISO yyyy-mm-dd de "hoy", para partir vencido/por-venir (ver el bloque de
+   *  abajo). Sin este dato no hay forma honesta de decidir qué es vencido
+   *  —sería fiarse de la hora del proceso que ejecuta el filtro—, así que sin
+   *  él los pendientes salen SIN separar, tal como salían antes de este
+   *  cambio: ningún test viejo de esta función habla de vencidos, y no tiene
+   *  por qué empezar a pasar una fecha que no le importa. El servidor SIEMPRE
+   *  lo manda (`leerPaginaPublica`, con `hoyISO()`). */
+  hoy?: string,
+): { filas: BaseHistorial[]; hasMore: boolean; vencidos?: number } {
   const pendientes = f.lista === "pendientes";
   const q = f.q?.trim() ?? "";
   const palabras = palabrasDe(q);
@@ -162,10 +276,43 @@ export function filtrarPublico(
     elegidas.push(b);
   }
 
-  elegidas.sort(pendientes ? porEntrega : porCierre);
+  // ─── El apartado de vencidos (Cambio 1, task-7c) ───────────────────────────
+  // Con la lista sin más, un pedido de enero encabeza la página aunque lo que
+  // importa esta semana esté cien filas más abajo: ordenar por entrega es
+  // correcto, pero enseñar la chatarra de hace meses de entrada hace parecer
+  // la lista desactualizada. Se separa aquí, en el servidor, y no en la
+  // pantalla, por dos motivos: (1) es DONDE se pagina — la pantalla nunca ve
+  // más de 40 filas a la vez, así que un total de verdad ("347 vencidos") solo
+  // se puede contar mirando TODO lo filtrado, que es justo lo que tiene
+  // delante este bucle y la pantalla no; (2) es donde ya vive el otro corte
+  // temporal de esta misma lista (CORTE_PENDIENTES_SIN_BUSQUEDA, arriba), así
+  // que las dos reglas quedan juntas y no una en cada sitio.
+  //
+  // Solo aplica a "pendientes" (la de realizados no lo pidió, y no tiene
+  // "vencido": ya sale ordenada por cierre más reciente). Sin "hoy" tampoco
+  // se separa nada: ver el comentario del parámetro.
+  let universo = elegidas;
+  let vencidos: number | undefined;
+  if (pendientes && hoy) {
+    const hoyMs = medianoche(hoy);
+    const esVencido = (b: BaseHistorial): boolean =>
+      b.fechaEntrega !== null && hoyMs !== null && b.fechaEntrega < hoyMs;
+    if (f.soloVencidos) {
+      universo = elegidas.filter(esVencido);
+    } else {
+      vencidos = elegidas.reduce((n, b) => n + (esVencido(b) ? 1 : 0), 0);
+      universo = elegidas.filter((b) => !esVencido(b));
+    }
+  }
+
+  universo.sort(pendientes ? porEntrega : porCierre);
   const off = Math.max(0, f.page) * PAGE_PUBLICO;
-  const trozo = elegidas.slice(off, off + PAGE_PUBLICO + 1);
-  return { filas: trozo.slice(0, PAGE_PUBLICO), hasMore: trozo.length > PAGE_PUBLICO };
+  const trozo = universo.slice(off, off + PAGE_PUBLICO + 1);
+  return {
+    filas: trozo.slice(0, PAGE_PUBLICO),
+    hasMore: trozo.length > PAGE_PUBLICO,
+    ...(vencidos !== undefined ? { vencidos } : {}),
+  };
 }
 
 /** Los filtros tal como llegan de la URL. NUNCA lanza: esto viene de fuera y
@@ -181,6 +328,7 @@ export function normalizarFiltrosPublicos(sp: URLSearchParams): FiltrosPublicos 
     familia: texto("familia"),
     desde: texto("desde"),
     hasta: texto("hasta"),
+    soloVencidos: sp.get("vencidos") === "1",
   };
 }
 

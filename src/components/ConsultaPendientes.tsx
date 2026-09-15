@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PedidoPublico, PedidoPublicoDetalle } from "@/lib/publico";
 import { lineaTiempo } from "@/lib/linea-tiempo";
 import { hoyISO } from "@/lib/types";
-import { fmtDiaMes, fmtFechaLarga } from "@/lib/fechas";
+import { fmtDiaMesAno, fmtFechaLarga } from "@/lib/fechas";
 import { SECCION_POR_DEFECTO } from "@/lib/secciones";
 import { ErrorCarga } from "./ErrorCarga";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
@@ -43,10 +43,19 @@ const TEXTOS: Record<
   },
 };
 
+/** La respuesta de `/api/publico/pedidos`: las filas de la página y, solo en
+ *  pendientes sin pedir el apartado de vencidos, el total de verdad de
+ *  vencidos (no el de esta página — ver filtrarPublico en lib/publico.ts). */
+type RespuestaLista = { pedidos: PedidoPublico[]; hasMore: boolean; vencidos?: number };
+
 export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizados" }) {
   const [pedidos, setPedidos] = useState<PedidoPublico[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  // Cuántos pedidos vencidos hay EN TOTAL (no los cargados): lo manda el
+  // servidor con cada página de "pendientes", porque es el único que ve el
+  // filtro entero y no solo las 40 filas de la pantalla.
+  const [vencidos, setVencidos] = useState(0);
   const [q, setQ] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
@@ -70,10 +79,11 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
           return;
         }
         if (!res.ok) throw new Error(String(res.status));
-        const json: { pedidos: PedidoPublico[]; hasMore: boolean } = await res.json();
+        const json: RespuestaLista = await res.json();
         setPreparando(false);
         setPedidos((previos) => (reemplazar ? json.pedidos : [...previos, ...json.pedidos]));
         setHasMore(json.hasMore);
+        setVencidos(json.vencidos ?? 0);
         setPage(paginaAcargar);
       } catch {
         setError(true);
@@ -101,6 +111,17 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
 
   const texto = TEXTOS[lista];
   const cargaInicial = cargando && pedidos.length === 0;
+  // La página nunca trae vencidos entre sus 40 filas (el servidor ya los
+  // aparta, ver filtrarPublico): lo cargado son solo pedidos por venir y,
+  // detrás, los sin fecha de entrega. Se separan aquí para meter el apartado
+  // plegado justo entre los dos grupos, sin tocar el orden de cada uno.
+  const conFecha = lista === "pendientes" ? pedidos.filter((p) => p.fechaEntrega !== null) : pedidos;
+  const sinFecha = lista === "pendientes" ? pedidos.filter((p) => p.fechaEntrega === null) : [];
+  // Puede haber pedidos pendientes de verdad y que TODOS estén vencidos (la
+  // página principal, entonces, llega vacía): decir "no hay pedidos" ahí
+  // sería mentir, así que el vacío de verdad exige también que no haya
+  // vencidos que enseñar.
+  const listaVacia = pedidos.length === 0 && vencidos === 0;
 
   return (
     <main className="mx-auto w-full max-w-[1100px] space-y-3 p-4">
@@ -172,14 +193,21 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
 
       {/* «No hay pedidos» solo cuando de verdad se ha mirado: mientras la
           lista se construye, lo que toca decir es que espere. */}
-      {!error && !preparando && !cargaInicial && pedidos.length === 0 && (
+      {!error && !preparando && !cargaInicial && listaVacia && (
         <div className="glass-panel grid min-h-32 place-items-center rounded-2xl px-6 text-center">
           <p className="text-sm text-text-muted">{texto.vacio}</p>
         </div>
       )}
 
       <ul className="flex flex-col gap-2">
-        {pedidos.map((p) => (
+        {conFecha.map((p) => (
+          <FilaPublica key={p.codigo} pedido={p} lista={lista} />
+        ))}
+        {/* Arriba, lo que se entrega de hoy en adelante; los vencidos aquí,
+            plegados y con su número; los pedidos sin fecha de entrega, al
+            final (ver el reparto de conFecha/sinFecha más arriba). */}
+        {lista === "pendientes" && vencidos > 0 && <ApartadoVencidos total={vencidos} q={q} />}
+        {sinFecha.map((p) => (
           <FilaPublica key={p.codigo} pedido={p} lista={lista} />
         ))}
       </ul>
@@ -201,6 +229,118 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
         </div>
       )}
     </main>
+  );
+}
+
+/** El apartado plegado de lo vencido (Cambio 1, task-7c). No forma parte de
+ *  la página principal: solo pide sus propias filas —con su propia
+ *  paginación de 40 en 40— cuando alguien lo despliega, igual que
+ *  `DetallePublico` no pide una OF hasta que se abre la fila. El número de la
+ *  cabecera SÍ llega ya cargado (lo manda cada página de la lista principal,
+ *  ver `vencidos` en `ConsultaPendientes`): es el total de verdad, y no hay
+ *  que abrir nada para conocerlo. */
+function ApartadoVencidos({ total, q }: { total: number; q: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [tocado, setTocado] = useState(false);
+  const [pedidos, setPedidos] = useState<PedidoPublico[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(false);
+
+  const cargar = useCallback(
+    async (paginaAcargar: number, reemplazar: boolean) => {
+      setCargando(true);
+      setError(false);
+      try {
+        const sp = new URLSearchParams({ lista: "pendientes", page: String(paginaAcargar), vencidos: "1" });
+        if (q.trim()) sp.set("q", q.trim());
+        const res = await fetch(`/api/publico/pedidos?${sp}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
+        const json: RespuestaLista = await res.json();
+        setPedidos((previos) => (reemplazar ? json.pedidos : [...previos, ...json.pedidos]));
+        setHasMore(json.hasMore);
+        setPage(paginaAcargar);
+      } catch {
+        setError(true);
+      } finally {
+        setCargando(false);
+      }
+    },
+    [q],
+  );
+
+  // Si ya estaba abierto y cambia la búsqueda, se vuelve a pedir desde la
+  // página 0: si no, un apartado abierto seguiría enseñando el resultado de
+  // la búsqueda anterior mientras el resto de la pantalla ya cambió. Envuelto
+  // en un timeout (como `DetallePublico`, más abajo) para no llamar a
+  // `setState` en el cuerpo mismo del efecto.
+  useEffect(() => {
+    if (!tocado) return;
+    const id = setTimeout(() => void cargar(0, true), 0);
+    return () => clearTimeout(id);
+    // Solo cuando cambia la búsqueda: abrir el apartado ya dispara su propia
+    // carga inicial (ver el botón, abajo) y no debe repetirla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
+  return (
+    <li className="glass-panel overflow-hidden rounded-xl">
+      <button
+        type="button"
+        onClick={() => {
+          setAbierto((a) => !a);
+          if (!tocado) {
+            setTocado(true);
+            void cargar(0, true);
+          }
+        }}
+        aria-expanded={abierto}
+        aria-controls="apartado-vencidos"
+        /* `flex-wrap` e `items-baseline` como la fila de un pedido: en pantalla
+           estrecha la frase de al lado pasa a dos líneas, y con `items-center`
+           el número y la flecha quedaban centrados respecto a un bloque de dos
+           líneas, descuadrados con la fila de debajo. */
+        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
+      >
+        <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+          {total} vencido{total === 1 ? "" : "s"}
+        </span>
+        <span className="text-xs text-text-muted">Se acumulan con entrega ya pasada. Toca para verlos.</span>
+        <span aria-hidden="true" className={`ml-auto shrink-0 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}>
+          <ChevronIcon />
+        </span>
+      </button>
+      <div id="apartado-vencidos" hidden={!abierto} className="border-t border-border">
+        {error && (
+          <div className="p-3">
+            <ErrorCarga mensaje="No se pudieron cargar los pedidos vencidos." onReintentar={() => void cargar(0, true)} />
+          </div>
+        )}
+        {!error && (
+          <ul className="flex flex-col gap-2 p-2">
+            {pedidos.map((p) => (
+              <FilaPublica key={p.codigo} pedido={p} lista="pendientes" />
+            ))}
+            {cargando && pedidos.length === 0 && (
+              <p role="status" className="py-2 text-center text-xs text-text-muted">Cargando…</p>
+            )}
+            {hasMore && (
+              <div className="flex justify-center pb-1">
+                <button
+                  type="button"
+                  onClick={() => void cargar(page + 1, false)}
+                  disabled={cargando}
+                  className="chip-3d h-9 rounded-lg px-4 text-xs font-semibold text-text disabled:cursor-wait disabled:opacity-60"
+                >
+                  {cargando ? "Cargando…" : "Ver más"}
+                </button>
+              </div>
+            )}
+          </ul>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -257,7 +397,10 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
           title={fecha ? `${texto.columna}: ${fmtFechaLarga(fecha)}` : `Sin fecha de ${texto.columna.toLowerCase()}`}
         >
           {vencido && "Vencido · "}
-          {texto.columna} {fecha ? fmtDiaMes(fecha) : "—"}
+          {/* Con año: la lista mezcla pedidos de varias campañas (2025, 2026,
+              y buscando hasta de 2019), y un día y mes sueltos no dicen de
+              cuál es (ver fmtDiaMesAno en lib/fechas.ts). */}
+          {texto.columna} {fecha ? fmtDiaMesAno(fecha) : "—"}
         </span>
         <span
           aria-hidden="true"

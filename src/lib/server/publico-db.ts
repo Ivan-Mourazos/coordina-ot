@@ -8,7 +8,7 @@ import {
   type PedidoPublico,
 } from "../publico";
 import { PEDIDOS } from "../mock";
-import { estaFinalizado } from "../types";
+import { estaFinalizado, hoyISO } from "../types";
 
 // ─── La consulta sin login: acceso a RPS (solo lectura) ──────────────────────
 // El índice en memoria (historial-indice.ts) dice QUÉ pedidos salen; esta
@@ -128,7 +128,7 @@ export class ListaEnConstruccion extends Error {
 /** La página del invitado: el índice filtrado, con sus centros puestos. */
 export async function leerPaginaPublica(
   f: FiltrosPublicos,
-): Promise<{ pedidos: PedidoPublico[]; hasMore: boolean }> {
+): Promise<{ pedidos: PedidoPublico[]; hasMore: boolean; vencidos?: number }> {
   if (ES_MOCK) return paginaMock(f);
 
   await asegurarIndice();
@@ -138,7 +138,9 @@ export async function leerPaginaPublica(
   // decir que todavía no que tumbar RPS.
   if (!indice) throw new ListaEnConstruccion();
 
-  const { filas, hasMore } = filtrarPublico(indice, f);
+  // "hoy" se decide UNA vez aquí y se pasa entero: es lo que separa lo
+  // vencido de lo que viene (ver el bloque de filtrarPublico en publico.ts).
+  const { filas, hasMore, vencidos } = filtrarPublico(indice, f, hoyISO());
   const centros = f.lista === "pendientes"
     ? await centrosDe(filas.map((b) => b.pedido))
     : new Map<string, string[]>();
@@ -160,7 +162,7 @@ export async function leerPaginaPublica(
       estado: frasePublica(suyos, b.pendienteEntrega),
     };
   });
-  return { pedidos, hasMore };
+  return { pedidos, hasMore, ...(vencidos !== undefined ? { vencidos } : {}) };
 }
 
 /** Sin base de datos (DATASOURCE distinto de "rps"): la web de desarrollo
@@ -178,9 +180,27 @@ export async function leerPaginaPublica(
  *  `fechaCreacion` tampoco lo trae ningún pedido del mock (solo existe para
  *  cuando RPS lo manda): se cae a `fechaSolicitud`, que sí tienen todos, para
  *  no enseñar una fecha en blanco en cada fila. */
-function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: boolean } {
+function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: boolean; vencidos?: number } {
   const pendientes = f.lista === "pendientes";
-  const pedidos = PEDIDOS.filter((p) => estaFinalizado(p) !== pendientes).map((p): PedidoPublico => {
+  let elegidos = PEDIDOS.filter((p) => estaFinalizado(p) !== pendientes);
+
+  // Mismo apartado de vencidos que en RPS (ver filtrarPublico, publico.ts):
+  // el mock también arranca con `soloVencidos` en la URL, así que sin esto la
+  // pantalla de desarrollo mentiría al enseñar la misma lista para las dos
+  // pestañas del apartado.
+  let vencidos: number | undefined;
+  if (pendientes) {
+    const hoy = hoyISO();
+    const esVencido = (p: (typeof PEDIDOS)[number]) => !!p.fechaEntrega && p.fechaEntrega < hoy;
+    if (f.soloVencidos) {
+      elegidos = elegidos.filter(esVencido);
+    } else {
+      vencidos = elegidos.filter(esVencido).length;
+      elegidos = elegidos.filter((p) => !esVencido(p));
+    }
+  }
+
+  const pedidos = elegidos.map((p): PedidoPublico => {
     const centros = pendientes ? ["OFICINA TECNICA ARZUA"] : [];
     return {
       codigo: p.codigo,
@@ -196,5 +216,5 @@ function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: bo
       estado: frasePublica(centros, pendientes),
     };
   });
-  return { pedidos, hasMore: false };
+  return { pedidos, hasMore: false, ...(vencidos !== undefined ? { vencidos } : {}) };
 }

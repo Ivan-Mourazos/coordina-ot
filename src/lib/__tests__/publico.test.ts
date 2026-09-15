@@ -29,8 +29,10 @@ test("pendiente es tener tarea abierta O algo sin entregar", () => {
 });
 
 test("la frase dice por dónde va, y la entrega es el último tramo", () => {
-  expect(frasePublica(["CORTE AUTOMÁTICO", "CONFECCION SANTIAGO"], true))
-    .toBe("Pendiente de: Corte automático, Confeccion santiago");
+  // Centros que NO están en la tabla de nombres bonitos (ver más abajo): aquí
+  // solo importa cómo se junta la frase, no la traducción del centro.
+  expect(frasePublica(["UN CENTRO", "OTRO CENTRO MAS"], true))
+    .toBe("Pendiente de: Un centro, Otro centro mas");
   expect(frasePublica([], true)).toBe("Fabricado, pendiente de entregar");
   expect(frasePublica([], false)).toBe("Entregado");
 });
@@ -156,6 +158,74 @@ test("los filtros llegan de la URL con valores sanos", () => {
   // Basura en la URL no puede tumbar la página ni colar otra lista.
   expect(normalizarFiltrosPublicos(new URLSearchParams("lista=inventada&page=-7")))
     .toMatchObject({ lista: "pendientes", page: 0 });
+});
+
+// ─── Cambio 1: lo vencido en su propio apartado ──────────────────────────────
+// Ver publico.ts: filtrarPublico recibe "hoy" para poder separar. Sin "hoy" el
+// comportamiento es el de siempre (nadie queda fuera), porque los tests de
+// arriba no hablan de vencidos y no tienen por qué aprender una fecha nueva.
+
+test("lo vencido no se mezcla con lo que viene, y aparece completo con soloVencidos", () => {
+  const i = indice([
+    base({ pedido: "VIEJO", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 0, 1) }), // vencido
+    base({ pedido: "FUTURO", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 2, 1) }), // por venir
+  ]);
+  const hoy = "2026-02-01";
+  const principal = filtrarPublico(i, { lista: "pendientes", page: 0 }, hoy).filas.map((f) => f.pedido);
+  expect(principal).toEqual(["FUTURO"]);
+  expect(principal).not.toContain("VIEJO");
+
+  const vencidos = filtrarPublico(i, { lista: "pendientes", page: 0, soloVencidos: true }, hoy).filas.map((f) => f.pedido);
+  expect(vencidos).toEqual(["VIEJO"]);
+});
+
+test("el número de vencidos es el total, no el de la página", () => {
+  const filas = Array.from({ length: PAGE_PUBLICO + 5 }, (_, n) =>
+    base({ pedido: `V${String(n).padStart(3, "0")}`, pendienteTotal: true, fechaEntrega: Date.UTC(2026, 0, 1) }));
+  const r = filtrarPublico(indice(filas), { lista: "pendientes", page: 0 }, "2026-06-01");
+  expect(r.vencidos).toBe(PAGE_PUBLICO + 5);
+  // La página principal no trae ninguno: están todos vencidos.
+  expect(r.filas).toHaveLength(0);
+});
+
+test("los sin fecha siguen al final, detrás de lo que viene y sin los vencidos en medio", () => {
+  const i = indice([
+    base({ pedido: "VENCIDO", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 0, 1) }),
+    base({ pedido: "PRONTO", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 2, 1) }),
+    base({ pedido: "TARDE", pendienteTotal: true, fechaEntrega: Date.UTC(2026, 3, 1) }),
+    base({ pedido: "SINFECHA", pendienteTotal: true, fechaEntrega: null }),
+  ]);
+  const { filas, vencidos } = filtrarPublico(i, { lista: "pendientes", page: 0 }, "2026-02-01");
+  expect(filas.map((f) => f.pedido)).toEqual(["PRONTO", "TARDE", "SINFECHA"]);
+  expect(vencidos).toBe(1);
+});
+
+test("sin pasar 'hoy', filtrarPublico no separa nada: es el comportamiento de siempre", () => {
+  const i = indice([
+    base({ pedido: "VIEJO", pendienteTotal: true, fechaEntrega: Date.UTC(2020, 0, 1) }),
+  ]);
+  const { filas, vencidos } = filtrarPublico(i, { lista: "pendientes", page: 0 });
+  expect(filas.map((f) => f.pedido)).toEqual(["VIEJO"]);
+  expect(vencidos).toBeUndefined();
+});
+
+// ─── Cambio 2: nombres de centro legibles ────────────────────────────────────
+
+test("un centro de la tabla sale con su nombre bonito", () => {
+  expect(frasePublica(["PLOTER DE CORTE MASCARA ULTRA SIGN PAL GRC1325"], true))
+    .toBe("Pendiente de: Plotter de corte");
+  expect(frasePublica(["OFICINA TECNICA ARZUA"], true)).toBe("Pendiente de: Oficina Técnica");
+});
+
+test("un centro que no está en la tabla sale con el texto de RPS, en frase", () => {
+  expect(frasePublica(["UN CENTRO INVENTADO XYZ"], true)).toBe("Pendiente de: Un centro inventado xyz");
+});
+
+test("la trampa del centro escrito de dos formas (espacios de más) no rompe la tabla", () => {
+  // Doble espacio en medio.
+  expect(frasePublica(["CONFECCION  BERGONDO"], true)).toBe("Pendiente de: Confección (Bergondo)");
+  // Espacio de sobra al final.
+  expect(frasePublica(["MONTAJE TOLDO PLANO "], true)).toBe("Pendiente de: Montaje");
 });
 
 test("buscar por cliente levanta el corte: un pedido de 2019 sale si lo filtro por su cliente", () => {

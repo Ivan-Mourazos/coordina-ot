@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasEntre, fmtDiaMes, relativoA, sumarDias, tituloDia } from "../fechas";
+import { diasEntre, fmtDiaMes, fmtDiaMesAno, relativoA, sumarDias, tituloDia } from "../fechas";
 
 const HOY = "2026-08-05";
 
@@ -90,5 +90,20 @@ describe("sumarDias", () => {
 describe("fmtDiaMes", () => {
   it("da dd/mm", () => {
     expect(fmtDiaMes("2026-08-05")).toBe("05/08");
+  });
+});
+
+describe("fmtDiaMesAno", () => {
+  it("da dd/mm/aa, con el año en dos cifras", () => {
+    expect(fmtDiaMesAno("2026-08-05")).toBe("05/08/26");
+  });
+
+  it("distingue campañas: un 2025 y un 2026 no se leen igual", () => {
+    expect(fmtDiaMesAno("2025-01-09")).toBe("09/01/25");
+    expect(fmtDiaMesAno("2026-01-09")).toBe("09/01/26");
+  });
+
+  it("con una fecha ilegible la devuelve tal cual", () => {
+    expect(fmtDiaMesAno("")).toBe("");
   });
 });
