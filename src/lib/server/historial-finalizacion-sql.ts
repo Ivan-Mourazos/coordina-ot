@@ -46,6 +46,21 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
       -- 14/09/2026 contra RPS: 151 de 551 pedidos pendientes desde junio no
       -- tenían ni un centro que enseñar.
       SELECT DISTINCT IDMOTask FROM dbo.CPRMOResourceMachine
+    ), Finalizacion AS (
+      -- Tareas del centro de Finalización. Por el CENTRO entran EMPAQUETAR y
+      -- PONER A MEDIDA Y EMBALAR, que no dicen «finalizar» (ver es_fin).
+      SELECT DISTINCT IDMOTask FROM dbo.CPRMOResourceMachine
+      WHERE UPPER(COALESCE(Description,'')) LIKE '%FINALIZ%'
+    ), Albaranes AS (
+      -- Solo para la lista ENTERA (ver ResumenPedido): agrupar los 2,3 M de
+      -- líneas de albarán una vez y cruzarlas por hash cuesta segundos;
+      -- preguntando línea a línea con OUTER APPLY, la lista pasó de 35 s a
+      -- 97 s (medido el 15/09/2026). Con búsqueda son cuatro líneas y manda
+      -- la cuenta contraria, así que ahí se usa el APPLY.
+      SELECT dl.IDOrderLine, MAX(d.DeliveryNoteDate) AS fecha
+      FROM dbo.FACDeliveryNoteLineSL dl
+      JOIN dbo.FACDeliveryNoteSL d ON d.IDDeliveryNote = dl.IDDeliveryNote
+      GROUP BY dl.IDOrderLine
     ), FinFase AS (
       SELECT orden, fase, MAX(fecha_cambio) AS fin
       FROM dbo.tgm_estadosof_olanet WHERE idestadoof=3 GROUP BY orden, fase
@@ -55,6 +70,10 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
           AND COALESCE(t.Description,'') NOT LIKE 'PLANTEAR EN TALLER%'
           THEN 1 ELSE 0 END AS de_seccion,
         CASE WHEN c.IDMOTask IS NOT NULL THEN 1 ELSE 0 END AS tiene_centro,
+        -- FINALIZAR manda (Iván, 15/09/2026): cerrada, la OF está rematada
+        -- en fábrica aunque quede algo de antes abierto por olvido.
+        CASE WHEN fz.IDMOTask IS NOT NULL
+          OR UPPER(COALESCE(t.Description,'')) LIKE '%FINALIZ%' THEN 1 ELSE 0 END AS es_fin,
         CASE WHEN e.fin IS NOT NULL OR (${rescateOt}) THEN 1 ELSE 0 END AS terminada,
         COALESCE(e.fin, CASE WHEN ${rescateOt}
           AND t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day,1,GETDATE())
@@ -64,6 +83,7 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
       LEFT JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder=mo.IDManufacturingOrder
       LEFT JOIN Recursos r ON r.IDMOTask=t.IDMOTask
       LEFT JOIN Centros c ON c.IDMOTask=t.IDMOTask
+      LEFT JOIN Finalizacion fz ON fz.IDMOTask=t.IDMOTask
       LEFT JOIN FinFase e ON e.orden=mo.CodManufacturingOrder AND e.fase=t.CodMOTask
       WHERE mo.CodCompany='001'
     ), ResumenOF AS (
@@ -81,6 +101,14 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         -- pendiente_seccion y tiene_seccion NO cambian: ya miran solo tareas
         -- de la sección, que siempre tienen centro (Recursos ⊆ Centros).
         MAX(CASE WHEN tiene_centro=1 THEN 1-terminada ELSE 0 END) AS pendiente_total,
+        -- Si le queda trabajo, para la consulta sin login. Por OF y no por
+        -- pedido: un pedido puede tener una OF con FINALIZAR y otra de
+        -- Santiago sin ella, y guardar solo «finalizar cerrada» daría por
+        -- rematada la de Santiago a medias. Sin FINALIZAR, la misma regla que
+        -- pendiente_total, que NO cambia: es la del equipo.
+        CASE WHEN MAX(CASE WHEN es_fin=1 AND terminada=1 THEN 1 ELSE 0 END)=1 THEN 0
+             WHEN MAX(es_fin)=1 THEN 1
+             ELSE MAX(CASE WHEN tiene_centro=1 THEN 1-terminada ELSE 0 END) END AS trabajo_abierto,
         MAX(CASE WHEN de_seccion=1 THEN fin END) AS fin_seccion, MAX(fin) AS fin_total
       FROM Tareas GROUP BY IDManufacturingOrder
     ), ResumenPedido AS (
@@ -89,6 +117,7 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         MAX(t.tiene_seccion) AS tiene_seccion,
         MAX(t.pendiente_seccion) AS pendiente_seccion,
         MAX(t.pendiente_total) AS pendiente_total,
+        MAX(t.trabajo_abierto) AS trabajo_abierto,
         MAX(t.fin_seccion) AS fin_seccion, MAX(t.fin_total) AS fin_total,
         -- RPS usa 1900-01-01 como "sin fecha" en ReceptionDemandDate: 86.061 de 427.221
         -- líneas llevan ese centinela, y un MIN sin filtrar se queda con él en cuanto
@@ -96,15 +125,28 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         -- SA.26.00537 diría 1900-01-01 cuando su entrega real es 2026-05-25). Mismo
         -- filtro que rps.ts:906-912 y el mismo umbral que usa fechaISO.
         MIN(CASE WHEN l.ReceptionDemandDate > '2000-01-01' THEN l.ReceptionDemandDate END) AS fecha_entrega,
-        MAX(CASE WHEN l.PendingDelivery = 1 THEN 1 ELSE 0 END) AS pendiente_entrega
+        MAX(CASE WHEN l.PendingDelivery = 1 THEN 1 ELSE 0 END) AS pendiente_entrega,
+        -- Cuándo salió de verdad: el ÚLTIMO albarán de sus líneas. Por línea y
+        -- no por cabecera: FACDeliveryNoteSL.IDOrder está vacío (0 pedidos
+        -- enlazados así en 2025 y 2026). Sin albarán, null: ni la solicitada
+        -- ni el cierre de tareas valen como sustituto.
+        MAX(a.fecha) AS fecha_entregado
       FROM ${busqueda ? "#CoordinaHistorialPedidos" : "dbo.FACOrderSL"} o
       JOIN dbo.FACOrderLineSL l ON l.IDOrder=o.IDOrder
       JOIN ResumenOF t ON t.IDManufacturingOrder=l.IDManufacturingOrder
+      ${busqueda ? `-- Un solo pedido: se buscan los albaranes de SUS líneas, sin agrupar
+      -- los de toda la casa (ver el CTE Albaranes).
+      OUTER APPLY (
+        SELECT MAX(d.DeliveryNoteDate) AS fecha
+        FROM dbo.FACDeliveryNoteLineSL dl
+        JOIN dbo.FACDeliveryNoteSL d ON d.IDDeliveryNote = dl.IDDeliveryNote
+        WHERE dl.IDOrderLine = l.IDOrderLine
+      ) a` : "LEFT JOIN Albaranes a ON a.IDOrderLine = l.IDOrderLine"}
       ${busqueda ? "" : "WHERE o.CodCompany='001' AND NOT EXISTS (SELECT 1 FROM #CoordinaHistorialPendientes pendiente WHERE pendiente.pedido=o.CodOrder)"}
       GROUP BY o.CodOrder
     ), PedFin AS (
       SELECT pedido, fecha_pedido, n_of, tiene_seccion, pendiente_seccion, pendiente_total,
-        fecha_entrega, pendiente_entrega,
+        fecha_entrega, pendiente_entrega, trabajo_abierto, fecha_entregado,
         CASE WHEN tiene_seccion=1 THEN fin_seccion ELSE fin_total END AS finalizada
       FROM ResumenPedido
     )

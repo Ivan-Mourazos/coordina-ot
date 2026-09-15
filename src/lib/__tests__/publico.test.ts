@@ -23,6 +23,8 @@ const base = (p: Partial<BaseHistorial> & { pedido: string }): BaseHistorial => 
   finalizada: Date.UTC(2026, 0, 5),
   fechaEntrega: Date.UTC(2026, 1, 1),
   pendienteEntrega: false,
+  trabajoAbierto: false,
+  fechaEntregado: null,
   ...p,
 });
 

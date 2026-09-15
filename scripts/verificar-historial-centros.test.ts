@@ -2,83 +2,173 @@ import { afterAll, expect, test } from "vitest";
 import { getPool } from "../src/lib/server/db";
 import { ctesFinalizacionHistorial } from "../src/lib/server/historial-finalizacion-sql";
 
-// getPool() abre conexión real: solo se toca si el test de abajo puede
-// correr. Con la suite ordinaria (VALIDAR_RPS_UI sin poner) este afterAll no
-// debe intentar hablar con RPS.
+// ─── La consulta de cierre contra RPS real, con tablas temporales ───────────
+// Se ejecuta el SQL REAL de ctesFinalizacionHistorial sustituyendo dbo.X por
+// #UI_X y metiendo filas de prueba: un expect(sql).toContain(...) no puede
+// fallar por un error de lógica, esto sí.
+//
+// Ninguna tabla de producción se toca: conexión de solo lectura y tablas
+// #temporales de la sesión. Se tiran al principio de cada caso porque el pool
+// reutiliza la conexión entre tests.
+//
+// Opt-in: VALIDAR_RPS_UI=1 node --env-file=.env.local node_modules/vitest/vitest.mjs
+// run scripts/verificar-historial-centros.test.ts
+
+const ACTIVO = process.env.VALIDAR_RPS_UI === "1";
+
 afterAll(async () => {
-  if (process.env.VALIDAR_RPS_UI !== "1") return;
+  if (!ACTIVO) return;
   await (await getPool()).close();
 });
 
-// ─── pendiente_total contra RPS real ──────────────────────────────────────
-// El test de src/lib/__tests__/publico-centros.test.ts que fijaba esta regla
-// con expect(sql).toContain(...) no podía fallar por un error de lógica: si
-// alguien rompiera el JOIN entre Centros y Tareas (p.ej. `ON c.IDMOTask =
-// r.IDMOTask` en vez de `t.IDMOTask`), los literales seguirían en el texto
-// del SQL y el test seguiría en verde. Aquí se ejecuta el SQL REAL de
-// ctesFinalizacionHistorial contra tablas temporales, con el mismo patrón que
-// scripts/verificar-historial-ui.test.ts: sustituye dbo.X por #UI_X, mete
-// filas de prueba y comprueba pendiente_total en vez del texto de la consulta.
-//
-// Ninguna tabla, fila ni marca de producción se escribe: la conexión es de
-// SOLO LECTURA (usuario de RPS) y lo único que se crea son tablas #temporales
-// de esta sesión, que SQL Server tira solas al cerrar la conexión.
+const TABLAS = {
+  CPRMOResourceMachine: "IDMOTask int, CodMOResourceMachine nvarchar(20), Description nvarchar(80)",
+  tgm_estadosof_olanet: "orden nvarchar(20), fase nvarchar(20), idestadoof int, fecha_cambio datetime2",
+  CPRManufacturingOrder: "IDManufacturingOrder int, CodManufacturingOrder nvarchar(20), CodCompany nvarchar(3)",
+  CPRMOTask: "IDManufacturingOrder int, IDMOTask int, CodMOTask nvarchar(20), Description nvarchar(80), PercentProgress int, RealEndDate datetime2",
+  FACOrderSL: "IDOrder int, CodOrder nvarchar(25), OrderDate datetime2, CodCompany nvarchar(3), IDCustomer int, IDCustomerDeliveryAddress int",
+  FACOrderLineSL: "IDOrderLine int, IDOrder int, IDManufacturingOrder int, ReceptionDemandDate datetime2, PendingDelivery bit",
+  FACDeliveryNoteSL: "IDDeliveryNote int, DeliveryNoteDate datetime2",
+  FACDeliveryNoteLineSL: "IDDeliveryNote int, IDOrderLine int",
+};
 
-// Opt-in: VALIDAR_RPS_UI=1 y node --env-file=.env.local node_modules/vitest/vitest.mjs
-// run scripts/verificar-historial-centros.test.ts. La suite ordinaria no conecta a RPS.
-test.skipIf(process.env.VALIDAR_RPS_UI !== "1")(
+interface Fila {
+  pedido: string;
+  pendiente_total: number;
+  trabajo_abierto: number;
+  fecha_entregado: Date | null;
+}
+
+/** Crea las tablas, mete `filas` y devuelve PedFin por pedido. */
+async function pedFinCon(filas: string): Promise<Map<string, Fila>> {
+  const pool = await getPool();
+  let sql = `${ctesFinalizacionHistorial("ot")}
+    SELECT pedido, pendiente_total, trabajo_abierto, fecha_entregado FROM PedFin ORDER BY pedido;`;
+  let preparar = "";
+  for (const [tabla, columnas] of Object.entries(TABLAS)) {
+    preparar += `IF OBJECT_ID('tempdb..#UI_${tabla}') IS NOT NULL DROP TABLE #UI_${tabla};\n`;
+    preparar += `CREATE TABLE #UI_${tabla} (${columnas});\n`;
+    // "dbo.FACOrderSL" no casa dentro de "dbo.FACOrderLineSL" (ni NoteSL
+    // dentro de NoteLineSL): el orden de las sustituciones no importa.
+    sql = sql.replaceAll(`dbo.${tabla}`, `#UI_${tabla}`);
+  }
+  const req = pool.request();
+  req.input("pendientes", "<pedidos></pedidos>");
+  const r = await req.query<Fila>(preparar + filas + sql);
+  return new Map(r.recordset.map((f) => [f.pedido.trim(), f]));
+}
+
+test.skipIf(!ACTIVO)(
   "pendiente_total solo cuenta tareas con fila en CPRMOResourceMachine",
   async () => {
-    const pool = await getPool();
-    afterAll(async () => { await pool.close(); });
-
-    const tablas = {
-      CPRMOResourceMachine: "IDMOTask int, CodMOResourceMachine nvarchar(20)",
-      tgm_estadosof_olanet: "orden nvarchar(20), fase nvarchar(20), idestadoof int, fecha_cambio datetime2",
-      CPRManufacturingOrder: "IDManufacturingOrder int, CodManufacturingOrder nvarchar(20), CodCompany nvarchar(3)",
-      CPRMOTask: "IDManufacturingOrder int, IDMOTask int, CodMOTask nvarchar(20), Description nvarchar(80), PercentProgress int, RealEndDate datetime2",
-      FACOrderSL: "IDOrder int, CodOrder nvarchar(25), OrderDate datetime2, CodCompany nvarchar(3), IDCustomer int, IDCustomerDeliveryAddress int",
-      FACOrderLineSL: "IDOrder int, IDManufacturingOrder int, ReceptionDemandDate datetime2, PendingDelivery bit",
-    };
-
-    // ctesFinalizacionHistorial(seccion) sin `busqueda`, igual que la llamada
-    // real del índice (historial-indice.ts: baseDe). @pendientes vacío: nada
-    // vivo en CoordinaOT que excluir.
-    let sql = `${ctesFinalizacionHistorial("ot")}
-      SELECT pedido, pendiente_total FROM PedFin ORDER BY pedido;`;
-    let preparar = "";
-    for (const [tabla, columnas] of Object.entries(tablas)) {
-      preparar += `CREATE TABLE #UI_${tabla} (${columnas});\n`;
-      sql = sql.replaceAll(`dbo.${tabla}`, `#UI_${tabla}`);
-    }
-    preparar += `
-      -- AR.26.00001: una OF con una tarea de TRABAJO (fila en
-      -- CPRMOResourceMachine, en un centro cualquiera) sin cerrar en OLANET
-      -- → tiene que salir pendiente.
+    const pedidos = await pedFinCon(`
+      -- AR.26.00001: tarea de TRABAJO (con centro) sin cerrar → pendiente.
       INSERT INTO #UI_FACOrderSL VALUES (1,'AR.26.00001','2026-09-10','001',1,NULL);
-      INSERT INTO #UI_FACOrderLineSL VALUES (1,1,'2026-09-20',0);
+      INSERT INTO #UI_FACOrderLineSL VALUES (1,1,1,'2026-09-20',0);
       INSERT INTO #UI_CPRManufacturingOrder VALUES (1,'0000001','001');
       INSERT INTO #UI_CPRMOTask VALUES (1,501,'5','19/8 TRABAJO DE VERDAD',0,NULL);
-      INSERT INTO #UI_CPRMOResourceMachine VALUES (501,'CALDERERIA');
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (501,'CALDERERIA','CALDERERIA');
 
-      -- AR.26.00002: la MISMA tarea (sin cerrar, sin recurso de OT) pero SIN
-      -- ninguna fila en CPRMOResourceMachine — como "0 · Materiales" o una
-      -- nota tecleada como tarea ("99 · VISITA") — → NO puede salir pendiente,
-      -- porque esa pseudo-tarea nunca cierra en OLANET y dejaría el pedido
-      -- pendiente para siempre.
+      -- AR.26.00002: la misma tarea SIN centro (Materiales, una nota) → no
+      -- pendiente: nunca cierra en OLANET.
       INSERT INTO #UI_FACOrderSL VALUES (2,'AR.26.00002','2026-09-10','001',1,NULL);
-      INSERT INTO #UI_FACOrderLineSL VALUES (2,2,'2026-09-20',0);
+      INSERT INTO #UI_FACOrderLineSL VALUES (2,2,2,'2026-09-20',0);
       INSERT INTO #UI_CPRManufacturingOrder VALUES (2,'0000002','001');
       INSERT INTO #UI_CPRMOTask VALUES (2,502,'5','99 · NOTA SIN CENTRO',0,NULL);
-    `;
+    `);
+    expect(pedidos.get("AR.26.00001")?.pendiente_total).toBe(1);
+    expect(pedidos.get("AR.26.00002")?.pendiente_total).toBe(0);
+  },
+  60_000,
+);
 
-    const req = pool.request();
-    req.input("pendientes", "<pedidos></pedidos>");
-    const r = await req.query<{ pedido: string; pendiente_total: number }>(preparar + sql);
-    const porPedido = new Map(r.recordset.map((f) => [f.pedido.trim(), f.pendiente_total]));
+test.skipIf(!ACTIVO)(
+  "trabajo_abierto: FINALIZAR manda, por OF, y sin FINALIZAR cuenta cualquier tarea con centro",
+  async () => {
+    const pedidos = await pedFinCon(`
+      -- AR.26.00003: FINALIZAR (por el CENTRO) cerrada y una calderería
+      -- olvidada abierta → sin trabajo.
+      INSERT INTO #UI_FACOrderSL VALUES (3,'AR.26.00003','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (3,3,3,'2026-09-20',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (3,'0000003','001');
+      INSERT INTO #UI_CPRMOTask VALUES (3,602,'5','SOLDAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (602,'CALDERERIA','CALDERERIA');
+      INSERT INTO #UI_CPRMOTask VALUES (3,603,'9','EMPAQUETAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (603,'FINALIZACION','FINALIZACION');
+      INSERT INTO #UI_tgm_estadosof_olanet VALUES ('0000003','9',3,'2026-09-12');
 
-    expect(porPedido.get("AR.26.00001")).toBe(1);
-    expect(porPedido.get("AR.26.00002")).toBe(0);
+      -- AR.26.00004: sin FINALIZAR y un corte abierto → con trabajo.
+      INSERT INTO #UI_FACOrderSL VALUES (4,'AR.26.00004','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (4,4,4,'2026-09-20',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (4,'0000004','001');
+      INSERT INTO #UI_CPRMOTask VALUES (4,604,'3','CORTAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (604,'CORTE MANUAL ARZUA','CORTE MANUAL ARZUA');
+
+      -- AR.26.00005: dos OF. Una con FINALIZAR cerrada; la otra, de Santiago,
+      -- sin FINALIZAR y a medias → el pedido tiene trabajo.
+      INSERT INTO #UI_FACOrderSL VALUES (5,'AR.26.00005','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (51,5,51,'2026-09-20',1);
+      INSERT INTO #UI_FACOrderLineSL VALUES (52,5,52,'2026-09-20',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (51,'0000051','001');
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (52,'0000052','001');
+      INSERT INTO #UI_CPRMOTask VALUES (51,651,'9','FINALIZAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (651,'FINALIZACION','FINALIZACION');
+      INSERT INTO #UI_tgm_estadosof_olanet VALUES ('0000051','9',3,'2026-09-12');
+      INSERT INTO #UI_CPRMOTask VALUES (52,652,'2','CONFECCIONAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (652,'CONFECCION SANTIAGO','CONFECCION SANTIAGO');
+
+      -- AR.26.00006: FINALIZAR reconocida por el TEXTO, en otro centro, cerrada
+      -- → sin trabajo aunque quede otra abierta.
+      INSERT INTO #UI_FACOrderSL VALUES (6,'AR.26.00006','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (6,6,6,'2026-09-20',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (6,'0000006','001');
+      INSERT INTO #UI_CPRMOTask VALUES (6,661,'4','COSER',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (661,'COSTURA POLIGONO','COSTURA POLIGONO');
+      INSERT INTO #UI_CPRMOTask VALUES (6,662,'8','FINALIZAR Y EMBALAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (662,'MONTAJE DE TOLDOS','MONTAJE DE TOLDOS');
+      INSERT INTO #UI_tgm_estadosof_olanet VALUES ('0000006','8',3,'2026-09-12');
+
+      -- AR.26.00007: todo cerrado menos FINALIZAR → con trabajo.
+      INSERT INTO #UI_FACOrderSL VALUES (7,'AR.26.00007','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (7,7,7,'2026-09-20',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (7,'0000007','001');
+      INSERT INTO #UI_CPRMOTask VALUES (7,671,'3','CORTAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (671,'CORTE ACRILICO','CORTE ACRILICO');
+      INSERT INTO #UI_tgm_estadosof_olanet VALUES ('0000007','3',3,'2026-09-10');
+      INSERT INTO #UI_CPRMOTask VALUES (7,672,'9','FINALIZAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (672,'FINALIZACION','FINALIZACION');
+    `);
+    expect(pedidos.get("AR.26.00003")?.trabajo_abierto).toBe(0);
+    expect(pedidos.get("AR.26.00004")?.trabajo_abierto).toBe(1);
+    expect(pedidos.get("AR.26.00005")?.trabajo_abierto).toBe(1);
+    expect(pedidos.get("AR.26.00006")?.trabajo_abierto).toBe(0);
+    expect(pedidos.get("AR.26.00007")?.trabajo_abierto).toBe(1);
+  },
+  60_000,
+);
+
+test.skipIf(!ACTIVO)(
+  "fecha_entregado es el ÚLTIMO albarán de las líneas, y null sin albarán",
+  async () => {
+    const pedidos = await pedFinCon(`
+      -- AR.26.00008: dos líneas en dos albaranes → cuenta el del 14.
+      INSERT INTO #UI_FACOrderSL VALUES (8,'AR.26.00008','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (81,8,81,'2026-09-11',0);
+      INSERT INTO #UI_FACOrderLineSL VALUES (82,8,82,'2026-09-11',0);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (81,'0000081','001');
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (82,'0000082','001');
+      INSERT INTO #UI_FACDeliveryNoteSL VALUES (901,'2026-09-09');
+      INSERT INTO #UI_FACDeliveryNoteSL VALUES (902,'2026-09-14');
+      INSERT INTO #UI_FACDeliveryNoteLineSL VALUES (901,81);
+      INSERT INTO #UI_FACDeliveryNoteLineSL VALUES (902,82);
+
+      -- AR.26.00009: entregado sin albarán enlazado → null, nunca otra fecha.
+      INSERT INTO #UI_FACOrderSL VALUES (9,'AR.26.00009','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (9,9,9,'2026-09-11',0);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (9,'0000009','001');
+    `);
+    expect(pedidos.get("AR.26.00008")?.fecha_entregado?.toISOString().slice(0, 10)).toBe("2026-09-14");
+    expect(pedidos.get("AR.26.00009")?.fecha_entregado).toBeNull();
   },
   60_000,
 );

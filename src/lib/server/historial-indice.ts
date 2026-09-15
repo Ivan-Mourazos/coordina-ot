@@ -46,6 +46,8 @@ interface FilaBase {
   pendiente_total: number | null;
   fecha_entrega: Date | null;
   pendiente_entrega: number | null;
+  trabajo_abierto: number | null;
+  fecha_entregado: Date | null;
   finalizada: Date | null;
 }
 
@@ -112,7 +114,7 @@ async function baseDe(seccion: SeccionId): Promise<BaseHistorial[]> {
   const base: BaseHistorial[] = [];
   await porFilas<FilaBase>(req, `${ctesFinalizacionHistorial(seccion)}
     SELECT pedido, fecha_pedido, n_of, tiene_seccion, pendiente_seccion, pendiente_total,
-           fecha_entrega, pendiente_entrega, finalizada FROM PedFin;
+           fecha_entrega, pendiente_entrega, trabajo_abierto, fecha_entregado, finalizada FROM PedFin;
     DROP TABLE #CoordinaHistorialPendientes;
     DROP TABLE #CoordinaHistorialFinalizados;`, (f) => {
     const pedido = (f.pedido ?? "").trim();
@@ -126,6 +128,8 @@ async function baseDe(seccion: SeccionId): Promise<BaseHistorial[]> {
       pendienteTotal: f.pendiente_total === 1,
       fechaEntrega: ms(f.fecha_entrega),
       pendienteEntrega: f.pendiente_entrega === 1,
+      trabajoAbierto: f.trabajo_abierto === 1,
+      fechaEntregado: ms(f.fecha_entregado),
       finalizada: ms(f.finalizada),
     });
   });

@@ -15,6 +15,8 @@ test("un pedido del índice lleva fecha de entrega y si queda algo por entregar"
     finalizada: Date.UTC(2026, 0, 20),
     fechaEntrega: Date.UTC(2026, 1, 1),
     pendienteEntrega: true,
+    trabajoAbierto: false,
+    fechaEntregado: null,
   };
   expect(b.fechaEntrega).toBe(Date.UTC(2026, 1, 1));
   expect(b.pendienteEntrega).toBe(true);

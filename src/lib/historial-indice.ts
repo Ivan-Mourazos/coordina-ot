@@ -26,6 +26,13 @@ export interface BaseHistorial {
    *  invitado vería «terminado» un pedido que sigue en el almacén sin salir,
    *  que es justo la etapa por la que llaman. */
   pendienteEntrega: boolean;
+  /** Le queda trabajo en fábrica, con la regla de FINALIZAR (ver
+   *  historial-finalizacion-sql.ts, ResumenOF). Solo lo usa la consulta sin
+   *  login, para decir «en fábrica» o «esperando salir». */
+  trabajoAbierto: boolean;
+  /** Fecha del último albarán de sus líneas (ms), o null si no hay ninguno
+   *  enlazado (antes de 2020, casi todos). */
+  fechaEntregado: number | null;
   tieneSeccion: boolean;
   pendienteSeccion: boolean;
   pendienteTotal: boolean;
