@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { ESTADO_FASE } from "@/lib/fases";
-import { situacionDe } from "@/lib/fase-pendiente";
 
 // OLANET se simula: estos tests fijan las REGLAS de la ruta, que es la que
 // escribe en el sistema de la fábrica. Lo que se comprueba es que no escriba
@@ -11,52 +9,29 @@ const moverFase = vi.fn<(o: unknown) => Promise<void>>();
 const fasesDeOFs = vi.fn<(ofs: readonly string[]) => Promise<unknown[]>>();
 const buscarIdBoletin = vi.fn<(of: string, fase: string) => Promise<string | null>>();
 
-// `finalizarFase` vive en el módulo real (src/lib/server/olanet.ts) y llama a
-// sus vecinos (maquinaDeFase, buscarIdBoletin, estadoDeFase, moverFase) por
-// referencia directa dentro del propio fichero: mockear "@/lib/server/olanet"
-// entero sustituye TODO el módulo, así que esas llamadas internas no pasan
-// por los mocks de aquí arriba aunque se les ponga el mismo nombre. Por eso
-// se repite aquí la MISMA orquestación que Step 2 puso en olanet.ts, pero
-// llamando a los vi.fn() de este fichero: es la única forma de probar la
-// ruta sin abrir una conexión real a OLANET. La lógica pura (ESTADO_FASE,
-// situacionDe) sí se importa de verdad: no toca ninguna BD.
-vi.mock("@/lib/server/olanet", () => ({
-  maquinaDeFase: (id: string) => maquinaDeFase(id),
-  estadoDeFase: (id: string) => estadoDeFase(id),
-  moverFase: (o: unknown) => moverFase(o),
-  fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
-  buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
-  finalizarFase: async (opts: {
-    idBoletin: string;
-    of?: string | null;
-    fase?: string | null;
-    esNuestra: (maquina: string) => boolean;
-    operarioRps: string;
-    cuando: Date;
-  }) => {
-    let boletin = opts.idBoletin;
-    let maquina = await maquinaDeFase(boletin);
-    if (maquina === null && opts.of && opts.fase) {
-      const rebuscado = await buscarIdBoletin(opts.of, opts.fase);
-      if (rebuscado) {
-        boletin = rebuscado;
-        maquina = await maquinaDeFase(boletin);
-      }
-    }
-    if (maquina === null)
-      return { ok: false, status: 404, error: "Esa fase ya no existe en OLANET" };
-    if (!opts.esNuestra(maquina))
-      return { ok: false, status: 403, error: `Esa fase es de ${maquina}, que no es trabajo de oficina` };
-
-    const estado = await estadoDeFase(boletin);
-    if (estado === ESTADO_FASE.finalizada) return { ok: true, yaEstaba: true, idBoletin: boletin };
-    if (situacionDe(estado ?? -1) !== "sin_finalizar")
-      return { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" };
-
-    await moverFase({ idBoletin: boletin, estado: ESTADO_FASE.finalizada, operarioRps: opts.operarioRps, cuando: opts.cuando });
-    return { ok: true, yaEstaba: false, idBoletin: boletin };
-  },
-}));
+// `finalizarFase` es LA DE VERDAD, no una copia: lo que decide si se escribe
+// el 3 vive en `finalizarFaseCon` (server/finalizar-fase.ts), que recibe por
+// parámetro las cuatro consultas y no importa `mssql`, así que aquí se le
+// pasan los vi.fn() de arriba y la ruta ejerce el código de producción.
+//
+// Antes este fichero REPETÍA ese cuerpo entero dentro del mock: mockear
+// "@/lib/server/olanet" sustituye el módulo entero, y cuando la orquestación
+// vivía ahí dentro llamaba a sus vecinos por referencia directa, sin pasar por
+// estos mocks. El efecto era que los seis casos de "no se escribe" probaban la
+// copia: cambiar en producción el orden de las comprobaciones, o `situacionDe`,
+// seguía pasando en verde.
+vi.mock("@/lib/server/olanet", async () => {
+  const { finalizarFaseCon } = await import("@/lib/server/finalizar-fase");
+  return {
+    maquinaDeFase: (id: string) => maquinaDeFase(id),
+    estadoDeFase: (id: string) => estadoDeFase(id),
+    moverFase: (o: unknown) => moverFase(o),
+    fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
+    buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
+    finalizarFase: (opts: Parameters<typeof finalizarFaseCon>[1]) =>
+      finalizarFaseCon({ maquinaDeFase, buscarIdBoletin, estadoDeFase, moverFase }, opts),
+  };
+});
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", jaime: "120", sinCodigo: undefined },
 }));
