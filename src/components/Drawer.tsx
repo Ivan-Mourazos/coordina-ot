@@ -222,7 +222,7 @@ export function Drawer({
   onDesficharVarias: (ofIds: string[]) => void;
   /** «Dar por terminada en RPS» ya contestó bien en el servidor: el Board
    *  refleja la marca. No pasa por `onAccion` (ver CerrarEnRpsInline). */
-  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   /** Las OF que estoy fichando YO ahora mismo (mi intervalo abierto).
    *
    *  NO vale `of.fichandoRol` para esto: ese dice que la ficha ALGUIEN —el
@@ -266,6 +266,11 @@ export function Drawer({
       vivo = false;
     };
   }, []);
+  // Lo que hay que contar tras dar una OF por terminada en RPS aunque haya ido
+  // bien (ya estaba cerrada, o una gemela 2/02 no entró). Vive AQUÍ y no en
+  // CerrarEnRpsInline: ese se desmonta en cuanto la OF se marca y pasa al
+  // cajón, y el aviso se iba con él. Atado al pedido: al abrir otro no sale.
+  const [avisosCierreRps, setAvisosCierreRps] = useState<{ pedido: string; textos: string[] } | null>(null);
   // LAS OF DE ESTE PEDIDO QUE ME TOCA REVISAR. Se calcula aquí arriba, sobre
   // el pedido crudo, porque de ello dependen las marcas —y las marcas son un
   // hook, que no puede ir detrás del `if (!pedido) return null` de más abajo.
@@ -550,6 +555,26 @@ export function Drawer({
           />
 
           <LineaTiempoPedido pedido={pedido} />
+
+          {avisosCierreRps?.pedido === pedido.codigo && (
+            <div
+              role="status"
+              className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1 space-y-1">
+                {avisosCierreRps.textos.map((t) => (
+                  <p key={t} className="text-[11px] leading-snug text-text">{t}</p>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAvisosCierreRps(null)}
+                className="shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+              >
+                Vale
+              </button>
+            </div>
+          )}
 
           {/* comentario del pedido de venta (condiciones, avisos del comercial) */}
           {pedido.comentarioVenta && (
@@ -883,7 +908,10 @@ export function Drawer({
                 revisionPorPedido={porPedido}
                 seccion={seccion}
                 esLaUltima={esLaUltimaQueQueda(of)}
-                onCerradoEnRps={onCerradoEnRps}
+                onCerradoEnRps={(id, cerradaRps, avisos) => {
+                  if (avisos && avisos.length > 0) setAvisosCierreRps({ pedido: pedido.codigo, textos: avisos });
+                  onCerradoEnRps(id, cerradaRps);
+                }}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
                 onTraspasarAutor={onTraspasarAutor}
@@ -1046,7 +1074,7 @@ function OFRow({
   seccion: Seccion;
   /** Es la última OF que queda del pedido: no se ofrece cerrarla en RPS. */
   esLaUltima: boolean;
-  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -1325,7 +1353,7 @@ function AccionesOF({
   seccion: Seccion;
   /** Ver `esLaUltimaQueQueda` en el Drawer. */
   esLaUltima: boolean;
-  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;

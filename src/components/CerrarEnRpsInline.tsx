@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { esFaseDe, type Seccion } from "@/lib/secciones";
 import { finalizables, situacionDe, type FaseDeOF } from "@/lib/fase-pendiente";
 import type { OF } from "@/lib/types";
+import { avisosTrasCerrarEnRps, type RespuestaCierreRps } from "@/lib/cerrar-of-avisos";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 interface FaseConBoletin extends FaseDeOF {
@@ -37,8 +38,11 @@ export function CerrarEnRpsInline({
   of: OF;
   seccion: Seccion;
   miId: string;
-  /** La OF ya se cerró en el servidor: el Board actualiza su estado local. */
-  onCerrado: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
+  /** La OF ya se cerró en el servidor: el Board actualiza su estado local.
+   *  `avisos`: lo que el autor tiene que saber aunque haya ido bien (ya estaba
+   *  terminada, o una gemela 2/02 no entró). Se pasan hacia arriba porque este
+   *  componente se desmonta en cuanto la OF queda marcada. */
+  onCerrado: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   abierto?: boolean;
   onAbrirCambio?: (v: boolean) => void;
 }) {
@@ -108,7 +112,7 @@ export function CerrarEnRpsInline({
         body: JSON.stringify({ ofId: of.id, seccion: seccion.id, operarioId: miId }),
       });
       const d = (await r.json().catch(() => null)) as
-        | { ok: true; modo: "sombra" | "ensayo" | "activo" }
+        | ({ ok: true; modo: "sombra" | "ensayo" | "activo" } & RespuestaCierreRps)
         | { error: string }
         | null;
       if (!r.ok || !d || !("ok" in d)) {
@@ -118,7 +122,7 @@ export function CerrarEnRpsInline({
         cerrarPanel();
         return;
       }
-      onCerrado(of.id, { at: new Date().toISOString(), por: miId, modo: d.modo });
+      onCerrado(of.id, { at: new Date().toISOString(), por: miId, modo: d.modo }, avisosTrasCerrarEnRps(d));
       cerrarPanel();
     } catch {
       setError(SIN_ESCRIBIR);
