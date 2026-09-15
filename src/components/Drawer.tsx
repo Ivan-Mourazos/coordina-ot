@@ -15,6 +15,7 @@ import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revisio
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
+import { CerrarEnRpsInline } from "./CerrarEnRpsInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
@@ -33,7 +34,7 @@ import {
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
-import { ofDeTaller, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
 import {
   BloqueFicha,
@@ -85,7 +86,7 @@ function fmt(d: string) {
 // no es tuya, "anulada" la quitasteis vosotros—, y por eso no valía un único
 // "ver el resto".
 
-type GrupoOculto = "detenida" | "taller" | "anulada";
+type GrupoOculto = "detenida" | "taller" | "anulada" | "cerrada";
 
 /** Por qué NO se enseña de entrada, o null si es trabajo de OT.
  *
@@ -93,9 +94,14 @@ type GrupoOculto = "detenida" | "taller" | "anulada";
  *  reversible: una OF anulada Y detenida se cuenta como anulada, porque lo que
  *  explica que no la vayas a plantear es que la anulasteis. Cada OF cae en un
  *  cajón y solo en uno: si no, los recuentos de los botones sumarían más OF de
- *  las que tiene el pedido. */
+ *  las que tiene el pedido.
+ *
+ *  Queda anulada > cerrada > taller > detenida. Una OF cerrada en RPS sigue
+ *  "aprobada" y sin `ajenaOT`; si luego la detienen, lo que explica que no se
+ *  trabaje es que se cerró, así que va antes que taller y detenida. */
 function grupoOculto(of: OF): GrupoOculto | null {
   if (of.estado === "anulada") return "anulada";
+  if (of.cerradaRps) return "cerrada";
   // `ofDeTaller` y no `ofOcultaDeOT`: aquí no vale la excepción del rescate,
   // porque el autor de una OF de taller puede venir deducido de RPS sin que
   // nadie de OT la haya tocado (ver el comentario en fases-tablero.ts). Lo que
@@ -127,6 +133,11 @@ const GRUPOS: readonly {
     nombre: (n) => (n === 1 ? "anulada" : "anuladas"),
     ayuda: "Anuladas en Oficina Técnica: no se plantean.",
   },
+  {
+    id: "cerrada",
+    nombre: (n) => (n === 1 ? "cerrada en RPS" : "cerradas en RPS"),
+    ayuda: "Dadas por terminadas en RPS antes de pasar el pedido. Producción ya las ve terminadas.",
+  },
 ];
 
 /** "0230697 — La hace el taller". Para leer de un vistazo por qué se anuló cada
@@ -135,6 +146,23 @@ const GRUPOS: readonly {
 function motivoDeAnulada(of: OF): string {
   const a = leerAnulacion(of.observacion);
   return `${of.codigo} — ${a ? textoAnulacion(a) : "sin motivo apuntado"}`;
+}
+
+/** "15/09/26 11:42", para el globo del distintivo y el resumen del cajón. */
+function fmtCierre(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const f = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getFullYear()).slice(2)}`;
+  const h = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${f} ${h}`;
+}
+
+/** "0232086 — Iván Sánchez, 15/09/26 11:42": para leer quién cerró cada OF y
+ *  cuándo sin desplegar el cajón, como `motivoDeAnulada`. */
+function motivoDeCerrada(of: OF, nombreDe: (id: string) => string | undefined): string {
+  const c = of.cerradaRps;
+  if (!c) return of.codigo;
+  return `${of.codigo} — ${nombreDe(c.por) ?? c.por}, ${fmtCierre(c.at)}`;
 }
 
 function opcionesOperario(
@@ -166,6 +194,7 @@ export function Drawer({
   onFichar,
   onDesfichar,
   onDesficharVarias,
+  onCerradoEnRps,
   ofIdsFichandoYo,
 }: {
   pedido: Pedido | null;
@@ -191,6 +220,9 @@ export function Drawer({
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   onDesficharVarias: (ofIds: string[]) => void;
+  /** «Dar por terminada en RPS» ya contestó bien en el servidor: el Board
+   *  refleja la marca. No pasa por `onAccion` (ver CerrarEnRpsInline). */
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
   /** Las OF que estoy fichando YO ahora mismo (mi intervalo abierto).
    *
    *  NO vale `of.fichandoRol` para esto: ese dice que la ficha ALGUIEN —el
@@ -362,6 +394,16 @@ export function Drawer({
   const paraCorregir = ofsDeOT.filter((o) =>
     accionesDisponibles(o, miId).some((a) => a.id === "aprobar_corregida"),
   );
+  // «Dar por terminada en RPS» no se ofrece en la ÚLTIMA OF que queda: si al
+  // aprobar esta el pedido quedara listo para pasar, lo que toca es «Pasar a
+  // Producción», que además lo saca del panel. La máquina de estados no puede
+  // mirarlo porque no conoce el pedido (ver `cerrar_en_rps` en acciones.ts); la
+  // ruta lo vuelve a comprobar con el mismo cálculo.
+  const esLaUltimaQueQueda = (o: OF) =>
+    pedidoListoParaPasar({
+      ...pedido,
+      ofs: pedido.ofs.map((x) => (x.id === o.id ? { ...x, estado: "aprobada" as const } : x)),
+    });
   const defCorregidas = {
     ...ACCIONES.find((a) => a.id === "aprobar_corregida")!,
     confirmar: `Las ${paraCorregir.length} OF quedan aprobadas sin pasar otra vez por revisión.`,
@@ -839,6 +881,9 @@ export function Drawer({
                 dobleFichaje={dobleFichaje}
                 pedidoDeUnaOF={pedido.ofs.length === 1}
                 revisionPorPedido={porPedido}
+                seccion={seccion}
+                esLaUltima={esLaUltimaQueQueda(of)}
+                onCerradoEnRps={onCerradoEnRps}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
                 onTraspasarAutor={onTraspasarAutor}
@@ -856,31 +901,44 @@ export function Drawer({
               {ocultas.map(({ grupo, ofs }) => {
                 const abierto = mostrar.has(grupo.id);
                 return (
-                  <button
-                    key={grupo.id}
-                    onClick={() =>
-                      setMostrar((prev) => {
-                        const s = new Set(prev);
-                        if (!s.delete(grupo.id)) s.add(grupo.id);
-                        return s;
-                      })
-                    }
-                    aria-expanded={abierto}
-                    // En las anuladas, el porqué de cada una sin desplegarlas:
-                    // es lo que se busca al repasar por qué falta trabajo.
-                    title={
-                      grupo.id === "anulada"
-                        ? `${grupo.ayuda}\n${ofs.map((o) => motivoDeAnulada(o)).join("\n")}`
-                        : grupo.ayuda
-                    }
-                    className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
-                      abierto
-                        ? "glass-chip-activo text-text"
-                        : "glass-chip text-text-muted hover:text-text"
-                    }`}
-                  >
-                    {abierto ? "Ocultar" : "Ver"} {ofs.length} {grupo.nombre(ofs.length)}
-                  </button>
+                  <div key={grupo.id} className={grupo.id === "cerrada" ? "w-full" : undefined}>
+                    <button
+                      onClick={() =>
+                        setMostrar((prev) => {
+                          const s = new Set(prev);
+                          if (!s.delete(grupo.id)) s.add(grupo.id);
+                          return s;
+                        })
+                      }
+                      aria-expanded={abierto}
+                      // En las anuladas, el porqué de cada una sin desplegarlas:
+                      // es lo que se busca al repasar por qué falta trabajo.
+                      title={
+                        grupo.id === "anulada"
+                          ? `${grupo.ayuda}\n${ofs.map((o) => motivoDeAnulada(o)).join("\n")}`
+                          : grupo.ayuda
+                      }
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                        abierto
+                          ? "glass-chip-activo text-text"
+                          : "glass-chip text-text-muted hover:text-text"
+                      }`}
+                    >
+                      {abierto ? "Ocultar" : "Ver"} {ofs.length} {grupo.nombre(ofs.length)}
+                    </button>
+                    {/* Las cerradas, una línea por OF con quién y cuándo, sin
+                        abrir el cajón: cerrar en RPS escribe en la fábrica y
+                        tiene que verse de un vistazo quién lo hizo. */}
+                    {grupo.id === "cerrada" && (
+                      <div className="mt-1 space-y-0.5">
+                        {ofs.map((o) => (
+                          <p key={o.id} className="text-[11px] text-text-muted">
+                            {motivoDeCerrada(o, (id) => opById(id)?.nombre)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -961,6 +1019,9 @@ function OFRow({
   dobleFichaje,
   pedidoDeUnaOF,
   revisionPorPedido,
+  seccion,
+  esLaUltima,
+  onCerradoEnRps,
   opById,
   onSetRevisor,
   onTraspasarAutor,
@@ -982,6 +1043,10 @@ function OFRow({
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
    *  aprobar ni devolver: esas suben al bloque del pedido. */
   revisionPorPedido: boolean;
+  seccion: Seccion;
+  /** Es la última OF que queda del pedido: no se ofrece cerrarla en RPS. */
+  esLaUltima: boolean;
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -1022,13 +1087,27 @@ function OFRow({
             Va en el propio distintivo y no en una línea aparte porque es lo
             que se busca al repasarlas, y así se lee sin abrir nada. */}
         <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}
-          title={anulacion?.nota}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
+          title={
+            of.cerradaRps
+              ? `Cerrada en RPS por ${opById(of.cerradaRps.por)?.nombre ?? of.cerradaRps.por}, ${fmtCierre(of.cerradaRps.at)}${
+                  of.cerradaRps.modo !== "activo" ? ` (modo ${of.cerradaRps.modo}: no se llegó a escribir en RPS)` : ""
+                }`
+              : anulacion?.nota
+          }
         >
           {/* "Aprobada" a secas se lee como "alguien la repasó y le dio el
               visto bueno". En las que van por "Dar por bueno sin revisión" eso
-              no pasó, y el histórico no puede decir que sí. */}
-          {aprobadaSinRevision(of) ? "Aprobada sin revisión" : meta.label}
+              no pasó, y el histórico no puede decir que sí. Con la marca, lo
+              que hay que leer es que ya está cerrada en RPS — y si fue en
+              sombra/ensayo, que NO se llegó a escribir de verdad. */}
+          {of.cerradaRps
+            ? of.cerradaRps.modo === "activo"
+              ? "Cerrada en RPS"
+              : "Cerrada · sin escribir en RPS"
+            : aprobadaSinRevision(of)
+              ? "Aprobada sin revisión"
+              : meta.label}
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
@@ -1197,6 +1276,9 @@ function OFRow({
         operarios={operarios}
         miId={miId}
         revisionPorPedido={revisionPorPedido}
+        seccion={seccion}
+        esLaUltima={esLaUltima}
+        onCerradoEnRps={onCerradoEnRps}
         onAccion={onAccion}
         onSetRevisor={onSetRevisor}
         onFichar={onFichar}
@@ -1221,6 +1303,9 @@ function AccionesOF({
   operarios,
   miId,
   revisionPorPedido,
+  seccion,
+  esLaUltima,
+  onCerradoEnRps,
   onAccion,
   onSetRevisor,
   onFichar,
@@ -1237,6 +1322,10 @@ function AccionesOF({
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
    *  aprobar ni devolver: esas suben al bloque del pedido. */
   revisionPorPedido: boolean;
+  seccion: Seccion;
+  /** Ver `esLaUltimaQueQueda` en el Drawer. */
+  esLaUltima: boolean;
+  onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -1248,6 +1337,9 @@ function AccionesOF({
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
   // Anular se abre desde el cajón de "⋯" (ver MenuAccionesOF).
   const [anulando, setAnulando] = useState(false);
+  // "Dar por terminada en RPS" se abre desde el cajón de "⋯", como anular
+  // (ver MenuAccionesOF).
+  const [cerrandoEnRps, setCerrandoEnRps] = useState(false);
   // De qué reloj habla el botón: el del planteo o el de la revisión.
   const rolReloj = rolFichajeDe(of);
   // "Reanudar" y no "Fichar" cuando ya hay tiempo echado: es la vuelta de una
@@ -1301,6 +1393,8 @@ function AccionesOF({
       a.id !== "retomar" &&
       !(relojALaVista && a.id === "empezar_revision") &&
       !(fichandoYoEsta && a.id === "terminar_planteo") &&
+      // La última OF que queda no se cierra suelta: eso es pasar el pedido.
+      !(esLaUltima && a.id === "cerrar_en_rps") &&
       // Las de estado suben al pedido en las secciones que trabajan así. Se
       // quedan fichar —que no pasa por aquí, tiene su propio botón— y anular,
       // que es la única que de verdad es de una OF suelta.
@@ -1431,6 +1525,21 @@ function AccionesOF({
               </Btn>
             )
           );
+        // Cerrar en RPS NO pasa por `pedirConfirmacion`/`onAccion`: eso lo
+        // guardaría por /api/estado sin cortar el reloj ni escribir en RPS.
+        // Va con su propio componente, que llama a /api/fases/cerrar-of.
+        // (`miId!`: `soloEl: "autor"` ya exige que haya alguien, y un null
+        // aquí ni siquiera llegaría a ofrecerla.)
+        if (a.id === "cerrar_en_rps")
+          return miId ? (
+            <CerrarEnRpsInline
+              key={a.id}
+              of={of}
+              seccion={seccion}
+              miId={miId}
+              onCerrado={onCerradoEnRps}
+            />
+          ) : null;
         const frenada = a.id === "aprobar" ? impedidoRevision : null;
         return (
           <Btn
@@ -1458,12 +1567,25 @@ function AccionesOF({
           onAnular={(obs) => onAccion([of.id], "anular", obs)}
         />
       )}
+      {/* Igual que anular: montado en modo controlado, lo abre el menú. */}
+      {menu.some((a) => a.id === "cerrar_en_rps") && miId && (
+        <CerrarEnRpsInline
+          of={of}
+          seccion={seccion}
+          miId={miId}
+          onCerrado={onCerradoEnRps}
+          abierto={cerrandoEnRps}
+          onAbrirCambio={setCerrandoEnRps}
+        />
+      )}
       <MenuAccionesOF
         acciones={menu}
         etiqueta={(a) => etiquetaAccion(a, of, (id) => operarios.find((o) => o.id === id)?.nombre)}
         onElegir={(a) => {
           if (a.id === "anular") setAnulando(true);
           else if (a.id === "terminar_planteo") setPidiendoRevisor(true);
+          // NUNCA por `pedirConfirmacion`: ver la rama de `sueltas` de arriba.
+          else if (a.id === "cerrar_en_rps") setCerrandoEnRps(true);
           else pedirConfirmacion(a);
         }}
       />

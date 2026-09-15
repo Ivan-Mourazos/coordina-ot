@@ -727,6 +727,10 @@ export function Board({
         // Tarea de taller y sin rescatar: no es trabajo de OT (ver
         // ofOcultaDeOT). Sigue en la Lista, que es donde se busca un pedido.
         if (ofOcultaDeOT(of)) continue;
+        // Cerrada en RPS: sale del reparto igual que una anulada — ya no es
+        // trabajo por hacer, y se consulta en su cajón dentro de la ficha del
+        // pedido (ver Drawer.tsx `grupoOculto`).
+        if (of.cerradaRps) continue;
         const loc = of.autorId;
         const arr = porLoc.get(loc);
         if (arr) arr.push(of);
@@ -1142,6 +1146,8 @@ export function Board({
        *  OFs tiene un pedido sin volver a la vista de RPS, que tarda 7-15 s. */
       ofIdsPedido?: string[];
       cortarFichajeDe?: string[];
+      /** Ids que salen de `of_retenida` (los manda "volver_a_plantear"). */
+      quitarRetenida?: string[];
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -1175,6 +1181,11 @@ export function Board({
     revisorId: of.revisorId,
     estado: of.estado,
     observacion: of.observacion ?? null,
+    // Cada mutación manda el snapshot COMPLETO de la OF (ver guardarMutacion
+    // en estado-db.ts). El servidor ya no se fía de este campo —copia la
+    // marca guardada salvo en "volver a plantear"—, pero se manda igual para
+    // que el snapshot diga la verdad de la OF.
+    cerradaRps: of.cerradaRps ?? null,
   });
 
   const mut = useCallback(
@@ -1186,6 +1197,8 @@ export function Board({
        *  Este navegador solo puede cerrar el suyo, y ni siquiera con la hora
        *  buena: el reloj oficial del fichaje es el del servidor. */
       cortarFichajeDe?: string[],
+      /** Ids que salen de `of_retenida` (los manda "volver_a_plantear"). */
+      quitarRetenida?: string[],
     ) => {
       const cambios: ReturnType<typeof snapshotDe>[] = [];
       setPedidosSync((prev) =>
@@ -1200,7 +1213,7 @@ export function Board({
         })),
       );
       if (motivo && cambios.length > 0)
-        persistir({ motivo, cambiosOF: cambios, cortarFichajeDe });
+        persistir({ motivo, cambiosOF: cambios, cortarFichajeDe, quitarRetenida });
     },
     [setPedidosSync, persistir],
   );
@@ -1794,6 +1807,12 @@ export function Board({
       // pero el bloque efectoFichaje==="corta" de abajo cortaría igual el
       // fichaje aunque la OF no haya cambiado de estado.
       if ((def?.conNota || def?.conMotivo) && !obs?.trim()) return;
+      // «Dar por terminada en RPS» NO se ejecuta por este embudo: aquí se
+      // aplicaría en local y se guardaría por /api/estado, sin cortar el reloj
+      // en el servidor ni escribir en RPS. Va por CerrarEnRpsInline →
+      // /api/fases/cerrar-of → `marcarCerradaEnRps`. (El servidor también la
+      // rechaza, pero sin esto la OF quedaría apartada en pantalla.)
+      if (accion === "cerrar_en_rps") return;
       // Solo disparar el efecto de fichaje sobre las OFs donde la acción
       // realmente aplica: si aplicarAccion() la hubiera rechazado para
       // todas (p.ej. "empezar_planteo" sobre una OF "devuelta"), no hay que
@@ -1824,6 +1843,7 @@ export function Board({
         },
         accion,
         corta ? aplicables : undefined,
+        accion === "volver_a_plantear" ? aplicables : undefined,
       );
       if (corta) {
         // Lo que ya se fichó se queda imputado (el servidor cierra el tramo con
@@ -1842,6 +1862,29 @@ export function Board({
   // FaseFlyout, TecnicoCard y PedidoLinea ya llaman a ejecutarAccion
   // directamente; el adaptador accionFacet murió con ellas.
   const accionOF = (ofId: string, a: AccionOF, obs?: string) => ejecutarAccion([ofId], a, obs);
+
+  // «Dar por terminada en RPS»: a diferencia de las demás acciones, el
+  // servidor ya hizo TODO el trabajo (CerrarEnRpsInline llama a
+  // /api/fases/cerrar-of directamente, y solo llega aquí si contestó bien).
+  // Este handler solo refleja el resultado en el tablero y suelta la OF de mi
+  // fichaje si la tenía abierta. Sin `mut`/`persistir`: no hay nada que guardar.
+  const marcarCerradaEnRps = useCallback(
+    (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => {
+      // El corte del reloj lo hizo el servidor: el sondeo de fichaje en vuelo
+      // no puede reponer el tramo de antes (ver `persistir`).
+      postSeqRef.current += 1;
+      setPedidosSync((prev) =>
+        prev.map((p) => ({
+          ...p,
+          ofs: p.ofs.map((of) =>
+            of.id === ofId ? { ...of, estado: "aprobada" as const, cerradaRps, fichandoRol: null } : of,
+          ),
+        })),
+      );
+      soltarDeMiFichaje([ofId]);
+    },
+    [setPedidosSync, soltarDeMiFichaje],
+  );
 
   // Pasar a Producción cierra el trabajo de OT: el pedido sale del tablero, sus
   // fases se dan por terminadas en OLANET y a partir de ahí solo se consulta
@@ -2441,6 +2484,7 @@ export function Board({
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
         onDesficharVarias={desficharVarias}
+        onCerradoEnRps={marcarCerradaEnRps}
         ofIdsFichandoYo={ofIdsFichandoYo}
       />
 
