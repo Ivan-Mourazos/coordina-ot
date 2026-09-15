@@ -313,16 +313,29 @@ test("quitarRetenida se ignora si el motivo no es «volver_a_plantear»", async 
   expect(estadoDb.leerOfsRetenidas("ot").some((r) => r.ofId === "0232202:9")).toBe(true);
 });
 
-// Remate pendiente de la Task 7 (spec §3, "Al pasar el pedido"): una OF que
-// volvió "del_pedido" (sin marcar al recuperar, así que siguió aprobada y
-// terminada en RPS sin que nadie la tocara) no manda su 3 otra vez. No es un
-// fallo de corrección —`enviarUno` ya no reescribe una fase que sigue en
-// 3—, pero ahorra la consulta y el apunte de más en `sch_FasesMov`.
-test("al pasar el pedido no se reenvía el 3 de las OF retenidas 'del_pedido'", async () => {
-  const id = "P-del-pedido";
+// Una OF retenida "del_pedido" (no se marcó al recuperar el pedido, así que
+// siguió aprobada y terminada en RPS) SÍ manda su 3 al pasar el pedido.
+//
+// Saltárselo por el motivo de la fila era una optimización, y estaba mal: una
+// OF `aprobada` sin marca de cerrada es FICHABLE (fichaje.ts, `esFichable`).
+// En cuanto alguien le echa tiempo, la cola emite su 1 al abrir y su 2 al
+// parar, y la operación se queda en 2 —empezada— para Producción. Si al pasar
+// el pedido nadie manda el 3, esa operación no se cierra nunca: es justo el
+// arrastre de operaciones abiertas que la spec viene a eliminar
+// (`fase-pendiente.ts`, las 125 fases sin cerrar de 2020-2024).
+//
+// Mandarlo siempre no duplica nada: `enviarUno` (olanet-worker.ts) relee el
+// estado de la fase y no reescribe un 3 sobre un 3. Cuesta una consulta por OF.
+test("al pasar el pedido se encola el 3 de una OF 'del_pedido' en la que alguien volvió a fichar", async () => {
+  const id = "P-del-pedido-refichada";
   estadoDb.guardarMutacion({
     operarioId: "ivan", motivo: "recuperar_pedido", seccion: "ot",
     ofRetenida: { ofId: "of-del-pedido", pedido: id, motivo: "del_pedido", por: "ivan", at: "x" },
+  });
+  // Alguien le echa tiempo después de recuperar el pedido: la operación queda
+  // en 2 en RPS, y sin el 3 se quedaría abierta para Producción para siempre.
+  fichajeDb.guardarFichaje("tamara", {
+    intervalos: [{ inicio: "2026-09-15T10:00:00.000Z", fin: null, ofIds: ["of-del-pedido"], rol: "plantear", operarioId: "tamara" }],
   });
   const pedido = {
     ...PEDIDOS[0], id, codigo: id,
@@ -336,10 +349,7 @@ test("al pasar el pedido no se reenvía el 3 de las OF retenidas 'del_pedido'", 
     operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id,
   });
   expect(res.status).toBe(200);
-  // Las dos siguen en la lista que se guarda como "OF que se pasaron" —esa es
-  // la que evita que el overlay reabra el pedido—, pero solo se encola el 3
-  // de la que de verdad se reabrió.
-  expect(finalizarMock).toHaveBeenCalledWith(["of-recuperada"], "ivan");
+  expect(finalizarMock).toHaveBeenCalledWith(["of-del-pedido", "of-recuperada"], "ivan");
   expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(true);
 });
 
