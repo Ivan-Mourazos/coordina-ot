@@ -9,7 +9,9 @@ import { detalleConsulta, type PedidoConsultaDetalle } from "../publico";
 import {
   diaIso,
   estadoEfectivo,
+  filaDelIndice,
   filtrarConsulta,
+  hoyEnOficina,
   pedidoConsulta,
   situacionDe,
   type FiltrosConsulta,
@@ -19,7 +21,7 @@ import {
 } from "../consulta";
 import { dondeEstaPedido, type DondeOF, type TareaConEstado } from "../consulta-donde";
 import { PEDIDOS } from "../mock";
-import { estaFinalizado, hoyISO } from "../types";
+import { estaFinalizado } from "../types";
 
 // ─── La consulta sin login: acceso a RPS y OLANET (solo lectura) ─────────────
 // El índice en memoria (historial-indice.ts) dice QUÉ pedidos salen y en qué
@@ -130,10 +132,13 @@ async function tareasDePedidos(pedidos: readonly string[]): Promise<FilaTarea[]>
       SELECT TOP 1 rm.Description AS centro FROM dbo.CPRMOResourceMachine rm
       WHERE rm.IDMOTask = t.IDMOTask ORDER BY rm.Description
     ) c
-    LEFT JOIN (
-      SELECT orden, fase, MAX(fecha_cambio) AS fin
-      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
-    ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
+    -- Correlacionado y no un agregado de toda la tabla: aquí son 40 pedidos, y
+    -- agrupar los cierres de la casa entera para cruzar cuarenta filas es lo
+    -- que en el índice costó 97 s contra 45 (ver el CTE Albaranes).
+    OUTER APPLY (
+      SELECT MAX(x.fecha_cambio) AS fin FROM dbo.tgm_estadosof_olanet x
+      WHERE x.idestadoof = 3 AND x.orden = mo.CodManufacturingOrder AND x.fase = t.CodMOTask
+    ) e
     WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})`);
   return r.recordset;
 }
@@ -187,7 +192,7 @@ export async function leerDonde(pedidos: readonly string[]): Promise<Map<string,
 /** La página del invitado: el índice filtrado y, para lo que está en fábrica,
  *  dónde está. */
 export async function leerPaginaConsulta(f: FiltrosConsulta): Promise<RespuestaConsulta> {
-  const hoy = hoyISO();
+  const hoy = hoyEnOficina();
   if (ES_MOCK) return paginaMockConsulta(f, hoy);
 
   await asegurarIndice();
@@ -215,7 +220,8 @@ export async function leerDetalleConsulta(pedido: string): Promise<PedidoConsult
     const detalle = await leerHistorialPedidoDetalle(pedido);
     return detalleConsulta(detalle, { situacion: null, fechaEntregado: null, donde: [] });
   }
-  const b = indiceSiListo()?.base[SECCION_POR_DEFECTO].find((x) => x.pedido === pedido) ?? null;
+  const indice = indiceSiListo();
+  const b = indice ? filaDelIndice(indice, pedido) : null;
   const situacion: SituacionPedido | null = b ? situacionDe(b) : null;
   const [detalle, donde] = await Promise.all([
     leerHistorialPedidoDetalle(pedido),

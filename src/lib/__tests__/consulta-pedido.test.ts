@@ -40,6 +40,28 @@ test("entregado: la fecha de salida es la del albarán, no la solicitada, y nunc
   });
 });
 
+test("la fila lleva EXACTAMENTE estas claves: lo que no está aquí no sale de casa", () => {
+  // La lista blanca de la lista, como `publico-detalle.test.ts` lo es del
+  // detalle: un campo nuevo en el índice no puede colarse en la respuesta solo
+  // porque alguien lo añada arriba.
+  const p = pedidoConsulta(b({}), info, [], "2026-09-15");
+  expect(Object.keys(p).sort()).toEqual(
+    [
+      "ciudadEntrega",
+      "cliente",
+      "codigo",
+      "dia",
+      "donde",
+      "familias",
+      "fechaEntrega",
+      "fechaEntregado",
+      "fueraDePlazo",
+      "negocio",
+      "situacion",
+    ].sort(),
+  );
+});
+
 test("sin entregar: el día es la entrega solicitada, y fuera de plazo si ya pasó", () => {
   // Con una fecha de albarán de una entrega parcial: no puede salir en la
   // fila, o diría que ya salió.

@@ -158,8 +158,14 @@ export function ConsultaPedidos({
           : pedidos.length > 0 && <ul className="bloque-3d overflow-hidden rounded-xl border-border [background:var(--surface)]">{pedidos.map(fila)}</ul>}
       </div>
 
+      {/* Lo que carga se dice SIEMPRE, no solo con la lista vacía: con «Ver
+          más», las cuarenta filas nuevas aparecían en silencio para quien no
+          las ve. */}
+      <p role="status" className="sr-only">
+        {cargando ? "Cargando pedidos…" : `${pedidos.length} pedidos en la lista`}
+      </p>
       {cargando && pedidos.length === 0 && !preparando && (
-        <p role="status" className="py-2 text-center text-xs text-text-muted">Cargando…</p>
+        <p aria-hidden="true" className="py-2 text-center text-xs text-text-muted">Cargando…</p>
       )}
       {/* El botón se queda montado mientras haya más que traer, también
           mientras carga: si desaparece justo al pulsarlo, quien lo tocó con el
@@ -278,7 +284,9 @@ function FichaConsulta({ codigo }: { codigo: string }) {
     return () => clearTimeout(t);
   }, [cargar]);
 
-  if (cargando) return <p className="text-sm text-text-muted">Cargando…</p>;
+  // Con `role="status"`: quien abre la ficha con el teclado no oía nada hasta
+  // que llegaban los datos.
+  if (cargando) return <p role="status" className="text-sm text-text-muted">Cargando el pedido…</p>;
   if (error || !detalle) return <ErrorCarga mensaje="No se pudo cargar el pedido." onReintentar={cargar} />;
 
   return (

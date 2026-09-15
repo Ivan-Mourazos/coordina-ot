@@ -79,19 +79,38 @@ test("si nadie ha empezado nada, lo siguiente son las abiertas con el número m�
   expect(donde.siguientes.map((p) => p.paso)).toEqual(["Corte", "Costura (Parque Empresarial)"]);
 });
 
-test("las pseudo-tareas sin centro no cuentan, y un movimiento finalizado cierra la tarea", () => {
+test("las pseudo-tareas sin centro no cuentan", () => {
   expect(dondeEstaOF("X", [
     tarea({ codigo: "0", descripcion: "MATERIALES", centro: null }),
-    tarea({ codigo: "3", movimiento: { estado: FINALIZADA, nombre: "Ana", desde: null } }),
+    tarea({ codigo: "3", cerrada: true }),
   ])).toBeNull();
 });
 
-test("FINALIZAR abierta sin centro sigue siendo trabajo pendiente", () => {
+test("cerrar es cosa de RPS: un «finalizada» de OLANET que RPS no recogió no borra el paso", () => {
+  // Si esto cerrara, el pedido seguiría saliendo «en fábrica» en la lista (el
+  // índice mira RPS) y la ficha se quedaría sin poder decir dónde está.
+  const donde = dondeEstaOF("X", [
+    tarea({ codigo: "3", movimiento: { estado: FINALIZADA, nombre: "Ana", desde: null } }),
+  ])!;
+  expect(donde.siguientes.map((p) => p.paso)).toEqual(["Calderería"]);
+});
+
+test("FINALIZAR abierta sin centro es trabajo pendiente, y NO saca su texto de casa", () => {
+  // RPS mete notas tecleadas como tarea; una que diga «finalizar» entraría por
+  // el texto, así que sin centro solo se dice el paso.
   const donde = dondeEstaOF("X", [
     tarea({ codigo: "3", cerrada: true }),
-    tarea({ codigo: "9", descripcion: "FINALIZAR", centro: null, esFinalizar: true }),
+    tarea({
+      codigo: "9",
+      descripcion: "99 · FINALIZAR CUANDO PAGUE, HABLAR CON ADMINISTRACION",
+      centro: null,
+      esFinalizar: true,
+    }),
   ])!;
-  expect(donde.siguientes.map((p) => p.paso)).toEqual(["Finalizar"]);
+  expect(donde.siguientes).toEqual([
+    { paso: "Finalización", tarea: "Finalización", quien: null, desde: null },
+  ]);
+  expect(JSON.stringify(donde)).not.toContain("PAGUE");
 });
 
 test("sin OLANET (sin movimientos) se sigue diciendo por dónde va, sin nombres", () => {

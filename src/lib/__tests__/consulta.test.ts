@@ -124,6 +124,18 @@ test("paso: Oficina Técnica, Diseño Gráfico y Taller por descarte, solo en f�
   expect(codigos(i, { estado: "todos", paso: "taller" })).toEqual(["TALLER"]);
 });
 
+test("buscar con un paso puesto encuentra el pedido igual: el paso no puede desmentir al buscador", () => {
+  // Con «Próximas entregas» (el estado de entrada) y un paso elegido, buscar
+  // levanta el estado a «Todos»; si el paso siguiera filtrando, la pantalla
+  // diría «buscando en todos los pedidos» y devolvería vacío.
+  const i = indice([base("AR.26.04082", { pendienteEntrega: false, pendienteSeccion: true })]);
+  const r = filtrarConsulta(i, f({ paso: "ot", q: "AR.26.04082" }), HOY);
+  expect(r.estado).toBe("todos");
+  expect(r.filas.map((b) => b.pedido)).toEqual(["AR.26.04082"]);
+  // Con un estado elegido a mano, el paso SÍ se respeta al buscar.
+  expect(codigos(i, { estado: "fabrica", paso: "diseno", q: "AR.26.04082" })).toEqual([]);
+});
+
 test("entregados: lo último que salió primero, sin albarán al final, y totales por día", () => {
   const i = indice([
     base("A", { pendienteEntrega: false, fechaEntregado: dia("2026-09-09") }),

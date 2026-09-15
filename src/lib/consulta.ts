@@ -73,6 +73,20 @@ export interface PaginaConsulta {
 export const diaIso = (ms: number | null): string | null =>
   ms === null ? null : new Date(ms).toISOString().slice(0, 10);
 
+// El servidor va en UTC y la oficina en Europe/Madrid: a las 22:30 de un día
+// de verano, `new Date()` en UTC todavía dice ayer, y la ventana de «próximas
+// entregas» se corría un día entero (y «fuera de plazo» tardaba dos horas de
+// más en encenderse). El mismo corte que ya usa el índice del Historial.
+const DIA_OFICINA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Hoy, en la zona de la oficina (yyyy-mm-dd). */
+export const hoyEnOficina = (): string => DIA_OFICINA.format(new Date());
+
 export function sumaDias(iso: string, dias: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
@@ -99,27 +113,73 @@ export function diaDeFila(b: BaseHistorial): string | null {
   return situacionDe(b) === "entregado" ? diaIso(b.fechaEntregado) : diaIso(b.fechaEntrega);
 }
 
-// Las dos secciones del índice tienen los mismos pedidos; la de diseño solo
-// hace falta para saber si le queda trabajo de Diseño Gráfico. Se indexa una
-// vez por índice (se rehace cada 30 min) y no en cada petición.
-const disenoPorIndice = new WeakMap<IndiceHistorial, Map<string, BaseHistorial>>();
-function disenoDe(indice: IndiceHistorial): Map<string, BaseHistorial> {
-  let mapa = disenoPorIndice.get(indice);
-  if (!mapa) {
-    mapa = new Map(indice.base.diseno.map((b) => [b.pedido, b]));
-    disenoPorIndice.set(indice, mapa);
+// ─── Lo que se calcula UNA vez por índice ───────────────────────────────────
+// Filtrar son 153.000 filas, y hacerlo en el proceso que también sirve al
+// equipo obliga a mirar lo que cuesta: sacar la fecha en ISO de cada fila (dos
+// `new Date().toISOString()` por pedido) eran 348 ms de CPU por búsqueda, y
+// buscando se recorre TODO (ver `estadoEfectivo`). Aquí se prepara una sola
+// vez por índice —que se rehace cada 30 minutos— y las peticiones solo
+// comparan textos ya hechos.
+//
+// De paso se guarda el pedido en un Map: la ficha lo buscaba recorriendo las
+// 153.000 filas cada vez que alguien desplegaba una.
+
+interface FilaLista {
+  b: BaseHistorial;
+  situacion: SituacionPedido;
+  /** La entrega solicitada, ISO. */
+  entrega: string | null;
+  /** La fecha que se lee y que agrupa (`diaDeFila`). */
+  dia: string | null;
+  familias: string[];
+  /** Le queda trabajo de Diseño Gráfico (sale de la otra sección del índice). */
+  deDiseno: boolean;
+}
+
+interface Preparado {
+  filas: FilaLista[];
+  porPedido: Map<string, BaseHistorial>;
+}
+
+const preparadoPorIndice = new WeakMap<IndiceHistorial, Preparado>();
+
+function prepararIndice(indice: IndiceHistorial): Preparado {
+  const ya = preparadoPorIndice.get(indice);
+  if (ya) return ya;
+  // Las dos secciones llevan los MISMOS pedidos; la de diseño solo hace falta
+  // para saber si le queda trabajo de Diseño Gráfico.
+  const diseno = new Map(indice.base.diseno.map((b) => [b.pedido, b]));
+  const filas: FilaLista[] = [];
+  const porPedido = new Map<string, BaseHistorial>();
+  for (const b of indice.base[SECCION_POR_DEFECTO]) {
+    const situacion = situacionDe(b);
+    filas.push({
+      b,
+      situacion,
+      entrega: diaIso(b.fechaEntrega),
+      dia: situacion === "entregado" ? diaIso(b.fechaEntregado) : diaIso(b.fechaEntrega),
+      familias: indice.info.get(b.pedido)?.familias ?? [],
+      deDiseno: diseno.get(b.pedido)?.pendienteSeccion ?? false,
+    });
+    porPedido.set(b.pedido, b);
   }
-  return mapa;
+  const preparado = { filas, porPedido };
+  preparadoPorIndice.set(indice, preparado);
+  return preparado;
+}
+
+/** El pedido tal como está en el índice, sin recorrerlo entero. */
+export function filaDelIndice(indice: IndiceHistorial, pedido: string): BaseHistorial | null {
+  return prepararIndice(indice).porPedido.get(pedido) ?? null;
 }
 
 /** Refleja las tareas TAL COMO ESTÁN en RPS: una de OT olvidada abierta hace
  *  que salga en Oficina Técnica. Taller es lo que queda, por descarte. */
-function enPaso(paso: PasoConsulta, ot: BaseHistorial, diseno: BaseHistorial | undefined): boolean {
-  const deOt = ot.pendienteSeccion;
-  const deDiseno = diseno?.pendienteSeccion ?? false;
+function enPaso(paso: PasoConsulta, fila: FilaLista): boolean {
+  const deOt = fila.b.pendienteSeccion;
   if (paso === "ot") return deOt;
-  if (paso === "diseno") return deDiseno;
-  return !deOt && !deDiseno;
+  if (paso === "diseno") return fila.deDiseno;
+  return !deOt && !fila.deDiseno;
 }
 
 /** Por fecha, y los que no tienen al final: un pedido sin fecha no es urgente,
@@ -137,26 +197,25 @@ export function filtrarConsulta(indice: IndiceHistorial, f: FiltrosConsulta, hoy
   const coincide = q ? coincideBusqueda(q) : null;
   const limite = sumaDias(hoy, DIAS_PROXIMAS);
   const familia = f.familia?.trim() || null;
-  const diseno = f.paso ? disenoDe(indice) : null;
+  // El paso solo filtra lo que está en fábrica, así que se cae cuando la
+  // búsqueda levanta el estado de entrada («Próximas entregas» → «Todos», ver
+  // `estadoEfectivo`): si no, la pantalla prometía buscar en todos los pedidos
+  // y devolvía vacío porque seguía exigiendo un paso de fábrica.
+  const paso = estado === f.estado ? f.paso : undefined;
 
-  const sinFamilia: { b: BaseHistorial; dia: string | null; familias: string[] }[] = [];
-  // Las dos secciones del índice llevan los MISMOS pedidos (lo que cambia es
-  // de qué tareas se mira el cierre): se recorre una sola.
-  for (const b of indice.base[SECCION_POR_DEFECTO]) {
-    const situacion = situacionDe(b);
-    const entrega = diaIso(b.fechaEntrega);
+  const sinFamilia: FilaLista[] = [];
+  for (const fila of prepararIndice(indice).filas) {
+    const { situacion, entrega, dia } = fila;
     if (estado === "proximas" && (situacion === "entregado" || entrega === null || entrega < hoy || entrega > limite)) continue;
     if (estado === "fuera" && (situacion === "entregado" || entrega === null || entrega >= hoy)) continue;
     if (estado === "fabrica" && situacion !== "fabrica") continue;
     if (estado === "salir" && situacion !== "salir") continue;
     if (estado === "entregados" && situacion !== "entregado") continue;
-    if (f.paso && (situacion !== "fabrica" || !enPaso(f.paso, b, diseno!.get(b.pedido)))) continue;
-    const dia = diaDeFila(b);
+    if (paso && (situacion !== "fabrica" || !enPaso(paso, fila))) continue;
     if (f.desde && (dia === null || dia < f.desde)) continue;
     if (f.hasta && (dia === null || dia > f.hasta)) continue;
-    const info = indice.info.get(b.pedido);
-    if (coincide && !coincide(b.pedido, info)) continue;
-    sinFamilia.push({ b, dia, familias: info?.familias ?? [] });
+    if (coincide && !coincide(fila.b.pedido, indice.info.get(fila.b.pedido))) continue;
+    sinFamilia.push(fila);
   }
 
   const cuenta = new Map<string, number>();

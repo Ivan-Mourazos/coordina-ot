@@ -62,21 +62,36 @@ export function numeroDeTarea(codigo: string): number {
   return /^\d+$/.test(limpio) ? Number(limpio) : Number.POSITIVE_INFINITY;
 }
 
-const estaCerrada = (t: TareaConEstado) => t.cerrada || t.movimiento?.estado === FINALIZADA;
+/** Cerrada es lo que diga RPS, y SOLO eso: es la misma señal con la que el
+ *  índice decidió que al pedido le queda trabajo. Un movimiento «finalizada»
+ *  en OLANET que RPS todavía no ha recogido NO cierra aquí; si lo hiciera, un
+ *  pedido que la lista enseña «en fábrica» se quedaría sin poder decir dónde
+ *  está, que es justo lo que se viene a mirar. */
+const estaCerrada = (t: TareaConEstado) => t.cerrada;
+
+/** El paso de una tarea sin centro no puede salir de su TEXTO: RPS mete notas
+ *  tecleadas como tarea («99 · 03/09 VISITA…»), y una que diga «finalizar»
+ *  sacaría de casa lo que alguien escribió para el taller. Sin centro solo se
+ *  dice el paso, que en ese caso se sabe por qué entró: es la de finalizar. */
+const PASO_SIN_CENTRO = "Finalización";
 
 function pasoDe(t: TareaConEstado, conQuien: boolean): PasoDonde {
+  const paso = t.centro ? nombreDeCentro(t.centro) : PASO_SIN_CENTRO;
   return {
-    paso: t.centro ? nombreDeCentro(t.centro) : capitalizaFrase(t.descripcion),
-    tarea: capitalizaFrase(t.descripcion),
+    paso,
+    // Igual con el texto de la tarea: solo se enseña el de las que cuelgan de
+    // un centro, que son trabajo de verdad.
+    tarea: t.centro ? capitalizaFrase(t.descripcion) : paso,
     quien: conQuien ? (t.movimiento?.nombre ?? null) : null,
     desde: conQuien ? (t.movimiento?.desde ?? null) : null,
   };
 }
 
 /** null = la OF no tiene trabajo pendiente. MISMA regla que el índice
- *  (`trabajo_abierto`): FINALIZAR cerrada manda; si no, cuenta lo que tiene
- *  centro, más FINALIZAR aunque no lo tenga. Con otra regla, un pedido que la
- *  lista da por «en fábrica» no tendría dónde estar. */
+ *  (`trabajo_abierto`, en historial-finalizacion-sql.ts) y con la misma señal
+ *  de cierre (ver `estaCerrada`): FINALIZAR cerrada manda; si no, cuenta lo
+ *  que tiene centro, más FINALIZAR aunque no lo tenga. Con otra regla, un
+ *  pedido que la lista da por «en fábrica» no tendría dónde estar. */
 export function dondeEstaOF(orden: string, tareas: readonly TareaConEstado[]): DondeOF | null {
   if (tareas.some((t) => t.esFinalizar && estaCerrada(t))) return null;
   const abiertas = tareas.filter((t) => (t.centro || t.esFinalizar) && !estaCerrada(t));

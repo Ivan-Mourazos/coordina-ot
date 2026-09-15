@@ -41,6 +41,7 @@ export function Select({
   className = "",
   acentuarActivo = false,
   etiquetaVaciar,
+  ariaLabelledBy,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -57,6 +58,10 @@ export function Select({
   acentuarActivo?: boolean;
   /** Texto de la opción que quita el valor, cuando no sirve el del botón. */
   etiquetaVaciar?: string;
+  /** Id del rótulo de al lado. Un `<label>` alrededor NO vale: este control es
+   *  un `<button>`, y entonces el rótulo gana al contenido del botón al
+   *  calcular el nombre accesible — se oye «Estado» y nunca el valor elegido. */
+  ariaLabelledBy?: string;
 }) {
   // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
   // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
@@ -191,6 +196,7 @@ export function Select({
         onClick={() => (open ? setOpen(false) : abrir())}
         onKeyDown={onKeyDown}
         aria-haspopup="listbox"
+        aria-labelledby={ariaLabelledBy}
         aria-expanded={open}
         aria-controls={open ? idOpcion : undefined}
         aria-activedescendant={open && activeIx >= 0 ? idDe(activeIx) : undefined}

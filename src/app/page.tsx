@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   // QUIÉN PREGUNTA decide qué web es esta. Con el login encendido, quien no ha
-  // entrado ve la consulta: tres pestañas de solo lectura para toda la casa.
+  // entrado ve la consulta: dos pestañas de solo lectura para toda la casa.
   // Apagado no hay invitados y la web es exactamente la de siempre.
   if (loginActivo()) {
     const cabeceras = await headers();

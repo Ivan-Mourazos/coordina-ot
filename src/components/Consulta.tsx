@@ -69,11 +69,17 @@ export function Consulta() {
           aria-label="Secciones"
           className="glass-chip inline-flex flex-wrap rounded-lg p-[3px]"
           onKeyDown={(e) => {
-            const salto = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-            if (salto === 0) return;
-            e.preventDefault();
             const i = PESTANAS.findIndex((p) => p.id === pestana);
-            const siguiente = PESTANAS[(i + salto + PESTANAS.length) % PESTANAS.length];
+            // Flechas para moverse una a una; Inicio y Fin a los extremos, como
+            // pide el patrón de tablist.
+            let destino: number | null = null;
+            if (e.key === "ArrowRight") destino = (i + 1) % PESTANAS.length;
+            else if (e.key === "ArrowLeft") destino = (i - 1 + PESTANAS.length) % PESTANAS.length;
+            else if (e.key === "Home") destino = 0;
+            else if (e.key === "End") destino = PESTANAS.length - 1;
+            if (destino === null) return;
+            e.preventDefault();
+            const siguiente = PESTANAS[destino];
             setPestana(siguiente.id);
             document.getElementById(`pestana-${siguiente.id}`)?.focus();
           }}
@@ -140,32 +146,45 @@ export function Consulta() {
             {/* Panel de vidrio, como la cabecera: sobre el fondo gris de la
                 web, una caja con solo un borde fino se perdía. */}
             <div className="glass-panel flex flex-wrap items-end gap-3 rounded-xl px-3 py-2.5">
-              <label className="flex flex-col text-xs font-semibold text-text">
-                Estado
+              {/* Rótulos con `aria-labelledby` y no con `<label>`: el Select
+                  es un `<button>`, y un label alrededor gana al contenido del
+                  botón al calcular el nombre accesible — un lector de pantalla
+                  decía «Estado, botón» sin llegar a decir «En fábrica». */}
+              <div className="flex flex-col text-xs font-semibold text-text">
+                <span id="filtro-estado">Estado</span>
                 <span className="mt-1">
                   <Select
                     value={estado}
                     onChange={(v) => setEstado((v as EstadoConsulta | null) ?? "proximas")}
                     placeholder={null}
+                    ariaLabelledBy="filtro-estado"
                     options={ESTADOS_CONSULTA.map((e) => ({ value: e.id, label: e.label }))}
                   />
                 </span>
-              </label>
-              <label className="flex flex-col text-xs font-semibold text-text">
-                Paso
-                <span className="mt-1" title={sinPaso ? "Solo para lo que está en fábrica" : undefined}>
+              </div>
+              <div className="flex flex-col text-xs font-semibold text-text">
+                <span id="filtro-paso">Paso</span>
+                {/* El motivo, en texto y no solo en un `title`, que no se lee
+                    ni al tacto ni con lector de pantalla. */}
+                {sinPaso && (
+                  <span id="filtro-paso-nota" className="sr-only">
+                    Solo filtra lo que está en fábrica
+                  </span>
+                )}
+                <span className="mt-1">
                   <Select
                     value={sinPaso ? null : paso}
                     onChange={(v) => setPaso(v as PasoConsulta | null)}
-                    placeholder={sinPaso ? "—" : "Todos los pasos"}
+                    placeholder={sinPaso ? "Solo en fábrica" : "Todos los pasos"}
                     etiquetaVaciar="Todos los pasos"
                     acentuarActivo
+                    ariaLabelledBy={sinPaso ? "filtro-paso filtro-paso-nota" : "filtro-paso"}
                     options={sinPaso ? [] : PASOS_CONSULTA.map((p) => ({ value: p.id, label: p.label }))}
                   />
                 </span>
-              </label>
-              <label className="flex flex-col text-xs font-semibold text-text">
-                Familia
+              </div>
+              <div className="flex flex-col text-xs font-semibold text-text">
+                <span id="filtro-familia">Familia</span>
                 <span className="mt-1">
                   <Select
                     value={familia}
@@ -173,6 +192,7 @@ export function Consulta() {
                     placeholder="Todas"
                     etiquetaVaciar="Todas las familias"
                     acentuarActivo
+                    ariaLabelledBy="filtro-familia"
                     // Solo las que hay con los demás filtros puestos; la
                     // elegida se conserva aunque ya no esté, para poder
                     // quitarla.
@@ -185,7 +205,7 @@ export function Consulta() {
                     )}
                   />
                 </span>
-              </label>
+              </div>
               <div className="flex flex-col text-xs font-semibold text-text">
                 Fechas
                 <span className="mt-1 flex items-center">
