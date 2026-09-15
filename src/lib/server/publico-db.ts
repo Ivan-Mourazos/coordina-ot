@@ -1,15 +1,32 @@
+import sql from "mssql";
 import { getPool } from "./db";
 import { asegurarIndice, indiceSiListo } from "./historial-indice";
 import { leerHistorialPedidoDetalle } from "./historial-db";
+import { nombresHistorial } from "./nombres-historial";
+import { claveFase, ultimosMovimientos, type UltimoMovimiento } from "./olanet-movimientos";
 import { recursosSql, SECCIONES, SECCION_POR_DEFECTO } from "../secciones";
 import {
+  detalleConsulta,
   detallePublico,
   filtrarPublico,
   frasePublica,
   type FiltrosPublicos,
+  type PedidoConsultaDetalle,
   type PedidoPublico,
   type PedidoPublicoDetalle,
 } from "../publico";
+import {
+  diaIso,
+  estadoEfectivo,
+  filtrarConsulta,
+  pedidoConsulta,
+  situacionDe,
+  type FiltrosConsulta,
+  type PedidoConsulta,
+  type RespuestaConsulta,
+  type SituacionPedido,
+} from "../consulta";
+import { dondeEstaPedido, type DondeOF, type TareaConEstado } from "../consulta-donde";
 import { PEDIDOS } from "../mock";
 import { estaFinalizado, hoyISO } from "../types";
 
@@ -283,4 +300,182 @@ function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: bo
     };
   });
   return { pedidos, hasMore: false, ...(vencidos !== undefined ? { vencidos } : {}) };
+}
+
+// ─── Segunda versión: dónde está y quién lo tiene ───────────────────────────
+
+interface FilaTarea {
+  pedido: string | null;
+  orden: string | null;
+  tarea: string | null;
+  descripcion: string | null;
+  centro: string | null;
+  es_fin: number;
+  cerrada: number;
+}
+
+/** Las tareas de las OF de esos pedidos, con si son FINALIZAR y si están
+ *  cerradas, con la MISMA regla que el índice (historial-finalizacion-sql.ts:
+ *  Finalizacion, es_fin, terminada). Con otra regla, un pedido que la lista da
+ *  por «en fábrica» podría no tener dónde estar. */
+async function tareasDePedidos(pedidos: readonly string[]): Promise<FilaTarea[]> {
+  const pool = await getPool();
+  const req = pool.request();
+  const marcas = pedidos.map((p, i) => {
+    req.input(`p${i}`, sql.VarChar(25), p);
+    return `@p${i}`;
+  });
+  const r = await req.query<FilaTarea>(`
+    SELECT DISTINCT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
+      t.CodMOTask AS tarea, t.Description AS descripcion, c.centro,
+      CASE WHEN EXISTS (
+          SELECT 1 FROM dbo.CPRMOResourceMachine fz
+          WHERE fz.IDMOTask = t.IDMOTask AND UPPER(COALESCE(fz.Description,'')) LIKE '%FINALIZ%'
+        ) OR UPPER(COALESCE(t.Description,'')) LIKE '%FINALIZ%' THEN 1 ELSE 0 END AS es_fin,
+      CASE WHEN e.fin IS NOT NULL OR (${rescateOtSql()}) THEN 1 ELSE 0 END AS cerrada
+    FROM dbo.FACOrderSL o
+    JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = l.IDManufacturingOrder
+      AND mo.CodCompany = '001'
+    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+    -- Todas las tareas de 2026 tienen exactamente un centro (medido el
+    -- 14/09/2026); el TOP 1 es por si un día no.
+    OUTER APPLY (
+      SELECT TOP 1 rm.Description AS centro FROM dbo.CPRMOResourceMachine rm
+      WHERE rm.IDMOTask = t.IDMOTask ORDER BY rm.Description
+    ) c
+    LEFT JOIN (
+      SELECT orden, fase, MAX(fecha_cambio) AS fin
+      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
+    ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
+    WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})`);
+  return r.recordset;
+}
+
+/** Pedido → dónde está cada OF con trabajo. Si OLANET no contesta, sin nombres
+ *  ni pausas, pero con el «siguiente» que sale de RPS: una pantalla con menos
+ *  detalle antes que un error. */
+export async function leerDonde(pedidos: readonly string[]): Promise<Map<string, DondeOF[]>> {
+  const salida = new Map<string, DondeOF[]>();
+  if (pedidos.length === 0) return salida;
+  const filas = await tareasDePedidos(pedidos);
+  const ordenes = filas.map((f) => (f.orden ?? "").trim()).filter(Boolean);
+  const [movimientos, nombres] = await Promise.all([
+    ultimosMovimientos(ordenes).catch((e) => {
+      console.warn("[consulta] OLANET no contesta, sale sin nombres:", (e as Error).message);
+      return new Map<string, UltimoMovimiento>();
+    }),
+    nombresHistorial().catch(() => new Map<string, string>()),
+  ]);
+
+  const porPedido = new Map<string, TareaConEstado[]>();
+  for (const f of filas) {
+    const pedido = (f.pedido ?? "").trim();
+    const orden = (f.orden ?? "").trim();
+    const codigo = (f.tarea ?? "").trim();
+    if (!pedido || !orden || !codigo) continue;
+    const m = movimientos.get(claveFase(orden, codigo));
+    const tarea: TareaConEstado = {
+      orden,
+      codigo,
+      descripcion: f.descripcion ?? "",
+      centro: f.centro?.trim() || null,
+      esFinalizar: f.es_fin === 1,
+      cerrada: f.cerrada === 1,
+      movimiento: m
+        ? {
+            estado: m.estado,
+            nombre: m.operario ? (nombres.get(m.operario) ?? null) : null,
+            desde: m.fecha ? diaIso(m.fecha.getTime()) : null,
+          }
+        : null,
+    };
+    const suyas = porPedido.get(pedido);
+    if (suyas) suyas.push(tarea);
+    else porPedido.set(pedido, [tarea]);
+  }
+  for (const [pedido, tareas] of porPedido) salida.set(pedido, dondeEstaPedido(tareas));
+  return salida;
+}
+
+/** La página del invitado: el índice filtrado y, para lo que está en fábrica,
+ *  dónde está. */
+export async function leerPaginaConsulta(f: FiltrosConsulta): Promise<RespuestaConsulta> {
+  const hoy = hoyISO();
+  if (ES_MOCK) return paginaMockConsulta(f, hoy);
+
+  await asegurarIndice();
+  const indice = indiceSiListo();
+  // Sin índice no hay lista: la consulta de respaldo recalcula toda la
+  // historia y esta pantalla la mira la casa entera.
+  if (!indice) throw new ListaEnConstruccion();
+
+  const { filas, ...resto } = filtrarConsulta(indice, f, hoy);
+  const enFabrica = filas.filter((b) => situacionDe(b) === "fabrica").map((b) => b.pedido);
+  const donde = await leerDonde(enFabrica).catch((e) => {
+    console.warn("[consulta] no se pudo leer por dónde va cada pedido:", (e as Error).message);
+    return new Map<string, DondeOF[]>();
+  });
+  return {
+    ...resto,
+    pedidos: filas.map((b) => pedidoConsulta(b, indice.info.get(b.pedido), donde.get(b.pedido) ?? [], hoy)),
+  };
+}
+
+/** La ficha del invitado. La situación sale del índice si ya está hecho; sin
+ *  él, la ficha se enseña igual y sin rótulo de estado. */
+export async function leerDetalleConsulta(pedido: string): Promise<PedidoConsultaDetalle> {
+  if (ES_MOCK) {
+    const detalle = await leerHistorialPedidoDetalle(pedido);
+    return detalleConsulta(detalle, { situacion: null, fechaEntregado: null, donde: [] });
+  }
+  const b = indiceSiListo()?.base[SECCION_POR_DEFECTO].find((x) => x.pedido === pedido) ?? null;
+  const situacion: SituacionPedido | null = b ? situacionDe(b) : null;
+  const [detalle, donde] = await Promise.all([
+    leerHistorialPedidoDetalle(pedido),
+    situacion === "entregado" || situacion === "salir"
+      ? Promise.resolve(new Map<string, DondeOF[]>())
+      : leerDonde([pedido]).catch(() => new Map<string, DondeOF[]>()),
+  ]);
+  return detalleConsulta(detalle, {
+    situacion,
+    fechaEntregado: situacion === "entregado" && b ? diaIso(b.fechaEntregado) : null,
+    donde: donde.get(pedido) ?? [],
+  });
+}
+
+/** Sin RPS (DATASOURCE distinto de "rps"): la web de desarrollo arranca igual.
+ *  `estaFinalizado` separa fábrica de esperando salir, como ya hacía la
+ *  primera versión; el mock no tiene entregas ni OLANET. */
+function paginaMockConsulta(f: FiltrosConsulta, hoy: string): RespuestaConsulta {
+  const q = f.q?.trim().toUpperCase() ?? "";
+  const pedidos = PEDIDOS
+    .filter((p) => !q || p.codigo.includes(q) || (p.cliente ?? "").toUpperCase().includes(q))
+    .map((p): PedidoConsulta => {
+      const situacion: SituacionPedido = estaFinalizado(p) ? "salir" : "fabrica";
+      const fechaEntrega = p.fechaEntrega ?? null;
+      return {
+        codigo: p.codigo,
+        cliente: p.cliente ?? null,
+        negocio: null,
+        ciudadEntrega: p.ciudadEntrega ?? null,
+        situacion,
+        fechaEntrega,
+        fechaEntregado: null,
+        dia: fechaEntrega,
+        fueraDePlazo: fechaEntrega !== null && fechaEntrega < hoy,
+        familias: [],
+        donde: situacion === "fabrica"
+          ? [{
+              // En mock no hay OF de verdad que enseñar: el código del pedido
+              // hace de etiqueta para que la pantalla se pueda mirar.
+              orden: p.codigo,
+              enCurso: [],
+              pausadas: [],
+              siguientes: [{ paso: "Oficina Técnica", tarea: "Plantear", quien: null, desde: null }],
+            }]
+          : [],
+      };
+    });
+  return { pedidos, hasMore: false, familias: [], porDia: null, estado: estadoEfectivo(f) };
 }

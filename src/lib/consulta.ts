@@ -1,5 +1,11 @@
 import { fmtDiaMesAno } from "./fechas";
-import { coincideBusqueda, type BaseHistorial, type IndiceHistorial } from "./historial-indice";
+import type { DondeOF } from "./consulta-donde";
+import {
+  coincideBusqueda,
+  type BaseHistorial,
+  type IndiceHistorial,
+  type InfoPedidoHistorial,
+} from "./historial-indice";
 import { SECCION_POR_DEFECTO } from "./secciones";
 
 // ─── La consulta sin login: qué pedidos salen y cómo se cuentan ──────────────
@@ -236,4 +242,54 @@ export function textoFecha(p: {
     return p.fechaEntregado ? `Entregado el ${fmtDiaMesAno(p.fechaEntregado)}` : "Entregado";
   }
   return p.fechaEntrega ? `Entrega ${fmtDiaMesAno(p.fechaEntrega)}` : "Sin fecha de entrega";
+}
+
+/** Una fila de la lista tal como sale de casa: nada que no se pinte. */
+export interface PedidoConsulta {
+  codigo: string;
+  cliente: string | null;
+  negocio: string | null;
+  ciudadEntrega: string | null;
+  situacion: SituacionPedido;
+  fechaEntrega: string | null;
+  /** Solo si ya salió: una fecha de salida en un pedido sin entregar sería de
+   *  una entrega parcial, y la fila diría que salió cuando no. */
+  fechaEntregado: string | null;
+  /** El día que agrupa la fila (`diaDeFila`). */
+  dia: string | null;
+  fueraDePlazo: boolean;
+  familias: string[];
+  /** Solo en fábrica; vacío en lo demás. */
+  donde: DondeOF[];
+}
+
+export interface RespuestaConsulta {
+  pedidos: PedidoConsulta[];
+  hasMore: boolean;
+  familias: string[];
+  porDia: Record<string, number> | null;
+  estado: EstadoConsulta;
+}
+
+export function pedidoConsulta(
+  b: BaseHistorial,
+  info: InfoPedidoHistorial | undefined,
+  donde: DondeOF[],
+  hoy: string,
+): PedidoConsulta {
+  const situacion = situacionDe(b);
+  const fechaEntrega = diaIso(b.fechaEntrega);
+  return {
+    codigo: b.pedido,
+    cliente: info?.cliente ?? null,
+    negocio: info?.negocio ?? null,
+    ciudadEntrega: info?.ciudadEntrega ?? null,
+    situacion,
+    fechaEntrega,
+    fechaEntregado: situacion === "entregado" ? diaIso(b.fechaEntregado) : null,
+    dia: diaDeFila(b),
+    fueraDePlazo: situacion !== "entregado" && fechaEntrega !== null && fechaEntrega < hoy,
+    familias: info?.familias ?? [],
+    donde,
+  };
 }
