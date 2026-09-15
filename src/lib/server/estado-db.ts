@@ -1007,54 +1007,81 @@ export function retirarCausaDevolucion(id: number, retirada: boolean): boolean {
       .run(retirada ? 1 : 0, id).changes > 0
   );
 }
+interface FilaOverlay {
+  of_id: string;
+  autor_id: string | null;
+  revisor_id: string | null;
+  estado: string;
+  observacion: string | null;
+  revisada: number;
+  updated_at: string;
+  cerrada_rps_at: string | null;
+  cerrada_rps_por: string | null;
+  cerrada_rps_modo: string | null;
+  cerrada_rps_gemela: string | null;
+}
+
+const OVERLAY_COLUMNAS = `of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at,
+              cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo, cerrada_rps_gemela`;
+
+function filaACambioOF(fila: FilaOverlay): CambioOF | null {
+  if (!ESTADOS_OF.has(fila.estado)) return null; // fila corrupta: ignorar
+  return {
+    ofId: fila.of_id,
+    autorId: fila.autor_id,
+    revisorId: fila.revisor_id,
+    estado: fila.estado as CambioOF["estado"],
+    observacion: fila.observacion,
+    revisada: fila.revisada === 1,
+    actualizadoAt: fila.updated_at,
+    // Las tres primeras columnas van juntas o ninguna: solo se escriben
+    // desde la misma llamada a upsertOF (ver guardarMutacion). La gemela es
+    // aparte: puede faltar aunque la OF SÍ esté cerrada (el caso normal, sin
+    // trampa 2/02, o ya reintentada).
+    cerradaRps:
+      fila.cerrada_rps_at && fila.cerrada_rps_por && fila.cerrada_rps_modo
+        ? {
+            at: fila.cerrada_rps_at,
+            por: fila.cerrada_rps_por,
+            modo: fila.cerrada_rps_modo as "sombra" | "ensayo" | "activo",
+            gemelaSinEscribir: fila.cerrada_rps_gemela ?? undefined,
+          }
+        : undefined,
+  };
+}
+
 export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
   const db = abrir();
   const ofs = new Map<string, CambioOF>();
   for (const fila of db
-    .prepare(
-      `SELECT of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at,
-              cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo, cerrada_rps_gemela
-         FROM of_overlay`,
-    )
-    .all() as Array<{
-    of_id: string;
-    autor_id: string | null;
-    revisor_id: string | null;
-    estado: string;
-    observacion: string | null;
-    revisada: number;
-    updated_at: string;
-    cerrada_rps_at: string | null;
-    cerrada_rps_por: string | null;
-    cerrada_rps_modo: string | null;
-    cerrada_rps_gemela: string | null;
-  }>) {
-    if (!ESTADOS_OF.has(fila.estado)) continue; // fila corrupta: ignorar
-    ofs.set(fila.of_id, {
-      ofId: fila.of_id,
-      autorId: fila.autor_id,
-      revisorId: fila.revisor_id,
-      estado: fila.estado as CambioOF["estado"],
-      observacion: fila.observacion,
-      revisada: fila.revisada === 1,
-      actualizadoAt: fila.updated_at,
-      // Las tres primeras columnas van juntas o ninguna: solo se escriben
-      // desde la misma llamada a upsertOF (ver guardarMutacion). La gemela es
-      // aparte: puede faltar aunque la OF SÍ esté cerrada (el caso normal, sin
-      // trampa 2/02, o ya reintentada).
-      cerradaRps:
-        fila.cerrada_rps_at && fila.cerrada_rps_por && fila.cerrada_rps_modo
-          ? {
-              at: fila.cerrada_rps_at,
-              por: fila.cerrada_rps_por,
-              modo: fila.cerrada_rps_modo as "sombra" | "ensayo" | "activo",
-              gemelaSinEscribir: fila.cerrada_rps_gemela ?? undefined,
-            }
-          : undefined,
-    });
+    .prepare(`SELECT ${OVERLAY_COLUMNAS} FROM of_overlay`)
+    .all() as FilaOverlay[]) {
+    const c = filaACambioOF(fila);
+    if (c) ofs.set(c.ofId, c);
   }
   const pasos = leerPedidosPasados(seccion);
   return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos };
+}
+
+/** El overlay de solo estas OF, sin barrer `of_overlay` entera.
+ *
+ *  Lo usa POST /api/fichaje en cada fichaje: de las filas que pueda tener la
+ *  tabla, aquí solo hacen falta las pocas que se están fichando ahora mismo,
+ *  para mirar si alguna lleva la marca «cerrada en RPS». `leerOverlay()` a
+ *  secas leía la tabla entera en cada POST solo para eso. */
+export function leerOverlayDeOfs(ofIds: readonly string[]): Map<string, CambioOF> {
+  const ofs = new Map<string, CambioOF>();
+  if (ofIds.length === 0) return ofs;
+  const filas = abrir()
+    .prepare(
+      `SELECT ${OVERLAY_COLUMNAS} FROM of_overlay WHERE of_id IN (${ofIds.map(() => "?").join(",")})`,
+    )
+    .all(...ofIds) as FilaOverlay[];
+  for (const fila of filas) {
+    const c = filaACambioOF(fila);
+    if (c) ofs.set(c.ofId, c);
+  }
+  return ofs;
 }
 
 /** OF que esta sección sigue enseñando en el tablero aunque RPS ya no las

@@ -65,6 +65,25 @@ export function leerTodosIntervalos(): Intervalo[] {
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
 }
 
+/** Los intervalos SIN traspasar de una sola OF, sin barrer `fichaje_intervalo`
+ *  entera (ver `leerTodosIntervalos`, que es lo que hacía antes esta función
+ *  para acabar tirando casi todo lo leído).
+ *
+ *  `of_ids` es una lista JSON en texto (`["0232086:9","0232087:9"]`), así que
+ *  el `LIKE` solo ACOTA por el texto entre comillas de este id — puede colar
+ *  de más si el propio id contuviera `%` o `_`, cosa que hoy no pasa (son
+ *  `orden:tarea` numéricos) — y el filtro exacto de después es quien de verdad
+ *  decide: mismo resultado que filtrar la tabla entera, ni una fila más ni
+ *  menos. */
+function leerIntervalosDeOF(ofId: string): Intervalo[] {
+  const filas = getDb()
+    .prepare(`${SELECT} WHERE traspasado_at IS NULL AND of_ids LIKE ? ORDER BY inicio`)
+    .all(`%${JSON.stringify(ofId)}%`) as Fila[];
+  return filas
+    .map(filaAIntervalo)
+    .filter((x): x is Intervalo => x !== null && x.ofIds.includes(ofId));
+}
+
 /** El fichaje que miran las Métricas: TODO, traspasado o no.
  *
  *  Es la diferencia con `leerTodosIntervalos`, y es a propósito. Allí se están
@@ -262,7 +281,7 @@ export function cortarFichajeDeOFConAviso(
  *  LANZA si la cola falla: quien cierra la OF en RPS no puede seguir sin
  *  saber que el tiempo está puesto. */
 export function reencolarTramosDeOF(ofId: string): number {
-  return encolarTramosDeOF(ofId, leerTodosIntervalos());
+  return encolarTramosDeOF(ofId, leerIntervalosDeOF(ofId));
 }
 
 /** Guarda el fichaje de un operario.

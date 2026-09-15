@@ -160,6 +160,29 @@ test("guardarMutacion guarda y limpia gemelaSinEscribir, aparte del resto de la 
   });
 });
 
+test("leerOverlayDeOfs: solo trae lo pedido, sin barrer of_overlay entera", () => {
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "cerrar_en_rps",
+    cambiosOF: [{
+      ofId: "0233000:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-16T09:00:00.000Z", por: "ivan", modo: "activo" },
+    }],
+  });
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "asignar",
+    cambiosOF: [{ ofId: "0233001:9", autorId: "ivan", revisorId: null, estado: "en_curso", observacion: null }],
+  });
+  const overlay = db.leerOverlayDeOfs(["0233000:9", "0233001:9"]);
+  expect(overlay.get("0233000:9")?.cerradaRps?.por).toBe("ivan");
+  expect(overlay.get("0233001:9")?.cerradaRps).toBeUndefined();
+  // Una tercera OF que ni se pide ni existe: no sale, y no revienta.
+  expect(overlay.has("0233999:9")).toBe(false);
+  // Lista vacía: mapa vacío, sin tocar la base.
+  expect(db.leerOverlayDeOfs([]).size).toBe(0);
+});
+
 test("cerrar en RPS cierra la revisión: se borra lo comprobado de esa OF", () => {
   db.marcarPuntoRevision(["0232099:9"], 1, "ok", "tamara");
   expect(db.leerMarcasRevision(["0232099:9"])["0232099:9"]).toBeDefined();

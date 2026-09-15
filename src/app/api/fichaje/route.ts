@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 // propia ruta (POST /api/fichaje/aviso-visto), porque leerlo y darlo por visto
 // son dos momentos distintos — ver el comentario del GET de más abajo.
 import { leerFichaje, guardarFichaje, leerAvisoCierre } from "@/lib/server/fichaje-db";
-import { leerOverlay } from "@/lib/server/estado-db";
+import { leerOverlayDeOfs } from "@/lib/server/estado-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
 import { ofEnCierre } from "@/lib/server/cierre-of-en-curso";
 import { fichar, pausar } from "@/lib/fichaje";
@@ -76,8 +76,8 @@ export async function POST(req: Request) {
     // sorprendente para quien está fichando que perder solo esa. Si no queda
     // ninguna fichable, ahí sí se rechaza entero, con 409 como el candado de
     // más abajo.
-    const overlay = leerOverlay().ofs;
     const ofIdsBody = ofIds as string[];
+    const overlay = leerOverlayDeOfs(ofIdsBody);
     const cerradas = ofIdsBody.filter((id) => overlay.get(id)?.cerradaRps);
     ofIdsFichables = cerradas.length > 0 ? ofIdsBody.filter((id) => !cerradas.includes(id)) : ofIdsBody;
     if (ofIdsFichables.length === 0) {
