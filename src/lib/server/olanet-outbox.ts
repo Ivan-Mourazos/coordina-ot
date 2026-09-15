@@ -114,44 +114,54 @@ function encolar(
  *
  *  Nunca lanza: se llama justo después de guardar el fichaje, y que la cola
  *  falle no puede impedir que alguien fiche. Devuelve cuántos eventos nuevos
- *  entraron (los repetidos se ignoran por la clave). */
+ *  entraron (los repetidos se ignoran por la clave). Quien necesite SABER si
+ *  entró (cerrar una OF en RPS exige su tiempo antes) usa
+ *  `encolarFichajeOLanzar`. */
 export function encolarFichaje(operarioId: string, intervalos: readonly Intervalo[]): number {
   try {
-    const db = getDb();
-    const marca = db
-      .prepare("SELECT procesados FROM olanet_watermark WHERE operario_id = ?")
-      .get(operarioId) as { procesados: number } | undefined;
-
-    // Si llegan menos intervalos de los dados por procesados, la premisa no se
-    // cumple: se rederiva todo. Solo cuesta trabajo, nunca duplica (clave UNIQUE).
-    const previos = marca?.procesados ?? 0;
-    const desde = previos <= intervalos.length ? previos : 0;
-    const nuevos = intervalos.slice(desde);
-
-    // Un intervalo abierto aún puede cambiar (le falta su `fin`): se queda
-    // fuera de la marca para reprocesarlo cuando se cierre.
-    const abierto = intervalos.findIndex((iv) => iv.fin === null);
-    const procesados = abierto === -1 ? intervalos.length : abierto;
-
-    const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO);
-    const fases = eventosFaseDe(nuevos);
-    const entradas = [
-      ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
-      ...fases.map((e) => ({ tipo: "fase" as const, clave: claveFase(e), operarioId: e.operarioId, datos: e })),
-    ];
-
-    return db.transaction(() => {
-      const n = encolar(entradas);
-      db.prepare(
-        `INSERT INTO olanet_watermark (operario_id, procesados) VALUES (?, ?)
-         ON CONFLICT(operario_id) DO UPDATE SET procesados = excluded.procesados`,
-      ).run(operarioId, procesados);
-      return n;
-    })();
+    return encolarFichajeOLanzar(operarioId, intervalos);
   } catch (e) {
     console.error("[fichaje] no se pudo encolar el fichaje:", e);
     return 0;
   }
+}
+
+/** Lo mismo que `encolarFichaje`, pero si la cola falla LANZA en vez de
+ *  tragárselo. Un 0 de `encolarFichaje` no distingue "no había nada nuevo" de
+ *  "no ha entrado": para cerrar una OF en RPS esa diferencia es la de escribir
+ *  el cierre con o sin su tiempo. */
+export function encolarFichajeOLanzar(operarioId: string, intervalos: readonly Intervalo[]): number {
+  const db = getDb();
+  const marca = db
+    .prepare("SELECT procesados FROM olanet_watermark WHERE operario_id = ?")
+    .get(operarioId) as { procesados: number } | undefined;
+
+  // Si llegan menos intervalos de los dados por procesados, la premisa no se
+  // cumple: se rederiva todo. Solo cuesta trabajo, nunca duplica (clave UNIQUE).
+  const previos = marca?.procesados ?? 0;
+  const desde = previos <= intervalos.length ? previos : 0;
+  const nuevos = intervalos.slice(desde);
+
+  // Un intervalo abierto aún puede cambiar (le falta su `fin`): se queda
+  // fuera de la marca para reprocesarlo cuando se cierre.
+  const abierto = intervalos.findIndex((iv) => iv.fin === null);
+  const procesados = abierto === -1 ? intervalos.length : abierto;
+
+  const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO);
+  const fases = eventosFaseDe(nuevos);
+  const entradas = [
+    ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
+    ...fases.map((e) => ({ tipo: "fase" as const, clave: claveFase(e), operarioId: e.operarioId, datos: e })),
+  ];
+
+  return db.transaction(() => {
+    const n = encolar(entradas);
+    db.prepare(
+      `INSERT INTO olanet_watermark (operario_id, procesados) VALUES (?, ?)
+       ON CONFLICT(operario_id) DO UPDATE SET procesados = excluded.procesados`,
+    ).run(operarioId, procesados);
+    return n;
+  })();
 }
 
 /** Encola la finalización (IdEstadoOF = 3) de las OFs de un pedido que se pasa

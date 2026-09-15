@@ -2,7 +2,7 @@ import type { Fichaje, Intervalo } from "../fichaje";
 import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
-import { encolarFichaje } from "./olanet-outbox";
+import { encolarFichajeOLanzar } from "./olanet-outbox";
 import { operariosDeSeccion } from "./operarios";
 import type { SeccionId } from "../secciones";
 
@@ -210,10 +210,25 @@ export function marcarAvisoCierreVisto(operarioId: string): void {
  *  Si el intervalo llevaba más OFs, se cierra y se abre otro con las que
  *  quedan: borrarlo perdería el tiempo de las que siguen siendo suyas. */
 export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
+  return cortarFichajeDeOFConAviso(ofId, ahora).afectados;
+}
+
+/** `cortarFichajeDeOF`, pero diciendo además a quién NO se le pudo encolar el
+ *  tramo recién cortado (`sinEncolar`). El reloj se para igual: el corte no se
+ *  deshace por eso.
+ *
+ *  Lo necesita «Dar por terminada en RPS»: comprueba que la cola no tenga
+ *  tiempo de la OF antes de escribir el cierre, y un tramo que nunca llegó a
+ *  entrar la dejaría vacía; el cierre se escribiría sin ese tiempo. */
+export function cortarFichajeDeOFConAviso(
+  ofId: string,
+  ahora: string,
+): { afectados: string[]; sinEncolar: string[] } {
   const abiertos = getDb()
     .prepare(`${SELECT} WHERE fin IS NULL`)
     .all() as Fila[];
   const afectados: string[] = [];
+  const sinEncolar: string[] = [];
   for (const fila of abiertos) {
     const iv = filaAIntervalo(fila);
     if (!iv || !iv.ofIds.includes(ofId)) continue;
@@ -229,10 +244,17 @@ export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
     // este operario, el tramo queda cerrado aquí pero nunca sube a OLANET —
     // y como cerrarFichajesSinLatido solo vigila intervalos ABIERTOS, si el
     // operario no vuelve a fichar ese tiempo no se encola jamás.
-    encolarFichaje(iv.operarioId, nuevo.intervalos);
+    // Cada operario en su try: si la cola falla para uno, se sigue cortando a
+    // los demás, y quien llama se entera por `sinEncolar`.
+    try {
+      encolarFichajeOLanzar(iv.operarioId, nuevo.intervalos);
+    } catch (e) {
+      console.error("[fichaje] no se pudo encolar el fichaje:", e);
+      sinEncolar.push(iv.operarioId);
+    }
     afectados.push(iv.operarioId);
   }
-  return afectados;
+  return { afectados, sinEncolar };
 }
 
 /** Guarda el fichaje de un operario.

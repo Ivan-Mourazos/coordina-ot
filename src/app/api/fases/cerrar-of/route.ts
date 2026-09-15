@@ -8,7 +8,7 @@ import { esSeccionId, esFaseDe, SECCIONES } from "@/lib/secciones";
 import { seccionDeOperario, COD_RPS_POR_OPERARIO } from "@/lib/server/operarios";
 import { finalizables, situacionDe } from "@/lib/fase-pendiente";
 import { pedidoListoParaPasar } from "@/lib/fases-tablero";
-import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
+import { cortarFichajeDeOFConAviso } from "@/lib/server/fichaje-db";
 
 // ─── POST /api/fases/cerrar-of ───────────────────────────────────────────────
 // «Dar por terminada en RPS» sobre una OF suelta, antes de pasar el pedido
@@ -76,13 +76,22 @@ export async function POST(req: Request) {
 
   // 3. El tiempo antes que el cierre: se corta con la hora del servidor.
   const ahora = new Date().toISOString();
-  cortarFichajeDeOF(ofId, ahora);
+  const corte = cortarFichajeDeOFConAviso(ofId, ahora);
 
   const { modoFichaje, leerPendientes } = await import("@/lib/server/olanet-outbox");
   const modo = modoFichaje();
   const operaciones: { of: string; fase: string; ok: boolean; yaEstaba: boolean; error?: string }[] = [];
+  const tiempoSinSubir = () =>
+    NextResponse.json(
+      { error: "Queda tiempo de esta OF por subir a RPS y ahora no entra. No se ha cerrado nada; el reloj sí se ha parado. Vuelve a probar en unos minutos." },
+      { status: 409 },
+    );
 
   if (modo === "activo") {
+    // 4. Primero el reloj: si el tramo recién cortado no llegó a entrar en la
+    //    cola, la comprobación de abajo la vería vacía y el 3 se escribiría
+    //    sin ese tiempo.
+    if (corte.sinEncolar.length > 0) return tiempoSinSubir();
     try {
       const { drenarCola } = await import("@/lib/server/olanet-worker");
       const { fasesDeOFs, finalizarFase } = await import("@/lib/server/olanet");
@@ -94,20 +103,23 @@ export async function POST(req: Request) {
       //    que estar en OLANET antes del 3 es, sobre todo, el TIEMPO.
       await drenarCola();
       const [orden, tareaFila] = ofId.split(":");
-      if (leerPendientes().some((p) => p.datos.of === orden)) {
-        return NextResponse.json(
-          { error: "Queda tiempo de esta OF por subir a RPS y ahora no entra. No se ha cerrado nada; el reloj sí se ha parado. Vuelve a probar en unos minutos." },
-          { status: 409 },
-        );
-      }
+      if (leerPendientes().some((p) => p.datos.of === orden)) return tiempoSinSubir();
 
       // 6. Las operaciones de MI sección para esta orden — normalmente una,
       //    dos con la trampa 2/02 (finalizables ya filtra por sección, así
       //    que la gemela de otra sección no se toca).
+      //
+      //    La de la fila se busca por su código TAL CUAL: con la trampa 2/02,
+      //    `claveFase` junta la "2" y la "02", y OLANET devuelve la "02"
+      //    primero (ordena como texto). Solo si no hay coincidencia exacta y
+      //    hay UNA sola candidata se acepta por `claveFase`: es el caso normal
+      //    de RPS guardando "03" donde OLANET dice "3".
       const fases = await fasesDeOFs([orden]);
-      const filaPropia = fases.find((f) => claveFase(f.of, f.fase) === claveFase(orden, tareaFila));
+      const exacta = fases.find((f) => f.of === orden && f.fase === tareaFila);
+      const parecidas = fases.filter((f) => claveFase(f.of, f.fase) === claveFase(orden, tareaFila));
+      const filaPropia = exacta ?? (parecidas.length === 1 ? parecidas[0] : undefined);
       const situacionPropia = filaPropia ? situacionDe(filaPropia.estado) : "desconocida";
-      if (situacionPropia === "eliminada" || situacionPropia === "desconocida") {
+      if (!filaPropia || situacionPropia === "eliminada" || situacionPropia === "desconocida") {
         return NextResponse.json({ error: "RPS ya retiró esta operación; no hay nada que cerrar." }, { status: 409 });
       }
 
@@ -126,7 +138,9 @@ export async function POST(req: Request) {
       // La fila no estaba en pendientesDeCerrar porque YA estaba en 3
       // (situacionPropia === "finalizada", descartado arriba lo demás): éxito
       // sin volver a escribir.
-      const deLaFila = operaciones.find((o) => claveFase(o.of, o.fase) === claveFase(orden, tareaFila));
+      // La de la fila es la operación `filaPropia`, con su código tal cual: la
+      // gemela 2/02 puede haber fallado sin que eso cambie la marca.
+      const deLaFila = operaciones.find((o) => o.of === filaPropia.of && o.fase === filaPropia.fase);
       if (deLaFila && !deLaFila.ok) {
         return NextResponse.json(
           { error: deLaFila.error ?? "No se ha podido escribir en RPS. No se ha cerrado nada; el reloj sí se ha parado.", operaciones },

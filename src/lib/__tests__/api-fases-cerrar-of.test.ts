@@ -172,6 +172,54 @@ test("la trampa 2/02: se cierran las dos de mi sección, la marca depende de la 
   expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeDefined();
 });
 
+test("la trampa 2/02 con la gemela PRIMERO y fallando: la de la fila entró, se marca", async () => {
+  // Así lo devuelve OLANET de verdad: `ORDER BY Orden, Fase` como texto pone
+  // "09" delante de "9". Comparando por claveFase la ruta cogía la gemela.
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([
+    { idBoletin: "901", of: "0232086", fase: "09", descripcion: "FINALIZAR bis", maquina: "A-OTEC", estado: 1 },
+    { idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 2 },
+  ]);
+  finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(res.status).toBe(200);
+  expect(finalizarFase).toHaveBeenCalledTimes(2);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeDefined();
+});
+
+test("la trampa 2/02 al revés: entra la gemela pero falla la de la fila, 409 y sin marca", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([
+    { idBoletin: "901", of: "0232086", fase: "09", descripcion: "FINALIZAR bis", maquina: "A-OTEC", estado: 1 },
+    { idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 2 },
+  ]);
+  finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
+    o.idBoletin === "901" ? { ok: true, yaEstaba: false, idBoletin: "901" } : { ok: false, status: 503, error: "no responde" });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect(finalizarFase).toHaveBeenCalledTimes(2);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
+});
+
+test("si el tramo recién cortado no entra en la cola, no se escribe el 3 y se dice por qué", async () => {
+  // Sin esto la cola se veía vacía (el tramo nunca llegó a entrar) y el cierre
+  // se escribía en RPS sin ese tiempo.
+  process.env.FICHAJE_OLANET = "activo";
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: "2026-09-15T10:00:00.000Z", fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(outbox, "encolarFichajeOLanzar").mockImplementation(() => {
+    throw new Error("database is locked");
+  });
+
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect((await res.json()).error).toMatch(/tiempo/i);
+  expect(finalizarFase).not.toHaveBeenCalled();
+  expect(fichajeDb.leerFichaje("ivan").intervalos.filter((iv) => iv.fin === null)).toHaveLength(0);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
+});
+
 test("en sombra y ensayo no se llama a finalizarFase, se marca igual con el modo", async () => {
   for (const modo of ["sombra", "ensayo"]) {
     estadoDb.getDb().exec("DELETE FROM of_overlay; DELETE FROM of_retenida;");

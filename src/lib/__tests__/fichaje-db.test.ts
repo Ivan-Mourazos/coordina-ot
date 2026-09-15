@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -199,6 +199,34 @@ test("cortarFichajeDeOF encola el tramo cerrado hacia OLANET", () => {
   expect(pendientes.length).toBeGreaterThan(antes);
   const bono = pendientes.find((p) => p.tipo === "bono" && p.datos.of === "0230700");
   expect(bono).toBeDefined();
+});
+
+// Cerrar una OF en RPS exige que su tiempo esté antes en la cola. Si encolar
+// el tramo recién cortado falla, quien corta tiene que enterarse: la cola se
+// vería vacía y se escribiría el cierre sin ese tiempo.
+test("cortarFichajeDeOFConAviso dice a quién no se le pudo encolar el tramo", () => {
+  const f = fichar(FICHAJE_VACIO, ["0230900:3"], "plantear", "jaime", "2026-08-05T14:00:00.000Z");
+  db.guardarFichaje("jaime", f);
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const encolar = vi.spyOn(outbox, "encolarFichajeOLanzar").mockImplementation(() => {
+    throw new Error("database is locked");
+  });
+  try {
+    const r = db.cortarFichajeDeOFConAviso("0230900:3", "2026-08-05T14:30:00.000Z");
+    expect(r).toEqual({ afectados: ["jaime"], sinEncolar: ["jaime"] });
+    // El reloj se para igual: el corte no se deshace por no poder encolar.
+    expect(db.leerFichaje("jaime").intervalos.filter((iv) => iv.fin === null)).toHaveLength(0);
+  } finally {
+    encolar.mockRestore();
+    error.mockRestore();
+  }
+});
+
+test("cortarFichajeDeOFConAviso sin fallos no deja a nadie sin encolar", () => {
+  const f = fichar(FICHAJE_VACIO, ["0230901:3"], "plantear", "tamara", "2026-08-05T15:00:00.000Z");
+  db.guardarFichaje("tamara", f);
+  expect(db.cortarFichajeDeOFConAviso("0230901:3", "2026-08-05T15:30:00.000Z"))
+    .toEqual({ afectados: ["tamara"], sinEncolar: [] });
 });
 
 // Defecto 2 (Important): guardarFichaje registra un latido porque, en el
