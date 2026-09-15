@@ -305,7 +305,13 @@ export function Board({
         if (vivo) setSesion(j.yo);
       })
       .catch(() => {
-        if (vivo) setSesion(null);
+        // SE QUEDA EN `undefined`, que es "todavía no se sabe", y NO en null,
+        // que es "no hay sesión". La diferencia importa desde que el servidor
+        // reparte: `null` dispara el salto a la consulta, así que tratar un
+        // fallo de red como falta de sesión encadenaría recargas de página
+        // entera mientras la red esté mal. Sin sesión de verdad, la respuesta
+        // llega y dice null; si no llega, se espera.
+        if (vivo) console.warn("[sesion] no se pudo preguntar quién soy");
       });
     return () => {
       vivo = false;

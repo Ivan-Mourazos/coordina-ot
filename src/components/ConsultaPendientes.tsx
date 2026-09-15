@@ -50,6 +50,8 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
   const [q, setQ] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(false);
+  /** La lista existe pero todavía no está construida (ver el 503 de abajo). */
+  const [preparando, setPreparando] = useState(false);
 
   const cargar = useCallback(
     async (paginaAcargar: number, reemplazar: boolean) => {
@@ -59,8 +61,17 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
         const sp = new URLSearchParams({ lista, page: String(paginaAcargar) });
         if (q.trim()) sp.set("q", q.trim());
         const res = await fetch(`/api/publico/pedidos?${sp}`, { cache: "no-store" });
+        // 503 = la lista aún se está construyendo (unos 35 s al arrancar el
+        // servidor). No es un fallo: se dice que espere y se reintenta solo,
+        // porque quien entra justo después de un despliegue no tiene por qué
+        // saber que hay que recargar.
+        if (res.status === 503) {
+          setPreparando(true);
+          return;
+        }
         if (!res.ok) throw new Error(String(res.status));
         const json: { pedidos: PedidoPublico[]; hasMore: boolean } = await res.json();
+        setPreparando(false);
         setPedidos((previos) => (reemplazar ? json.pedidos : [...previos, ...json.pedidos]));
         setHasMore(json.hasMore);
         setPage(paginaAcargar);
@@ -79,6 +90,14 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
     const t = setTimeout(() => void cargar(0, true), 300);
     return () => clearTimeout(t);
   }, [cargar]);
+
+  // Mientras se construye la lista, se vuelve a preguntar sola cada diez
+  // segundos: tarda unos 35 s y nadie tiene por qué saber que hay que recargar.
+  useEffect(() => {
+    if (!preparando) return;
+    const t = setTimeout(() => void cargar(0, true), 10_000);
+    return () => clearTimeout(t);
+  }, [preparando, cargar]);
 
   const texto = TEXTOS[lista];
   const cargaInicial = cargando && pedidos.length === 0;
@@ -139,7 +158,21 @@ export function ConsultaPendientes({ lista }: { lista: "pendientes" | "realizado
 
       {error && <ErrorCarga mensaje="No se pudieron cargar los pedidos." onReintentar={() => void cargar(0, true)} />}
 
-      {!error && !cargaInicial && pedidos.length === 0 && (
+      {preparando && !error && (
+        <div className="glass-panel grid min-h-32 place-items-center rounded-2xl px-6 text-center">
+          <div>
+            <p className="text-sm font-semibold text-text">Preparando la lista de pedidos…</p>
+            <p className="mt-1 text-xs text-text-muted">
+              Pasa la primera vez después de una actualización y tarda menos de un minuto.
+              Esta pantalla se actualiza sola.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* «No hay pedidos» solo cuando de verdad se ha mirado: mientras la
+          lista se construye, lo que toca decir es que espere. */}
+      {!error && !preparando && !cargaInicial && pedidos.length === 0 && (
         <div className="glass-panel grid min-h-32 place-items-center rounded-2xl px-6 text-center">
           <p className="text-sm text-text-muted">{texto.vacio}</p>
         </div>

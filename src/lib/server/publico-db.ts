@@ -109,6 +109,22 @@ async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string
   return agruparCentros(r.recordset);
 }
 
+/** La lista todavía no está: el índice de 153.000 pedidos se está
+ *  construyendo, y tarda unos 35 s.
+ *
+ *  Es un error APARTE y no uno cualquiera porque no significa lo mismo: no es
+ *  que algo falle, es que hay que esperar. Lo levanta el arranque
+ *  (`precalentarHistorial` en instrumentation.ts), así que esta ventana solo
+ *  existe el primer medio minuto tras un despliegue — justo cuando alguien
+ *  entra a mirar si ya está la web nueva. Contestarle «no se pudieron cargar
+ *  los pedidos» sería mentirle: parecería que la consulta está rota. */
+export class ListaEnConstruccion extends Error {
+  constructor() {
+    super("La lista de pedidos todavía se está construyendo");
+    this.name = "ListaEnConstruccion";
+  }
+}
+
 /** La página del invitado: el índice filtrado, con sus centros puestos. */
 export async function leerPaginaPublica(
   f: FiltrosPublicos,
@@ -119,8 +135,8 @@ export async function leerPaginaPublica(
   const indice = indiceSiListo();
   // Sin índice no hay lista: la consulta de respaldo del Historial recalcula
   // toda la historia (3,8 s) y esta pantalla la mira la casa entera. Mejor
-  // decir que no se pudo que tumbar RPS.
-  if (!indice) throw new Error("La lista de pedidos todavía se está construyendo");
+  // decir que todavía no que tumbar RPS.
+  if (!indice) throw new ListaEnConstruccion();
 
   const { filas, hasMore } = filtrarPublico(indice, f);
   const centros = f.lista === "pendientes"
