@@ -156,7 +156,13 @@ const FAMILIA_POR_GRUPO: [RegExp, Familia][] = [
   // RPS ya los tiene separados en su catálogo (grupos CAMION y CAPOTA); éramos
   // nosotros los que los juntábamos.
   [/CAMION/, "CAMION"],
-  [/CAPOTA/, "REMOLQUE"],
+  // La capota es de TERRAZA, no de remolque. Medido sobre RPS (OF desde 2024):
+  // quien más las pide son Hijos de Rivera (22) y Mahou (17), y detrás bares y
+  // furanchos; lo que se hace es "CAMBIO DE TELA DE CAPOTA" (65), "REPARACION
+  // CAPOTA" (29) y "ESTRUCTURA CAPOTA CON PIES PARA TERRAZA" (22). Ninguna
+  // habla de un remolque. Una capota de remolque de verdad sigue cayendo en
+  // REMOLQUE: esa palabra la caza antes la regla de texto.
+  [/CAPOTA/, "TOLDO"],
   [/TOLDO/, "TOLDO"],
   [/ESPECTACULO/, "ESPECTACULO"],
   [/CARPA/, "CARPA"],
@@ -235,29 +241,34 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   [/TAUT?LINER|CAMI[OÓ]N|CISTERNA|COMPOCAR|SEPARA MERCANC/, "CAMION"],
   // ── 2. REMOLQUE ──────────────────────────────────────────────────────────
   // Las tildes se contemplan a mano: toUpperCase() no las quita y en RPS
-  // conviven "BAQUETON" y "BAQUETÓN". "Capota" es de remolque salvo cuando es
-  // de terraza, que entonces es una estructura de la casa
-  // ("ESTRUCTURA CAPOTA CON PIES PARA TERRAZA").
+  // conviven "BAQUETON" y "BAQUETÓN".
   [/ARQUILLAD|BAQUET[OÓ]N|REMOLQUE|BOTELLERO|GANADO|CABALLO/, "REMOLQUE"],
-  [/CAPOTA(?!.*TERRAZA)/, "REMOLQUE"],
-  // ── 3. CERRAMIENTOS ──────────────────────────────────────────────────────
+  // ── 3. CAPOTA ────────────────────────────────────────────────────────────
+  // Va DESPUÉS de remolque a propósito: una "capota de remolque" es un
+  // remolque, y esa palabra ya la cazó la regla de arriba. Lo que queda son
+  // las de terraza, que es lo que son casi todas (ver el dato medido en
+  // FAMILIA_POR_GRUPO). Antes caían todas en REMOLQUE con una excepción solo
+  // para las que decían "TERRAZA", y era al revés: eso no es la excepción,
+  // es la norma.
+  [/CAPOTA/, "TOLDO"],
+  // ── 4. CERRAMIENTOS ──────────────────────────────────────────────────────
   // Antes que PUERTA: "CERRAMIENTO TEXTIL CON LONA:ENROLLABLE CON MOTOR" lleva
   // "enrollable" y no es una puerta, es un cerramiento de lona.
   [/CERRAMIENTO TEXTIL CON LONA/, "LONA"],
-  // ── 4. PUERTA ────────────────────────────────────────────────────────────
+  // ── 5. PUERTA ────────────────────────────────────────────────────────────
   // Antes que las lonas por "LONA PARA PUERTA PLEGABLE", que es una puerta.
   [
     /PUERTA|APILABLE|ENROLLABLE|PLEGABLE|AUTOREPARABLE|AUTORREPARABLE|SECCIONAL|MUELLE DE CARGA/,
     "PUERTA",
   ],
-  // ── 5. FUNDA ─────────────────────────────────────────────────────────────
+  // ── 6. FUNDA ─────────────────────────────────────────────────────────────
   // "FUNDA PARA TOLDO NUEVA" es una funda, no un toldo: va antes que TOLDO.
   [/FUNDA|CUBRE\s?(?:COCHE|MOTO|BARCO)/, "FUNDA"],
-  // ── 6. CARPA ─────────────────────────────────────────────────────────────
+  // ── 7. CARPA ─────────────────────────────────────────────────────────────
   // Antes que las lonas: "LONA PARA TECHO DE CARPA" es de una carpa, y la
   // carpa es la familia que se reconoce.
   [/CARPA|YURTA/, "CARPA"],
-  // ── 7. LONA ──────────────────────────────────────────────────────────────
+  // ── 8. LONA ──────────────────────────────────────────────────────────────
   // Lo que EMPIEZA por lona es una lona, dicho por Iván: con riel, de techo
   // para estructura, de piscina, confeccionada, con ollaos, cortada… Lo que
   // lleva "lona" en medio (un toldo, una capota) ya se decidió arriba.
@@ -268,7 +279,7 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   // cortina de lona con riel es LONA. Mira los dos órdenes, porque en RPS
   // aparece igual "LONA CORTINA…" que "CORTINA LONA…".
   [/CORTINA(?!.*(?:TOLDO|CAMBIO DE TELA)).*(?:LONA|RIEL)|(?:LONA|RIEL).*CORTINA/, "LONA"],
-  // ── 8. TOLDO ─────────────────────────────────────────────────────────────
+  // ── 9. TOLDO ─────────────────────────────────────────────────────────────
   // Con los modelos que se venden por su nombre: en el parte pone "Perlabox",
   // no "toldo cofre". Añadir modelos nuevos aquí.
   [
@@ -279,7 +290,7 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
     /ARZ[UÚ]A|XACOBEO|PERLA\s?BOX|[AÁ]MBAR\s?BOX|SPLEN\s?BOX|STOR|SCREEN|ELIT|IRIS\s?\d|COFRE/,
     "TOLDO",
   ],
-  // ── 7. El resto, sin cambios ─────────────────────────────────────────────
+  // ── 10. El resto, sin cambios ─────────────────────────────────────────────
   [/ORQUESTA|ESPECTACULO|ESCENARIO|TEL[OÓ]N/, "ESPECTACULO"],
   [/CARPA|YURTA/, "CARPA"],
   [/TAPIZ/, "TAPIZADO"],
