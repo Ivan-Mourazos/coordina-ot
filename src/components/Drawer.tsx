@@ -16,6 +16,7 @@ import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
 import { CerrarEnRpsInline } from "./CerrarEnRpsInline";
+import { ReintentarGemelaInline } from "./ReintentarGemelaInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
@@ -195,6 +196,7 @@ export function Drawer({
   onDesfichar,
   onDesficharVarias,
   onCerradoEnRps,
+  onGemelaReintentada,
   ofIdsFichandoYo,
 }: {
   pedido: Pedido | null;
@@ -223,6 +225,10 @@ export function Drawer({
   /** «Dar por terminada en RPS» ya contestó bien en el servidor: el Board
    *  refleja la marca. No pasa por `onAccion` (ver CerrarEnRpsInline). */
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
+  /** «Reintentar la N» (Confirmado con Iván, punto 4) ya escribió bien la
+   *  gemela: el Board refleja la marca sin `gemelaSinEscribir`. Igual que
+   *  `onCerradoEnRps`, no pasa por `onAccion`. */
+  onGemelaReintentada: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, aviso?: string) => void;
   /** Las OF que estoy fichando YO ahora mismo (mi intervalo abierto).
    *
    *  NO vale `of.fichandoRol` para esto: ese dice que la ficha ALGUIEN —el
@@ -958,11 +964,27 @@ export function Drawer({
                         abrir el cajón: cerrar en RPS escribe en la fábrica y
                         tiene que verse de un vistazo quién lo hizo. */}
                     {grupo.id === "cerrada" && (
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-1 space-y-1">
                         {ofs.map((o) => (
-                          <p key={o.id} className="text-[11px] text-text-muted">
-                            {motivoDeCerrada(o, (id) => opById(id)?.nombre)}
-                          </p>
+                          <div key={o.id} className="flex flex-wrap items-center gap-1.5">
+                            <p className="text-[11px] text-text-muted">
+                              {motivoDeCerrada(o, (id) => opById(id)?.nombre)}
+                            </p>
+                            {/* Solo el autor, y solo si la trampa 2/02 dejó una
+                                gemela sin escribir (Confirmado con Iván, punto
+                                4). Escribe SOLO esa operación. */}
+                            {o.cerradaRps?.gemelaSinEscribir && miId === o.autorId && (
+                              <ReintentarGemelaInline
+                                of={o}
+                                seccion={seccion}
+                                miId={miId}
+                                onReintentado={(id, cerradaRps, aviso) => {
+                                  if (aviso) setAvisosCierreRps({ pedido: pedido.codigo, textos: [aviso] });
+                                  onGemelaReintentada(id, cerradaRps);
+                                }}
+                              />
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}

@@ -36,7 +36,12 @@ export interface CambioOF {
    *  llamador que aún no la conozca: `guardarMutacion` los trata como "sin
    *  marca"). `null` = se guarda SIN marca a propósito — lo manda
    *  "Volver a plantear" y "Recuperar un pedido". */
-  cerradaRps?: { at: string; por: string; modo: "sombra" | "ensayo" | "activo" } | null;
+  cerradaRps?: {
+    at: string;
+    por: string;
+    modo: "sombra" | "ensayo" | "activo";
+    gemelaSinEscribir?: string;
+  } | null;
 }
 
 export interface Overlay {

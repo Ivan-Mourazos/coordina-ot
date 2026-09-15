@@ -277,6 +277,12 @@ export interface OF {
     at: string; // ISO
     por: string; // operarioId de quien cerró
     modo: "sombra" | "ensayo" | "activo";
+    /** La operación gemela de la trampa 2/02 que no se pudo escribir al
+     *  cerrar (o en un reintento posterior). undefined = no hay ninguna
+     *  pendiente: la OF no tenía trampa, o ya se resolvió con
+     *  «Reintentar la N». Ver «Confirmado con Iván» punto 4 de la spec
+     *  2026-09-15-material-gastado-y-cerrar-of-design.md. */
+    gemelaSinEscribir?: string;
   };
 
   /** Si se está fichando ahora mismo, con qué rol. */

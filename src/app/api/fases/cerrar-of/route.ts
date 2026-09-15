@@ -261,7 +261,12 @@ async function cerrar({
     cambiosOF: [{
       ofId, autorId: of.autorId, revisorId: of.revisorId, estado: "aprobada",
       observacion: of.observacion ?? null,
-      cerradaRps: { at: ahora, por: operarioId, modo },
+      // La gemela que no entró se guarda CON la marca (Confirmado con Iván,
+      // punto 4): sin esto, «Reintentar la N» desaparecería al refrescar la
+      // pantalla, porque solo vivía en la respuesta de este POST.
+      // `gemelasSinEscribir` es un array por si acaso, pero la trampa 2/02
+      // deja como mucho UNA gemela por sección.
+      cerradaRps: { at: ahora, por: operarioId, modo, gemelaSinEscribir: gemelasSinEscribir[0] },
     }],
     previosOF: [{
       ofId, autorId: of.autorId, revisorId: of.revisorId, estado: of.estado,

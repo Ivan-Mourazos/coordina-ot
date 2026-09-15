@@ -1893,6 +1893,24 @@ export function Board({
     [setPedidosSync, soltarDeMiFichaje],
   );
 
+  // «Reintentar la N» (Confirmado con Iván, punto 4): igual que
+  // `marcarCerradaEnRps`, el servidor ya hizo todo el trabajo
+  // (ReintentarGemelaInline llama a /api/fases/cerrar-of/reintentar-gemela
+  // directamente). Aquí solo se refleja la marca sin la gemela pendiente — la
+  // OF ya no era fichable ni antes ni después, así que no hace falta tocar el
+  // fichaje ni el `postSeqRef` que lo protege.
+  const marcarGemelaResuelta = useCallback(
+    (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>) => {
+      setPedidosSync((prev) =>
+        prev.map((p) => ({
+          ...p,
+          ofs: p.ofs.map((of) => (of.id === ofId ? { ...of, cerradaRps } : of)),
+        })),
+      );
+    },
+    [setPedidosSync],
+  );
+
   // Pasar a Producción cierra el trabajo de OT: el pedido sale del tablero, sus
   // fases se dan por terminadas en OLANET y a partir de ahí solo se consulta
   // desde el Historial. Y se pulsa desde tres sitios (la fila del panel, el
@@ -2492,6 +2510,7 @@ export function Board({
         onDesfichar={desficharOF}
         onDesficharVarias={desficharVarias}
         onCerradoEnRps={marcarCerradaEnRps}
+        onGemelaReintentada={marcarGemelaResuelta}
         ofIdsFichandoYo={ofIdsFichandoYo}
       />
 

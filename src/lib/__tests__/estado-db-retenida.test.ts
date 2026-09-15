@@ -106,6 +106,34 @@ test("of_retenida: varias filas de golpe, y pasar el pedido borra las de su secc
   expect(db.leerOfsRetenidas("ot").filter((r) => r.pedido === "AR.26.05000")).toEqual([]);
 });
 
+test("guardarMutacion guarda y limpia gemelaSinEscribir, aparte del resto de la marca", () => {
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "cerrar_en_rps",
+    cambiosOF: [{
+      ofId: "0232120:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo", gemelaSinEscribir: "02" },
+    }],
+  });
+  expect(db.leerOverlay("ot").ofs.get("0232120:9")?.cerradaRps).toEqual({
+    at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo", gemelaSinEscribir: "02",
+  });
+
+  // «Reintentar la 02»: se escribe bien, y se guarda la MISMA marca sin la
+  // gemela — el resto (quién y cuándo cerró) no cambia.
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "reintentar_gemela_cierre",
+    cambiosOF: [{
+      ofId: "0232120:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo" },
+    }],
+  });
+  expect(db.leerOverlay("ot").ofs.get("0232120:9")?.cerradaRps).toEqual({
+    at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo",
+  });
+});
+
 test("cerrar en RPS cierra la revisión: se borra lo comprobado de esa OF", () => {
   db.marcarPuntoRevision(["0232099:9"], 1, "ok", "tamara");
   expect(db.leerMarcasRevision(["0232099:9"])["0232099:9"]).toBeDefined();

@@ -15,7 +15,12 @@ export function avisosTrasCerrarEnRps(r: RespuestaCierreRps): string[] {
   const avisos: string[] = [];
   if (r.yaEstaba) avisos.push("Ya estaba terminada en RPS: la cerró alguien antes. Queda apartada aquí igual.");
   for (const g of r.gemelasSinEscribir ?? []) {
-    avisos.push(`Se cerró la ${r.faseFila ?? ""}; la ${g} no ha podido escribirse. Vuelve a pulsar para reintentarla.`);
+    // NO "vuelve a pulsar": con la marca ya puesta, `accionesDisponibles` no
+    // vuelve a ofrecer "Dar por terminada en RPS" (noSi: cerradaRps !==
+    // undefined), así que ese texto llevaba a ningún sitio. El botón nuevo,
+    // "Reintentar la N" (Confirmado con Iván, punto 4), vive en el cajón de
+    // cerradas y escribe SOLO esa gemela.
+    avisos.push(`Se cerró la ${r.faseFila ?? ""}; la ${g} no ha podido escribirse. En el cajón de cerradas en RPS sale «Reintentar la ${g}» para volver a intentar solo esa.`);
   }
   return avisos;
 }

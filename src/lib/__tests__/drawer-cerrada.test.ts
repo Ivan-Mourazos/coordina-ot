@@ -16,14 +16,14 @@ const pinta = (ofs: OF[], miId: string) =>
       operarios: OPERARIOS, seccion: SECCIONES.ot, miId,
       onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
       onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop,
-      onDesficharVarias: noop, onCerradoEnRps: noop,
+      onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
     }),
   );
 
-const cerrada = (modo: "activo" | "ensayo"): OF => ({
+const cerrada = (modo: "activo" | "ensayo", gemelaSinEscribir?: string): OF => ({
   ...base, id: "0232086:9", codigo: "0232086", autorId: "ivan", revisorId: null, estado: "aprobada",
   ajenaOT: false, detenida: false, fichandoRol: null,
-  cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo },
+  cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo, gemelaSinEscribir },
 });
 const enCurso: OF = {
   ...base, id: "0232087:9", codigo: "0232087", autorId: "ivan", revisorId: null, estado: "en_curso",
@@ -48,6 +48,21 @@ test("fuera de la lista de trabajo: la OF cerrada no sale entre las OF de OT, y 
   // Cerrada el cajón, la fila de la cerrada no se pinta: su código solo sale
   // en la línea de resumen.
   expect(html.match(/0232086/g)?.length).toBe(1);
+});
+
+test("«Reintentar la N» (Confirmado con Iván, punto 4): sale para el autor cuando la trampa dejó una gemela sin escribir", () => {
+  const html = pinta([cerrada("activo", "02")], "ivan");
+  expect(html).toContain("Reintentar la 02");
+});
+
+test("«Reintentar la N» no sale para otro técnico, aunque sea el mismo pedido", () => {
+  const html = pinta([cerrada("activo", "02")], "tamara");
+  expect(html).not.toContain("Reintentar la 02");
+});
+
+test("«Reintentar la N» no sale sin gemela pendiente (el caso normal, sin trampa)", () => {
+  const html = pinta([cerrada("activo")], "ivan");
+  expect(html).not.toContain("Reintentar la");
 });
 
 test("la fila de una cerrada no ofrece fichar, tampoco si se cerró en modo prueba", () => {

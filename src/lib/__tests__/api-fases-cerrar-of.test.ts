@@ -433,6 +433,24 @@ test("M2: la respuesta dice qué gemela no pudo escribirse", async () => {
   expect(d).toEqual(expect.objectContaining({ ok: true, yaEstaba: false, faseFila: "9", gemelasSinEscribir: ["09"] }));
 });
 
+test("«Confirmado con Iván» punto 4: la gemela que no entró se guarda en la marca", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([
+    { idBoletin: "901", of: "0232086", fase: "09", descripcion: "bis", maquina: "A-OTEC", estado: 1 },
+    { idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 },
+  ]);
+  finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+  expect((await cerrar()).status).toBe(200);
+  expect(marcaDe()).toEqual(expect.objectContaining({ gemelaSinEscribir: "09" }));
+});
+
+test("sin trampa (una sola operación), la marca no lleva gemelaSinEscribir", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  expect((await cerrar()).status).toBe(200);
+  expect(marcaDe()?.gemelaSinEscribir).toBeUndefined();
+});
+
 test("M3: si OLANET se cae al escribir la de la fila, 503 y sin marca", async () => {
   process.env.FICHAJE_OLANET = "activo";
   finalizarFase.mockResolvedValue({ ok: false, status: 503, error: "OLANET no responde" });

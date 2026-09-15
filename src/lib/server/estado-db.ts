@@ -293,12 +293,22 @@ function prepararTraspasado(db: Database.Database): void {
  *  segundo paso, el relleno, puede fallar a medias). */
 function prepararCierreRps(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(of_overlay)").all() as Array<{ name: string }>;
-  if (columnas.some((c) => c.name === "cerrada_rps_at")) return;
-  db.exec(`
-    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_at TEXT;
-    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_por TEXT;
-    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_modo TEXT;
-  `);
+  const tiene = (n: string) => columnas.some((c) => c.name === n);
+  if (!tiene("cerrada_rps_at")) {
+    db.exec(`
+      ALTER TABLE of_overlay ADD COLUMN cerrada_rps_at TEXT;
+      ALTER TABLE of_overlay ADD COLUMN cerrada_rps_por TEXT;
+      ALTER TABLE of_overlay ADD COLUMN cerrada_rps_modo TEXT;
+    `);
+  }
+  // Añadida aparte: bases que ya migraron las tres de arriba (Tarea 5/6) no
+  // tienen esta todavía. Guarda un solo dato — el código de la operación
+  // gemela de la trampa 2/02 que no se pudo escribir al cerrar — para que
+  // «Reintentar la N» sepa qué reintentar después de refrescar la pantalla
+  // (ver `OF.cerradaRps.gemelaSinEscribir`, «Confirmado con Iván» punto 4).
+  if (!tiene("cerrada_rps_gemela")) {
+    db.exec("ALTER TABLE of_overlay ADD COLUMN cerrada_rps_gemela TEXT");
+  }
 }
 
 /** "Esta OF pasó por revisión". La columna se añade sobre la marcha porque la
@@ -1003,7 +1013,7 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
   for (const fila of db
     .prepare(
       `SELECT of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at,
-              cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo
+              cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo, cerrada_rps_gemela
          FROM of_overlay`,
     )
     .all() as Array<{
@@ -1017,6 +1027,7 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
     cerrada_rps_at: string | null;
     cerrada_rps_por: string | null;
     cerrada_rps_modo: string | null;
+    cerrada_rps_gemela: string | null;
   }>) {
     if (!ESTADOS_OF.has(fila.estado)) continue; // fila corrupta: ignorar
     ofs.set(fila.of_id, {
@@ -1027,14 +1038,17 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
       observacion: fila.observacion,
       revisada: fila.revisada === 1,
       actualizadoAt: fila.updated_at,
-      // Las tres columnas van juntas o ninguna: solo se escriben desde la
-      // misma llamada a upsertOF (ver guardarMutacion).
+      // Las tres primeras columnas van juntas o ninguna: solo se escriben
+      // desde la misma llamada a upsertOF (ver guardarMutacion). La gemela es
+      // aparte: puede faltar aunque la OF SÍ esté cerrada (el caso normal, sin
+      // trampa 2/02, o ya reintentada).
       cerradaRps:
         fila.cerrada_rps_at && fila.cerrada_rps_por && fila.cerrada_rps_modo
           ? {
               at: fila.cerrada_rps_at,
               por: fila.cerrada_rps_por,
               modo: fila.cerrada_rps_modo as "sombra" | "ensayo" | "activo",
+              gemelaSinEscribir: fila.cerrada_rps_gemela ?? undefined,
             }
           : undefined,
     });
@@ -1112,9 +1126,9 @@ export function guardarMutacion(m: Mutacion): void {
   // alguien la revisó, eso ya pasó y ningún movimiento posterior lo borra—.
   const upsertOF = db.prepare(`
     INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at, revisada,
-                             cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo)
+                             cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo, cerrada_rps_gemela)
     VALUES (@ofId, @autorId, @revisorId, @estado, @observacion, @ahora, @revisada,
-            @cerradaRpsAt, @cerradaRpsPor, @cerradaRpsModo)
+            @cerradaRpsAt, @cerradaRpsPor, @cerradaRpsModo, @cerradaRpsGemela)
     ON CONFLICT(of_id) DO UPDATE SET
       autor_id = excluded.autor_id,
       revisor_id = excluded.revisor_id,
@@ -1124,7 +1138,8 @@ export function guardarMutacion(m: Mutacion): void {
       revisada = MAX(of_overlay.revisada, excluded.revisada),
       cerrada_rps_at = excluded.cerrada_rps_at,
       cerrada_rps_por = excluded.cerrada_rps_por,
-      cerrada_rps_modo = excluded.cerrada_rps_modo
+      cerrada_rps_modo = excluded.cerrada_rps_modo,
+      cerrada_rps_gemela = excluded.cerrada_rps_gemela
   `);
   const upsertRetenida = db.prepare(`
     INSERT INTO of_retenida (of_id, pedido, seccion, motivo, por, at)
@@ -1181,6 +1196,7 @@ export function guardarMutacion(m: Mutacion): void {
         cerradaRpsAt: c.cerradaRps?.at ?? null,
         cerradaRpsPor: c.cerradaRps?.por ?? null,
         cerradaRpsModo: c.cerradaRps?.modo ?? null,
+        cerradaRpsGemela: c.cerradaRps?.gemelaSinEscribir ?? null,
       });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, m.seccion ?? seccionDeOperario(m.operarioId ?? ""), ahora, m.operarioId, m.ofIdsPedido ? JSON.stringify(m.ofIdsPedido) : null);
 
