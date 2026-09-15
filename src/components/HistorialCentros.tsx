@@ -21,19 +21,7 @@ import {
 // el resto del cajón del equipo (notas, parte escaneado, avisos).
 
 /** El centro decide qué minutos se suman; la selección decide el desglose visible. */
-export function HistorialCentros({
-  ofs,
-  seccion,
-  plegado = false,
-}: {
-  ofs: HistorialOF[];
-  seccion: SeccionId;
-  /** Empezar con todos los centros cerrados. Lo usa la consulta sin login: ahí
-   *  la ficha se abre DENTRO de la lista, y con los tiempos desplegados la
-   *  fila de al lado quedaba a dos pantallas de distancia. El equipo los abre
-   *  como siempre: mira la ficha para eso. */
-  plegado?: boolean;
-}) {
+export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
@@ -68,7 +56,7 @@ export function HistorialCentros({
         // Su tiempo ES el del centro: no se repite (ver abajo).
         const unaSolaPersona = personasVisibles.length === 1 && personasVisibles[0].min === centro.totalMin;
         return (
-          <details key={centro.id} open={!plegado && (seleccionado || desglose)} className="bloque-3d rounded-xl">
+          <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
               {centro.nombre}
               <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>

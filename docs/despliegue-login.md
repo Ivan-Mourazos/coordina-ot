@@ -154,30 +154,36 @@ No hay un segundo interruptor que recordar.
 
 ### Qué ve quien no tiene sesión
 
-En vez del tablero del equipo, tres pestañas de solo lectura pensadas para el
+En vez del tablero del equipo, dos pestañas de solo lectura pensadas para el
 resto de la casa —comercial, administración, taller—, que hoy hace esta
 pregunta por teléfono porque la web no se la contestaba:
 
-- **Pedidos Pendientes** — todo pedido con trabajo sin terminar en la casa,
-  pase o no por Oficina Técnica, ordenado por lo que entrega antes. Lo
-  vencido va en su propio apartado, plegado, para no enterrar lo que entra
-  esta semana.
-- **Pedidos Realizados** — lo mismo, ya terminado.
+- **Pedidos** — se entra buscando: pedido, cliente, obra u OF, de cualquier
+  año y esté como esté. Sin buscar, lo que se entrega hoy y los catorce días
+  siguientes, en una tarjeta por día. Filtros de estado (fuera de plazo, en
+  fábrica, esperando salir, entregados), paso, familia y fechas. Cada fila
+  dice dónde está el pedido y quién lo tiene; al abrirla, las tareas con sus
+  tiempos y quién las hizo, y los documentos de RPS.
 - **Consultas con OT** — el calendario de visitas, sin los botones de crear,
-  editar ni cerrar.
+  editar ni cerrar. El buscador de arriba vale también para esta pestaña.
 
-Lo que NO enseña, en ninguna pestaña: las notas del pedido, la nota de
-devolución, las causas de rechazo ni las marcas del parte revisado. Eso se
-escribe entre nosotros para trabajar, y no cambia porque ahora lo pueda leer
-cualquiera de la casa.
+Pendiente quiere decir **sin entregar**: lo que ya salió está rematado, tenga
+las tareas que tenga abiertas en RPS. La fecha de salida es la del albarán; sin
+albarán enlazado, la fila dice «Entregado» a secas y no se inventa otra fecha.
 
-### Verificado contra RPS (14-15/09/2026)
+Lo que NO enseña, en ninguna pestaña: las notas del pedido, las notas de
+producción, la nota de devolución, las causas de rechazo ni las marcas del
+parte revisado. Eso se escribe entre nosotros para trabajar, y no cambia porque
+ahora lo pueda leer cualquiera de la casa.
 
-- La lista de pendientes: **777** pedidos de 2026, y ya ninguno queda "sin
-  poder decir por dónde va" — el fallo que se arregló daba 151 de 551 así.
-- Los vencidos de hoy: **2.819**, en su apartado propio.
-- Lo que se descarga quien no tiene sesión: **39 KB**, frente a los 368 KB de
-  antes, que incluían el tablero entero.
+### Verificado contra RPS y OLANET (15/09/2026)
+
+- Pendientes en toda la casa: **585** — 396 en fábrica y 189 esperando salir.
+- Entregados de 2026: **4.974**, y solo **34** sin albarán enlazado.
+- La lista en memoria se construye en **45 s** (los albaranes se agrupan de una
+  vez; preguntándolos línea a línea eran 97 s).
+- Saber dónde está un pedido y quién lo tiene: **menos de 2 s** con las
+  conexiones abiertas. Con OLANET caído la lista carga igual, sin nombres.
 
 ### El orden importa
 

@@ -5,16 +5,7 @@ import { leerHistorialPedidoDetalle } from "./historial-db";
 import { nombresHistorial } from "./nombres-historial";
 import { claveFase, ultimosMovimientos, type UltimoMovimiento } from "./olanet-movimientos";
 import { recursosSql, SECCIONES, SECCION_POR_DEFECTO } from "../secciones";
-import {
-  detalleConsulta,
-  detallePublico,
-  filtrarPublico,
-  frasePublica,
-  type FiltrosPublicos,
-  type PedidoConsultaDetalle,
-  type PedidoPublico,
-  type PedidoPublicoDetalle,
-} from "../publico";
+import { detalleConsulta, type PedidoConsultaDetalle } from "../publico";
 import {
   diaIso,
   estadoEfectivo,
@@ -30,41 +21,18 @@ import { dondeEstaPedido, type DondeOF, type TareaConEstado } from "../consulta-
 import { PEDIDOS } from "../mock";
 import { estaFinalizado, hoyISO } from "../types";
 
-// ─── La consulta sin login: acceso a RPS (solo lectura) ──────────────────────
-// El índice en memoria (historial-indice.ts) dice QUÉ pedidos salen; esta
-// consulta dice por dónde van. Se pide para las 40 filas de la página de una
-// vez: una consulta por pedido serían 40 idas y vueltas.
+// ─── La consulta sin login: acceso a RPS y OLANET (solo lectura) ─────────────
+// El índice en memoria (historial-indice.ts) dice QUÉ pedidos salen y en qué
+// situación; esto dice por dónde va cada uno en fábrica y quién lo tiene. Se
+// pide para las 40 filas de la página de una vez: una consulta por pedido
+// serían 40 idas y vueltas.
 
 const ES_MOCK = process.env.DATASOURCE !== "rps";
 
-const iso = (ms: number | null): string | null =>
-  ms === null ? null : new Date(ms).toISOString().slice(0, 10);
-
-/** Pedido → centros con tarea abierta, por DESCRIPCIÓN y sin repetir.
- *  Ver el test: el mismo centro tiene dos códigos en RPS. */
-export function agruparCentros(
-  filas: readonly { pedido: string | null; centro: string | null }[],
-): Map<string, string[]> {
-  const mapa = new Map<string, Set<string>>();
-  for (const f of filas) {
-    const pedido = (f.pedido ?? "").trim();
-    const centro = (f.centro ?? "").trim();
-    if (!pedido || !centro) continue;
-    let suyos = mapa.get(pedido);
-    if (!suyos) {
-      suyos = new Set();
-      mapa.set(pedido, suyos);
-    }
-    suyos.add(centro);
-  }
-  return new Map([...mapa].map(([pedido, set]) => [pedido, [...set].sort()]));
-}
-
-/** El rescate de OT como fragmento SQL, para usar EXACTAMENTE el mismo texto
- *  en las dos consultas que lo necesitan (`centrosDe`, que filtra lo abierto
- *  para decidir qué centros enseñar en la lista, y `tareasCerradasDe`, que
- *  necesita el booleano tarea a tarea para la ficha del invitado). Requiere
- *  `t` (CPRMOTask) en el FROM de quien lo use.
+/** El rescate de OT como fragmento SQL: `tareasDePedidos` tiene que dar por
+ *  cerrada EXACTAMENTE la misma tarea que el índice
+ *  (`ctesFinalizacionHistorial`), o un pedido que la lista da por «en fábrica»
+ *  no tendría dónde estar. Requiere `t` (CPRMOTask) en el FROM de quien lo use.
  *
  *  Una tarea NUESTRA al 100 % cuenta como terminada aunque OLANET no lo diga
  *  (ver historial-finalizacion-sql.ts).
@@ -72,7 +40,7 @@ export function agruparCentros(
  *  OJO: recursosSql(SECCIONES[SECCION_POR_DEFECTO]) y NO
  *  recursosDeLaWebSql(). Parece que tocaría la de las dos secciones (así junta
  *  'a-otec','otec-a','a-dgra','dgra-a'), pero el índice que decide quién es
- *  "pendiente" (estaPendiente, en publico.ts) se construye con
+ *  "pendiente" (situacionDe, en consulta.ts) se construye con
  *  ctesFinalizacionHistorial(SECCION_POR_DEFECTO), y ahí el rescate SOLO
  *  alcanza a los recursos de esa sección ('a-otec', 'otec-a'); para diseño el
  *  rescate está apagado del todo (rescateOt = "1=0"). Con
@@ -104,92 +72,6 @@ function rescateOtSql(): string {
       AND t.PercentProgress >= 100`;
 }
 
-/** Los centros abiertos de una página entera.
- *
- *  «Abierta» se mide EXACTAMENTE como la mide el índice: sin cierre en
- *  `tgm_estadosof_olanet` (idestadoof = 3), más el rescate de las tareas de la
- *  web al 100 % (`rescateOtSql`). Con otra regla, un pedido podría salir en la
- *  lista de pendientes sin un solo centro debajo. */
-async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string[]>> {
-  if (pedidos.length === 0) return new Map();
-  const pool = await getPool();
-  const req = pool.request();
-  const marcas = pedidos.map((p, i) => {
-    req.input(`p${i}`, p);
-    return `@p${i}`;
-  });
-  const r = await req.query<{ pedido: string | null; centro: string | null }>(`
-    SELECT DISTINCT o.CodOrder AS pedido, rm.Description AS centro
-    FROM dbo.FACOrderSL o
-    JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = l.IDManufacturingOrder
-      AND mo.CodCompany = '001'
-    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
-    JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
-    LEFT JOIN (
-      SELECT orden, fase, MAX(fecha_cambio) AS fin
-      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
-    ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
-    WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})
-      AND e.fin IS NULL
-      AND NOT (${rescateOtSql()})`);
-  return agruparCentros(r.recordset);
-}
-
-/** Cerrada o abierta, tarea a tarea, para la ficha del invitado (Cambio 4,
- *  task-7d): lo que falta ver es justo lo contrario de "abierta" en
- *  `centrosDe` —MISMA regla, invertida— así que comparte `rescateOtSql` con
- *  ella a propósito: con otra copia, tarde o temprano una de las dos cambia y
- *  la ficha dice que falta un paso que la lista ya da por hecho (o al revés).
- *
- *  Claves `orden:tarea` con `CodManufacturingOrder` y `CodMOTask` SIN más
- *  normalizar (ver `claveTarea` en lib/publico.ts): son las mismas columnas,
- *  sin tocar, que ya trae `leerHistorialPedido` para `HistorialOF.codigo` y
- *  `tarea.codigo`. */
-export async function tareasCerradasDe(pedido: string): Promise<Map<string, boolean>> {
-  const pool = await getPool();
-  const r = await pool.request().input("pedido", pedido).query<{
-    orden: string | null;
-    tarea: string | null;
-    cerrada: number;
-  }>(`
-    SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
-      CASE WHEN e.fin IS NOT NULL OR (${rescateOtSql()}) THEN 1 ELSE 0 END AS cerrada
-    FROM dbo.FACOrderSL o
-    JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = l.IDManufacturingOrder
-      AND mo.CodCompany = '001'
-    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
-    LEFT JOIN (
-      SELECT orden, fase, MAX(fecha_cambio) AS fin
-      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
-    ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
-    WHERE o.CodCompany = '001' AND o.CodOrder = @pedido
-  `);
-  const mapa = new Map<string, boolean>();
-  for (const fila of r.recordset) {
-    const orden = (fila.orden ?? "").trim();
-    const tarea = (fila.tarea ?? "").trim();
-    if (!orden || !tarea) continue;
-    mapa.set(`${orden}:${tarea}`, fila.cerrada === 1);
-  }
-  return mapa;
-}
-
-/** El detalle de un pedido para quien no tiene sesión: cabecera, OF y tareas
- *  ya recortadas (`detallePublico`, lib/publico.ts) con el cierre de cada
- *  tarea puesto. En mock no hay RPS que consultar —y el mock ni siquiera
- *  genera `tareas` por OF (ver `detalleMock`, historial-db.ts)—, así que el
- *  mapa de cierres se queda vacío: es justo lo que hace `detallePublico` por
- *  defecto. */
-export async function leerDetallePublico(pedido: string): Promise<PedidoPublicoDetalle> {
-  const [detalle, cerradas] = await Promise.all([
-    leerHistorialPedidoDetalle(pedido),
-    ES_MOCK ? Promise.resolve(new Map<string, boolean>()) : tareasCerradasDe(pedido),
-  ]);
-  return detallePublico(detalle, cerradas);
-}
-
 /** La lista todavía no está: el índice de 153.000 pedidos se está
  *  construyendo, y tarda unos 35 s.
  *
@@ -204,102 +86,6 @@ export class ListaEnConstruccion extends Error {
     super("La lista de pedidos todavía se está construyendo");
     this.name = "ListaEnConstruccion";
   }
-}
-
-/** La página del invitado: el índice filtrado, con sus centros puestos. */
-export async function leerPaginaPublica(
-  f: FiltrosPublicos,
-): Promise<{ pedidos: PedidoPublico[]; hasMore: boolean; vencidos?: number }> {
-  if (ES_MOCK) return paginaMock(f);
-
-  await asegurarIndice();
-  const indice = indiceSiListo();
-  // Sin índice no hay lista: la consulta de respaldo del Historial recalcula
-  // toda la historia (3,8 s) y esta pantalla la mira la casa entera. Mejor
-  // decir que todavía no que tumbar RPS.
-  if (!indice) throw new ListaEnConstruccion();
-
-  // "hoy" se decide UNA vez aquí y se pasa entero: es lo que separa lo
-  // vencido de lo que viene (ver el bloque de filtrarPublico en publico.ts).
-  const { filas, hasMore, vencidos } = filtrarPublico(indice, f, hoyISO());
-  const centros = f.lista === "pendientes"
-    ? await centrosDe(filas.map((b) => b.pedido))
-    : new Map<string, string[]>();
-
-  const pedidos = filas.map((b): PedidoPublico => {
-    const info = indice.info.get(b.pedido);
-    const suyos = centros.get(b.pedido) ?? [];
-    return {
-      codigo: b.pedido,
-      cliente: info?.cliente ?? null,
-      negocio: info?.negocio ?? null,
-      ciudadEntrega: info?.ciudadEntrega ?? null,
-      fechaPedido: iso(b.fechaPedido),
-      fechaEntrega: iso(b.fechaEntrega),
-      fechaFinalizacion: iso(b.finalizada),
-      nOf: b.nOf,
-      pendiente: f.lista === "pendientes",
-      pendienteEntrega: b.pendienteEntrega,
-      centros: suyos,
-      estado: frasePublica(suyos, b.pendienteEntrega),
-    };
-  });
-  return { pedidos, hasMore, ...(vencidos !== undefined ? { vencidos } : {}) };
-}
-
-/** Sin base de datos (DATASOURCE distinto de "rps"): la web de desarrollo
- *  tiene que arrancar igual, como ya hace el Historial.
- *
- *  El brief original filtraba por `p.situacion === "completado"`, pero ese
- *  valor lo pone el overlay guardado en SQLite (server/overlay.ts) y nunca
- *  vive en `PEDIDOS`: los pedidos "Historial" del mock traen `situacion:
- *  "procesado"` igual que los que siguen abiertos, así que esa comparación no
- *  distinguía nada y la lista de "realizados" salía siempre vacía. Se usa en
- *  su lugar `estaFinalizado` (types.ts), la MISMA regla que ya separa "sin
- *  trabajo de OT pendiente" en el resto de la web (todas las OF activas
- *  aprobadas), y que sí es cierta para esos tres pedidos del mock.
- *
- *  `fechaCreacion` tampoco lo trae ningún pedido del mock (solo existe para
- *  cuando RPS lo manda): se cae a `fechaSolicitud`, que sí tienen todos, para
- *  no enseñar una fecha en blanco en cada fila. */
-function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: boolean; vencidos?: number } {
-  const pendientes = f.lista === "pendientes";
-  let elegidos = PEDIDOS.filter((p) => estaFinalizado(p) !== pendientes);
-
-  // Mismo apartado de vencidos que en RPS (ver filtrarPublico, publico.ts):
-  // el mock también arranca con `soloVencidos` en la URL, así que sin esto la
-  // pantalla de desarrollo mentiría al enseñar la misma lista para las dos
-  // pestañas del apartado.
-  let vencidos: number | undefined;
-  if (pendientes) {
-    const hoy = hoyISO();
-    const esVencido = (p: (typeof PEDIDOS)[number]) => !!p.fechaEntrega && p.fechaEntrega < hoy;
-    if (f.soloVencidos) {
-      elegidos = elegidos.filter(esVencido);
-    } else {
-      vencidos = elegidos.filter(esVencido).length;
-      elegidos = elegidos.filter((p) => !esVencido(p));
-    }
-  }
-
-  const pedidos = elegidos.map((p): PedidoPublico => {
-    const centros = pendientes ? ["OFICINA TECNICA ARZUA"] : [];
-    return {
-      codigo: p.codigo,
-      cliente: p.cliente ?? null,
-      negocio: null,
-      ciudadEntrega: p.ciudadEntrega ?? null,
-      fechaPedido: p.fechaCreacion ?? p.fechaSolicitud ?? null,
-      fechaEntrega: p.fechaEntrega ?? null,
-      fechaFinalizacion: null,
-      nOf: p.ofs.length,
-      pendiente: pendientes,
-      pendienteEntrega: pendientes,
-      centros,
-      estado: frasePublica(centros, pendientes),
-    };
-  });
-  return { pedidos, hasMore: false, ...(vencidos !== undefined ? { vencidos } : {}) };
 }
 
 // ─── Segunda versión: dónde está y quién lo tiene ───────────────────────────

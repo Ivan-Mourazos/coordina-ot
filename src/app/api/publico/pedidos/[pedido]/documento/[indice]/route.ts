@@ -15,7 +15,7 @@ import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/ser
 // La gemela pública de `/api/historial/[pedido]/documento/[indice]` (que pasa
 // a pedir sesión en la Task 5): sirve UNO de los documentos que RPS tiene
 // colgados del pedido, para quien lo abre sin login. El detalle público
-// (`/api/publico/pedidos/[pedido]`, vía `detallePublico`) ya reescribe la URL
+// (`/api/publico/pedidos/[pedido]`, vía `detalleConsulta`) ya reescribe la URL
 // de cada documento para que apunte aquí; sin esta ruta, esa lista no se
 // podría abrir.
 //

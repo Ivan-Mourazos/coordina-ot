@@ -6,7 +6,7 @@ import { textoSituacion, type DondeOF, type PasoDonde } from "@/lib/consulta-don
 import { agruparPedidosPorDia } from "@/lib/consulta-dias";
 import { fmtDiaMesAno } from "@/lib/fechas";
 import { TRAMO } from "@/lib/linea-tiempo";
-import type { PedidoConsultaDetalle } from "@/lib/publico";
+import { nombreBonito, type PedidoConsultaDetalle } from "@/lib/publico";
 import { SECCION_POR_DEFECTO } from "@/lib/secciones";
 import { DocumentosRps } from "./DocumentosRps";
 import { ErrorCarga } from "./ErrorCarga";
@@ -188,7 +188,10 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
   // cada vez que se pliega y despliega.
   const [tocado, setTocado] = useState(false);
   const donde = textoSituacion(pedido.situacion, pedido.donde);
-  const quien = [pedido.cliente ?? "—", pedido.ciudadEntrega].filter(Boolean).join(" · ");
+  // RPS los guarda a gritos; en una lista de cuarenta filas, las mayúsculas
+  // tapan al código del pedido, que es lo que se busca.
+  const cliente = pedido.cliente ? nombreBonito(pedido.cliente) : "—";
+  const ciudad = pedido.ciudadEntrega ? nombreBonito(pedido.ciudadEntrega) : null;
   const id = `ficha-${pedido.codigo}`;
 
   return (
@@ -206,8 +209,14 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
         <span className="font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
         {/* Con suelo: un «dónde está» largo no puede aplastar de quién es el
             pedido. Si no caben los dos, baja «dónde está» a otra línea. */}
-        <span className="min-w-[12rem] flex-1 truncate text-sm text-text" title={quien}>
-          {quien}
+        {/* El destino con el color de marca: es lo que se busca al repasar la
+            lista después del cliente («¿cuál es el de Ourense?»). */}
+        <span
+          className="min-w-[12rem] flex-1 truncate text-sm text-text"
+          title={[cliente, ciudad].filter(Boolean).join(" · ")}
+        >
+          {cliente}
+          {ciudad && <span className="text-brand-700 dark:text-brand-300"> · {ciudad}</span>}
         </span>
         {donde && <span className="text-xs font-medium text-text">{donde}</span>}
         {/* Fuera de plazo se dice SIEMPRE: el rótulo del día dice para cuándo
