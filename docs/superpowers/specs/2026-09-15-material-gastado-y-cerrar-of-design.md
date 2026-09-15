@@ -708,32 +708,28 @@ terminadas las N» en el bloque del pedido, como «Aprobar las N».
 con el estado de OLANET en la misma consulta por página que ya trae quién tiene
 cada tarea.
 
-## A confirmar con Iván
+## Confirmado con Iván (15/09/2026)
 
-1. **La ruta de hoy, `POST /api/fases`, tampoco respeta `modoFichaje()`**
-   (`api/fases/route.ts:56-164`). Al compartir la función, lo natural es que
-   las dos lo respeten. Con el servidor en `activo` no cambia nada hoy, pero en
-   un ensayo el arrastre dejaría de escribir. La regla de autor no aplica ahí,
-   porque el pedido ya está pasado.
+1. **`POST /api/fases` respeta también `modoFichaje()`.** Al compartir la
+   función con la ruta nueva, en `sombra` y `ensayo` el arrastre tampoco
+   escribe en OLANET. Con el servidor en `activo` no cambia nada. La regla de
+   autor no aplica ahí, porque el pedido ya está pasado.
 
-2. **El 3 repetido al volver a pasar.** Una OF recuperada en la que nadie fichó
-   sigue en 3, y al pasar el pedido se manda otro: segundo apunte en
-   `sch_FasesMov`. Hoy ya pasa con los pedidos reabiertos por una OF nueva,
-   que reenvían el 3 de todas. Salidas: aceptarlo, o que `enviarUno` lea el
-   estado de la fase antes de escribir un 3 y lo salte si ya está
-   (`olanet-worker.ts:75-94`). Lo segundo también arreglaría lo de hoy, pero
-   cuesta una consulta por evento.
+2. **No se escribe un 3 sobre una fase que ya está en 3.** `enviarUno`
+   (`olanet-worker.ts:75-94`) lee el estado de la fase antes de mandar un
+   movimiento de finalización y, si ya está terminada, lo da por enviado sin
+   escribir. Evita el segundo apunte en `sch_FasesMov` al volver a pasar un
+   pedido recuperado, y arregla de paso lo que ya pasa hoy con los pedidos
+   reabiertos por una OF nueva. Cuesta una consulta por evento de fase.
 
-3. **Decisiones de la sección 3 que conviene revisar:**
-   - **Vuelve el pedido entero y se eligen qué OF se reabren, todas marcadas
-     por defecto.** La alternativa es marcar solo las que haya que corregir,
-     pero obligaría a elegir siempre.
-   - **Lo recupera cualquier técnico**, no solo un autor del pedido. Para
-     pasarlo sí hace falta autor.
-   - **Una OF sin autor registrado queda a nombre de quien recupera.**
-   - **Las anuladas y las de taller no vuelven.** Si alguna vez hay que
-     restaurar una anulada de un pedido pasado, hoy no habría puerta.
-   - **Una OF FINALIZADA en RPS se deja recuperar**, con aviso, aunque no se
-     pueda fichar.
-   - **No hay botón para deshacer la recuperación**: se aprueban las OF y se
+3. **Sección 3, tal como está escrita:**
+   - Vuelve el pedido entero y se eligen qué OF se reabren, **todas marcadas
+     por defecto**.
+   - **Lo recupera cualquier técnico**, igual que «Volver a plantear» una OF
+     cerrada. Para volver a pasarlo sí hace falta autor.
+   - Una OF sin autor registrado queda a nombre de quien recupera.
+   - Las anuladas y las de taller no vuelven.
+   - Una OF FINALIZADA en RPS se deja recuperar, con aviso, aunque no se pueda
+     fichar.
+   - No hay botón para deshacer la recuperación: se aprueban las OF y se
      vuelve a pasar el pedido.
