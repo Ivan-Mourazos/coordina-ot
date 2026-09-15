@@ -11,6 +11,7 @@ const moverFase = vi.fn<(...a: unknown[]) => Promise<void>>();
 const buscarIdBoletin = vi.fn<(...a: unknown[]) => Promise<string | null>>();
 const sincronizarFichajeEnCurso = vi.fn<(...a: unknown[]) => Promise<void>>();
 const bonosTraspasados = vi.fn<(...a: unknown[]) => Promise<Set<string>>>();
+const estadoDeFase = vi.fn<(...a: unknown[]) => Promise<number | null>>();
 
 vi.mock("../server/olanet", () => ({
   insertarBono: (...a: unknown[]) => insertarBono(...a),
@@ -18,6 +19,7 @@ vi.mock("../server/olanet", () => ({
   buscarIdBoletin: (...a: unknown[]) => buscarIdBoletin(...a),
   sincronizarFichajeEnCurso: (...a: unknown[]) => sincronizarFichajeEnCurso(...a),
   bonosTraspasados: (...a: unknown[]) => bonosTraspasados(...a),
+  estadoDeFase: (...a: unknown[]) => estadoDeFase(...a),
 }));
 
 let dir: string;
@@ -48,6 +50,7 @@ beforeEach(() => {
   buscarIdBoletin.mockReset().mockResolvedValue("4063655");
   sincronizarFichajeEnCurso.mockReset().mockResolvedValue(undefined);
   bonosTraspasados.mockReset().mockResolvedValue(new Set());
+  estadoDeFase.mockReset().mockResolvedValue(0);
 });
 
 const iv = (inicio: string, fin: string | null, ofIds: string[], operarioId: string): Intervalo => ({
@@ -235,6 +238,60 @@ describe("confirmarTraspasos", () => {
 
     // Segunda vuelta: no vuelve a sellar lo mismo.
     expect(await worker.confirmarTraspasos()).toBe(0);
+    delete process.env.FICHAJE_OLANET;
+  });
+});
+
+describe("candado de drenarCola", () => {
+  it("dos llamadas a la vez no envían el mismo evento dos veces", async () => {
+    process.env.FICHAJE_OLANET = "activo";
+    estadoDb.getDb().prepare("DELETE FROM olanet_pendiente").run();
+    // Un solo evento de FASE en la cola, sin bono: encolarFichaje con un
+    // intervalo cerrado deja ahí 3 filas (1 bono + iniciada + interrumpida),
+    // y con moverFase bloqueado sin liberar hasta después las tres saldrían
+    // en la misma pasada — el total ya no sería 1. encolarFinalizacion deja
+    // exactamente una.
+    outbox.encolarFinalizacion(["0230344:2"], "ivan");
+
+    // moverFase se resuelve tarde a propósito, para que las dos llamadas a
+    // drenarCola() se solapen de verdad y no una detrás de otra por suerte.
+    let liberar: () => void = () => {};
+    const bloqueado = new Promise<void>((ok) => { liberar = ok; });
+    moverFase.mockImplementation(async () => { await bloqueado; });
+
+    const p1 = worker.drenarCola();
+    const p2 = worker.drenarCola(); // llega con la primera pasada en curso
+    // Dar tiempo a que las dos hayan LEÍDO la cola antes de liberar moverFase.
+    await new Promise((r) => setTimeout(r, 10));
+    liberar();
+    const [n1, n2] = await Promise.all([p1, p2]);
+
+    expect(n1 + n2).toBe(1); // el evento se envió UNA vez, sin importar quién se lo apunte
+    expect(moverFase).toHaveBeenCalledTimes(1);
+    delete process.env.FICHAJE_OLANET;
+  });
+});
+
+describe("no se repite un 3 ya escrito", () => {
+  it("si la fase ya está finalizada, el evento se da por enviado sin llamar a moverFase", async () => {
+    process.env.FICHAJE_OLANET = "activo";
+    estadoDb.getDb().prepare("DELETE FROM olanet_pendiente").run();
+    outbox.encolarFinalizacion(["0230999:9"], "ivan");
+    estadoDeFase.mockResolvedValue(3); // ya finalizada en OLANET
+
+    expect(await worker.drenarCola()).toBe(1);
+    expect(moverFase).not.toHaveBeenCalled();
+    delete process.env.FICHAJE_OLANET;
+  });
+
+  it("si sigue abierta, escribe el 3 normalmente", async () => {
+    process.env.FICHAJE_OLANET = "activo";
+    estadoDb.getDb().prepare("DELETE FROM olanet_pendiente").run();
+    outbox.encolarFinalizacion(["0230998:9"], "ivan");
+    estadoDeFase.mockResolvedValue(2); // interrumpida: sigue por cerrar
+
+    expect(await worker.drenarCola()).toBe(1);
+    expect(moverFase).toHaveBeenCalledTimes(1);
     delete process.env.FICHAJE_OLANET;
   });
 });
