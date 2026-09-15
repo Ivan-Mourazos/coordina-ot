@@ -37,6 +37,12 @@ export interface BaseHistorial {
 export interface InfoPedidoHistorial {
   cliente: string | null;
   negocio: string | null;
+  /** Localidad de entrega (`FACOrderSL.CityDelivery`). Solo la usa hoy la
+   *  consulta pública, para ponerla en la cabecera de la fila junto al
+   *  cliente (corrección de Iván): es un texto que se repite mucho (Arzúa,
+   *  Santiago…) y se comparte igual que `cliente`/`negocio`, así que cuesta
+   *  poco más guardarla aquí que dejarla fuera del índice. */
+  ciudadEntrega: string | null;
   /** Las familias del panel de Sin asignar (familiaDeTexto), una por OF. */
   familias: string[];
   /** Códigos de OF separados por espacios. Un texto y no una lista: con

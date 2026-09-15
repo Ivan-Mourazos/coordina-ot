@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { PedidoPublico, PedidoPublicoDetalle } from "@/lib/publico";
-import { lineaTiempo } from "@/lib/linea-tiempo";
+import { agruparOfsPublicas, esPedidoTerminado, recorridoPublico } from "@/lib/publico";
+import { lineaTiempo, TRAMO, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import { hoyISO } from "@/lib/types";
 import { fmtDiaMesAno, fmtFechaLarga } from "@/lib/fechas";
-import { SECCION_POR_DEFECTO } from "@/lib/secciones";
+import { ESTADO, fmtMin } from "@/lib/estado";
 import { ErrorCarga } from "./ErrorCarga";
-import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { DocumentosRps } from "./DocumentosRps";
-import { HistorialTareas } from "./HistorialTareas";
 import { FamiliaTag } from "./FamiliaTag";
 
 // ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
@@ -303,7 +302,11 @@ function ApartadoVencidos({ total, q }: { total: number; q: string }) {
            líneas, descuadrados con la fila de debajo. */
         className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
       >
-        <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+        {/* Mismo morado que la línea de tiempo de cada fila (`TRAMO.fuera`) y
+            no un rojo aparte: "vencido" es un solo color en toda la
+            pantalla, el que ya usa `Recorrido` (ListaView.tsx) para lo
+            mismo. */}
+        <span className="text-xs font-semibold" style={{ color: TRAMO.fuera }}>
           {total} vencido{total === 1 ? "" : "s"}
         </span>
         <span className="text-xs text-text-muted">Se acumulan con entrega ya pasada. Toca para verlos.</span>
@@ -351,6 +354,7 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
   // misma fila.
   const [tocado, setTocado] = useState(false);
   const texto = TEXTOS[lista];
+  const hoy = hoyISO();
   // La fecha que se enseña cambia con la pestaña: la entrega en Pendientes,
   // el cierre en Realizados. Es lo único que distingue una fila de la otra.
   const fecha = lista === "pendientes" ? pedido.fechaEntrega : pedido.fechaFinalizacion;
@@ -359,19 +363,13 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
   // tiene la fecha de planificación de OT — la recalcula en bloque el
   // planificador de RPS y fuera de OT no significa nada —, así que el
   // recorrido se mide siempre contra la ENTREGA, con `planificacionEstimada`
-  // puesto para que `lineaTiempo` sepa que esa fecha es prestada.
+  // puesto para que `lineaTiempo` sepa que esa fecha es prestada
+  // (`recorridoPublico`, lib/publico.ts).
   const vencido =
     lista === "pendientes" &&
     pedido.fechaEntrega !== null &&
-    lineaTiempo(
-      {
-        fechaCreacion: pedido.fechaPedido ?? undefined,
-        fechaPlanificacion: pedido.fechaEntrega,
-        planificacionEstimada: true,
-        fechaEntrega: pedido.fechaEntrega,
-      },
-      hoyISO(),
-    ).diasParaEntrega < 0;
+    lineaTiempo(recorridoPublico({ fechaPedido: pedido.fechaPedido ?? undefined, fechaEntrega: pedido.fechaEntrega }), hoy)
+      .diasParaEntrega < 0;
 
   return (
     <li className="glass-panel overflow-hidden rounded-xl">
@@ -386,14 +384,43 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
         className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
       >
         <span className="font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
-        <span className="min-w-0 flex-1 truncate text-sm text-text-muted">
+        {/* Cliente, negocio y ciudad de entrega en UNA sola pieza recortada:
+            comparados con la fila de Realizados, que Iván prefiere por ser una
+            sola línea, aquí caben tres datos más y no hay sitio para todos
+            enteros. Se trunca con puntos suspensivos y el texto completo
+            queda en el `title` — apoyo suficiente para este dato secundario
+            (el principal es el estado, justo al lado, que NO se trunca así,
+            ver más abajo). Con `min-w-0` para que SÍ pueda encogerse (sin él,
+            un texto largo empuja el resto de la fila fuera en vez de
+            recortarse). */}
+        <span
+          className="min-w-0 flex-1 truncate text-sm text-text-muted"
+          title={[pedido.cliente ?? "—", pedido.negocio, pedido.ciudadEntrega].filter(Boolean).join(" · ")}
+        >
           {pedido.cliente ?? "—"}
           {pedido.negocio && <span> · {pedido.negocio}</span>}
+          {pedido.ciudadEntrega && <span> · {pedido.ciudadEntrega}</span>}
         </span>
+        {/* El estado ("Pendiente de: Corte, Confección…"), en la MISMA línea:
+            es la respuesta a la pregunta por la que se entra aquí, así que
+            tiene que estar SIEMPRE visible entero, pero una fila de Realizados
+            de una sola línea (el diseño que a Iván le gustó más, comparando
+            las dos listas ya con datos) no deja sitio para una segunda línea
+            fija. Por eso NO se trunca con `title` como el bloque de arriba
+            —esta pantalla la mira gente de fuera, probablemente desde el
+            móvil, donde el `title` no se ve nunca—: al no llevar `flex-1` ni
+            `truncate`, ocupa lo que necesita en esta línea y, si no cabe,
+            `flex-wrap` (en el botón) lo baja entero a una segunda —justo la
+            otra idea de Iván: "que la segunda línea solo aparezca cuando de
+            verdad haga falta". Solo en Pendientes — en Realizados la frase es
+            siempre "Entregado" (sale de la MISMA regla que decide quién entra
+            en esa lista: sin tarea abierta y sin nada por entregar, ver
+            `filtrarPublico`, publico.ts) y repetirlo en cada fila no informa,
+            solo ocupa sitio. */}
+        {lista === "pendientes" && <span className="text-xs text-text-muted">{pedido.estado}</span>}
         <span
-          className={`shrink-0 text-xs font-semibold ${
-            vencido ? "text-red-700 dark:text-red-300" : "text-text-muted"
-          }`}
+          className="shrink-0 text-xs font-semibold text-text-muted"
+          style={vencido ? { color: TRAMO.fuera } : undefined}
           title={fecha ? `${texto.columna}: ${fmtFechaLarga(fecha)}` : `Sin fecha de ${texto.columna.toLowerCase()}`}
         >
           {vencido && "Vencido · "}
@@ -409,7 +436,21 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
           <ChevronIcon />
         </span>
       </button>
-      <p className="px-4 pb-2 text-[13px] text-text-muted">{pedido.estado}</p>
+      {/* El recorrido, visible sin desplegar: es donde se contesta "para
+          cuándo es y llega o no llega" (encargo de Iván: "así los comerciales
+          ven las fechas"). COMPACTO a propósito —sin caja, sin rótulo visible,
+          sin leyenda aparte— porque la fila ya no puede permitirse más alto:
+          es justo lo que Iván pidió al comparar las dos listas ("que
+          Pendientes se parezca a Realizados, más limpia y compactada"). El
+          listón de altura es `Recorrido` en ListaView.tsx (la barra de la
+          fila de Pendientes del tablero del equipo); ver el comentario de
+          `LineaTiempoPublica` para el porqué de no compartir pieza con ella.
+          Solo en Pendientes — en Realizados ya se entregó y no hay recorrido
+          que mirar. El margen va DENTRO de `LineaTiempoPublica`: cuando falta
+          alguna fecha esa función no pinta nada (`return null`), y si el
+          hueco lo pusiera un `div` aquí fuera quedaría un margen colgando sin
+          nada dentro. */}
+      {lista === "pendientes" && <LineaTiempoPublica pedido={pedido} hoy={hoy} />}
       {/* El contenedor va SIEMPRE montado (con `hidden`, no desmontado): si
           desapareciera al cerrar, `aria-controls` del botón de arriba
           apuntaría a un id que no existe en el DOM mientras la fila está
@@ -418,6 +459,144 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
         {tocado && <DetallePublico codigo={pedido.codigo} />}
       </div>
     </li>
+  );
+}
+
+/** El recorrido del pedido, a escala, con hoy encima: cuándo entró y para
+ *  cuándo se pide, para que se LEAN las fechas sin restar de cabeza (encargo
+ *  de Iván). SOLO DOS hitos —entrada y entrega—: ni planificación ni
+ *  fabricación entran aquí a propósito (otro recorte de Iván), son fechas de
+ *  OT que fuera de aquí no significan lo que parecen.
+ *
+ *  COMPACTO a propósito: la primera versión copiaba la caja grande de
+ *  `LineaTiempoPedido` (la ficha del equipo) y, con datos reales, se comía
+ *  demasiado alto — Iván comparó las dos listas y pidió que Pendientes se
+ *  pareciera a Realizados, "más limpia y compactada". El listón pasa a ser
+ *  `Recorrido` (ListaView.tsx, la barra de la fila de Pendientes del
+ *  tablero): fecha encima, barra fina debajo, sin caja ni rótulo ni leyenda
+ *  aparte. Se toma la MISMA idea, no una pieza compartida ni su
+ *  `repartirEtiquetas`: aquella reparte hasta CUATRO fechas que pueden caer
+ *  juntas, en una columna de ancho fijo en píxeles. Aquí SIEMPRE son
+ *  exactamente DOS —los dos extremos del recorrido: con dos únicos hitos,
+ *  `lineaTiempo` los pone siempre en 0 % y 100 %, así que nunca pueden
+ *  pisarse— y la fila es de ancho variable (de un móvil a un escritorio).
+ *  Por eso cada fecha se ancla a SU borde (la de la entrada a la izquierda,
+ *  la de la entrega a la derecha) en vez de repartirse: así no se abre un
+ *  hueco creciente entre el texto y su punto al ensanchar la pantalla, que es
+ *  justo lo que pasaba calculando la separación en porcentaje.
+ *
+ *  Con la entrega prestada, `urgenciaRecorrido` no colorea tramos (no hay
+ *  planificación de la que graduarlos: ver su comentario, "sin fecha de
+ *  planteo no se colorea nada"), así que el color sale de `vencido`
+ *  directamente, con los MISMOS dos tonos de la escalada (`TRAMO.holgado`,
+ *  `TRAMO.fuera`) y no unos inventados — el mismo morado que ya usa
+ *  `Recorrido` para "vencido" y no un rojo aparte. El chip "+Nd" (mismo que
+ *  el de `Recorrido`) dice cuánto se pasó; mientras se llega no hace falta
+ *  chip, las fechas ya lo dicen.
+ *
+ *  Sin las dos fechas no hay línea honesta que dibujar (mejor ninguna que una
+ *  inventada): se calla del todo. */
+function LineaTiempoPublica({ pedido, hoy }: { pedido: PedidoPublico; hoy: string }) {
+  if (pedido.fechaPedido === null || pedido.fechaEntrega === null) return null;
+
+  const datos = recorridoPublico({ fechaPedido: pedido.fechaPedido, fechaEntrega: pedido.fechaEntrega });
+  const linea = lineaTiempo(datos, hoy);
+  const { hitos, hoyPct, hoyFuera, diasParaEntrega } = linea;
+  const { vencido } = urgenciaRecorrido(linea, datos, hoy);
+  const colorRecorrido = vencido ? TRAMO.fuera : TRAMO.holgado;
+
+  // Con el año cuando el recorrido cruza de un año a otro: la lista mezcla
+  // 2025 y 2026, y buscando salen pedidos de 2019 (mismo criterio que
+  // `Recorrido`, ListaView.tsx, y que la fecha suelta de la fila).
+  const aniosDistintos = new Set(hitos.map((h) => h.iso.slice(0, 4))).size > 1;
+  const fmtHito = (iso: string) =>
+    `${iso.slice(8, 10)}/${iso.slice(5, 7)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
+
+  return (
+    <div className="px-4 pb-2.5" title="Recorrido del pedido: de la entrada a la entrega">
+      {/* Sin rótulo visible (para no gastar una línea de más), pero con uno
+          para quien no puede ver el `title` de arriba (táctil, lector de
+          pantalla): el `div` no es interactivo y su `title` no es fiable en
+          ninguno de los dos casos. */}
+      <span className="sr-only">Recorrido del pedido: de la entrada a la entrega</span>
+      {/* Fecha de entrada anclada a la izquierda, fecha de entrega anclada a
+          la derecha — los dos únicos hitos, siempre en los extremos (ver el
+          comentario de la función). A 10 px como `Recorrido`: la fecha es lo
+          único que hay que LEER de esta pieza. */}
+      <div className="relative h-3">
+        {hitos.map((h, i) => {
+          const esUltimo = i === hitos.length - 1;
+          return (
+            <span
+              key={h.clave}
+              className={`absolute top-0 whitespace-nowrap text-[10px] leading-none ${esUltimo ? "right-0" : "left-0"} ${
+                h.referencia ? "font-bold" : "text-text-muted"
+              }`}
+              style={{ color: h.referencia ? colorRecorrido : undefined }}
+            >
+              {fmtHito(h.iso)}
+            </span>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <div className="relative h-2 flex-1">
+          <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
+          {/* Lo recorrido hasta hoy: en marcha mientras se llega, rojo en
+              cuanto la entrega ya se pasó. */}
+          <div
+            className="absolute top-[3px] h-0.5 rounded-full"
+            style={{ left: "0%", width: `${hoyPct}%`, background: colorRecorrido }}
+          />
+          {hitos.map((h) => (
+            <span
+              key={h.clave}
+              className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-border-strong"
+              style={{ left: `${h.pct}%` }}
+            />
+          ))}
+          {/* Hoy, por encima de los hitos. Si cae fuera del recorrido (antes
+              de que entrara el pedido) se queda en el extremo, algo apagado;
+              una vez vencido se queda pegado al extremo derecho pero a toda
+              opacidad, que es justo lo que hay que seguir leyendo cuando el
+              pedido lleva mucho retraso. */}
+          <span
+            className="absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface"
+            style={{
+              left: `${hoyPct}%`,
+              background: vencido ? TRAMO.fuera : "var(--text)",
+              opacity: hoyFuera && !vencido ? 0.5 : 1,
+            }}
+            title={
+              hoyFuera && !vencido
+                ? "Hoy, antes de que entrara el pedido"
+                : vencido
+                  ? `Hoy · fuera de fecha, ${-diasParaEntrega} d pasada la entrega`
+                  : `Hoy · quedan ${diasParaEntrega} d`
+            }
+          />
+          {/* El matiz de "hoy es antes de que entrara el pedido" solo vivía en
+              el `title` de arriba, que ni se ve al tacto ni lo leen todos los
+              lectores de pantalla — y esta pantalla la mira gente de fuera,
+              probablemente desde el móvil. El de "vencido" no hace falta
+              duplicarlo: ya está en el chip de al lado y en "Vencido" de la
+              fecha de la cabecera. */}
+          {hoyFuera && !vencido && <span className="sr-only">Hoy, antes de que entrara el pedido</span>}
+        </div>
+        {/* Cuánto se pasó, cuando se pasó: mientras se llega las fechas ya lo
+            dicen (quedan tantos días hasta la de la derecha) y un chip de más
+            sería ruido. Mismo chip que `Recorrido` (ListaView.tsx). */}
+        {vencido && (
+          <span
+            className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none"
+            style={{ background: TRAMO.fuera, color: "var(--surface)" }}
+          >
+            +{-diasParaEntrega}d
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -449,57 +628,121 @@ function DetallePublico({ codigo }: { codigo: string }) {
   if (cargando) return <p className="text-sm text-text-muted">Cargando…</p>;
   if (error || !detalle) return <ErrorCarga mensaje="No se pudo cargar el pedido." onReintentar={cargar} />;
 
-  // Sin repetir a nadie: la misma persona sale en varias OF del mismo pedido.
-  const quienes = [...new Set(detalle.ofs.flatMap((of) => of.quien))];
+  // Sigue el pedido pendiente o ya está todo hecho: el rótulo del bloque de
+  // abajo tiene que decirlo con la misma verdad. Misma señal que ya decide
+  // qué campo trae cada tarea (`esPedidoTerminado`, lib/publico.ts): no es
+  // una segunda regla, es la primera leída del propio dato que llegó.
+  const terminado = esPedidoTerminado(detalle.ofs);
 
   return (
     <div className="space-y-3">
+      {/* El PDF del pedido escaneado NO lleva botón aparte: ya sale abajo,
+          entre los documentos de RPS, como "Pedido escaneado" (comprobado
+          contra RPS en AR.26.04434, AR.26.03793 y AR.26.04082). Dos botones
+          para lo mismo en la misma ficha es ruido, y quitar este se lleva
+          también su ruta pública (ver publico.ts). Tampoco va "Lo llevó…":
+          quién hizo el trabajo es cosa de casa, no algo que le diga nada a
+          quien pregunta desde fuera. La ciudad de entrega tampoco se repite
+          aquí: ya va en la cabecera de la fila, junto al cliente (ver
+          `FilaPublica`). */}
       <div className="flex flex-wrap items-center gap-2">
         {detalle.familias.map((f) => (
           <FamiliaTag key={f} familia={f} />
         ))}
-        {detalle.ciudadEntrega && (
-          <span className="text-xs text-text-muted">Entrega en {detalle.ciudadEntrega}</span>
-        )}
-        <a
-          href={detalle.scanUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="chip-3d ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-text"
-        >
-          Ver PDF del pedido
-        </a>
       </div>
-      {/* QUIÉN LO LLEVÓ, antes de las OF y sin desplegar nada más. La lista de
-          OF solo pone nombres cuando el pedido tiene más de una, y lo normal
-          es que tenga una sola: sin esto, la segunda pregunta de quien llama
-          —después de "¿por dónde va?"— obligaba a abrir el desglose. */}
-      {quienes.length > 0 && (
-        <p className="text-xs text-text-muted">
-          Lo llevó <span className="font-semibold text-text">{quienes.join(", ")}</span>
+      <div className="bloque-3d rounded-xl px-3 py-2">
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          {terminado ? "Qué llevó el pedido" : "Qué lleva y qué falta"}
         </p>
-      )}
-      <div className="bloque-3d overflow-hidden rounded-xl px-3 py-2">
-        <HistorialOFsCompactas
-          ofs={detalle.ofs}
-          seccion={SECCION_POR_DEFECTO}
-          accion={
-            <HistorialTareas pedido={detalle.codigo} ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} compacto />
-          }
-        />
+        <OfsPublicas ofs={detalle.ofs} />
       </div>
       {/* Lo que RPS tiene colgado del pedido: planteamiento, presupuesto y las
           fotos de la visita y de la instalación. Casi todos llevan algo (3.960
           de 3.962 en la serie AR.26), y es lo que un comercial quiere poder
           enseñarle al cliente sin llamar a Oficina Técnica. La misma pieza que
-          usa el equipo, con las URL ya reescritas a la ruta pública. */}
+          usa el equipo, con las URL ya reescritas a la ruta pública, y el
+          "Pedido escaneado" puesto primero (ver `clasePrimero`,
+          DocumentosRps.tsx): es el documento que todo el mundo busca aquí. */}
       <div className="bloque-3d rounded-xl px-3 py-2">
         <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Documentos de RPS
         </p>
-        <DocumentosRps documentos={detalle.documentos} />
+        <DocumentosRps documentos={detalle.documentos} clasePrimero="Pedido escaneado" />
       </div>
     </div>
+  );
+}
+
+/** Las OF del pedido con sus tareas: qué queda por hacer si el pedido sigue
+ *  vivo, o cuánto costó cada paso si ya terminó — nunca las dos cosas a la
+ *  vez, lo decide el servidor por tarea (`TareaPublica`, lib/publico.ts) y
+ *  aquí solo se pinta lo que llega.
+ *
+ *  Pintura PROPIA y no `HistorialOFsCompactas`/`HistorialTareas` (las del
+ *  equipo, en sus propios ficheros): esas dan por hecho el nombre de quien
+ *  hizo cada tarea, que es justo lo que el servidor quita para el invitado en
+ *  cualquier pedido —decisión de Iván al ver la ficha en marcha—. Forzarlas a
+ *  vivir sin ese dato las dejaba con huecos que no dicen nada (y las usa el
+ *  equipo a diario, así que tocarlas para esto las habría estropeado para
+ *  ellos).
+ *
+ *  `detalle.ofs` trae una entrada por OF Y CENTRO (ver `HistorialPedidoDetalle`
+ *  en historial.ts), así que se agrupa primero con `agruparOfsPublicas`: una
+ *  cabecera por OF (o por varias OF idénticas juntas, sin esconder ninguna),
+ *  con TODAS sus tareas debajo, una por línea y el tiempo o el estado
+ *  alineado a la derecha — Iván lo vio "apretado" en fichas horizontales y
+ *  pidió que se leyera en columna. El color de "hecho/falta" es el mismo que
+ *  "Aprobada"/"Pendiente" en el resto de la web (`ESTADO`, lib/estado.ts),
+ *  para no inventar uno nuevo. */
+function OfsPublicas({ ofs }: { ofs: PedidoPublicoDetalle["ofs"] }) {
+  const grupos = agruparOfsPublicas(ofs);
+  if (!grupos.length) {
+    return <p className="py-1 text-xs text-text-muted">Sin OF vinculadas al pedido en RPS.</p>;
+  }
+  return (
+    <ul className="space-y-3">
+      {grupos.map((g, i) => (
+        <li key={g.codigos.join("+")} className={i > 0 ? "border-t border-border pt-3" : undefined}>
+          <p className="mb-1 text-xs">
+            {/* Casi siempre un solo código. Cuando son varios (OF idénticas,
+                ver `agruparOfsPublicas`) van TODOS, separados: ninguno se
+                esconde detrás de un "×4". */}
+            <span className="font-mono font-semibold text-text">{g.codigos.join(" · ")}</span>{" "}
+            <span className="text-text-muted">{g.descripcion}</span>
+          </p>
+          {g.tareas.length > 0 && (
+            <ul aria-label={`Tareas de ${g.codigos.join(", ")}`}>
+              {g.tareas.map((t) => (
+                <li key={t.codigo} className="flex items-baseline gap-3 py-0.5 text-xs">
+                  {/* Pedido terminado (`tiempoImputadoMin` puesto): ya está
+                      todo hecho, así que aquí no hace falta el punto de
+                      hecho/falta — solo su tiempo. Pedido con algo pendiente
+                      (`cerrada` puesto): el punto dice hecho/falta y lo que
+                      queda se resalta; lo hecho se apaga. */}
+                  {t.tiempoImputadoMin !== undefined ? (
+                    <>
+                      <span className="min-w-0 flex-1 text-text">{t.descripcion}</span>
+                      <span className="shrink-0 font-semibold text-text-muted">{fmtMin(t.tiempoImputadoMin)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className={`mt-1 size-1.5 shrink-0 rounded-full ${t.cerrada ? ESTADO.aprobada.dot : ESTADO.pendiente.dot}`}
+                      />
+                      <span className={`min-w-0 flex-1 ${t.cerrada ? "text-text-muted line-through" : "font-medium text-text"}`}>
+                        <span className="sr-only">{t.cerrada ? "Hecho: " : "Falta: "}</span>
+                        {t.descripcion}
+                      </span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

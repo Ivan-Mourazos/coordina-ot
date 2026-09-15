@@ -1,11 +1,14 @@
 import { getPool } from "./db";
 import { asegurarIndice, indiceSiListo } from "./historial-indice";
+import { leerHistorialPedidoDetalle } from "./historial-db";
 import { recursosSql, SECCIONES, SECCION_POR_DEFECTO } from "../secciones";
 import {
+  detallePublico,
   filtrarPublico,
   frasePublica,
   type FiltrosPublicos,
   type PedidoPublico,
+  type PedidoPublicoDetalle,
 } from "../publico";
 import { PEDIDOS } from "../mock";
 import { estaFinalizado, hoyISO } from "../types";
@@ -40,12 +43,56 @@ export function agruparCentros(
   return new Map([...mapa].map(([pedido, set]) => [pedido, [...set].sort()]));
 }
 
+/** El rescate de OT como fragmento SQL, para usar EXACTAMENTE el mismo texto
+ *  en las dos consultas que lo necesitan (`centrosDe`, que filtra lo abierto
+ *  para decidir qué centros enseñar en la lista, y `tareasCerradasDe`, que
+ *  necesita el booleano tarea a tarea para la ficha del invitado). Requiere
+ *  `t` (CPRMOTask) en el FROM de quien lo use.
+ *
+ *  Una tarea NUESTRA al 100 % cuenta como terminada aunque OLANET no lo diga
+ *  (ver historial-finalizacion-sql.ts).
+ *
+ *  OJO: recursosSql(SECCIONES[SECCION_POR_DEFECTO]) y NO
+ *  recursosDeLaWebSql(). Parece que tocaría la de las dos secciones (así junta
+ *  'a-otec','otec-a','a-dgra','dgra-a'), pero el índice que decide quién es
+ *  "pendiente" (estaPendiente, en publico.ts) se construye con
+ *  ctesFinalizacionHistorial(SECCION_POR_DEFECTO), y ahí el rescate SOLO
+ *  alcanza a los recursos de esa sección ('a-otec', 'otec-a'); para diseño el
+ *  rescate está apagado del todo (rescateOt = "1=0"). Con
+ *  recursosDeLaWebSql() aquí, un pedido con su única tarea abierta en A-DGRA
+ *  al 100 % (sin cierre en OLANET) salía "pendiente" en el índice pero esta
+ *  consulta lo daba por rescatado, y la fila decía "Entregado" dentro de la
+ *  lista de los que no lo están.
+ *
+ *  El rescate mira la TAREA (EXISTS), no la fila de rm que se está
+ *  enseñando: el índice (ctesFinalizacionHistorial, CTE Recursos) lo hace por
+ *  tarea, con DISTINCT IDMOTask, y las otras cinco consultas del repo que
+ *  rescatan (historial-db.ts:284-285, :603, :606, y los planes de julio) usan
+ *  el mismo EXISTS. Si aquí se mirara la fila, una tarea con dos filas de rm
+ *  en centros distintos (una A-OTEC al 100 % y otra en CALDERERIA) quedaría
+ *  rescatada por la de A-OTEC y CALDERERIA no volvería a salir como centro
+ *  abierto, aunque el índice diera la tarea entera por terminada igual.
+ *  Medido el 14/09/2026 contra RPS: las 28.534 tareas de 2026 tienen
+ *  EXACTAMENTE una fila en CPRMOResourceMachine y no hay ninguna, en toda la
+ *  historia, que mezcle un centro de OT con otro distinto — pero el código no
+ *  puede depender de que esa propiedad de los datos se mantenga, así que se
+ *  escribe igual que las otras cinco. */
+function rescateOtSql(): string {
+  return `EXISTS (
+        SELECT 1 FROM dbo.CPRMOResourceMachine rescate
+        WHERE rescate.IDMOTask = t.IDMOTask
+          AND rescate.CodMOResourceMachine IN (${recursosSql(SECCIONES[SECCION_POR_DEFECTO])})
+      )
+      AND COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
+      AND t.PercentProgress >= 100`;
+}
+
 /** Los centros abiertos de una página entera.
  *
  *  «Abierta» se mide EXACTAMENTE como la mide el índice: sin cierre en
  *  `tgm_estadosof_olanet` (idestadoof = 3), más el rescate de las tareas de la
- *  web al 100 %. Con otra regla, un pedido podría salir en la lista de
- *  pendientes sin un solo centro debajo. */
+ *  web al 100 % (`rescateOtSql`). Con otra regla, un pedido podría salir en la
+ *  lista de pendientes sin un solo centro debajo. */
 async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string[]>> {
   if (pedidos.length === 0) return new Map();
   const pool = await getPool();
@@ -68,45 +115,62 @@ async function centrosDe(pedidos: readonly string[]): Promise<Map<string, string
     ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
     WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})
       AND e.fin IS NULL
-      -- El rescate de OT: una tarea NUESTRA al 100 % está terminada aunque
-      -- OLANET no lo diga (ver historial-finalizacion-sql.ts).
-      --
-      -- OJO: recursosSql(SECCIONES[SECCION_POR_DEFECTO]) y NO
-      -- recursosDeLaWebSql(). Parece que tocaría la de las dos secciones
-      -- (así junta 'a-otec','otec-a','a-dgra','dgra-a'), pero el índice que
-      -- decide quién es "pendiente" (estaPendiente, en publico.ts) se
-      -- construye con ctesFinalizacionHistorial(SECCION_POR_DEFECTO), y ahí
-      -- el rescate SOLO alcanza a los recursos de esa sección ('a-otec',
-      -- 'otec-a'); para diseño el rescate está apagado del todo
-      -- (rescateOt = "1=0"). Con recursosDeLaWebSql() aquí, un pedido con su
-      -- única tarea abierta en A-DGRA al 100 % (sin cierre en OLANET) salía
-      -- "pendiente" en el índice pero esta consulta lo daba por rescatado, y
-      -- la fila decía "Entregado" dentro de la lista de los que no lo están.
-      --
-      -- El rescate mira la TAREA (EXISTS), no la fila de rm que se está
-      -- enseñando: el índice (ctesFinalizacionHistorial, CTE Recursos) lo
-      -- hace por tarea, con DISTINCT IDMOTask, y las otras cinco consultas
-      -- del repo que rescatan (historial-db.ts:284-285, :603, :606, y los
-      -- planes de julio) usan el mismo EXISTS. Si aquí se mirara la fila,
-      -- una tarea con dos filas de rm en centros distintos (una A-OTEC al
-      -- 100 % y otra en CALDERERIA) quedaría rescatada por la de A-OTEC y
-      -- CALDERERIA no volvería a salir como centro abierto, aunque el
-      -- índice diera la tarea entera por terminada igual. Medido el
-      -- 14/09/2026 contra RPS: las 28.534 tareas de 2026 tienen EXACTAMENTE
-      -- una fila en CPRMOResourceMachine y no hay ninguna, en toda la
-      -- historia, que mezcle un centro de OT con otro distinto — pero el
-      -- código no puede depender de que esa propiedad de los datos se
-      -- mantenga, así que se escribe igual que las otras cinco.
-      AND NOT (
-        EXISTS (
-          SELECT 1 FROM dbo.CPRMOResourceMachine rescate
-          WHERE rescate.IDMOTask = t.IDMOTask
-            AND rescate.CodMOResourceMachine IN (${recursosSql(SECCIONES[SECCION_POR_DEFECTO])})
-        )
-        AND COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
-        AND t.PercentProgress >= 100
-      )`);
+      AND NOT (${rescateOtSql()})`);
   return agruparCentros(r.recordset);
+}
+
+/** Cerrada o abierta, tarea a tarea, para la ficha del invitado (Cambio 4,
+ *  task-7d): lo que falta ver es justo lo contrario de "abierta" en
+ *  `centrosDe` —MISMA regla, invertida— así que comparte `rescateOtSql` con
+ *  ella a propósito: con otra copia, tarde o temprano una de las dos cambia y
+ *  la ficha dice que falta un paso que la lista ya da por hecho (o al revés).
+ *
+ *  Claves `orden:tarea` con `CodManufacturingOrder` y `CodMOTask` SIN más
+ *  normalizar (ver `claveTarea` en lib/publico.ts): son las mismas columnas,
+ *  sin tocar, que ya trae `leerHistorialPedido` para `HistorialOF.codigo` y
+ *  `tarea.codigo`. */
+export async function tareasCerradasDe(pedido: string): Promise<Map<string, boolean>> {
+  const pool = await getPool();
+  const r = await pool.request().input("pedido", pedido).query<{
+    orden: string | null;
+    tarea: string | null;
+    cerrada: number;
+  }>(`
+    SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
+      CASE WHEN e.fin IS NOT NULL OR (${rescateOtSql()}) THEN 1 ELSE 0 END AS cerrada
+    FROM dbo.FACOrderSL o
+    JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = l.IDManufacturingOrder
+      AND mo.CodCompany = '001'
+    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+    LEFT JOIN (
+      SELECT orden, fase, MAX(fecha_cambio) AS fin
+      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
+    ) e ON e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
+    WHERE o.CodCompany = '001' AND o.CodOrder = @pedido
+  `);
+  const mapa = new Map<string, boolean>();
+  for (const fila of r.recordset) {
+    const orden = (fila.orden ?? "").trim();
+    const tarea = (fila.tarea ?? "").trim();
+    if (!orden || !tarea) continue;
+    mapa.set(`${orden}:${tarea}`, fila.cerrada === 1);
+  }
+  return mapa;
+}
+
+/** El detalle de un pedido para quien no tiene sesión: cabecera, OF y tareas
+ *  ya recortadas (`detallePublico`, lib/publico.ts) con el cierre de cada
+ *  tarea puesto. En mock no hay RPS que consultar —y el mock ni siquiera
+ *  genera `tareas` por OF (ver `detalleMock`, historial-db.ts)—, así que el
+ *  mapa de cierres se queda vacío: es justo lo que hace `detallePublico` por
+ *  defecto. */
+export async function leerDetallePublico(pedido: string): Promise<PedidoPublicoDetalle> {
+  const [detalle, cerradas] = await Promise.all([
+    leerHistorialPedidoDetalle(pedido),
+    ES_MOCK ? Promise.resolve(new Map<string, boolean>()) : tareasCerradasDe(pedido),
+  ]);
+  return detallePublico(detalle, cerradas);
 }
 
 /** La lista todavía no está: el índice de 153.000 pedidos se está
@@ -152,6 +216,7 @@ export async function leerPaginaPublica(
       codigo: b.pedido,
       cliente: info?.cliente ?? null,
       negocio: info?.negocio ?? null,
+      ciudadEntrega: info?.ciudadEntrega ?? null,
       fechaPedido: iso(b.fechaPedido),
       fechaEntrega: iso(b.fechaEntrega),
       fechaFinalizacion: iso(b.finalizada),
@@ -206,6 +271,7 @@ function paginaMock(f: FiltrosPublicos): { pedidos: PedidoPublico[]; hasMore: bo
       codigo: p.codigo,
       cliente: p.cliente ?? null,
       negocio: null,
+      ciudadEntrega: p.ciudadEntrega ?? null,
       fechaPedido: p.fechaCreacion ?? p.fechaSolicitud ?? null,
       fechaEntrega: p.fechaEntrega ?? null,
       fechaFinalizacion: null,

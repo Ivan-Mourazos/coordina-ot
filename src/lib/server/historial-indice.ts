@@ -53,6 +53,7 @@ interface FilaTexto {
   pedido: string | null;
   cliente: string | null;
   negocio: string | null;
+  ciudad: string | null;
   orden: string | null;
   descripcion: string | null;
   linea: string | null;
@@ -136,12 +137,14 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
   const comparte = compartidor();
   // Mientras llegan, por pedido: conjuntos para no repetir. Al acabar se
   // pliegan a un texto por pedido (ver InfoPedidoHistorial).
-  const obra = new Map<string, { cliente: string | null; negocio: string | null; familias: Set<string>; ordenes: Set<string>; textos: Set<string> }>();
+  const obra = new Map<string, { cliente: string | null; negocio: string | null; ciudadEntrega: string | null; familias: Set<string>; ordenes: Set<string>; textos: Set<string> }>();
   // Lo que busca el Historial (cliente, OF, descripciones de la OF y de la
-  // línea de venta) y lo que decide la familia, igual que la fila y el panel
-  // de Sin asignar (familiaDeTexto con cliente y subfamilia).
+  // línea de venta), lo que decide la familia (familiaDeTexto con cliente y
+  // subfamilia) y la ciudad de entrega (o.CityDelivery, la MISMA columna que
+  // lee `cabeceraADetalle` en historial-db.ts para el detalle del equipo).
   await porFilas<FilaTexto>(pool.request(), `
     SELECT o.CodOrder AS pedido, cli.Description AS cliente, d.Description AS negocio,
+      o.CityDelivery AS ciudad,
       mo.CodManufacturingOrder AS orden, mo.Description AS descripcion, l.Description AS linea,
       sf.CodProductSubFamily AS subfamilia
     FROM dbo.FACOrderSL o
@@ -158,9 +161,11 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
     if (!i) {
       const cliente = (f.cliente ?? "").trim();
       const negocio = (f.negocio ?? "").trim();
+      const ciudad = (f.ciudad ?? "").trim();
       i = {
         cliente: cliente ? comparte(cliente) : null,
         negocio: negocio ? comparte(negocio) : null,
+        ciudadEntrega: ciudad ? comparte(ciudad) : null,
         familias: new Set(),
         ordenes: new Set(),
         textos: new Set(cliente ? [comparte(normalizaBusqueda(cliente))] : []),
@@ -182,6 +187,7 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
     info.set(pedido, {
       cliente: i.cliente,
       negocio: i.negocio,
+      ciudadEntrega: i.ciudadEntrega,
       familias: [...i.familias],
       ordenes: [...i.ordenes].join(" "),
       textos: [...i.textos].join("\n"),

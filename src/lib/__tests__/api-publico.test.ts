@@ -60,14 +60,16 @@ test("una lista que no existe cae en pendientes, no revienta", async () => {
 test("el detalle de un pedido responde 200 con lo básico", async () => {
   const res = await getDetalle("AR.26.03453");
   expect(res.status).toBe(200);
-  const data = (await res.json()) as { codigo: string; ofs: unknown[]; scanUrl: string; documentos: unknown[] };
+  const data = (await res.json()) as { codigo: string; ofs: unknown[]; documentos: unknown[] };
   expect(data.codigo).toBe("AR.26.03453");
   expect(Array.isArray(data.ofs)).toBe(true);
-  // El PDF sí está aprobado para el invitado, pero por una ruta pública: la
-  // interna (/api/pedidos/...) pasa a exigir sesión en la Task 5 (ver
-  // scanUrlPublica en lib/publico.ts).
-  expect(data.scanUrl).toBe("/api/publico/pedidos/AR.26.03453/pdf");
   expect(Array.isArray(data.documentos)).toBe(true);
+});
+
+test("el detalle ya no lleva scanUrl: el PDF del pedido sale entre los documentos de RPS, no en un botón aparte", async () => {
+  const res = await getDetalle("AR.26.03453");
+  const claves = Object.keys(await res.json());
+  expect(claves).not.toContain("scanUrl");
 });
 
 test("el detalle rechaza un código de pedido que no lo es", async () => {
@@ -91,6 +93,11 @@ test("el detalle no trae ni cabecera interna ni marcas de revisión por OF", asy
   expect(crudo).not.toMatch(/"rol"\s*:/);
   expect(crudo).not.toContain("autorRegistrado");
   expect(crudo).not.toContain("revisorRegistrado");
+  // Ni tiempos ni gente, por OF ni por tarea (Cambio 4, task-7d): decisión de
+  // Iván tras ver la ficha en marcha.
+  expect(crudo).not.toMatch(/"tiempoImputadoMin"\s*:/);
+  expect(crudo).not.toMatch(/"quien"\s*:/);
+  expect(crudo).not.toMatch(/"personas"\s*:/);
 });
 
 // ─── detallePublico: la función pura que hace el recorte ────────────────────
@@ -159,10 +166,23 @@ test("detallePublico quita las notas y las marcas de revisión de cada OF", () =
   expect(of).not.toHaveProperty("rol");
   // Lo autorizado sigue ahí.
   expect(of.codigo).toBe("0230001");
-  expect(of.tiempoImputadoMin).toBe(120);
-  expect(of.quien).toEqual(["Juan Pérez"]);
-  expect(of.personas).toEqual([{ nombre: "Juan Pérez", min: 120 }]);
+  expect(of.descripcion).toBe("Toldo cofre");
+  expect(of.centro).toBe("ot");
   expect(of.tareas).toHaveLength(1);
+});
+
+test("detallePublico quita también el tiempo y la gente, por OF y por tarea", () => {
+  // Corrección de Iván tras ver la ficha funcionando: qué pasos lleva el
+  // pedido, sí; cuánto tardó cada uno o quién lo hizo, no.
+  const publico = detallePublico(detalleDeEjemplo());
+  const of = publico.ofs[0] as Record<string, unknown>;
+  expect(of).not.toHaveProperty("tiempoImputadoMin");
+  expect(of).not.toHaveProperty("quien");
+  expect(of).not.toHaveProperty("personas");
+  const tarea = publico.ofs[0].tareas[0] as unknown as Record<string, unknown>;
+  expect(tarea).not.toHaveProperty("tiempoImputadoMin");
+  expect(tarea).not.toHaveProperty("personas");
+  expect(tarea).toEqual({ codigo: "010", descripcion: "Plantear", cerrada: false });
 });
 
 test("detallePublico reescribe la URL de los documentos a la ruta pública", () => {

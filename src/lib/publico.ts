@@ -101,6 +101,18 @@ function normalizaCentro(centro: string): string {
   return centro.trim().replace(/\s+/g, " ").toUpperCase();
 }
 
+/** RPS escribe a gritos ("PLANTEAR Y PREPARAR ARCHIVOS MAQ. DE CORTE"), y eso
+ *  es lo más difícil de leer que hay. Sin diccionario que traducir —a
+ *  diferencia del centro, aquí no hay una tabla de "nombres bonitos"—, lo que
+ *  se puede hacer sin inventar nada es bajar el grito: todo en minúscula
+ *  salvo la letra inicial. Mismo criterio que ya usaba `enFrase` para el
+ *  texto crudo de un centro sin entrada en la tabla; aquí se comparte para
+ *  que las descripciones de OF y de tarea se vean igual de tratadas. */
+export function capitalizaFrase(texto: string): string {
+  const limpio = texto.trim().toLowerCase();
+  return limpio.charAt(0).toUpperCase() + limpio.slice(1);
+}
+
 // ─── Lo que ve quien no tiene sesión ─────────────────────────────────────────
 // Toda la casa pregunta lo mismo —"¿por dónde va este pedido?"— y hasta ahora
 // lo preguntaba por teléfono. Aquí se decide qué es estar pendiente, en qué
@@ -133,6 +145,10 @@ export interface PedidoPublico {
   codigo: string;
   cliente: string | null;
   negocio: string | null;
+  /** Localidad de entrega ("PALAS DE REI"). Corrección de Iván: va en la
+   *  cabecera de la fila, junto al cliente, no escondida en el detalle —es lo
+   *  que un comercial repasando la lista quiere leer sin desplegar nada. */
+  ciudadEntrega: string | null;
   /** ISO yyyy-mm-dd. */
   fechaPedido: string | null;
   fechaEntrega: string | null;
@@ -160,9 +176,7 @@ export function estaPendiente(b: BaseHistorial): boolean {
  *  cuadra con RPS que uno bonito que no significa nada. */
 function enFrase(centro: string): string {
   const bonito = NOMBRE_DE_CENTRO[normalizaCentro(centro)];
-  if (bonito) return bonito;
-  const limpio = centro.trim().toLowerCase();
-  return limpio.charAt(0).toUpperCase() + limpio.slice(1);
+  return bonito ?? capitalizaFrase(centro);
 }
 
 /** Por dónde va el pedido, con la entrega de último tramo.
@@ -177,6 +191,31 @@ export function frasePublica(centros: readonly string[], pendienteEntrega: boole
   const nombres = [...new Set(centros.map(enFrase))];
   if (nombres.length > 0) return `Pendiente de: ${nombres.join(", ")}`;
   return pendienteEntrega ? "Fabricado, pendiente de entregar" : "Entregado";
+}
+
+// ─── El recorrido del invitado, para `lineaTiempo`/`urgenciaRecorrido` ──────
+// `PedidoPublico` no trae `fechaPlanificacion`: la recalcula el planificador
+// de RPS en bloque (613 filas de golpe) y fuera de Oficina Técnica no
+// significa nada. El invitado mide su pedido contra la ENTREGA, así que se le
+// pasa a `lineaTiempo` como si fuera la planificación, marcada como prestada
+// (`planificacionEstimada: true`) — la misma convención que ya usa la
+// herramienta para los pedidos sin fecha de planteo. Fijado en
+// consulta-fila.test.ts; se usa tanto para saber si el pedido está vencido
+// (la fila) como para dibujar su línea de tiempo (`LineaTiempoPublica`,
+// ConsultaPendientes.tsx): un solo sitio que arma este objeto es un solo
+// sitio que puede tener el truco mal.
+export function recorridoPublico(p: { fechaPedido?: string; fechaEntrega: string }): {
+  fechaCreacion?: string;
+  fechaPlanificacion: string;
+  planificacionEstimada: true;
+  fechaEntrega: string;
+} {
+  return {
+    ...(p.fechaPedido ? { fechaCreacion: p.fechaPedido } : {}),
+    fechaPlanificacion: p.fechaEntrega,
+    planificacionEstimada: true,
+    fechaEntrega: p.fechaEntrega,
+  };
 }
 
 /** yyyy-mm-dd → medianoche LOCAL, como compara SQL Server una fecha sin hora.
@@ -347,26 +386,170 @@ export function normalizarFiltrosPublicos(sp: URLSearchParams): FiltrosPublicos 
 // abajo es un "sí" explícito, y lo que no está escrito no sale, aunque el
 // Historial le añada un campo mañana.
 
-/** Una OF tal y como la ve el invitado: identidad, tareas, tiempos y personas.
+/** Una tarea tal y como la ve el invitado: qué es y, según el pedido esté
+ *  vivo o terminado, o bien qué falta o bien cuánto costó — nunca las dos, y
+ *  el NOMBRE de quien la hizo nunca sale (eso es del equipo, en las dos
+ *  caras).
+ *
+ *  Matiz de Iván tras ver la ficha en marcha: en un pedido PENDIENTE (le
+ *  queda algo abierto) lo que importa es qué falta, así que se enseña
+ *  `cerrada` y no el tiempo. En uno TERMINADO ya está claro que todo está
+ *  hecho —no hay nada que marcar como pendiente—, y ahí el tiempo de cada
+ *  tarea SÍ es información del trabajo (no una foto de quién anda en ello
+ *  ahora), así que se enseña `tiempoImputadoMin` y no `cerrada`. `cerrada` la
+ *  calcula el SERVIDOR (`tareasCerradasDe`, publico-db.ts) con la MISMA regla
+ *  que ya usa `centrosDe` para decidir qué centros enseñar en la lista —
+ *  literalmente el mismo fragmento SQL, no uno parecido, para que la ficha
+ *  nunca diga que falta un paso que la lista ya da por hecho — y esa MISMA
+ *  regla, agregada (`pedidoTerminado`, más abajo), decide también si el
+ *  pedido entero está pendiente o terminado. */
+export interface TareaPublica {
+  codigo: string;
+  descripcion: string;
+  /** Solo en un pedido con algo pendiente. Ausente en uno terminado. */
+  cerrada?: boolean;
+  /** Solo en un pedido terminado. Ausente en uno con algo pendiente. */
+  tiempoImputadoMin?: number;
+}
+
+/** Una OF tal y como la ve el invitado: identidad, centro y sus tareas.
  *  Fuera quedan `autorRegistrado`/`revisorRegistrado` y `rol` —el reparto
  *  planteo/revisión es la marca de revisión interna, justo lo que este plan
- *  prohíbe—, `materiales` (no lo pidió nadie) y `notasProduccion` (una nota,
- *  como las que ya están prohibidas para el pedido). */
-export type OfPublica = Pick<
-  HistorialOF,
-  "codigo" | "descripcion" | "tiempoImputadoMin" | "quien" | "tareas" | "personas" | "centro"
->;
+ *  prohíbe—, `materiales` (no lo pidió nadie), `notasProduccion` (una nota,
+ *  como las que ya están prohibidas para el pedido) y, desde la corrección de
+ *  Iván tras verlo en marcha, TAMBIÉN `quien` y `personas`: quién hizo el
+ *  trabajo es cosa de casa, en cualquier pedido. `tiempoImputadoMin` de la OF
+ *  entera tampoco sale (ver `TareaPublica` para el de cada tarea). */
+export type OfPublica = Pick<HistorialOF, "codigo" | "descripcion" | "centro"> & {
+  tareas: TareaPublica[];
+};
 
-function ofPublica(of: HistorialOF): OfPublica {
+/** Clave de una tarea en el mapa de cierres: mismo `orden:tarea` con el que
+ *  `tareasCerradasDe` (publico-db.ts) guarda cada fila, sin normalizar más
+ *  allá del `trim` — las dos partes salen de las mismas columnas de RPS
+ *  (`CodManufacturingOrder`, `CodMOTask`), así que no hace falta más. */
+function claveTarea(orden: string, tarea: string): string {
+  return `${orden.trim()}:${tarea.trim()}`;
+}
+
+/** Sin entrada en el mapa (pedido en mock, o una tarea que la consulta no
+ *  encontró) se da por ABIERTA: decir "hecho" de algo que no se pudo
+ *  comprobar sería mentir con más confianza de la que hay. */
+function tareaCerrada(orden: string, codigo: string, cerradas: ReadonlyMap<string, boolean>): boolean {
+  return cerradas.get(claveTarea(orden, codigo)) ?? false;
+}
+
+/** El pedido entero está terminado cuando TODAS sus tareas lo están, con la
+ *  MISMA lectura de `cerradas` que usa cada tarea (`tareaCerrada`): no es una
+ *  segunda regla, es la primera aplicada a todas a la vez. Sin ninguna tarea
+ *  (un pedido sin OF en RPS, o en mock, donde `cerradas` siempre llega
+ *  vacío) da `true` por vacuidad, pero ahí es inofensivo: sin tareas que
+ *  enseñar, da igual qué campo llevarían. */
+function pedidoTerminado(ofs: readonly HistorialOF[], cerradas: ReadonlyMap<string, boolean>): boolean {
+  return ofs.every((of) => (of.tareas ?? []).every((t) => tareaCerrada(of.codigo, t.codigo, cerradas)));
+}
+
+function tareaPublica(
+  orden: string,
+  tarea: NonNullable<HistorialOF["tareas"]>[number],
+  cerradas: ReadonlyMap<string, boolean>,
+  terminado: boolean,
+): TareaPublica {
+  return {
+    codigo: tarea.codigo,
+    // RPS lo escribe a gritos ("PLANTEAR Y PREPARAR ARCHIVOS MAQ. DE
+    // CORTE"): se baja el volumen igual que ya se hacía con el centro.
+    descripcion: capitalizaFrase(tarea.descripcion),
+    ...(terminado
+      ? { tiempoImputadoMin: tarea.tiempoImputadoMin }
+      : { cerrada: tareaCerrada(orden, tarea.codigo, cerradas) }),
+  };
+}
+
+function ofPublica(of: HistorialOF, cerradas: ReadonlyMap<string, boolean>, terminado: boolean): OfPublica {
   return {
     codigo: of.codigo,
-    descripcion: of.descripcion,
-    tiempoImputadoMin: of.tiempoImputadoMin,
-    quien: of.quien,
-    tareas: of.tareas,
-    personas: of.personas,
+    descripcion: capitalizaFrase(of.descripcion),
     centro: of.centro,
+    tareas: (of.tareas ?? []).map((t) => tareaPublica(of.codigo, t, cerradas, terminado)),
   };
+}
+
+/** Igual que un pedido llega con todas sus tareas cerradas o con todas
+ *  abiertas (nunca mezclado, ver `pedidoTerminado`), la forma en que
+ *  `tareaPublica` las serializa es la MISMA prueba puesta al revés: si una
+ *  tarea trae `tiempoImputadoMin`, el servidor ya decidió "terminado" para
+ *  el pedido entero. Sirve para que la pantalla (que solo ve el JSON ya
+ *  recortado, no `HistorialOF`) sepa qué rótulo poner sin reinventar la
+ *  regla. Sin ninguna tarea no hay nada que decidir: se da por terminado,
+ *  igual que `pedidoTerminado` por vacuidad. */
+export function esPedidoTerminado(ofs: readonly OfPublica[]): boolean {
+  for (const of of ofs) {
+    for (const t of of.tareas) return t.tiempoImputadoMin !== undefined;
+  }
+  return true;
+}
+
+/** Una OF tal y como se pinta: uno o varios códigos (ver abajo) con una
+ *  descripción y una lista de tareas comunes. */
+export interface OfPublicaAgrupada {
+  /** Casi siempre uno. Más de uno solo cuando varias OF describen EXACTAMENTE
+   *  el mismo trabajo (ver `agruparOfsPublicas`); ninguna se esconde, todas
+   *  quedan aquí. */
+  codigos: string[];
+  descripcion: string;
+  tareas: TareaPublica[];
+}
+
+/** El detalle trae UNA ENTRADA POR OF Y CENTRO (`HistorialPedidoDetalle.ofs`,
+ *  historial.ts: "el código puede repetirse entre centros"), y el invitado no
+ *  distingue centros. Pintar una cabecera por entrada repetía la misma OF
+ *  tantas veces como centros tocó — un pedido real con cuatro OF de varios
+ *  centros cada una salía como DOCE bloques, y quien lo miraba no sabía si
+ *  eran OF distintas o la misma repetida. Se agrupa en dos pasos:
+ *
+ *  1. Por CÓDIGO de OF: una cabecera por OF, con todas sus tareas juntas (las
+ *     de todos sus centros, en el orden en que llegaron). Esto es lo que
+ *     arregla el fallo de arriba.
+ *
+ *  2. Varias OF con la MISMA descripción y las MISMAS tareas —un pedido real
+ *     con cuatro "Lona remolque" idénticas es lo que lo motivó— se enseñan en
+ *     un solo bloque, con sus códigos juntos en la cabecera: no se esconde
+ *     ninguna (los cuatro códigos siguen a la vista) y no se confunde con OF
+ *     que de verdad son distintas (la firma exige la MISMA descripción y las
+ *     MISMAS tareas, no solo que compartan un código de tarea suelto). */
+export function agruparOfsPublicas(ofs: readonly OfPublica[]): OfPublicaAgrupada[] {
+  const porCodigo = new Map<string, { descripcion: string; tareas: TareaPublica[] }>();
+  const ordenCodigos: string[] = [];
+  for (const of of ofs) {
+    let g = porCodigo.get(of.codigo);
+    if (!g) {
+      g = { descripcion: of.descripcion, tareas: [] };
+      porCodigo.set(of.codigo, g);
+      ordenCodigos.push(of.codigo);
+    }
+    g.tareas.push(...of.tareas);
+  }
+
+  const porFirma = new Map<string, OfPublicaAgrupada>();
+  const salida: OfPublicaAgrupada[] = [];
+  for (const codigo of ordenCodigos) {
+    const g = porCodigo.get(codigo)!;
+    // La firma es descripción + tareas COMPLETAS (código, texto y si está
+    // cerrada/su tiempo): dos OF con las mismas tareas de nombre pero cerradas
+    // de forma distinta NO son el mismo bloque, aunque lo parezcan a primera
+    // vista — mentiría sobre cuál de las dos falta.
+    const firma = JSON.stringify([g.descripcion, g.tareas]);
+    const existente = porFirma.get(firma);
+    if (existente) {
+      existente.codigos.push(codigo);
+    } else {
+      const nuevo: OfPublicaAgrupada = { codigos: [codigo], descripcion: g.descripcion, tareas: g.tareas };
+      porFirma.set(firma, nuevo);
+      salida.push(nuevo);
+    }
+  }
+  return salida;
 }
 
 const PREFIJO_DOCUMENTO_INTERNO = "/api/historial/";
@@ -381,27 +564,15 @@ function documentoPublico(doc: DocumentoRps): DocumentoRps {
   return { ...doc, url: PREFIJO_DOCUMENTO_PUBLICO + doc.url.slice(PREFIJO_DOCUMENTO_INTERNO.length) };
 }
 
-const PREFIJO_SCAN_INTERNO = "/api/pedidos/";
-const SUFIJO_SCAN_INTERNO = ".pdf";
-
-/** `scanUrl` (armada en `cabeceraADetalle`, historial.ts) apunta a
- *  `/api/pedidos/{codigo}.pdf`, que en la Task 5 pasa a exigir sesión. El PDF
- *  del pedido SÍ está aprobado para el invitado —junto con los datos de
- *  cliente—, así que aquí se reescribe a su gemela pública
- *  (`/api/publico/pedidos/[pedido]/pdf`), igual que `documentoPublico` hace
- *  con cada documento. Si algún día `scanUrl` no tiene esta forma exacta, se
- *  deja tal cual: mejor un enlace que no se toca que uno que apunta a donde no
- *  toca. */
-function scanUrlPublica(scanUrl: string): string {
-  if (!scanUrl.startsWith(PREFIJO_SCAN_INTERNO) || !scanUrl.endsWith(SUFIJO_SCAN_INTERNO)) return scanUrl;
-  const codigo = scanUrl.slice(PREFIJO_SCAN_INTERNO.length, -SUFIJO_SCAN_INTERNO.length);
-  return `${PREFIJO_DOCUMENTO_PUBLICO}${codigo}/pdf`;
-}
-
 /** Lo que sale de casa del detalle de un pedido: cabecera básica, sus OF ya
  *  recortadas (`ofPublica`) y los documentos con su URL pública. Fuera de aquí
  *  se quedan `estadoActual`, `prioridad` y `comentarioVenta` —ninguno está
- *  autorizado, y lo dice el hecho de que esta función no los toca ni una vez. */
+ *  autorizado, y lo dice el hecho de que esta función no los toca ni una
+ *  vez—, y desde la corrección de Iván, también `scanUrl`: el PDF escaneado
+ *  del pedido ya sale entre `documentos` como "Pedido escaneado" (comprobado
+ *  contra RPS en tres pedidos reales), así que un segundo botón para lo mismo
+ *  era ruido — y con él se va también su ruta pública
+ *  (`/api/publico/pedidos/[pedido]/pdf`), que ya no sirve a nadie. */
 export interface PedidoPublicoDetalle {
   codigo: string;
   cliente: string | null;
@@ -411,12 +582,24 @@ export interface PedidoPublicoDetalle {
   fechaFinalizacion: string | null;
   piezas: number;
   familias: string[];
-  scanUrl: string;
   ofs: OfPublica[];
   documentos: DocumentoRps[];
 }
 
-export function detallePublico(detalle: HistorialPedidoDetalle): PedidoPublicoDetalle {
+/** `cerradas` viene de `tareasCerradasDe` (publico-db.ts), que necesita RPS:
+ *  por defecto vacío para que esta función siga siendo pura y se pueda probar
+ *  a mano. Con el mapa vacío ninguna tarea real puede darse por cerrada (ver
+ *  `tareaCerrada`), así que el pedido cae del lado seguro: pendiente, con
+ *  `cerrada` en vez de tiempos. Es la MISMA lectura que decide cada tarea la
+ *  que decide el pedido entero (`pedidoTerminado`): no hay un parámetro
+ *  aparte que decida "pendientes" o "realizados" — si lo hubiera, bastaría
+ *  con cambiarlo en la URL para ver los minutos de un pedido que sigue
+ *  vivo. */
+export function detallePublico(
+  detalle: HistorialPedidoDetalle,
+  cerradas: ReadonlyMap<string, boolean> = new Map(),
+): PedidoPublicoDetalle {
+  const terminado = pedidoTerminado(detalle.ofs, cerradas);
   return {
     codigo: detalle.codigo,
     cliente: detalle.cliente,
@@ -426,8 +609,7 @@ export function detallePublico(detalle: HistorialPedidoDetalle): PedidoPublicoDe
     fechaFinalizacion: detalle.fechaFinalizacion,
     piezas: detalle.piezas,
     familias: detalle.familias,
-    scanUrl: scanUrlPublica(detalle.scanUrl),
-    ofs: detalle.ofs.map(ofPublica),
+    ofs: detalle.ofs.map((of) => ofPublica(of, cerradas, terminado)),
     documentos: detalle.documentos.map(documentoPublico),
   };
 }

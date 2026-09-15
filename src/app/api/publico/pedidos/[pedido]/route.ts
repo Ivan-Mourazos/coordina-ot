@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
 import { CODIGO_PEDIDO_RE } from "@/lib/historial";
-import { detallePublico } from "@/lib/publico";
-import { leerHistorialPedidoDetalle } from "@/lib/server/historial-db";
+import { leerDetallePublico } from "@/lib/server/publico-db";
 
 // ─── GET /api/publico/pedidos/[pedido] ───────────────────────────────────────
-// El pedido abierto, para quien no tiene sesión: sus OF, tareas, tiempos,
-// personas y los documentos que RPS tiene colgados.
-//
-// El brief de esta tarea llamaba aquí a `leerHistorialPedido`, pero esa
-// función solo da las OF (`HistorialOF[]`); el detalle completo —cabecera,
-// documentos, `scanUrl`…— es `leerHistorialPedidoDetalle` (historial-db.ts),
-// la misma que usa `/api/historial/[pedido]` para el equipo con sesión.
+// El pedido abierto, para quien no tiene sesión: sus OF con sus tareas y los
+// documentos que RPS tiene colgados.
 //
 // Lo interno se quita AQUÍ y no en la pantalla: esconderlo en el navegador es
 // decoración, porque la respuesta se lee escribiendo la dirección. El recorte
-// en sí —qué campos salen del pedido y de cada OF, y la URL pública de cada
-// documento— vive en `detallePublico` (lib/publico.ts), con lista blanca.
+// en sí —qué campos salen del pedido y de cada OF, la URL pública de cada
+// documento, y si cada tarea está cerrada— vive en `leerDetallePublico`
+// (server/publico-db.ts, que junta `leerHistorialPedidoDetalle` con el cierre
+// de cada tarea) y en `detallePublico` (lib/publico.ts, la lista blanca).
+//
+// SIN nombres, nunca, ni por OF ni por tarea: decisión de Iván, quién hizo el
+// trabajo es cosa de casa. El TIEMPO de cada tarea sí depende de si el pedido
+// sigue vivo o ya terminó — MISMA ruta para las dos listas, decidido con la
+// propia tarea (`pedidoTerminado`, lib/publico.ts) y no con un parámetro de
+// la petición: pendiente, se enseña qué falta y no el tiempo; terminado, el
+// tiempo de cada paso y no hace falta marcar qué falta, porque no falta nada.
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +31,8 @@ export async function GET(
     return NextResponse.json({ error: "Código de pedido no válido" }, { status: 400 });
   }
   try {
-    const detalle = await leerHistorialPedidoDetalle(pedido);
-    return NextResponse.json(detallePublico(detalle), { headers: { "Cache-Control": "no-store" } });
+    const detalle = await leerDetallePublico(pedido);
+    return NextResponse.json(detalle, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[publico] detalle falló:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo cargar el pedido" }, { status: 500 });

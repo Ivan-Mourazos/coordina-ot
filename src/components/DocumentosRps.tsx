@@ -37,10 +37,25 @@ const ORDEN_CLASES = [
   "Mantenimiento (SAT)",
 ];
 
-export function DocumentosRps({ documentos }: { documentos: DocumentoRps[] }) {
+export function DocumentosRps({
+  documentos,
+  clasePrimero,
+}: {
+  documentos: DocumentoRps[];
+  /** Pone esta clase delante de todas las demás (el resto conserva su orden
+   *  de siempre). Sin ella, el orden es EXACTAMENTE el de `ORDEN_CLASES`: la
+   *  usa hoy solo la consulta pública, para el "Pedido escaneado" que ahí es
+   *  el documento que todo el mundo busca —motivo por el que se quitó su
+   *  botón aparte, ver publico.ts— y no puede quedar el tercero de la lista.
+   *  Si el pedido no tiene esa clase, no pasa nada: el resto sale igual. */
+  clasePrimero?: string;
+}) {
   // Los abribles, en el orden en que se ven: es la lista por la que pasean las
   // flechas del visor, y por eso se calcula UNA vez aquí y no por grupo.
-  const { grupos, abribles, sinFichero } = useMemo(() => agrupar(documentos), [documentos]);
+  const { grupos, abribles, sinFichero } = useMemo(
+    () => agrupar(documentos, clasePrimero),
+    [documentos, clasePrimero],
+  );
   const [enVisor, setEnVisor] = useState<number | null>(null);
 
   if (documentos.length === 0) {
@@ -108,7 +123,15 @@ export function contarAbribles(documentos: readonly DocumentoRps[]): number {
  *  y no lo es: AR.26.03555 enseñaba sus planteamientos como 0, 2, 1. Y aunque
  *  viniera bien ordenado, lo primero que se busca es la ÚLTIMA versión, no la
  *  primera. Lo que no lleva número se queda como venía, detrás. */
-function agrupar(documentos: DocumentoRps[]) {
+/** `ORDEN_CLASES` tal cual, o con `clasePrimero` puesta delante y sacada de su
+ *  sitio de siempre. Sin `clasePrimero` es la MISMA referencia (no una copia)
+ *  para que nada distinga este camino del de siempre. */
+function ordenDeClases(clasePrimero: string | undefined): readonly string[] {
+  if (!clasePrimero) return ORDEN_CLASES;
+  return [clasePrimero, ...ORDEN_CLASES.filter((c) => c !== clasePrimero)];
+}
+
+function agrupar(documentos: DocumentoRps[], clasePrimero?: string) {
   const porClase = new Map<string, DocumentoAbrible[]>();
   let sinFichero = 0;
   for (const d of documentos) {
@@ -122,10 +145,11 @@ function agrupar(documentos: DocumentoRps[]) {
     porClase.set(clase, suyos);
   }
   for (const suyos of porClase.values()) ordenarPorVersion(suyos);
+  const orden = ordenDeClases(clasePrimero);
   const grupos = [...porClase.entries()].sort((a, b) => {
-    const ia = ORDEN_CLASES.indexOf(a[0]);
-    const ib = ORDEN_CLASES.indexOf(b[0]);
-    return (ia < 0 ? ORDEN_CLASES.length : ia) - (ib < 0 ? ORDEN_CLASES.length : ib);
+    const ia = orden.indexOf(a[0]);
+    const ib = orden.indexOf(b[0]);
+    return (ia < 0 ? orden.length : ia) - (ib < 0 ? orden.length : ib);
   });
   // El recorrido del visor sigue el orden de la REJILLA (grupo a grupo), no el
   // que trae RPS: si no, la flecha derecha saltaría de un planteamiento a una
