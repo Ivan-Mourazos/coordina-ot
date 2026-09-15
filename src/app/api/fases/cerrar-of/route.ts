@@ -306,5 +306,10 @@ async function cerrar({
     }
   }
 
-  return NextResponse.json({ ok: true, modo, operaciones, yaEstaba, faseFila, gemelasSinEscribir });
+  // `at` es el MISMO instante que se acaba de guardar en la marca (la hora del
+  // servidor, la del corte del reloj). Va en la respuesta para que la web no
+  // tenga que inventárselo con el reloj del navegador: si lo hace, la línea
+  // del cajón («0232086 — Iván Sánchez, 15/09/26 11:42») cambia de hora en
+  // cuanto se refresca el tablero y se lee lo guardado.
+  return NextResponse.json({ ok: true, modo, at: ahora, operaciones, yaEstaba, faseFila, gemelasSinEscribir });
 }

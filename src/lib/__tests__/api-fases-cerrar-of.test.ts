@@ -433,6 +433,17 @@ test("M2: la respuesta dice qué gemela no pudo escribirse", async () => {
   expect(d).toEqual(expect.objectContaining({ ok: true, yaEstaba: false, faseFila: "9", gemelasSinEscribir: ["09"] }));
 });
 
+// La marca optimista del navegador se pinta con lo que devuelve la ruta. Si
+// el `at` no viene, la web pone el reloj del navegador y la línea del cajón
+// («0232086 — Iván Sánchez, 15/09/26 11:42») cambia de hora al refrescar,
+// porque lo guardado es la hora del SERVIDOR.
+test("la respuesta trae el `at` que se guardó, no uno que tenga que inventar la web", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  const d = await (await cerrar()).json();
+  expect(typeof d.at).toBe("string");
+  expect(d.at).toBe(marcaDe()?.at);
+});
+
 test("«Confirmado con Iván» punto 4: la gemela que no entró se guarda en la marca", async () => {
   process.env.FICHAJE_OLANET = "activo";
   fasesDeOFs.mockResolvedValue([

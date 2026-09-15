@@ -122,7 +122,7 @@ export function CerrarEnRpsInline({
         body: JSON.stringify({ ofId: of.id, seccion: seccion.id, operarioId: miId }),
       });
       const d = (await r.json().catch(() => null)) as
-        | ({ ok: true; modo: "sombra" | "ensayo" | "activo" } & RespuestaCierreRps)
+        | ({ ok: true; modo: "sombra" | "ensayo" | "activo"; at?: string } & RespuestaCierreRps)
         | { error: string; descartado?: boolean }
         | null;
       if (!r.ok || !d || !("ok" in d)) {
@@ -133,7 +133,25 @@ export function CerrarEnRpsInline({
         cerrarPanel();
         return;
       }
-      onCerrado(of.id, { at: new Date().toISOString(), por: miId, modo: d.modo }, avisosTrasCerrarEnRps(d));
+      // La marca se pinta con lo que dice la RESPUESTA, no con lo que pueda
+      // suponer el navegador:
+      //  · `at` es la hora del servidor, que es la que se ha guardado. Con el
+      //    reloj del navegador, la línea del cajón («0232086 — Iván Sánchez,
+      //    15/09/26 11:42») cambiaba de hora al refrescar el tablero.
+      //  · `gemelaSinEscribir` es lo que hace salir «Reintentar la N» en el
+      //    cajón de cerradas. Sin él no aparecía hasta el siguiente refresco,
+      //    aunque el aviso de justo encima acabara de decir que hay que
+      //    pulsarlo.
+      onCerrado(
+        of.id,
+        {
+          at: d.at ?? new Date().toISOString(),
+          por: miId,
+          modo: d.modo,
+          gemelaSinEscribir: d.gemelasSinEscribir?.[0],
+        },
+        avisosTrasCerrarEnRps(d),
+      );
       cerrarPanel();
     } catch {
       setError(SIN_ESCRIBIR);
