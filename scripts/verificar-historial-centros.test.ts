@@ -30,6 +30,11 @@ const TABLAS = {
   FACOrderLineSL: "IDOrderLine int, IDOrder int, IDManufacturingOrder int, ReceptionDemandDate datetime2, PendingDelivery bit",
   FACDeliveryNoteSL: "IDDeliveryNote int, DeliveryNoteDate datetime2",
   FACDeliveryNoteLineSL: "IDDeliveryNote int, IDOrderLine int",
+  // Solo la usa el camino de BÚSQUEDA, y se queda vacía: el LEFT JOIN no
+  // aporta nada a lo que se comprueba aquí. Sin sustituirla, el JOIN iba
+  // contra la tabla REAL y su IDCustomer (un GUID) reventaba contra el int de
+  // estas tablas de prueba.
+  FACCustomer: "IDCustomer int, Description nvarchar(100)",
 };
 
 interface Fila {
@@ -39,10 +44,15 @@ interface Fila {
   fecha_entregado: Date | null;
 }
 
-/** Crea las tablas, mete `filas` y devuelve PedFin por pedido. */
-async function pedFinCon(filas: string): Promise<Map<string, Fila>> {
+/** Crea las tablas, mete `filas` y devuelve PedFin por pedido.
+ *
+ *  Con `pedido` se ejercita el camino de BÚSQUEDA (el que usan la búsqueda y
+ *  la ficha del equipo), que arma el SQL de otra manera: tablas temporales de
+ *  candidatos y, para el albarán, OUTER APPLY en vez del CTE agrupado. Los dos
+ *  caminos tienen que decir lo mismo del mismo pedido. */
+async function pedFinCon(filas: string, pedido?: string): Promise<Map<string, Fila>> {
   const pool = await getPool();
-  let sql = `${ctesFinalizacionHistorial("ot")}
+  let sql = `${ctesFinalizacionHistorial("ot", pedido ? "o.CodOrder=@pedido" : undefined)}
     SELECT pedido, pendiente_total, trabajo_abierto, fecha_entregado FROM PedFin ORDER BY pedido;`;
   let preparar = "";
   for (const [tabla, columnas] of Object.entries(TABLAS)) {
@@ -54,6 +64,7 @@ async function pedFinCon(filas: string): Promise<Map<string, Fila>> {
   }
   const req = pool.request();
   req.input("pendientes", "<pedidos></pedidos>");
+  if (pedido) req.input("pedido", pedido);
   const r = await req.query<Fila>(preparar + filas + sql);
   return new Map(r.recordset.map((f) => [f.pedido.trim(), f]));
 }
@@ -169,6 +180,44 @@ test.skipIf(!ACTIVO)(
     `);
     expect(pedidos.get("AR.26.00008")?.fecha_entregado?.toISOString().slice(0, 10)).toBe("2026-09-14");
     expect(pedidos.get("AR.26.00009")?.fecha_entregado).toBeNull();
+  },
+  60_000,
+);
+
+test.skipIf(!ACTIVO)(
+  "buscando un pedido suelto sale lo MISMO que en la lista entera",
+  async () => {
+    // La lista entera agrupa todos los albaranes de la casa (CTE Albaranes) y
+    // la búsqueda mira solo los de las líneas del pedido (OUTER APPLY). Son
+    // dos consultas distintas para el mismo dato: si se separaran, la ficha
+    // del equipo diría una fecha de salida y la lista del invitado otra.
+    const filas = `
+      INSERT INTO #UI_FACOrderSL VALUES (10,'AR.26.00010','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (101,10,101,'2026-09-11',0);
+      INSERT INTO #UI_FACOrderLineSL VALUES (102,10,102,'2026-09-11',0);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (101,'0000101','001');
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (102,'0000102','001');
+      INSERT INTO #UI_CPRMOTask VALUES (101,1011,'3','CORTAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (1011,'CORTE ACRILICO','CORTE ACRILICO');
+      INSERT INTO #UI_FACDeliveryNoteSL VALUES (911,'2026-09-09');
+      INSERT INTO #UI_FACDeliveryNoteSL VALUES (912,'2026-09-14');
+      INSERT INTO #UI_FACDeliveryNoteLineSL VALUES (911,101);
+      INSERT INTO #UI_FACDeliveryNoteLineSL VALUES (912,102);
+
+      -- Un segundo pedido, para que la búsqueda tenga de verdad algo que dejar
+      -- fuera y no coincida por ser el único.
+      INSERT INTO #UI_FACOrderSL VALUES (11,'AR.26.00011','2026-09-01','001',1,NULL);
+      INSERT INTO #UI_FACOrderLineSL VALUES (111,11,111,'2026-09-11',1);
+      INSERT INTO #UI_CPRManufacturingOrder VALUES (111,'0000111','001');
+      INSERT INTO #UI_CPRMOTask VALUES (111,1111,'3','CORTAR',0,NULL);
+      INSERT INTO #UI_CPRMOResourceMachine VALUES (1111,'CORTE ACRILICO','CORTE ACRILICO');
+    `;
+    const lista = await pedFinCon(filas);
+    const buscando = await pedFinCon(filas, "AR.26.00010");
+
+    expect([...buscando.keys()]).toEqual(["AR.26.00010"]);
+    expect(buscando.get("AR.26.00010")?.fecha_entregado?.toISOString().slice(0, 10)).toBe("2026-09-14");
+    expect(buscando.get("AR.26.00010")).toEqual(lista.get("AR.26.00010"));
   },
   60_000,
 );
