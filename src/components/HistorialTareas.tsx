@@ -40,13 +40,6 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
   // El bloqueo lleva contador, así que convive con el de la ficha sin que uno
   // pise el estilo del otro (ver useScrollBloqueado).
   useScrollBloqueado(abierto);
-  const centros = agruparCentros(ofs)
-    .filter((centro) => centro.ofs.length)
-    .sort((a, b) => rangoCentro(a.id, seccion) - rangoCentro(b.id, seccion));
-  // Los centros sin un minuto no dicen nada: van plegados en una línea.
-  const conTiempo = centros.filter((centro) => centro.totalMin > 0);
-  const sinTiempo = centros.filter((centro) => centro.totalMin <= 0);
-  const pinta = (centro: HistorialCentro) => <CentroTareas key={centro.id} centro={centro} />;
   return (
     <>
       <button
@@ -66,19 +59,52 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
           <h3 className="text-sm font-semibold">Tareas y tiempos · <span className="font-mono">{pedido}</span></h3>
           <button type="button" popoverTarget={id} popoverTargetAction="hide" className="rounded px-2 py-1 text-xs hover:bg-surface-2">Cerrar</button>
         </div>
-        {conTiempo.map(pinta)}
-        {sinTiempo.length > 0 && (
-          <details className={`text-xs ${conTiempo.length ? "mt-4 border-t border-border pt-2" : ""}`}>
-            <summary className="cursor-pointer text-text-muted hover:text-text">
-              Sin tiempo echado: {sinTiempo.map((centro) => {
-                const n = tareasDe(centro);
-                return n ? `${centro.nombre} (${n} ${n === 1 ? "tarea" : "tareas"})` : centro.nombre;
-              }).join(" · ")}
-            </summary>
-            <div className="mt-3">{sinTiempo.map(pinta)}</div>
-          </details>
-        )}
+        <TareasPorCentro ofs={ofs} seccion={seccion} />
       </div>
+    </>
+  );
+}
+
+/** El contenido de «Tareas y tiempos»: los centros con trabajo echado, uno
+ *  detrás de otro, y los que no tienen ni un minuto plegados en una línea.
+ *
+ *  Sale de dentro de la ventana para poder pintarlo TAL CUAL en la consulta sin
+ *  login, que enseña lo mismo pero dentro de la ficha del pedido. Una sola
+ *  pintura para los dos sitios: si fueran dos, acabarían diciendo cosas
+ *  distintas del mismo pedido. */
+export function TareasPorCentro({
+  ofs,
+  seccion,
+  /** Con el color de marca en los códigos, los nombres y los tiempos. Lo usa
+   *  la consulta: allí esto es el cuerpo de la ficha y no una ventana que se
+   *  abre un momento, así que conviene poder recorrerlo con la vista. */
+  conColor = false,
+}: {
+  ofs: HistorialOF[];
+  seccion: SeccionId;
+  conColor?: boolean;
+}) {
+  const centros = agruparCentros(ofs)
+    .filter((centro) => centro.ofs.length)
+    .sort((a, b) => rangoCentro(a.id, seccion) - rangoCentro(b.id, seccion));
+  // Los centros sin un minuto no dicen nada: van plegados en una línea.
+  const conTiempo = centros.filter((centro) => centro.totalMin > 0);
+  const sinTiempo = centros.filter((centro) => centro.totalMin <= 0);
+  const pinta = (centro: HistorialCentro) => <CentroTareas key={centro.id} centro={centro} conColor={conColor} />;
+  return (
+    <>
+      {conTiempo.map(pinta)}
+      {sinTiempo.length > 0 && (
+        <details className={`text-xs ${conTiempo.length ? "mt-4 border-t border-border pt-2" : ""}`}>
+          <summary className="cursor-pointer text-text-muted hover:text-text">
+            Sin tiempo echado: {sinTiempo.map((centro) => {
+              const n = tareasDe(centro);
+              return n ? `${centro.nombre} (${n} ${n === 1 ? "tarea" : "tareas"})` : centro.nombre;
+            }).join(" · ")}
+          </summary>
+          <div className="mt-3">{sinTiempo.map(pinta)}</div>
+        </details>
+      )}
     </>
   );
 }
@@ -90,14 +116,20 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
  *  número y sin nadie obligaba a preguntar por el pasillo quién lo había hecho.
  *  Fuera de aquí la regla no cambia: la lista y la ficha siguen enseñando la
  *  gente de la sección consultada (ver `centrosConDesglose`). */
-function CentroTareas({ centro }: { centro: HistorialCentro }) {
+function CentroTareas({ centro, conColor = false }: { centro: HistorialCentro; conColor?: boolean }) {
+  const acento = conColor ? "text-brand-700 dark:text-brand-300" : "";
   return (
     <section className="mb-4 last:mb-0">
-      <h4 className="mb-2 flex justify-between text-sm font-semibold" title="Tiempo imputado en RPS"><span>{centro.nombre}</span><span>{fmtMin(centro.totalMin)}</span></h4>
+      <h4 className="mb-2 flex justify-between text-sm font-semibold" title="Tiempo imputado en RPS">
+        <span>{centro.nombre}</span>
+        <span className={acento}>{fmtMin(centro.totalMin)}</span>
+      </h4>
       {centro.ofs.map((of) => (
         <div key={of.codigo} className="mb-2 border-t border-border pt-2 text-xs">
-          <p className="mb-1 font-semibold">{of.codigo} · {of.descripcion}</p>
-          <TareasDeOF of={of} />
+          <p className="mb-1 font-semibold">
+            <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span> · {of.descripcion}
+          </p>
+          <TareasDeOF of={of} conColor={conColor} />
         </div>
       ))}
     </section>
@@ -110,7 +142,7 @@ function CentroTareas({ centro }: { centro: HistorialCentro }) {
  *  Historial— porque son la misma información. Estuvo duplicada un tiempo y la
  *  ventana acabó enseñando cosas que el lateral no: quien tiene que acordarse
  *  de tocar los dos, tarde o temprano toca uno. */
-export function TareasDeOF({ of }: { of: HistorialOF }) {
+export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor?: boolean }) {
   if (!of.tareas?.length) {
     return <p className="text-text-muted">Sin desglose de tareas disponible.</p>;
   }
@@ -129,13 +161,19 @@ export function TareasDeOF({ of }: { of: HistorialOF }) {
           <p key={tarea.codigo} className={`flex items-baseline gap-3 py-1 ${vacia ? "text-text-muted" : ""}`}>
             <span className="min-w-0 flex-1">{tarea.codigo} · {tarea.descripcion}</span>
             {personas.length > 0 && (
-              <span className="text-right text-text-muted">
+              <span className={`text-right ${conColor && !vacia ? "font-medium text-text" : "text-text-muted"}`}>
                 {solaEllaEntera
                   ? personas[0].nombre
                   : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
               </span>
             )}
-            <span className={`shrink-0 ${vacia ? "" : "font-semibold"}`}>{fmtMin(tarea.tiempoImputadoMin)}</span>
+            <span
+              className={`shrink-0 ${vacia ? "" : "font-semibold"} ${
+                conColor && !vacia ? "text-brand-700 dark:text-brand-300" : ""
+              }`}
+            >
+              {fmtMin(tarea.tiempoImputadoMin)}
+            </span>
           </p>
         );
       })}

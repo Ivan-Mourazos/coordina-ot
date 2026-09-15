@@ -11,7 +11,7 @@ import { SECCION_POR_DEFECTO } from "@/lib/secciones";
 import { DocumentosRps } from "./DocumentosRps";
 import { ErrorCarga } from "./ErrorCarga";
 import { FamiliaTag } from "./FamiliaTag";
-import { HistorialCentros } from "./HistorialCentros";
+import { TareasPorCentro } from "./HistorialTareas";
 
 // ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
 // Una sola lista. Se entra buscando; sin buscar, las próximas entregas. Cada
@@ -294,20 +294,13 @@ function FichaConsulta({ codigo }: { codigo: string }) {
       {detalle.situacion === "salir" && (
         <p className="text-xs font-semibold text-text">Fabricado, esperando salir.</p>
       )}
-      {/* Todo el trabajo en UNA tarjeta, como los demás bloques de la ficha:
-          dentro van los centros uno debajo de otro, sin relieve propio, para
-          que no parezcan tres fichas sueltas. Plegados de inicio: la ficha se
-          abre dentro de la lista, y con los tiempos desplegados el pedido
-          siguiente quedaba a dos pantallas. */}
-      <div className="bloque-3d rounded-xl border-border px-3 py-2 [background:var(--surface)]">
-        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Tareas y tiempos</p>
-        {/* Dentro de la tarjeta no puede haber más cajas: ni el relieve de
-            cada centro ni el panel de cada OF, que sobre blanco quedaban como
-            una caja dentro de otra. Solo una línea fina separa un centro del
-            siguiente. */}
-        <div className="[&_details]:border-0 [&_details]:bg-none [&_details]:shadow-none [&_details]:[background:transparent] [&_details>div>ul>li]:border-0 [&_details>div>ul>li]:bg-none [&_details>div>ul>li]:p-0 [&_details>div>ul>li]:shadow-none [&_details>div>ul>li]:[background:transparent] [&>section]:space-y-0 [&>section>details+details]:border-t [&>section>details+details]:border-border">
-          <HistorialCentros ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} plegado />
-        </div>
+      {/* El MISMO desglose que la ventana «Tareas y tiempos» del equipo, sin
+          cajas dentro de cajas: centro, OF y debajo sus tareas con quién las
+          echó y cuánto. Con color, que aquí es el cuerpo de la ficha y no una
+          ventana que se abre un momento. */}
+      <div className="bloque-3d rounded-xl border-border px-3 py-2.5 [background:var(--surface)]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Tareas y tiempos</p>
+        <TareasPorCentro ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} conColor />
       </div>
       {/* Lo que RPS tiene colgado del pedido, con el parte escaneado el
           primero: es el documento que todo el mundo busca aquí. Misma tarjeta
