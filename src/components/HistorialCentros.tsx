@@ -21,7 +21,19 @@ import {
 // el resto del cajón del equipo (notas, parte escaneado, avisos).
 
 /** El centro decide qué minutos se suman; la selección decide el desglose visible. */
-export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+export function HistorialCentros({
+  ofs,
+  seccion,
+  plegado = false,
+}: {
+  ofs: HistorialOF[];
+  seccion: SeccionId;
+  /** Empezar con todos los centros cerrados. Lo usa la consulta sin login: ahí
+   *  la ficha se abre DENTRO de la lista, y con los tiempos desplegados la
+   *  fila de al lado quedaba a dos pantallas de distancia. El equipo los abre
+   *  como siempre: mira la ficha para eso. */
+  plegado?: boolean;
+}) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
@@ -41,16 +53,28 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
           ? personasConRol(personasDeOFs(centro.ofs), reparto.autores, reparto.revisores, reparto.consta)
           : [];
         const porOF = desglose && centro.ofs.length > 1;
+        // Si TODAS las OF del centro traen tareas y esas tareas ya nombran a la
+        // misma gente, la lista de aquí arriba repite los mismos nombres dos y
+        // tres líneas más abajo. Se calla — salvo que alguien lleve rol
+        // (planteó/revisó), que eso las líneas de tarea no lo dicen.
+        const enTareas = new Set(
+          centro.ofs.flatMap((of) => (of.tareas ?? []).flatMap((t) => t.personas.map((p) => p.nombre))),
+        );
+        const lasTareasYaLosNombran =
+          centro.ofs.every((of) => (of.tareas?.length ?? 0) > 0) &&
+          personas.length > 0 &&
+          personas.every((p) => !p.rol && enTareas.has(p.nombre));
+        const personasVisibles = lasTareasYaLosNombran ? [] : personas;
         // Su tiempo ES el del centro: no se repite (ver abajo).
-        const unaSolaPersona = personas.length === 1 && personas[0].min === centro.totalMin;
+        const unaSolaPersona = personasVisibles.length === 1 && personasVisibles[0].min === centro.totalMin;
         return (
-          <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
+          <details key={centro.id} open={!plegado && (seleccionado || desglose)} className="bloque-3d rounded-xl">
             <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
               {centro.nombre}
               <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>
             </summary>
             <div className="space-y-3 px-3 pb-3">
-              {personas.length > 0 && (
+              {personasVisibles.length > 0 && (
                 <div>
                   {/* El rótulo solo si de verdad hay tiempos que leer: con
                       una sola persona el número se calla (es el del centro) y
@@ -60,7 +84,7 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
                     <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
                   )}
                   <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
-                    {personas.map((persona) => (
+                    {personasVisibles.map((persona) => (
                       <li key={persona.nombre} className="flex justify-between gap-3">
                         <span>
                           {persona.nombre}

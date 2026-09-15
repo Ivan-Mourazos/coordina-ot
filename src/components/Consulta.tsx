@@ -1,28 +1,61 @@
 "use client";
 
 import { useState } from "react";
-import { ConsultaPendientes } from "./ConsultaPendientes";
-import { VisitasCotView } from "./VisitasCotView";
+import {
+  ESTADOS_CONSULTA,
+  PASOS_CONSULTA,
+  type EstadoConsulta,
+  type FiltrosConsulta,
+  type PasoConsulta,
+} from "@/lib/consulta";
+import { familiaMeta } from "@/lib/familia";
+import { FAMILIAS_FILTRABLES } from "@/lib/historial";
+import type { Familia } from "@/lib/types";
+import { ConsultaPedidos } from "./ConsultaPedidos";
+import { FamiliaIcon } from "./FamiliaTag";
 import { Logo } from "./Logo";
+import { Select } from "./Select";
+import { SelectorFecha } from "./SelectorFecha";
 import { ThemeToggle } from "./ThemeToggle";
+import { VisitasCotView } from "./VisitasCotView";
 
 // ─── La web para quien no ha entrado ─────────────────────────────────────────
-// Comerciales, administración y taller: gente que no usa CoordinaOT a diario y
-// llega con una sola pregunta ("¿por dónde va mi pedido?") que hoy hace por
-// teléfono. Tres pestañas, todo de solo lectura y ni un botón que guarde — no
-// es el tablero con cosas escondidas, es otra pantalla, para que el día que se
-// olvide tapar algo no sea un botón de escribir delante de quien no debe.
+// Comerciales, administración y taller llegan con un nombre o un número y una
+// pregunta: ¿cómo va?, ¿ya salió?, ¿quién lo tiene? Por eso se entra buscando:
+// un solo buscador arriba, que vale para las dos pestañas. Todo de solo
+// lectura y ni un botón que guarde — no es el tablero con cosas escondidas, es
+// otra pantalla, para que el día que se olvide tapar algo no sea un botón de
+// escribir delante de quien no debe.
 
-type Pestana = "pendientes" | "realizados" | "consultas";
+type Pestana = "pedidos" | "consultas";
 
 const PESTANAS: { id: Pestana; label: string }[] = [
-  { id: "pendientes", label: "Pedidos Pendientes" },
-  { id: "realizados", label: "Pedidos Realizados" },
+  { id: "pedidos", label: "Pedidos" },
   { id: "consultas", label: "Consultas con OT" },
 ];
 
 export function Consulta() {
-  const [pestana, setPestana] = useState<Pestana>("pendientes");
+  const [pestana, setPestana] = useState<Pestana>("pedidos");
+  const [q, setQ] = useState("");
+  const [estado, setEstado] = useState<EstadoConsulta>("proximas");
+  const [paso, setPaso] = useState<PasoConsulta | null>(null);
+  const [familia, setFamilia] = useState<string | null>(null);
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [familias, setFamilias] = useState<string[] | null>(null);
+
+  // «Esperando salir» y «Entregados» ya no están en fábrica: ahí el paso no
+  // filtra nada, y se apaga en vez de dejar la lista vacía sin decir por qué.
+  const sinPaso = estado === "salir" || estado === "entregados";
+  const filtros: Omit<FiltrosConsulta, "page"> = {
+    estado,
+    ...(paso && !sinPaso ? { paso } : {}),
+    ...(familia ? { familia } : {}),
+    ...(desde ? { desde } : {}),
+    ...(hasta ? { hasta } : {}),
+    ...(q.trim() ? { q: q.trim() } : {}),
+  };
+  const hayFiltros = estado !== "proximas" || paso !== null || familia !== null || desde !== "" || hasta !== "";
 
   return (
     <div className="min-h-full">
@@ -30,18 +63,17 @@ export function Consulta() {
         <Logo height={36} />
         {/* Las flechas mueven entre pestañas y el tabulador entra y sale de la
             tira entera: es como se recorre un tablist, y es lo que espera
-            quien navega con teclado. Sin las flechas, poner tabIndex -1 en las
-            inactivas las dejaría inalcanzables. */}
+            quien navega con teclado. */}
         <div
           role="tablist"
           aria-label="Secciones"
           className="glass-chip inline-flex flex-wrap rounded-lg p-[3px]"
           onKeyDown={(e) => {
-            const paso = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-            if (paso === 0) return;
+            const salto = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+            if (salto === 0) return;
             e.preventDefault();
             const i = PESTANAS.findIndex((p) => p.id === pestana);
-            const siguiente = PESTANAS[(i + paso + PESTANAS.length) % PESTANAS.length];
+            const siguiente = PESTANAS[(i + salto + PESTANAS.length) % PESTANAS.length];
             setPestana(siguiente.id);
             document.getElementById(`pestana-${siguiente.id}`)?.focus();
           }}
@@ -56,44 +88,149 @@ export function Consulta() {
               aria-controls={`panel-${p.id}`}
               tabIndex={p.id === pestana ? 0 : -1}
               onClick={() => setPestana(p.id)}
-              className={`h-8 rounded-md px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+              /* La pestaña activa con el color de marca, como el selector de
+                 ámbito de la agenda: quien entra de fuera tiene que ver de un
+                 vistazo en cuál de las dos está. */
+              className={`h-9 rounded-md px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
                 p.id === pestana
-                  ? "bg-[var(--glass-highlight)] text-text"
-                  : "text-text-muted hover:text-text"
+                  ? "bg-brand-400 text-[#231903] shadow-sm"
+                  : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >
               {p.label}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        {/* Un solo buscador para las dos pestañas: dos de tres visitas empiezan
+            buscando, y quien llega con un código no tiene por qué mirar antes
+            en qué pestaña está. */}
+        <label className="relative min-w-56 flex-1">
+          <span className="sr-only">{pestana === "pedidos" ? "Buscar pedidos" : "Buscar visitas"}</span>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={
+              pestana === "pedidos" ? "Pedido, cliente, obra u OF…" : "Comercial, cliente, pedido o incidencia…"
+            }
+            className="h-10 w-full rounded-xl border border-border bg-surface px-3 pr-9 text-sm text-text outline-none focus:border-brand-400"
+          />
+          {q && (
+            <button
+              type="button"
+              aria-label="Vaciar la búsqueda"
+              onClick={() => setQ("")}
+              className="absolute right-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded text-text-muted hover:bg-surface-2"
+            >
+              ✕
+            </button>
+          )}
+        </label>
+        <div className="flex items-center gap-2">
           <ThemeToggle />
-          <a
-            href="/entrar"
-            className="glass-chip flex h-9 items-center rounded-lg px-3 text-sm font-semibold text-text"
-          >
+          <a href="/entrar" className="glass-chip flex h-9 items-center rounded-lg px-3 text-sm font-semibold text-text">
             Entrar
           </a>
         </div>
       </header>
 
-      {/* Cada pestaña se pide de nuevo al volver a ella: no hay sondeo
-          automático (toda la casa preguntando cada 30 s es carga de RPS a
-          cambio de nada), así que no hay nada que perder desmontando la que
-          no se mira. */}
-      {pestana === "pendientes" && (
-        <div role="tabpanel" id="panel-pendientes" aria-labelledby="pestana-pendientes">
-          <ConsultaPendientes lista="pendientes" />
-        </div>
-      )}
-      {pestana === "realizados" && (
-        <div role="tabpanel" id="panel-realizados" aria-labelledby="pestana-realizados">
-          <ConsultaPendientes lista="realizados" />
+      {pestana === "pedidos" && (
+        <div role="tabpanel" id="panel-pedidos" aria-labelledby="pestana-pedidos">
+          <div className="mx-auto w-full max-w-[1100px] px-4 pt-4">
+            {/* Panel de vidrio, como la cabecera: sobre el fondo gris de la
+                web, una caja con solo un borde fino se perdía. */}
+            <div className="glass-panel flex flex-wrap items-end gap-3 rounded-xl px-3 py-2.5">
+              <label className="flex flex-col text-xs font-semibold text-text">
+                Estado
+                <span className="mt-1">
+                  <Select
+                    value={estado}
+                    onChange={(v) => setEstado((v as EstadoConsulta | null) ?? "proximas")}
+                    placeholder={null}
+                    options={ESTADOS_CONSULTA.map((e) => ({ value: e.id, label: e.label }))}
+                  />
+                </span>
+              </label>
+              <label className="flex flex-col text-xs font-semibold text-text">
+                Paso
+                <span className="mt-1" title={sinPaso ? "Solo para lo que está en fábrica" : undefined}>
+                  <Select
+                    value={sinPaso ? null : paso}
+                    onChange={(v) => setPaso(v as PasoConsulta | null)}
+                    placeholder={sinPaso ? "—" : "Todos los pasos"}
+                    etiquetaVaciar="Todos los pasos"
+                    acentuarActivo
+                    options={sinPaso ? [] : PASOS_CONSULTA.map((p) => ({ value: p.id, label: p.label }))}
+                  />
+                </span>
+              </label>
+              <label className="flex flex-col text-xs font-semibold text-text">
+                Familia
+                <span className="mt-1">
+                  <Select
+                    value={familia}
+                    onChange={setFamilia}
+                    placeholder="Todas"
+                    etiquetaVaciar="Todas las familias"
+                    acentuarActivo
+                    // Solo las que hay con los demás filtros puestos; la
+                    // elegida se conserva aunque ya no esté, para poder
+                    // quitarla.
+                    options={[...new Set([...(familias ?? FAMILIAS_FILTRABLES), ...(familia ? [familia] : [])])].map(
+                      (fam) => ({
+                        value: fam,
+                        label: familiaMeta(fam as Familia).label ?? fam,
+                        icon: <FamiliaIcon familia={fam as Familia} className="size-3.5" />,
+                      }),
+                    )}
+                  />
+                </span>
+              </label>
+              <div className="flex flex-col text-xs font-semibold text-text">
+                Fechas
+                <span className="mt-1 flex items-center">
+                  <SelectorFecha
+                    desde={desde}
+                    hasta={hasta}
+                    onCambiar={(d, h) => {
+                      setDesde(d);
+                      setHasta(h);
+                    }}
+                  />
+                </span>
+              </div>
+              {/* Siempre puesto, apagado cuando no hay nada que limpiar: si
+                  aparece y desaparece, los botones de al lado bailan de sitio
+                  justo mientras los estás usando. */}
+              <button
+                type="button"
+                disabled={!hayFiltros}
+                onClick={() => {
+                  setEstado("proximas");
+                  setPaso(null);
+                  setFamilia(null);
+                  setDesde("");
+                  setHasta("");
+                }}
+                className="self-end rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted transition-colors enabled:hover:border-border-strong enabled:hover:text-text disabled:opacity-40"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+            {/* Buscar salta «Próximas entregas» (ver estadoEfectivo): se dice,
+                para que nadie crea que el filtro de arriba sigue mandando. */}
+            {q.trim() && estado === "proximas" && (
+              <p className="mt-2 px-1 text-[11px] text-text">
+                Buscando en todos los pedidos, estén como estén y sean del año que sean.
+              </p>
+            )}
+          </div>
+          <ConsultaPedidos filtros={filtros} onFamilias={setFamilias} />
         </div>
       )}
       {pestana === "consultas" && (
         <main role="tabpanel" id="panel-consultas" aria-labelledby="pestana-consultas" className="p-4">
-          <VisitasCotView base="/api/publico/visitas" sondeo={false} />
+          <VisitasCotView base="/api/publico/visitas" sondeo={false} busqueda={q} />
         </main>
       )}
     </div>

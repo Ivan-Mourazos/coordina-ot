@@ -89,6 +89,7 @@ type Ambito = "proximas" | "mes";
 export function VisitasCotView({
   base = "/api/visitas-cot",
   sondeo = true,
+  busqueda,
 }: {
   base?: string;
   /** Refrescarse solo cada minuto. ENCENDIDO para el equipo, que tiene esto
@@ -98,12 +99,18 @@ export function VisitasCotView({
    *  cada pestaña abierta serían preguntas a RPS cada minuto por algo que
    *  nadie está esperando ver cambiar. Quien quiera lo último, actualiza. */
   sondeo?: boolean;
+  /** El texto a buscar, cuando lo escribe otro. La consulta sin login tiene un
+   *  solo buscador arriba para las dos pestañas: con esto, esta vista esconde
+   *  el suyo y usa ese. Sin él, el de siempre. */
+  busqueda?: string;
 } = {}) {
   const [mes, setMes] = useState(() => primerDiaDelMes(hoyISO()));
   const [dia, setDia] = useState<string | null>(null);
   const [ambito, setAmbito] = useState<Ambito>("proximas");
   const [query, setQuery] = useState("");
-  const queryDebounced = useDebounced(query.trim(), 300);
+  // El buscador propio o el de fuera: el de la consulta sin login manda.
+  const buscado = busqueda ?? query;
+  const queryDebounced = useDebounced(buscado.trim(), 300);
   const [visitas, setVisitas] = useState<VisitaCot[]>([]);
   const [refreshedAt, setRefreshedAt] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -212,16 +219,20 @@ export function VisitasCotView({
           </p>
         </div>
 
-        <label className="relative ml-auto min-w-64 flex-1 sm:max-w-sm">
-          <span className="sr-only">Buscar visitas</span>
-          <SearchIcon />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Comercial, cliente, pedido o incidencia…"
-            className="h-9 w-full rounded-xl border border-border bg-surface/80 pl-9 pr-3 text-sm text-text shadow-sm outline-none placeholder:text-text-muted/75 focus:border-brand-400"
-          />
-        </label>
+        {/* Sin buscador propio cuando lo escribe otro (la consulta sin login):
+            dos cajas de buscar en la misma pantalla no dicen cuál manda. */}
+        {busqueda === undefined && (
+          <label className="relative ml-auto min-w-64 flex-1 sm:max-w-sm">
+            <span className="sr-only">Buscar visitas</span>
+            <SearchIcon />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Comercial, cliente, pedido o incidencia…"
+              className="h-9 w-full rounded-xl border border-border bg-surface/80 pl-9 pr-3 text-sm text-text shadow-sm outline-none placeholder:text-text-muted/75 focus:border-brand-400"
+            />
+          </label>
+        )}
         <div className="flex shrink-0 items-center gap-3">
           <span className="hidden text-[11px] text-text-muted sm:inline">
             {fmtActualizacion(refreshedAt)}
@@ -328,7 +339,7 @@ export function VisitasCotView({
               <div>
                 <CalendarIcon />
                 <p className="mt-3 text-sm font-semibold text-text">
-                  {query
+                  {buscado
                     ? "No hay visitas con esa búsqueda"
                     : dia
                       ? "Ese día no hay visitas"
@@ -337,7 +348,7 @@ export function VisitasCotView({
                         : "Este mes no hay visitas"}
                 </p>
                 <p className="mt-1 text-xs text-text-muted">
-                  {query
+                  {buscado
                     ? "Prueba con otro texto, o cambia de mes."
                     : recortaProximas && visitas.length > 0
                       ? `Las ${visitas.length} del mes ya pasaron: están en "Todo el mes".`

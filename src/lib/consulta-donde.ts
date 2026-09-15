@@ -111,7 +111,10 @@ const unicos = (textos: string[]) => [...new Set(textos)];
  *  Se juntan todas las OF sin repetir: en la fila no cabe una línea por OF, y
  *  la ficha ya las separa. */
 export function fraseDonde(donde: readonly DondeOF[]): string | null {
-  const conQuien = (p: PasoDonde) => (p.quien ? `${p.paso} (${p.quien})` : p.paso);
+  // Con guion y no entre paréntesis: la mitad de los centros ya llevan los
+  // suyos («Soldadura (Parque Empresarial)») y salía «Soldadura (Parque
+  // Empresarial) (Adrián Veiga)», que no se lee.
+  const conQuien = (p: PasoDonde) => (p.quien ? `${p.paso} — ${p.quien}` : p.paso);
   const enCurso = unicos(donde.flatMap((d) => d.enCurso).map(conQuien));
   const pausadas = unicos(donde.flatMap((d) => d.pausadas).map(conQuien));
   const siguientes = unicos(donde.flatMap((d) => d.siguientes).map((p) => p.paso));

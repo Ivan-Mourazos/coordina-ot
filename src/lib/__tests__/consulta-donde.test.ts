@@ -121,7 +121,7 @@ test("la frase de la fila junta todas las OF sin repetir", () => {
     tarea({ orden: "D", codigo: "1", centro: "COSTURA POLIGONO" }),
   ]);
   expect(fraseDonde(donde)).toBe(
-    "Haciendo: Calderería (Ana) · Pausado: Corte · Siguiente: Costura (Parque Empresarial)",
+    "Haciendo: Calderería — Ana · Pausado: Corte · Siguiente: Costura (Parque Empresarial)",
   );
   expect(fraseDonde([])).toBeNull();
 });
