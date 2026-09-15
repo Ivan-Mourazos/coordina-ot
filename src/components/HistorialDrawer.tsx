@@ -286,7 +286,20 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} gastado={gastado} onReintentarGastado={() => cargar(pedido)} />
+              {/* Reintentar pide SOLO el material gastado. Con `cargar` se
+                  pedía otra vez el detalle, que ya había llegado bien, y la
+                  ficha entera se sustituía por «Cargando…»: se cerraba la
+                  propia ventana desde la que se había pulsado. */}
+              <HistorialCentros
+                key={`${pedido}:${seccion}`}
+                ofs={detalle.ofs}
+                seccion={seccion}
+                gastado={gastado}
+                onReintentarGastado={() => {
+                  setGastado(undefined);
+                  void cargarGastado(pedido, reqSeq.current);
+                }}
+              />
             </>
           )}
     </MarcoFicha>
