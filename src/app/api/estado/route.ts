@@ -98,14 +98,17 @@ export async function POST(req: Request) {
   }
   const seccion = esSeccionId(body.seccion) ? body.seccion : seccionDeOperario(operarioId);
   let ofIdsPedido: string[] | undefined;
-  // OF retenidas "del_pedido": las que NO se marcaron al recuperar el pedido
-  // (spec §3, tabla "Qué estado toma cada OF") y que ya seguían aprobadas y
-  // terminadas en RPS sin que nadie las tocara. El worker (`enviarUno`) ya no
-  // reescribe un 3 sobre una fase que sigue en 3 — no es un fallo de
-  // corrección—, pero mandarlo de todos modos es una consulta y un apunte de
-  // más en `sch_FasesMov` que no hace falta. Se lee ANTES de `guardarMutacion`
-  // porque esa llamada borra estas filas de `of_retenida` en la misma
-  // transacción que completa el pedido (`deleteRetenidaDelPedido`).
+  // OF que YA están en 3 en RPS y no hace falta reenviarlo al pasar el
+  // pedido: las retenidas "del_pedido" (spec §3, tabla "Qué estado toma cada
+  // OF" — las que NO se marcaron al recuperar el pedido, y ya seguían
+  // aprobadas y terminadas sin que nadie las tocara) y las cerradas de verdad
+  // con "Dar por terminada en RPS" (spec §2, `cerradaRps.modo === "activo"`).
+  // El worker (`enviarUno`) ya no reescribe un 3 sobre una fase que sigue en
+  // 3 — no es un fallo de corrección—, pero mandarlo de todos modos es una
+  // consulta y un apunte de más en `sch_FasesMov` que no hace falta. Se lee
+  // ANTES de `guardarMutacion` porque esa llamada borra las filas de
+  // `of_retenida` en la misma transacción que completa el pedido
+  // (`deleteRetenidaDelPedido`).
   let ofIdsSinFinalizar: Set<string> | undefined;
   if (completarPedidoId) {
     const base = await getTablero(seccion);
@@ -126,11 +129,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
-    ofIdsSinFinalizar = new Set(
-      leerOfsRetenidas(seccion)
+    // Task 9, Step 4 (spec §2, "Al pasar el pedido no se reenvía el cierre"):
+    // una OF cerrada de verdad en RPS ("activo") no manda su 3 otra vez —ya
+    // está escrito—, solo ahorra la consulta y el apunte de más, porque
+    // `enviarUno` ya no reescribe una fase que sigue en 3. Una cerrada en
+    // sombra o ensayo SÍ lo manda: nunca llegó a escribirse.
+    ofIdsSinFinalizar = new Set([
+      ...leerOfsRetenidas(seccion)
         .filter((r) => r.pedido === pedido.codigo && r.motivo === "del_pedido")
         .map((r) => r.ofId),
-    );
+      ...pedido.ofs.filter((of) => of.cerradaRps?.modo === "activo").map((of) => of.id),
+    ]);
   }
 
   // La marca «cerrada en RPS» NO la decide el cliente en esta ruta. Solo la
@@ -213,10 +222,12 @@ export async function POST(req: Request) {
   // lanza, y si algo falla el pedido queda "interrumpido" en vez de
   // "finalizado", que se ve y se puede volver a pasar.
   if (completarPedidoId) {
-    // "del_pedido" (sección 3 de la spec) no manda su 3: en RPS ya seguía
-    // terminada, y solo se reenvía el 3 de lo que de verdad se reabrió
-    // ("recuperada"). `ofIdsPedido` SÍ las sigue incluyendo a todas —esa lista
-    // es la que evita que `aplicarOverlay` reabra el pedido (overlay.ts:101-108).
+    // "del_pedido" (sección 3 de la spec) y las cerradas en "activo" (sección
+    // 2) no mandan su 3: en RPS ya seguían terminadas. Solo se reenvía el 3 de
+    // lo que de verdad se reabrió ("recuperada") o de lo cerrado en sombra o
+    // ensayo, que nunca llegó a escribirse. `ofIdsPedido` SÍ las sigue
+    // incluyendo a todas —esa lista es la que evita que `aplicarOverlay` reabra
+    // el pedido (overlay.ts:101-108).
     const aFinalizar = ofIdsSinFinalizar
       ? (ofIdsPedido ?? []).filter((id) => !ofIdsSinFinalizar!.has(id))
       : ofIdsPedido ?? [];

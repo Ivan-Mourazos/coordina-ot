@@ -343,6 +343,40 @@ test("al pasar el pedido no se reenvía el 3 de las OF retenidas 'del_pedido'", 
   expect(estadoDb.leerOverlay("ot").pedidosCompletados.has(id)).toBe(true);
 });
 
+// Step 4 de la Tarea 9 (spec §2, "Al pasar el pedido no se reenvía el cierre"):
+// una OF cerrada de verdad ("activo") no manda otra vez su 3; una cerrada en
+// sombra o ensayo sí, porque en OLANET nunca llegó a escribirse.
+test("al pasar el pedido no se reencola el 3 de una OF ya cerrada en activo, pero sí la de una cerrada en ensayo", async () => {
+  const id = "P-cerradas-rps";
+  const marcaActivo = { at: "x", por: "ivan", modo: "activo" as const };
+  const marcaEnsayo = { at: "x", por: "ivan", modo: "ensayo" as const };
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232086:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: marcaActivo }],
+    ofRetenida: { ofId: "0232086:9", pedido: id, motivo: "cerrada", por: "ivan", at: "x" },
+  });
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232087:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: marcaEnsayo }],
+    ofRetenida: { ofId: "0232087:9", pedido: id, motivo: "cerrada", por: "ivan", at: "x" },
+  });
+  const pedido = {
+    ...PEDIDOS[0], id, codigo: id,
+    ofs: [
+      { ...PEDIDOS[0].ofs[0], id: "0232086:9", autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false },
+      { ...PEDIDOS[0].ofs[0], id: "0232087:9", autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false },
+    ],
+  };
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [pedido] });
+  const res = await postEstado({
+    operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id,
+  });
+  expect(res.status).toBe(200);
+  // Las dos siguen en "OF que se pasaron" (evita que el overlay reabra el
+  // pedido), pero solo se encola el 3 de la que nunca llegó a escribirse.
+  expect(finalizarMock).toHaveBeenCalledWith(["0232087:9"], "ivan");
+});
+
 test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
   const res = await route.POST(
     new Request("http://x/api/estado", {
