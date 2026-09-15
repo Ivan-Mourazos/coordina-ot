@@ -13,6 +13,7 @@ import type {
 import { esCodigoPedido, hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
+import { partirOfId } from "../bonos";
 
 // ─── Adaptador RPS → contrato de la UI ───────────────────────────────────────
 // Lee la vista RPSNext.dbo.TGM_PENDIENTE_OT (1 fila = 1 OF pendiente de OT,
@@ -446,6 +447,40 @@ export function filasQueFaltan<T extends FilaCruzable>(
   return vista.filter((f) => !ya.has(claveFase(f.OF, f.CodTarea)) && permiteImputaciones(f));
 }
 
+/** Une los pares "pendientes según la fuente" con los que la web retiene
+ *  (`of_retenida`), sin duplicar por `claveFase`: si alguien recupera una OF
+ *  justo cuando OLANET ya ha vuelto a traerla sola, no debe salir dos veces.
+ *  Gana el par de `pares` cuando las dos claves coinciden: es el dato más
+ *  fresco, y `paresDe`/`fasesPendientesDe` van siempre primero en la llamada. */
+export function unirRetenidas(
+  pares: readonly { of: string; fase: string }[],
+  retenidas: readonly { of: string; fase: string }[],
+): { of: string; fase: string }[] {
+  const vistas = new Set<string>();
+  const salida: { of: string; fase: string }[] = [];
+  for (const p of [...pares, ...retenidas]) {
+    const clave = claveFase(p.of, p.fase);
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    salida.push(p);
+  }
+  return salida;
+}
+
+/** Las OF retenidas de una sección, como pares (of, fase) listos para
+ *  `filasPorFase`. El id de OF es "orden:tarea" (ver `aOF` más abajo): se
+ *  parte con `partirOfId`, la misma función que ya usa el fichaje para lo
+ *  mismo. Una fila sin ':' es imposible salvo corrupción y se descarta: no
+ *  debe tumbar el tablero entero por una fila mala. */
+export function paresRetenidosDe(
+  retenidas: readonly { ofId: string }[],
+): { of: string; fase: string }[] {
+  return retenidas
+    .map((r) => partirOfId(r.ofId))
+    .filter((x): x is { of: string; numope: string } => x !== null)
+    .map(({ of, numope }) => ({ of, fase: numope }));
+}
+
 /** Escala nueva: 1 = poca, 2 = normal, 3 = urgente (si es 3, la fecha de
  *  planificación se respeta al 100%). Fuera de rango (null, 0, erróneo) → 1
  *  (poca), no la máxima: un dato ausente no debe disparar urgencia. */
@@ -773,10 +808,13 @@ async function filasPorFase(
 async function filasDeLaSeccion(
   pool: import("mssql").ConnectionPool,
   seccion: Seccion,
+  /** OF que la sección retiene aunque la fuente ya no las traiga (ver
+   *  `of_retenida`). Sección 2 de la spec del 15/09/2026, "Cómo". */
+  retenidas: readonly { of: string; fase: string }[] = [],
 ): Promise<FilaVista[]> {
   if (seccion.fuente === "vista") {
     const claves = await clavesDeLaVista(pool, seccion);
-    return filasPorFase(pool, seccion, paresDe(claves));
+    return filasPorFase(pool, seccion, unirRetenidas(paresDe(claves), retenidas));
   }
 
   // OLANET manda, y la vista solo completa lo recién lanzado que OLANET aún no
@@ -786,16 +824,22 @@ async function filasDeLaSeccion(
     fasesPendientesDe(seccion),
     clavesDeLaVista(pool, seccion),
   ]);
-  return filasPorFase(pool, seccion, [...fases, ...paresDe(filasQueFaltan(claves, fases))]);
+  return filasPorFase(pool, seccion, unirRetenidas([...fases, ...paresDe(filasQueFaltan(claves, fases))], retenidas));
 }
 
 async function consultarTablero(seccion: Seccion): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
 
+  // OF que esta sección sigue enseñando aunque RPS ya no las traiga: una
+  // cerrada desde el tablero antes de pasar el pedido, o las de un pedido
+  // recuperado del Historial (Tareas 6 y 8).
+  const { leerOfsRetenidas } = await import("./estado-db");
+  const retenidas = paresRetenidosDe(leerOfsRetenidas(seccion.id));
+
   // La lista de OFs pendientes es LA consulta cara; el resto de datos
   // auxiliares se piden después, en paralelo, contra tablas indexadas.
-  const vista = { recordset: await filasDeLaSeccion(pool, seccion) };
+  const vista = { recordset: await filasDeLaSeccion(pool, seccion, retenidas) };
 
   // Lista de OFs pendientes saneada para usar en IN (…): solo códigos limpios.
   const ordenes = [
@@ -1281,6 +1325,16 @@ export async function getTableroRPS(seccionId: SeccionId = SECCION_POR_DEFECTO):
     return guardado.data;
   }
   return refrescarTablero(seccion);
+}
+
+/** Invalida la caché de esta sección y lanza el refresco en segundo plano,
+ *  SIN esperarlo: la consulta tarda de 7 a 15 s y no puede colgar la
+ *  respuesta de quien acaba de recuperar un pedido del Historial (Tarea 8).
+ *  Si el refresco falla, se sigue sirviendo lo último bueno hasta el
+ *  siguiente TTL, igual que cualquier otro fallo de `refrescarTablero`. */
+export function invalidarCacheTablero(seccionId: SeccionId): void {
+  cache.delete(seccionId);
+  void refrescarTablero(SECCIONES[seccionId]).catch(() => {});
 }
 
 /** Frecuencia del refresco de fondo cuando nadie usa la app: mantiene la
