@@ -301,7 +301,11 @@ function FichaConsulta({ codigo }: { codigo: string }) {
           siguiente quedaba a dos pantallas. */}
       <div className="bloque-3d rounded-xl border-border px-3 py-2 [background:var(--surface)]">
         <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Tareas y tiempos</p>
-        <div className="[&_details]:border-0 [&_details]:bg-none [&_details]:shadow-none [&_details]:[background:transparent] [&>section]:space-y-0 [&>section>details+details]:border-t [&>section>details+details]:border-border">
+        {/* Dentro de la tarjeta no puede haber más cajas: ni el relieve de
+            cada centro ni el panel de cada OF, que sobre blanco quedaban como
+            una caja dentro de otra. Solo una línea fina separa un centro del
+            siguiente. */}
+        <div className="[&_details]:border-0 [&_details]:bg-none [&_details]:shadow-none [&_details]:[background:transparent] [&_details>div>ul>li]:border-0 [&_details>div>ul>li]:bg-none [&_details>div>ul>li]:p-0 [&_details>div>ul>li]:shadow-none [&_details>div>ul>li]:[background:transparent] [&>section]:space-y-0 [&>section>details+details]:border-t [&>section>details+details]:border-border">
           <HistorialCentros ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} plegado />
         </div>
       </div>
