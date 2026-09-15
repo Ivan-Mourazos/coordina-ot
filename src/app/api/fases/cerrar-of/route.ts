@@ -251,12 +251,12 @@ async function cerrar({
       // gemela 2/02 puede haber fallado sin que eso cambie la marca.
       const deLaFila = operaciones.find((o) => o.of === filaPropia.of && o.fase === filaPropia.fase);
       if (deLaFila && !deLaFila.ok) {
-        // OLANET caído es 503, como cuando lanza; lo demás (ya no existe, no es
-        // nuestra, estado raro) es un conflicto con lo que hay en RPS.
-        return NextResponse.json(
-          { error: deLaFila.error ?? SIN_ESCRIBIR, operaciones },
-          { status: deLaFila.status === 503 ? 503 : 409 },
-        );
+        // Siempre 409: que la de la fila no entre es un conflicto con lo que
+        // hay en RPS (ya no existe, no es nuestra, estado raro), y son los
+        // únicos casos que `finalizarFase` devuelve —`ResultadoFinalizarFase`
+        // admite 403, 404 y 409, nada más—. Un OLANET caído no llega hasta
+        // aquí: LANZA, y el 503 sale del `catch` de abajo.
+        return NextResponse.json({ error: deLaFila.error ?? SIN_ESCRIBIR, operaciones }, { status: 409 });
       }
       // Sin `deLaFila`, la fila ya estaba en 3 (comprobado arriba).
       yaEstaba = deLaFila ? deLaFila.yaEstaba : true;

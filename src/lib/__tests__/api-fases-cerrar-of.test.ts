@@ -177,7 +177,7 @@ test("la trampa 2/02: se cierran las dos de mi sección, la marca depende de la 
     { idBoletin: "901", of: "0232086", fase: "09", descripcion: "FINALIZAR bis", maquina: "A-OTEC", estado: 1 },
   ]);
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
-    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" });
   const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
   // La de la fila (900, fase "9") entró: se marca, aunque la gemela fallara.
   expect(res.status).toBe(200);
@@ -194,7 +194,7 @@ test("la trampa 2/02 con la gemela PRIMERO y fallando: la de la fila entró, se 
     { idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 2 },
   ]);
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
-    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" });
   const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
   expect(res.status).toBe(200);
   expect(finalizarFase).toHaveBeenCalledTimes(2);
@@ -208,10 +208,11 @@ test("la trampa 2/02 al revés: entra la gemela pero falla la de la fila, 409 y 
     { idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 2 },
   ]);
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
-    o.idBoletin === "901" ? { ok: true, yaEstaba: false, idBoletin: "901" } : { ok: false, status: 503, error: "no responde" });
+    o.idBoletin === "901" ? { ok: true, yaEstaba: false, idBoletin: "901" } : { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" });
   const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
-  // OLANET no responde al escribir la de la fila: 503, como pide la spec (M3).
-  expect(res.status).toBe(503);
+  // Que la de la fila no entre es un conflicto con lo que hay en RPS: 409. Un
+  // OLANET caído no llega aquí —`finalizarFase` lanza— y sale por el catch.
+  expect(res.status).toBe(409);
   expect(finalizarFase).toHaveBeenCalledTimes(2);
   expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
 });
@@ -428,7 +429,7 @@ test("M2: la respuesta dice qué gemela no pudo escribirse", async () => {
     { idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 },
   ]);
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
-    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" });
   const d = await (await cerrar()).json();
   expect(d).toEqual(expect.objectContaining({ ok: true, yaEstaba: false, faseFila: "9", gemelasSinEscribir: ["09"] }));
 });
@@ -451,7 +452,7 @@ test("«Confirmado con Iván» punto 4: la gemela que no entró se guarda en la 
     { idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 },
   ]);
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
-    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" });
   expect((await cerrar()).status).toBe(200);
   expect(marcaDe()).toEqual(expect.objectContaining({ gemelaSinEscribir: "09" }));
 });
@@ -503,11 +504,18 @@ test("el 409 de tiempo simplemente pendiente NO lleva `descartado`", async () =>
   expect(d.descartado).toBeUndefined();
 });
 
+// Cuando OLANET se cae de verdad, `finalizarFase` LANZA: no devuelve ningún
+// `{ ok: false, status: 503 }` —`ResultadoFinalizarFase` solo admite 403, 404
+// y 409—, así que el 503 sale del `catch` de la ruta. Mockear ese 503
+// imposible probaba una rama que no podía darse, y el test no podía fallar
+// aunque alguien rompiera el `catch`.
 test("M3: si OLANET se cae al escribir la de la fila, 503 y sin marca", async () => {
   process.env.FICHAJE_OLANET = "activo";
-  finalizarFase.mockResolvedValue({ ok: false, status: 503, error: "OLANET no responde" });
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  finalizarFase.mockRejectedValue(new Error("ECONNREFUSED 192.168.0.124:54325"));
   const res = await cerrar();
   expect(res.status).toBe(503);
+  expect((await res.json()).error).toMatch(/No se ha podido escribir en RPS/);
   expect(marcaDe()).toBeUndefined();
 });
 
