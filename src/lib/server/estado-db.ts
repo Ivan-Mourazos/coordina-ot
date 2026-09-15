@@ -1147,7 +1147,7 @@ export function guardarMutacion(m: Mutacion): void {
     ON CONFLICT(of_id, seccion) DO UPDATE SET
       pedido = excluded.pedido, motivo = excluded.motivo, por = excluded.por, at = excluded.at
   `);
-  const deleteRetenida = db.prepare("DELETE FROM of_retenida WHERE of_id = ?");
+  const deleteRetenida = db.prepare("DELETE FROM of_retenida WHERE of_id = ? AND seccion = ?");
   const deleteRetenidaDelPedido = db.prepare("DELETE FROM of_retenida WHERE pedido = ? AND seccion = ?");
   const upsertPedido = db.prepare(`
     INSERT INTO pedido_paso_seccion (pedido_id, seccion, updated_at, pasado_por, of_ids)
@@ -1202,7 +1202,8 @@ export function guardarMutacion(m: Mutacion): void {
 
     for (const r of Array.isArray(m.ofRetenida) ? m.ofRetenida : m.ofRetenida ? [m.ofRetenida] : [])
       upsertRetenida.run({ ofId: r.ofId, pedido: r.pedido, seccion: m.seccion ?? seccionDeOperario(m.operarioId ?? ""), motivo: r.motivo, por: r.por, at: r.at });
-    for (const ofId of m.quitarRetenida ?? []) deleteRetenida.run(ofId);
+    for (const ofId of m.quitarRetenida ?? [])
+      deleteRetenida.run(ofId, m.seccion ?? seccionDeOperario(m.operarioId ?? ""));
     // Al pasar el pedido, sea cual sea el motivo por el que estuviera
     // retenida alguna de sus OF: desde este momento el pedido depende otra
     // vez solo de RPS, que es lo que tiene que pasar.

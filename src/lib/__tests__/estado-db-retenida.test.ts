@@ -106,6 +106,32 @@ test("of_retenida: varias filas de golpe, y pasar el pedido borra las de su secc
   expect(db.leerOfsRetenidas("ot").filter((r) => r.pedido === "AR.26.05000")).toEqual([]);
 });
 
+test("of_retenida: quitarRetenida solo borra la fila de SU sección (la PK es of_id+seccion)", () => {
+  // La PK real es (of_id, seccion) y el resto de la tabla (lectura, borrado
+  // por pedido) filtra por sección; quitarRetenida es la única operación que
+  // no lo hacía. Se fuerza aquí el mismo of_id en dos secciones a la vez —algo
+  // que hoy no pasa en producción, pero que la tabla permite— para que el
+  // fallo se vea sin depender de ese supuesto.
+  db.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    ofRetenida: { ofId: "0299999:9", pedido: "AR.26.09999", motivo: "cerrada", por: "ivan", at: "2026-09-16T00:00:00.000Z" },
+  });
+  db.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "diseno",
+    ofRetenida: { ofId: "0299999:9", pedido: "AR.26.09999", motivo: "cerrada", por: "ivan", at: "2026-09-16T00:00:00.000Z" },
+  });
+  expect(db.leerOfsRetenidas("ot").some((r) => r.ofId === "0299999:9")).toBe(true);
+  expect(db.leerOfsRetenidas("diseno").some((r) => r.ofId === "0299999:9")).toBe(true);
+
+  db.guardarMutacion({
+    operarioId: "ivan", motivo: "volver_a_plantear", seccion: "ot",
+    quitarRetenida: ["0299999:9"],
+  });
+  expect(db.leerOfsRetenidas("ot").some((r) => r.ofId === "0299999:9")).toBe(false);
+  // La de "diseno" no la pidió nadie quitar: tiene que seguir ahí.
+  expect(db.leerOfsRetenidas("diseno").some((r) => r.ofId === "0299999:9")).toBe(true);
+});
+
 test("guardarMutacion guarda y limpia gemelaSinEscribir, aparte del resto de la marca", () => {
   db.guardarMutacion({
     operarioId: "ivan",
