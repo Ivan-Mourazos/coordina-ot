@@ -161,14 +161,14 @@ function Materiales({
   onReintentarGastado?: () => void;
 }) {
   const { apartados, apuntados } = repartirMateriales(of.materiales);
-  // El botón de Gastado sale SIEMPRE (ver MaterialGastadoBoton); el resto,
+  // El botón de Gastado sale SIEMPRE (ver MaterialGastado); el resto,
   // solo si dice algo.
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
       {apartados.length + apuntados.length > 0 && (
         <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
-      <MaterialGastadoBoton of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />
+      <MaterialGastado of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />
       {of.notasProduccion && <NotasProduccion of={of.codigo} texto={of.notasProduccion} />}
     </div>
   );
@@ -315,8 +315,6 @@ function MaterialGastado({
     </>
   );
 }
-
-const MaterialGastadoBoton = MaterialGastado;
 
 function NotasProduccion({ of, texto }: { of: string; texto: string }) {
   const { anclaje, alternar, cerrar } = useVentanaAnclada();
