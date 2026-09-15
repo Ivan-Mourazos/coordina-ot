@@ -1,4 +1,4 @@
-import { bonosDe, claveBonoRps, type FilaBono } from "../bonos";
+import { bonosDe, claveBonoRps, partirOfId, type FilaBono } from "../bonos";
 import { eventosFaseDe, eventosFinalizacion, type EventoFase } from "../fases";
 import type { Intervalo } from "../fichaje";
 import { getDb } from "./estado-db";
@@ -162,6 +162,36 @@ export function encolarFichajeOLanzar(operarioId: string, intervalos: readonly I
     ).run(operarioId, procesados);
     return n;
   })();
+}
+
+/** Vuelve a encolar las líneas de tiempo y los movimientos de fase de los
+ *  tramos YA CERRADOS de una OF, sin tocar la marca de agua.
+ *
+ *  Es la red de «Dar por terminada en RPS»: si en un intento anterior el tramo
+ *  cortado no llegó a entrar en la cola, el reloj ya está parado y el corte
+ *  del reintento no encuentra nada; sin esto, la cola se vería limpia y el 3
+ *  saldría sin ese tiempo.
+ *
+ *  Es idempotente: la clave de cada evento sale solo del intervalo (OF, tarea,
+ *  operario, día y segundo de inicio para las líneas; OF, tarea, operario,
+ *  estado y hora para los movimientos), la columna es UNIQUE y lo enviado se
+ *  queda en la tabla con su `enviado_at`. Lo que ya estaba, pendiente o
+ *  enviado, se ignora; solo entra lo que falta.
+ *
+ *  Solo los eventos de ESA OF: un intervalo con varias OF reparte su tiempo, y
+ *  lo de las otras lo encola su propio camino. LANZA si la cola falla. */
+export function encolarTramosDeOF(ofId: string, intervalos: readonly Intervalo[]): number {
+  const destino = partirOfId(ofId);
+  if (!destino) return 0;
+  const cerrados = intervalos.filter((iv) => iv.fin !== null && iv.ofIds.includes(ofId));
+  if (cerrados.length === 0) return 0;
+  const esDeLaOF = (x: { of: string; numope: string }) => x.of === destino.of && x.numope === destino.numope;
+  const bonos = bonosDe(cerrados, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO).filter(esDeLaOF);
+  const fases = eventosFaseDe(cerrados).filter(esDeLaOF);
+  return encolar([
+    ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
+    ...fases.map((e) => ({ tipo: "fase" as const, clave: claveFase(e), operarioId: e.operarioId, datos: e })),
+  ]);
 }
 
 /** Encola la finalización (IdEstadoOF = 3) de las OFs de un pedido que se pasa

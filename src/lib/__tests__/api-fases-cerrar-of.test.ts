@@ -7,9 +7,19 @@ import path from "node:path";
 // y que no se escribe cuando no debe, nunca la conexión real.
 const fasesDeOFs = vi.fn();
 const finalizarFase = vi.fn();
+// Lo que usa el worker al vaciar la cola. Por defecto `insertarBono` falla
+// (OLANET no contesta): así un tramo encolado se queda pendiente, que es lo
+// que prueban los tests del corte. `llamadas` guarda el ORDEN de todo.
+const insertarBono = vi.fn();
+const moverFase = vi.fn();
+const llamadas: string[] = [];
 vi.mock("@/lib/server/olanet", () => ({
   fasesDeOFs: (ofs: string[]) => fasesDeOFs(ofs),
-  finalizarFase: (o: unknown) => finalizarFase(o),
+  finalizarFase: (o: unknown) => { llamadas.push("finalizarFase"); return finalizarFase(o); },
+  insertarBono: (b: unknown) => { llamadas.push("insertarBono"); return insertarBono(b); },
+  moverFase: (o: unknown) => { llamadas.push("moverFase"); return moverFase(o); },
+  buscarIdBoletin: async () => "900",
+  estadoDeFase: async () => 2,
 }));
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", tamara: "180" },
@@ -66,6 +76,9 @@ beforeEach(async () => {
   vi.spyOn(dataMod, "getTablero").mockResolvedValue({ operarios: [], pedidos: [PEDIDO_DOS_OF] });
   fasesDeOFs.mockResolvedValue([{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 2 }]);
   finalizarFase.mockResolvedValue({ ok: true, yaEstaba: false, idBoletin: "900" });
+  insertarBono.mockRejectedValue(new Error("OLANET no contesta"));
+  moverFase.mockResolvedValue(undefined);
+  llamadas.length = 0;
   ruta = await import("../../app/api/fases/cerrar-of/route");
 });
 afterEach(() => vi.resetModules());
@@ -217,6 +230,70 @@ test("si el tramo recién cortado no entra en la cola, no se escribe el 3 y se d
   expect((await res.json()).error).toMatch(/tiempo/i);
   expect(finalizarFase).not.toHaveBeenCalled();
   expect(fichajeDb.leerFichaje("ivan").intervalos.filter((iv) => iv.fin === null)).toHaveLength(0);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
+});
+
+// Horas relativas a ahora: el corte cierra con el reloj del servidor, y un
+// tramo que "acabara" antes de empezar no daría línea de tiempo.
+const haceMin = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+const deLaOF = () => outbox.leerCola().filter((p) => p.datos.of === "0232086");
+
+test("reintento tras «tramo sin encolar»: el tramo entra y se envía ANTES del cierre", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(30), fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+
+  // 1.º intento: guardar el tramo en la cola falla → 409, nada escrito.
+  const falla = vi.spyOn(outbox, "encolarFichajeOLanzar").mockImplementation(() => {
+    throw new Error("database is locked");
+  });
+  expect((await post({ ofId: "0232086:9", operarioId: "ivan" })).status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+  expect(deLaOF()).toHaveLength(0);
+  falla.mockRestore();
+
+  // 2.º intento, con la cola ya funcionando y OLANET contestando. El reloj
+  // ya está parado: el corte no encuentra nada, y aun así el tramo tiene que
+  // llegar a OLANET antes que el 3.
+  insertarBono.mockResolvedValue(undefined);
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(res.status).toBe(200);
+  const bono = llamadas.indexOf("insertarBono");
+  const cierre = llamadas.indexOf("finalizarFase");
+  expect(bono).toBeGreaterThanOrEqual(0);
+  expect(cierre).toBeGreaterThan(bono);
+  expect(llamadas.lastIndexOf("moverFase")).toBeLessThan(cierre);
+  expect(deLaOF().filter((p) => p.tipo === "bono").every((p) => p.enviadoAt !== null)).toBe(true);
+});
+
+test("reintentar dos veces no duplica el tramo en la cola", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  // Un tramo cerrado que nunca llegó a la cola (el fallo de un intento anterior).
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+
+  // OLANET no contesta: los dos intentos acaban en 409 con el tramo pendiente.
+  expect((await post({ ofId: "0232086:9", operarioId: "ivan" })).status).toBe(409);
+  const tras1 = deLaOF();
+  expect(tras1.filter((p) => p.tipo === "bono")).toHaveLength(1);
+  expect(tras1.filter((p) => p.tipo === "fase")).toHaveLength(2); // iniciada + interrumpida
+
+  expect((await post({ ofId: "0232086:9", operarioId: "ivan" })).status).toBe(409);
+  expect(deLaOF()).toHaveLength(tras1.length);
+  expect(finalizarFase).not.toHaveBeenCalled();
+});
+
+test("si el reencolado de los tramos cerrados falla, 409 y no se escribe el cierre", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(outbox, "encolarTramosDeOF").mockImplementation(() => {
+    throw new Error("database is locked");
+  });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect((await res.json()).error).toMatch(/tiempo/i);
+  expect(finalizarFase).not.toHaveBeenCalled();
   expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
 });
 

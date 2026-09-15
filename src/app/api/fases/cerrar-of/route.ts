@@ -8,7 +8,7 @@ import { esSeccionId, esFaseDe, SECCIONES } from "@/lib/secciones";
 import { seccionDeOperario, COD_RPS_POR_OPERARIO } from "@/lib/server/operarios";
 import { finalizables, situacionDe } from "@/lib/fase-pendiente";
 import { pedidoListoParaPasar } from "@/lib/fases-tablero";
-import { cortarFichajeDeOFConAviso } from "@/lib/server/fichaje-db";
+import { cortarFichajeDeOFConAviso, reencolarTramosDeOF } from "@/lib/server/fichaje-db";
 
 // ─── POST /api/fases/cerrar-of ───────────────────────────────────────────────
 // «Dar por terminada en RPS» sobre una OF suelta, antes de pasar el pedido
@@ -92,6 +92,16 @@ export async function POST(req: Request) {
     //    cola, la comprobación de abajo la vería vacía y el 3 se escribiría
     //    sin ese tiempo.
     if (corte.sinEncolar.length > 0) return tiempoSinSubir();
+    //    Y en un REINTENTO de eso el reloj ya estaba parado: el corte no
+    //    encuentra nada que encolar, pero el tramo que no entró sigue fuera de
+    //    la cola. Se vuelven a encolar los tramos cerrados de esta OF; lo que
+    //    ya estaba (pendiente o enviado) se ignora por su clave.
+    try {
+      reencolarTramosDeOF(ofId);
+    } catch (e) {
+      console.warn("[coordina] no se pudo reencolar el tiempo de la OF:", (e as Error).message);
+      return tiempoSinSubir();
+    }
     try {
       const { drenarCola } = await import("@/lib/server/olanet-worker");
       const { fasesDeOFs, finalizarFase } = await import("@/lib/server/olanet");

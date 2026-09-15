@@ -2,7 +2,7 @@ import type { Fichaje, Intervalo } from "../fichaje";
 import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
-import { encolarFichajeOLanzar } from "./olanet-outbox";
+import { encolarFichajeOLanzar, encolarTramosDeOF } from "./olanet-outbox";
 import { operariosDeSeccion } from "./operarios";
 import type { SeccionId } from "../secciones";
 
@@ -255,6 +255,14 @@ export function cortarFichajeDeOFConAviso(
     afectados.push(iv.operarioId);
   }
   return { afectados, sinEncolar };
+}
+
+/** Vuelve a encolar los tramos cerrados de esta OF que falten en la cola (ver
+ *  `encolarTramosDeOF`). Deja fuera lo ya traspasado a RPS: eso ya está allí.
+ *  LANZA si la cola falla: quien cierra la OF en RPS no puede seguir sin
+ *  saber que el tiempo está puesto. */
+export function reencolarTramosDeOF(ofId: string): number {
+  return encolarTramosDeOF(ofId, leerTodosIntervalos());
 }
 
 /** Guarda el fichaje de un operario.
