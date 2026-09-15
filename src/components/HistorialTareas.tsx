@@ -59,7 +59,9 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
           <h3 className="text-sm font-semibold">Tareas y tiempos · <span className="font-mono">{pedido}</span></h3>
           <button type="button" popoverTarget={id} popoverTargetAction="hide" className="rounded px-2 py-1 text-xs hover:bg-surface-2">Cerrar</button>
         </div>
-        <TareasPorCentro ofs={ofs} seccion={seccion} />
+        {/* Con color, como la consulta: el código de la OF y los tiempos se
+            recorren con la vista sin leerlo todo. */}
+        <TareasPorCentro ofs={ofs} seccion={seccion} conColor />
       </div>
     </>
   );
@@ -75,14 +77,21 @@ export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", comp
 export function TareasPorCentro({
   ofs,
   seccion,
-  /** Con el color de marca en los códigos, los nombres y los tiempos. Lo usa
-   *  la consulta: allí esto es el cuerpo de la ficha y no una ventana que se
-   *  abre un momento, así que conviene poder recorrerlo con la vista. */
+  /** Con el color de marca en los códigos, los nombres y los tiempos. */
   conColor = false,
+  extraCentro,
+  extraOF,
 }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
   conColor?: boolean;
+  /** Lo que la ficha del equipo enseña de cada centro y que la ventana no: el
+   *  tiempo por persona con su papel (planteó / revisó). */
+  extraCentro?: (centro: HistorialCentro) => React.ReactNode;
+  /** Lo que la ficha añade a cada OF: quién la hizo (cuando el centro tiene
+   *  varias) y el material asignado. Van por aquí y no dentro de esta pieza
+   *  porque la consulta sin login NO puede enseñar el material. */
+  extraOF?: (of: HistorialOF, centro: HistorialCentro) => React.ReactNode;
 }) {
   const centros = agruparCentros(ofs)
     .filter((centro) => centro.ofs.length)
@@ -90,7 +99,15 @@ export function TareasPorCentro({
   // Los centros sin un minuto no dicen nada: van plegados en una línea.
   const conTiempo = centros.filter((centro) => centro.totalMin > 0);
   const sinTiempo = centros.filter((centro) => centro.totalMin <= 0);
-  const pinta = (centro: HistorialCentro) => <CentroTareas key={centro.id} centro={centro} conColor={conColor} />;
+  const pinta = (centro: HistorialCentro) => (
+    <CentroTareas
+      key={centro.id}
+      centro={centro}
+      conColor={conColor}
+      extraCentro={extraCentro}
+      extraOF={extraOF}
+    />
+  );
   return (
     <>
       {conTiempo.map(pinta)}
@@ -116,20 +133,42 @@ export function TareasPorCentro({
  *  número y sin nadie obligaba a preguntar por el pasillo quién lo había hecho.
  *  Fuera de aquí la regla no cambia: la lista y la ficha siguen enseñando la
  *  gente de la sección consultada (ver `centrosConDesglose`). */
-function CentroTareas({ centro, conColor = false }: { centro: HistorialCentro; conColor?: boolean }) {
+function CentroTareas({
+  centro,
+  conColor = false,
+  extraCentro,
+  extraOF,
+}: {
+  centro: HistorialCentro;
+  conColor?: boolean;
+  extraCentro?: (centro: HistorialCentro) => React.ReactNode;
+  extraOF?: (of: HistorialOF, centro: HistorialCentro) => React.ReactNode;
+}) {
   const acento = conColor ? "text-brand-700 dark:text-brand-300" : "";
+  // Con una sola OF su tiempo ES el del centro, que está justo encima: no se
+  // escribe dos veces. Con varias sí reparten, y entonces hace falta.
+  const variasOF = centro.ofs.length > 1;
   return (
     <section className="mb-4 last:mb-0">
       <h4 className="mb-2 flex justify-between text-sm font-semibold" title="Tiempo imputado en RPS">
         <span>{centro.nombre}</span>
         <span className={acento}>{fmtMin(centro.totalMin)}</span>
       </h4>
+      {extraCentro?.(centro)}
       {centro.ofs.map((of) => (
         <div key={of.codigo} className="mb-2 border-t border-border pt-2 text-xs">
-          <p className="mb-1 font-semibold">
-            <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span> · {of.descripcion}
+          <p className="mb-1 flex items-baseline justify-between gap-3 font-semibold">
+            <span>
+              <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span> · {of.descripcion}
+            </span>
+            {variasOF && (
+              <span className={`shrink-0 font-mono tabular-nums ${acento}`} title="Tiempo imputado en RPS">
+                {fmtMin(of.tiempoImputadoMin)}
+              </span>
+            )}
           </p>
           <TareasDeOF of={of} conColor={conColor} />
+          {extraOF?.(of, centro)}
         </div>
       ))}
     </section>
