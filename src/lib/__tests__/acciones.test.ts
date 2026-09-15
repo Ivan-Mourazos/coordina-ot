@@ -358,8 +358,14 @@ describe("qué sale suelto y qué va al cajón de ⋯", () => {
     // El criterio es la FRECUENCIA, no la importancia: un botón que se pulsa
     // una vez al mes no puede competir por el sitio con uno diario.
     expect([...A_LA_VISTA].sort()).toEqual(
-      ["aprobar", "devolver", "empezar_revision", "terminar_planteo"].sort(),
+      ["aprobar", "devolver", "empezar_revision", "terminar_planteo", "volver_a_plantear"].sort(),
     );
+  });
+
+  it("volver_a_plantear sale suelta: en la OF cerrada en RPS es la ÚNICA acción, y un cajón para una sola opción es peor que la opción", () => {
+    const cerrada = of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } });
+    expect(accionesDisponibles(cerrada, "op2").map((a) => a.id)).toEqual(["volver_a_plantear"]);
+    expect(A_LA_VISTA.has("volver_a_plantear")).toBe(true);
   });
 
   it("devolver sale fuera aunque sea peligro: para el revisor es diario", () => {

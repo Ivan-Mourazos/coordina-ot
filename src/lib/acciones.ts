@@ -342,4 +342,8 @@ export const A_LA_VISTA: ReadonlySet<AccionOF> = new Set<AccionOF>([
   "empezar_revision",
   "aprobar",
   "devolver",
+  // En una OF cerrada en RPS es la ÚNICA acción que se ofrece (ver `noSi` más
+  // arriba): dejarla fuera de A_LA_VISTA la mandaba al cajón de "⋯" siendo lo
+  // único que hay que hacer con esa OF.
+  "volver_a_plantear",
 ]);
