@@ -107,6 +107,30 @@ function claveEnOficina(ms: number): string {
   return DIA_OFICINA.format(new Date(ms));
 }
 
+/** Cómo busca el Historial: código de pedido exacto, trozo de código de pedido
+ *  o de OF, o todas las palabras en el MISMO campo de texto. Compartido con la
+ *  consulta sin login: quien busca un pedido tiene que encontrar lo mismo en
+ *  las dos pantallas. `q` llega ya recortado y no vacío. */
+export function coincideBusqueda(q: string): (pedido: string, info: InfoPedidoHistorial | undefined) => boolean {
+  const palabras = palabrasDe(q);
+  const codigo = palabras.join("");
+  const exacto = esCodigoPedido(q.toUpperCase()) ? q.toUpperCase() : null;
+  return (pedido, info) => {
+    if (exacto) return pedido === exacto;
+    if (palabras.length === 0) return false;
+    if (pedido.replaceAll(".", "").includes(codigo)) return true;
+    if (!info) return false;
+    // El código no lleva espacios, así que no puede casar a caballo entre dos OF.
+    if (info.ordenes.includes(codigo)) return true;
+    // Todas las palabras en el MISMO campo, como la consulta: "toldo fachada"
+    // encuentra "TOLDO DE FACHADA", pero no un cliente "TOLDOS" con una OF de
+    // "FACHADA". Primero la prueba barata sobre todo el texto; solo si pasa,
+    // campo a campo.
+    if (!palabras.every((p) => info.textos.includes(p))) return false;
+    return info.textos.split("\n").some((t) => palabras.every((p) => t.includes(p)));
+  };
+}
+
 export function filtrarIndice(
   indice: IndiceHistorial,
   f: HistorialFiltros & { seccion: SeccionId },
