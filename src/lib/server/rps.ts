@@ -1,3 +1,4 @@
+import sql from "mssql";
 import {
   SECCIONES,
   SECCION_POR_DEFECTO,
@@ -5,6 +6,10 @@ import {
   type Seccion,
   type SeccionId,
 } from "../secciones";
+
+// Reexportado para quien trabaja con este módulo y necesita construir una
+// `Seccion` (recuperar un pedido del Historial, y sus tests).
+export { SECCIONES } from "../secciones";
 import { operariosDeSeccion } from "./operarios";
 import type { Tablero } from "../data";
 import type {
@@ -797,6 +802,63 @@ async function filasPorFase(
   // tener dos— y aquí nos quedamos solo con las que OLANET dio por pendientes.
   const quiero = new Set(fases.map((f) => claveFase(f.of, f.fase)));
   return r.recordset.filter((f) => quiero.has(claveFase(f.OF, f.CodTarea)));
+}
+
+export interface FaseDelPedido {
+  of: string;
+  fase: string;
+  descripcion: string;
+  fichable: boolean;
+}
+
+/** Las tareas de una sección para las OF de un pedido, directamente de RPS,
+ *  sin pasar por OLANET ni por el filtro de "pendiente". Es el `SELECT` de
+ *  `filasPorFase` acotado por PEDIDO en vez de por lista de órdenes, y SIN su
+ *  último filtro (el `quiero.has(...)` que deja solo lo pendiente): aquí se
+ *  quiere TODO lo de la sección, esté o no al 100 %. El `JOIN` a
+ *  `CPRMOResourceMachine` restringido a los recursos de la sección ya excluye
+ *  el taller — no hace falta un filtro aparte.
+ *
+ *  Solo para cuando "Volver a plantear un pedido" no tiene
+ *  `pedido_paso_seccion.of_ids` guardado: pedidos pasados antes de que
+ *  existiera esa columna, o desde la herramienta vieja. Spec del 15/09/2026,
+ *  sección 3, "Cómo".
+ *
+ *  El pedido va tipado `VarChar(25)`: sin tipo, mssql lo manda como nvarchar
+ *  contra una columna varchar y el índice deja de servir. */
+export async function fasesDeSeccionDelPedido(pedido: string, seccion: Seccion): Promise<FaseDelPedido[]> {
+  // Import dinámico, como `consultarTablero`: este módulo se carga también sin
+  // BD (mock) y no debe abrir la conexión solo por importarse.
+  const { getPool } = await import("./db");
+  const pool = await getPool();
+  const r = await pool
+    .request()
+    .input("pedido", sql.VarChar(25), pedido)
+    .query<{
+      orden: string | null; fase: string | null; descripcion: string | null;
+      SitOF: string | null; PermiteImputaciones: boolean | number | null;
+    }>(`
+      SELECT d.CodManufacturingOrder AS orden, e.CodMOTask AS fase, e.Description AS descripcion,
+             sit.Description AS SitOF, sit.AllowImputations AS PermiteImputaciones
+        FROM dbo.CPRMOTask e
+        JOIN dbo.CPRManufacturingOrder d ON e.IDManufacturingOrder = d.IDManufacturingOrder
+        JOIN dbo.CPRManufacturingOrderSituation sit ON d.IDMOSituation = sit.IDManufacturingOrderSituation
+        JOIN dbo.CPRMOResourceMachine f ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosSql(seccion)})
+       WHERE d.CodCompany = '001' AND EXISTS (
+         SELECT 1 FROM dbo.FACOrderLineSL l
+         JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+         WHERE l.IDManufacturingOrder = d.IDManufacturingOrder AND o.CodOrder = @pedido)
+    `);
+  return r.recordset
+    .map((f) => ({
+      of: (f.orden ?? "").trim(),
+      fase: (f.fase ?? "").trim(),
+      descripcion: (f.descripcion ?? "").trim(),
+      // Se construye la `FilaCruzable` a mano: esta consulta nombra sus
+      // columnas `orden`/`fase`, no `OF`/`CodTarea` como la vista.
+      fichable: permiteImputaciones({ OF: f.orden, CodTarea: f.fase, SitOF: f.SitOF, PermiteImputaciones: f.PermiteImputaciones }),
+    }))
+    .filter((f) => f.of !== "" && f.fase !== "");
 }
 
 /** De dónde sale la lista de trabajo de esta sección. Ver `Seccion.fuente`.

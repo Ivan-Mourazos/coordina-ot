@@ -1161,6 +1161,42 @@ export async function leerHistorialPedidoDetalle(
   });
 }
 
+/** Si un pedido sigue sin entregar y cuándo salió el último albarán, para la
+ *  confirmación de "Volver a plantear el pedido": un pedido entregado se puede
+ *  recuperar igual, pero la confirmación lo dice. Mismas CTE que
+ *  `leerHistorialPedidoDetalle` usa para `finalizada`, acotadas a UN pedido —
+ *  ver `ctesFinalizacionHistorial`.
+ *
+ *  Sin fila (RPS no conoce el pedido) se da por NO entregado: es lo prudente,
+ *  la confirmación no afirma una entrega que no consta. */
+export async function leerEntregaPedido(
+  pedido: string,
+  seccion: SeccionId,
+): Promise<{ pendienteEntrega: boolean; fechaEntregado: string | null }> {
+  if (ES_MOCK) return { pendienteEntrega: true, fechaEntregado: null };
+  const pool = await getPool();
+  const fila = (
+    await pool
+      .request()
+      // Tipado: sin tipo va como nvarchar contra CodOrder varchar y se pierde
+      // el índice (ver parametros-sql-varchar en la memoria del proyecto).
+      .input("pedido", sql.VarChar(25), pedido)
+      .input("pendientes", "<pedidos/>")
+      .query<{ pendiente_entrega: number | null; fecha_entregado: Date | null }>(`
+      ${ctesFinalizacionHistorial(seccion, "o.CodOrder=@pedido")}
+      SELECT pendiente_entrega, fecha_entregado FROM PedFin;
+      DROP TABLE #CoordinaHistorialOrdenes;
+      DROP TABLE #CoordinaHistorialPedidos;
+      DROP TABLE #CoordinaHistorialPendientes;
+      DROP TABLE #CoordinaHistorialFinalizados;
+    `)
+  ).recordset[0];
+  return {
+    pendienteEntrega: fila ? fila.pendiente_entrega === 1 : true,
+    fechaEntregado: fila?.fecha_entregado ? fila.fecha_entregado.toISOString().slice(0, 10) : null,
+  };
+}
+
 // ── Fallback mock (desarrollo sin BD) ──
 // `estaFinalizado` y no el predicado a mano que había aquí copiado: era el
 // mismo de antes de que existieran las OF anuladas, así que un pedido con una
