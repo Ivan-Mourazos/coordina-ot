@@ -202,9 +202,28 @@ function abrir(): Database.Database {
       visto_at    TEXT NOT NULL,
       PRIMARY KEY (operario_id, clave)
     );
+    -- OF que la web sigue enseñando en el tablero aunque RPS ya no las
+    -- traiga: TGM_PENDIENTE_OT solo trae tareas por debajo del 100 %, y en OT
+    -- el 100 llega al cerrar la fase. Dos casos comparten tabla: una OF
+    -- cerrada desde el tablero antes de pasar el pedido (motivo 'cerrada') y
+    -- las OF de un pedido que se vuelve a plantear desde el Historial
+    -- ('recuperada' la que se reabre, 'del_pedido' el resto, para que el
+    -- pedido se vea entero). Sale de aquí al pasar el pedido o al volver a
+    -- plantear la OF a mano.
+    CREATE TABLE IF NOT EXISTS of_retenida (
+      of_id   TEXT NOT NULL,
+      pedido  TEXT NOT NULL,
+      seccion TEXT NOT NULL,
+      motivo  TEXT NOT NULL,
+      por     TEXT,
+      at      TEXT NOT NULL,
+      PRIMARY KEY (of_id, seccion)
+    );
+    CREATE INDEX IF NOT EXISTS idx_of_retenida_pedido ON of_retenida(pedido, seccion);
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
+  prepararCierreRps(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -265,6 +284,21 @@ function prepararTraspasado(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(fichaje_intervalo)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "traspasado_at")) return;
   db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
+}
+
+/** Las tres columnas de la marca «cerrada en RPS» (ver `OF.cerradaRps`). Sin
+ *  backfill que hacer —toda OF existente sigue sin marca, que es lo
+ *  correcto— así que basta el guardado de columna, como `prepararTraspasado`;
+ *  no hace falta la maquinaria de `MIGRACIONES` (esa es para cuando el
+ *  segundo paso, el relleno, puede fallar a medias). */
+function prepararCierreRps(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(of_overlay)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "cerrada_rps_at")) return;
+  db.exec(`
+    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_at TEXT;
+    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_por TEXT;
+    ALTER TABLE of_overlay ADD COLUMN cerrada_rps_modo TEXT;
+  `);
 }
 
 /** "Esta OF pasó por revisión". La columna se añade sobre la marcha porque la
@@ -968,7 +1002,9 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
   const ofs = new Map<string, CambioOF>();
   for (const fila of db
     .prepare(
-      "SELECT of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at FROM of_overlay",
+      `SELECT of_id, autor_id, revisor_id, estado, observacion, revisada, updated_at,
+              cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo
+         FROM of_overlay`,
     )
     .all() as Array<{
     of_id: string;
@@ -978,6 +1014,9 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
     observacion: string | null;
     revisada: number;
     updated_at: string;
+    cerrada_rps_at: string | null;
+    cerrada_rps_por: string | null;
+    cerrada_rps_modo: string | null;
   }>) {
     if (!ESTADOS_OF.has(fila.estado)) continue; // fila corrupta: ignorar
     ofs.set(fila.of_id, {
@@ -988,10 +1027,30 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
       observacion: fila.observacion,
       revisada: fila.revisada === 1,
       actualizadoAt: fila.updated_at,
+      // Las tres columnas van juntas o ninguna: solo se escriben desde la
+      // misma llamada a upsertOF (ver guardarMutacion).
+      cerradaRps:
+        fila.cerrada_rps_at && fila.cerrada_rps_por && fila.cerrada_rps_modo
+          ? {
+              at: fila.cerrada_rps_at,
+              por: fila.cerrada_rps_por,
+              modo: fila.cerrada_rps_modo as "sombra" | "ensayo" | "activo",
+            }
+          : undefined,
     });
   }
   const pasos = leerPedidosPasados(seccion);
   return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos };
+}
+
+/** OF que esta sección sigue enseñando en el tablero aunque RPS ya no las
+ *  traiga (ver el comentario de la tabla `of_retenida`). Las suma
+ *  `filasDeLaSeccion` (server/rps.ts) a lo que trae la vista u OLANET. */
+export function leerOfsRetenidas(seccion: SeccionId): OfRetenida[] {
+  const filas = abrir()
+    .prepare("SELECT of_id AS ofId, pedido, motivo, por, at FROM of_retenida WHERE seccion = ?")
+    .all(seccion) as Array<{ ofId: string; pedido: string; motivo: string; por: string | null; at: string }>;
+  return filas.map((f) => ({ ...f, motivo: f.motivo as MotivoRetenida }));
 }
 
 export interface PasoAProduccion {
@@ -1015,6 +1074,16 @@ export function leerPedidosPasados(seccion: SeccionId = SECCION_POR_DEFECTO): Ma
   );
 }
 
+export type MotivoRetenida = "cerrada" | "recuperada" | "del_pedido";
+
+export interface OfRetenida {
+  ofId: string;
+  pedido: string;
+  motivo: MotivoRetenida;
+  por: string | null;
+  at: string;
+}
+
 export interface Mutacion {
   seccion?: SeccionId;
   ofIdsPedido?: string[];
@@ -1025,6 +1094,13 @@ export interface Mutacion {
    *  todavía no tienen fila en `of_overlay`: ver `guardarMutacion`. */
   previosOF?: CambioOF[];
   completarPedidoId?: string;
+  /** Filas que ENTRAN en `of_retenida`, en la misma transacción. Una sola OF
+   *  (cerrar una OF suelta) o varias de golpe (recuperar un pedido entero). */
+  ofRetenida?: OfRetenida | OfRetenida[];
+  /** Ids que SALEN de `of_retenida`, en la misma transacción. Lo usa
+   *  "Volver a plantear": la OF deja de estar retenida y vuelve a depender
+   *  solo de lo que traiga RPS/OLANET. */
+  quitarRetenida?: string[];
 }
 
 /** Aplica una mutación completa en una transacción y la deja en el log. */
@@ -1035,16 +1111,29 @@ export function guardarMutacion(m: Mutacion): void {
   // sea `en_revision`, y el MAX la hace de una sola dirección —una vez que
   // alguien la revisó, eso ya pasó y ningún movimiento posterior lo borra—.
   const upsertOF = db.prepare(`
-    INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at, revisada)
-    VALUES (@ofId, @autorId, @revisorId, @estado, @observacion, @ahora, @revisada)
+    INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at, revisada,
+                             cerrada_rps_at, cerrada_rps_por, cerrada_rps_modo)
+    VALUES (@ofId, @autorId, @revisorId, @estado, @observacion, @ahora, @revisada,
+            @cerradaRpsAt, @cerradaRpsPor, @cerradaRpsModo)
     ON CONFLICT(of_id) DO UPDATE SET
       autor_id = excluded.autor_id,
       revisor_id = excluded.revisor_id,
       estado = excluded.estado,
       observacion = excluded.observacion,
       updated_at = excluded.updated_at,
-      revisada = MAX(of_overlay.revisada, excluded.revisada)
+      revisada = MAX(of_overlay.revisada, excluded.revisada),
+      cerrada_rps_at = excluded.cerrada_rps_at,
+      cerrada_rps_por = excluded.cerrada_rps_por,
+      cerrada_rps_modo = excluded.cerrada_rps_modo
   `);
+  const upsertRetenida = db.prepare(`
+    INSERT INTO of_retenida (of_id, pedido, seccion, motivo, por, at)
+    VALUES (@ofId, @pedido, @seccion, @motivo, @por, @at)
+    ON CONFLICT(of_id, seccion) DO UPDATE SET
+      pedido = excluded.pedido, motivo = excluded.motivo, por = excluded.por, at = excluded.at
+  `);
+  const deleteRetenida = db.prepare("DELETE FROM of_retenida WHERE of_id = ?");
+  const deleteRetenidaDelPedido = db.prepare("DELETE FROM of_retenida WHERE pedido = ? AND seccion = ?");
   const upsertPedido = db.prepare(`
     INSERT INTO pedido_paso_seccion (pedido_id, seccion, updated_at, pasado_por, of_ids)
     VALUES (?, ?, ?, ?, ?)
@@ -1085,8 +1174,24 @@ export function guardarMutacion(m: Mutacion): void {
         observacion: c.observacion,
         ahora,
         revisada: c.estado === "en_revision" ? 1 : 0,
+        // undefined ("no lo sé", CambioOF construidos antes de esta marca) se
+        // trata igual que null: cada mutación manda el snapshot COMPLETO de
+        // la OF, así que quien de verdad quiera conservar la marca tiene que
+        // incluirla, igual que ya pasa con autorId o estado.
+        cerradaRpsAt: c.cerradaRps?.at ?? null,
+        cerradaRpsPor: c.cerradaRps?.por ?? null,
+        cerradaRpsModo: c.cerradaRps?.modo ?? null,
       });
     if (m.completarPedidoId) upsertPedido.run(m.completarPedidoId, m.seccion ?? seccionDeOperario(m.operarioId ?? ""), ahora, m.operarioId, m.ofIdsPedido ? JSON.stringify(m.ofIdsPedido) : null);
+
+    for (const r of Array.isArray(m.ofRetenida) ? m.ofRetenida : m.ofRetenida ? [m.ofRetenida] : [])
+      upsertRetenida.run({ ofId: r.ofId, pedido: r.pedido, seccion: m.seccion ?? seccionDeOperario(m.operarioId ?? ""), motivo: r.motivo, por: r.por, at: r.at });
+    for (const ofId of m.quitarRetenida ?? []) deleteRetenida.run(ofId);
+    // Al pasar el pedido, sea cual sea el motivo por el que estuviera
+    // retenida alguna de sus OF: desde este momento el pedido depende otra
+    // vez solo de RPS, que es lo que tiene que pasar.
+    if (m.completarPedidoId)
+      deleteRetenidaDelPedido.run(m.completarPedidoId, m.seccion ?? seccionDeOperario(m.operarioId ?? ""));
 
     // La revisión de esta OF ha terminado: lo comprobado ya no vale para nada
     // y se borra. Va AQUÍ, en la misma transacción que el cambio de estado, y

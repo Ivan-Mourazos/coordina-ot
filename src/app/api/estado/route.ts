@@ -36,6 +36,14 @@ function cambioValido(c: unknown): c is CambioOF {
   // OF. El cliente ya lo impide por varias vías; esto es la última red, para
   // que un estado imposible no llegue a guardarse por un camino que se olvide.
   const rolesDistintos = x.autorId === null || x.autorId !== x.revisorId;
+  const cerradaRpsOk =
+    x.cerradaRps === undefined ||
+    x.cerradaRps === null ||
+    (typeof x.cerradaRps === "object" &&
+      x.cerradaRps !== null &&
+      typeof (x.cerradaRps as Record<string, unknown>).at === "string" &&
+      typeof (x.cerradaRps as Record<string, unknown>).por === "string" &&
+      ["sombra", "ensayo", "activo"].includes((x.cerradaRps as Record<string, unknown>).modo as string));
   return (
     idOk &&
     nulable(x.autorId) &&
@@ -43,7 +51,8 @@ function cambioValido(c: unknown): c is CambioOF {
     rolesDistintos &&
     typeof x.estado === "string" &&
     ESTADOS_OF.has(x.estado) &&
-    nulable(x.observacion)
+    nulable(x.observacion) &&
+    cerradaRpsOk
   );
 }
 

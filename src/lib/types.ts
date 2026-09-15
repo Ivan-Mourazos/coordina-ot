@@ -264,6 +264,21 @@ export interface OF {
    *  que es lo que tiene que quedar en el registro. */
   revisada?: boolean;
 
+  /** Dada por terminada en RPS desde el tablero, antes de pasar el pedido
+   *  entero. NO es un estado nuevo: la OF sigue en `aprobada`; es una marca al
+   *  lado, como `revisada`. `undefined` = nunca se cerró así. Ver
+   *  `acciones.ts` (`cerrar_en_rps`) y la sección 2 de
+   *  docs/superpowers/specs/2026-09-15-material-gastado-y-cerrar-of-design.md.
+   *
+   *  `modo` es una copia de `ModoFichaje` (server/olanet-outbox.ts) escrita a
+   *  mano: este fichero es client-safe y ese otro no, así que no se puede
+   *  importar el tipo — solo repetir la unión de tres literales. */
+  cerradaRps?: {
+    at: string; // ISO
+    por: string; // operarioId de quien cerró
+    modo: "sombra" | "ensayo" | "activo";
+  };
+
   /** Si se está fichando ahora mismo, con qué rol. */
   fichandoRol: Rol | null;
   /** Detenida por Producción: se omite SIEMPRE del fichaje (dato de RPS). */
