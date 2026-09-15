@@ -131,9 +131,20 @@ con `operario_id`, que es el mismo `CodEmployee` que ya traduce a nombre el
 Historial.
 
 Se consulta **por página**, solo para las filas que se ven: preguntarle a
-OLANET por todas las tareas pausadas de golpe pasó de 3 minutos. Y **si OLANET
-no contesta, la pantalla sigue funcionando**: se ve el estado del pedido, sin
-nombres, en vez de un error.
+OLANET por todas las tareas pausadas de golpe pasó de 3 minutos. Por página va
+en dos pasos —los boletines de esas OF en `scg_Fases`, y el último movimiento
+de cada boletín en `sch_FasesMov`— y tarda **538 ms para 40 OF**; abrir la
+ficha de un pedido suelto, 0,7 s. Medido el 15/09/2026.
+
+**Los parámetros tienen que ir con su tipo**, y es lo que separa una página
+usable de una que no lo es: `Orden` es `varchar(20)` y `IdBoletin` es
+`bigint`. Pasando el código de OF como texto sin tipo, el driver lo manda como
+`nvarchar`, SQL Server convierte fila a fila y no usa el índice de `Orden`:
+**5.522 ms contra 8 ms** para las mismas 40 OF. `VarChar(20)` y `BigInt`,
+explícitos, en cada `input`.
+
+Y **si OLANET no contesta, la pantalla sigue funcionando**: se ve el estado del
+pedido, sin nombres, en vez de un error.
 
 ### Qué ve un invitado
 
