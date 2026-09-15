@@ -225,6 +225,38 @@ export function leerPendientes(limite = 500): Pendiente[] {
   return filas.map(aPendiente).filter((x): x is Pendiente => x !== null);
 }
 
+/** Cuánto de una operación NO ha llegado a OLANET: lo que sigue pendiente y lo
+ *  que se DESCARTÓ sin escribirse.
+ *
+ *  Es la comprobación de «Dar por terminada en RPS», y va aparte de
+ *  `leerPendientes` por dos motivos:
+ *  · Filtra en SQL y sin límite. Con 500 eventos de otras OF por delante,
+ *    `leerPendientes()` no llegaba a ver los de esta y el 3 salía sin su tiempo.
+ *  · Cuenta los descartados. `descartar` los marca con `enviado_at` para que
+ *    dejen de bloquear la cola, así que para `leerPendientes` ya "salieron";
+ *    pero no están en OLANET, y reencolarlos no sirve (su clave ya existe). La
+ *    diferencia con uno enviado de verdad es el `DESCARTADO:` del error.
+ *    Los de ensayo no cuentan: son movimientos de fase que no se escriben a
+ *    propósito, no tiempo que RPS haya rechazado.
+ *
+ *  La operación se compara sin ceros a la izquierda, como `claveFase`: la
+ *  gemela "02" de una "2" también se cierra, y su tiempo también cuenta. */
+export function sinLlegarAOlanet(orden: string, numope: string): { pendientes: number; descartados: number } {
+  const fila = getDb()
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN enviado_at IS NULL THEN 1 ELSE 0 END), 0) AS pendientes,
+         COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS descartados
+       FROM olanet_pendiente
+       WHERE json_extract(datos, '$.of') = ?
+         AND ltrim(json_extract(datos, '$.numope'), '0') = ltrim(?, '0')
+         AND (enviado_at IS NULL
+              OR (error LIKE 'DESCARTADO:%' AND error NOT LIKE 'DESCARTADO: ensayo:%'))`,
+    )
+    .get(orden, numope) as { pendientes: number; descartados: number };
+  return { pendientes: fila.pendientes, descartados: fila.descartados };
+}
+
 /** Todo lo encolado, enviado o no. Para revisar el modo sombra. */
 export function leerCola(limite = 500): Pendiente[] {
   const filas = getDb()

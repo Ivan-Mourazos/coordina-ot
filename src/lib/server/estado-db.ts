@@ -1204,6 +1204,9 @@ export function guardarMutacion(m: Mutacion): void {
       m.motivo === "aprobar_corregida" ||
       m.motivo === "aprobar_sin_revision" ||
       m.motivo === "anular" ||
+      // Darla por terminada en RPS la deja aprobada sin pasar por aquí: lo
+      // que quedara marcado de una revisión anterior ya no vale.
+      m.motivo === "cerrar_en_rps" ||
       // Salir de la revisión sin decidir nada también la cierra: quien la
       // suelta o la manda atrás no ha comprobado lo que quede marcado, y el
       // siguiente que la coja tiene que repasarla entera.

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 // son dos momentos distintos — ver el comentario del GET de más abajo.
 import { leerFichaje, guardarFichaje, leerAvisoCierre } from "@/lib/server/fichaje-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
+import { ofEnCierre } from "@/lib/server/cierre-of-en-curso";
 import { fichar, pausar } from "@/lib/fichaje";
 import { identidad } from "@/lib/server/sesion";
 import type { Rol } from "@/lib/types";
@@ -56,6 +57,16 @@ export async function POST(req: Request) {
   } else {
     return NextResponse.json({ error: "rol inválido" }, { status: 400 });
   }
+
+  // Una OF que se está dando por terminada en RPS no admite reloj: su
+  // movimiento de "iniciada" iría detrás del cierre y reabriría la operación
+  // (ver cierre-of-en-curso.ts). Pausar sí se puede siempre.
+  const enCierre = ofIds.length > 0 ? ofEnCierre(ofIds as string[]) : null;
+  if (enCierre)
+    return NextResponse.json(
+      { error: `La OF ${enCierre.split(":")[0]} se está dando por terminada en RPS ahora mismo; no se puede fichar en ella.` },
+      { status: 409 },
+    );
 
   guardarFichaje(operarioId, nuevo);
   // El fichaje pasa a la cola de salida hacia OLANET: líneas de tiempo de los

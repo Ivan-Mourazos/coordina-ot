@@ -105,3 +105,17 @@ test("of_retenida: varias filas de golpe, y pasar el pedido borra las de su secc
   });
   expect(db.leerOfsRetenidas("ot").filter((r) => r.pedido === "AR.26.05000")).toEqual([]);
 });
+
+test("cerrar en RPS cierra la revisión: se borra lo comprobado de esa OF", () => {
+  db.marcarPuntoRevision(["0232099:9"], 1, "ok", "tamara");
+  expect(db.leerMarcasRevision(["0232099:9"])["0232099:9"]).toBeDefined();
+  db.guardarMutacion({
+    operarioId: "ivan",
+    motivo: "cerrar_en_rps",
+    cambiosOF: [{
+      ofId: "0232099:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo" },
+    }],
+  });
+  expect(db.leerMarcasRevision(["0232099:9"])).toEqual({});
+});

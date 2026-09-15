@@ -210,7 +210,8 @@ test("la trampa 2/02 al revés: entra la gemela pero falla la de la fila, 409 y 
   finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
     o.idBoletin === "901" ? { ok: true, yaEstaba: false, idBoletin: "901" } : { ok: false, status: 503, error: "no responde" });
   const res = await post({ ofId: "0232086:9", operarioId: "ivan" });
-  expect(res.status).toBe(409);
+  // OLANET no responde al escribir la de la fila: 503, como pide la spec (M3).
+  expect(res.status).toBe(503);
   expect(finalizarFase).toHaveBeenCalledTimes(2);
   expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
 });
@@ -305,5 +306,167 @@ test("en sombra y ensayo no se llama a finalizarFase, se marca igual con el modo
     expect(res.status).toBe(200);
     expect(finalizarFase).not.toHaveBeenCalled();
     expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toEqual(expect.objectContaining({ modo: modo === "sombra" ? "sombra" : "ensayo" }));
+  }
+});
+
+// ─── Arreglos de la revisión final de la Task 5 ──────────────────────────────
+
+const cerrar = () => post({ ofId: "0232086:9", operarioId: "ivan" });
+const marcaDe = () => estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps;
+
+test("C1: un tramo DESCARTADO tras 5 fallos nunca deja cerrar: 409 que pide revisarlo", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  const estados: number[] = [];
+  for (let i = 0; i < 6; i++) estados.push((await cerrar()).status);
+  expect(estados).toEqual([409, 409, 409, 409, 409, 409]);
+  expect(finalizarFase).not.toHaveBeenCalled();
+  // El bono se ha descartado de verdad: si no, el test no probaría el hueco.
+  expect(deLaOF().find((p) => p.tipo === "bono")?.error).toMatch(/^DESCARTADO/);
+  const d = await (await cerrar()).json();
+  expect(d.error).toMatch(/revis/i);
+  expect(d.error).not.toMatch(/unos minutos/);
+  expect(marcaDe()).toBeUndefined();
+});
+
+test("C1: lo descartado en ENSAYO (movimientos que no se escriben a propósito) no bloquea", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  outbox.encolarTramosDeOF("0232086:9", [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }]);
+  for (const p of deLaOF()) {
+    if (p.tipo === "fase") outbox.descartar(p.id, "ensayo: no se mueve la fase");
+    else outbox.marcarEnviados([p.id]);
+  }
+  expect((await cerrar()).status).toBe(200);
+  expect(finalizarFase).toHaveBeenCalled();
+});
+
+test("C2: con más de 500 eventos de otras OF por delante, la comprobación ve los de esta", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  outbox.encolarTramosDeOF("0999999:9", [{ inicio: haceMin(120), fin: haceMin(100), ofIds: ["0999999:9"], rol: "plantear", operarioId: "tamara" }]);
+  outbox.encolarFinalizacion(Array.from({ length: 600 }, (_, i) => `${1000000 + i}:9`), "tamara");
+  fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });
+  const res = await cerrar();
+  expect(res.status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+});
+
+test("I1: la operación de la fila sin finalizar pero de otra máquina: 409 y sin marca", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-MONT", estado: 2 }]);
+  const res = await cerrar();
+  expect(res.status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+  expect(marcaDe()).toBeUndefined();
+});
+
+test("I2: si entra tiempo de la OF durante el cierre, no se escribe el 3", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockImplementation(async () => {
+    // Llega por fuera de la ruta de fichaje (el candado no lo para): la
+    // comprobación de justo antes del 3 tiene que verlo.
+    outbox.encolarFichaje("tamara", [{ inicio: new Date().toISOString(), fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "tamara" }]);
+    return [{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 }];
+  });
+  const res = await cerrar();
+  expect(res.status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+  expect(marcaDe()).toBeUndefined();
+});
+
+test("I2: un intervalo abierto sobre la OF que aparece durante el cierre también lo para", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockImplementation(async () => {
+    fichajeDb.guardarFichaje("tamara", { intervalos: [{ inicio: new Date().toISOString(), fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "tamara" }] });
+    return [{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 }];
+  });
+  expect((await cerrar()).status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+});
+
+test("I2: empezar a fichar esa OF mientras se cierra se rechaza con un motivo claro", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  const fichaje = await import("../../app/api/fichaje/route");
+  let aMitad: Response | null = null;
+  fasesDeOFs.mockImplementation(async () => {
+    aMitad = await fichaje.POST(new Request("http://x/api/fichaje", {
+      method: "POST", body: JSON.stringify({ operarioId: "tamara", ofIds: ["0232086:9"], rol: "plantear" }),
+    }));
+    return [{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 }];
+  });
+  const res = await cerrar();
+  expect(aMitad!.status).toBe(409);
+  expect((await aMitad!.json()).error).toMatch(/terminada en RPS/);
+  expect(fichajeDb.leerFichaje("tamara").intervalos.filter((iv) => iv.fin === null)).toHaveLength(0);
+  expect(res.status).toBe(200);
+  // Acabado el cierre, el candado se suelta: fichar sigue funcionando.
+  const despues = await fichaje.POST(new Request("http://x/api/fichaje", {
+    method: "POST", body: JSON.stringify({ operarioId: "tamara", ofIds: ["0232087:9"], rol: "plantear" }),
+  }));
+  expect(despues.status).toBe(200);
+});
+
+test("I2: dos pulsaciones a la vez: la segunda se rechaza y el 3 se escribe una vez", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  const [a, b] = await Promise.all([cerrar(), cerrar()]);
+  expect([a.status, b.status].sort()).toEqual([200, 409]);
+  expect(finalizarFase).toHaveBeenCalledTimes(1);
+});
+
+test("M2: la respuesta dice si la de la fila ya estaba terminada", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 3 }]);
+  const d = await (await cerrar()).json();
+  expect(d).toEqual(expect.objectContaining({ ok: true, yaEstaba: true, gemelasSinEscribir: [] }));
+});
+
+test("M2: la respuesta dice qué gemela no pudo escribirse", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  fasesDeOFs.mockResolvedValue([
+    { idBoletin: "901", of: "0232086", fase: "09", descripcion: "bis", maquina: "A-OTEC", estado: 1 },
+    { idBoletin: "900", of: "0232086", fase: "9", descripcion: "F", maquina: "A-OTEC", estado: 2 },
+  ]);
+  finalizarFase.mockImplementation(async (o: { idBoletin: string }) =>
+    o.idBoletin === "900" ? { ok: true, yaEstaba: false, idBoletin: "900" } : { ok: false, status: 503, error: "no responde" });
+  const d = await (await cerrar()).json();
+  expect(d).toEqual(expect.objectContaining({ ok: true, yaEstaba: false, faseFila: "9", gemelasSinEscribir: ["09"] }));
+});
+
+test("M3: si OLANET se cae al escribir la de la fila, 503 y sin marca", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  finalizarFase.mockResolvedValue({ ok: false, status: 503, error: "OLANET no responde" });
+  const res = await cerrar();
+  expect(res.status).toBe(503);
+  expect(marcaDe()).toBeUndefined();
+});
+
+// La caché del tablero solo existe con RPS de verdad: se simula ese modo (el
+// tablero sigue saliendo del espía de `getTablero`, y la invalidación también
+// se sustituye, así que no se abre ninguna conexión).
+test("M7: tras un cierre correcto se invalida la caché del tablero de la sección", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  process.env.DATASOURCE = "rps";
+  try {
+    const rps = await import("../server/rps");
+    const invalidar = vi.spyOn(rps, "invalidarCacheTablero").mockImplementation(() => {});
+    expect((await cerrar()).status).toBe(200);
+    expect(invalidar).toHaveBeenCalledWith("ot");
+  } finally {
+    process.env.DATASOURCE = "mock";
+  }
+});
+
+test("M7: si el cierre falla no se invalida nada", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  process.env.DATASOURCE = "rps";
+  try {
+    const rps = await import("../server/rps");
+    const invalidar = vi.spyOn(rps, "invalidarCacheTablero").mockImplementation(() => {});
+    finalizarFase.mockResolvedValue({ ok: false, status: 409, error: "no" });
+    expect((await cerrar()).status).toBe(409);
+    expect(invalidar).not.toHaveBeenCalled();
+  } finally {
+    process.env.DATASOURCE = "mock";
   }
 });
