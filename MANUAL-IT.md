@@ -345,7 +345,7 @@ como se hizo con el primer 3 del fichaje. El fichero trae las instrucciones
 completas (qué mirar en `scg_Fases`/`sch_FasesMov` antes y después, y las
 cuatro variables de entorno que hacen falta).
 
-## 8. Qué NO hace esta app (por diseño)
+## 10. Qué NO hace esta app (por diseño)
 
 - No escribe nada en RPS ni en el share de PDFs. Lo único que escribe fuera de
   su propio SQLite es en OLANET: el fichaje y el movimiento de fase a
