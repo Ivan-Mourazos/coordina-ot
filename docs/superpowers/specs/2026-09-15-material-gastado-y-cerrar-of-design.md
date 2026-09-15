@@ -733,3 +733,21 @@ cada tarea.
      fichar.
    - No hay botón para deshacer la recuperación: se aprueban las OF y se
      vuelve a pasar el pedido.
+
+4. **Reintentar la gemela que no se escribió.** Si al dar por terminada una
+   OF con la trampa 2/02 se cierra la operación de la fila y falla la gemela,
+   la OF queda marcada y ya no ofrece «Dar por terminada». En su cajón de
+   cerradas sale **«Reintentar la 2»** (con el número de la que falló), solo
+   para el autor. Escribe únicamente esa operación, con las mismas reglas que
+   el cierre: modo de fichaje, tiempo antes que el cierre y lectura previa del
+   estado. La respuesta de la ruta ya dice qué gemela no pudo escribirse; hay
+   que guardarlo con la marca para que el cajón lo sepa después de refrescar.
+
+5. **Reintentar el envío del tiempo descartado.** Si RPS rechazó 5 veces un
+   tramo de una OF, la cola lo descarta y el cierre queda bloqueado (bien:
+   sin el tiempo no se cierra). El aviso de ese bloqueo lleva un botón
+   **«Reintentar envío»** que vuelve a poner en la cola los eventos
+   descartados de esa orden y operación, reiniciando sus intentos. Si RPS los
+   acepta, el cierre ya se puede hacer. Lo puede pulsar el autor de la OF. No
+   escribe nada en OLANET por sí mismo: solo devuelve los eventos a la cola,
+   que respeta el modo de fichaje como siempre.
