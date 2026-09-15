@@ -324,5 +324,11 @@ export function motivoBloqueo(p: ConOFs): string {
  *  media faena, que es justo lo contrario de lo que hace falta. */
 export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean {
   const nuevas = p.reabiertoPor ?? [];
-  return p.ofs.some((of) => nuevas.includes(of.id) && of.autorId === null);
+  // Una OF ya APROBADA no es trabajo que aparece sin dueño: no hay nada que
+  // coger. Pasa al volver a plantear un pedido del Historial, que devuelve al
+  // panel el pedido entero —las OF que se reabren y también las que se quedan
+  // aprobadas, para que se vea completo— y esas últimas llegan sin autor si
+  // nunca pasaron por CoordinaOT. Sin esto, recuperar un pedido encendía la
+  // campana por una OF que no hay que plantear.
+  return p.ofs.some((of) => nuevas.includes(of.id) && of.autorId === null && of.estado !== "aprobada");
 }

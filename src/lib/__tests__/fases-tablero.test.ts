@@ -487,6 +487,26 @@ describe("avisaDeOFNueva", () => {
   it("un pedido que no ha vuelto no avisa de nada", () => {
     expect(avisaDeOFNueva({ ofs: [nueva({ autorId: null })] })).toBe(false);
   });
+
+  it("una OF que vuelve ya APROBADA no enciende la campana aunque no tenga autor", () => {
+    // Volver a plantear un pedido del Historial devuelve al panel el pedido
+    // entero: las OF que se reabren y también las que se quedan aprobadas,
+    // para que se vea completo. Esas últimas llegan sin autor si nunca
+    // pasaron por CoordinaOT, y no son trabajo que haya que coger.
+    const p = {
+      ofs: [nueva({ autorId: null, estado: "aprobada" })],
+      reabiertoPor: ["0231160:1"],
+    };
+    expect(avisaDeOFNueva(p)).toBe(false);
+  });
+
+  it("pero si la que vuelve sin dueño está por plantear, avisa igual", () => {
+    const p = {
+      ofs: [nueva({ autorId: null, estado: "aprobada" }), of({ id: "0231161:1", autorId: null, estado: "en_curso" })],
+      reabiertoPor: ["0231160:1", "0231161:1"],
+    };
+    expect(avisaDeOFNueva(p)).toBe(true);
+  });
 });
 
 // Los parados por Producción salían de las columnas de trabajo y se contaban
