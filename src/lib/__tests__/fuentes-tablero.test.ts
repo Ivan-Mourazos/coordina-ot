@@ -80,7 +80,7 @@ describe("unirRetenidas", () => {
     ]);
   });
 
-  it("distingue \"9\" de \"09\" igual que claveFase (no los junta ni los separa)", () => {
+  it("junta \"9\" y \"09\" en una sola, como claveFase, y se queda con la pendiente", () => {
     expect(unirRetenidas([{ of: "0232086", fase: "9" }], [{ of: "0232086", fase: "09" }]))
       .toEqual([{ of: "0232086", fase: "9" }]); // misma clave: gana la que ya estaba pendiente
   });

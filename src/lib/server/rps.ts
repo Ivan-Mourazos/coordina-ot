@@ -1291,18 +1291,28 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
 // leer, así que la clave es la sección.
 const cache = new Map<SeccionId, { data: Tablero; at: number }>();
 const enVuelo = new Map<SeccionId, Promise<Tablero>>();
+/** Secciones cuyo refresco en vuelo ya no vale: algo cambió (una OF retenida,
+ *  por ejemplo) DESPUÉS de que ese refresco leyera lo suyo. Ver
+ *  `invalidarCacheTablero`. */
+const obsoleto = new Set<SeccionId>();
 
 function refrescarTablero(seccion: Seccion): Promise<Tablero> {
   const yendo = enVuelo.get(seccion.id);
   if (yendo) return yendo;
-  const p = consultarTablero(seccion)
-    .then((data) => {
+  const p = (async () => {
+    // Se repite mientras alguien lo invalide a mitad de consulta: lo que se
+    // guarda tiene que haber leído el estado de DESPUÉS de la invalidación.
+    // Varias invalidaciones seguidas se juntan en una sola vuelta más.
+    for (;;) {
+      obsoleto.delete(seccion.id);
+      const data = await consultarTablero(seccion);
+      if (obsoleto.has(seccion.id)) continue;
       cache.set(seccion.id, { data, at: Date.now() });
       return data;
-    })
-    .finally(() => {
-      enVuelo.delete(seccion.id);
-    });
+    }
+  })().finally(() => {
+    enVuelo.delete(seccion.id);
+  });
   enVuelo.set(seccion.id, p);
   return p;
 }
@@ -1327,14 +1337,27 @@ export async function getTableroRPS(seccionId: SeccionId = SECCION_POR_DEFECTO):
   return refrescarTablero(seccion);
 }
 
-/** Invalida la caché de esta sección y lanza el refresco en segundo plano,
- *  SIN esperarlo: la consulta tarda de 7 a 15 s y no puede colgar la
+/** Da por caducada la caché de esta sección y lanza el refresco en segundo
+ *  plano, SIN esperarlo: la consulta tarda de 7 a 15 s y no puede colgar la
  *  respuesta de quien acaba de recuperar un pedido del Historial (Tarea 8).
- *  Si el refresco falla, se sigue sirviendo lo último bueno hasta el
- *  siguiente TTL, igual que cualquier otro fallo de `refrescarTablero`. */
+ *
+ *  Misma estrategia que el resto de la caché: NO se borra lo guardado. Mientras
+ *  se refresca, todos siguen viendo lo último bueno al instante, y el tablero
+ *  nuevo lo sustituye al llegar. Borrarlo metería a toda la sección en frío
+ *  (7-15 s) y, si RPS fallara, les enseñaría un error en vez del tablero.
+ *
+ *  Si ya había un refresco en marcha, ese leyó las retenidas ANTES del cambio:
+ *  se marca obsoleto y vuelve a consultar al terminar, en vez de guardar un
+ *  tablero sin la OF nueva. La caché queda caducada (`at: 0`), así que si el
+ *  refresco falla la siguiente petición lo reintenta, sin esperar al TTL. */
 export function invalidarCacheTablero(seccionId: SeccionId): void {
-  cache.delete(seccionId);
-  void refrescarTablero(SECCIONES[seccionId]).catch(() => {});
+  const seccion = SECCIONES[seccionId];
+  // En obras: no se consulta nada. Ver `Seccion.enObras`.
+  if (seccion.enObras) return;
+  const guardado = cache.get(seccionId);
+  if (guardado) cache.set(seccionId, { ...guardado, at: 0 });
+  obsoleto.add(seccionId);
+  void refrescarTablero(seccion).catch(() => {});
 }
 
 /** Frecuencia del refresco de fondo cuando nadie usa la app: mantiene la
