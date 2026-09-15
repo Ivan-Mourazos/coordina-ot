@@ -393,8 +393,15 @@ function FilaPublica({ pedido, lista }: { pedido: PedidoPublico; lista: "pendien
             ver más abajo). Con `min-w-0` para que SÍ pueda encogerse (sin él,
             un texto largo empuja el resto de la fila fuera en vez de
             recortarse). */}
+        {/* CON SUELO (`min-w-[15rem]`): sin él, un estado largo —"Pendiente de:
+            Corte (Parque Empresarial), Costura (Parque Empresarial),
+            Finalización…"— aplastaba al cliente hasta dejarlo en "PREF…", y
+            entonces la fila ya no dice de quién es el pedido. Visto en
+            AR.26.04082 con datos reales. De quién es y a dónde va se lee
+            SIEMPRE; el que baja a una segunda línea cuando no caben los dos es
+            el estado, que para eso el botón lleva `flex-wrap`. */}
         <span
-          className="min-w-0 flex-1 truncate text-sm text-text-muted"
+          className="min-w-[15rem] flex-1 truncate text-sm text-text-muted"
           title={[pedido.cliente ?? "—", pedido.negocio, pedido.ciudadEntrega].filter(Boolean).join(" · ")}
         >
           {pedido.cliente ?? "—"}
