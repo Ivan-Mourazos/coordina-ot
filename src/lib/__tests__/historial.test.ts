@@ -1,4 +1,5 @@
-import { expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
+import { fmtCantidad } from "../historial";
 import { construirFiltros, coincideBusquedaHistorial, filaAItem, CODIGO_PEDIDO_RE, cabeceraADetalle } from "../historial";
 import { FAMILIAS_FILTRABLES, archivoDeRuta, claseDeDocumento, comoServir, segmentosEnShare } from "../historial";
 import { aMaterialOF, repartirMateriales } from "../historial";
@@ -327,4 +328,12 @@ test("comoServir incrusta PDF e imágenes y baja el resto", () => {
   expect(comoServir("correo.html")).toEqual({ tipo: "application/octet-stream", incrustable: false });
   expect(comoServir("correo.msg")).toEqual({ tipo: "application/octet-stream", incrustable: false });
   expect(comoServir("sinextension")).toEqual({ tipo: "application/octet-stream", incrustable: false });
+});
+
+describe("fmtCantidad", () => {
+  it("cantidades enteras sin decimales, y con coma si los lleva", () => {
+    expect(fmtCantidad(12)).toBe("12");
+    expect(fmtCantidad(17.7)).toBe("17,7");
+    expect(fmtCantidad(-1)).toBe("-1");
+  });
 });

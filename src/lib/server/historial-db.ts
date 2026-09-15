@@ -1,3 +1,4 @@
+import sql from "mssql";
 import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
 import { indiceSiListo } from "./historial-indice";
@@ -36,6 +37,7 @@ import {
   type HistorialOF,
   type HistorialPedidoDetalle,
   type MaterialCrudo,
+  type MaterialGastadoOF,
   type MaterialOF,
 } from "../historial";
 
@@ -581,6 +583,72 @@ async function leerMaterialesPedido(
       suyo.materiales.push(aMaterialOF(fila));
     }
     salida.set(orden, suyo);
+  }
+  return salida;
+}
+
+interface FilaGastado {
+  orden: string | null;
+  material: string | null;
+  codigo: string | null;
+  gastado: number | null;
+  ultima_salida: Date | null;
+}
+
+/** Lo que salió de verdad del almacén para las OF de este pedido
+ *  (`CPRImputationMaterialMO`), agrupado por OF y material. Va por el índice
+ *  `IXP_CPRImputationMaterialMO1 (CodCompany, IDManufacturingOrder,
+ *  ImputationDate)`. Sin `SUM(CostAmountReal)`: es coste de almacén (margen)
+ *  y la ficha no enseña dinero. Ver material-gastado.md §4.
+ *
+ *  El `HAVING` esconde las devoluciones ENTERAS (neto cero); un neto negativo
+ *  se deja pasar tal cual, con su signo — es la única forma honesta de
+ *  contarlo sin inventar una columna de "desvío" que no existe (IDMOMaterial
+ *  vacío en el 95,4 % de los apuntes de 2026: no se puede casar con lo
+ *  asignado línea a línea). */
+export async function leerMaterialGastadoPedido(
+  pedido: string,
+): Promise<Record<string, MaterialGastadoOF[]>> {
+  const salida: Record<string, MaterialGastadoOF[]> = {};
+  if (ES_MOCK) return salida;
+
+  const pool = await getPool();
+  const r = await pool
+    .request()
+    .input("pedido", sql.VarChar(25), pedido)
+    .query<FilaGastado>(`
+      SELECT mo.CodManufacturingOrder AS orden,
+             COALESCE(NULLIF(LTRIM(RTRIM(i.Description)), ''), art.Description) AS material,
+             art.CodArticle        AS codigo,
+             SUM(i.Quantity)       AS gastado,
+             MAX(i.ImputationDate) AS ultima_salida
+      FROM dbo.CPRImputationMaterialMO i
+      JOIN dbo.CPRManufacturingOrder mo
+        ON mo.IDManufacturingOrder = i.IDManufacturingOrder
+      LEFT JOIN dbo.STKArticle art ON art.IDArticle = i.IDArticle
+      WHERE i.CodCompany = '001'
+        AND EXISTS (
+          SELECT 1 FROM dbo.FACOrderLineSL l
+          JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+          WHERE l.IDManufacturingOrder = i.IDManufacturingOrder
+            AND o.CodOrder = @pedido)
+      GROUP BY mo.CodManufacturingOrder,
+               COALESCE(NULLIF(LTRIM(RTRIM(i.Description)), ''), art.Description),
+               art.CodArticle
+      HAVING SUM(i.Quantity) <> 0
+      ORDER BY orden, material
+    `);
+
+  for (const fila of r.recordset) {
+    const orden = (fila.orden ?? "").trim();
+    if (!orden) continue;
+    const lista = salida[orden] ?? (salida[orden] = []);
+    lista.push({
+      material: (fila.material ?? "").trim() || "(material sin nombre)",
+      codigo: (fila.codigo ?? "").trim(),
+      gastado: fila.gastado ?? 0,
+      ultimaSalida: fila.ultima_salida ? fila.ultima_salida.toISOString().slice(0, 10) : null,
+    });
   }
   return salida;
 }

@@ -275,6 +275,36 @@ export function aMaterialOF(fila: MaterialCrudo): MaterialOF {
   };
 }
 
+// ─── Material GASTADO: tercera fuente, la del almacén ────────────────────────
+// Ni "asignado" (CPRMOMaterial, lo que OT planeó) ni "reservado"
+// (STKStockReserve, lo que sigue apartado): esto es lo que salió de verdad
+// (CPRImputationMaterialMO). No se casan línea a línea —IDMOMaterial está
+// vacío en el 95,4 % de los apuntes de 2026— así que viajan por su cuenta.
+// Ver material-gastado.md y la sección 1 de la spec del 15/09/2026.
+
+/** Una línea de lo gastado en una OF, YA neta (las devoluciones parciales ya
+ *  están restadas: la consulta agrupa con `SUM(Quantity)`). */
+export interface MaterialGastadoOF {
+  /** Descripción del artículo en el momento de la salida — puede no coincidir
+   *  con `MaterialOF.texto` de lo asignado: son datos de momentos distintos. */
+  material: string;
+  /** Código de artículo (`STKArticle.CodArticle`), lo que reconoce el almacén.
+   *  Cadena vacía si RPS no lo tiene enlazado. */
+  codigo: string;
+  /** Cantidad neta. Negativa = se devolvió más de lo que se había sacado (1
+   *  caso en todo 2026); los devueltos ENTEROS (neto cero) no llegan aquí. */
+  gastado: number;
+  /** yyyy-mm-dd de la salida más reciente de esta línea, o null si RPS no
+   *  trae fecha (no debería pasar: la consulta siempre agrega `MAX`). */
+  ultimaSalida: string | null;
+}
+
+/** Cantidad con coma decimal, como se escribe en castellano ("17,7"). Sin
+ *  decimales de sobra: `toLocaleString` ya recorta un entero a "12". */
+export function fmtCantidad(n: number): string {
+  return n.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+}
+
 /** Parte los materiales de una OF en los dos grupos que hay que distinguir.
  *
  *  El reparto es POR LÍNEA, no por OF, y no es un capricho: la reserva cuelga
