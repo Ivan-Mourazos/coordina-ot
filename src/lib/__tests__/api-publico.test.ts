@@ -1,6 +1,4 @@
 import { beforeAll, expect, test } from "vitest";
-import { detallePublico } from "../publico";
-import type { HistorialPedidoDetalle } from "../historial";
 
 // ─── Las rutas del invitado: sin sesión, con RPS apagado ─────────────────────
 // DATASOURCE se fija ANTES de importar las rutas: son ellas las que arrastran
@@ -35,23 +33,29 @@ const getDocumento = (codigo: string, indice: string) =>
 
 // ─── GET /api/publico/pedidos (la lista) ─────────────────────────────────────
 
-test("la lista de pendientes contesta sin sesión", async () => {
-  const res = await getLista("lista=pendientes");
+test("la lista contesta sin sesión, con el estado con que filtró", async () => {
+  const res = await getLista("estado=proximas");
   expect(res.status).toBe(200);
   const json = await res.json();
   expect(Array.isArray(json.pedidos)).toBe(true);
+  expect(json.estado).toBe("proximas");
+});
+
+test("buscar sin elegir estado busca en todos", async () => {
+  const json = await (await getLista("q=AR")).json();
+  expect(json.estado).toBe("todos");
 });
 
 test("no se escapa NADA interno en la lista", async () => {
-  const res = await getLista("lista=pendientes");
+  const res = await getLista("estado=todos");
   const crudo = JSON.stringify(await res.json()).toLowerCase();
-  for (const prohibido of ["nota", "causa", "devolucion", "devolución", "marca", "observacion"]) {
+  for (const prohibido of ["nota", "causa", "devolucion", "devolución", "marca", "observacion", "comentario"]) {
     expect(crudo).not.toContain(prohibido);
   }
 });
 
-test("una lista que no existe cae en pendientes, no revienta", async () => {
-  const res = await getLista("lista=loquesea&page=-3");
+test("un estado que no existe cae en próximas entregas, no revienta", async () => {
+  const res = await getLista("estado=loquesea&page=-3");
   expect(res.status).toBe(200);
 });
 
@@ -77,120 +81,20 @@ test("el detalle rechaza un código de pedido que no lo es", async () => {
   expect(res.status).toBe(400);
 });
 
-test("el detalle no trae ni cabecera interna ni marcas de revisión por OF", async () => {
-  // AR.26.05501 trae, en el mock, una OF "en_revision" con autor y revisor:
-  // si algo de eso se colara, sería aquí.
-  const res = await getDetalle("AR.26.05501");
-  const crudo = JSON.stringify(await res.json());
-  // Cabecera: comentarioVenta, prioridad y estadoActual no están en la lista
-  // blanca (PUBLICOS) y no pueden aparecer como CLAVE de la respuesta.
-  const claves = Object.keys(await (await getDetalle("AR.26.05501")).json());
-  expect(claves).not.toContain("comentarioVenta");
-  expect(claves).not.toContain("prioridad");
-  expect(claves).not.toContain("estadoActual");
-  // Por OF: ni el rol (planteo/revisión), ni quién consta como autor o
-  // revisor registrado. Es la marca de revisión que el brief prohíbe.
-  expect(crudo).not.toMatch(/"rol"\s*:/);
-  expect(crudo).not.toContain("autorRegistrado");
-  expect(crudo).not.toContain("revisorRegistrado");
-  // Ni tiempos ni gente, por OF ni por tarea (Cambio 4, task-7d): decisión de
-  // Iván tras ver la ficha en marcha.
-  expect(crudo).not.toMatch(/"tiempoImputadoMin"\s*:/);
-  expect(crudo).not.toMatch(/"quien"\s*:/);
-  expect(crudo).not.toMatch(/"personas"\s*:/);
+test("el detalle no trae cabecera interna ni notas, y sí dónde está", async () => {
+  // AR.26.05501 trae, en el mock, una OF "en_revision" con autor y revisor.
+  const data = (await (await getDetalle("AR.26.05501")).json()) as Record<string, unknown>;
+  for (const clave of ["comentarioVenta", "prioridad", "estadoActual", "scanUrl", "fechaFinalizacion"]) {
+    expect(data).not.toHaveProperty(clave);
+  }
+  expect(JSON.stringify(data)).not.toContain("notasProduccion");
+  // Lo que SÍ vuelve en esta versión: la situación del pedido y por dónde va.
+  expect(Array.isArray(data.donde)).toBe(true);
+  expect(data).toHaveProperty("situacion");
 });
 
-// ─── detallePublico: la función pura que hace el recorte ────────────────────
-// Se prueba también aparte y con un objeto fabricado a mano: el mock de
-// desarrollo no genera ni `notasProduccion` ni `materiales` en ninguna OF (esos
-// campos solo los pone RPS), así que sin este test la lista blanca de `ofs`
-// nunca se ejercitaría de verdad.
-
-function detalleDeEjemplo(): HistorialPedidoDetalle {
-  return {
-    estadoActual: "En curso",
-    codigo: "AR.26.09999",
-    cliente: "Cliente de prueba",
-    negocio: "Negocio",
-    ciudadEntrega: "Arzúa",
-    prioridad: 2,
-    fechaSolicitud: "2026-01-01",
-    fechaFinalizacion: null,
-    piezas: 3,
-    familias: ["TOLDO NUEVO"],
-    comentarioVenta: "Entre nosotros: cliente pesado, avisar a ventas",
-    scanUrl: "/api/pedidos/AR.26.09999.pdf",
-    ofs: [
-      {
-        codigo: "0230001",
-        descripcion: "Toldo cofre",
-        tiempoImputadoMin: 120,
-        quien: ["Juan Pérez"],
-        centro: "ot",
-        personas: [{ nombre: "Juan Pérez", min: 120 }],
-        tareas: [{ codigo: "010", descripcion: "Plantear", tiempoImputadoMin: 120, personas: [] }],
-        autorRegistrado: "Juan Pérez",
-        revisorRegistrado: "Jaime López",
-        rol: { planteoMin: 100, revisionMin: 20, planteo: [], revision: [] },
-        materiales: [{ texto: "LONA ACRÍLICA · 5", apartado: true }],
-        notasProduccion: "BELEN AB - se devolvió por medidas mal tomadas",
-      },
-    ],
-    documentos: [
-      {
-        descripcion: "Planteamiento",
-        archivo: "plan.pdf",
-        clase: "Planteamiento",
-        url: "/api/historial/AR.26.09999/documento/0",
-      },
-      { descripcion: "Sin fichero", archivo: "x.msg", clase: "Documento", url: null },
-    ],
-  };
-}
-
-test("detallePublico quita la cabecera interna", () => {
-  const publico = detallePublico(detalleDeEjemplo());
-  expect(publico).not.toHaveProperty("estadoActual");
-  expect(publico).not.toHaveProperty("prioridad");
-  expect(publico).not.toHaveProperty("comentarioVenta");
-  expect(publico.codigo).toBe("AR.26.09999");
-});
-
-test("detallePublico quita las notas y las marcas de revisión de cada OF", () => {
-  const publico = detallePublico(detalleDeEjemplo());
-  const of = publico.ofs[0] as Record<string, unknown>;
-  expect(of).not.toHaveProperty("notasProduccion");
-  expect(of).not.toHaveProperty("materiales");
-  expect(of).not.toHaveProperty("autorRegistrado");
-  expect(of).not.toHaveProperty("revisorRegistrado");
-  expect(of).not.toHaveProperty("rol");
-  // Lo autorizado sigue ahí.
-  expect(of.codigo).toBe("0230001");
-  expect(of.descripcion).toBe("Toldo cofre");
-  expect(of.centro).toBe("ot");
-  expect(of.tareas).toHaveLength(1);
-});
-
-test("detallePublico quita también el tiempo y la gente, por OF y por tarea", () => {
-  // Corrección de Iván tras ver la ficha funcionando: qué pasos lleva el
-  // pedido, sí; cuánto tardó cada uno o quién lo hizo, no.
-  const publico = detallePublico(detalleDeEjemplo());
-  const of = publico.ofs[0] as Record<string, unknown>;
-  expect(of).not.toHaveProperty("tiempoImputadoMin");
-  expect(of).not.toHaveProperty("quien");
-  expect(of).not.toHaveProperty("personas");
-  const tarea = publico.ofs[0].tareas[0] as unknown as Record<string, unknown>;
-  expect(tarea).not.toHaveProperty("tiempoImputadoMin");
-  expect(tarea).not.toHaveProperty("personas");
-  expect(tarea).toEqual({ codigo: "010", descripcion: "Plantear", cerrada: false });
-});
-
-test("detallePublico reescribe la URL de los documentos a la ruta pública", () => {
-  const publico = detallePublico(detalleDeEjemplo());
-  expect(publico.documentos[0].url).toBe("/api/publico/pedidos/AR.26.09999/documento/0");
-  // Sin URL (no hay fichero que abrir) se queda en null, no se inventa nada.
-  expect(publico.documentos[1].url).toBeNull();
-});
+// La lista blanca del detalle (`detalleConsulta`) se prueba aparte, con un
+// objeto fabricado a mano: ver publico-detalle.test.ts.
 
 // ─── GET /api/publico/pedidos/[pedido]/documento/[indice] ───────────────────
 

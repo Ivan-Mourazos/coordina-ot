@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
-import { normalizarFiltrosPublicos } from "@/lib/publico";
-import { ListaEnConstruccion, leerPaginaPublica } from "@/lib/server/publico-db";
+import { normalizarFiltrosConsulta } from "@/lib/consulta";
+import { ListaEnConstruccion, leerPaginaConsulta } from "@/lib/server/publico-db";
 
 // ─── GET /api/publico/pedidos ────────────────────────────────────────────────
-// La lista que ve quien NO tiene sesión: pendientes o realizados, de toda la
-// casa. Sale del índice en memoria del Historial, así que filtrar son
-// milisegundos; lo único que toca RPS es el detalle de las 40 filas.
+// La lista que ve quien NO tiene sesión: todos los pedidos de la casa con OF,
+// filtrados por estado, paso, familia, fechas y búsqueda. Sale del índice en
+// memoria, así que filtrar son milisegundos; lo único que va a RPS y a OLANET
+// es dónde está cada fila que está en fábrica.
 //
 // ESTA RUTA ES PÚBLICA A PROPÓSITO y es la única de su clase junto a las otras
-// dos de `publico/`. Lo que decide qué se puede enseñar está en lib/publico.ts
+// dos de `publico/`. Lo que decide qué se puede enseñar está en lib/consulta.ts
 // y en publico-db.ts: aquí no se añade ni un campo más.
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const filtros = normalizarFiltrosPublicos(new URL(req.url).searchParams);
+  const filtros = normalizarFiltrosConsulta(new URL(req.url).searchParams);
   try {
-    const pagina = await leerPaginaPublica(filtros);
+    const pagina = await leerPaginaConsulta(filtros);
     return NextResponse.json(pagina, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     // «Todavía no» no es «se rompió». El índice tarda unos 35 s en construirse
