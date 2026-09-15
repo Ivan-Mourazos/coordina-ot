@@ -261,6 +261,58 @@ test("/api/estado conserva la marca guardada en las demás acciones, aunque el c
   expect(estadoDb.leerOverlay("ot").ofs.get("0232102:9")?.cerradaRps).toEqual(marca);
 });
 
+test("Fallo I-B: quitar autor a un pedido con una OF cerrada en RPS la deja intacta y no rompe las demás", async () => {
+  const marca = { at: "2026-09-15T11:00:00.000Z", por: "ivan", modo: "activo" as const };
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232200:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: marca }],
+  });
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "asignar", seccion: "ot",
+    cambiosOF: [{ ofId: "0232201:9", autorId: "ivan", revisorId: null, estado: "en_curso", observacion: null }],
+  });
+
+  // "Quitar autor" (Board.tsx moverOFs) manda TODAS las OF del pedido de un
+  // golpe, la cerrada incluida: sin la guarda, esta la dejaría en "pendiente"
+  // sin marca dueña de ninguna acción (ni fichar, ni "Dar por terminada" —ya
+  // tiene marca—, ni "Volver a plantear" —exige "aprobada"—).
+  const res = await postEstado({
+    motivo: "asignar", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [
+      { ofId: "0232200:9", autorId: null, revisorId: null, estado: "pendiente", observacion: null },
+      { ofId: "0232201:9", autorId: null, revisorId: null, estado: "pendiente", observacion: null },
+    ],
+    cortarFichajeDe: ["0232200:9", "0232201:9"],
+  });
+  expect(res.status).toBe(200);
+
+  const overlay = estadoDb.leerOverlay("ot").ofs;
+  // La cerrada no se ha movido: sigue aprobada, con su autor y su marca.
+  expect(overlay.get("0232200:9")).toMatchObject({ estado: "aprobada", autorId: "ivan" });
+  expect(overlay.get("0232200:9")?.cerradaRps).toEqual(marca);
+  // La otra sí vuelve a la bandeja, como pide "quitar autor": el lote entero
+  // no se tumba por la cerrada de en medio.
+  expect(overlay.get("0232201:9")).toMatchObject({ estado: "pendiente", autorId: null });
+});
+
+test("quitarRetenida se ignora si el motivo no es «volver_a_plantear»", async () => {
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232202:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "x", por: "ivan", modo: "activo" } }],
+    ofRetenida: { ofId: "0232202:9", pedido: "AR.26.99999", motivo: "cerrada", por: "ivan", at: "x" },
+  });
+  const res = await postEstado({
+    motivo: "asignar", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232203:9", autorId: "ivan", revisorId: null, estado: "en_curso", observacion: null }],
+    quitarRetenida: ["0232202:9"],
+  });
+  expect(res.status).toBe(200);
+  // Solo "Volver a plantear" puede sacar una OF de `of_retenida`; colarlo con
+  // cualquier otro motivo le haría perder su sitio en el tablero en cuanto
+  // RPS deje de traerla, sin que de verdad se haya vuelto a plantear nada.
+  expect(estadoDb.leerOfsRetenidas("ot").some((r) => r.ofId === "0232202:9")).toBe(true);
+});
+
 test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
   const res = await route.POST(
     new Request("http://x/api/estado", {

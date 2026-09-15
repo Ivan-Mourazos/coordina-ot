@@ -1242,6 +1242,11 @@ export function Board({
         const vueltas: ReturnType<typeof snapshotDe>[] = [];
         const previasV: ReturnType<typeof snapshotDe>[] = [];
         mut(ofIds, (of) => {
+          // Fallo I-B (revisión Task 6): una OF cerrada en RPS no cambia de
+          // estado por aquí. El servidor ya lo rechaza (/api/estado); esto
+          // solo evita el parpadeo optimista de verla pasar a "pendiente" en
+          // pantalla para que el siguiente sondeo la devuelva a su sitio.
+          if (of.cerradaRps) return of;
           previasV.push(snapshotDe(of));
           const nueva: OF = {
             ...of,
@@ -1271,7 +1276,9 @@ export function Board({
       const cambios: ReturnType<typeof snapshotDe>[] = [];
       const previas: ReturnType<typeof snapshotDe>[] = [];
       mut(ofIds, (of) => {
-        if (of.autorId === autorId) return of;
+        // Fallo I-B: una OF cerrada en RPS no cambia de autor por aquí (ver
+        // el comentario gemelo más arriba, en la rama "quitar autor").
+        if (of.cerradaRps || of.autorId === autorId) return of;
         previas.push(snapshotDe(of));
         const nueva = traspasarAutor(of, autorId);
         cambios.push(snapshotDe(nueva));

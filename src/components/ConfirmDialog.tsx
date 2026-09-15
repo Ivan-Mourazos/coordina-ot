@@ -44,6 +44,7 @@ export function ConfirmDialog({
   titulo,
   mensaje,
   tono = "primaria",
+  textoConfirmar = "Confirmar",
   onConfirmar,
   onCancelar,
 }: {
@@ -58,6 +59,10 @@ export function ConfirmDialog({
    *  dónde empieza cada cosa. Esos montan su propio contenido. */
   mensaje: ReactNode;
   tono?: "primaria" | "peligro" | "neutra";
+  /** El botón de confirmar dice "Confirmar" salvo que la acción tenga su
+   *  propio verbo (p.ej. "Dar por terminada"): así el botón dice lo mismo que
+   *  se acaba de pedir, en vez de un genérico que no dice qué va a pasar. */
+  textoConfirmar?: string;
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
@@ -146,7 +151,7 @@ export function ConfirmDialog({
             onClick={onConfirmar}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${toneCls}`}
           >
-            Confirmar
+            {textoConfirmar}
           </button>
         </div>
       </div>

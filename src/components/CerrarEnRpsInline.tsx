@@ -168,6 +168,7 @@ export function CerrarEnRpsInline({
           titulo="Dar por terminada en RPS"
           mensaje={mensaje}
           tono="neutra"
+          textoConfirmar="Dar por terminada"
           onConfirmar={() => void confirmarCierre()}
           onCancelar={() => {
             setConfirmar(false);

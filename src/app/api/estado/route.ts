@@ -127,20 +127,44 @@ export async function POST(req: Request) {
   //    borre al repartir el pedido: `guardarMutacion` escribe NULL si el
   //    cambio no la trae.
   const guardadas = leerOverlay(seccion).ofs;
-  const cambiosConMarca: CambioOF[] = cambios.map((c) => ({
+  const esVolverAPlantear = body.motivo === "volver_a_plantear";
+
+  // Fallo I-B (revisión Task 6): una OF ya cerrada en RPS no puede cambiar de
+  // estado por NINGUNA otra vía. "Quitar autor" manda TODAS las OF del
+  // pedido a este endpoint de un golpe (Board.tsx moverOFs), y sin esta
+  // guarda una cerrada se quedaba en "pendiente" o "en_curso" sin marca
+  // dueña de ninguna acción: no sale "Volver a plantear" (exige "aprobada"),
+  // no sale "Dar por terminada" (ya tiene marca), no se puede fichar, y el
+  // pedido se queda sin poder pasar. Se descarta solo el cambio de esa OF —
+  // queda tal cual estaba— y se sigue aplicando el resto del lote: quitar
+  // autor a un pedido con una OF cerrada de por medio no puede tumbar el
+  // reparto de las demás.
+  const cerradas = new Set(
+    cambios
+      .filter((c) => guardadas.get(c.ofId)?.cerradaRps && !esVolverAPlantear)
+      .map((c) => c.ofId),
+  );
+  const cambiosAplicables = cambios.filter((c) => !cerradas.has(c.ofId));
+  const previosAplicables = previos.filter((p) => !cerradas.has(p.ofId));
+  const cambiosConMarca: CambioOF[] = cambiosAplicables.map((c) => ({
     ...c,
-    cerradaRps: body.motivo === "volver_a_plantear" ? null : (guardadas.get(c.ofId)?.cerradaRps ?? null),
+    cerradaRps: esVolverAPlantear ? null : (guardadas.get(c.ofId)?.cerradaRps ?? null),
   }));
 
   guardarMutacion({
     operarioId,
     motivo: body.motivo,
     cambiosOF: cambiosConMarca,
-    previosOF: previos,
+    previosOF: previosAplicables,
     completarPedidoId,
     seccion,
     ofIdsPedido,
-    quitarRetenida: Array.isArray(body.quitarRetenida)
+    // Igual que la marca: "quitarRetenida" solo lo manda "Volver a plantear"
+    // (ver Board.tsx ejecutarAccion). Aceptarlo con cualquier otro motivo
+    // dejaría sacar una OF de `of_retenida` —y perder su sitio en el
+    // tablero en cuanto RPS deje de traerla— sin que de verdad se haya
+    // vuelto a plantear nada.
+    quitarRetenida: esVolverAPlantear && Array.isArray(body.quitarRetenida)
       ? body.quitarRetenida.filter((x): x is string => typeof x === "string" && x.length > 0)
       : undefined,
   });
