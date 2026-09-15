@@ -41,6 +41,9 @@ afterAll(() => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // El login se despliega apagado: es lo que asumen los tests de aquí abajo.
+  // Los dos que prueban la puerta lo encienden ellos mismos.
+  delete process.env.COORDINA_LOGIN;
   // Se importan aquí y no en beforeAll: `resetModules` (afterEach) hace que la
   // ruta cargue módulos nuevos, y un espía sobre el `getTablero` de la carga
   // anterior no lo vería.
@@ -55,7 +58,10 @@ beforeEach(async () => {
   leerEntregaPedido.mockResolvedValue({ pendienteEntrega: false, fechaEntregado: "2026-09-12" });
   ruta = await import("../../app/api/historial/[pedido]/recuperar/route");
 });
-afterEach(() => vi.resetModules());
+afterEach(() => {
+  delete process.env.COORDINA_LOGIN;
+  vi.resetModules();
+});
 
 const get = (pedido: string) =>
   ruta.GET(new Request(`http://x/api/historial/${pedido}/recuperar`), { params: Promise.resolve({ pedido }) });
@@ -155,6 +161,58 @@ test("recuperar dos veces contesta yaEstaba y no cambia nada la segunda vez", as
   const res = await post("AR.26.04351", { operarioId: "jaime", ofIds: ["0232087:9"] });
   expect(await res.json()).toEqual({ ok: true, yaEstaba: true });
   expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")).toEqual(antes);
+});
+
+test("recuperado, pasado y recuperado otra vez: la segunda vuelta es como la primera", async () => {
+  // Spec §3, "Qué se prueba": el ciclo entero. Lo que podría romperlo es que
+  // algo se quedara pegado de la vuelta anterior — filas retenidas, o el
+  // `yaEstaba` que corta la ruta sin escribir.
+  expect(await (await post("AR.26.04351", { operarioId: "tamara", ofIds: ["0232086:9"] })).json())
+    .toEqual({ ok: true, yaEstaba: false });
+  expect(estadoDb.leerOfsRetenidas("ot")).toHaveLength(2);
+
+  // Se vuelve a pasar el pedido. Lo hace `POST /api/estado`, que no entra en
+  // este test; de él importa lo que deja hecho, y eso es una sola cosa:
+  // `guardarMutacion` con `completarPedidoId` borra en la misma transacción
+  // las filas retenidas del pedido y la sección (ver estado-db-retenida.test).
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "completar", seccion: "ot",
+    completarPedidoId: "AR.26.04351", ofIdsPedido: ["0232086:9", "0232087:9"],
+  });
+  expect(estadoDb.leerOfsRetenidas("ot")).toEqual([]);
+
+  // Y otra vez, marcando la OTRA OF: nada de `yaEstaba`, y los estados salen
+  // de lo que se marca ahora, no de lo que se marcó la vez anterior.
+  const res = await post("AR.26.04351", { operarioId: "jaime", ofIds: ["0232087:9"] });
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ok: true, yaEstaba: false });
+
+  const ofs = estadoDb.leerOverlay("ot").ofs;
+  expect(ofs.get("0232087:9")).toEqual(expect.objectContaining({ estado: "en_curso" }));
+  expect(ofs.get("0232086:9")).toEqual(expect.objectContaining({ estado: "aprobada" }));
+  const retenidas = estadoDb.leerOfsRetenidas("ot");
+  expect(retenidas.find((r) => r.ofId === "0232087:9")?.motivo).toBe("recuperada");
+  expect(retenidas.find((r) => r.ofId === "0232086:9")?.motivo).toBe("del_pedido");
+});
+
+// ── La puerta: hay que haber entrado ────────────────────────────────────────
+// Spec §3, "Qué se prueba": "Sin sesión, las dos rutas contestan como el
+// detalle del Historial". Recuperar un pedido devuelve trabajo al panel: no es
+// algo que pueda hacer quien pasaba por la red.
+
+test("GET sin sesión, con el login encendido, es 401 y no consulta nada", async () => {
+  process.env.COORDINA_LOGIN = "activo";
+  const res = await get("AR.26.04351");
+  expect(res.status).toBe(401);
+  expect(ofsARecuperar).not.toHaveBeenCalled();
+});
+
+test("POST sin sesión es 401 y no recupera nada, aunque mande un operarioId", async () => {
+  process.env.COORDINA_LOGIN = "activo";
+  const res = await post("AR.26.04351", { operarioId: "tamara", ofIds: ["0232086:9"] });
+  expect(res.status).toBe(401);
+  expect(estadoDb.leerOverlay("ot").ofs.size).toBe(0);
+  expect(estadoDb.leerOfsRetenidas("ot")).toEqual([]);
 });
 
 test("recuperar no escribe nada en OLANET: ni llamadas ni eventos en la cola", async () => {
