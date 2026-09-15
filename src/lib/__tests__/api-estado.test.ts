@@ -198,6 +198,69 @@ test("rechaza un cambio que deje a la misma persona de autor y de revisor", asyn
   expect(acciones.some((a) => a.cambiosOF.some((c) => c.ofId === "of-z"))).toBe(false);
 });
 
+const postEstado = (body: unknown) =>
+  route.POST(new Request("http://x/api/estado", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }));
+
+test("quitarRetenida llega a guardarMutacion", async () => {
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232086:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "x", por: "ivan", modo: "activo" } }],
+    ofRetenida: { ofId: "0232086:9", pedido: "AR.26.04351", motivo: "cerrada", por: "ivan", at: "x" },
+  });
+  const res = await postEstado({
+    motivo: "volver_a_plantear", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232086:9", autorId: "ivan", revisorId: null, estado: "en_curso", observacion: null, cerradaRps: null }],
+    quitarRetenida: ["0232086:9"],
+  });
+  expect(res.status).toBe(200);
+  expect(estadoDb.leerOfsRetenidas("ot")).toEqual([]);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toBeUndefined();
+});
+
+// «Dar por terminada en RPS» solo se guarda por POST /api/fases/cerrar-of, que
+// corta el reloj y escribe en RPS antes de marcar. Si /api/estado aceptara la
+// marca, la OF quedaría apartada como cerrada sin que RPS se enterase.
+test("/api/estado no deja dar por terminada una OF en RPS: ni con el motivo ni colando la marca", async () => {
+  const conMotivo = await postEstado({
+    motivo: "cerrar_en_rps", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232100:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "x", por: "ivan", modo: "activo" } }],
+  });
+  expect(conMotivo.status).toBe(400);
+  expect(estadoDb.leerOverlay("ot").ofs.has("0232100:9")).toBe(false);
+
+  // Por el camino de siempre (p. ej. "aprobar_sin_revision") con la marca
+  // puesta a mano: se guarda el cambio de estado, pero la marca NO.
+  const colada = await postEstado({
+    motivo: "aprobar_sin_revision", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232101:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "x", por: "ivan", modo: "activo" } }],
+  });
+  expect(colada.status).toBe(200);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232101:9")?.estado).toBe("aprobada");
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232101:9")?.cerradaRps).toBeUndefined();
+});
+
+test("/api/estado conserva la marca guardada en las demás acciones, aunque el cliente no la mande o la mande distinta", async () => {
+  const marca = { at: "2026-09-15T11:42:00.000Z", por: "ivan", modo: "activo" as const };
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{ ofId: "0232102:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: marca }],
+  });
+  // Un navegador sin refrescar reparte el pedido entero: su snapshot no sabe
+  // de la marca. No puede borrarla; solo "Volver a plantear" la quita.
+  await postEstado({
+    motivo: "asignar", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232102:9", autorId: "jaime", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: null }],
+  });
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232102:9")?.cerradaRps).toEqual(marca);
+  await postEstado({
+    motivo: "asignar", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: "0232102:9", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "otra", por: "tamara", modo: "sombra" } }],
+  });
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232102:9")?.cerradaRps).toEqual(marca);
+});
+
 test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
   const res = await route.POST(
     new Request("http://x/api/estado", {

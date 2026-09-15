@@ -415,4 +415,15 @@ describe("cerrar_en_rps / volver_a_plantear", () => {
     const conMarca = of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } });
     expect(accionesDisponibles(conMarca, "cualquiera").map((a) => a.id)).toEqual(["volver_a_plantear"]);
   });
+
+  it("aplicarAccion limpia cerradaRps al volver a plantear, y la deja intacta en las demás acciones", () => {
+    const cerrada = of("aprobada", { cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "op1", modo: "activo" } });
+    expect(aplicarAccion(cerrada, "volver_a_plantear").cerradaRps).toBeUndefined();
+    expect(aplicarAccion(cerrada, "volver_a_plantear").estado).toBe("en_curso");
+
+    const aprobadaSinMarca = of("aprobada");
+    // "Reabrir" no toca cerradaRps porque nunca la tuvo: no confundir "no
+    // tocarla" con "borrarla siempre en cualquier destino a en_curso".
+    expect(aplicarAccion(aprobadaSinMarca, "reabrir").cerradaRps).toBeUndefined();
+  });
 });

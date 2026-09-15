@@ -25,6 +25,9 @@ interface Body {
   /** OFs que dejan de ser de quien las tenía: hay que cerrar el fichaje que
    *  alguien tuviera abierto sobre ellas. */
   cortarFichajeDe?: string[];
+  /** Ids que salen de `of_retenida` en la misma transacción. Los manda
+   *  "Volver a plantear" (ver Board.tsx `ejecutarAccion`). */
+  quitarRetenida?: string[];
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -74,6 +77,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "cambiosOF inválidos" }, { status: 400 });
   if (cambios.length === 0 && !body.completarPedidoId)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
+  // «Dar por terminada en RPS» NO se guarda por aquí: su ruta es POST
+  // /api/fases/cerrar-of, que corta el reloj y escribe en RPS ANTES de marcar.
+  // Aceptarla aquí dejaría la OF apartada como cerrada sin que RPS se enterase.
+  if (body.motivo === "cerrar_en_rps")
+    return NextResponse.json({ error: "Dar por terminada en RPS va por su propia ruta." }, { status: 400 });
 
   // Quién manda esto lo decide identidad(), no el cuerpo. Hasta esta versión el
   // operarioId del cuerpo se creía a pies juntillas, y eso quería decir que
@@ -111,14 +119,30 @@ export async function POST(req: Request) {
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
   }
 
+  // La marca «cerrada en RPS» NO la decide el cliente en esta ruta. Solo la
+  // pone /api/fases/cerrar-of, y solo la quita "Volver a plantear". En el
+  // resto se copia la que ya hay guardada, por dos motivos:
+  //  · que nadie cuele una marca a mano sin haber escrito en RPS;
+  //  · que un navegador sin refrescar (que aún no sabe de la marca) no la
+  //    borre al repartir el pedido: `guardarMutacion` escribe NULL si el
+  //    cambio no la trae.
+  const guardadas = leerOverlay(seccion).ofs;
+  const cambiosConMarca: CambioOF[] = cambios.map((c) => ({
+    ...c,
+    cerradaRps: body.motivo === "volver_a_plantear" ? null : (guardadas.get(c.ofId)?.cerradaRps ?? null),
+  }));
+
   guardarMutacion({
     operarioId,
     motivo: body.motivo,
-    cambiosOF: cambios,
+    cambiosOF: cambiosConMarca,
     previosOF: previos,
     completarPedidoId,
     seccion,
     ofIdsPedido,
+    quitarRetenida: Array.isArray(body.quitarRetenida)
+      ? body.quitarRetenida.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : undefined,
   });
 
   // Soltar una OF cierra el fichaje de quien la tenía. NO lo puede hacer su

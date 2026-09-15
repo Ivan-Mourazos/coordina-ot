@@ -304,12 +304,18 @@ export function rolFichajeDe(of: OF): Rol {
  *  Las APROBADAS sí se fichan: cerrar el planteo no cierra el trabajo, y hay
  *  que poder apuntar el rato de un último retoque sin reabrir la OF. */
 export function esFichable(of: OF): boolean {
-  return !of.detenida && of.fichable !== false && of.estado !== "anulada";
+  // Una cerrada en RPS NO, aunque siga "aprobada": fichar reabriría la
+  // operación en OLANET y la marca de cerrada quedaría mintiendo.
+  return !of.detenida && of.fichable !== false && of.estado !== "anulada" && of.cerradaRps === undefined;
 }
 
 /** Motivo legible por el que una OF no se puede fichar (null = sí se puede). */
 export function motivoNoFichable(of: OF): string | null {
   if (of.detenida) return "Detenida por Producción";
+  // Antes de "no admite imputaciones": una OF cerrada normalmente SÍ admite
+  // (sigue "aprobada"), y el motivo real es otro — fichar reabriría la
+  // operación en OLANET y la marca quedaría mintiendo.
+  if (of.cerradaRps) return "Dada por terminada en RPS";
   if (of.fichable === false)
     return "La situación en RPS no admite fichar (el tiempo no subiría)";
   if (of.estado === "anulada") return "OF anulada";

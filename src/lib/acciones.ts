@@ -305,6 +305,10 @@ export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
     // servidor (ver `guardarMutacion`). No se apaga nunca: la revisión ocurrió.
     ...(estado === "en_revision" ? { revisada: true } : {}),
     ...(def.conNota || def.conMotivo ? { observacion: obs!.trim() } : {}),
+    // "Volver a plantear" quita la marca: en RPS la operación sigue
+    // terminada, pero en CoordinaOT deja de estar "cerrada" y vuelve a
+    // fichable. El resto de acciones nunca tocan este campo.
+    ...(accion === "volver_a_plantear" ? { cerradaRps: undefined } : {}),
   };
 }
 
