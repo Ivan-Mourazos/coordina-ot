@@ -174,7 +174,7 @@ export function estaPendiente(b: BaseHistorial): boolean {
  *  texto de RPS con solo la mayúscula inicial arreglada (RPS los guarda a
  *  gritos, y en una fila de lista eso no se lee) — mejor un texto feo que
  *  cuadra con RPS que uno bonito que no significa nada. */
-function enFrase(centro: string): string {
+export function nombreDeCentro(centro: string): string {
   const bonito = NOMBRE_DE_CENTRO[normalizaCentro(centro)];
   return bonito ?? capitalizaFrase(centro);
 }
@@ -188,7 +188,7 @@ function enFrase(centro: string): string {
  *  Soldadura (Parque Empresarial), Soldadura (Parque Empresarial)», que
  *  parece un fallo de la web aunque el dato sea correcto. */
 export function frasePublica(centros: readonly string[], pendienteEntrega: boolean): string {
-  const nombres = [...new Set(centros.map(enFrase))];
+  const nombres = [...new Set(centros.map(nombreDeCentro))];
   if (nombres.length > 0) return `Pendiente de: ${nombres.join(", ")}`;
   return pendienteEntrega ? "Fabricado, pendiente de entregar" : "Entregado";
 }
