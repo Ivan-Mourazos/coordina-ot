@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { HistorialPedidoDetalle } from "@/lib/historial";
+import type { HistorialPedidoDetalle, MaterialGastadoOF } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
 import {
@@ -49,6 +49,9 @@ export function HistorialDrawer({
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
+  // undefined = todavía cargando; null = RPS no contestó; objeto = cargado
+  // (puede llevar OF sin ninguna línea: eso no es lo mismo que "error").
+  const [gastado, setGastado] = useState<Record<string, MaterialGastadoOF[]> | null | undefined>(undefined);
   const reqSeq = useRef(0);
 
   const [prevPedido, setPrevPedido] = useState<string | null>(null);
@@ -58,10 +61,14 @@ export function HistorialDrawer({
     setPrevPedido(pedido);
     setDetalle(null);
     setError(false);
+    setGastado(undefined);
   }
 
-  const cargar = useCallback(async (cod: string) => {
-    const seq = ++reqSeq.current;
+  // Dos peticiones INDEPENDIENTES bajo la misma marca de secuencia: si RPS no
+  // contesta a "gastado" el resto de la ficha no se entera (spec §1, "Cómo se
+  // ve"). Con un solo try/catch para las dos, un fallo de la más nueva de las
+  // dos tumbaba también el detalle, que es justo lo que no puede pasar.
+  const cargarDetalle = useCallback(async (cod: string, seq: number) => {
     setCargando(true);
     setError(false);
     try {
@@ -77,6 +84,24 @@ export function HistorialDrawer({
       if (seq === reqSeq.current) setCargando(false);
     }
   }, [seccion]);
+
+  const cargarGastado = useCallback(async (cod: string, seq: number) => {
+    try {
+      const r = await fetch(`/api/historial/${cod}/gastado`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { gastado: Record<string, MaterialGastadoOF[]> };
+      if (seq === reqSeq.current) setGastado(d.gastado);
+    } catch {
+      if (seq === reqSeq.current) setGastado(null);
+    }
+  }, []);
+
+  const cargar = useCallback((cod: string) => {
+    const seq = ++reqSeq.current;
+    setGastado(undefined);
+    void cargarDetalle(cod, seq);
+    void cargarGastado(cod, seq);
+  }, [cargarDetalle, cargarGastado]);
 
   useEffect(() => {
     if (!pedido) return;
@@ -261,7 +286,7 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
+              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} gastado={gastado} onReintentarGastado={() => cargar(pedido)} />
             </>
           )}
     </MarcoFicha>

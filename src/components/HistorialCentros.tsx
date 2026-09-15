@@ -1,8 +1,9 @@
 "use client";
 
 import type { HistorialOF, MaterialOF } from "@/lib/historial";
-import { personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe } from "@/lib/historial";
+import { fmtCantidad, personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe, type MaterialGastadoOF } from "@/lib/historial";
 import { fmtMin, ROL } from "@/lib/estado";
+import { fmtDiaMesAno } from "@/lib/fechas";
 import { centrosConDesglose, type HistorialCentro } from "@/lib/historial-centros";
 import type { SeccionId } from "@/lib/secciones";
 import { TareasPorCentro } from "./HistorialTareas";
@@ -29,7 +30,18 @@ import {
  *  mismo pedido se leía de dos maneras según lo abrieras en la ficha o en la
  *  ventana. Lo que esta ficha añade —el tiempo por persona con su papel y el
  *  material de cada OF— entra por los dos huecos que deja esa pieza. */
-export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+export function HistorialCentros({
+  ofs,
+  seccion,
+  gastado,
+  onReintentarGastado,
+}: {
+  ofs: HistorialOF[];
+  seccion: SeccionId;
+  /** undefined = cargando; null = RPS no contestó; objeto = cargado. */
+  gastado?: Record<string, MaterialGastadoOF[]> | null;
+  onReintentarGastado?: () => void;
+}) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
@@ -46,7 +58,11 @@ export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion
             {/* Quién hizo cada OF solo cuando el centro tiene varias y la OF
                 no trae tareas: con ellas, cada línea ya dice quién la echó. */}
             {conDesglose.has(centro.id) && centro.ofs.length > 1 && !of.tareas?.length && <PersonasOF of={of} />}
-            <Materiales of={of} />
+            <Materiales
+              of={of}
+              gastadoOF={gastado === null ? null : gastado?.[of.codigo]}
+              onReintentarGastado={onReintentarGastado}
+            />
           </>
         )}
       />
@@ -134,15 +150,25 @@ function PersonasOF({ of }: { of: HistorialOF }) {
  *  Casi nunca quedará reserva: de las 36 918 OF de OT ya terminadas, 140
  *  conservan reserva y 14 419 conservan material asignado. La reserva viva
  *  sale en los pedidos recién cerrados, que es justo cuando alguien la mira. */
-function Materiales({ of }: { of: HistorialOF }) {
+function Materiales({
+  of,
+  gastadoOF,
+  onReintentarGastado,
+}: {
+  of: HistorialOF;
+  /** undefined = todavía cargando; null = RPS no contestó; [] = cargado y sin líneas. */
+  gastadoOF: MaterialGastadoOF[] | null | undefined;
+  onReintentarGastado?: () => void;
+}) {
   const { apartados, apuntados } = repartirMateriales(of.materiales);
-  if (!apartados.length && !apuntados.length && !of.notasProduccion) return null;
-
+  // El botón de Gastado sale SIEMPRE (ver MaterialGastadoBoton); el resto,
+  // solo si dice algo.
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
       {apartados.length + apuntados.length > 0 && (
         <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
+      <MaterialGastadoBoton of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />
       {of.notasProduccion && <NotasProduccion of={of.codigo} texto={of.notasProduccion} />}
     </div>
   );
@@ -171,7 +197,7 @@ function MaterialHistorico({
         className={`${BOTON_DETALLE} ${conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
       >
         <span aria-hidden>🧵</span>
-        Material
+        Asignado
         <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
           {total}
         </span>
@@ -206,6 +232,91 @@ function MaterialHistorico({
     </>
   );
 }
+
+/** Lo que salió de verdad del almacén (RPS, `CPRImputationMaterialMO`). Sale
+ *  SIEMPRE, también en una OF sin nada asignado: con el 57 % de las OF que
+ *  gastan sin nada apuntado, escondiendo el botón se perdía justo lo que esto
+ *  viene a enseñar (spec §1, "Cómo se ve"). */
+function MaterialGastado({
+  of,
+  lineas,
+  onReintentar,
+}: {
+  of: string;
+  lineas: MaterialGastadoOF[] | null | undefined;
+  onReintentar?: () => void;
+}) {
+  const { anclaje, alternar, cerrar } = useVentanaAnclada();
+  const cargando = lineas === undefined;
+  const error = lineas === null;
+  const n = lineas?.length ?? 0;
+  const ultimaSalida = (lineas ?? []).reduce<string | null>(
+    (max, m) => (m.ultimaSalida && (!max || m.ultimaSalida > max) ? m.ultimaSalida : max),
+    null,
+  );
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => alternar(e.currentTarget)}
+        aria-expanded={anclaje !== null}
+        aria-haspopup="dialog"
+        title="Material que salió del almacén para esta OF, según RPS."
+        className={`${BOTON_DETALLE} ${n > 0 ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
+      >
+        <span aria-hidden>📦</span>
+        Gastado
+        <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
+          {n}
+        </span>
+      </button>
+      {anclaje && (
+        <VentanaAnclada anclaje={anclaje} onCerrar={cerrar} etiqueta={`Material gastado de la OF ${of}`}>
+          <CabeceraVentana
+            titulo="Salido del almacén"
+            cuantos={cargando ? undefined : n}
+            nota={ultimaSalida ? `Última salida ${fmtDiaMesAno(ultimaSalida)}` : undefined}
+          />
+          {error && (
+            <p className="text-[11px] text-red-600 dark:text-red-400">
+              No se pudo consultar el material gastado.{" "}
+              <button type="button" onClick={onReintentar} className="underline">
+                Reintentar
+              </button>
+            </p>
+          )}
+          {!error && cargando && <p className="text-[11px] text-text-muted">Consultando…</p>}
+          {!error && !cargando && n === 0 && (
+            <div className="text-[11px] text-text-muted">
+              <p>Todavía no hay salidas apuntadas para esta OF.</p>
+              <p className="mt-1">
+                El almacén las apunta según sale el material. Las reparaciones y manipulaciones no suelen llevarlo.
+              </p>
+            </div>
+          )}
+          {!error && n > 0 && (
+            <ul className={LISTA}>
+              {lineas!.map((m, i) => (
+                <li key={`${i}-${m.material}`} className={`${LINEA} text-text`}>
+                  {m.material}
+                  <span className="font-mono tabular-nums"> {fmtCantidad(m.gastado)}</span>
+                  {m.gastado < 0 && (
+                    <span className="block text-[10px] text-amber-700 dark:text-amber-300">
+                      devuelto al almacén
+                    </span>
+                  )}
+                  {m.codigo && <span className="block text-[10px] text-text-muted">{m.codigo}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </VentanaAnclada>
+      )}
+    </>
+  );
+}
+
+const MaterialGastadoBoton = MaterialGastado;
 
 function NotasProduccion({ of, texto }: { of: string; texto: string }) {
   const { anclaje, alternar, cerrar } = useVentanaAnclada();
