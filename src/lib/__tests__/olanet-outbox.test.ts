@@ -133,6 +133,53 @@ describe("marcado de envío", () => {
   });
 });
 
+describe("sinLlegarAOlanet", () => {
+  // Las dos cosas que no llegaron se cuentan APARTE: el tiempo que RPS
+  // rechazó se puede volver a intentar («Reintentar envío»), y un movimiento
+  // de operación descartado no —reencolarlo lo descarta otra vez por lo
+  // mismo—. Mezclarlos daba el aviso de una cosa cuando pasaba la otra.
+  it("el tiempo rechazado y el movimiento de operación descartado se cuentan aparte", () => {
+    outbox.encolarTramosDeOF("0241000:9", [
+      iv("2026-09-16T08:00:00Z", "2026-09-16T08:30:00Z", ["0241000:9"]),
+    ]);
+    const suyos = outbox.leerPendientes().filter((p) => p.datos.of === "0241000");
+    const bono = suyos.find((p) => p.tipo === "bono")!;
+    outbox.descartar(bono.id, "5 intentos fallidos — RPS no contesta");
+    for (const f of suyos.filter((p) => p.tipo === "fase"))
+      outbox.descartar(f.id, "OLANET no tiene la fase 0241000/9");
+
+    const r = outbox.sinLlegarAOlanet("0241000", "9");
+    expect(r.pendientes).toBe(0);
+    expect(r.descartados).toBe(1); // solo el tiempo
+    expect(r.fasesDescartadas).toBe(2); // iniciada + interrumpida
+  });
+
+  it("lo descartado en ensayo no cuenta por ningún lado: no es un rechazo", () => {
+    outbox.encolarTramosDeOF("0241100:9", [
+      iv("2026-09-16T09:00:00Z", "2026-09-16T09:30:00Z", ["0241100:9"]),
+    ]);
+    for (const p of outbox.leerPendientes().filter((p) => p.datos.of === "0241100")) {
+      if (p.tipo === "fase") outbox.descartar(p.id, "ensayo: no se mueve la fase 0241100/9 a 1");
+      else outbox.marcarEnviados([p.id]);
+    }
+    expect(outbox.sinLlegarAOlanet("0241100", "9")).toEqual({
+      pendientes: 0,
+      descartados: 0,
+      fasesDescartadas: 0,
+    });
+  });
+
+  it("lo que sigue en la cola cuenta como pendiente, sea tiempo o movimiento", () => {
+    outbox.encolarTramosDeOF("0241200:9", [
+      iv("2026-09-16T10:00:00Z", "2026-09-16T10:30:00Z", ["0241200:9"]),
+    ]);
+    const r = outbox.sinLlegarAOlanet("0241200", "9");
+    expect(r.pendientes).toBe(3); // 1 bono + 2 movimientos
+    expect(r.descartados).toBe(0);
+    expect(r.fasesDescartadas).toBe(0);
+  });
+});
+
 describe("reencolarDescartados", () => {
   // Un solo operario ("manuel", sin usar en el resto del fichero) con la
   // lista COMPLETA y CRECIENTE de intervalos en cada llamada — el contrato

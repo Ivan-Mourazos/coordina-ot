@@ -460,6 +460,30 @@ test("el 409 de tiempo descartado dice `descartado: true`, para que la web ofrez
   expect(d.descartado).toBe(true);
 });
 
+// Un MOVIMIENTO DE OPERACIÓN descartado (el 1 o el 2 que la cola no pudo
+// escribir) no es tiempo que RPS haya rechazado. Contarlo como tal daba el
+// aviso de otra cosa —"RPS rechazó tiempo fichado en esta OF"— y encendía
+// «Reintentar envío», que reencola y el drenado vuelve a descartar por lo
+// mismo: un bucle sin salida. Lleva su propio aviso y ningún botón.
+test("un movimiento de operación descartado da SU aviso, no el del tiempo, y sin «Reintentar envío»", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  outbox.encolarTramosDeOF("0232086:9", [{ inicio: haceMin(60), fin: haceMin(30), ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }]);
+  // El tiempo SÍ llegó; lo que se quedó fuera es el movimiento de operación.
+  for (const p of deLaOF()) {
+    if (p.tipo === "fase") outbox.descartar(p.id, "OLANET no tiene la fase 0232086/9");
+    else outbox.marcarEnviados([p.id]);
+  }
+  const res = await cerrar();
+  expect(res.status).toBe(409);
+  const d = await res.json();
+  expect(d.error).toMatch(/no reconoce esta operación/i);
+  expect(d.error).not.toMatch(/rechazó tiempo/i);
+  // Sin `descartado` no sale «Reintentar envío», que aquí no arreglaría nada.
+  expect(d.descartado).toBeUndefined();
+  expect(finalizarFase).not.toHaveBeenCalled();
+  expect(marcaDe()).toBeUndefined();
+});
+
 test("el 409 de tiempo simplemente pendiente NO lleva `descartado`", async () => {
   process.env.FICHAJE_OLANET = "activo";
   fichajeDb.guardarFichaje("ivan", { intervalos: [{ inicio: "2026-09-15T10:00:00.000Z", fin: null, ofIds: ["0232086:9"], rol: "plantear", operarioId: "ivan" }] });

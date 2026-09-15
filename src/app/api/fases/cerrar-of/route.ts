@@ -131,21 +131,32 @@ async function cerrar({
       { error: "Queda tiempo de esta OF por subir a RPS y ahora no entra. No se ha cerrado nada; el reloj sí se ha parado. Vuelve a probar en unos minutos." },
       { status: 409 },
     );
-  /** ¿Está TODO el tiempo de la operación en OLANET? Si no, la respuesta que
-   *  toca. Lo descartado va primero: no se arregla solo esperando.
+  /** ¿Está TODO lo de esta operación en OLANET? Si no, la respuesta que toca.
+   *  Lo descartado va primero: no se arregla solo esperando.
    *
    *  `descartado: true` en el JSON es lo que la web usa para ofrecer
    *  «Reintentar envío» (spec, «Confirmado con Iván» punto 5): sin ese
    *  distintivo no hay forma de saber, desde el error de texto, si vale la
-   *  pena volver a probar sola o si hace falta ese botón. */
+   *  pena volver a probar sola o si hace falta ese botón.
+   *
+   *  Y SOLO para el tiempo. Un MOVIMIENTO de la operación descartado (el 1 o
+   *  el 2 que la cola no pudo escribir) no es tiempo que RPS haya rechazado:
+   *  decirlo así contaba otra cosa, y el botón reencolaba algo que el drenado
+   *  volvía a descartar por el mismo motivo —un bucle sin salida—. Ese caso
+   *  lleva su propio aviso y ningún botón: hay que mirarlo a mano. */
   const tiempoQueFalta = (): NextResponse | null => {
-    const { pendientes, descartados } = sinLlegarAOlanet(orden, tareaFila);
+    const { pendientes, descartados, fasesDescartadas } = sinLlegarAOlanet(orden, tareaFila);
     if (descartados > 0)
       return NextResponse.json(
         {
           error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha cerrado nada; el reloj sí se ha parado. Hay que revisar ese tiempo antes de darla por terminada: avisa a quien lleva CoordinaOT.",
           descartado: true,
         },
+        { status: 409 },
+      );
+    if (fasesDescartadas > 0)
+      return NextResponse.json(
+        { error: "RPS ya no reconoce esta operación, así que no se puede dar por terminada desde aquí. No se ha cerrado nada; el reloj sí se ha parado. Avisa a quien lleva CoordinaOT." },
         { status: 409 },
       );
     return pendientes > 0 ? tiempoSinSubir() : null;

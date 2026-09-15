@@ -239,22 +239,40 @@ export function leerPendientes(limite = 500): Pendiente[] {
  *    Los de ensayo no cuentan: son movimientos de fase que no se escriben a
  *    propósito, no tiempo que RPS haya rechazado.
  *
+ *  Y lo descartado se cuenta POR SEPARADO según qué sea, porque no se
+ *  arreglan igual:
+ *  · `descartados` es TIEMPO que RPS rechazó (los bonos). Se puede volver a
+ *    intentar: es lo que hace «Reintentar envío».
+ *  · `fasesDescartadas` son MOVIMIENTOS de la operación (el 1 al empezar, el 2
+ *    al parar) que la cola no pudo escribir —normalmente porque OLANET ya no
+ *    tiene esa fase—. Reencolarlos no arregla nada: el drenado los vuelve a
+ *    descartar por lo mismo. Contarlos como tiempo rechazado daba el aviso de
+ *    otra cosa y ofrecía un botón que no llevaba a ningún sitio.
+ *
  *  La operación se compara sin ceros a la izquierda, como `claveFase`: la
  *  gemela "02" de una "2" también se cierra, y su tiempo también cuenta. */
-export function sinLlegarAOlanet(orden: string, numope: string): { pendientes: number; descartados: number } {
+export function sinLlegarAOlanet(
+  orden: string,
+  numope: string,
+): { pendientes: number; descartados: number; fasesDescartadas: number } {
   const fila = getDb()
     .prepare(
       `SELECT
          COALESCE(SUM(CASE WHEN enviado_at IS NULL THEN 1 ELSE 0 END), 0) AS pendientes,
-         COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS descartados
+         COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL AND tipo = 'bono' THEN 1 ELSE 0 END), 0) AS descartados,
+         COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL AND tipo = 'fase' THEN 1 ELSE 0 END), 0) AS fasesDescartadas
        FROM olanet_pendiente
        WHERE json_extract(datos, '$.of') = ?
          AND ltrim(json_extract(datos, '$.numope'), '0') = ltrim(?, '0')
          AND (enviado_at IS NULL
               OR (error LIKE 'DESCARTADO:%' AND error NOT LIKE 'DESCARTADO: ensayo:%'))`,
     )
-    .get(orden, numope) as { pendientes: number; descartados: number };
-  return { pendientes: fila.pendientes, descartados: fila.descartados };
+    .get(orden, numope) as { pendientes: number; descartados: number; fasesDescartadas: number };
+  return {
+    pendientes: fila.pendientes,
+    descartados: fila.descartados,
+    fasesDescartadas: fila.fasesDescartadas,
+  };
 }
 
 /** Vuelve a poner en la cola lo DESCARTADO de una operación, reiniciando sus

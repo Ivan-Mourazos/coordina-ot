@@ -106,13 +106,22 @@ async function reintentar({
   // El tiempo antes que la escritura, igual que al cerrar: si algo de esta OF
   // sigue sin llegar a OLANET (pendiente o descartado), no se toca la gemela.
   const tiempoQueFalta = () => {
-    const { pendientes, descartados } = sinLlegarAOlanet(orden, tareaFila);
+    const { pendientes, descartados, fasesDescartadas } = sinLlegarAOlanet(orden, tareaFila);
     if (descartados > 0)
       return NextResponse.json(
         {
           error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha escrito nada. Hay que revisar ese tiempo: avisa a quien lleva CoordinaOT.",
           descartado: true,
         },
+        { status: 409 },
+      );
+    // Un MOVIMIENTO de la operación descartado no es tiempo rechazado (ver el
+    // comentario gemelo en ../route.ts): su aviso es otro y no ofrece
+    // «Reintentar envío», que aquí tampoco arreglaría nada. Antes entraba por
+    // el `descartados` de arriba; al separarlos, sin esto dejaría de frenar.
+    if (fasesDescartadas > 0)
+      return NextResponse.json(
+        { error: "RPS ya no reconoce esta operación, así que no se puede escribir en ella desde aquí. No se ha escrito nada. Avisa a quien lleva CoordinaOT." },
         { status: 409 },
       );
     if (pendientes > 0)
