@@ -165,9 +165,17 @@ function enFrase(centro: string): string {
   return limpio.charAt(0).toUpperCase() + limpio.slice(1);
 }
 
-/** Por dónde va el pedido, con la entrega de último tramo. */
+/** Por dónde va el pedido, con la entrega de último tramo.
+ *
+ *  Se quitan los repetidos DESPUÉS de traducir, no antes: varios centros de
+ *  RPS caen a propósito en el mismo nombre —«SOLDADURA ALTA FRECUENCIA PARQUE
+ *  EMPRESARIAL» y «SOLDADURA AIRE CALIENTE PARQUE EMPRESARIAL» son los dos
+ *  «Soldadura (Parque Empresarial)»— y sin esto la fila decía «Pendiente de:
+ *  Soldadura (Parque Empresarial), Soldadura (Parque Empresarial)», que
+ *  parece un fallo de la web aunque el dato sea correcto. */
 export function frasePublica(centros: readonly string[], pendienteEntrega: boolean): string {
-  if (centros.length > 0) return `Pendiente de: ${centros.map(enFrase).join(", ")}`;
+  const nombres = [...new Set(centros.map(enFrase))];
+  if (nombres.length > 0) return `Pendiente de: ${nombres.join(", ")}`;
   return pendienteEntrega ? "Fabricado, pendiente de entregar" : "Entregado";
 }
 

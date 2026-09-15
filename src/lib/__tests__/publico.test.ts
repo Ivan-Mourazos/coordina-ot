@@ -242,3 +242,15 @@ test("buscar por cliente levanta el corte: un pedido de 2019 sale si lo filtro p
   const porFamilia = filtrarPublico(i, { lista: "pendientes", page: 0, familia: "TOLDO" }).filas.map((f) => f.pedido);
   expect(porFamilia).not.toContain("AR.19.05555");
 });
+
+test("dos centros de RPS con el mismo nombre bonito no se repiten en la frase", () => {
+  // Pasaba en pedidos reales: «Pendiente de: Soldadura (Parque Empresarial),
+  // Soldadura (Parque Empresarial)». Son dos centros distintos en RPS (alta
+  // frecuencia y aire caliente) que se llaman igual para quien consulta.
+  expect(
+    frasePublica(
+      ["SOLDADURA ALTA FRECUENCIA PARQUE EMPRESARIAL", "SOLDADURA AIRE CALIENTE PARQUE EMPRESARIAL"],
+      false,
+    ),
+  ).toBe("Pendiente de: Soldadura (Parque Empresarial)");
+});
