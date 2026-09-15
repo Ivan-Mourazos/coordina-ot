@@ -7,6 +7,7 @@ let dir: string;
 let route: typeof import("../../app/api/fichaje/route");
 let avisoVisto: typeof import("../../app/api/fichaje/aviso-visto/route");
 let fichajeDb: typeof import("../server/fichaje-db");
+let estadoDb: typeof import("../server/estado-db");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-api-"));
@@ -14,6 +15,7 @@ beforeAll(async () => {
   route = await import("../../app/api/fichaje/route");
   avisoVisto = await import("../../app/api/fichaje/aviso-visto/route");
   fichajeDb = await import("../server/fichaje-db");
+  estadoDb = await import("../server/estado-db");
 });
 
 afterAll(() => {
@@ -110,6 +112,51 @@ test("POST sin operarioId responde 400", async () => {
 test("POST con rol inválido y ofIds no vacío responde 400", async () => {
   const res = await route.POST(post({ operarioId: "angel", ofIds: ["OF-1"], rol: "xxx" }));
   expect(res.status).toBe(400);
+});
+
+// Fallo I-A (revisión Task 6): el candado en memoria de cierre-of-en-curso.ts
+// solo dura los segundos que tarda "Dar por terminada en RPS"; la marca
+// guardada en el overlay es para siempre, y es la que hace falta cuando el
+// navegador de quien estaba fichando esa OF no se ha enterado todavía del
+// cierre (lo hizo otra persona, en otro equipo) y reenvía la OF cerrada como
+// si siguiera abierta.
+test("Fallo I-A: no se puede fichar en una OF cerrada en RPS aunque el candado del cierre ya se soltara", async () => {
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{
+      ofId: "0232300:9", autorId: "alberto", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-15T10:00:00.000Z", por: "ivan", modo: "activo" },
+    }],
+  });
+  const res = await route.POST(post({ operarioId: "adrian", ofIds: ["0232300:9"], rol: "plantear" }));
+  expect(res.status).toBe(409);
+  const data = (await res.json()) as { error: string };
+  expect(data.error).toContain("0232300");
+
+  // No se ha abierto ningún intervalo: el rechazo es entero, no un fichaje a
+  // medias.
+  const g = await route.GET(new Request("http://x/api/fichaje?operarioId=adrian"));
+  const gd = (await g.json()) as { fichaje: { intervalos: unknown[] } };
+  expect(gd.fichaje.intervalos).toHaveLength(0);
+});
+
+test("Fallo I-A: reenviar una OF cerrada junto a otras abiertas no tumba el fichaje del resto", async () => {
+  estadoDb.guardarMutacion({
+    operarioId: "ivan", motivo: "cerrar_en_rps", seccion: "ot",
+    cambiosOF: [{
+      ofId: "0232301:9", autorId: "tamara", revisorId: null, estado: "aprobada", observacion: null,
+      cerradaRps: { at: "2026-09-15T10:05:00.000Z", por: "ivan", modo: "activo" },
+    }],
+  });
+  // El escenario del revisor: quien la tenía fichando todavía cree que la
+  // tiene abierta y, al pulsar fichar en otra OF, `ficharOFs` (Board.tsx)
+  // reenvía las dos juntas.
+  const res = await route.POST(post({ operarioId: "angel", ofIds: ["0232301:9", "OF-2"], rol: "plantear" }));
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { fichaje: { intervalos: { ofIds: string[] }[] } };
+  expect(data.fichaje.intervalos).toHaveLength(1);
+  // La cerrada se descarta; el resto de la lista sigue fichándose sin ella.
+  expect(data.fichaje.intervalos[0].ofIds).toEqual(["OF-2"]);
 });
 
 test("POST con body JSON no-objeto (null) responde 400, no 500", async () => {
