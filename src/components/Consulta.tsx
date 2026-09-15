@@ -28,7 +28,24 @@ export function Consulta() {
     <div className="min-h-full">
       <header className="glass-panel sticky top-0 z-10 flex flex-wrap items-center gap-3 px-4 py-2">
         <Logo height={36} />
-        <div role="tablist" aria-label="Secciones" className="glass-chip inline-flex flex-wrap rounded-lg p-[3px]">
+        {/* Las flechas mueven entre pestañas y el tabulador entra y sale de la
+            tira entera: es como se recorre un tablist, y es lo que espera
+            quien navega con teclado. Sin las flechas, poner tabIndex -1 en las
+            inactivas las dejaría inalcanzables. */}
+        <div
+          role="tablist"
+          aria-label="Secciones"
+          className="glass-chip inline-flex flex-wrap rounded-lg p-[3px]"
+          onKeyDown={(e) => {
+            const paso = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+            if (paso === 0) return;
+            e.preventDefault();
+            const i = PESTANAS.findIndex((p) => p.id === pestana);
+            const siguiente = PESTANAS[(i + paso + PESTANAS.length) % PESTANAS.length];
+            setPestana(siguiente.id);
+            document.getElementById(`pestana-${siguiente.id}`)?.focus();
+          }}
+        >
           {PESTANAS.map((p) => (
             <button
               key={p.id}
@@ -37,6 +54,7 @@ export function Consulta() {
               id={`pestana-${p.id}`}
               aria-selected={p.id === pestana}
               aria-controls={`panel-${p.id}`}
+              tabIndex={p.id === pestana ? 0 : -1}
               onClick={() => setPestana(p.id)}
               className={`h-8 rounded-md px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
                 p.id === pestana
@@ -75,7 +93,7 @@ export function Consulta() {
       )}
       {pestana === "consultas" && (
         <main role="tabpanel" id="panel-consultas" aria-labelledby="pestana-consultas" className="p-4">
-          <VisitasCotView base="/api/publico/visitas" />
+          <VisitasCotView base="/api/publico/visitas" sondeo={false} />
         </main>
       )}
     </div>

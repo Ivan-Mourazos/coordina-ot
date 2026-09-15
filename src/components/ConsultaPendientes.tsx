@@ -8,6 +8,7 @@ import { fmtDiaMes, fmtFechaLarga } from "@/lib/fechas";
 import { SECCION_POR_DEFECTO } from "@/lib/secciones";
 import { ErrorCarga } from "./ErrorCarga";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
+import { DocumentosRps } from "./DocumentosRps";
 import { HistorialTareas } from "./HistorialTareas";
 import { FamiliaTag } from "./FamiliaTag";
 
@@ -272,6 +273,9 @@ function DetallePublico({ codigo }: { codigo: string }) {
   if (cargando) return <p className="text-sm text-text-muted">Cargando…</p>;
   if (error || !detalle) return <ErrorCarga mensaje="No se pudo cargar el pedido." onReintentar={cargar} />;
 
+  // Sin repetir a nadie: la misma persona sale en varias OF del mismo pedido.
+  const quienes = [...new Set(detalle.ofs.flatMap((of) => of.quien))];
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -290,6 +294,15 @@ function DetallePublico({ codigo }: { codigo: string }) {
           Ver PDF del pedido
         </a>
       </div>
+      {/* QUIÉN LO LLEVÓ, antes de las OF y sin desplegar nada más. La lista de
+          OF solo pone nombres cuando el pedido tiene más de una, y lo normal
+          es que tenga una sola: sin esto, la segunda pregunta de quien llama
+          —después de "¿por dónde va?"— obligaba a abrir el desglose. */}
+      {quienes.length > 0 && (
+        <p className="text-xs text-text-muted">
+          Lo llevó <span className="font-semibold text-text">{quienes.join(", ")}</span>
+        </p>
+      )}
       <div className="bloque-3d overflow-hidden rounded-xl px-3 py-2">
         <HistorialOFsCompactas
           ofs={detalle.ofs}
@@ -298,6 +311,17 @@ function DetallePublico({ codigo }: { codigo: string }) {
             <HistorialTareas pedido={detalle.codigo} ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} compacto />
           }
         />
+      </div>
+      {/* Lo que RPS tiene colgado del pedido: planteamiento, presupuesto y las
+          fotos de la visita y de la instalación. Casi todos llevan algo (3.960
+          de 3.962 en la serie AR.26), y es lo que un comercial quiere poder
+          enseñarle al cliente sin llamar a Oficina Técnica. La misma pieza que
+          usa el equipo, con las URL ya reescritas a la ruta pública. */}
+      <div className="bloque-3d rounded-xl px-3 py-2">
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          Documentos de RPS
+        </p>
+        <DocumentosRps documentos={detalle.documentos} />
       </div>
     </div>
   );

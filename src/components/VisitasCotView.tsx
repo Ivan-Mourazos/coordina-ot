@@ -86,7 +86,19 @@ function colorDe(nombre: string): string {
 // un gesto más natural: pulsándolo en el calendario.
 type Ambito = "proximas" | "mes";
 
-export function VisitasCotView({ base = "/api/visitas-cot" }: { base?: string } = {}) {
+export function VisitasCotView({
+  base = "/api/visitas-cot",
+  sondeo = true,
+}: {
+  base?: string;
+  /** Refrescarse solo cada minuto. ENCENDIDO para el equipo, que tiene esto
+   *  abierto toda la mañana y quiere ver entrar las visitas nuevas.
+   *
+   *  La consulta sin login lo apaga: ahí lo mira media empresa a la vez, y
+   *  cada pestaña abierta serían preguntas a RPS cada minuto por algo que
+   *  nadie está esperando ver cambiar. Quien quiera lo último, actualiza. */
+  sondeo?: boolean;
+} = {}) {
   const [mes, setMes] = useState(() => primerDiaDelMes(hoyISO()));
   const [dia, setDia] = useState<string | null>(null);
   const [ambito, setAmbito] = useState<Ambito>("proximas");
@@ -145,9 +157,10 @@ export function VisitasCotView({ base = "/api/visitas-cot" }: { base?: string } 
   }, [cargar]);
 
   useEffect(() => {
+    if (!sondeo) return;
     const id = setInterval(() => void cargar(), REFRESCO_MS);
     return () => clearInterval(id);
-  }, [cargar]);
+  }, [cargar, sondeo]);
 
   // Cambiar de mes deja de tener sentido el día elegido del anterior.
   const mesDelDia = dia ? primerDiaDelMes(dia) : null;
