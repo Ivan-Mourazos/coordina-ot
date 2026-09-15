@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { ESTADO_FASE } from "@/lib/fases";
+import { situacionDe } from "@/lib/fase-pendiente";
 
 // OLANET se simula: estos tests fijan las REGLAS de la ruta, que es la que
 // escribe en el sistema de la fábrica. Lo que se comprueba es que no escriba
@@ -9,12 +11,51 @@ const moverFase = vi.fn<(o: unknown) => Promise<void>>();
 const fasesDeOFs = vi.fn<(ofs: readonly string[]) => Promise<unknown[]>>();
 const buscarIdBoletin = vi.fn<(of: string, fase: string) => Promise<string | null>>();
 
+// `finalizarFase` vive en el módulo real (src/lib/server/olanet.ts) y llama a
+// sus vecinos (maquinaDeFase, buscarIdBoletin, estadoDeFase, moverFase) por
+// referencia directa dentro del propio fichero: mockear "@/lib/server/olanet"
+// entero sustituye TODO el módulo, así que esas llamadas internas no pasan
+// por los mocks de aquí arriba aunque se les ponga el mismo nombre. Por eso
+// se repite aquí la MISMA orquestación que Step 2 puso en olanet.ts, pero
+// llamando a los vi.fn() de este fichero: es la única forma de probar la
+// ruta sin abrir una conexión real a OLANET. La lógica pura (ESTADO_FASE,
+// situacionDe) sí se importa de verdad: no toca ninguna BD.
 vi.mock("@/lib/server/olanet", () => ({
   maquinaDeFase: (id: string) => maquinaDeFase(id),
   estadoDeFase: (id: string) => estadoDeFase(id),
   moverFase: (o: unknown) => moverFase(o),
   fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
   buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
+  finalizarFase: async (opts: {
+    idBoletin: string;
+    of?: string | null;
+    fase?: string | null;
+    esNuestra: (maquina: string) => boolean;
+    operarioRps: string;
+    cuando: Date;
+  }) => {
+    let boletin = opts.idBoletin;
+    let maquina = await maquinaDeFase(boletin);
+    if (maquina === null && opts.of && opts.fase) {
+      const rebuscado = await buscarIdBoletin(opts.of, opts.fase);
+      if (rebuscado) {
+        boletin = rebuscado;
+        maquina = await maquinaDeFase(boletin);
+      }
+    }
+    if (maquina === null)
+      return { ok: false, status: 404, error: "Esa fase ya no existe en OLANET" };
+    if (!opts.esNuestra(maquina))
+      return { ok: false, status: 403, error: `Esa fase es de ${maquina}, que no es trabajo de oficina` };
+
+    const estado = await estadoDeFase(boletin);
+    if (estado === ESTADO_FASE.finalizada) return { ok: true, yaEstaba: true, idBoletin: boletin };
+    if (situacionDe(estado ?? -1) !== "sin_finalizar")
+      return { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" };
+
+    await moverFase({ idBoletin: boletin, estado: ESTADO_FASE.finalizada, operarioRps: opts.operarioRps, cuando: opts.cuando });
+    return { ok: true, yaEstaba: false, idBoletin: boletin };
+  },
 }));
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", jaime: "120", sinCodigo: undefined },
@@ -25,9 +66,17 @@ let ruta: typeof import("../../app/api/fases/route");
 beforeEach(async () => {
   vi.clearAllMocks();
   moverFase.mockResolvedValue(undefined);
+  // Los tests de siempre no hablan del modo del fichaje: asumían, como la
+  // ruta antigua, que siempre se escribía. Para no reescribirlos todos, aquí
+  // se deja "activo" por defecto; los tres tests que SÍ prueban el modo lo
+  // sobreescriben ellos mismos con vi.stubEnv.
+  vi.stubEnv("FICHAJE_OLANET", "activo");
   ruta = await import("../../app/api/fases/route");
 });
-afterEach(() => vi.resetModules());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
 
 const post = (body: unknown) =>
   ruta.POST(new Request("http://x/api/fases", { method: "POST", body: JSON.stringify(body) }));
@@ -203,4 +252,35 @@ test("la fase rebuscada también tiene que ser de la oficina", async () => {
   const res = await post({ idBoletin: "111", operarioId: "ivan", of: "0217539", fase: "5" });
   expect(res.status).toBe(403);
   expect(moverFase).not.toHaveBeenCalled();
+});
+
+// ── modoFichaje() también manda aquí ──────────────────────────────────────
+// Antes el arrastre no miraba el modo del fichaje: escribía el 3 siempre.
+// Al compartir la función con la ruta nueva (Confirmado con Iván, punto 1),
+// en sombra/ensayo tampoco escribe — en activo no cambia nada.
+
+test("en modo sombra no se escribe, y se dice por qué", async () => {
+  vi.stubEnv("FICHAJE_OLANET", "sombra");
+  const res = await post({ idBoletin: "456", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect(moverFase).not.toHaveBeenCalled();
+  expect(maquinaDeFase).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});
+
+test("en modo ensayo tampoco se escribe", async () => {
+  vi.stubEnv("FICHAJE_OLANET", "ensayo");
+  const res = await post({ idBoletin: "456", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect(moverFase).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});
+
+test("en modo activo (o sin variable) no cambia nada", async () => {
+  maquinaDeFase.mockResolvedValue("A-OTEC");
+  estadoDeFase.mockResolvedValue(2);
+  vi.stubEnv("FICHAJE_OLANET", "activo");
+  expect((await post({ idBoletin: "456", operarioId: "ivan" })).status).toBe(200);
+  expect(moverFase).toHaveBeenCalledTimes(1);
+  vi.unstubAllEnvs();
 });

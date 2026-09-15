@@ -1,6 +1,7 @@
 import sql from "mssql";
 import { claveBonoRps, type FilaBono } from "../bonos";
-import type { EstadoFase } from "../fases";
+import { ESTADO_FASE, type EstadoFase } from "../fases";
+import { situacionDe } from "../fase-pendiente";
 import { esFaseDe, type Seccion } from "../secciones";
 import { getPoolOlanet } from "./db";
 
@@ -366,4 +367,59 @@ export async function maquinaDeFase(idBoletin: string): Promise<string | null> {
       "SELECT MaquinaTeo FROM scg_Fases WHERE IdBoletin = @idBoletin",
     );
   return r.recordset[0] ? (r.recordset[0].MaquinaTeo ?? "").trim() : null;
+}
+
+export type ResultadoFinalizarFase =
+  | { ok: true; yaEstaba: boolean; idBoletin: string }
+  | { ok: false; status: 403 | 404 | 409; error: string };
+
+/** Cerrar UNA fase en RPS: releer máquina y estado (el boletín que trajo la
+ *  ficha puede haberse quedado viejo), rebuscar por (OF, fase) si hace falta,
+ *  comprobar que es nuestra y que se puede finalizar, y mover a 3 con la
+ *  fecha de hoy. Compartida por `POST /api/fases` (arrastre de fases sueltas)
+ *  y `POST /api/fases/cerrar-of` (spec 2026-09-15, sección 2 "Cómo": "Lo que
+ *  se comparte con /api/fases").
+ *
+ *  NO mira `modoFichaje()`: en sombra/ensayo no se debe llegar a llamarla, y
+ *  esa decisión la toma cada ruta ANTES de entrar aquí (ver el comentario en
+ *  `POST /api/fases`) — mezclarlo aquí obligaría a las dos rutas a tratar el
+ *  "no se escribe por el modo" como si fuera un fallo de OLANET, cuando para
+ *  cerrar una OF suelta NO lo es (ahí se guarda la marca igual, con el modo). */
+export async function finalizarFase(opts: {
+  idBoletin: string;
+  /** Para rebuscar el boletín si se quedó viejo (caso AR.25.02771, ver el
+   *  comentario de `POST /api/fases`). Sin ellos, un boletín viejo es 404
+   *  directo. */
+  of?: string | null;
+  fase?: string | null;
+  /** ¿Esta fase se puede cerrar desde aquí? El arrastre acepta cualquiera de
+   *  las dos secciones (`esFaseDeLaWeb`); cerrar una OF suelta, solo las de
+   *  SU sección (`(m) => esFaseDe(m, seccion)`), para no cerrar de rebote una
+   *  fase de la otra sección. */
+  esNuestra: (maquina: string) => boolean;
+  operarioRps: string;
+  cuando: Date;
+}): Promise<ResultadoFinalizarFase> {
+  let boletin = opts.idBoletin;
+  let maquina = await maquinaDeFase(boletin);
+
+  if (maquina === null && opts.of && opts.fase) {
+    const rebuscado = await buscarIdBoletin(opts.of, opts.fase);
+    if (rebuscado) {
+      boletin = rebuscado;
+      maquina = await maquinaDeFase(boletin);
+    }
+  }
+  if (maquina === null)
+    return { ok: false, status: 404, error: "Esa fase ya no existe en OLANET" };
+  if (!opts.esNuestra(maquina))
+    return { ok: false, status: 403, error: `Esa fase es de ${maquina}, que no es trabajo de oficina` };
+
+  const estado = await estadoDeFase(boletin);
+  if (estado === ESTADO_FASE.finalizada) return { ok: true, yaEstaba: true, idBoletin: boletin };
+  if (situacionDe(estado ?? -1) !== "sin_finalizar")
+    return { ok: false, status: 409, error: "Esa fase no se puede finalizar desde aquí" };
+
+  await moverFase({ idBoletin: boletin, estado: ESTADO_FASE.finalizada, operarioRps: opts.operarioRps, cuando: opts.cuando });
+  return { ok: true, yaEstaba: false, idBoletin: boletin };
 }
