@@ -321,10 +321,35 @@ Conviene ponerle NTP (`timedatectl set-ntp true` y comprobar con
 —descuenta el desfase por su cuenta, ver `lib/reloj-servidor.ts`— pero el dato
 que se guarda sigue siendo el del reloj de la máquina.
 
+## 9. «Dar por terminada en RPS»: segunda cosa que escribe en OLANET
+
+Desde la rama `tareas-tiempos-equipo`, además del fichaje (sección 7), la app
+puede escribir un **movimiento de fase a terminada (`IdEstadoOF = 3`)** en
+`scg_Fases`/`sch_FasesMov`: lo hace el botón «Dar por terminada en RPS» sobre
+una OF suelta, y el arrastre de siempre al pasar un pedido entero. Las dos
+rutas comparten la misma función de servidor (`finalizarFase`,
+`src/lib/server/olanet.ts`).
+
+**Respeta el mismo interruptor `FICHAJE_OLANET`** de la sección 7: en `sombra`
+y en `ensayo` no se escribe el 3 (se guarda solo la marca en CoordinaOT, con
+el modo, y el aviso lo dice). En `activo`, sí. No hace falta ningún cambio
+adicional al pasar de `ensayo` a `activo`: es el mismo paso de la sección 7.
+
+**El ensayo manual contra OLANET real**, antes del primer 3 desde el botón en
+producción: `scripts/ensayo-cerrar-fase-muerta.test.ts`. Cierra, con la misma
+función que usan las dos rutas, una operación ya muerta (de las de arrastre
+2020-2024, en pedidos entregados hace años) y comprueba que la segunda llamada
+no repite el movimiento. **No lo ejecuta ningún agente ni CI**: el propio
+fichero lo deja en mayúsculas. Solo Iván, a mano, avisando antes a David/IT
+como se hizo con el primer 3 del fichaje. El fichero trae las instrucciones
+completas (qué mirar en `scg_Fases`/`sch_FasesMov` antes y después, y las
+cuatro variables de entorno que hacen falta).
+
 ## 8. Qué NO hace esta app (por diseño)
 
 - No escribe nada en RPS ni en el share de PDFs. Lo único que escribe fuera de
-  su propio SQLite es el fichaje en OLANET, y solo cuando `FICHAJE_OLANET` no
-  es `sombra` (sección 7).
+  su propio SQLite es en OLANET: el fichaje y el movimiento de fase a
+  terminada de «Dar por terminada en RPS»/pasar un pedido (sección 9), y los
+  dos solo cuando `FICHAJE_OLANET` no es `sombra` ni `ensayo` (secciones 7 y 9).
 - No expone nada fuera de la LAN (sin auth de momento: confiar en red interna;
   si se quiere publicar más allá de OT, hablar antes con desarrollo).
