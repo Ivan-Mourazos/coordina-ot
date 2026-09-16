@@ -226,7 +226,7 @@ test.skipIf(!ACTIVO)(
 );
 
 test.skipIf(!ACTIVO)(
-  "lo que Producción cierra a mano en RPS deja de estar pendiente, aunque OLANET no se entere",
+  "lo que Producción cierra a mano en RPS deja de estar pendiente, pero una OF detenida no",
   async () => {
     // RPS no sincroniza con OLANET: cuando alguien deja una fase sin finalizar
     // y Producción la remata a mano, o la OF se anula porque al final no se
@@ -252,7 +252,8 @@ test.skipIf(!ACTIVO)(
       INSERT INTO #UI_CPRMOTask VALUES (21,2101,'5','CONFECCIONAR',0,NULL);
       INSERT INTO #UI_CPRMOResourceMachine VALUES (2101,'CONFECCION SANTIAGO','CONFECCION SANTIAGO');
 
-      -- AR.26.00022: DETENIDA. No se llegó a hacer, y no queda nadie esperándola.
+      -- AR.26.00022: DETENIDA. Parada no es acabada, y es la misma señal con
+      -- la que el tablero la enseña detenida: SIGUE pendiente.
       INSERT INTO #UI_FACOrderSL VALUES (22,'AR.26.00022','2026-09-01','001',1,NULL);
       INSERT INTO #UI_FACOrderLineSL VALUES (22,22,22,'2026-09-20',0);
       INSERT INTO #UI_CPRManufacturingOrder VALUES (22,'0000022','001','001-37');
@@ -271,7 +272,7 @@ test.skipIf(!ACTIVO)(
 
     expect(pedidos.get("AR.26.00020")?.pendiente_total).toBe(0);
     expect(pedidos.get("AR.26.00021")?.pendiente_total).toBe(0);
-    expect(pedidos.get("AR.26.00022")?.pendiente_total).toBe(0);
+    expect(pedidos.get("AR.26.00022")?.pendiente_total).toBe(1);
     expect(pedidos.get("AR.26.00023")?.pendiente_total).toBe(1);
   },
   60_000,

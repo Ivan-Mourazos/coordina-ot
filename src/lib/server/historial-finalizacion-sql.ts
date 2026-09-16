@@ -86,10 +86,13 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         --    fichaje ya pone el porcentaje.
         --  · FINALIZADA (situación 6): la OF entera rematada en RPS. Rescata
         --    otras 112 de OT, 52 de Diseño y 1.324 de taller.
-        --  · DETENIDA (situación 7): anulada o trabajo que no se llega a
-        --    hacer. No es un final, pero tampoco queda nadie esperándola, y
-        --    por eso no lleva FECHA de fin: solo deja de estar pendiente.
-        CASE WHEN e.fin IS NOT NULL OR sit.CodSituation IN ('6','7')
+        --
+        -- DETENIDA (situación 7) NO entra, aunque nadie esté trabajando en
+        -- ella: es la misma señal con la que el tablero marca una OF como
+        -- detenida (ver el campo detenida en rps.ts), así que darla por terminada
+        -- aquí diría lo contrario de lo que el equipo tiene delante. Parada
+        -- no es acabada: alguien tiene que resolverla.
+        CASE WHEN e.fin IS NOT NULL OR sit.CodSituation = '6'
           OR (t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day,1,GETDATE()))
           THEN 1 ELSE 0 END AS terminada,
         COALESCE(e.fin, CASE WHEN t.RealEndDate > '2000-01-01'
