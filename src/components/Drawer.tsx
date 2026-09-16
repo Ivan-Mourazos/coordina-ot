@@ -1590,6 +1590,14 @@ function AccionesOF({
               onCerrado={onCerradoEnRps}
             />
           ) : null;
+        if (a.id === "volver_a_plantear")
+          return (
+            <BotonVolverAPlantear
+              key={a.id}
+              label={a.label}
+              onPulsar={() => pedirConfirmacion(a)}
+            />
+          );
         const frenada = a.id === "aprobar" ? impedidoRevision : null;
         return (
           <Btn
@@ -1698,6 +1706,35 @@ function Btn({
       className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${cls} ${className}`}
     >
       {children}
+    </button>
+  );
+}
+
+/** «Volver a plantear», el botón.
+ *
+ *  Es la ÚNICA acción que admite una OF cerrada en RPS: `noSi` apaga todas las
+ *  demás. Un botón que es la única salida no puede parecer el último de una
+ *  fila de iguales, y con el tono neutro —`ghost`, que es borde gris y
+ *  `text-text-muted`— en tema oscuro quedaba gris sobre gris.
+ *
+ *  Con nombre propio y exportado porque esa OF vive dentro de un cajón que se
+ *  abre con estado de React: renderizando el `Drawer` no se llega hasta aquí
+ *  (ver la cabecera de `drawer-volver-a-plantear.test.ts`). */
+export function BotonVolverAPlantear({
+  label,
+  onPulsar,
+}: {
+  label: string;
+  onPulsar: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPulsar}
+      title="La OF vuelve a planteando. En RPS sigue terminada hasta que alguien fiche en ella: el primer fichaje la reabre. El apunte del cierre se queda en el histórico de RPS."
+      className="chip-3d order-first w-full rounded-lg px-3 py-1.5 text-xs font-semibold text-text"
+    >
+      ↩ {label}
     </button>
   );
 }
