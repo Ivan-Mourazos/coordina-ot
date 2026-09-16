@@ -1,10 +1,31 @@
-import { createElement } from "react";
+import { createElement, type ComponentProps, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import { BloqueLista } from "../../components/BloqueLista";
 import { FilaDesplegable } from "../../components/FilaDesplegable";
 
 const COLUMNAS = "grid grid-cols-[28px_136px_minmax(0,1fr)] items-center gap-x-3";
+
+/** Pinta un `BloqueLista` con sus hijos.
+ *
+ *  Los hijos van DENTRO del objeto de props y no como tercer argumento de
+ *  `createElement`. Al revés compila y las pruebas pasan, pero no tipa:
+ *  `children` es una prop obligatoria de `BloqueLista` y TypeScript no la da
+ *  por puesta desde el argumento posicional —eso solo lo resuelve JSX, y estas
+ *  pruebas son `.ts`—, así que `tsc --noEmit` protesta en cada llamada. Ni
+ *  `pnpm test` ni `pnpm build` lo pescan: vitest transpila sin comprobar tipos
+ *  y Next no mira los ficheros de prueba.
+ *
+ *  eslint prefiere lo contrario, y su regla tiene sentido en el código de la
+ *  app, que se escribe en JSX. Aquí no hay JSX, así que se apaga en un solo
+ *  sitio en vez de en cada llamada. */
+function pintarBloque(
+  props: Omit<ComponentProps<typeof BloqueLista>, "children">,
+  hijos: ReactNode,
+) {
+  // eslint-disable-next-line react/no-children-prop
+  return renderToStaticMarkup(createElement(BloqueLista, { ...props, children: hijos }));
+}
 
 function fila(abierta: boolean) {
   return renderToStaticMarkup(
@@ -55,15 +76,16 @@ test("la fila puede contar algo al posar el ratón, sin que sea obligatorio", ()
 });
 
 test("la cabecera de columnas lleva la rejilla que se le pasa, para que cada rótulo caiga sobre su columna", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
+  const html = pintarBloque(
+    {
       columnas: COLUMNAS,
       cabecera: [
         createElement("span", { key: "a" }),
         createElement("span", { key: "b" }, "Pedido"),
         createElement("span", { key: "c" }, "Cliente"),
       ],
-    }, createElement("div", null, "una fila")),
+    },
+    createElement("div", null, "una fila"),
   );
   // Una sola vez: la rejilla de las FILAS la pone quien las pinta, que recibe
   // la misma clase. Aquí solo se reparte a la cabecera.
@@ -74,12 +96,10 @@ test("la cabecera de columnas lleva la rejilla que se le pasa, para que cada ró
 });
 
 test("el bloque que envuelve las filas NO es una rejilla: si lo fuera, dos filas saldrían una al lado de otra", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, { columnas: COLUMNAS }, [
-      createElement("div", { key: "a" }, "fila A"),
-      createElement("div", { key: "b" }, "fila B"),
-    ]),
-  );
+  const html = pintarBloque({ columnas: COLUMNAS }, [
+    createElement("div", { key: "a" }, "fila A"),
+    createElement("div", { key: "b" }, "fila B"),
+  ]);
   // El contenedor `bloque-3d` va con las clases justas. Ponerle `grid` haría
   // que el reparto automático de CSS Grid metiera cada fila en una celda de la
   // misma línea, en vez de una debajo de otra.
@@ -89,11 +109,9 @@ test("el bloque que envuelve las filas NO es una rejilla: si lo fuera, dos filas
 });
 
 test("el rótulo va FUERA del bloque, que es lo que separa un bloque del siguiente", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
-      columnas: COLUMNAS,
-      rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "3 OF" },
-    }, createElement("div", null, "una fila")),
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "3 OF" } },
+    createElement("div", null, "una fila"),
   );
   expect(html.indexOf("Por revisar")).toBeLessThan(html.indexOf("bloque-3d"));
   expect(html).toContain("bg-amber-500");
@@ -101,19 +119,15 @@ test("el rótulo va FUERA del bloque, que es lo que separa un bloque del siguien
 });
 
 test("sin cabecera ni rótulo el bloque no deja huecos vacíos por encima", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, { columnas: COLUMNAS }, createElement("div", null, "x")),
-  );
+  const html = pintarBloque({ columnas: COLUMNAS }, createElement("div", null, "x"));
   expect(html.startsWith("<div")).toBe(true);
   expect(html).not.toContain("text-[11px] font-semibold text-text-muted");
 });
 
 test("un rótulo sin color no pinta un punto: los días del Historial llevan nombre, no color", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
-      columnas: COLUMNAS,
-      rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
-    }, createElement("div", null, "una fila")),
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" } },
+    createElement("div", null, "una fila"),
   );
   expect(html).toContain("Hoy");
   expect(html).toContain("· 3 pedidos");
@@ -121,22 +135,18 @@ test("un rótulo sin color no pinta un punto: los días del Historial llevan nom
 });
 
 test("el título del rótulo alinea por línea base, que es lo que casa con su sufijo de texto", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
-      columnas: COLUMNAS,
-      rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
-    }, createElement("div", null, "x")),
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" } },
+    createElement("div", null, "x"),
   );
   expect(html).toContain("items-baseline");
   expect(html).not.toContain("items-center");
 });
 
 test("con color sí hay punto, y centrado para no caerse sobre la línea base", () => {
-  const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
-      columnas: COLUMNAS,
-      rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "· 3 OF" },
-    }, createElement("div", null, "x")),
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "· 3 OF" } },
+    createElement("div", null, "x"),
   );
   expect(html).toContain("bg-amber-500");
   expect(html).toContain("rounded-full");
