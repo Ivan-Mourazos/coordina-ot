@@ -236,6 +236,12 @@ function SeccionRevision({
           color: dotColor,
           sufijo: `· ${nOF} OF`,
         }}
+        // Antes de unificar las cuatro vistas esto era un <h2> (no hay ningún
+        // <h1> POR ENCIMA de estos rótulos salvo el de la propia pantalla) —
+        // ver `git show main:src/components/RevisionView.tsx`. `BloqueLista`
+        // pinta `h3` por defecto para el Historial, que sí cuelga de un <h2>
+        // intermedio; aquí saltaría de un <h1> a un <h3> sin nada en medio.
+        nivelRotulo="h2"
       >
         {facets.length === 0 ? (
           <p className="px-3 py-3 text-xs text-text-muted">

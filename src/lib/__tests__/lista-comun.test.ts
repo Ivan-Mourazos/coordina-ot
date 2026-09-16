@@ -188,3 +188,21 @@ test("Visitas puede pedir un fondo opaco: descansa sobre la página, sin panel a
   expect(html).toContain("panel-solido");
   expect(html).not.toContain("bloque-3d");
 });
+
+test("el rótulo es un <h3> por defecto, para no tocar el Historial", () => {
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Hoy" } },
+    createElement("div", null, "x"),
+  );
+  expect(html).toContain("<h3");
+  expect(html).not.toContain("<h2");
+});
+
+test("Revisiones puede pedir un <h2>: cuelga de un <h1> sin ningún <h2> por medio", () => {
+  const html = pintarBloque(
+    { columnas: COLUMNAS, rotulo: { texto: "Por revisar" }, nivelRotulo: "h2" },
+    createElement("div", null, "x"),
+  );
+  expect(html).toContain("<h2");
+  expect(html).not.toContain("<h3");
+});

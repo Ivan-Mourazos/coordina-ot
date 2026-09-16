@@ -20,6 +20,7 @@ export function BloqueLista({
   children,
   desbordaHorizontal = false,
   fondoSolido = false,
+  nivelRotulo: Rotulo = "h3",
 }: {
   columnas: string;
   /** Los rótulos de columna, uno por celda de la rejilla. */
@@ -53,15 +54,19 @@ export function BloqueLista({
    *  `bloque-3d` se mezclaba con el gris del fondo, sobre todo en tema claro,
    *  y el bloque no se leía como una tarjeta. `panel-solido` es opaco. */
   fondoSolido?: boolean;
+  /** Nivel del encabezado del rótulo. `h3` por defecto porque el Historial
+   *  cuelga de un `h1` con un `h2` de sección por medio; Revisiones no tiene
+   *  ese `h2` intermedio y pide `h2` directamente para no saltarse un nivel. */
+  nivelRotulo?: "h2" | "h3";
 }) {
   return (
     <div>
       {rotulo && (
-        <h3 className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
+        <Rotulo className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
           {/* El punto SOLO si hay color. Sin él no se pinta un círculo
               transparente que ocupa sitio: los días del Historial llevan
               rótulo pero no color, y les salía un punto gris de la nada.
-              `self-center` porque el <h3> alinea por línea base — que es lo
+              `self-center` porque el rótulo alinea por línea base — que es lo
               que necesitan el título y su sufijo — y un círculo sobre la línea
               base se ve caído. */}
           {(rotulo.color || rotulo.claseDot) && (
@@ -73,7 +78,7 @@ export function BloqueLista({
           )}
           {rotulo.texto}
           {rotulo.sufijo && <span className="font-normal text-text-muted">{rotulo.sufijo}</span>}
-        </h3>
+        </Rotulo>
       )}
       {cabecera && (
         <div
