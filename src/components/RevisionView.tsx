@@ -32,10 +32,12 @@ import { FilaOF } from "./FilaOF";
 // puerta para quitarle el trabajo a un compañero sin avisarle, escondida detrás
 // de una etiqueta que decía "Sin coger".
 //
-// Si alguna llegara sin revisor (un pedido de antes de la web), no se esconde:
-// sale con el desplegable de revisor abierto para ponerle nombre, que es lo que
-// hay que hacer con ella. Cambiar de revisor sigue estando donde estaba, con su
-// nombre y avisando al interesado.
+// Si alguna llegara sin revisor, ya no puede pasar de aquí: /api/estado
+// rechaza guardar una OF en `por_revisar` sin uno (Task 14), y la migración de
+// esa misma tarea devolvió al panel de su autor las que se habían colado antes
+// de esa guarda. Por eso ya no hay aviso de "sin revisor" en esta columna. El
+// selector se queda de todas formas: cambiar de revisor sigue siendo cosa de
+// todos los días, con su nombre y avisando al interesado.
 
 /** Las columnas de una línea de revisión. Literal entera (Tailwind).
  *  chevron · pedido · cliente · nº OF · tiempo · autor→revisor */
@@ -509,12 +511,6 @@ function FilaRevision({
           <div className="flex flex-wrap items-center gap-2">
             {estado === "por_revisar" && (
               <>
-                {sinRevisor.length > 0 && (
-                  <p className="w-full text-[11px] text-text-muted">
-                    {sinRevisor.length === ofs.length ? "Sin revisor" : `${sinRevisor.length} sin revisor`} —
-                    viene de antes de la web. Ponle uno para que pueda empezar.
-                  </p>
-                )}
                 {selectorRevisor}
                 {puedo("empezar_revision") && (
                   <button
