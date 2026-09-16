@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
+import { hoyISO } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
 import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
@@ -9,8 +10,6 @@ import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revis
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
-import { FamiliaIcon } from "./FamiliaTag";
-import { LiveDot } from "./LiveBadge";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { AprobarInline } from "./AprobarInline";
@@ -19,6 +18,7 @@ import { Select, OpDot } from "./Select";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { PedidoCodigo } from "./PedidoCodigo";
+import { FilaOF } from "./FilaOF";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
 // Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
@@ -84,6 +84,9 @@ export function RevisionView({
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
+  // Para el aviso de "material pendiente" de `FilaOF`, la misma que usa
+  // Pendientes: una sola vez aquí arriba y no una por fila.
+  const hoy = hoyISO();
   // Inicializador perezoso (no setState síncrono en efecto): mismo patrón
   // que Board.tsx usa para leer la identidad guardada.
   const [alcance, setAlcanceState] = useState<Alcance>(leerAlcanceGuardado);
@@ -187,6 +190,7 @@ export function RevisionView({
             operarios={operarios}
             miId={miId}
             causas={causas}
+            hoy={hoy}
             onOpen={onOpen}
             onCambiarRevisor={onCambiarRevisor}
             onAccion={onAccion}
@@ -209,6 +213,7 @@ function SeccionRevision({
   operarios,
   miId,
   causas,
+  hoy,
   onOpen,
   onCambiarRevisor,
   onAccion,
@@ -221,6 +226,7 @@ function SeccionRevision({
   operarios: Operario[];
   miId: string;
   causas: CausaDevolucion[];
+  hoy: string;
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -256,6 +262,7 @@ function SeccionRevision({
               operarios={operarios}
               miId={miId}
               causas={causas}
+              hoy={hoy}
               onOpen={() => onOpen(f.pedido)}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
@@ -317,6 +324,7 @@ function FilaRevision({
   operarios,
   miId,
   causas,
+  hoy,
   onOpen,
   onCambiarRevisor,
   onAccion,
@@ -329,6 +337,8 @@ function FilaRevision({
    *  cara en positivo) y las píldoras del cuadro de devolver, unas y otras
    *  acotadas a las familias del pedido. */
   causas: CausaDevolucion[];
+  /** Para el aviso de "material pendiente" de `FilaOF`. */
+  hoy: string;
   onOpen: () => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
@@ -477,33 +487,12 @@ function FilaRevision({
       }
       detalle={
         <div className="space-y-2">
-          {/* Las OF del grupo, con lo que las distingue una de otra. */}
-          <ul className="space-y-1">
+          {/* Las OF del grupo, con la misma pinta que en Pendientes: mismo
+              componente, mismo dato ("¿en qué anda esta OF?"), un solo sitio
+              que mantener en vez de una `<ul>` propia con menos información. */}
+          <ul className="space-y-1.5">
             {ofs.map((of) => (
-              <li key={of.id} className="flex items-center gap-2 text-[11px]">
-                <FamiliaIcon familia={of.familia} className="size-3.5 shrink-0" />
-                <span className="shrink-0 font-mono text-text-muted">{of.codigo}</span>
-                <span className="min-w-0 flex-1 truncate text-text" title={of.descripcion}>
-                  {of.descripcion}
-                </span>
-                {of.fichandoRol && (
-                  <span
-                    title={of.fichandoRol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
-                    className="inline-flex shrink-0"
-                  >
-                    <LiveDot rol={of.fichandoRol} className="size-1.5" />
-                  </span>
-                )}
-                <span className="flex shrink-0 items-center gap-1">
-                  <Avatar op={operarios.find((o) => o.id === of.autorId)} title="Autor" />
-                  {of.revisorId && (
-                    <>
-                      <span className="text-text-muted">→</span>
-                      <Avatar op={operarios.find((o) => o.id === of.revisorId)} title="Revisor" />
-                    </>
-                  )}
-                </span>
-              </li>
+              <FilaOF key={of.id} of={of} operarios={operarios} hoy={hoy} />
             ))}
           </ul>
 
