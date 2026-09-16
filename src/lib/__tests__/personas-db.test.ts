@@ -37,6 +37,20 @@ test("Ángel lleva los dos roles, porque hace las dos cosas", () => {
   expect(db.leerPersonas("supervisor").map((p) => p.id)).toContain("angel");
 });
 
+test("Iván también supervisa: resetear un PIN no puede colgar de una sola cuenta", () => {
+  // El rol solo sirve para resetearle el PIN a otro. Con un único supervisor,
+  // el día que se atasque SU cuenta no queda nadie dentro que la desatasque.
+  expect(db.leerPersona("ivan")?.roles).toEqual(["tecnico", "supervisor"]);
+  expect(db.leerPersonas("supervisor").map((p) => p.id)).toContain("ivan");
+});
+
+test("el resto del equipo NO supervisa", () => {
+  // Resetearle el PIN a alguien y entrar en su nombre es lo mismo: el rol se da
+  // a quien tiene que arreglar la herramienta, no a todo el que la usa.
+  expect(db.leerPersona("tamara")?.roles).toEqual(["tecnico"]);
+  expect(db.leerPersonas("supervisor").map((p) => p.id)).not.toContain("tamara");
+});
+
 test("los supervisores puros nacen desactivados y no salen en ninguna lista", () => {
   // Sus pantallas (fases 2 y 3) están aplazadas: si entraran hoy no tendrían
   // nada que mirar. La fila existe para no tener que migrar el día que se abran.

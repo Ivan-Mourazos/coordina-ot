@@ -151,7 +151,7 @@ test("GET /api/sesion dice quién eres, y null si no eres nadie", async () => {
     }),
   );
   expect((await con.json()) as { yo: { id: string } }).toEqual({
-    yo: { id: "ivan", nombre: "Iván", roles: ["tecnico"] },
+    yo: { id: "ivan", nombre: "Iván", roles: ["tecnico", "supervisor"] },
   });
 });
 
@@ -177,9 +177,26 @@ test("resetear un PIN lo puede hacer un supervisor, y nadie más", async () => {
 
   expect((await pide()).status).toBe(401);
   // Un técnico a secas, no: resetearle el PIN a otro es entrar en su nombre.
-  expect((await pide(`coordina_sesion=${s.firmarSesion("ivan")}`)).status).toBe(403);
+  // Jaime y no Iván: Iván supervisa también, desde la migración 9.
+  expect((await pide(`coordina_sesion=${s.firmarSesion("jaime")}`)).status).toBe(403);
   expect(personas.leerPersona("tamara")?.sinPin).toBe(false);
 
   expect((await pide(`coordina_sesion=${s.firmarSesion("angel")}`)).status).toBe(200);
+  expect(personas.leerPersona("tamara")?.sinPin).toBe(true);
+});
+
+test("y también Iván, que es el otro supervisor", async () => {
+  // Los dos y no uno: el que resetea es el único que puede desatascar a quien
+  // olvidó su PIN, así que con una sola cuenta el día que se atasque ESA no
+  // queda nadie dentro que pueda arreglarlo.
+  personas.ponerPin("tamara", "1704");
+  const res = await personasRuta.PATCH(
+    new Request("http://x/api/personas", {
+      method: "PATCH",
+      headers: { cookie: `coordina_sesion=${s.firmarSesion("ivan")}` },
+      body: JSON.stringify({ id: "tamara" }),
+    }),
+  );
+  expect(res.status).toBe(200);
   expect(personas.leerPersona("tamara")?.sinPin).toBe(true);
 });

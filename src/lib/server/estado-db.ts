@@ -439,6 +439,10 @@ const MIGRACIONES: ReadonlyArray<{
   // suyo la primera vez que entra. Ver ponerPin en server/personas-db.ts.
   { version: 7, nombre: "personas", aplicar: personas },
   { version: 8, nombre: "pasos_por_seccion", aplicar: pasosPorSeccion },
+  // Iván pasa a supervisor además de técnico. No es un ascenso: el rol solo
+  // sirve para resetearle el PIN a alguien, y hasta hoy eso colgaba de una
+  // sola cuenta —la de Ángel—, que es la que no puede arreglarse a sí misma.
+  { version: 9, nombre: "roles_de_supervisor", aplicar: rolesDeSupervisor },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -586,6 +590,19 @@ function causasPorFamilia(db: Database.Database): void {
   sembrar(PUNTOS_DE_LONA, "LONA");
 }
 
+/** Quién puede resetearle el PIN a otro.
+ *
+ *  Ángel porque supervisa además de revisar, e Iván porque lleva la web. Los
+ *  dos y no uno: el que resetea es el único que puede desatascar a alguien que
+ *  olvidó su PIN, así que con una sola cuenta el día que se atasque ESA no
+ *  queda nadie dentro que pueda arreglarlo — habría que abrir la base a mano
+ *  con gente esperando (para eso está `pnpm pin:resetear`, pero eso ya es
+ *  consola en el servidor).
+ *
+ *  A Iván no le da poder que no tuviera: ya tiene la base entera. Lo que
+ *  cambia es que ahora lo hace desde la pantalla, con la persona delante. */
+const SUPERVISORES = new Set(["angel", "ivan"]);
+
 /** Crea la tabla de personas y siembra a quien ya existe.
  *
  *  Los ids son LOS DE SIEMPRE (los de mock.ts): fichajes, autorías, notas,
@@ -629,9 +646,7 @@ function personas(db: Database.Database): void {
     ["smith", "Smith", "diseno"],
   ];
   for (const [id, nombre, seccion] of tecnicos) {
-    // Ángel supervisa además de revisar, y es quien resetea PINs mientras las
-    // pantallas de supervisión sigan aplazadas.
-    const roles = id === "angel" ? "tecnico,supervisor" : "tecnico";
+    const roles = SUPERVISORES.has(id) ? "tecnico,supervisor" : "tecnico";
     ins.run(id, nombre, roles, seccion, 1);
   }
 
@@ -640,6 +655,29 @@ function personas(db: Database.Database): void {
   // el día que se abra no haya que migrar nada, solo poner activo = 1.
   for (const [id, nombre] of [["cris", "Cris"], ["carlos", "Carlos"], ["esteban", "Esteban"]]) {
     ins.run(id, nombre, "supervisor", null, 0);
+  }
+}
+
+/** Da el rol de supervisor a quien le toca y todavía no lo tenga.
+ *
+ *  La siembra de la migración 7 solo entra en una base nueva (`INSERT OR
+ *  IGNORE`), y producción ya la pasó hace tiempo: sin esto, cambiar
+ *  `SUPERVISORES` no le cambiaría el rol a nadie allí y habría que correr el
+ *  `UPDATE` a mano el día de encender el login.
+ *
+ *  Se puede repetir sin estropear nada: solo AÑADE el rol que falta, sobre los
+ *  que la fila ya tenga. Nunca reescribe la lista entera, que se llevaría por
+ *  delante un rol puesto a mano. */
+function rolesDeSupervisor(db: Database.Database): void {
+  const leer = db.prepare("SELECT roles FROM persona WHERE id = ?");
+  const guardar = db.prepare("UPDATE persona SET roles = ? WHERE id = ?");
+  for (const id of SUPERVISORES) {
+    const fila = leer.get(id) as { roles: string } | undefined;
+    if (!fila) continue;
+    const roles = fila.roles.split(",").map((r) => r.trim()).filter(Boolean);
+    if (roles.includes("supervisor")) continue;
+    roles.push("supervisor");
+    guardar.run(roles.join(","), id);
   }
 }
 
