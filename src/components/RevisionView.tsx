@@ -96,8 +96,8 @@ export function RevisionView({
   const mias = alcance === "mias";
 
   // Las causas, una sola vez para toda la pantalla: de ellas salen la guía de
-  // cada tarjeta (su cara en positivo) y las píldoras del cuadro de devolver.
-  // Pedirlas por tarjeta serían decenas de consultas para la misma lista.
+  // cada fila (su cara en positivo) y las píldoras del cuadro de devolver.
+  // Pedirlas por fila serían decenas de consultas para la misma lista.
   const [causas, setCausas] = useState<CausaDevolucion[]>([]);
   useEffect(() => {
     let vivo = true;
@@ -319,7 +319,7 @@ function FilaRevision({
   estado: EstadoOF;
   operarios: Operario[];
   miId: string; // Viene de RevisionView, ya identificado — ver su comentario.
-  /** Todas las que se ofrecen hoy. De aquí salen la guía de esta tarjeta (su
+  /** Todas las que se ofrecen hoy. De aquí salen la guía de esta fila (su
    *  cara en positivo) y las píldoras del cuadro de devolver, unas y otras
    *  acotadas a las familias del pedido. */
   causas: CausaDevolucion[];
