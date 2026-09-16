@@ -57,7 +57,10 @@
   function BloqueLista(props: {
     columnas: string;
     cabecera?: React.ReactNode;
-    rotulo?: { texto: string; color?: string; claseDot?: string; sufijo?: React.ReactNode };
+    /** Sin `color` ni `claseDot` no se pinta punto: un rótulo puede ser solo un
+   *  nombre (los días del Historial) y un círculo transparente ocuparía sitio
+   *  sin decir nada. */
+  rotulo?: { texto: string; color?: string; claseDot?: string; sufijo?: React.ReactNode };
     children: React.ReactNode;
   }): JSX.Element
 
@@ -479,15 +482,24 @@ En el `return` de `HistorialView`, sustituir el `<div className="flex flex-col g
 
 ```tsx
       <div className="flex flex-col gap-3">
+        {/* La cabecera de columnas, UNA vez y encima de todo: es el rótulo de
+            la lista entera, no de un día. Metida dentro del primer bloque
+            saldría DEBAJO de su título —`BloqueLista` pinta el rótulo primero—
+            y con otra separación. Por eso no se le pasa a `BloqueLista` aquí. */}
+        {itemsVisibles.length > 0 && (
+          <div aria-hidden="true" className={`${columnas} px-3 text-[11px] font-semibold text-text-muted`}>
+            {cabeceraColumnas}
+          </div>
+        )}
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
+                {/* SIN `claseDot`: el día lleva nombre, no color. `BloqueLista`
+                    solo pinta el punto cuando hay uno de los dos. */}
                 <BloqueLista
                   columnas={columnas}
-                  cabecera={i === 0 ? cabeceraColumnas : undefined}
                   rotulo={{
                     texto: dia.titulo,
-                    claseDot: "bg-border-strong",
                     sufijo: (
                       <>
                         · {dia.total ?? dia.items.length}
@@ -504,9 +516,7 @@ En el `return` de `HistorialView`, sustituir el `<div className="flex flex-col g
               </section>
             ))
           : itemsVisibles.length > 0 && (
-              <BloqueLista columnas={columnas} cabecera={cabeceraColumnas}>
-                {itemsVisibles.map(fila)}
-              </BloqueLista>
+              <BloqueLista columnas={columnas}>{itemsVisibles.map(fila)}</BloqueLista>
             )}
       </div>
 ```
