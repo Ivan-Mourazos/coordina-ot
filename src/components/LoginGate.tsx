@@ -164,8 +164,12 @@ function TecladoPin({
   const [repetido, setRepetido] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // El alta, con los dos PIN ya tecleados y coincidiendo, esperando a que
+  // alguien diga que es él. Ver `porConfirmar` más abajo.
+  const [porConfirmar, setPorConfirmar] = useState<string | null>(null);
   const cara = pinta(persona);
   const primerDigitoRef = useRef<HTMLButtonElement>(null);
+  const noSoyYoRef = useRef<HTMLButtonElement>(null);
 
   // Al elegir persona el foco se quedaba en el botón de la rejilla que ya no
   // está: quien navega con teclado tenía que ir a buscar el teclado a mano.
@@ -175,6 +179,13 @@ function TecladoPin({
   useEffect(() => {
     primerDigitoRef.current?.focus();
   }, []);
+
+  // Al aparecer la confirmación, el foco va a «No soy yo» y no al de confirmar:
+  // quien llegue aquí con el teclado y pulse Intro por inercia sale, que es el
+  // lado seguro de equivocarse.
+  useEffect(() => {
+    if (porConfirmar) noSoyYoRef.current?.focus();
+  }, [porConfirmar]);
 
   // Con PIN puesto se teclea uno; sin PIN, dos (lo está eligiendo).
   const segundoPaso = persona.sinPin && pin.length === PIN_LARGO;
@@ -217,6 +228,7 @@ function TecladoPin({
     // pulsar Entrar otra vez con lo mismo.
     setPin("");
     setRepetido("");
+    setPorConfirmar(null);
     setEnviando(false);
   }
 
@@ -228,18 +240,81 @@ function TecladoPin({
     // Al cuarto dígito se entra solo, sin pulsar nada más. Salvo en el alta,
     // donde falta la segunda vuelta.
     if (persona.sinPin && !segundoPaso) return;
+    // Y salvo el alta entera: ahí se pregunta primero de quién es el PIN que se
+    // va a crear. Pulsar la cara equivocada y seguir tecleando deja a un
+    // compañero sin poder entrar hasta que un supervisor se lo resetee, y quien
+    // teclea mira el teclado, no el nombre de la cabecera. Cuando los dos PIN
+    // NO coinciden no se pregunta nada: eso lo contesta el servidor, y la
+    // pantalla no tiene por qué saberse la regla.
+    if (persona.sinPin && nuevo === pin) {
+      setPorConfirmar(nuevo);
+      return;
+    }
     void entrar(segundoPaso ? pin : nuevo, segundoPaso ? nuevo : "");
+  }
+
+  const laCara = (
+    <span
+      className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
+      style={{ background: cara.color }}
+    >
+      {cara.iniciales}
+    </span>
+  );
+
+  // ── El alta, antes de guardar ──────────────────────────────────────────────
+  // El único paso de toda la pantalla que se para a preguntar. Con PIN ya
+  // puesto no hace falta: equivocarse de cara ahí solo da "No es correcto" y no
+  // le rompe nada a nadie. En el alta, en cambio, el primer PIN que se teclea
+  // para un nombre se acepta como bueno, lo teclee quien lo teclee.
+  if (porConfirmar) {
+    return (
+      <>
+        <div className="mb-5 flex flex-col items-center gap-2">
+          {laCara}
+          <p className="text-lg font-semibold text-text">{persona.nombre}</p>
+        </div>
+        <div className="glass-panel mx-auto max-w-sm rounded-2xl p-5 text-center">
+          <p className="text-base font-semibold text-text">
+            Vas a crear el PIN de {persona.nombre}.
+          </p>
+          <p className="mt-2 text-sm text-text-muted">
+            Si no eres {persona.nombre}, se quedará sin poder entrar hasta que alguien se
+            lo resetee.
+          </p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button
+              ref={noSoyYoRef}
+              onClick={() => {
+                // Los dígitos se van con él: dejarlos puestos sería dejar el PIN
+                // de alguien a medio teclear para el siguiente que se siente.
+                setPorConfirmar(null);
+                setPin("");
+                setRepetido("");
+                onVolver();
+              }}
+              disabled={enviando}
+              className="glass-panel rounded-xl px-5 py-3 text-sm font-semibold text-text hover:border-brand-400 disabled:opacity-50"
+            >
+              No soy yo
+            </button>
+            <button
+              onClick={() => void entrar(porConfirmar, porConfirmar)}
+              disabled={enviando}
+              className="rounded-xl bg-brand-400 px-5 py-3 text-sm font-bold text-white shadow hover:brightness-110 disabled:opacity-50"
+            >
+              Sí, soy yo
+            </button>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
     <>
       <div className="mb-4 flex flex-col items-center gap-2">
-        <span
-          className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
-          style={{ background: cara.color }}
-        >
-          {cara.iniciales}
-        </span>
+        {laCara}
         <p className="text-lg font-semibold text-text">{persona.nombre}</p>
         <p className="text-sm text-text-muted">
           {!persona.sinPin
