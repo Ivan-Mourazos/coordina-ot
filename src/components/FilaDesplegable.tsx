@@ -61,7 +61,22 @@ export function FilaDesplegable({
           aria-controls={idDetalle}
           aria-label={`${abierta ? "Plegar" : "Desplegar"} ${etiqueta}`}
           title={titulo}
-          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
+          // Este botón toca los cuatro bordes de la fila (`inset-0`), y el
+          // foco de teclado de toda la app sale hacia FUERA
+          // (`outline-offset: 1px`, en globals.css): el anillo caía justo
+          // encima del borde de `BloqueLista`, que lo recorta con
+          // `overflow-hidden` por los lados, y arriba y abajo en la primera y
+          // la última fila. Con offset negativo el anillo se dibuja hacia
+          // DENTRO, donde nada lo recorta.
+          //
+          // El `!` final NO es estético, es necesario: esa regla de
+          // globals.css es CSS suelto, fuera de cualquier `@layer`, y Tailwind
+          // v4 mete sus propias utilidades EN capas — en la cascada, lo suelto
+          // gana siempre a lo que vive en una capa, aunque tenga menos
+          // especificidad. Sin el `!` esta clase compila pero no hace nada:
+          // se comprobó en el navegador con getComputedStyle (`outlineOffset`
+          // se quedaba en "1px").
+          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10 focus-visible:outline-offset-[-2px]!"
         />
         <span
           aria-hidden="true"
