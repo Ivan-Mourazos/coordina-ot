@@ -797,7 +797,7 @@ function Estado({ tramos }: { tramos: TramoEstado[] }) {
 function EtiquetaListo() {
   return (
     <span
-      className="rounded bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300"
+      className={`rounded bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase dark:bg-cyan-400/15 ${ESTADO.aprobada.texto}`}
       title="Todas sus OF están aprobadas: solo falta pasarlo a Producción."
     >
       Listo para Producción

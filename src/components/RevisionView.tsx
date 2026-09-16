@@ -460,7 +460,9 @@ function FilaRevision({
               listo, la sección no serviría para nada.
               Las seis columnas de arriba se quedan como están. */}
           {estado === "aprobada" && (
-            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+            <span
+              className={`pointer-events-none col-span-full pb-0.5 text-[11px] font-medium ${ESTADO.aprobada.texto}`}
+            >
               {pedidoListoParaPasar(pedido)
                 ? "✓ Pedido listo para pasar a Producción"
                 : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
