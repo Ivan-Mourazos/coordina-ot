@@ -15,7 +15,7 @@ import {
 } from "@/lib/types";
 import { ESTADO, fmtMin, PRIORIDAD, ROL } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
-import { estadoDePedido } from "@/lib/frase-estado";
+import { estadoDePedido, type TramoEstado } from "@/lib/frase-estado";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
 import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import type { OrdenLista } from "@/lib/filtros";
@@ -475,6 +475,10 @@ export function ListaView({
           const hecho = estaFinalizado(p);
           const pendienteProc = p.situacion === "pendiente";
           const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
+          // Una sola vez por fila: la columna de estado pinta los tramos y la
+          // celda de identidad pinta "Listo para Producción" cuando toca (ver
+          // el comentario junto a ese texto, más abajo).
+          const { tramos, listoParaPasar } = estadoDePedido(p, nombrePorId);
           return (
             <FilaDesplegable
               key={p.id}
@@ -515,6 +519,14 @@ export function ListaView({
                       {familiasDe(p).map((f) => (
                         <FamiliaTag key={f} familia={f} />
                       ))}
+                      {/* SUBIÓ desde la columna de estado (ver el comentario que
+                          llevaba allí, y por qué cambia aquí, en `EtiquetaListo`
+                          más abajo). Va AL FINAL de la línea, después de las
+                          familias: es la última pieza que se lee ("de qué es, y
+                          ya está listo"), y así nunca se interpone entre el
+                          código y ellas cuando el ancho aprieta — con
+                          `flex-wrap` lo que no cabe baja de línea, no tapa. */}
+                      {listoParaPasar && <EtiquetaListo />}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-text-muted">
                       <span
@@ -543,7 +555,7 @@ export function ListaView({
                     </div>
                   </div>
                   <div className="pointer-events-none min-w-0">
-                    <Estado pedido={p} nombrePorId={nombrePorId} />
+                    <Estado tramos={tramos} />
                   </div>
                   {/* Terminado = el recorrido ya no dice nada: el pedido no se
                       mueve más. Se apaga entero en vez de teñir media lista de
@@ -720,16 +732,15 @@ function OFRowLista({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy
  *  Sustituye a tres columnas —avatares de autor y revisor, fase y minutos— que
  *  contaban a trozos algo que en el taller se dice de corrido: "lo planteó
  *  Iván, 25 minutos, y lo tiene Tamara para revisar". Los tramos los arma
- *  `estadoDePedido`, que está probado aparte; aquí solo se pintan. */
-function Estado({
-  pedido,
-  nombrePorId,
-}: {
-  pedido: Pedido;
-  nombrePorId: (id: string) => string;
-}) {
-  const { tramos, listoParaPasar } = estadoDePedido(pedido, nombrePorId);
-
+ *  `estadoDePedido`, que está probado aparte; aquí solo se pintan.
+ *
+ *  YA NO PINTA "Listo para Producción": ese texto solo salía cuando no
+ *  quedaban tramos que contar, y era el único motivo por el que un pedido
+ *  terminado gastaba tres renglones en esta columna —dos de gente y uno de
+ *  cierre— frente a los dos de la celda de identidad. Ahora vive arriba, junto
+ *  al código (ver `EtiquetaListo`), y esta columna se queda solo con los
+ *  tramos: como mucho dos renglones, uno por rol. */
+function Estado({ tramos }: { tramos: TramoEstado[] }) {
   return (
     <span className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
       {tramos.map((t) => (
@@ -766,22 +777,30 @@ function Estado({
           )}
         </span>
       ))}
-      {/* El estado del PEDIDO, que no es de nadie: "Revisado" dice que el
-          revisor terminó lo suyo, no que el parte esté listo — en uno de cuatro
-          OF puede haber una revisada y tres sin empezar. Esto solo sale cuando
-          ya no queda nada, y es lo que hay que ver para pasarlo a Producción.
-          En el cian de `aprobada`, el mismo de toda la app. */}
-      {listoParaPasar && (
-        <span
-          // Sin fondo, como los verbos de los tramos: la columna entera se lee
-          // como texto y una pastilla suelta aquí abajo destacaría más que el
-          // trabajo que sí hay que atender.
-          className="font-semibold text-cyan-700 dark:text-cyan-300"
-          title="Todas sus OF están aprobadas: solo falta pasarlo a Producción."
-        >
-          Listo para Producción
-        </span>
-      )}
+    </span>
+  );
+}
+
+/** "Listo para Producción": todas las OF que cuentan están aprobadas y solo
+ *  falta la acción de pasarlo. Antes vivía al final de la columna de estado, y
+ *  el comentario que llevaba explicaba por qué SIN fondo: ahí abajo los
+ *  verbos de los tramos ("Planteando", "Revisado"…) tampoco llevan pastilla, y
+ *  una suelta habría destacado más que el trabajo que sí queda por hacer.
+ *
+ *  Aquí arriba el argumento se invierte. Esta línea ya no es una columna de
+ *  texto corrido: es donde viven la barra de prioridad, el código, el nº de
+ *  OF y las FAMILIAS, que sí son chips de color (`FamiliaTag`). Sin fondo,
+ *  "Listo para Producción" se perdería entre ellas justo cuando es un pedido
+ *  entero —no una OF— el que ha terminado, que es la única vez que sale. Con
+ *  el mismo dibujo de pastilla que ya usan "Detenida" o "Taller" más abajo en
+ *  el detalle, y el cian de `aprobada`, el mismo de toda la app. */
+function EtiquetaListo() {
+  return (
+    <span
+      className="rounded bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300"
+      title="Todas sus OF están aprobadas: solo falta pasarlo a Producción."
+    >
+      Listo para Producción
     </span>
   );
 }

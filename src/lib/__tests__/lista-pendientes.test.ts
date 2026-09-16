@@ -65,3 +65,25 @@ test("un pedido sin procesar se lee entero: lo dice su píldora, no una fila apa
   expect(html).toContain("Sin procesar");
   expect(html).not.toContain("opacity-60");
 });
+
+test("un pedido listo para pasar lo dice ARRIBA, junto al código, no en la columna de estado", () => {
+  // AR.26.05508 trae una sola OF y ya está "aprobada": todo el pedido está
+  // listo para pasar a Producción.
+  const pedido = PEDIDOS.find((p) => p.codigo === "AR.26.05508")!;
+  const html = pintar([pedido]);
+  expect(html).toContain("Listo para Producción");
+  // La celda de identidad pinta el cliente en su SEGUNDO renglón; si "Listo
+  // para Producción" sale antes que el cliente, es que sigue en el primero,
+  // junto al código y las familias — no ha bajado a la columna del medio, que
+  // en el HTML viene después de que la celda de identidad se cierre entera.
+  expect(html.indexOf("Listo para Producción")).toBeLessThan(html.indexOf(pedido.cliente));
+});
+
+test("sin nada pendiente, la columna de estado se queda en dos renglones como mucho: uno por rol", () => {
+  const pedido = PEDIDOS.find((p) => p.codigo === "AR.26.05508")!;
+  const html = pintar([pedido]);
+  // Antes "Listo para Producción" era un tercer renglón AQUÍ, y con una sola
+  // OF aprobada el tramo de planteo ("Planteado") y el de revisión
+  // ("Revisado") ya son los únicos dos que puede haber.
+  expect((html.match(/Planteado|Revisado/g) ?? []).length).toBe(2);
+});
