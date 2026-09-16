@@ -1041,17 +1041,16 @@ Y sustituir el `return (…)` entero por:
       idDetalle={`revision-${estado}-${pedido.id}`}
       celdas={
         <>
-          {/* El código abre la ficha; el resto de la línea despliega. Hermanos,
-              no anidados: un clic produce una sola acción. */}
-          <span className="pointer-events-auto min-w-0">
-            <button
-              type="button"
-              onClick={onOpen}
-              title={`Abrir la ficha de ${pedido.codigo}`}
-              className="font-mono text-xs font-bold text-text underline-offset-2 hover:underline"
-            >
-              {pedido.codigo}
-            </button>
+          {/* El código abre la ficha; el resto de la línea despliega.
+              CON `PedidoCodigo` Y NO CON UN BOTÓN PROPIO. Ese componente lleva
+              `relative z-10`, y sin él el clic no llega nunca: el botón de
+              cubierta de `FilaDesplegable` está posicionado (`absolute`), así
+              que se pinta por encima de los hermanos que no lo están aunque
+              vaya antes en el DOM. `pointer-events-auto` a secas no basta —son
+              hermanos, no padre e hijo—. El botón se vería perfectamente y no
+              haría nada. */}
+          <span className="min-w-0">
+            <PedidoCodigo codigo={pedido.codigo} onAbrir={onOpen} />
           </span>
           <span
             className="pointer-events-none min-w-0 truncate text-[11px] text-text-muted"
@@ -1081,6 +1080,23 @@ Y sustituir el `return (…)` entero por:
               </>
             )}
           </span>
+          {/* EL ESTADO DEL PEDIDO, EN LA FILA Y NO EN EL DETALLE. Es lo que se
+              busca al recorrer esta lista: si hubiera que abrir cada línea para
+              saber si un pedido ya está listo, la sección no serviría para lo
+              único que sirve. `col-span-full` lo manda a una segunda línea de
+              la misma rejilla, así que las seis columnas de arriba no se tocan. */}
+          {estado === "aprobada" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+              {pedidoListoParaPasar(pedido)
+                ? "✓ Pedido listo para pasar a Producción"
+                : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
+            </span>
+          )}
+          {estado === "devuelta" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] text-text-muted">
+              ↩ Vuelve al autor
+            </span>
+          )}
         </>
       }
       detalle={
@@ -1183,16 +1199,8 @@ Y sustituir el `return (…)` entero por:
                 )}
               </>
             )}
-            {estado === "aprobada" && (
-              <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
-                {pedidoListoParaPasar(pedido)
-                  ? "✓ Pedido listo para pasar a Producción"
-                  : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
-              </span>
-            )}
-            {estado === "devuelta" && (
-              <span className="text-[11px] text-text-muted">↩ Vuelve al autor</span>
-            )}
+            {/* El estado del pedido NO va aquí: vive en la fila, siempre
+                visible (ver la séptima celda de `celdas`). */}
           </div>
         </div>
       }
