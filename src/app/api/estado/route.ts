@@ -77,6 +77,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "cambiosOF inválidos" }, { status: 400 });
   if (cambios.length === 0 && !body.completarPedidoId)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
+  // Decisión de Iván (Task 14): una OF en revisión SIEMPRE tiene revisor, o
+  // vuelve al panel de su autor — nunca se queda en tierra de nadie. El botón
+  // de "Pasar a revisión" ya lo exige (PedirRevisor.tsx no deja confirmar sin
+  // elegir uno), pero esa es solo la pantalla: sin esta guarda, cualquier
+  // llamada a esta ruta que se saltara ese paso —un bug, una prueba, un
+  // cliente futuro— podía dejar una OF "por_revisar" sin nadie que la
+  // empezara ni la buscara.
+  if (cambios.some((c) => c.estado === "por_revisar" && c.revisorId === null))
+    return NextResponse.json(
+      { error: "Una OF no puede pasar a revisión sin revisor nombrado." },
+      { status: 400 },
+    );
   // «Dar por terminada en RPS» NO se guarda por aquí: su ruta es POST
   // /api/fases/cerrar-of, que corta el reloj y escribe en RPS ANTES de marcar.
   // Aceptarla aquí dejaría la OF apartada como cerrada sin que RPS se enterase.
