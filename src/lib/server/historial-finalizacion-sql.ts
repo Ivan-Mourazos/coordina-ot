@@ -5,12 +5,6 @@ import { recursosSql, SECCIONES, type SeccionId } from "../secciones";
  *  El filtro de búsqueda ya viene parametrizado por construirFiltros. */
 export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string): string {
   const recursos = recursosSql(SECCIONES[seccion]);
-  // En RPS el primer fichaje puede poner PercentProgress=100. Fuera del
-  // rescate histórico de OT exigimos el cierre de fase, no ese porcentaje.
-  // Los pedidos vivos de CoordinaOT se excluyen antes, incluso aprobados.
-  const rescateOt = seccion === "ot"
-    ? "r.IDMOTask IS NOT NULL AND COALESCE(t.Description,'') NOT LIKE 'PLANTEAR EN TALLER%' AND t.PercentProgress >= 100"
-    : "1=0";
   return `
     IF OBJECT_ID('tempdb..#CoordinaHistorialPedidos') IS NOT NULL DROP TABLE #CoordinaHistorialPedidos;
     IF OBJECT_ID('tempdb..#CoordinaHistorialOrdenes') IS NOT NULL DROP TABLE #CoordinaHistorialOrdenes;
@@ -74,10 +68,32 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
         -- en fábrica aunque quede algo de antes abierto por olvido.
         CASE WHEN fz.IDMOTask IS NOT NULL
           OR UPPER(COALESCE(t.Description,'')) LIKE '%FINALIZ%' THEN 1 ELSE 0 END AS es_fin,
-        CASE WHEN e.fin IS NOT NULL OR (${rescateOt}) THEN 1 ELSE 0 END AS terminada,
-        COALESCE(e.fin, CASE WHEN ${rescateOt}
-          AND t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day,1,GETDATE())
-          THEN t.RealEndDate END) AS fin
+        -- TERMINADA: el cierre de fase en OLANET, o lo que diga RPS.
+        --
+        -- OLANET sincroniza con RPS, pero RPS no sincroniza con OLANET: cuando
+        -- Producción cierra a mano una fase que alguien dejó sin finalizar, o
+        -- anula trabajo que al final no se hace, eso se escribe SOLO en RPS y
+        -- tgm_estadosof_olanet no se entera nunca. Mirando solo OLANET, esas
+        -- tareas quedaban abiertas para siempre: de 3.641 pedidos entregados
+        -- entre 2023 y 2026 con "tareas sin finalizar", 3.607 ya estaban
+        -- cerrados en RPS y solo 34 seguían abiertos de verdad (16/09/2026).
+        --
+        -- Las señales, medidas sobre las 122.089 tareas con centro desde 2023:
+        --  · RealEndDate: la fecha de fin real. Nunca aparece sin que la tarea
+        --    esté al 100 %, y recoge lo mismo que el viejo rescate por
+        --    porcentaje (297 tareas de OT frente a 298) sin sus falsos: hay
+        --    20.804 tareas al 100 % que NO han cerrado, porque el primer
+        --    fichaje ya pone el porcentaje.
+        --  · FINALIZADA (situación 6): la OF entera rematada en RPS. Rescata
+        --    otras 112 de OT, 52 de Diseño y 1.324 de taller.
+        --  · DETENIDA (situación 7): anulada o trabajo que no se llega a
+        --    hacer. No es un final, pero tampoco queda nadie esperándola, y
+        --    por eso no lleva FECHA de fin: solo deja de estar pendiente.
+        CASE WHEN e.fin IS NOT NULL OR sit.CodSituation IN ('6','7')
+          OR (t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day,1,GETDATE()))
+          THEN 1 ELSE 0 END AS terminada,
+        COALESCE(e.fin, CASE WHEN t.RealEndDate > '2000-01-01'
+          AND t.RealEndDate < DATEADD(day,1,GETDATE()) THEN t.RealEndDate END) AS fin
       FROM dbo.CPRManufacturingOrder mo
       ${busqueda ? "JOIN #CoordinaHistorialOrdenes candidatas ON candidatas.IDManufacturingOrder=mo.IDManufacturingOrder" : ""}
       LEFT JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder=mo.IDManufacturingOrder
@@ -85,6 +101,10 @@ export function ctesFinalizacionHistorial(seccion: SeccionId, busqueda?: string)
       LEFT JOIN Centros c ON c.IDMOTask=t.IDMOTask
       LEFT JOIN Finalizacion fz ON fz.IDMOTask=t.IDMOTask
       LEFT JOIN FinFase e ON e.orden=mo.CodManufacturingOrder AND e.fase=t.CodMOTask
+      -- Por CodSituation y no por IDMOSituation: el id es de la empresa
+      -- ("001-36") y el código es el de RPS, el mismo en cualquier compañía.
+      LEFT JOIN dbo.CPRManufacturingOrderSituation sit
+        ON sit.IDManufacturingOrderSituation=mo.IDMOSituation
       WHERE mo.CodCompany='001'
     ), ResumenOF AS (
       SELECT IDManufacturingOrder, MAX(de_seccion) AS tiene_seccion,

@@ -23,12 +23,15 @@ vi.mock("../src/lib/server/db", async (importOriginal) => {
           // La consulta REAL se ejecuta contra tablas temporales de esta llamada.
           // Ninguna tabla, fila ni marca de producción se escribe.
           const tablas = {
-            CPRMOResourceMachine: "IDMOTask int, CodMOResourceMachine nvarchar(20)",
+            CPRMOResourceMachine: "IDMOTask int, CodMOResourceMachine nvarchar(20), Description nvarchar(80)",
             tgm_estadosof_olanet: "orden nvarchar(20), fase nvarchar(20), idestadoof int, fecha_cambio datetime2",
-            CPRManufacturingOrder: "IDManufacturingOrder int, CodManufacturingOrder nvarchar(20), CodCompany nvarchar(3)",
+            CPRManufacturingOrder: "IDManufacturingOrder int, CodManufacturingOrder nvarchar(20), CodCompany nvarchar(3), IDMOSituation nvarchar(40)",
+            CPRManufacturingOrderSituation: "IDManufacturingOrderSituation nvarchar(40), CodSituation nvarchar(5)",
             CPRMOTask: "IDManufacturingOrder int, IDMOTask int, CodMOTask nvarchar(20), Description nvarchar(80), PercentProgress int, RealEndDate datetime2",
             FACOrderSL: "IDOrder int, CodOrder nvarchar(25), OrderDate datetime2, CodCompany nvarchar(3), IDCustomer int, IDCustomerDeliveryAddress int",
-            FACOrderLineSL: "IDOrder int, IDManufacturingOrder int",
+            FACOrderLineSL: "IDOrderLine int, IDOrder int, IDManufacturingOrder int, ReceptionDemandDate datetime2, PendingDelivery bit",
+            FACDeliveryNoteSL: "IDDeliveryNote int, DeliveryNoteDate datetime2",
+            FACDeliveryNoteLineSL: "IDDeliveryNote int, IDOrderLine int",
             FACCustomer: "IDCustomer int, Description nvarchar(80)",
             FACCustomerDeliveryAddress: "IDCustomerDeliveryAddress int, Description nvarchar(80)",
           };
@@ -40,10 +43,10 @@ vi.mock("../src/lib/server/db", async (importOriginal) => {
           preparar += `
             INSERT INTO #UI_FACOrderSL VALUES (1,'AR.26.00001','2026-09-10','001',1,NULL), (2,'AR.26.00002','2026-09-09','001',1,NULL);
             INSERT INTO #UI_FACCustomer VALUES (1,'Cliente de prueba');
-            INSERT INTO #UI_FACOrderLineSL VALUES (1,1),(1,1),(2,2);
-            INSERT INTO #UI_CPRManufacturingOrder VALUES (1,'0000001','001'),(2,'0000002','001');
+            INSERT INTO #UI_FACOrderLineSL (IDOrderLine, IDOrder, IDManufacturingOrder, ReceptionDemandDate, PendingDelivery) VALUES (1,1,1,'2026-09-20',0),(2,1,1,'2026-09-20',0),(3,2,2,'2026-09-20',0);
+            INSERT INTO #UI_CPRManufacturingOrder VALUES (1,'0000001','001',NULL),(2,'0000002','001',NULL);
             INSERT INTO #UI_CPRMOTask VALUES (1,1,'5','PLANTEAR',0,NULL),(2,2,'5','PLANTEAR',0,NULL),(1,3,'9','DISEÑO',0,NULL),(2,4,'9','DISEÑO',0,NULL);
-            INSERT INTO #UI_CPRMOResourceMachine VALUES (1,'A-OTEC'),(2,'A-OTEC'),(3,'A-DGRA'),(4,'A-DGRA');
+            INSERT INTO #UI_CPRMOResourceMachine VALUES (1,'A-OTEC','OFICINA TECNICA'),(2,'A-OTEC','OFICINA TECNICA'),(3,'A-DGRA','DISENO GRAFICO'),(4,'A-DGRA','DISENO GRAFICO');
           `;
           if (estado.cerrado) preparar += "INSERT INTO #UI_tgm_estadosof_olanet VALUES ('0000001','5',3,'2026-09-11'),('0000001','9',3,'2026-09-11');";
           return req.query(preparar + sql);
