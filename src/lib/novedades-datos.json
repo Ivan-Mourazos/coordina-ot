@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-09-16",
+    "hasta": "45f8cbc",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Buscar un número de pedido te saca primero el de este año",
+        "detalle": "El número se repite cada año y salía antes uno viejo; ahora el de arriba es el del año en curso."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los pedidos que Producción cierra a mano dejan de salir como pendientes",
+        "detalle": "Cuando se cierra una fase a mano desde RPS, la web ya no la cuenta como trabajo abierto: eran casi todos los pedidos viejos que figuraban sin terminar. Una OF detenida sí sigue contando."
+      }
+    ]
+  },
+  {
     "id": "2026-09-15",
     "hasta": "a8af8b7",
     "cambios": [
