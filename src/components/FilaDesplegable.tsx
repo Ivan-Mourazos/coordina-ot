@@ -1,0 +1,95 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { Desplegable } from "./Desplegable";
+
+// ─── Una fila que se abre ────────────────────────────────────────────────────
+// Sale del Historial, que es donde se resolvió primero, y ahora la usan las
+// cuatro listas. Hasta aquí cada pestaña tenía la suya: el mismo gesto —abrir
+// un pedido para ver qué tiene dentro— se comportaba distinto según dónde
+// estuvieras, y en Visitas ni siquiera se animaba.
+//
+// EL FONDO ES UN BOTÓN, y las cosas con acción propia (el código del pedido,
+// un selector) son HERMANOS suyos, no hijos: anidados, un clic dispararía las
+// dos acciones. Por eso `celdas` va con `pointer-events-none` en lo que solo
+// se lee y sin él en lo que se pulsa — eso lo decide quien pinta las celdas.
+//
+// El acento de lo abierto es una barra dorada que recorre fila y detalle, más
+// el mismo dorado al 10 % de fondo. Sobre blanco queda crema y sobre grafito,
+// cálido: en los dos casos se distingue del gris del hover, que es lo que
+// fallaba cuando la fila abierta se marcaba con `bg-surface-2`.
+
+export function FilaDesplegable({
+  columnas,
+  abierta,
+  onAlternar,
+  etiqueta,
+  idDetalle,
+  titulo,
+  celdas,
+  detalle,
+}: {
+  /** La rejilla de columnas, literal (Tailwind no compila las concatenadas). */
+  columnas: string;
+  abierta: boolean;
+  onAlternar: () => void;
+  /** Qué se abre, para el lector de pantalla: "Desplegar AR.26.03914". */
+  etiqueta: string;
+  /** El id del contenedor del detalle, al que apunta `aria-controls`. */
+  idDetalle: string;
+  /** Lo que se cuenta al posar el ratón sobre la fila entera. Lo usa el
+   *  Historial para decir cuándo se pasó a Producción y quién lo pasó: es un
+   *  dato que no tiene columna y que no cabría en ninguna. */
+  titulo?: string;
+  celdas: ReactNode;
+  detalle: ReactNode;
+}) {
+  return (
+    <div className="relative border-b border-border last:border-b-0">
+      {abierta && (
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />
+      )}
+      <div
+        className={`relative ${columnas} px-3 py-1 ${
+          abierta ? "bg-brand-500/10" : "hover:bg-surface-2"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={onAlternar}
+          aria-expanded={abierta}
+          aria-controls={idDetalle}
+          aria-label={`${abierta ? "Plegar" : "Desplegar"} ${etiqueta}`}
+          title={titulo}
+          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none grid size-6 place-items-center text-text-muted"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={`size-3.5 transition-transform motion-reduce:transition-none ${
+              abierta ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        {celdas}
+      </div>
+
+      {/* Envuelto y no `{abierta && …}`: si React lo quitara al pulsar, el
+          contenido desaparecería de golpe y no habría nada que animar. Cerrado
+          no ocupa nada — `Desplegable` devuelve null. */}
+      <div id={idDetalle}>
+        <Desplegable abierto={abierta}>
+          <div className="border-t border-border px-3 py-2">{detalle}</div>
+        </Desplegable>
+      </div>
+    </div>
+  );
+}
