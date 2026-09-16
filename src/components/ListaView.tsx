@@ -45,7 +45,8 @@ import { FilaDesplegable } from "./FilaDesplegable";
 //     lo que de verdad se viene aquí. Ver "La celda de identidad".
 //   · Un pedido desplegado se marca con una barra a la izquierda que recorre su
 //     fila y su detalle: con dos o tres abiertos a la vez, el detalle de uno
-//     parecía el principio del siguiente. Ver "Marcar lo desplegado".
+//     parecía el principio del siguiente. Eso lo pone `FilaDesplegable`, que es
+//     de donde salen también el chevron y la animación.
 
 /** Color del texto de una fecha según su urgencia. Clases literales: Tailwind
  *  no compila las que se construyen concatenando. */
