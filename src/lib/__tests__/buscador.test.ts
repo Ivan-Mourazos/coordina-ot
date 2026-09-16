@@ -262,3 +262,29 @@ describe("tercera fuente: cualquier pedido de RPS", () => {
     expect(r.map((x) => x.fuente)).toEqual(["tablero", "historial", "rps"]);
   });
 });
+
+describe("mismo número, distinto año", () => {
+  // El caso real (16/09/2026): buscar "4558" sacaba primero AR.23.04558, de
+  // hace tres años, porque estaba archivado en el Historial y el de este año
+  // —sin tarea de Oficina Técnica— entraba por la tercera fuente. Los dos
+  // aciertan el número entero, así que a igualdad de puntos manda el año.
+  it("el del año en curso va primero aunque venga de una fuente más floja", () => {
+    const r = buscar("4558", {
+      pedidos: [],
+      historial: [hist({ pedido: "AR.23.04558", cliente: "PAMILAKAN SAS" })],
+      otros: [{ codigo: "AR.26.04558", cliente: "PAMPIN NUÑEZ, MANUEL", negocio: null, fecha: "2026-09-15T00:00:00.000Z" }],
+      nombre,
+    });
+    expect(r.map((x) => x.codigo)).toEqual(["AR.26.04558", "AR.23.04558"]);
+  });
+
+  it("dentro del mismo año sigue mandando la fuente: lo vivo se puede abrir", () => {
+    const r = buscar("4558", {
+      pedidos: [pedido({ id: "p", codigo: "AR.26.04558" })],
+      historial: [hist({ pedido: "AR.26.14558" })],
+      otros: [{ codigo: "AR.26.24558", cliente: "X", negocio: null, fecha: null }],
+      nombre,
+    });
+    expect(r[0].fuente).toBe("tablero");
+  });
+});

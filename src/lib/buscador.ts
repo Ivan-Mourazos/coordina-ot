@@ -223,6 +223,14 @@ export interface FuentesBusqueda {
  *  en los diez primeros, lo que hay que hacer es escribir una letra más. */
 export const TOPE_RESULTADOS = 10;
 
+/** El año de un código de pedido ("AR.26.04558" → 26), o -1 si no lo lleva.
+ *  Los dos dígitos del medio son el año en RPS, y el número de detrás se
+ *  reinicia con él: sin esto, dos pedidos distintos se llaman igual hablando. */
+function anoDeCodigo(codigo: string): number {
+  const m = /^[A-Za-z]+\.(\d{2})\./.exec(codigo.trim());
+  return m ? Number(m[1]) : -1;
+}
+
 const ORDEN_FUENTE: Record<Resultado["fuente"], number> = {
   tablero: 0,
   historial: 1,
@@ -301,8 +309,14 @@ export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
     .sort(
       (a, b) =>
         b.puntos - a.puntos ||
-        // A igualdad, lo vivo antes que lo archivado y lo nuevo antes que lo
-        // viejo: el pedido que buscas casi siempre es el de esta semana.
+        // A igualdad, PRIMERO el año: el número de pedido se repite cada año
+        // (hay ocho «04558», de AR.18 a AR.26) y el que buscas es el de ahora.
+        // Iba detrás de la fuente, y eso sacaba primero uno de 2023 por estar
+        // archivado en el Historial mientras el de este año, que entraba por
+        // la tercera fuente, quedaba debajo.
+        anoDeCodigo(b.codigo) - anoDeCodigo(a.codigo) ||
+        // Dentro del mismo año sí manda la fuente: lo vivo antes que lo
+        // archivado, y lo archivado antes que lo que nunca fue nuestro.
         ORDEN_FUENTE[a.fuente] - ORDEN_FUENTE[b.fuente] ||
         b.codigo.localeCompare(a.codigo),
     )
