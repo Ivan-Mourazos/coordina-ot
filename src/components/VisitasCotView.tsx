@@ -401,6 +401,12 @@ function GrupoDia({
     <section aria-label={sub ? `${titulo} · ${sub}` : titulo}>
       <BloqueLista
         columnas={COLUMNAS_VISITA}
+        // Estos bloques no viven dentro de ningún panel: descansan
+        // directamente sobre el fondo de la página, sin telón detrás (a
+        // diferencia del Historial, que abre sobre un modal oscuro). El
+        // vidrio translúcido de `bloque-3d` se mezclaba con el gris del fondo
+        // —sobre todo en tema claro— y el bloque no se leía como tarjeta.
+        fondoSolido
         rotulo={
           conCabecera
             ? {

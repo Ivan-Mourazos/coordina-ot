@@ -179,3 +179,12 @@ test("Pendientes puede pedir que el bloque NO recorte lo que se sale por la dere
   // La esquina sigue redondeada: lo que se quita es el recorte, no el borde.
   expect(pidiendolo).toContain("rounded-xl");
 });
+
+test("Visitas puede pedir un fondo opaco: descansa sobre la página, sin panel alrededor", () => {
+  const html = pintarBloque(
+    { columnas: COLUMNAS, fondoSolido: true },
+    createElement("div", null, "x"),
+  );
+  expect(html).toContain("panel-solido");
+  expect(html).not.toContain("bloque-3d");
+});
