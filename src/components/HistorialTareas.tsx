@@ -297,21 +297,41 @@ export function TareasDelPedido({
   if (ofs) {
     return <HistorialTareas pedido={pedido} ofs={ofs} seccion={seccion} className={className} abrirAlMontar />;
   }
+  // LA MISMA CAJA que la versión ya cargada de arriba: borde, fondo, chevron
+  // y rótulo. Antes esto era un `chip-3d` —un chip suelto y pequeño, distinto
+  // de "Documentos de RPS" y "NOTAS", los otros dos bloques con los que
+  // convive en la ficha— y solo se volvía un bloque de verdad DESPUÉS de
+  // cargar los datos: pulsar cambiaba lo que se veía por algo que no se
+  // parecía en nada. Ahora se ve igual desde el principio; lo único que
+  // cambia al pulsar es que carga y se abre.
   return (
-    <button
-      type="button"
-      onClick={cargar}
-      disabled={estado === "cargando"}
-      title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
-      // `mb-4` como el bloque que sale en su lugar al cargar: con `mb-2` lo de
-      // debajo daba un salto justo al llegar los datos.
-      className={`${className ?? "mb-4"} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text disabled:opacity-60`}
+    <section
+      className={`${className ?? "mb-4"} rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]`}
     >
-      {estado === "cargando"
-        ? "Cargando tareas…"
-        : estado === "error"
-          ? "No se pudo cargar · reintentar"
-          : "Tareas y tiempos"}
-    </button>
+      <button
+        type="button"
+        onClick={cargar}
+        disabled={estado === "cargando"}
+        title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text disabled:opacity-60"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-text-muted"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {estado === "cargando"
+          ? "Cargando tareas…"
+          : estado === "error"
+            ? "No se pudo cargar · reintentar"
+            : "Tareas y tiempos"}
+        <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
+      </button>
+    </section>
   );
 }
