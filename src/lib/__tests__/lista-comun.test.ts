@@ -63,8 +63,7 @@ test("la cabecera de columnas lleva la rejilla que se le pasa, para que cada ró
         createElement("span", { key: "b" }, "Pedido"),
         createElement("span", { key: "c" }, "Cliente"),
       ],
-      children: createElement("div", null, "una fila"),
-    }),
+    }, createElement("div", null, "una fila")),
   );
   // Una sola vez: la rejilla de las FILAS la pone quien las pinta, que recibe
   // la misma clase. Aquí solo se reparte a la cabecera.
@@ -76,13 +75,10 @@ test("la cabecera de columnas lleva la rejilla que se le pasa, para que cada ró
 
 test("el bloque que envuelve las filas NO es una rejilla: si lo fuera, dos filas saldrían una al lado de otra", () => {
   const html = renderToStaticMarkup(
-    createElement(BloqueLista, {
-      columnas: COLUMNAS,
-      children: [
-        createElement("div", { key: "a" }, "fila A"),
-        createElement("div", { key: "b" }, "fila B"),
-      ],
-    }),
+    createElement(BloqueLista, { columnas: COLUMNAS }, [
+      createElement("div", { key: "a" }, "fila A"),
+      createElement("div", { key: "b" }, "fila B"),
+    ]),
   );
   // El contenedor `bloque-3d` va con las clases justas. Ponerle `grid` haría
   // que el reparto automático de CSS Grid metiera cada fila en una celda de la
@@ -97,8 +93,7 @@ test("el rótulo va FUERA del bloque, que es lo que separa un bloque del siguien
     createElement(BloqueLista, {
       columnas: COLUMNAS,
       rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "3 OF" },
-      children: createElement("div", null, "una fila"),
-    }),
+    }, createElement("div", null, "una fila")),
   );
   expect(html.indexOf("Por revisar")).toBeLessThan(html.indexOf("bloque-3d"));
   expect(html).toContain("bg-amber-500");
@@ -107,7 +102,7 @@ test("el rótulo va FUERA del bloque, que es lo que separa un bloque del siguien
 
 test("sin cabecera ni rótulo el bloque no deja huecos vacíos por encima", () => {
   const html = renderToStaticMarkup(
-    createElement(BloqueLista, { columnas: COLUMNAS, children: createElement("div", null, "x") }),
+    createElement(BloqueLista, { columnas: COLUMNAS }, createElement("div", null, "x")),
   );
   expect(html.startsWith("<div")).toBe(true);
   expect(html).not.toContain("text-[11px] font-semibold text-text-muted");
@@ -118,8 +113,7 @@ test("un rótulo sin color no pinta un punto: los días del Historial llevan nom
     createElement(BloqueLista, {
       columnas: COLUMNAS,
       rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
-      children: createElement("div", null, "una fila"),
-    }),
+    }, createElement("div", null, "una fila")),
   );
   expect(html).toContain("Hoy");
   expect(html).toContain("· 3 pedidos");
@@ -131,8 +125,7 @@ test("el título del rótulo alinea por línea base, que es lo que casa con su s
     createElement(BloqueLista, {
       columnas: COLUMNAS,
       rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
-      children: createElement("div", null, "x"),
-    }),
+    }, createElement("div", null, "x")),
   );
   expect(html).toContain("items-baseline");
   expect(html).not.toContain("items-center");
@@ -143,8 +136,7 @@ test("con color sí hay punto, y centrado para no caerse sobre la línea base", 
     createElement(BloqueLista, {
       columnas: COLUMNAS,
       rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "· 3 OF" },
-      children: createElement("div", null, "x"),
-    }),
+    }, createElement("div", null, "x")),
   );
   expect(html).toContain("bg-amber-500");
   expect(html).toContain("rounded-full");
