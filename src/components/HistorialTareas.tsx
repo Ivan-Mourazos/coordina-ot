@@ -1,69 +1,81 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
-import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
+import { Desplegable } from "./Desplegable";
 import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
 
-export function HistorialTareas({ pedido, ofs, seccion, className = "mb-2", compacto = false, abrirAlMontar = false }: {
+/** «Tareas y tiempos»: qué tareas lleva el pedido en RPS y cuánto se ha echado
+ *  en cada una.
+ *
+ *  ERA UN POPOVER, una ventana encima de todo. Se abría justo sobre la ficha
+ *  que estabas leyendo, tapándola, y había que cerrarla para volver — con el
+ *  añadido de que un popover nativo no congela el `body` por su cuenta, así
+ *  que la rueda seguía moviendo lo de detrás y al cerrar aparecías en otro
+ *  sitio. Ahora es un bloque que se abre DENTRO, con el mismo borde y fondo
+ *  que Documentos y Notas: se lee al lado de lo demás y no tapa nada. */
+export function HistorialTareas({
+  pedido,
+  ofs,
+  seccion,
+  className = "mb-4",
+  compacto = false,
+  abrirAlMontar = false,
+}: {
   pedido: string;
   ofs: HistorialOF[];
   seccion: SeccionId;
-  /** Márgenes del botón, según dónde vaya. */
   className?: string;
-  /** En la lista va en la columna del tiempo, que es estrecha: rótulo corto,
-   *  con el largo en el `title`.
-   *
-   *  Visible siempre, no al pasar el ratón. Vive dentro de un pedido ya
-   *  desplegado, y desplegarlos todos no es lo normal: un botón por pedido
-   *  abierto no llega a ser ruido, y esconderlo obliga a descubrirlo. */
+  /** En la lista del Historial va dentro de una fila ya desplegada: rótulo
+   *  corto, con el largo en el `title`. */
   compacto?: boolean;
-  /** Abrir la ventana nada más montar. Lo usa `TareasDelPedido`: allí el botón
-   *  de verdad es otro —el que dispara la carga—, y al llegar los datos este
-   *  aparece ya abierto en vez de pedir un segundo clic. */
+  /** Abierto nada más montar. Lo usa `TareasDelPedido`: allí el botón de
+   *  verdad es el que dispara la carga, y al llegar los datos esto aparece ya
+   *  abierto en vez de pedir un segundo clic. */
   abrirAlMontar?: boolean;
 }) {
   const id = useId();
-  const [abierto, setAbierto] = useState(false);
-  useEffect(() => {
-    if (!abrirAlMontar) return;
-    (document.getElementById(id) as HTMLElement | null)?.showPopover?.();
-  }, [abrirAlMontar, id]);
-  // Con la ventana abierta, la rueda seguía moviendo lo de detrás —la lista del
-  // Historial o la ficha— y al cerrar aparecías en otro sitio. Es un popover
-  // nativo: vive en la capa de arriba, pero no congela el `body` por su cuenta.
-  // El bloqueo lleva contador, así que convive con el de la ficha sin que uno
-  // pise el estilo del otro (ver useScrollBloqueado).
-  useScrollBloqueado(abierto);
+  const [abierto, setAbierto] = useState(abrirAlMontar);
   return (
-    <>
+    <section
+      className={`${className} rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]`}
+    >
       <button
         type="button"
-        popoverTarget={id}
+        onClick={() => setAbierto((a) => !a)}
         aria-expanded={abierto}
         aria-controls={id}
         title={compacto ? "Tareas y tiempos" : undefined}
-        className={`${className} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text`}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text"
       >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         {compacto ? "Tareas" : "Tareas y tiempos"}
+        <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
       </button>
-      <div id={id} popover="auto" data-historial-extra="" onToggle={(e) => setAbierto(e.newState === "open")}
-        onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }}
-        className="ventana-3d scroll-thin m-auto max-h-[75vh] w-[min(680px,92vw)] overflow-y-auto rounded-xl p-4 text-text backdrop:bg-black/30">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold">Tareas y tiempos · <span className="font-mono">{pedido}</span></h3>
-          <button type="button" popoverTarget={id} popoverTargetAction="hide" className="rounded px-2 py-1 text-xs hover:bg-surface-2">Cerrar</button>
-        </div>
-        {/* Con color, como la consulta: el código de la OF y los tiempos se
-            recorren con la vista sin leerlo todo. */}
-        <TareasPorCentro ofs={ofs} seccion={seccion} conColor />
+      <div id={id}>
+        <Desplegable abierto={abierto}>
+          <div className="border-t border-[var(--glass-border)] px-3 py-3">
+            {/* Con color, como la consulta: el código de la OF y los tiempos se
+                recorren con la vista sin leerlo todo. */}
+            <TareasPorCentro ofs={ofs} seccion={seccion} conColor />
+          </div>
+        </Desplegable>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -129,10 +141,8 @@ export function TareasPorCentro({
 /** Un centro con sus OF y, dentro, sus tareas.
  *
  *  QUIÉN ECHÓ CADA TAREA SALE EN TODOS LOS CENTROS, no solo en el que se está
- *  mirando. Esta ventana se abre justo para eso, y dejar Diseño y Taller con un
- *  número y sin nadie obligaba a preguntar por el pasillo quién lo había hecho.
- *  Fuera de aquí la regla no cambia: la lista y la ficha siguen enseñando la
- *  gente de la sección consultada (ver `centrosConDesglose`). */
+ *  mirando: esto se abre justo para eso, y dejar Diseño y Taller con un número
+ *  y sin nadie obligaba a preguntar por el pasillo quién lo había hecho. */
 function CentroTareas({
   centro,
   conColor = false,
@@ -149,20 +159,30 @@ function CentroTareas({
   // escribe dos veces. Con varias sí reparten, y entonces hace falta.
   const variasOF = centro.ofs.length > 1;
   return (
-    <section className="mb-4 last:mb-0">
-      <h4 className="mb-2 flex justify-between text-sm font-semibold" title="Tiempo imputado en RPS">
+    // Aire entre centro y centro. Iban pegados, y con tres o cuatro no se veía
+    // dónde acababa uno.
+    <section className="mb-5 last:mb-0">
+      <h4
+        className="mb-2 flex items-baseline justify-between gap-3 text-sm font-semibold"
+        title="Tiempo imputado en RPS"
+      >
         <span>{centro.nombre}</span>
-        <span className={acento}>{fmtMin(centro.totalMin)}</span>
+        <span className={`font-mono tabular-nums ${acento}`}>{fmtMin(centro.totalMin)}</span>
       </h4>
       {extraCentro?.(centro)}
       {centro.ofs.map((of) => (
-        <div key={of.codigo} className="mb-2 border-t border-border pt-2 text-xs">
-          <p className="mb-1 flex items-baseline justify-between gap-3 font-semibold">
-            <span>
-              <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span> · {of.descripcion}
+        <div key={of.codigo} className="mb-3 border-t border-border pt-2 text-xs last:mb-0">
+          <p className="mb-1.5 flex items-baseline justify-between gap-3 font-semibold">
+            <span className="min-w-0">
+              <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span>
+              {" · "}
+              {of.descripcion}
             </span>
             {variasOF && (
-              <span className={`shrink-0 font-mono tabular-nums ${acento}`} title="Tiempo imputado en RPS">
+              <span
+                className={`shrink-0 font-mono tabular-nums ${acento}`}
+                title="Tiempo imputado en RPS"
+              >
                 {fmtMin(of.tiempoImputadoMin)}
               </span>
             )}
@@ -177,37 +197,50 @@ function CentroTareas({
 
 /** Las tareas de una OF: qué se hace, quién la echó y cuánto lleva.
  *
- *  Vive aquí y la pintan DOS sitios —esta ventana y el lateral de la ficha del
- *  Historial— porque son la misma información. Estuvo duplicada un tiempo y la
- *  ventana acabó enseñando cosas que el lateral no: quien tiene que acordarse
- *  de tocar los dos, tarde o temprano toca uno. */
+ *  TRES COLUMNAS ALINEADAS y no un `flex` de tres trozos. Con flex, el nombre
+ *  y el tiempo caían en un sitio distinto en cada línea según lo larga que
+ *  fuera la tarea, y la columna de tiempos —que es la que se recorre con la
+ *  vista— no existía como columna. El ancho del tiempo es fijo, y `tabular-nums`
+ *  hace que "7m" y "1h 20m" ocupen lo mismo por cifra.
+ *
+ *  Vive aquí y la pintan DOS sitios —este bloque y el lateral de la ficha del
+ *  Historial— porque son la misma información. Estuvo duplicada un tiempo y
+ *  acabaron diciendo cosas distintas del mismo pedido. */
 export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor?: boolean }) {
   if (!of.tareas?.length) {
-    return <p className="text-text-muted">Sin desglose de tareas disponible.</p>;
+    return <p className="text-text-muted">Esta OF no tiene tareas en RPS.</p>;
   }
   return (
     <>
       {of.tareas.map((tarea) => {
         const personas = tarea.personas.filter((p) => p.min > 0).sort(porMinutos);
         const vacia = tarea.tiempoImputadoMin <= 0;
-        // Con UNA sola persona su tiempo es el de la tarea, que está al
-        // final de la misma línea: ponerlo detrás del nombre era escribir
-        // dos veces el mismo número. Con varias sí hace falta el de cada
-        // uno, que es lo que el total no dice.
+        // Con UNA sola persona su tiempo es el de la tarea, que está al final
+        // de la misma línea: ponerlo detrás del nombre era escribir dos veces
+        // el mismo número. Con varias sí hace falta el de cada uno.
         const solaEllaEntera =
           personas.length === 1 && personas[0].min === tarea.tiempoImputadoMin;
         return (
-          <p key={tarea.codigo} className={`flex items-baseline gap-3 py-1 ${vacia ? "text-text-muted" : ""}`}>
-            <span className="min-w-0 flex-1">{tarea.codigo} · {tarea.descripcion}</span>
-            {personas.length > 0 && (
-              <span className={`text-right ${conColor && !vacia ? "font-medium text-text" : "text-text-muted"}`}>
-                {solaEllaEntera
+          <p
+            key={tarea.codigo}
+            className={`grid grid-cols-[minmax(0,1fr)_auto_56px] items-baseline gap-x-3 py-1 ${
+              vacia ? "text-text-muted" : ""
+            }`}
+          >
+            <span className="min-w-0">
+              {tarea.codigo} · {tarea.descripcion}
+            </span>
+            <span
+              className={`text-right ${conColor && !vacia ? "font-medium text-text" : "text-text-muted"}`}
+            >
+              {personas.length === 0
+                ? ""
+                : solaEllaEntera
                   ? personas[0].nombre
                   : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
-              </span>
-            )}
+            </span>
             <span
-              className={`shrink-0 ${vacia ? "" : "font-semibold"} ${
+              className={`text-right font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
                 conColor && !vacia ? "text-brand-700 dark:text-brand-300" : ""
               }`}
             >

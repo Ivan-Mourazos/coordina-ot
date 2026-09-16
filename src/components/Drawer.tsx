@@ -609,7 +609,7 @@ export function Drawer({
           <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
 
           {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
-              una. Es la misma ventana del Historial, pero aquí sirve para un
+              una. Es el mismo bloque del Historial, pero aquí sirve para un
               pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
               pulsar, no al abrir la ficha (ver TareasDelPedido). */}
           <TareasDelPedido

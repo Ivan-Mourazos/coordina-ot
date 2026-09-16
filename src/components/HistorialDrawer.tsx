@@ -119,8 +119,9 @@ export function HistorialDrawer({
   // pisan el estilo del body al cerrarse.
   useScrollBloqueado(pedido !== null);
 
-  // Escape cierra la ficha. Los popovers nativos («Tareas y tiempos») se
-  // cierran solos y la pila les deja esa pulsación (ver capas-escape.ts).
+  // Escape cierra la ficha. Los popovers nativos (los desplegables de un
+  // `Select`) se cierran solos y la pila les deja esa pulsación (ver
+  // capas-escape.ts).
   useCapaEscape(pedido !== null, onClose);
 
   // ¿Está el parte escaneado? `null` = todavía sin comprobar, y ahí se pinta el
