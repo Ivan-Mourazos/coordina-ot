@@ -27,8 +27,13 @@ import { BloqueLista } from "./BloqueLista";
 // truncado— y el comercial en MAYÚSCULAS Y DEL REVÉS al final.
 //
 // Ahora son dos piezas: un calendario del mes que dice qué días hay algo, y a
-// su derecha esas visitas en fichas legibles. El calendario es la pregunta que
-// se hace de verdad ("¿qué tengo esta semana?"); la lista, la respuesta.
+// su derecha esas visitas en una línea cada una, agrupadas por día. El
+// calendario es la pregunta que se hace de verdad ("¿qué tengo esta semana?");
+// la lista, la respuesta.
+//
+// La lista usa `BloqueLista` y `FilaDesplegable`, las mismas piezas que
+// Pendientes, Revisiones y el Historial: el gesto de abrir una fila se
+// comporta igual en las cuatro pestañas.
 
 const REFRESCO_MS = 60_000;
 /** Tope de páginas encadenadas al cargar un mes. Un mes malo son ~55 visitas y
