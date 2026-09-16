@@ -487,6 +487,7 @@ export function ListaView({
               onAlternar={() => toggle(p.id)}
               etiqueta={p.codigo}
               idDetalle={`detalle-${p.id}`}
+              tarjeta
               celdas={
                 <>
                   {/* ─── La celda de identidad ───────────────────────────

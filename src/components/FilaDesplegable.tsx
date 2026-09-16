@@ -18,6 +18,14 @@ import { Desplegable } from "./Desplegable";
 // el mismo dorado al 10 % de fondo. Sobre blanco queda crema y sobre grafito,
 // cálido: en los dos casos se distingue del gris del hover, que es lo que
 // fallaba cuando la fila abierta se marcaba con `bg-surface-2`.
+//
+// `tarjeta` cambia el corte entre filas de una raya de 1 px a un hueco con
+// relieve propio. Es lo que pidió Pendientes: sin agrupar (los pedidos van
+// sueltos, en el orden que manden los filtros) 40 filas seguidas separadas
+// solo por `border-b` se leen como un muro. Las otras tres vistas ya separan
+// por bloque (Historial por día, Revisiones por estado) y no lo necesitan —
+// cambiarles el corte de golpe sería un lenguaje nuevo sin que nadie lo haya
+// pedido—, así que es opt-in y no el nuevo default.
 
 export function FilaDesplegable({
   columnas,
@@ -28,6 +36,7 @@ export function FilaDesplegable({
   titulo,
   celdas,
   detalle,
+  tarjeta = false,
 }: {
   /** La rejilla de columnas, literal (Tailwind no compila las concatenadas). */
   columnas: string;
@@ -43,9 +52,19 @@ export function FilaDesplegable({
   titulo?: string;
   celdas: ReactNode;
   detalle: ReactNode;
+  /** SOLO Pendientes (ver el comentario de arriba). Cada fila —con su
+   *  detalle, si está abierta— pasa a ser su propia tarjeta con margen y
+   *  anillo, en vez de compartir raya con la siguiente. */
+  tarjeta?: boolean;
 }) {
   return (
-    <div className="relative border-b border-border last:border-b-0">
+    <div
+      className={
+        tarjeta
+          ? "relative mb-1.5 overflow-hidden rounded-lg ring-1 ring-border last:mb-0"
+          : "relative border-b border-border last:border-b-0"
+      }
+    >
       {abierta && (
         <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />
       )}
