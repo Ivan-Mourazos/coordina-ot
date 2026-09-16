@@ -191,6 +191,38 @@ el trabajo, después lo que se ha dicho sobre él, y al final lo que se decide.
 Tareas y tiempos entra junto a Documentos porque es lo mismo: información de
 RPS que se consulta plegada.
 
+## Girar el parte
+
+`ParteEscaneado` esconde la barra del visor de Chrome (`toolbar=0`) porque es
+gris oscura, no hay clase nuestra que la alcance y gastaba alto. Lo que hacía
+falta de ella se rehizo al lado en chips propios —encaje, descargar,
+imprimir— pero **el giro se quedó dentro**. Y hace falta: un parte escaneado de
+lado no se puede leer, y hoy la única salida es descargarlo y abrirlo aparte.
+
+(`VisorDocumento`, el de los documentos de RPS, sí deja la barra de Chrome y
+por eso allí el giro funciona. No se toca.)
+
+Un chip más en el carril, `↻`, que gira 90° por pulsación y da la vuelta
+entera en cuatro.
+
+**No se puede hacer por la URL.** El visor de Chrome solo entiende
+`Fit`, `FitH` y `FitV` en `#view=`; no hay parámetro de rotación. Se hace con
+`transform: rotate()` sobre el propio `<iframe>`, y al girar un cuarto impar se
+intercambian su ancho y su alto para que la hoja siga llenando el hueco.
+
+Dos cosas que esto obliga a respetar:
+
+- **El giro NO entra en el `key` del iframe.** Ese `key` lleva el encaje y
+  fuerza un remontaje, que es una recarga del PDF; el giro es CSS y no debe
+  recargar nada. Si entrara, girar tiraría el visor y volvería a la página 1.
+- **No se recuerda entre pedidos.** El encaje sí se guarda (es cómo prefiere
+  mirar cada uno), pero el giro es de ESTE parte concreto: que el siguiente
+  se abriera torcido porque el anterior lo estaba sería peor que no tener
+  botón. Vuelve a cero al cambiar de pedido.
+
+Descargar e imprimir siguen dando el original sin girar: es el documento que
+está en el share, y girarlo en pantalla no lo cambia.
+
 ## Visitas
 
 Las tarjetas pasan a `BloqueLista` + `FilaDesplegable`. El calendario se queda
@@ -251,6 +283,7 @@ Lo que el equipo nota, y por tanto lleva línea `Novedad:`:
 - En la ficha, las piezas, el sitio de entrega y las familias dejan de
   perderse al bajar (`mejor`).
 - "Volver a plantear" se ve (`arreglado`).
+- El parte escaneado se puede girar sin salir de la ficha (`nuevo`).
 - En Visitas desaparecen dos datos que no dicen nada (`mejor`).
 
 Lo que no lleva línea: extraer `BloqueLista` y `FilaDesplegable`, y cambiar la
