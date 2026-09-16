@@ -443,6 +443,14 @@ const MIGRACIONES: ReadonlyArray<{
   // sirve para resetearle el PIN a alguien, y hasta hoy eso colgaba de una
   // sola cuenta —la de Ángel—, que es la que no puede arreglarse a sí misma.
   { version: 9, nombre: "roles_de_supervisor", aplicar: rolesDeSupervisor },
+  // Decisión de Iván (Task 14, 17/09/2026): una OF en `por_revisar` SIEMPRE
+  // tiene revisor, o vuelve al panel de su autor — nunca se queda en tierra de
+  // nadie. Desde esta versión /api/estado ya no deja guardar una sin uno (ver
+  // route.ts), pero eso no arregla las que se colaron antes de esa guarda: la
+  // pantalla ya exigía elegir revisor para pulsar "Pasar a revisión"
+  // (PedirRevisor.tsx), así que solo pudieron llegar así por un camino que se
+  // saltara la pantalla — la propia API sin comprobarlo, hasta hoy.
+  { version: 10, nombre: "por_revisar_sin_revisor", aplicar: porRevisarSinRevisor },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -679,6 +687,30 @@ function rolesDeSupervisor(db: Database.Database): void {
     roles.push("supervisor");
     guardar.run(roles.join(","), id);
   }
+}
+
+/** Saca de `por_revisar` a las OF que se quedaron sin revisor.
+ *
+ *  Vuelve al panel de su autor (`en_curso`) — el mismo destino que
+ *  "Recuperar para plantear" cuando lo pulsa él, solo que aquí no hay nadie al
+ *  otro lado para pulsarlo. El tiempo ya fichado no se toca: vive en
+ *  `fichaje_intervalo`, por OF y no por estado del overlay, así que cambiar
+ *  aquí el estado no le quita ni un minuto de planteo.
+ *
+ *  Una sin autor TAMPOCO tiene panel al que volver. Se trata como "Quitar
+ *  autor" trata siempre esa combinación (Board.tsx moverOFs): sin autor, a la
+ *  bandeja (`pendiente`) — ya sin revisor tampoco, que es justo lo que tenía.
+ *
+ *  Se puede repetir sin estropear nada: solo toca filas que SIGAN en
+ *  `por_revisar` sin revisor, así que una base ya arreglada no cambia en la
+ *  segunda pasada. */
+function porRevisarSinRevisor(db: Database.Database): void {
+  db.exec(`
+    UPDATE of_overlay SET estado = 'en_curso'
+     WHERE estado = 'por_revisar' AND revisor_id IS NULL AND autor_id IS NOT NULL;
+    UPDATE of_overlay SET estado = 'pendiente'
+     WHERE estado = 'por_revisar' AND revisor_id IS NULL AND autor_id IS NULL;
+  `);
 }
 
 /** Pone al día el esquema. Cada migración va en su transacción y sella su
