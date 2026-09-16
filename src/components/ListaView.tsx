@@ -2,7 +2,7 @@
 
 import { PedidoCodigo } from "./PedidoCodigo";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { EstadoMaterial, OF, Operario, Pedido } from "@/lib/types";
 import {
   comprasPendientes,
@@ -21,7 +21,8 @@ import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag, FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
-import { Desplegable } from "./Desplegable";
+import { BloqueLista } from "./BloqueLista";
+import { FilaDesplegable } from "./FilaDesplegable";
 
 // ─── Vista Lista ─────────────────────────────────────────────────────────────
 // La consulta densa: todo lo que aún no ha pasado a Producción, para mirar de
@@ -112,28 +113,18 @@ function Fecha({
 // es justo lo que hay que evitar—. Ahora el % sale de los px reales: al
 // ensanchar la columna las fechas no se separan MÁS, se separan menos.
 
-/** Reparto de ancho de las tres columnas. La clase va literal porque Tailwind
- *  no compila las que se concatenan, y `RECORRIDO_PX` repite el mínimo como
- *  número para la cuenta de aquí abajo: los dos tienen que decir lo mismo. */
-// Las tres columnas reparten el ancho en PORCENTAJE, no en píxeles fijos.
-//
-// Con el recorrido clavado en píxeles, todo el hueco que sobraba se lo comía la
-// celda de identidad: entre el nombre del cliente y la columna de estado
-// quedaban 250 px en blanco en casi todas las filas. Y dándoselo entero al
-// recorrido pasaba lo contrario, que se quedaba con más de lo que necesita y
-// ahogaba a las otras dos. En porcentaje crecen las tres a la vez.
-//
-// El `min-w` es el suelo de la línea de tiempo: por debajo de ahí las cuatro
-// fechas no caben sin pisarse.
-//
-// La cuenta de separación (`ANCHO_FECHA_PCT`) se sigue haciendo sobre ese
-// mínimo: si la columna crece, el porcentaje sobra y las fechas se separan algo
-// MÁS de lo necesario. Se pierde algo de precisión, nunca legibilidad — el
-// fallo por el otro lado (calcular sobre un ancho mayor del real) sí las
-// montaría unas encima de otras.
-const IDENTIDAD_W = "w-[36%]";
-const ESTADO_W = "w-[22%]";
-const RECORRIDO_W = "w-[42%] min-w-[520px]";
+/** Las mismas columnas en la cabecera y en cada fila. Literal entera: Tailwind
+ *  solo compila las clases que ve escritas.
+ *
+ *  Son los mismos repartos de antes —36 % identidad, 22 % estado, 42 %
+ *  recorrido con suelo de 520 px— más los 32 px del chevron, que en la tabla
+ *  era una `<Th className="w-8" />`. El `min-w` del recorrido es el suelo por
+ *  debajo del cual las cuatro fechas de la línea se pisan. */
+const COLUMNAS_LISTA =
+  "grid grid-cols-[32px_36%_22%_minmax(520px,42%)] items-center gap-x-3";
+
+/** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
+ *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */
 const RECORRIDO_PX = 520;
 
 /** Lo que se lleva el chip "+128d" con su hueco cuando el pedido va tarde. Se
@@ -185,7 +176,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
   const fmtHito = (iso: string) =>
     `${iso.slice(8)}/${iso.slice(5, 7)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
   return (
-    // `w-full` a secas: el ancho lo manda la COLUMNA (ver RECORRIDO_W) y la
+    // `w-full` a secas: el ancho lo manda la COLUMNA (ver COLUMNAS_LISTA) y la
     // línea solo tiene que llenarla.
     <div className="flex w-full items-end gap-1.5 pb-0.5 pt-1">
       <div className="min-w-0 flex-1">
@@ -399,33 +390,6 @@ function comparar(orden: OrdenLista, desc: boolean, nombres: Map<string, string>
   };
 }
 
-// ─── Marcar lo desplegado ────────────────────────────────────────────────────
-// Un pedido abierto son DOS <tr>: la fila de siempre y la del detalle. Pintadas
-// como las demás no se veía dónde empezaba ni dónde acababa lo abierto —con
-// tres pedidos desplegados a la vez, el detalle de uno se leía como el arranque
-// del siguiente— y el fondo que ya llevaba la fila abierta era `bg-surface-2`,
-// exactamente el mismo gris del hover: marcaba tan poco como no marcar.
-//
-// Se resuelve con UNA barra dorada a la izquierda que recorre las dos filas. Es
-// la única de las opciones que dice a la vez dónde empieza y dónde acaba el
-// bloque sin añadir tinta al centro de la tabla, que ya va densa. Descartado el
-// borde envolvente: con `border-collapse` habría que fingir los lados en la
-// primera y la última celda, y son cuatro hairlines más por pedido abierto.
-//
-// La barra va en dos mitades, una por fila, y se dibuja con un pseudoelemento y
-// no con `border-l`: un borde de verdad empujaría el contenido 3 px al abrir y
-// la fila daría un salto. Cada mitad deja un respiro en su extremo y lo remata
-// redondeado, para que dos pedidos abiertos SEGUIDOS no formen una sola barra
-// continua de arriba abajo: entre el final de uno y el principio del otro se ve
-// el corte. El dorado es el de marca (`--color-brand-400`), que es el mismo
-// tono en claro y en oscuro; el fondo, ese mismo dorado a un 10 % en la fila y
-// a un 5 % en el detalle: sobre blanco queda crema y sobre grafito, cálido, y
-// en los dos casos no se confunde con el gris del hover.
-const ACENTO_ARRIBA =
-  "relative before:absolute before:bottom-0 before:left-0 before:top-1.5 before:w-[3px] before:rounded-t-full before:bg-brand-400 before:content-['']";
-const ACENTO_ABAJO =
-  "relative before:absolute before:bottom-1.5 before:left-0 before:top-0 before:w-[3px] before:rounded-b-full before:bg-brand-400 before:content-['']";
-
 export function ListaView({
   pedidos,
   operarios,
@@ -469,232 +433,130 @@ export function ListaView({
     });
   }
 
-  return (
-    <div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            {/* Pegada arriba: con 40 pedidos, a mitad de scroll ya no se sabía
-                qué columna era cuál. */}
-            <tr className="sticky top-0 z-10 border-b border-border bg-surface-2 text-left text-[11px] uppercase tracking-wide text-text-muted">
-              <Th className="w-8" />
-              {/* Rótulos y nada más: el orden se elige en la barra de filtros.
-                  Familias no tiene el suyo —un pedido trae varias y nombrarlas
-                  en singular engañaría—; se reconocen por su icono de color,
-                  que es como se leen en el tablero. */}
-              <Th className={IDENTIDAD_W}>Pedido · cliente</Th>
-              <Th className={ESTADO_W}>Quién · estado</Th>
-              {/* Los rótulos de los hitos van aquí, una vez, en lugar de
-                  repetirse en cada fila: el orden es el mismo en todas. Los
-                  nombres son los de la herramienta vieja, salvo "llegada". */}
-              <Th className={RECORRIDO_W}>
-                <span className="block">Recorrido</span>
-                {/* Sin opacidad extra sobre el muted: a 9 px ya es lo bastante
-                    secundario por tamaño, y el /80 solo restaba legibilidad. */}
-                <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted">
-                  creación · <span className="font-semibold text-text">planificada</span> ·
-                  fabricación · solicitada
-                </span>
-              </Th>
-            </tr>
-          </thead>
-          <tbody>
-            {ordenados.length === 0 && (
-              <tr>
-                {/* Antes la tabla se quedaba en la cabecera y a secas: con un
-                    filtro puesto y ningún resultado parecía que la web se había
-                    quedado a medias de cargar. */}
-                <td colSpan={4} className="px-3 py-12 text-center">
-                  <p className="text-sm font-semibold text-text">
-                    {hayFiltrosActivos
-                      ? "Ningún pedido pasa los filtros"
-                      : "No hay trabajo pendiente"}
-                  </p>
-                  <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
-                    {hayFiltrosActivos
-                      ? "Hay pedidos en la lista, pero los filtros de arriba los dejan todos fuera. Quita alguno para volver a verlos."
-                      : "Aquí sale lo que aún no ha pasado a Producción. Los pedidos nuevos aparecerán en cuanto Producción los planifique para Oficina Técnica."}
-                  </p>
-                </td>
-              </tr>
-            )}
-            {ordenados.map((p) => {
-              // Terminado = la planificación vencida ya no es un problema
-              // pendiente. Misma regla que `estaAtrasado`, que también los
-              // excluye; si no, media lista salía en rojo por trabajo hecho.
-              const hecho = estaFinalizado(p);
-              const pendienteProc = p.situacion === "pendiente";
-              const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
-              const abierto = expandidos.has(p.id);
-              return (
-                <Fragment key={p.id}>
-                  <tr
-                    onClick={() => toggle(p.id)}
-                    // Abierta pierde el hairline de abajo: lo que va debajo no
-                    // es la fila siguiente, es su propio detalle, y sin la raya
-                    // los dos <tr> se leen como un bloque. Y pierde el hover
-                    // gris, que si no ganaría por especificidad y taparía el
-                    // dorado justo al pasar por encima.
-                    className={`cursor-pointer ${pendienteProc ? "opacity-60" : ""} ${
-                      abierto
-                        ? "bg-brand-500/10 hover:bg-brand-500/15"
-                        : "border-b border-border last:border-0 hover:bg-surface-2"
-                    }`}
-                  >
-                    <Td className={abierto ? ACENTO_ARRIBA : ""}>
-                      {/* El clic en la fila entera despliega, pero una <tr> no se
-                          puede enfocar sin romper la semántica de la tabla: el
-                          botón de la flecha es la misma acción, alcanzable con
-                          el tabulador. */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          // La fila también escucha el clic: sin esto, el toggle
-                          // se ejecutaría dos veces y se quedaría como estaba.
-                          e.stopPropagation();
-                          toggle(p.id);
-                        }}
-                        aria-expanded={abierto}
-                        aria-label={`${abierto ? "Plegar" : "Desplegar"} ${p.codigo}`}
-                        className="grid size-8 place-items-center rounded hover:bg-surface-2"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                          className={`size-3.5 text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                        >
-                          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    </Td>
-                    {/* ─── La celda de identidad ───────────────────────────
-                        Arriba QUÉ pedido es y de qué va; abajo, de quién es.
-                        Los dos renglones ocupan lo mismo de alto que la fila de
-                        antes, así que la vista no pierde densidad y el
-                        recorrido se lleva las dos columnas liberadas. */}
-                    <Td>
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span
-                            className="h-3.5 w-1 shrink-0 rounded-full"
-                            style={{ background: PRIORIDAD[p.prioridad].color, color: PRIORIDAD[p.prioridad].tinta }}
-                            title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
-                          />
-                          <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
-                          {/* El nº de OF pegado al código: es parte de QUÉ es
-                              este pedido —"el de Mahou, el de tres"—, no una
-                              medida que nadie compara en columna. */}
-                          <span
-                            className="shrink-0 text-[11px] font-medium text-text-muted"
-                            title={`${p.ofs.length} orden${p.ofs.length === 1 ? "" : "es"} de fabricación`}
-                          >
-                            · {p.ofs.length} OF
-                          </span>
-                          {fichando && (
-                            <span
-                              title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"}
-                              className="inline-flex"
-                            >
-                              <LiveDot rol={fichando} />
-                            </span>
-                          )}
-                          {/* Las familias pegadas al código y no en columna
-                              propia: nadie busca "los de lona" leyendo una
-                              columna, se pregunta de qué va ESTE pedido. */}
-                          {familiasDe(p).map((f) => (
-                            <FamiliaTag key={f} familia={f} />
-                          ))}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-text-muted">
-                          {/* Cliente y negocio en la misma frase, "MAHOU · NOVA
-                              CAMELIAS": el negocio solo significa algo pegado a
-                              su cliente —de MAHOU hay muchos pedidos y lo que
-                              los distingue es el local—, y en columnas
-                              separadas obligaba a leer a saltos. */}
-                          <span
-                            className="min-w-0 text-text"
-                            title={
-                              p.negocio
-                                ? `Cliente ${p.cliente} · Negocio ${p.negocio}`
-                                : `Cliente ${p.cliente}`
-                            }
-                          >
-                            {p.cliente}
-                            {/* El negocio, más apagado que el cliente: el
-                                renglón se lee de corrido pero sigue viéndose
-                                cuál de los dos es el que se busca. */}
-                            {p.negocio && <span className="text-text-muted"> · {p.negocio}</span>}
-                          </span>
-                          {/* Los dos avisos bajan a este renglón: arriba le
-                              quitaban el sitio a las familias, y los dos hablan
-                              de la PROCEDENCIA del pedido —"Interno" es que no
-                              hay pedido de venta detrás, "Sin procesar" que
-                              Producción aún no lo ha pasado a OT—, que es de lo
-                              que va aquí abajo. */}
-                          {p.interno && (
-                            <span
-                              className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
-                              title="Proyecto interno: sin pedido de venta"
-                            >
-                              Interno
-                            </span>
-                          )}
-                          {pendienteProc && (
-                            <span
-                              // gray-400 con texto blanco se leía a 2,6:1 en
-                              // claro. Mismo tratamiento que "Interno", que ya
-                              // usaba tokens y no fallaba.
-                              className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
-                              title="Producción todavía no lo ha pasado a Oficina Técnica"
-                            >
-                              Sin procesar
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </Td>
-                    <Td>
-                      <Estado pedido={p} nombrePorId={nombrePorId} />
-                    </Td>
-                    <Td>
-                      {/* Terminado = el recorrido ya no dice nada: el pedido no
-                          se mueve más. Se apaga entero en vez de teñir media
-                          lista de rojo por trabajo que ya está hecho. */}
-                      <span className={hecho ? "block opacity-40 grayscale" : undefined}>
-                        <Recorrido pedido={p} hoy={hoy} />
-                      </span>
-                    </Td>
-                  </tr>
-                  {/* La <tr> del detalle se pinta SIEMPRE, aunque esté cerrada.
-                      Es el precio de que el cierre se vea: si React la quitara
-                      al pulsar, el contenido desaparecería de golpe y no habría
-                      nada que animar. Cerrada no ocupa nada —`Desplegable`
-                      devuelve null y la celda va sin relleno— y el fondo, el
-                      acento y el hairline viven DENTRO, para que se vayan con
-                      el contenido en vez de apagarse antes que él. */}
-                  <tr>
-                    <td colSpan={4} className="p-0">
-                      <Desplegable abierto={abierto}>
-                        {/* El hairline de abajo es el que CIERRA el bloque: es
-                            la única raya que le queda al pedido abierto, así
-                            que se lee como "hasta aquí llega lo desplegado". */}
-                        <div
-                          className={`border-b border-border bg-brand-500/5 px-3 py-3 ${ACENTO_ABAJO}`}
-                        >
-                          <Detalle p={p} hoy={hoy} operarios={operarios} />
-                        </div>
-                      </Desplegable>
-                    </td>
-                  </tr>
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+  const cabecera = (
+    <>
+      <span />
+      <span>Pedido · cliente</span>
+      <span>Quién · estado</span>
+      <span>
+        <span className="block">Recorrido</span>
+        <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted">
+          creación · <span className="font-semibold text-text">planificada</span> ·
+          fabricación · solicitada
+        </span>
+      </span>
+    </>
+  );
+
+  if (ordenados.length === 0) {
+    return (
+      <div className="grid min-h-40 place-items-center rounded-xl border border-dashed border-border px-6 py-12 text-center">
+        <div>
+          <p className="text-sm font-semibold text-text">
+            {hayFiltrosActivos ? "Ningún pedido pasa los filtros" : "No hay trabajo pendiente"}
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-text-muted">
+            {hayFiltrosActivos
+              ? "Hay pedidos en la lista, pero los filtros de arriba los dejan todos fuera. Quita alguno para volver a verlos."
+              : "Aquí sale lo que aún no ha pasado a Producción. Los pedidos nuevos aparecerán en cuanto Producción los planifique para Oficina Técnica."}
+          </p>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <BloqueLista columnas={COLUMNAS_LISTA} cabecera={cabecera}>
+        {ordenados.map((p) => {
+          // Terminado = la planificación vencida ya no es un problema
+          // pendiente. Misma regla que `estaAtrasado`, que también los excluye.
+          const hecho = estaFinalizado(p);
+          const pendienteProc = p.situacion === "pendiente";
+          const fichando = p.ofs.find((o) => o.fichandoRol)?.fichandoRol ?? null;
+          return (
+            <FilaDesplegable
+              key={p.id}
+              columnas={COLUMNAS_LISTA}
+              abierta={expandidos.has(p.id)}
+              onAlternar={() => toggle(p.id)}
+              etiqueta={p.codigo}
+              idDetalle={`detalle-${p.id}`}
+              celdas={
+                <>
+                  {/* ─── La celda de identidad ───────────────────────────
+                      Arriba QUÉ pedido es y de qué va; abajo, de quién es. */}
+                  <div className="pointer-events-none min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className="h-3.5 w-1 shrink-0 rounded-full"
+                        style={{ background: PRIORIDAD[p.prioridad].color, color: PRIORIDAD[p.prioridad].tinta }}
+                        title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
+                      />
+                      {/* El código SÍ se pulsa: sale del `pointer-events-none`. */}
+                      <span className="pointer-events-auto">
+                        <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
+                      </span>
+                      <span
+                        className="shrink-0 text-[11px] font-medium text-text-muted"
+                        title={`${p.ofs.length} orden${p.ofs.length === 1 ? "" : "es"} de fabricación`}
+                      >
+                        · {p.ofs.length} OF
+                      </span>
+                      {fichando && (
+                        <span
+                          title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+                          className="inline-flex"
+                        >
+                          <LiveDot rol={fichando} />
+                        </span>
+                      )}
+                      {familiasDe(p).map((f) => (
+                        <FamiliaTag key={f} familia={f} />
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-text-muted">
+                      <span
+                        className="min-w-0 text-text"
+                        title={p.negocio ? `Cliente ${p.cliente} · Negocio ${p.negocio}` : `Cliente ${p.cliente}`}
+                      >
+                        {p.cliente}
+                        {p.negocio && <span className="text-text-muted"> · {p.negocio}</span>}
+                      </span>
+                      {p.interno && (
+                        <span
+                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
+                          title="Proyecto interno: sin pedido de venta"
+                        >
+                          Interno
+                        </span>
+                      )}
+                      {pendienteProc && (
+                        <span
+                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
+                          title="Producción todavía no lo ha pasado a Oficina Técnica"
+                        >
+                          Sin procesar
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="pointer-events-none min-w-0">
+                    <Estado pedido={p} nombrePorId={nombrePorId} />
+                  </div>
+                  {/* Terminado = el recorrido ya no dice nada: el pedido no se
+                      mueve más. Se apaga entero en vez de teñir media lista de
+                      rojo por trabajo que ya está hecho. */}
+                  <div className={`pointer-events-none min-w-0 ${hecho ? "opacity-40 grayscale" : ""}`}>
+                    <Recorrido pedido={p} hoy={hoy} />
+                  </div>
+                </>
+              }
+              detalle={<Detalle p={p} hoy={hoy} operarios={operarios} />}
+            />
+          );
+        })}
+      </BloqueLista>
     </div>
   );
 }
@@ -852,20 +714,6 @@ function OFRowLista({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy
   );
 }
 
-/** Cabecera de columna: un rótulo y nada más. El orden se elige en la barra de
- *  filtros, así que aquí no hay nada pulsable — tres de las cuatro columnas son
- *  celdas fundidas y meterles dos rótulos con su flecha hacía que la cabecera
- *  contara más que una fila. */
-function Th({
-  children,
-  className = "",
-}: {
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return <th className={`px-4 py-2.5 font-semibold ${className}`}>{children}</th>;
-}
-
 /** Quién lleva el pedido y por dónde va, en una frase.
  *
  *  Sustituye a tres columnas —avatares de autor y revisor, fase y minutos— que
@@ -937,6 +785,3 @@ function Estado({
   );
 }
 
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-2.5 ${className}`}>{children}</td>;
-}
