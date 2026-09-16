@@ -163,3 +163,19 @@ test("la fila lleva la MISMA rejilla que la cabecera del bloque: es de lo que va
   expect(fila(false)).toContain("grid-cols-[28px_136px_minmax(0,1fr)]");
   expect(fila(true)).toContain("grid-cols-[28px_136px_minmax(0,1fr)]");
 });
+
+test("Pendientes puede pedir que el bloque NO recorte lo que se sale por la derecha", () => {
+  // Por defecto la caja lleva `overflow-hidden`, que es justo lo que recorta
+  // el recorrido en vez de dejarlo desbordar hacia el `overflow-x-auto` que
+  // lo envuelve (ver ListaView).
+  const sinPedirlo = pintarBloque({ columnas: COLUMNAS }, createElement("div", null, "x"));
+  expect(sinPedirlo).toContain("overflow-hidden");
+
+  const pidiendolo = pintarBloque(
+    { columnas: COLUMNAS, desbordaHorizontal: true },
+    createElement("div", null, "x"),
+  );
+  expect(pidiendolo).not.toContain("overflow-hidden");
+  // La esquina sigue redondeada: lo que se quita es el recorte, no el borde.
+  expect(pidiendolo).toContain("rounded-xl");
+});
