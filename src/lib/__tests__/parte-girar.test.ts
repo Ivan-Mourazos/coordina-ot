@@ -31,3 +31,10 @@ test("solo el cuarto IMPAR intercambia ancho y alto, que es lo que llena el huec
   expect(giroIntercambia(0)).toBe(false);
   expect(giroIntercambia(180)).toBe(false);
 });
+
+test("el botón dice en qué posición está la hoja, y lo dice donde lo lee un lector de pantalla", () => {
+  // El nombre de un botón lo da el `aria-label`, no el `title`: con uno fijo,
+  // quien no ve la pantalla no sabría si el parte está girado, que es justo lo
+  // que el anillo de color le cuenta a quien sí la ve.
+  expect(pintar()).toContain('aria-label="Girar el parte · ahora 0°"');
+});

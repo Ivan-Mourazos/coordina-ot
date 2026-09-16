@@ -143,7 +143,11 @@ export function ParteEscaneado({
           type="button"
           onClick={() => setGiro(siguienteGiro)}
           title={`Girar el parte · ahora ${giro}°`}
-          aria-label="Girar el parte"
+          // El grado también en el `aria-label`, no solo en el `title`: el
+          // nombre de un botón lo da el `aria-label`, así que con uno fijo
+          // quien usa lector de pantalla no sabría en qué posición está la
+          // hoja — dato que quien mira la pantalla sí tiene, por el anillo.
+          aria-label={`Girar el parte · ahora ${giro}°`}
           className={`${chip} ${giro !== 0 ? "ring-2 ring-brand-400 text-brand-700 dark:text-brand-300" : ""}`}
         >
           ↻
