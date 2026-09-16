@@ -346,15 +346,21 @@ export function HistorialView({
           Buscando no hay días (los resultados van por fecha del pedido, sin
           separadores), así que ahí todo cae en una sola tarjeta. */}
       <div className="flex flex-col gap-3">
+        {/* La cabecera de columnas, UNA vez y encima de todo: es el rótulo de
+            la lista entera, no de un día. Metida en el primer bloque salía
+            debajo de su título y con otra separación. */}
+        {itemsVisibles.length > 0 && (
+          <div aria-hidden="true" className={`${columnas} px-3 text-[11px] font-semibold text-text-muted`}>
+            {cabeceraColumnas}
+          </div>
+        )}
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
                 <BloqueLista
                   columnas={columnas}
-                  cabecera={i === 0 ? cabeceraColumnas : undefined}
                   rotulo={{
                     texto: dia.titulo,
-                    claseDot: "bg-border-strong",
                     sufijo: (
                       <>
                         · {dia.total ?? dia.items.length}
@@ -371,9 +377,7 @@ export function HistorialView({
               </section>
             ))
           : itemsVisibles.length > 0 && (
-              <BloqueLista columnas={columnas} cabecera={cabeceraColumnas}>
-                {itemsVisibles.map(fila)}
-              </BloqueLista>
+              <BloqueLista columnas={columnas}>{itemsVisibles.map(fila)}</BloqueLista>
             )}
       </div>
 

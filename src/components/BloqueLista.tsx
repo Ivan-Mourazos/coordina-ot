@@ -30,12 +30,20 @@ export function BloqueLista({
   return (
     <div>
       {rotulo && (
-        <h3 className="mb-1 flex items-center gap-2 px-3 text-[11px] font-semibold text-text">
-          <span
-            aria-hidden="true"
-            className={`size-2 shrink-0 rounded-full ${rotulo.claseDot ?? ""}`}
-            style={rotulo.color ? { background: rotulo.color } : undefined}
-          />
+        <h3 className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
+          {/* El punto SOLO si hay color. Sin él no se pinta un círculo
+              transparente que ocupa sitio: los días del Historial llevan
+              rótulo pero no color, y les salía un punto gris de la nada.
+              `self-center` porque el <h3> alinea por línea base — que es lo
+              que necesitan el título y su sufijo — y un círculo sobre la línea
+              base se ve caído. */}
+          {(rotulo.color || rotulo.claseDot) && (
+            <span
+              aria-hidden="true"
+              className={`size-2 shrink-0 self-center rounded-full ${rotulo.claseDot ?? ""}`}
+              style={rotulo.color ? { background: rotulo.color } : undefined}
+            />
+          )}
           {rotulo.texto}
           {rotulo.sufijo && <span className="font-normal text-text-muted">{rotulo.sufijo}</span>}
         </h3>

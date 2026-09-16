@@ -113,6 +113,44 @@ test("sin cabecera ni rótulo el bloque no deja huecos vacíos por encima", () =
   expect(html).not.toContain("text-[11px] font-semibold text-text-muted");
 });
 
+test("un rótulo sin color no pinta un punto: los días del Historial llevan nombre, no color", () => {
+  const html = renderToStaticMarkup(
+    createElement(BloqueLista, {
+      columnas: COLUMNAS,
+      rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
+      children: createElement("div", null, "una fila"),
+    }),
+  );
+  expect(html).toContain("Hoy");
+  expect(html).toContain("· 3 pedidos");
+  expect(html).not.toContain("rounded-full");
+});
+
+test("el título del rótulo alinea por línea base, que es lo que casa con su sufijo de texto", () => {
+  const html = renderToStaticMarkup(
+    createElement(BloqueLista, {
+      columnas: COLUMNAS,
+      rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" },
+      children: createElement("div", null, "x"),
+    }),
+  );
+  expect(html).toContain("items-baseline");
+  expect(html).not.toContain("items-center");
+});
+
+test("con color sí hay punto, y centrado para no caerse sobre la línea base", () => {
+  const html = renderToStaticMarkup(
+    createElement(BloqueLista, {
+      columnas: COLUMNAS,
+      rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "· 3 OF" },
+      children: createElement("div", null, "x"),
+    }),
+  );
+  expect(html).toContain("bg-amber-500");
+  expect(html).toContain("rounded-full");
+  expect(html).toContain("self-center");
+});
+
 test("el aria-controls apunta a un id que existe: sin las dos mitades, el lector de pantalla no sigue nada", () => {
   const html = fila(false);
   expect(html).toContain('aria-controls="detalle-1"');
