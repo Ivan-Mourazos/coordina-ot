@@ -212,3 +212,28 @@ test("Revisiones puede pedir un <h2>: cuelga de un <h1> sin ningún <h2> por med
   expect(html).toContain("<h2");
   expect(html).not.toContain("<h3");
 });
+
+function filaTarjeta(abierta: boolean) {
+  return renderToStaticMarkup(
+    createElement(FilaDesplegable, {
+      columnas: COLUMNAS, abierta, onAlternar() {}, etiqueta: "AR.26.03914",
+      idDetalle: "detalle-1", tarjeta: true,
+      celdas: createElement("span", null, "MAHOU"), detalle: createElement("p", null, "x"),
+    }),
+  );
+}
+
+test("la fila en tarjeta se levanta cerrada y se hunde abierta, como una tecla pulsada", () => {
+  // Cerrada: relieve, para que 40 pedidos seguidos no se lean como un muro.
+  expect(filaTarjeta(false)).toContain("bloque-3d ");
+  expect(filaTarjeta(false)).not.toContain("bloque-3d-hundido");
+  // Abierta: el mismo relieve invertido. Dice "esto está abierto" con un gesto
+  // físico y no solo con un tinte, que podría ser un filtro o un hover.
+  expect(filaTarjeta(true)).toContain("bloque-3d-hundido");
+});
+
+test("sin pedir tarjeta, las filas siguen separándose por una raya: las otras tres vistas no cambian", () => {
+  expect(fila(false)).toContain("border-b border-border");
+  expect(fila(false)).not.toContain("bloque-3d");
+  expect(fila(true)).not.toContain("bloque-3d-hundido");
+});

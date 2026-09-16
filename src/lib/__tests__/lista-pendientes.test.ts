@@ -19,8 +19,16 @@ test("ya no es una tabla: la lista se pinta con la rejilla común", () => {
   expect(html).toContain("bloque-3d");
 });
 
-test("un solo bloque, sin agrupar: el orden lo siguen mandando los filtros", () => {
-  expect(pintar().match(/bloque-3d/g)).toHaveLength(1);
+test("sin agrupar: el orden lo siguen mandando los filtros, no unos rótulos", () => {
+  const html = pintar();
+  // Lo que se comprueba es que NO hay rótulos de grupo (el Historial parte por
+  // día y Revisiones por estado; aquí la lista va de corrido). Antes esto se
+  // medía contando cuántos `bloque-3d` había, y dejó de valer cuando cada
+  // pedido pasó a ser su propia tarjeta con relieve: ahora hay uno por fila.
+  // El rótulo de un grupo es el <h3> que `BloqueLista` pinta sobre la caja.
+  expect(html).not.toContain("<h3");
+  // Y una tarjeta por pedido, que es lo que los separa.
+  expect(html.match(/bloque-3d/g)?.length).toBeGreaterThan(PEDIDOS.length);
 });
 
 test("las cuatro columnas siguen estando, con sus rótulos", () => {

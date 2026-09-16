@@ -20,12 +20,17 @@ import { Desplegable } from "./Desplegable";
 // fallaba cuando la fila abierta se marcaba con `bg-surface-2`.
 //
 // `tarjeta` cambia el corte entre filas de una raya de 1 px a un hueco con
-// relieve propio. Es lo que pidió Pendientes: sin agrupar (los pedidos van
-// sueltos, en el orden que manden los filtros) 40 filas seguidas separadas
-// solo por `border-b` se leen como un muro. Las otras tres vistas ya separan
-// por bloque (Historial por día, Revisiones por estado) y no lo necesitan —
-// cambiarles el corte de golpe sería un lenguaje nuevo sin que nadie lo haya
-// pedido—, así que es opt-in y no el nuevo default.
+// relieve propio (`bloque-3d`): sin agrupar (los pedidos van sueltos, en el
+// orden que manden los filtros) 40 filas seguidas separadas solo por
+// `border-b` se leen como un muro. Abierta, ese mismo relieve se invierte a
+// `bloque-3d-hundido`: es el tacto de tecla pulsada que ya tienen los botones
+// de la casa (`chip-3d:active`), y dice "esto está abierto" sin depender solo
+// del tinte dorado — con dos o tres tarjetas abiertas a la vez, el hundido de
+// cada una sigue marcando dónde acaba y dónde empieza la siguiente. Las otras
+// tres vistas ya separan por bloque (Historial por día, Revisiones por
+// estado) y no lo necesitan — cambiarles el corte de golpe sería un lenguaje
+// nuevo sin que nadie lo haya pedido—, así que es opt-in y no el nuevo
+// default.
 
 export function FilaDesplegable({
   columnas,
@@ -54,14 +59,16 @@ export function FilaDesplegable({
   detalle: ReactNode;
   /** SOLO Pendientes (ver el comentario de arriba). Cada fila —con su
    *  detalle, si está abierta— pasa a ser su propia tarjeta con margen y
-   *  anillo, en vez de compartir raya con la siguiente. */
+   *  relieve propio, en vez de compartir raya con la siguiente. */
   tarjeta?: boolean;
 }) {
   return (
     <div
       className={
         tarjeta
-          ? "relative mb-1.5 overflow-hidden rounded-lg ring-1 ring-border last:mb-0"
+          ? abierta
+            ? "relative mb-1.5 overflow-hidden rounded-lg bloque-3d-hundido last:mb-0"
+            : "relative mb-1.5 overflow-hidden rounded-lg bloque-3d last:mb-0"
           : "relative border-b border-border last:border-b-0"
       }
     >

@@ -346,6 +346,33 @@ body {
     0 10px 22px -12px rgba(0, 0, 0, 0.7);
 }
 
+/* Fila de `bloque-3d` en el momento en que está abierta: la misma tarjeta,
+ * pero HUNDIDA en vez de levantada. Toma las proporciones de `.chip-3d:active`
+ * (el "aplastado" del resto de la app) a tamaño de fila: pierde el canto
+ * inferior que la despega del fondo y gana una sombra hacia dentro.
+ *
+ * Es a propósito que no baste con cambiar el color de fondo: un tinte se lee
+ * "esta fila está marcada", pero no dice nada de POR QUÉ está marcada — podría
+ * ser un filtro, un hover, un error. El relieve hundido en cambio es el mismo
+ * gesto físico que un botón pulsado (`chip-3d:active`): "esto está abierto
+ * porque alguien lo pulsó y sigue pulsado", y ese lenguaje ya lo conoce quien
+ * usa la app por los botones de la casa. */
+.bloque-3d-hundido {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
+    var(--glass-chip);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.12),
+    0 1px 2px -1px var(--glass-shadow);
+  transition: box-shadow 120ms ease;
+}
+.dark .bloque-3d-hundido {
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.5),
+    0 1px 2px -1px rgba(0, 0, 0, 0.7);
+}
+
 /* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */
 .chip-3d {
   background:
@@ -642,6 +669,7 @@ body {
   .overlay-in,
   .drawer-in,
   .pedido-chip-3d,
+  .bloque-3d-hundido,
   .desplegable-abre,
   .desplegable-cierra,
   .overlay-out {
