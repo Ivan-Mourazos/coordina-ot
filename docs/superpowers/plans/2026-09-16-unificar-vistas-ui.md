@@ -2413,8 +2413,11 @@ EOF
 pnpm test
 pnpm build
 pnpm lint
+npx tsc --noEmit -p .
 ```
-Expected: las tres sin errores.
+Expected: las cuatro sin errores.
+
+El `tsc` a mano no es de adorno: **no está en los scripts de `package.json` y ninguna de las otras tres lo cubre.** Vitest transpila sin comprobar tipos y `next build` no mira los ficheros de prueba, así que un fichero de `src/lib/__tests__/` puede quedarse con siete errores de tipos y las tres órdenes seguir en verde. Pasó en este mismo trabajo.
 
 - [ ] **Step 2: Repaso a ojo, en claro y en oscuro**
 
