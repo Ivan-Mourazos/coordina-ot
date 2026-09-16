@@ -37,12 +37,7 @@ import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
-import {
-  BloqueFicha,
-  CabeceraFicha,
-  DatosEnLinea,
-  MarcoFicha,
-} from "./MarcoFicha";
+import { BloqueFicha, CabeceraFicha, MarcoFicha } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
@@ -494,6 +489,11 @@ export function Drawer({
           prioridad={pedido.prioridad}
           cliente={pedido.cliente}
           negocio={pedido.negocio}
+          datos={[
+            `${piezasTotal(pedido)} ${piezasTotal(pedido) === 1 ? "pieza" : "piezas"}`,
+            ...(pedido.ciudadEntrega ? [pedido.ciudadEntrega] : []),
+          ]}
+          familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
         />
       }
       pie={
@@ -548,18 +548,6 @@ export function Drawer({
         </>
       }
     >
-          {/* meta: sin fechas — las cuatro del pedido están en la línea de
-              tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
-              sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor
-              contado dos veces. */}
-          <DatosEnLinea
-            datos={[
-              { k: "Piezas", v: `${piezasTotal(pedido)} ${piezasTotal(pedido) === 1 ? "pieza" : "piezas"}` },
-              ...(pedido.ciudadEntrega ? [{ k: "Entrega en", v: pedido.ciudadEntrega }] : []),
-            ]}
-            familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
-          />
-
           <LineaTiempoPedido pedido={pedido} />
 
           {avisosCierreRps?.pedido === pedido.codigo && (
@@ -635,9 +623,11 @@ export function Drawer({
             operarios={operarios}
           />
 
-          {/* asignar autor del pedido entero */}
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
-            <span className="text-xs font-semibold text-text">Asignar autor (pedido entero)</span>
+          {/* Asignar el autor del pedido entero. Era una caja con borde, fondo
+              y rótulo propio: tres renglones de alto para un selector, en una
+              ficha donde el alto es lo que escasea. */}
+          <div className="mb-4 flex items-center gap-2 text-xs">
+            <span className="font-semibold text-text-muted">Autor del pedido</span>
             <div className="ml-auto">
               <Select
                 value={
