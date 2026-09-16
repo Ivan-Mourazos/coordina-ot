@@ -16,7 +16,7 @@ Esto no cambia nada para el equipo. `COORDINA_LOGIN` no está puesta, o está a
 2. **Backup de `data/coordina.db` antes de arrancar** (`pnpm backup`): la
    migración 7 crea la tabla `persona`. Es la práctica de siempre, y aquí más.
 3. Después de arrancar, comprobar dos cosas:
-   - `PRAGMA user_version` en `data/coordina.db` es **al menos 7**. Producción ya tiene la **8**, verificada el 10/09/2026; no bajar la versión.
+   - `PRAGMA user_version` en `data/coordina.db` es **al menos 9**. La 7 creó la tabla `persona`; la 9 le da el rol de supervisor a Iván, para que resetear un PIN no cuelgue de una sola cuenta. Producción tenía la **8** el 10/09/2026 y sube sola al arrancar; no bajar la versión.
    - La web se ve exactamente igual que ayer. Si sale una pantalla de PIN, la
      variable está encendida y no debería.
 
@@ -78,23 +78,39 @@ COORDINA_SESION_SECRET=<lo generado en el paso 3>
 
 y reiniciar el proceso. **No hay que desplegar código.**
 
-### Ángel entra el primero
+### El orden da igual; la prisa no
 
-Mientras una persona no tenga PIN puesto, cualquiera de la red puede ponérselo
-y entrar como ella: el primer PIN que se teclea para un nombre se acepta como
-bueno, quien lo teclee. Ángel es la ÚNICA cuenta activa con rol de supervisor,
-o sea la única que puede reiniciarle el PIN a alguien: si alguien se quedara
-con su identidad, controlaría después quién recupera su cuenta, y no habría
-forma de deshacerlo desde el menú.
+**No hay que entrar en ningún orden concreto.** Nadie arranca nada para los
+demás: cada uno abre la web, pulsa su cara, teclea sus cuatro números dos veces
+y entra. El primero puede ser cualquiera.
 
-Por eso, nada más reiniciar el proceso y ANTES de avisar al resto del equipo
-de que ya pueden entrar: que Ángel entre, elija su PIN y lo compruebe. Solo
-entonces se abre paso a los demás.
+Lo que sí importa es **cuánto tiempo pasa con cuentas sin reclamar**. Mientras
+una persona no tenga PIN puesto, cualquiera de la red puede ponérselo y entrar
+como ella: el primer PIN que se teclea para un nombre se acepta como bueno, lo
+teclee quien lo teclee. Por eso se enciende con el equipo delante (ver
+«Encender con el equipo delante» más abajo) y se repasa después quién sigue sin
+ponerlo.
+
+Tres cosas quitan hierro a esto, y conviene saber que están:
+
+- **Hay dos supervisores, Ángel e Iván** (migración 9). El rol solo sirve para
+  resetearle el PIN a otro, y con uno solo la cuenta que no podía arreglarse era
+  justo la suya. Con dos, uno desatasca al otro.
+- **Pulsar la cara equivocada al elegir PIN ya avisa.** Antes de guardarlo, la
+  pantalla dice de quién es el PIN que va a crear y qué pasa si no es él, y el
+  foco entra en «No soy yo». Era el fallo fácil: quien va a teclear mira el
+  teclado, no el nombre de la cabecera.
+- **`pnpm pin:resetear <id>`** hace lo mismo desde la consola del servidor, sin
+  necesidad de que nadie tenga sesión. Es la red por debajo de las otras dos: si
+  se atascaran las dos cuentas de supervisor, esto sigue funcionando. Sin
+  argumentos enseña quién puede entrar y a quién le falta el PIN.
 
 ### Comprobar, en este orden
 
 1. La pantalla de PIN sale.
-2. Ángel entra (ver arriba) y el tablero le sale bien.
+2. El primero en entrar —quien sea— elige su PIN y el tablero le sale bien.
+   Comprueba de paso que el aviso de «Vas a crear el PIN de …» aparece antes de
+   guardarlo.
 3. En las herramientas del navegador, Aplicación → Cookies: `coordina_sesion`
    con **HttpOnly marcado**. Si `document.cookie` la enseña desde la consola,
    algo se hizo mal y el login no protege nada.
@@ -115,7 +131,7 @@ dos cosas a la vez. Poner estas líneas en el commit que cambie la
 configuración, y pasar `pnpm novedades`:
 
     Novedad: nuevo | Ahora entras con un PIN
-    Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, para que no se cuele una errata. Cuando termines, en el menú de arriba a la derecha tienes Salir.
+    Detalle: Eliges tu nombre como siempre y tecleas los cuatro números de tu extensión. La primera vez te los pide dos veces, y antes de guardarlo te pregunta si eres tú: si te equivocaste de cara, ahí lo ves. Cuando termines, en el menú de arriba a la derecha tienes Salir.
     Novedad: arreglado | Lo que escribías podía firmarlo otro
     Detalle: Hasta ahora el nombre viajaba desde el navegador y se podía cambiar. Ahora lo pone el servidor: lo que fichas, apruebas o escribes queda a tu nombre y solo al tuyo.
     Novedad: nuevo | El resto de la casa ya puede seguir un pedido sin llamarte
@@ -131,16 +147,22 @@ vigilándola. Enciéndelo con el equipo ya sentado y avisado, para que cada uno
 reclame la suya en cuanto pueda.
 
 Al rato de encenderlo, repasar que no quede nadie sin PIN puesto: el propio
-menú de "PIN olvidado" (el que usa Ángel para resetear) marca "sin PIN" junto
-al nombre de quien todavía no lo ha puesto, así que mirarlo es cosa de abrir
-ese menú. A quien esté de vacaciones o de baja ese día, avisarle para que lo
-ponga en cuanto pueda, o esperar a que vuelva: mientras no lo tenga, su cuenta
-sigue reclamable por cualquiera de la red, igual que la de Ángel al principio.
+menú de "PIN olvidado" (el de resetear) marca "sin PIN" junto al nombre de quien
+todavía no lo ha puesto, así que mirarlo es cosa de abrir ese menú. Desde la
+consola del servidor, `pnpm pin:resetear` sin argumentos enseña la misma lista.
+A quien esté de vacaciones o de baja ese día, avisarle para que lo ponga en
+cuanto pueda, o esperar a que vuelva: mientras no lo tenga, su cuenta sigue
+reclamable por cualquiera de la red.
 
 ### Después
 
-Ángel es el único con rol de supervisor: si alguien se atasca, él le resetea el
-PIN desde el menú.
+Si alguien se atasca, **Ángel o Iván** le resetean el PIN desde el menú de
+herramientas (solo lo ven ellos, y solo con el login encendido). Queda sin PIN y
+lo vuelve a elegir al entrar; no se le pone uno por defecto, que lo sabría todo
+el mundo.
+
+Si no hubiera ninguno de los dos dentro, `pnpm pin:resetear <id>` en el servidor
+hace exactamente lo mismo.
 
 ---
 
