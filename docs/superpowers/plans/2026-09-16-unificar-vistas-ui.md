@@ -67,6 +67,8 @@
     onAlternar: () => void;
     etiqueta: string;
     idDetalle: string;
+    /** Lo que se cuenta al posar el ratón sobre la fila entera. */
+    titulo?: string;
     celdas: React.ReactNode;
     detalle: React.ReactNode;
   }): JSX.Element
@@ -119,6 +121,18 @@ test("la fila abierta pinta el detalle y se marca con el acento de marca", () =>
 
 test("el botón que cubre la fila apunta al detalle, para el lector de pantalla", () => {
   expect(fila(false)).toContain('aria-controls="detalle-1"');
+});
+
+test("la fila puede contar algo al posar el ratón, sin que sea obligatorio", () => {
+  const con = renderToStaticMarkup(
+    createElement(FilaDesplegable, {
+      columnas: COLUMNAS, abierta: false, onAlternar() {}, etiqueta: "AR.26.03914",
+      idDetalle: "detalle-1", titulo: "Lo pasó Iván el 04/09",
+      celdas: createElement("span", null, "MAHOU"), detalle: createElement("p", null, "x"),
+    }),
+  );
+  expect(con).toContain("Lo pasó Iván el 04/09");
+  expect(fila(false)).not.toContain("title=");
 });
 
 test("el bloque reparte las MISMAS columnas a la cabecera y a lo que lleva dentro", () => {
@@ -198,6 +212,7 @@ export function FilaDesplegable({
   onAlternar,
   etiqueta,
   idDetalle,
+  titulo,
   celdas,
   detalle,
 }: {
@@ -209,6 +224,10 @@ export function FilaDesplegable({
   etiqueta: string;
   /** El id del contenedor del detalle, al que apunta `aria-controls`. */
   idDetalle: string;
+  /** Lo que se cuenta al posar el ratón sobre la fila entera. Lo usa el
+   *  Historial para decir cuándo se pasó a Producción y quién lo pasó: es un
+   *  dato que no tiene columna y que no cabría en ninguna. */
+  titulo?: string;
   celdas: ReactNode;
   detalle: ReactNode;
 }) {
@@ -228,6 +247,7 @@ export function FilaDesplegable({
           aria-expanded={abierta}
           aria-controls={idDetalle}
           aria-label={`${abierta ? "Plegar" : "Desplegar"} ${etiqueta}`}
+          title={titulo}
           className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
         />
         <span
@@ -326,7 +346,7 @@ export function BloqueLista({
 - [ ] **Step 5: Comprobar que pasan**
 
 Run: `pnpm test lista-comun`
-Expected: PASS — 6 pruebas.
+Expected: PASS — 7 pruebas.
 
 - [ ] **Step 6: Commit**
 
@@ -381,6 +401,7 @@ Dentro de `FilaHistorial`, sustituir todo el `return (…)` (desde `<div classNa
       onAlternar={alternar}
       etiqueta={item.pedido}
       idDetalle={`ofs-${seccion}-${item.pedido}`}
+      titulo={tituloPasado}
       celdas={
         <>
           <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
@@ -450,7 +471,7 @@ Dentro de `FilaHistorial`, sustituir todo el `return (…)` (desde `<div classNa
   );
 ```
 
-El `title={tituloPasado}` que llevaba el botón de cubierta se pierde: `FilaDesplegable` no tiene esa prop y el dato ya está en la columna de fecha al buscar. **No** añadir la prop; si en la revisión visual se echa de menos, se apunta y se decide entonces.
+El `title={tituloPasado}` viaja en la prop `titulo`: dice cuándo se pasó a Producción y quién lo pasó, y ese dato no tiene columna ni cabría en ninguna. El Historial tiene que quedar **idéntico**, y perderlo no sería idéntico.
 
 - [ ] **Step 3: Cambiar la cabecera y los bloques por `BloqueLista`**
 
