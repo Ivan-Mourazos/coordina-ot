@@ -30,7 +30,7 @@ export function BloqueLista({
   rotulo?: { texto: string; color?: string; claseDot?: string; sufijo?: ReactNode };
   children: ReactNode;
   /** SOLO Pendientes. Su columna del recorrido lleva un suelo en px
-   *  (`minmax(520px, 42%)`): por debajo de ese ancho, cada FILA ya se sale de
+   *  (`minmax(440px, 42%)`): por debajo de ese ancho, cada FILA ya se sale de
    *  su caja —el suelo del `minmax` no cede— y esa fecha de más a la derecha,
    *  con el chip de retraso, cae fuera de los 100% de ancho que la fila tiene
    *  asignados. Eso es lo que había ANTES de este trabajo, y se veía —las

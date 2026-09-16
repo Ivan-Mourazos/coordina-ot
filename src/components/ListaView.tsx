@@ -118,15 +118,27 @@ function Fecha({
  *  solo compila las clases que ve escritas.
  *
  *  Son los mismos repartos de antes —36 % identidad, 22 % estado, 42 %
- *  recorrido con suelo de 520 px— más los 32 px del chevron, que en la tabla
+ *  recorrido con suelo de 440 px— más los 32 px del chevron, que en la tabla
  *  era una `<Th className="w-8" />`. El `min-w` del recorrido es el suelo por
- *  debajo del cual las cuatro fechas de la línea se pisan. */
+ *  debajo del cual las cuatro fechas de la línea se pisan.
+ *
+ *  El suelo BAJÓ de 520 a 440: con 520, el ancho total de la fila (32 +
+ *  36 % + 22 % + 520, más los `gap-x-3` entre columnas) supera el ancho
+ *  disponible en cuanto la ventana baja de ~1400 px de contenido —un
+ *  portátil normal, no un caso raro—, y el sobrante empuja el chip
+ *  "+Xd"/el último punto fuera de lo visible. Con `desbordaHorizontal` ya no
+ *  se RECORTA (eso lo arregló un commit anterior), pero sigue habiendo que
+ *  arrastrar la barra para verlo, y nadie lo hace: se ve cortado igual. 440
+ *  empuja ese umbral por debajo de ~900 px de contenido, fuera del rango de
+ *  cualquier ventana real, sin tocar la separación mínima entre fechas: baja
+ *  con el mismo suelo (ver `RECORRIDO_PX`), así que a 440 px las cuatro
+ *  siguen sin pisarse. */
 const COLUMNAS_LISTA =
-  "grid grid-cols-[32px_36%_22%_minmax(520px,42%)] items-center gap-x-3";
+  "grid grid-cols-[32px_36%_22%_minmax(440px,42%)] items-center gap-x-3";
 
 /** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
  *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */
-const RECORRIDO_PX = 520;
+const RECORRIDO_PX = 440;
 
 /** Lo que se lleva el chip "+128d" con su hueco cuando el pedido va tarde. Se
  *  descuenta siempre, salga o no en esa fila: si la separación dependiera del
