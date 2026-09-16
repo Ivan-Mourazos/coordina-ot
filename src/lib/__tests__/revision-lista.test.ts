@@ -58,6 +58,18 @@ test("el conmutador de alcance sigue estando", () => {
   expect(html).toContain("Todo el equipo");
 });
 
+test("el código del pedido se puede pulsar: sin subirlo de capa, el clic se lo come el fondo que despliega", () => {
+  const html = pintar(["en_revision"]);
+  // `FilaDesplegable` cubre la fila entera con un botón `absolute inset-0`.
+  // Al estar posicionado se pinta por encima de los hermanos que no lo están,
+  // así que el código necesita `relative z-10` para recibir el clic. Sin esta
+  // comprobación el fallo es invisible: renderToStaticMarkup no calcula
+  // posiciones, y en pantalla el botón se ve perfectamente — solo que no hace
+  // nada.
+  expect(html).toContain("pointer-events-auto relative z-10");
+  expect(html).toContain("Abrir detalle del pedido");
+});
+
 test("el estado del pedido se lee sin abrir la línea: es a lo que se viene a esta lista", () => {
   const aprobadas = pintar(["aprobada", "aprobada"]);
   expect(aprobadas).toContain("Pedido listo para pasar a Producción");

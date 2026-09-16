@@ -18,6 +18,7 @@ import { NotaDevolucion } from "./NotaDevolucion";
 import { Select, OpDot } from "./Select";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
+import { PedidoCodigo } from "./PedidoCodigo";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
 // Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
@@ -410,17 +411,13 @@ function FilaRevision({
       idDetalle={`revision-${estado}-${pedido.id}`}
       celdas={
         <>
-          {/* El código abre la ficha; el resto de la línea despliega. Hermanos,
-              no anidados: un clic produce una sola acción. */}
-          <span className="pointer-events-auto min-w-0">
-            <button
-              type="button"
-              onClick={onOpen}
-              title={`Abrir la ficha de ${pedido.codigo}`}
-              className="font-mono text-xs font-bold text-text underline-offset-2 hover:underline"
-            >
-              {pedido.codigo}
-            </button>
+          {/* El código abre la ficha; el resto de la línea despliega. Va con
+              `PedidoCodigo` y no con un botón propio: ese componente lleva el
+              `relative z-10` que lo sube por encima del botón de cubierta de
+              `FilaDesplegable`, y sin él el clic no llega nunca aquí — se lo
+              come la cubierta, que está posicionada y se pinta por encima. */}
+          <span className="min-w-0">
+            <PedidoCodigo codigo={pedido.codigo} onAbrir={onOpen} />
           </span>
           <span
             className="pointer-events-none min-w-0 truncate text-[11px] text-text-muted"
