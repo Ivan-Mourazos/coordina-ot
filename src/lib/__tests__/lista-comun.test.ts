@@ -112,3 +112,14 @@ test("sin cabecera ni rótulo el bloque no deja huecos vacíos por encima", () =
   expect(html.startsWith("<div")).toBe(true);
   expect(html).not.toContain("text-[11px] font-semibold text-text-muted");
 });
+
+test("el aria-controls apunta a un id que existe: sin las dos mitades, el lector de pantalla no sigue nada", () => {
+  const html = fila(false);
+  expect(html).toContain('aria-controls="detalle-1"');
+  expect(html).toContain('id="detalle-1"');
+});
+
+test("la fila lleva la MISMA rejilla que la cabecera del bloque: es de lo que va todo esto", () => {
+  expect(fila(false)).toContain("grid-cols-[28px_136px_minmax(0,1fr)]");
+  expect(fila(true)).toContain("grid-cols-[28px_136px_minmax(0,1fr)]");
+});
