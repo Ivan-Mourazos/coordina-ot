@@ -16,6 +16,8 @@ import { GuiaRevision } from "./GuiaRevision";
 import { AprobarInline } from "./AprobarInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { Select, OpDot } from "./Select";
+import { BloqueLista } from "./BloqueLista";
+import { FilaDesplegable } from "./FilaDesplegable";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
 // Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
@@ -33,6 +35,11 @@ import { Select, OpDot } from "./Select";
 // sale con el desplegable de revisor abierto para ponerle nombre, que es lo que
 // hay que hacer con ella. Cambiar de revisor sigue estando donde estaba, con su
 // nombre y avisando al interesado.
+
+/** Las columnas de una línea de revisión. Literal entera (Tailwind).
+ *  chevron · pedido · cliente · nº OF · tiempo · autor→revisor */
+const COLUMNAS_REVISION =
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_56px_64px_84px] items-center gap-x-3";
 
 const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
@@ -70,7 +77,7 @@ export function RevisionView({
   // El único que monta esta vista es Board.tsx, después de su
   // `if (!miId) return <IdentityGate .../>`: aquí siempre hay alguien
   // identificado. Que dijera `| null` obligaba a `useMarcasRevision` (dentro
-  // de ReviewCard, más abajo) a aceptar un caso que en realidad no se da.
+  // de FilaRevision, más abajo) a aceptar un caso que en realidad no se da.
   miId: string;
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
@@ -124,9 +131,9 @@ export function RevisionView({
           {mias ? "Lo que tengo que revisar" : "Revisión del equipo"}
         </h1>
         {/* Cuántas OF hay en total en lo que se está mirando. Es el número que
-            contesta "¿me queda mucho?" sin sumar las cuatro columnas. */}
+            contesta "¿me queda mucho?" sin sumar las cuatro secciones. */}
         <span className="text-[11px] text-text-muted">
-          {total} OF{total === 1 ? "" : "s"} en las cuatro columnas
+          {total} OF{total === 1 ? "" : "s"} en las cuatro secciones
         </span>
         {!mias && porRevisor.size > 0 && (
           <span className="ml-2 flex flex-wrap items-center gap-1.5">
@@ -158,17 +165,15 @@ export function RevisionView({
         </span>
       </div>
 
-      {/* Las CUATRO columnas siempre, tengan algo o no, en los dos alcances.
-          En "solo mías" faltaba la de aprobadas y, con todo vacío, se sustituía
-          el tablero entero por una frase: se perdía de vista el recorrido y no
-          se podía comparar con lo del equipo sin cambiar de sitio. Una columna
-          vacía dice "aquí no tienes nada", que es información; que no esté la
-          columna, no dice nada.
-          items-start: cada columna mide lo que ocupa. Sin esto todas se
-          estiraban a la altura de la más larga. */}
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* LOS CUATRO ESTADOS, UNO DEBAJO DE OTRO. Estaban en cuatro columnas y
+          cada tarjeta vivía en ~260 px: ahí no caben el selector de revisor,
+          la guía de ocho puntos y dos botones sin apretarlo todo. A lo ancho
+          cabe, y el recorrido se sigue leyendo igual porque el orden de los
+          cuatro no cambia — solo va de arriba abajo en vez de izquierda a
+          derecha. */}
+      <div className="flex flex-col gap-4">
         {columnas.map((col) => (
-          <ColumnaRevision
+          <SeccionRevision
             key={col.estado}
             titulo={mias ? col.mio : col.titulo}
             estado={col.estado}
@@ -191,11 +196,10 @@ export function RevisionView({
   );
 }
 
-// Una columna del tablero de revisión: cabecera con punto de color + título +
-// contador, y la lista de tarjetas (o el aviso de "Vacío"). La comparten los
-// dos alcances —"Todo el equipo" colorea por ESTADO, "Solo mías" con el violeta
-// único de la revisión— para no duplicar el layout en dos sitios.
-function ColumnaRevision({
+// Un estado de la revisión: su rótulo con punto de color y contador, y debajo
+// una línea por pedido. La comparten los dos alcances — "Todo el equipo"
+// colorea por ESTADO, "Solo mías" con el violeta único de la revisión.
+function SeccionRevision({
   titulo,
   estado,
   dotClassName,
@@ -214,7 +218,7 @@ function ColumnaRevision({
   dotColor?: string;
   facets: RFacet[];
   operarios: Operario[];
-  miId: string; // Viene de RevisionView, ya identificado — ver su comentario.
+  miId: string;
   causas: CausaDevolucion[];
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
@@ -222,25 +226,23 @@ function ColumnaRevision({
 }) {
   const nOF = facets.reduce((n, f) => n + f.ofs.length, 0);
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-zone p-3">
-      <div className="mb-3 flex items-center gap-2">
-        <span
-          className={`size-2.5 rounded-full ${dotClassName ?? ""}`}
-          style={dotColor ? { background: dotColor } : undefined}
-        />
-        <h2 className="text-sm font-semibold text-text">{titulo}</h2>
-        <span className="ml-auto rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted ring-1 ring-border">
-          {nOF} OF
-        </span>
-      </div>
-      <div className="flex flex-col gap-2.5">
+    <section aria-label={titulo}>
+      <BloqueLista
+        columnas={COLUMNAS_REVISION}
+        rotulo={{
+          texto: titulo,
+          claseDot: dotClassName,
+          color: dotColor,
+          sufijo: `· ${nOF} OF`,
+        }}
+      >
         {facets.length === 0 ? (
-          <div className="grid min-h-20 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
-            Vacío
-          </div>
+          <p className="px-3 py-3 text-xs text-text-muted">
+            Aquí no tienes nada ahora mismo.
+          </p>
         ) : (
           facets.map((f) => (
-            <ReviewCard
+            <FilaRevision
               key={f.pedido.id}
               facet={f}
               estado={estado}
@@ -253,8 +255,8 @@ function ColumnaRevision({
             />
           ))
         )}
-      </div>
-    </div>
+      </BloqueLista>
+    </section>
   );
 }
 
@@ -302,7 +304,7 @@ function Avatar({ op, title }: { op: Operario | undefined; title: string }) {
   );
 }
 
-function ReviewCard({
+function FilaRevision({
   facet,
   estado,
   operarios,
@@ -324,8 +326,8 @@ function ReviewCard({
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
+  const [abierta, setAbierta] = useState(false);
   const { pedido, ofs } = facet;
-  const meta = ESTADO[estado];
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
   const ofIds = ofs.map((o) => o.id);
   // Cuánto lleva encima el grupo. En una cola de revisión es lo que dice si
@@ -397,147 +399,180 @@ function ReviewCard({
     </div>
   );
 
+  const autoresDelGrupo = [...new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[])];
+
   return (
-    <div className={`rounded-lg border border-l-4 border-border bg-surface p-2.5 ${meta.borderIzq}`}>
-      <button onClick={onOpen} className="block w-full text-left">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-text">{pedido.codigo}</span>
-          {minutos > 0 && (
-            <span className="text-[10px] text-text-muted" title="Tiempo ya fichado en estas OF">
-              {fmtMin(minutos)}
+    <FilaDesplegable
+      columnas={COLUMNAS_REVISION}
+      abierta={abierta}
+      onAlternar={() => setAbierta((a) => !a)}
+      etiqueta={pedido.codigo}
+      idDetalle={`revision-${estado}-${pedido.id}`}
+      celdas={
+        <>
+          {/* El código abre la ficha; el resto de la línea despliega. Hermanos,
+              no anidados: un clic produce una sola acción. */}
+          <span className="pointer-events-auto min-w-0">
+            <button
+              type="button"
+              onClick={onOpen}
+              title={`Abrir la ficha de ${pedido.codigo}`}
+              className="font-mono text-xs font-bold text-text underline-offset-2 hover:underline"
+            >
+              {pedido.codigo}
+            </button>
+          </span>
+          <span
+            className="pointer-events-none min-w-0 truncate text-[11px] text-text-muted"
+            title={pedido.cliente}
+          >
+            {pedido.cliente}
+          </span>
+          <span className="pointer-events-none text-[11px] text-text-muted">
+            {ofs.length} OF
+          </span>
+          <span
+            className="pointer-events-none text-right font-mono text-[11px] tabular-nums text-text-muted"
+            title="Tiempo ya fichado en estas OF"
+          >
+            {minutos > 0 ? fmtMin(minutos) : "—"}
+          </span>
+          {/* De quién viene y a quién le toca, que es lo que se pregunta al
+              mirar una cola de revisión. */}
+          <span className="pointer-events-none flex items-center justify-end gap-1">
+            {autoresDelGrupo.slice(0, 2).map((id) => (
+              <Avatar key={id} op={operarios.find((o) => o.id === id)} title="Autor" />
+            ))}
+            {revisorComun && (
+              <>
+                <span className="text-text-muted">→</span>
+                <Avatar op={operarios.find((o) => o.id === revisorComun)} title="Revisor" />
+              </>
+            )}
+          </span>
+          {/* El estado del PEDIDO, a lo ancho y en una segunda línea de la
+              misma rejilla (`col-span-full`). Va aquí y no en el detalle
+              porque es justo lo que se busca al recorrer esta lista: si
+              hubiera que abrir cada línea para saber si el pedido ya está
+              listo, la sección no serviría para nada.
+              Las seis columnas de arriba se quedan como están. */}
+          {estado === "aprobada" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+              {pedidoListoParaPasar(pedido)
+                ? "✓ Pedido listo para pasar a Producción"
+                : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
             </span>
           )}
-          <span className="ml-auto text-[10px] text-text-muted">{ofs.length} OF</span>
-        </div>
-        <div className="truncate text-[11px] text-text-muted">{pedido.cliente}</div>
-        <ul className="mt-1.5 space-y-1">
-          {ofs.map((of) => (
-            <li key={of.id} className="flex items-center gap-1.5 text-[11px]">
-              <FamiliaIcon familia={of.familia} className="size-3" />
-              <span className="font-mono text-text-muted">{of.codigo}</span>
-              <span className="truncate text-text">{of.descripcion}</span>
-              {of.fichandoRol && (
-                <span title={of.fichandoRol === "revisar" ? "Revisando ahora" : "Planteando ahora"} className="inline-flex">
-                  <LiveDot rol={of.fichandoRol} className="size-1.5" />
+          {estado === "devuelta" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] text-text-muted">
+              ↩ Vuelve al autor
+            </span>
+          )}
+        </>
+      }
+      detalle={
+        <div className="space-y-2">
+          {/* Las OF del grupo, con lo que las distingue una de otra. */}
+          <ul className="space-y-1">
+            {ofs.map((of) => (
+              <li key={of.id} className="flex items-center gap-2 text-[11px]">
+                <FamiliaIcon familia={of.familia} className="size-3.5 shrink-0" />
+                <span className="shrink-0 font-mono text-text-muted">{of.codigo}</span>
+                <span className="min-w-0 flex-1 truncate text-text" title={of.descripcion}>
+                  {of.descripcion}
                 </span>
-              )}
-              <span className="ml-auto flex items-center gap-1">
-                <Avatar op={operarios.find((o) => o.id === of.autorId)} title="Autor" />
-                {of.revisorId && (
-                  <>
-                    <span className="text-text-muted">→</span>
-                    <Avatar op={operarios.find((o) => o.id === of.revisorId)} title="Revisor" />
-                  </>
+                {of.fichandoRol && (
+                  <span
+                    title={of.fichandoRol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+                    className="inline-flex shrink-0"
+                  >
+                    <LiveDot rol={of.fichandoRol} className="size-1.5" />
+                  </span>
                 )}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {estado === "devuelta" && ofs.find((o) => o.observacion) && (
-          <NotaDevolucion
-            observacion={ofs.find((o) => o.observacion)!.observacion!}
-            className="mt-1.5 rounded bg-red-500/10 px-1.5 py-1 text-[10px] text-red-600 dark:text-red-400"
-          />
-        )}
-      </button>
+                <span className="flex shrink-0 items-center gap-1">
+                  <Avatar op={operarios.find((o) => o.id === of.autorId)} title="Autor" />
+                  {of.revisorId && (
+                    <>
+                      <span className="text-text-muted">→</span>
+                      <Avatar op={operarios.find((o) => o.id === of.revisorId)} title="Revisor" />
+                    </>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
 
-      {/* Acciones por columna. Solo sale lo que me toca a MÍ: la máquina de
-          estados ya filtra por rol, así que al autor esta tarjeta se le queda
-          en un resumen de lectura, que es lo que debe ser. */}
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        {estado === "por_revisar" && (
-          <>
-            {/* Sin revisor no debería llegar ninguna (se nombra al pasar a
-                revisión). Si pasa, se dice y se ofrece ponerlo: es lo que
-                desatasca la OF, y con nombre, no cogiéndosela en silencio. */}
-            {sinRevisor.length > 0 && (
-              <p className="w-full text-[11px] text-text-muted">
-                {sinRevisor.length === ofs.length ? "Sin revisor" : `${sinRevisor.length} sin revisor`} —
-                viene de antes de la web. Ponle uno para que pueda empezar.
-              </p>
-            )}
-            {selectorRevisor}
-            {puedo("empezar_revision") && (
-              <button
-                onClick={() => accionTodas("empezar_revision")}
-                title="Pasa a En revisión y arranca tu fichaje de revisor"
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
-              >
-                Empezar revisión
-              </button>
-            )}
-          </>
-        )}
-        {estado === "en_revision" && (
-          <>
-            {/* Cambio de última hora con la revisión en marcha: al elegir a
-                otro, `cambiarRevisor` devuelve la OF a "por revisar" y el
-                servidor cierra el fichaje del anterior — sus minutos se quedan
-                a su nombre, pero dejan de correr. */}
-            {selectorRevisor}
-            {/* La guía solo aquí: en "Por revisar" todavía no se está mirando
-                nada, y en las otras dos columnas ya se decidió. */}
-            {puedo("devolver") && (
-              <GuiaRevision
-                puntos={puntos}
-                marcas={marcas}
-                onMarcar={marcar}
-                abierta={guiaAbierta}
-                onAbrir={setGuiaAbierta}
-              />
-            )}
-            {/* Aprobar TAMBIÉN deja elegir a cuáles. Antes era del grupo
-                entero, y eso obligaba a un orden que no estaba escrito en
-                ninguna parte: había que devolver primero las malas, porque
-                aprobando se llevaba por delante las tres. Ahora se puede
-                aprobar la que está bien y después ir escribiendo las notas de
-                las otras, o al revés. */}
-            {puedo("aprobar") && (
-              <AprobarInline
-                ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
-                onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
-                impedido={impedido}
-                label={etiquetaCantidad("Aprobar", ofs.length)}
-              />
-            )}
-            {puedo("devolver") && (
-              <DevolverInline
-                // El botón dice cuántas causas lleva puestas: es lo que
-                // convierte lo marcado arriba en algo que se ve antes de
-                // pulsar, en vez de una sorpresa al abrir el cuadro.
-                label={
-                  fallos.length > 0
-                    ? `Devolver con ${fallos.length} ${fallos.length === 1 ? "causa" : "causas"}`
-                    : ACCIONES.find((a) => a.id === "devolver")?.label
-                }
-                miId={miId}
-                causasSugeridas={fallos}
-                familias={familias}
-                impedido={impedido}
-                // Se puede devolver SOLO la OF que falla. La nota iba al grupo
-                // entero: en un pedido de cinco, cuatro personas leían que
-                // corrigieran algo que estaba bien. Por defecto siguen
-                // marcadas todas, que es lo normal.
-                ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
-                onDevolver={(obs, ids) =>
-                  (ids ?? ofIds).forEach((id) => onAccion(id, "devolver", obs))
-                }
-              />
-            )}
+          {estado === "devuelta" && ofs.find((o) => o.observacion) && (
+            <NotaDevolucion
+              observacion={ofs.find((o) => o.observacion)!.observacion!}
+              className="rounded bg-red-500/10 px-2 py-1.5 text-[11px] text-red-600 dark:text-red-400"
+            />
+          )}
 
-          </>
-        )}
-        {estado === "aprobada" && (
-          <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
-            {pedidoListoParaPasar(pedido)
-              ? "✓ Pedido listo para pasar a Producción"
-              : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
-          </span>
-        )}
-        {estado === "devuelta" && (
-          <span className="text-[11px] text-text-muted">↩ Vuelve al autor</span>
-        )}
-      </div>
-    </div>
+          {/* Acciones. Solo sale lo que me toca a MÍ: la máquina de estados ya
+              filtra por rol, así que al autor esto se le queda en un resumen de
+              lectura, que es lo que debe ser. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {estado === "por_revisar" && (
+              <>
+                {sinRevisor.length > 0 && (
+                  <p className="w-full text-[11px] text-text-muted">
+                    {sinRevisor.length === ofs.length ? "Sin revisor" : `${sinRevisor.length} sin revisor`} —
+                    viene de antes de la web. Ponle uno para que pueda empezar.
+                  </p>
+                )}
+                {selectorRevisor}
+                {puedo("empezar_revision") && (
+                  <button
+                    onClick={() => accionTodas("empezar_revision")}
+                    title="Pasa a En revisión y arranca tu fichaje de revisor"
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                  >
+                    Empezar revisión
+                  </button>
+                )}
+              </>
+            )}
+            {estado === "en_revision" && (
+              <>
+                {selectorRevisor}
+                {puedo("devolver") && (
+                  <GuiaRevision
+                    puntos={puntos}
+                    marcas={marcas}
+                    onMarcar={marcar}
+                    abierta={guiaAbierta}
+                    onAbrir={setGuiaAbierta}
+                  />
+                )}
+                {puedo("aprobar") && (
+                  <AprobarInline
+                    ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
+                    onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
+                    impedido={impedido}
+                    label={etiquetaCantidad("Aprobar", ofs.length)}
+                  />
+                )}
+                {puedo("devolver") && (
+                  <DevolverInline
+                    label={
+                      fallos.length > 0
+                        ? `Devolver con ${fallos.length} ${fallos.length === 1 ? "causa" : "causas"}`
+                        : ACCIONES.find((a) => a.id === "devolver")?.label
+                    }
+                    miId={miId}
+                    causasSugeridas={fallos}
+                    familias={familias}
+                    impedido={impedido}
+                    ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
+                    onDevolver={(obs, ids) => (ids ?? ofIds).forEach((id) => onAccion(id, "devolver", obs))}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      }
+    />
   );
 }
