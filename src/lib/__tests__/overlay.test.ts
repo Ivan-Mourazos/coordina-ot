@@ -191,3 +191,17 @@ describe("una OF nueva en un pedido ya pasado a Producción", () => {
     expect(r.pedidos[0].reabiertoPor).toBeUndefined();
   });
 });
+
+it("aplicarOverlay copia cerradaRps a la OF, y su ausencia la deja sin marca", () => {
+  const t = { operarios: [], pedidos: [pedido("P1", [of("A"), of("B")])] };
+  const overlay: Overlay = {
+    pedidosCompletados: new Set(),
+    ofs: new Map([
+      ["A", { ofId: "A", autorId: "ivan", revisorId: null, estado: "aprobada", observacion: null, cerradaRps: { at: "2026-09-15T10:00:00.000Z", por: "ivan", modo: "activo" } }],
+      ["B", { ofId: "B", autorId: "ivan", revisorId: null, estado: "en_curso", observacion: null }],
+    ]),
+  };
+  const [a, b] = aplicarOverlay(t, overlay).pedidos[0].ofs;
+  expect(a.cerradaRps).toEqual({ at: "2026-09-15T10:00:00.000Z", por: "ivan", modo: "activo" });
+  expect(b.cerradaRps).toBeUndefined();
+});

@@ -2,7 +2,7 @@ import type { Fichaje, Intervalo } from "../fichaje";
 import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
-import { encolarFichaje } from "./olanet-outbox";
+import { encolarFichajeOLanzar, encolarTramosDeOF } from "./olanet-outbox";
 import { operariosDeSeccion } from "./operarios";
 import type { SeccionId } from "../secciones";
 
@@ -63,6 +63,25 @@ export function leerTodosIntervalos(): Intervalo[] {
     .prepare(`${SELECT} WHERE traspasado_at IS NULL ORDER BY inicio`)
     .all() as Fila[];
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
+}
+
+/** Los intervalos SIN traspasar de una sola OF, sin barrer `fichaje_intervalo`
+ *  entera (ver `leerTodosIntervalos`, que es lo que hacía antes esta función
+ *  para acabar tirando casi todo lo leído).
+ *
+ *  `of_ids` es una lista JSON en texto (`["0232086:9","0232087:9"]`), así que
+ *  el `LIKE` solo ACOTA por el texto entre comillas de este id — puede colar
+ *  de más si el propio id contuviera `%` o `_`, cosa que hoy no pasa (son
+ *  `orden:tarea` numéricos) — y el filtro exacto de después es quien de verdad
+ *  decide: mismo resultado que filtrar la tabla entera, ni una fila más ni
+ *  menos. */
+function leerIntervalosDeOF(ofId: string): Intervalo[] {
+  const filas = getDb()
+    .prepare(`${SELECT} WHERE traspasado_at IS NULL AND of_ids LIKE ? ORDER BY inicio`)
+    .all(`%${JSON.stringify(ofId)}%`) as Fila[];
+  return filas
+    .map(filaAIntervalo)
+    .filter((x): x is Intervalo => x !== null && x.ofIds.includes(ofId));
 }
 
 /** El fichaje que miran las Métricas: TODO, traspasado o no.
@@ -210,10 +229,25 @@ export function marcarAvisoCierreVisto(operarioId: string): void {
  *  Si el intervalo llevaba más OFs, se cierra y se abre otro con las que
  *  quedan: borrarlo perdería el tiempo de las que siguen siendo suyas. */
 export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
+  return cortarFichajeDeOFConAviso(ofId, ahora).afectados;
+}
+
+/** `cortarFichajeDeOF`, pero diciendo además a quién NO se le pudo encolar el
+ *  tramo recién cortado (`sinEncolar`). El reloj se para igual: el corte no se
+ *  deshace por eso.
+ *
+ *  Lo necesita «Dar por terminada en RPS»: comprueba que la cola no tenga
+ *  tiempo de la OF antes de escribir el cierre, y un tramo que nunca llegó a
+ *  entrar la dejaría vacía; el cierre se escribiría sin ese tiempo. */
+export function cortarFichajeDeOFConAviso(
+  ofId: string,
+  ahora: string,
+): { afectados: string[]; sinEncolar: string[] } {
   const abiertos = getDb()
     .prepare(`${SELECT} WHERE fin IS NULL`)
     .all() as Fila[];
   const afectados: string[] = [];
+  const sinEncolar: string[] = [];
   for (const fila of abiertos) {
     const iv = filaAIntervalo(fila);
     if (!iv || !iv.ofIds.includes(ofId)) continue;
@@ -229,10 +263,25 @@ export function cortarFichajeDeOF(ofId: string, ahora: string): string[] {
     // este operario, el tramo queda cerrado aquí pero nunca sube a OLANET —
     // y como cerrarFichajesSinLatido solo vigila intervalos ABIERTOS, si el
     // operario no vuelve a fichar ese tiempo no se encola jamás.
-    encolarFichaje(iv.operarioId, nuevo.intervalos);
+    // Cada operario en su try: si la cola falla para uno, se sigue cortando a
+    // los demás, y quien llama se entera por `sinEncolar`.
+    try {
+      encolarFichajeOLanzar(iv.operarioId, nuevo.intervalos);
+    } catch (e) {
+      console.error("[fichaje] no se pudo encolar el fichaje:", e);
+      sinEncolar.push(iv.operarioId);
+    }
     afectados.push(iv.operarioId);
   }
-  return afectados;
+  return { afectados, sinEncolar };
+}
+
+/** Vuelve a encolar los tramos cerrados de esta OF que falten en la cola (ver
+ *  `encolarTramosDeOF`). Deja fuera lo ya traspasado a RPS: eso ya está allí.
+ *  LANZA si la cola falla: quien cierra la OF en RPS no puede seguir sin
+ *  saber que el tiempo está puesto. */
+export function reencolarTramosDeOF(ofId: string): number {
+  return encolarTramosDeOF(ofId, leerIntervalosDeOF(ofId));
 }
 
 /** Guarda el fichaje de un operario.

@@ -1,11 +1,12 @@
 "use client";
 
 import type { HistorialOF, MaterialOF } from "@/lib/historial";
-import { personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe } from "@/lib/historial";
+import { fmtCantidad, personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe, type MaterialGastadoOF } from "@/lib/historial";
 import { fmtMin, ROL } from "@/lib/estado";
-import { agruparCentros, centrosConDesglose } from "@/lib/historial-centros";
+import { fmtDiaMesAno } from "@/lib/fechas";
+import { centrosConDesglose, type HistorialCentro } from "@/lib/historial-centros";
 import type { SeccionId } from "@/lib/secciones";
-import { TareasDeOF } from "./HistorialTareas";
+import { TareasPorCentro } from "./HistorialTareas";
 import {
   BOTON_DETALLE,
   CabeceraVentana,
@@ -21,141 +22,111 @@ import {
 // del invitado no debe arrastrar el resto del cajón del equipo (notas, parte
 // escaneado, avisos).
 
-/** El centro decide qué minutos se suman; la selección decide el desglose visible. */
-export function HistorialCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+/** El centro decide qué minutos se suman; la selección decide el desglose visible.
+ *
+ *  La PINTURA es la misma que la de «Tareas y tiempos» (`TareasPorCentro`):
+ *  centro, OF y debajo sus tareas, todo seguido y sin cajas dentro de cajas.
+ *  Antes cada centro era una tarjeta con relieve y cada OF otra dentro, y el
+ *  mismo pedido se leía de dos maneras según lo abrieras en la ficha o en la
+ *  ventana. Lo que esta ficha añade —el tiempo por persona con su papel y el
+ *  material de cada OF— entra por los dos huecos que deja esa pieza. */
+export function HistorialCentros({
+  ofs,
+  seccion,
+  gastado,
+  onReintentarGastado,
+}: {
+  ofs: HistorialOF[];
+  seccion: SeccionId;
+  /** undefined = cargando; null = RPS no contestó; objeto = cargado. */
+  gastado?: Record<string, MaterialGastadoOF[]> | null;
+  onReintentarGastado?: () => void;
+}) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
   const conDesglose = centrosConDesglose(ofs, seccion);
   return (
-    // Sin rótulo "Trabajo por centro": debajo va un bloque por centro y cada
-    // uno se llama Oficina Técnica, Diseño Gráfico o Taller, que lo dice mejor.
-    <section aria-label="Tiempos por centro de trabajo" className="space-y-3">
-      {agruparCentros(ofs).filter((centro) => centro.ofs.length > 0).map((centro) => {
-        const seleccionado = centro.id === seccion;
-        const desglose = conDesglose.has(centro.id);
-        // Con el papel de cada uno, que es lo que se busca al abrir la ficha.
-        // El reparto se junta de TODAS las OF del centro, igual que los
-        // minutos, y manda el registrado (ver `repartoDe`).
-        const reparto = repartoDe(centro.ofs);
-        const personas = desglose
-          ? personasConRol(personasDeOFs(centro.ofs), reparto.autores, reparto.revisores, reparto.consta)
-          : [];
-        const porOF = desglose && centro.ofs.length > 1;
-        // Su tiempo ES el del centro: no se repite (ver abajo).
-        const unaSolaPersona = personas.length === 1 && personas[0].min === centro.totalMin;
-        return (
-          <details key={centro.id} open={seleccionado || desglose} className="bloque-3d rounded-xl">
-            <summary className="cursor-pointer rounded-xl p-3 text-sm font-semibold text-text focus-visible:outline-2 focus-visible:outline-accent">
-              {centro.nombre}
-              <span className="float-right ml-2 font-mono text-xs tabular-nums" title="Tiempo imputado en RPS">{fmtMin(centro.totalMin)}</span>
-            </summary>
-            <div className="space-y-3 px-3 pb-3">
-              {personas.length > 0 && (
-                <div>
-                  {/* El rótulo solo si de verdad hay tiempos que leer: con
-                      una sola persona el número se calla (es el del centro) y
-                      «Tiempo por persona» quedaba encabezando una lista de
-                      nombres a secas. */}
-                  {!unaSolaPersona && (
-                    <p className="mb-1 text-[11px] text-text-muted">Tiempo por persona</p>
-                  )}
-                  <ul className="space-y-1 text-xs text-text" aria-label={`Tiempos por persona de ${centro.nombre}`}>
-                    {personas.map((persona) => (
-                      <li key={persona.nombre} className="flex justify-between gap-3">
-                        <span>
-                          {persona.nombre}
-                          {persona.rol && (
-                            <span className={ROL[persona.rol].texto}>
-                              {" "}
-                              {persona.rol === "plantear" ? "planteó" : "revisó"}
-                            </span>
-                          )}
-                        </span>
-                        {/* Con una sola persona su tiempo ES el del centro,
-                            que está tres líneas más arriba: escribirlo aquí
-                            otra vez no añade nada. Con varias sí reparten, y
-                            entonces vuelve. */}
-                        {!unaSolaPersona && (
-                          <span className="font-mono tabular-nums">{fmtMin(persona.min)}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {centro.ofs.length === 0 ? (
-                <p className="text-xs text-text-muted">Sin trabajo registrado en este centro.</p>
-              ) : (
-                <ul className="space-y-2" aria-label={`Órdenes de fabricación de ${centro.nombre}`}>
-                  {centro.ofs.map((of) => (
-                    <li key={of.codigo} className="glass-chip rounded-xl p-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-                        {/* Lo mismo con la OF: si es la única del centro, su
-                            tiempo es el del centro. El código y la descripción
-                            se quedan; el número, no. */}
-                        {!(centro.ofs.length === 1 && of.tiempoImputadoMin === centro.totalMin) && (
-                          <span title="Tiempo imputado en RPS" className="ml-auto rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-semibold text-text ring-1 ring-border">
-                            {fmtMin(of.tiempoImputadoMin)}
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-sm text-text">{of.descripcion}</p>
-                      {/* Las personas de la OF solo cuando NO hay tareas: con
-                          ellas, cada línea ya dice quién la echó, y el resumen
-                          de arriba repetía los mismos nombres dos líneas más
-                          abajo. */}
-                      {porOF && !of.tareas?.length && <PersonasOF of={of} />}
-                      {/* El desglose de tareas, aquí y no en una ventana que se
-                          abre encima de la ficha tapando lo que se está
-                          mirando. Quién echó cada tarea sale en TODOS los
-                          centros —también en Taller—: era lo único que la
-                          ventana enseñaba y esto no. */}
-                      {of.tareas?.length ? (
-                        <div className="mt-2 border-t border-border pt-2 text-xs">
-                          <TareasDeOF of={of} />
-                        </div>
-                      ) : null}
-                      <Materiales of={of} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </details>
-        );
-      })}
+    <section aria-label="Tiempos por centro de trabajo">
+      <TareasPorCentro
+        ofs={ofs}
+        seccion={seccion}
+        conColor
+        extraCentro={(centro) => <PersonasCentro centro={centro} conDesglose={conDesglose} />}
+        extraOF={(of, centro) => (
+          <>
+            {/* Quién hizo cada OF solo cuando el centro tiene varias y la OF
+                no trae tareas: con ellas, cada línea ya dice quién la echó. */}
+            {conDesglose.has(centro.id) && centro.ofs.length > 1 && !of.tareas?.length && <PersonasOF of={of} />}
+            <Materiales
+              of={of}
+              gastadoOF={gastado === null ? null : gastado?.[of.codigo]}
+              onReintentarGastado={onReintentarGastado}
+            />
+          </>
+        )}
+      />
     </section>
   );
 }
 
-/** Quién imputó tiempo a esta OF en RPS, con el suyo, de más a menos.
- *
- *  Sin rol, igual que la fila del pedido y «Tareas y tiempos». Aquí salían
- *  "Planteo / ≈ Revisión / Imputó", y el mismo pedido parecía tener un autor en
- *  la lista y más gente en la ficha. El orden es el de `porMinutos` en todos
- *  los sitios, así que las mismas personas salen siempre en el mismo orden. */
+/** Quién trabajó en el centro y cuánto, con el papel de cada uno. Solo donde
+ *  dice algo: con una sola OF los nombres ya salen en sus tareas. */
+function PersonasCentro({
+  centro,
+  conDesglose,
+}: {
+  centro: HistorialCentro;
+  conDesglose: ReadonlySet<string>;
+}) {
+  if (!conDesglose.has(centro.id)) return null;
+  // El reparto se junta de TODAS las OF del centro, igual que los minutos, y
+  // manda el registrado (ver `repartoDe`).
+  const reparto = repartoDe(centro.ofs);
+  const personas = personasConRol(
+    personasDeOFs(centro.ofs),
+    reparto.autores,
+    reparto.revisores,
+    reparto.consta,
+  );
+  if (personas.length === 0) return null;
+  // Con una sola persona su tiempo ES el del centro, que está justo encima.
+  const unaSola = personas.length === 1 && personas[0].min === centro.totalMin;
+  return (
+    <ul
+      className="mb-2 flex flex-wrap gap-x-3 text-[11px] text-text-muted"
+      aria-label={`Tiempos por persona de ${centro.nombre}`}
+      title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT"
+    >
+      {personas.map((p) => (
+        <li key={p.nombre}>
+          <span className="text-text">{p.nombre}</span>
+          {/* El papel DELANTE del tiempo: detrás se leía «Iván Sánchez 2m
+              planteó», como si el minuto fuera lo planteado. */}
+          {p.rol && <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>}
+          {!unaSola && <span className="font-mono tabular-nums"> {fmtMin(p.min)}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Quién imputó tiempo a esta OF en RPS, con el suyo, de más a menos. Manda el
+ *  reparto registrado en CoordinaOT; lo deducido de las horas no se nombra
+ *  (ver `repartoDe`). */
 function PersonasOF({ of }: { of: HistorialOF }) {
-  // El papel de cada uno EN PALABRAS, que es lo que se busca al abrir la ficha:
-  // quién la planteó y quién la repasó. Manda el reparto registrado en
-  // CoordinaOT; lo deducido de las horas no se nombra (ver `repartoDe`).
   const reparto = repartoDe([of]);
   const personas = personasConRol(personasDeOF(of), reparto.autores, reparto.revisores, reparto.consta);
   if (personas.length === 0) {
     return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
   }
   return (
-    <p className="mt-2 text-[11px] text-text-muted" title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
-      {/* El papel DELANTE del tiempo: detrás se leía "Iván Sánchez 2m planteó",
-          como si el minuto fuera lo planteado. */}
+    <p className="mt-1 text-[11px] text-text-muted">
       {personas.map((p, i) => (
         <span key={p.nombre}>
           {i > 0 && " · "}
           <span className="text-text">{p.nombre}</span>
-          {p.rol && (
-            <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
-          )}{" "}
+          {p.rol && <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>}{" "}
           {fmtMin(p.min)}
         </span>
       ))}
@@ -179,15 +150,25 @@ function PersonasOF({ of }: { of: HistorialOF }) {
  *  Casi nunca quedará reserva: de las 36 918 OF de OT ya terminadas, 140
  *  conservan reserva y 14 419 conservan material asignado. La reserva viva
  *  sale en los pedidos recién cerrados, que es justo cuando alguien la mira. */
-function Materiales({ of }: { of: HistorialOF }) {
+function Materiales({
+  of,
+  gastadoOF,
+  onReintentarGastado,
+}: {
+  of: HistorialOF;
+  /** undefined = todavía cargando; null = RPS no contestó; [] = cargado y sin líneas. */
+  gastadoOF: MaterialGastadoOF[] | null | undefined;
+  onReintentarGastado?: () => void;
+}) {
   const { apartados, apuntados } = repartirMateriales(of.materiales);
-  if (!apartados.length && !apuntados.length && !of.notasProduccion) return null;
-
+  // El botón de Gastado sale SIEMPRE (ver MaterialGastado); el resto,
+  // solo si dice algo.
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
       {apartados.length + apuntados.length > 0 && (
         <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
+      <MaterialGastado of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />
       {of.notasProduccion && <NotasProduccion of={of.codigo} texto={of.notasProduccion} />}
     </div>
   );
@@ -216,7 +197,7 @@ function MaterialHistorico({
         className={`${BOTON_DETALLE} ${conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
       >
         <span aria-hidden>🧵</span>
-        Material
+        Asignado
         <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
           {total}
         </span>
@@ -246,6 +227,89 @@ function MaterialHistorico({
               </li>
             ))}
           </ul>
+        </VentanaAnclada>
+      )}
+    </>
+  );
+}
+
+/** Lo que salió de verdad del almacén (RPS, `CPRImputationMaterialMO`). Sale
+ *  SIEMPRE, también en una OF sin nada asignado: con el 57 % de las OF que
+ *  gastan sin nada apuntado, escondiendo el botón se perdía justo lo que esto
+ *  viene a enseñar (spec §1, "Cómo se ve"). */
+function MaterialGastado({
+  of,
+  lineas,
+  onReintentar,
+}: {
+  of: string;
+  lineas: MaterialGastadoOF[] | null | undefined;
+  onReintentar?: () => void;
+}) {
+  const { anclaje, alternar, cerrar } = useVentanaAnclada();
+  const cargando = lineas === undefined;
+  const error = lineas === null;
+  const n = lineas?.length ?? 0;
+  const ultimaSalida = (lineas ?? []).reduce<string | null>(
+    (max, m) => (m.ultimaSalida && (!max || m.ultimaSalida > max) ? m.ultimaSalida : max),
+    null,
+  );
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => alternar(e.currentTarget)}
+        aria-expanded={anclaje !== null}
+        aria-haspopup="dialog"
+        title="Material que salió del almacén para esta OF, según RPS."
+        className={`${BOTON_DETALLE} ${n > 0 ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
+      >
+        <span aria-hidden>📦</span>
+        Gastado
+        <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
+          {n}
+        </span>
+      </button>
+      {anclaje && (
+        <VentanaAnclada anclaje={anclaje} onCerrar={cerrar} etiqueta={`Material gastado de la OF ${of}`}>
+          <CabeceraVentana
+            titulo="Salido del almacén"
+            cuantos={cargando ? undefined : n}
+            nota={ultimaSalida ? `Última salida ${fmtDiaMesAno(ultimaSalida)}` : undefined}
+          />
+          {error && (
+            <p className="text-[11px] text-red-600 dark:text-red-400">
+              No se pudo consultar el material gastado.{" "}
+              <button type="button" onClick={onReintentar} className="underline">
+                Reintentar
+              </button>
+            </p>
+          )}
+          {!error && cargando && <p className="text-[11px] text-text-muted">Consultando…</p>}
+          {!error && !cargando && n === 0 && (
+            <div className="text-[11px] text-text-muted">
+              <p>Todavía no hay salidas apuntadas para esta OF.</p>
+              <p className="mt-1">
+                El almacén las apunta según sale el material. Las reparaciones y manipulaciones no suelen llevarlo.
+              </p>
+            </div>
+          )}
+          {!error && n > 0 && (
+            <ul className={LISTA}>
+              {lineas!.map((m, i) => (
+                <li key={`${i}-${m.material}`} className={`${LINEA} text-text`}>
+                  {m.material}
+                  <span className="font-mono tabular-nums"> {fmtCantidad(m.gastado)}</span>
+                  {m.gastado < 0 && (
+                    <span className="block text-[10px] text-amber-700 dark:text-amber-300">
+                      devuelto al almacén
+                    </span>
+                  )}
+                  {m.codigo && <span className="block text-[10px] text-text-muted">{m.codigo}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
         </VentanaAnclada>
       )}
     </>

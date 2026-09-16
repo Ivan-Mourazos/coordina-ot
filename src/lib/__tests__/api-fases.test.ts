@@ -9,13 +9,29 @@ const moverFase = vi.fn<(o: unknown) => Promise<void>>();
 const fasesDeOFs = vi.fn<(ofs: readonly string[]) => Promise<unknown[]>>();
 const buscarIdBoletin = vi.fn<(of: string, fase: string) => Promise<string | null>>();
 
-vi.mock("@/lib/server/olanet", () => ({
-  maquinaDeFase: (id: string) => maquinaDeFase(id),
-  estadoDeFase: (id: string) => estadoDeFase(id),
-  moverFase: (o: unknown) => moverFase(o),
-  fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
-  buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
-}));
+// `finalizarFase` es LA DE VERDAD, no una copia: lo que decide si se escribe
+// el 3 vive en `finalizarFaseCon` (server/finalizar-fase.ts), que recibe por
+// parámetro las cuatro consultas y no importa `mssql`, así que aquí se le
+// pasan los vi.fn() de arriba y la ruta ejerce el código de producción.
+//
+// Antes este fichero REPETÍA ese cuerpo entero dentro del mock: mockear
+// "@/lib/server/olanet" sustituye el módulo entero, y cuando la orquestación
+// vivía ahí dentro llamaba a sus vecinos por referencia directa, sin pasar por
+// estos mocks. El efecto era que los seis casos de "no se escribe" probaban la
+// copia: cambiar en producción el orden de las comprobaciones, o `situacionDe`,
+// seguía pasando en verde.
+vi.mock("@/lib/server/olanet", async () => {
+  const { finalizarFaseCon } = await import("@/lib/server/finalizar-fase");
+  return {
+    maquinaDeFase: (id: string) => maquinaDeFase(id),
+    estadoDeFase: (id: string) => estadoDeFase(id),
+    moverFase: (o: unknown) => moverFase(o),
+    fasesDeOFs: (ofs: readonly string[]) => fasesDeOFs(ofs),
+    buscarIdBoletin: (of: string, fase: string) => buscarIdBoletin(of, fase),
+    finalizarFase: (opts: Parameters<typeof finalizarFaseCon>[1]) =>
+      finalizarFaseCon({ maquinaDeFase, buscarIdBoletin, estadoDeFase, moverFase }, opts),
+  };
+});
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", jaime: "120", sinCodigo: undefined },
 }));
@@ -25,9 +41,17 @@ let ruta: typeof import("../../app/api/fases/route");
 beforeEach(async () => {
   vi.clearAllMocks();
   moverFase.mockResolvedValue(undefined);
+  // Los tests de siempre no hablan del modo del fichaje: asumían, como la
+  // ruta antigua, que siempre se escribía. Para no reescribirlos todos, aquí
+  // se deja "activo" por defecto; los tres tests que SÍ prueban el modo lo
+  // sobreescriben ellos mismos con vi.stubEnv.
+  vi.stubEnv("FICHAJE_OLANET", "activo");
   ruta = await import("../../app/api/fases/route");
 });
-afterEach(() => vi.resetModules());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
 
 const post = (body: unknown) =>
   ruta.POST(new Request("http://x/api/fases", { method: "POST", body: JSON.stringify(body) }));
@@ -203,4 +227,35 @@ test("la fase rebuscada también tiene que ser de la oficina", async () => {
   const res = await post({ idBoletin: "111", operarioId: "ivan", of: "0217539", fase: "5" });
   expect(res.status).toBe(403);
   expect(moverFase).not.toHaveBeenCalled();
+});
+
+// ── modoFichaje() también manda aquí ──────────────────────────────────────
+// Antes el arrastre no miraba el modo del fichaje: escribía el 3 siempre.
+// Al compartir la función con la ruta nueva (Confirmado con Iván, punto 1),
+// en sombra/ensayo tampoco escribe — en activo no cambia nada.
+
+test("en modo sombra no se escribe, y se dice por qué", async () => {
+  vi.stubEnv("FICHAJE_OLANET", "sombra");
+  const res = await post({ idBoletin: "456", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect(moverFase).not.toHaveBeenCalled();
+  expect(maquinaDeFase).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});
+
+test("en modo ensayo tampoco se escribe", async () => {
+  vi.stubEnv("FICHAJE_OLANET", "ensayo");
+  const res = await post({ idBoletin: "456", operarioId: "ivan" });
+  expect(res.status).toBe(409);
+  expect(moverFase).not.toHaveBeenCalled();
+  vi.unstubAllEnvs();
+});
+
+test("en modo activo (o sin variable) no cambia nada", async () => {
+  maquinaDeFase.mockResolvedValue("A-OTEC");
+  estadoDeFase.mockResolvedValue(2);
+  vi.stubEnv("FICHAJE_OLANET", "activo");
+  expect((await post({ idBoletin: "456", operarioId: "ivan" })).status).toBe(200);
+  expect(moverFase).toHaveBeenCalledTimes(1);
+  vi.unstubAllEnvs();
 });

@@ -1,4 +1,5 @@
 import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
+import { ESTADO_FASE } from "../fases";
 import { SECCIONES } from "../secciones";
 import { agregarPorRol } from "../fichaje";
 import { diasYOperariosDe, intervaloYaEnRps } from "../traspaso-fichaje";
@@ -14,6 +15,7 @@ import {
 import {
   bonosTraspasados,
   buscarIdBoletin,
+  estadoDeFase,
   insertarBono,
   moverFase,
   sincronizarFichajeEnCurso,
@@ -85,6 +87,15 @@ async function enviarUno(p: Pendiente): Promise<boolean> {
     descartar(p.id, `OLANET no tiene la fase ${p.datos.of}/${p.datos.numope}`);
     return false;
   }
+  // Si es un movimiento de FINALIZACIÓN y la fase YA está en 3, se da por
+  // enviado sin escribir: evita un segundo apunte en sch_FasesMov al volver a
+  // pasar un pedido recuperado (Tarea 8), y de paso arregla lo que ya pasaba
+  // con los pedidos que RPS reabre solo con una OF nueva (Confirmado con
+  // Iván, punto 2). Cuesta una consulta por evento de fase.
+  if (p.datos.estado === ESTADO_FASE.finalizada) {
+    const estadoActual = await estadoDeFase(idBoletin);
+    if (estadoActual === ESTADO_FASE.finalizada) return true;
+  }
   await moverFase({
     idBoletin,
     estado: p.datos.estado,
@@ -94,8 +105,7 @@ async function enviarUno(p: Pendiente): Promise<boolean> {
   return true;
 }
 
-/** Vacía la cola en orden. Devuelve cuántos eventos se escribieron. */
-export async function drenarCola(): Promise<number> {
+async function drenarColaUnaVez(): Promise<number> {
   if (modoFichaje() === "sombra") return 0;
 
   const pendientes = leerPendientes(LOTE);
@@ -116,6 +126,33 @@ export async function drenarCola(): Promise<number> {
   }
   marcarEnviados(enviados);
   return enviados.length;
+}
+
+/** Una pasada en curso a la vez. `drenarCola` no tenía candado propio:
+ *  `corriendo` (más abajo) protege solo la `vuelta()` periódica, no la
+ *  función en sí. Si `POST /api/fases/cerrar-of` la llama mientras el
+ *  temporizador de 60 s está a mitad de otra pasada, sin candado un mismo
+ *  evento podía salir dos veces.
+ *
+ *  Quien llega con otra pasada en curso ESPERA a que termine y hace SU
+ *  PROPIA pasada — no se conforma con el resultado ajeno ni la salta: cerrar
+ *  una OF necesita la garantía de que SUS eventos, encolados después de que
+ *  la pasada en curso empezara a leer la cola, también salieron. */
+let colaEnCurso: Promise<number> | null = null;
+
+/** Vacía la cola en orden. Devuelve cuántos eventos se escribieron. */
+export async function drenarCola(): Promise<number> {
+  if (colaEnCurso) {
+    await colaEnCurso.catch(() => {}); // nunca lanza (ver el try/catch de arriba), pero por si acaso
+    return drenarCola();
+  }
+  const p = drenarColaUnaVez();
+  colaEnCurso = p;
+  try {
+    return await p;
+  } finally {
+    colaEnCurso = null;
+  }
 }
 
 /** Filas de "fichando ahora" a partir de los intervalos abiertos. */

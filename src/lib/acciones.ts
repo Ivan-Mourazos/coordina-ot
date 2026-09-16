@@ -10,7 +10,8 @@ export type AccionOF =
   | "empezar_revision" | "aprobar" | "aprobar_corregida" | "aprobar_sin_revision"
   | "devolver" | "reabrir" | "recuperar_aprobada"
   | "soltar_revision"
-  | "retomar" | "anular" | "restaurar";
+  | "retomar" | "anular" | "restaurar"
+  | "cerrar_en_rps" | "volver_a_plantear";
 
 export interface AccionDef {
   id: AccionOF;
@@ -54,6 +55,13 @@ export interface AccionDef {
    *  persona, porque ella tiene su propia puerta para lo mismo. Lo usa
    *  "reabrir": el autor tiene "Recuperar para corregir". */
   noEl?: "autor" | "revisor";
+  /** Además de lo anterior, la acción se descarta si esto es verdad para la
+   *  OF. Una función libre y no una lista de estados o roles: hoy solo la
+   *  usan dos acciones y por motivos opuestos — `cerrar_en_rps` se apaga si
+   *  la OF está detenida o ya lleva la marca, `volver_a_plantear` solo se
+   *  enciende CON ella puesta. Generalizar un campo de estado para un único
+   *  par de acciones sería peor que una función. */
+  noSi?: (of: OF) => boolean;
   efectoFichaje?: "corta" | "arranca"; // lo ejecuta el Board sobre el motor
   conNota?: boolean; // requiere observación (devolver)
   /** Requiere elegir POR QUÉ (anular). Viaja por el mismo sitio que `conNota`
@@ -177,10 +185,43 @@ export const ACCIONES: AccionDef[] = [
   //   revisar" como cualquier otra.
   { id: "reabrir", label: "Reabrir revisión", tono: "neutra",
     confirmar: "La OF volverá a revisión y dejará de estar lista para Producción.",
-    desde: ["aprobada"], noEl: "autor", destino: "en_revision" },
+    desde: ["aprobada"], noEl: "autor",
+    noSi: (of) => of.cerradaRps !== undefined,
+    destino: "en_revision" },
   { id: "recuperar_aprobada", label: "Recuperar para corregir", tono: "neutra",
     confirmar: "La OF vuelve a tu planteo y deja de estar lista para Producción. Cuando la mandes otra vez, entra en «Por revisar».",
-    desde: ["aprobada"], requiere: "autor", soloEl: "autor", destino: "en_curso" },
+    desde: ["aprobada"], requiere: "autor", soloEl: "autor",
+    noSi: (of) => of.cerradaRps !== undefined,
+    destino: "en_curso" },
+  // «Dar por terminada en RPS»: sección 2 de la spec del 15/09/2026. Escribe
+  // en el sistema de la fábrica, así que es SOLO del autor. No hay estado
+  // nuevo: la OF queda `aprobada` con la marca `cerradaRps` al lado (ver
+  // types.ts), como ya es `revisada`. `noSi` cubre lo que `desde` no puede:
+  // detenida, o ya marcada. La TERCERA exclusión —que sea la última OF que
+  // queda del pedido— no se puede mirar aquí, porque esta función no conoce
+  // el pedido entero: la comprueba el Drawer (Tarea 6) y, otra vez, la ruta.
+  //
+  // A diferencia de las demás acciones de este archivo, el Board NO la
+  // ejecuta con `aplicarAccion` + `/api/estado`: llama a `POST
+  // /api/fases/cerrar-of`, que hace todo en el servidor (Tarea 6). Sigue
+  // viviendo aquí para que `accionesDisponibles` decida si se ofrece el botón
+  // y con qué texto — `destino`/`efectoFichaje` no se usan en la ejecución,
+  // pero se dejan puestos porque describen lo que la acción HACE, que es lo
+  // que este fichero documenta.
+  { id: "cerrar_en_rps", label: "Dar por terminada en RPS", tono: "neutra",
+    desde: ["pendiente", "en_curso", "devuelta", "aprobada"], requiere: "autor", soloEl: "autor",
+    noSi: (of) => of.detenida === true || of.cerradaRps !== undefined,
+    efectoFichaje: "corta", destino: "aprobada" },
+  // Deshacer la marca. De CUALQUIER técnico, como "Restaurar" en las
+  // anuladas: solo escribe en CoordinaOT, no hace nada irreversible y no deja
+  // el pedido esperando a que vuelva su autor. En OLANET no se escribe nada:
+  // el primer fichaje reabre sola la operación (`buscarIdBoletin` no mira el
+  // estado de la fase, y `moverFase` hace el UPDATE sin condición).
+  { id: "volver_a_plantear", label: "Volver a plantear", tono: "neutra",
+    confirmar: "La OF vuelve a planteando. En RPS sigue terminada hasta que alguien fiche en ella: el primer fichaje la reabre. El apunte del cierre se queda en el histórico de RPS.",
+    desde: ["aprobada"],
+    noSi: (of) => of.cerradaRps === undefined,
+    destino: "en_curso" },
   // Anular se decide al ver el pedido, y muchas veces con trabajo ya hecho: se
   // empezó a plantear y al final la hace el taller. Por eso vale desde
   // cualquier estado del ciclo salvo `aprobada` —esa ya se pasó a Producción y
@@ -227,7 +268,8 @@ export function accionesDisponibles(of: OF, miId?: string | null): AccionDef[] {
       a.desde.includes(of.estado) &&
       cumpleRequisito(a, of) &&
       cumpleRevisada(a, of) &&
-      esMia(a, of, miId),
+      esMia(a, of, miId) &&
+      !(a.noSi?.(of) ?? false),
   );
 }
 
@@ -263,6 +305,10 @@ export function aplicarAccion(of: OF, accion: AccionOF, obs?: string): OF {
     // servidor (ver `guardarMutacion`). No se apaga nunca: la revisión ocurrió.
     ...(estado === "en_revision" ? { revisada: true } : {}),
     ...(def.conNota || def.conMotivo ? { observacion: obs!.trim() } : {}),
+    // "Volver a plantear" quita la marca: en RPS la operación sigue
+    // terminada, pero en CoordinaOT deja de estar "cerrada" y vuelve a
+    // fichable. El resto de acciones nunca tocan este campo.
+    ...(accion === "volver_a_plantear" ? { cerradaRps: undefined } : {}),
   };
 }
 
@@ -296,4 +342,8 @@ export const A_LA_VISTA: ReadonlySet<AccionOF> = new Set<AccionOF>([
   "empezar_revision",
   "aprobar",
   "devolver",
+  // En una OF cerrada en RPS es la ÚNICA acción que se ofrece (ver `noSi` más
+  // arriba): dejarla fuera de A_LA_VISTA la mandaba al cajón de "⋯" siendo lo
+  // único que hay que hacer con esa OF.
+  "volver_a_plantear",
 ]);

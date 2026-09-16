@@ -33,7 +33,7 @@ const pinta = (ofs: OF[], miId: string) =>
       seccion: SECCIONES.ot,
       miId,
       onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
-      onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop, onDesficharVarias: noop,
+      onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop, onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
     }),
   );
 

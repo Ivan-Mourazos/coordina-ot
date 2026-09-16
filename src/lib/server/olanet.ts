@@ -2,6 +2,11 @@ import sql from "mssql";
 import { claveBonoRps, type FilaBono } from "../bonos";
 import type { EstadoFase } from "../fases";
 import { esFaseDe, type Seccion } from "../secciones";
+import {
+  finalizarFaseCon,
+  type OpcionesFinalizarFase,
+  type ResultadoFinalizarFase,
+} from "./finalizar-fase";
 import { getPoolOlanet } from "./db";
 
 // ─── Escritura del fichaje en OLANET ─────────────────────────────────────────
@@ -366,4 +371,22 @@ export async function maquinaDeFase(idBoletin: string): Promise<string | null> {
       "SELECT MaquinaTeo FROM scg_Fases WHERE IdBoletin = @idBoletin",
     );
   return r.recordset[0] ? (r.recordset[0].MaquinaTeo ?? "").trim() : null;
+}
+
+export type { ResultadoFinalizarFase } from "./finalizar-fase";
+
+/** Cerrar UNA fase en RPS, con las consultas de verdad puestas delante.
+ *
+ *  LAS REGLAS NO ESTÁN AQUÍ: rebuscar el boletín viejo, comprobar que la fase
+ *  es nuestra, el `yaEstaba` y qué situaciones admiten finalizar viven en
+ *  `finalizar-fase.ts`, que no sabe abrir ninguna conexión y por eso se puede
+ *  probar entera (src/lib/__tests__/finalizar-fase.test.ts). Esto de aquí es
+ *  el cableado: las cuatro funciones de este fichero.
+ *
+ *  La comparten `POST /api/fases` (arrastre de fases sueltas) y `POST
+ *  /api/fases/cerrar-of` (spec 2026-09-15, sección 2 "Cómo": "Lo que se
+ *  comparte con /api/fases"), que son quienes miran `modoFichaje()` ANTES de
+ *  llamar — ver el porqué en `finalizar-fase.ts`. */
+export function finalizarFase(opts: OpcionesFinalizarFase): Promise<ResultadoFinalizarFase> {
+  return finalizarFaseCon({ maquinaDeFase, buscarIdBoletin, estadoDeFase, moverFase }, opts);
 }

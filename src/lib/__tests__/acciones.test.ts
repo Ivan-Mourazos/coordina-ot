@@ -23,7 +23,7 @@ const of = (estado: OF["estado"], extra: Partial<OF> = {}): OF => ({
 describe("accionesDisponibles", () => {
   it("pendiente con autor: empezar planteo y anular", () => {
     expect(accionesDisponibles(of("pendiente")).map((a) => a.id))
-      .toEqual(["empezar_planteo", "anular"]);
+      .toEqual(["empezar_planteo", "cerrar_en_rps", "anular"]);
   });
   it("pendiente sin autor: solo anular (empezar requiere autor)", () => {
     expect(accionesDisponibles(of("pendiente", { autorId: null })).map((a) => a.id))
@@ -58,7 +58,7 @@ describe("accionesDisponibles", () => {
   it("anulada ofrece restaurar; aprobada ofrece reabrir", () => {
     expect(accionesDisponibles(of("anulada")).map((a) => a.id)).toEqual(["restaurar"]);
     expect(accionesDisponibles(of("aprobada")).map((a) => a.id))
-      .toEqual(["reabrir", "recuperar_aprobada"]);
+      .toEqual(["reabrir", "recuperar_aprobada", "cerrar_en_rps"]);
   });
   it("anular se ofrece en todo el ciclo menos en aprobada", () => {
     const estados: OF["estado"][] = [
@@ -117,7 +117,7 @@ describe("aplicarAccion", () => {
 describe("aprobar_corregida", () => {
   it("una devuelta ofrece las DOS salidas: revisión o darla por corregida", () => {
     expect(accionesDisponibles(of("devuelta")).map((a) => a.id))
-      .toEqual(["retomar", "terminar_planteo", "aprobar_corregida", "anular"]);
+      .toEqual(["retomar", "terminar_planteo", "aprobar_corregida", "cerrar_en_rps", "anular"]);
   });
 
   it("aprueba directamente, sin pasar por revisión", () => {
@@ -193,7 +193,7 @@ describe("de quién es cada acción", () => {
   it("aprobada: el revisor reabre la revisión, el autor la recupera para corregir", () => {
     expect(ids("aprobada", REVISOR)).toEqual(["reabrir"]);
     expect(ids("aprobada", OTRO)).toEqual(["reabrir"]);
-    expect(ids("aprobada", AUTOR)).toEqual(["recuperar_aprobada"]);
+    expect(ids("aprobada", AUTOR)).toEqual(["recuperar_aprobada", "cerrar_en_rps"]);
   });
 
   // El caso de Iván: aprobada, el autor quiere cambiar algo, la vuelve a
@@ -358,8 +358,14 @@ describe("qué sale suelto y qué va al cajón de ⋯", () => {
     // El criterio es la FRECUENCIA, no la importancia: un botón que se pulsa
     // una vez al mes no puede competir por el sitio con uno diario.
     expect([...A_LA_VISTA].sort()).toEqual(
-      ["aprobar", "devolver", "empezar_revision", "terminar_planteo"].sort(),
+      ["aprobar", "devolver", "empezar_revision", "terminar_planteo", "volver_a_plantear"].sort(),
     );
+  });
+
+  it("volver_a_plantear sale suelta: en la OF cerrada en RPS es la ÚNICA acción, y un cajón para una sola opción es peor que la opción", () => {
+    const cerrada = of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } });
+    expect(accionesDisponibles(cerrada, "op2").map((a) => a.id)).toEqual(["volver_a_plantear"]);
+    expect(A_LA_VISTA.has("volver_a_plantear")).toBe(true);
   });
 
   it("devolver sale fuera aunque sea peligro: para el revisor es diario", () => {
@@ -383,5 +389,47 @@ describe("qué sale suelto y qué va al cajón de ⋯", () => {
     expect(sueltas.map((a) => a.id)).toEqual(["aprobar", "devolver"]);
     // Y lo que queda dentro es más de uno, así que el cajón se justifica.
     expect(revisando.filter((a) => !A_LA_VISTA.has(a.id)).length).toBeGreaterThan(1);
+  });
+});
+
+describe("cerrar_en_rps / volver_a_plantear", () => {
+  it("el autor la ve desde pendiente, en_curso, devuelta y aprobada; no detenida ni ya marcada", () => {
+    for (const estado of ["pendiente", "en_curso", "devuelta", "aprobada"] as const) {
+      expect(accionesDisponibles(of(estado), "op1").map((a) => a.id)).toContain("cerrar_en_rps");
+    }
+    expect(accionesDisponibles(of("en_curso", { detenida: true }), "op1").map((a) => a.id))
+      .not.toContain("cerrar_en_rps");
+    expect(accionesDisponibles(of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } }), "op1").map((a) => a.id))
+      .not.toContain("cerrar_en_rps");
+  });
+
+  it("no se ofrece en por_revisar ni en_revision, ni a quien no es el autor", () => {
+    expect(accionesDisponibles(of("por_revisar"), "op1").map((a) => a.id)).not.toContain("cerrar_en_rps");
+    expect(accionesDisponibles(of("en_revision"), "op1").map((a) => a.id)).not.toContain("cerrar_en_rps");
+    expect(accionesDisponibles(of("en_curso"), "op2").map((a) => a.id)).not.toContain("cerrar_en_rps");
+  });
+
+  it("volver_a_plantear SOLO sale con la marca puesta, y reabrir/recuperar_aprobada desaparecen con ella", () => {
+    const sinMarca = of("aprobada");
+    const conMarca = of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } });
+    expect(accionesDisponibles(sinMarca, "op2").map((a) => a.id)).not.toContain("volver_a_plantear");
+    expect(accionesDisponibles(conMarca, "op2").map((a) => a.id)).toEqual(["volver_a_plantear"]);
+    expect(accionesDisponibles(conMarca, "op1").map((a) => a.id)).toEqual(["volver_a_plantear"]);
+  });
+
+  it("volver_a_plantear la ofrece CUALQUIER técnico, como restaurar una anulada", () => {
+    const conMarca = of("aprobada", { cerradaRps: { at: "x", por: "op1", modo: "activo" } });
+    expect(accionesDisponibles(conMarca, "cualquiera").map((a) => a.id)).toEqual(["volver_a_plantear"]);
+  });
+
+  it("aplicarAccion limpia cerradaRps al volver a plantear, y la deja intacta en las demás acciones", () => {
+    const cerrada = of("aprobada", { cerradaRps: { at: "2026-09-15T11:42:00.000Z", por: "op1", modo: "activo" } });
+    expect(aplicarAccion(cerrada, "volver_a_plantear").cerradaRps).toBeUndefined();
+    expect(aplicarAccion(cerrada, "volver_a_plantear").estado).toBe("en_curso");
+
+    const aprobadaSinMarca = of("aprobada");
+    // "Reabrir" no toca cerradaRps porque nunca la tuvo: no confundir "no
+    // tocarla" con "borrarla siempre en cualquier destino a en_curso".
+    expect(aplicarAccion(aprobadaSinMarca, "reabrir").cerradaRps).toBeUndefined();
   });
 });

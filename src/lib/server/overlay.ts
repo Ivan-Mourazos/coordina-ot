@@ -31,6 +31,17 @@ export interface CambioOF {
    *  cuando el estado que llega es `en_revision` y nunca se apaga (ver
    *  `guardarMutacion`). Va aquí para poder devolverlo al leer el overlay. */
   revisada?: boolean;
+  /** Ver `OF.cerradaRps`. `undefined` = no se toca (compatibilidad con
+   *  `CambioOF` construidos antes de esta marca, en tests y en cualquier
+   *  llamador que aún no la conozca: `guardarMutacion` los trata como "sin
+   *  marca"). `null` = se guarda SIN marca a propósito — lo manda
+   *  "Volver a plantear" y "Recuperar un pedido". */
+  cerradaRps?: {
+    at: string;
+    por: string;
+    modo: "sombra" | "ensayo" | "activo";
+    gemelaSinEscribir?: string;
+  } | null;
 }
 
 export interface Overlay {
@@ -93,6 +104,7 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
           estado: o.estado,
           observacion: o.observacion ?? undefined,
           revisada: o.revisada ?? false,
+          cerradaRps: o.cerradaRps ?? undefined,
         };
       });
       // Solo en los pasados: en un pedido normal, tener OF sin hacer es lo

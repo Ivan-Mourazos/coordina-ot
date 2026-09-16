@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claveFase, filasQueFaltan } from "../server/rps";
+import { claveFase, filasQueFaltan, paresRetenidosDe, unirRetenidas } from "../server/rps";
 
 // Cruce de las dos fuentes del tablero: las fases vivas de OLANET y la vista de
 // RPS. Medido contra la BD el 2026-09-02 (ver la spec de Diseño Gráfico).
@@ -67,5 +67,38 @@ describe("filasQueFaltan", () => {
   it("empareja aunque los ceros no coincidan entre los dos sistemas", () => {
     const filas = [fila("0230526", "03")];
     expect(filasQueFaltan(filas, [{ of: "0230526", fase: "3" }])).toEqual([]);
+  });
+});
+
+describe("unirRetenidas", () => {
+  it("suma lo retenido a lo pendiente, sin duplicar por claveFase", () => {
+    const pendiente = [{ of: "0230700", fase: "3" }];
+    const retenida = [{ of: "0230700", fase: "3" }, { of: "0232086", fase: "09" }];
+    expect(unirRetenidas(pendiente, retenida)).toEqual([
+      { of: "0230700", fase: "3" },
+      { of: "0232086", fase: "09" },
+    ]);
+  });
+
+  it("junta \"9\" y \"09\" en una sola, como claveFase, y se queda con la pendiente", () => {
+    expect(unirRetenidas([{ of: "0232086", fase: "9" }], [{ of: "0232086", fase: "09" }]))
+      .toEqual([{ of: "0232086", fase: "9" }]); // misma clave: gana la que ya estaba pendiente
+  });
+
+  it("sin retenidas, devuelve los pares tal cual", () => {
+    const pendiente = [{ of: "0230700", fase: "3" }];
+    expect(unirRetenidas(pendiente, [])).toEqual(pendiente);
+  });
+});
+
+describe("paresRetenidosDe", () => {
+  it("parte el id de OF ('orden:tarea') en (of, fase)", () => {
+    expect(paresRetenidosDe([{ ofId: "0232086:9" }, { ofId: "0232090:02" }]))
+      .toEqual([{ of: "0232086", fase: "9" }, { of: "0232090", fase: "02" }]);
+  });
+
+  it("una fila corrupta (sin ':') se descarta, no revienta el resto", () => {
+    expect(paresRetenidosDe([{ ofId: "sinformato" }, { ofId: "0232086:9" }]))
+      .toEqual([{ of: "0232086", fase: "9" }]);
   });
 });

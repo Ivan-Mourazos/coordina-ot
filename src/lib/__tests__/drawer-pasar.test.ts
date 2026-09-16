@@ -13,7 +13,7 @@ test("la ficha aprobada enseña Pasar a Producción al autor y lo oculta al revi
   const noop = () => {};
   const props = { pedido, operarios: OPERARIOS, seccion: SECCIONES.ot,
     onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
-    onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop, onDesficharVarias: noop,
+    onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop, onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
   };
   expect(renderToStaticMarkup(createElement(Drawer, { ...props, miId: "ivan" }))).toContain("Pasar a Producción");
   expect(renderToStaticMarkup(createElement(Drawer, { ...props, miId: "jaime" }))).not.toContain("Pasar a Producción");

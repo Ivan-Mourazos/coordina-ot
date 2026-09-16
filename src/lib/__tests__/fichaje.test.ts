@@ -156,6 +156,11 @@ describe("esFichable", () => {
     expect(esFichable(of("en_curso", true))).toBe(false);
     expect(esFichable(of("anulada"))).toBe(false);
   });
+  it("una OF cerrada en RPS no se puede fichar, aunque esté aprobada", () => {
+    const cerrada = { ...of("aprobada"), cerradaRps: { at: "x", por: "ivan", modo: "activo" } } as OF;
+    expect(esFichable(cerrada)).toBe(false);
+    expect(motivoNoFichable(cerrada)).toBe("Dada por terminada en RPS");
+  });
 });
 
 describe("cerrarPorInactividad", () => {

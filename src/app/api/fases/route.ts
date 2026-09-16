@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { ESTADO_OF, situacionDe } from "@/lib/fase-pendiente";
-import { esFaseDeLaWeb } from "@/lib/secciones";
 import { exigir, identidad, loginActivo } from "@/lib/server/sesion";
 
 // ─── /api/fases ──────────────────────────────────────────────────────────────
@@ -88,75 +86,30 @@ export async function POST(req: Request) {
   const fase = typeof b.fase === "string" && /^[\w-]{1,20}$/.test(b.fase) ? b.fase : null;
 
   try {
-    const { buscarIdBoletin, estadoDeFase, maquinaDeFase, moverFase } =
-      await import("@/lib/server/olanet");
-
-    // Se RELEE lo que hay ahora, no se cree lo que mande el navegador. Entre
-    // que la ficha pintó el botón y alguien lo pulsa pueden pasar minutos: la
-    // fase puede haberse cerrado desde el taller, o haberla retirado OLANET.
-    let boletin = idBoletin;
-    let maquina = await maquinaDeFase(boletin);
-
-    // EL BOLETÍN SE QUEDA VIEJO. Le pasó a Alberto con AR.25.02771: la fase 5
-    // de la OF 0217539 se podía fichar sin problema —fichar y parar dejaron
-    // sus movimientos, y ese camino resuelve la fase por (OF, fase)— pero
-    // finalizarla desde la ficha decía que ya no existía en OLANET, porque va
-    // por `IdBoletin` a pelo. Tuvo que cerrarla con la herramienta vieja.
-    //
-    // OLANET inserta filas nuevas para una misma OF: en esa OF conviven
-    // boletines del bloque 4003xxx con otros 4037xxx. Un id que la ficha
-    // cargó hace un rato puede dejar de ser el bueno.
-    //
-    // (Orden, Fase) es ÚNICO en scg_Fases —comprobado sobre la BD entera: cero
-    // pares repetidos—, así que volver a buscar por ahí es exacto: no puede
-    // acabar cerrando una fase que no sea. Y lo que se comprueba después
-    // (máquina y estado) se hace sobre la fase encontrada, no sobre la que
-    // trajo el navegador.
-    if (maquina === null && of && fase) {
-      const rebuscado = await buscarIdBoletin(of, fase);
-      if (rebuscado) {
-        boletin = rebuscado;
-        maquina = await maquinaDeFase(boletin);
-      }
-    }
-    if (maquina === null)
-      return NextResponse.json({ error: "Esa fase ya no existe en OLANET" }, { status: 404 });
-    // La comprobación de que es una fase NUESTRA vive AQUÍ además de en la
-    // interfaz: el botón no se ofrece sobre una fase de taller, pero esto
-    // escribe en el sistema de la fábrica y la regla no puede depender de que
-    // nadie llame a la ruta a mano.
-    //
-    // "Nuestra" son las dos secciones de la web, no solo Oficina Técnica: con
-    // esto en `esFaseDeOT` a secas, Carrón no podía cerrar sus propias
-    // operaciones de Diseño Gráfico —le salía un 403 diciéndole que su trabajo
-    // no era de Oficina Técnica, que es verdad y no venía a cuento.
-    if (!esFaseDeLaWeb(maquina))
+    const { modoFichaje } = await import("@/lib/server/olanet-outbox");
+    // Antes esto escribía siempre, sin mirar el modo del fichaje — no había
+    // hecho falta porque nadie más escribía un movimiento de fase desde la
+    // web. Al compartir `finalizarFase` con la ruta nueva de cerrar una OF
+    // suelta, que sí necesita el gate, el arrastre lo hereda: en `activo` no
+    // cambia nada (Confirmado con Iván, punto 1).
+    if (modoFichaje() !== "activo")
       return NextResponse.json(
-        { error: `Esa fase es de ${maquina}, que no es trabajo de oficina` },
-        { status: 403 },
-      );
-
-    const estado = await estadoDeFase(boletin);
-    if (estado === ESTADO_OF.finalizada)
-      // No es un error: alguien se te adelantó. Se contesta 200 para que la
-      // ficha simplemente deje de ofrecerla.
-      return NextResponse.json({ ok: true, yaEstaba: true });
-    if (situacionDe(estado ?? -1) !== "sin_finalizar")
-      return NextResponse.json(
-        { error: "Esa fase no se puede finalizar desde aquí" },
+        { error: "El fichaje está en modo de pruebas: no se escribe en RPS." },
         { status: 409 },
       );
 
-    // Con la fecha de HOY, decidido con Iván: el movimiento dice la verdad
-    // sobre quién la cerró y cuándo. Retrodatarlo dejaría en el histórico un
-    // apunte que nunca ocurrió ese día, y hay fases de 2020.
-    await moverFase({
-      idBoletin: boletin,
-      estado: ESTADO_OF.finalizada,
+    const { finalizarFase } = await import("@/lib/server/olanet");
+    const { esFaseDeLaWeb } = await import("@/lib/secciones");
+    const r = await finalizarFase({
+      idBoletin,
+      of,
+      fase,
+      esNuestra: esFaseDeLaWeb,
       operarioRps,
       cuando: new Date(),
     });
-    return NextResponse.json({ ok: true, yaEstaba: false });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
+    return NextResponse.json({ ok: true, yaEstaba: r.yaEstaba });
   } catch (e) {
     console.warn("[coordina] no se pudo finalizar la fase:", (e as Error).message);
     return NextResponse.json({ error: "No se pudo escribir en OLANET" }, { status: 503 });

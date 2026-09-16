@@ -25,6 +25,9 @@ interface Body {
   /** OFs que dejan de ser de quien las tenía: hay que cerrar el fichaje que
    *  alguien tuviera abierto sobre ellas. */
   cortarFichajeDe?: string[];
+  /** Ids que salen de `of_retenida` en la misma transacción. Los manda
+   *  "Volver a plantear" (ver Board.tsx `ejecutarAccion`). */
+  quitarRetenida?: string[];
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -36,6 +39,14 @@ function cambioValido(c: unknown): c is CambioOF {
   // OF. El cliente ya lo impide por varias vías; esto es la última red, para
   // que un estado imposible no llegue a guardarse por un camino que se olvide.
   const rolesDistintos = x.autorId === null || x.autorId !== x.revisorId;
+  const cerradaRpsOk =
+    x.cerradaRps === undefined ||
+    x.cerradaRps === null ||
+    (typeof x.cerradaRps === "object" &&
+      x.cerradaRps !== null &&
+      typeof (x.cerradaRps as Record<string, unknown>).at === "string" &&
+      typeof (x.cerradaRps as Record<string, unknown>).por === "string" &&
+      ["sombra", "ensayo", "activo"].includes((x.cerradaRps as Record<string, unknown>).modo as string));
   return (
     idOk &&
     nulable(x.autorId) &&
@@ -43,7 +54,8 @@ function cambioValido(c: unknown): c is CambioOF {
     rolesDistintos &&
     typeof x.estado === "string" &&
     ESTADOS_OF.has(x.estado) &&
-    nulable(x.observacion)
+    nulable(x.observacion) &&
+    cerradaRpsOk
   );
 }
 
@@ -65,6 +77,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "cambiosOF inválidos" }, { status: 400 });
   if (cambios.length === 0 && !body.completarPedidoId)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
+  // «Dar por terminada en RPS» NO se guarda por aquí: su ruta es POST
+  // /api/fases/cerrar-of, que corta el reloj y escribe en RPS ANTES de marcar.
+  // Aceptarla aquí dejaría la OF apartada como cerrada sin que RPS se enterase.
+  if (body.motivo === "cerrar_en_rps")
+    return NextResponse.json({ error: "Dar por terminada en RPS va por su propia ruta." }, { status: 400 });
 
   // Quién manda esto lo decide identidad(), no el cuerpo. Hasta esta versión el
   // operarioId del cuerpo se creía a pies juntillas, y eso quería decir que
@@ -81,6 +98,19 @@ export async function POST(req: Request) {
   }
   const seccion = esSeccionId(body.seccion) ? body.seccion : seccionDeOperario(operarioId);
   let ofIdsPedido: string[] | undefined;
+  // OF que YA están en 3 en RPS y no hace falta reenviarlo al pasar el pedido:
+  // SOLO las cerradas de verdad con "Dar por terminada en RPS" (spec §2,
+  // `cerradaRps.modo === "activo"`). Esas no son fichables (`esFichable`, en
+  // fichaje.ts), así que nadie ha podido moverlas de 3 desde que se cerraron.
+  //
+  // Las retenidas "del_pedido" NO se saltan, aunque al recuperar el pedido
+  // siguieran aprobadas y terminadas en RPS: una OF aprobada SIN marca sí es
+  // fichable. Si alguien le echa tiempo, la cola emite su 1 al abrir y su 2 al
+  // parar, y la operación se queda EMPEZADA para Producción; saltarse su 3 la
+  // dejaría abierta para siempre, que es justo el arrastre que esta spec viene
+  // a eliminar. Mandarlo siempre no duplica: `enviarUno` (olanet-worker.ts)
+  // relee el estado y no escribe un 3 sobre un 3. Cuesta una consulta por OF.
+  let ofIdsSinFinalizar: Set<string> | undefined;
   if (completarPedidoId) {
     const base = await getTablero(seccion);
     // Releer tras la espera: otra persona puede haber devuelto una OF
@@ -100,16 +130,63 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
+    // Task 9, Step 4 (spec §2, "Al pasar el pedido no se reenvía el cierre"):
+    // una OF cerrada de verdad en RPS ("activo") no manda su 3 otra vez —ya
+    // está escrito, y desde entonces no se puede fichar en ella—. Una cerrada
+    // en sombra o ensayo SÍ lo manda: nunca llegó a escribirse.
+    ofIdsSinFinalizar = new Set(
+      pedido.ofs.filter((of) => of.cerradaRps?.modo === "activo").map((of) => of.id),
+    );
   }
+
+  // La marca «cerrada en RPS» NO la decide el cliente en esta ruta. Solo la
+  // pone /api/fases/cerrar-of, y solo la quita "Volver a plantear". En el
+  // resto se copia la que ya hay guardada, por dos motivos:
+  //  · que nadie cuele una marca a mano sin haber escrito en RPS;
+  //  · que un navegador sin refrescar (que aún no sabe de la marca) no la
+  //    borre al repartir el pedido: `guardarMutacion` escribe NULL si el
+  //    cambio no la trae.
+  const guardadas = leerOverlay(seccion).ofs;
+  const esVolverAPlantear = body.motivo === "volver_a_plantear";
+
+  // Fallo I-B (revisión Task 6): una OF ya cerrada en RPS no puede cambiar de
+  // estado por NINGUNA otra vía. "Quitar autor" manda TODAS las OF del
+  // pedido a este endpoint de un golpe (Board.tsx moverOFs), y sin esta
+  // guarda una cerrada se quedaba en "pendiente" o "en_curso" sin marca
+  // dueña de ninguna acción: no sale "Volver a plantear" (exige "aprobada"),
+  // no sale "Dar por terminada" (ya tiene marca), no se puede fichar, y el
+  // pedido se queda sin poder pasar. Se descarta solo el cambio de esa OF —
+  // queda tal cual estaba— y se sigue aplicando el resto del lote: quitar
+  // autor a un pedido con una OF cerrada de por medio no puede tumbar el
+  // reparto de las demás.
+  const cerradas = new Set(
+    cambios
+      .filter((c) => guardadas.get(c.ofId)?.cerradaRps && !esVolverAPlantear)
+      .map((c) => c.ofId),
+  );
+  const cambiosAplicables = cambios.filter((c) => !cerradas.has(c.ofId));
+  const previosAplicables = previos.filter((p) => !cerradas.has(p.ofId));
+  const cambiosConMarca: CambioOF[] = cambiosAplicables.map((c) => ({
+    ...c,
+    cerradaRps: esVolverAPlantear ? null : (guardadas.get(c.ofId)?.cerradaRps ?? null),
+  }));
 
   guardarMutacion({
     operarioId,
     motivo: body.motivo,
-    cambiosOF: cambios,
-    previosOF: previos,
+    cambiosOF: cambiosConMarca,
+    previosOF: previosAplicables,
     completarPedidoId,
     seccion,
     ofIdsPedido,
+    // Igual que la marca: "quitarRetenida" solo lo manda "Volver a plantear"
+    // (ver Board.tsx ejecutarAccion). Aceptarlo con cualquier otro motivo
+    // dejaría sacar una OF de `of_retenida` —y perder su sitio en el
+    // tablero en cuanto RPS deje de traerla— sin que de verdad se haya
+    // vuelto a plantear nada.
+    quitarRetenida: esVolverAPlantear && Array.isArray(body.quitarRetenida)
+      ? body.quitarRetenida.filter((x): x is string => typeof x === "string" && x.length > 0)
+      : undefined,
   });
 
   // Soltar una OF cierra el fichaje de quien la tenía. NO lo puede hacer su
@@ -142,7 +219,17 @@ export async function POST(req: Request) {
   // lanza, y si algo falla el pedido queda "interrumpido" en vez de
   // "finalizado", que se ve y se puede volver a pasar.
   if (completarPedidoId) {
-    encolarFinalizacion(ofIdsPedido ?? [], operarioId);
+    // Solo se saltan el 3 las cerradas en "activo" (sección 2 de la spec): en
+    // RPS ya están terminadas y desde entonces no se puede fichar en ellas.
+    // Todo lo demás lo manda, incluidas las que volvieron "del_pedido" al
+    // recuperar el pedido: esas sí se pueden fichar, y si alguien les echó
+    // tiempo su operación quedó empezada y hay que cerrarla. `ofIdsPedido` SÍ
+    // las sigue incluyendo a todas —esa lista es la que evita que
+    // `aplicarOverlay` reabra el pedido (overlay.ts:101-108).
+    const aFinalizar = ofIdsSinFinalizar
+      ? (ofIdsPedido ?? []).filter((id) => !ofIdsSinFinalizar!.has(id))
+      : ofIdsPedido ?? [];
+    encolarFinalizacion(aFinalizar, operarioId);
   }
   return NextResponse.json({ ok: true });
 }

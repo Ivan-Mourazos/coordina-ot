@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -127,6 +127,25 @@ test("el aviso de cierre sobrevive a leerlo: solo lo borra el acuse del cliente"
   expect(db.leerAvisoCierre("op-10")).toBeNull();
 });
 
+test("reencolarTramosDeOF solo mira los intervalos DE ESA OF, no toda la tabla", () => {
+  let f11 = fichar(FICHAJE_VACIO, ["OF-20"], "plantear", "op-11", "2026-07-22T16:00:00.000Z");
+  f11 = pausar(f11, "2026-07-22T16:30:00.000Z");
+  db.guardarFichaje("op-11", f11);
+  let f12 = fichar(FICHAJE_VACIO, ["OF-21"], "plantear", "op-12", "2026-07-22T17:00:00.000Z");
+  f12 = pausar(f12, "2026-07-22T17:30:00.000Z");
+  db.guardarFichaje("op-12", f12);
+
+  const spy = vi.spyOn(outbox, "encolarTramosDeOF").mockReturnValue(0);
+  db.reencolarTramosDeOF("OF-20");
+  expect(spy).toHaveBeenCalledTimes(1);
+  const [ofIdArg, intervalosArg] = spy.mock.calls[0];
+  expect(ofIdArg).toBe("OF-20");
+  // Lo que se le pasa ya viene acotado a esta OF: nada del operario 12 debería
+  // colarse en la lista que se examina para reencolar la 20.
+  expect(intervalosArg.every((iv) => iv.ofIds.includes("OF-20"))).toBe(true);
+  spy.mockRestore();
+});
+
 test("si llegan menos intervalos de los guardados, se reescribe entero", () => {
   let f = fichar(FICHAJE_VACIO, ["OF-D"], "plantear", "op-7", "2026-07-22T11:00:00.000Z");
   f = pausar(f, "2026-07-22T11:10:00.000Z");
@@ -199,6 +218,34 @@ test("cortarFichajeDeOF encola el tramo cerrado hacia OLANET", () => {
   expect(pendientes.length).toBeGreaterThan(antes);
   const bono = pendientes.find((p) => p.tipo === "bono" && p.datos.of === "0230700");
   expect(bono).toBeDefined();
+});
+
+// Cerrar una OF en RPS exige que su tiempo esté antes en la cola. Si encolar
+// el tramo recién cortado falla, quien corta tiene que enterarse: la cola se
+// vería vacía y se escribiría el cierre sin ese tiempo.
+test("cortarFichajeDeOFConAviso dice a quién no se le pudo encolar el tramo", () => {
+  const f = fichar(FICHAJE_VACIO, ["0230900:3"], "plantear", "jaime", "2026-08-05T14:00:00.000Z");
+  db.guardarFichaje("jaime", f);
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const encolar = vi.spyOn(outbox, "encolarFichajeOLanzar").mockImplementation(() => {
+    throw new Error("database is locked");
+  });
+  try {
+    const r = db.cortarFichajeDeOFConAviso("0230900:3", "2026-08-05T14:30:00.000Z");
+    expect(r).toEqual({ afectados: ["jaime"], sinEncolar: ["jaime"] });
+    // El reloj se para igual: el corte no se deshace por no poder encolar.
+    expect(db.leerFichaje("jaime").intervalos.filter((iv) => iv.fin === null)).toHaveLength(0);
+  } finally {
+    encolar.mockRestore();
+    error.mockRestore();
+  }
+});
+
+test("cortarFichajeDeOFConAviso sin fallos no deja a nadie sin encolar", () => {
+  const f = fichar(FICHAJE_VACIO, ["0230901:3"], "plantear", "tamara", "2026-08-05T15:00:00.000Z");
+  db.guardarFichaje("tamara", f);
+  expect(db.cortarFichajeDeOFConAviso("0230901:3", "2026-08-05T15:30:00.000Z"))
+    .toEqual({ afectados: ["tamara"], sinEncolar: [] });
 });
 
 // Defecto 2 (Important): guardarFichaje registra un latido porque, en el

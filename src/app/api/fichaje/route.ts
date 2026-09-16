@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 // propia ruta (POST /api/fichaje/aviso-visto), porque leerlo y darlo por visto
 // son dos momentos distintos — ver el comentario del GET de más abajo.
 import { leerFichaje, guardarFichaje, leerAvisoCierre } from "@/lib/server/fichaje-db";
+import { leerOverlayDeOfs } from "@/lib/server/estado-db";
 import { encolarFichaje } from "@/lib/server/olanet-outbox";
+import { ofEnCierre } from "@/lib/server/cierre-of-en-curso";
 import { fichar, pausar } from "@/lib/fichaje";
 import { identidad } from "@/lib/server/sesion";
 import type { Rol } from "@/lib/types";
@@ -49,13 +51,55 @@ export async function POST(req: Request) {
   const actual = leerFichaje(operarioId);
 
   let nuevo;
+  // Lo que de verdad se abre en el servidor: en el caso normal, todo lo que
+  // manda el cliente; con OF cerradas de por medio, lo que quede tras
+  // filtrarlas (ver abajo). Pausar (ofIds vacío) no pasa por aquí.
+  let ofIdsFichables: string[] = [];
   if (ofIds.length === 0) {
     nuevo = pausar(actual, ahora);
   } else if (body.rol === "plantear" || body.rol === "revisar") {
-    nuevo = fichar(actual, ofIds as string[], body.rol as Rol, operarioId, ahora);
+    // Fallo I-A (revisión Task 6): una OF con la marca «cerrada en RPS»
+    // guardada no admite reloj, la mire quien la mire. El candado de
+    // cierre-of-en-curso.ts (más abajo) solo dura los segundos que tarda el
+    // cierre; la marca guardada es para siempre, y es la que hace falta aquí
+    // porque el navegador de quien estaba fichando la OF cuando se cerró
+    // puede no haberse enterado todavía: sigue creyendo que la tiene abierta
+    // y `ficharOFs` (Board.tsx) reenvía TODO lo que cree tener abierto en
+    // cuanto se ficha otra cosa. Sin este filtro, ese reenvío colaría un
+    // movimiento "iniciada" detrás del cierre y reabriría la operación en
+    // OLANET con la marca diciendo "cerrada".
+    //
+    // Se descarta solo la OF cerrada y se sigue fichando el resto: la lista
+    // que reenvía el navegador no es una elección consciente de esta OF en
+    // concreto, es todo lo que tenía abierto, y perder el reloj de las demás
+    // OF (que sí se pueden fichar) por una que ya no admite reloj sería más
+    // sorprendente para quien está fichando que perder solo esa. Si no queda
+    // ninguna fichable, ahí sí se rechaza entero, con 409 como el candado de
+    // más abajo.
+    const ofIdsBody = ofIds as string[];
+    const overlay = leerOverlayDeOfs(ofIdsBody);
+    const cerradas = ofIdsBody.filter((id) => overlay.get(id)?.cerradaRps);
+    ofIdsFichables = cerradas.length > 0 ? ofIdsBody.filter((id) => !cerradas.includes(id)) : ofIdsBody;
+    if (ofIdsFichables.length === 0) {
+      return NextResponse.json(
+        { error: `La OF ${cerradas[0].split(":")[0]} está dada por terminada en RPS; no se puede fichar en ella.` },
+        { status: 409 },
+      );
+    }
+    nuevo = fichar(actual, ofIdsFichables, body.rol as Rol, operarioId, ahora);
   } else {
     return NextResponse.json({ error: "rol inválido" }, { status: 400 });
   }
+
+  // Una OF que se está dando por terminada en RPS no admite reloj: su
+  // movimiento de "iniciada" iría detrás del cierre y reabriría la operación
+  // (ver cierre-of-en-curso.ts). Pausar sí se puede siempre.
+  const enCierre = ofIdsFichables.length > 0 ? ofEnCierre(ofIdsFichables) : null;
+  if (enCierre)
+    return NextResponse.json(
+      { error: `La OF ${enCierre.split(":")[0]} se está dando por terminada en RPS ahora mismo; no se puede fichar en ella.` },
+      { status: 409 },
+    );
 
   guardarFichaje(operarioId, nuevo);
   // El fichaje pasa a la cola de salida hacia OLANET: líneas de tiempo de los

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { HistorialPedidoDetalle } from "@/lib/historial";
+import type { HistorialPedidoDetalle, MaterialGastadoOF } from "@/lib/historial";
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
 import {
@@ -13,6 +13,7 @@ import {
 import { NotasPedido } from "./NotasPedido";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
+import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -49,6 +50,9 @@ export function HistorialDrawer({
   const [detalle, setDetalle] = useState<HistorialPedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
+  // undefined = todavía cargando; null = RPS no contestó; objeto = cargado
+  // (puede llevar OF sin ninguna línea: eso no es lo mismo que "error").
+  const [gastado, setGastado] = useState<Record<string, MaterialGastadoOF[]> | null | undefined>(undefined);
   const reqSeq = useRef(0);
 
   const [prevPedido, setPrevPedido] = useState<string | null>(null);
@@ -58,10 +62,14 @@ export function HistorialDrawer({
     setPrevPedido(pedido);
     setDetalle(null);
     setError(false);
+    setGastado(undefined);
   }
 
-  const cargar = useCallback(async (cod: string) => {
-    const seq = ++reqSeq.current;
+  // Dos peticiones INDEPENDIENTES bajo la misma marca de secuencia: si RPS no
+  // contesta a "gastado" el resto de la ficha no se entera (spec §1, "Cómo se
+  // ve"). Con un solo try/catch para las dos, un fallo de la más nueva de las
+  // dos tumbaba también el detalle, que es justo lo que no puede pasar.
+  const cargarDetalle = useCallback(async (cod: string, seq: number) => {
     setCargando(true);
     setError(false);
     try {
@@ -77,6 +85,24 @@ export function HistorialDrawer({
       if (seq === reqSeq.current) setCargando(false);
     }
   }, [seccion]);
+
+  const cargarGastado = useCallback(async (cod: string, seq: number) => {
+    try {
+      const r = await fetch(`/api/historial/${cod}/gastado`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      const d = (await r.json()) as { gastado: Record<string, MaterialGastadoOF[]> };
+      if (seq === reqSeq.current) setGastado(d.gastado);
+    } catch {
+      if (seq === reqSeq.current) setGastado(null);
+    }
+  }, []);
+
+  const cargar = useCallback((cod: string) => {
+    const seq = ++reqSeq.current;
+    setGastado(undefined);
+    void cargarDetalle(cod, seq);
+    void cargarGastado(cod, seq);
+  }, [cargarDetalle, cargarGastado]);
 
   useEffect(() => {
     if (!pedido) return;
@@ -234,7 +260,15 @@ export function HistorialDrawer({
                   fase de OT que se quedó a medias. Va lo primero porque es una
                   tarea pendiente, no información; el resto de la ficha se lee.
                   Se calla solo cuando está todo finalizado, que es lo normal. */}
-              {!detalle.estadoActual && <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />}
+              {!detalle.estadoActual && (
+                <>
+                  <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />
+                  {/* "Volver a plantear el pedido": sección 3 de la spec del
+                      15/09/2026. Solo sale si el pedido no está ya en el
+                      panel — lo mismo que decide FasesSinFinalizar de arriba. */}
+                  <RecuperarPedido pedido={pedido} seccion={seccion} miId={miId} operarios={operarios} onRecuperado={onClose} />
+                </>
+              )}
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es
@@ -261,7 +295,20 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              <HistorialCentros key={`${pedido}:${seccion}`} ofs={detalle.ofs} seccion={seccion} />
+              {/* Reintentar pide SOLO el material gastado. Con `cargar` se
+                  pedía otra vez el detalle, que ya había llegado bien, y la
+                  ficha entera se sustituía por «Cargando…»: se cerraba la
+                  propia ventana desde la que se había pulsado. */}
+              <HistorialCentros
+                key={`${pedido}:${seccion}`}
+                ofs={detalle.ofs}
+                seccion={seccion}
+                gastado={gastado}
+                onReintentarGastado={() => {
+                  setGastado(undefined);
+                  void cargarGastado(pedido, reqSeq.current);
+                }}
+              />
             </>
           )}
     </MarcoFicha>

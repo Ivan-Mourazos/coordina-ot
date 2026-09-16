@@ -1,5 +1,39 @@
 [
   {
+    "id": "2026-09-15",
+    "hasta": "a8af8b7",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Quien no entra en la web ya puede mirar por dónde va un pedido",
+        "detalle": "Comerciales, administración y taller escriben el pedido, el cliente o la obra y ven dónde está, quién lo tiene y para cuándo es, sin llamar a Oficina Técnica. Se enciende junto con el login."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Cada OF del Historial enseña también lo que salió de verdad del almacén, no solo lo que se apuntó al planificar. El botón de siempre pasa a llamarse «Asignado» para que se distinga del nuevo."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes dar por terminada en RPS una OF suelta antes de pasar el pedido entero",
+        "detalle": "Está en el menú «⋯» de tus OF. Antes de confirmar te dice qué operación se va a cerrar (o las dos, si la OF tiene la operación repetida). La OF queda apartada en un cajón de la ficha con quién la cerró y cuándo, y cualquiera puede volver a plantearla. Si algo no llega a RPS, el propio aviso te da el botón para reintentarlo."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Un pedido que ya salió del panel se puede volver a plantear desde su ficha del Historial, eligiendo qué OF se reabren. El pedido entero vuelve, y en RPS sigue terminado hasta que alguien fiche."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las capotas ya no figuran como remolques",
+        "detalle": "Una capota de terraza aparecía en la familia Remolques, así que al filtrar por Toldos no salía. Ahora está donde toca."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas y los tiempos ya salen en la propia ficha, y se leen igual que en la ventana",
+        "detalle": "Cada OF enseña qué tareas lleva, quién echó cada una y cuánto tiempo, sin abrir otra ventana. Mismo desglose en los dos sitios, con el número de OF y los tiempos resaltados. En la ficha siguen estando el material y quién planteó o revisó."
+      }
+    ]
+  },
+  {
     "id": "2026-09-14",
     "hasta": "1cf76be",
     "cambios": [
