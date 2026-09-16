@@ -153,7 +153,11 @@ export function CabeceraFicha({
       {(datos.length > 0 || familias.length > 0) && (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           {datos.map((d, i) => (
-            <span key={d} className="flex items-center gap-2">
+            // Por índice y no por `d`: son textos ya formateados ("4 piezas",
+            // "Madrid") y dos podrían coincidir, lo que React vería como una
+            // key duplicada. El orden es fijo (viene de quien llama), así que
+            // el índice es una key estable.
+            <span key={i} className="flex items-center gap-2">
               {i > 0 && <span aria-hidden="true" className="text-text-muted">·</span>}
               <span className="font-medium text-text">{d}</span>
             </span>
