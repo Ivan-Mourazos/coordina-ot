@@ -64,7 +64,14 @@ export function HistorialTareas({
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {compacto ? "Tareas" : "Tareas y tiempos"}
-        <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
+        {/* El código del pedido, SOLO fuera del modo compacto. En la lista del
+            Historial este botón vive en una columna de 64 px que no crece, y
+            ahí el código no cabe; además ya se lee en la misma fila, tres
+            columnas a la izquierda. En la ficha sí hace falta: es lo que la
+            cabecera de la ventana decía cuando esto era un popover. */}
+        {!compacto && (
+          <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
+        )}
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>
@@ -296,7 +303,9 @@ export function TareasDelPedido({
       onClick={cargar}
       disabled={estado === "cargando"}
       title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
-      className={`${className ?? "mb-2"} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text disabled:opacity-60`}
+      // `mb-4` como el bloque que sale en su lugar al cargar: con `mb-2` lo de
+      // debajo daba un salto justo al llegar los datos.
+      className={`${className ?? "mb-4"} chip-3d shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-text disabled:opacity-60`}
     >
       {estado === "cargando"
         ? "Cargando tareas…"

@@ -56,3 +56,21 @@ test("una OF sin tareas en RPS lo dice en el idioma de quien lo lee", () => {
   expect(html).toContain("Esta OF no tiene tareas en RPS.");
   expect(html).not.toContain("Sin desglose de tareas disponible");
 });
+
+test("en la lista, el botón no repite el código del pedido: no cabe y ya está en la fila", () => {
+  // En el Historial este botón vive en una columna de 64 px que no crece con
+  // el contenido, y el código ya se lee tres columnas a la izquierda.
+  const enLista = renderToStaticMarkup(
+    createElement(HistorialTareas, {
+      pedido: "AR.26.03914", ofs: [OF], seccion: "ot" as const, compacto: true,
+    }),
+  );
+  expect(enLista).toContain("Tareas");
+  expect(enLista).not.toContain("AR.26.03914");
+
+  // En la ficha sí: es lo que decía la cabecera cuando esto era una ventana.
+  const enFicha = renderToStaticMarkup(
+    createElement(HistorialTareas, { pedido: "AR.26.03914", ofs: [OF], seccion: "ot" as const }),
+  );
+  expect(enFicha).toContain("AR.26.03914");
+});
