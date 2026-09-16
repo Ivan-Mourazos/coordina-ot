@@ -64,6 +64,17 @@ afterAll(() => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // EL RELOJ, CONGELADO A MEDIODÍA. Estas pruebas montan tramos de fichaje
+  // relativos a "ahora" ("de hace 60 a hace 30 minutos"), y un bono de OLANET
+  // lleva la FECHA en su clave: un tramo que cruza la medianoche se parte en
+  // dos, uno por día. Corriendo la suite a las 00:30 ese tramo empezaba el día
+  // anterior y salían dos bonos donde la prueba espera uno — fallaba una hora
+  // cada noche y pasaba el resto del día.
+  //
+  // Solo se finge `Date`: con los temporizadores falsos enteros, el `await` de
+  // la ruta se quedaría esperando a que alguien adelante el reloj.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-16T12:00:00"));
   // Se importan AQUÍ y no una vez en beforeAll: `resetModules` (afterEach)
   // hace que la ruta cargue módulos nuevos, y un espía puesto sobre el
   // `getTablero` de la carga anterior no lo vería nunca.
@@ -81,7 +92,10 @@ beforeEach(async () => {
   llamadas.length = 0;
   ruta = await import("../../app/api/fases/cerrar-of/route");
 });
-afterEach(() => vi.resetModules());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.resetModules();
+});
 
 const post = (body: unknown) =>
   ruta.POST(new Request("http://x/api/fases/cerrar-of", { method: "POST", body: JSON.stringify(body) }));
