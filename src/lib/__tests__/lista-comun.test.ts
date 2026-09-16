@@ -134,23 +134,29 @@ test("un rótulo sin color no pinta un punto: los días del Historial llevan nom
   expect(html).not.toContain("rounded-full");
 });
 
-test("el título del rótulo alinea por línea base, que es lo que casa con su sufijo de texto", () => {
+test("el rótulo fluye como texto normal, no como fila flex: es como el título y su sufijo comparten línea base sin pedirlo", () => {
   const html = pintarBloque(
     { columnas: COLUMNAS, rotulo: { texto: "Hoy", sufijo: "· 3 pedidos" } },
     createElement("div", null, "x"),
   );
-  expect(html).toContain("items-baseline");
-  expect(html).not.toContain("items-center");
+  expect(html).not.toContain("flex");
+  expect(html).not.toContain("items-baseline");
 });
 
-test("con color sí hay punto, y centrado para no caerse sobre la línea base", () => {
+test("con color sí hay punto, centrado con align-middle para no flotar sobre la palabra", () => {
+  // `self-center` en una fila flex fue el primer intento y se descartó: un
+  // `<span>` sin texto no tiene línea base propia, así que el navegador la
+  // sintetiza por el borde inferior y el punto queda por encima del centro
+  // óptico de "Por revisar" (comprobado en el navegador). `align-middle`
+  // centra contra la línea base + 0.5ex, que es donde cae ese centro.
   const html = pintarBloque(
     { columnas: COLUMNAS, rotulo: { texto: "Por revisar", claseDot: "bg-amber-500", sufijo: "· 3 OF" } },
     createElement("div", null, "x"),
   );
   expect(html).toContain("bg-amber-500");
   expect(html).toContain("rounded-full");
-  expect(html).toContain("self-center");
+  expect(html).toContain("align-middle");
+  expect(html).not.toContain("self-center");
 });
 
 test("el aria-controls apunta a un id que existe: sin las dos mitades, el lector de pantalla no sigue nada", () => {

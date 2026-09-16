@@ -62,22 +62,31 @@ export function BloqueLista({
   return (
     <div>
       {rotulo && (
-        <Rotulo className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
+        <Rotulo className="mb-1 px-3 text-[11px] font-semibold text-text">
           {/* El punto SOLO si hay color. Sin él no se pinta un círculo
               transparente que ocupa sitio: los días del Historial llevan
               rótulo pero no color, y les salía un punto gris de la nada.
-              `self-center` porque el rótulo alinea por línea base — que es lo
-              que necesitan el título y su sufijo — y un círculo sobre la línea
-              base se ve caído. */}
+              `align-middle` y no un `flex` con `self-center`: probado en el
+              navegador, un `<span>` sin texto dentro de una fila flex no
+              tiene línea base propia, y el navegador se la inventa por el
+              borde inferior — el punto queda centrado sobre TODA la caja de
+              línea (con su interlineado) en vez de sobre la palabra, y se ve
+              flotando por encima de "Hoy". `vertical-align: middle` es el
+              mecanismo pensado para esto: centra contra la línea base más
+              medio "ex", que es donde cae el centro óptico de un texto corto.
+              Solo actúa en contenido en línea, así que el rótulo entero deja
+              de ser una fila flex y pasa a fluir como texto normal — el
+              título y el sufijo siguen compartiendo línea base porque eso ya
+              lo hace el flujo en línea por defecto, sin pedirlo. */}
           {(rotulo.color || rotulo.claseDot) && (
             <span
               aria-hidden="true"
-              className={`size-2 shrink-0 self-center rounded-full ${rotulo.claseDot ?? ""}`}
+              className={`mr-2 inline-block size-2 rounded-full align-middle ${rotulo.claseDot ?? ""}`}
               style={rotulo.color ? { background: rotulo.color } : undefined}
             />
           )}
           {rotulo.texto}
-          {rotulo.sufijo && <span className="font-normal text-text-muted">{rotulo.sufijo}</span>}
+          {rotulo.sufijo && <span className="ml-2 font-normal text-text-muted">{rotulo.sufijo}</span>}
         </Rotulo>
       )}
       {cabecera && (

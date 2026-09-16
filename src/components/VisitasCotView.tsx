@@ -220,10 +220,6 @@ export function VisitasCotView({
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">
             Visitas con Oficina Técnica
           </h1>
-          <p className="mt-0.5 text-xs text-text-muted">
-            Las que piden los comerciales para que OT les acompañe a ver la obra. Se
-            registran en RPS; aquí solo se consultan.
-          </p>
         </div>
 
         {/* Sin buscador propio cuando lo escribe otro (la consulta sin login):
