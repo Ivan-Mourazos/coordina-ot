@@ -670,8 +670,16 @@ export function Drawer({
             </div>
           )}
 
-          {/* OFs: el trabajo de OT arriba, lo demás en cajones (ver GRUPOS). */}
-          <div className="mb-2 flex items-center gap-2">
+          {/* OFs: el trabajo de OT arriba, lo demás en cajones (ver GRUPOS).
+
+              LA FILA SE PARTE (`flex-wrap`). En un pedido que tenga a la vez
+              trabajo por fichar, devueltas corregidas y OF listas para revisar
+              salen TRES botones a la vez —"Fichar las 3", "Dar por corregidas
+              las 2", "Pasar las 2 a revisión"— y en un panel de 32rem no caben
+              en la línea del rótulo: el último se salía por el borde derecho y
+              no se podía ni leer ni pulsar. Con el salto bajan a su propia
+              línea y se ven los tres. */}
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               Órdenes de fabricación ({ofsDeOT.length})
               {ofsDeOT.length !== pedido.ofs.length && (
@@ -684,7 +692,12 @@ export function Drawer({
                 con una sola, este botón y el de su fila harían lo mismo y
                 sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
                 usa cuando de verdad solo tocas una. */}
-            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            {/* `ml-auto` para pegarlos a la derecha cuando caben en la línea
+                del rótulo, y `flex-wrap` propio para que, cuando son tres y
+                tampoco caben en una línea para ellos solos, se partan entre
+                sí en vez de desbordar. Sin `shrink-0`: encogerse aquí era lo
+                que empujaba al último fuera del panel. */}
+            <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
               {/* Con el reloj MÍO en marcha aquí, este botón para; si no, ficha.
                   Mismo par que la fila del tablero (PedidoLinea): antes solo
                   sabía fichar, así que tras fichar seguía ofreciendo fichar
