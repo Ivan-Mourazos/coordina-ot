@@ -88,12 +88,38 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
             </li>
           );
         }
+        // EN LA FICHA: fila hundida y DOS renglones, como las OF de Pendientes
+        // (ver `FilaOF`). Iba todo en una línea con `flex-wrap`, y la gente
+        // —"Alberto Carbon planteó 23m · Jaime Vázquez revisó 2m"— se comía el
+        // ancho: en un pedido de trece OF la descripción quedaba en "LONA
+        // ESCENAR…" y no se distinguía una fila de la siguiente.
+        //
+        // Arriba QUÉ es y cuánto costó, que es lo que se recorre con la vista;
+        // debajo y más apagado, QUIÉN. Así la descripción dispone del ancho
+        // entero por larga que sea.
         return (
-          <li key={codigo} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <span className="font-mono font-semibold text-text">{codigo}</span>
-            <span className="min-w-0 flex-1 truncate text-text-muted" title={descripcion}>{descripcion}</span>
-            {gente}
-            {accionAqui}
+          <li
+            key={codigo}
+            className="rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border"
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="shrink-0 font-mono font-semibold text-text">{codigo}</span>
+              <span className="min-w-0 flex-1 truncate text-text" title={descripcion}>
+                {descripcion}
+              </span>
+              {accionAqui}
+              {/* El tiempo de la OF, sumando lo de TODOS sus centros: aquí no
+                  hay fila de pedido encima que lo diga, que es el motivo por el
+                  que la versión en columnas no lo pinta. En mono y con cifras
+                  de ancho fijo, para recorrer la columna con la vista. */}
+              <span
+                className="shrink-0 font-mono tabular-nums text-text-muted"
+                title="Tiempo imputado en RPS a esta OF"
+              >
+                {fmtMin(centros.reduce((n, c) => n + c.tiempoImputadoMin, 0))}
+              </span>
+            </div>
+            {gente && <div className="mt-0.5 leading-4">{gente}</div>}
           </li>
         );
       })}

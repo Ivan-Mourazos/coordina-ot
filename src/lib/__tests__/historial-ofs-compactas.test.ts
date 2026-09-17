@@ -118,3 +118,17 @@ test("en la lista, el botón va al final de la línea, detrás de la gente", () 
   expect(html.indexOf("Adrián Quinteiro")).toBeLessThan(html.indexOf("Tareas y tiempos"));
   expect(html.match(/Tareas y tiempos/g)).toHaveLength(1);
 });
+
+test("en la ficha, cada OF es una fila hundida de dos renglones y no una línea apretada", () => {
+  // Trece OF con dos personas cada una dejaban la descripción en "LONA
+  // ESCENAR…": la gente se comía el ancho de la misma línea. Arriba qué es y
+  // cuánto costó; debajo, quién.
+  const html = pinta([taller, otra]);
+  expect(html).toContain("ring-1 ring-border");
+  // El tiempo de la OF, que en la versión en columnas no se pinta porque lo
+  // dice la fila del pedido de encima. Aquí no hay fila de pedido.
+  expect(html).toContain("tabular-nums");
+  expect(html).toContain("34m");
+  // Sin `columnas` no se pinta la rejilla de la lista.
+  expect(html).not.toContain("grid-cols-");
+});
