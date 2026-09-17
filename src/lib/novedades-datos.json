@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "8854b79",
+    "hasta": "a8120ba",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -119,6 +119,11 @@
         "tipo": "mejor",
         "titulo": "En la ficha del Historial se lee de qué va cada OF",
         "detalle": "Con varias OF se quedaba el nombre a medias y los tiempos apelotonados."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el panel, una fila que no se puede fichar ahora dice por qué",
+        "detalle": "Antes no salía nada al pasar el ratón y parecía un fallo. Ahora dice si está detenida, si la tiene el revisor o si RPS no admite el fichaje."
       }
     ]
   },
