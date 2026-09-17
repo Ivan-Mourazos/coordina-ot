@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "e8a7143",
+    "hasta": "2ca88ae",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -104,6 +104,11 @@
       {
         "tipo": "mejor",
         "titulo": "La barra de desplazamiento ya no desentona en modo oscuro"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha del Historial se lee de qué va cada OF",
+        "detalle": "Con varias OF se quedaba el nombre a medias y los tiempos apelotonados."
       }
     ]
   },
