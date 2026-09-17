@@ -67,12 +67,18 @@ export interface Seccion {
    *  deja puesta para la siguiente sección que entre: ponerla es una línea, y
    *  detrás ya están el aviso en pantalla y el corte de las consultas. */
   enObras?: boolean;
-  /** El trozo que llevan en el nombre sus centros en `scg_Fases`.
+  /** Los trozos que llevan en el nombre sus centros en `scg_Fases`.
    *
-   *  Se busca un TROZO y no el nombre entero porque en esa columna hay erratas
-   *  reales (`A-OTECP`, `24A-OTEC`): buscar "OTEC" las recoge todas, y ninguna
-   *  otra sección de la casa lo lleva. Lo mismo vale para "DGRA". */
-  marcaEnFases: string;
+   *  Se buscan TROZOS y no el nombre entero porque en esa columna hay erratas
+   *  reales (`A-OTECP`, `24A-OTEC`) y urgencias con prefijo (`U-A-DGRA`):
+   *  buscar "OTEC" las recoge todas, y ninguna otra sección de la casa lo
+   *  lleva. Lo mismo vale para "DGRA".
+   *
+   *  Es una LISTA y no un trozo porque una sección puede trabajar en centros
+   *  que no comparten nombre: Diseño Gráfico usa su mesa (A-DGRA) y además los
+   *  plóters de corte (P-PCUS, P-PCMU), que no llevan "DGRA" por ningún lado.
+   *  Con un solo trozo, el corte de vinilo no aparecía en su tablero. */
+  marcasEnFases: readonly string[];
   /** En qué orden se pintan las columnas del panel. Ausente = el de siempre
    *  (ver FASES en lib/fases-tablero.ts).
    *
@@ -129,7 +135,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // Confirmado por IT el 2026-08-04: A-OTEC es la nuestra; A-OTECP es una
     // máquina de OT en planta, para la fábrica.
     maquina: "A-OTEC",
-    marcaEnFases: "OTEC",
+    marcasEnFases: ["OTEC"],
   },
   diseno: {
     id: "diseno",
@@ -146,9 +152,21 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // 0230576/06) no existen como tarea en RPS, y sin tarea no hay pedido,
     // cliente ni fecha que enseñar, así que se caen de la lista en silencio.
     fuente: "olanet",
-    recursos: ["a-dgra", "dgra-a"],
+    // Los plóters van aquí ADEMÁS de en `marcasEnFases`: esta lista es la que
+    // decide de quién es el tiempo, y sin ellos las horas del corte se
+    // contaban a Taller —lo que no está en ninguna lista cae ahí—.
+    recursos: ["a-dgra", "dgra-a", "p-pcus", "p-pcmu"],
     maquina: "A-DGRA",
-    marcaEnFases: "DGRA",
+    // La mesa de diseño y los dos plóters de corte. Que el corte de vinilo es
+    // trabajo suyo lo dijeron ellos y lo confirma RPS: desde junio, los ÚNICOS
+    // que fichan en P-PCUS son Smith (48), Carrón (88) y Manuel Gómez (22).
+    // Ni una imputación de Taller ni de OT.
+    // Los trozos van con el prefijo `P-` a propósito, y no como "PCUS" suelto:
+    // así entran las urgencias (`U-P-PCUS` lleva `P-PCUS` dentro) y se quedan
+    // fuera `A-PCMU` —otro plóter, 1.386 tareas todas ya cerradas— y la errata
+    // `P-PCCUS`, que tiene una C de más y una sola tarea. Ninguno de los dos
+    // está autorizado: meterlos cambiaría los tiempos de meses pasados.
+    marcasEnFases: ["DGRA", "P-PCUS", "P-PCMU"],
     // Las seis, en el orden en que las quieren ver. Se escriben TODAS y no
     // solo las dos que se mueven: una lista parcial invita a que la siguiente
     // fase que se añada se quede fuera sin que nadie lo note, y una fase fuera
@@ -196,9 +214,32 @@ export function recursosSql(s: Seccion): string {
 }
 
 /** ¿Esta fase es de esta sección? Mira el nombre del centro, que es lo único
- *  que trae `scg_Fases`. Ver `marcaEnFases` para por qué es un trozo. */
+ *  que trae `scg_Fases`. Ver `marcasEnFases` para por qué son trozos. */
 export function esFaseDe(maquina: string, s: Seccion): boolean {
-  return maquina.toUpperCase().includes(s.marcaEnFases);
+  const nombre = maquina.toUpperCase();
+  return s.marcasEnFases.some((marca) => nombre.includes(marca));
+}
+
+/** Los trozos de una sección como condición SQL sobre `MaquinaTeo`, con sus
+ *  parámetros ya nombrados.
+ *
+ *  Un `LIKE` por trozo unidos por OR, y cada uno con SU parámetro: no se
+ *  interpola nada en el SQL. Los parámetros los tipa quien ejecuta, y eso NO es
+ *  cosmético — un texto sin tipo viaja como `nvarchar` contra una columna
+ *  `varchar` y SQL Server tira el índice: medido en OLANET, 5.522 ms contra
+ *  8 ms por la misma consulta. */
+export function condicionMaquinaSql(s: Seccion, prefijo = "marca"): {
+  sql: string;
+  params: { nombre: string; valor: string }[];
+} {
+  const params = s.marcasEnFases.map((marca, i) => ({
+    nombre: `${prefijo}${i}`,
+    valor: `%${marca}%`,
+  }));
+  return {
+    sql: params.map((p) => `MaquinaTeo LIKE @${p.nombre}`).join(" OR "),
+    params,
+  };
 }
 
 /** ¿Es una fase que gestiona CoordinaOT? O sea, de Oficina Técnica o de Diseño

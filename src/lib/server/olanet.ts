@@ -1,7 +1,7 @@
 import sql from "mssql";
 import { claveBonoRps, type FilaBono } from "../bonos";
 import type { EstadoFase } from "../fases";
-import { esFaseDe, type Seccion } from "../secciones";
+import { condicionMaquinaSql, esFaseDe, type Seccion } from "../secciones";
 import {
   finalizarFaseCon,
   type OpcionesFinalizarFase,
@@ -278,9 +278,13 @@ export interface FasePendiente {
  *  frontera entre secciones a un LIKE. */
 export async function fasesPendientesDe(seccion: Seccion): Promise<FasePendiente[]> {
   const pool = await getPoolOlanet();
-  const r = await pool
-    .request()
-    .input("marca", sql.VarChar(30), `%${seccion.marcaEnFases}%`)
+  // Un LIKE por trozo, cada uno con su parámetro TIPADO: sin el `VarChar` el
+  // texto viaja como `nvarchar` contra una columna `varchar` y SQL Server tira
+  // el índice (5.522 ms contra 8 ms, medido aquí mismo).
+  const maquina = condicionMaquinaSql(seccion);
+  const peticion = pool.request();
+  for (const p of maquina.params) peticion.input(p.nombre, sql.VarChar(30), p.valor);
+  const r = await peticion
     .query<{
       Orden: string | null;
       Fase: string | null;
@@ -290,7 +294,7 @@ export async function fasesPendientesDe(seccion: Seccion): Promise<FasePendiente
     }>(
       `SELECT Orden, Fase, IdBoletin, MaquinaTeo, IdEstadoOF
          FROM scg_Fases
-        WHERE MaquinaTeo LIKE @marca AND IdEstadoOF IN (0, 1, 2)`,
+        WHERE (${maquina.sql}) AND IdEstadoOF IN (0, 1, 2)`,
     );
   return r.recordset
     .filter((f) => esFaseDe(f.MaquinaTeo ?? "", seccion))

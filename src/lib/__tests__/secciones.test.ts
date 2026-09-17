@@ -6,6 +6,7 @@ import {
   esSeccionId,
   recursosSql,
   seccionDe,
+  condicionMaquinaSql,
 } from "../secciones";
 import { esFaseDeOT } from "../fase-pendiente";
 
@@ -24,7 +25,12 @@ describe("las dos secciones", () => {
     // Comprobado contra la definición de las vistas el 2026-09-01: las dos son
     // la misma consulta y solo cambia esta línea.
     expect(SECCIONES.ot.recursos).toEqual(["a-otec", "otec-a"]);
-    expect(SECCIONES.diseno.recursos).toEqual(["a-dgra", "dgra-a"]);
+    // Diseño lleva además los dos plóters de corte. La VISTA de RPS sigue
+    // filtrando solo por a-dgra/dgra-a —es de IT, no nuestra—, pero esta lista
+    // es la que decide DE QUIÉN ES EL TIEMPO en toda la web, y el corte de
+    // vinilo es de ellos: desde junio los únicos que fichan en P-PCUS son
+    // Smith (48), Carrón (88) y Manuel Gómez (22).
+    expect(SECCIONES.diseno.recursos).toEqual(["a-dgra", "dgra-a", "p-pcus", "p-pcmu"]);
   });
 });
 
@@ -85,7 +91,7 @@ describe("de quién es una fase", () => {
 describe("los recursos en SQL", () => {
   it("salen entrecomillados y separados por coma", () => {
     expect(recursosSql(SECCIONES.ot)).toBe("'a-otec','otec-a'");
-    expect(recursosSql(SECCIONES.diseno)).toBe("'a-dgra','dgra-a'");
+    expect(recursosSql(SECCIONES.diseno)).toBe("'a-dgra','dgra-a','p-pcus','p-pcmu'");
   });
 
   it("dobla la comilla, aunque hoy no haga falta", () => {
@@ -119,5 +125,46 @@ describe("secciones en obras", () => {
     for (const s of Object.values(SECCIONES)) {
       expect(s.enObras).toBeUndefined();
     }
+  });
+});
+
+describe("los plóters de corte son de Diseño Gráfico", () => {
+  it("una fase de plóter es suya, aunque su nombre no lleve DGRA", () => {
+    // Es el caso por el que `marcasEnFases` es una lista: "P-PCUS" no contiene
+    // "DGRA" por ningún lado, así que con un solo trozo el corte de vinilo no
+    // aparecía en su tablero. Comprobado en OLANET el 17/09/2026: 24 fases
+    // vivas en P-PCUS contra 50 en A-DGRA.
+    for (const m of ["P-PCUS", "U-P-PCUS", "P-PCMU", "U-P-PCMU"]) {
+      expect(esFaseDe(m, SECCIONES.diseno)).toBe(true);
+    }
+  });
+
+  it("y no arrastran los plóters que nadie ha autorizado", () => {
+    // `A-PCMU` es otro plóter con 1.386 tareas, todas ya cerradas, y `P-PCCUS`
+    // es una errata con una C de más y una sola tarea. Entrarían solos si los
+    // trozos fueran "PCUS"/"PCMU" sueltos, y con ellos cambiarían los tiempos
+    // de meses pasados sin que nadie lo hubiera pedido.
+    for (const m of ["A-PCMU", "P-PCCUS", "PCOR-P"]) {
+      expect(esFaseDe(m, SECCIONES.diseno)).toBe(false);
+    }
+  });
+
+  it("y no son de Oficina Técnica", () => {
+    for (const m of ["P-PCUS", "P-PCMU"]) {
+      expect(esFaseDe(m, SECCIONES.ot)).toBe(false);
+    }
+  });
+
+  it("la condición SQL va con un LIKE por trozo y su propio parámetro", () => {
+    // Sin parámetros no hay nada interpolado en el SQL, y quien ejecuta los
+    // tipa como VarChar: un texto sin tipo viaja como nvarchar contra una
+    // columna varchar y SQL Server tira el índice (5.522 ms contra 8).
+    const { sql: cond, params } = condicionMaquinaSql(SECCIONES.diseno);
+    expect(params.map((p) => p.valor)).toEqual(["%DGRA%", "%P-PCUS%", "%P-PCMU%"]);
+    expect(cond).toBe(
+      "MaquinaTeo LIKE @marca0 OR MaquinaTeo LIKE @marca1 OR MaquinaTeo LIKE @marca2",
+    );
+    // Ni una comilla ni un valor dentro de la cadena de SQL.
+    expect(cond).not.toContain("%");
   });
 });
