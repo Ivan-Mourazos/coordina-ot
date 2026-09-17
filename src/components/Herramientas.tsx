@@ -158,13 +158,6 @@ export function Herramientas({
             )}
           </div>
 
-          {/* Solo un supervisor y solo con el login encendido: apagado no hay
-              PIN que resetear, y esconder el botón aquí es solo para no
-              confundir — la protección de verdad la pone el servidor, que en
-              `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
-              con este `if`. */}
-          {loginActivo && roles.includes("supervisor") && <ResetPin />}
-
           {/* Con el login encendido no hay lista que desplegar: `cambiando`
               no puede encenderse de otra forma que el botón de arriba, que
               con el login encendido ya no existe. */}
@@ -214,15 +207,26 @@ export function Herramientas({
 
               El tema no cierra el menú al cambiarlo: se elige mirando, y
               cerrando habría que volver a abrirlo para probar el otro. */}
-          <div className="mt-2 flex items-center justify-between gap-2 px-2">
-            <SelectorSeccion
-              seccion={seccion}
-              onCambiar={(s) => {
-                onCambiarSeccion(s);
-                setOpen(false);
-              }}
-            />
-            <ThemeToggle />
+          {/* Los dos mandos están hechos para la CABECERA: 36 px de alto, que
+              es la altura de aquella barra. En un menú cuyas filas son texto a
+              12 px se quedaban flotando, y encima esta era la única banda del
+              menú sin una línea que la separase de lo de arriba. Con su línea
+              y su rótulo se lee como las demás, y los dos van juntos a la
+              izquierda en vez de empujados a los extremos. */}
+          <div className="mt-2 border-t border-border pt-2">
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+              Qué miras y cómo
+            </p>
+            <div className="flex items-center gap-2 px-2">
+              <SelectorSeccion
+                seccion={seccion}
+                onCambiar={(s) => {
+                  onCambiarSeccion(s);
+                  setOpen(false);
+                }}
+              />
+              <ThemeToggle />
+            </div>
           </div>
 
           {/* LAS OTRAS PÁGINAS. Sin el rótulo "Otras herramientas" encima:
@@ -341,6 +345,19 @@ export function Herramientas({
               </button>
             )}
           </div>
+
+          {/* EL PIN OLVIDADO, LO ÚLTIMO Y PLEGADO. Estaba arriba del todo y
+              abría con los doce nombres a la vista: lo primero que veía un
+              supervisor al abrir las herramientas era una lista de gente, por
+              delante de las novedades y de los enlaces que sí se usan a
+              diario. Resetear un PIN es de un par de veces al año.
+
+              Solo un supervisor y solo con el login encendido: apagado no hay
+              PIN que resetear, y esconderlo aquí es solo para no confundir —
+              la protección de verdad la pone el servidor, que en
+              `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
+              con este `if`. */}
+          {loginActivo && roles.includes("supervisor") && <ResetPin />}
         </div>
       )}
     </div>
