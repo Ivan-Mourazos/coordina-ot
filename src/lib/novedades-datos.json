@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "96cb0c6",
+    "hasta": "c407697",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -32,6 +32,11 @@
         "tipo": "arreglado",
         "titulo": "En el Historial, las tareas de un pedido salían ilegibles",
         "detalle": "Se abrían dentro de una columna estrecha y el texto caía a una palabra por línea. Ahora van debajo de las OF, a todo el ancho."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Diseño Gráfico, el corte de vinilo ya cuenta como trabajo suyo",
+        "detalle": "Las horas del plóter se estaban sumando a Taller, y los pedidos en los que solo quedaba cortar no salían en el tablero."
       },
       {
         "tipo": "mejor",
@@ -86,6 +91,10 @@
         "tipo": "mejor",
         "titulo": "Las tareas y tiempos de un pedido se leen igual en el Historial que en Pendientes",
         "detalle": "Salen al abrir el pedido, plegadas, y ya no se meten en la lista."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La barra de desplazamiento ya no desentona en modo oscuro"
       }
     ]
   },
