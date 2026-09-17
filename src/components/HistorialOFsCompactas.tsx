@@ -108,16 +108,11 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
                 {descripcion}
               </span>
               {accionAqui}
-              {/* El tiempo de la OF, sumando lo de TODOS sus centros: aquí no
-                  hay fila de pedido encima que lo diga, que es el motivo por el
-                  que la versión en columnas no lo pinta. En mono y con cifras
-                  de ancho fijo, para recorrer la columna con la vista. */}
-              <span
-                className="shrink-0 font-mono tabular-nums text-text-muted"
-                title="Tiempo imputado en RPS a esta OF"
-              >
-                {fmtMin(centros.reduce((n, c) => n + c.tiempoImputadoMin, 0))}
-              </span>
+              {/* SIN el total de la OF a la derecha. Lo llevó un rato y se
+                  quitó: al lado de "planteó 6m · revisó 11m" aparecía un "20m"
+                  suelto que no cuadraba con ninguno de los dos y obligaba a
+                  hacer la cuenta para entender que era la suma. El desglose
+                  entero está en «Tareas y tiempos», justo debajo. */}
             </div>
             {gente && <div className="mt-0.5 leading-4">{gente}</div>}
           </li>

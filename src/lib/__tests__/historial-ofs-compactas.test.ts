@@ -125,10 +125,10 @@ test("en la ficha, cada OF es una fila hundida de dos renglones y no una línea 
   // cuánto costó; debajo, quién.
   const html = pinta([taller, otra]);
   expect(html).toContain("ring-1 ring-border");
-  // El tiempo de la OF, que en la versión en columnas no se pinta porque lo
-  // dice la fila del pedido de encima. Aquí no hay fila de pedido.
-  expect(html).toContain("tabular-nums");
-  expect(html).toContain("34m");
+  // SIN el total de la OF: al lado de "planteó 6m · revisó 11m", un "20m"
+  // suelto no cuadra con ninguno de los dos y hay que sumar para entenderlo.
+  // El desglose está en «Tareas y tiempos», justo debajo.
+  expect(html).not.toContain("34m");
   // Sin `columnas` no se pinta la rejilla de la lista.
   expect(html).not.toContain("grid-cols-");
 });
