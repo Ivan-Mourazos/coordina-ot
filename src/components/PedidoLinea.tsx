@@ -119,15 +119,24 @@ export function PedidoLinea({
   //
   // Con varias OF se dice el motivo COMÚN, y si no lo hay, cuántas hay de cada
   // cosa sobraría — basta con que no se puede y que el detalle está dentro.
+  // Va en DOS versiones. La corta es la que se pinta —esta franja se superpone
+  // al final de la fila, así que un texto largo se mete encima del cliente— y
+  // la larga vive en el `title`, que es donde sí cabe explicarse.
   const sinBotonDeFichar = fichandoYo.length === 0 && fichables.length === 0;
   const motivosOF = [...new Set(deOT.map(motivoNoFichable).filter((m): m is string => m !== null))];
-  const motivoSinFichar =
+  const motivoSinFichar: { corto: string; largo: string } | null =
     fase === "esperandoRevision"
-      ? "Lo tiene el revisor: lo que se ficha aquí es la revisión"
+      ? {
+          corto: "Lo tiene el revisor",
+          largo: "Tu parte está hecha: lo que se ficha aquí es la revisión, y le toca al revisor",
+        }
       : motivosOF.length === 1
-        ? motivosOF[0]
+        ? { corto: motivosOF[0], largo: motivosOF[0] }
         : motivosOF.length > 1
-          ? "Ninguna de sus OF admite fichaje ahora"
+          ? {
+              corto: "Sin fichaje",
+              largo: `Ninguna de sus OF admite fichaje ahora: ${motivosOF.join(" · ")}`,
+            }
           : null;
 
   return (
@@ -352,9 +361,16 @@ export function PedidoLinea({
         {sinBotonDeFichar && motivoSinFichar && (
           <span
             className="rounded-md px-2 py-0.5 text-[11px] font-medium text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
-            title={motivoSinFichar}
+            title={motivoSinFichar.largo}
           >
-            🔒 {motivoSinFichar}
+            {/* EN ESTRECHO SOLO EL CANDADO. Esta franja se SUPERPONE al final
+                de la fila, así que lo que lleve dentro tiene que ser corto: con
+                el motivo entero, en pantallas pequeñas se metía encima del
+                cliente. Es la misma regla que ya seguía el candado del panel de
+                un compañero, aquí abajo — y el mismo corte de ancho.
+                El motivo no se pierde: va entero en el `title`, y esto es
+                solo PC. */}
+            🔒 <span className="@max-[26rem]:hidden">{motivoSinFichar.corto}</span>
           </span>
         )}
         </span>

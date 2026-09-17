@@ -87,3 +87,23 @@ test("la fila dice con el cursor que se puede pulsar, y el hueco de los botones 
   // final de la fila, que es zona de "abrir el pedido".
   expect(html).toContain("pointer-events-none absolute inset-y-0 right-2");
 });
+
+test("el motivo se recorta en pantalla estrecha: la franja se superpone al cliente", () => {
+  // Esta franja va ENCIMA del final de la fila, así que un texto largo se mete
+  // sobre el nombre del cliente. En estrecho queda el candado y el motivo
+  // entero vive en el `title`.
+  const pedido = PEDIDOS[0];
+  const ofs = pedido.ofs.map((o) => ({ ...o, ajenaOT: false, detenida: false }));
+  const html = renderToStaticMarkup(
+    createElement(PedidoLinea, {
+      facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
+      fase: "esperandoRevision" as const,
+      onOpen: noop, onFichar: noop, onDesficharVarias: noop, completarPedido: noop,
+      operarios: OPERARIOS,
+    }),
+  );
+  expect(html).toContain("@max-[26rem]:hidden");
+  // Corto en la fila, largo al posar el ratón.
+  expect(html).toContain("Lo tiene el revisor</span>");
+  expect(html).toContain("le toca al revisor");
+});
