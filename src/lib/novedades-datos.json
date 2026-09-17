@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "7f3fc5b",
+    "hasta": "9eff431",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -66,6 +66,11 @@
         "tipo": "mejor",
         "titulo": "En Revisiones cada pedido ocupa menos y el revisor va junto al botón",
         "detalle": "El aviso de \"listo para Producción\" sale al lado del cliente en vez de en su propia línea, y ya no queda ese hueco entre \"Revisor:\" y el nombre."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El menú de herramientas ya no empieza con la lista del equipo",
+        "detalle": "Lo de reiniciar un PIN baja al final y va plegado. Arriba quedan las novedades y los enlaces de siempre."
       }
     ]
   },
