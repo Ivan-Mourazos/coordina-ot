@@ -179,22 +179,36 @@ function CentroTareas({
       {extraCentro?.(centro)}
       {centro.ofs.map((of) => (
         <div key={of.codigo} className="mb-3 border-t border-border pt-2 text-xs last:mb-0">
-          <p className="mb-1.5 flex items-baseline justify-between gap-3 font-semibold">
-            <span className="min-w-0">
-              <span className={conColor ? `font-mono ${acento}` : undefined}>{of.codigo}</span>
+          {/* TRES ESCALONES, y se distinguen por peso y tamaño, no por sangría
+              sola: el centro (14 px, negrita), la OF (12 px, negrita, con su
+              código en mono) y las tareas (11 px, normales). Todo iba al mismo
+              tamaño y en negrita, y con siete OF seguidas no había forma de
+              ver dónde acababa una.
+
+              El código en mono y el resto en la tipografía normal: "0232035"
+              es una matrícula que se compara con la vista, y la descripción se
+              lee. Mezclarlos en mono hacía la descripción más lenta de leer. */}
+          <p className="mb-1 flex items-baseline justify-between gap-3">
+            <span className="min-w-0 font-semibold leading-snug">
+              <span className={conColor ? `font-mono ${acento}` : "font-mono"}>{of.codigo}</span>
               {" · "}
               {of.descripcion}
             </span>
             {variasOF && (
               <span
-                className={`shrink-0 font-mono tabular-nums ${acento}`}
+                className={`shrink-0 font-mono font-semibold tabular-nums ${acento}`}
                 title="Tiempo imputado en RPS"
               >
                 {fmtMin(of.tiempoImputadoMin)}
               </span>
             )}
           </p>
-          <TareasDeOF of={of} conColor={conColor} />
+          {/* Las tareas, sangradas y con la línea de su OF al lado: dicen de
+              qué se compone lo de arriba, y sin el escalón se leían como si
+              fueran hermanas suyas. */}
+          <div className="ml-1 border-l border-border pl-2.5 text-[11px]">
+            <TareasDeOF of={of} conColor={conColor} />
+          </div>
           {extraOF?.(of, centro)}
         </div>
       ))}
