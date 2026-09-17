@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "2ca88ae",
+    "hasta": "813d766",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -46,6 +46,11 @@
       {
         "tipo": "arreglado",
         "titulo": "En la ficha del Historial no se veían las OF del pedido"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la ficha se salía del panel el botón de pasar a revisión",
+        "detalle": "Pasaba en los pedidos que tienen las tres cosas a la vez: algo por fichar, algo corregido y algo listo para revisar."
       },
       {
         "tipo": "mejor",
