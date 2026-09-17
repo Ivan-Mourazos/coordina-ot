@@ -630,6 +630,9 @@ interface DatosOF {
   /** Quién ha imputado tiempo en la tarea de OT y cuánto cada uno, según RPS.
    *  De aquí salen los minutos de planteo (la suma) y el autor deducido. */
   imputaciones: ImputacionRps[];
+  /** Qué se vendió en esta OF, con medidas y acabados: el texto que el
+   *  comercial escribe en la línea del pedido. Ver su consulta. */
+  detalleVenta: string | undefined;
   /** Tareas-nota de la ruta ("22/06 VISITA MEDIR"). */
   avisos: string[];
   /** Arranque planificado de la primera fase de producción tras el planteo. */
@@ -693,6 +696,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     // distintas y la interfaz distingue una de otra.
     ...materialYReservas(datos.materiales),
     compras: datos.compras.length ? datos.compras : undefined,
+    detalleVenta: datos.detalleVenta,
     avisos: datos.avisos.length ? datos.avisos : undefined,
     fechaLimitePlanteo: datos.fechaLimitePlanteo,
     fichadaDesde: datos.fichadaDesde,
@@ -927,7 +931,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, compras, imputaciones, ventas, tareas, subfamilias] =
+  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, tareas, subfamilias] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -1033,6 +1037,27 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
         ON d.IDCustomerDeliveryAddress = o.IDCustomerDeliveryAddress
       WHERE o.CodCompany = '001' AND o.CodOrder IN (${listaPedidosIn})
     `),
+    // QUÉ SE VENDIÓ EN ESTA OF, con sus medidas. Es el texto que el comercial
+    // escribe en la línea del pedido ("POR CONFECCIÓN E INSTALACIÓN DE TOLDOS
+    // VERTICALES MODELO ELECTRA, DE 3,20 × 2,10…"), y no lo tenía nadie: la
+    // descripción que se enseña hoy sale de `DescripcionMO`, que es el nombre
+    // de catálogo del artículo —"TOLDO VERTICAL ELECTRA"— y no dice ni medidas
+    // ni acabados.
+    //
+    // NO es `comentarioVenta`, que ya existe: aquel es el comentario del PEDIDO
+    // entero (`FACOrderSL.Comment`) y éste el de cada LÍNEA
+    // (`FACOrderLineSL.Comment`), que es lo que se corresponde con una OF.
+    //
+    // Lo traen todas: medido el 17/09/2026 sobre la vista de OT, 112 líneas de
+    // 112 con texto, 161 caracteres de media y hasta 403. Por eso en pantalla
+    // va plegado (ver el Drawer).
+    pool.request().query<{ orden: string | null; detalle: string | null }>(`
+      SELECT mo.CodManufacturingOrder AS orden, l.Comment AS detalle
+      FROM dbo.FACOrderLineSL l WITH (NOLOCK)
+      JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
+    `),
     // Ruta de tareas de cada OF pendiente: da los avisos de producción
     // (tareas-nota) y el arranque planificado de la fase posterior al planteo.
     pool.request().query<FilaTarea>(`
@@ -1085,6 +1110,24 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     const lista = tareasPorOF.get(orden) ?? [];
     lista.push(t);
     tareasPorOF.set(orden, lista);
+  }
+
+  // Qué se vendió en cada OF, con sus medidas. Una OF puede colgar de VARIAS
+  // líneas del pedido (pasa: la misma OF sale dos veces en la vista), así que
+  // se juntan las distintas en vez de quedarse con una al azar — y se juntan
+  // sin repetir, porque dos líneas de la misma OF suelen traer el mismo texto.
+  const detallePorOF = new Map<string, string>();
+  const textosPorOF = new Map<string, Set<string>>();
+  for (const d of detallesVenta.recordset) {
+    const orden = (d.orden ?? "").trim();
+    const texto = (d.detalle ?? "").replace(/\s+/g, " ").trim();
+    if (!orden || !texto) continue;
+    const suyos = textosPorOF.get(orden) ?? new Set<string>();
+    suyos.add(texto);
+    textosPorOF.set(orden, suyos);
+  }
+  for (const [orden, textos] of textosPorOF) {
+    detallePorOF.set(orden, [...textos].join(" · "));
   }
 
   /** Avisos de producción (tareas-nota "22/06 VISITA MEDIR") de una OF. */
@@ -1306,6 +1349,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
           // "cuánto llevas" hablan siempre del mismo trabajo.
           fichadaDesde: desdePorTarea.get(clave),
           subfamilia: subfamiliaPorOF.get(orden),
+          detalleVenta: detallePorOF.get(orden),
           avisos,
           fechaLimitePlanteo,
         });

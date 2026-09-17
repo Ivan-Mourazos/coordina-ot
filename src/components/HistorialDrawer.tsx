@@ -19,6 +19,7 @@ import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { HistorialCentros } from "./HistorialCentros";
+import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { SECCION_POR_DEFECTO, SECCIONES, type SeccionId } from "@/lib/secciones";
 
 function fmtFecha(iso: string | null) {
@@ -295,6 +296,19 @@ export function HistorialDrawer({
                   que no tienen fichero no salen en la lista, así que meterlos
                   en el número dejaría un rótulo que no cuadra con nada. */}
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
+
+              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
+                  tiempos», y al plegar ese bloque se fueron con él: se abría
+                  la ficha de un pedido y no se veía de cuántas OF constaba ni
+                  qué era cada una sin desplegar nada. Son la identidad del
+                  pedido, como el cliente; el desglose por tarea y persona es
+                  otra cosa y sigue plegado ahí abajo. */}
+              <section className="mb-4" aria-label="Órdenes de fabricación">
+                <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                  Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
+                </h3>
+                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
+              </section>
 
               {/* Reintentar pide SOLO el material gastado. Con `cargar` se
                   pedía otra vez el detalle, que ya había llegado bien, y la

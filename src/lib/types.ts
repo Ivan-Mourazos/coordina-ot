@@ -245,6 +245,15 @@ export interface OF {
   id: string;
   codigo: string; // p.ej. "OF-01"
   descripcion: string;
+  /** Qué se vendió en esta OF, con medidas y acabados: el texto que escribe el
+   *  comercial en la línea del pedido ("POR CONFECCIÓN E INSTALACIÓN DE TOLDOS
+   *  VERTICALES MODELO ELECTRA, DE 3,20 × 2,10…").
+   *
+   *  No sustituye a `descripcion`, que es el nombre de catálogo del artículo y
+   *  cabe en una línea: éste ronda los 160 caracteres y llega a 400, así que en
+   *  pantalla va plegado. Y no es `comentarioVenta`, que es del PEDIDO entero;
+   *  éste es de la línea, que es lo que se corresponde con una OF. */
+  detalleVenta?: string;
   familia: Familia;
   piezas: number;
 

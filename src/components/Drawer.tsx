@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Operario, OF, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
@@ -9,6 +9,7 @@ import { FamiliaTag } from "./FamiliaTag";
 import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ParteEscaneado } from "./ParteEscaneado";
+import { Desplegable } from "./Desplegable";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
@@ -1181,6 +1182,15 @@ function OFRow({
 
       <p className="mt-1 text-sm text-text">{of.descripcion}</p>
 
+      {/* QUÉ SE VENDIÓ, con medidas y acabados. La línea de arriba es el nombre
+          de catálogo ("TOLDO VERTICAL ELECTRA") y no dice de qué tamaño es ni
+          cómo va rematado; esto sí, y es lo que hay que leer para plantearlo.
+          PLEGADO, y no truncado con puntos suspensivos: son 160 caracteres de
+          media y hasta 400, así que a la vista convertiría cada OF en un
+          párrafo y la ficha de un pedido de cinco en un muro. Cerrado ocupa una
+          línea; abierto, el texto entero sin recortar. */}
+      {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
+
       {of.avisos && of.avisos.length > 0 && (
         <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2 py-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
@@ -1726,5 +1736,45 @@ export function BotonVolverAPlantear({
     >
       ↩ {label}
     </button>
+  );
+}
+
+/** El texto de la línea del pedido de venta, plegado.
+ *
+ *  No usa `BloqueDesplegable` —el bloque con caja de la ficha— a propósito:
+ *  esto vive DENTRO de la tarjeta de una OF, y una caja dentro de otra caja
+ *  añade un marco por cada OF. Aquí basta una línea que se abre. */
+export function DetalleVenta({ texto }: { texto: string }) {
+  const id = useId();
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setAbierto((a) => !a)}
+        aria-expanded={abierto}
+        aria-controls={id}
+        className="flex w-full items-center gap-1.5 text-left text-[11px] font-medium text-text-muted hover:text-text"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`size-3 shrink-0 transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {abierto ? "Ocultar lo que se vendió" : "Qué se vendió"}
+      </button>
+      <div id={id}>
+        <Desplegable abierto={abierto}>
+          <p className="mt-1 whitespace-pre-line rounded-md bg-surface px-2 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
+            {texto}
+          </p>
+        </Desplegable>
+      </div>
+    </div>
   );
 }

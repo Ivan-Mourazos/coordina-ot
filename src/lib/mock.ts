@@ -190,6 +190,14 @@ function buildOF(pedidoId: string, codigoPedido: string, idx: number, spec: OFSp
     id: `${pedidoId}-of${idx + 1}`,
     codigo: `OF-${String(ofSeq).padStart(3, "0")}`,
     descripcion,
+    // Con la pinta de los de verdad: el texto que el comercial escribe en la
+    // línea del pedido, en mayúsculas y con las medidas dentro. Ronda los 160
+    // caracteres en RPS, así que el de ejemplo también: si aquí fuera corto,
+    // nadie vería en desarrollo por qué tiene que ir plegado.
+    detalleVenta:
+      `POR ${estadoIn === "pendiente" ? "FABRICACION" : "CONFECCION"} E INSTALACION DE ${descripcion.toUpperCase()}, ` +
+      `DE MEDIDAS ${3 + (idx % 4)},${20 + idx} X ${2 + (idx % 3)},${10 + idx} M, ACCIONAMIENTO MOTORIZADO ` +
+      `CON EMISOR DE PARED, LONA ACRILICA TEÑIDA EN MASA Y ESTRUCTURA LACADA EN BLANCO RAL 9010.`,
     familia,
     piezas,
     autorId: autorId ?? null,
