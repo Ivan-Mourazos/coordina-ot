@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "c407697",
+    "hasta": "e8a7143",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "Al abrir un pedido en Revisiones, sus OF se ven igual que en Pendientes",
         "detalle": "código, descripción, estado, autor → revisor y tiempo fichado, en vez de una lista con menos datos."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Cada OF dice qué se vendió, con medidas y acabados",
+        "detalle": "Debajo de la descripción, en \"Qué se vendió\". Va plegado porque son textos largos."
       },
       {
         "tipo": "arreglado",
@@ -37,6 +42,10 @@
         "tipo": "arreglado",
         "titulo": "En Diseño Gráfico, el corte de vinilo ya cuenta como trabajo suyo",
         "detalle": "Las horas del plóter se estaban sumando a Taller, y los pedidos en los que solo quedaba cortar no salían en el tablero."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la ficha del Historial no se veían las OF del pedido"
       },
       {
         "tipo": "mejor",
