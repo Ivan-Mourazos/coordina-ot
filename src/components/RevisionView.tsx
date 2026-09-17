@@ -398,15 +398,19 @@ function FilaRevision({
   const faltan = sinMirar(puntos, marcas);
   const impedido = faltan > 0 ? `Faltan ${faltan} ${faltan === 1 ? "punto" : "puntos"} por mirar` : null;
 
+  // Revisor y acción COMPARTEN LÍNEA. Esto era un `flex w-full` con el
+  // desplegable en `ml-auto`: el `w-full` le daba un renglón para él solo y el
+  // `ml-auto` mandaba el selector al otro extremo, así que entre la palabra
+  // "Revisor:" y el nombre quedaba media pantalla en blanco, y el botón de
+  // empezar caía en un tercer renglón. Suelto y compacto, los dos entran en la
+  // misma fila de acciones y el hueco desaparece.
   const selectorRevisor = (
-    <div className="flex w-full items-center gap-1.5 text-[11px] text-text-muted">
+    <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
       Revisor:
       <Select
         value={revisorComun}
         onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
         placeholder={sinRevisor.length > 0 ? "Sin nombrar" : null}
-        alignRight
-        className="ml-auto"
         options={operarios
           .filter((o) => !autores.has(o.id))
           .map((o) => ({
@@ -437,11 +441,28 @@ function FilaRevision({
           <span className="min-w-0">
             <PedidoCodigo codigo={pedido.codigo} onAbrir={onOpen} />
           </span>
-          <span
-            className="pointer-events-none min-w-0 truncate text-[11px] text-text-muted"
-            title={pedido.cliente}
-          >
-            {pedido.cliente}
+          {/* El cliente y, pegado a él, en qué ha quedado el PEDIDO. Iba en
+              una segunda línea a lo ancho y gastaba un renglón por fila para
+              cuatro palabras; aquí al lado sobra sitio —el cliente rara vez
+              llena su columna— y se lee de corrido: "Hotel Pazo Real · listo
+              para Producción".
+              El estado va `shrink-0`: si el ancho aprieta, lo que se recorta
+              es el nombre del cliente, que se sigue leyendo entero al posar
+              el ratón; el estado, no, que es a lo que se viene aquí. */}
+          <span className="pointer-events-none flex min-w-0 items-baseline gap-2 text-[11px]">
+            <span className="min-w-0 truncate text-text-muted" title={pedido.cliente}>
+              {pedido.cliente}
+            </span>
+            {estado === "aprobada" && (
+              <span className={`shrink-0 font-medium ${ESTADO.aprobada.texto}`}>
+                {pedidoListoParaPasar(pedido)
+                  ? "✓ Pedido listo para pasar a Producción"
+                  : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
+              </span>
+            )}
+            {estado === "devuelta" && (
+              <span className="shrink-0 text-text-muted">↩ Vuelve al autor</span>
+            )}
           </span>
           <span className="pointer-events-none text-[11px] text-text-muted">
             {ofs.length} OF
@@ -465,26 +486,6 @@ function FilaRevision({
               </>
             )}
           </span>
-          {/* El estado del PEDIDO, a lo ancho y en una segunda línea de la
-              misma rejilla (`col-span-full`). Va aquí y no en el detalle
-              porque es justo lo que se busca al recorrer esta lista: si
-              hubiera que abrir cada línea para saber si el pedido ya está
-              listo, la sección no serviría para nada.
-              Las seis columnas de arriba se quedan como están. */}
-          {estado === "aprobada" && (
-            <span
-              className={`pointer-events-none col-span-full pb-0.5 text-[11px] font-medium ${ESTADO.aprobada.texto}`}
-            >
-              {pedidoListoParaPasar(pedido)
-                ? "✓ Pedido listo para pasar a Producción"
-                : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
-            </span>
-          )}
-          {estado === "devuelta" && (
-            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] text-text-muted">
-              ↩ Vuelve al autor
-            </span>
-          )}
         </>
       }
       detalle={
