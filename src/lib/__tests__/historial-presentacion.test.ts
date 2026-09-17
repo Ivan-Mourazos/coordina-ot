@@ -39,7 +39,7 @@ test("el desglose conserva tareas y totales sin sumar dos veces, con la gente de
     { ...base, tarea: "5", centro: "taller", descripcionTarea: "Confeccionar", empleado: "Silvia López", minutos: 34 }], (n) => n);
   expect(ofs[0].tareas![0].tiempoImputadoMin).toBe(10);
   expect(ofs[0].tareas![0].personas).toHaveLength(2);
-  const html = renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs, seccion: "ot" }));
+  const html = renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs, seccion: "ot", abrirAlMontar: true }));
   expect(html).toContain("Tareas y tiempos");
   expect(html).toContain("AR.26.04489");
   expect(html).toContain("Confeccionar");
@@ -52,7 +52,7 @@ test("el desglose conserva tareas y totales sin sumar dos veces, con la gente de
 
 const tarea: FilaTiempoCentro = { orden: "0232086", descripcion: "CAMBIO DE TELA", centro: "ot", tarea: "02", descripcionTarea: "Plantear", empleado: "Adrián Quinteiro", minutos: 2 };
 const pinta = (filas: FilaTiempoCentro[], seccion: "ot" | "diseno" = "ot") =>
-  renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs: agruparTiemposPorCentro(filas, (n) => n), seccion }));
+  renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs: agruparTiemposPorCentro(filas, (n) => n), seccion, abrirAlMontar: true }));
 
 test("con una sola tarea, quién la echó sale en su misma línea, de más a menos", () => {
   // Es el sitio del detalle: no hay que ir a la ficha a buscarlo.

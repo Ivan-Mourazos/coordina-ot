@@ -47,8 +47,9 @@ let escuchando = false;
 
 function alPulsar(e: KeyboardEvent) {
   if (e.key !== "Escape" || e.defaultPrevented) return;
-  // Un popover nativo abierto («Tareas y tiempos» del Historial) lo cierra el
-  // propio navegador con esta misma pulsación: es suya, no de la capa de debajo.
+  // Un popover nativo abierto (un desplegable de `Select` o `SelectorFecha`)
+  // lo cierra el propio navegador con esta misma pulsación: es suya, no de la
+  // capa de debajo.
   if (document.querySelector(":popover-open")) return;
   if (pila.cerrarUltima()) e.preventDefault();
 }

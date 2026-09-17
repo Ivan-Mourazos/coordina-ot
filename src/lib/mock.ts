@@ -87,17 +87,17 @@ const SPECS: Spec[] = [
   { codigo: "AR.26.05508", cliente: "Estrella Galicia", prioridad: 2, entrega: "2026-07-04", solicitud: "2026-06-14", accent: "ninguno", croquis: false,
     ofs: [["TOLDO", "Toldo cofre 4×3", 1, "alberto", "aprobada", "tamara"]] },
   { codigo: "AR.26.05512", cliente: "Hotel Pazo Real", prioridad: 1, entrega: "2026-07-08", solicitud: "2026-06-15", accent: "azul", croquis: true,
-    ofs: [["TAPIZADO", "Cojines exterior terraza", 8, "alberto", "en_curso"], ["TOLDO", "Punto recto 5m", 1, "alberto", "por_revisar"], ["REPARACION", "Ajuste brazos", 1, "alberto", "en_curso"]] },
+    ofs: [["TAPIZADO", "Cojines exterior terraza", 8, "alberto", "en_curso"], ["TOLDO", "Punto recto 5m", 1, "alberto", "por_revisar", "tamara"], ["REPARACION", "Ajuste brazos", 1, "alberto", "en_curso"]] },
 
   // ── Jaime ──
   { codigo: "AR.26.05516", cliente: "Náutica Vigo", prioridad: 3, entrega: "2026-06-30", solicitud: "2026-06-10", plan: "2026-06-26", accent: "rojo", croquis: true,
     ofs: [["TAPIZADO", "Tapizado náutico cabina", 1, "jaime", "en_curso", null, true]] },
   { codigo: "AR.26.05521", cliente: "Camping Ría de Muros", prioridad: 2, entrega: "2026-07-05", solicitud: "2026-06-16", accent: "ninguno", croquis: false,
-    ofs: [["CARPA", "Carpa evento 6×12", 1, "jaime", "por_revisar"], ["LONA", "Faldón lateral", 4, "jaime", "en_curso"]] },
+    ofs: [["CARPA", "Carpa evento 6×12", 1, "jaime", "por_revisar", "alberto"], ["LONA", "Faldón lateral", 4, "jaime", "en_curso"]] },
 
   // ── Tamara ──
   { codigo: "AR.26.05525", cliente: "Remolcar", prioridad: 3, entrega: "2026-07-02", solicitud: "2026-06-11", plan: "2026-06-29", accent: "verde", croquis: true,
-    ofs: [["REMOLQUE", "Lona remolque basculante 6m", 1, "tamara", "en_curso", null, true], ["REMOLQUE", "Lona remolque 5m", 1, "tamara", "en_curso"], ["REMOLQUE", "Cobertor remolque 4m", 1, "tamara", "por_revisar"]] },
+    ofs: [["REMOLQUE", "Lona remolque basculante 6m", 1, "tamara", "en_curso", null, true], ["REMOLQUE", "Lona remolque 5m", 1, "tamara", "en_curso"], ["REMOLQUE", "Cobertor remolque 4m", 1, "tamara", "por_revisar", "ivan"]] },
   { codigo: "AR.26.05530", cliente: "Talleres Lema", prioridad: 2, entrega: "2026-07-06", solicitud: "2026-06-17", accent: "azul", croquis: false,
     ofs: [["REPARACION", "Cambio tela motor", 1, "tamara", "devuelta", "adrian"]] },
   { codigo: "AR.26.05533", cliente: "Concello de Arzúa", prioridad: 1, entrega: "2026-07-10", solicitud: "2026-06-18", accent: "ninguno", croquis: true,
@@ -113,7 +113,7 @@ const SPECS: Spec[] = [
   { codigo: "AR.26.05544", cliente: "Supermercado Día", prioridad: 3, entrega: "2026-07-01", solicitud: "2026-06-12", accent: "rojo", croquis: false,
     ofs: [["LONA", "Lona rótulo entrada", 1, "ivan", "en_curso", null, true], ["SUMINISTRO", "Precintos y cinta", 3, "ivan", "en_curso", null, false, true]] },
   { codigo: "AR.26.05548", cliente: "Gandería Souto", prioridad: 2, entrega: "2026-07-07", solicitud: "2026-06-16", accent: "azul", croquis: true,
-    ofs: [["CARPA", "Cubierta nave 8×20", 1, "ivan", "devuelta", "angel"], ["SUMINISTRO", "Cables tensores", 12, "ivan", "por_revisar"]] },
+    ofs: [["CARPA", "Cubierta nave 8×20", 1, "ivan", "devuelta", "angel"], ["SUMINISTRO", "Cables tensores", 12, "ivan", "por_revisar", "angel"]] },
 
   // ── PARTIDO entre operarios ──
   { codigo: "AR.26.05552", cliente: "Comunidade Veciños Sar", prioridad: 3, entrega: "2026-07-02", solicitud: "2026-06-10", accent: "rojo", croquis: true,

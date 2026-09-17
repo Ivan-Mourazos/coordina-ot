@@ -37,12 +37,7 @@ import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
-import {
-  BloqueFicha,
-  CabeceraFicha,
-  DatosEnLinea,
-  MarcoFicha,
-} from "./MarcoFicha";
+import { BloqueFicha, CabeceraFicha, MarcoFicha } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
@@ -494,6 +489,11 @@ export function Drawer({
           prioridad={pedido.prioridad}
           cliente={pedido.cliente}
           negocio={pedido.negocio}
+          datos={[
+            `${piezasTotal(pedido)} ${piezasTotal(pedido) === 1 ? "pieza" : "piezas"}`,
+            ...(pedido.ciudadEntrega ? [pedido.ciudadEntrega] : []),
+          ]}
+          familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
         />
       }
       pie={
@@ -548,18 +548,6 @@ export function Drawer({
         </>
       }
     >
-          {/* meta: sin fechas — las cuatro del pedido están en la línea de
-              tiempo de abajo, a escala y con hoy encima. Repetirlas aquí
-              sueltas ("Solicitud 04/09, Planificación 12/08") era el dato peor
-              contado dos veces. */}
-          <DatosEnLinea
-            datos={[
-              { k: "Piezas", v: `${piezasTotal(pedido)} ${piezasTotal(pedido) === 1 ? "pieza" : "piezas"}` },
-              ...(pedido.ciudadEntrega ? [{ k: "Entrega en", v: pedido.ciudadEntrega }] : []),
-            ]}
-            familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
-          />
-
           <LineaTiempoPedido pedido={pedido} />
 
           {avisosCierreRps?.pedido === pedido.codigo && (
@@ -609,7 +597,7 @@ export function Drawer({
           <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
 
           {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
-              una. Es la misma ventana del Historial, pero aquí sirve para un
+              una. Es el mismo bloque del Historial, pero aquí sirve para un
               pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
               pulsar, no al abrir la ficha (ver TareasDelPedido). */}
           <TareasDelPedido
@@ -635,9 +623,11 @@ export function Drawer({
             operarios={operarios}
           />
 
-          {/* asignar autor del pedido entero */}
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
-            <span className="text-xs font-semibold text-text">Asignar autor (pedido entero)</span>
+          {/* Asignar el autor del pedido entero. Era una caja con borde, fondo
+              y rótulo propio: tres renglones de alto para un selector, en una
+              ficha donde el alto es lo que escasea. */}
+          <div className="mb-4 flex items-center gap-2 text-xs">
+            <span className="font-semibold text-text-muted">Autor del pedido</span>
             <div className="ml-auto">
               <Select
                 value={
@@ -1590,6 +1580,14 @@ function AccionesOF({
               onCerrado={onCerradoEnRps}
             />
           ) : null;
+        if (a.id === "volver_a_plantear")
+          return (
+            <BotonVolverAPlantear
+              key={a.id}
+              label={a.label}
+              onPulsar={() => pedirConfirmacion(a)}
+            />
+          );
         const frenada = a.id === "aprobar" ? impedidoRevision : null;
         return (
           <Btn
@@ -1698,6 +1696,35 @@ function Btn({
       className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${cls} ${className}`}
     >
       {children}
+    </button>
+  );
+}
+
+/** «Volver a plantear», el botón.
+ *
+ *  Es la ÚNICA acción que admite una OF cerrada en RPS: `noSi` apaga todas las
+ *  demás. Un botón que es la única salida no puede parecer el último de una
+ *  fila de iguales, y con el tono neutro —`ghost`, que es borde gris y
+ *  `text-text-muted`— en tema oscuro quedaba gris sobre gris.
+ *
+ *  Con nombre propio y exportado porque esa OF vive dentro de un cajón que se
+ *  abre con estado de React: renderizando el `Drawer` no se llega hasta aquí
+ *  (ver la cabecera de `drawer-volver-a-plantear.test.ts`). */
+export function BotonVolverAPlantear({
+  label,
+  onPulsar,
+}: {
+  label: string;
+  onPulsar: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPulsar}
+      title="La OF vuelve a planteando. En RPS sigue terminada hasta que alguien fiche en ella: el primer fichaje la reabre. El apunte del cierre se queda en el histórico de RPS."
+      className="chip-3d order-first w-full rounded-lg px-3 py-1.5 text-xs font-semibold text-text"
+    >
+      ↩ {label}
     </button>
   );
 }

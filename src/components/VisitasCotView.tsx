@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   agruparVisitasPorFecha,
   type VisitaCot,
@@ -9,12 +9,15 @@ import {
 import { inicialesDe } from "@/lib/nombre-persona";
 import { tituloDia } from "@/lib/fechas";
 import { hoyISO } from "@/lib/types";
+import { MESES_CORTOS } from "@/lib/calendario";
 import {
   CalendarioVisitas,
   primerDiaDelMes,
   ultimoDiaDelMes,
   type DiaConVisitas,
 } from "./CalendarioVisitas";
+import { FilaDesplegable } from "./FilaDesplegable";
+import { BloqueLista } from "./BloqueLista";
 
 // ─── Agenda de visitas COT ───────────────────────────────────────────────────
 // Un comercial pide que Oficina Técnica le acompañe a ver una obra. Lo único
@@ -24,8 +27,13 @@ import {
 // truncado— y el comercial en MAYÚSCULAS Y DEL REVÉS al final.
 //
 // Ahora son dos piezas: un calendario del mes que dice qué días hay algo, y a
-// su derecha esas visitas en fichas legibles. El calendario es la pregunta que
-// se hace de verdad ("¿qué tengo esta semana?"); la lista, la respuesta.
+// su derecha esas visitas en una línea cada una, agrupadas por día. El
+// calendario es la pregunta que se hace de verdad ("¿qué tengo esta semana?");
+// la lista, la respuesta.
+//
+// La lista usa `BloqueLista` y `FilaDesplegable`, las mismas piezas que
+// Pendientes, Revisiones y el Historial: el gesto de abrir una fila se
+// comporta igual en las cuatro pestañas.
 
 const REFRESCO_MS = 60_000;
 /** Tope de páginas encadenadas al cargar un mes. Un mes malo son ~55 visitas y
@@ -42,18 +50,17 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function fmtFechaHora(iso: string | null): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : new Intl.DateTimeFormat("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
+/** «Avisado el 4 sep, 11:32». Era «Aviso: 04/09/2026, 11:32», que es la fecha
+ *  escrita para una máquina: cuatro cifras de año que nadie necesita —una
+ *  visita se avisa días antes, no años— y un cero a la izquierda que solo
+ *  alarga. */
+export function fmtAviso(iso: string | null): string {
+  if (!iso) return "Sin fecha de aviso";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Sin fecha de aviso";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `Avisado el ${d.getDate()} ${MESES_CORTOS[d.getMonth()]}, ${hh}:${mi}`;
 }
 
 function fmtActualizacion(iso: string | null): string {
@@ -213,10 +220,6 @@ export function VisitasCotView({
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">
             Visitas con Oficina Técnica
           </h1>
-          <p className="mt-0.5 text-xs text-text-muted">
-            Las que piden los comerciales para que OT les acompañe a ver la obra. Se
-            registran en RPS; aquí solo se consultan.
-          </p>
         </div>
 
         {/* Sin buscador propio cuando lo escribe otro (la consulta sin login):
@@ -281,7 +284,7 @@ export function VisitasCotView({
           />
         </div>
 
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-text">
               {dia
@@ -391,108 +394,120 @@ function GrupoDia({
   const atrasado = pendientes > 0 && Boolean(fecha && fecha < hoy);
 
   return (
-    <section aria-label={sub ? `${titulo} · ${sub}` : titulo} className="space-y-1.5">
-      {conCabecera && (
-        <header className="flex items-center gap-2.5 pt-1">
-          <span
-            className={`h-4 w-1 shrink-0 rounded-full ${
-              atrasado ? "bg-red-500" : pendientes > 0 ? "bg-brand-400" : "bg-cyan-600"
-            }`}
-            aria-hidden="true"
-          />
-          <span className="text-[13px] font-semibold text-text">{titulo}</span>
-          {sub ? <span className="truncate text-[11px] text-text-muted">{sub}</span> : null}
-          {atrasado ? (
-            <span
-              className="rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300"
-              title="Es de un día que ya pasó y sigue sin cerrarse en RPS"
-            >
-              Sin cerrar
-            </span>
-          ) : null}
-          <span className="ml-auto shrink-0 text-[11px] tabular-nums text-text-muted">
-            {visitas.length}
-          </span>
-        </header>
-      )}
-      {visitas.map((visita) => (
-        <VisitaCard key={visita.idOrden} visita={visita} />
-      ))}
+    <section aria-label={sub ? `${titulo} · ${sub}` : titulo}>
+      <BloqueLista
+        columnas={COLUMNAS_VISITA}
+        // Estos bloques no viven dentro de ningún panel: descansan
+        // directamente sobre el fondo de la página, sin telón detrás (a
+        // diferencia del Historial, que abre sobre un modal oscuro). El
+        // vidrio translúcido de `bloque-3d` se mezclaba con el gris del fondo
+        // —sobre todo en tema claro— y el bloque no se leía como tarjeta.
+        fondoSolido
+        rotulo={
+          conCabecera
+            ? {
+                texto: titulo,
+                claseDot: atrasado ? "bg-red-500" : pendientes > 0 ? "bg-brand-400" : "bg-cyan-600",
+                sufijo: (
+                  <>
+                    {sub && <span className="mr-1">{sub}</span>}
+                    · {visitas.length} visita{visitas.length === 1 ? "" : "s"}
+                    {atrasado && (
+                      <span
+                        className="ml-1.5 rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300"
+                        title="Es de un día que ya pasó y sigue sin cerrarse en RPS"
+                      >
+                        Sin cerrar
+                      </span>
+                    )}
+                  </>
+                ),
+              }
+            : undefined
+        }
+      >
+        {visitas.map((visita) => (
+          <VisitaCard key={visita.idOrden} visita={visita} />
+        ))}
+      </BloqueLista>
     </section>
   );
 }
 
-function VisitaCard({ visita }: { visita: VisitaCot }) {
+/** Las columnas de una visita. Literal entera (Tailwind).
+ *  chevron · comercial · motivo · códigos */
+const COLUMNAS_VISITA =
+  "grid grid-cols-[28px_minmax(140px,180px)_minmax(0,1fr)_minmax(120px,200px)] items-start gap-x-3";
+
+export function VisitaCard({ visita }: { visita: VisitaCot }) {
   const [abierta, setAbierta] = useState(false);
   const pendiente = visita.estado === "pendiente";
   const color = colorDe(visita.responsable);
-  const tieneDetalle = Boolean(visita.solucion || visita.notas || visita.fechaAviso);
+  // No es un dato: es la costura entre la fila y su detalle. El id interno de
+  // la orden no lo lee nadie y no hace falta —a diferencia del código de
+  // pedido en las demás listas— para que la fila y su detalle se encuentren.
+  const idDetalle = useId();
 
   return (
-    <article
-      className={`overflow-hidden rounded-xl border bg-surface/60 ${
-        pendiente ? "border-border" : "border-border/60"
-      }`}
-    >
-      <div className="flex items-start gap-3 px-3 py-2.5">
-        {/* El comercial primero y con cara: es el dato con el que se habla de
-            estas visitas ("la de Juan José"), y estaba al final de la fila en
-            gris, en mayúsculas y del revés. */}
-        <span
-          className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
-          style={{ background: color }}
-          title={visita.responsable}
-          aria-hidden="true"
-        >
-          {inicialesDe(visita.responsable)}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="text-[13px] font-semibold text-text">{visita.responsable}</span>
-            {visita.cliente && (
-              <span className="min-w-0 truncate text-xs text-text-muted">
-                · {visita.cliente}
+    <FilaDesplegable
+      columnas={COLUMNAS_VISITA}
+      abierta={abierta}
+      onAlternar={() => setAbierta((a) => !a)}
+      etiqueta={`la visita de ${visita.responsable}`}
+      idDetalle={idDetalle}
+      celdas={
+        <>
+          {/* El comercial primero y con cara: es el dato con el que se habla de
+              estas visitas ("la de Juan José"). */}
+          <span className="pointer-events-none flex min-w-0 items-center gap-2 py-1">
+            <span
+              className="grid size-6 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
+              style={{ background: color }}
+              aria-hidden="true"
+            >
+              {inicialesDe(visita.responsable)}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12px] font-semibold text-text">
+                {visita.responsable}
               </span>
-            )}
+              {visita.cliente && (
+                <span className="block truncate text-[11px] text-text-muted">{visita.cliente}</span>
+              )}
+            </span>
+          </span>
+          {/* El MOTIVO entero, sin truncar: es la razón de que la visita
+              exista, y recortado obligaba a abrir cada una para saber de qué
+              iba. */}
+          <span className="pointer-events-none min-w-0 whitespace-pre-line py-1 text-[13px] leading-snug text-text">
+            {visita.motivo || "Sin motivo escrito"}
+          </span>
+          <span className="pointer-events-none flex flex-wrap items-center justify-end gap-x-2 gap-y-1 py-1 text-[10px]">
             {!pendiente && (
               <span className="rounded-full bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-700 dark:text-cyan-300">
                 Hecha
               </span>
             )}
-          </div>
-          {/* El MOTIVO entero, sin truncar. Es la razón de que la visita
-              exista: recortarlo a una línea obligaba a abrir cada una para
-              saber de qué iba. */}
-          <p className="mt-0.5 whitespace-pre-line text-sm leading-snug text-text">
-            {visita.motivo || "Sin descripción"}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-text-muted">
-            <span title="Código de la incidencia en RPS">{visita.incidencia || "Sin código"}</span>
-            {visita.pedido && <span title="Pedido enlazado">{visita.pedido}</span>}
             {visita.solucion && (
-              <span className="font-sans font-semibold text-cyan-700 dark:text-cyan-300">
+              <span className="font-semibold text-cyan-700 dark:text-cyan-300">
                 {visita.solucion}
               </span>
             )}
-          </div>
-        </div>
-
-        {tieneDetalle && (
-          <button
-            type="button"
-            onClick={() => setAbierta((a) => !a)}
-            aria-expanded={abierta}
-            aria-label={abierta ? "Ocultar detalle" : "Ver detalle"}
-            className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-surface-2 hover:text-text"
-          >
-            <ChevronIcon abierta={abierta} />
-          </button>
-        )}
-      </div>
-
-      {abierta && (
-        <div className="space-y-2 border-t border-border bg-surface-2/55 px-3 py-2.5">
+            {visita.incidencia && (
+              <span className="font-mono text-text-muted" title="Código de la incidencia en RPS">
+                {visita.incidencia}
+              </span>
+            )}
+            {visita.pedido && (
+              <span className="font-mono text-text-muted" title="Pedido enlazado">
+                {visita.pedido}
+              </span>
+            )}
+          </span>
+        </>
+      }
+      detalle={
+        <div className="space-y-2">
           {visita.notas && (
             <div>
               <p className="text-[9px] font-semibold uppercase tracking-[0.17em] text-text-muted">
@@ -503,14 +518,13 @@ function VisitaCard({ visita }: { visita: VisitaCot }) {
               </p>
             </div>
           )}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] text-text-muted">
-            <span>Aviso: {fmtFechaHora(visita.fechaAviso)}</span>
-            <span>Estado RPS: {visita.estadoRps}</span>
-            <span>Orden: {visita.idOrden}</span>
-          </div>
+          {/* Se fueron el id de la orden y el código crudo del estado de RPS.
+              El primero no lo usa nadie para hablar de una visita; el segundo
+              es el mismo dato que la píldora "Hecha", escrito para RPS. */}
+          <p className="text-[11px] text-text-muted">{fmtAviso(visita.fechaAviso)}</p>
         </div>
-      )}
-    </article>
+      }
+    />
   );
 }
 
@@ -577,21 +591,6 @@ function CalendarIcon() {
       <rect x="3" y="5" width="18" height="16" rx="2" />
       <path d="M8 3v4M16 3v4M3 10h18" strokeLinecap="round" />
       <path d="M8 14h2M14 14h2M8 17h2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronIcon({ abierta }: { abierta: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={`size-4 transition-transform ${abierta ? "rotate-180" : ""}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

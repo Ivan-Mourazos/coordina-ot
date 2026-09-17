@@ -29,6 +29,13 @@ export interface EstadoMeta {
    *  entero y una columna de tarjetas devueltas era un muro de rojo. */
   borderIzq: string;
   chip: string; // fondo+texto para badge
+  /** Solo el color del texto, sin fondo — mismo patrón que `RolMeta.texto`,
+   *  para sitios donde el estado se dice como palabra suelta y una pastilla
+   *  de más competiría con el resto de la fila. Antes de este campo, cada
+   *  vista que necesitaba el cian de "aprobada" se lo inventaba por su
+   *  cuenta: la Lista usaba `text-cyan-700 dark:text-cyan-300` y Revisiones
+   *  `text-cyan-600 dark:text-cyan-400`, el mismo concepto en dos tonos. */
+  texto: string;
   rank: number; // prioridad para elegir estado representativo de un grupo
 }
 
@@ -39,6 +46,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-gray-400",
     borderIzq: "border-l-border",
     chip: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
+    texto: "text-gray-600 dark:text-gray-300",
     rank: 1,
   },
   en_curso: {
@@ -47,6 +55,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-emerald-600",
     borderIzq: "border-l-emerald-400",
     chip: "bg-emerald-700 text-white",
+    texto: "text-emerald-700 dark:text-emerald-300",
     rank: 2,
   },
   aprobada: {
@@ -57,6 +66,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-cyan-600",
     borderIzq: "border-l-cyan-400",
     chip: "bg-cyan-700 text-white",
+    texto: "text-cyan-700 dark:text-cyan-300",
     rank: 3,
   },
   en_revision: {
@@ -65,6 +75,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-violet-600",
     borderIzq: "border-l-violet-400",
     chip: "bg-violet-600 text-white",
+    texto: "text-violet-700 dark:text-violet-300",
     rank: 5,
   },
   por_revisar: {
@@ -73,6 +84,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-amber-500",
     borderIzq: "border-l-amber-400",
     chip: "bg-amber-600 text-white",
+    texto: "text-amber-700 dark:text-amber-300",
     rank: 6,
   },
   devuelta: {
@@ -81,6 +93,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-red-600",
     borderIzq: "border-l-red-500",
     chip: "bg-red-600 text-white",
+    texto: "text-red-700 dark:text-red-300",
     rank: 7,
   },
   anulada: {
@@ -89,6 +102,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     dot: "bg-slate-400",
     borderIzq: "border-l-slate-300",
     chip: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+    texto: "text-slate-600 dark:text-slate-300",
     rank: 0,
   },
 };

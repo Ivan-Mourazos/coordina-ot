@@ -15,6 +15,26 @@ const AJUSTES = [
 ] as const;
 type Ajuste = "Fit" | (typeof AJUSTES)[number]["id"];
 
+/** Los cuatro cuartos de vuelta, en el orden en que los da el botón. */
+const GIROS = [0, 90, 180, 270] as const;
+export type Giro = (typeof GIROS)[number];
+
+/** El siguiente cuarto de vuelta. Cuatro pulsaciones = vuelta entera. */
+export function siguienteGiro(giro: Giro): Giro {
+  return GIROS[(GIROS.indexOf(giro) + 1) % GIROS.length];
+}
+
+/** ¿Este giro intercambia el ancho y el alto de la hoja?
+ *
+ *  `transform` NO cambia cómo se mide el elemento: el `<iframe>` se sigue
+ *  midiendo en el sistema de coordenadas de antes de girar. Así que a 90° y a
+ *  270° hay que darle de ancho el ALTO del hueco y de alto su ANCHO, o la hoja
+ *  sale recortada por los lados y con franjas arriba y abajo. A 0° y a 180°
+ *  mide igual y basta con el 100 % de siempre. */
+export function giroIntercambia(giro: Giro): boolean {
+  return giro === 90 || giro === 270;
+}
+
 /** Dónde se recuerda cómo prefiere cada uno abrir el parte. En el navegador y
  *  no en el servidor: es una preferencia de cómo se MIRA, no un dato del
  *  trabajo, y va con la pantalla en la que se está sentado — el mismo de
@@ -62,6 +82,10 @@ export function ParteEscaneado({
 }) {
   const marco = useRef<HTMLIFrameElement>(null);
   const [ajuste, setAjuste] = useState<Ajuste>(encajeGuardado);
+  // El giro NO se guarda entre pedidos. El encaje sí (es cómo prefiere mirar
+  // cada uno), pero esto es de ESTE parte: que el siguiente se abriera torcido
+  // porque el anterior lo estaba sería peor que no tener botón.
+  const [giro, setGiro] = useState<Giro>(0);
   // Cuadrados: en una barra estrecha el rótulo no cabe, así que el nombre va
   // en el `title` y en el `aria-label` —el lector de pantalla lo lee igual—.
   const chip = "chip-3d grid size-8 place-items-center rounded-lg text-sm text-text";
@@ -115,6 +139,19 @@ export function ParteEscaneado({
             {a.icono}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setGiro(siguienteGiro)}
+          title={`Girar el parte · ahora ${giro}°`}
+          // El grado también en el `aria-label`, no solo en el `title`: el
+          // nombre de un botón lo da el `aria-label`, así que con uno fijo
+          // quien usa lector de pantalla no sabría en qué posición está la
+          // hoja — dato que quien mira la pantalla sí tiene, por el anillo.
+          aria-label={`Girar el parte · ahora ${giro}°`}
+          className={`${chip} ${giro !== 0 ? "ring-2 ring-brand-400 text-brand-700 dark:text-brand-300" : ""}`}
+        >
+          ↻
+        </button>
         <a href={scanUrl} download={`${codigo}.pdf`} title="Descargar el parte" aria-label="Descargar el parte" className={chip}>
           ↓
         </a>
@@ -122,18 +159,43 @@ export function ParteEscaneado({
           ⎙
         </button>
       </div>
-      <iframe
-        // `key` CON EL ENCAJE, y no es cosmética: cambiar solo el fragmento de
-        // la URL no recarga nada —para el navegador es la misma página— y el
-        // visor se quedaba con el encaje anterior. Medido: pulsar «al ancho» y
-        // luego «al alto» daba dos capturas idénticas. Con la clave, React tira
-        // el iframe y monta otro, que es una navegación de verdad.
-        key={ajuste}
-        ref={marco}
-        src={`${scanUrl}#page=1&view=${ajuste}&toolbar=0`}
-        title={`Pedido ${codigo}`}
-        className="h-full min-w-0 flex-1 rounded-xl border-none bg-white"
-      />
+      {/* El `div` declara el hueco como contenedor de tamaño (`container-type:
+          size`): así el iframe de dentro puede medirse en unidades relativas a
+          ESTE hueco (`cqw`/`cqh`) en vez de a la ventana o a su propio tamaño
+          de antes de girar. Es más simple que observar el hueco con JS
+          (`ResizeObserver`) para nada más que repetir en variables CSS un
+          tamaño que el propio CSS ya sabe. */}
+      <div
+        className="relative h-full min-w-0 flex-1 overflow-hidden rounded-xl"
+        style={{ containerType: "size" }}
+      >
+        <iframe
+          // `key` CON EL ENCAJE, y no es cosmética: cambiar solo el fragmento
+          // de la URL no recarga nada —para el navegador es la misma página— y
+          // el visor se quedaba con el encaje anterior. Medido: pulsar «al
+          // ancho» y luego «al alto» daba dos capturas idénticas. Con la
+          // clave, React tira el iframe y monta otro, que es una navegación
+          // de verdad.
+          //
+          // EL GIRO NO ENTRA EN LA CLAVE. Es CSS: si entrara, girar tiraría el
+          // visor, recargaría el PDF y volvería a la página 1.
+          key={ajuste}
+          ref={marco}
+          src={`${scanUrl}#page=1&view=${ajuste}&toolbar=0`}
+          title={`Pedido ${codigo}`}
+          style={{
+            transform: `translate(-50%, -50%) rotate(${giro}deg)`,
+            // Girado un cuarto impar, el iframe se sigue midiendo con el
+            // ancho y el alto de ANTES de girar (`transform` no cambia el
+            // layout). Por eso aquí se le da la vuelta a los ejes: de ancho
+            // el alto del hueco (`100cqh`) y de alto su ancho (`100cqw`), y al
+            // girar la hoja de pie queda llenándolo entero.
+            width: giroIntercambia(giro) ? "100cqh" : "100%",
+            height: giroIntercambia(giro) ? "100cqw" : "100%",
+          }}
+          className="absolute left-1/2 top-1/2 border-none bg-white"
+        />
+      </div>
     </div>
   );
 }

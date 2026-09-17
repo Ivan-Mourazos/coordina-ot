@@ -107,18 +107,30 @@ export function MarcoFicha({
   );
 }
 
-/** Código, prioridad y cliente · negocio. La prioridad falta mientras el
- *  Historial carga el detalle: el código ya se sabe, el resto todavía no. */
+/** Código, prioridad, cliente · negocio y, si se pasan, los datos de identidad
+ *  del pedido: cuántas piezas, dónde se entrega y de qué es.
+ *
+ *  ESOS TRES SUBIERON AQUÍ. Vivían sueltos en el cuerpo, que hace scroll: al
+ *  bajar a las OF o al hilo de notas desaparecían, y son del mismo orden que
+ *  el cliente — lo que identifica el pedido, no lo que se decide sobre él.
+ *
+ *  La prioridad falta mientras el Historial carga el detalle: el código ya se
+ *  sabe, el resto todavía no. */
 export function CabeceraFicha({
   codigo,
   prioridad,
   cliente,
   negocio,
+  datos = [],
+  familias = [],
 }: {
   codigo: string;
   prioridad?: Prioridad;
   cliente?: string | null;
   negocio?: string | null;
+  /** Ya escritos ("4 piezas", "Madrid"): quien los pinta sabe pluralizar. */
+  datos?: readonly string[];
+  familias?: readonly string[];
 }) {
   return (
     <div className="min-w-0">
@@ -126,7 +138,7 @@ export function CabeceraFicha({
         <h2 className="font-mono text-lg font-bold text-text">{codigo}</h2>
         {prioridad !== undefined && (
           <span
-            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
+            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
             style={{ background: PRIORIDAD[prioridad].color, color: PRIORIDAD[prioridad].tinta }}
             title={`Prioridad ${PRIORIDAD[prioridad].label}`}
           >
@@ -138,6 +150,28 @@ export function CabeceraFicha({
         {cliente || "—"}
         {negocio && <span className="font-semibold text-text"> · {negocio}</span>}
       </p>
+      {(datos.length > 0 || familias.length > 0) && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          {datos.map((d, i) => (
+            // Por índice y no por `d`: son textos ya formateados ("4 piezas",
+            // "Madrid") y dos podrían coincidir, lo que React vería como una
+            // key duplicada. El orden es fijo (viene de quien llama), así que
+            // el índice es una key estable.
+            <span key={i} className="flex items-center gap-2">
+              {i > 0 && <span aria-hidden="true" className="text-text-muted">·</span>}
+              <span className="font-medium text-text">{d}</span>
+            </span>
+          ))}
+          {familias.length > 0 && (
+            <span className="flex items-center gap-2">
+              {datos.length > 0 && <span aria-hidden="true" className="text-text-muted">·</span>}
+              <span className="flex flex-wrap gap-1">
+                {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

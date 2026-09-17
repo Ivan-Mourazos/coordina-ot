@@ -387,6 +387,35 @@ test("al pasar el pedido no se reencola el 3 de una OF ya cerrada en activo, per
   expect(finalizarMock).toHaveBeenCalledWith(["0232087:9"], "ivan");
 });
 
+// Decisión de Iván (Task 14): una OF en revisión SIEMPRE tiene revisor, o
+// vuelve al panel de su autor — nunca se queda en tierra de nadie. La pantalla
+// ya lo exige (PedirRevisor.tsx no deja confirmar sin elegir uno); esta es la
+// última red, para que un camino que se salte la pantalla no cuele el hueco.
+test("rechaza pasar una OF a revisión sin revisor nombrado", async () => {
+  const res = await postEstado({
+    operarioId: "ivan",
+    motivo: "terminar_planteo",
+    cambiosOF: [
+      { ofId: "of-sin-revisor", autorId: "ivan", revisorId: null, estado: "por_revisar", observacion: null },
+    ],
+  });
+  expect(res.status).toBe(400);
+  const acciones = estadoDb.leerAccionesDesde("1970-01-01T00:00:00.000Z");
+  expect(acciones.some((a) => a.cambiosOF.some((c) => c.ofId === "of-sin-revisor"))).toBe(false);
+});
+
+test("con revisor nombrado, pasar a revisión sí se guarda", async () => {
+  const res = await postEstado({
+    operarioId: "ivan",
+    motivo: "terminar_planteo",
+    cambiosOF: [
+      { ofId: "of-con-revisor", autorId: "ivan", revisorId: "jaime", estado: "por_revisar", observacion: null },
+    ],
+  });
+  expect(res.status).toBe(200);
+  expect(estadoDb.leerOverlay("ot").ofs.get("of-con-revisor")?.estado).toBe("por_revisar");
+});
+
 test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", async () => {
   const res = await route.POST(
     new Request("http://x/api/estado", {

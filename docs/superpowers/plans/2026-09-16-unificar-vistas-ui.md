@@ -57,7 +57,10 @@
   function BloqueLista(props: {
     columnas: string;
     cabecera?: React.ReactNode;
-    rotulo?: { texto: string; color?: string; claseDot?: string; sufijo?: React.ReactNode };
+    /** Sin `color` ni `claseDot` no se pinta punto: un rótulo puede ser solo un
+   *  nombre (los días del Historial) y un círculo transparente ocuparía sitio
+   *  sin decir nada. */
+  rotulo?: { texto: string; color?: string; claseDot?: string; sufijo?: React.ReactNode };
     children: React.ReactNode;
   }): JSX.Element
 
@@ -67,6 +70,8 @@
     onAlternar: () => void;
     etiqueta: string;
     idDetalle: string;
+    /** Lo que se cuenta al posar el ratón sobre la fila entera. */
+    titulo?: string;
     celdas: React.ReactNode;
     detalle: React.ReactNode;
   }): JSX.Element
@@ -119,6 +124,18 @@ test("la fila abierta pinta el detalle y se marca con el acento de marca", () =>
 
 test("el botón que cubre la fila apunta al detalle, para el lector de pantalla", () => {
   expect(fila(false)).toContain('aria-controls="detalle-1"');
+});
+
+test("la fila puede contar algo al posar el ratón, sin que sea obligatorio", () => {
+  const con = renderToStaticMarkup(
+    createElement(FilaDesplegable, {
+      columnas: COLUMNAS, abierta: false, onAlternar() {}, etiqueta: "AR.26.03914",
+      idDetalle: "detalle-1", titulo: "Lo pasó Iván el 04/09",
+      celdas: createElement("span", null, "MAHOU"), detalle: createElement("p", null, "x"),
+    }),
+  );
+  expect(con).toContain("Lo pasó Iván el 04/09");
+  expect(fila(false)).not.toContain("title=");
 });
 
 test("el bloque reparte las MISMAS columnas a la cabecera y a lo que lleva dentro", () => {
@@ -198,6 +215,7 @@ export function FilaDesplegable({
   onAlternar,
   etiqueta,
   idDetalle,
+  titulo,
   celdas,
   detalle,
 }: {
@@ -209,6 +227,10 @@ export function FilaDesplegable({
   etiqueta: string;
   /** El id del contenedor del detalle, al que apunta `aria-controls`. */
   idDetalle: string;
+  /** Lo que se cuenta al posar el ratón sobre la fila entera. Lo usa el
+   *  Historial para decir cuándo se pasó a Producción y quién lo pasó: es un
+   *  dato que no tiene columna y que no cabría en ninguna. */
+  titulo?: string;
   celdas: ReactNode;
   detalle: ReactNode;
 }) {
@@ -228,6 +250,7 @@ export function FilaDesplegable({
           aria-expanded={abierta}
           aria-controls={idDetalle}
           aria-label={`${abierta ? "Plegar" : "Desplegar"} ${etiqueta}`}
+          title={titulo}
           className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
         />
         <span
@@ -326,7 +349,7 @@ export function BloqueLista({
 - [ ] **Step 5: Comprobar que pasan**
 
 Run: `pnpm test lista-comun`
-Expected: PASS — 6 pruebas.
+Expected: PASS — 7 pruebas.
 
 - [ ] **Step 6: Commit**
 
@@ -381,6 +404,7 @@ Dentro de `FilaHistorial`, sustituir todo el `return (…)` (desde `<div classNa
       onAlternar={alternar}
       etiqueta={item.pedido}
       idDetalle={`ofs-${seccion}-${item.pedido}`}
+      titulo={tituloPasado}
       celdas={
         <>
           <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
@@ -450,7 +474,7 @@ Dentro de `FilaHistorial`, sustituir todo el `return (…)` (desde `<div classNa
   );
 ```
 
-El `title={tituloPasado}` que llevaba el botón de cubierta se pierde: `FilaDesplegable` no tiene esa prop y el dato ya está en la columna de fecha al buscar. **No** añadir la prop; si en la revisión visual se echa de menos, se apunta y se decide entonces.
+El `title={tituloPasado}` viaja en la prop `titulo`: dice cuándo se pasó a Producción y quién lo pasó, y ese dato no tiene columna ni cabría en ninguna. El Historial tiene que quedar **idéntico**, y perderlo no sería idéntico.
 
 - [ ] **Step 3: Cambiar la cabecera y los bloques por `BloqueLista`**
 
@@ -458,15 +482,24 @@ En el `return` de `HistorialView`, sustituir el `<div className="flex flex-col g
 
 ```tsx
       <div className="flex flex-col gap-3">
+        {/* La cabecera de columnas, UNA vez y encima de todo: es el rótulo de
+            la lista entera, no de un día. Metida dentro del primer bloque
+            saldría DEBAJO de su título —`BloqueLista` pinta el rótulo primero—
+            y con otra separación. Por eso no se le pasa a `BloqueLista` aquí. */}
+        {itemsVisibles.length > 0 && (
+          <div aria-hidden="true" className={`${columnas} px-3 text-[11px] font-semibold text-text-muted`}>
+            {cabeceraColumnas}
+          </div>
+        )}
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
+                {/* SIN `claseDot`: el día lleva nombre, no color. `BloqueLista`
+                    solo pinta el punto cuando hay uno de los dos. */}
                 <BloqueLista
                   columnas={columnas}
-                  cabecera={i === 0 ? cabeceraColumnas : undefined}
                   rotulo={{
                     texto: dia.titulo,
-                    claseDot: "bg-border-strong",
                     sufijo: (
                       <>
                         · {dia.total ?? dia.items.length}
@@ -483,9 +516,7 @@ En el `return` de `HistorialView`, sustituir el `<div className="flex flex-col g
               </section>
             ))
           : itemsVisibles.length > 0 && (
-              <BloqueLista columnas={columnas} cabecera={cabeceraColumnas}>
-                {itemsVisibles.map(fila)}
-              </BloqueLista>
+              <BloqueLista columnas={columnas}>{itemsVisibles.map(fila)}</BloqueLista>
             )}
       </div>
 ```
@@ -1010,17 +1041,16 @@ Y sustituir el `return (…)` entero por:
       idDetalle={`revision-${estado}-${pedido.id}`}
       celdas={
         <>
-          {/* El código abre la ficha; el resto de la línea despliega. Hermanos,
-              no anidados: un clic produce una sola acción. */}
-          <span className="pointer-events-auto min-w-0">
-            <button
-              type="button"
-              onClick={onOpen}
-              title={`Abrir la ficha de ${pedido.codigo}`}
-              className="font-mono text-xs font-bold text-text underline-offset-2 hover:underline"
-            >
-              {pedido.codigo}
-            </button>
+          {/* El código abre la ficha; el resto de la línea despliega.
+              CON `PedidoCodigo` Y NO CON UN BOTÓN PROPIO. Ese componente lleva
+              `relative z-10`, y sin él el clic no llega nunca: el botón de
+              cubierta de `FilaDesplegable` está posicionado (`absolute`), así
+              que se pinta por encima de los hermanos que no lo están aunque
+              vaya antes en el DOM. `pointer-events-auto` a secas no basta —son
+              hermanos, no padre e hijo—. El botón se vería perfectamente y no
+              haría nada. */}
+          <span className="min-w-0">
+            <PedidoCodigo codigo={pedido.codigo} onAbrir={onOpen} />
           </span>
           <span
             className="pointer-events-none min-w-0 truncate text-[11px] text-text-muted"
@@ -1050,6 +1080,23 @@ Y sustituir el `return (…)` entero por:
               </>
             )}
           </span>
+          {/* EL ESTADO DEL PEDIDO, EN LA FILA Y NO EN EL DETALLE. Es lo que se
+              busca al recorrer esta lista: si hubiera que abrir cada línea para
+              saber si un pedido ya está listo, la sección no serviría para lo
+              único que sirve. `col-span-full` lo manda a una segunda línea de
+              la misma rejilla, así que las seis columnas de arriba no se tocan. */}
+          {estado === "aprobada" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+              {pedidoListoParaPasar(pedido)
+                ? "✓ Pedido listo para pasar a Producción"
+                : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
+            </span>
+          )}
+          {estado === "devuelta" && (
+            <span className="pointer-events-none col-span-full pb-0.5 text-[11px] text-text-muted">
+              ↩ Vuelve al autor
+            </span>
+          )}
         </>
       }
       detalle={
@@ -1152,16 +1199,8 @@ Y sustituir el `return (…)` entero por:
                 )}
               </>
             )}
-            {estado === "aprobada" && (
-              <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
-                {pedidoListoParaPasar(pedido)
-                  ? "✓ Pedido listo para pasar a Producción"
-                  : `✓ ${ofsQueCuentan(pedido).filter((o) => o.estado === "aprobada").length} de ${ofsQueCuentan(pedido).length} OF aprobadas · queda trabajo pendiente`}
-              </span>
-            )}
-            {estado === "devuelta" && (
-              <span className="text-[11px] text-text-muted">↩ Vuelve al autor</span>
-            )}
+            {/* El estado del pedido NO va aquí: vive en la fila, siempre
+                visible (ver la séptima celda de `celdas`). */}
           </div>
         </div>
       }
@@ -2374,8 +2413,11 @@ EOF
 pnpm test
 pnpm build
 pnpm lint
+npx tsc --noEmit -p .
 ```
-Expected: las tres sin errores.
+Expected: las cuatro sin errores.
+
+El `tsc` a mano no es de adorno: **no está en los scripts de `package.json` y ninguna de las otras tres lo cubre.** Vitest transpila sin comprobar tipos y `next build` no mira los ficheros de prueba, así que un fichero de `src/lib/__tests__/` puede quedarse con siete errores de tipos y las tres órdenes seguir en verde. Pasó en este mismo trabajo.
 
 - [ ] **Step 2: Repaso a ojo, en claro y en oscuro**
 

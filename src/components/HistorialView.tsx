@@ -13,9 +13,10 @@ import { SelectorFecha } from "./SelectorFecha";
 import { Quien } from "./HistorialQuien";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import { HistorialTareas } from "./HistorialTareas";
-import { Desplegable } from "./Desplegable";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
+import { FilaDesplegable } from "./FilaDesplegable";
+import { BloqueLista } from "./BloqueLista";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
 
@@ -186,6 +187,13 @@ export function HistorialView({
   }, [hasMore, cargando, error, page, cargar, resultadosVigentes]);
 
   const columnas = buscando ? COLUMNAS_BUSCANDO : COLUMNAS_POR_DIA;
+  const cabeceraColumnas = (
+    <>
+      <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Quién</span>
+      <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
+      {buscando && <span>Fecha</span>}
+    </>
+  );
   const dias = buscando ? null : agruparPorDia(itemsVisibles, { hayMas: hasMore, hoy, totales: porDia });
   const fila = (it: HistorialItem) => (
     <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} columnas={columnas} conFecha={buscando} />
@@ -338,44 +346,39 @@ export function HistorialView({
           Buscando no hay días (los resultados van por fecha del pedido, sin
           separadores), así que ahí todo cae en una sola tarjeta. */}
       <div className="flex flex-col gap-3">
+        {/* La cabecera de columnas, UNA vez y encima de todo: es el rótulo de
+            la lista entera, no de un día. Metida en el primer bloque salía
+            debajo de su título y con otra separación. */}
         {itemsVisibles.length > 0 && (
           <div aria-hidden="true" className={`${columnas} px-3 text-[11px] font-semibold text-text-muted`}>
-            <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Quién</span>
-            <span className="text-right">Tiempo {CENTRO_CORTO[seccion]}</span>
-            {buscando && <span>Fecha</span>}
+            {cabeceraColumnas}
           </div>
         )}
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
-                {/* La fecha del día, sobre el fondo y no dentro de la tarjeta:
-                    es el rótulo del bloque, no una fila más de la lista.
-
-                    Los PEDIDOS son los del día entero, aunque falten filas por
-                    cargar: el total lo manda el servidor. El TIEMPO solo sale
-                    con el día completo (ver abajo). */}
-                <h3 className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
-                  {dia.titulo}
-                  <span className="font-normal text-text-muted">
-                    · {dia.total ?? dia.items.length}
-                    {dia.total === null && dia.parcial ? "+" : ""} pedido
-                    {(dia.total ?? dia.items.length) === 1 && !dia.parcial ? "" : "s"}
-                    {/* El tiempo SOLO con el día entero cargado. Los minutos de
-                        cada fila se piden a RPS por página, así que en un día a
-                        medias son los de lo que se ve: el número crecía solo
-                        según bajabas, y un dato que se mueve no se puede leer
-                        aunque lleve un «+» al lado. Aparece cuando el día está
-                        completo, que es cuando quiere decir algo. */}
-                    {dia.minutos > 0 && !dia.parcial &&
-                      ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
-                  </span>
-                </h3>
-                <div className="bloque-3d overflow-hidden rounded-xl">{dia.items.map(fila)}</div>
+                <BloqueLista
+                  columnas={columnas}
+                  rotulo={{
+                    texto: dia.titulo,
+                    sufijo: (
+                      <>
+                        · {dia.total ?? dia.items.length}
+                        {dia.total === null && dia.parcial ? "+" : ""} pedido
+                        {(dia.total ?? dia.items.length) === 1 && !dia.parcial ? "" : "s"}
+                        {dia.minutos > 0 && !dia.parcial &&
+                          ` · ${fmtMin(dia.minutos)} de ${CENTRO_CORTO[seccion]}`}
+                      </>
+                    ),
+                  }}
+                >
+                  {dia.items.map(fila)}
+                </BloqueLista>
               </section>
             ))
-          : (
-            <div className="bloque-3d overflow-hidden rounded-xl">{itemsVisibles.map(fila)}</div>
-          )}
+          : itemsVisibles.length > 0 && (
+              <BloqueLista columnas={columnas}>{itemsVisibles.map(fila)}</BloqueLista>
+            )}
       </div>
 
       {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{buscando ? "Buscando en todo el historial…" : "Cargando…"}</p>}
@@ -448,79 +451,68 @@ function FilaHistorial({
   const deOtroCentro = (item.otrosCentros?.length ?? 0) > 0;
 
   return (
-    <div className="relative border-b border-border last:border-b-0">
-      {desplegado && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />}
-      <div className={`relative ${columnas} px-3 py-1 ${desplegado ? "bg-brand-500/10" : "hover:bg-surface-2"}`}>
-        {/* Fondo y código son botones hermanos: un clic produce una sola acción. */}
-        <button
-          type="button"
-          onClick={alternar}
-          aria-expanded={desplegado}
-          aria-controls={`ofs-${seccion}-${item.pedido}`}
-          aria-label={`${desplegado ? "Plegar" : "Desplegar"} ${item.pedido}`}
-          title={tituloPasado}
-          className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10"
-        />
-        <span aria-hidden="true" className="pointer-events-none grid size-6 place-items-center text-text-muted">
-          <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${desplegado ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </span>
-        {/* El código y, pegado a él, cuántas OF si son varias ("este pedido,
-            de 2 OF"). En su propia columna, con "OF" en la cabecera, dejaba un
-            rótulo sobre un hueco vacío en casi todas las filas. */}
-        <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
-          <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
-          {item.nOf > 1 && (
-            <span
-              className="shrink-0 text-[11px] font-medium text-text-muted"
-              title={`${item.nOf} órdenes de fabricación en todo el pedido`}
-            >
-              {item.nOf} OF
-            </span>
-          )}
-        </div>
-        <span
-          className={`pointer-events-none min-w-0 truncate text-[11px] ${deOtroCentro ? "text-text-muted" : "text-text"}`}
-          title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}
-        >
-          {item.cliente ?? "—"}
-          {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
-          {item.estadoActual && <span className="font-semibold text-amber-700 dark:text-amber-300"> · {item.estadoActual}</span>}
-        </span>
-        <span className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden" title={familias.join(", ")}>
-          {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
-          {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
-        </span>
-        <div className="pointer-events-none min-w-0 text-[11px] leading-4 text-text-muted">
-          <Quien item={item} />
-        </div>
-        <div
-          className={`pointer-events-none text-right font-mono text-[11px] tabular-nums ${deOtroCentro ? "text-text-muted" : "text-text"}`}
-          title={item.minutos === undefined
-            ? "No se pudo leer el tiempo imputado"
-            : `Tiempo imputado en RPS a las tareas de ${deOtroCentro ? item.otrosCentros!.map((c) => CENTRO_CORTO[c]).join(" y ") : CENTRO_CORTO[seccion]}`}
-        >
-          {item.minutos === undefined ? "—" : fmtMin(item.minutos)}
-        </div>
-        {conFecha && (
-          <div
-            className="pointer-events-none text-[11px] leading-4 text-text-muted"
-            title={`${item.fechaPedido ? `Pedido del ${fmtFecha(item.fechaPedido).corta}. ` : ""}${tituloPasado}`}
-          >
-            {item.fechaPedido ? fmtFecha(item.fechaPedido).corta : pasado.corta}
+    <FilaDesplegable
+      columnas={columnas}
+      abierta={desplegado}
+      onAlternar={alternar}
+      etiqueta={item.pedido}
+      idDetalle={`ofs-${seccion}-${item.pedido}`}
+      titulo={tituloPasado}
+      celdas={
+        <>
+          <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
+            <PedidoCodigo codigo={item.pedido} onAbrir={() => onOpen(item.pedido)} />
+            {item.nOf > 1 && (
+              <span
+                className="shrink-0 text-[11px] font-medium text-text-muted"
+                title={`${item.nOf} órdenes de fabricación en todo el pedido`}
+              >
+                {item.nOf} OF
+              </span>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Envuelto y no `{desplegado && …}`: si React lo quitara al pulsar, el
-          contenido desaparecería de golpe y no habría nada que animar. Cerrado
-          no ocupa nada (`Desplegable` devuelve null). */}
-      <div id={`ofs-${seccion}-${item.pedido}`}>
-      <Desplegable abierto={desplegado}>
-        <div className="border-t border-border px-3 py-2">
+          <span
+            className={`pointer-events-none min-w-0 truncate text-[11px] ${deOtroCentro ? "text-text-muted" : "text-text"}`}
+            title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}
+          >
+            {item.cliente ?? "—"}
+            {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
+            {item.estadoActual && (
+              <span className="font-semibold text-amber-700 dark:text-amber-300"> · {item.estadoActual}</span>
+            )}
+          </span>
+          <span
+            className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden"
+            title={familias.join(", ")}
+          >
+            {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
+            {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
+          </span>
+          <div className="pointer-events-none min-w-0 text-[11px] leading-4 text-text-muted">
+            <Quien item={item} />
+          </div>
+          <div
+            className={`pointer-events-none text-right font-mono text-[11px] tabular-nums ${deOtroCentro ? "text-text-muted" : "text-text"}`}
+            title={item.minutos === undefined
+              ? "No se pudo leer el tiempo imputado"
+              : `Tiempo imputado en RPS a las tareas de ${deOtroCentro ? item.otrosCentros!.map((c) => CENTRO_CORTO[c]).join(" y ") : CENTRO_CORTO[seccion]}`}
+          >
+            {item.minutos === undefined ? "—" : fmtMin(item.minutos)}
+          </div>
+          {conFecha && (
+            <div
+              className="pointer-events-none text-[11px] leading-4 text-text-muted"
+              title={`${item.fechaPedido ? `Pedido del ${fmtFecha(item.fechaPedido).corta}. ` : ""}${tituloPasado}`}
+            >
+              {item.fechaPedido ? fmtFecha(item.fechaPedido).corta : pasado.corta}
+            </div>
+          )}
+        </>
+      }
+      detalle={
+        <>
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {/* Las OF en las mismas columnas que la fila del pedido, y el botón
-              en la línea de la primera, no en una para él solo. */}
           {ofs && (
             <HistorialOFsCompactas
               ofs={ofs}
@@ -529,9 +521,8 @@ function FilaHistorial({
               accion={<HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="-my-0.5" compacto />}
             />
           )}
-        </div>
-      </Desplegable>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
