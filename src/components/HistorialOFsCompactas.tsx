@@ -64,7 +64,15 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
         const accionAqui = i === 0 ? accion : null;
         if (columnas) {
           return (
-            <li key={codigo} className={`${columnas} text-xs`}>
+            // HUNDIDAS sobre el detalle, como las OF de Pendientes (ver
+            // `FilaOF`): la fila del pedido ya está hundida al desplegarse, y
+            // sus OF dentro necesitan despegarse de ese fondo para leerse como
+            // lo que cuelga de ella. Sin esto eran texto suelto sobre el mismo
+            // color y no se veía dónde acababa una OF y empezaba la siguiente.
+            <li
+              key={codigo}
+              className={`${columnas} rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border`}
+            >
               <span aria-hidden="true" />
               <span className="font-mono font-semibold text-text">{codigo}</span>
               <span className="min-w-0 truncate text-text-muted" title={descripcion}>{descripcion}</span>

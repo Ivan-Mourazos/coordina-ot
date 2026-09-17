@@ -12,7 +12,6 @@ import { HistorialDrawer } from "./HistorialDrawer";
 import { SelectorFecha } from "./SelectorFecha";
 import { Quien } from "./HistorialQuien";
 import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
-import { HistorialTareas } from "./HistorialTareas";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaDesplegable } from "./FilaDesplegable";
@@ -519,23 +518,13 @@ function FilaHistorial({
         <>
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {ofs && (
-            <>
-              <HistorialOFsCompactas ofs={ofs} seccion={seccion} columnas={columnas} />
-              {/* DEBAJO DE LAS OF Y A TODO EL ANCHO, no en la última columna.
-                  Ahí es donde iba el BOTÓN cuando esto era una ventana: como
-                  botón cabía en 64 px, pero desde que es un bloque que se abre
-                  dentro, el desglose entero se desplegaba en esa columna de 64
-                  px y salía una tira ilegible de una palabra por línea. */}
-              <HistorialTareas
-                pedido={item.pedido}
-                ofs={ofs}
-                seccion={seccion}
-                className="mt-2"
-                compacto
-              />
-            </>
-          )}
+          {/* SOLO LAS OF. El desglose de tareas y tiempos NO vive aquí: está
+              en la ficha, que es donde hay sitio para leerlo y donde Pendientes
+              lo tiene también. Estuvo un tiempo en esta lista —primero como
+              ventana, luego como bloque— y ninguna de las dos funcionó: la
+              ventana tapaba la lista, y el bloque se desplegaba dentro de la
+              columna de 64 px donde vivía su botón. */}
+          {ofs && <HistorialOFsCompactas ofs={ofs} seccion={seccion} columnas={columnas} />}
         </>
       }
     />

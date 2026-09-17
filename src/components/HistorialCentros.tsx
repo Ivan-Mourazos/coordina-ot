@@ -7,6 +7,7 @@ import { fmtDiaMesAno } from "@/lib/fechas";
 import { centrosConDesglose, type HistorialCentro } from "@/lib/historial-centros";
 import type { SeccionId } from "@/lib/secciones";
 import { TareasPorCentro } from "./HistorialTareas";
+import { BloqueDesplegable } from "./BloqueDesplegable";
 import {
   BOTON_DETALLE,
   CabeceraVentana,
@@ -35,19 +36,30 @@ export function HistorialCentros({
   seccion,
   gastado,
   onReintentarGastado,
+  abiertoDeSalida = false,
 }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** undefined = cargando; null = RPS no contestó; objeto = cargado. */
   gastado?: Record<string, MaterialGastadoOF[]> | null;
   onReintentarGastado?: () => void;
+  /** Empezar desplegado. La ficha lo deja plegado —es lo más largo que tiene y
+   *  casi nunca es a lo que se viene—; lo usan las pruebas de presentación,
+   *  que comprueban QUIÉN sale en el desglose y no si está abierto. Mismo
+   *  mecanismo que el `abrirAlMontar` de `HistorialTareas`. */
+  abiertoDeSalida?: boolean;
 }) {
   // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
   // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
   // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
   const conDesglose = centrosConDesglose(ofs, seccion);
   return (
-    <section aria-label="Tiempos por centro de trabajo">
+    // EL MISMO BLOQUE PLEGADO QUE EN PENDIENTES. Aquí el desglose salía
+    // siempre desplegado y en Pendientes plegado, así que el mismo pedido se
+    // leía de dos formas según por dónde lo abrieras — y en un pedido de siete
+    // OF esto es lo más largo de la ficha, por delante de las notas y de los
+    // documentos, que es lo que se viene a mirar.
+    <BloqueDesplegable titulo="Tareas y tiempos" className="mb-0" abiertoDeSalida={abiertoDeSalida}>
       <TareasPorCentro
         ofs={ofs}
         seccion={seccion}
@@ -66,7 +78,7 @@ export function HistorialCentros({
           </>
         )}
       />
-    </section>
+    </BloqueDesplegable>
   );
 }
 

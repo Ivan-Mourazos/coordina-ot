@@ -19,7 +19,10 @@ const of = (codigo: string, centro: HistorialOF["centro"], personas: { nombre: s
 });
 
 const veces = (html: string, texto: string) => html.split(texto).length - 1;
-const pinta = (ofs: HistorialOF[]) => renderToStaticMarkup(createElement(HistorialCentros, { ofs, seccion: "ot" }));
+// `abiertoDeSalida`: en la ficha el bloque nace plegado, y lo que estas
+// pruebas miran es QUIÉN sale en el desglose, no si está abierto.
+const pinta = (ofs: HistorialOF[]) =>
+  renderToStaticMarkup(createElement(HistorialCentros, { ofs, seccion: "ot", abiertoDeSalida: true }));
 
 /** Una OF con el desglose de tareas que trae el detalle del Historial. */
 const conTareas = (
@@ -127,8 +130,8 @@ describe("el tiempo no se repite por los tres niveles", () => {
 // personas, OF) y otra vez enteras en la ventana «Tareas y tiempos», que se
 // abría encima tapando lo que ya se estaba mirando. Ahora el lateral las lleva
 // dentro de su OF y la ventana desaparece de la ficha.
-describe("las tareas van en el lateral, no en una ventana aparte", () => {
-  it("cada OF enseña sus tareas con quién las echó, sin abrir nada", () => {
+describe("las tareas van en la ficha, no en una ventana aparte", () => {
+  it("cada OF enseña sus tareas con quién las echó, dentro de la propia ficha", () => {
     const html = pinta([
       conTareas("0231973", "ot", [
         {
@@ -144,8 +147,12 @@ describe("las tareas van en el lateral, no en una ventana aparte", () => {
     expect(html).toContain("PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE");
     expect(html).toContain("Iván Sánchez 17m");
     expect(html).toContain("Jaime Vázquez 2m");
-    // Y no queda botón que abra la misma información encima.
-    expect(html).not.toContain("Tareas y tiempos");
+    // Lo que esto vigila es que NO haya una ventana encima con la misma
+    // información: el desglose vive dentro de la ficha. Que además vaya en un
+    // bloque plegable titulado «Tareas y tiempos» —el mismo de Pendientes, y
+    // por eso este render lo pide abierto— no lo contradice: se abre en su
+    // sitio, sin tapar nada.
+    expect(html).not.toContain("popover");
   });
 
   it("una tarea sin un minuto se enseña igual: es trabajo que falta por hacer", () => {

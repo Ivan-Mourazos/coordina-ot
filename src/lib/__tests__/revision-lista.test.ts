@@ -21,8 +21,12 @@ function pintar(estados: EstadoOF[], miId = "revisor") {
 
 test("los cuatro estados van uno debajo de otro, no en columnas", () => {
   const html = pintar(["en_revision"]);
-  // Cuatro bloques apilados, y ninguna rejilla de columnas de tablero.
-  expect(html.match(/bloque-3d/g)).toHaveLength(4);
+  // Cuatro secciones apiladas, cada una con su rótulo. Antes esto se medía
+  // contando cuántos `bloque-3d` había, y dejó de valer cuando cada pedido
+  // pasó a ser su propia tarjeta con relieve: el relieve es ahora de las
+  // FILAS, y las secciones no pintan caja.
+  expect(html.match(/<h2/g)).toHaveLength(4);
+  // Y ninguna rejilla de columnas de tablero.
   expect(html).not.toContain("xl:grid-cols-4");
 });
 

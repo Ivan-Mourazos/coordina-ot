@@ -238,6 +238,7 @@ function SeccionRevision({
     <section aria-label={titulo}>
       <BloqueLista
         columnas={COLUMNAS_REVISION}
+        sinCaja
         rotulo={{
           texto: titulo,
           claseDot: dotClassName,
@@ -427,6 +428,12 @@ function FilaRevision({
   return (
     <FilaDesplegable
       columnas={COLUMNAS_REVISION}
+      /* Cada pedido, su tarjeta con relieve, y hundida al abrirla: lo mismo
+         que Pendientes y el Historial. El estado sigue teniendo su rótulo
+         encima; lo que se va es la caja que envolvía a todas las filas
+         (`sinCaja` arriba), que con las filas ya en tarjeta pintaba un fondo
+         de más por detrás. */
+      tarjeta
       abierta={abierta}
       onAlternar={() => setAbierta((a) => !a)}
       etiqueta={pedido.codigo}

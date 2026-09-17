@@ -1,11 +1,11 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
-import { Desplegable } from "./Desplegable";
+import { BloqueDesplegable } from "./BloqueDesplegable";
 import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
@@ -39,50 +39,17 @@ export function HistorialTareas({
    *  abierto en vez de pedir un segundo clic. */
   abrirAlMontar?: boolean;
 }) {
-  const id = useId();
-  const [abierto, setAbierto] = useState(abrirAlMontar);
   return (
-    <section
-      className={`${className} rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]`}
+    <BloqueDesplegable
+      titulo={compacto ? "Tareas" : "Tareas y tiempos"}
+      sufijo={compacto ? undefined : pedido}
+      abiertoDeSalida={abrirAlMontar}
+      className={className}
     >
-      <button
-        type="button"
-        onClick={() => setAbierto((a) => !a)}
-        aria-expanded={abierto}
-        aria-controls={id}
-        title={compacto ? "Tareas y tiempos" : undefined}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-        >
-          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {compacto ? "Tareas" : "Tareas y tiempos"}
-        {/* El código del pedido, SOLO fuera del modo compacto. En la lista del
-            Historial este botón vive en una columna de 64 px que no crece, y
-            ahí el código no cabe; además ya se lee en la misma fila, tres
-            columnas a la izquierda. En la ficha sí hace falta: es lo que la
-            cabecera de la ventana decía cuando esto era un popover. */}
-        {!compacto && (
-          <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
-        )}
-      </button>
-      <div id={id}>
-        <Desplegable abierto={abierto}>
-          <div className="border-t border-[var(--glass-border)] px-3 py-3">
-            {/* Con color, como la consulta: el código de la OF y los tiempos se
-                recorren con la vista sin leerlo todo. */}
-            <TareasPorCentro ofs={ofs} seccion={seccion} conColor />
-          </div>
-        </Desplegable>
-      </div>
-    </section>
+      {/* Con color, como la consulta: el código de la OF y los tiempos se
+          recorren con la vista sin leerlo todo. */}
+      <TareasPorCentro ofs={ofs} seccion={seccion} conColor />
+    </BloqueDesplegable>
   );
 }
 
