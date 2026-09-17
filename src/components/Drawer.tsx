@@ -1766,7 +1766,7 @@ export function DetalleVenta({ texto }: { texto: string }) {
         >
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        {abierto ? "Ocultar lo que se vendió" : "Qué se vendió"}
+        {abierto ? "Ocultar descripción" : "Descripción"}
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>

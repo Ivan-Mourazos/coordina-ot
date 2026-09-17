@@ -34,7 +34,7 @@ test("lo que se vendió va plegado: son 160 caracteres de media y hasta 400", ()
       texto: "POR CONFECCION E INSTALACION DE TOLDO VERTICAL, DE MEDIDAS 3,20 X 2,10 M",
     }),
   );
-  expect(html).toContain("Qué se vendió");
+  expect(html).toContain("Descripción");
   expect(html).toContain('aria-expanded="false"');
   // Cerrado no escribe el texto: a la vista, cada OF sería un párrafo y la
   // ficha de un pedido de cinco, un muro.
