@@ -1,5 +1,75 @@
 [
   {
+    "id": "2026-09-17",
+    "hasta": "7f3fc5b",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes girar el parte escaneado",
+        "detalle": "Botón ↻ al lado del parte. Los que entran de lado se leen sin descargarlos. Al cambiar de pedido vuelve a su posición."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al abrir un pedido en Revisiones, sus OF se ven igual que en Pendientes",
+        "detalle": "código, descripción, estado, autor → revisor y tiempo fichado, en vez de una lista con menos datos."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El botón de volver a plantear ya se ve",
+        "detalle": "En una OF cerrada en RPS es lo único que puedes hacer, y en modo oscuro no se distinguía del fondo."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El final del recorrido de un pedido se cortaba y no había forma de verlo",
+        "detalle": "La última fecha y el aviso de retraso se perdían en ventanas de hasta ~1400 px, muy normales en portátil. Ahora caben, y si aún no caben aparece una barra para llegar."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Una OF podía quedarse en revisión sin revisor y no aparecía en el trabajo de nadie",
+        "detalle": "Ahora siempre lleva revisor puesto, o se queda en tu planteo hasta que se lo pongas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Pendientes, el pedido sin procesar ya se lee entero",
+        "detalle": "Iba en gris claro de arriba abajo; ahora solo lleva su etiqueta."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Revisiones se ve a lo ancho y cada pedido se abre en su sitio",
+        "detalle": "Las cuatro listas van una debajo de otra. Pulsas un pedido y se abre ahí mismo con sus OF, la guía y los botones, sin quedar todo apretado en una columna."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Tareas y tiempos se abre dentro de la ficha, sin taparla",
+        "detalle": "Antes salía una ventana encima. Ahora se despliega como Documentos y Notas, se ve como un bloque más desde que abres la ficha, y los tiempos van en columna para recorrerlos de un vistazo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha del pedido ya no se pierden de vista las piezas ni el sitio de entrega",
+        "detalle": "Suben arriba, junto al pedido y el cliente. Antes se iban al bajar a las OF."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Visitas se lee mejor y sin dos datos que no decían nada",
+        "detalle": "Fuera el número de orden y el estado en clave de RPS; la incidencia y el pedido, que sirven para buscarla allí, se quedan. Y cada día se lee como una tarjeta separada del fondo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Un pedido ya terminado ya no ocupa más renglones que el resto: \"Listo para Producción\" sale junto al código"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Pendientes cada pedido se ve por separado, y el que abres se hunde",
+        "detalle": "Antes era una lista de rayas y costaba seguir una fila. Ahora cada pedido es su propia tarjeta con relieve, y el que tienes abierto se queda como una tecla pulsada."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Revisiones cada pedido ocupa menos y el revisor va junto al botón",
+        "detalle": "El aviso de \"listo para Producción\" sale al lado del cliente en vez de en su propia línea, y ya no queda ese hueco entre \"Revisor:\" y el nombre."
+      }
+    ]
+  },
+  {
     "id": "2026-09-16",
     "hasta": "45f8cbc",
     "cambios": [
