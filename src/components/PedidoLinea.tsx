@@ -197,8 +197,28 @@ export function PedidoLinea({
               {pedido.cliente}
               {descripcion && ` · ${descripcion}`}
             </span>
-            <span className="shrink-0 text-[10px] text-text-muted @max-[18rem]:hidden">
-              {ofs.length} OF{minutos > 0 && ` · ${fmtMin(minutos)}`}
+            {/* SE ESCONDE CUANDO APARECE UN BOTÓN ENCIMA. Los botones se
+                superponen al final de la fila (ver su rama más abajo) y se
+                tapaban con `bg-inherit`, pero el fondo de la fila es
+                SEMITRANSPARENTE —`bg-surface-2/60`, `bg-emerald-500/10`—: un
+                fondo translúcido sobre un texto no lo tapa, lo vela. Se veía
+                "1 OF" a través de "Fichar".
+                No se arregla dándole un fondo opaco, porque tendría que
+                acertar con el tinte de la fila en cada estado y en los dos
+                temas. Se arregla quitando de debajo lo que sobra: al pasar el
+                ratón, la cuenta de OF deja sitio al botón.
+                Y con el reloj MÍO en marcha se esconde siempre, porque ahí el
+                botón de pausar está visible sin necesidad de pasar por encima. */}
+            <span
+              className={`shrink-0 text-[10px] text-text-muted @max-[18rem]:hidden ${
+                fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
+              }`}
+            >
+              {/* Redondeado a minutos: `fmtMin` sabe enseñar segundos y aquí
+                  salía "14m 7s" al lado de "36m" y "42m". En una lista que se
+                  recorre con la vista, los segundos son ruido; el detalle fino
+                  está en «Tareas y tiempos». */}
+              {ofs.length} OF{minutos > 0 && ` · ${fmtMin(Math.round(minutos))}`}
             </span>
           </>
         )}
