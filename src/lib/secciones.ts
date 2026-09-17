@@ -152,21 +152,24 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // 0230576/06) no existen como tarea en RPS, y sin tarea no hay pedido,
     // cliente ni fecha que enseñar, así que se caen de la lista en silencio.
     fuente: "olanet",
-    // Los plóters van aquí ADEMÁS de en `marcasEnFases`: esta lista es la que
-    // decide de quién es el tiempo, y sin ellos las horas del corte se
+    // El plóter de corte va aquí ADEMÁS de en `marcasEnFases`: esta lista es
+    // la que decide de quién es el tiempo, y sin él las horas del corte se
     // contaban a Taller —lo que no está en ninguna lista cae ahí—.
-    recursos: ["a-dgra", "dgra-a", "p-pcus", "p-pcmu"],
+    //
+    // SOLO `P-PCUS`, y no el otro plóter. Medido el 17/09/2026 sobre las
+    // imputaciones desde enero de 2025: en P-PCUS, Smith echa 2.580 fichajes y
+    // Carrón 534, contra 5 de Manuel; en P-PCMU es al revés, 38 de Manuel
+    // contra 5 de Smith y ninguno de Carrón. P-PCMU es de Impresión Digital.
+    recursos: ["a-dgra", "dgra-a", "p-pcus"],
     maquina: "A-DGRA",
     // La mesa de diseño y los dos plóters de corte. Que el corte de vinilo es
     // trabajo suyo lo dijeron ellos y lo confirma RPS: desde junio, los ÚNICOS
     // que fichan en P-PCUS son Smith (48), Carrón (88) y Manuel Gómez (22).
     // Ni una imputación de Taller ni de OT.
-    // Los trozos van con el prefijo `P-` a propósito, y no como "PCUS" suelto:
-    // así entran las urgencias (`U-P-PCUS` lleva `P-PCUS` dentro) y se quedan
-    // fuera `A-PCMU` —otro plóter, 1.386 tareas todas ya cerradas— y la errata
-    // `P-PCCUS`, que tiene una C de más y una sola tarea. Ninguno de los dos
-    // está autorizado: meterlos cambiaría los tiempos de meses pasados.
-    marcasEnFases: ["DGRA", "P-PCUS", "P-PCMU"],
+    // El trozo va con el prefijo `P-` a propósito, y no como "PCUS" suelto:
+    // así entran las urgencias (`U-P-PCUS` lleva `P-PCUS` dentro) y se queda
+    // fuera la errata `P-PCCUS`, que tiene una C de más y una sola tarea.
+    marcasEnFases: ["DGRA", "P-PCUS"],
     // Las seis, en el orden en que las quieren ver. Se escriben TODAS y no
     // solo las dos que se mueven: una lista parcial invita a que la siguiente
     // fase que se añada se quede fuera sin que nadie lo note, y una fase fuera

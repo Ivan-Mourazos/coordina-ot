@@ -30,7 +30,7 @@ describe("las dos secciones", () => {
     // es la que decide DE QUIÉN ES EL TIEMPO en toda la web, y el corte de
     // vinilo es de ellos: desde junio los únicos que fichan en P-PCUS son
     // Smith (48), Carrón (88) y Manuel Gómez (22).
-    expect(SECCIONES.diseno.recursos).toEqual(["a-dgra", "dgra-a", "p-pcus", "p-pcmu"]);
+    expect(SECCIONES.diseno.recursos).toEqual(["a-dgra", "dgra-a", "p-pcus"]);
   });
 });
 
@@ -91,7 +91,7 @@ describe("de quién es una fase", () => {
 describe("los recursos en SQL", () => {
   it("salen entrecomillados y separados por coma", () => {
     expect(recursosSql(SECCIONES.ot)).toBe("'a-otec','otec-a'");
-    expect(recursosSql(SECCIONES.diseno)).toBe("'a-dgra','dgra-a','p-pcus','p-pcmu'");
+    expect(recursosSql(SECCIONES.diseno)).toBe("'a-dgra','dgra-a','p-pcus'");
   });
 
   it("dobla la comilla, aunque hoy no haga falta", () => {
@@ -134,17 +134,21 @@ describe("los plóters de corte son de Diseño Gráfico", () => {
     // "DGRA" por ningún lado, así que con un solo trozo el corte de vinilo no
     // aparecía en su tablero. Comprobado en OLANET el 17/09/2026: 24 fases
     // vivas en P-PCUS contra 50 en A-DGRA.
-    for (const m of ["P-PCUS", "U-P-PCUS", "P-PCMU", "U-P-PCMU"]) {
+    for (const m of ["P-PCUS", "U-P-PCUS"]) {
       expect(esFaseDe(m, SECCIONES.diseno)).toBe(true);
     }
   });
 
-  it("y no arrastran los plóters que nadie ha autorizado", () => {
-    // `A-PCMU` es otro plóter con 1.386 tareas, todas ya cerradas, y `P-PCCUS`
-    // es una errata con una C de más y una sola tarea. Entrarían solos si los
-    // trozos fueran "PCUS"/"PCMU" sueltos, y con ellos cambiarían los tiempos
-    // de meses pasados sin que nadie lo hubiera pedido.
-    for (const m of ["A-PCMU", "P-PCCUS", "PCOR-P"]) {
+  it("y no arrastran los demás plóters, que no son suyos", () => {
+    // `P-PCMU` es el plóter de MANUEL: desde enero de 2025 lleva 38 fichajes
+    // suyos contra 5 de Smith y ninguno de Carrón, justo al revés que P-PCUS.
+    // Va con Impresión Digital, no aquí.
+    //
+    // `A-PCMU` es el Mutoh viejo, muerto desde mayo de 2022, y `P-PCCUS` una
+    // errata con una C de más y una sola tarea. Entrarían solos si los trozos
+    // fueran "PCUS"/"PCMU" sueltos, y con ellos cambiarían los tiempos de
+    // meses pasados sin que nadie lo hubiera pedido.
+    for (const m of ["A-PCMU", "P-PCMU", "P-PCCUS", "PCOR-P"]) {
       expect(esFaseDe(m, SECCIONES.diseno)).toBe(false);
     }
   });
@@ -160,9 +164,9 @@ describe("los plóters de corte son de Diseño Gráfico", () => {
     // tipa como VarChar: un texto sin tipo viaja como nvarchar contra una
     // columna varchar y SQL Server tira el índice (5.522 ms contra 8).
     const { sql: cond, params } = condicionMaquinaSql(SECCIONES.diseno);
-    expect(params.map((p) => p.valor)).toEqual(["%DGRA%", "%P-PCUS%", "%P-PCMU%"]);
+    expect(params.map((p) => p.valor)).toEqual(["%DGRA%", "%P-PCUS%"]);
     expect(cond).toBe(
-      "MaquinaTeo LIKE @marca0 OR MaquinaTeo LIKE @marca1 OR MaquinaTeo LIKE @marca2",
+      "MaquinaTeo LIKE @marca0 OR MaquinaTeo LIKE @marca1",
     );
     // Ni una comilla ni un valor dentro de la cadena de SQL.
     expect(cond).not.toContain("%");
