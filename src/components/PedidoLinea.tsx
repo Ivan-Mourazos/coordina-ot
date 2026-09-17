@@ -12,6 +12,7 @@ import {
   type Fase,
 } from "@/lib/fases-tablero";
 import { ofsFichablesDe } from "@/lib/accion-pedido";
+import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
@@ -109,6 +110,26 @@ export function PedidoLinea({
   // se ofrece fichar en absoluto en esa fase.
   const fichables = fase === "esperandoRevision" ? [] : ofsFichablesDe(facet, "plantear");
 
+  // Y si no hay ninguna fichable, POR QUÉ. Lo pinta la fila al pasar el ratón
+  // (ver más abajo): sin esto, una fila sin botón no se distingue de una fila
+  // rota.
+  //
+  // En "esperando revisión" el motivo no es de la OF sino de la fase, así que
+  // se dice aparte: las OF de ahí sí son fichables, solo que no por su autor.
+  //
+  // Con varias OF se dice el motivo COMÚN, y si no lo hay, cuántas hay de cada
+  // cosa sobraría — basta con que no se puede y que el detalle está dentro.
+  const sinBotonDeFichar = fichandoYo.length === 0 && fichables.length === 0;
+  const motivosOF = [...new Set(deOT.map(motivoNoFichable).filter((m): m is string => m !== null))];
+  const motivoSinFichar =
+    fase === "esperandoRevision"
+      ? "Lo tiene el revisor: lo que se ficha aquí es la revisión"
+      : motivosOF.length === 1
+        ? motivosOF[0]
+        : motivosOF.length > 1
+          ? "Ninguna de sus OF admite fichaje ahora"
+          : null;
+
   return (
     <div
       style={{ borderLeftColor: color }}
@@ -119,7 +140,13 @@ export function PedidoLinea({
       <button
         onClick={() => onOpen(facet)}
         title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
-        className={`flex min-w-0 items-center gap-2 overflow-hidden text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
+        // `cursor-pointer` EXPLÍCITO. La regla de globals.css que pone la mano
+        // en todo `button` vive en `@layer base`, y ahí la gana cualquier
+        // utilidad de una capa posterior: en esta fila la mano solo salía sobre
+        // los botones de acción, y el resto —que abre el pedido, que es la
+        // acción más usada de la fila— se quedaba con la flecha de siempre.
+        // Puesta como utilidad, manda pase lo que pase.
+        className={`flex min-w-0 cursor-pointer items-center gap-2 overflow-hidden text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
       >
         {fichandoAlguien && (
           <span
@@ -256,7 +283,12 @@ export function PedidoLinea({
         // Los textos eran de 10 px en negrita sobre color, y en negrita a ese
         // tamaño las letras se empastan: "Pasar a revisión" no se leía, se
         // adivinaba por la forma. Ahora 11 px y semibold, con algo más de aire.
-        <span className="absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4">
+        // `pointer-events-none` en la CAJA y `pointer-events-auto` en lo que
+        // lleve dentro: esta franja tapa el final de la fila aunque esté vacía,
+        // y ahí el clic no llegaba al botón que abre el pedido. Con los botones
+        // dentro no se nota —son ellos los que reciben—, pero en una fila sin
+        // acción disponible quedaba una tira muerta al borde derecho.
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4 [&>*]:pointer-events-auto">
         {/* Pausa: siempre visible mientras se ficha. */}
         {/* Fichar es el único camino para empezar: arranca el reloj y saca la
             OF de "sin empezar" (ver `arrancarFichaje` en Board).
@@ -307,6 +339,23 @@ export function PedidoLinea({
           >
             Pasar
           </button>
+        )}
+
+        {/* POR QUÉ NO HAY BOTÓN. Cuando no se puede fichar, la fila no ofrecía
+            nada al pasar el ratón: ni botón ni explicación. Y las reglas son
+            correctas —una OF detenida por Producción no admite fichaje, y en
+            "esperando revisión" lo que se ficha es la revisión, que le toca al
+            revisor—, pero desde la fila eso no se ve: parece que la web se ha
+            roto. Pasó de verdad, y la respuesta fue "que no salen".
+            Se revela al pasar el ratón, en el mismo sitio donde habría estado
+            el botón: es justo cuando se hace la pregunta. */}
+        {sinBotonDeFichar && motivoSinFichar && (
+          <span
+            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+            title={motivoSinFichar}
+          >
+            🔒 {motivoSinFichar}
+          </span>
         )}
         </span>
       )}
