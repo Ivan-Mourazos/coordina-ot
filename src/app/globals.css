@@ -687,6 +687,42 @@ body {
 }
 
 /* thin scrollbars inside zones */
+/* ── La barra de desplazamiento ──────────────────────────────────────────────
+   La de la PÁGINA la pintaba el sistema: en tema oscuro salía una banda clara
+   pegada al borde derecho, el único trozo de la ventana que no seguía al tema.
+   Ahora sale de los mismos tokens que el resto, así que cambia sola con él.
+
+   El pulgar lleva un borde del color del fondo en vez de ser más estrecho: así
+   queda aire a los lados sin perder superficie donde agarrarlo con el ratón.
+
+   `scrollbar-color` y `scrollbar-width` son las propiedades estándar, que es
+   lo que entiende Firefox; `::-webkit-scrollbar` es lo que entiende Chrome,
+   que es el navegador de la casa. Se ponen las dos. */
+html {
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+html::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+html::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid var(--bg);
+  border-radius: 9999px;
+}
+html::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* La de dentro de un panel o una lista: más fina, porque el hueco es menor. */
+.scroll-thin {
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -694,6 +730,9 @@ body {
 .scroll-thin::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
