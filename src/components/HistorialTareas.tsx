@@ -228,32 +228,38 @@ export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor
         const solaEllaEntera =
           personas.length === 1 && personas[0].min === tarea.tiempoImputadoMin;
         return (
-          <p
-            key={tarea.codigo}
-            className={`grid grid-cols-[minmax(0,1fr)_auto_56px] items-baseline gap-x-3 py-1 ${
-              vacia ? "text-text-muted" : ""
-            }`}
-          >
-            <span className="min-w-0">
-              {tarea.codigo} · {tarea.descripcion}
-            </span>
-            <span
-              className={`text-right ${conColor && !vacia ? "font-medium text-text" : "text-text-muted"}`}
-            >
-              {personas.length === 0
-                ? ""
-                : solaEllaEntera
+          // DOS RENGLONES, no tres columnas. Eran
+          // `grid-cols-[minmax(0,1fr)_auto_56px]`, y esa columna `auto` del
+          // medio se queda con lo que pide su contenido: en la ficha del
+          // Historial, que es estrecha, no dejaba sitio a la primera y la
+          // descripción salía a una palabra por línea.
+          //
+          // Arriba QUÉ se hizo y cuánto costó, que es lo que se recorre con la
+          // vista; debajo y más apagado, QUIÉN — que solo se mira cuando algo
+          // llama la atención. Así la descripción dispone del ancho entero y
+          // da igual lo estrecho que sea el hueco.
+          <div key={tarea.codigo} className={`py-1 ${vacia ? "text-text-muted" : ""}`}>
+            <p className="flex items-baseline gap-3">
+              <span className="min-w-0 flex-1 leading-snug">
+                <span className="font-mono text-[10px] text-text-muted">{tarea.codigo}</span>{" "}
+                {tarea.descripcion}
+              </span>
+              <span
+                className={`shrink-0 font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
+                  conColor && !vacia ? "text-brand-700 dark:text-brand-300" : ""
+                }`}
+              >
+                {fmtMin(tarea.tiempoImputadoMin)}
+              </span>
+            </p>
+            {personas.length > 0 && (
+              <p className="mt-0.5 text-[11px] leading-snug text-text-muted">
+                {solaEllaEntera
                   ? personas[0].nombre
                   : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
-            </span>
-            <span
-              className={`text-right font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
-                conColor && !vacia ? "text-brand-700 dark:text-brand-300" : ""
-              }`}
-            >
-              {fmtMin(tarea.tiempoImputadoMin)}
-            </span>
-          </p>
+              </p>
+            )}
+          </div>
         );
       })}
     </>

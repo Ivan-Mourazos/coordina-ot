@@ -35,11 +35,16 @@ test("abierto de salida cuando se pide, para no cobrar un segundo clic", () => {
   expect(html).toContain("Plantear");
 });
 
-test("los tiempos van todos en la misma columna y con cifras de ancho fijo", () => {
+test("los tiempos van todos a la derecha y con cifras de ancho fijo", () => {
   const html = renderToStaticMarkup(createElement(TareasDeOF, { of: OF }));
-  // Una tarea = una rejilla de tres columnas: tarea, quién, tiempo.
-  expect(html.match(/grid-cols-\[minmax\(0,1fr\)_auto_56px\]/g)).toHaveLength(3);
+  // Un tiempo por tarea, en mono y con cifras de ancho fijo, para que se
+  // recorran con la vista aunque midan "7m" y "1h 20m".
   expect(html.match(/tabular-nums/g)).toHaveLength(3);
+  // La descripción NO comparte línea con el nombre de quien la echó: esa era
+  // la rejilla de tres columnas de antes, y la columna del medio se quedaba
+  // con lo que pedía su contenido. En la ficha del Historial, que es
+  // estrecha, la descripción salía a una palabra por línea.
+  expect(html).not.toContain("grid-cols-");
 });
 
 test("con una sola persona su nombre basta: su tiempo es el de la tarea", () => {

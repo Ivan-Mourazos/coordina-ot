@@ -359,6 +359,7 @@ export function HistorialView({
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
                 <BloqueLista
                   columnas={columnas}
+                  sinCaja
                   rotulo={{
                     texto: dia.titulo,
                     sufijo: (
@@ -377,7 +378,7 @@ export function HistorialView({
               </section>
             ))
           : itemsVisibles.length > 0 && (
-              <BloqueLista columnas={columnas}>{itemsVisibles.map(fila)}</BloqueLista>
+              <BloqueLista columnas={columnas} sinCaja>{itemsVisibles.map(fila)}</BloqueLista>
             )}
       </div>
 
@@ -458,6 +459,11 @@ function FilaHistorial({
       etiqueta={item.pedido}
       idDetalle={`ofs-${seccion}-${item.pedido}`}
       titulo={tituloPasado}
+      /* Cada pedido, su propia tarjeta con relieve, y hundida al abrirla —lo
+         mismo que Pendientes—. El día sigue teniendo su rótulo encima; lo que
+         se va es la caja que envolvía a todas las filas (`sinCaja` arriba),
+         que con las filas ya en tarjeta pintaba un fondo de más por detrás. */
+      tarjeta
       celdas={
         <>
           <div className="pointer-events-none flex min-w-0 items-baseline gap-1.5">
@@ -514,12 +520,21 @@ function FilaHistorial({
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
           {ofs && (
-            <HistorialOFsCompactas
-              ofs={ofs}
-              seccion={seccion}
-              columnas={columnas}
-              accion={<HistorialTareas pedido={item.pedido} ofs={ofs} seccion={seccion} className="-my-0.5" compacto />}
-            />
+            <>
+              <HistorialOFsCompactas ofs={ofs} seccion={seccion} columnas={columnas} />
+              {/* DEBAJO DE LAS OF Y A TODO EL ANCHO, no en la última columna.
+                  Ahí es donde iba el BOTÓN cuando esto era una ventana: como
+                  botón cabía en 64 px, pero desde que es un bloque que se abre
+                  dentro, el desglose entero se desplegaba en esa columna de 64
+                  px y salía una tira ilegible de una palabra por línea. */}
+              <HistorialTareas
+                pedido={item.pedido}
+                ofs={ofs}
+                seccion={seccion}
+                className="mt-2"
+                compacto
+              />
+            </>
           )}
         </>
       }
