@@ -237,3 +237,17 @@ test("sin pedir tarjeta, las filas siguen separándose por una raya: las otras t
   expect(fila(false)).not.toContain("bloque-3d");
   expect(fila(true)).not.toContain("bloque-3d-hundido");
 });
+
+test("con las filas en tarjeta, el bloque no pinta una caja detrás de todas ellas", () => {
+  // Cada fila trae ya su relieve: la caja del bloque solo añadiría un fondo
+  // de más por detrás. El rótulo y la cabecera de columnas viven fuera de la
+  // caja y no se tocan.
+  const html = pintarBloque(
+    { columnas: COLUMNAS, sinCaja: true, cabecera: createElement("span", null, "Pedido") },
+    createElement("div", null, "una fila"),
+  );
+  expect(html).not.toContain("bloque-3d");
+  expect(html).not.toContain("panel-solido");
+  expect(html).toContain("Pedido");
+  expect(html).toContain("una fila");
+});

@@ -427,7 +427,7 @@ export function ListaView({
 
   return (
     <div className="overflow-x-auto">
-      <BloqueLista columnas={COLUMNAS_LISTA} cabecera={cabecera} desbordaHorizontal>
+      <BloqueLista columnas={COLUMNAS_LISTA} cabecera={cabecera} desbordaHorizontal sinCaja>
         {ordenados.map((p) => {
           // Terminado = la planificación vencida ya no es un problema
           // pendiente. Misma regla que `estaAtrasado`, que también los excluye.

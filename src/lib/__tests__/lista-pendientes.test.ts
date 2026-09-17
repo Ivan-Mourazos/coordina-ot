@@ -27,8 +27,10 @@ test("sin agrupar: el orden lo siguen mandando los filtros, no unos rótulos", (
   // pedido pasó a ser su propia tarjeta con relieve: ahora hay uno por fila.
   // El rótulo de un grupo es el <h3> que `BloqueLista` pinta sobre la caja.
   expect(html).not.toContain("<h3");
-  // Y una tarjeta por pedido, que es lo que los separa.
-  expect(html.match(/bloque-3d/g)?.length).toBeGreaterThan(PEDIDOS.length);
+  // UNA tarjeta por pedido, ni una más: el relieve que los separa lo pone
+  // cada fila, y el bloque que las envuelve ya no pinta caja (`sinCaja`) —
+  // si la pintara, sería un fondo de más por detrás de todas.
+  expect(html.match(/bloque-3d/g)).toHaveLength(PEDIDOS.length);
 });
 
 test("las cuatro columnas siguen estando, con sus rótulos", () => {

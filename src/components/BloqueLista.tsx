@@ -20,6 +20,7 @@ export function BloqueLista({
   children,
   desbordaHorizontal = false,
   fondoSolido = false,
+  sinCaja = false,
   nivelRotulo: Rotulo = "h3",
 }: {
   columnas: string;
@@ -54,6 +55,15 @@ export function BloqueLista({
    *  `bloque-3d` se mezclaba con el gris del fondo, sobre todo en tema claro,
    *  y el bloque no se leía como una tarjeta. `panel-solido` es opaco. */
   fondoSolido?: boolean;
+  /** SOLO Pendientes, y va de la mano de la prop `tarjeta` de
+   *  `FilaDesplegable`: cuando cada FILA es ya su propia tarjeta con relieve,
+   *  esta caja pinta una segunda caja detrás de todas ellas. Se ve como un
+   *  fondo que sobra, porque sobra: el relieve que separa un pedido del
+   *  siguiente lo pone ahora cada fila.
+   *
+   *  Lo que NO se va es el rótulo ni la cabecera de columnas: viven fuera de
+   *  la caja desde el principio y siguen igual. */
+  sinCaja?: boolean;
   /** Nivel del encabezado del rótulo. `h3` por defecto porque el Historial
    *  cuelga de un `h1` con un `h2` de sección por medio; Revisiones no tiene
    *  ese `h2` intermedio y pide `h2` directamente para no saltarse un nivel. */
@@ -99,7 +109,9 @@ export function BloqueLista({
       )}
       <div
         className={[
-          fondoSolido ? "panel-solido" : "bloque-3d",
+          // Sin caja: las filas ya traen la suya y ésta solo pintaría un
+          // fondo de más detrás de todas (ver la prop `sinCaja`).
+          sinCaja ? null : fondoSolido ? "panel-solido" : "bloque-3d",
           // Sin `overflow-hidden` cuando `desbordaHorizontal`: es justo lo que
           // había que quitar (ver el comentario de la prop). La esquina
           // redondeada de la caja no depende de esto —es el borde y el fondo
@@ -108,7 +120,7 @@ export function BloqueLista({
           // por la esquina de la primera o la última fila, un matiz menor
           // frente a perder fechas enteras.
           desbordaHorizontal ? null : "overflow-hidden",
-          "rounded-xl",
+          sinCaja ? null : "rounded-xl",
         ]
           .filter(Boolean)
           .join(" ")}
