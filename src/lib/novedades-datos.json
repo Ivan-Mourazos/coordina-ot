@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "9eff431",
+    "hasta": "a3cb81b",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -27,6 +27,11 @@
         "tipo": "arreglado",
         "titulo": "Una OF podía quedarse en revisión sin revisor y no aparecía en el trabajo de nadie",
         "detalle": "Ahora siempre lleva revisor puesto, o se queda en tu planteo hasta que se lo pongas."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial, las tareas de un pedido salían ilegibles",
+        "detalle": "Se abrían dentro de una columna estrecha y el texto caía a una palabra por línea. Ahora van debajo de las OF, a todo el ancho."
       },
       {
         "tipo": "mejor",
@@ -71,6 +76,11 @@
         "tipo": "mejor",
         "titulo": "El menú de herramientas ya no empieza con la lista del equipo",
         "detalle": "Lo de reiniciar un PIN baja al final y va plegado. Arriba quedan las novedades y los enlaces de siempre."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas y tiempos de un pedido se leen de un vistazo",
+        "detalle": "Centro, OF y tarea ya no se pintan iguales: se ve dónde acaba cada una sin leerlas."
       }
     ]
   },
