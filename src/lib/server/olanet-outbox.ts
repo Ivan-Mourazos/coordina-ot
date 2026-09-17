@@ -1,7 +1,7 @@
 import { bonosDe, claveBonoRps, partirOfId, type FilaBono } from "../bonos";
 import { eventosFaseDe, eventosFinalizacion, type EventoFase } from "../fases";
 import type { Intervalo } from "../fichaje";
-import { getDb } from "./estado-db";
+import { getDb, maquinasDeTareas } from "./estado-db";
 import { COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO } from "./operarios";
 
 // ─── Cola de salida hacia OLANET ─────────────────────────────────────────────
@@ -147,7 +147,13 @@ export function encolarFichajeOLanzar(operarioId: string, intervalos: readonly I
   const abierto = intervalos.findIndex((iv) => iv.fin === null);
   const procesados = abierto === -1 ? intervalos.length : abierto;
 
-  const bonos = bonosDe(nuevos, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO);
+  // La máquina de cada TAREA manda sobre la de la persona: ver `bonosDe`.
+  const bonos = bonosDe(
+    nuevos,
+    COD_RPS_POR_OPERARIO,
+    MAQUINA_POR_OPERARIO,
+    maquinasDeTareas([...new Set(nuevos.flatMap((iv) => iv.ofIds))]),
+  );
   const fases = eventosFaseDe(nuevos);
   const entradas = [
     ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),
@@ -186,7 +192,12 @@ export function encolarTramosDeOF(ofId: string, intervalos: readonly Intervalo[]
   const cerrados = intervalos.filter((iv) => iv.fin !== null && iv.ofIds.includes(ofId));
   if (cerrados.length === 0) return 0;
   const esDeLaOF = (x: { of: string; numope: string }) => x.of === destino.of && x.numope === destino.numope;
-  const bonos = bonosDe(cerrados, COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO).filter(esDeLaOF);
+  const bonos = bonosDe(
+    cerrados,
+    COD_RPS_POR_OPERARIO,
+    MAQUINA_POR_OPERARIO,
+    maquinasDeTareas([...new Set(cerrados.flatMap((iv) => iv.ofIds))]),
+  ).filter(esDeLaOF);
   const fases = eventosFaseDe(cerrados).filter(esDeLaOF);
   return encolar([
     ...bonos.map((f) => ({ tipo: "bono" as const, clave: claveBono(f), operarioId: f.operario, datos: f })),

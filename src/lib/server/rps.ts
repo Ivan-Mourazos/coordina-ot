@@ -931,7 +931,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, tareas, subfamilias] =
+  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, maquinasTarea, tareas, subfamilias] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -1058,6 +1058,31 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
         ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
       WHERE mo.CodManufacturingOrder IN (${listaIn})
     `),
+    // LA MÁQUINA DE CADA TAREA. Es lo que RPS espera en el `maquina` de un
+    // bono: comprobado sobre `sch_RPS_bonos`, un mismo operario tiene bonos con
+    // doce máquinas distintas según qué estuviera haciendo (Manuel: A-DGRA,
+    // P-HPLA, P-JETI, P-IDUV…). La web, en cambio, escribía una máquina fija
+    // por PERSONA —la de su sección—, y eso solo acierta mientras su sección
+    // tenga un único recurso.
+    //
+    // Se lee aquí, con el tablero, y se guarda en `tarea_maquina` (ver
+    // estado-db): el bono se construye después, a veces mucho después, y para
+    // entonces la OF puede haber desaparecido del tablero — que es justo lo que
+    // pasa con las que se acaban de cerrar, el caso más común.
+    //
+    // `TOP 1` por tarea: RPS admite varios recursos por tarea y ahí no hay
+    // criterio para elegir; se coge el primero, que es lo que hace la propia
+    // vista al cruzar. Sin `DISTINCT` la misma tarea saldría repetida.
+    pool.request().query<{ orden: string | null; tarea: string | null; maquina: string | null }>(`
+      SELECT mo.CodManufacturingOrder AS orden, t.CodMOTask AS tarea,
+             (SELECT TOP 1 rm.CodMOResourceMachine
+                FROM dbo.CPRMOResourceMachine rm WITH (NOLOCK)
+               WHERE rm.IDMOTask = t.IDMOTask) AS maquina
+      FROM dbo.CPRMOTask t WITH (NOLOCK)
+      JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+        ON mo.IDManufacturingOrder = t.IDManufacturingOrder AND mo.CodCompany = '001'
+      WHERE mo.CodManufacturingOrder IN (${listaIn})
+    `),
     // Ruta de tareas de cada OF pendiente: da los avisos de producción
     // (tareas-nota) y el arranque planificado de la fase posterior al planteo.
     pool.request().query<FilaTarea>(`
@@ -1093,6 +1118,21 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
       GROUP BY mo.CodManufacturingOrder
     `),
   ]);
+
+  // La máquina de cada tarea, con la clave "orden:tarea" que usa toda la web
+  // para nombrar una OF. Se guarda para cuando haya que escribir su bono (ver
+  // la consulta y `guardarMaquinasDeTarea`).
+  const maquinaPorOfId = new Map(
+    maquinasTarea.recordset
+      .map((m) => [`${(m.orden ?? "").trim()}:${(m.tarea ?? "").trim()}`, (m.maquina ?? "").trim()] as const)
+      .filter(([clave, maq]) => clave !== ":" && maq !== ""),
+  );
+  // Se guardan en cuanto se leen, no cuando hace falta escribir el bono: para
+  // entonces la OF puede haber salido ya del tablero. Ver `tarea_maquina`.
+  {
+    const { guardarMaquinasDeTarea } = await import("./estado-db");
+    guardarMaquinasDeTarea(maquinaPorOfId);
+  }
 
   const subfamiliaPorOF = new Map(
     subfamilias.recordset

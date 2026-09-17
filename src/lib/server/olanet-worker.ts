@@ -22,6 +22,7 @@ import {
   type FilaEnCurso,
 } from "./olanet";
 import { COD_RPS_POR_OPERARIO, MAQUINA_POR_OPERARIO } from "./operarios";
+import { maquinasDeTareas } from "./estado-db";
 
 // ─── Sincronización con OLANET ───────────────────────────────────────────────
 // Dos trabajos periódicos, los dos parados mientras el modo sea "sombra":
@@ -161,6 +162,10 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
   if (abiertos.length === 0) return [];
 
   const porOF = agregarPorRol({ intervalos: abiertos }, { ahora });
+  // La máquina de cada tarea, igual que al escribir su bono: esta tabla dice
+  // "quién está fichando qué ahora mismo", y con la máquina de la persona una
+  // tarea de corte figuraba como hecha en la mesa de diseño.
+  const porTarea = maquinasDeTareas([...new Set(abiertos.flatMap((iv) => iv.ofIds))]);
   const filas: FilaEnCurso[] = [];
   for (const iv of abiertos) {
     const operarioRps = COD_RPS_POR_OPERARIO[iv.operarioId];
@@ -176,7 +181,7 @@ export function filasEnCurso(ahora = new Date().toISOString()): FilaEnCurso[] {
         fase,
         minutos: t.planteoMin + t.revisionMin,
         operarioRps,
-        maquina: MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT,
+        maquina: maquinaDeTarea(ofId, iv.operarioId, porTarea),
       });
     }
   }
@@ -203,10 +208,13 @@ export async function confirmarTraspasos(): Promise<number> {
   // Una consulta POR MÁQUINA: los bonos de OT viven en A-OTEC y los de diseño
   // en A-DGRA, y preguntar por una sola dejaría a la otra sección sin sellar
   // nunca — su tiempo se contaría dos veces, aquí y en RPS.
+  const porTarea = maquinasDeTareas([...new Set(pendientes.flatMap((iv) => iv.ofIds))]);
   const yaEnRps = new Set<string>();
-  for (const maquina of maquinasEnJuego(pendientes)) {
-    const suyos = pendientes.filter(
-      (iv) => (MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT) === maquina,
+  for (const maquina of maquinasEnJuego(pendientes, porTarea)) {
+    // Un tramo entra en la consulta de una máquina si ALGUNA de sus OF va a
+    // esa máquina: con OF repartidas entre dos, sus bonos están en las dos.
+    const suyos = pendientes.filter((iv) =>
+      iv.ofIds.some((ofId) => maquinaDeTarea(ofId, iv.operarioId, porTarea) === maquina),
     );
     const { dias, operarios } = diasYOperariosDe(suyos, COD_RPS_POR_OPERARIO);
     for (const clave of await bonosTraspasados(dias, operarios, maquina)) yaEnRps.add(clave);
@@ -248,10 +256,36 @@ const TODAS_LAS_MAQUINAS: readonly string[] = [
   ...new Set(Object.values(SECCIONES).map((s) => s.maquina)),
 ];
 
-/** Las máquinas que tocan estos intervalos, sin repetir. */
-function maquinasEnJuego(intervalos: readonly { operarioId: string }[]): string[] {
+/** La máquina con la que se escribió (o se escribirá) el bono de una TAREA.
+ *
+ *  La de la tarea manda y la de la persona es el respaldo, igual que en
+ *  `bonosDe`. Tiene que decidir LO MISMO que allí: aquí se usa para preguntarle
+ *  a OLANET qué bonos ya traspasó, y preguntar por una máquina distinta de la
+ *  que se escribió deja el tramo sin sellar para siempre — su tiempo se
+ *  contaría dos veces, aquí y en RPS. */
+function maquinaDeTarea(
+  ofId: string,
+  operarioId: string,
+  porTarea: ReadonlyMap<string, string>,
+): string {
+  return porTarea.get(ofId) ?? MAQUINA_POR_OPERARIO[operarioId] ?? MAQUINA_OT;
+}
+
+/** Las máquinas que tocan estos intervalos, sin repetir.
+ *
+ *  Por TAREA y no por persona: un mismo tramo puede repartirse entre OF de
+ *  máquinas distintas —una de diseño y un corte—, y entonces sus bonos viven
+ *  en dos sitios. */
+function maquinasEnJuego(
+  intervalos: readonly { operarioId: string; ofIds: string[] }[],
+  porTarea: ReadonlyMap<string, string>,
+): string[] {
   return [
-    ...new Set(intervalos.map((iv) => MAQUINA_POR_OPERARIO[iv.operarioId] ?? MAQUINA_OT)),
+    ...new Set(
+      intervalos.flatMap((iv) =>
+        iv.ofIds.map((ofId) => maquinaDeTarea(ofId, iv.operarioId, porTarea)),
+      ),
+    ),
   ];
 }
 

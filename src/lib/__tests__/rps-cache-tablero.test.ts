@@ -21,6 +21,10 @@ vi.mock("../server/estado-db", () => ({
     estado.lecturas++;
     return estado.retenidas.map((r) => ({ ...r, pedido: "AR.26.04351", motivo: "cerrada", por: "ivan", at: "" }));
   },
+  // El tablero guarda de paso la máquina de cada tarea (ver `tarea_maquina`).
+  // Aquí no se comprueba nada de eso —esto mide la caché—, pero sin el doble
+  // el módulo real ni se carga y todas las pruebas del fichero se caen.
+  guardarMaquinasDeTarea: () => {},
 }));
 
 vi.mock("../server/olanet", () => ({ fasesPendientesDe: async () => [] }));

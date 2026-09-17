@@ -201,6 +201,18 @@ export function bonosDe(
    *  Sin mapa, todo el mundo ficha en A-OTEC: es lo que hacía antes de que
    *  existiera diseño. */
   maquinasRps: Readonly<Record<string, string>> = {},
+  /** La máquina de cada TAREA, por su id de OF ("orden:tarea").
+   *
+   *  Manda sobre `maquinasRps`, y es lo correcto: el `maquina` de un bono es el
+   *  centro donde se hizo el trabajo, no el departamento de quien lo hizo.
+   *  Comprobado en `sch_RPS_bonos`, un mismo operario tiene bonos con doce
+   *  máquinas distintas según qué estuviera haciendo.
+   *
+   *  La de la persona se queda de RESPALDO, no como norma: una tarea que no
+   *  esté en el mapa —porque su OF llegó antes de que existiera esta tabla—
+   *  sigue escribiéndose como se escribía. Un bono sin máquina no se puede
+   *  escribir, y quedarse sin bono pierde el tiempo de alguien. */
+  maquinasPorOf: ReadonlyMap<string, string> = new Map(),
 ): FilaBono[] {
   const filas: FilaBono[] = [];
   for (const iv of intervalos) {
@@ -216,7 +228,14 @@ export function bonosDe(
       );
     }
 
-    const ofs = iv.ofIds.map(partirOfId).filter((x): x is { of: string; numope: string } => x !== null);
+    // Se conserva el id original ("orden:tarea") junto a sus partes: es la
+    // clave con la que se busca la máquina de esa tarea.
+    const ofs = iv.ofIds
+      .map((ofId) => {
+        const partes = partirOfId(ofId);
+        return partes === null ? null : { ...partes, ofId };
+      })
+      .filter((x): x is { of: string; numope: string; ofId: string } => x !== null);
     if (ofs.length === 0) continue;
 
     // Reparto: N sub-tramos consecutivos. Los cortes se calculan sobre el
@@ -227,7 +246,15 @@ export function bonosDe(
       const a = i === 0 ? desde : desde + Math.floor((total * i) / ofs.length);
       const b = i === ofs.length - 1 ? hasta : desde + Math.floor((total * (i + 1)) / ofs.length);
       filas.push(
-        ...filasDeTramo(a, b, ofs[i].of, ofs[i].numope, operario, maquinasRps[iv.operarioId] ?? MAQUINA_OT),
+        ...filasDeTramo(
+          a,
+          b,
+          ofs[i].of,
+          ofs[i].numope,
+          operario,
+          // La de la TAREA manda; la de la persona es el respaldo de siempre.
+          maquinasPorOf.get(ofs[i].ofId) ?? maquinasRps[iv.operarioId] ?? MAQUINA_OT,
+        ),
       );
     }
   }

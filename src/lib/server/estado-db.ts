@@ -85,6 +85,20 @@ function abrir(): Database.Database {
       updated_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_fichaje_operario ON fichaje_intervalo(operario_id);
+    -- La máquina de OLANET de cada tarea ("orden:tarea" → "P-PCUS"). Es lo que
+    -- lleva el campo maquina de un bono, y la web escribía en su lugar una fija por
+    -- PERSONA —la de su sección—, que solo acierta mientras esa sección tenga
+    -- un único recurso. Dejó de acertar en cuanto Diseño ganó el plóter.
+    --
+    -- Se guarda aquí y no se consulta a RPS al escribir el bono porque el bono
+    -- se construye después, a veces mucho después, y para entonces la OF puede
+    -- haber desaparecido del tablero: justo las que se acaban de cerrar, que
+    -- son el caso más común.
+    CREATE TABLE IF NOT EXISTS tarea_maquina (
+      of_id      TEXT PRIMARY KEY,
+      maquina    TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
     -- Latido: última vez que la pestaña de un operario avisó "sigo viva"
     -- (fichar/pausar cuenta igual que el aviso periódico, ver guardarFichaje
     -- más abajo). Sirve para cerrar solos los fichajes que se quedan abiertos
@@ -1428,4 +1442,43 @@ export function leerAvisosVistos(operarioId: string): Set<string> {
     .prepare("SELECT clave FROM aviso_visto WHERE operario_id = ?")
     .all(operarioId) as Array<{ clave: string }>;
   return new Set(filas.map((f) => f.clave));
+}
+
+/** Guarda la máquina de cada tarea que trae el tablero.
+ *
+ *  Se llama en cada refresco: son unas pocas centenas de filas y un `UPSERT`
+ *  por tarea, todo en una transacción. No se borra nada de lo que ya hay — una
+ *  OF que sale del tablero (porque se acaba de cerrar) es justo aquella cuyo
+ *  bono está a punto de escribirse, así que su máquina tiene que seguir aquí.
+ *
+ *  Lo que se escribe es lo último que RPS dijo: si a una tarea le cambian el
+ *  recurso, el siguiente refresco lo recoge. */
+export function guardarMaquinasDeTarea(pares: Iterable<readonly [string, string]>): void {
+  const db = getDb();
+  const ahora = new Date().toISOString();
+  const ins = db.prepare(
+    `INSERT INTO tarea_maquina (of_id, maquina, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(of_id) DO UPDATE SET maquina = excluded.maquina, updated_at = excluded.updated_at`,
+  );
+  db.transaction(() => {
+    for (const [ofId, maquina] of pares) {
+      if (ofId && maquina) ins.run(ofId, maquina, ahora);
+    }
+  })();
+}
+
+/** La máquina de cada una de estas tareas, para escribir sus bonos.
+ *
+ *  Lo que no esté cae fuera del mapa y quien lo use decide: hoy `bonosDe` se
+ *  queda entonces con la máquina de la sección de la persona, que es lo que
+ *  hacía siempre. Un bono sin máquina no se puede escribir, así que nunca se
+ *  devuelve vacío para algo conocido. */
+export function maquinasDeTareas(ofIds: readonly string[]): Map<string, string> {
+  if (ofIds.length === 0) return new Map();
+  const db = getDb();
+  const marcas = ofIds.map(() => "?").join(",");
+  const filas = db
+    .prepare(`SELECT of_id, maquina FROM tarea_maquina WHERE of_id IN (${marcas})`)
+    .all(...ofIds) as Array<{ of_id: string; maquina: string }>;
+  return new Map(filas.map((f) => [f.of_id, f.maquina]));
 }
