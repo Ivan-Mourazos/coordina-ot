@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "a3cb81b",
+    "hasta": "96cb0c6",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -81,6 +81,11 @@
         "tipo": "mejor",
         "titulo": "Las tareas y tiempos de un pedido se leen de un vistazo",
         "detalle": "Centro, OF y tarea ya no se pintan iguales: se ve dónde acaba cada una sin leerlas."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas y tiempos de un pedido se leen igual en el Historial que en Pendientes",
+        "detalle": "Salen al abrir el pedido, plegadas, y ya no se meten en la lista."
       }
     ]
   },
