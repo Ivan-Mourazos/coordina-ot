@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-17",
-    "hasta": "813d766",
+    "hasta": "8854b79",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -51,6 +51,11 @@
         "tipo": "arreglado",
         "titulo": "En la ficha se salía del panel el botón de pasar a revisión",
         "detalle": "Pasaba en los pedidos que tienen las tres cosas a la vez: algo por fichar, algo corregido y algo listo para revisar."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el panel, el botón de fichar se veía encima de la cuenta de OF",
+        "detalle": "Y los tiempos de cada fila ya no mezclan minutos con segundos."
       },
       {
         "tipo": "mejor",
