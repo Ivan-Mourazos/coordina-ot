@@ -17,6 +17,7 @@
 - `getDocument` siempre con `disableRange: true, disableStream: true`.
 - Tope de `devicePixelRatio`: 2. Tope de documentos abiertos en caché: 5.
 - Preferencia de motor en `localStorage`, clave `coordina-visor-motor`, valores `"propio"` (por defecto) y `"navegador"`. Leerla nunca revienta.
+- Ajustar al ancho / al alto en los DOS visores (parte y documentos), recordado en `localStorage` por separado: `coordina-parte-encaje` (la clave de hoy, para no perder lo que cada uno ya tiene puesto) y `coordina-documentos-encaje`. Pulsar otra vez el puesto vuelve a página entera. El giro NO se recuerda.
 - Botón «Abrir en pestaña» visible en los dos motores.
 - En motor navegador no hay botón de giro (lo pone el visor de cada uno).
 - Worker en `/pdf.worker.mjs`, copiado desde `pdfjs-dist/build/pdf.worker.min.mjs` por `scripts/copiar-worker.mjs`; nunca a mano, nunca commiteado.
@@ -34,7 +35,8 @@
 | `src/components/VisorPdf/pdfjs-cliente.ts` (nuevo) | `import()` perezoso de pdf.js + worker compartido. |
 | `src/components/VisorPdf/usePdfDoc.ts` (nuevo) | Hook de carga con la caché; `precargarPdf`. |
 | `src/components/VisorPdf/imprimir.ts` (nuevo) | Imprimir el PDF desde un iframe oculto. |
-| `src/components/VisorPdf/useMotorPdf.ts` (nuevo) | Hook de la preferencia propio/navegador. |
+| `src/components/VisorPdf/preferencias.ts` (nuevo) | Hooks `useMotorPdf` y `useEncajePdf`: lo que cada uno deja puesto. |
+| `src/components/VisorPdf/BotonesEncaje.tsx` (nuevo) | Los dos botones ↔ ↕, compartidos por parte y documentos. |
 | `src/components/VisorPdf/PaginaPdf.tsx` (nuevo) | Una página: canvas, render perezoso, cancelación, liberar memoria. |
 | `src/components/VisorPdf/VisorPdf.tsx` (nuevo) | El hueco con scroll, encaje, zoom con Ctrl+rueda, miniatura de arranque. |
 | `src/components/VisorPdf/MotorNavegador.tsx` (nuevo) | El `<iframe>` de siempre. |
@@ -68,6 +70,10 @@
   - `type MotorPdf = "propio" | "navegador"`, `CLAVE_MOTOR = "coordina-visor-motor"`
   - `leerMotor(almacen: Pick<Storage, "getItem"> | undefined): MotorPdf`
   - `guardarMotor(almacen: Pick<Storage, "setItem"> | undefined, motor: MotorPdf): void`
+  - `CLAVE_ENCAJE_PARTE = "coordina-parte-encaje"`, `CLAVE_ENCAJE_DOCUMENTOS = "coordina-documentos-encaje"`
+  - `leerEncaje(almacen: Pick<Storage, "getItem"> | undefined, clave: string): Encaje`
+  - `guardarEncaje(almacen: Pick<Storage, "setItem"> | undefined, clave: string, encaje: Encaje): void`
+  - `alternarEncaje(actual: Encaje, pulsado: "FitH" | "FitV"): Encaje`
   - `crearCacheDocumentos<D extends { destroy(): unknown }>(abrir: (url: string) => Promise<D>, tope: number): { obtener(url: string): Promise<D>; readonly tamano: number }`
 
 - [ ] **Step 1: Escribir las pruebas (fallan)**
@@ -77,15 +83,20 @@
 ```ts
 import { expect, test, vi } from "vitest";
 import {
+  CLAVE_ENCAJE_DOCUMENTOS,
+  CLAVE_ENCAJE_PARTE,
   CLAVE_MOTOR,
   ZOOM_MAX,
   ZOOM_MIN,
   acotarZoom,
+  alternarEncaje,
   crearCacheDocumentos,
   escalaParaEncaje,
   factorRueda,
   giroIntercambia,
+  guardarEncaje,
   guardarMotor,
+  leerEncaje,
   leerMotor,
   pixelRatio,
   rotacionTotal,
@@ -182,6 +193,53 @@ test("guardar escribe en la clave de siempre", () => {
   const setItem = vi.fn();
   guardarMotor({ setItem }, "navegador");
   expect(setItem).toHaveBeenCalledWith(CLAVE_MOTOR, "navegador");
+});
+
+test("la clave del parte es la de siempre: nadie pierde el encaje que ya tenía", () => {
+  expect(CLAVE_ENCAJE_PARTE).toBe("coordina-parte-encaje");
+  expect(CLAVE_ENCAJE_DOCUMENTOS).not.toBe(CLAVE_ENCAJE_PARTE);
+});
+
+test("el encaje guardado se lee; lo que no lo es, es la página entera", () => {
+  expect(leerEncaje({ getItem: () => "FitH" }, CLAVE_ENCAJE_PARTE)).toBe("FitH");
+  expect(leerEncaje({ getItem: () => "FitV" }, CLAVE_ENCAJE_PARTE)).toBe("FitV");
+  expect(leerEncaje({ getItem: () => "basura" }, CLAVE_ENCAJE_PARTE)).toBe("Fit");
+  expect(leerEncaje({ getItem: () => null }, CLAVE_ENCAJE_PARTE)).toBe("Fit");
+  expect(leerEncaje(undefined, CLAVE_ENCAJE_PARTE)).toBe("Fit");
+  expect(
+    leerEncaje(
+      {
+        getItem: () => {
+          throw new Error("SecurityError");
+        },
+      },
+      CLAVE_ENCAJE_PARTE,
+    ),
+  ).toBe("Fit");
+});
+
+test("cada visor guarda su encaje en su clave", () => {
+  const setItem = vi.fn();
+  guardarEncaje({ setItem }, CLAVE_ENCAJE_DOCUMENTOS, "FitV");
+  expect(setItem).toHaveBeenCalledWith(CLAVE_ENCAJE_DOCUMENTOS, "FitV");
+  expect(() =>
+    guardarEncaje(
+      {
+        setItem: () => {
+          throw new Error("QuotaExceededError");
+        },
+      },
+      CLAVE_ENCAJE_PARTE,
+      "FitH",
+    ),
+  ).not.toThrow();
+});
+
+test("pulsar el encaje puesto vuelve a la página entera; otro, cambia a ese", () => {
+  expect(alternarEncaje("Fit", "FitH")).toBe("FitH");
+  expect(alternarEncaje("FitH", "FitH")).toBe("Fit");
+  expect(alternarEncaje("FitH", "FitV")).toBe("FitV");
+  expect(alternarEncaje("FitV", "FitV")).toBe("Fit");
 });
 
 const docFalso = () => ({ destroy: vi.fn() });
@@ -345,6 +403,43 @@ export function guardarMotor(almacen: Pick<Storage, "setItem"> | undefined, moto
   } catch {
     // Sin almacenamiento el interruptor sigue funcionando; solo no dura.
   }
+}
+
+/** Dónde recuerda cada visor su encaje. POR SEPARADO: el parte es un A4 de
+ *  pie que se lee entero, y un planteamiento apaisado se mira de otra manera;
+ *  quien pone el parte al alto no quiere por eso los planos al alto.
+ *
+ *  La del parte es la clave que ya existía: cambiarla haría que todo el mundo
+ *  perdiera, sin avisar, el encaje que ya tenía elegido. */
+export const CLAVE_ENCAJE_PARTE = "coordina-parte-encaje";
+export const CLAVE_ENCAJE_DOCUMENTOS = "coordina-documentos-encaje";
+
+/** El encaje guardado en `clave`, o la página entera si no hay uno válido. */
+export function leerEncaje(almacen: Pick<Storage, "getItem"> | undefined, clave: string): Encaje {
+  try {
+    const v = almacen?.getItem(clave);
+    return v === "FitH" || v === "FitV" ? v : "Fit";
+  } catch {
+    return "Fit";
+  }
+}
+
+export function guardarEncaje(
+  almacen: Pick<Storage, "setItem"> | undefined,
+  clave: string,
+  encaje: Encaje,
+): void {
+  try {
+    almacen?.setItem(clave, encaje);
+  } catch {
+    // Sin almacenamiento el botón sigue funcionando; solo no dura.
+  }
+}
+
+/** Dos botones para tres encajes: pulsar el que ya está puesto vuelve a la
+ *  página entera, que es como empieza todo. */
+export function alternarEncaje(actual: Encaje, pulsado: "FitH" | "FitV"): Encaje {
+  return actual === pulsado ? "Fit" : pulsado;
 }
 
 /** Documentos ya abiertos, el más reciente al final.
@@ -1024,15 +1119,18 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `src/components/VisorPdf/MotorNavegador.tsx`
-- Create: `src/components/VisorPdf/useMotorPdf.ts`
+- Create: `src/components/VisorPdf/preferencias.ts`
+- Create: `src/components/VisorPdf/BotonesEncaje.tsx`
 - Modify: `src/components/ParteEscaneado.tsx` (reescritura)
 - Modify: `src/lib/__tests__/parte-girar.test.ts`
 
 **Interfaces:**
-- Consumes: `VisorPdf` (Task 3), `imprimirPdf` (Task 2), `leerMotor`, `guardarMotor`, `siguienteGiro`, `Giro`, `Encaje`, `MotorPdf` (Task 1).
+- Consumes: `VisorPdf` (Task 3), `imprimirPdf` (Task 2), `leerMotor`, `guardarMotor`, `leerEncaje`, `guardarEncaje`, `alternarEncaje`, `CLAVE_ENCAJE_PARTE`, `siguienteGiro`, `Giro`, `Encaje`, `MotorPdf` (Task 1).
 - Produces:
   - `<MotorNavegador url: string; fragmento: string; titulo: string />`
   - `useMotorPdf(): [MotorPdf, (m: MotorPdf) => void]`
+  - `useEncajePdf(clave: string): [Encaje, (pulsado: "FitH" | "FitV") => void]`
+  - `<BotonesEncaje encaje: Encaje; onPulsar: (p: "FitH" | "FitV") => void; clase: string; clasePuesto: string />`
 
 - [ ] **Step 1: Pruebas nuevas del parte (fallan)**
 
@@ -1082,6 +1180,13 @@ test("mientras carga se ve la miniatura del parte", () => {
   expect(pintar()).toContain('src="/scan/AR.26.03914.png"');
 });
 
+test("siguen los dos botones de encaje, y dicen que se recuerdan", () => {
+  const html = pintar();
+  expect(html).toContain('aria-label="Ajustar al ancho"');
+  expect(html).toContain('aria-label="Ajustar al alto"');
+  expect(html).toContain("se recuerda para la próxima vez");
+});
+
 test("se puede pasar al visor del navegador", () => {
   expect(pintar()).toContain('aria-label="Ver con el visor del navegador"');
 });
@@ -1127,11 +1232,28 @@ export function MotorNavegador({
 }
 ```
 
-- [ ] **Step 3: `src/components/VisorPdf/useMotorPdf.ts`**
+- [ ] **Step 3: `src/components/VisorPdf/preferencias.ts`**
 
 ```ts
 import { useState } from "react";
-import { guardarMotor, leerMotor, type MotorPdf } from "@/lib/visor-pdf";
+import {
+  alternarEncaje,
+  guardarEncaje,
+  guardarMotor,
+  leerEncaje,
+  leerMotor,
+  type Encaje,
+  type MotorPdf,
+} from "@/lib/visor-pdf";
+
+// ─── Lo que cada uno deja puesto ─────────────────────────────────────────────
+// Con qué visor abre los PDF y cómo los encaja. En el navegador y no en el
+// servidor: es cómo se MIRA, no un dato del trabajo, y va con la pantalla en la
+// que se está sentado — el mismo de siempre puede querer una cosa en el
+// portátil y otra en el de sobremesa.
+//
+// Se lee de forma SÍNCRONA al montar (no en un efecto): así el visor arranca ya
+// como lo dejaste, en vez de pintarse de una manera y saltar a la otra.
 
 /** `window.localStorage` puede lanzar solo con tocarlo (cookies bloqueadas). */
 function almacen(): Storage | undefined {
@@ -1142,9 +1264,6 @@ function almacen(): Storage | undefined {
   }
 }
 
-/** Con qué visor abre cada uno los PDF. Se lee de forma SÍNCRONA al montar,
- *  como el encaje del parte: así no se monta un motor para tirarlo al instante
- *  y montar el otro. */
 export function useMotorPdf(): [MotorPdf, (m: MotorPdf) => void] {
   const [motor, setMotor] = useState<MotorPdf>(() => leerMotor(almacen()));
   return [
@@ -1155,6 +1274,67 @@ export function useMotorPdf(): [MotorPdf, (m: MotorPdf) => void] {
     },
   ];
 }
+
+/** El encaje de un visor, recordado en `clave`. Devuelve el actual y lo que
+ *  hace pulsar ↔ o ↕ (pulsar el puesto vuelve a la página entera). */
+export function useEncajePdf(clave: string): [Encaje, (pulsado: "FitH" | "FitV") => void] {
+  const [encaje, setEncaje] = useState<Encaje>(() => leerEncaje(almacen(), clave));
+  return [
+    encaje,
+    (pulsado) => {
+      const nuevo = alternarEncaje(encaje, pulsado);
+      guardarEncaje(almacen(), clave, nuevo);
+      setEncaje(nuevo);
+    },
+  ];
+}
+```
+
+- [ ] **Step 3b: `src/components/VisorPdf/BotonesEncaje.tsx`**
+
+```tsx
+import type { Encaje } from "@/lib/visor-pdf";
+
+const AJUSTES = [
+  { id: "FitH", icono: "↔", nombre: "Ajustar al ancho" },
+  { id: "FitV", icono: "↕", nombre: "Ajustar al alto" },
+] as const;
+
+/** ↔ y ↕, los mismos en el parte y en el visor de documentos. El aspecto lo
+ *  pone quien los usa: chips del carril en el parte, botones claros sobre
+ *  fondo negro en el visor de documentos. */
+export function BotonesEncaje({
+  encaje,
+  onPulsar,
+  clase,
+  clasePuesto,
+}: {
+  encaje: Encaje;
+  onPulsar: (pulsado: "FitH" | "FitV") => void;
+  clase: string;
+  clasePuesto: string;
+}) {
+  return (
+    <>
+      {AJUSTES.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPulsar(a.id);
+          }}
+          aria-pressed={encaje === a.id}
+          title={`${encaje === a.id ? "Volver a la página entera" : a.nombre} · se recuerda para la próxima vez`}
+          aria-label={a.nombre}
+          className={`${clase} ${encaje === a.id ? clasePuesto : ""}`}
+        >
+          {a.icono}
+        </button>
+      ))}
+    </>
+  );
+}
 ```
 
 - [ ] **Step 4: Reescribir `src/components/ParteEscaneado.tsx`**
@@ -1163,37 +1343,12 @@ export function useMotorPdf(): [MotorPdf, (m: MotorPdf) => void] {
 "use client";
 
 import { useState } from "react";
-import { siguienteGiro, type Encaje, type Giro } from "@/lib/visor-pdf";
+import { CLAVE_ENCAJE_PARTE, siguienteGiro, type Giro } from "@/lib/visor-pdf";
+import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
 import { imprimirPdf } from "./VisorPdf/imprimir";
 import { MotorNavegador } from "./VisorPdf/MotorNavegador";
-import { useMotorPdf } from "./VisorPdf/useMotorPdf";
+import { useEncajePdf, useMotorPdf } from "./VisorPdf/preferencias";
 import { VisorPdf } from "./VisorPdf/VisorPdf";
-
-/** Los dos encajes con botón. Pulsado otra vez vuelve a la página entera
- *  (`Fit`), que es como empieza: dos botones cubren los tres encajes. */
-const AJUSTES = [
-  { id: "FitH", icono: "↔", nombre: "Ajustar al ancho" },
-  { id: "FitV", icono: "↕", nombre: "Ajustar al alto" },
-] as const;
-
-/** Dónde se recuerda cómo prefiere cada uno abrir el parte. En el navegador y
- *  no en el servidor: es una preferencia de cómo se MIRA, no un dato del
- *  trabajo, y va con la pantalla en la que se está sentado — el mismo de
- *  siempre puede querer una cosa en el portátil y otra en el de sobremesa. */
-const CLAVE_ENCAJE = "coordina-parte-encaje";
-
-/** El encaje guardado, o la página entera si no hay ninguno. Se lee de forma
- *  SÍNCRONA al montar (no en un efecto): así el visor arranca ya con el encaje
- *  bueno en vez de pintar el parte dos veces. */
-function encajeGuardado(): Encaje {
-  if (typeof window === "undefined") return "Fit";
-  try {
-    const v = window.localStorage.getItem(CLAVE_ENCAJE);
-    return v === "Fit" || v === "FitH" || v === "FitV" ? v : "Fit";
-  } catch {
-    return "Fit";
-  }
-}
 
 /** El parte escaneado, con sus botones en una barra estrecha a la izquierda.
  *
@@ -1209,7 +1364,8 @@ function encajeGuardado(): Encaje {
  *  Vive aquí y no dentro de una ficha porque son DOS: la del Historial y la del
  *  tablero (Pendientes y panel). */
 export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: string }) {
-  const [ajuste, setAjuste] = useState<Encaje>(encajeGuardado);
+  // El encaje y el motor se recuerdan (ver preferencias.ts); el giro no.
+  const [ajuste, pulsarEncaje] = useEncajePdf(CLAVE_ENCAJE_PARTE);
   const [motor, setMotor] = useMotorPdf();
   // El giro NO se guarda entre pedidos: que el siguiente se abriera torcido
   // porque el anterior lo estaba sería peor que no tener botón.
@@ -1230,29 +1386,7 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
     // cierra, y pulsar un botón del parte no es salirse de ella.
     <div className="flex h-full w-full gap-2" onClick={(e) => e.stopPropagation()}>
       <div className="flex shrink-0 flex-col gap-1.5">
-        {AJUSTES.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() =>
-              setAjuste((antes) => {
-                const nuevo = antes === a.id ? "Fit" : a.id;
-                try {
-                  window.localStorage.setItem(CLAVE_ENCAJE, nuevo);
-                } catch {
-                  // Sin almacenamiento el botón sigue funcionando; solo no dura.
-                }
-                return nuevo;
-              })
-            }
-            aria-pressed={ajuste === a.id}
-            title={`${ajuste === a.id ? "Volver a la página entera" : a.nombre} · se recuerda para la próxima vez`}
-            aria-label={a.nombre}
-            className={`${chip} ${ajuste === a.id ? puesto : ""}`}
-          >
-            {a.icono}
-          </button>
-        ))}
+        <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} />
         {propio && (
           <button
             type="button"
@@ -1328,7 +1462,7 @@ Expected: sin errores.
 - [ ] **Step 6: Commit** (este sí lo nota el equipo)
 
 ```bash
-git add src/components/VisorPdf/MotorNavegador.tsx src/components/VisorPdf/useMotorPdf.ts src/components/ParteEscaneado.tsx src/lib/__tests__/parte-girar.test.ts
+git add src/components/VisorPdf/MotorNavegador.tsx src/components/VisorPdf/preferencias.ts src/components/VisorPdf/BotonesEncaje.tsx src/components/ParteEscaneado.tsx src/lib/__tests__/parte-girar.test.ts
 git commit -F - <<'MSG'
 feat(parte): el parte lo pinta CoordinaOT, con el visor del navegador a un clic
 
@@ -1349,7 +1483,7 @@ MSG
 - Modify: `src/components/VisorDocumento.tsx`
 
 **Interfaces:**
-- Consumes: `VisorPdf` (Task 3), `precargarPdf` (Task 2), `MotorNavegador`, `useMotorPdf` (Task 4).
+- Consumes: `VisorPdf` (Task 3), `precargarPdf` (Task 2), `MotorNavegador`, `useMotorPdf`, `useEncajePdf`, `BotonesEncaje` (Task 4), `CLAVE_ENCAJE_DOCUMENTOS` (Task 1).
 
 `VisorDocumento` devuelve `null` en servidor (usa `createPortal`), así que no hay prueba de render: se verifica en la Task 6.
 
@@ -1362,10 +1496,12 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
 import { useCapaEscape } from "@/lib/useCapaEscape";
+import { CLAVE_ENCAJE_DOCUMENTOS } from "@/lib/visor-pdf";
 import { FotoConZoom } from "./FotoConZoom";
+import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
 import { MotorNavegador } from "./VisorPdf/MotorNavegador";
 import { precargarPdf } from "./VisorPdf/usePdfDoc";
-import { useMotorPdf } from "./VisorPdf/useMotorPdf";
+import { useEncajePdf, useMotorPdf } from "./VisorPdf/preferencias";
 import { VisorPdf } from "./VisorPdf/VisorPdf";
 ```
 
@@ -1382,6 +1518,9 @@ Justo después de `const doc = documentos[indice];` añadir:
 
 ```tsx
   const [motor, setMotor] = useMotorPdf();
+  // Su propio encaje, recordado aparte del del parte: un planteamiento
+  // apaisado no se mira como un A4 de pie.
+  const [encaje, pulsarEncaje] = useEncajePdf(CLAVE_ENCAJE_DOCUMENTOS);
 
   // Las flechas son un paseo, no un salto: el de al lado ya está abierto
   // cuando se llega. Solo con el motor propio; el del navegador no se deja.
@@ -1400,6 +1539,12 @@ Justo antes del `<a href={doc.url} download=…>` de «⤓ Descargar», añadir:
 ```tsx
         {esPdf && (
           <>
+            <BotonesEncaje
+              encaje={encaje}
+              onPulsar={pulsarEncaje}
+              clase="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
+              clasePuesto="bg-white/25 ring-2 ring-white/60"
+            />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -1435,13 +1580,13 @@ Sustituir el bloque `{esPdf && ( <iframe … /> )}` por:
               // con su zoom, no con el scroll del anterior.
               key={doc.url}
               url={doc.url}
-              encaje="Fit"
+              encaje={encaje}
               giro={0}
               titulo={doc.descripcion || doc.archivo}
               poster={`${doc.url}?mini=1`}
             />
           ) : (
-            <MotorNavegador url={doc.url} fragmento="view=Fit" titulo={doc.descripcion || doc.archivo} />
+            <MotorNavegador url={doc.url} fragmento={`view=${encaje}`} titulo={doc.descripcion || doc.archivo} />
           ))}
 ```
 
@@ -1458,6 +1603,8 @@ git commit -F - <<'MSG'
 feat(documentos): los PDF del pedido con el visor propio, y el siguiente ya cargado
 
 Novedad: mejor | Pasar de un documento del pedido a otro con las flechas va más deprisa
+Novedad: nuevo | Los documentos del pedido también se ajustan al ancho o al alto
+Detalle: Con ↔ y ↕ arriba del documento. Se recuerda en tu ordenador, aparte de cómo tengas puesto el parte.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 MSG
@@ -1491,6 +1638,7 @@ En un pedido con varios planteamientos:
 - Abre en el visor propio; ← → pasan de uno a otro; volver al anterior es instantáneo.
 - Un PDF de varias páginas: el scroll las recorre y todas se pintan.
 - «⇄ Visor del navegador» cambia y afecta también al parte (misma preferencia).
+- ↔ y ↕ ajustan el documento; recargar la página y abrir otro: sigue igual. Y el parte conserva SU encaje, no el de los documentos.
 - Escape cierra el visor y deja la ficha.
 
 - [ ] **Step 4: Tema oscuro y errores**
