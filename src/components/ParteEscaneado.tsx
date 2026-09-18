@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { giroIntercambia, siguienteGiro, type Giro } from "@/lib/visor-pdf";
 
 /** Cómo encaja la hoja en el hueco. Son los valores que entiende el visor de
  *  PDF del navegador en el fragmento de la URL (`#view=`), no un invento
@@ -14,26 +15,6 @@ const AJUSTES = [
   { id: "FitV", icono: "↕", nombre: "Ajustar al alto" },
 ] as const;
 type Ajuste = "Fit" | (typeof AJUSTES)[number]["id"];
-
-/** Los cuatro cuartos de vuelta, en el orden en que los da el botón. */
-const GIROS = [0, 90, 180, 270] as const;
-export type Giro = (typeof GIROS)[number];
-
-/** El siguiente cuarto de vuelta. Cuatro pulsaciones = vuelta entera. */
-export function siguienteGiro(giro: Giro): Giro {
-  return GIROS[(GIROS.indexOf(giro) + 1) % GIROS.length];
-}
-
-/** ¿Este giro intercambia el ancho y el alto de la hoja?
- *
- *  `transform` NO cambia cómo se mide el elemento: el `<iframe>` se sigue
- *  midiendo en el sistema de coordenadas de antes de girar. Así que a 90° y a
- *  270° hay que darle de ancho el ALTO del hueco y de alto su ANCHO, o la hoja
- *  sale recortada por los lados y con franjas arriba y abajo. A 0° y a 180°
- *  mide igual y basta con el 100 % de siempre. */
-export function giroIntercambia(giro: Giro): boolean {
-  return giro === 90 || giro === 270;
-}
 
 /** Dónde se recuerda cómo prefiere cada uno abrir el parte. En el navegador y
  *  no en el servidor: es una preferencia de cómo se MIRA, no un dato del
