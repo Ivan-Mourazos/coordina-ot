@@ -16,6 +16,11 @@ import { usePdfDoc } from "./usePdfDoc";
 /** Aire alrededor de la hoja, en px: que el borde del papel se vea y que la
  *  sombra de `.hoja-3d` no quede cortada contra el canto del visor. */
 const MARGEN = 24;
+/** Abajo hace falta más: la sombra de `.hoja-3d` cae hacia abajo (la más
+ *  larga llega a unos 60 px). Con el mismo margen que arriba, el borde del
+ *  visor la cortaba en seco y se veía una raya bajo la última hoja. Si se
+ *  alarga esa sombra en el CSS, esto tiene que crecer con ella. */
+const MARGEN_PIE = 64;
 
 /** El PDF pintado por nosotros.
  *
@@ -78,7 +83,7 @@ export function VisorPdf({
   useEffect(() => {
     if (!raiz) return;
     const ro = new ResizeObserver(() =>
-      setHueco({ ancho: raiz.clientWidth - MARGEN * 2, alto: raiz.clientHeight - MARGEN * 2 }),
+      setHueco({ ancho: raiz.clientWidth - MARGEN * 2, alto: raiz.clientHeight - MARGEN - MARGEN_PIE }),
     );
     ro.observe(raiz);
     return () => ro.disconnect();
@@ -165,7 +170,7 @@ export function VisorPdf({
           </p>
         </div>
       ) : (
-        <div className="mx-auto flex w-fit flex-col items-center gap-8" style={{ padding: MARGEN }}>
+        <div className="mx-auto flex w-fit flex-col items-center gap-8" style={{ padding: `${MARGEN}px ${MARGEN}px ${MARGEN_PIE}px` }}>
           {doc && escala > 0
             ? Array.from({ length: doc.numPages }, (_, i) => (
                 <PaginaPdf

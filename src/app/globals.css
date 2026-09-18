@@ -385,10 +385,13 @@ body {
 /* Hoja del visor de PDF (parte y documentos). No hay caja alrededor: la hoja
    flota sobre el mismo telón oscuro que queda detrás de la ficha, y la
    profundidad la dan las sombras. De cerca a lejos: un filo fino que recorta
-   el blanco, el canto inferior de los bloques de la casa (`bloque-3d`) para
-   que tenga grosor, una sombra de contacto y una larga y difusa que la separa
-   del fondo. UNA sola versión: el telón es oscuro en los dos temas. El papel
-   es blanco siempre: es un escaneo, y oscurecerlo falsearía lo que se lee.
+   el blanco, una sombra de contacto y dos más largas que la separan del
+   fondo. SIN canto claro debajo (el de `bloque-3d`): sobre el telón oscuro no
+   se leía como grosor sino como una raya. Y la sombra más larga está medida
+   para acabar dentro del margen inferior del visor (`MARGEN_PIE` en
+   VisorPdf.tsx): si se sale, el borde del visor la corta en seco y se ve otra
+   raya. UNA sola versión: el telón es oscuro en los dos temas. El papel es
+   blanco siempre: es un escaneo, y oscurecerlo falsearía lo que se lee.
    Esquinas con el radio de la ficha (`rounded-xl`): la hoja y el panel se
    leen como piezas del mismo juego. */
 .hoja-3d {
@@ -397,10 +400,9 @@ body {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.25),
     0 2px 3px rgba(0, 0, 0, 0.35),
-    0 6px 0 -2px rgba(214, 218, 224, 0.9),
-    0 7px 0 -2px rgba(0, 0, 0, 0.45),
-    0 22px 40px -10px rgba(0, 0, 0, 0.6),
-    0 50px 100px -24px rgba(0, 0, 0, 0.75);
+    0 8px 14px -6px rgba(0, 0, 0, 0.45),
+    0 20px 36px -14px rgba(0, 0, 0, 0.6),
+    0 36px 56px -30px rgba(0, 0, 0, 0.55);
 }
 
 /* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */
