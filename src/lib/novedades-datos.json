@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-18",
-    "hasta": "76dbdc5",
+    "hasta": "a9ce6d8",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -21,6 +21,11 @@
       {
         "tipo": "arreglado",
         "titulo": "Al girar el parte, la rueda del ratón ya baja por la hoja y no de lado"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Si no se podía consultar OLANET, la ficha decía que se habían retirado operaciones",
+        "detalle": "Ahora solo avisa de que no se pudo consultar y de que vuelvas a abrir el pedido en un rato."
       },
       {
         "tipo": "mejor",
@@ -44,6 +49,19 @@
         "tipo": "mejor",
         "titulo": "Al pasar el ratón por los botones del parte y de los documentos, ahora sale enseguida qué hace cada uno",
         "detalle": "Con una línea de explicación debajo del nombre."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En modo claro las tarjetas se despegan del fondo y los textos dorados se leen mejor",
+        "detalle": "También las iniciales de cada compañero, que en los colores claros casi no se leían."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial y en Revisiones las cifras ya no quedan lejos del pedido en pantallas anchas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas ya no compara contra un periodo en el que la web aún no apuntaba nada"
       }
     ]
   },
