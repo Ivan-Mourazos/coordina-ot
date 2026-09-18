@@ -24,7 +24,8 @@ const cache = crearCacheDocumentos<Abierto>(async (url) => {
   return { doc, destroy: () => tarea.destroy() };
 }, TOPE_DOCUMENTOS);
 
-/** Lo deja abierto sin enseñarlo: para el siguiente de la lista. */
+/** Lo deja abierto sin enseñarlo: para el siguiente de la lista. No lo fija:
+ *  una precarga que nadie llega a mirar es lo primero que debe salir. */
 export function precargarPdf(url: string): void {
   cache.obtener(url).catch(() => {});
 }
@@ -42,6 +43,9 @@ export function usePdfDoc(url: string): { doc: PDFDocumentProxy | null; error: b
   const [estado, setEstado] = useState<Estado>({ url, doc: null, error: false });
   useEffect(() => {
     let vivo = true;
+    // Fijado ANTES de pedirlo: mientras se vea no lo puede cerrar la caché,
+    // aunque el otro visor del cajón pase por cinco documentos más.
+    const soltar = cache.fijar(url);
     cache.obtener(url).then(
       ({ doc }) => {
         if (vivo) setEstado({ url, doc, error: false });
@@ -52,6 +56,7 @@ export function usePdfDoc(url: string): { doc: PDFDocumentProxy | null; error: b
     );
     return () => {
       vivo = false;
+      soltar();
     };
   }, [url]);
   return estado.url === url ? estado : { doc: null, error: false };

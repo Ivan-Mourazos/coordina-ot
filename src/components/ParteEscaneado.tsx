@@ -97,7 +97,9 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
       </div>
       <div className="relative h-full min-w-0 flex-1 overflow-hidden rounded-xl">
         {propio ? (
-          <VisorPdf url={scanUrl} encaje={ajuste} giro={giro} titulo={titulo} poster={poster} />
+          // `key`: al pasar a otra OF sin cerrar el cajón, el parte nuevo
+          // empieza arriba y sin el zoom del anterior.
+          <VisorPdf key={scanUrl} url={scanUrl} encaje={ajuste} giro={giro} titulo={titulo} poster={poster} />
         ) : (
           // `toolbar=0`: la barra gris de Chrome cantaba encima de la ficha.
           // Quien quiere la barra entera tiene «abrir en otra pestaña».

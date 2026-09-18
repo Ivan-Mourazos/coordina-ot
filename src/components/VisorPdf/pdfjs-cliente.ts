@@ -33,6 +33,14 @@ export function cargarPdfJs(): Promise<PdfJs> {
 
 export async function workerCompartido(): Promise<PDFWorker> {
   const pdfjs = await cargarPdfJs();
-  worker ??= new pdfjs.PDFWorker();
+  if (!worker) {
+    const creado = new pdfjs.PDFWorker();
+    worker = creado;
+    // Un worker que no arranca no se queda para siempre: el siguiente
+    // documento que se abra lo vuelve a intentar.
+    creado.promise.catch(() => {
+      if (worker === creado) worker = null;
+    });
+  }
   return worker;
 }

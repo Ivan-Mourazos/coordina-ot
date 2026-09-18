@@ -187,6 +187,14 @@ export function alternarEncaje(actual: Encaje, pulsado: "FitH" | "FitV"): Encaje
  *  últimos a mano hace que volver sea instantáneo. Con tope, porque cada
  *  documento abierto ocupa memoria en el worker, y el que sale se destruye.
  *
+ *  FIJAR. El parte escaneado y el visor de documentos están montados a la vez
+ *  en el mismo cajón. Pasando cinco planteamientos con las flechas (el que se
+ *  ve y dos vecinos precargados a cada paso) el parte sería el más antiguo y
+ *  se destruiría con la hoja aún a la vista: el siguiente giro o zoom fallaría
+ *  en silencio y quedaría en blanco. Quien lo está enseñando lo fija, y lo
+ *  fijado no sale; si todo lo que sobra está fijado, la caché pasa del tope un
+ *  rato y recorta en cuanto alguien lo suelta.
+ *
  *  Un fallo (404, PDF roto) NO se queda: el siguiente intento vuelve a pedirlo,
  *  que el parte de hoy puede escanearse dentro de cinco minutos. */
 export function crearCacheDocumentos<D extends { destroy(): unknown }>(
@@ -194,6 +202,24 @@ export function crearCacheDocumentos<D extends { destroy(): unknown }>(
   tope: number,
 ) {
   const vivos = new Map<string, Promise<D>>();
+  // Aparte de `vivos`: se fija antes de pedirlo, cuando aún no está abierto.
+  const fijados = new Map<string, number>();
+
+  function recortar() {
+    // Del más antiguo al más nuevo, saltando lo fijado. Borrar de un Map
+    // mientras se recorre es seguro: lo borrado simplemente no sale.
+    for (const [url, viejo] of vivos) {
+      if (vivos.size <= tope) break;
+      if (fijados.has(url)) continue;
+      vivos.delete(url);
+      viejo.then(
+        // Con el worker ya caído el destroy puede rechazar: no es asunto de nadie.
+        (d) => Promise.resolve(d.destroy()).catch(() => {}),
+        () => {},
+      );
+    }
+  }
+
   return {
     obtener(url: string): Promise<D> {
       const ya = vivos.get(url);
@@ -208,15 +234,26 @@ export function crearCacheDocumentos<D extends { destroy(): unknown }>(
       nuevo.catch(() => {
         if (vivos.get(url) === nuevo) vivos.delete(url);
       });
-      while (vivos.size > tope) {
-        const [viejaUrl, viejo] = vivos.entries().next().value as [string, Promise<D>];
-        vivos.delete(viejaUrl);
-        viejo.then(
-          (d) => d.destroy(),
-          () => {},
-        );
-      }
+      recortar();
       return nuevo;
+    },
+    /** Lo protege de salir mientras se ve. Devuelve con qué soltarlo; soltar
+     *  dos veces cuenta como una, para que un cleanup repetido no suelte el
+     *  de otro visor que enseña lo mismo. */
+    fijar(url: string): () => void {
+      fijados.set(url, (fijados.get(url) ?? 0) + 1);
+      let suelto = false;
+      return () => {
+        if (suelto) return;
+        suelto = true;
+        const quedan = (fijados.get(url) ?? 1) - 1;
+        if (quedan > 0) {
+          fijados.set(url, quedan);
+          return;
+        }
+        fijados.delete(url);
+        recortar();
+      };
     },
     get tamano() {
       return vivos.size;

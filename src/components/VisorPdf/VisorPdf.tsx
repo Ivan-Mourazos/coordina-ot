@@ -151,7 +151,7 @@ export function VisorPdf({
       aria-label={titulo}
       tabIndex={0}
       onClick={(e) => e.stopPropagation()}
-      className="h-full w-full overflow-auto rounded-xl bg-neutral-200 outline-none [scrollbar-gutter:stable] dark:bg-neutral-800"
+      className="h-full w-full overflow-auto rounded-xl bg-neutral-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [scrollbar-gutter:stable] dark:bg-neutral-800"
     >
       {error ? (
         <div className="grid h-full place-items-center p-6 text-center text-sm text-text-muted">

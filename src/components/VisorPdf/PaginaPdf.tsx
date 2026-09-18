@@ -46,6 +46,10 @@ export function PaginaPdf({
   const caja = useRef<HTMLDivElement>(null);
   const lienzo = useRef<HTMLCanvasElement>(null);
   const giroPintado = useRef<Giro | null>(null);
+  // Lo último que se pintó, en píxeles reales del lienzo. Un repintado que
+  // saldría idéntico (otro render del padre, un zoom que el tope del lienzo
+  // deja igual) no se encola: sería un render completo para nada.
+  const pintado = useRef<{ ancho: number; alto: number; giro: Giro } | null>(null);
   const [pagina, setPagina] = useState<PDFPageProxy | null>(null);
   const [visible, setVisible] = useState(false);
   const [pintada, setPintada] = useState(false);
@@ -81,6 +85,7 @@ export function PaginaPdf({
       c.width = 0;
       c.height = 0;
       giroPintado.current = null;
+      pintado.current = null;
       // Sin esto pdf.js se queda con la lista de operaciones y las imágenes
       // ya decodificadas de esta página: en un plano escaneado de 40 hojas
       // es eso, no el canvas, lo que realmente pesa.
@@ -95,6 +100,10 @@ export function PaginaPdf({
       scale: escalaReal,
       rotation: rotacionTotal(pagina.rotate, giro),
     });
+    const ancho = Math.max(1, Math.floor(vp.width));
+    const alto = Math.max(1, Math.floor(vp.height));
+    const ultimo = pintado.current;
+    if (c.width > 0 && ultimo && ultimo.ancho === ancho && ultimo.alto === alto && ultimo.giro === giro) return;
     // Girar NO espera: estirar la hoja vieja a la forma nueva la deformaría.
     // El zoom sí, y la primera vez no hay nada que estirar.
     const espera = giroPintado.current === giro && c.width > 0 ? ESPERA_REPINTADO_MS : 0;
@@ -103,21 +112,36 @@ export function PaginaPdf({
       // instante en vez de la hoja vieja deformada a la forma nueva.
       c.width = 0;
       c.height = 0;
+      pintado.current = null;
     }
     let vivo = true;
     let tarea: RenderTask | null = null;
+    // Fuera del temporizador para que el cleanup lo alcance: un render
+    // cancelado no debe dejar su lienzo de megas esperando al recolector.
+    let fuera: HTMLCanvasElement | null = null;
+    const soltarFuera = () => {
+      if (!fuera) return;
+      fuera.width = 0;
+      fuera.height = 0;
+      fuera = null;
+    };
     const t = window.setTimeout(() => {
-      const fuera = document.createElement("canvas");
-      fuera.width = Math.max(1, Math.floor(vp.width));
-      fuera.height = Math.max(1, Math.floor(vp.height));
-      tarea = pagina.render({ canvas: fuera, viewport: vp });
+      const f = document.createElement("canvas");
+      fuera = f;
+      f.width = ancho;
+      f.height = alto;
+      tarea = pagina.render({ canvas: f, viewport: vp });
       tarea.promise.then(
         () => {
           if (!vivo) return;
-          c.width = fuera.width;
-          c.height = fuera.height;
-          c.getContext("2d")?.drawImage(fuera, 0, 0);
+          c.width = f.width;
+          c.height = f.height;
+          c.getContext("2d")?.drawImage(f, 0, 0);
+          // Copiado ya: el lienzo de fuera no hace falta, y a ratio 2 es tan
+          // grande como el visible.
+          soltarFuera();
           giroPintado.current = giro;
+          pintado.current = { ancho, alto, giro };
           setPintada(true);
         },
         // Cancelado por un render más nuevo: es lo esperado, no un error.
@@ -128,6 +152,7 @@ export function PaginaPdf({
       vivo = false;
       window.clearTimeout(t);
       tarea?.cancel();
+      soltarFuera();
     };
   }, [pagina, visible, escala, giro]);
 

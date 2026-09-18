@@ -225,3 +225,75 @@ test("un fallo no se queda en la caché: el siguiente intento vuelve a abrir", a
   await expect(cache.obtener("/a.pdf")).resolves.toBeDefined();
   expect(intentos).toBe(2);
 });
+
+// El parte y el visor de documentos están montados a la vez en el mismo
+// cajón: pasar cinco planteamientos con las flechas no puede cerrar el parte
+// que sigue a la vista.
+test("un documento fijado no se destruye aunque la caché pase de largo el tope", async () => {
+  const docs: Record<string, ReturnType<typeof docFalso>> = {};
+  const cache = crearCacheDocumentos(async (url) => (docs[url] = docFalso()), 2);
+  cache.fijar("/parte.pdf");
+  await cache.obtener("/parte.pdf");
+  for (const u of ["/a.pdf", "/b.pdf", "/c.pdf", "/d.pdf"]) await cache.obtener(u);
+  await Promise.resolve();
+  expect(docs["/parte.pdf"].destroy).not.toHaveBeenCalled();
+  expect(cache.tamano).toBe(2);
+  // Y sigue en la caché: volver a pedirlo no lo abre otra vez.
+  await cache.obtener("/parte.pdf");
+  expect(Object.keys(docs).filter((u) => u === "/parte.pdf")).toHaveLength(1);
+});
+
+test("soltarlo deja que el siguiente recorte lo destruya, y no antes", async () => {
+  const docs: Record<string, ReturnType<typeof docFalso>> = {};
+  const abrir = vi.fn(async (url: string) => (docs[url] = docFalso()));
+  const cache = crearCacheDocumentos(abrir, 1);
+  const soltar = cache.fijar("/parte.pdf");
+  await cache.obtener("/parte.pdf");
+  await cache.obtener("/a.pdf");
+  await Promise.resolve();
+  // Con todo lo que sobra fijado, se queda por encima del tope un rato.
+  expect(cache.tamano).toBe(1);
+  expect(docs["/parte.pdf"].destroy).not.toHaveBeenCalled();
+  const soltarA = cache.fijar("/b.pdf");
+  await cache.obtener("/b.pdf");
+  await Promise.resolve();
+  expect(cache.tamano).toBe(2);
+  soltar();
+  await Promise.resolve();
+  expect(docs["/parte.pdf"].destroy).toHaveBeenCalledTimes(1);
+  expect(cache.tamano).toBe(1);
+  soltarA();
+});
+
+test("soltar dos veces suelta una sola", async () => {
+  const docs: Record<string, ReturnType<typeof docFalso>> = {};
+  const cache = crearCacheDocumentos(async (url) => (docs[url] = docFalso()), 1);
+  const soltar1 = cache.fijar("/parte.pdf");
+  cache.fijar("/parte.pdf"); // un segundo visor del mismo parte
+  await cache.obtener("/parte.pdf");
+  await cache.obtener("/a.pdf");
+  soltar1();
+  soltar1();
+  await cache.obtener("/b.pdf");
+  await Promise.resolve();
+  expect(docs["/parte.pdf"].destroy).not.toHaveBeenCalled();
+});
+
+test("un destroy que falla no deja un rechazo sin atender", async () => {
+  const sueltos: unknown[] = [];
+  const oir = (e: unknown) => sueltos.push(e);
+  process.on("unhandledRejection", oir);
+  try {
+    const cache = crearCacheDocumentos(
+      async () => ({ destroy: () => Promise.reject(new Error("worker muerto")) }),
+      1,
+    );
+    await cache.obtener("/a.pdf");
+    await cache.obtener("/b.pdf");
+    // El evento sale en una vuelta posterior del bucle, no en un microtask.
+    await new Promise((r) => setTimeout(r, 20));
+    expect(sueltos).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", oir);
+  }
+});
