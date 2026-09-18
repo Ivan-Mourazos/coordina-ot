@@ -21,6 +21,12 @@ const MARGEN = 24;
  *  visor la cortaba en seco y se veía una raya bajo la última hoja. Si se
  *  alarga esa sombra en el CSS, esto tiene que crecer con ella. */
 const MARGEN_PIE = 64;
+/** Rueda acumulada (px) que pasa de hoja: un golpe de ratón son ~100; el
+ *  touchpad manda muchos de 2-10 y hay que sumarlos. */
+const UMBRAL_HOJA = 40;
+/** Tras pasar de hoja, cuánto se ignora la rueda: la inercia del touchpad
+ *  sigue mandando golpes y se saltaría otra hoja más. */
+const QUIETO_TRAS_HOJA_MS = 350;
 
 /** El PDF pintado por nosotros.
  *
@@ -106,10 +112,42 @@ export function VisorPdf({
     };
   }, [doc]);
 
+  // HOJA A HOJA en «página entera» y «al alto» sin zoom: lo que se viene a
+  // hacer ahí es ver UNA hoja entera, y con un hueco corto entre páginas
+  // asomaba el principio de la siguiente por debajo. Cada hoja ocupa su propio
+  // hueco del alto del visor —la siguiente empieza justo al acabar la
+  // pantalla— y el scroll encaja de hoja en hoja. Al ancho o ampliada, la hoja
+  // es más alta que la pantalla y el scroll vuelve a ser continuo.
+  const porHojas = encaje !== "FitH" && valorZoom === 1 && hueco.alto > 0;
+  const pasoDeHoja = useRef({ acumulado: 0, quietoHasta: 0 });
+
   useEffect(() => {
     if (!raiz) return;
     function onRueda(e: WheelEvent) {
-      if (!e.ctrlKey) return;
+      if (!e.ctrlKey) {
+        if (!porHojas) return;
+        // Hoja a hoja, la rueda la llevamos nosotros. Con el encaje del
+        // navegador (`scroll-snap`) un golpe de rueda devolvía la hoja a su
+        // sitio en vez de pasar a la siguiente: había que girar tres o cuatro
+        // muescas para avanzar una. Aquí cada golpe es una hoja. El touchpad
+        // manda muchos golpes pequeños: se suman hasta `UMBRAL_HOJA`, y tras
+        // pasar de hoja se ignora la inercia un momento para no saltarse dos.
+        e.preventDefault();
+        const ahora = performance.now();
+        const paso = pasoDeHoja.current;
+        if (ahora < paso.quietoHasta) return;
+        paso.acumulado += e.deltaY;
+        if (Math.abs(paso.acumulado) < UMBRAL_HOJA) return;
+        const sentido = Math.sign(paso.acumulado);
+        paso.acumulado = 0;
+        paso.quietoHasta = ahora + QUIETO_TRAS_HOJA_MS;
+        // Cada hoja mide exactamente una pantalla (su hueco más el aire entre
+        // dos), así que la hoja N empieza en N pantallas.
+        const alto = raiz!.clientHeight;
+        const actual = Math.round(raiz!.scrollTop / alto);
+        raiz!.scrollTo({ top: (actual + sentido) * alto, behavior: "smooth" });
+        return;
+      }
       // Sin esto, Ctrl + rueda amplía la web entera.
       e.preventDefault();
       const r = raiz!.getBoundingClientRect();
@@ -129,7 +167,7 @@ export function VisorPdf({
     }
     raiz.addEventListener("wheel", onRueda, { passive: false });
     return () => raiz.removeEventListener("wheel", onRueda);
-  }, [raiz, clave]);
+  }, [raiz, clave, porHojas]);
 
   // Tras ampliar, se corre el scroll para que lo que estaba bajo el ratón
   // siga ahí. Antes de pintar (layout effect), o se ve el salto.
@@ -170,19 +208,35 @@ export function VisorPdf({
           </p>
         </div>
       ) : (
-        <div className="mx-auto flex w-fit flex-col items-center gap-8" style={{ padding: `${MARGEN}px ${MARGEN}px ${MARGEN_PIE}px` }}>
+        <div
+          className="mx-auto flex w-fit flex-col items-center"
+          style={{
+            padding: `${MARGEN}px ${MARGEN}px ${MARGEN_PIE}px`,
+            // Hoja a hoja, el hueco entre dos es justo el margen de abajo más
+            // el de arriba: así la siguiente queda entera fuera de la vista.
+            gap: porHojas ? MARGEN + MARGEN_PIE : 32,
+          }}
+        >
           {doc && escala > 0
             ? Array.from({ length: doc.numPages }, (_, i) => (
-                <PaginaPdf
+                <div
                   key={i}
-                  doc={doc}
-                  numero={i + 1}
-                  escala={escala}
-                  giro={giro}
-                  raiz={raiz}
-                  provisional={provisional}
-                  poster={i === 0 ? poster : undefined}
-                />
+                  // Una hoja apaisada en «página entera» es más baja que el
+                  // visor: el hueco sigue midiendo la pantalla y la hoja va
+                  // centrada en él, o asomaría igual la de debajo.
+                  className={porHojas ? "flex items-center justify-center" : "contents"}
+                  style={porHojas ? { height: hueco.alto } : undefined}
+                >
+                  <PaginaPdf
+                    doc={doc}
+                    numero={i + 1}
+                    escala={escala}
+                    giro={giro}
+                    raiz={raiz}
+                    provisional={provisional}
+                    poster={i === 0 ? poster : undefined}
+                  />
+                </div>
               ))
             : poster && (
                 // eslint-disable-next-line @next/next/no-img-element
