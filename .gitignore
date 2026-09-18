@@ -52,3 +52,6 @@ snap-board.md
 /data/
 /logs/
 .superpowers/
+
+# Worker de pdf.js: lo copia scripts/copiar-worker.mjs en dev y build.
+/public/pdf.worker.mjs

@@ -8,8 +8,8 @@
     "pnpm": ">=11"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/copiar-worker.mjs && next dev",
+    "build": "node scripts/copiar-worker.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "db:introspect": "node --env-file=.env.local scripts/introspect-rps.mjs",
