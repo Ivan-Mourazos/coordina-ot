@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-18",
-    "hasta": "fd9a2bc",
+    "hasta": "9660063",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -34,6 +34,11 @@
         "tipo": "mejor",
         "titulo": "Los botones del parte y de los documentos van agrupados por lo que hacen",
         "detalle": "Arriba los de mirar, debajo los de abrir, descargar e imprimir, y el cambio de visor aparte, al final."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el parte a página entera se ve una sola hoja, y la rueda del ratón pasa de hoja en hoja",
+        "detalle": "Al ancho o con zoom sigue bajando seguido, como siempre."
       }
     ]
   },
