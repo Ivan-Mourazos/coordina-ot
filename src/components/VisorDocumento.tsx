@@ -6,6 +6,7 @@ import { comoServir, type DocumentoRps } from "@/lib/historial";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { CLAVE_ENCAJE_DOCUMENTOS, siguienteGiro, type Giro } from "@/lib/visor-pdf";
 import { FotoConZoom } from "./FotoConZoom";
+import { Pista } from "./Pista";
 import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
 import { imprimirPdf } from "./VisorPdf/imprimir";
 import { MotorNavegador } from "./VisorPdf/MotorNavegador";
@@ -127,22 +128,23 @@ export function VisorDocumento({
           <>
             <Separador />
             <div role="group" aria-label="Cómo se ve el documento" className="flex shrink-0 items-center gap-1.5">
-              <BotonesEncaje encaje={encaje} onPulsar={pulsarEncaje} clase={BOTON} clasePuesto={PUESTO} />
+              <BotonesEncaje encaje={encaje} onPulsar={pulsarEncaje} clase={BOTON} clasePuesto={PUESTO} lado="abajo" />
               {/* Solo con el motor propio: el visor del navegador trae su giro. */}
               {motor === "propio" && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setGiroDe({ url: doc.url, giro: siguienteGiro(giro) });
-                  }}
-                  title={`Girar el documento · ahora ${giro}°`}
-                  // El grado también en el `aria-label`, como en el parte.
-                  aria-label={`Girar el documento · ahora ${giro}°`}
-                  className={`${BOTON} ${giro !== 0 ? PUESTO : ""}`}
-                >
-                  ↻
-                </button>
+                <Pista lado="abajo" texto="Girar el documento" detalle={`Ahora a ${giro}°. El siguiente se abre derecho.`}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setGiroDe({ url: doc.url, giro: siguienteGiro(giro) });
+                    }}
+                    // El grado también en el `aria-label`, como en el parte.
+                    aria-label={`Girar el documento · ahora ${giro}°`}
+                    className={`${BOTON} ${giro !== 0 ? PUESTO : ""}`}
+                  >
+                    ↻
+                  </button>
+                </Pista>
               )}
             </div>
           </>
@@ -150,72 +152,83 @@ export function VisorDocumento({
         <Separador />
         <div role="group" aria-label="Sacar el documento" className="flex shrink-0 items-center gap-1.5">
           {esPdf && (
-            <a
-              href={doc.url}
-              target="_blank"
-              rel="noopener"
-              onClick={(e) => e.stopPropagation()}
-              title="Abrir en otra pestaña"
-              aria-label="Abrir el documento en otra pestaña"
-              className={BOTON}
-            >
-              ↗
-            </a>
+            <Pista lado="abajo" texto="Abrir en otra pestaña" detalle="Con el visor de tu navegador, a pantalla completa">
+              <a
+                href={doc.url}
+                target="_blank"
+                rel="noopener"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Abrir el documento en otra pestaña"
+                className={BOTON}
+              >
+                ↗
+              </a>
+            </Pista>
           )}
           {/* Bajarlo sigue haciendo falta: hay quien lo adjunta a un correo o
               lo manda a taller. `download` con el nombre de RPS, no el de la
               URL (que sería "3"). */}
-          <a
-            href={doc.url}
-            download={doc.archivo}
-            onClick={(e) => e.stopPropagation()}
-            title="Descargar"
-            aria-label="Descargar el documento"
-            className={BOTON}
-          >
-            ⤓
-          </a>
+          <Pista lado="abajo" texto="Descargar" detalle="Con el nombre que tiene en RPS">
+            <a
+              href={doc.url}
+              download={doc.archivo}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Descargar el documento"
+              className={BOTON}
+            >
+              ⤓
+            </a>
+          </Pista>
           {/* En los dos motores: con el del navegador también se imprime el
               PDF de verdad, sin buscar el botón en su barra. */}
           {esPdf && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                imprimirPdf(doc.url);
-              }}
-              title="Imprimir el documento"
-              aria-label="Imprimir el documento"
-              className={BOTON}
-            >
-              ⎙
-            </button>
+            <Pista lado="abajo" texto="Imprimir el documento" detalle="Sale el PDF tal cual, no la pantalla">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  imprimirPdf(doc.url);
+                }}
+                aria-label="Imprimir el documento"
+                className={BOTON}
+              >
+                ⎙
+              </button>
+            </Pista>
           )}
         </div>
         {esPdf && (
           <>
             <Separador />
-            <button
-              type="button"
-              aria-pressed={motor === "navegador"}
-              onClick={(e) => {
-                e.stopPropagation();
-                setMotor(motor === "propio" ? "navegador" : "propio");
-              }}
-              title="Se recuerda para la próxima vez, también en el parte"
-              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white"
+            <Pista
+              lado="abajo"
+              texto={motor === "propio" ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+              detalle="Se recuerda en este ordenador, también para el parte"
             >
-              {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
-            </button>
+              <button
+                type="button"
+                aria-pressed={motor === "navegador"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMotor(motor === "propio" ? "navegador" : "propio");
+                }}
+                className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white"
+              >
+                {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
+              </button>
+            </Pista>
           </>
         )}
-        <button
-          onClick={onCerrar}
-          aria-label="Cerrar"
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20"
-        >
-          ✕
-        </button>
+        <Pista lado="abajo" texto="Cerrar" detalle="También con Esc">
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20"
+          >
+            ✕
+          </button>
+        </Pista>
       </div>
 
       <div className="relative min-h-0 flex-1 px-4 pb-4" onClick={onCerrar}>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CLAVE_ENCAJE_PARTE, siguienteGiro, type Giro } from "@/lib/visor-pdf";
+import { Pista } from "./Pista";
 import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
 import { imprimirPdf } from "./VisorPdf/imprimir";
 import { MotorNavegador } from "./VisorPdf/MotorNavegador";
@@ -50,64 +51,62 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
           cuando es una preferencia que se pone una vez y se olvida. */}
       <div className="flex shrink-0 flex-col gap-1.5">
         <div role="group" aria-label="Cómo se ve el parte" className="flex flex-col gap-1.5">
-          <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} />
+          <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} lado="derecha" />
           {propio && (
-            <button
-              type="button"
-              onClick={() => setGiro(siguienteGiro)}
-              title={`Girar el parte · ahora ${giro}°`}
-              // El grado también en el `aria-label`: con uno fijo, quien usa
-              // lector de pantalla no sabría en qué posición está la hoja.
-              aria-label={`Girar el parte · ahora ${giro}°`}
-              className={`${chip} ${giro !== 0 ? puesto : ""}`}
-            >
-              ↻
-            </button>
+            <Pista texto="Girar el parte" detalle={`Ahora a ${giro}°. El siguiente pedido se abre derecho.`}>
+              <button
+                type="button"
+                onClick={() => setGiro(siguienteGiro)}
+                // El grado también en el `aria-label`: con uno fijo, quien usa
+                // lector de pantalla no sabría en qué posición está la hoja.
+                aria-label={`Girar el parte · ahora ${giro}°`}
+                className={`${chip} ${giro !== 0 ? puesto : ""}`}
+              >
+                ↻
+              </button>
+            </Pista>
           )}
         </div>
         <Separador />
         <div role="group" aria-label="Sacar el parte" className="flex flex-col gap-1.5">
-          <a
-            href={scanUrl}
-            target="_blank"
-            rel="noopener"
-            title="Abrir el parte en otra pestaña"
-            aria-label="Abrir el parte en otra pestaña"
-            className={chip}
-          >
-            ↗
-          </a>
-          <a href={scanUrl} download={`${codigo}.pdf`} title="Descargar el parte" aria-label="Descargar el parte" className={chip}>
-            ↓
-          </a>
-          <button
-            type="button"
-            onClick={() => imprimirPdf(scanUrl)}
-            title="Imprimir el parte"
-            aria-label="Imprimir el parte"
-            className={chip}
-          >
-            ⎙
-          </button>
+          <Pista texto="Abrir en otra pestaña" detalle="Con el visor de tu navegador, a pantalla completa">
+            <a href={scanUrl} target="_blank" rel="noopener" aria-label="Abrir el parte en otra pestaña" className={chip}>
+              ↗
+            </a>
+          </Pista>
+          <Pista texto="Descargar el parte" detalle="Para guardarlo o mandarlo por correo">
+            <a href={scanUrl} download={`${codigo}.pdf`} aria-label="Descargar el parte" className={chip}>
+              ↓
+            </a>
+          </Pista>
+          <Pista texto="Imprimir el parte" detalle="Sale el PDF tal cual, no la pantalla">
+            <button type="button" onClick={() => imprimirPdf(scanUrl)} aria-label="Imprimir el parte" className={chip}>
+              ⎙
+            </button>
+          </Pista>
         </div>
         {/* Al pie del carril (`mt-auto`): lejos de las acciones, donde no se
             pulsa por error buscando imprimir. */}
         <div className="mt-auto flex flex-col gap-1.5">
           <Separador />
-          <button
-            type="button"
-            onClick={() => setMotor(propio ? "navegador" : "propio")}
-            aria-pressed={!propio}
-            title={
+          <Pista
+            texto={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+            detalle={
               propio
-                ? "Ver con el visor del navegador · se recuerda para la próxima vez"
-                : "Volver al visor de CoordinaOT · se recuerda para la próxima vez"
+                ? "Si prefieres el tuyo (Chrome, Adobe…). Se recuerda en este ordenador"
+                : "Se recuerda en este ordenador"
             }
-            aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
-            className={`${chip} ${propio ? "" : puesto}`}
           >
-            ⇄
-          </button>
+            <button
+              type="button"
+              onClick={() => setMotor(propio ? "navegador" : "propio")}
+              aria-pressed={!propio}
+              aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+              className={`${chip} ${propio ? "" : puesto}`}
+            >
+              ⇄
+            </button>
+          </Pista>
         </div>
       </div>
       <div className="relative h-full min-w-0 flex-1 overflow-hidden rounded-xl">

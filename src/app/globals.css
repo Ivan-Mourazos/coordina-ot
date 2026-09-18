@@ -405,6 +405,38 @@ body {
     0 36px 56px -30px rgba(0, 0, 0, 0.55);
 }
 
+/* Pista de un botón (Pista.tsx): lo que dice qué hace un botón de solo icono.
+   Grafito con texto claro en los DOS temas: tiene que destacar sobre cualquier
+   cosa que tenga debajo —la ficha clara, el telón, un escaneo blanco— y un
+   globo del color del panel se perdía contra el panel. Entra corta desde el
+   botón, para que se vea de dónde sale. */
+.pista {
+  background: rgba(24, 26, 31, 0.96);
+  color: #f3f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 8px 20px -6px rgba(0, 0, 0, 0.45),
+    0 2px 6px -2px rgba(0, 0, 0, 0.35);
+  animation: pista-in 120ms ease-out;
+}
+.pista-derecha {
+  --pista-desde: translateX(-4px);
+}
+.pista-abajo {
+  --pista-desde: translateY(-4px);
+}
+@keyframes pista-in {
+  from {
+    opacity: 0;
+    transform: var(--pista-desde);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */
 .chip-3d {
   background:
@@ -695,6 +727,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pista,
   .quicklook,
   .glass-pop,
   .ventana-3d,

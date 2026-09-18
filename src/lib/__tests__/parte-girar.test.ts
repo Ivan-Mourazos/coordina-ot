@@ -45,7 +45,25 @@ test("siguen los dos botones de encaje, y dicen que se recuerdan", () => {
   const html = pintar();
   expect(html).toContain('aria-label="Ajustar al ancho"');
   expect(html).toContain('aria-label="Ajustar al alto"');
-  expect(html).toContain("se recuerda para la próxima vez");
+  // Lo dice la pista, y también para el lector de pantalla.
+  expect(html).toContain('aria-description="Se recuerda para la próxima vez"');
+});
+
+test("los botones del carril no llevan title: saldría el rótulo gris del navegador encima de la pista", () => {
+  expect(pintar()).not.toMatch(/<(button|a)[^>]*title=/);
+});
+
+test("cada botón del carril explica qué hace, no solo su nombre", () => {
+  const html = pintar();
+  for (const detalle of [
+    "Ahora a 0°. El siguiente pedido se abre derecho.",
+    "Con el visor de tu navegador, a pantalla completa",
+    "Para guardarlo o mandarlo por correo",
+    "Sale el PDF tal cual, no la pantalla",
+    "Si prefieres el tuyo (Chrome, Adobe…). Se recuerda en este ordenador",
+  ]) {
+    expect(html).toContain('aria-description="' + detalle + '"');
+  }
 });
 
 test("se puede pasar al visor del navegador", () => {

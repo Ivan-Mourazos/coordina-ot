@@ -1,4 +1,5 @@
 import type { Encaje } from "@/lib/visor-pdf";
+import { Pista } from "../Pista";
 
 const AJUSTES = [
   { id: "FitH", icono: "↔", nombre: "Ajustar al ancho" },
@@ -13,29 +14,37 @@ export function BotonesEncaje({
   onPulsar,
   clase,
   clasePuesto,
+  lado,
 }: {
   encaje: Encaje;
   onPulsar: (pulsado: "FitH" | "FitV") => void;
   clase: string;
   clasePuesto: string;
+  /** Hacia dónde sale la pista: a la derecha en el carril, debajo en la barra. */
+  lado: "derecha" | "abajo";
 }) {
   return (
     <>
       {AJUSTES.map((a) => (
-        <button
+        <Pista
           key={a.id}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPulsar(a.id);
-          }}
-          aria-pressed={encaje === a.id}
-          title={`${encaje === a.id ? "Volver a la página entera" : a.nombre} · se recuerda para la próxima vez`}
-          aria-label={a.nombre}
-          className={`${clase} ${encaje === a.id ? clasePuesto : ""}`}
+          lado={lado}
+          texto={encaje === a.id ? "Volver a la página entera" : a.nombre}
+          detalle="Se recuerda para la próxima vez"
         >
-          {a.icono}
-        </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPulsar(a.id);
+            }}
+            aria-pressed={encaje === a.id}
+            aria-label={a.nombre}
+            className={`${clase} ${encaje === a.id ? clasePuesto : ""}`}
+          >
+            {a.icono}
+          </button>
+        </Pista>
       ))}
     </>
   );
