@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-18",
-    "hasta": "9660063",
+    "hasta": "76dbdc5",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -39,6 +39,11 @@
         "tipo": "mejor",
         "titulo": "En el parte a página entera se ve una sola hoja, y la rueda del ratón pasa de hoja en hoja",
         "detalle": "Al ancho o con zoom sigue bajando seguido, como siempre."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al pasar el ratón por los botones del parte y de los documentos, ahora sale enseguida qué hace cada uno",
+        "detalle": "Con una línea de explicación debajo del nombre."
       }
     ]
   },
