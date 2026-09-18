@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import { pixelRatio, rotacionTotal, type Giro, type Medidas } from "@/lib/visor-pdf";
+import { escalaDeLienzo, pixelRatio, rotacionTotal, type Giro, type Medidas } from "@/lib/visor-pdf";
 
 /** Cuánto se espera a que pare el zoom antes de volver a pintar nítido.
  *  Mientras, se estira lo ya pintado: instantáneo, borroso un momento. Sin
@@ -13,8 +13,11 @@ const ESPERA_REPINTADO_MS = 150;
  *
  *  SOLO SE PINTA SI SE VE (o está a una pantalla de verse). Un planteamiento
  *  de 40 páginas no pinta 40 canvas; y la que sale de pantalla SUELTA su
- *  memoria (canvas a 0×0): a ratio 2, una hoja al ancho son ~14 MB, cuarenta
- *  son más de medio giga.
+ *  memoria (canvas a 0×0, más `pagina.cleanup()` para que pdf.js no se guarde
+ *  la lista de operaciones ni las imágenes ya decodificadas): a ratio 2, una
+ *  hoja al ancho son ~14 MB, cuarenta son más de medio giga — y con zoom y
+ *  encaje al ancho en pantallas anchas se pintaría bastante más si no fuera
+ *  por el tope de área del lienzo (`escalaDeLienzo`, en `visor-pdf.ts`).
  *
  *  Se pinta en un canvas aparte y se copia al final: así lo viejo sigue a la
  *  vista, estirado, hasta que lo nuevo está listo — nunca un parpadeo en
@@ -78,15 +81,29 @@ export function PaginaPdf({
       c.width = 0;
       c.height = 0;
       giroPintado.current = null;
+      // Sin esto pdf.js se queda con la lista de operaciones y las imágenes
+      // ya decodificadas de esta página: en un plano escaneado de 40 hojas
+      // es eso, no el canvas, lo que realmente pesa.
+      pagina.cleanup();
       return;
     }
+    // Base a escala 1: el área no cambia con el giro, así que sirve tal cual
+    // para calcular el tope sin tener que pedirle a pdf.js el viewport girado.
+    const base = pagina.getViewport({ scale: 1 });
+    const escalaReal = escalaDeLienzo(base.width, base.height, escala * pixelRatio(window.devicePixelRatio));
     const vp = pagina.getViewport({
-      scale: escala * pixelRatio(window.devicePixelRatio),
+      scale: escalaReal,
       rotation: rotacionTotal(pagina.rotate, giro),
     });
     // Girar NO espera: estirar la hoja vieja a la forma nueva la deformaría.
     // El zoom sí, y la primera vez no hay nada que estirar.
     const espera = giroPintado.current === giro && c.width > 0 ? ESPERA_REPINTADO_MS : 0;
+    if (giroPintado.current !== null && giroPintado.current !== giro) {
+      // Ni siquiera se espera estirado: se vacía ya, así se ve en blanco un
+      // instante en vez de la hoja vieja deformada a la forma nueva.
+      c.width = 0;
+      c.height = 0;
+    }
     let vivo = true;
     let tarea: RenderTask | null = null;
     const t = window.setTimeout(() => {

@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     ".claude/**",
+    // Lo copia scripts/copiar-worker.mjs desde pdfjs-dist en cada dev/build:
+    // es código de pdf.js, no nuestro, y lintarlo solo da ruido.
+    "public/pdf.worker.mjs",
   ]),
 ]);
 

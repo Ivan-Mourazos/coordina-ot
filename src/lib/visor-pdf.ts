@@ -81,6 +81,42 @@ export function pixelRatio(dpr: number): number {
   return Math.min(dpr, TOPE_PIXEL_RATIO);
 }
 
+/** Tope de área del lienzo, en píxeles reales. El límite de Chrome para un
+ *  `<canvas>` ronda los 268 millones de píxeles; por debajo de eso, pero ya
+ *  con un zoom de 6 encajado al ancho en una pantalla ancha, un plano llega
+ *  a cientos de megapíxeles y se reserva DOS veces (el lienzo `fuera` donde
+ *  pinta pdf.js y el `c` visible al que se copia). Pasado este tope se pinta
+ *  más pequeño de lo pedido y el navegador estira el bitmap con CSS: se nota
+ *  algo blando en el zoom más extremo, que es mejor que un render que falla
+ *  en silencio (por encima del límite de Chrome) o que unos gigabytes de
+ *  memoria para una sola hoja. */
+export const TOPE_PIXELES_LIENZO = 16_000_000;
+
+/** La escala real con la que pintar el lienzo, respetando `TOPE_PIXELES_LIENZO`.
+ *
+ *  `ancho`/`alto` son la hoja a escala 1 (lo que da `getViewport({ scale: 1 })`
+ *  antes de aplicar rotación: el área no cambia al girar, así que no hace
+ *  falta el giro para esta cuenta). Si el área a `escala` ya cabe en el tope,
+ *  se devuelve tal cual; si no, la mayor escala que sí cabe. Medidas a cero,
+ *  negativas o que no son número devuelven la escala pedida: es la misma
+ *  defensa que el resto de este fichero, mejor pintar sin tope un instante
+ *  que devolver un canvas roto. */
+export function escalaDeLienzo(ancho: number, alto: number, escala: number): number {
+  if (
+    !Number.isFinite(ancho) ||
+    !Number.isFinite(alto) ||
+    !Number.isFinite(escala) ||
+    ancho <= 0 ||
+    alto <= 0 ||
+    escala <= 0
+  ) {
+    return escala;
+  }
+  const area = ancho * escala * (alto * escala);
+  if (area <= TOPE_PIXELES_LIENZO) return escala;
+  return Math.sqrt(TOPE_PIXELES_LIENZO / (ancho * alto));
+}
+
 /** Con qué se pinta el PDF. `navegador` es el `<iframe>` de siempre: hay quien
  *  tiene la extensión de Adobe en Firefox y prefiere ese visor. */
 export type MotorPdf = "propio" | "navegador";

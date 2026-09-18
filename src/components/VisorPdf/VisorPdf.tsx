@@ -111,7 +111,14 @@ export function VisorPdf({
       const despues = acotarZoom(antes * factorRueda(e.deltaY));
       if (despues === antes) return;
       zoomActual.current = despues;
-      ancla.current = { x: e.clientX - r.left, y: e.clientY - r.top, ratio: despues / antes };
+      // Se acumula sobre el ratio pendiente, no se pisa: dos golpes de rueda
+      // antes de que llegue a pintar el primero no deben perder la corrección
+      // del primero, o el punto bajo el ratón se corre.
+      ancla.current = {
+        x: e.clientX - r.left,
+        y: e.clientY - r.top,
+        ratio: (ancla.current?.ratio ?? 1) * (despues / antes),
+      };
       setZoom({ clave, valor: despues });
     }
     raiz.addEventListener("wheel", onRueda, { passive: false });

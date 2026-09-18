@@ -3,11 +3,13 @@ import {
   CLAVE_ENCAJE_DOCUMENTOS,
   CLAVE_ENCAJE_PARTE,
   CLAVE_MOTOR,
+  TOPE_PIXELES_LIENZO,
   ZOOM_MAX,
   ZOOM_MIN,
   acotarZoom,
   alternarEncaje,
   crearCacheDocumentos,
+  escalaDeLienzo,
   escalaParaEncaje,
   factorRueda,
   giroIntercambia,
@@ -189,6 +191,27 @@ test("el destruido es el que salió", async () => {
   await Promise.resolve();
   expect(docs["/a.pdf"].destroy).toHaveBeenCalledTimes(1);
   expect(docs["/b.pdf"].destroy).not.toHaveBeenCalled();
+});
+
+test("por debajo del tope, el lienzo se pinta a la escala pedida", () => {
+  // A4 a escala 2: unos 2,3 Mpx, muy por debajo del tope.
+  expect(escalaDeLienzo(A4.ancho, A4.alto, 2)).toBe(2);
+});
+
+test("por encima del tope, el área del lienzo se recorta cerca del tope", () => {
+  // A4 a escala 10: 595*10 x 842*10 = casi 50 Mpx, por encima del tope.
+  const escala = escalaDeLienzo(A4.ancho, A4.alto, 10);
+  expect(escala).toBeLessThan(10);
+  const area = A4.ancho * escala * (A4.alto * escala);
+  expect(area).toBeLessThanOrEqual(TOPE_PIXELES_LIENZO);
+  expect(area).toBeGreaterThanOrEqual(TOPE_PIXELES_LIENZO * 0.99);
+});
+
+test("medidas a cero o sin número no rompen la cuenta: devuelven la escala pedida", () => {
+  expect(escalaDeLienzo(0, 0, 3)).toBe(3);
+  expect(escalaDeLienzo(Number.NaN, A4.alto, 3)).toBe(3);
+  expect(escalaDeLienzo(A4.ancho, Number.NaN, 3)).toBe(3);
+  expect(escalaDeLienzo(-1, A4.alto, 3)).toBe(3);
 });
 
 test("un fallo no se queda en la caché: el siguiente intento vuelve a abrir", async () => {
