@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-18",
-    "hasta": "4715fa0",
+    "hasta": "fd9a2bc",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -29,6 +29,11 @@
       {
         "tipo": "mejor",
         "titulo": "Pasar de un documento del pedido a otro con las flechas va más deprisa"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los botones del parte y de los documentos van agrupados por lo que hacen",
+        "detalle": "Arriba los de mirar, debajo los de abrir, descargar e imprimir, y el cambio de visor aparte, al final."
       }
     ]
   },
