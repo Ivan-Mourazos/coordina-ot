@@ -4,7 +4,13 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
 import { useCapaEscape } from "@/lib/useCapaEscape";
+import { CLAVE_ENCAJE_DOCUMENTOS } from "@/lib/visor-pdf";
 import { FotoConZoom } from "./FotoConZoom";
+import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
+import { MotorNavegador } from "./VisorPdf/MotorNavegador";
+import { precargarPdf } from "./VisorPdf/usePdfDoc";
+import { useEncajePdf, useMotorPdf } from "./VisorPdf/preferencias";
+import { VisorPdf } from "./VisorPdf/VisorPdf";
 
 // ─── El documento, abierto DENTRO de la web ──────────────────────────────────
 // Antes cada documento era un enlace con target="_blank": para ver tres
@@ -12,9 +18,8 @@ import { FotoConZoom } from "./FotoConZoom";
 // buscar cuál era la ficha entre ellas. Aquí se abre encima, se pasa al
 // siguiente con las flechas y se cierra con Escape — sin salir del pedido.
 //
-// El visor lo pone el navegador (un `iframe` para el PDF, un `img` para la
-// foto) y no un lector propio: el PDF de Chrome ya trae zoom, búsqueda, giro e
-// impresión, y todo eso habría que rehacerlo peor.
+// El PDF lo pinta CoordinaOT (VisorPdf), o el navegador para quien lo prefiera
+// —la misma preferencia que el parte—. La foto, un `img` con zoom.
 
 /** Documento con URL: los que RPS tiene en su gestor documental y no como
  *  fichero no se pueden abrir, y por eso no llegan hasta aquí. */
@@ -37,6 +42,20 @@ export function VisorDocumento({
   onCerrar: () => void;
 }) {
   const doc = documentos[indice];
+
+  const [motor, setMotor] = useMotorPdf();
+  // Su propio encaje, recordado aparte del del parte: un planteamiento
+  // apaisado no se mira como un A4 de pie.
+  const [encaje, pulsarEncaje] = useEncajePdf(CLAVE_ENCAJE_DOCUMENTOS);
+
+  // Las flechas son un paseo, no un salto: el de al lado ya está abierto
+  // cuando se llega. Solo con el motor propio; el del navegador no se deja.
+  useEffect(() => {
+    if (motor !== "propio") return;
+    for (const vecino of [documentos[indice - 1], documentos[indice + 1]]) {
+      if (vecino && comoServir(vecino.archivo).tipo === "application/pdf") precargarPdf(vecino.url);
+    }
+  }, [motor, indice, documentos]);
 
   // Escape es una capa más: cierra el visor y deja la ficha de debajo abierta
   // (ver capas-escape.ts).
@@ -87,6 +106,35 @@ export function VisorDocumento({
         <span className="ml-auto shrink-0 text-xs text-white/60">
           {indice + 1} / {documentos.length}
         </span>
+        {esPdf && (
+          <>
+            <BotonesEncaje
+              encaje={encaje}
+              onPulsar={pulsarEncaje}
+              clase="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
+              clasePuesto="bg-white/25 ring-2 ring-white/60"
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMotor(motor === "propio" ? "navegador" : "propio");
+              }}
+              title="Se recuerda para la próxima vez, también en el parte"
+              className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+            >
+              {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
+            </button>
+            <a
+              href={doc.url}
+              target="_blank"
+              rel="noopener"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+            >
+              ↗ Abrir en pestaña
+            </a>
+          </>
+        )}
         {/* Bajarlo sigue haciendo falta: hay quien lo adjunta a un correo o lo
             manda a taller. `download` con el nombre de RPS, no el de la URL
             (que sería "3"). */}
@@ -109,14 +157,21 @@ export function VisorDocumento({
       </div>
 
       <div className="relative min-h-0 flex-1 px-4 pb-4" onClick={onCerrar}>
-        {esPdf && (
-          <iframe
-            src={`${doc.url}#view=Fit`}
-            title={doc.descripcion || doc.archivo}
-            className="h-full w-full rounded-xl border-none bg-white"
-            onClick={(e) => e.stopPropagation()}
-          />
-        )}
+        {esPdf &&
+          (motor === "propio" ? (
+            <VisorPdf
+              // La clave con la URL: cada documento empieza en su página 1 y
+              // con su zoom, no con el scroll del anterior.
+              key={doc.url}
+              url={doc.url}
+              encaje={encaje}
+              giro={0}
+              titulo={doc.descripcion || doc.archivo}
+              poster={`${doc.url}?mini=1`}
+            />
+          ) : (
+            <MotorNavegador url={doc.url} fragmento={`view=${encaje}`} titulo={doc.descripcion || doc.archivo} />
+          ))}
         {!esPdf && incrustable && (
           // Con zoom: son fotos de móvil hechas en obra, y lo que hace falta
           // ver —el número de serie de un motor, una cota escrita a mano— no se
