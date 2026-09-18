@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
 import { useCapaEscape } from "@/lib/useCapaEscape";
-import { CLAVE_ENCAJE_DOCUMENTOS } from "@/lib/visor-pdf";
+import { CLAVE_ENCAJE_DOCUMENTOS, siguienteGiro, type Giro } from "@/lib/visor-pdf";
 import { FotoConZoom } from "./FotoConZoom";
 import { BotonesEncaje } from "./VisorPdf/BotonesEncaje";
+import { imprimirPdf } from "./VisorPdf/imprimir";
 import { MotorNavegador } from "./VisorPdf/MotorNavegador";
 import { precargarPdf } from "./VisorPdf/usePdfDoc";
 import { useEncajePdf, useMotorPdf } from "./VisorPdf/preferencias";
@@ -47,6 +48,12 @@ export function VisorDocumento({
   // Su propio encaje, recordado aparte del del parte: un planteamiento
   // apaisado no se mira como un A4 de pie.
   const [encaje, pulsarEncaje] = useEncajePdf(CLAVE_ENCAJE_DOCUMENTOS);
+  // El giro va con el documento y no se guarda: el siguiente de la lista
+  // empieza derecho aunque este estuviera tumbado. Se apunta junto a su URL
+  // y, si la URL ya no es la que se ve, cuenta como 0 — sin un setState en
+  // un efecto, y sin depender de por dónde se haya pasado de documento.
+  const [giroDe, setGiroDe] = useState<{ url: string; giro: Giro }>({ url: "", giro: 0 });
+  const giro: Giro = doc && giroDe.url === doc.url ? giroDe.giro : 0;
 
   // Las flechas son un paseo, no un salto: el de al lado ya está abierto
   // cuando se llega. Solo con el motor propio; el del navegador no se deja.
@@ -114,7 +121,27 @@ export function VisorDocumento({
               clase="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
               clasePuesto="bg-white/25 ring-2 ring-white/60"
             />
+            {/* Solo con el motor propio: el visor del navegador trae su giro. */}
+            {motor === "propio" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGiroDe({ url: doc.url, giro: siguienteGiro(giro) });
+                }}
+                title={`Girar el documento · ahora ${giro}°`}
+                // El grado también en el `aria-label`, como en el parte.
+                aria-label={`Girar el documento · ahora ${giro}°`}
+                className={`grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20 ${
+                  giro !== 0 ? "bg-white/25 ring-2 ring-white/60" : ""
+                }`}
+              >
+                ↻
+              </button>
+            )}
             <button
+              type="button"
+              aria-pressed={motor === "navegador"}
               onClick={(e) => {
                 e.stopPropagation();
                 setMotor(motor === "propio" ? "navegador" : "propio");
@@ -133,6 +160,20 @@ export function VisorDocumento({
             >
               ↗ Abrir en pestaña
             </a>
+            {/* En los dos motores: con el del navegador también se imprime
+                el PDF de verdad, sin buscar el botón en su barra. */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                imprimirPdf(doc.url);
+              }}
+              title="Imprimir el documento"
+              aria-label="Imprimir el documento"
+              className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
+            >
+              ⎙
+            </button>
           </>
         )}
         {/* Bajarlo sigue haciendo falta: hay quien lo adjunta a un correo o lo
@@ -165,7 +206,7 @@ export function VisorDocumento({
               key={doc.url}
               url={doc.url}
               encaje={encaje}
-              giro={0}
+              giro={giro}
               titulo={doc.descripcion || doc.archivo}
               poster={`${doc.url}?mini=1`}
             />
@@ -175,8 +216,8 @@ export function VisorDocumento({
         {!esPdf && incrustable && (
           // Con zoom: son fotos de móvil hechas en obra, y lo que hace falta
           // ver —el número de serie de un motor, una cota escrita a mano— no se
-          // lee a tamaño de pantalla. El PDF no lo necesita: el visor del
-          // navegador ya trae el suyo.
+          // lee a tamaño de pantalla. El PDF no lo necesita aquí: VisorPdf
+          // trae el suyo con Ctrl+rueda, y el visor del navegador el propio.
           <FotoConZoom src={doc.url} alt={doc.descripcion || doc.archivo} />
         )}
         {!incrustable && (
