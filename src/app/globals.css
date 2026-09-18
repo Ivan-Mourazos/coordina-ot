@@ -57,8 +57,18 @@
   --glass-bg-pop: rgba(255, 255, 255, 0.99);
   --glass-border: rgba(255, 255, 255, 0.72);
   --glass-highlight: rgba(255, 255, 255, 0.95);
-  --glass-shadow: rgba(24, 32, 48, 0.14);
+  --glass-shadow: rgba(24, 32, 48, 0.2);
   --glass-chip: rgba(255, 255, 255, 0.85);
+
+  /* Relieve en claro. El canto blanco (`--glass-border`) y el brillo interior
+     son blanco sobre blanco: en claro no se veían, y la sombra larga, con el
+     spread negativo, se perdía contra el gris del fondo. Lo único que separaba
+     una tarjeta del fondo era el hueco entre ellas. Dos piezas nuevas: un filo
+     oscuro de 1 px que recorta el panel y una sombra de contacto corta, la que
+     dice "esto está apoyado ahí". En oscuro valen cero: allí el relieve ya lo
+     daban los cantos claros y cada clase trae su propia sombra. */
+  --edge: rgba(15, 23, 42, 0.07);
+  --contact: rgba(15, 23, 42, 0.09);
 
   /* Escalada de urgencia de la línea de tiempo (ver TRAMO en lib/linea-tiempo).
      Aquí y no como hex en el JS porque va sobre el fondo de la tabla y NO
@@ -106,6 +116,8 @@
   --glass-highlight: rgba(255, 255, 255, 0.12);
   --glass-shadow: rgba(0, 0, 0, 0.5);
   --glass-chip: rgba(44, 47, 54, 0.95);
+  --edge: transparent;
+  --contact: transparent;
 
   /* Sobre grafito se invierte el problema: los que se apagan son el rojo y el
      morado, justo los estados urgentes. Escalones claros.
@@ -208,6 +220,8 @@ body {
   backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 1px rgba(0, 0, 0, 0.03),
     0 2px 0 -1px color-mix(in srgb, var(--border-strong) 40%, transparent),
@@ -219,6 +233,8 @@ body {
   backdrop-filter: blur(24px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 0 var(--glass-highlight),
     0 10px 34px -16px var(--glass-shadow);
 }
@@ -232,6 +248,8 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 0 var(--glass-highlight),
     0 10px 34px -16px var(--glass-shadow);
 }
@@ -292,6 +310,8 @@ body {
     var(--glass-chip);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 80%, white 20%),
     0 1px 1px rgba(0, 0, 0, 0.03),
     0 2px 0 -1px color-mix(in srgb, var(--border-strong) 60%, transparent),
@@ -301,6 +321,8 @@ body {
 .glass-chip:hover {
   transform: translateY(-1px);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 2px 4px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 1px rgba(0, 0, 0, 0.04),
     0 3px 0 -1px color-mix(in srgb, var(--border-strong) 70%, transparent),
@@ -334,6 +356,8 @@ body {
     var(--glass-chip);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 80%, white 20%),
     0 1px 1px rgba(0, 0, 0, 0.03),
     0 2px 0 -1px color-mix(in srgb, var(--border-strong) 60%, transparent),
@@ -444,6 +468,8 @@ body {
     var(--glass-chip);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 0 rgba(0, 0, 0, 0.04),
     0 2px 4px -1px var(--glass-shadow);
@@ -452,6 +478,8 @@ body {
 .chip-3d:hover {
   transform: translateY(-1px);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 2px 4px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 95%, white 5%),
     0 2px 0 rgba(0, 0, 0, 0.05),
     0 6px 12px -2px var(--glass-shadow);
@@ -528,6 +556,8 @@ body {
     var(--surface);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 85%, white 15%),
     0 1px 1px rgba(0, 0, 0, 0.04),
     0 10px 26px -14px var(--glass-shadow);
@@ -536,6 +566,8 @@ body {
 .bandeja-caja:hover {
   transform: translateY(-1px);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 2px 4px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 1px rgba(0, 0, 0, 0.05),
     0 16px 32px -14px var(--glass-shadow);
@@ -567,6 +599,8 @@ body {
   backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid var(--glass-border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 0 var(--glass-highlight),
     0 18px 50px -18px var(--glass-shadow);
   animation: pop-in 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -593,6 +627,8 @@ body {
     var(--surface);
   border: 1px solid var(--border);
   box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 1px rgba(0, 0, 0, 0.04),
     0 3px 0 -1px color-mix(in srgb, var(--border-strong) 70%, transparent),

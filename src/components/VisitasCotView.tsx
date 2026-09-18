@@ -18,6 +18,7 @@ import {
 } from "./CalendarioVisitas";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { BloqueLista } from "./BloqueLista";
+import { tintaSobre } from "@/lib/tinta";
 
 // ─── Agenda de visitas COT ───────────────────────────────────────────────────
 // Un comercial pide que Oficina Técnica le acompañe a ver una obra. Lo único
@@ -77,7 +78,19 @@ function fmtActualizacion(iso: string | null): string {
 function colorDe(nombre: string): string {
   let h = 0;
   for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return `hsl(${h} 55% 42%)`;
+  // El mismo hsl(h 55% 42%) de siempre, pero en hex: `tintaSobre` necesita
+  // leerlo para elegir las iniciales. Con blanco fijo, los tonos amarillos y
+  // verdes se quedaban a 2,6:1, y no hay luminosidad de un hsl que aguante
+  // blanco en todos los tonos sin volver pardos a los demás.
+  const s = 0.55;
+  const l = 0.42;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(v * 255).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
 }
 
 // ─── Qué parte del mes se enseña ─────────────────────────────────────────────
@@ -214,7 +227,7 @@ export function VisitasCotView({
     <section className="mx-auto w-full max-w-[1500px] space-y-4">
       <header className="glass-panel flex flex-wrap items-center gap-4 rounded-2xl px-5 py-4">
         <div className="min-w-0">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-700 dark:text-brand-300">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-800 dark:text-brand-300">
             Agenda COT · solo lectura
           </p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-text">
@@ -328,7 +341,7 @@ export function VisitasCotView({
                     {texto}
                     {/* El número delante de pulsar: sin él, "Todo el mes" es un
                         salto a ciegas y no se sabe si hay algo detrás. */}
-                    <span className="ml-1 font-normal opacity-70">{n}</span>
+                    <span className="ml-1 font-normal">{n}</span>
                   </button>
                 ))}
               </span>
@@ -462,7 +475,7 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
           <span className="pointer-events-none flex min-w-0 items-center gap-2 py-1">
             <span
               className="grid size-6 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: color }}
+              style={{ background: color, color: tintaSobre(color) }}
               aria-hidden="true"
             >
               {inicialesDe(visita.responsable)}

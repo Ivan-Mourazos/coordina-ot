@@ -108,7 +108,10 @@ export function RecuperarPedido({
         type="button"
         onClick={() => void abrir()}
         disabled={cargando}
-        className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text disabled:opacity-50"
+        // `chip-3d`, el botón de la casa. Con solo un borde gris sobre el
+        // panel claro se leía como una línea de texto y no como algo que se
+        // pulsa: el canto de 1 px se perdía contra el fondo del panel.
+        className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text disabled:opacity-50"
       >
         {cargando ? "Consultando…" : "Volver a plantear el pedido"}
       </button>

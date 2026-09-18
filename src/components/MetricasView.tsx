@@ -5,6 +5,7 @@ import { ErrorCarga } from "./ErrorCarga";
 import {
   periodoAnterior,
   proporcionDevueltas,
+  sinActividad,
   ventanaDeDias,
   type Metricas,
   type Tramo,
@@ -130,6 +131,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
   const [{ desde, hasta }, setPeriodo] = useState(() => ventanaDeDias(90, hoyISO()));
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [previo, setPrevio] = useState<Metricas | null>(null);
+  const previoVacio = previo !== null && sinActividad(previo);
   const [error, setError] = useState(false);
   const [intento, setIntento] = useState(0);
 
@@ -254,7 +256,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
             aria-pressed={apartado === a.id}
             className={`rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ${
               apartado === a.id
-                ? "bg-brand-500 text-white ring-transparent"
+                ? "bg-brand-400 text-[#231903] ring-transparent"
                 : "text-text-muted ring-border hover:text-text"
             }`}
           >
@@ -292,6 +294,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                     ahora={m.volumen.ofTerminadas}
                     antes={previo?.volumen.ofTerminadas ?? null}
                     masEsMejor
+                    sinDatosPrevios={previoVacio}
                   />
                 </p>
                 <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-text-muted">
@@ -523,6 +526,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                   ahora={m.anulaciones}
                   antes={previo?.anulaciones ?? null}
                   masEsMejor={false}
+                  sinDatosPrevios={previoVacio}
                 />
               </p>
               <h3 className="mt-4 text-xs font-bold uppercase tracking-wide text-text-muted">
@@ -607,13 +611,19 @@ function Delta({
   antes,
   sufijo = "",
   masEsMejor,
+  sinDatosPrevios = false,
 }: {
   ahora: number | null;
   antes: number | null;
   sufijo?: string;
   masEsMejor: boolean;
+  /** El periodo anterior existe pero está vacío (ver `sinActividad`). */
+  sinDatosPrevios?: boolean;
 }) {
   if (ahora === null || antes === null) return null;
+  if (sinDatosPrevios) {
+    return <span className="text-[11px] text-text-muted">sin datos del periodo anterior</span>;
+  }
   const d = Math.round((ahora - antes) * 10) / 10;
   if (d === 0) {
     return <span className="text-[11px] text-text-muted">igual que el periodo anterior</span>;

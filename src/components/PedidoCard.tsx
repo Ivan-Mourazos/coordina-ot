@@ -11,6 +11,7 @@ import { LiveDot } from "./LiveBadge";
 import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { avisaDeOFNueva } from "@/lib/fases-tablero";
+import { tintaSobre } from "@/lib/tinta";
 
 /** El color de la prioridad CUANDO ES TEXTO. No sale de `PRIORIDAD.color`:
  *  ese ámbar es para fondos y como letra de 9 px da 2,5:1 sobre blanco, que no
@@ -251,7 +252,7 @@ export const PedidoCardView = memo(function PedidoCardView({
           {revisor && (
             <span
               className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full px-1 text-[9px] font-bold text-white"
-              style={{ background: revisor.color }}
+              style={{ background: revisor.color, color: tintaSobre(revisor.color) }}
               title={`Revisa: ${revisor.nombre}`}
             >
               <span className="opacity-80">rev</span>

@@ -206,7 +206,7 @@ export function Select({
         // pintarse nunca.
         className={`glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
           acentuarActivo && selected
-            ? "glass-chip-activo text-brand-700 dark:text-brand-300"
+            ? "glass-chip-activo text-brand-800 dark:text-brand-300"
             : selected
               ? "text-text"
               : "text-text-muted"
@@ -259,7 +259,7 @@ export function Select({
                   onMouseEnter={() => setActiveIx(ix)}
                   className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium whitespace-nowrap ${
                     ix === activeIx ? "bg-[var(--glass-highlight)] text-text" : "text-text-muted"
-                  } ${isSel ? "text-brand-600 dark:text-brand-400" : ""}`}
+                  } ${isSel ? "text-brand-800 dark:text-brand-400" : ""}`}
                 >
                   {o.icon}
                   <span className="min-w-0 flex-1 truncate">{o.label}</span>

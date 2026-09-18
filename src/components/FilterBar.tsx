@@ -130,7 +130,7 @@ function Toggle({
       title={title}
       className={`glass-chip rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
         activo
-          ? "glass-chip-activo text-brand-700 dark:text-brand-300"
+          ? "glass-chip-activo text-brand-800 dark:text-brand-300"
           : "text-text-muted hover:text-text"
       }`}
     >

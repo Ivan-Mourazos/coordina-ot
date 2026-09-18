@@ -149,7 +149,7 @@ export function CalendarioVisitas({
                   ? "bg-brand-400 font-bold text-[#231903]"
                   : tiene
                     ? "font-semibold text-text hover:bg-[var(--glass-highlight)]"
-                    : "text-text-muted/50"
+                    : "text-text-muted/75"
               } ${esHoy && !activo ? "ring-1 ring-brand-400" : ""}`}
             >
               {Number(fecha.slice(8))}

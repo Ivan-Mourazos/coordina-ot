@@ -460,3 +460,18 @@ function medida(minutos: number[]): Medida {
   const mediana = orden.length % 2 === 1 ? orden[m] : (orden[m - 1] + orden[m]) / 2;
   return { n: orden.length, medianaMin: Math.round(mediana) };
 }
+
+/** El periodo no tiene ni un movimiento: ni planteos, ni cierres, ni
+ *  revisiones, ni anulaciones. Pasa con el periodo ANTERIOR cuando cae antes de
+ *  que la web empezara a registrar (julio de 2026): comparar contra él daba
+ *  "▲ 399 vs. el periodo anterior", que parece un salto enorme y solo dice que
+ *  antes no había registro. Un cero de verdad en una sola cifra sí se compara;
+ *  lo que no vale es un periodo vacío entero. */
+export function sinActividad(m: Metricas): boolean {
+  return (
+    m.volumen.planteos === 0 &&
+    m.volumen.terminadas === 0 &&
+    m.revisiones === 0 &&
+    m.anulaciones === 0
+  );
+}

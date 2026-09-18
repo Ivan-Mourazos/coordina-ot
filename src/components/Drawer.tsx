@@ -47,6 +47,7 @@ import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
+import { tintaSobre } from "@/lib/tinta";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -1049,7 +1050,7 @@ function LineaRol({
           <span className="flex min-w-0 items-center gap-1.5">
             <span
               className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
-              style={{ background: op.color }}
+              style={{ background: op.color, color: tintaSobre(op.color) }}
             >
               {op.iniciales}
             </span>

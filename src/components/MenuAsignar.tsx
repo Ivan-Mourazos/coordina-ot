@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { Operario } from "@/lib/types";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 import { useCapaEscape } from "@/lib/useCapaEscape";
+import { tintaSobre } from "@/lib/tinta";
 
 /** Alto máximo del menú, para decidir si abre hacia arriba o hacia abajo. */
 const ALTO_MAX = 260;
@@ -137,7 +138,7 @@ export function MenuAsignar({
               >
                 <span
                   className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
-                  style={{ background: o.color }}
+                  style={{ background: o.color, color: tintaSobre(o.color) }}
                 >
                   {o.iniciales}
                 </span>

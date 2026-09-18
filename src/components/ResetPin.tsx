@@ -86,7 +86,7 @@ export function ResetPin() {
             Se queda sin PIN y elige uno nuevo la próxima vez que entre.
           </p>
           {aviso && (
-            <p role="status" className="mb-1.5 px-1 text-[10px] text-brand-600">
+            <p role="status" className="mb-1.5 px-1 text-[10px] text-brand-800 dark:text-brand-400">
               {aviso}
             </p>
           )}

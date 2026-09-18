@@ -5,6 +5,7 @@ import type { PersonaPublica, RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { OPERARIOS } from "@/lib/mock";
 import { Logo } from "./Logo";
+import { tintaSobre } from "@/lib/tinta";
 
 // ─── La pantalla de entrar ───────────────────────────────────────────────────
 // La rejilla de caras se queda: funciona y el equipo la conoce de memoria. Lo
@@ -123,7 +124,7 @@ function Rejilla({
                   >
                     <span
                       className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
-                      style={{ background: cara.color }}
+                      style={{ background: cara.color, color: tintaSobre(cara.color) }}
                     >
                       {cara.iniciales}
                     </span>
@@ -256,7 +257,7 @@ function TecladoPin({
   const laCara = (
     <span
       className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
-      style={{ background: cara.color }}
+      style={{ background: cara.color, color: tintaSobre(cara.color) }}
     >
       {cara.iniciales}
     </span>

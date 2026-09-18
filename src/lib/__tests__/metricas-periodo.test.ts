@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodoAnterior, ventanaDeDias } from "../metricas";
+import { calcularMetricas, periodoAnterior, sinActividad, ventanaDeDias } from "../metricas";
 
 // Un número solo no dice nada: un 33 % de devueltas puede ser una mejora o un
 // desastre según cómo viniera el trimestre anterior. Estas dos funciones son
@@ -53,5 +53,20 @@ describe("el periodo anterior", () => {
   it("sin periodo no hay periodo anterior: nada con que comparar", () => {
     expect(periodoAnterior("", "")).toBeNull();
     expect(periodoAnterior("2026-09-01", "")).toBeNull();
+  });
+});
+
+describe("un periodo anterior sin registro", () => {
+  // El de antes de julio de 2026: la web aún no apuntaba nada. Comparar contra
+  // él pintaba "▲ 399 vs. el periodo anterior", un salto que no existió.
+  it("sin un solo movimiento no hay con qué comparar", () => {
+    expect(sinActividad(calcularMetricas([]))).toBe(true);
+  });
+
+  it("con un solo planteo ya es un periodo de verdad", () => {
+    const m = calcularMetricas([
+      { at: "2026-08-03T10:00:00.000Z", motivo: "terminar_planteo", ofId: "of1", observacion: null },
+    ]);
+    expect(sinActividad(m)).toBe(false);
   });
 });

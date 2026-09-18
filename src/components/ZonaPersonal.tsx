@@ -8,6 +8,7 @@ import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
+import { tintaSobre } from "@/lib/tinta";
 
 /** Cuántos pedidos se ven por fase antes de "+N más". Es lo que garantiza que
  *  el bloque mida lo mismo con 5 pedidos que con 40.
@@ -79,12 +80,12 @@ export function ZonaPersonal({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"
-          style={{ background: operario.color }}
+          style={{ background: operario.color, color: tintaSobre(operario.color) }}
         >
           {operario.iniciales}
         </span>
         <h2 className="text-sm font-semibold text-text">{operario.nombre}</h2>
-        <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-600">
+        <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-800 dark:text-brand-300">
           Tú
         </span>
         <span className="text-[11px] text-text-muted">
@@ -98,7 +99,7 @@ export function ZonaPersonal({
         {parados.length > 0 && (
           <span
             title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Están en su columna, marcados como «Detenido», y se liberan solos."
-            className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-600/25 dark:text-amber-300"
+            className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300"
           >
             <span className="size-1.5 rounded-full bg-amber-500" />
             {parados.length} parado{parados.length === 1 ? "" : "s"} por Producción

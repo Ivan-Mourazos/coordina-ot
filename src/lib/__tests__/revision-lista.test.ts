@@ -53,7 +53,8 @@ test("la línea dice lo que hace falta para elegir cuál abrir", () => {
 });
 
 test("un estado sin nada lo dice, en vez de desaparecer", () => {
-  expect(pintar(["en_revision"])).toContain("Aquí no tienes nada");
+  // En una línea, en el propio rótulo: "Por revisar · nada ahora mismo".
+  expect(pintar(["en_revision"])).toContain("nada ahora mismo");
 });
 
 test("el conmutador de alcance sigue estando", () => {

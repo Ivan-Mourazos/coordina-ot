@@ -59,12 +59,20 @@ export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = {
 
 /** Las mismas columnas en la cabecera y en cada fila. Al buscar se añade la
  *  fecha: los resultados van por fecha del pedido y no hay separadores de día.
+ *  Cliente y "quién" llevan TOPE y el sobrante va a una columna vacía al
+ *  final: en un monitor ancho, con el cliente a `1fr`, la familia y el tiempo
+ *  quedaban a más de 1.000 px del pedido del que hablaban.
  *  Dos literales enteros y no uno construido: Tailwind solo compila las
  *  clases que ve escritas. */
 const COLUMNAS_POR_DIA =
-  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,36rem)_112px_minmax(150px,22rem)_64px_1fr] items-center gap-x-3";
 const COLUMNAS_BUSCANDO =
-  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px_72px] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,36rem)_112px_minmax(150px,22rem)_64px_72px_1fr] items-center gap-x-3";
+
+/** División entre grupos de filtros: la misma raya que la barra de Pendientes. */
+function SeparadorFiltros() {
+  return <span aria-hidden className="h-5 w-px shrink-0 bg-[var(--glass-border)]" />;
+}
 
 export function HistorialView({
   operarios = [],
@@ -202,76 +210,93 @@ export function HistorialView({
     <div className="space-y-3">
       {/* ── Filtros ───────────────────────────────────────────────────────
           Una sola fila: buscador, familia, persona, fechas y el interruptor
-          de la sección. Se combinan: "de Iván, remolques, la última semana". */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface-2/40 px-3 py-2.5">
-        <div className="flex min-w-56 flex-1 flex-col text-xs text-text-muted">
-          <label htmlFor="buscar-historial">Buscar en el Historial</label>
-          <span className="relative mt-1">
-            <input
-              id="buscar-historial"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Pedido, OF, cliente o descripción…"
-              className="w-full rounded-lg border border-border bg-surface py-1 pl-2 pr-8 text-sm text-text"
-            />
-            {q && (
-              <button type="button" aria-label="Vaciar la búsqueda del Historial" onClick={() => setQ("")}
-                className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded text-text-muted hover:bg-surface-2">
-                ✕
-              </button>
-            )}
-          </span>
+          de la sección. Se combinan: "de Iván, remolques, la última semana".
+          Sueltos sobre el fondo y con el rótulo DELANTE, como la barra de
+          Pendientes y Revisiones: era la única pestaña con los filtros metidos
+          en una caja y el rótulo encima, y al cambiar de pestaña la barra
+          saltaba de forma y de altura. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="relative min-w-56 flex-1 sm:max-w-md">
+          <svg
+            viewBox="0 0 24 24"
+            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-muted"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+          </svg>
+          <input
+            id="buscar-historial"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Buscar en el Historial"
+            placeholder="Buscar en el Historial: pedido, OF, cliente o descripción…"
+            className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+          />
+          {q && (
+            <button type="button" aria-label="Vaciar la búsqueda del Historial" onClick={() => setQ("")}
+              className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text">
+              ✕
+            </button>
+          )}
         </div>
-        <label className="flex flex-col text-xs text-text-muted">
-          Familia
-          <span className="mt-1">
-            <Select
-              value={familia}
-              onChange={setFamilia}
-              placeholder="Todas"
-              etiquetaVaciar="Todas las familias"
-              // Las mismas familias que el panel de Sin asignar, y solo las que
-              // hay con los demás filtros puestos. La elegida se conserva
-              // aunque ya no esté, para poder quitarla.
-              options={[...new Set([...(familiasDisponibles ?? FAMILIAS_FILTRABLES), ...(familia ? [familia] : [])])].map((fam) => ({
-                value: fam,
-                label: familiaMeta(fam as Familia).label ?? fam,
-                icon: <FamiliaIcon familia={fam as Familia} className="size-3.5" />,
-              }))}
-            />
+        <SeparadorFiltros />
+        <div className="flex items-center gap-2">
+          <span id="historial-rotulo-familia" className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Familia
           </span>
-        </label>
+          <Select
+            ariaLabelledBy="historial-rotulo-familia"
+            value={familia}
+            onChange={setFamilia}
+            placeholder="Todas"
+            etiquetaVaciar="Todas las familias"
+            // Las mismas familias que el panel de Sin asignar, y solo las que
+            // hay con los demás filtros puestos. La elegida se conserva
+            // aunque ya no esté, para poder quitarla.
+            options={[...new Set([...(familiasDisponibles ?? FAMILIAS_FILTRABLES), ...(familia ? [familia] : [])])].map((fam) => ({
+              value: fam,
+              label: familiaMeta(fam as Familia).label ?? fam,
+              icon: <FamiliaIcon familia={fam as Familia} className="size-3.5" />,
+            }))}
+          />
+        </div>
         {/* Por persona: los pedidos en los que imputó tiempo en RPS. */}
-        <label className="flex flex-col text-xs text-text-muted">
-          Quién
-          <span className="mt-1">
-            <Select
-              value={operario}
-              onChange={setOperario}
-              placeholder="Todo el equipo"
-              etiquetaVaciar="Todo el equipo"
-              options={equipo.map((o) => ({
-                value: o.id,
-                label: o.nombre,
-                icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-              }))}
-            />
+        <div className="flex items-center gap-2">
+          <span id="historial-rotulo-quien" className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Quién
           </span>
-        </label>
+          <Select
+            ariaLabelledBy="historial-rotulo-quien"
+            value={operario}
+            onChange={setOperario}
+            placeholder="Todo el equipo"
+            etiquetaVaciar="Todo el equipo"
+            options={equipo.map((o) => ({
+              value: o.id,
+              label: o.nombre,
+              icon: <OpDot color={o.color} iniciales={o.iniciales} />,
+            }))}
+          />
+        </div>
         {/* "Pasado a Producción entre…": el MISMO calendario que la barra de
             Pendientes. Eran dos `input[type=date]` y los pintaba el navegador a
             su manera —fondo blanco, su propia tipografía y su «Borrar / Hoy»—
             en medio de una barra que es toda nuestra. */}
-        <div className="flex flex-col text-xs text-text-muted">
-          Pasado a Producción
-          <span className="mt-1 flex items-center">
-            <SelectorFecha
-              desde={desde}
-              hasta={hasta}
-              onCambiar={(d, h) => onFiltros({ desde: d, hasta: h })}
-            />
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            Pasado a Producción
           </span>
+          <SelectorFecha
+            desde={desde}
+            hasta={hasta}
+            onCambiar={(d, h) => onFiltros({ desde: d, hasta: h })}
+          />
         </div>
+        <SeparadorFiltros />
         {/* Un chip que se queda pulsado, como los filtros del tablero: la
             casilla del navegador desentonaba con el resto de la barra. */}
         <button
@@ -279,9 +304,9 @@ export function HistorialView({
           onClick={() => setSoloSeccion(!soloSeccion)}
           aria-pressed={soloSeccion}
           title={`Deja fuera los pedidos sin trabajo de ${CENTRO_CORTO[seccion]}`}
-          className={`glass-chip self-end rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+          className={`glass-chip rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
             soloSeccion
-              ? "glass-chip-activo text-brand-700 dark:text-brand-300"
+              ? "glass-chip-activo text-brand-800 dark:text-brand-300"
               : "text-text-muted hover:text-text"
           }`}
         >
@@ -296,7 +321,7 @@ export function HistorialView({
           disabled={!hayFiltros}
           onClick={() => onFiltros(FILTROS_HISTORIAL_INICIALES)}
           title={hayFiltros ? "Deja los filtros como estaban" : "No hay filtros que limpiar"}
-          className="self-end rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-text-muted transition-colors enabled:hover:border-border-strong enabled:hover:text-text disabled:opacity-40"
+          className="ml-auto rounded-lg px-2.5 py-1.5 text-xs font-semibold text-text-muted transition-colors enabled:hover:bg-[var(--glass-highlight)] enabled:hover:text-text disabled:opacity-60"
         >
           Limpiar filtros
         </button>

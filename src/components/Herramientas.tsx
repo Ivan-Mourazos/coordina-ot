@@ -11,6 +11,7 @@ import { ResetPin } from "./ResetPin";
 import { SelectorSeccion } from "./SelectorSeccion";
 import { ThemeToggle } from "./ThemeToggle";
 import { porSeccion } from "./IdentityGate";
+import { tintaSobre } from "@/lib/tinta";
 
 /** "31 ago". Sin año: lo que se quiere saber de un vistazo es si es de esta
  *  semana o de hace meses, y el año solo estorba para eso. Mes abreviado
@@ -94,7 +95,7 @@ export function Herramientas({
       >
         <span
           className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
-          style={{ background: yo.color }}
+          style={{ background: yo.color, color: tintaSobre(yo.color) }}
         >
           {yo.iniciales}
         </span>
@@ -127,7 +128,7 @@ export function Herramientas({
           <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-1.5">
             <span
               className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
-              style={{ background: yo.color }}
+              style={{ background: yo.color, color: tintaSobre(yo.color) }}
             >
               {yo.iniciales}
             </span>
@@ -179,12 +180,12 @@ export function Herramientas({
                     setOpen(false);
                   }}
                   className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
-                    op.id === yo.id ? "text-brand-600" : "text-text"
+                    op.id === yo.id ? "text-brand-800 dark:text-brand-400" : "text-text"
                   }`}
                 >
                   <span
                     className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-                    style={{ background: op.color }}
+                    style={{ background: op.color, color: tintaSobre(op.color) }}
                   >
                     {op.iniciales}
                   </span>

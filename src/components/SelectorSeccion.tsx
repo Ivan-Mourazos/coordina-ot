@@ -54,7 +54,7 @@ export function SelectorSeccion({
             }
             className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
               activa
-                ? "bg-brand-500 text-white"
+                ? "bg-brand-400 text-[#231903]"
                 : "text-text-muted hover:text-text"
             }`}
           >

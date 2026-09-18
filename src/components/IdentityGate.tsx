@@ -3,6 +3,7 @@
 import type { Operario } from "@/lib/types";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { Logo } from "./Logo";
+import { tintaSobre } from "@/lib/tinta";
 
 /** Pantalla de selección de técnico ("login sin login"). Se muestra cuando
  *  este navegador aún no tiene un técnico recordado en localStorage.
@@ -44,7 +45,7 @@ export function IdentityGate({
                   >
                     <span
                       className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
-                      style={{ background: op.color }}
+                      style={{ background: op.color, color: tintaSobre(op.color) }}
                     >
                       {op.iniciales}
                     </span>

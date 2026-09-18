@@ -9,6 +9,7 @@ import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
 import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
+import { tintaSobre } from "@/lib/tinta";
 
 /** El trabajo de un compañero: sus fases EN LISTA, una debajo de otra y cada
  *  una en su bloque con relieve, con una línea por pedido.
@@ -56,7 +57,7 @@ export function PanelCompanero({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"
-          style={{ background: operario.color }}
+          style={{ background: operario.color, color: tintaSobre(operario.color) }}
         >
           {operario.iniciales}
         </span>

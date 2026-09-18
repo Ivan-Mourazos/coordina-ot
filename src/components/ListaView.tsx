@@ -79,9 +79,17 @@ import { FilaOF } from "./FilaOF";
  *  empuja ese umbral por debajo de ~900 px de contenido, fuera del rango de
  *  cualquier ventana real, sin tocar la separación mínima entre fechas: baja
  *  con el mismo suelo (ver `RECORRIDO_PX`), así que a 440 px las cuatro
- *  siguen sin pisarse. */
+ *  siguen sin pisarse.
+ *
+ *  Identidad y estado ya no van en %, sino con TOPE (28 rem y 18 rem), y el
+ *  recorrido se lleva el resto. En porcentaje, en un monitor de 2.500 px la
+ *  columna del cliente medía 900 px para un nombre de 300, y "quién · estado"
+ *  quedaba flotando a media fila, lejos del pedido. Hasta ~1.400 px de ancho
+ *  el reparto sale casi igual que antes; por encima, lo que crece es la línea
+ *  de tiempo, que es lo único que gana algo con más sitio. Y el mínimo total
+ *  baja: el cliente puede encoger hasta cero antes que el recorrido. */
 const COLUMNAS_LISTA =
-  "grid grid-cols-[32px_36%_22%_minmax(440px,42%)] items-center gap-x-3";
+  "grid grid-cols-[32px_minmax(0,28rem)_minmax(200px,18rem)_minmax(440px,1fr)] items-center gap-x-3";
 
 /** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
  *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */

@@ -128,7 +128,7 @@ function CentroTareas({
   extraCentro?: (centro: HistorialCentro) => React.ReactNode;
   extraOF?: (of: HistorialOF, centro: HistorialCentro) => React.ReactNode;
 }) {
-  const acento = conColor ? "text-brand-700 dark:text-brand-300" : "";
+  const acento = conColor ? "text-brand-800 dark:text-brand-300" : "";
   // Con una sola OF su tiempo ES el del centro, que está justo encima: no se
   // escribe dos veces. Con varias sí reparten, y entonces hace falta.
   const variasOF = centro.ofs.length > 1;
@@ -227,7 +227,7 @@ export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor
               </span>
               <span
                 className={`shrink-0 font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
-                  conColor && !vacia ? "text-brand-700 dark:text-brand-300" : ""
+                  conColor && !vacia ? "text-brand-800 dark:text-brand-300" : ""
                 }`}
               >
                 {fmtMin(tarea.tiempoImputadoMin)}

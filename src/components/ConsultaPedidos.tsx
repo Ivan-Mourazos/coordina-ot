@@ -222,7 +222,7 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
           title={[cliente, ciudad].filter(Boolean).join(" · ")}
         >
           {cliente}
-          {ciudad && <span className="text-brand-700 dark:text-brand-300"> · {ciudad}</span>}
+          {ciudad && <span className="text-brand-800 dark:text-brand-300"> · {ciudad}</span>}
         </span>
         {donde && <span className="text-xs font-medium text-text">{donde}</span>}
         {/* Fuera de plazo se dice SIEMPRE: el rótulo del día dice para cuándo
@@ -302,7 +302,7 @@ function FichaConsulta({ codigo }: { codigo: string }) {
           izquierda, para que no sea una caja más entre las tres. */}
       {detalle.donde.length > 0 && (
         <div className="rounded-xl border border-l-4 border-border border-l-brand-400 bg-surface px-3 py-2.5 shadow-sm">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-800 dark:text-brand-300">
             Dónde está ahora
           </p>
           <DondeEsta donde={detalle.donde} />

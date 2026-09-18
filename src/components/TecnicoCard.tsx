@@ -9,6 +9,7 @@ import { LiveDot } from "./LiveBadge";
 import type { LiveInfo } from "./Board";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
+import { tintaSobre } from "@/lib/tinta";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
  *  qué rol), y una barra con la distribución de sus OF por fase. Zona
@@ -62,7 +63,7 @@ export const TecnicoCard = memo(function TecnicoCard({
         <div className="flex items-center gap-1.5">
           <span
             className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
-            style={{ background: operario.color }}
+            style={{ background: operario.color, color: tintaSobre(operario.color) }}
           >
             {operario.iniciales}
           </span>

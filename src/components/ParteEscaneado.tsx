@@ -38,7 +38,7 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
   const chip = "chip-3d grid size-8 place-items-center rounded-lg text-sm text-text";
   // Anillo y color de marca para el que está puesto. NO `glass-chip-activo`:
   // esa tiñe el fondo, y `chip-3d` va después en la hoja y se lo comería.
-  const puesto = "ring-2 ring-brand-400 text-brand-700 dark:text-brand-300";
+  const puesto = "ring-2 ring-brand-400 text-brand-800 dark:text-brand-300";
 
   return (
     // El clic no sale de aquí: en la ficha del tablero, un clic fuera la

@@ -19,6 +19,7 @@ import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaOF } from "./FilaOF";
+import { tintaSobre } from "@/lib/tinta";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
 // Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
@@ -40,9 +41,13 @@ import { FilaOF } from "./FilaOF";
 // todos los días, con su nombre y avisando al interesado.
 
 /** Las columnas de una línea de revisión. Literal entera (Tailwind).
- *  chevron · pedido · cliente · nº OF · tiempo · autor→revisor */
+ *  chevron · pedido · cliente · nº OF · tiempo · autor→revisor · (sobrante)
+ *
+ *  El cliente lleva TOPE y el sobrante va a una columna vacía al final. Con el
+ *  cliente a `1fr`, en un monitor ancho las cifras se iban a 1.300 px del
+ *  nombre y había que seguir la fila con el dedo para saber de quién eran. */
 const COLUMNAS_REVISION =
-  "grid grid-cols-[28px_136px_minmax(0,1fr)_56px_64px_84px] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,36rem)_56px_64px_84px_1fr] items-center gap-x-3";
 
 const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
@@ -155,7 +160,7 @@ export function RevisionView({
                 >
                   <span
                     className="grid size-4 place-items-center rounded-full text-[8px] font-bold text-white"
-                    style={{ background: op.color }}
+                    style={{ background: op.color, color: tintaSobre(op.color) }}
                   >
                     {op.iniciales}
                   </span>
@@ -243,7 +248,10 @@ function SeccionRevision({
           texto: titulo,
           claseDot: dotClassName,
           color: dotColor,
-          sufijo: `· ${nOF} OF`,
+          // Vacía, la sección se queda en su rótulo: cuatro "Aquí no tienes
+          // nada ahora mismo" seguidos ocupaban media pantalla para decir que
+          // no había nada, y empujaban hacia abajo la sección que sí tenía.
+          sufijo: nOF === 0 ? "· nada ahora mismo" : `· ${nOF} OF`,
         }}
         // Antes de unificar las cuatro vistas esto era un <h2> (no hay ningún
         // <h1> POR ENCIMA de estos rótulos salvo el de la propia pantalla) —
@@ -252,11 +260,7 @@ function SeccionRevision({
         // intermedio; aquí saltaría de un <h1> a un <h3> sin nada en medio.
         nivelRotulo="h2"
       >
-        {facets.length === 0 ? (
-          <p className="px-3 py-3 text-xs text-text-muted">
-            Aquí no tienes nada ahora mismo.
-          </p>
-        ) : (
+        {facets.length === 0 ? null : (
           facets.map((f) => (
             <FilaRevision
               key={f.pedido.id}
@@ -297,7 +301,7 @@ function AlcanceToggle({
           aria-pressed={alcance === o.id}
           className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
             alcance === o.id
-              ? "bg-violet-600 text-white shadow-sm"
+              ? "bg-brand-400 text-[#231903] shadow-sm"
               : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
           }`}
         >
@@ -313,7 +317,7 @@ function Avatar({ op, title }: { op: Operario | undefined; title: string }) {
   return (
     <span
       className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-      style={{ background: op.color }}
+      style={{ background: op.color, color: tintaSobre(op.color) }}
       title={`${title}: ${op.nombre}`}
     >
       {op.iniciales}

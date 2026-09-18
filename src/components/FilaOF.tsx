@@ -4,6 +4,7 @@ import { ESTADO, fmtMin } from "@/lib/estado";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
+import { tintaSobre } from "@/lib/tinta";
 
 // ─── Una OF dentro del detalle de un pedido ──────────────────────────────────
 // Nace en Pendientes y la usa también Revisiones: las dos abren un pedido para
@@ -28,7 +29,7 @@ function Avatar({ op, title }: { op: Operario | undefined; title: string }) {
   return (
     <span
       className="grid size-5 place-items-center rounded-full text-[9px] font-bold text-white"
-      style={{ background: op.color }}
+      style={{ background: op.color, color: tintaSobre(op.color) }}
       title={`${title}: ${op.nombre}`}
     >
       {op.iniciales}
