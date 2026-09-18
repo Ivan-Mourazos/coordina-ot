@@ -1,5 +1,38 @@
 [
   {
+    "id": "2026-09-18",
+    "hasta": "4715fa0",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes ver los PDF con el visor de CoordinaOT o con el de tu navegador",
+        "detalle": "El botón ⇄, junto a girar e imprimir. Se recuerda en tu ordenador. Si usas el de Adobe en Firefox, elige el del navegador. Y con ↗ lo abres en otra pestaña."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Los documentos del pedido también se ajustan al ancho o al alto",
+        "detalle": "Con ↔ y ↕ arriba del documento. Se recuerda en tu ordenador, aparte de cómo tengas puesto el parte."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Los documentos del pedido ahora también se pueden girar e imprimir desde la propia web",
+        "detalle": "Con ↻ y ⎙ arriba del documento. Para buscar una palabra dentro de un plano, pásate al visor del navegador con ⇄."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al girar el parte, la rueda del ratón ya baja por la hoja y no de lado"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Cambiar entre ajustar al ancho y al alto ya no vuelve a cargar el parte"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Pasar de un documento del pedido a otro con las flechas va más deprisa"
+      }
+    ]
+  },
+  {
     "id": "2026-09-17",
     "hasta": "a8120ba",
     "cambios": [
