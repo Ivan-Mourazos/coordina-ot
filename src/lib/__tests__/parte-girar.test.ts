@@ -13,10 +13,6 @@ test("hay un botón para girar el parte", () => {
   expect(pintar()).toContain("Girar el parte");
 });
 
-test("de salida el parte no está girado", () => {
-  expect(pintar()).toContain("rotate(0deg)");
-});
-
 test("el botón da la vuelta entera en cuatro y empieza otra vez", () => {
   expect(siguienteGiro(0)).toBe(90);
   expect(siguienteGiro(90)).toBe(180);
@@ -24,18 +20,40 @@ test("el botón da la vuelta entera en cuatro y empieza otra vez", () => {
   expect(siguienteGiro(270)).toBe(0);
 });
 
-test("solo el cuarto IMPAR intercambia ancho y alto, que es lo que llena el hueco", () => {
-  // De pie dentro de un hueco apaisado: lo que era alto pasa a ser ancho.
+test("solo el cuarto IMPAR intercambia ancho y alto", () => {
   expect(giroIntercambia(90)).toBe(true);
   expect(giroIntercambia(270)).toBe(true);
-  // Boca abajo mide igual que del derecho.
   expect(giroIntercambia(0)).toBe(false);
   expect(giroIntercambia(180)).toBe(false);
 });
 
 test("el botón dice en qué posición está la hoja, y lo dice donde lo lee un lector de pantalla", () => {
-  // El nombre de un botón lo da el `aria-label`, no el `title`: con uno fijo,
-  // quien no ve la pantalla no sabría si el parte está girado, que es justo lo
-  // que el anillo de color le cuenta a quien sí la ve.
   expect(pintar()).toContain('aria-label="Girar el parte · ahora 0°"');
+});
+
+test("de salida se ve con el visor propio: el giro ya no es un transform del marco", () => {
+  const html = pintar();
+  expect(html).not.toContain("<iframe");
+  expect(html).not.toContain("rotate(");
+});
+
+test("mientras carga se ve la miniatura del parte", () => {
+  expect(pintar()).toContain('src="/scan/AR.26.03914.png"');
+});
+
+test("siguen los dos botones de encaje, y dicen que se recuerdan", () => {
+  const html = pintar();
+  expect(html).toContain('aria-label="Ajustar al ancho"');
+  expect(html).toContain('aria-label="Ajustar al alto"');
+  expect(html).toContain("se recuerda para la próxima vez");
+});
+
+test("se puede pasar al visor del navegador", () => {
+  expect(pintar()).toContain('aria-label="Ver con el visor del navegador"');
+});
+
+test("abrir en pestaña está siempre, para quien quiera su propio visor", () => {
+  const html = pintar();
+  expect(html).toContain('aria-label="Abrir el parte en otra pestaña"');
+  expect(html).toContain('href="/scan/AR.26.03914.pdf"');
 });
