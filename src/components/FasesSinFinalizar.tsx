@@ -129,6 +129,24 @@ export function FasesSinFinalizar({
   // Todo cerrado y sin errores: silencio. Es el caso normal.
   if (!error && pendientes.length === 0 && (r?.eliminadas ?? 0) === 0) return null;
 
+  // Solo el fallo de la consulta, sin nada que enseñar. Iba en la caja ámbar
+  // con el título de la otra rama —"Operaciones … retiradas de OLANET"— y
+  // debajo, en rojo, "No se pudo consultar OLANET": decía que se habían
+  // retirado operaciones cuando lo único cierto es que no se sabe. Y dos
+  // alarmas juntas (ámbar y rojo) para algo que no pide hacer nada. Va en
+  // gris y en una línea: es un aviso, no una tarea.
+  if (error && pendientes.length === 0 && (r?.eliminadas ?? 0) === 0) {
+    return (
+      <p
+        role="status"
+        className="mb-3 rounded-xl border border-border bg-surface-2 px-3 py-2 text-[11px] leading-snug text-text-muted"
+      >
+        <span className="font-semibold text-text">{error}</span> Si en {seccion.nombre} quedó alguna
+        operación sin finalizar, ahora no se puede saber: vuelve a abrir el pedido en un rato.
+      </p>
+    );
+  }
+
   return (
     <div className="mb-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3">
       <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
@@ -180,7 +198,7 @@ export function FasesSinFinalizar({
       )}
 
       {error && (
-        <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">
+        <p className="mt-1.5 text-[11px] text-red-700 dark:text-red-400" role="alert">
           {error}
         </p>
       )}
