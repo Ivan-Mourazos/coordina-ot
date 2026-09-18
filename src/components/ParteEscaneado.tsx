@@ -43,57 +43,72 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
     // El clic no sale de aquí: en la ficha del tablero, un clic fuera la
     // cierra, y pulsar un botón del parte no es salirse de ella.
     <div className="flex h-full w-full gap-2" onClick={(e) => e.stopPropagation()}>
+      {/* TRES GRUPOS, no una fila de botones. Arriba lo que cambia cómo se ve
+          la hoja aquí dentro; debajo lo que la saca fuera (otra pestaña,
+          descarga, papel); y al pie, aparte, con QUÉ se ve. Mezclados, ⇄ caía
+          entre girar y descargar y se leía como una acción más sobre el parte,
+          cuando es una preferencia que se pone una vez y se olvida. */}
       <div className="flex shrink-0 flex-col gap-1.5">
-        <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} />
-        {propio && (
+        <div role="group" aria-label="Cómo se ve el parte" className="flex flex-col gap-1.5">
+          <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} />
+          {propio && (
+            <button
+              type="button"
+              onClick={() => setGiro(siguienteGiro)}
+              title={`Girar el parte · ahora ${giro}°`}
+              // El grado también en el `aria-label`: con uno fijo, quien usa
+              // lector de pantalla no sabría en qué posición está la hoja.
+              aria-label={`Girar el parte · ahora ${giro}°`}
+              className={`${chip} ${giro !== 0 ? puesto : ""}`}
+            >
+              ↻
+            </button>
+          )}
+        </div>
+        <Separador />
+        <div role="group" aria-label="Sacar el parte" className="flex flex-col gap-1.5">
+          <a
+            href={scanUrl}
+            target="_blank"
+            rel="noopener"
+            title="Abrir el parte en otra pestaña"
+            aria-label="Abrir el parte en otra pestaña"
+            className={chip}
+          >
+            ↗
+          </a>
+          <a href={scanUrl} download={`${codigo}.pdf`} title="Descargar el parte" aria-label="Descargar el parte" className={chip}>
+            ↓
+          </a>
           <button
             type="button"
-            onClick={() => setGiro(siguienteGiro)}
-            title={`Girar el parte · ahora ${giro}°`}
-            // El grado también en el `aria-label`: con uno fijo, quien usa
-            // lector de pantalla no sabría en qué posición está la hoja.
-            aria-label={`Girar el parte · ahora ${giro}°`}
-            className={`${chip} ${giro !== 0 ? puesto : ""}`}
+            onClick={() => imprimirPdf(scanUrl)}
+            title="Imprimir el parte"
+            aria-label="Imprimir el parte"
+            className={chip}
           >
-            ↻
+            ⎙
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setMotor(propio ? "navegador" : "propio")}
-          aria-pressed={!propio}
-          title={
-            propio
-              ? "Ver con el visor del navegador · se recuerda para la próxima vez"
-              : "Volver al visor de CoordinaOT · se recuerda para la próxima vez"
-          }
-          aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
-          className={`${chip} ${propio ? "" : puesto}`}
-        >
-          ⇄
-        </button>
-        <a
-          href={scanUrl}
-          target="_blank"
-          rel="noopener"
-          title="Abrir el parte en otra pestaña"
-          aria-label="Abrir el parte en otra pestaña"
-          className={chip}
-        >
-          ↗
-        </a>
-        <a href={scanUrl} download={`${codigo}.pdf`} title="Descargar el parte" aria-label="Descargar el parte" className={chip}>
-          ↓
-        </a>
-        <button
-          type="button"
-          onClick={() => imprimirPdf(scanUrl)}
-          title="Imprimir el parte"
-          aria-label="Imprimir el parte"
-          className={chip}
-        >
-          ⎙
-        </button>
+        </div>
+        {/* Al pie del carril (`mt-auto`): lejos de las acciones, donde no se
+            pulsa por error buscando imprimir. */}
+        <div className="mt-auto flex flex-col gap-1.5">
+          <Separador />
+          <button
+            type="button"
+            onClick={() => setMotor(propio ? "navegador" : "propio")}
+            aria-pressed={!propio}
+            title={
+              propio
+                ? "Ver con el visor del navegador · se recuerda para la próxima vez"
+                : "Volver al visor de CoordinaOT · se recuerda para la próxima vez"
+            }
+            aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+            className={`${chip} ${propio ? "" : puesto}`}
+          >
+            ⇄
+          </button>
+        </div>
       </div>
       <div className="relative h-full min-w-0 flex-1 overflow-hidden rounded-xl">
         {propio ? (
@@ -108,4 +123,9 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
       </div>
     </div>
   );
+}
+
+/** Raya corta entre grupos del carril: separa sin gastar alto. */
+function Separador() {
+  return <span aria-hidden="true" className="mx-auto my-1 h-px w-6 bg-white/25" />;
 }

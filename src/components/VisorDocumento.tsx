@@ -28,6 +28,11 @@ export interface DocumentoAbrible extends DocumentoRps {
   url: string;
 }
 
+/** Botón cuadrado de la barra, sobre el telón negro. */
+const BOTON = "grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm text-white hover:bg-white/20";
+/** El que está puesto (encaje elegido, documento girado). */
+const PUESTO = "bg-white/25 ring-2 ring-white/60";
+
 export function VisorDocumento({
   documentos,
   indice,
@@ -113,55 +118,66 @@ export function VisorDocumento({
         <span className="ml-auto shrink-0 text-xs text-white/60">
           {indice + 1} / {documentos.length}
         </span>
+        {/* Los mismos TRES GRUPOS que el carril del parte, en horizontal: cómo
+            se ve el documento aquí, sacarlo fuera, y —aparte, junto a cerrar,
+            con texto porque un icono solo no dice qué hace— con qué visor se
+            ve. Todos los botones de acción cuadrados: mezclar cuadrados con
+            píldoras de texto era parte de lo que hacía la barra desordenada. */}
         {esPdf && (
           <>
-            <BotonesEncaje
-              encaje={encaje}
-              onPulsar={pulsarEncaje}
-              clase="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
-              clasePuesto="bg-white/25 ring-2 ring-white/60"
-            />
-            {/* Solo con el motor propio: el visor del navegador trae su giro. */}
-            {motor === "propio" && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGiroDe({ url: doc.url, giro: siguienteGiro(giro) });
-                }}
-                title={`Girar el documento · ahora ${giro}°`}
-                // El grado también en el `aria-label`, como en el parte.
-                aria-label={`Girar el documento · ahora ${giro}°`}
-                className={`grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20 ${
-                  giro !== 0 ? "bg-white/25 ring-2 ring-white/60" : ""
-                }`}
-              >
-                ↻
-              </button>
-            )}
-            <button
-              type="button"
-              aria-pressed={motor === "navegador"}
-              onClick={(e) => {
-                e.stopPropagation();
-                setMotor(motor === "propio" ? "navegador" : "propio");
-              }}
-              title="Se recuerda para la próxima vez, también en el parte"
-              className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
-            >
-              {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
-            </button>
+            <Separador />
+            <div role="group" aria-label="Cómo se ve el documento" className="flex shrink-0 items-center gap-1.5">
+              <BotonesEncaje encaje={encaje} onPulsar={pulsarEncaje} clase={BOTON} clasePuesto={PUESTO} />
+              {/* Solo con el motor propio: el visor del navegador trae su giro. */}
+              {motor === "propio" && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGiroDe({ url: doc.url, giro: siguienteGiro(giro) });
+                  }}
+                  title={`Girar el documento · ahora ${giro}°`}
+                  // El grado también en el `aria-label`, como en el parte.
+                  aria-label={`Girar el documento · ahora ${giro}°`}
+                  className={`${BOTON} ${giro !== 0 ? PUESTO : ""}`}
+                >
+                  ↻
+                </button>
+              )}
+            </div>
+          </>
+        )}
+        <Separador />
+        <div role="group" aria-label="Sacar el documento" className="flex shrink-0 items-center gap-1.5">
+          {esPdf && (
             <a
               href={doc.url}
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
-              className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
+              title="Abrir en otra pestaña"
+              aria-label="Abrir el documento en otra pestaña"
+              className={BOTON}
             >
-              ↗ Abrir en pestaña
+              ↗
             </a>
-            {/* En los dos motores: con el del navegador también se imprime
-                el PDF de verdad, sin buscar el botón en su barra. */}
+          )}
+          {/* Bajarlo sigue haciendo falta: hay quien lo adjunta a un correo o
+              lo manda a taller. `download` con el nombre de RPS, no el de la
+              URL (que sería "3"). */}
+          <a
+            href={doc.url}
+            download={doc.archivo}
+            onClick={(e) => e.stopPropagation()}
+            title="Descargar"
+            aria-label="Descargar el documento"
+            className={BOTON}
+          >
+            ⤓
+          </a>
+          {/* En los dos motores: con el del navegador también se imprime el
+              PDF de verdad, sin buscar el botón en su barra. */}
+          {esPdf && (
             <button
               type="button"
               onClick={(e) => {
@@ -170,24 +186,29 @@ export function VisorDocumento({
               }}
               title="Imprimir el documento"
               aria-label="Imprimir el documento"
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-sm hover:bg-white/20"
+              className={BOTON}
             >
               ⎙
             </button>
+          )}
+        </div>
+        {esPdf && (
+          <>
+            <Separador />
+            <button
+              type="button"
+              aria-pressed={motor === "navegador"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMotor(motor === "propio" ? "navegador" : "propio");
+              }}
+              title="Se recuerda para la próxima vez, también en el parte"
+              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white"
+            >
+              {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
+            </button>
           </>
         )}
-        {/* Bajarlo sigue haciendo falta: hay quien lo adjunta a un correo o lo
-            manda a taller. `download` con el nombre de RPS, no el de la URL
-            (que sería "3"). */}
-        <a
-          href={doc.url}
-          download={doc.archivo}
-          onClick={(e) => e.stopPropagation()}
-          title="Descargar"
-          className="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-white/20"
-        >
-          ⤓ Descargar
-        </a>
         <button
           onClick={onCerrar}
           aria-label="Cerrar"
@@ -261,4 +282,9 @@ function FlechaVisor({ lado, onClick }: { lado: "izq" | "der"; onClick: () => vo
       {lado === "izq" ? "‹" : "›"}
     </button>
   );
+}
+
+/** Raya corta entre grupos de la barra: separa sin ocupar un botón. */
+function Separador() {
+  return <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-white/25" />;
 }

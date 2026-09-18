@@ -13,8 +13,9 @@ import {
 import { PaginaPdf } from "./PaginaPdf";
 import { usePdfDoc } from "./usePdfDoc";
 
-/** Aire alrededor de la hoja, en px: que el borde del papel se vea. */
-const MARGEN = 8;
+/** Aire alrededor de la hoja, en px: que el borde del papel se vea y que la
+ *  sombra de `.hoja-3d` no quede cortada contra el canto del visor. */
+const MARGEN = 24;
 
 /** El PDF pintado por nosotros.
  *
@@ -151,10 +152,10 @@ export function VisorPdf({
       aria-label={titulo}
       tabIndex={0}
       onClick={(e) => e.stopPropagation()}
-      className="h-full w-full overflow-auto rounded-xl bg-neutral-200 outline-none focus-visible:ring-2 focus-visible:ring-brand-400 [scrollbar-gutter:stable] dark:bg-neutral-800"
+      className="h-full w-full overflow-auto rounded-xl outline-none [color-scheme:dark] focus-visible:ring-2 focus-visible:ring-brand-400 [scrollbar-gutter:stable]"
     >
       {error ? (
-        <div className="grid h-full place-items-center p-6 text-center text-sm text-text-muted">
+        <div className="grid h-full place-items-center p-6 text-center text-sm text-white/70">
           <p>
             No se ha podido abrir este PDF aquí.{" "}
             <a href={url} target="_blank" rel="noopener" className="underline">
@@ -164,7 +165,7 @@ export function VisorPdf({
           </p>
         </div>
       ) : (
-        <div className="mx-auto flex w-fit flex-col items-center gap-2" style={{ padding: MARGEN }}>
+        <div className="mx-auto flex w-fit flex-col items-center gap-8" style={{ padding: MARGEN }}>
           {doc && escala > 0
             ? Array.from({ length: doc.numPages }, (_, i) => (
                 <PaginaPdf
@@ -184,7 +185,7 @@ export function VisorPdf({
                   src={poster}
                   alt=""
                   aria-hidden="true"
-                  className="bg-white object-contain shadow-md"
+                  className="hoja-3d object-contain"
                   style={{ maxWidth: hueco.ancho || undefined, maxHeight: hueco.alto || undefined }}
                 />
               )}

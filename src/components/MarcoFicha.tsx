@@ -51,7 +51,7 @@ export function MarcoFicha({
       aria-label={etiqueta}
       className="fixed inset-0 z-50"
     >
-      <div className="overlay-in absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onCerrar} />
+      <div className="telon-ficha overlay-in absolute inset-0" onClick={onCerrar} />
 
       {/* Las DOS piezas flotan sobre el telón y miden lo mismo: arrancan y
           acaban a la misma altura, con el mismo aire alrededor.

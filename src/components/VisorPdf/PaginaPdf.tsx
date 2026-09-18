@@ -161,7 +161,7 @@ export function PaginaPdf({
   const alto = vista?.height ?? provisional.alto;
 
   return (
-    <div ref={caja} className="relative shrink-0 bg-white shadow-md" style={{ width: ancho, height: alto }}>
+    <div ref={caja} className="hoja-3d relative shrink-0 overflow-hidden" style={{ width: ancho, height: alto }}>
       {poster && !pintada && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-contain" />

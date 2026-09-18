@@ -373,6 +373,36 @@ body {
     0 1px 2px -1px rgba(0, 0, 0, 0.7);
 }
 
+/* Telón de la ficha del pedido (MarcoFicha): SÓLIDO, del tono que daba el
+   negro al 60 % sobre `--bg`. Translúcido dejaba ver el tablero difuminado
+   detrás del parte, con manchas de color y un corte de tono en el borde del
+   visor. Sólido, el parte flota sobre un fondo liso de lado a lado. Sale del
+   `--bg` de cada tema, así que vale en claro y en oscuro. */
+.telon-ficha {
+  background: color-mix(in srgb, var(--bg) 40%, black);
+}
+
+/* Hoja del visor de PDF (parte y documentos). No hay caja alrededor: la hoja
+   flota sobre el mismo telón oscuro que queda detrás de la ficha, y la
+   profundidad la dan las sombras. De cerca a lejos: un filo fino que recorta
+   el blanco, el canto inferior de los bloques de la casa (`bloque-3d`) para
+   que tenga grosor, una sombra de contacto y una larga y difusa que la separa
+   del fondo. UNA sola versión: el telón es oscuro en los dos temas. El papel
+   es blanco siempre: es un escaneo, y oscurecerlo falsearía lo que se lee.
+   Esquinas con el radio de la ficha (`rounded-xl`): la hoja y el panel se
+   leen como piezas del mismo juego. */
+.hoja-3d {
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 2px 3px rgba(0, 0, 0, 0.35),
+    0 6px 0 -2px rgba(214, 218, 224, 0.9),
+    0 7px 0 -2px rgba(0, 0, 0, 0.45),
+    0 22px 40px -10px rgba(0, 0, 0, 0.6),
+    0 50px 100px -24px rgba(0, 0, 0, 0.75);
+}
+
 /* Botón/chip con relieve (acciones, "ver reserva"…): tacto de tecla. */
 .chip-3d {
   background:
