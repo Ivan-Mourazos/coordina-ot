@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "7d4b105",
+    "hasta": "fe0317e",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -88,6 +88,10 @@
       {
         "tipo": "mejor",
         "titulo": "En pantallas grandes la web queda centrada y las líneas de tiempo no se estiran tanto"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas, los tiempos de cada paso se comparan de un vistazo, en tres tarjetas"
       }
     ]
   },
