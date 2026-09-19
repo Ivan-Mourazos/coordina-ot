@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "6b53380",
+    "hasta": "58f9f57",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -105,6 +105,11 @@
         "tipo": "mejor",
         "titulo": "En los pedidos con muchas OF, cada una sale plegada y se abre al pulsarla",
         "detalle": "Desde tres OF. La que se está fichando sigue abierta, y \"Abrir todas\" las despliega de golpe."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha del pedido, los documentos y los tiempos salen antes que las OF",
+        "detalle": "También en la ficha del Historial."
       }
     ]
   },
