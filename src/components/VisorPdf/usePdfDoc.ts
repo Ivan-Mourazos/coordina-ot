@@ -3,6 +3,19 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { crearCacheDocumentos } from "@/lib/visor-pdf";
 import { cargarPdfJs, workerCompartido } from "./pdfjs-cliente";
 
+/** Dónde están los recursos que pdf.js carga aparte. Los copia a `public/pdfjs/`
+ *  `scripts/copiar-worker.mjs`, igual que el worker. Sin `wasmUrl`, los
+ *  escaneos en JBIG2 salían en blanco: pdf.js no encontraba su decodificador y
+ *  pintaba la página sin la imagen. Son los mismos que usa el servidor para
+ *  las miniaturas (lib/server/miniaturas.ts). */
+const RECURSOS_PDFJS = {
+  wasmUrl: "/pdfjs/wasm/",
+  cMapUrl: "/pdfjs/cmaps/",
+  cMapPacked: true,
+  standardFontDataUrl: "/pdfjs/standard_fonts/",
+  iccUrl: "/pdfjs/iccs/",
+};
+
 /** Cinco: el que se ve, sus dos vecinos precargados y dos para volver atrás. */
 const TOPE_DOCUMENTOS = 5;
 
@@ -19,7 +32,7 @@ interface Abierto {
 // rutas) lo sirve de disco la segunda vez.
 const cache = crearCacheDocumentos<Abierto>(async (url) => {
   const [pdfjs, worker] = await Promise.all([cargarPdfJs(), workerCompartido()]);
-  const tarea = pdfjs.getDocument({ url, worker, disableRange: true, disableStream: true });
+  const tarea = pdfjs.getDocument({ url, worker, disableRange: true, disableStream: true, ...RECURSOS_PDFJS });
   const doc = await tarea.promise;
   return { doc, destroy: () => tarea.destroy() };
 }, TOPE_DOCUMENTOS);

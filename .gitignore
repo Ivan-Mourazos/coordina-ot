@@ -55,3 +55,4 @@ snap-board.md
 
 # Worker de pdf.js: lo copia scripts/copiar-worker.mjs en dev y build.
 /public/pdf.worker.mjs
+/public/pdfjs/
