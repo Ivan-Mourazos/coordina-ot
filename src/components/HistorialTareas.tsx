@@ -20,13 +20,14 @@ const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (
  *  sitio. Ahora es un bloque que se abre DENTRO, con el mismo borde y fondo
  *  que Documentos y Notas: se lee al lado de lo demás y no tapa nada. */
 export function HistorialTareas({
-  pedido,
   ofs,
   seccion,
   className = "mb-4",
   compacto = false,
   abrirAlMontar = false,
 }: {
+  /** Ya no se pinta (lo dice la cabecera de la ficha); se sigue recibiendo
+   *  porque quien llama lo tiene a mano y sirve de clave al leer el código. */
   pedido: string;
   ofs: HistorialOF[];
   seccion: SeccionId;
