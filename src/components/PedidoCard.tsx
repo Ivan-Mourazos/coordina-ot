@@ -120,7 +120,7 @@ export const PedidoCardView = memo(function PedidoCardView({
         </div>
       )}
       <div
-        className="relative aspect-[210/297] w-full rounded-md bg-white shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-lg dark:ring-white/10"
+        className="relative aspect-[210/297] w-full rounded-md bg-white parte-3d"
       >
         <PedidoScan pedido={pedido} />
 

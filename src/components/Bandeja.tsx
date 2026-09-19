@@ -223,9 +223,12 @@ export function Bandeja({
   }, [facets]);
 
   return (
-    <div
-      className="rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg-strong)] p-3"
-    >
+    // En claro, SIN caja: la bandeja es el propio fondo de la página y los
+    // partes quedan apoyados directamente sobre él. Sobre el panel blanco, las
+    // miniaturas —blancas también, son escaneos— se confundían con lo que
+    // tenían detrás. Igual en oscuro: el papel destaca solo contra el grafito
+    // y la caja no aportaba nada.
+    <div className="p-3">
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-base leading-none">📥</span>
         <h2 className="text-base font-bold text-text">Sin asignar</h2>

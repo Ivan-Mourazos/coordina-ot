@@ -31,8 +31,11 @@
      fondo oscuro se quedaba casi invisible. */
   color-scheme: light;
 
-  --bg: #dfe3e9; /* gris con cuerpo: los paneles blancos flotan encima */
-  --bg-glow: #eaedf1; /* foco de luz ambiental del fondo */
+  /* Gris con cuerpo: los paneles blancos flotan encima. Bajó de #dfe3e9: con
+     aquel, blanco contra fondo daba 1,29:1 y las tarjetas no se despegaban;
+     con este, 1,39:1. La cabecera va de este mismo color (ver .glass-header). */
+  --bg: #d6dbe2;
+  --bg-glow: #e2e6eb; /* foco de luz ambiental del fondo */
   --surface: #ffffff;
   --surface-2: #f4f5f7;
   --zone: #f7f8fa;
@@ -43,10 +46,15 @@
      blanco: el fondo real es el panel translúcido, más oscuro que #fff. Con
      #676c76 quedaban en el filo del mínimo legible a 10-11 px; este tono da
      ~5,6:1 contra el vidrio y ~6:1 contra blanco. */
-  --text-muted: #5c616b;
+  /* Y un punto más oscuro al oscurecer --bg: #5c616b sobre el fondo nuevo se
+     quedaba en 4,47:1 ("EQUIPO", "VER", los rótulos van directamente sobre
+     él). #565b65 da 4,9:1 sobre el fondo y 6,8:1 sobre blanco. */
+  --text-muted: #565b65;
 
   /* Vidrio: translúcido + saturado + highlight especular en el canto */
-  --glass-bg: rgba(255, 255, 255, 0.52);
+  /* 0,7 y no 0,52: sobre el fondo más oscuro, el panel translúcido salía gris
+     en vez de blanco, y era justo el blanco lo que tenía que despegarse. */
+  --glass-bg: rgba(255, 255, 255, 0.7);
   /* 0,82 y no 0,7: la ficha se abre sobre un telón negro, y a 0,7 el panel
      dejaba pasar tanto que el cliente de la cabecera (texto secundario) se
      quedaba a 3,9:1 medido sobre ese fondo. */
@@ -57,7 +65,7 @@
   --glass-bg-pop: rgba(255, 255, 255, 0.99);
   --glass-border: rgba(255, 255, 255, 0.72);
   --glass-highlight: rgba(255, 255, 255, 0.95);
-  --glass-shadow: rgba(24, 32, 48, 0.2);
+  --glass-shadow: rgba(24, 32, 48, 0.24);
   --glass-chip: rgba(255, 255, 255, 0.85);
 
   /* Relieve en claro. El canto blanco (`--glass-border`) y el brillo interior
@@ -67,8 +75,9 @@
      oscuro de 1 px que recorta el panel y una sombra de contacto corta, la que
      dice "esto está apoyado ahí". En oscuro valen cero: allí el relieve ya lo
      daban los cantos claros y cada clase trae su propia sombra. */
-  --edge: rgba(15, 23, 42, 0.07);
-  --contact: rgba(15, 23, 42, 0.09);
+  --edge: rgba(15, 23, 42, 0.08);
+  --contact: rgba(15, 23, 42, 0.12);
+
 
   /* Escalada de urgencia de la línea de tiempo (ver TRAMO en lib/linea-tiempo).
      Aquí y no como hex en el JS porque va sobre el fondo de la tabla y NO
@@ -314,8 +323,8 @@ body {
     0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 80%, white 20%),
     0 1px 1px rgba(0, 0, 0, 0.03),
-    0 2px 0 -1px color-mix(in srgb, var(--border-strong) 60%, transparent),
-    0 8px 18px -12px var(--glass-shadow);
+    0 2px 0 0 color-mix(in srgb, var(--border-strong) 80%, transparent),
+    0 10px 20px -10px var(--glass-shadow);
   transition: transform 140ms ease, box-shadow 140ms ease;
 }
 .glass-chip:hover {
@@ -325,8 +334,8 @@ body {
     0 2px 4px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
     0 1px 1px rgba(0, 0, 0, 0.04),
-    0 3px 0 -1px color-mix(in srgb, var(--border-strong) 70%, transparent),
-    0 14px 26px -12px var(--glass-shadow);
+    0 3px 0 0 color-mix(in srgb, var(--border-strong) 90%, transparent),
+    0 16px 28px -12px var(--glass-shadow);
 }
 .dark .glass-chip {
   box-shadow:
@@ -429,6 +438,34 @@ body {
     0 36px 56px -30px rgba(0, 0, 0, 0.55);
 }
 
+/* Miniatura de un parte en la bandeja (PedidoCard). Papel sobre la mesa: un
+   filo que recorta el blanco, sombra de contacto y dos más largas. Con el
+   `shadow-sm` de antes, sobre el fondo claro el parte casi no se levantaba,
+   y es lo que hay que ver de un vistazo. Al pasar el ratón sube un poco, como
+   un papel que se coge. Blanca en los dos temas: es un escaneo. */
+.parte-3d {
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.14),
+    0 1px 2px rgba(15, 23, 42, 0.16),
+    0 4px 8px -2px rgba(15, 23, 42, 0.2),
+    0 12px 20px -10px rgba(15, 23, 42, 0.3);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.parte-3d:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.16),
+    0 2px 4px rgba(15, 23, 42, 0.16),
+    0 8px 14px -4px rgba(15, 23, 42, 0.24),
+    0 20px 30px -12px rgba(15, 23, 42, 0.34);
+}
+.dark .parte-3d {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 12px 22px -10px rgba(0, 0, 0, 0.8);
+}
+
 /* Pista de un botón (Pista.tsx): lo que dice qué hace un botón de solo icono.
    Grafito con texto claro en los DOS temas: tiene que destacar sobre cualquier
    cosa que tenga debajo —la ficha clara, el telón, un escaneo blanco— y un
@@ -471,8 +508,8 @@ body {
     0 0 0 1px var(--edge),
     0 1px 2px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
-    0 1px 0 rgba(0, 0, 0, 0.04),
-    0 2px 4px -1px var(--glass-shadow);
+    0 2px 0 0 color-mix(in srgb, var(--border-strong) 80%, transparent),
+    0 6px 12px -4px var(--glass-shadow);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .chip-3d:hover {
@@ -481,8 +518,8 @@ body {
     0 0 0 1px var(--edge),
     0 2px 4px var(--contact),
     inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 95%, white 5%),
-    0 2px 0 rgba(0, 0, 0, 0.05),
-    0 6px 12px -2px var(--glass-shadow);
+    0 3px 0 0 color-mix(in srgb, var(--border-strong) 90%, transparent),
+    0 10px 18px -4px var(--glass-shadow);
 }
 .chip-3d:active {
   transform: translateY(1px);
@@ -587,10 +624,14 @@ body {
 }
 
 /* Cabecera: mismo vidrio, de canto a canto */
+/* Del MISMO color que la página, en los dos temas, y sin raya debajo. Era
+   vidrio blanco al 82 % y, con la franja de filtros, pintaba dos bandas
+   claras encima del tablero separadas por rayas de 1 px que no separaban
+   nada. Del color del fondo, lo que se despega son sus piezas (navegación,
+   buscador, filtros), que es lo que se pulsa. */
 .glass-header {
-  background: var(--glass-bg-strong);
+  background: var(--bg);
   backdrop-filter: blur(24px) saturate(1.8);
-  box-shadow: inset 0 -1px 0 0 var(--glass-border);
 }
 
 /* Popover flotante (selects, notificaciones, paneles de equipo) */
@@ -764,6 +805,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .pista,
+  .parte-3d,
   .quicklook,
   .glass-pop,
   .ventana-3d,
