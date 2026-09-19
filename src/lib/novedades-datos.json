@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "4451fb9",
+    "hasta": "c681aeb",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -47,6 +47,11 @@
         "tipo": "mejor",
         "titulo": "Las notas del pedido se ven nada más abrirlo, antes que las OF",
         "detalle": "Sin notas, el bloque ocupa una sola línea."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La tarjeta de cada OF ocupa menos: autor y revisor van en una línea",
+        "detalle": "Y el tiempo ya no sale dos veces cuando solo ha fichado una persona."
       }
     ]
   },
