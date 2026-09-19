@@ -470,19 +470,19 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       )}
 
       {/* ── Dónde se para el trabajo ── */}
-      {/* Tiempos y Anuladas son UNA tarjeta: a todo el ancho, la explicación
-          de cada paso quedaba en una punta y su cifra en la otra. Con tope,
-          como una de las dos columnas de los otros apartados. */}
+      {/* TRES TARJETAS, UNA POR PASO, lado a lado. Era una sola tarjeta con
+          los tres en lista: a todo el ancho cada explicación quedaba en una
+          punta y su cifra en la otra, y con tope se quedaba pegada a la
+          izquierda con el resto de la pantalla vacío. Así cada paso tiene su
+          cifra grande, como "OF terminadas" en Trabajo, y se comparan de un
+          vistazo. */}
       {m && apartado === "tiempos" && (
-        <section className="glass-panel max-w-3xl rounded-xl p-4">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-            Cuánto tarda cada paso
-          </h3>
-          <p className="mt-0.5 text-[11px] text-text-muted">
-            El tiempo típico, no el medio: una OF que se quedó parada por unas
-            vacaciones desviaría la media y haría pensar que todo va lento.
+        <section aria-label="Cuánto tarda cada paso" className="flex flex-col gap-3">
+          <p className="text-[11px] text-text-muted">
+            El tiempo típico, no el medio: una OF que se quedó parada por unas vacaciones
+            desviaría la media y haría pensar que todo va lento.
           </p>
-          <ul className="mt-3 flex flex-col gap-3">
+          <ul className="grid gap-4 md:grid-cols-3">
             <FilaTramo
               rotulo="Esperando a que la revisen"
               explica="Desde que se manda a revisar hasta que alguien la coge"
@@ -499,24 +499,25 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               tramo={m.tiempos.correccion}
             />
           </ul>
-          <p className="mt-3 border-t border-border pt-2 text-[11px] text-text-muted">
-            Lo que todavía está esperando no cuenta: no se sabe cuánto va a tardar, y
-            darlo por acabado ahora haría que los números bajaran solos. El trabajo
-            fichado solo se mide donde hay fichaje en la web; por eso va dicho sobre
-            cuántos casos se pudo mirar.
+          <p className="text-[11px] text-text-muted">
+            Lo que todavía está esperando no cuenta: no se sabe cuánto va a tardar, y darlo por
+            acabado ahora haría que los números bajaran solos. El trabajo fichado solo se mide
+            donde hay fichaje en la web; por eso va dicho sobre cuántos casos se pudo mirar.
           </p>
         </section>
       )}
 
       {/* ── Qué no hace OT ── */}
       {m && apartado === "anuladas" && (
-        <section className="glass-panel max-w-3xl rounded-xl p-4">
-          {m.anulaciones === 0 ? (
-            <p className="text-xs text-text-muted">
-              No se ha anulado ninguna OF en este periodo.
-            </p>
-          ) : (
-            <>
+        // Dos columnas, como Trabajo y Devoluciones: la cifra a un lado y el
+        // porqué al otro. Era una tarjeta estrecha pegada a la izquierda.
+        m.anulaciones === 0 ? (
+          <section className="glass-panel rounded-xl p-4">
+            <p className="text-xs text-text-muted">No se ha anulado ninguna OF en este periodo.</p>
+          </section>
+        ) : (
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <section className="glass-panel rounded-xl p-4">
               <p className="text-3xl font-bold text-text">
                 {m.anulaciones}
                 <span className="ml-2 text-xs font-medium text-text-muted">
@@ -531,7 +532,9 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                   sinDatosPrevios={previoVacio}
                 />
               </p>
-              <h3 className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            </section>
+            <section className="glass-panel rounded-xl p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Por qué
               </h3>
               <ul className="mt-2 flex flex-col gap-2">
@@ -551,9 +554,9 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                   Las anuladas sin causa son de antes de que anular la pidiera.
                 </p>
               )}
-            </>
-          )}
-        </section>
+            </section>
+          </div>
+        )
       )}
     </div>
   );
@@ -751,39 +754,30 @@ function FilaTramo({
   tramo: Tramo;
 }) {
   return (
-    <li>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-semibold text-text">{rotulo}</span>
-        <span className="shrink-0 text-sm font-bold tabular-nums text-text">
-          {tramo.medianaMin === null ? "—" : fmtMin(tramo.medianaMin)}
-        </span>
-      </div>
-      <div className="flex items-baseline justify-between gap-2 text-[11px] text-text-muted">
-        <span>{explica}</span>
-        <span className="shrink-0 tabular-nums">
-          {tramo.n === 0 ? "sin datos todavía" : `${tramo.n} ${tramo.n === 1 ? "vez" : "veces"}`}
-        </span>
-      </div>
+    <li className="glass-panel flex flex-col rounded-xl p-4">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{rotulo}</h3>
+      <p className="mt-2 text-3xl font-bold tabular-nums text-text">
+        {tramo.medianaMin === null ? "—" : fmtMin(tramo.medianaMin)}
+      </p>
+      <p className="mt-1 text-[11px] text-text-muted">
+        {tramo.n === 0 ? "sin datos todavía" : `medido ${tramo.n} ${tramo.n === 1 ? "vez" : "veces"}`}
+      </p>
+      <p className="mt-3 text-[11px] leading-snug text-text-muted">{explica}</p>
       {/* Lo que de verdad se trabajó dentro de ese rato. Las dos cifras van
           juntas y SIN dividir una por otra: son dos medianas de casos
           distintos, y su cociente no es el de ningún caso real. Puestas al
           lado, la diferencia se ve igual de bien y no se inventa nada. */}
       {tramo.trabajo.n > 0 && (
-        <div className="mt-0.5 flex items-baseline justify-between gap-2 text-[11px]">
-          <span className="text-text-muted">
-            De ese rato, fichados{" "}
-            <strong className="font-semibold text-text">
-              {/* Hubo fichaje —si no, esta línea no se pinta—, así que "0m"
-                  diría que no se trabajó cuando lo que pasa es que duró menos
-                  de un minuto. */}
-              {tramo.trabajo.medianaMin ? fmtMin(tramo.trabajo.medianaMin) : "menos de 1m"}
-            </strong>{" "}
-            de trabajo
-          </span>
-          <span className="shrink-0 tabular-nums text-text-muted">
-            medido en {tramo.trabajo.n} de {tramo.n}
-          </span>
-        </div>
+        <p className="mt-auto border-t border-border pt-2 text-[11px] text-text-muted">
+          De ese rato, fichados{" "}
+          <strong className="font-semibold text-text">
+            {/* Hubo fichaje —si no, esta línea no se pinta—, así que "0m"
+                diría que no se trabajó cuando lo que pasa es que duró menos
+                de un minuto. */}
+            {tramo.trabajo.medianaMin ? fmtMin(tramo.trabajo.medianaMin) : "menos de 1m"}
+          </strong>{" "}
+          de trabajo · medido en {tramo.trabajo.n} de {tramo.n}
+        </p>
       )}
     </li>
   );
