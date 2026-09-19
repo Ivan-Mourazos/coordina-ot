@@ -195,11 +195,10 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       : (datos?.causas.find((c) => c.id === id)?.etiqueta ?? `Causa ${id}`);
 
   return (
-    // Alineado a la izquierda con el mismo margen que las demás pestañas, y no
-    // una columna centrada de 768 px: en un monitor ancho dejaba dos franjas
-    // vacías de 400 px a cada lado. Con tope, eso sí: una barra de 2.000 px no
-    // se lee mejor que una de 600.
-    <div className="flex max-w-7xl flex-col gap-4">
+    // A todo el ancho de la pestaña, con el mismo margen que las demás. El tope
+    // lo pone ya el contenedor de la web (1.800 px, en Board): aquí uno más
+    // estrecho la dejaba pegada a la izquierda con un hueco a la derecha.
+    <div className="flex flex-col gap-4">
       {/* Una sola fila: apartados, de quién son los números y el periodo. El
           título repetía el apartado elegido justo encima de su pestaña
           ("Trabajo" sobre "Trabajo"); se queda para los lectores de pantalla. */}

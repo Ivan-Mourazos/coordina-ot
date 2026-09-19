@@ -1981,8 +1981,8 @@ export function Board({
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   if (!mounted) {
     return (
-      <div className="flex min-h-full flex-col">
-        <header className="flex items-center gap-4 border-b border-border bg-bg px-5 py-3">
+      <div className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
+        <header className="flex items-center gap-4 bg-bg px-5 py-3">
           <Logo />
         </header>
         <div className="grid flex-1 place-items-center text-sm text-text-muted">
@@ -2070,7 +2070,13 @@ export function Board({
 
   return (
     <>
-      <div className="flex min-h-full flex-col">
+      {/* TODA la web del equipo en un ancho máximo centrado (1.800 px): cabecera
+          y pestañas. En un monitor de 2.500 px las listas se estiraban hasta que
+          la línea de tiempo medía 1.300 px para cuatro fechas, y Métricas, que no
+          gana nada con más ancho, se quedaba pegada a la izquierda con media
+          pantalla vacía. Centrando el conjunto y no cada pestaña por su cuenta,
+          nada salta de sitio al pasar de una a otra. Hasta 1.800 px no cambia. */}
+      <div className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
         {/* topbar */}
         {/* Tres zonas y no una fila que se reparte como puede: identidad y
             navegación a la izquierda, el buscador CENTRADO, y a la derecha los
@@ -2087,7 +2093,7 @@ export function Board({
             que ser: dónde estoy, qué busco y quién soy. */}
         {/* En pantallas estrechas: identidad, pestañas y búsqueda en filas
             separadas. En escritorio comparten una sola línea. */}
-        <header className="glass-header sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-2.5 lg:flex lg:gap-3">
+        <header className="glass-header sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-2.5 lg:flex lg:gap-3">
           <div className="contents lg:flex lg:min-w-0 lg:items-center lg:gap-3">
             {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
             <Logo className="-my-3 shrink-0" />

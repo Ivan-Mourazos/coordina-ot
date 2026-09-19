@@ -95,7 +95,15 @@ import { IconoAviso } from "./Iconos";
  *  el nombre se partía en dos líneas, la familia bajaba a una tercera y cada
  *  fila medía el doble. */
 const COLUMNAS_LISTA =
-  "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] items-center gap-x-3";
+  "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] min-[1440px]:grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_8.5rem_minmax(440px,1fr)] items-center gap-x-3";
+
+/** La columna de MATERIAL solo existe desde 1.440 px de ventana. Por debajo
+ *  no cabe sin estrujar el cliente o el recorrido (ver arriba), y el dato
+ *  sigue en el desplegable de cada fila. Por encima, el ancho que sobraba se
+ *  iba entero a la línea de tiempo, que en un monitor ancho medía 1.300 px
+ *  para cuatro fechas; y el material es lo primero que se pregunta antes de
+ *  ponerse con un pedido. */
+const SOLO_ANCHO = "hidden min-[1440px]:block";
 
 /** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
  *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */
@@ -412,6 +420,7 @@ export function ListaView({
       <span />
       <span>Pedido · cliente</span>
       <span>Quién · estado</span>
+      <span className={SOLO_ANCHO}>Material</span>
       <span>
         <span className="block">Recorrido</span>
         <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
@@ -533,6 +542,9 @@ export function ListaView({
                   <div className="pointer-events-none min-w-0">
                     <Estado tramos={tramos} />
                   </div>
+                  <div className={`pointer-events-none min-w-0 ${SOLO_ANCHO}`}>
+                    <MaterialFila p={p} hoy={hoy} />
+                  </div>
                   {/* Terminado = el recorrido ya no dice nada: el pedido no se
                       mueve más. Se apaga entero en vez de teñir media lista de
                       rojo por trabajo que ya está hecho. */}
@@ -629,9 +641,37 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
  *  con que falte. */
 const MATERIAL: Record<EstadoMaterial, { texto: string; clase: string }> = {
   reservado: { texto: "reservado", clase: "text-teal-700 dark:text-teal-300" },
-  aMedias: { texto: "a medias", clase: "font-semibold text-amber-700 dark:text-amber-300" },
+  aMedias: { texto: "a medias", clase: "font-semibold text-amber-800 dark:text-amber-300" },
   sinReservar: { texto: "sin reservar", clase: "text-text-muted" },
 };
+
+/** El material del pedido en una celda: cómo lo tiene Almacén y, si Compras
+ *  espera algo, cuántas líneas y si alguna va tarde. Es lo mismo que el
+ *  desplegable dice en "Material" y "Compras", en corto. */
+function MaterialFila({ p, hoy }: { p: Pedido; hoy: string }) {
+  const material = estadoMaterialDe(p.ofs);
+  const compras = comprasPendientes(p.ofs, hoy);
+  if (!material && compras.porLlegar === 0) {
+    return (
+      <span className="text-[11px] text-text-muted" title="Sin material asignado en las OF">
+        —
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col text-[11px] leading-4">
+      {material && <span className={MATERIAL[material].clase}>{MATERIAL[material].texto}</span>}
+      {compras.porLlegar > 0 && (
+        <span
+          className={compras.tarde > 0 ? "font-semibold text-red-700 dark:text-red-400" : "text-text-muted"}
+          title={compras.tarde > 0 ? `${compras.tarde} con la fecha de entrega pasada` : undefined}
+        >
+          {compras.porLlegar} en compras{compras.tarde > 0 ? " · tarde" : ""}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function Dato({ label, children }: { label: string; children: React.ReactNode }) {
   return (
