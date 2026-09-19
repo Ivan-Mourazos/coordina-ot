@@ -212,7 +212,7 @@ function Grupo({
           {abierto ? "▾" : "▸"}
         </span>
         {clase}
-        <span className="rounded bg-surface-2 px-1 text-[9px] font-bold text-text-muted ring-1 ring-border">
+        <span className="rounded bg-surface-2 px-1 text-[10px] font-bold text-text-muted ring-1 ring-border">
           {documentos.length}
         </span>
       </button>

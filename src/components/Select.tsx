@@ -283,7 +283,7 @@ export function Select({
 export function OpDot({ color, iniciales }: { color: string; iniciales: string }) {
   return (
     <span
-      className="grid size-4.5 shrink-0 place-items-center rounded-full text-[8px] font-bold text-white"
+      className="grid size-4.5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
       style={{ background: color }}
     >
       {iniciales}

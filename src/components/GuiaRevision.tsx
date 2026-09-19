@@ -77,7 +77,7 @@ export function GuiaRevision({
           {vistos} de {puntos.length}
         </span>
         {fallos > 0 && (
-          <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[9px] font-bold normal-case text-red-600 dark:text-red-400">
+          <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[10px] font-bold normal-case text-red-600 dark:text-red-400">
             {fallos === 1 ? "1 falla" : `${fallos} fallan`}
           </span>
         )}

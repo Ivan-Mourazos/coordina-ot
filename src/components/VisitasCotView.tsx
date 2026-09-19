@@ -496,7 +496,7 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
           </span>
           <span className="pointer-events-none flex flex-wrap items-center justify-end gap-x-2 gap-y-1 py-1 text-[10px]">
             {!pendiente && (
-              <span className="rounded-full bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-700 dark:text-cyan-300">
+              <span className="rounded-full bg-cyan-600/12 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cyan-700 dark:text-cyan-300">
                 Hecha
               </span>
             )}
@@ -522,7 +522,7 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
         <div className="space-y-2">
           {visita.notas && (
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.17em] text-text-muted">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
                 Notas
               </p>
               <p className="mt-0.5 whitespace-pre-wrap text-xs leading-5 text-text">

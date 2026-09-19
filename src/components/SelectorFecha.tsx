@@ -205,7 +205,7 @@ export function SelectorFecha({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold uppercase text-text-muted">
+              <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-semibold uppercase text-text-muted">
                 {DIAS_SEMANA.map((d, i) => (
                   <span key={i}>{d}</span>
                 ))}

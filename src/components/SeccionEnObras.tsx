@@ -30,7 +30,7 @@ export function SeccionEnObras({
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
       <div className="glass-card w-full max-w-lg rounded-2xl p-8 text-center">
-        <p className="text-xs font-bold uppercase tracking-widest text-brand-500">
+        <p className="text-xs font-bold uppercase tracking-widest text-brand-800 dark:text-brand-300">
           Próximamente
         </p>
         <h1 className="mt-2 text-2xl font-bold text-text">{seccion.nombre}</h1>

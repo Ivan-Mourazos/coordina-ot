@@ -118,7 +118,7 @@ export function TiempoOF({
       ) : (
         <>
           {dosColumnas && (
-            <div className="mt-1 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-wide text-text-muted">
+            <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               <span className="flex-1" />
               <span className="w-14 text-right" title="Lo fichado en el terminal de siempre">
                 RPS

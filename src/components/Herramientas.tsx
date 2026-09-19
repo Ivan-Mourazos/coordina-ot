@@ -283,7 +283,7 @@ export function Herramientas({
                         title={`${h.descripcion} Todavía no está publicada: aparecerá aquí en cuanto lo esté.`}
                       >
                         {h.nombre}
-                        <span className="rounded bg-surface-2 px-1 py-px text-[9px] font-bold uppercase text-text-muted ring-1 ring-border">
+                        <span className="rounded bg-surface-2 px-1 py-px text-[10px] font-bold uppercase text-text-muted ring-1 ring-border">
                           Pronto
                         </span>
                       </li>

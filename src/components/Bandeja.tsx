@@ -116,7 +116,7 @@ function ScrollRow({
         style={{ cursor: "grab" }}
       >
         {facets.map((f) => (
-          <div key={`${claveGrupo}:${f.pedido.id}`} className="w-[80px] shrink-0">
+          <div key={`${claveGrupo}:${f.pedido.id}`} className="w-[112px] shrink-0">
             <PedidoCard
               facet={f}
               operarios={operarios}
@@ -292,8 +292,8 @@ export function Bandeja({
         /* ── SIN AGRUPAR: tarjetas seguidas, fecha en cada una. Va de última
              rama, no de primera con un fallback igual detrás: `Agrupacion`
              tiene tres valores y ya no hay ningún cuarto caso que cubrir. ── */
-        /* Rejilla que se reparte el ancho, no tarjetas de 80 px que dejan un
-           hueco a la derecha. `auto-fill` mete las que quepan a 80 px mínimo y
+        /* Rejilla que se reparte el ancho, no tarjetas fijas que dejan un
+           hueco a la derecha. `auto-fill` mete las que quepan a 112 px mínimo y
            `1fr` les da el sobrante a partes iguales: con 21 por fila, en vez de
            una franja muerta al final cada tarjeta crece un pelín. El PDF de
            dentro escala con ella, así que se lee mejor cuanto más ancha. */
@@ -305,7 +305,11 @@ export function Bandeja({
         // se sube lo justo.
         <div
           className="grid gap-x-2 gap-y-3"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))" }}
+          // 112 px y no 80: a 80 el parte era un sello de correos y no se
+          // distinguía un croquis de un correo sin abrirlo. La miniatura se
+          // genera a 420 px (ANCHO_MINIATURA), así que aguanta el tamaño. Caben
+          // menos por fila, pero la bandeja tenía media pantalla vacía debajo.
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}
         >
           {flat.map((f) => (
             <div key={f.pedido.id} className="min-w-0">

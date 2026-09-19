@@ -92,7 +92,7 @@ export function PanelCompanero({
         <div className="flex flex-col gap-2.5">
           {conItems.map((g) => (
             <section key={g.id} className="bloque-3d rounded-xl p-2.5">
-              <h3 className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-text-muted">
+              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
                 <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                 {g.label} · {g.items.length}
               </h3>

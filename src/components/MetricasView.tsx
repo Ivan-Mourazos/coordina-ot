@@ -324,7 +324,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
           {/* ── Si el ritmo se mantiene ── */}
           {m.porMes.length > 1 && (
             <section className="glass-panel rounded-xl p-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Mes a mes
               </h3>
               {/* Los mismos colores que en el resto de la app: quien plantea va
@@ -410,7 +410,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
           {/* ── Por qué ── */}
           {m.porCausa.length > 0 && (
             <section className="glass-panel rounded-xl p-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Por qué vuelven
               </h3>
               {/* Se dice que suman más que el total. Sin esto, quien sume las
@@ -449,7 +449,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               ahí "0 de 0" no es una proporción: es un hueco. */}
           {mesesRevisados.length > 1 && (
             <section className="glass-panel rounded-xl p-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Mes a mes
               </h3>
               <ul className="mt-3 flex flex-col gap-2">
@@ -473,7 +473,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       {/* ── Dónde se para el trabajo ── */}
       {m && apartado === "tiempos" && (
         <section className="glass-panel rounded-xl p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-text-muted">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             Cuánto tarda cada paso
           </h3>
           <p className="mt-0.5 text-[11px] text-text-muted">
@@ -529,7 +529,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                   sinDatosPrevios={previoVacio}
                 />
               </p>
-              <h3 className="mt-4 text-xs font-bold uppercase tracking-wide text-text-muted">
+              <h3 className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 Por qué
               </h3>
               <ul className="mt-2 flex flex-col gap-2">
