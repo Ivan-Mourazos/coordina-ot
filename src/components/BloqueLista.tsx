@@ -72,7 +72,7 @@ export function BloqueLista({
   return (
     <div>
       {rotulo && (
-        <Rotulo className="mb-1 px-3 text-[11px] font-semibold text-text">
+        <Rotulo className="mb-1.5 px-3 text-xs font-semibold text-text">
           {/* El punto SOLO si hay color. Sin él no se pinta un círculo
               transparente que ocupa sitio: los días del Historial llevan
               rótulo pero no color, y les salía un punto gris de la nada.

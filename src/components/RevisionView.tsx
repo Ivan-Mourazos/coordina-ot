@@ -138,14 +138,17 @@ export function RevisionView({
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="text-sm font-semibold text-text">
-          {mias ? "Lo que tengo que revisar" : "Revisión del equipo"}
-        </h1>
+        {/* Sin título a la vista: la pestaña ya dice dónde estás, y "Revisión
+            del equipo" junto a "Revisiones" era decirlo dos veces. Se queda
+            para los lectores de pantalla, que sí lo necesitan: los rótulos de
+            cada estado cuelgan de él. El conmutador pasa delante: estaba a
+            1.400 px del título, en la otra punta de la pantalla. */}
+        <h1 className="sr-only">{mias ? "Lo que tengo que revisar" : "Revisión del equipo"}</h1>
+        <AlcanceToggle alcance={alcance} onChange={setAlcance} />
         {/* Cuántas OF hay en total en lo que se está mirando. Es el número que
-            contesta "¿me queda mucho?" sin sumar las cuatro secciones. */}
-        <span className="text-[11px] text-text-muted">
-          {total} OF{total === 1 ? "" : "s"} en las cuatro secciones
-        </span>
+            contesta "¿me queda mucho?" sin sumar las cuatro secciones. "OF"
+            no lleva plural, como en el resto de la web. */}
+        <span className="text-[11px] text-text-muted">{total} OF en total</span>
         {!mias && porRevisor.size > 0 && (
           <span className="ml-2 flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-text-muted">Revisando ahora:</span>
@@ -159,7 +162,7 @@ export function RevisionView({
                   title={`${op.nombre} tiene ${n} OF en revisión`}
                 >
                   <span
-                    className="grid size-4 place-items-center rounded-full text-[8px] font-bold text-white"
+                    className="grid size-4 place-items-center rounded-full text-[9px] font-bold text-white"
                     style={{ background: op.color, color: tintaSobre(op.color) }}
                   >
                     {op.iniciales}
@@ -171,9 +174,6 @@ export function RevisionView({
             })}
           </span>
         )}
-        <span className="ml-auto">
-          <AlcanceToggle alcance={alcance} onChange={setAlcance} />
-        </span>
       </div>
 
       {/* LOS CUATRO ESTADOS, UNO DEBAJO DE OTRO. Estaban en cuatro columnas y

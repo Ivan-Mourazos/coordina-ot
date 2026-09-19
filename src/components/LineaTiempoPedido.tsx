@@ -98,7 +98,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
           className="absolute top-0 block size-3 -translate-x-1/2 rounded-full ring-2 ring-surface"
           style={{
             left: `${hoyPct}%`,
-            background: vencido ? TRAMO.fuera : "var(--text)",
+            background: vencido ? TRAMO.fuera : "var(--hoy)",
             opacity: hoyFuera && !vencido ? 0.5 : 1,
           }}
           title={
@@ -116,7 +116,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
       <div className="mt-2 flex justify-between gap-2">
         {hitos.map((h) => (
           <div key={h.clave} className="min-w-0">
-            <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-text-muted">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               {h.etiqueta}
             </p>
             {/* La fecha que MANDA en el pedido va destacada: la planificada, o

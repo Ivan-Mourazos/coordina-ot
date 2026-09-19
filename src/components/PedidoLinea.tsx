@@ -170,7 +170,7 @@ export function PedidoLinea({
             abrirlo. Se apaga desde dentro, con el botón del aviso. */}
         {pedido.scanCambiado && (
           <span
-            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300"
+            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
             title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
           >
             Parte nuevo
@@ -185,7 +185,7 @@ export function PedidoLinea({
             trabajo a un pedido, vuelven a escanear el parte. */}
         {avisaDeOFNueva(pedido) && (
           <span
-            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-800 dark:text-amber-300"
+            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
             /* Se cuentan las que siguen SIN DUEÑO, no todas las nuevas: el
                aviso ya solo sale por esas (ver `avisaDeOFNueva`), y decir "3
                OF nuevas" cuando dos ya las cogió alguien manda a buscar
@@ -204,7 +204,7 @@ export function PedidoLinea({
             se puede tocar y descubrirlo al intentar fichar. */}
         {detenidas > 0 && (
           <span
-            className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[9px] font-bold uppercase text-red-700 dark:text-red-300"
+            className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
             title={
               detenidas === deOT.length
                 ? "Detenida por Producción: no admite fichaje"

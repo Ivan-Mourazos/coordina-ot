@@ -4,6 +4,7 @@ import type { ReactNode, Ref } from "react";
 import type { Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
+import { negocioAparte } from "@/lib/negocio";
 
 // ─── El marco de las dos fichas del pedido ───────────────────────────────────
 // La de Pendientes (Drawer) y la del Historial (HistorialDrawer) enseñan el
@@ -148,7 +149,9 @@ export function CabeceraFicha({
       </div>
       <p className="truncate text-sm text-text-muted">
         {cliente || "—"}
-        {negocio && <span className="font-semibold text-text"> · {negocio}</span>}
+        {negocioAparte(cliente, negocio) && (
+          <span className="font-semibold text-text"> · {negocioAparte(cliente, negocio)}</span>
+        )}
       </p>
       {(datos.length > 0 || familias.length > 0) && (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

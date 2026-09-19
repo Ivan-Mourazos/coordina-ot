@@ -23,6 +23,7 @@ import { LiveDot } from "./LiveBadge";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { FilaOF } from "./FilaOF";
+import { negocioAparte } from "@/lib/negocio";
 
 // ─── Vista Lista ─────────────────────────────────────────────────────────────
 // La consulta densa: todo lo que aún no ha pasado a Producción, para mirar de
@@ -239,7 +240,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
               ? TRAMO.holgado
               : vencido
                 ? TRAMO.fuera
-                : "var(--text)",
+                : "var(--hoy)",
             opacity: hoyFuera && !vencido ? 0.5 : 1,
           }}
           title={
@@ -262,7 +263,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           días pasados de una fecha que no es la que hay que cumplir. */}
       {diasTarde > 0 && !sinPlanificar && (
         <span
-          className="shrink-0 rounded px-1 py-px text-[9px] font-bold leading-none"
+          className="shrink-0 rounded px-1 py-px text-[10px] font-bold leading-none"
           // El texto va del color del FONDO de la app, no blanco fijo: sobre el
           // ámbar claro del tema oscuro, un "+3d" en blanco se leía a 2:1. Así
           // el chip contrasta solo en los dos temas, sin una segunda pareja de
@@ -408,7 +409,7 @@ export function ListaView({
       <span>Quién · estado</span>
       <span>
         <span className="block">Recorrido</span>
-        <span className="mt-0.5 block text-[9px] font-normal normal-case tracking-normal text-text-muted">
+        <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
           creación · <span className="font-semibold text-text">planificada</span> ·
           fabricación · solicitada
         </span>
@@ -502,11 +503,13 @@ export function ListaView({
                         title={p.negocio ? `Cliente ${p.cliente} · Negocio ${p.negocio}` : `Cliente ${p.cliente}`}
                       >
                         {p.cliente}
-                        {p.negocio && <span className="text-text-muted"> · {p.negocio}</span>}
+                        {negocioAparte(p.cliente, p.negocio) && (
+                          <span className="text-text-muted"> · {negocioAparte(p.cliente, p.negocio)}</span>
+                        )}
                       </span>
                       {p.interno && (
                         <span
-                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
+                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
                           title="Proyecto interno: sin pedido de venta"
                         >
                           Interno
@@ -514,7 +517,7 @@ export function ListaView({
                       )}
                       {pendienteProc && (
                         <span
-                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase text-text-muted ring-1 ring-border"
+                          className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
                           title="Producción todavía no lo ha pasado a Oficina Técnica"
                         >
                           Sin procesar
@@ -708,7 +711,7 @@ function Estado({ tramos }: { tramos: TramoEstado[] }) {
 function EtiquetaListo() {
   return (
     <span
-      className={`rounded bg-cyan-600/12 px-1.5 py-0.5 text-[9px] font-bold uppercase dark:bg-cyan-400/15 ${ESTADO.aprobada.texto}`}
+      className={`rounded bg-cyan-600/12 px-1.5 py-0.5 text-[10px] font-bold uppercase dark:bg-cyan-400/15 ${ESTADO.aprobada.texto}`}
       title="Todas sus OF están aprobadas: solo falta pasarlo a Producción."
     >
       Listo para Producción

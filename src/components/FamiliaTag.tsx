@@ -43,7 +43,10 @@ export function FamiliaTag({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-[var(--glass-highlight)] px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-inset ring-border/60">
+    <span
+      className="familia-tag inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
+      style={{ "--fam": meta.color } as React.CSSProperties}
+    >
       <FamiliaIcon familia={familia} className="size-3" />
       {meta.label}
     </span>

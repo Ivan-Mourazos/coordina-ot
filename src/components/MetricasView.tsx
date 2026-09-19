@@ -195,38 +195,56 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       : (datos?.causas.find((c) => c.id === id)?.etiqueta ?? `Causa ${id}`);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          {/* La cabecera sigue al apartado elegido: dejarla fija en
-              "Devoluciones" hacía que dijera una cosa y se enseñara otra. */}
-          <h2 className="flex items-center gap-2 text-sm font-bold text-text">
-            {APARTADOS.find((a) => a.id === apartado)?.label}
-            {/* De quién son estos números. Con dos secciones, las mismas
-                pantallas enseñan dos juegos distintos y sin decirlo no hay
-                forma de saber cuál se está mirando. */}
-            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted ring-1 ring-border">
-              {SECCIONES[seccion].nombre}
-            </span>
-          </h2>
-          <p className="text-[11px] text-text-muted">{DE_QUE_VA[apartado]}</p>
+    // Alineado a la izquierda con el mismo margen que las demás pestañas, y no
+    // una columna centrada de 768 px: en un monitor ancho dejaba dos franjas
+    // vacías de 400 px a cada lado. Con tope, eso sí: una barra de 2.000 px no
+    // se lee mejor que una de 600.
+    <div className="flex max-w-7xl flex-col gap-4">
+      {/* Una sola fila: apartados, de quién son los números y el periodo. El
+          título repetía el apartado elegido justo encima de su pestaña
+          ("Trabajo" sobre "Trabajo"); se queda para los lectores de pantalla. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="sr-only">{APARTADOS.find((a) => a.id === apartado)?.label}</h2>
+        {/* El mismo selector de pastilla que "Lo próximo / Todo el mes" y
+            "Solo mías / Todo el equipo": eran botones sueltos con anillo, otro
+            estilo para la misma idea. */}
+        <div className="glass-chip flex rounded-lg p-0.5">
+          {APARTADOS.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => setApartado(a.id)}
+              aria-pressed={apartado === a.id}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                apartado === a.id
+                  ? "bg-brand-400 text-[#231903] shadow-sm"
+                  : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+              }`}
+            >
+              {a.label}
+            </button>
+          ))}
         </div>
-        {/* Los filtros en una fila sobre los datos, no repartidos entre ellos. */}
-        <div className="ml-auto flex items-end gap-1.5 text-xs text-text-muted">
-          {/* El mismo calendario que el tablero y el Historial: eran dos
-              `input[type=date]` y los pintaba el navegador con su propio
-              fondo, su tipografía y su «Borrar / Hoy». */}
-          <div className="flex flex-col">
+        {/* De quién son estos números. Con dos secciones, las mismas
+            pantallas enseñan dos juegos distintos y sin decirlo no hay forma
+            de saber cuál se está mirando. */}
+        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold text-text-muted ring-1 ring-border">
+          {SECCIONES[seccion].nombre}
+        </span>
+        {/* El periodo, con el rótulo DELANTE y en el estilo de los de las
+            barras de filtros ("VER", "QUIÉN"): era el único encima. El mismo
+            calendario que el tablero y el Historial. */}
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             Entre fechas
-            <span className="mt-1 flex items-center gap-1.5">
-              <SelectorFecha
-                desde={desde}
-                hasta={hasta}
-                onCambiar={(d, h) => setPeriodo({ desde: d, hasta: h })}
-              />
-              {/* Los tres periodos que se piden de verdad, sin abrir el
-                  calendario. "Todo" sigue estando, pero ya no es lo primero
-                  que se ve: mete meses de rodaje dentro del titular. */}
+          </span>
+          <SelectorFecha
+            desde={desde}
+            hasta={hasta}
+            onCambiar={(d, h) => setPeriodo({ desde: d, hasta: h })}
+          />
+          {/* Los tres periodos que se piden de verdad, sin abrir el
+              calendario. "Todo" sigue estando, pero ya no es lo primero
+              que se ve: mete meses de rodaje dentro del titular. */}
               {ATAJOS.map((a) => {
                 const p = a.dias === null ? { desde: "", hasta: "" } : ventanaDeDias(a.dias, hoyISO());
                 const puesto = p.desde === desde && p.hasta === hasta;
@@ -243,27 +261,9 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                   </button>
                 );
               })}
-            </span>
-          </div>
         </div>
       </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {APARTADOS.map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setApartado(a.id)}
-            aria-pressed={apartado === a.id}
-            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ${
-              apartado === a.id
-                ? "bg-brand-400 text-[#231903] ring-transparent"
-                : "text-text-muted ring-border hover:text-text"
-            }`}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
+      <p className="-mt-2 text-[11px] text-text-muted">{DE_QUE_VA[apartado]}</p>
 
       {error && (
         <ErrorCarga mensaje="No se pudieron cargar las métricas." onReintentar={() => { setError(false); setIntento((v) => v + 1); }} />
@@ -274,7 +274,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       )}
 
       {m && apartado === "trabajo" && (
-        <>
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           {/* ── Cuánto sale ── */}
           <section className="glass-panel rounded-xl p-4">
             {m.volumen.terminadas === 0 && m.volumen.planteos === 0 ? (
@@ -358,11 +358,11 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               </p>
             </section>
           )}
-        </>
+        </div>
       )}
 
       {m && apartado === "devoluciones" && (
-        <>
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           {/* ── Cuánto pasa ── */}
           <section className="glass-panel rounded-xl p-4">
             {m.revisiones === 0 ? (
@@ -467,7 +467,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               </p>
             </section>
           )}
-        </>
+        </div>
       )}
 
       {/* ── Dónde se para el trabajo ── */}

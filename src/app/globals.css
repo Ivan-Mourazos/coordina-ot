@@ -93,6 +93,9 @@
      "el retraso ya come el margen de Producción" se leían igual. El rojo pasa a
      un carmín más frío, que sube la separación a 45° y ΔE 49 sin perder
      contraste (6,1:1 sobre blanco). Ninguna pareja baja de ΔE 45. */
+  /* El punto de "hoy" en las líneas de tiempo (Pendientes y la ficha). */
+  --hoy: var(--text);
+
   --tramo-holgado: #04785a;
   --tramo-trabajo: #a15c07;
   --tramo-ajustado: #c2143c;
@@ -101,6 +104,9 @@
 
 .dark {
   color-scheme: dark;
+  /* En oscuro, --text es casi blanco y el punto de hoy era lo que más brillaba
+     de toda la fila, más que la fecha planificada, que es el dato. */
+  --hoy: #b3b9c2;
 
   /* Carbón mate: grafito suave, no negro puro. Los paneles flotan con
      jerarquía clara pero sin el aspecto "pantalla apagada". */
@@ -464,6 +470,23 @@ body {
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.5),
     0 12px 22px -10px rgba(0, 0, 0, 0.8);
+}
+
+/* Etiqueta de familia (FamiliaTag). Un tinte del color de la familia en vez
+   del chip gris: en oscuro, el icono —con su color pensado para fondo claro,
+   p. ej. el azul #1673b1 de Lonas— casi desaparecía sobre el gris grafito, y
+   la familia se reconoce antes por el color que por la palabra. En oscuro el
+   icono se aclara hacia blanco para que se vea sobre el fondo oscuro. */
+.familia-tag {
+  background: color-mix(in srgb, var(--fam) 9%, var(--glass-chip));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fam) 22%, transparent);
+}
+.dark .familia-tag {
+  background: color-mix(in srgb, var(--fam) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fam) 35%, transparent);
+}
+.dark .familia-tag svg {
+  stroke: color-mix(in srgb, var(--fam) 55%, white);
 }
 
 /* Pista de un botón (Pista.tsx): lo que dice qué hace un botón de solo icono.

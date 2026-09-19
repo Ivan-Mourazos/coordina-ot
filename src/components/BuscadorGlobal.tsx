@@ -12,6 +12,7 @@ import {
   type Ubicacion,
 } from "@/lib/buscador";
 import { usePopover } from "@/lib/usePopover";
+import { negocioAparte } from "@/lib/negocio";
 
 // ─── Buscar un pedido sin saber en qué pestaña está ──────────────────────────
 // El porqué está en lib/buscador.ts. Aquí solo la parte de cristal: escribir y
@@ -232,7 +233,7 @@ export function BuscadorGlobal({
                         <span className="text-text-muted">
                           {" · "}
                           {r.cliente}
-                          {r.negocio ? ` · ${r.negocio}` : ""}
+                          {negocioAparte(r.cliente, r.negocio) ? ` · ${negocioAparte(r.cliente, r.negocio)}` : ""}
                         </span>
                       </span>
                       {/* La mitad que faltaba: dónde está. Sin esto el

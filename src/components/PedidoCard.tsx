@@ -98,15 +98,17 @@ export const PedidoCardView = memo(function PedidoCardView({
           le faltaban para entrar entero: medido, el código necesita 73 px y
           con el punto solo le quedaban 65. */}
       {(mostrarFecha || mostrarPrioridad) && (
-        <div className="flex items-center gap-1 px-0.5 text-[9px] leading-tight text-text-muted">
+        <div className="flex items-center gap-1 px-0.5 text-[10px] leading-tight text-text-muted">
           {mostrarFecha && (
             <span className="truncate">
               {pedido.fechaPlanificacion.split("-").reverse().slice(0, 2).join("/")}
             </span>
           )}
-          {/* «11/09 · P3». En letra y no en punto de color: un punto hay que
-              saber descifrarlo, y aquí hay sitio de sobra para decirlo. */}
-          {mostrarPrioridad && (
+          {/* «11/09 · URGENTE». En letra y no en punto de color: un punto hay
+              que saber descifrarlo, y aquí hay sitio de sobra para decirlo.
+              La NORMAL no se dice: salía en casi todos los partes y, repetida
+              diecisiete veces, ahogaba a las dos que sí piden atención. */}
+          {mostrarPrioridad && pedido.prioridad !== 2 && (
             <>
               <span aria-hidden className="shrink-0 text-text-muted">·</span>
               <span
@@ -264,7 +266,7 @@ export const PedidoCardView = memo(function PedidoCardView({
          *  solo no basta para decidir a quién se asigna el parte */}
         {mostrarPrioridad && pedido.cliente && (
           <span
-            className="block truncate text-[9px] leading-tight text-text-muted"
+            className="block truncate text-[10px] leading-tight text-text-muted"
             title={pedido.cliente}
           >
             {pedido.cliente}

@@ -2246,7 +2246,7 @@ export function Board({
             {/* Zona personal: mide lo que necesita. Sin altura fija ni scroll
                 interno — las fases vacías ya no reservan sitio, así que el alto
                 sale del contenido y lo que sobra se lo queda la bandeja. */}
-            <main className="flex shrink-0 flex-col p-4 pb-2">
+            <main className="flex shrink-0 flex-col px-5 pt-5 pb-2">
               <ZonaPersonal
                 operario={yo}
                 facets={facetsDe(yo.id)}
@@ -2281,7 +2281,7 @@ export function Board({
             )}
 
             {/* equipo: siempre pegado a la división, altura propia */}
-            <div className="shrink-0 px-4 pb-3">
+            <div className="shrink-0 px-5 pb-3">
               {/* Solo el rótulo. Al lado iba la leyenda de las seis fases con
                   su color, y era la tercera vez que se nombraban en la misma
                   pantalla: las columnas de tu zona ya las titulan, y el panel
@@ -2314,7 +2314,7 @@ export function Board({
 
             <div className="flex min-h-0 flex-1 flex-col">
               <div
-                className="flex items-center gap-3 px-4 py-2"
+                className="flex items-center gap-3 px-5 py-2.5"
               >
                 <div className="min-w-0 flex-1">
                   <FilterBar
@@ -2344,7 +2344,9 @@ export function Board({
                   />
                 </div>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 scroll-thin">
+              {/* pb-24: la píldora del reloj flota abajo a la derecha y tapaba el
+                  último parte. Con este hueco, al bajar del todo queda libre. */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 pb-24 scroll-thin">
                 <Bandeja
                   facets={facetsBandeja}
                   operarios={operarios}
@@ -2400,7 +2402,7 @@ export function Board({
                 }
               />
             </div>
-            <div className="p-5">
+            <div className="p-5 pb-24">
               <ListaView
                 pedidos={visiblesLista}
                 operarios={operarios}
@@ -2427,7 +2429,7 @@ export function Board({
                 conteos={conteosLista}
               />
             </div>
-            <div className="p-5">
+            <div className="p-5 pb-24">
               <RevisionView
                 pedidos={visiblesRevision}
                 operarios={operarios}
@@ -2468,13 +2470,13 @@ export function Board({
         )}
 
         {vista === "metricas" && (
-          <div className="p-5">
+          <div className="p-5 pb-24">
             <MetricasView seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)} />
           </div>
         )}
 
         {vista === "historial" && (
-          <div className="p-5">
+          <div className="p-5 pb-24">
             <HistorialView
               filtros={filtrosHistorial[seccionActual] ?? FILTROS_HISTORIAL_INICIALES}
               onFiltros={(cambio) => setFiltrosHistorial((prev) => ({ ...prev, [seccionActual]: { ...(prev[seccionActual] ?? FILTROS_HISTORIAL_INICIALES), ...cambio } }))}
@@ -2487,7 +2489,7 @@ export function Board({
 
         {/* ── VISTA VISITAS COT ── */}
         {vista === "visitas" && (
-          <div className="p-5">
+          <div className="p-5 pb-24">
             <VisitasCotView />
           </div>
         )}

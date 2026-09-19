@@ -18,6 +18,7 @@ import { FilaDesplegable } from "./FilaDesplegable";
 import { BloqueLista } from "./BloqueLista";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
+import { negocioAparte } from "@/lib/negocio";
 
 /** Fecha corta con año (dd/mm/aa) y la completa con hora para el `title`.
  *  Siempre con año: la lista baja hasta pedidos de 2024. */
@@ -233,7 +234,7 @@ export function HistorialView({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             aria-label="Buscar en el Historial"
-            placeholder="Buscar en el Historial: pedido, OF, cliente o descripción…"
+            placeholder="Pedido, OF, cliente o descripción…"
             className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
           />
           {q && (
@@ -369,7 +370,10 @@ export function HistorialView({
 
           Buscando no hay días (los resultados van por fecha del pedido, sin
           separadores), así que ahí todo cae en una sola tarjeta. */}
-      <div className="flex flex-col gap-3">
+      {/* gap-5 y no gap-3: la cabecera de cada día es lo que separa un día del
+          siguiente, y pegada a la última fila del anterior se leía como una
+          fila más. */}
+      <div className="flex flex-col gap-5">
         {/* La cabecera de columnas, UNA vez y encima de todo: es el rótulo de
             la lista entera, no de un día. Metida en el primer bloque salía
             debajo de su título y con otra separación. */}
@@ -506,7 +510,9 @@ function FilaHistorial({
             title={[item.cliente, item.negocio].filter(Boolean).join(" · ")}
           >
             {item.cliente ?? "—"}
-            {item.negocio && <span className="text-text-muted"> · {item.negocio}</span>}
+            {negocioAparte(item.cliente, item.negocio) && (
+              <span className="text-text-muted"> · {negocioAparte(item.cliente, item.negocio)}</span>
+            )}
             {item.estadoActual && (
               <span className="font-semibold text-amber-700 dark:text-amber-300"> · {item.estadoActual}</span>
             )}

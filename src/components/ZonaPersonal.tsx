@@ -125,7 +125,7 @@ export function ZonaPersonal({
             const { visibles, resto } = conTope(g.items, TOPE);
             return (
               <div key={g.id} className="min-w-[220px] flex-1">
-                <h3 className="mb-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-text-muted">
+                <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
                   <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                   {g.label} · {g.items.length}
                 </h3>
