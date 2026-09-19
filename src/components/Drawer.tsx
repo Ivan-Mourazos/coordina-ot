@@ -622,9 +622,9 @@ export function Drawer({
             </div>
           )}
 
-          {/* EL ORDEN: recorrido, aviso de parte nuevo, notas, las OF (con
-              Fichar, Revisar, Anular) y después lo que se consulta: comentario,
-              documentos y tareas. Las OF estaban lo último, debajo de ocho
+          {/* EL ORDEN: recorrido, aviso de parte nuevo, notas, documentos y
+              tareas (plegados, una línea cada uno), las OF (con Fichar, Revisar,
+              Anular) y el comentario del pedido. Las OF estaban lo último, debajo de ocho
               líneas de comentario legal, cuatro bloques y el selector de autor:
               para fichar había que bajar siempre. El autor subió a la cabecera. */}
           {/* Encima del hilo, y lo primero que se ve tras el parte: si han
@@ -649,6 +649,27 @@ export function Drawer({
             pedido={pedido.codigo}
             miId={miId}
             operarios={operarios}
+          />
+
+          {/* Lo que RPS tiene colgado: la rotulación, el planteamiento y las
+              fotos. Va ANTES del hilo de notas y después del parte porque es
+              del mismo orden de lectura: primero lo que hay que mirar para
+              hacer el trabajo, después lo que se ha dicho sobre él.
+
+              Plegado, y se pide solo al desplegarlo: son dos tablas grandes de
+              RPS por pedido y la mayoría de las veces la ficha se abre para
+              fichar, no para mirar documentos. El `key` con el código, por lo
+              mismo que el hilo de notas de abajo. */}
+          <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
+
+          {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
+              una. Es el mismo bloque del Historial, pero aquí sirve para un
+              pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
+              pulsar, no al abrir la ficha (ver TareasDelPedido). */}
+          <TareasDelPedido
+            key={`tareas:${pedido.codigo}`}
+            pedido={pedido.codigo}
+            seccion={seccion.id}
           />
 
           {/* Cerrar una fase de OT que se quedó a medias, en el pedido YA PASADO
@@ -917,7 +938,9 @@ export function Drawer({
             </p>
           )}
 
-          <ul className="space-y-2.5">
+          {/* `mb-4`, el mismo aire que llevan todos los bloques de la ficha: sin
+              él, el comentario del pedido quedaba pegado a la última OF. */}
+          <ul className="mb-4 space-y-2.5">
             {ofsVisibles.map((of) => (
               <OFRow
                 key={of.id}
@@ -949,7 +972,7 @@ export function Drawer({
           </ul>
 
           {ocultas.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mb-4 flex flex-wrap gap-1.5">
               {ocultas.map(({ grupo, ofs }) => {
                 const abierto = mostrar.has(grupo.id);
                 return (
@@ -1018,27 +1041,6 @@ export function Drawer({
               mismo texto legal de TGM y, arriba del todo, empujaba las OF —que
               es donde se trabaja— por debajo del pliegue. */}
           {pedido.comentarioVenta && <ComentarioPedido texto={pedido.comentarioVenta} />}
-
-          {/* Lo que RPS tiene colgado: la rotulación, el planteamiento y las
-              fotos. Va ANTES del hilo de notas y después del parte porque es
-              del mismo orden de lectura: primero lo que hay que mirar para
-              hacer el trabajo, después lo que se ha dicho sobre él.
-
-              Plegado, y se pide solo al desplegarlo: son dos tablas grandes de
-              RPS por pedido y la mayoría de las veces la ficha se abre para
-              fichar, no para mirar documentos. El `key` con el código, por lo
-              mismo que el hilo de notas de abajo. */}
-          <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
-
-          {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
-              una. Es el mismo bloque del Historial, pero aquí sirve para un
-              pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
-              pulsar, no al abrir la ficha (ver TareasDelPedido). */}
-          <TareasDelPedido
-            key={`tareas:${pedido.codigo}`}
-            pedido={pedido.codigo}
-            seccion={seccion.id}
-          />
 
     </MarcoFicha>
   );

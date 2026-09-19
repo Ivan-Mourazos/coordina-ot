@@ -276,8 +276,8 @@ export function HistorialDrawer({
                 </>
               )}
 
-              {/* EL MISMO ORDEN QUE LA FICHA DE PENDIENTES: notas, OF y después
-                  comentario, documentos y tareas. Cada ficha
+              {/* EL MISMO ORDEN QUE LA FICHA DE PENDIENTES: notas, documentos y
+                  tareas, las OF y el comentario. Cada ficha
                   llevaba el suyo y el mismo pedido se leía distinto según desde
                   dónde se abriera. */}
               {/* Las notas antes que las OF, como en la ficha de Pendientes. */}
@@ -302,21 +302,6 @@ export function HistorialDrawer({
 
               <NotasPedido key={pedido} pedido={pedido} miId={miId} operarios={operarios} />
 
-              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
-                  tiempos», y al plegar ese bloque se fueron con él: se abría
-                  la ficha de un pedido y no se veía de cuántas OF constaba ni
-                  qué era cada una sin desplegar nada. Son la identidad del
-                  pedido, como el cliente; el desglose por tarea y persona es
-                  otra cosa y sigue plegado ahí abajo. */}
-              <section className="mb-4" aria-label="Órdenes de fabricación">
-                <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>
-                  Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
-                </h3>
-                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
-              </section>
-
-              {detalle.comentarioVenta && <ComentarioPedido texto={detalle.comentarioVenta} />}
-
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
                   que no tienen fichero no salen en la lista, así que meterlos
                   en el número dejaría un rótulo que no cuadra con nada. */}
@@ -339,6 +324,21 @@ export function HistorialDrawer({
                   void cargarGastado(pedido, reqSeq.current);
                 }}
               />
+
+              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
+                  tiempos», y al plegar ese bloque se fueron con él: se abría
+                  la ficha de un pedido y no se veía de cuántas OF constaba ni
+                  qué era cada una sin desplegar nada. Son la identidad del
+                  pedido, como el cliente; el desglose por tarea y persona es
+                  otra cosa y sigue plegado ahí abajo. */}
+              <section className="mb-4" aria-label="Órdenes de fabricación">
+                <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>
+                  Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
+                </h3>
+                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
+              </section>
+
+              {detalle.comentarioVenta && <ComentarioPedido texto={detalle.comentarioVenta} />}
 
               {/* "Volver a plantear el pedido": sección 3 de la spec del
                   15/09/2026. AL FINAL: es una acción rara y arriba del todo se

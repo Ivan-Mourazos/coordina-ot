@@ -60,7 +60,7 @@ export function HistorialCentros({
     // leía de dos formas según por dónde lo abrieras — y en un pedido de siete
     // OF esto es lo más largo de la ficha, por delante de las notas y de los
     // documentos, que es lo que se viene a mirar.
-    <BloqueDesplegable titulo="Tareas y tiempos" className="mb-0" abiertoDeSalida={abiertoDeSalida}>
+    <BloqueDesplegable titulo="Tareas y tiempos" className="mb-4" abiertoDeSalida={abiertoDeSalida}>
       <TareasPorCentro
         ofs={ofs}
         seccion={seccion}
