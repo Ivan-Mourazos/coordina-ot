@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "c7b23a9",
+    "hasta": "db78514",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -61,6 +61,11 @@
         "tipo": "mejor",
         "titulo": "Los partes de Sin asignar se ven más grandes",
         "detalle": "Se distingue un croquis de un correo sin tener que abrirlos."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La consulta de pedidos se ve igual que el resto de la web",
+        "detalle": "Es la pantalla que se abre sin entrar con el PIN."
       }
     ]
   },

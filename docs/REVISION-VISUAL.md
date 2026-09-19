@@ -105,7 +105,16 @@ menú de herramientas, panel de un compañero, desplegables y calendario.
 - [x] Candado de línea en vez de 🔒 en el panel del compañero y en las filas que no se pueden fichar — `c7b23a9`
 - [x] Buscador, notificaciones, herramientas, desplegables y calendario: bien en los dos temas, sin cambios
 
-## 5. Despliegue
+## 5. Contraste en oscuro, portátil y pantallas sueltas
+
+- [x] Contraste medido en oscuro en las seis pestañas: todo por encima del mínimo salvo controles desactivados
+- [x] Icono de rotulación de las miniaturas blanco sobre blanco en oscuro → iconos de línea con tinta fija — db78514
+- [x] Últimos emoji fuera (Gastado, Notas de Producción, avisos de la lista, compras por llegar) — db78514
+- [x] Portátil 1366×768: ninguna pestaña desborda en horizontal; ficha y Métricas a dos columnas caben
+- [x] Consulta pública: cabecera, filtros y buscador con el mismo diseño que la web del equipo — db78514
+- [x] Pantalla del PIN: bien en los dos temas, sin cambios
+
+## 6. Despliegue
 
 - [x] Entrada de novedades escrita (19/09, 12 cambios) — `49830f6`, `f25ebf4`, `8045794`, `3e72188`
 - [x] `git push origin main` — subido hasta `3e72188`
