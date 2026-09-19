@@ -12,7 +12,7 @@ import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { avisaDeOFNueva } from "@/lib/fases-tablero";
 import { tintaSobre } from "@/lib/tinta";
-import { IconoMaterial } from "./Iconos";
+import { IconoCaja, IconoEtiqueta, IconoMaterial } from "./Iconos";
 
 /** El color de la prioridad CUANDO ES TEXTO. No sale de `PRIORIDAD.color`:
  *  ese ámbar es para fondos y como letra de 9 px da 2,5:1 sobre blanco, que no
@@ -177,7 +177,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                 compras.tarde > 0 ? "bg-red-500/95" : "bg-amber-400/95"
               }`}
             >
-              📦
+              <IconoCaja className={`size-3 ${compras.tarde > 0 ? "text-white" : "text-[#1a1206]"}`} />
             </span>
           )}
           {conRotulacion && (
@@ -185,12 +185,12 @@ export const PedidoCardView = memo(function PedidoCardView({
               title="Lleva rotulación"
               className="grid size-4 cursor-help place-items-center rounded bg-white/95 text-[9px] shadow-sm ring-1 ring-black/10"
             >
-              {/* CON el selector U+FE0F. U+1F3F7 (etiqueta) es de los emoji
-                  que Unicode marca como presentación de TEXTO por defecto:
-                  sin él el navegador pinta el glifo monocromo, y en un cuadro
-                  blanco de 16 px eso se ve como un recuadro vacío. El paquete
-                  y el hilo no lo necesitan, son emoji de salida. */}
-              🏷️
+              {/* Iconos de línea en las tres esquinas (compras, rotulación,
+                  material), como en la ficha: eran dos emoji y un icono, tres
+                  dibujos de estilos distintos en 16 px. La tinta es fija y no
+                  la del tema, porque el fondo de cada cuadro es de color fijo:
+                  en oscuro, el texto claro se perdía sobre el blanco. */}
+              <IconoEtiqueta className="size-3 text-[#1a1206]" />
             </span>
           )}
           {material && (

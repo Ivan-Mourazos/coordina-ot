@@ -24,6 +24,7 @@ import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { FilaOF } from "./FilaOF";
 import { negocioAparte } from "@/lib/negocio";
+import { IconoAviso } from "./Iconos";
 
 // ─── Vista Lista ─────────────────────────────────────────────────────────────
 // La consulta densa: todo lo que aún no ha pasado a Producción, para mirar de
@@ -602,8 +603,9 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
       {avisos.length > 0 && (
         <ul className="space-y-0.5 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
           {avisos.map((a) => (
-            <li key={a} className="text-[11px] leading-5 text-indigo-800 dark:text-indigo-200">
-              📌 {a}
+            <li key={a} className="flex items-start gap-1.5 text-[11px] leading-5 text-indigo-800 dark:text-indigo-200">
+              <IconoAviso className="mt-1 size-3.5" />
+              <span>{a}</span>
             </li>
           ))}
         </ul>

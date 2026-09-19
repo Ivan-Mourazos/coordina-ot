@@ -16,7 +16,7 @@ import {
   VentanaAnclada,
   useVentanaAnclada,
 } from "./VentanaAnclada";
-import { IconoMaterial } from "./Iconos";
+import { IconoAviso, IconoCaja, IconoMaterial } from "./Iconos";
 
 // ─── Tiempos por centro de la ficha del pedido ──────────────────────────────
 // Vivía dentro de HistorialDrawer.tsx. Sale a su fichero porque la consulta
@@ -277,7 +277,7 @@ function MaterialGastado({
         title="Material que salió del almacén para esta OF, según RPS."
         className={`${BOTON_DETALLE} ${n > 0 ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
       >
-        <span aria-hidden>📦</span>
+        <IconoCaja />
         Gastado
         <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
           {n}
@@ -341,7 +341,7 @@ function NotasProduccion({ of, texto }: { of: string; texto: string }) {
         title="Nota que Producción dejó escrita en la OF."
         className={`${BOTON_DETALLE} text-text-muted`}
       >
-        <span aria-hidden>📌</span>
+        <IconoAviso />
         Notas de Producción
       </button>
       {anclaje && (

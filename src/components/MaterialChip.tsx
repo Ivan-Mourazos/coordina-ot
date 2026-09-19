@@ -10,7 +10,7 @@ import {
   VentanaAnclada,
   useVentanaAnclada,
 } from "./VentanaAnclada";
-import { IconoMaterial } from "./Iconos";
+import { IconoCaja, IconoMaterial } from "./Iconos";
 
 // ─── El recorrido del material de la OF ──────────────────────────────────────
 // Tres manos, y en la oficina se llamaba "reservar" a la primera:
@@ -247,7 +247,7 @@ export function MaterialChip({
         )}
         {porLlegar > 0 && (
           <span
-            className={`rounded-full px-1.5 text-[10px] font-bold text-white ${
+            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 text-[10px] font-bold text-white ${
               tarde > 0 ? "bg-red-600" : "bg-amber-700"
             }`}
             title={
@@ -256,7 +256,8 @@ export function MaterialChip({
                 : `${porLlegar} compra${porLlegar === 1 ? "" : "s"} por llegar`
             }
           >
-            📦 {porLlegar}
+            <IconoCaja className="size-3" />
+            {porLlegar}
           </span>
         )}
       </button>
