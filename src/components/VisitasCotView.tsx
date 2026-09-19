@@ -501,7 +501,10 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
               </span>
             )}
             {visita.solucion && (
-              <span className="font-semibold text-cyan-700 dark:text-cyan-300">
+              // Llega de RPS en MAYÚSCULAS ("CONSULTA REALIZADA, VOLVER A LA
+              // INSTALACION") y, a 10 px, en bloque costaba leerla. Se enseña en
+              // minúsculas con la inicial en mayúscula; el dato no se toca.
+              <span className="inline-block text-[11px] font-semibold lowercase text-cyan-700 first-letter:uppercase dark:text-cyan-300">
                 {visita.solucion}
               </span>
             )}

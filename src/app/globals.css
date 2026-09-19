@@ -94,7 +94,9 @@
      un carmín más frío, que sube la separación a 45° y ΔE 49 sin perder
      contraste (6,1:1 sobre blanco). Ninguna pareja baja de ΔE 45. */
   /* El punto de "hoy" en las líneas de tiempo (Pendientes y la ficha). */
-  --hoy: var(--text);
+  /* Gris oscuro y no el negro del texto: era lo que más pesaba de la fila,
+     más que la fecha planificada, que es el dato. */
+  --hoy: #3f444c;
 
   --tramo-holgado: #04785a;
   --tramo-trabajo: #a15c07;
