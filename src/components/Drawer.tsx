@@ -254,6 +254,9 @@ export function Drawer({
   const idsAConfirmar = useRef<string[]>([]);
   const confirmacionPedido = useConfirmacion((a) => onAccion(idsAConfirmar.current, a.id));
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
+  // Qué OF se han abierto a mano cuando el pedido tiene tantas que van
+  // plegadas (ver `PLEGAR_DESDE`).
+  const [ofsAbiertas, setOfsAbiertas] = useState<ReadonlySet<string>>(new Set());
 
   // La guía de revisión, la misma que en el panel de Revisiones. Las causas se
   // piden una vez por ficha: de ellas salen los puntos que hay que repasar (su
@@ -327,6 +330,7 @@ export function Drawer({
   if (pedido && pedido.id !== ultimoPedido) {
     setUltimoPedido(pedido.id);
     if (mostrar.size > 0) setMostrar(new Set());
+    if (ofsAbiertas.size > 0) setOfsAbiertas(new Set());
     if (pidiendoRevisorPedido) setPidiendoRevisorPedido(false);
   }
 
@@ -348,6 +352,20 @@ export function Drawer({
     ...ofsDeOT,
     ...ocultas.filter((c) => mostrar.has(c.grupo.id)).flatMap((c) => c.ofs),
   ];
+  // Con muchas OF, cada una se pliega a su cabecera y se abre al pulsarla. Una
+  // tarjeta abierta mide unos 290 px: con cinco, las notas, los documentos y
+  // hasta la segunda OF quedaban muy por debajo del pliegue. La que alguien
+  // está fichando sigue abierta, que es la que se está trabajando.
+  const plegables = ofsVisibles.length >= PLEGAR_DESDE;
+  const ofAbierta = (of: OF) => !plegables || ofsAbiertas.has(of.id) || !!of.fichandoRol;
+  const todasAbiertas = ofsVisibles.every(ofAbierta);
+  const alternarOF = (id: string) =>
+    setOfsAbiertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   // Lo que se puede fichar de una tacada: solo lo que es trabajo de OT y admite
   // reloj. Las detenidas y las de taller no entran ni aunque estén desplegadas.
   //
@@ -672,6 +690,15 @@ export function Drawer({
                 </span>
               )}
             </h3>
+            {plegables && (
+              <button
+                type="button"
+                onClick={() => setOfsAbiertas(todasAbiertas ? new Set() : new Set(ofsVisibles.map((o) => o.id)))}
+                className="text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
+              >
+                {todasAbiertas ? "Plegar todas" : "Abrir todas"}
+              </button>
+            )}
             {/* Fichar el pedido entero sin ir OF por OF. Solo con más de una:
                 con una sola, este botón y el de su fila harían lo mismo y
                 sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
@@ -914,6 +941,9 @@ export function Drawer({
                 impedidoRevision={impedidoPorGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
+                plegable={plegables}
+                abierta={ofAbierta(of)}
+                onAlternar={() => alternarOF(of.id)}
               />
             ))}
           </ul>
@@ -1079,6 +1109,10 @@ function LineaRol({
   );
 }
 
+/** Desde cuántas OF se pliegan las tarjetas de la ficha. Con dos, abiertas
+ *  caben en pantalla; con tres ya empujan las notas y los documentos fuera. */
+const PLEGAR_DESDE = 3;
+
 function OFRow({
   of,
   operarios,
@@ -1097,7 +1131,14 @@ function OFRow({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  plegable = false,
+  abierta = true,
+  onAlternar,
 }: {
+  /** Se pliega a su cabecera (el pedido tiene muchas OF, ver `PLEGAR_DESDE`). */
+  plegable?: boolean;
+  abierta?: boolean;
+  onAlternar?: () => void;
   of: OF;
   operarios: Operario[];
   miId: string | null;
@@ -1133,9 +1174,24 @@ function OFRow({
   // herramienta— vive en TiempoOF, que es el único sitio de la tarjeta donde
   // sale un minuto.
 
-  return (
-    <li className="glass-chip rounded-xl p-3">
+  // La cabecera: código, familia, estado y descripción. Con la OF plegable es
+  // el botón que la abre y la cierra; dentro no hay nada pulsable, así que
+  // puede serlo entera.
+  const cabecera = (
+    <>
       <div className="flex items-center gap-2">
+        {plegable && (
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${abierta ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
         <FamiliaTag familia={of.familia} />
         {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
@@ -1203,181 +1259,212 @@ function OFRow({
             Para taller
           </span>
         )}
-        <span className="ml-auto text-[11px] text-text-muted">{of.piezas} pz</span>
+        {/* Plegada, lo justo para saber de quién es sin abrirla. */}
+        {plegable && !abierta && autor && (
+          <span
+            className="ml-auto grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold"
+            style={{ background: autor.color, color: tintaSobre(autor.color) }}
+            title={`Autor: ${autor.nombre}`}
+          >
+            {autor.iniciales}
+          </span>
+        )}
+        <span className={`${plegable && !abierta && autor ? "" : "ml-auto "}text-[11px] text-text-muted`}>{of.piezas} pz</span>
       </div>
 
-      <p className="mt-1 text-sm text-text">{of.descripcion}</p>
+      <p className={`mt-1 text-sm text-text ${plegable && !abierta ? "truncate" : ""}`}>{of.descripcion}</p>
+    </>
+  );
 
-      {/* QUÉ SE VENDIÓ, con medidas y acabados. La línea de arriba es el nombre
-          de catálogo ("TOLDO VERTICAL ELECTRA") y no dice de qué tamaño es ni
-          cómo va rematado; esto sí, y es lo que hay que leer para plantearlo.
-          PLEGADO, y no truncado con puntos suspensivos: son 160 caracteres de
-          media y hasta 400, así que a la vista convertiría cada OF en un
-          párrafo y la ficha de un pedido de cinco en un muro. Cerrado ocupa una
-          línea; abierto, el texto entero sin recortar. */}
-      {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
-
-      {of.avisos && of.avisos.length > 0 && (
-        <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2.5 py-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
-            Avisos de Producción
-          </p>
-          {of.avisos.map((a) => (
-            <p key={a} className="flex items-start gap-1.5 text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
-              <IconoAviso className="mt-px size-3.5" />
-              <span>{a}</span>
-            </p>
-          ))}
-        </div>
-      )}
-
-      {of.fechaLimitePlanteo && (
-        <p
-          // LAS LÍNEAS DE DATOS DE LA OF (producción, material, rotulación,
-          // compras, avisos, devolución) van con el icono en la MISMA columna,
-          // a 10 px del borde: donde cae el icono dentro del chip de material,
-          // que es un botón con su propio borde. Cada una llevaba su margen y
-          // los iconos quedaban en escalera.
-          className={`mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] ${
-            of.fechaLimitePlanteo < hoyISO()
-              ? "font-semibold text-red-700 dark:text-red-400"
-              : "text-text-muted"
-          }`}
-          title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
+  return (
+    <li className="glass-chip rounded-xl p-3">
+      {plegable ? (
+        <button
+          type="button"
+          onClick={onAlternar}
+          aria-expanded={abierta}
+          aria-label={`${abierta ? "Plegar" : "Abrir"} la OF ${of.codigo}`}
+          className="-m-1.5 block w-[calc(100%+0.75rem)] cursor-pointer rounded-lg p-1.5 text-left hover:bg-[var(--glass-highlight)]"
         >
-          <IconoFabrica className="mt-px size-3.5" />
-          <span>
-            Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el planteo debe estar
-            listo antes
-            {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
-          </span>
-        </p>
+          {cabecera}
+        </button>
+      ) : (
+        cabecera
       )}
+      {abierta && (
+        <>
+          {/* QUÉ SE VENDIÓ, con medidas y acabados. La línea de arriba es el nombre
+              de catálogo ("TOLDO VERTICAL ELECTRA") y no dice de qué tamaño es ni
+              cómo va rematado; esto sí, y es lo que hay que leer para plantearlo.
+              PLEGADO, y no truncado con puntos suspensivos: son 160 caracteres de
+              media y hasta 400, así que a la vista convertiría cada OF en un
+              párrafo y la ficha de un pedido de cinco en un muro. Cerrado ocupa una
+              línea; abierto, el texto entero sin recortar. */}
+          {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
 
-      {of.rotulacion && (
-        <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-700 dark:text-sky-300">
-          <IconoEtiqueta className="mt-px size-3.5" />
-          <span>
-            Rotulación: <b>{of.rotulacion}</b>
-          </span>
-        </p>
-      )}
+          {of.avisos && of.avisos.length > 0 && (
+            <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                Avisos de Producción
+              </p>
+              {of.avisos.map((a) => (
+                <p key={a} className="flex items-start gap-1.5 text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
+                  <IconoAviso className="mt-px size-3.5" />
+                  <span>{a}</span>
+                </p>
+              ))}
+            </div>
+          )}
 
-      {/* Solo cuando el chip de material NO puede contarlo. Los dos salían del
-          mismo hecho —hay una compra pendiente— y quedaban uno encima del otro
-          diciendo lo mismo; el chip además dice QUÉ se pidió, a quién y si
-          llega tarde. Esta línea se queda para las OF donde la vista de RPS da
-          la fecha pero no tenemos el detalle de la compra. */}
-      {of.materialPendienteHasta && !of.compras?.length && (
-        <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-400">
-          <IconoCaja className="mt-px size-3.5" />
-          <span>Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.</span>
-        </p>
-      )}
-
-      {/* `reservasMaterial` sigue siendo la señal de "hay dato de RPS": el mock
-          no lo rellena, y ahí no se enseña nada en vez de mentir con un
-          "sin material asignado". */}
-      {of.reservasMaterial !== undefined && (
-        <div className="mt-1.5">
-          <MaterialChip materiales={of.materiales} compras={of.compras} hoy={hoyISO()} />
-        </div>
-      )}
-
-      {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
-          motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
-          en rojo la haría parecer devuelta. */}
-      {of.observacion && !anulacion && (
-        <NotaDevolucion
-          observacion={of.observacion}
-          className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
-        />
-      )}
-
-      {/* Quién y cuánto, en un solo bloque: una línea por rol con la persona y
-          su tiempo al lado (ver LineaRol para el porqué). Antes esto estaba
-          partido en dos —los minutos aquí, los nombres cuatro líneas más
-          abajo— y había que emparejarlos de cabeza.
-
-          Orden fijo: autor y luego revisor, que es el del flujo de trabajo
-          (primero se plantea, después se repasa). Es un orden que no se mueve
-          nunca; ordenar por tiempo haría que la misma OF se recolocase sola
-          según quién llevase más minutos ese día, y ver los mismos nombres en
-          dos órdenes distintos es justo lo que despistaba en la queja. */}
-      {/* Autor y revisor en UNA línea: cada uno en su caja gastaba dos
-          renglones para dos nombres. Si el selector de autor no cabe al lado,
-          el revisor baja solo (flex-wrap). */}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
-        <LineaRol
-          rol="plantear"
-          rotulo="Autor"
-          op={autor}
-          live={of.fichandoRol === "plantear"}
-          control={
-            // Con UNA sola OF el selector sobra: el de arriba, "Asignar autor
-            // (pedido entero)", ya cambia exactamente esta OF. Eran dos
-            // desplegables idénticos, uno encima del otro, y no había forma de
-            // saber en qué se diferenciaban — porque no se diferenciaban en
-            // nada. En cuanto hay dos OF vuelve, que ahí sí sirve: es como se
-            // reparte un pedido entre dos personas.
-            puedeTraspasarAutor(of) && !pedidoDeUnaOF ? (
-              <Select
-                value={of.autorId}
-                onChange={(v) => v && onTraspasarAutor(of.id, v)}
-                placeholder={null}
-                alignRight
-                className="min-w-0"
-                options={opcionesOperario(operarios, miId)}
-              />
-            ) : null
-          }
-        />
-        <LineaRol
-          rol="revisar"
-          rotulo="Revisor"
-          op={revisor}
-          live={of.fichandoRol === "revisar"}
-        />
-      </div>
-
-      {/* Todo el tiempo de la OF, en UN sitio: quién, cuánto y dónde lo apuntó.
-          Antes esto estaba repartido en cuatro sitios de esta misma tarjeta —los
-          minutos en las líneas de rol, el desglose de RPS aparte, el total, y
-          una línea que volvía a comparar los dos— diciendo los mismos números.
-          Ver la cabecera de TiempoOF.tsx. */}
-      <TiempoOF of={of} opById={opById} dobleFichaje={dobleFichaje} />
-
-      {/* archivos subidos a RPS */}
-      {of.archivosRps && of.archivosRps.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-text-muted">RPS:</span>
-          {of.archivosRps.map((a) => (
-            <span
-              key={a}
-              className="rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-muted"
+          {of.fechaLimitePlanteo && (
+            <p
+              // LAS LÍNEAS DE DATOS DE LA OF (producción, material, rotulación,
+              // compras, avisos, devolución) van con el icono en la MISMA columna,
+              // a 10 px del borde: donde cae el icono dentro del chip de material,
+              // que es un botón con su propio borde. Cada una llevaba su margen y
+              // los iconos quedaban en escalera.
+              className={`mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] ${
+                of.fechaLimitePlanteo < hoyISO()
+                  ? "font-semibold text-red-700 dark:text-red-400"
+                  : "text-text-muted"
+              }`}
+              title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
             >
-              {a}
-            </span>
-          ))}
-        </div>
-      )}
+              <IconoFabrica className="mt-px size-3.5" />
+              <span>
+                Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el planteo debe estar
+                listo antes
+                {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
+              </span>
+            </p>
+          )}
 
-      {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
-      <AccionesOF
-        of={of}
-        operarios={operarios}
-        miId={miId}
-        revisionPorPedido={revisionPorPedido}
-        seccion={seccion}
-        esLaUltima={esLaUltima}
-        onCerradoEnRps={onCerradoEnRps}
-        onAccion={onAccion}
-        onSetRevisor={onSetRevisor}
-        onFichar={onFichar}
-        onDesfichar={onDesfichar}
-        fichandoYoEsta={fichandoYoEsta}
-        impedidoRevision={impedidoRevision}
-      />
+          {of.rotulacion && (
+            <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-700 dark:text-sky-300">
+              <IconoEtiqueta className="mt-px size-3.5" />
+              <span>
+                Rotulación: <b>{of.rotulacion}</b>
+              </span>
+            </p>
+          )}
+
+          {/* Solo cuando el chip de material NO puede contarlo. Los dos salían del
+              mismo hecho —hay una compra pendiente— y quedaban uno encima del otro
+              diciendo lo mismo; el chip además dice QUÉ se pidió, a quién y si
+              llega tarde. Esta línea se queda para las OF donde la vista de RPS da
+              la fecha pero no tenemos el detalle de la compra. */}
+          {of.materialPendienteHasta && !of.compras?.length && (
+            <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-400">
+              <IconoCaja className="mt-px size-3.5" />
+              <span>Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.</span>
+            </p>
+          )}
+
+          {/* `reservasMaterial` sigue siendo la señal de "hay dato de RPS": el mock
+              no lo rellena, y ahí no se enseña nada en vez de mentir con un
+              "sin material asignado". */}
+          {of.reservasMaterial !== undefined && (
+            <div className="mt-1.5">
+              <MaterialChip materiales={of.materiales} compras={of.compras} hoy={hoyISO()} />
+            </div>
+          )}
+
+          {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
+              motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
+              en rojo la haría parecer devuelta. */}
+          {of.observacion && !anulacion && (
+            <NotaDevolucion
+              observacion={of.observacion}
+              className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
+            />
+          )}
+
+          {/* Quién y cuánto, en un solo bloque: una línea por rol con la persona y
+              su tiempo al lado (ver LineaRol para el porqué). Antes esto estaba
+              partido en dos —los minutos aquí, los nombres cuatro líneas más
+              abajo— y había que emparejarlos de cabeza.
+
+              Orden fijo: autor y luego revisor, que es el del flujo de trabajo
+              (primero se plantea, después se repasa). Es un orden que no se mueve
+              nunca; ordenar por tiempo haría que la misma OF se recolocase sola
+              según quién llevase más minutos ese día, y ver los mismos nombres en
+              dos órdenes distintos es justo lo que despistaba en la queja. */}
+          {/* Autor y revisor en UNA línea: cada uno en su caja gastaba dos
+              renglones para dos nombres. Si el selector de autor no cabe al lado,
+              el revisor baja solo (flex-wrap). */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
+            <LineaRol
+              rol="plantear"
+              rotulo="Autor"
+              op={autor}
+              live={of.fichandoRol === "plantear"}
+              control={
+                // Con UNA sola OF el selector sobra: el de arriba, "Asignar autor
+                // (pedido entero)", ya cambia exactamente esta OF. Eran dos
+                // desplegables idénticos, uno encima del otro, y no había forma de
+                // saber en qué se diferenciaban — porque no se diferenciaban en
+                // nada. En cuanto hay dos OF vuelve, que ahí sí sirve: es como se
+                // reparte un pedido entre dos personas.
+                puedeTraspasarAutor(of) && !pedidoDeUnaOF ? (
+                  <Select
+                    value={of.autorId}
+                    onChange={(v) => v && onTraspasarAutor(of.id, v)}
+                    placeholder={null}
+                    alignRight
+                    className="min-w-0"
+                    options={opcionesOperario(operarios, miId)}
+                  />
+                ) : null
+              }
+            />
+            <LineaRol
+              rol="revisar"
+              rotulo="Revisor"
+              op={revisor}
+              live={of.fichandoRol === "revisar"}
+            />
+          </div>
+
+          {/* Todo el tiempo de la OF, en UN sitio: quién, cuánto y dónde lo apuntó.
+              Antes esto estaba repartido en cuatro sitios de esta misma tarjeta —los
+              minutos en las líneas de rol, el desglose de RPS aparte, el total, y
+              una línea que volvía a comparar los dos— diciendo los mismos números.
+              Ver la cabecera de TiempoOF.tsx. */}
+          <TiempoOF of={of} opById={opById} dobleFichaje={dobleFichaje} />
+
+          {/* archivos subidos a RPS */}
+          {of.archivosRps && of.archivosRps.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-text-muted">RPS:</span>
+              {of.archivosRps.map((a) => (
+                <span
+                  key={a}
+                  className="rounded-md border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-text-muted"
+                >
+                  {a}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* acciones según estado: generadas desde la máquina (lib/acciones.ts) */}
+          <AccionesOF
+            of={of}
+            operarios={operarios}
+            miId={miId}
+            revisionPorPedido={revisionPorPedido}
+            seccion={seccion}
+            esLaUltima={esLaUltima}
+            onCerradoEnRps={onCerradoEnRps}
+            onAccion={onAccion}
+            onSetRevisor={onSetRevisor}
+            onFichar={onFichar}
+            onDesfichar={onDesfichar}
+            fichandoYoEsta={fichandoYoEsta}
+            impedidoRevision={impedidoRevision}
+          />
+        </>
+      )}
     </li>
   );
 }
