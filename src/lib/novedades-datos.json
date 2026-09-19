@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "6c9be14",
+    "hasta": "c7b23a9",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -11,6 +11,10 @@
       {
         "tipo": "arreglado",
         "titulo": "En algunos pedidos el nombre del cliente salía repetido dos veces"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En modo oscuro, los partes atrasados de Sin asignar tenían el código casi invisible"
       },
       {
         "tipo": "mejor",

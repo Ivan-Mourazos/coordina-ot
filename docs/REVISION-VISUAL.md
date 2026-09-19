@@ -100,9 +100,9 @@ Revisadas en claro y en oscuro: filas desplegadas de Pendientes, Historial y
 Visitas; Devoluciones, Tiempos y Anuladas; buscador `Ctrl K`, notificaciones,
 menú de herramientas, panel de un compañero, desplegables y calendario.
 
-- [x] Códigos de los partes atrasados de la bandeja ilegibles en oscuro (rojo oscuro sobre grafito) — @@
-- [x] Tiempos y Anuladas: la tarjeta a todo el ancho separaba cada explicación de su cifra; ahora con tope — @@
-- [x] Candado de línea en vez de 🔒 en el panel del compañero y en las filas que no se pueden fichar — @@
+- [x] Códigos de los partes atrasados de la bandeja ilegibles en oscuro (rojo oscuro sobre grafito) — `c7b23a9`
+- [x] Tiempos y Anuladas: la tarjeta a todo el ancho separaba cada explicación de su cifra; ahora con tope — `c7b23a9`
+- [x] Candado de línea en vez de 🔒 en el panel del compañero y en las filas que no se pueden fichar — `c7b23a9`
 - [x] Buscador, notificaciones, herramientas, desplegables y calendario: bien en los dos temas, sin cambios
 
 ## 5. Despliegue
