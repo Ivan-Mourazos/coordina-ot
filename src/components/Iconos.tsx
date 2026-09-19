@@ -36,3 +36,33 @@ export function IconoMaterial({ className = "size-3.5" }: Props) {
     </svg>
   );
 }
+
+/** Etiqueta: la rotulación de la OF. */
+export function IconoEtiqueta({ className = "size-3.5" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9Z" />
+      <circle cx="7.5" cy="7.5" r="1.2" />
+    </svg>
+  );
+}
+
+/** Caja: material pedido a compras. */
+export function IconoCaja({ className = "size-3.5" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M3 7l9-4 9 4v10l-9 4-9-4Z" />
+      <path d="M3 7l9 4 9-4M12 11v10" />
+    </svg>
+  );
+}
+
+/** Chincheta: un aviso que Producción dejó en la OF. */
+export function IconoAviso({ className = "size-3.5" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M9 3h6l-1 6 3 3H7l3-3Z" />
+      <path d="M12 12v9" />
+    </svg>
+  );
+}

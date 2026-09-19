@@ -187,7 +187,8 @@ export function MaterialChip({
   const lista = materiales ?? [];
   if (lista.length === 0 && compras.length === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
+      // px-2.5: el icono en la misma columna que el resto de líneas de la OF.
+      <span className="inline-flex items-center gap-1.5 px-2.5 text-[11px] text-text-muted">
         <IconoMaterial /> Sin material asignado
       </span>
     );

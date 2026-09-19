@@ -48,7 +48,7 @@ import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { tintaSobre } from "@/lib/tinta";
-import { IconoFabrica } from "./Iconos";
+import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -500,6 +500,25 @@ export function Drawer({
           extra={
             <div className="flex items-center gap-2 text-xs">
               <span className="font-semibold text-text-muted">Autor</span>
+              {/* Pegado al rótulo, sin `ml-auto`: al otro lado del panel dejaba
+                  un hueco de 250 px entre "Autor" y el nombre. */}
+              <div>
+                <Select
+                  value={
+                    pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
+                      ? pedido.ofs[0].autorId
+                      : null
+                  }
+                  onChange={(v) => onAssignPedido(v)}
+                  placeholder="Sin asignar"
+                  // La opción de vaciar dice lo que HACE, no el estado en que
+                  // deja las cosas: "Sin asignar" a secas se leía como el rótulo
+                  // del selector vacío y nadie caía en que ahí estaba la forma de
+                  // devolver un pedido a la bandeja.
+                  etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
+                  options={opcionesOperario(operarios, miId)}
+                />
+              </div>
               {/* La regla que antes ocupaba un pie fijo en todas las fichas:
                   se aprende una vez y no hace falta leerla cada vez. */}
               <span
@@ -509,30 +528,12 @@ export function Drawer({
               >
                 ⓘ
               </span>
-              <div className="ml-auto">
-        <Select
-          value={
-            pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
-              ? pedido.ofs[0].autorId
-              : null
-          }
-          onChange={(v) => onAssignPedido(v)}
-          placeholder="Sin asignar"
-          // La opción de vaciar dice lo que HACE, no el estado en que
-          // deja las cosas: "Sin asignar" a secas se leía como el rótulo
-          // del selector vacío y nadie caía en que ahí estaba la forma de
-          // devolver un pedido a la bandeja.
-          etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
-          alignRight
-          options={opcionesOperario(operarios, miId)}
-        />
-              </div>
             </div>
           }
         />
       }
-      // Solo cuando hay algo que hacer: la regla de los roles que iba aquí
-      // siempre pasó al ⓘ del autor, en la cabecera.
+      // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí
+      // en todas las fichas, pasó al ⓘ junto al autor, en la cabecera.
       pie={
         listoParaCompletar ? (
         <>
@@ -1048,7 +1049,7 @@ function LineaRol({
 }) {
   return (
     <div
-      className="flex items-center gap-2 rounded-lg bg-surface-2/70 px-2 py-1.5"
+      className="flex min-w-0 items-center gap-2"
       title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. Es de quién es el encargo; el tiempo que ha echado cada uno está justo debajo.`}
     >
       <span
@@ -1217,13 +1218,14 @@ function OFRow({
       {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
 
       {of.avisos && of.avisos.length > 0 && (
-        <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2 py-1.5">
+        <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2.5 py-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
             Avisos de Producción
           </p>
           {of.avisos.map((a) => (
-            <p key={a} className="text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
-              📌 {a}
+            <p key={a} className="flex items-start gap-1.5 text-[11px] leading-snug text-indigo-800 dark:text-indigo-200">
+              <IconoAviso className="mt-px size-3.5" />
+              <span>{a}</span>
             </p>
           ))}
         </div>
@@ -1231,23 +1233,33 @@ function OFRow({
 
       {of.fechaLimitePlanteo && (
         <p
-          className={`mt-1.5 px-2 text-[11px] ${
+          // LAS LÍNEAS DE DATOS DE LA OF (producción, material, rotulación,
+          // compras, avisos, devolución) van con el icono en la MISMA columna,
+          // a 10 px del borde: donde cae el icono dentro del chip de material,
+          // que es un botón con su propio borde. Cada una llevaba su margen y
+          // los iconos quedaban en escalera.
+          className={`mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] ${
             of.fechaLimitePlanteo < hoyISO()
               ? "font-semibold text-red-700 dark:text-red-400"
               : "text-text-muted"
           }`}
           title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
         >
-          <IconoFabrica className="mr-1 inline size-3.5 align-[-2px]" />
-          Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el
-          planteo debe estar listo antes
-          {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
+          <IconoFabrica className="mt-px size-3.5" />
+          <span>
+            Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el planteo debe estar
+            listo antes
+            {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
+          </span>
         </p>
       )}
 
       {of.rotulacion && (
-        <p className="mt-1.5 rounded-md bg-sky-500/10 px-2 py-1 text-[11px] text-sky-700 dark:text-sky-300">
-          🏷 Rotulación: <b>{of.rotulacion}</b>
+        <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-700 dark:text-sky-300">
+          <IconoEtiqueta className="mt-px size-3.5" />
+          <span>
+            Rotulación: <b>{of.rotulacion}</b>
+          </span>
         </p>
       )}
 
@@ -1257,8 +1269,9 @@ function OFRow({
           llega tarde. Esta línea se queda para las OF donde la vista de RPS da
           la fecha pero no tenemos el detalle de la compra. */}
       {of.materialPendienteHasta && !of.compras?.length && (
-        <p className="mt-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400">
-          📦 Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.
+        <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-800 dark:text-amber-400">
+          <IconoCaja className="mt-px size-3.5" />
+          <span>Material de compras pedido, llega el {fmt(of.materialPendienteHasta)}.</span>
         </p>
       )}
 
@@ -1277,7 +1290,7 @@ function OFRow({
       {of.observacion && !anulacion && (
         <NotaDevolucion
           observacion={of.observacion}
-          className="mt-1.5 rounded-md bg-red-500/10 px-2 py-1 text-[11px] text-red-600 dark:text-red-400"
+          className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
         />
       )}
 
@@ -1291,7 +1304,10 @@ function OFRow({
           nunca; ordenar por tiempo haría que la misma OF se recolocase sola
           según quién llevase más minutos ese día, y ver los mismos nombres en
           dos órdenes distintos es justo lo que despistaba en la queja. */}
-      <div className="mt-2.5 space-y-1">
+      {/* Autor y revisor en UNA línea: cada uno en su caja gastaba dos
+          renglones para dos nombres. Si el selector de autor no cabe al lado,
+          el revisor baja solo (flex-wrap). */}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
         <LineaRol
           rol="plantear"
           rotulo="Autor"
@@ -1774,7 +1790,7 @@ export function DetalleVenta({ texto }: { texto: string }) {
   const id = useId();
   const [abierto, setAbierto] = useState(false);
   return (
-    <div className="mt-1">
+    <div className="mt-1 px-2.5">
       <button
         type="button"
         onClick={() => setAbierto((a) => !a)}

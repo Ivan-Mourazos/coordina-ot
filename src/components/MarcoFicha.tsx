@@ -157,31 +157,40 @@ export function CabeceraFicha({
         )}
       </p>
       {(datos.length > 0 || familias.length > 0) && (
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {datos.map((d, i) => (
-            // Por índice y no por `d`: son textos ya formateados ("4 piezas",
-            // "Madrid") y dos podrían coincidir, lo que React vería como una
-            // key duplicada. El orden es fijo (viene de quien llama), así que
-            // el índice es una key estable.
-            <span key={i} className="flex items-center gap-2">
-              {i > 0 && <span aria-hidden="true" className="text-text-muted">·</span>}
-              <span className="font-medium text-text">{d}</span>
-            </span>
-          ))}
-          {familias.length > 0 && (
-            <span className="flex items-center gap-2">
-              {datos.length > 0 && <span aria-hidden="true" className="text-text-muted">·</span>}
-              <span className="flex flex-wrap gap-1">
-                {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
+        <div className="mt-1 overflow-hidden text-xs">
+          <div className={FILA_CON_PUNTOS}>
+            {datos.map((d, i) => (
+              // Por índice y no por `d`: son textos ya formateados ("4 piezas",
+              // "Madrid") y dos podrían coincidir, lo que React vería como una
+              // key duplicada. El orden es fijo (viene de quien llama), así que
+              // el índice es una key estable.
+              <span key={i} className={`flex items-center font-medium text-text ${PUNTO}`}>
+                {d}
               </span>
-            </span>
-          )}
+            ))}
+            {familias.length > 0 && (
+              <span className={`flex items-center ${PUNTO}`}>
+                <span className="flex flex-wrap gap-1">
+                  {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
       )}
       {extra && <div className="mt-2">{extra}</div>}
     </div>
   );
 }
+
+/** Datos seguidos con un "·" entre ellos que NO se queda suelto al partirse
+ *  la línea. Cada dato lleva su punto DELANTE (`PUNTO`) y la fila se corre
+ *  12 px a la izquierda dentro de una caja que recorta (`overflow-hidden` en
+ *  quien la envuelve): el punto del primero de CADA línea cae en ese margen y
+ *  no se ve. Con el punto como elemento aparte, al partirse la línea bajaba
+ *  al principio de la siguiente ("· Toldos · Otro"). */
+const FILA_CON_PUNTOS = "-ml-3 flex flex-wrap items-center gap-y-1";
+const PUNTO = "before:w-3 before:shrink-0 before:text-center before:text-text-muted before:content-['·']";
 
 /** Los mismos datos, en UNA línea: el rótulo de cada uno al pasar el ratón.
  *
@@ -198,26 +207,26 @@ export function DatosEnLinea({
   familias?: readonly string[];
 }) {
   return (
-    <dl className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-      {datos.map(({ k, v }, i) => (
-        <div key={k} className="flex items-center gap-2">
-          {i > 0 && <span aria-hidden className="text-text-muted">·</span>}
-          <dt className="sr-only">{k}</dt>
-          <dd className="font-medium text-text" title={k}>{v}</dd>
-        </div>
-      ))}
-      {familias.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="text-text-muted">·</span>
-          <dt className="sr-only">Familias</dt>
-          <dd className="flex flex-wrap gap-1">
-            {familias.map((f) => (
-              <FamiliaTag key={f} familia={f} />
-            ))}
-          </dd>
-        </div>
-      )}
-    </dl>
+    <div className="mb-3 overflow-hidden text-xs">
+      <dl className={FILA_CON_PUNTOS}>
+        {datos.map(({ k, v }) => (
+          <div key={k} className={`flex items-center ${PUNTO}`}>
+            <dt className="sr-only">{k}</dt>
+            <dd className="font-medium text-text" title={k}>{v}</dd>
+          </div>
+        ))}
+        {familias.length > 0 && (
+          <div className={`flex items-center ${PUNTO}`}>
+            <dt className="sr-only">Familias</dt>
+            <dd className="flex flex-wrap gap-1">
+              {familias.map((f) => (
+                <FamiliaTag key={f} familia={f} />
+              ))}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </div>
   );
 }
 

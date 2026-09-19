@@ -164,7 +164,9 @@ export function TiempoOF({
                       {f.webMin > 0 ? fmtMin(f.webMin) : "—"}
                     </span>
                   </>
-                ) : (
+                ) : gente.length === 1 ? null : (
+                  // Con UNA sola persona su tiempo ES el total de arriba: salía
+                  // dos veces, casi en la misma fila.
                   <span className="shrink-0 font-semibold tabular-nums text-text">
                     {fmtMin(f.rpsMin + f.webMin)}
                   </span>
