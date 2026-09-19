@@ -272,10 +272,16 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
         <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">Contando…</p>
       )}
 
+      {/* Las dos tarjetas a la MISMA altura (el grid estira por defecto): con
+          `items-start`, la de la cifra se quedaba baja al lado de "Mes a mes" y
+          dejaba un hueco debajo que parecía un fallo. */}
       {m && apartado === "trabajo" && (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        // La cifra en un TERCIO y el detalle en dos: la cifra son dos líneas y a
+        // media pantalla quedaba una tarjeta grande casi vacía. Centrada en
+        // vertical, para que la altura que le da "Mes a mes" no parezca un hueco.
+        <div className={`grid gap-4 ${m.porMes.length > 1 ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}>
           {/* ── Cuánto sale ── */}
-          <section className="glass-panel rounded-xl p-4">
+          <section className="glass-panel flex flex-col justify-center rounded-xl p-4">
             {m.volumen.terminadas === 0 && m.volumen.planteos === 0 ? (
               <p className="text-xs text-text-muted">
                 No consta trabajo terminado en este periodo.
@@ -360,51 +366,85 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
         </div>
       )}
 
+      {/* DOS COLUMNAS Y NO UNA REJILLA DE TRES TARJETAS. En rejilla, "Mes a mes"
+          bajaba a una segunda fila y dejaba un hueco grande entre ella y la
+          cifra, a la altura de "Por qué vuelven". Ahora la columna izquierda
+          apila cifra y mes a mes, y la derecha es el porqué, a la misma altura. */}
       {m && apartado === "devoluciones" && (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
-          {/* ── Cuánto pasa ── */}
-          <section className="glass-panel rounded-xl p-4">
-            {m.revisiones === 0 ? (
-              // Vacío con dirección, no un "no hay datos" a secas: aquí lo
-              // normal al empezar es que no haya nada todavía, y hay que decir
-              // por qué y desde cuándo cuenta.
-              <p className="text-xs text-text-muted">
-                Todavía no se ha revisado nada en este periodo. Las devoluciones se
-                cuentan desde que se empiezan a marcar causas: los primeros números
-                tardan unas semanas en decir algo.
-              </p>
-            ) : (
-              <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                <p className="text-3xl font-bold text-text">
-                  {prop === null ? "—" : `${Math.round(prop * 100)}%`}
-                  <span className="ml-2 text-xs font-medium text-text-muted">
-                    de las revisiones acaban en devolución
-                  </span>
-                  {/* En PUNTOS, no en por ciento: pasar del 30 % al 33 % son
-                      tres puntos, y llamarlo "un 10 % más" es la confusión
-                      clásica de los porcentajes sobre porcentajes. */}
-                  <span className="ml-2 block font-normal">
-                    <Delta
-                      ahora={prop === null ? null : Math.round(prop * 100)}
-                      antes={
-                        previo && proporcionDevueltas(previo) !== null
-                          ? Math.round(proporcionDevueltas(previo)! * 100)
-                          : null
-                      }
-                      sufijo=" pts"
-                      masEsMejor={false}
-                    />
-                  </span>
-                </p>
+        <div className={`grid gap-4 ${m.porCausa.length > 0 ? "xl:grid-cols-2" : ""}`}>
+          <div className="flex flex-col gap-4">
+            {/* ── Cuánto pasa ── */}
+            <section className="glass-panel rounded-xl p-4">
+              {m.revisiones === 0 ? (
+                // Vacío con dirección, no un "no hay datos" a secas: aquí lo
+                // normal al empezar es que no haya nada todavía, y hay que decir
+                // por qué y desde cuándo cuenta.
                 <p className="text-xs text-text-muted">
-                  <strong className="font-semibold text-text">{m.devoluciones}</strong>{" "}
-                  {m.devoluciones === 1 ? "devolución" : "devoluciones"} sobre{" "}
-                  <strong className="font-semibold text-text">{m.revisiones}</strong>{" "}
-                  {m.revisiones === 1 ? "revisión" : "revisiones"}
+                  Todavía no se ha revisado nada en este periodo. Las devoluciones se
+                  cuentan desde que se empiezan a marcar causas: los primeros números
+                  tardan unas semanas en decir algo.
                 </p>
-              </div>
+              ) : (
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                  <p className="text-3xl font-bold text-text">
+                    {prop === null ? "—" : `${Math.round(prop * 100)}%`}
+                    <span className="ml-2 text-xs font-medium text-text-muted">
+                      de las revisiones acaban en devolución
+                    </span>
+                    {/* En PUNTOS, no en por ciento: pasar del 30 % al 33 % son
+                        tres puntos, y llamarlo "un 10 % más" es la confusión
+                        clásica de los porcentajes sobre porcentajes. */}
+                    <span className="ml-2 block font-normal">
+                      <Delta
+                        ahora={prop === null ? null : Math.round(prop * 100)}
+                        antes={
+                          previo && proporcionDevueltas(previo) !== null
+                            ? Math.round(proporcionDevueltas(previo)! * 100)
+                            : null
+                        }
+                        sufijo=" pts"
+                        masEsMejor={false}
+                      />
+                    </span>
+                  </p>
+                  <p className="text-xs text-text-muted">
+                    <strong className="font-semibold text-text">{m.devoluciones}</strong>{" "}
+                    {m.devoluciones === 1 ? "devolución" : "devoluciones"} sobre{" "}
+                    <strong className="font-semibold text-text">{m.revisiones}</strong>{" "}
+                    {m.revisiones === 1 ? "revisión" : "revisiones"}
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* ── Si va a mejor ── */}
+            {/* Con un solo mes no hay tendencia que enseñar: dos puntos son lo
+                mínimo para poder decir "sube" o "baja", y uno solo invita a leer
+                una raya donde no hay nada. */}
+            {/* Solo los meses en los que se revisó algo. Desde que se cuenta el
+                volumen, un mes puede existir con planteos y ninguna revisión, y
+                ahí "0 de 0" no es una proporción: es un hueco. */}
+            {mesesRevisados.length > 1 && (
+              <section className="glass-panel rounded-xl p-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  Mes a mes
+                </h3>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {mesesRevisados.map((mes) => (
+                    <BarraMes key={mes.mes} {...mes} />
+                  ))}
+                </ul>
+                {/* Sin esto el mes en curso se lee como una mejora. Cada
+                    devolución cuenta en el mes de su revisión, así que las de las
+                    revisiones de estos días todavía no han llegado. */}
+                <p className="mt-3 text-[11px] text-text-muted">
+                  Cada devolución cuenta en el mes en que se revisó la OF, no en el
+                  que volvió. El mes en curso siempre sale bajo: le faltan las
+                  devoluciones que aún no han pasado.
+                </p>
+              </section>
             )}
-          </section>
+          </div>
 
           {/* ── Por qué ── */}
           {m.porCausa.length > 0 && (
@@ -439,33 +479,6 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
             </section>
           )}
 
-          {/* ── Si va a mejor ── */}
-          {/* Con un solo mes no hay tendencia que enseñar: dos puntos son lo
-              mínimo para poder decir "sube" o "baja", y uno solo invita a leer
-              una raya donde no hay nada. */}
-          {/* Solo los meses en los que se revisó algo. Desde que se cuenta el
-              volumen, un mes puede existir con planteos y ninguna revisión, y
-              ahí "0 de 0" no es una proporción: es un hueco. */}
-          {mesesRevisados.length > 1 && (
-            <section className="glass-panel rounded-xl p-4">
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                Mes a mes
-              </h3>
-              <ul className="mt-3 flex flex-col gap-2">
-                {mesesRevisados.map((mes) => (
-                  <BarraMes key={mes.mes} {...mes} />
-                ))}
-              </ul>
-              {/* Sin esto el mes en curso se lee como una mejora. Cada
-                  devolución cuenta en el mes de su revisión, así que las de las
-                  revisiones de estos días todavía no han llegado. */}
-              <p className="mt-3 text-[11px] text-text-muted">
-                Cada devolución cuenta en el mes en que se revisó la OF, no en el
-                que volvió. El mes en curso siempre sale bajo: le faltan las
-                devoluciones que aún no han pasado.
-              </p>
-            </section>
-          )}
         </div>
       )}
 
@@ -509,15 +522,15 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
 
       {/* ── Qué no hace OT ── */}
       {m && apartado === "anuladas" && (
-        // Dos columnas, como Trabajo y Devoluciones: la cifra a un lado y el
-        // porqué al otro. Era una tarjeta estrecha pegada a la izquierda.
+        // Como Trabajo: la cifra en un tercio y el porqué en dos. Era una
+        // tarjeta estrecha pegada a la izquierda.
         m.anulaciones === 0 ? (
           <section className="glass-panel rounded-xl p-4">
             <p className="text-xs text-text-muted">No se ha anulado ninguna OF en este periodo.</p>
           </section>
         ) : (
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <section className="glass-panel rounded-xl p-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <section className="glass-panel flex flex-col justify-center rounded-xl p-4">
               <p className="text-3xl font-bold text-text">
                 {m.anulaciones}
                 <span className="ml-2 text-xs font-medium text-text-muted">

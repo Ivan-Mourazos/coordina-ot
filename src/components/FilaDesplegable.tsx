@@ -57,7 +57,7 @@ export function FilaDesplegable({
   titulo?: string;
   celdas: ReactNode;
   detalle: ReactNode;
-  /** SOLO Pendientes (ver el comentario de arriba). Cada fila —con su
+  /** Las listas de las pestañas (ver el comentario de arriba). Cada fila —con su
    *  detalle, si está abierta— pasa a ser su propia tarjeta con margen y
    *  relieve propio, en vez de compartir raya con la siguiente. */
   tarjeta?: boolean;

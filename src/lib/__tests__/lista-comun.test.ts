@@ -186,15 +186,6 @@ test("Pendientes puede pedir que el bloque NO recorte lo que se sale por la dere
   expect(pidiendolo).toContain("rounded-xl");
 });
 
-test("Visitas puede pedir un fondo opaco: descansa sobre la página, sin panel alrededor", () => {
-  const html = pintarBloque(
-    { columnas: COLUMNAS, fondoSolido: true },
-    createElement("div", null, "x"),
-  );
-  expect(html).toContain("panel-solido");
-  expect(html).not.toContain("bloque-3d");
-});
-
 test("el rótulo es un <h3> por defecto, para no tocar el Historial", () => {
   const html = pintarBloque(
     { columnas: COLUMNAS, rotulo: { texto: "Hoy" } },

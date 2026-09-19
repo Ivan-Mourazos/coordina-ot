@@ -19,7 +19,6 @@ export function BloqueLista({
   rotulo,
   children,
   desbordaHorizontal = false,
-  fondoSolido = false,
   sinCaja = false,
   nivelRotulo: Rotulo = "h3",
 }: {
@@ -50,12 +49,7 @@ export function BloqueLista({
    *  recorte sin necesidad solo arriesga la esquina redondeada de la primera
    *  y la última fila (ver más abajo). */
   desbordaHorizontal?: boolean;
-  /** Para bloques que descansan DIRECTAMENTE sobre el fondo de la página, sin
-   *  panel ni telón alrededor (las Visitas): el vidrio translúcido de
-   *  `bloque-3d` se mezclaba con el gris del fondo, sobre todo en tema claro,
-   *  y el bloque no se leía como una tarjeta. `panel-solido` es opaco. */
-  fondoSolido?: boolean;
-  /** SOLO Pendientes, y va de la mano de la prop `tarjeta` de
+  /** Pendientes, Revisiones, Historial y Visitas, y va de la mano de la prop `tarjeta` de
    *  `FilaDesplegable`: cuando cada FILA es ya su propia tarjeta con relieve,
    *  esta caja pinta una segunda caja detrás de todas ellas. Se ve como un
    *  fondo que sobra, porque sobra: el relieve que separa un pedido del
@@ -111,7 +105,7 @@ export function BloqueLista({
         className={[
           // Sin caja: las filas ya traen la suya y ésta solo pintaría un
           // fondo de más detrás de todas (ver la prop `sinCaja`).
-          sinCaja ? null : fondoSolido ? "panel-solido" : "bloque-3d",
+          sinCaja ? null : "bloque-3d",
           // Sin `overflow-hidden` cuando `desbordaHorizontal`: es justo lo que
           // había que quitar (ver el comentario de la prop). La esquina
           // redondeada de la caja no depende de esto —es el borde y el fondo
