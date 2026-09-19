@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     // Lo copia scripts/copiar-worker.mjs desde pdfjs-dist en cada dev/build:
     // es código de pdf.js, no nuestro, y lintarlo solo da ruido.
     "public/pdf.worker.mjs",
+    "public/pdfjs/**",
   ]),
 ]);
 
