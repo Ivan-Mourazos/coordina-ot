@@ -140,7 +140,7 @@ export function NotasPedido({
   return (
     <div className="bloque-3d mb-4 rounded-xl p-3">
       <div className="mb-2 flex items-baseline gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}
         </p>
         {/* El botón sale SIEMPRE que se pueda escribir, también con el hilo
@@ -149,7 +149,9 @@ export function NotasPedido({
           <button
             type="button"
             onClick={() => setEscribiendo(true)}
-            className="ml-auto rounded-lg border border-border px-2 py-0.5 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+            // chip-3d, el botón de la casa: con solo un borde gris se leía
+            // como texto, sobre todo en oscuro.
+            className="chip-3d ml-auto rounded-lg px-2 py-0.5 text-[11px] font-semibold text-text"
           >
             + Añadir
           </button>

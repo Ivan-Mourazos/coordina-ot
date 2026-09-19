@@ -195,7 +195,7 @@ export function VisorPdf({
       aria-label={titulo}
       tabIndex={0}
       onClick={(e) => e.stopPropagation()}
-      className="h-full w-full overflow-auto rounded-xl outline-none [color-scheme:dark] focus-visible:ring-2 focus-visible:ring-brand-400 [scrollbar-gutter:stable]"
+      className="scroll-visor h-full w-full overflow-auto rounded-xl outline-none [color-scheme:dark] focus-visible:ring-2 focus-visible:ring-brand-400 [scrollbar-gutter:stable]"
     >
       {error ? (
         <div className="grid h-full place-items-center p-6 text-center text-sm text-white/70">
@@ -238,7 +238,7 @@ export function VisorPdf({
                   />
                 </div>
               ))
-            : poster && (
+            : poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={poster}
@@ -247,6 +247,22 @@ export function VisorPdf({
                   className="hoja-3d object-contain"
                   style={{ maxWidth: hueco.ancho || undefined, maxHeight: hueco.alto || undefined }}
                 />
+              ) : (
+                // Ni el documento ni su miniatura todavía: una hoja en blanco
+                // del tamaño de un A4 que quepa, con el aviso. El telón vacío
+                // se leía como "este pedido no tiene parte".
+                hueco.alto > 0 && (
+                  <div
+                    role="status"
+                    className="hoja-3d grid place-items-center text-sm text-neutral-500"
+                    style={{
+                      height: Math.min(hueco.alto, (hueco.ancho || hueco.alto) * Math.SQRT2),
+                      width: Math.min(hueco.ancho || hueco.alto, hueco.alto / Math.SQRT2),
+                    }}
+                  >
+                    <span className="animate-pulse">Cargando parte…</span>
+                  </div>
+                )
               )}
         </div>
       )}

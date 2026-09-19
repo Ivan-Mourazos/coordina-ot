@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, Ref } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import type { Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -73,10 +73,9 @@ export function MarcoFicha({
       </div>
 
       <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-lg flex-col rounded-xl">
-        <header
-          className="flex items-start gap-3 p-4"
-          style={{ boxShadow: "inset 0 -1px 0 0 var(--glass-border)" }}
-        >
+        {/* Sin raya entre cabecera, cuerpo y pie: igual que en el tablero, lo
+            que separa son los bloques con relieve, no líneas de 1 px. */}
+        <header className="flex items-start gap-3 p-4 pb-2">
           {cabecera}
           <button
             onClick={onCerrar}
@@ -94,10 +93,7 @@ export function MarcoFicha({
         </div>
 
         {pie && (
-          <footer
-            className="p-3 text-[11px] leading-snug text-text-muted"
-            style={{ boxShadow: "inset 0 1px 0 0 var(--glass-border)" }}
-          >
+          <footer className="p-3 pt-0 text-[11px] leading-snug text-text-muted">
             {pie}
           </footer>
         )}
@@ -124,6 +120,7 @@ export function CabeceraFicha({
   negocio,
   datos = [],
   familias = [],
+  extra,
 }: {
   codigo: string;
   prioridad?: Prioridad;
@@ -132,12 +129,18 @@ export function CabeceraFicha({
   /** Ya escritos ("4 piezas", "Madrid"): quien los pinta sabe pluralizar. */
   datos?: readonly string[];
   familias?: readonly string[];
+  /** Debajo de los datos: en Pendientes, el autor del pedido. Vivía en el
+   *  cuerpo, entre las notas y las OF; aquí está siempre a la vista, que es
+   *  donde se busca "de quién es esto". */
+  extra?: ReactNode;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2">
         <h2 className="font-mono text-lg font-bold text-text">{codigo}</h2>
-        {prioridad !== undefined && (
+        {/* La normal no se dice: salía en todos los pedidos y dejaba de
+            destacar justo cuando era urgente. Mismo criterio que la bandeja. */}
+        {prioridad !== undefined && prioridad !== 2 && (
           <span
             className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
             style={{ background: PRIORIDAD[prioridad].color, color: PRIORIDAD[prioridad].tinta }}
@@ -175,6 +178,7 @@ export function CabeceraFicha({
           )}
         </div>
       )}
+      {extra && <div className="mt-2">{extra}</div>}
     </div>
   );
 }
@@ -222,10 +226,41 @@ export function DatosEnLinea({
 export function BloqueFicha({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
-      <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-        {titulo}
-      </h3>
+      <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>{titulo}</h3>
       {children}
     </section>
+  );
+}
+
+/** El rótulo de TODOS los bloques de la ficha: recorrido, OF, notas,
+ *  comentario, documentos, tareas. Había cuatro estilos distintos dentro del
+ *  mismo panel (10 px en mayúsculas, 12 px en mayúsculas, 12 px en minúsculas
+ *  y uno suelto sin caja), y los bloques no parecían piezas del mismo juego. */
+export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide text-text-muted";
+
+/** El comentario de venta, plegado a dos líneas. Casi siempre es el mismo
+ *  texto legal de TGM (ocho líneas sobre la lona y la estructura del cliente)
+ *  y ocupaba lo alto de la ficha, empujando abajo las OF, que es donde se
+ *  trabaja. Lo que no es de siempre —"NO INCLUYE INSTALACIÓN ELÉCTRICA"— suele
+ *  ir al principio y se sigue leyendo sin desplegar. */
+export function ComentarioPedido({ texto }: { texto: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const largo = texto.length > 160 || texto.includes("\n");
+  return (
+    <BloqueFicha titulo="Comentario del pedido">
+      <p className={`whitespace-pre-line text-[11px] leading-snug text-text ${abierto || !largo ? "" : "line-clamp-2"}`}>
+        {texto}
+      </p>
+      {largo && (
+        <button
+          type="button"
+          onClick={() => setAbierto((a) => !a)}
+          aria-expanded={abierto}
+          className="mt-1 text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
+        >
+          {abierto ? "Ver menos" : "Ver más"}
+        </button>
+      )}
+    </BloqueFicha>
   );
 }

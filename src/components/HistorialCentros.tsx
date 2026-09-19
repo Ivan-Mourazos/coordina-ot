@@ -16,6 +16,7 @@ import {
   VentanaAnclada,
   useVentanaAnclada,
 } from "./VentanaAnclada";
+import { IconoMaterial } from "./Iconos";
 
 // ─── Tiempos por centro de la ficha del pedido ──────────────────────────────
 // Vivía dentro de HistorialDrawer.tsx. Sale a su fichero porque la consulta
@@ -208,7 +209,7 @@ function MaterialHistorico({
         title="Material asignado en la OF. Se marca el que sigue reservado en RPS; la reserva se borra al consumir el material."
         className={`${BOTON_DETALLE} ${conReserva ? "text-teal-700 dark:text-teal-300" : "text-text-muted"}`}
       >
-        <span aria-hidden>🧵</span>
+        <IconoMaterial />
         Asignado
         <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
           {total}

@@ -41,7 +41,8 @@ test("el desglose conserva tareas y totales sin sumar dos veces, con la gente de
   expect(ofs[0].tareas![0].personas).toHaveLength(2);
   const html = renderToStaticMarkup(createElement(HistorialTareas, { pedido: "AR.26.04489", ofs, seccion: "ot", abrirAlMontar: true }));
   expect(html).toContain("Tareas y tiempos");
-  expect(html).toContain("AR.26.04489");
+  // Sin el código a la derecha: la ficha ya lo dice en su cabecera.
+  expect(html).not.toContain("AR.26.04489");
   expect(html).toContain("Confeccionar");
   expect(html).toContain("34m");
   expect(html).toContain("Iván Sánchez");

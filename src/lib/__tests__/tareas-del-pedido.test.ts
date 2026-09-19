@@ -22,9 +22,10 @@ test('el bloque de "Tareas y tiempos" se ve como tal ANTES de cargar los datos, 
   expect(html).toContain("bg-[var(--glass-highlight)]");
   expect(html).not.toContain("chip-3d");
   expect(html).toContain("Tareas y tiempos");
-  // El código del pedido, como en la versión ya cargada: es lo que la
-  // cabecera decía cuando esto era un popover.
-  expect(html).toContain("AR.26.03914");
+  // Sin el código del pedido: venía de cuando esto era una ventana suelta y
+  // tenía que decir de qué pedido era. Dentro de la ficha lo repetía, porque
+  // el código ya está en su cabecera.
+  expect(html).not.toContain("AR.26.03914");
 });
 
 test('pulsarlo sigue siendo lo que pide los datos: el botón no está deshabilitado en reposo', () => {

@@ -38,7 +38,7 @@ import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { MaterialChip } from "./MaterialChip";
-import { BloqueFicha, CabeceraFicha, MarcoFicha } from "./MarcoFicha";
+import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
@@ -48,6 +48,7 @@ import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { tintaSobre } from "@/lib/tinta";
+import { IconoFabrica } from "./Iconos";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -496,9 +497,44 @@ export function Drawer({
             ...(pedido.ciudadEntrega ? [pedido.ciudadEntrega] : []),
           ]}
           familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
+          extra={
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold text-text-muted">Autor</span>
+              {/* La regla que antes ocupaba un pie fijo en todas las fichas:
+                  se aprende una vez y no hace falta leerla cada vez. */}
+              <span
+                className="cursor-help text-text-muted"
+                title="El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El revisor nunca puede ser el autor."
+                aria-label="Cómo se cuenta el tiempo de cada rol"
+              >
+                ⓘ
+              </span>
+              <div className="ml-auto">
+        <Select
+          value={
+            pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
+              ? pedido.ofs[0].autorId
+              : null
+          }
+          onChange={(v) => onAssignPedido(v)}
+          placeholder="Sin asignar"
+          // La opción de vaciar dice lo que HACE, no el estado en que
+          // deja las cosas: "Sin asignar" a secas se leía como el rótulo
+          // del selector vacío y nadie caía en que ahí estaba la forma de
+          // devolver un pedido a la bandeja.
+          etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
+          alignRight
+          options={opcionesOperario(operarios, miId)}
+        />
+              </div>
+            </div>
+          }
         />
       }
+      // Solo cuando hay algo que hacer: la regla de los roles que iba aquí
+      // siempre pasó al ⓘ del autor, en la cabecera.
       pie={
+        listoParaCompletar ? (
         <>
           {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
               botón está también en la fila del tablero y no puede preguntar
@@ -511,13 +547,8 @@ export function Drawer({
               📦 Pasar a Producción
             </button>
           )}
-          {/* Ya no hace falta explicar que "planteo = autor" y "revisión =
-              revisor": cada OF lo enseña en su línea. Aquí se queda solo lo que
-              la tarjeta NO puede enseñar: que el tiempo de un rol puede venir de
-              varias personas y que revisor y autor nunca coinciden. */}
-          El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El
-          revisor nunca puede ser el autor.
         </>
+        ) : undefined
       }
       // La confirmación de "Aprobar las N". Cuelga del marco y no de la fila
       // de botones porque el cuadro se pinta en un portal y lo único que
@@ -572,83 +603,16 @@ export function Drawer({
             </div>
           )}
 
-          {/* comentario del pedido de venta (condiciones, avisos del comercial) */}
-          {pedido.comentarioVenta && (
-            <BloqueFicha titulo="Comentario del pedido">
-              <p className="whitespace-pre-line text-[11px] leading-snug text-text">
-                {pedido.comentarioVenta}
-              </p>
-            </BloqueFicha>
-          )}
-
+          {/* EL ORDEN: recorrido, aviso de parte nuevo, las OF (con Fichar,
+              Revisar, Anular) y después lo que se lee: notas, comentario,
+              documentos y tareas. Las OF estaban lo último, debajo de ocho
+              líneas de comentario legal, cuatro bloques y el selector de autor:
+              para fichar había que bajar siempre. El autor subió a la cabecera. */}
           {/* Encima del hilo, y lo primero que se ve tras el parte: si han
               vuelto a escanearlo, eso condiciona todo lo que se lea debajo. */}
           {pedido.scanCambiado && (
             <AvisoParteNuevo key={`aviso:${pedido.codigo}`} pedido={pedido.codigo} />
           )}
-
-          {/* Lo que RPS tiene colgado: la rotulación, el planteamiento y las
-              fotos. Va ANTES del hilo de notas y después del parte porque es
-              del mismo orden de lectura: primero lo que hay que mirar para
-              hacer el trabajo, después lo que se ha dicho sobre él.
-
-              Plegado, y se pide solo al desplegarlo: son dos tablas grandes de
-              RPS por pedido y la mayoría de las veces la ficha se abre para
-              fichar, no para mirar documentos. El `key` con el código, por lo
-              mismo que el hilo de notas de abajo. */}
-          <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
-
-          {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
-              una. Es el mismo bloque del Historial, pero aquí sirve para un
-              pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
-              pulsar, no al abrir la ficha (ver TareasDelPedido). */}
-          <TareasDelPedido
-            key={`tareas:${pedido.codigo}`}
-            pedido={pedido.codigo}
-            seccion={seccion.id}
-          />
-
-          {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
-              lo que se decide, porque es contexto: primero se lee de qué va
-              esto y después se actúa.
-              Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
-              revisor ve el hilo al abrir el pedido sin nada más que hacer.
-              El `key` con el código: al saltar de pedido sin cerrar el drawer
-              (Ctrl+K abre el buscador aunque esté delante) React desmonta y
-              vuelve a montar, así no queda ni un frame con el hilo del anterior.
-              NO sustituye a los guards de dentro del componente: esos cubren
-              las carreras DENTRO de un mismo pedido. */}
-          <NotasPedido
-            key={`notas:${pedido.codigo}`}
-            pedido={pedido.codigo}
-            miId={miId}
-            operarios={operarios}
-          />
-
-          {/* Asignar el autor del pedido entero. Era una caja con borde, fondo
-              y rótulo propio: tres renglones de alto para un selector, en una
-              ficha donde el alto es lo que escasea. */}
-          <div className="mb-4 flex items-center gap-2 text-xs">
-            <span className="font-semibold text-text-muted">Autor del pedido</span>
-            <div className="ml-auto">
-              <Select
-                value={
-                  pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
-                    ? pedido.ofs[0].autorId
-                    : null
-                }
-                onChange={(v) => onAssignPedido(v)}
-                placeholder="Sin asignar"
-                // La opción de vaciar dice lo que HACE, no el estado en que
-                // deja las cosas: "Sin asignar" a secas se leía como el rótulo
-                // del selector vacío y nadie caía en que ahí estaba la forma de
-                // devolver un pedido a la bandeja.
-                etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
-                alignRight
-                options={opcionesOperario(operarios, miId)}
-              />
-            </div>
-          </div>
 
           {/* Cerrar una fase de OT que se quedó a medias, en el pedido YA PASADO
               a Producción. Es justo el caso para el que se hizo este bloque
@@ -681,7 +645,7 @@ export function Drawer({
               no se podía ni leer ni pulsar. Con el salto bajan a su propia
               línea y se ven los tres. */}
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+            <h3 className={TITULO_BLOQUE}>
               Órdenes de fabricación ({ofsDeOT.length})
               {ofsDeOT.length !== pedido.ofs.length && (
                 <span className="ml-1.5 font-normal normal-case tracking-normal">
@@ -998,6 +962,51 @@ export function Drawer({
               })}
             </div>
           )}
+
+          {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
+              lo que se decide, porque es contexto: primero se lee de qué va
+              esto y después se actúa.
+              Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
+              revisor ve el hilo al abrir el pedido sin nada más que hacer.
+              El `key` con el código: al saltar de pedido sin cerrar el drawer
+              (Ctrl+K abre el buscador aunque esté delante) React desmonta y
+              vuelve a montar, así no queda ni un frame con el hilo del anterior.
+              NO sustituye a los guards de dentro del componente: esos cubren
+              las carreras DENTRO de un mismo pedido. */}
+          <NotasPedido
+            key={`notas:${pedido.codigo}`}
+            pedido={pedido.codigo}
+            miId={miId}
+            operarios={operarios}
+          />
+
+          {/* Comentario del pedido de venta (condiciones, avisos del comercial).
+              DEBAJO de las OF y de las notas, y plegado: casi siempre es el
+              mismo texto legal de TGM y, arriba del todo, empujaba las OF —que
+              es donde se trabaja— por debajo del pliegue. */}
+          {pedido.comentarioVenta && <ComentarioPedido texto={pedido.comentarioVenta} />}
+
+          {/* Lo que RPS tiene colgado: la rotulación, el planteamiento y las
+              fotos. Va ANTES del hilo de notas y después del parte porque es
+              del mismo orden de lectura: primero lo que hay que mirar para
+              hacer el trabajo, después lo que se ha dicho sobre él.
+
+              Plegado, y se pide solo al desplegarlo: son dos tablas grandes de
+              RPS por pedido y la mayoría de las veces la ficha se abre para
+              fichar, no para mirar documentos. El `key` con el código, por lo
+              mismo que el hilo de notas de abajo. */}
+          <DocumentosPedido key={`docs:${pedido.codigo}`} pedido={pedido.codigo} />
+
+          {/* Qué tareas lleva el pedido en RPS y cuánto se ha echado en cada
+              una. Es el mismo bloque del Historial, pero aquí sirve para un
+              pedido A MEDIAS: enseña lo imputado hasta ahora. Se pide al
+              pulsar, no al abrir la ficha (ver TareasDelPedido). */}
+          <TareasDelPedido
+            key={`tareas:${pedido.codigo}`}
+            pedido={pedido.codigo}
+            seccion={seccion.id}
+          />
+
     </MarcoFicha>
   );
 }
@@ -1227,7 +1236,8 @@ function OFRow({
           }`}
           title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
         >
-          🏭 Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el
+          <IconoFabrica className="mr-1 inline size-3.5 align-[-2px]" />
+          Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el
           planteo debe estar listo antes
           {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
         </p>

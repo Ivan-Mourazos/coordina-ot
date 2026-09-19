@@ -12,6 +12,7 @@ import { PRIORIDAD, ROL } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { avisaDeOFNueva } from "@/lib/fases-tablero";
 import { tintaSobre } from "@/lib/tinta";
+import { IconoMaterial } from "./Iconos";
 
 /** El color de la prioridad CUANDO ES TEXTO. No sale de `PRIORIDAD.color`:
  *  ese ámbar es para fondos y como letra de 9 px da 2,5:1 sobre blanco, que no
@@ -209,7 +210,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                     : "bg-white/95"
               }`}
             >
-              🧵
+              <IconoMaterial className="size-3 text-[#1a1206]" />
             </span>
           )}
         </span>

@@ -56,9 +56,20 @@ export function DocumentosPedido({ pedido, documentos }: { pedido: string; docum
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-expanded={abierto}
-        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-text"
+        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
       >
-        <span className="text-text-muted">{abierto ? "▾" : "▸"}</span>
+        {/* La misma flecha que «Tareas y tiempos»: era un ▸ de texto, otro
+            dibujo para el mismo gesto en el bloque de al lado. */}
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         Documentos de RPS
         {docs && (
           <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold text-text-muted ring-1 ring-border">
@@ -68,9 +79,6 @@ export function DocumentosPedido({ pedido, documentos }: { pedido: string; docum
             {contarAbribles(docs)}
           </span>
         )}
-        <span className="ml-auto text-[10px] font-normal text-text-muted">
-          Fotos y adjuntos
-        </span>
       </button>
 
       {abierto && (

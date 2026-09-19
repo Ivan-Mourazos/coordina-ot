@@ -73,9 +73,10 @@ test("en la lista, el botón no repite el código del pedido: no cabe y ya está
   expect(enLista).toContain("Tareas");
   expect(enLista).not.toContain("AR.26.03914");
 
-  // En la ficha sí: es lo que decía la cabecera cuando esto era una ventana.
+  // Y en la ficha tampoco: el código ya está en la cabecera de la ficha, y
+  // repetido a la derecha del bloque solo ocupaba sitio.
   const enFicha = renderToStaticMarkup(
     createElement(HistorialTareas, { pedido: "AR.26.03914", ofs: [OF], seccion: "ot" as const }),
   );
-  expect(enFicha).toContain("AR.26.03914");
+  expect(enFicha).not.toContain("AR.26.03914");
 });

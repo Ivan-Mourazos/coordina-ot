@@ -42,7 +42,6 @@ export function HistorialTareas({
   return (
     <BloqueDesplegable
       titulo={compacto ? "Tareas" : "Tareas y tiempos"}
-      sufijo={compacto ? undefined : pedido}
       abiertoDeSalida={abrirAlMontar}
       className={className}
     >
@@ -300,7 +299,7 @@ export function TareasDelPedido({
         onClick={cargar}
         disabled={estado === "cargando"}
         title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text disabled:opacity-60"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted disabled:opacity-60"
       >
         <svg
           viewBox="0 0 24 24"
@@ -317,7 +316,6 @@ export function TareasDelPedido({
           : estado === "error"
             ? "No se pudo cargar · reintentar"
             : "Tareas y tiempos"}
-        <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{pedido}</span>
       </button>
     </section>
   );

@@ -5,10 +5,11 @@ import type { HistorialPedidoDetalle, MaterialGastadoOF } from "@/lib/historial"
 import type { Operario } from "@/lib/types";
 import { esCodigoPedido } from "@/lib/types";
 import {
-  BloqueFicha,
   CabeceraFicha,
+  ComentarioPedido,
   DatosEnLinea,
   MarcoFicha,
+  TITULO_BLOQUE,
 } from "./MarcoFicha";
 import { NotasPedido } from "./NotasPedido";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
@@ -25,7 +26,9 @@ import { SECCION_POR_DEFECTO, SECCIONES, type SeccionId } from "@/lib/secciones"
 function fmtFecha(iso: string | null) {
   if (!iso) return "—";
   const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  // Año en dos cifras, como en las listas (dd/mm/aa): con cuatro, las dos
+  // fechas con su nombre no cabían en la línea y la partían.
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getFullYear()).slice(2)}`;
 }
 
 /** Ficha del historial: parte escaneado + datos del pedido y sus OF con
@@ -206,7 +209,17 @@ export function HistorialDrawer({
       }
     >
           {/* Panel derecho: datos + OFs */}
-          {cargando && <p className="text-sm text-text-muted">Cargando…</p>}
+          {/* Mientras llega el detalle, la forma de lo que va a salir y no un
+              "Cargando…" suelto: el ojo ya sabe dónde mirar y la ficha no da un
+              salto cuando aparece todo de golpe. */}
+          {cargando && (
+            <div aria-busy="true" aria-label="Cargando el pedido" className="space-y-3">
+              <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--glass-highlight)]" />
+              <div className="h-16 animate-pulse rounded-xl bg-[var(--glass-highlight)]" />
+              <div className="h-24 animate-pulse rounded-xl bg-[var(--glass-highlight)]" />
+              <div className="h-10 animate-pulse rounded-xl bg-[var(--glass-highlight)]" />
+            </div>
+          )}
           {error && (
             <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">
               No se pudo cargar el pedido.
@@ -226,12 +239,14 @@ export function HistorialDrawer({
                   // Las dos fechas son UN dato ("del … al …"): separadas por un
                   // punto quedaba "24/09/2026 · → 11/09/2026", con el punto y la
                   // flecha peleándose por decir lo mismo.
-                  detalle.estadoActual
-                    ? { k: "Solicitud", v: fmtFecha(detalle.fechaSolicitud) }
-                    : {
-                        k: "De la solicitud a la finalización",
-                        v: `${fmtFecha(detalle.fechaSolicitud)} → ${fmtFecha(detalle.fechaFinalizacion)}`,
-                      },
+                  // CON su nombre delante. "24/09/2026 → 18/09/2026" no decía qué
+                  // era cada fecha, y la segunda —cuándo se terminó— suele ser
+                  // ANTERIOR a la primera, que es la que pidió el cliente: la
+                  // flecha hacía pensar en un orden que no es.
+                  { k: "Fecha solicitada", v: `Solicitada ${fmtFecha(detalle.fechaSolicitud)}` },
+                  ...(detalle.estadoActual
+                    ? []
+                    : [{ k: "Fecha de finalización", v: `Terminada ${fmtFecha(detalle.fechaFinalizacion)}` }]),
                   ...(detalle.estadoActual ? [{ k: "Estado actual", v: detalle.estadoActual }] : []),
                   { k: "Piezas", v: `${detalle.piezas} ${detalle.piezas === 1 ? "pieza" : "piezas"}` },
                   ...(detalle.ciudadEntrega ? [{ k: "Entrega en", v: detalle.ciudadEntrega }] : []),
@@ -250,13 +265,6 @@ export function HistorialDrawer({
                   El comentario del pedido SÍ se queda: ese no está en el parte,
                   lo escribe quien vende y suele traer el aviso que no cabía en
                   ninguna otra parte ("NO INCLUYE INSTALACIÓN ELÉCTRICA"). */}
-              {detalle.comentarioVenta && (
-                <BloqueFicha titulo="Comentario del pedido">
-                  <p className="whitespace-pre-line text-[11px] leading-snug text-text">
-                    {detalle.comentarioVenta}
-                  </p>
-                </BloqueFicha>
-              )}
 
               {/* Lo único que se puede HACER desde el Historial: cerrar una
                   fase de OT que se quedó a medias. Va lo primero porque es una
@@ -265,12 +273,25 @@ export function HistorialDrawer({
               {!detalle.estadoActual && (
                 <>
                   <FasesSinFinalizar ofs={[...new Set(detalle.ofs.map((o) => o.codigo))]} miId={miId} seccion={SECCIONES[seccion]} />
-                  {/* "Volver a plantear el pedido": sección 3 de la spec del
-                      15/09/2026. Solo sale si el pedido no está ya en el
-                      panel — lo mismo que decide FasesSinFinalizar de arriba. */}
-                  <RecuperarPedido pedido={pedido} seccion={seccion} miId={miId} operarios={operarios} onRecuperado={onClose} />
                 </>
               )}
+
+              {/* EL MISMO ORDEN QUE LA FICHA DE PENDIENTES: las OF primero,
+                  después notas, comentario, documentos y tareas. Cada ficha
+                  llevaba el suyo y el mismo pedido se leía distinto según desde
+                  dónde se abriera. */}
+              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
+                  tiempos», y al plegar ese bloque se fueron con él: se abría
+                  la ficha de un pedido y no se veía de cuántas OF constaba ni
+                  qué era cada una sin desplegar nada. Son la identidad del
+                  pedido, como el cliente; el desglose por tarea y persona es
+                  otra cosa y sigue plegado ahí abajo. */}
+              <section className="mb-4" aria-label="Órdenes de fabricación">
+                <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>
+                  Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
+                </h3>
+                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
+              </section>
 
               {/* Solo lectura: el pedido ya está cerrado para OT y una nota que
                   no cambia nada sería ruido. El momento de dejar el recado es
@@ -295,20 +316,11 @@ export function HistorialDrawer({
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
                   que no tienen fichero no salen en la lista, así que meterlos
                   en el número dejaría un rótulo que no cuadra con nada. */}
+              {detalle.comentarioVenta && <ComentarioPedido texto={detalle.comentarioVenta} />}
+
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
 
-              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
-                  tiempos», y al plegar ese bloque se fueron con él: se abría
-                  la ficha de un pedido y no se veía de cuántas OF constaba ni
-                  qué era cada una sin desplegar nada. Son la identidad del
-                  pedido, como el cliente; el desglose por tarea y persona es
-                  otra cosa y sigue plegado ahí abajo. */}
-              <section className="mb-4" aria-label="Órdenes de fabricación">
-                <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-                  Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
-                </h3>
-                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
-              </section>
+
 
               {/* Reintentar pide SOLO el material gastado. Con `cargar` se
                   pedía otra vez el detalle, que ya había llegado bien, y la
@@ -324,6 +336,16 @@ export function HistorialDrawer({
                   void cargarGastado(pedido, reqSeq.current);
                 }}
               />
+
+              {/* "Volver a plantear el pedido": sección 3 de la spec del
+                  15/09/2026. AL FINAL: es una acción rara y arriba del todo se
+                  leía como lo principal de la ficha. Solo sale si el pedido no
+                  está ya en el panel. */}
+              {!detalle.estadoActual && (
+                <div className="mt-4">
+                <RecuperarPedido pedido={pedido} seccion={seccion} miId={miId} operarios={operarios} onRecuperado={onClose} />
+                </div>
+              )}
             </>
           )}
     </MarcoFicha>

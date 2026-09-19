@@ -10,6 +10,7 @@ import {
   VentanaAnclada,
   useVentanaAnclada,
 } from "./VentanaAnclada";
+import { IconoMaterial } from "./Iconos";
 
 // ─── El recorrido del material de la OF ──────────────────────────────────────
 // Tres manos, y en la oficina se llamaba "reservar" a la primera:
@@ -187,7 +188,7 @@ export function MaterialChip({
   if (lista.length === 0 && compras.length === 0) {
     return (
       <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
-        🧵 Sin material asignado
+        <IconoMaterial /> Sin material asignado
       </span>
     );
   }
@@ -228,7 +229,7 @@ export function MaterialChip({
           todoReservado ? "text-teal-700 dark:text-teal-300" : "text-text-muted"
         }`}
       >
-        <span aria-hidden>🧵</span>
+        <IconoMaterial />
         Material
         {/* Dos números porque son dos pasos: lo asignado en la OF y lo que
             Almacén ha apartado. Con uno solo no se sabe si falta reservar. */}

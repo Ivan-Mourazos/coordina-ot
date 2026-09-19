@@ -38,7 +38,7 @@ export function BloqueDesplegable({
         onClick={() => setAbierto((a) => !a)}
         aria-expanded={abierto}
         aria-controls={id}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-text"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
       >
         <svg
           viewBox="0 0 24 24"

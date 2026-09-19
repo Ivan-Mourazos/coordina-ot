@@ -420,6 +420,12 @@ body {
 .telon-ficha {
   background: color-mix(in srgb, var(--bg) 40%, black);
 }
+/* En oscuro, la misma receta daba casi negro puro (#0a0b0c) y la hoja blanca
+   deslumbraba encima. Grafito, un punto más hondo que la página: la hoja sigue
+   destacando y el salto de luz es menor. El papel no se toca: es un escaneo. */
+.dark .telon-ficha {
+  background: color-mix(in srgb, var(--bg) 88%, black);
+}
 
 /* Hoja del visor de PDF (parte y documentos). No hay caja alrededor: la hoja
    flota sobre el mismo telón oscuro que queda detrás de la ficha, y la
@@ -487,6 +493,22 @@ body {
 }
 .dark .familia-tag svg {
   stroke: color-mix(in srgb, var(--fam) 55%, white);
+}
+
+/* La barra de desplazamiento del visor. Sigue reservando su hueco
+   (`scrollbar-gutter: stable`: la hoja no salta al aparecer), pero sin pintar
+   nada hasta que el ratón pasa por encima. A la vista siempre era una franja
+   con flechas entre la hoja y el panel, y con la del panel, dos barras juntas. */
+.scroll-visor {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 150ms ease;
+}
+/* Solo al pasar el ratón, no con el foco: el visor lo recibe al abrirse la
+   ficha (para que las flechas del teclado muevan la hoja) y la barra salía
+   siempre. */
+.scroll-visor:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
 /* Pista de un botón (Pista.tsx): lo que dice qué hace un botón de solo icono.

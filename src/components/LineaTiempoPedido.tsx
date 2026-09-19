@@ -29,7 +29,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   return (
     <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] px-3 pb-3 pt-2">
       <div className="mb-4 flex items-baseline justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Recorrido del pedido
         </p>
         {/* Lo que se dice aquí es el estado de OT, no el del cliente: lo que
