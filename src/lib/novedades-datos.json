@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "c681aeb",
+    "hasta": "6c9be14",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -52,6 +52,11 @@
         "tipo": "mejor",
         "titulo": "La tarjeta de cada OF ocupa menos: autor y revisor van en una línea",
         "detalle": "Y el tiempo ya no sale dos veces cuando solo ha fichado una persona."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los partes de Sin asignar se ven más grandes",
+        "detalle": "Se distingue un croquis de un correo sin tener que abrirlos."
       }
     ]
   },
