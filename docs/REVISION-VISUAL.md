@@ -136,3 +136,13 @@ contraste, letra por debajo de 10 px, emoji y desbordes. Y la bandeja agrupada.
 - [~] Flechas ↔ ↕ ↗ de los botones del visor y de los enlaces: son caracteres de texto, no emoji a color, y se leen bien
 - [~] En la bandeja agrupada por prioridad, "URGENTE" se repite en cada parte del grupo Urgente: redundante pero inofensivo
 
+## 8. Pantallas pequeñas y anchas
+
+- [x] 1024×768 y 1280×1024 (monitor antiguo cuadrado): nada desborda en horizontal
+- [x] Pendientes a 1024: el cliente se partía en dos líneas y la familia en una tercera → suelo de 220 px — `23b9b9e`
+- [x] Panel a 1024: la quinta tarjeta del equipo bajaba sola a otra fila → mínimo de 170 px — `23b9b9e`
+- [x] Pantallas anchas: toda la web centrada a 1.800 px (cabecera y pestañas) — `7d4b105`
+- [x] Métricas a todo el ancho de la pestaña, sin quedarse pegada a la izquierda — `7d4b105`
+- [x] Pendientes: columna de Material desde 1.440 px — `7d4b105`
+- [~] Ficha a 1024: con "ajustar al alto" (↕) el parte es más ancho que el hueco y se desplaza en horizontal; es lo que hace ese modo. Con ↔ encaja
+

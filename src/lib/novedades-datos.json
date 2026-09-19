@@ -1,8 +1,13 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "8505dee",
+    "hasta": "7d4b105",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En Pendientes se ve el material de cada pedido sin desplegarlo",
+        "detalle": "Solo en pantallas anchas; en las pequeñas sigue dentro del desplegable."
+      },
       {
         "tipo": "arreglado",
         "titulo": "Algunos partes se abrían en blanco en el visor",
@@ -19,6 +24,11 @@
       {
         "tipo": "arreglado",
         "titulo": "Al agrupar Sin asignar por prioridad, el rótulo \"Normal\" casi no se leía"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En pantallas pequeñas, las filas de Pendientes ocupaban el doble de alto",
+        "detalle": "El nombre del cliente se partía en dos líneas y la familia bajaba a una tercera."
       },
       {
         "tipo": "mejor",
@@ -74,6 +84,10 @@
       {
         "tipo": "mejor",
         "titulo": "En Pendientes, al desplegar un pedido el comentario del comercial ocupa una línea"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En pantallas grandes la web queda centrada y las líneas de tiempo no se estiran tanto"
       }
     ]
   },
