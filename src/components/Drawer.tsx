@@ -603,8 +603,8 @@ export function Drawer({
             </div>
           )}
 
-          {/* EL ORDEN: recorrido, aviso de parte nuevo, las OF (con Fichar,
-              Revisar, Anular) y después lo que se lee: notas, comentario,
+          {/* EL ORDEN: recorrido, aviso de parte nuevo, notas, las OF (con
+              Fichar, Revisar, Anular) y después lo que se consulta: comentario,
               documentos y tareas. Las OF estaban lo último, debajo de ocho
               líneas de comentario legal, cuatro bloques y el selector de autor:
               para fichar había que bajar siempre. El autor subió a la cabecera. */}
@@ -613,6 +613,24 @@ export function Drawer({
           {pedido.scanCambiado && (
             <AvisoParteNuevo key={`aviso:${pedido.codigo}`} pedido={pedido.codigo} />
           )}
+
+          {/* El hilo de notas de OT, ANTES de las OF: es el recado que alguien
+              dejó sobre este pedido ("el cliente cambió la medida") y hay que
+              leerlo antes de ponerse. Debajo de las OF, en un pedido de cinco,
+              quedaba fuera de la vista y se trabajaba sin haberlo visto.
+              Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
+              revisor ve el hilo al abrir el pedido sin nada más que hacer.
+              El `key` con el código: al saltar de pedido sin cerrar el drawer
+              (Ctrl+K abre el buscador aunque esté delante) React desmonta y
+              vuelve a montar, así no queda ni un frame con el hilo del anterior.
+              NO sustituye a los guards de dentro del componente: esos cubren
+              las carreras DENTRO de un mismo pedido. */}
+          <NotasPedido
+            key={`notas:${pedido.codigo}`}
+            pedido={pedido.codigo}
+            miId={miId}
+            operarios={operarios}
+          />
 
           {/* Cerrar una fase de OT que se quedó a medias, en el pedido YA PASADO
               a Producción. Es justo el caso para el que se hizo este bloque
@@ -963,22 +981,6 @@ export function Drawer({
             </div>
           )}
 
-          {/* El hilo de notas de OT. Va aquí, entre lo que dijo el comercial y
-              lo que se decide, porque es contexto: primero se lee de qué va
-              esto y después se actúa.
-              Panel, Pendientes y Revisiones abren ESTE mismo Drawer, así que el
-              revisor ve el hilo al abrir el pedido sin nada más que hacer.
-              El `key` con el código: al saltar de pedido sin cerrar el drawer
-              (Ctrl+K abre el buscador aunque esté delante) React desmonta y
-              vuelve a montar, así no queda ni un frame con el hilo del anterior.
-              NO sustituye a los guards de dentro del componente: esos cubren
-              las carreras DENTRO de un mismo pedido. */}
-          <NotasPedido
-            key={`notas:${pedido.codigo}`}
-            pedido={pedido.codigo}
-            miId={miId}
-            operarios={operarios}
-          />
 
           {/* Comentario del pedido de venta (condiciones, avisos del comercial).
               DEBAJO de las OF y de las notas, y plegado: casi siempre es el

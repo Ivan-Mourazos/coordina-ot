@@ -136,13 +136,25 @@ export function NotasPedido({
   // clic cambiaría de objetivo y lo escrito en el primero se perdería sin
   // avisar. Mismo candado que ya usa el botón "+ Añadir".
   const hayEditorAbierto = escribiendo || editando !== null;
+  // Vacío es lo NORMAL, y el bloque va arriba de la ficha (encima de las OF):
+  // sin notas se queda en una línea, rótulo y botón, para no empujar hacia
+  // abajo lo que se viene a hacer.
+  const vacio = notas !== null && notas.length === 0 && !escribiendo && !error;
 
   return (
     <div className="bloque-3d mb-4 rounded-xl p-3">
-      <div className="mb-2 flex items-baseline gap-2">
+      <div className={`flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}
         </p>
+        {vacio && (
+          <span
+            className="text-[11px] text-text-muted"
+            title="Aquí se apunta lo que hay que saber de este pedido y no está en RPS."
+          >
+            · Sin notas
+          </span>
+        )}
         {/* El botón sale SIEMPRE que se pueda escribir, también con el hilo
             vacío: si no, nadie descubre que esto existe. */}
         {puedeEscribir && !hayEditorAbierto && (
@@ -163,16 +175,6 @@ export function NotasPedido({
           quien lee tiene que saber que puede haber un recado que no le llegó. */}
       {notas === null && !error && <p className="text-[11px] text-text-muted">Cargando notas…</p>}
 
-      {/* Vacío es lo NORMAL, así que ocupa una línea y no un párrafo: el para
-          qué sirve va en el título, que es donde se busca cuando se duda. */}
-      {notas !== null && notas.length === 0 && !escribiendo && !error && (
-        <p
-          className="text-[11px] leading-snug text-text-muted"
-          title="Aquí se apunta lo que hay que saber de este pedido y no está en RPS."
-        >
-          Sin notas.
-        </p>
-      )}
 
       <ul className="space-y-2">
         {(notas ?? []).map((n) => {
