@@ -1,5 +1,51 @@
 [
   {
+    "id": "2026-09-19",
+    "hasta": "691d75c",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Algunos partes se abrían en blanco en el visor",
+        "detalle": "Pasaba con los escaneados en cierto formato; en la bandeja se veían bien pero al abrirlos no."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En algunos pedidos el nombre del cliente salía repetido dos veces"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los partes de Sin asignar y los botones se despegan más del fondo",
+        "detalle": "La cabecera va del mismo color que la página y sin rayas que la separen."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las pestañas se leen más limpias: sin títulos repetidos y con la letra pequeña algo más grande"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Sin asignar la prioridad solo aparece cuando es urgente o baja"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas aprovecha el ancho de la pantalla, a dos columnas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha del pedido las OF salen arriba, sin tener que bajar para fichar",
+        "detalle": "El autor pasa a la cabecera y el comentario del pedido se pliega; se despliega con \"Ver más\"."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del Historial tiene el mismo orden que la de Pendientes",
+        "detalle": "Y las dos fechas dicen cuál es cada una: la solicitada y la de terminado."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Mientras se abre un parte se ve una hoja con \"Cargando parte…\" en vez de un hueco vacío"
+      }
+    ]
+  },
+  {
     "id": "2026-09-18",
     "hasta": "a9ce6d8",
     "cambios": [
