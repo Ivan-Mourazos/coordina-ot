@@ -96,8 +96,8 @@ pedido, en claro y en oscuro). Cada tarea hecha lleva el commit donde está.
 
 ## 4. Despliegue
 
-- [x] Entrada de novedades escrita (19/09, 11 cambios) — `49830f6`, `f25ebf4`, `8045794`
-- [ ] `git push origin main`
+- [x] Entrada de novedades escrita (19/09, 12 cambios) — `49830f6`, `f25ebf4`, `8045794`, `3e72188`
+- [x] `git push origin main` — subido hasta `3e72188`
 - [ ] En el servidor: `cd /webs/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot`
 - [ ] Comprobar `/api/health` y `pm2 status` (memoria y ↺) pasado el primer refresco del Historial
 - [ ] Recargar con Ctrl+F5 y revisar en claro y en oscuro
