@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
 import { useCapaEscape } from "@/lib/useCapaEscape";
+import { tintaSobre } from "@/lib/tinta";
 
 // ─── Por qué el menú va en un PORTAL ─────────────────────────────────────────
 // Estaba `absolute` dentro del propio control, y eso le daba dos problemas que
@@ -284,7 +285,7 @@ export function OpDot({ color, iniciales }: { color: string; iniciales: string }
   return (
     <span
       className="grid size-4.5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
-      style={{ background: color }}
+      style={{ background: color, color: tintaSobre(color) }}
     >
       {iniciales}
     </span>

@@ -6,6 +6,7 @@ import { PRIORIDAD } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
 import { FamiliaIcon } from "./FamiliaTag";
 import { PedidoCard, type Facet } from "./PedidoCard";
+import { IconoBandeja } from "./Iconos";
 
 /* ── cómo se reparten las tarjetas ── */
 
@@ -72,7 +73,6 @@ function ScrollRow({
   label,
   icon,
   count,
-  color,
   facets,
   operarios,
   onOpen,
@@ -86,7 +86,6 @@ function ScrollRow({
   label: string;
   icon: React.ReactNode;
   count: number;
-  color?: string;
   facets: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
@@ -99,9 +98,10 @@ function ScrollRow({
     <div>
       <div className="mb-1.5 flex items-center gap-2">
         {icon}
-        <span className="text-xs font-bold text-text" style={color ? { color } : undefined}>
-          {label}
-        </span>
+        {/* El rótulo en el color de texto, y el color de la prioridad solo en
+            el punto de al lado: pintado del color de "Normal" (dorado) sobre el
+            gris del fondo se leía a 1,8:1. */}
+        <span className="text-xs font-bold text-text">{label}</span>
         <span className="rounded-full bg-[var(--glass-highlight)] px-1.5 text-[10px] font-semibold text-text-muted">
           {count}
         </span>
@@ -230,7 +230,7 @@ export function Bandeja({
     // y la caja no aportaba nada.
     <div>
       <div className="mb-2.5 flex items-center gap-2">
-        <span className="text-base leading-none">📥</span>
+        <IconoBandeja className="size-4.5 text-text-muted" />
         <h2 className="text-base font-bold text-text">Sin asignar</h2>
         <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-800 dark:text-brand-300">
           {facets.length} ped · {nOFs} OF
@@ -279,7 +279,6 @@ export function Bandeja({
                 />
               }
               count={fila.facets.length}
-              color={fila.meta.color}
               facets={fila.facets}
               operarios={operarios}
               onOpen={onOpen}

@@ -610,12 +610,7 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
           ))}
         </ul>
       )}
-      {p.comentarioVenta && (
-        <p className="rounded-lg bg-surface px-2.5 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
-          <span className="font-semibold text-text-muted">Comercial: </span>
-          {p.comentarioVenta}
-        </p>
-      )}
+      {p.comentarioVenta && <ComentarioComercial texto={p.comentarioVenta} />}
       <ul className="space-y-1.5">
         {p.ofs.map((of) => (
           <FilaOF key={of.id} of={of} operarios={operarios} hoy={hoy} />
@@ -721,3 +716,28 @@ function EtiquetaListo() {
   );
 }
 
+/** El comentario del comercial en la fila desplegada, plegado a una línea
+ *  como en la ficha (ComentarioPedido): casi siempre es el mismo texto legal
+ *  de TGM y, entero, ocupaba dos líneas de 1.500 px en cada pedido abierto. */
+function ComentarioComercial({ texto }: { texto: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const largo = texto.length > 140 || texto.includes("\n");
+  return (
+    <div className="rounded-lg bg-surface px-2.5 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
+      <p className={abierto || !largo ? "whitespace-pre-line" : "line-clamp-1"}>
+        <span className="font-semibold text-text-muted">Comercial: </span>
+        {texto}
+      </p>
+      {largo && (
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          aria-expanded={abierto}
+          className="text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
+        >
+          {abierto ? "Ver menos" : "Ver más"}
+        </button>
+      )}
+    </div>
+  );
+}

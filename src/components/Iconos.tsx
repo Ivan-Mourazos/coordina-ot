@@ -76,3 +76,13 @@ export function IconoCandado({ className = "size-3" }: Props) {
     </svg>
   );
 }
+
+/** Bandeja de entrada: lo que ha llegado y nadie ha cogido. */
+export function IconoBandeja({ className = "size-4" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M3 13h5l1.5 3h5L16 13h5" />
+      <path d="M5.5 5h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6Z" />
+    </svg>
+  );
+}
