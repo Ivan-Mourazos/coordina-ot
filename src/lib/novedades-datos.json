@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "fe0317e",
+    "hasta": "6b53380",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -92,6 +92,19 @@
       {
         "tipo": "mejor",
         "titulo": "En Métricas, los tiempos de cada paso se comparan de un vistazo, en tres tarjetas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las visitas se ven en filas sueltas, como el resto de pestañas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas las tarjetas ya no dejan huecos entre ellas"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En los pedidos con muchas OF, cada una sale plegada y se abre al pulsarla",
+        "detalle": "Desde tres OF. La que se está fichando sigue abierta, y \"Abrir todas\" las despliega de golpe."
       }
     ]
   },

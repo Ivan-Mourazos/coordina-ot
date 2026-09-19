@@ -146,3 +146,10 @@ contraste, letra por debajo de 10 px, emoji y desbordes. Y la bandeja agrupada.
 - [x] Pendientes: columna de Material desde 1.440 px — `7d4b105`
 - [~] Ficha a 1024: con "ajustar al alto" (↕) el parte es más ancho que el hueco y se desplaza en horizontal; es lo que hace ese modo. Con ↔ encaja
 - [x] Métricas: Tiempos en tres tarjetas lado a lado y Anuladas a dos columnas (se quedaban estrechas y a la izquierda) — `fe0317e`
+
+## 9. Apuntes de Iván (19/09)
+
+- [x] Visitas en filas sueltas, como las demás pestañas — `7ee124b`
+- [x] Métricas sin huecos: Devoluciones en dos columnas; Trabajo y Anuladas con la cifra en un tercio — `7ee124b`
+- [x] Ficha con muchas OF: desde tres, cada una plegada a su cabecera; "Abrir todas / Plegar todas" — `6b53380`
+
