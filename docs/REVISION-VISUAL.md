@@ -94,7 +94,18 @@ pedido, en claro y en oscuro). Cada tarea hecha lleva el commit donde está.
 - [x] Telón grafito en oscuro, en vez de casi negro — `783d9f0`
 - [~] Botones del visor a 32 px: ya medían 32 px; la estimación salió de una captura reducida
 
-## 4. Despliegue
+## 4. Piezas que se abren (filas desplegadas, menús, buscador, Métricas)
+
+Revisadas en claro y en oscuro: filas desplegadas de Pendientes, Historial y
+Visitas; Devoluciones, Tiempos y Anuladas; buscador `Ctrl K`, notificaciones,
+menú de herramientas, panel de un compañero, desplegables y calendario.
+
+- [x] Códigos de los partes atrasados de la bandeja ilegibles en oscuro (rojo oscuro sobre grafito) — @@
+- [x] Tiempos y Anuladas: la tarjeta a todo el ancho separaba cada explicación de su cifra; ahora con tope — @@
+- [x] Candado de línea en vez de 🔒 en el panel del compañero y en las filas que no se pueden fichar — @@
+- [x] Buscador, notificaciones, herramientas, desplegables y calendario: bien en los dos temas, sin cambios
+
+## 5. Despliegue
 
 - [x] Entrada de novedades escrita (19/09, 12 cambios) — `49830f6`, `f25ebf4`, `8045794`, `3e72188`
 - [x] `git push origin main` — subido hasta `3e72188`

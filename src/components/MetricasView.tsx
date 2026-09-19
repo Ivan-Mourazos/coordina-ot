@@ -471,8 +471,11 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
       )}
 
       {/* ── Dónde se para el trabajo ── */}
+      {/* Tiempos y Anuladas son UNA tarjeta: a todo el ancho, la explicación
+          de cada paso quedaba en una punta y su cifra en la otra. Con tope,
+          como una de las dos columnas de los otros apartados. */}
       {m && apartado === "tiempos" && (
-        <section className="glass-panel rounded-xl p-4">
+        <section className="glass-panel max-w-3xl rounded-xl p-4">
           <h3 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             Cuánto tarda cada paso
           </h3>
@@ -508,7 +511,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
 
       {/* ── Qué no hace OT ── */}
       {m && apartado === "anuladas" && (
-        <section className="glass-panel rounded-xl p-4">
+        <section className="glass-panel max-w-3xl rounded-xl p-4">
           {m.anulaciones === 0 ? (
             <p className="text-xs text-text-muted">
               No se ha anulado ninguna OF en este periodo.

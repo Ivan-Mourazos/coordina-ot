@@ -247,7 +247,7 @@ export const PedidoCardView = memo(function PedidoCardView({
             className={`truncate font-mono leading-tight ${
               mostrarPrioridad ? "text-[11px]" : "text-sm"
             } font-bold ${
-              mostrarPrioridad && atrasado ? "text-red-600" : "text-text"
+              mostrarPrioridad && atrasado ? "text-red-700 dark:text-red-400" : "text-text"
             }`}
           >
             {pedido.codigo}

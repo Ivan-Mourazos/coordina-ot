@@ -14,6 +14,7 @@ import {
 import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
+import { IconoCandado } from "./Iconos";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
@@ -267,8 +268,8 @@ export function PedidoLinea({
         // En columna estrecha se queda el candado y se va su explicación: el
         // texto («no disponible», «empezado») no cabía y acababa montado sobre
         // la cuenta de OF. El motivo sigue al pasar el ratón.
-        <span className="shrink-0 text-[10px] text-text-muted" title={motivoBloqueo(facet)}>
-          🔒 <span className="@max-[18rem]:hidden">{motivoBloqueo(facet)}</span>
+        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-text-muted" title={motivoBloqueo(facet)}>
+          <IconoCandado /><span className="@max-[18rem]:hidden">{motivoBloqueo(facet)}</span>
         </span>
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
@@ -360,7 +361,7 @@ export function PedidoLinea({
             el botón: es justo cuando se hace la pregunta. */}
         {sinBotonDeFichar && motivoSinFichar && (
           <span
-            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
             title={motivoSinFichar.largo}
           >
             {/* EN ESTRECHO SOLO EL CANDADO. Esta franja se SUPERPONE al final
@@ -370,7 +371,7 @@ export function PedidoLinea({
                 un compañero, aquí abajo — y el mismo corte de ancho.
                 El motivo no se pierde: va entero en el `title`, y esto es
                 solo PC. */}
-            🔒 <span className="@max-[26rem]:hidden">{motivoSinFichar.corto}</span>
+            <IconoCandado /><span className="@max-[26rem]:hidden">{motivoSinFichar.corto}</span>
           </span>
         )}
         </span>
