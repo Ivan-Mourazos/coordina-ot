@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-19",
-    "hasta": "691d75c",
+    "hasta": "4451fb9",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -42,6 +42,11 @@
       {
         "tipo": "mejor",
         "titulo": "Mientras se abre un parte se ve una hoja con \"Cargando parte…\" en vez de un hueco vacío"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las notas del pedido se ven nada más abrirlo, antes que las OF",
+        "detalle": "Sin notas, el bloque ocupa una sola línea."
       }
     ]
   },
