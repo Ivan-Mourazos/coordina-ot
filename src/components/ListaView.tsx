@@ -83,15 +83,19 @@ import { IconoAviso } from "./Iconos";
  *  con el mismo suelo (ver `RECORRIDO_PX`), así que a 440 px las cuatro
  *  siguen sin pisarse.
  *
- *  Identidad y estado ya no van en %, sino con TOPE (28 rem y 18 rem), y el
+ *  Identidad y estado ya no van en %, sino con TOPE (28 rem y 15 rem), y el
  *  recorrido se lleva el resto. En porcentaje, en un monitor de 2.500 px la
  *  columna del cliente medía 900 px para un nombre de 300, y "quién · estado"
  *  quedaba flotando a media fila, lejos del pedido. Hasta ~1.400 px de ancho
  *  el reparto sale casi igual que antes; por encima, lo que crece es la línea
- *  de tiempo, que es lo único que gana algo con más sitio. Y el mínimo total
- *  baja: el cliente puede encoger hasta cero antes que el recorrido. */
+ *  de tiempo, que es lo único que gana algo con más sitio.
+ *
+ *  El cliente tiene SUELO de 220 px y "quién" tope de 15 rem. Con el cliente
+ *  a cero, en una pantalla de 1024 px el reparto del sobrante le daba ~150 px:
+ *  el nombre se partía en dos líneas, la familia bajaba a una tercera y cada
+ *  fila medía el doble. */
 const COLUMNAS_LISTA =
-  "grid grid-cols-[32px_minmax(0,28rem)_minmax(200px,18rem)_minmax(440px,1fr)] items-center gap-x-3";
+  "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] items-center gap-x-3";
 
 /** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
  *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */

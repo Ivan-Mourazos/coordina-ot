@@ -53,7 +53,10 @@ export const TecnicoCard = memo(function TecnicoCard({
   return (
     <div
       ref={rootRef}
-      className="relative min-w-[230px] flex-1"
+      // 170 px de mínimo y no 230: con 230, en una pantalla de 1024 px la
+      // quinta persona bajaba sola a otra fila y ocupaba todo el ancho. El
+      // nombre ya se recorta (truncate) si no cabe.
+      className="relative min-w-[170px] flex-1"
     >
       <button
         onClick={onToggle}
