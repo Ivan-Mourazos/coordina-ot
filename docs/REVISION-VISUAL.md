@@ -118,6 +118,21 @@ menú de herramientas, panel de un compañero, desplegables y calendario.
 
 - [x] Entrada de novedades escrita (19/09, 12 cambios) — `49830f6`, `f25ebf4`, `8045794`, `3e72188`
 - [x] `git push origin main` — subido hasta `3e72188`
-- [ ] En el servidor: `cd /webs/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot`
-- [ ] Comprobar `/api/health` y `pm2 status` (memoria y ↺) pasado el primer refresco del Historial
-- [ ] Recargar con Ctrl+F5 y revisar en claro y en oscuro
+- [x] En el servidor: `cd /webs/coordina-ot && git pull && pnpm install && pnpm build && pm2 restart coordina-ot` — desplegado por Iván el 19/09
+- [x] `/api/health` → `{"ok":true,"source":"rps"}`; `public/pdfjs/wasm/jbig2.wasm` servido (200) y el CSS nuevo en producción. `pm2 status` queda para Iván
+- [x] Revisión posterior al despliegue: sección 7
+
+## 7. Segunda auditoría (tras el despliegue, 19/09)
+
+Seis pestañas, fila desplegada y las dos fichas, en claro y en oscuro, midiendo
+contraste, letra por debajo de 10 px, emoji y desbordes. Y la bandeja agrupada.
+
+- [x] Iniciales de los desplegables de persona blancas sobre dorado (2,5:1) → `tintaSobre` — `8505dee`
+- [x] Rótulo "Normal" de la bandeja agrupada por prioridad a 1,8:1 → color de texto — `8505dee`
+- [x] 📥 del título de la bandeja → icono de línea — `8505dee`
+- [x] Comentario del comercial plegado en la fila desplegada de Pendientes — `8505dee`
+- [x] Letra: nada por debajo de 10 px salvo dentro de círculos y cajas pequeñas
+- [x] Sin desbordes en horizontal; contraste OK en todo salvo controles desactivados (a propósito)
+- [~] Flechas ↔ ↕ ↗ de los botones del visor y de los enlaces: son caracteres de texto, no emoji a color, y se leen bien
+- [~] En la bandeja agrupada por prioridad, "URGENTE" se repite en cada parte del grupo Urgente: redundante pero inofensivo
+
