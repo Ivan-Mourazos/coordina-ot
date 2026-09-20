@@ -1,12 +1,16 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "fee306d",
+    "hasta": "c62ce23",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Puedes recuperar de golpe todas las OF que mandaste a revisar",
         "detalle": "Sale en el pedido, junto a los demás botones, cuando hay dos o más."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al pasar por encima de un parte, el botón \"Asignar\" dejaba ver el parte por debajo"
       },
       {
         "tipo": "mejor",
