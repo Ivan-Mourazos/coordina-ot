@@ -14,7 +14,7 @@ import {
 import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
-import { IconoCandado } from "./Iconos";
+import { IconoCandado, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
 import { FamiliaTag } from "./FamiliaTag";
 import { hoyISO } from "@/lib/types";
@@ -36,6 +36,10 @@ import { hoyISO } from "@/lib/types";
  *
  *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
  *  pintan en rojo: la prioridad tiene que verse sin leer. */
+/** El ámbar de "parado por Producción" (el mismo del aviso de la zona
+ *  personal). Va como hex porque lo pide un `style` en línea. */
+const AMBAR_PARADO = "#d97706";
+
 export function PedidoLinea({
   facet,
   fase,
@@ -114,6 +118,16 @@ export function PedidoLinea({
   // autor puede venir deducido de RPS—, ver su comentario.
   const deOT = ofs.filter((o) => !ofDeTaller(o));
   const detenidas = deOT.filter((o) => o.detenida).length;
+  // TODAS detenidas: el pedido no se puede tocar hasta que Producción lo
+  // libere. La fila se apaga entera —borde rojo, icono de pausa y el código en
+  // gris— en vez de llevar el chip "DETENIDO", que empujaba al cliente y
+  // rompía la columna. Se sigue pudiendo abrir: apagado no es escondido.
+  //
+  // El gris y NO la opacidad: bajarle la opacidad a la fila deja el texto por
+  // debajo del contraste mínimo, y esto hay que poder leerlo. Y el icono y no
+  // solo el color: quien no distinga el rojo se quedaría sin el aviso.
+  const detenidoDelTodo = deOT.length > 0 && detenidas === deOT.length;
+  const motivoDetenido = "Detenido por Producción: no admite fichaje hasta que lo liberen";
 
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
   // comentario de ofsFichablesDe): esta fila solo ficha planteo. En
@@ -194,16 +208,14 @@ export function PedidoLinea({
       {/* Detenidas por Producción: no se pueden fichar y no está en mano de
           OT resolverlo. Se avisa en la fila para no coger un pedido que no
           se puede tocar y descubrirlo al intentar fichar. */}
-      {detenidas > 0 && (
+      {detenidas > 0 && !detenidoDelTodo && (
         <span
           className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
           title={
-            detenidas === deOT.length
-              ? "Detenida por Producción: no admite fichaje"
-              : `${detenidas} de ${deOT.length} OF detenidas por Producción`
+            `${detenidas} de ${deOT.length} OF detenidas por Producción`
           }
         >
-          {detenidas === deOT.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+          {`${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
         </span>
       )}
     </>
@@ -211,14 +223,22 @@ export function PedidoLinea({
 
   return (
     <div
-      style={{ borderLeftColor: color }}
+      // Ámbar y NO rojo: el rojo es de "urgente" en toda la app, y un pedido
+      // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
+      // aviso "N parados por Producción" de la zona personal.
+      style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
+      title={detenidoDelTodo ? motivoDetenido : undefined}
       className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
-        fichandoAlguien ? "bg-emerald-500/10" : "bg-surface-2/60"
+        fichandoAlguien ? "bg-emerald-500/10" : detenidoDelTodo ? "bg-surface-2/30" : "bg-surface-2/60"
       }`}
     >
       <button
         onClick={() => onOpen(facet)}
-        title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}`}
+        title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}${
+          detenidoDelTodo ? `
+
+${motivoDetenido}` : ""
+        }`}
         // `cursor-pointer` EXPLÍCITO. La regla de globals.css que pone la mano
         // en todo `button` vive en `@layer base`, y ahí la gana cualquier
         // utilidad de una capa posterior: en esta fila la mano solo salía sobre
@@ -248,7 +268,16 @@ export function PedidoLinea({
               className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
             />
           )}
-          <b className="truncate font-semibold tabular-nums text-text">{pedido.codigo}</b>
+          {detenidoDelTodo && (
+            <IconoPausa className="size-3 shrink-0 text-amber-800 dark:text-amber-300" />
+          )}
+          <b
+            className={`truncate font-semibold tabular-nums ${
+              detenidoDelTodo ? "text-text-muted" : "text-text"
+            }`}
+          >
+            {pedido.codigo}
+          </b>
         </span>
         {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
             solo el código: el hueco que suelta la descripción es el que
@@ -307,7 +336,10 @@ export function PedidoLinea({
             {pedido.fechaPlanificacion && (
               <span
                 className={`w-[2.6rem] shrink-0 text-right tabular-nums ${
-                  pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length
+                  // En un pedido PARADO la fecha vencida no se marca: el
+                  // retraso no es de quien lo lleva, y en rojo pedía una
+                  // reacción que nadie de OT puede tener.
+                  pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length && !detenidoDelTodo
                     ? "font-semibold text-red-700 dark:text-red-400"
                     : "text-text-muted"
                 }`}

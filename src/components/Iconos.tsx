@@ -86,3 +86,13 @@ export function IconoBandeja({ className = "size-4" }: Props) {
     </svg>
   );
 }
+
+/** Pausa: el pedido está detenido por Producción. Es la señal que NO depende
+ *  del color, para quien no distinga el rojo del borde. */
+export function IconoPausa({ className = "size-3" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M9 5v14M15 5v14" />
+    </svg>
+  );
+}
