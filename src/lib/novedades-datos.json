@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "c62ce23",
+    "hasta": "ad93391",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -15,6 +15,10 @@
       {
         "tipo": "mejor",
         "titulo": "Los bloques de la ficha del pedido tienen todos el mismo acabado"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Sin asignar solo se marcan los partes urgentes"
       }
     ]
   },
