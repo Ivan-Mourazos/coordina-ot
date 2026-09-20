@@ -266,10 +266,38 @@ export function agruparPorFase<T extends ConOFs>(
   // Por COLUMNA, no por fase a secas: los parados vuelven a la suya en vez de
   // salirse del panel (ver `faseDeColumna`). El grupo «parado» queda vacío a
   // propósito y quien quiera contarlos usa `pedidoParado`.
+  //
+  // Y dentro de cada fase, POR FECHA PLANIFICADA: es el día en que el trabajo
+  // debería estar hecho y el orden en que se coge (el mismo criterio con el
+  // que abre Pendientes). Llegaban en el orden en que el tablero los hubiera
+  // recorrido, así que el que corría prisa podía estar el último.
   return fasesEnOrden(seccion).map((meta) => ({
     ...meta,
-    items: pedidos.filter((p) => faseDeColumna(p) === meta.id),
+    items: pedidos.filter((p) => faseDeColumna(p) === meta.id).sort(porPlanificada),
   }));
+}
+
+/** Primero lo planificado para antes; los que no tienen fecha, al final (no
+ *  son urgentes por no tenerla). A igualdad de día, por código, que es fijo:
+ *  sin desempate, dos pedidos del mismo día podían bailar de sitio entre un
+ *  refresco y otro. */
+function porPlanificada<T extends ConOFs>(a: T, b: T): number {
+  const fa = fechaDe(a);
+  const fb = fechaDe(b);
+  if (fa !== fb) return fa < fb ? -1 : 1;
+  return codigoDe(a).localeCompare(codigoDe(b));
+}
+
+/** La fecha planificada del pedido de un facet, si lo que se agrupa son
+ *  facets. `agruparPorFase` es genérica —lo único que exige es tener OF— así
+ *  que el pedido puede no venir: sin él, al final. */
+function fechaDe(x: ConOFs): string {
+  const p = (x as { pedido?: { fechaPlanificacion?: string | null } }).pedido;
+  return p?.fechaPlanificacion || "9999-99-99";
+}
+
+function codigoDe(x: ConOFs): string {
+  return (x as { pedido?: { codigo?: string } }).pedido?.codigo ?? "";
 }
 
 /** Las fases en el orden que pida la sección.

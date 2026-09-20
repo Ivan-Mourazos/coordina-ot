@@ -15,6 +15,8 @@ import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
 import { IconoCandado } from "./Iconos";
+import { fmtDiaMes } from "@/lib/fechas";
+import { hoyISO } from "@/lib/types";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
@@ -246,6 +248,21 @@ export function PedidoLinea({
                 ratón, la cuenta de OF deja sitio al botón.
                 Y con el reloj MÍO en marcha se esconde siempre, porque ahí el
                 botón de pausar está visible sin necesidad de pasar por encima. */}
+            {/* La fecha PLANIFICADA, que es por la que van ordenadas las
+                filas del panel (ver `agruparPorFase`): sin ella, el orden no
+                se explica solo. En rojo cuando ya pasó. */}
+            {pedido.fechaPlanificacion && (
+              <span
+                className={`shrink-0 text-[10px] tabular-nums @max-[18rem]:hidden ${
+                  pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length
+                    ? "font-semibold text-red-700 dark:text-red-400"
+                    : "text-text-muted"
+                } ${fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"}`}
+                title={`Planificada para el ${fmtDiaMes(pedido.fechaPlanificacion)}`}
+              >
+                {fmtDiaMes(pedido.fechaPlanificacion)}
+              </span>
+            )}
             <span
               className={`shrink-0 text-[10px] text-text-muted @max-[18rem]:hidden ${
                 fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"

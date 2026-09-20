@@ -150,6 +150,36 @@ describe("agruparPorFase", () => {
     expect(g.find((x) => x.id === "devuelta")!.items).toHaveLength(0);
   });
 
+  it("dentro de la fase, primero lo planificado para antes", () => {
+    // Es el día en que debería estar hecho: en el panel se coge por ahí.
+    const conFecha = (codigo: string, fechaPlanificacion: string) => ({
+      pedido: { codigo, fechaPlanificacion },
+      ofs: [of({ estado: "en_curso" })],
+    });
+    const g = agruparPorFase([
+      conFecha("AR.26.00003", "2026-09-30"),
+      conFecha("AR.26.00001", "2026-09-21"),
+      conFecha("AR.26.00002", "2026-09-24"),
+    ]);
+    expect(g.find((x) => x.id === "planteando")!.items.map((i) => i.pedido.codigo)).toEqual([
+      "AR.26.00001",
+      "AR.26.00002",
+      "AR.26.00003",
+    ]);
+  });
+
+  it("sin fecha planificada, al final: no es urgente por no tenerla", () => {
+    const item = (codigo: string, fechaPlanificacion: string) => ({
+      pedido: { codigo, fechaPlanificacion },
+      ofs: [of({ estado: "en_curso" })],
+    });
+    const g = agruparPorFase([item("AR.26.00009", ""), item("AR.26.00004", "2026-10-02")]);
+    expect(g.find((x) => x.id === "planteando")!.items.map((i) => i.pedido.codigo)).toEqual([
+      "AR.26.00004",
+      "AR.26.00009",
+    ]);
+  });
+
   it("Oficina Técnica tampoco cambia: no declara orden propio", () => {
     const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.ot);
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
