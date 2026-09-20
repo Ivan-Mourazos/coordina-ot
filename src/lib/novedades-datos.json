@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "399f2e5",
+    "hasta": "42af1d2",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -41,6 +41,10 @@
       {
         "tipo": "mejor",
         "titulo": "Los paneles de cada persona se leen en columnas, y el desplegable es más ancho"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los pedidos parados por Producción se ven apagados, sin el distintivo rojo"
       }
     ]
   },
