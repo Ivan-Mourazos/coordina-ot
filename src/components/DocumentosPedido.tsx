@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { DocumentoRps } from "@/lib/historial";
 import { DocumentosRps, contarAbribles } from "./DocumentosRps";
 import { ErrorCarga } from "./ErrorCarga";
+import { BloqueDesplegable } from "./BloqueDesplegable";
 
 // ─── Lo que RPS tiene colgado del pedido, EN LA FICHA ────────────────────────
 // La rotulación, el planteamiento, el presupuesto, las fotos del trabajo y el
@@ -44,52 +45,33 @@ export function DocumentosPedido({ pedido, documentos }: { pedido: string; docum
   }, [abierto, docs, error, pedido]);
 
   return (
-    // Mismo bloque que los demás de la ficha (comentario del pedido, notas,
-    // asignar autor): `mb-4`, borde y fondo de cristal. Nació con un borde
-    // suelto y sin margen, y el efecto era que se leía pegado al hilo de notas
-    // —como si fuera su cabecera— en vez de como un apartado propio.
-    //
-    // El padding NO va en el contenedor sino dentro: la cabecera es un botón y
-    // tiene que ocupar el ancho entero para que se pueda pulsar en cualquier
-    // punto de la fila, no solo sobre el texto.
-    <section className="bloque-3d mb-4 rounded-xl">
-      <button
-        onClick={() => setAbierto((v) => !v)}
-        aria-expanded={abierto}
-        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
-      >
-        {/* La misma flecha que «Tareas y tiempos»: era un ▸ de texto, otro
-            dibujo para el mismo gesto en el bloque de al lado. */}
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-        >
-          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Documentos de RPS
-        {docs && (
+    // El MISMO bloque plegable que "Tareas y tiempos" (BloqueDesplegable): este
+    // tenía su propia copia —mismo rótulo y misma flecha, pero con otro fondo y
+    // sin la animación de abrir—, y uno encima del otro no parecían el mismo
+    // tipo de bloque.
+    <BloqueDesplegable
+      titulo="Documentos de RPS"
+      onAbrir={() => setAbierto(true)}
+      insignia={
+        docs ? (
           <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold text-text-muted ring-1 ring-border">
             {/* Los que se pueden abrir, no los que RPS trae: los que no tienen
                 fichero no se listan, y contarlos aquí dejaría un número que no
                 cuadra con lo que se ve al desplegar. */}
             {contarAbribles(docs)}
           </span>
-        )}
-      </button>
-
-      {abierto && (
-        <div className="border-t border-[var(--glass-border)] px-3 pb-3 pt-3">
-          {error && (
-            <ErrorCarga mensaje="No se pudieron cargar los documentos." onReintentar={() => setError(false)} />
-          )}
-          {!docs && !error && <p role="status" className="text-[11px] text-text-muted">Buscando…</p>}
-          {docs && <DocumentosRps documentos={docs} />}
-        </div>
+        ) : undefined
+      }
+    >
+      {error && (
+        <ErrorCarga mensaje="No se pudieron cargar los documentos." onReintentar={() => setError(false)} />
       )}
-    </section>
+      {!docs && !error && (
+        <p role="status" className="text-[11px] text-text-muted">
+          Buscando…
+        </p>
+      )}
+      {docs && <DocumentosRps documentos={docs} />}
+    </BloqueDesplegable>
   );
 }

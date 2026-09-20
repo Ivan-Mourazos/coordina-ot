@@ -421,6 +421,12 @@ export function Drawer({
   const paraCorregir = ofsDeOT.filter((o) =>
     accionesDisponibles(o, miId).some((a) => a.id === "aprobar_corregida"),
   );
+  // Las que mandé a revisar y quiero volver a tocar. Mandar el pedido entero a
+  // revisión es UN gesto, y deshacerlo eran tantos como OF: abrir el "⋯" de
+  // cada una y confirmar. Mismo criterio que "Dar por corregidas las N".
+  const paraRecuperar = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "recuperar_planteo"),
+  );
   // «Dar por terminada en RPS» no se ofrece en la ÚLTIMA OF que queda: si al
   // aprobar esta el pedido quedara listo para pasar, lo que toca es «Pasar a
   // Producción», que además lo saca del panel. La máquina de estados no puede
@@ -431,6 +437,10 @@ export function Drawer({
       ...pedido,
       ofs: pedido.ofs.map((x) => (x.id === o.id ? { ...x, estado: "aprobada" as const } : x)),
     });
+  const defRecuperar = {
+    ...ACCIONES.find((a) => a.id === "recuperar_planteo")!,
+    confirmar: `Las ${paraRecuperar.length} OF vuelven a tu planteo y desaparecen de la lista de quien las iba a revisar. El tiempo ya fichado se conserva.`,
+  };
   const defCorregidas = {
     ...ACCIONES.find((a) => a.id === "aprobar_corregida")!,
     confirmar: `Las ${paraCorregir.length} OF quedan aprobadas sin pasar otra vez por revisión.`,
@@ -777,6 +787,21 @@ export function Drawer({
                   className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
                 >
                   ⏱ Revisar las {paraEmpezarRevision.length}
+                </button>
+              )}
+              {/* Recuperar de golpe las que mandé a revisar. Desde dos: con
+                  una, el "⋯" de su fila hace lo mismo. En tono neutro, como
+                  "Dar por corregidas": es deshacer, no el camino de siempre. */}
+              {paraRecuperar.length >= 2 && (
+                <button
+                  onClick={() => {
+                    idsAConfirmar.current = paraRecuperar.map((o) => o.id);
+                    confirmacionPedido.pedirConfirmacion(defRecuperar);
+                  }}
+                  title={`Devuelve a tu planteo las ${paraRecuperar.length} OF de este pedido que están esperando revisión`}
+                  className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text hover:border-border-strong"
+                >
+                  {etiquetaCantidad("Recuperar", paraRecuperar.length)}
                 </button>
               )}
               {/* Y darlas por buenas todas juntas, que es como se acaba un
@@ -1279,7 +1304,10 @@ function OFRow({
   );
 
   return (
-    <li className="glass-chip rounded-xl p-3">
+    // `bloque-3d`: el mismo relieve que el recorrido, las notas y los bloques
+    // plegados de la ficha. Con `glass-chip` —el de los botones— las tarjetas
+    // de OF tenían un canto distinto del resto.
+    <li className="bloque-3d rounded-xl p-3">
       {plegable ? (
         <button
           type="button"

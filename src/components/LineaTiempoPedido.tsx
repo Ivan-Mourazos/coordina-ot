@@ -27,7 +27,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   const entrega = relativoA(pedido.fechaEntrega, hoy);
 
   return (
-    <div className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] px-3 pb-3 pt-2">
+    <div className="bloque-3d mb-4 rounded-xl px-3 pb-3 pt-2">
       <div className="mb-4 flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Recorrido del pedido

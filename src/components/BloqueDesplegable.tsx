@@ -13,29 +13,42 @@ import { Desplegable } from "./Desplegable";
 
 export function BloqueDesplegable({
   titulo,
+  insignia,
   sufijo,
   abiertoDeSalida = false,
+  onAbrir,
   className = "mb-4",
   children,
 }: {
   titulo: string;
+  /** Un contador pegado al rótulo ("Documentos de RPS · 3"). */
+  insignia?: ReactNode;
   /** Lo que va al final de la línea del rótulo, en gris: un total, un código. */
   sufijo?: ReactNode;
   /** Empezar abierto. Lo usa quien ya pagó la espera de traer los datos: una
    *  vez cargados, pedir otro clic para verlos es cobrarlo dos veces. */
   abiertoDeSalida?: boolean;
+  /** Se avisa la primera vez que se abre: lo usa quien pide sus datos al
+   *  desplegar y no al montar (los documentos de RPS). */
+  onAbrir?: () => void;
   className?: string;
   children: ReactNode;
 }) {
   const id = useId();
   const [abierto, setAbierto] = useState(abiertoDeSalida);
   return (
-    <section
-      className={`${className} rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]`}
-    >
+    // `bloque-3d`: el mismo relieve que las tarjetas de OF y las filas de las
+    // listas. Los bloques de la ficha llevaban dos acabados —unos con relieve
+    // y otros con un borde plano— y "Documentos de RPS" y "Tareas y tiempos",
+    // uno encima del otro, no parecían el mismo tipo de bloque.
+    <section className={`bloque-3d ${className} rounded-xl`}>
       <button
         type="button"
-        onClick={() => setAbierto((a) => !a)}
+        onClick={() => {
+          const nuevo = !abierto;
+          setAbierto(nuevo);
+          if (nuevo) onAbrir?.();
+        }}
         aria-expanded={abierto}
         aria-controls={id}
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
@@ -51,6 +64,7 @@ export function BloqueDesplegable({
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {titulo}
+        {insignia}
         {sufijo !== undefined && (
           <span className="ml-auto font-mono text-[10px] font-normal text-text-muted">{sufijo}</span>
         )}

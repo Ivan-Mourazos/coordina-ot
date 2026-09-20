@@ -15,11 +15,9 @@ test('el bloque de "Tareas y tiempos" se ve como tal ANTES de cargar los datos, 
   const html = renderToStaticMarkup(
     createElement(TareasDelPedido, { pedido: "AR.26.03914", seccion: "ot" }),
   );
-  // Mismo borde y fondo que "Documentos de RPS" y "Notas" (`bloque-3d` o el
-  // par borde/fondo de cristal que usa el propio bloque ya cargado): lo que
-  // NO puede seguir siendo es un `chip-3d` suelto.
-  expect(html).toContain("border-[var(--glass-border)]");
-  expect(html).toContain("bg-[var(--glass-highlight)]");
+  // El MISMO relieve que "Documentos de RPS", "Notas" y las tarjetas de OF
+  // (`bloque-3d`): lo que NO puede seguir siendo es un `chip-3d` suelto.
+  expect(html).toContain("bloque-3d");
   expect(html).not.toContain("chip-3d");
   expect(html).toContain("Tareas y tiempos");
   // Sin el código del pedido: venía de cuando esto era una ventana suelta y

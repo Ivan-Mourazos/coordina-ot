@@ -234,7 +234,7 @@ export function DatosEnLinea({
  *  borde y fondo que documentos, notas y el resto de bloques. */
 export function BloqueFicha({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <section className="mb-4 rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-3">
+    <section className="bloque-3d mb-4 rounded-xl p-3">
       <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>{titulo}</h3>
       {children}
     </section>

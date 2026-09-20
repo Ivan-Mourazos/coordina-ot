@@ -293,7 +293,7 @@ export function TareasDelPedido({
   // cambia al pulsar es que carga y se abre.
   return (
     <section
-      className={`${className ?? "mb-4"} rounded-xl border border-[var(--glass-border)] bg-[var(--glass-highlight)]`}
+      className={`bloque-3d ${className ?? "mb-4"} rounded-xl`}
     >
       <button
         type="button"
