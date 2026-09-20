@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "d28f063",
+    "hasta": "b507ab1",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Puedes recuperar de golpe todas las OF que mandaste a revisar",
         "detalle": "Sale en el pedido, junto a los demás botones, cuando hay dos o más."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes coger un pedido de un compañero desde su panel",
+        "detalle": "Sale al pasar el ratón por encima y pregunta antes. El tiempo que ya echó sigue siendo suyo."
       },
       {
         "tipo": "arreglado",
@@ -28,6 +33,10 @@
       {
         "tipo": "mejor",
         "titulo": "Las filas de los paneles se leen mejor: cada dato en su columna"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En los paneles, cada pedido dice su familia en vez de la descripción de la primera OF"
       }
     ]
   },
