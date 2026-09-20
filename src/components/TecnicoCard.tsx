@@ -27,6 +27,7 @@ export const TecnicoCard = memo(function TecnicoCard({
   onFichar,
   onDesficharVarias,
   completarPedido,
+  onCoger,
 }: {
   operario: Operario;
   facets: Facet[];
@@ -43,6 +44,8 @@ export const TecnicoCard = memo(function TecnicoCard({
    *  PedidoLinea (ver desficharVarias en Board). */
   onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
+  /** Quedarse con un pedido suyo, desde su panel. Lo pregunta el Board. */
+  onCoger?: (f: Facet) => void;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -133,6 +136,7 @@ export const TecnicoCard = memo(function TecnicoCard({
           onFichar={onFichar}
           onDesficharVarias={onDesficharVarias}
           completarPedido={completarPedido}
+          onCoger={onCoger}
         />
       )}
     </div>

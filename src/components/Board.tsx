@@ -1303,6 +1303,22 @@ export function Board({
     pedidoId: string;
     quien: string;
   } | null>(null);
+  // Quedarse con el pedido de un compañero desde su panel. Se pregunta SIEMPRE,
+  // tenga trabajo fichado o no: es quitarle algo de las manos a alguien, y el
+  // aviso le llega por la campana. El tiempo que ya echó no se toca — sigue
+  // siendo suyo (ver `traspasarAutor`, que solo cambia el autor y borra el
+  // revisor).
+  const [cogerPendiente, setCogerPendiente] = useState<{
+    facet: Facet;
+    quien: string;
+  } | null>(null);
+  const pedirCoger = useCallback(
+    (f: Facet) => {
+      const quien = operarios.find((o) => o.id === f.locationId)?.nombre ?? "otra persona";
+      setCogerPendiente({ facet: f, quien });
+    },
+    [operarios],
+  );
   const asignarPedido = useCallback(
     (autorId: string | null) => {
       const pedido = pedidosRef.current.find((p) => p.id === openId);
@@ -2313,6 +2329,7 @@ export function Board({
                     onFichar={ficharOFsConAviso}
                     onDesficharVarias={desficharVarias}
                     completarPedido={completarPedido}
+                    onCoger={pedirCoger}
                   />
                 ))}
               </div>
@@ -2587,6 +2604,27 @@ export function Board({
           setCambioIdentidadPendiente(null);
           setSalirPendiente(false);
         }}
+      />
+
+      <ConfirmDialog
+        abierto={cogerPendiente !== null}
+        titulo="Coger este pedido"
+        mensaje={
+          cogerPendiente
+            ? `${cogerPendiente.facet.pedido.codigo} pasa de ${cogerPendiente.quien} a tu panel.
+
+` +
+              `El trabajo va tal como está —mismo estado y mismos tiempos— y se queda sin revisor: lo eliges tú al mandarlo a revisar. El tiempo que ya echó ${cogerPendiente.quien} sigue siendo suyo.
+
+Le llegará el aviso de que ya no lo lleva.`
+            : ""
+        }
+        onConfirmar={() => {
+          const pendiente = cogerPendiente;
+          setCogerPendiente(null);
+          if (pendiente && miId) moverOFs(new Set(pendiente.facet.ofs.map((o) => o.id)), miId);
+        }}
+        onCancelar={() => setCogerPendiente(null)}
       />
 
       <ConfirmDialog

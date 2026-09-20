@@ -44,7 +44,9 @@ export function FamiliaTag({
   }
   return (
     <span
-      className="familia-tag inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
+      // `whitespace-nowrap`: "Assa Abloy" se partía en dos líneas dentro de su
+      // chip y engordaba la fila del panel entera.
+      className="familia-tag inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
       style={{ "--fam": meta.color } as React.CSSProperties}
     >
       <FamiliaIcon familia={familia} className="size-3" />

@@ -16,6 +16,7 @@ import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
 import { IconoCandado } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
+import { FamiliaTag } from "./FamiliaTag";
 import { hoyISO } from "@/lib/types";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
@@ -45,6 +46,7 @@ export function PedidoLinea({
   operarios,
   ofIdsFichandoYo,
   soloConsulta = false,
+  onCoger,
 }: {
   facet: Facet;
   fase: Fase;
@@ -61,6 +63,9 @@ export function PedidoLinea({
   ofIdsFichandoYo?: ReadonlySet<string>;
   /** Panel de un compañero: sobre su trabajo no se ficha ni se cambia estado. */
   soloConsulta?: boolean;
+  /** Quedarse con el pedido de un compañero (solo en su panel). Lo pregunta
+   *  antes: se lo quita de las manos a alguien. */
+  onCoger?: (f: Facet) => void;
 }) {
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
@@ -76,6 +81,10 @@ export function PedidoLinea({
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
   const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
+  // Las familias del pedido, que es lo que dice DE QUÉ es sin leer: la
+  // descripción de la primera OF ("LONA (TECHO, LATERAL,,,) PARA ESTRUCTURA
+  // CLIENTE") se comía media fila y casi siempre acababa cortada.
+  const familias = [...new Set(ofs.map((o) => o.familia))];
 
   // `pedido` son TODAS las OF del pedido, no solo las de este facet: por eso
   // se puede saber desde aquí si falta gente sin pedir nada más.
@@ -259,9 +268,11 @@ export function PedidoLinea({
             {/* Columna 2: los avisos del pedido y, detrás, cliente y trabajo. */}
             <span className="flex min-w-0 items-center gap-2">
               {avisos}
-              <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
-                {pedido.cliente}
-                {descripcion && ` · ${descripcion}`}
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 @max-[22rem]:hidden">
+                <span className="min-w-0 truncate text-text-muted">{pedido.cliente}</span>
+                {familias.map((f) => (
+                  <FamiliaTag key={f} familia={f} />
+                ))}
               </span>
             </span>
             {/* SE ESCONDE CUANDO APARECE UN BOTÓN ENCIMA. Los botones se
@@ -315,13 +326,32 @@ export function PedidoLinea({
         // En columna estrecha se queda el candado y se va su explicación: el
         // texto («no disponible», «empezado») no cabía y acababa montado sobre
         // la cuenta de OF. El motivo sigue al pasar el ratón.
-        <span
-          className="shrink-0 text-text-muted"
-          title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-          aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-        >
-          <IconoCandado />
-        </span>
+        // COGER, y no un candado. El candado decía "esto no se puede tocar" y no
+        // era verdad: el autor se cambia desde la ficha, esté el trabajo
+        // empezado o no. Lo que hacía falta era el gesto directo, que pregunta
+        // antes (lo lleva el Board): quitarle trabajo a alguien no se hace sin
+        // querer. Sin `onCoger` —la consulta sin login— se queda el candado.
+        onCoger ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCoger(facet);
+            }}
+            title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
+            className="chip-3d shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold text-text opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            Coger
+          </button>
+        ) : (
+          <span
+            className="shrink-0 text-text-muted"
+            title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+            aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+          >
+            <IconoCandado />
+          </span>
+        )
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
         // quién se espera, que si no el botón desaparece sin más. Ocupa el

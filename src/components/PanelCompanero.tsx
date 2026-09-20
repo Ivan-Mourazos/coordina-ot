@@ -33,6 +33,7 @@ export function PanelCompanero({
   onFichar,
   onDesficharVarias,
   completarPedido,
+  onCoger,
 }: {
   operario: Operario;
   facets: Facet[];
@@ -47,6 +48,8 @@ export function PanelCompanero({
    *  PedidoLinea (ver desficharVarias en Board). */
   onDesficharVarias: (ofIds: string[]) => void;
   completarPedido: (pedidoId: string) => void;
+  /** Quedarse con uno de sus pedidos. Lo pregunta el Board. */
+  onCoger?: (f: Facet) => void;
 }) {
   const grupos = agruparPorFase(facets, seccion);
   const conItems = grupos.filter((g) => g.items.length > 0);
@@ -110,6 +113,7 @@ export function PanelCompanero({
                     onDesficharVarias={onDesficharVarias}
                     completarPedido={completarPedido}
                     soloConsulta
+                    onCoger={onCoger}
                   />
                 ))}
               </div>
