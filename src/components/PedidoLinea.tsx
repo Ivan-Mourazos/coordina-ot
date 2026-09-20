@@ -237,7 +237,7 @@ export function PedidoLinea({
         className={`min-w-0 cursor-pointer items-center gap-2 overflow-hidden text-left ${
           mostrandoFalta
             ? "flex shrink-0"
-            : "grid flex-1 grid-cols-[7.25rem_minmax(0,1fr)_auto] @max-[18rem]:grid-cols-[7.25rem_minmax(0,1fr)]"
+            : "grid flex-1 grid-cols-[5.75rem_6.5rem_minmax(0,1fr)_auto] @max-[18rem]:grid-cols-[5.75rem_6.5rem_minmax(0,1fr)]"
         }`}
       >
         {/* Columna 1: el punto de "lo están fichando" y el código. */}
@@ -265,14 +265,23 @@ export function PedidoLinea({
             que es lo de siempre. */}
         {!mostrandoFalta && (
           <>
-            {/* Columna 2: los avisos del pedido y, detrás, cliente y trabajo. */}
+            {/* Columna 2: la familia, en su propia columna y DELANTE del cliente:
+                detrás quedaba a una distancia distinta en cada fila, según lo
+                largo que fuera el nombre. Con varias, la primera y "+N": son
+                pocas y lo que hace falta aquí es saber de qué va el pedido. */}
+            <span className="flex min-w-0 items-center gap-1">
+              {familias[0] && <FamiliaTag familia={familias[0]} />}
+              {familias.length > 1 && (
+                <span className="shrink-0 text-[10px] text-text-muted" title={familias.join(" · ")}>
+                  +{familias.length - 1}
+                </span>
+              )}
+            </span>
+            {/* Columna 3: los avisos del pedido y el cliente. */}
             <span className="flex min-w-0 items-center gap-2">
               {avisos}
-              <span className="flex min-w-0 flex-1 items-center gap-1.5 @max-[22rem]:hidden">
-                <span className="min-w-0 truncate text-text-muted">{pedido.cliente}</span>
-                {familias.map((f) => (
-                  <FamiliaTag key={f} familia={f} />
-                ))}
+              <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
+                {pedido.cliente}
               </span>
             </span>
             {/* SE ESCONDE CUANDO APARECE UN BOTÓN ENCIMA. Los botones se
@@ -331,27 +340,33 @@ export function PedidoLinea({
         // empezado o no. Lo que hacía falta era el gesto directo, que pregunta
         // antes (lo lleva el Board): quitarle trabajo a alguien no se hace sin
         // querer. Sin `onCoger` —la consulta sin login— se queda el candado.
-        onCoger ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCoger(facet);
-            }}
-            title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
-            className="chip-3d shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold text-text opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-          >
-            Coger
-          </button>
-        ) : (
-          <span
-            className="shrink-0 text-text-muted"
-            title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-            aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-          >
-            <IconoCandado />
-          </span>
-        )
+        // SUPERPUESTO al final de la fila, como "Fichar" y "Pausar" (misma
+        // franja `bg-inherit`): así la cuenta de OF queda a la derecha del todo
+        // en reposo, que es cuando se lee, y el botón solo aparece al pasar el
+        // ratón — sobre el hueco que deja la fecha, que se esconde sola.
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center rounded-r-lg bg-inherit pl-4 [&>*]:pointer-events-auto">
+          {onCoger ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCoger(facet);
+              }}
+              title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
+              className="chip-3d shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold text-text opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+            >
+              Coger
+            </button>
+          ) : (
+            <span
+              className="shrink-0 text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+              title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+              aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+            >
+              <IconoCandado />
+            </span>
+          )}
+        </span>
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
         // quién se espera, que si no el botón desaparece sin más. Ocupa el

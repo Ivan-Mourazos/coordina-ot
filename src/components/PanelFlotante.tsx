@@ -54,7 +54,10 @@ export function BotonCerrarPanel({ className = "" }: { className?: string }) {
 /** Ancho de TODOS los desplegables del tablero. Uno solo a propósito: el de
  *  tus pedidos y el de un compañero enseñan lo mismo, y verlos de dos tamaños
  *  distintos hacía pensar que eran cosas distintas. */
-const ANCHO = "46rem";
+// 62rem y no 46: el panel de un compañero lleva una fila por pedido con seis
+// datos (código, familia, cliente, fecha, OF y tiempo) y a 46 rem el cliente se
+// quedaba en dos palabras. Sigue con el tope de 92vw para pantallas pequeñas.
+const ANCHO = "62rem";
 
 // Es un modal de hecho —telón por encima de todo, el fondo congelado, Escape y
 // clic fuera para salir— pero para el teclado no lo era: sin `role`, sin nombre
