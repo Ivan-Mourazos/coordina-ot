@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "ad93391",
+    "hasta": "b262265",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -19,6 +19,11 @@
       {
         "tipo": "mejor",
         "titulo": "En Sin asignar solo se marcan los partes urgentes"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En tu panel y en el de tus compañeros, los pedidos van por fecha planificada",
+        "detalle": "Cada línea enseña esa fecha, en rojo si ya pasó."
       }
     ]
   },
