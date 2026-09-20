@@ -122,16 +122,18 @@ export const PedidoCardView = memo(function PedidoCardView({
           )}
         </div>
       )}
-      <div
-        className="relative aspect-[210/297] w-full rounded-md bg-white parte-3d"
-      >
+      {/* `overflow-hidden`: lo que se pone encima del parte (la banda de aviso,
+          la barra de asignar) se recorta con el redondeo de la MINIATURA, no
+          con el suyo. Con cada uno redondeando por su cuenta, en las esquinas
+          de abajo asomaba un pico de parte por debajo del botón. */}
+      <div className="relative aspect-[210/297] w-full overflow-hidden rounded-md bg-white parte-3d">
         <PedidoScan pedido={pedido} />
 
         {/* Han vuelto a escanear el parte, o ha aparecido trabajo nuevo después
             de pasarlo. Banda del ancho de la tarjeta: se lee de un vistazo en la
             bandeja y no tapa nada de lo que hay en las esquinas. */}
         {avisoParte && (
-          <span className="absolute inset-x-0 top-0 flex overflow-hidden rounded-t-md">
+          <span className="absolute inset-x-0 top-0 flex">
             <span
               className="w-full truncate bg-amber-700 px-1 py-0.5 text-center text-[9px] font-bold uppercase leading-tight text-white"
               title={avisoParte.title}
@@ -230,11 +232,11 @@ export const PedidoCardView = memo(function PedidoCardView({
             esquina: ahí tapaba los avisos de material justo mientras decides a
             quién se lo das, y caía encima de "OF nueva". El pie del parte es
             sitio muerto y da un blanco ancho. */}
-        {/* Recortado con el mismo redondeo de la tarjeta: la barra llega hasta
-            el borde y las esquinas las corta el contenedor, así no queda el
-            pico blanco entre el arco del botón y el de la tarjeta. */}
+        {/* La barra llega hasta el borde y la recorta la miniatura (ver su
+            `overflow-hidden`), así no queda el pico blanco entre el arco del
+            botón y el de la tarjeta. */}
         {accion && (
-          <div className="absolute inset-x-0 bottom-0 flex overflow-hidden rounded-b-md">
+          <div className="absolute inset-x-0 bottom-0 flex">
             {accion}
           </div>
         )}
@@ -348,7 +350,8 @@ export const PedidoCard = memo(function PedidoCard({
               operarios={operarios}
               miId={miId}
               onAsignar={(op) => onAsignar(facet, op)}
-              claseBoton="w-full bg-brand-500/95 px-2 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-brand-600"
+              // Opaco: al 95 % el parte se transparentaba bajo el botón.
+              claseBoton="w-full bg-brand-500 px-2 py-1 text-[10px] font-bold text-[#231903] shadow-sm hover:bg-brand-600"
             />
           )
         }
