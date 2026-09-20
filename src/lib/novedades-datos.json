@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "b507ab1",
+    "hasta": "399f2e5",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -37,6 +37,10 @@
       {
         "tipo": "mejor",
         "titulo": "En los paneles, cada pedido dice su familia en vez de la descripción de la primera OF"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los paneles de cada persona se leen en columnas, y el desplegable es más ancho"
       }
     ]
   },
