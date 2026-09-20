@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-20",
-    "hasta": "b262265",
+    "hasta": "d28f063",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -24,6 +24,10 @@
         "tipo": "mejor",
         "titulo": "En tu panel y en el de tus compañeros, los pedidos van por fecha planificada",
         "detalle": "Cada línea enseña esa fecha, en rojo si ya pasó."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las filas de los paneles se leen mejor: cada dato en su columna"
       }
     ]
   },
