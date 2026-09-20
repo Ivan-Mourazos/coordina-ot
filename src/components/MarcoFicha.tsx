@@ -138,9 +138,9 @@ export function CabeceraFicha({
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2">
         <h2 className="font-mono text-lg font-bold text-text">{codigo}</h2>
-        {/* La normal no se dice: salía en todos los pedidos y dejaba de
-            destacar justo cuando era urgente. Mismo criterio que la bandeja. */}
-        {prioridad !== undefined && prioridad !== 2 && (
+        {/* Solo la urgente, como en la bandeja: la normal salía en todos los
+            pedidos y dejaba de destacar justo cuando corría prisa. */}
+        {prioridad === 3 && (
           <span
             className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
             style={{ background: PRIORIDAD[prioridad].color, color: PRIORIDAD[prioridad].tinta }}

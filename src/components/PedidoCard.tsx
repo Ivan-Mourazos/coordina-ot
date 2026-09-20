@@ -107,9 +107,11 @@ export const PedidoCardView = memo(function PedidoCardView({
           )}
           {/* «11/09 · URGENTE». En letra y no en punto de color: un punto hay
               que saber descifrarlo, y aquí hay sitio de sobra para decirlo.
-              La NORMAL no se dice: salía en casi todos los partes y, repetida
-              diecisiete veces, ahogaba a las dos que sí piden atención. */}
-          {mostrarPrioridad && pedido.prioridad !== 2 && (
+              SOLO LAS URGENTES. La normal salía en casi todos los partes (16 de
+              19 en la bandeja de hoy) y la poca prioridad no cambia lo que hay
+              que hacer: lo que se busca de un vistazo es lo que corre prisa.
+              Las tres siguen en el filtro de prioridad de la barra. */}
+          {mostrarPrioridad && pedido.prioridad === 3 && (
             <>
               <span aria-hidden className="shrink-0 text-text-muted">·</span>
               <span
