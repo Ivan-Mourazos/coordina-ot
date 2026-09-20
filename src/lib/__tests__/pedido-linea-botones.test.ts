@@ -33,8 +33,9 @@ test("con mi reloj en marcha se aparta siempre: el botón de pausar está fijo",
   const html = pinta({ fichandoYo: true });
   expect(html).toContain("Pausar");
   // `invisible` a secas, no solo al pasar el ratón: ese botón no se revela, ya
-  // está ahí.
-  expect(html).toMatch(/text-text-muted[^"]*\binvisible\b/);
+  // está ahí. Lo que se aparta es la columna de la derecha entera —la fecha
+  // planificada y la cuenta de OF—, que es sobre la que se pinta el botón.
+  expect(html).toMatch(/text-\[10px\][^"]*\binvisible\b/);
 });
 
 test("los tiempos de la fila van en minutos enteros, sin segundos", () => {

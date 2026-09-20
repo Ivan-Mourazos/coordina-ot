@@ -142,10 +142,68 @@ export function PedidoLinea({
             }
           : null;
 
+  // Los avisos del pedido, que van al principio de la columna del cliente:
+  // un parte reescaneado, trabajo nuevo aparecido después de pasarlo y las OF
+  // detenidas por Producción.
+  const avisos = (
+    <>
+      {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
+          la FILA y no solo dentro del pedido: la gracia es no ponerse a
+          trabajar con la versión vieja, y para eso hay que verlo ANTES de
+          abrirlo. Se apaga desde dentro, con el botón del aviso. */}
+      {pedido.scanCambiado && (
+        <span
+          className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
+          title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
+        >
+          Parte nuevo
+        </span>
+      )}
+      {/* Trabajo aparecido DESPUÉS de pasar el pedido a Producción: RPS ha
+          habilitado una OF que antes no había que hacer. Va en la fila
+          porque, sin ella, el pedido reaparece en el tablero semanas después
+          de darlo por cerrado y nadie entiende qué hace ahí.
+
+          Mismo ámbar que "parte nuevo", y suelen salir juntos: cuando añaden
+          trabajo a un pedido, vuelven a escanear el parte. */}
+      {avisaDeOFNueva(pedido) && (
+        <span
+          className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
+          /* Se cuentan las que siguen SIN DUEÑO, no todas las nuevas: el
+             aviso ya solo sale por esas (ver `avisaDeOFNueva`), y decir "3
+             OF nuevas" cuando dos ya las cogió alguien manda a buscar
+             trabajo que no está. */
+          title={
+            ofNuevasSinCoger === 1
+              ? "Este pedido ya se había pasado a Producción y ha aparecido una OF nueva sin hacer."
+              : `Este pedido ya se había pasado a Producción y han aparecido ${ofNuevasSinCoger} OF nuevas sin hacer.`
+          }
+        >
+          OF nueva
+        </span>
+      )}
+      {/* Detenidas por Producción: no se pueden fichar y no está en mano de
+          OT resolverlo. Se avisa en la fila para no coger un pedido que no
+          se puede tocar y descubrirlo al intentar fichar. */}
+      {detenidas > 0 && (
+        <span
+          className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
+          title={
+            detenidas === deOT.length
+              ? "Detenida por Producción: no admite fichaje"
+              : `${detenidas} de ${deOT.length} OF detenidas por Producción`
+          }
+        >
+          {detenidas === deOT.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div
       style={{ borderLeftColor: color }}
-      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1 text-[11px] transition-colors hover:border-brand-400 ${
+      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         fichandoAlguien ? "bg-emerald-500/10" : "bg-surface-2/60"
       }`}
     >
@@ -158,65 +216,31 @@ export function PedidoLinea({
         // los botones de acción, y el resto —que abre el pedido, que es la
         // acción más usada de la fila— se quedaba con la flecha de siempre.
         // Puesta como utilidad, manda pase lo que pase.
-        className={`flex min-w-0 cursor-pointer items-center gap-2 overflow-hidden text-left ${mostrandoFalta ? "shrink-0" : "flex-1"}`}
+        // EN COLUMNAS, no en fila corrida: el código, la fecha y la cuenta de
+        // OF caen siempre en el mismo sitio, así que se recorren de arriba
+        // abajo con la vista. Con `flex`, cada fila colocaba sus datos donde
+        // le tocaba según lo largos que fueran los de la izquierda, y cinco
+        // datos sin alinear se leen como un amasijo.
+        //
+        // Pidiendo revisor o avisando de quién falta, la fila se queda en el
+        // código y el resto del ancho es para ese aviso: ahí no hay columnas
+        // que alinear.
+        className={`min-w-0 cursor-pointer items-center gap-2 overflow-hidden text-left ${
+          mostrandoFalta
+            ? "flex shrink-0"
+            : "grid flex-1 grid-cols-[7.25rem_minmax(0,1fr)_auto] @max-[18rem]:grid-cols-[7.25rem_minmax(0,1fr)]"
+        }`}
       >
-        {fichandoAlguien && (
-          <span
-            title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
-            className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
-          />
-        )}
-        <b className="shrink-0 font-semibold tabular-nums text-text">{pedido.codigo}</b>
-        {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
-            la FILA y no solo dentro del pedido: la gracia es no ponerse a
-            trabajar con la versión vieja, y para eso hay que verlo ANTES de
-            abrirlo. Se apaga desde dentro, con el botón del aviso. */}
-        {pedido.scanCambiado && (
-          <span
-            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
-            title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
-          >
-            Parte nuevo
-          </span>
-        )}
-        {/* Trabajo aparecido DESPUÉS de pasar el pedido a Producción: RPS ha
-            habilitado una OF que antes no había que hacer. Va en la fila
-            porque, sin ella, el pedido reaparece en el tablero semanas después
-            de darlo por cerrado y nadie entiende qué hace ahí.
-
-            Mismo ámbar que "parte nuevo", y suelen salir juntos: cuando añaden
-            trabajo a un pedido, vuelven a escanear el parte. */}
-        {avisaDeOFNueva(pedido) && (
-          <span
-            className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
-            /* Se cuentan las que siguen SIN DUEÑO, no todas las nuevas: el
-               aviso ya solo sale por esas (ver `avisaDeOFNueva`), y decir "3
-               OF nuevas" cuando dos ya las cogió alguien manda a buscar
-               trabajo que no está. */
-            title={
-              ofNuevasSinCoger === 1
-                ? "Este pedido ya se había pasado a Producción y ha aparecido una OF nueva sin hacer."
-                : `Este pedido ya se había pasado a Producción y han aparecido ${ofNuevasSinCoger} OF nuevas sin hacer.`
-            }
-          >
-            OF nueva
-          </span>
-        )}
-        {/* Detenidas por Producción: no se pueden fichar y no está en mano de
-            OT resolverlo. Se avisa en la fila para no coger un pedido que no
-            se puede tocar y descubrirlo al intentar fichar. */}
-        {detenidas > 0 && (
-          <span
-            className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
-            title={
-              detenidas === deOT.length
-                ? "Detenida por Producción: no admite fichaje"
-                : `${detenidas} de ${deOT.length} OF detenidas por Producción`
-            }
-          >
-            {detenidas === deOT.length ? "Detenido" : `${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
-          </span>
-        )}
+        {/* Columna 1: el punto de "lo están fichando" y el código. */}
+        <span className="flex min-w-0 items-center gap-1.5">
+          {fichandoAlguien && (
+            <span
+              title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
+              className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
+            />
+          )}
+          <b className="truncate font-semibold tabular-nums text-text">{pedido.codigo}</b>
+        </span>
         {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
             solo el código: el hueco que suelta la descripción es el que
             necesita el selector o el aviso para no quedar apretados en
@@ -232,9 +256,13 @@ export function PedidoLinea({
             que es lo de siempre. */}
         {!mostrandoFalta && (
           <>
-            <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
-              {pedido.cliente}
-              {descripcion && ` · ${descripcion}`}
+            {/* Columna 2: los avisos del pedido y, detrás, cliente y trabajo. */}
+            <span className="flex min-w-0 items-center gap-2">
+              {avisos}
+              <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
+                {pedido.cliente}
+                {descripcion && ` · ${descripcion}`}
+              </span>
             </span>
             {/* SE ESCONDE CUANDO APARECE UN BOTÓN ENCIMA. Los botones se
                 superponen al final de la fila (ver su rama más abajo) y se
@@ -251,28 +279,30 @@ export function PedidoLinea({
             {/* La fecha PLANIFICADA, que es por la que van ordenadas las
                 filas del panel (ver `agruparPorFase`): sin ella, el orden no
                 se explica solo. En rojo cuando ya pasó. */}
+            <span
+              className={`flex shrink-0 items-center justify-end gap-2 text-[10px] @max-[18rem]:hidden ${
+                fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
+              }`}
+            >
             {pedido.fechaPlanificacion && (
               <span
-                className={`shrink-0 text-[10px] tabular-nums @max-[18rem]:hidden ${
+                className={`w-[2.6rem] shrink-0 text-right tabular-nums ${
                   pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length
                     ? "font-semibold text-red-700 dark:text-red-400"
                     : "text-text-muted"
-                } ${fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"}`}
+                }`}
                 title={`Planificada para el ${fmtDiaMes(pedido.fechaPlanificacion)}`}
               >
                 {fmtDiaMes(pedido.fechaPlanificacion)}
               </span>
             )}
-            <span
-              className={`shrink-0 text-[10px] text-text-muted @max-[18rem]:hidden ${
-                fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
-              }`}
-            >
+            <span className="w-[4.75rem] shrink-0 text-right text-text-muted">
               {/* Redondeado a minutos: `fmtMin` sabe enseñar segundos y aquí
                   salía "14m 7s" al lado de "36m" y "42m". En una lista que se
                   recorre con la vista, los segundos son ruido; el detalle fino
                   está en «Tareas y tiempos». */}
               {ofs.length} OF{minutos > 0 && ` · ${fmtMin(Math.round(minutos))}`}
+            </span>
             </span>
           </>
         )}
@@ -285,8 +315,12 @@ export function PedidoLinea({
         // En columna estrecha se queda el candado y se va su explicación: el
         // texto («no disponible», «empezado») no cabía y acababa montado sobre
         // la cuenta de OF. El motivo sigue al pasar el ratón.
-        <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-text-muted" title={motivoBloqueo(facet)}>
-          <IconoCandado /><span className="@max-[18rem]:hidden">{motivoBloqueo(facet)}</span>
+        <span
+          className="shrink-0 text-text-muted"
+          title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+          aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+        >
+          <IconoCandado />
         </span>
       ) : mostrandoFalta ? (
         // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
