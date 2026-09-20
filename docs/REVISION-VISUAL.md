@@ -154,3 +154,5 @@ contraste, letra por debajo de 10 px, emoji y desbordes. Y la bandeja agrupada.
 - [x] Ficha con muchas OF: desde tres, cada una plegada a su cabecera; "Abrir todas / Plegar todas" — `6b53380`
 - [x] Bloques pegados en la ficha (lista de OF, OF ocultas, Tareas del Historial) — `58f9f57`
 - [x] Documentos y Tareas y tiempos antes que las OF, en Pendientes y en el Historial — `58f9f57`
+- [x] Los bloques de la ficha, todos con el mismo relieve; Documentos y Tareas comparten componente — `fee306d`
+- [x] Recuperar para plantear del pedido entero (iba OF por OF desde el «⋯») — `fee306d`

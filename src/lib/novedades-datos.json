@@ -1,5 +1,20 @@
 [
   {
+    "id": "2026-09-20",
+    "hasta": "fee306d",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes recuperar de golpe todas las OF que mandaste a revisar",
+        "detalle": "Sale en el pedido, junto a los demás botones, cuando hay dos o más."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los bloques de la ficha del pedido tienen todos el mismo acabado"
+      }
+    ]
+  },
+  {
     "id": "2026-09-19",
     "hasta": "58f9f57",
     "cambios": [
