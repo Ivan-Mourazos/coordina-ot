@@ -127,7 +127,6 @@ export function PedidoLinea({
   // debajo del contraste mínimo, y esto hay que poder leerlo. Y el icono y no
   // solo el color: quien no distinga el rojo se quedaría sin el aviso.
   const detenidoDelTodo = deOT.length > 0 && detenidas === deOT.length;
-  const motivoDetenido = "Detenido por Producción: no admite fichaje hasta que lo liberen";
 
   // El motor de fichaje solo admite un rol corriendo a la vez (ver el
   // comentario de ofsFichablesDe): esta fila solo ficha planteo. En
