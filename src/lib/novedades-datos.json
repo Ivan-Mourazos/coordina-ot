@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "53ce3bd",
+    "hasta": "aa1b492",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -54,6 +54,10 @@
       {
         "tipo": "mejor",
         "titulo": "Al pasar el ratón por los pedidos del panel ya no salta la pista"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los filtros que tienes puestos se ven hundidos, como un botón pulsado"
       }
     ]
   },
