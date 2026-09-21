@@ -13,14 +13,16 @@ import {
 import { PaginaPdf } from "./PaginaPdf";
 import { usePdfDoc } from "./usePdfDoc";
 
-/** Aire alrededor de la hoja, en px: que el borde del papel se vea y que la
- *  sombra de `.hoja-3d` no quede cortada contra el canto del visor. */
+/** Aire a los lados de la hoja, en px: que el borde del papel se vea. */
 const MARGEN = 24;
-/** Abajo hace falta más: la sombra de `.hoja-3d` cae hacia abajo (la más
- *  larga llega a unos 60 px). Con el mismo margen que arriba, el borde del
- *  visor la cortaba en seco y se veía una raya bajo la última hoja. Si se
- *  alarga esa sombra en el CSS, esto tiene que crecer con ella. */
-const MARGEN_PIE = 64;
+/** Arriba y abajo, 16 px: lo mismo que separa del borde el panel de la
+ *  derecha de la ficha (`inset-y-4`), así en "ajustar al alto" la hoja empieza
+ *  y acaba a la altura del panel. Eran 24 y 64 —el de abajo, para que cupiera
+ *  la sombra larga de `.hoja-3d`— y la hoja se quedaba corta. La sombra se
+ *  acortó para caber en estos 16: si se alarga en el CSS, esto tiene que
+ *  crecer con ella o el canto del visor la corta y se ve una raya. */
+const MARGEN_ARRIBA = 16;
+const MARGEN_PIE = 16;
 /** Rueda acumulada (px) que pasa de hoja: un golpe de ratón son ~100; el
  *  touchpad manda muchos de 2-10 y hay que sumarlos. */
 const UMBRAL_HOJA = 40;
@@ -89,7 +91,7 @@ export function VisorPdf({
   useEffect(() => {
     if (!raiz) return;
     const ro = new ResizeObserver(() =>
-      setHueco({ ancho: raiz.clientWidth - MARGEN * 2, alto: raiz.clientHeight - MARGEN - MARGEN_PIE }),
+      setHueco({ ancho: raiz.clientWidth - MARGEN * 2, alto: raiz.clientHeight - MARGEN_ARRIBA - MARGEN_PIE }),
     );
     ro.observe(raiz);
     return () => ro.disconnect();
@@ -211,10 +213,10 @@ export function VisorPdf({
         <div
           className="mx-auto flex w-fit flex-col items-center"
           style={{
-            padding: `${MARGEN}px ${MARGEN}px ${MARGEN_PIE}px`,
+            padding: `${MARGEN_ARRIBA}px ${MARGEN}px ${MARGEN_PIE}px`,
             // Hoja a hoja, el hueco entre dos es justo el margen de abajo más
             // el de arriba: así la siguiente queda entera fuera de la vista.
-            gap: porHojas ? MARGEN + MARGEN_PIE : 32,
+            gap: porHojas ? MARGEN_ARRIBA + MARGEN_PIE : 32,
           }}
         >
           {doc && escala > 0

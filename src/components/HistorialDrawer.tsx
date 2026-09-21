@@ -194,7 +194,7 @@ export function HistorialDrawer({
             /* `bloque-3d`, el mismo relieve que los bloques de la ficha. Era un
                gris plano y, al lado de la ficha en relieve, parecía un hueco
                sin terminar en vez de un aviso. */
-            <div className="bloque-3d grid h-full w-full place-items-center rounded-xl px-8 text-center text-sm text-text-muted">
+            <div className="bloque-3d my-4 grid h-[calc(100%-2rem)] w-full place-items-center rounded-xl px-8 text-center text-sm text-text-muted">
               {/* Dos motivos distintos y no se pueden confundir: o el código no
                   es de un pedido de venta (trabajo interno, OF suelta), o lo es
                   pero nadie escaneó el parte. Antes los dos caían en "PDF no

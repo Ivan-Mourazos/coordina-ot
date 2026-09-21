@@ -62,9 +62,13 @@ export function MarcoFicha({
           línea de arriba, donde uno empezaba 16 px más abajo que el otro.
 
           El hueco del parte acaba en 33rem —el ancho del panel (32rem) más su
-          margen— y su propio `p-4` deja la calle entre los dos. */}
+          margen— y su propio `px-4` deja la calle entre los dos. */}
       <div
-        className="overlay-in absolute inset-y-0 left-0 right-[33rem] flex flex-col p-4"
+        // Sin margen ARRIBA NI ABAJO: lo pone el propio visor (16 px, el mismo
+        // que el panel de la derecha), así la hoja arranca y acaba a la misma
+        // altura que el panel. Con el de aquí más el del visor, la hoja quedaba
+        // 24 px más baja arriba y 64 px más corta abajo.
+        className="overlay-in absolute inset-y-0 left-0 right-[33rem] flex flex-col px-4"
         onClick={onCerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>

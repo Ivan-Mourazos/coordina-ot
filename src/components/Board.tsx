@@ -1308,16 +1308,40 @@ export function Board({
   // aviso le llega por la campana. El tiempo que ya echó no se toca — sigue
   // siendo suyo (ver `traspasarAutor`, que solo cambia el autor y borra el
   // revisor).
+  // Sirve igual desde el panel de un compañero (un pedido entero) que desde la
+  // ficha (una OF o varias): lo que se coge son OF.
   const [cogerPendiente, setCogerPendiente] = useState<{
-    facet: Facet;
+    ofIds: string[];
+    codigo: string;
     quien: string;
   } | null>(null);
-  const pedirCoger = useCallback(
-    (f: Facet) => {
-      const quien = operarios.find((o) => o.id === f.locationId)?.nombre ?? "otra persona";
-      setCogerPendiente({ facet: f, quien });
-    },
+  const nombreDe = useCallback(
+    (id: string | null) => operarios.find((o) => o.id === id)?.nombre ?? "otra persona",
     [operarios],
+  );
+  const pedirCoger = useCallback(
+    (f: Facet) =>
+      setCogerPendiente({
+        ofIds: f.ofs.map((o) => o.id),
+        codigo: f.pedido.codigo,
+        quien: nombreDe(f.locationId),
+      }),
+    [nombreDe],
+  );
+  // Desde la ficha: de quién son se mira en las propias OF. Si son de varias
+  // personas, se dice "sus autores" en vez de nombrar solo a una.
+  const pedirCogerOFs = useCallback(
+    (ofIds: string[]) => {
+      const pedido = pedidosRef.current.find((p) => p.ofs.some((o) => ofIds.includes(o.id)));
+      if (!pedido) return;
+      const autores = [...new Set(pedido.ofs.filter((o) => ofIds.includes(o.id)).map((o) => o.autorId))];
+      setCogerPendiente({
+        ofIds,
+        codigo: pedido.codigo,
+        quien: autores.length === 1 ? nombreDe(autores[0]) : "sus autores",
+      });
+    },
+    [nombreDe],
   );
   const asignarPedido = useCallback(
     (autorId: string | null) => {
@@ -2531,6 +2555,7 @@ export function Board({
         onCompletar={completarPedido}
         onSetRevisor={setRevisor}
         onTraspasarAutor={traspasarAutorOF}
+        onCoger={pedirCogerOFs}
         onAccion={ejecutarAccion}
         onFichar={ficharOFsConAviso}
         onDesfichar={desficharOF}
@@ -2611,7 +2636,7 @@ export function Board({
         titulo="Coger este pedido"
         mensaje={
           cogerPendiente
-            ? `${cogerPendiente.facet.pedido.codigo} pasa de ${cogerPendiente.quien} a tu panel.
+            ? `${cogerPendiente.codigo}${cogerPendiente.ofIds.length > 1 ? ` (${cogerPendiente.ofIds.length} OF)` : ""} pasa de ${cogerPendiente.quien} a tu panel.
 
 ` +
               `El trabajo va tal como está —mismo estado y mismos tiempos— y se queda sin revisor: lo eliges tú al mandarlo a revisar. El tiempo que ya echó ${cogerPendiente.quien} sigue siendo suyo.
@@ -2622,7 +2647,7 @@ Le llegará el aviso de que ya no lo lleva.`
         onConfirmar={() => {
           const pendiente = cogerPendiente;
           setCogerPendiente(null);
-          if (pendiente && miId) moverOFs(new Set(pendiente.facet.ofs.map((o) => o.id)), miId);
+          if (pendiente && miId) moverOFs(new Set(pendiente.ofIds), miId);
         }}
         onCancelar={() => setCogerPendiente(null)}
       />

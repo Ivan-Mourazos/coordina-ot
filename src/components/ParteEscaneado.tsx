@@ -49,7 +49,9 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
           descarga, papel); y al pie, aparte, con QUÉ se ve. Mezclados, ⇄ caía
           entre girar y descargar y se leía como una acción más sobre el parte,
           cuando es una preferencia que se pone una vez y se olvida. */}
-      <div className="flex shrink-0 flex-col gap-1.5">
+      {/* `py-4`: el marco de la ficha ya no pone margen vertical (lo pone el
+          visor, para alinear la hoja con el panel); los botones lo necesitan. */}
+      <div className="flex shrink-0 flex-col gap-1.5 py-4">
         <div role="group" aria-label="Cómo se ve el parte" className="flex flex-col gap-1.5">
           <BotonesEncaje encaje={ajuste} onPulsar={pulsarEncaje} clase={chip} clasePuesto={puesto} lado="derecha" />
           {propio && (

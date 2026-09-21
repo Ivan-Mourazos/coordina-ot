@@ -190,6 +190,7 @@ export function Drawer({
   onCompletar,
   onSetRevisor,
   onTraspasarAutor,
+  onCoger,
   onAccion,
   onFichar,
   onDesfichar,
@@ -217,6 +218,8 @@ export function Drawer({
   onCompletar: (pedidoId: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
+  /** Quedarse con OF de otra persona. Lo pregunta el Board. */
+  onCoger?: (ofIds: string[]) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
@@ -425,6 +428,12 @@ export function Drawer({
   // Las que mandé a revisar y quiero volver a tocar. Mandar el pedido entero a
   // revisión es UN gesto, y deshacerlo eran tantos como OF: abrir el "⋯" de
   // cada una y confirmar. Mismo criterio que "Dar por corregidas las N".
+  // OF de OTRA persona que todavía se pueden traspasar: las que se ofrecen a
+  // coger, una a una y de golpe. Mismo gesto que "Coger" en el panel de un
+  // compañero, y con la misma confirmación (la lleva el Board).
+  const paraCoger = ofsDeOT.filter(
+    (o) => !!onCoger && !!miId && o.autorId !== null && o.autorId !== miId && puedeTraspasarAutor(o),
+  );
   const paraRecuperar = ofsDeOT.filter((o) =>
     accionesDisponibles(o, miId).some((a) => a.id === "recuperar_planteo"),
   );
@@ -603,7 +612,7 @@ export function Drawer({
           ) : (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="h-full w-full bg-[#525659] p-4"
+              className="my-4 h-[calc(100%-2rem)] w-full bg-[#525659] p-4"
             >
               <PedidoScan pedido={pedido} conAviso />
             </div>
@@ -788,6 +797,17 @@ export function Drawer({
                   className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
                 >
                   ⏱ Revisar las {paraEmpezarRevision.length}
+                </button>
+              )}
+              {/* Coger todas las de otra persona de una vez. Desde dos, como
+                los demás botones del bloque: con una, el de su fila. */}
+              {paraCoger.length >= 2 && onCoger && (
+                <button
+                  onClick={() => onCoger(paraCoger.map((o) => o.id))}
+                  title={`Pasa a tu panel las ${paraCoger.length} OF de este pedido que lleva otra persona`}
+                  className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
+                >
+                  {etiquetaCantidad("Coger", paraCoger.length)}
                 </button>
               )}
               {/* Recuperar de golpe las que mandé a revisar. Desde dos: con
@@ -990,6 +1010,7 @@ export function Drawer({
                 impedidoRevision={impedidoPorGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
+                onCoger={paraCoger.some((o) => o.id === of.id) ? () => onCoger?.([of.id]) : undefined}
                 plegable={plegables}
                 abierta={ofAbierta(of)}
                 onAlternar={() => alternarOF(of.id)}
@@ -1162,7 +1183,10 @@ function OFRow({
   plegable = false,
   abierta = true,
   onAlternar,
+  onCoger,
 }: {
+  /** Esta OF es de otra persona y se puede coger. */
+  onCoger?: () => void;
   /** Se pliega a su cabecera (el pedido tiene muchas OF, ver `PLEGAR_DESDE`). */
   plegable?: boolean;
   abierta?: boolean;
@@ -1493,6 +1517,7 @@ function OFRow({
             onDesfichar={onDesfichar}
             fichandoYoEsta={fichandoYoEsta}
             impedidoRevision={impedidoRevision}
+            onCoger={onCoger}
           />
         </>
       )}
@@ -1522,7 +1547,9 @@ function AccionesOF({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  onCoger,
 }: {
+  onCoger?: () => void;
   of: OF;
   operarios: Operario[];
   miId: string | null;
@@ -1640,6 +1667,13 @@ function AccionesOF({
 
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
+      {/* Coger, delante: sobre la OF de otra persona es lo primero que se
+          plantea. Fichar sigue al lado para quien solo quiere echar una mano. */}
+      {onCoger && (
+        <Btn tone="ghost" onClick={onCoger} title="Pasa esta OF a tu panel. Pregunta antes.">
+          Coger
+        </Btn>
+      )}
       {/* "La ficho YO", no "la ficha alguien": con `of.fichandoRol` salía
           "Pausar" también sobre el reloj de otra persona (el revisor, o
           cualquiera desde el mini-olanet), y este botón no puede parar ese
@@ -1943,7 +1977,7 @@ export function DetalleVenta({ texto }: { texto: string }) {
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>
-          <p className="mt-1 whitespace-pre-line rounded-md bg-surface px-2 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
+          <p className="mt-1 whitespace-pre-line rounded-md bg-surface-2 px-2 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
             {texto}
           </p>
         </Desplegable>

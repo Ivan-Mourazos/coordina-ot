@@ -445,11 +445,13 @@ body {
   background: #fff;
   border-radius: 0.75rem;
   box-shadow:
+    /* Toda la sombra cabe en 16 px por debajo de la hoja (MARGEN_PIE en
+       VisorPdf): la hoja llega casi al borde del visor para alinearse con el
+       panel, y lo que se saliera lo cortaría el canto en una raya. */
     0 0 0 1px rgba(0, 0, 0, 0.25),
     0 2px 3px rgba(0, 0, 0, 0.35),
-    0 8px 14px -6px rgba(0, 0, 0, 0.45),
-    0 20px 36px -14px rgba(0, 0, 0, 0.6),
-    0 36px 56px -30px rgba(0, 0, 0, 0.55);
+    0 6px 10px -4px rgba(0, 0, 0, 0.45),
+    0 10px 16px -10px rgba(0, 0, 0, 0.55);
 }
 
 /* Miniatura de un parte en la bandeja (PedidoCard). Papel sobre la mesa: un
