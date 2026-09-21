@@ -243,12 +243,42 @@ export async function refrescarEnCurso(): Promise<void> {
   // borrado, y sin él se quedaría enseñando para siempre un fichaje que ya no
   // corre.
   const filas = filasEnCurso();
-  for (const maquina of TODAS_LAS_MAQUINAS) {
+  const maquinas = maquinasAPublicar(filas, maquinasPublicadas);
+  for (const maquina of maquinas) {
     await sincronizarFichajeEnCurso(
       filas.filter((f) => f.maquina === maquina),
       maquina,
     );
   }
+  maquinasPublicadas = new Set(filas.map((f) => f.maquina));
+}
+
+/** Máquinas en las que la vuelta anterior dejó a alguien fichando. Hacen falta
+ *  para BORRAR esa fila cuando para el reloj: sin ellas, una máquina que no es
+ *  la de su sección se quedaría enseñando para siempre un fichaje acabado.
+ *  En memoria: tras reiniciar se pierde, y una fila que quedara colgada en
+ *  una de esas máquinas se limpia la próxima vez que alguien fiche en ella. */
+let maquinasPublicadas: ReadonlySet<string> = new Set();
+
+/** Qué máquinas sincronizar en esta vuelta.
+ *
+ *  NO basta con las de cada sección (A-OTEC, A-DGRA): la fila lleva la máquina
+ *  de su TAREA, y una tarea de OT puede ir a OTEC-A. Recorriendo solo las de
+ *  sección, esa fila se descartaba en silencio y quien la fichaba no aparecía
+ *  como fichando en ninguna parte —ni en la web ni en la herramienta vieja—,
+ *  aunque su tiempo sí se guardaba y se mandaba bien al parar.
+ *
+ *  Y tampoco TODAS las máquinas posibles: la sincronización empieza borrando
+ *  las filas de la máquina, y esta tabla la comparte el mini-olanet. Barrer
+ *  cada minuto una máquina que usa otra gente (el plóter, OTEC-A desde el
+ *  taller) le borraría su fichaje en curso. Así que solo: las de sección, las
+ *  que tienen ahora a alguien de la web y las que tenían en la vuelta anterior
+ *  (para limpiar al parar). */
+export function maquinasAPublicar(
+  filas: readonly { maquina: string }[],
+  anteriores: ReadonlySet<string>,
+): string[] {
+  return [...new Set([...TODAS_LAS_MAQUINAS, ...filas.map((f) => f.maquina), ...anteriores])];
 }
 
 /** Las máquinas de todas las secciones. Fijas: salen de lib/secciones.ts. */
