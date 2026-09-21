@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-09-21",
+    "hasta": "69b5a31",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "En Revisiones y el Historial las filas dejaban un hueco vacío a la derecha"
+      }
+    ]
+  },
+  {
     "id": "2026-09-20",
     "hasta": "42af1d2",
     "cambios": [
