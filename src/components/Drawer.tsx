@@ -572,7 +572,7 @@ export function Drawer({
           {listoParaCompletar && (
             <button
               onClick={() => onCompletar(pedido.id)}
-              className="mb-2 w-full rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800"
+              className="boton-3d mb-2 w-full rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800"
             >
               📦 Pasar a Producción
             </button>
@@ -753,7 +753,7 @@ export function Drawer({
                       ? "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
                       : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
                   }
-                  className="rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
+                  className="boton-3d rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
                 >
                   ⏸ Pausar{fichandoYo.length > 1 && ` las ${fichandoYo.length}`}
                 </button>
@@ -762,7 +762,7 @@ export function Drawer({
                   <button
                     onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
                     title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
+                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
                   >
                     ⏱ Fichar las {fichablesDeOT.length}
                   </button>
@@ -785,7 +785,7 @@ export function Drawer({
                 <button
                   onClick={() => onFichar(paraEmpezarRevision.map((o) => o.id), "revisar")}
                   title={`Pasa a "En revisión" las ${paraEmpezarRevision.length} OF que te tocan de este pedido y pone tu reloj en marcha`}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                  className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
                 >
                   ⏱ Revisar las {paraEmpezarRevision.length}
                 </button>
@@ -800,7 +800,7 @@ export function Drawer({
                     confirmacionPedido.pedirConfirmacion(defRecuperar);
                   }}
                   title={`Devuelve a tu planteo las ${paraRecuperar.length} OF de este pedido que están esperando revisión`}
-                  className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text hover:border-border-strong"
+                  className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
                 >
                   {etiquetaCantidad("Recuperar", paraRecuperar.length)}
                 </button>
@@ -818,7 +818,7 @@ export function Drawer({
                     impedidoPorGuia ??
                     `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`
                   }
-                  className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {/* En Diseño el pedido casi siempre es una sola OF, y este
                       botón sale desde que se revisa por pedido: sin el
@@ -838,7 +838,7 @@ export function Drawer({
                     confirmacionPedido.pedirConfirmacion(defCorregidas);
                   }}
                   title={`Da por buenas las ${paraCorregir.length} OF devueltas que ya has corregido, sin otra vuelta de revisión`}
-                  className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text hover:border-border-strong"
+                  className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
                 >
                   {etiquetaCantidad("Dar por corregidas", paraCorregir.length)}
                 </button>
@@ -858,7 +858,7 @@ export function Drawer({
                 <button
                   onClick={() => setPidiendoRevisorPedido(true)}
                   title={`Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`}
-                  className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
+                  className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
                 >
                   {/* Mismo motivo que en "Aprobar": con una sola OF (lo
                       normal en Diseño) el número sobra. */}
@@ -1559,8 +1559,18 @@ function AccionesOF({
   // recién mandada a revisar decía "Reanudar" por los minutos del planteo —
   // pero el reloj del que hablaba era el de la revisión, que no había corrido
   // ni un segundo.
+  //
+  // Y el tiempo MÍO, no el de cualquiera. Con el de la OF entera, quien abría
+  // la OF de un compañero para echarle una mano veía "▶ Reanudar" sin haber
+  // fichado nunca en ella: se reanudaba el trabajo de otro. Lo mío es lo que
+  // he fichado aquí en ese rol y, para el planteo, lo que tenga imputado en
+  // RPS (en RPS no hay tarea de revisión: ver `aplicarTiemposFichaje`).
+  const mioWeb = of.fichadoWeb?.find((w) => w.operarioId === miId);
   const yaEmpezada =
-    rolReloj === "revisar" ? of.tiempoRevisionMin > 0 : of.tiempoPlanteoMin > 0;
+    rolReloj === "revisar"
+      ? (mioWeb?.revisionMin ?? 0) > 0
+      : (mioWeb?.planteoMin ?? 0) > 0 ||
+        (of.imputaciones ?? []).some((i) => i.operarioId === miId && i.minutos > 0);
   // El reloj de la REVISIÓN solo se le ofrece al revisor. Al autor le salía
   // "▶ Reanudar" en morado sobre una OF que acababa de mandar a revisar, y
   // pulsarlo no reanudaba su planteo: arrancaba el reloj de la revisión de
@@ -1850,20 +1860,23 @@ function Btn({
     // boton, y sobre una OF en revision el verde decia el rol equivocado.
     reloj: ROL.plantear.solido,
     revisar: ROL.revisar.solido,
-    ghost: "border border-border text-text-muted hover:text-text hover:border-border-strong",
+    ghost: "chip-3d text-text-muted hover:text-text",
     // Peligro (anular) en rojo pero SIN relleno: era lo que más gritaba de la
     // tarjeta, por encima de la acción que se hace a diario, y en una OF
     // pendiente parecía que anular fuese lo que tocaba hacer. El rojo sólido
     // se queda para el "Confirmar" del ConfirmDialog, que es donde la acción
     // se materializa de verdad.
-    rojo: "text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400",
+    rojo: "chip-3d text-red-700 dark:text-red-400",
   }[tone];
+  // Relieve: los de color macizo con `boton-3d`; los neutros ya lo traen de
+  // `chip-3d` en su clase.
+  const relieve = tone === "ghost" || tone === "rojo" ? "" : "boton-3d";
   return (
     <button
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${cls} ${className}`}
+      className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${relieve} ${cls} ${className}`}
     >
       {children}
     </button>

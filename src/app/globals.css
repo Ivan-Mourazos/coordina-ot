@@ -575,6 +575,38 @@ body {
     0 1px 2px -1px var(--glass-shadow);
 }
 
+/* Botón de color macizo (Fichar, Reanudar, Aprobar, Pasar a Producción): el
+   mismo gesto de tecla que `chip-3d` pero para un fondo de color. Eran planos,
+   y al lado de las tarjetas y los chips con relieve parecían de otra web. Un
+   brillo arriba, un canto oscuro abajo y una sombra corta; al pulsar se hunde. */
+.boton-3d {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 0 rgba(0, 0, 0, 0.18),
+    0 4px 8px -3px rgba(15, 23, 42, 0.35);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.boton-3d:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 3px 0 rgba(0, 0, 0, 0.18),
+    0 8px 14px -4px rgba(15, 23, 42, 0.4);
+}
+.boton-3d:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.boton-3d:disabled {
+  box-shadow: none;
+}
+.dark .boton-3d {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 4px 10px -3px rgba(0, 0, 0, 0.7);
+}
+
 /* Tarjetas destacadas del panel personal: más cuerpo, canto y acento de estado. */
 .pedido-chip-3d {
   position: relative;
@@ -853,6 +885,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pista,
   .parte-3d,
+  .boton-3d,
   .quicklook,
   .glass-pop,
   .ventana-3d,
