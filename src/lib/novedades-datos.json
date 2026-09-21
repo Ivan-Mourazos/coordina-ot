@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "e566548",
+    "hasta": "5659983",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -31,6 +31,10 @@
       {
         "tipo": "mejor",
         "titulo": "El parte se ve más grande: ocupa el mismo alto que el panel de la derecha"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la OF de un compañero, \"Coger\" y \"Fichar\" explican qué hace cada uno al pasar el ratón"
       }
     ]
   },
