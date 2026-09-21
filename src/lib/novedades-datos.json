@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "5659983",
+    "hasta": "4adfd21",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -23,6 +23,11 @@
       {
         "tipo": "arreglado",
         "titulo": "En modo claro, la descripción de la OF casi no se veía"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Quien fichaba en algunas tareas no aparecía como fichando",
+        "detalle": "Su tiempo se guardaba bien; lo que no salía era el aviso de que tenía el reloj en marcha."
       },
       {
         "tipo": "mejor",
