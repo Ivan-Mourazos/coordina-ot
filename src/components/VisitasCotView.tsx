@@ -319,7 +319,7 @@ export function VisitasCotView({
                 puesto, el que manda es el día y estos dos botones dirían que
                 se está viendo otra cosa. */}
             {!dia && esMesDeHoy && (
-              <span className="glass-chip ml-auto inline-flex rounded-lg p-1" role="group" aria-label="Qué parte del mes">
+              <span className="tira-3d glass-chip ml-auto inline-flex rounded-lg p-1" role="group" aria-label="Qué parte del mes">
                 {(
                   [
                     ["proximas", "Lo próximo", nProximas],
@@ -333,7 +333,7 @@ export function VisitasCotView({
                     aria-pressed={ambito === id}
                     className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                       ambito === id
-                        ? "bg-brand-400 text-[#231903] shadow-sm"
+                        ? "pestana-activa bg-brand-400 text-[#231903]"
                         : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
                     }`}
                   >

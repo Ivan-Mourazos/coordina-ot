@@ -51,7 +51,7 @@ export function ViewSwitcher({
   // y 36 de alto. Esta tira iba a 12 y cantaba al ponerla al lado. El botón de
   // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
   return (
-    <div className="glass-chip inline-flex rounded-lg p-[3px]">
+    <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
       {OPCIONES.map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
@@ -66,7 +66,7 @@ export function ViewSwitcher({
                una pestaña sin nombre no se puede usar. */
             className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors xl:px-3.5 ${
               activo
-                ? "bg-brand-400 text-[#231903] shadow-sm"
+                ? "pestana-activa bg-brand-400 text-[#231903]"
                 : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             }`}
           >

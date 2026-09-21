@@ -69,7 +69,7 @@ export function Consulta() {
         <div
           role="tablist"
           aria-label="Secciones"
-          className="glass-chip inline-flex flex-wrap rounded-lg p-[3px]"
+          className="tira-3d glass-chip inline-flex flex-wrap rounded-lg p-[3px]"
           onKeyDown={(e) => {
             const i = PESTANAS.findIndex((p) => p.id === pestana);
             // Flechas para moverse una a una; Inicio y Fin a los extremos, como
@@ -101,7 +101,7 @@ export function Consulta() {
                  vistazo en cuál de las dos está. */
               className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
                 p.id === pestana
-                  ? "bg-brand-400 text-[#231903] shadow-sm"
+                  ? "pestana-activa bg-brand-400 text-[#231903]"
                   : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >

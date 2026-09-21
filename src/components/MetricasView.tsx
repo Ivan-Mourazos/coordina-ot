@@ -207,7 +207,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
         {/* El mismo selector de pastilla que "Lo próximo / Todo el mes" y
             "Solo mías / Todo el equipo": eran botones sueltos con anillo, otro
             estilo para la misma idea. */}
-        <div className="glass-chip flex rounded-lg p-0.5">
+        <div className="tira-3d glass-chip flex rounded-lg p-0.5">
           {APARTADOS.map((a) => (
             <button
               key={a.id}
@@ -215,7 +215,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               aria-pressed={apartado === a.id}
               className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 apartado === a.id
-                  ? "bg-brand-400 text-[#231903] shadow-sm"
+                  ? "pestana-activa bg-brand-400 text-[#231903]"
                   : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >

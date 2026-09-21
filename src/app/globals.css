@@ -364,6 +364,53 @@ body {
   background: color-mix(in srgb, var(--color-brand-400) 18%, var(--glass-chip));
 }
 
+/* Tira de pestañas (vistas de la cabecera, apartados de Métricas, "Solo mías /
+   Todo el equipo"…): una BANDEJA hundida con las teclas dentro. La pestaña en
+   la que estás es la tecla de color levantada, con el mismo canto que
+   `.boton-3d`; las otras quedan a ras y asoman al pasar el ratón. Antes la
+   tira entera era un chip que se levantaba al pasar por encima —se movía todo
+   el grupo— y la activa era un rectángulo plano. */
+.tira-3d,
+.tira-3d:hover {
+  transform: none;
+  background: color-mix(in srgb, var(--bg) 70%, var(--glass-chip));
+  box-shadow:
+    inset 0 1px 3px rgba(15, 23, 42, 0.16),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04),
+    0 1px 0 color-mix(in srgb, white 60%, transparent);
+}
+.dark .tira-3d,
+.dark .tira-3d:hover {
+  background: color-mix(in srgb, var(--bg) 80%, black);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.tira-3d > button,
+.tira-3d > a {
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.tira-3d > :not(.pestana-activa):hover {
+  background: var(--glass-chip);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 1px 0 color-mix(in srgb, var(--border-strong) 80%, transparent),
+    0 2px 4px -2px var(--glass-shadow);
+}
+.pestana-activa {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 0 #b07c0a,
+    0 4px 8px -3px rgba(15, 23, 42, 0.4);
+  transform: translateY(-1px);
+}
+.dark .pestana-activa {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 0 #8a6008,
+    0 4px 10px -3px rgba(0, 0, 0, 0.8);
+}
+
 /* Bloque de ficha (notas, documentos, centros): el mismo relieve que las
    tarjetas de OF que lleva dentro, pero sin levantarse al pasar por encima:
    el bloque no es un botón. */

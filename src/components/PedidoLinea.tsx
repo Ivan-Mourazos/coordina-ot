@@ -227,18 +227,14 @@ export function PedidoLinea({
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.
       style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
-      title={detenidoDelTodo ? motivoDetenido : undefined}
       className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         fichandoAlguien ? "bg-emerald-500/10" : detenidoDelTodo ? "bg-surface-2/30" : "bg-surface-2/60"
       }`}
     >
       <button
         onClick={() => onOpen(facet)}
-        title={`${pedido.codigo} · ${pedido.cliente} · ${descripcion}${
-          detenidoDelTodo ? `
-
-${motivoDetenido}` : ""
-        }`}
+        // Sin `title`: la fila se recorre con el ratón y la pista salía a cada
+        // paso, tapando la de abajo. Lo que decía ya está en la fila o al abrirla.
         // `cursor-pointer` EXPLÍCITO. La regla de globals.css que pone la mano
         // en todo `button` vive en `@layer base`, y ahí la gana cualquier
         // utilidad de una capa posterior: en esta fila la mano solo salía sobre
@@ -343,7 +339,6 @@ ${motivoDetenido}` : ""
                     ? "font-semibold text-red-700 dark:text-red-400"
                     : "text-text-muted"
                 }`}
-                title={`Planificada para el ${fmtDiaMes(pedido.fechaPlanificacion)}`}
               >
                 {fmtDiaMes(pedido.fechaPlanificacion)}
               </span>
