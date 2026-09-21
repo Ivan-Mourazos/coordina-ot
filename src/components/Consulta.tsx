@@ -101,7 +101,7 @@ export function Consulta() {
                  vistazo en cuál de las dos está. */
               className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
                 p.id === pestana
-                  ? "pestana-activa bg-brand-400 text-[#231903]"
+                  ? "pestana-activa"
                   : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >

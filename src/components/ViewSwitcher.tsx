@@ -64,9 +64,9 @@ export function ViewSwitcher({
                para eso más los botones de la derecha más el buscador. Se toca
                el aire y no el texto porque no hay iconos que lo sustituyan, y
                una pestaña sin nombre no se puede usar. */
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors xl:px-3.5 ${
+            className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors xl:px-3.5 ${
               activo
-                ? "pestana-activa bg-brand-400 text-[#231903]"
+                ? "pestana-activa"
                 : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
             }`}
           >
@@ -74,7 +74,7 @@ export function ViewSwitcher({
             {n ? (
               <span
                 className={`rounded-full px-1.5 text-[10px] font-bold ${
-                  activo ? "bg-black/15" : "bg-amber-700 text-white"
+                  activo ? "bg-brand-400/40" : "bg-amber-700 text-white"
                 }`}
               >
                 {n}

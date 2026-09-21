@@ -302,7 +302,7 @@ function AlcanceToggle({
           aria-pressed={alcance === o.id}
           className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
             alcance === o.id
-              ? "pestana-activa bg-brand-400 text-[#231903]"
+              ? "pestana-activa"
               : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
           }`}
         >

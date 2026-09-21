@@ -215,7 +215,7 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
               aria-pressed={apartado === a.id}
               className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 apartado === a.id
-                  ? "pestana-activa bg-brand-400 text-[#231903]"
+                  ? "pestana-activa"
                   : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >
@@ -253,7 +253,8 @@ export function MetricasView({ seccion }: { seccion: SeccionId }) {
                     onClick={() => setPeriodo(p)}
                     aria-pressed={puesto}
                     className={`rounded-lg px-2 py-1 text-xs font-medium ${
-                      puesto ? "bg-surface-2 text-text ring-1 ring-border" : "text-text-muted hover:text-text"
+                      // La misma tecla que los filtros: hundida y dorada la puesta.
+                      puesto ? "glass-chip glass-chip-activo text-brand-800 dark:text-brand-300" : "glass-chip text-text-muted hover:text-text"
                     }`}
                   >
                     {a.label}

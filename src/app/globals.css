@@ -363,52 +363,84 @@ body {
 .dark .glass-chip-activo {
   background: color-mix(in srgb, var(--color-brand-400) 18%, var(--glass-chip));
 }
+/* Y HUNDIDO, como la pestaña en la que estás (`.pestana-activa`): un filtro
+   puesto es una tecla que se ha quedado pulsada. Sin levantarse al pasar el
+   ratón, que eso invita a pulsar lo que ya está pulsado. */
+.glass-chip-activo,
+.glass-chip-activo:hover {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(90, 60, 0, 0.25);
+}
+.dark .glass-chip-activo,
+.dark .glass-chip-activo:hover {
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
+}
 
 /* Tira de pestañas (vistas de la cabecera, apartados de Métricas, "Solo mías /
-   Todo el equipo"…): una BANDEJA hundida con las teclas dentro. La pestaña en
-   la que estás es la tecla de color levantada, con el mismo canto que
-   `.boton-3d`; las otras quedan a ras y asoman al pasar el ratón. Antes la
-   tira entera era un chip que se levantaba al pasar por encima —se movía todo
-   el grupo— y la activa era un rectángulo plano. */
+   Todo el equipo"…): teclas SUELTAS, cada una con su relieve, sin bandeja que
+   las agrupe. Las que puedes pulsar están levantadas; la de la vista en la que
+   estás está HUNDIDA y en amarillo, como una tecla que se queda pulsada.
+   Primero se hizo al revés (la activa levantada, dentro de una bandeja) y se
+   leía mal: lo levantado invita a pulsar, y esa es justo la que no hace falta
+   pulsar. El contenedor sigue llevando `glass-chip` en el JSX; aquí se anula. */
 .tira-3d,
-.tira-3d:hover {
-  transform: none;
-  background: color-mix(in srgb, var(--bg) 70%, var(--glass-chip));
-  box-shadow:
-    inset 0 1px 3px rgba(15, 23, 42, 0.16),
-    inset 0 0 0 1px rgba(15, 23, 42, 0.04),
-    0 1px 0 color-mix(in srgb, white 60%, transparent);
-}
+.tira-3d:hover,
 .dark .tira-3d,
 .dark .tira-3d:hover {
-  background: color-mix(in srgb, var(--bg) 80%, black);
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.6),
-    0 1px 0 rgba(255, 255, 255, 0.05);
+  transform: none;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
 }
-.tira-3d > button,
-.tira-3d > a {
-  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+/* Cada pestaña, el chip de vidrio de los filtros («Solo atrasados»): el mismo
+   relieve de tecla, y la activa con el mismo tinte dorado del filtro puesto. */
+.tira-3d > :not(.pestana-activa) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
+    var(--glass-chip);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 0 0 1px var(--edge),
+    0 1px 2px var(--contact),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 80%, white 20%),
+    0 2px 0 0 color-mix(in srgb, var(--border-strong) 80%, transparent),
+    0 6px 12px -6px var(--glass-shadow);
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .tira-3d > :not(.pestana-activa):hover {
-  background: var(--glass-chip);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
-    0 1px 0 color-mix(in srgb, var(--border-strong) 80%, transparent),
-    0 2px 4px -2px var(--glass-shadow);
-}
-.pestana-activa {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 2px 0 #b07c0a,
-    0 4px 8px -3px rgba(15, 23, 42, 0.4);
   transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px var(--edge),
+    0 2px 4px var(--contact),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 90%, white 10%),
+    0 3px 0 0 color-mix(in srgb, var(--border-strong) 90%, transparent),
+    0 10px 18px -6px var(--glass-shadow);
+}
+.tira-3d > :not(.pestana-activa):active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.dark .tira-3d > :not(.pestana-activa) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 0 -1px rgba(0, 0, 0, 0.5),
+    0 6px 14px -8px rgba(0, 0, 0, 0.7);
+}
+/* La activa: el tinte de `.glass-chip-activo` y HUNDIDA, que es como queda
+   una tecla que se deja pulsada. */
+.pestana-activa {
+  background: color-mix(in srgb, var(--color-brand-500) 15%, var(--glass-chip));
+  border: 1px solid var(--color-brand-400);
+  color: var(--color-brand-800);
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(90, 60, 0, 0.25);
 }
 .dark .pestana-activa {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 2px 0 #8a6008,
-    0 4px 10px -3px rgba(0, 0, 0, 0.8);
+  background: color-mix(in srgb, var(--color-brand-400) 18%, var(--glass-chip));
+  color: var(--color-brand-300);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* Bloque de ficha (notas, documentos, centros): el mismo relieve que las
