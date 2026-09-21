@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "4adfd21",
+    "hasta": "138a3e6",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -40,6 +40,11 @@
       {
         "tipo": "mejor",
         "titulo": "En la OF de un compañero, \"Coger\" y \"Fichar\" explican qué hace cada uno al pasar el ratón"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las explicaciones al pasar el ratón salen al momento y se leen mejor en toda la web",
+        "detalle": "También al llegar con el tabulador."
       }
     ]
   },
