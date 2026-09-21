@@ -107,7 +107,7 @@ export function Pista({
   );
 }
 
-function Globo({ ancla, lado, texto, detalle }: { ancla: DOMRect; lado: Lado; texto: string; detalle?: string }) {
+function Globo({ ancla, lado, texto, detalle }: { ancla: DOMRect; lado: Lado; texto?: string; detalle?: string }) {
   const caja = useRef<HTMLDivElement>(null);
   // Se coloca antes de pintarse (layout effect): hay que medirla para que no
   // se salga de la ventana, y medida después se vería el salto.
@@ -135,11 +135,108 @@ function Globo({ ancla, lado, texto, detalle }: { ancla: DOMRect; lado: Lado; te
     <div
       ref={caja}
       aria-hidden="true"
-      className={`pista pista-${lado} pointer-events-none fixed z-[100] max-w-64 rounded-lg px-2.5 py-1.5`}
+      className={`pista pista-${lado} pointer-events-none fixed z-[100] max-w-72 rounded-lg px-2.5 py-1.5`}
       style={{ left: 0, top: 0, visibility: "hidden" }}
     >
-      <p className="text-xs font-semibold leading-tight">{texto}</p>
-      {detalle && <p className="mt-0.5 text-[11px] leading-snug opacity-70">{detalle}</p>}
+      {texto && <p className="text-xs font-semibold leading-tight">{texto}</p>}
+      {/* Sin `texto` (lo que viene de un `title`): una sola línea de lectura, a
+          opacidad entera y respetando los saltos que traiga. */}
+      {detalle && (
+        <p className={`whitespace-pre-line text-[11px] leading-snug ${texto ? "mt-0.5 opacity-70" : ""}`}>
+          {detalle}
+        </p>
+      )}
     </div>
   );
+}
+
+// ─── Todos los `title` de la web, como pista ──────────────────────────────────
+// Había 156 `title` repartidos por cuarenta componentes —en filas de listas,
+// chips, iconos— y cada uno salía con el recuadro gris del sistema, un segundo
+// tarde y nunca con el teclado. Envolverlos uno a uno con `Pista` era mucho
+// código repetido y dejarse alguno; esto los cubre todos, también los que se
+// escriban mañana.
+//
+// Al entrar el ratón (o el foco con Tab) en algo con `title`, el texto se
+// APARTA a `data-pista-titulo` —para que no salgan los dos— y se enseña el
+// globo de la casa. Al salir se devuelve tal cual: el `title` sigue siendo el
+// nombre o la descripción para quien usa lector de pantalla.
+
+/** Montado una vez (en el layout). */
+export function PistasGlobales() {
+  const [actual, setActual] = useState<{ ancla: DOMRect; texto: string } | null>(null);
+
+  useEffect(() => {
+    let el: HTMLElement | null = null;
+    let espera: number | undefined;
+
+    const devolver = () => {
+      window.clearTimeout(espera);
+      if (el) {
+        const guardado = el.dataset.pistaTitulo;
+        if (guardado !== undefined) {
+          el.setAttribute("title", guardado);
+          delete el.dataset.pistaTitulo;
+        }
+        el = null;
+      }
+      setActual((antes) => {
+        if (antes) apuntarCierre();
+        return null;
+      });
+    };
+
+    const tomar = (objetivo: HTMLElement, inmediata: boolean) => {
+      if (objetivo === el) return;
+      devolver();
+      const texto = objetivo.getAttribute("title")?.trim();
+      if (!texto) return;
+      objetivo.dataset.pistaTitulo = objetivo.getAttribute("title") ?? "";
+      objetivo.removeAttribute("title");
+      el = objetivo;
+      const sacar = () => {
+        if (el === objetivo) setActual({ ancla: objetivo.getBoundingClientRect(), texto });
+      };
+      if (inmediata || vieneDeOtra()) sacar();
+      else espera = window.setTimeout(sacar, ESPERA_MS);
+    };
+
+    /** Lo que tiene pista: un `title` o uno ya apartado por nosotros. Los
+     *  `iframe` no: el del visor del navegador taparía la hoja del parte. */
+    const conPista = (t: EventTarget | null): HTMLElement | null => {
+      const e = (t as Element | null)?.closest?.("[title], [data-pista-titulo]");
+      return e instanceof HTMLElement && e.tagName !== "IFRAME" ? e : null;
+    };
+
+    const sobre = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      const objetivo = conPista(e.target);
+      if (objetivo) tomar(objetivo, false);
+      else if (el) devolver();
+    };
+    const foco = (e: FocusEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.matches(":focus-visible") && t.hasAttribute("title")) tomar(t, true);
+    };
+    const fuera = () => devolver();
+
+    document.addEventListener("pointerover", sobre);
+    document.addEventListener("pointerdown", fuera, true);
+    document.addEventListener("focusin", foco);
+    document.addEventListener("focusout", fuera);
+    window.addEventListener("scroll", fuera, true);
+    window.addEventListener("blur", fuera);
+    return () => {
+      devolver();
+      document.removeEventListener("pointerover", sobre);
+      document.removeEventListener("pointerdown", fuera, true);
+      document.removeEventListener("focusin", foco);
+      document.removeEventListener("focusout", fuera);
+      window.removeEventListener("scroll", fuera, true);
+      window.removeEventListener("blur", fuera);
+    };
+  }, []);
+
+  if (!actual || typeof document === "undefined") return null;
+  return createPortal(<Globo ancla={actual.ancla} lado="abajo" detalle={actual.texto} />, document.body);
 }

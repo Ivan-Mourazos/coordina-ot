@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PistasGlobales } from "@/components/Pista";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,7 +42,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* Todos los `title` de la web salen como la pista de la casa, al
+            momento y con el teclado, en vez del recuadro gris del sistema. */}
+        <PistasGlobales />
+      </body>
     </html>
   );
 }
