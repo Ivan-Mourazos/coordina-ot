@@ -1,8 +1,13 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "699b526",
+    "hasta": "e566548",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En la ficha de un pedido puedes coger las OF de un compañero",
+        "detalle": "Pregunta antes, como en su panel. Fichar sigue al lado para echar una mano."
+      },
       {
         "tipo": "arreglado",
         "titulo": "En Revisiones y el Historial las filas dejaban un hueco vacío a la derecha"
@@ -10,6 +15,22 @@
       {
         "tipo": "arreglado",
         "titulo": "En algunas OF la familia salía dos veces seguidas"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la OF de un compañero salía \"Reanudar\" aunque no hubieras fichado en ella"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En modo claro, la descripción de la OF casi no se veía"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los botones de la ficha y del panel tienen relieve, como el resto"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El parte se ve más grande: ocupa el mismo alto que el panel de la derecha"
       }
     ]
   },
