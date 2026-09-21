@@ -1,11 +1,15 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "69b5a31",
+    "hasta": "699b526",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "En Revisiones y el Historial las filas dejaban un hueco vacío a la derecha"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En algunas OF la familia salía dos veces seguidas"
       }
     ]
   },
