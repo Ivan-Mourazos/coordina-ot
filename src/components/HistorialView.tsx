@@ -60,15 +60,16 @@ export const FILTROS_HISTORIAL_INICIALES: FiltrosHistorial = {
 
 /** Las mismas columnas en la cabecera y en cada fila. Al buscar se añade la
  *  fecha: los resultados van por fecha del pedido y no hay separadores de día.
- *  Cliente y "quién" llevan TOPE y el sobrante va a una columna vacía al
- *  final: en un monitor ancho, con el cliente a `1fr`, la familia y el tiempo
- *  quedaban a más de 1.000 px del pedido del que hablaban.
+ *  El cliente se lleva el sobrante y "quién" mantiene su tope. Hubo además una
+ *  columna vacía al final, de cuando las listas iban a todo el ancho del
+ *  monitor; con la web centrada a 1.800 px (ver Board) solo dejaba la mitad
+ *  derecha en blanco.
  *  Dos literales enteros y no uno construido: Tailwind solo compila las
  *  clases que ve escritas. */
 const COLUMNAS_POR_DIA =
-  "grid grid-cols-[28px_136px_minmax(0,36rem)_112px_minmax(150px,22rem)_64px_1fr] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,22rem)_64px] items-center gap-x-3";
 const COLUMNAS_BUSCANDO =
-  "grid grid-cols-[28px_136px_minmax(0,36rem)_112px_minmax(150px,22rem)_64px_72px_1fr] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,22rem)_64px_72px] items-center gap-x-3";
 
 /** División entre grupos de filtros: la misma raya que la barra de Pendientes. */
 function SeparadorFiltros() {

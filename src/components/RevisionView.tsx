@@ -43,11 +43,12 @@ import { tintaSobre } from "@/lib/tinta";
 /** Las columnas de una línea de revisión. Literal entera (Tailwind).
  *  chevron · pedido · cliente · nº OF · tiempo · autor→revisor · (sobrante)
  *
- *  El cliente lleva TOPE y el sobrante va a una columna vacía al final. Con el
- *  cliente a `1fr`, en un monitor ancho las cifras se iban a 1.300 px del
- *  nombre y había que seguir la fila con el dedo para saber de quién eran. */
+ *  El cliente se lleva el sobrante (`1fr`) y las cifras van pegadas a él. Tuvo
+ *  un tope y una columna vacía al final, de cuando las listas se estiraban a
+ *  todo el ancho del monitor; con la web centrada a 1.800 px (ver Board) esa
+ *  columna vacía solo dejaba media pantalla en blanco a la derecha. */
 const COLUMNAS_REVISION =
-  "grid grid-cols-[28px_136px_minmax(0,36rem)_56px_64px_84px_1fr] items-center gap-x-3";
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_56px_64px_84px] items-center gap-x-3";
 
 const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
