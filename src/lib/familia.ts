@@ -229,3 +229,25 @@ export function familiaMeta(f: Familia | string): FamiliaMeta {
 
   return { ...FALLBACK, label: bonito(f) };
 }
+
+const planoFamilia = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .replace(/(ES|S)$/, "");
+
+/** La subfamilia de RPS, solo si dice algo que la familia no diga ya. RPS la
+ *  escribe a su manera ("PUERTAS", "TOLDO NUEVO"), y comparada a pelo contra
+ *  el id de la familia (`PUERTA`) una simple "S" la hacía distinta: la ficha
+ *  pintaba "Puertas · PUERTAS". Se compara contra el id y contra el nombre
+ *  visible, sin mayúsculas, acentos, espacios ni plural. */
+export function subfamiliaAparte(familia: string, subfamilia: string | null | undefined): string | null {
+  const sub = (subfamilia ?? "").trim();
+  if (!sub) return null;
+  const s = planoFamilia(sub);
+  const meta = familiaMeta(familia);
+  if (s === planoFamilia(familia) || s === planoFamilia(meta.label ?? "")) return null;
+  return sub;
+}

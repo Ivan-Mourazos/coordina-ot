@@ -49,6 +49,7 @@ import { useFocoModal } from "@/lib/useFocoModal";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { tintaSobre } from "@/lib/tinta";
 import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
+import { subfamiliaAparte } from "@/lib/familia";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -1225,12 +1226,12 @@ function OFRow({
             Es el detalle que le falta a la familia, que en RPS es muy ancha, y
             se enseña tal cual en vez de inventarle un sitio en nuestro
             catálogo. Solo si dice algo que la familia no diga ya. */}
-        {of.subfamilia && of.subfamilia.toUpperCase() !== of.familia.toUpperCase() && (
+        {subfamiliaAparte(of.familia, of.subfamilia) && (
           <span
             className="truncate text-[10px] uppercase tracking-wide text-text-muted"
             title="Subfamilia en RPS"
           >
-            {of.subfamilia}
+            {subfamiliaAparte(of.familia, of.subfamilia)}
           </span>
         )}
         {/* El estado, y en las anuladas también POR QUÉ: "ANULADA · TALLER".
