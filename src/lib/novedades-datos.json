@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-21",
-    "hasta": "138a3e6",
+    "hasta": "53ce3bd",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -45,6 +45,15 @@
         "tipo": "mejor",
         "titulo": "Las explicaciones al pasar el ratón salen al momento y se leen mejor en toda la web",
         "detalle": "También al llegar con el tabulador."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las pestañas de arriba tienen relieve, como los botones",
+        "detalle": "La que tienes abierta sobresale en amarillo; las demás asoman al pasar el ratón."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al pasar el ratón por los pedidos del panel ya no salta la pista"
       }
     ]
   },
