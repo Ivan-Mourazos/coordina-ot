@@ -50,6 +50,7 @@ import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { tintaSobre } from "@/lib/tinta";
 import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
 import { subfamiliaAparte } from "@/lib/familia";
+import { Pista } from "./Pista";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -1665,14 +1666,29 @@ function AccionesOF({
   const sueltas = enCajon.length > 1 ? aLaVista : acciones;
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
+  // La OF es de otra persona: los dos botones que se le ofrecen ("Coger" y
+  // fichar) se explican al pasar el ratón, porque juntos no se entiende en
+  // qué se diferencian.
+  const autorAjeno = of.autorId !== null && of.autorId !== miId
+    ? (operarios.find((o) => o.id === of.autorId)?.nombre ?? "otra persona")
+    : null;
+
   return (
     <div className="mt-2.5 flex flex-wrap gap-2">
       {/* Coger, delante: sobre la OF de otra persona es lo primero que se
           plantea. Fichar sigue al lado para quien solo quiere echar una mano. */}
       {onCoger && (
-        <Btn tone="ghost" onClick={onCoger} title="Pasa esta OF a tu panel. Pregunta antes.">
-          Coger
-        </Btn>
+        <Pista
+          lado="abajo"
+          texto="Coger: te la quedas"
+          detalle={`Pasa a tu panel y sale del de ${autorAjeno ?? "su autor"}. El tiempo que ya echó sigue siendo suyo. Pregunta antes.`}
+        >
+          <span className="inline-flex">
+            <Btn tone="ghost" onClick={onCoger}>
+              Coger
+            </Btn>
+          </span>
+        </Pista>
       )}
       {/* "La ficho YO", no "la ficha alguien": con `of.fichandoRol` salía
           "Pausar" también sobre el reloj de otra persona (el revisor, o
@@ -1688,26 +1704,42 @@ function AccionesOF({
           ⏸ Pausar
         </Btn>
       ) : esFichable(of) && relojEsMio ? (
-        <Btn
-          tone={rolReloj === "revisar" ? "revisar" : "reloj"}
-          // El texto dice de qué reloj se habla: sobre una OF en revisión el
-          // botón hablaba de "empezar el planteo", que es otro trabajo y de
-          // otra persona.
-          title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
-            rolReloj === "revisar" ? "la revisión" : "el planteo"
-          } de esta OF`}
-          onClick={() => onFichar([of.id], rolReloj)}
-        >
-          {/* El rótulo dice DE QUÉ reloj se habla. "Reanudar" a secas sobre una
-              OF en revisión se leía como volver a tu planteo. */}
-          {rolReloj === "revisar"
-            ? yaEmpezada
-              ? "▶ Reanudar revisión"
-              : "⏱ Fichar revisión"
-            : yaEmpezada
-              ? "▶ Reanudar"
-              : "⏱ Fichar"}
-        </Btn>
+        autorAjeno && rolReloj !== "revisar" ? (
+          // En la OF de otra persona, fichar es ECHARLE UNA MANO: tu reloj en
+          // su OF, sin quedártela. Al lado de "Coger" no se distinguía.
+          <Pista
+            lado="abajo"
+            texto="Fichar: le echas una mano"
+            detalle={`Tu tiempo cuenta a tu nombre en esta OF, pero sigue siendo de ${autorAjeno}. Si te la quieres quedar, «Coger».`}
+          >
+            <span className="inline-flex">
+              <Btn tone="reloj" onClick={() => onFichar([of.id], rolReloj)}>
+                {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
+              </Btn>
+            </span>
+          </Pista>
+        ) : (
+          <Btn
+            tone={rolReloj === "revisar" ? "revisar" : "reloj"}
+            // El texto dice de qué reloj se habla: sobre una OF en revisión el
+            // botón hablaba de "empezar el planteo", que es otro trabajo y de
+            // otra persona.
+            title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
+              rolReloj === "revisar" ? "la revisión" : "el planteo"
+            } de esta OF`}
+            onClick={() => onFichar([of.id], rolReloj)}
+          >
+            {/* El rótulo dice DE QUÉ reloj se habla. "Reanudar" a secas sobre una
+                OF en revisión se leía como volver a tu planteo. */}
+            {rolReloj === "revisar"
+              ? yaEmpezada
+                ? "▶ Reanudar revisión"
+                : "⏱ Fichar revisión"
+              : yaEmpezada
+                ? "▶ Reanudar"
+                : "⏱ Fichar"}
+          </Btn>
+        )
       ) : (
         of.estado !== "aprobada" &&
         of.estado !== "anulada" &&
