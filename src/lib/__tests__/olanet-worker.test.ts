@@ -133,6 +133,33 @@ describe("drenarCola en modo activo", () => {
     expect(bono.enviadoAt).not.toBeNull();
     expect(bono.error).toContain("DESCARTADO");
   });
+
+  it("si OLANET no responde, el evento NO gasta intentos ni se descarta", async () => {
+    // Lo que pasó el 21/09: OLANET estuvo sin responder casi tres horas, cada
+    // vuelta del minuto contaba un intento y a los cinco se tiraba el bono.
+    // Se perdieron tramos de varios técnicos, y la web los siguió contando
+    // porque nunca llegaron a RPS. Un corte de red no es culpa del evento.
+    const caida = Object.assign(new Error("Failed to connect to 192.168.4.113:54325 in 10000ms"), {
+      name: "ConnectionError",
+      code: "ETIMEOUT",
+    });
+    outbox.encolarFichaje("alberto", [
+      iv("2026-08-03T12:00:00Z", "2026-08-03T12:30:00Z", ["0230700:1"], "alberto"),
+    ]);
+    insertarBono.mockRejectedValue(caida);
+
+    for (let i = 0; i < 12; i++) await worker.drenarCola();
+
+    const bono = outbox.leerPendientes().find((p) => p.tipo === "bono" && p.datos.of === "0230700");
+    expect(bono).toBeDefined(); // sigue en la cola
+    expect(bono!.intentos).toBe(0);
+    expect(bono!.error).toContain("Failed to connect");
+
+    // Y cuando vuelve, sale.
+    insertarBono.mockReset().mockResolvedValue(undefined);
+    await worker.drenarCola();
+    expect(outbox.leerPendientes().find((p) => p.datos.of === "0230700")).toBeUndefined();
+  });
 });
 
 describe("modo ensayo", () => {

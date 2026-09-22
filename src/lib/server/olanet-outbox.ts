@@ -330,11 +330,14 @@ export function marcarEnviados(ids: readonly number[]): void {
   })();
 }
 
-/** Deja constancia del fallo sin marcar como enviado: se reintentará. */
-export function marcarError(id: number, mensaje: string): void {
+/** Deja constancia del fallo sin marcar como enviado: se reintentará.
+ *
+ *  `contar: false` apunta el error SIN gastar un intento: es para cuando
+ *  OLANET no responde, que no es culpa del evento (ver `esCaidaDeOlanet`). */
+export function marcarError(id: number, mensaje: string, { contar = true } = {}): void {
   getDb()
     .prepare(
-      "UPDATE olanet_pendiente SET error = ?, intentos = intentos + 1 WHERE id = ?",
+      `UPDATE olanet_pendiente SET error = ?, intentos = intentos + ${contar ? 1 : 0} WHERE id = ?`,
     )
     .run(mensaje.slice(0, 1000), id);
 }

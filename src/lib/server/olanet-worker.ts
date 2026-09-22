@@ -106,6 +106,23 @@ async function enviarUno(p: Pendiente): Promise<boolean> {
   return true;
 }
 
+/** ¿El fallo es que OLANET no responde, y no algo del propio evento?
+ *
+ *  El 21/09 OLANET estuvo casi tres horas sin contestar. Cada vuelta del minuto
+ *  contaba un intento y a los cinco el bono se descartaba: se perdieron tramos
+ *  de varios técnicos, que no llegaron a RPS y la web siguió sumando por su
+ *  cuenta. Un corte de red se arregla solo; descartar por él no.
+ *
+ *  `ConnectionError` es la clase de mssql para no poder abrir la conexión
+ *  (red, puerto, login). Un `RequestError` —la consulta llegó y SQL Server la
+ *  rechazó— sí es del evento, y ese sigue gastando intentos. */
+export function esCaidaDeOlanet(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  if (e.name === "ConnectionError") return true;
+  const code = (e as { code?: unknown }).code;
+  return code === "ESOCKET" || code === "ECONNCLOSED" || code === "ECONNRESET" || code === "ECONNREFUSED";
+}
+
 async function drenarColaUnaVez(): Promise<number> {
   if (modoFichaje() === "sombra") return 0;
 
@@ -116,6 +133,14 @@ async function drenarColaUnaVez(): Promise<number> {
       if (await enviarUno(p)) enviados.push(p.id);
     } catch (e) {
       const mensaje = e instanceof Error ? e.message : String(e);
+      if (esCaidaDeOlanet(e)) {
+        // OLANET no está: no es culpa del evento y no gasta intento. Se para
+        // la vuelta entera —los de detrás fallarían igual— y la siguiente
+        // vuelve a probar desde este mismo.
+        marcarError(p.id, mensaje, { contar: false });
+        console.error(`[olanet] sin conexión, el evento ${p.id} espera:`, mensaje);
+        break;
+      }
       marcarError(p.id, mensaje);
       if (p.intentos + 1 >= MAX_INTENTOS) {
         descartar(p.id, `${MAX_INTENTOS} intentos fallidos — ${mensaje}`);
