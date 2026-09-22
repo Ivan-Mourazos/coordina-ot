@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-22",
+    "hasta": "9c116b9",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido podía marcar más tiempo que el que tiene RPS",
+        "detalle": "Si el servidor de fichajes se caía un rato, parte del tiempo fichado no llegaba a RPS. Ahora espera a que vuelva, y lo del 21/09 se ha recuperado."
+      }
+    ]
+  },
+  {
     "id": "2026-09-21",
     "hasta": "aa1b492",
     "cambios": [
