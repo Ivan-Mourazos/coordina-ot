@@ -328,23 +328,3 @@ export function motivoNoFichable(of: OF): string | null {
 export function ofsFichables(p: { ofs: OF[] }): OF[] {
   return p.ofs.filter(esFichable);
 }
-
-/** De cada OF, solo su primera tarea: la que toca hacer ahora.
- *
- *  Para los botones que fichan VARIAS de golpe (la fila del panel, "Fichar las
- *  N"). Una OF de rotulación trae en Diseño Gráfico dos tareas, diseñar y
- *  cortar, y ficharlas juntas repartiría el tiempo del diseño a medias con el
- *  corte, que todavía no se está haciendo. Se queda la primera en el orden de
- *  la ruta —el servidor ya las manda así (ver `unaFilaPorOF`)—; la otra se
- *  ficha desde su propia tarjeta cuando llegue.
- *
- *  Va DESPUÉS de filtrar lo fichable: si la primera ya no admite reloj, la
- *  siguiente pasa a ser la que toca. */
-export function unaTareaPorOF(ofs: readonly OF[]): OF[] {
-  const vistas = new Set<string>();
-  return ofs.filter((o) => {
-    if (vistas.has(o.codigo)) return false;
-    vistas.add(o.codigo);
-    return true;
-  });
-}

@@ -1705,11 +1705,7 @@ export function Board({
      *  En piezas y no en una cadena ya pegada: el cuadro las pinta con pesos
      *  distintos —el código de pedido en mono, el cliente al lado en normal—, y
      *  con `"AAA · BBB"` hecho de antemano no hay forma de separarlos. */
-    porPedido: {
-      codigo: string;
-      cliente: string;
-      ofs: { id: string; codigo: string; descripcion: string; tarea?: string }[];
-    }[];
+    porPedido: { codigo: string; cliente: string; ofs: { codigo: string; descripcion: string }[] }[];
     total: number;
     /** Cuántas de esas ya estaban corriendo antes de pulsar. */
     yaCorrian: number;
@@ -1832,7 +1828,7 @@ export function Board({
             cliente: p.cliente,
             ofs: p.ofs
               .filter((of) => ids.has(of.id))
-              .map((of) => ({ id: of.id, codigo: of.codigo, descripcion: of.descripcion, tarea: of.tarea })),
+              .map((of) => ({ codigo: of.codigo, descripcion: of.descripcion })),
           }))
           .filter((g) => g.ofs.length > 0);
         setFichajeVariasPendiente({
@@ -2741,9 +2737,9 @@ Le llegará el aviso de que ya no lo lleva.`
                       van separados por uno—. */}
                   <ul className="mt-1 flex flex-col gap-0.5 pl-3">
                     {g.ofs.map((of) => (
-                      <li key={of.id} className="flex items-baseline gap-1.5 text-xs">
+                      <li key={of.codigo} className="flex items-baseline gap-1.5 text-xs">
                         <span className="font-mono text-text-muted">{of.codigo}</span>
-                        <span className="truncate">{of.tarea ?? of.descripcion}</span>
+                        <span className="truncate">{of.descripcion}</span>
                       </li>
                     ))}
                   </ul>

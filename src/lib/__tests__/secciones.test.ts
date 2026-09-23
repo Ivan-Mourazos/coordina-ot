@@ -5,6 +5,7 @@ import {
   esFaseDe,
   esSeccionId,
   recursosSql,
+  recursosDeTrabajoSql,
   seccionDe,
   condicionMaquinaSql,
 } from "../secciones";
@@ -129,14 +130,23 @@ describe("secciones en obras", () => {
 });
 
 describe("los plóters de corte son de Diseño Gráfico", () => {
-  it("una fase de plóter es suya, aunque su nombre no lleve DGRA", () => {
-    // Es el caso por el que `marcasEnFases` es una lista: "P-PCUS" no contiene
-    // "DGRA" por ningún lado, así que con un solo trozo el corte de vinilo no
-    // aparecía en su tablero. Comprobado en OLANET el 17/09/2026: 24 fases
-    // vivas en P-PCUS contra 50 en A-DGRA.
+  it("su tiempo cuenta para Diseño", () => {
+    // Sin P-PCUS en `recursos`, las horas del corte se contaban a Taller.
+    expect(recursosSql(SECCIONES.diseno)).toContain("'p-pcus'");
+  });
+
+  it("pero el corte no sale en su tablero: se ficha en la máquina", () => {
+    // Lo pidieron el 23/09/2026, después de que Carrón fichara el diseño de
+    // 0232394 en la tarea de cortar. Con ver el tiempo en el pedido les basta.
+    expect(recursosDeTrabajoSql(SECCIONES.diseno)).toBe("'a-dgra','dgra-a'");
     for (const m of ["P-PCUS", "U-P-PCUS"]) {
-      expect(esFaseDe(m, SECCIONES.diseno)).toBe(true);
+      expect(esFaseDe(m, SECCIONES.diseno)).toBe(false);
     }
+    expect(esFaseDe("A-DGRA", SECCIONES.diseno)).toBe(true);
+  });
+
+  it("en OT el tablero usa todos sus recursos", () => {
+    expect(recursosDeTrabajoSql(SECCIONES.ot)).toBe(recursosSql(SECCIONES.ot));
   });
 
   it("y no arrastran los demás plóters, que no son suyos", () => {
@@ -163,8 +173,9 @@ describe("los plóters de corte son de Diseño Gráfico", () => {
     // Sin parámetros no hay nada interpolado en el SQL, y quien ejecuta los
     // tipa como VarChar: un texto sin tipo viaja como nvarchar contra una
     // columna varchar y SQL Server tira el índice (5.522 ms contra 8).
-    const { sql: cond, params } = condicionMaquinaSql(SECCIONES.diseno);
-    expect(params.map((p) => p.valor)).toEqual(["%DGRA%", "%P-PCUS%"]);
+    const conDos = { ...SECCIONES.diseno, marcasEnFases: ["DGRA", "OTRA"] };
+    const { sql: cond, params } = condicionMaquinaSql(conDos);
+    expect(params.map((p) => p.valor)).toEqual(["%DGRA%", "%OTRA%"]);
     expect(cond).toBe(
       "MaquinaTeo LIKE @marca0 OR MaquinaTeo LIKE @marca1",
     );

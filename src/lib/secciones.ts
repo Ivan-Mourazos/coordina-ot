@@ -34,15 +34,15 @@ export interface Seccion {
   /** Los códigos de `CPRMOResourceMachine` que son suyos. En minúsculas: así
    *  se comparan en las consultas, y SQL Server no distingue mayúsculas. */
   recursos: readonly string[];
-  /** De `recursos`, los que van DETRÁS en una OF que trae más de una tarea de
-   *  la sección. Ausente = ninguno, y manda el número de tarea.
+  /** De `recursos`, los que cuentan TIEMPO pero no son trabajo del tablero.
+   *  Ausente = ninguno: todo lo de la sección sale en su tablero.
    *
-   *  Diseño Gráfico: en una OF de rotulación primero se diseña (A-DGRA) y luego
-   *  se corta en el plóter (P-PCUS). El número de tarea NO lo dice: en
-   *  0232394 diseñar es la 6 y cortar la 10, pero en 0232360 cortar es la 10 y
-   *  diseñar la 11. Y de este orden depende qué se ficha al pulsar el botón de
-   *  la fila, que coge una sola tarea por OF (ver `unaTareaPorOF`). */
-  recursosAlFinal?: readonly string[];
+   *  Diseño Gráfico y el plóter de corte (P-PCUS): el corte es suyo y sus
+   *  minutos se les cuentan a ellos, pero se ficha en la propia máquina, así
+   *  que en la web no lo van a fichar nunca. Lo dijeron el 23/09/2026, después
+   *  de que Carrón fichara el diseño de 0232394 en el corte: con ver el tiempo
+   *  les basta, y la tarea en el tablero solo servía para equivocarse. */
+  recursosSoloTiempo?: readonly string[];
   /** La máquina con la que se escriben sus bonos en OLANET. */
   maquina: string;
   /** De dónde sale su lista de trabajo pendiente.
@@ -170,16 +170,16 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // Carrón 534, contra 5 de Manuel; en P-PCMU es al revés, 38 de Manuel
     // contra 5 de Smith y ninguno de Carrón. P-PCMU es de Impresión Digital.
     recursos: ["a-dgra", "dgra-a", "p-pcus"],
-    recursosAlFinal: ["p-pcus"],
+    // Pero el corte NO sale en el tablero: se ficha en la máquina. Ver
+    // `recursosSoloTiempo`.
+    recursosSoloTiempo: ["p-pcus"],
     maquina: "A-DGRA",
-    // La mesa de diseño y los dos plóters de corte. Que el corte de vinilo es
-    // trabajo suyo lo dijeron ellos y lo confirma RPS: desde junio, los ÚNICOS
-    // que fichan en P-PCUS son Smith (48), Carrón (88) y Manuel Gómez (22).
-    // Ni una imputación de Taller ni de OT.
-    // El trozo va con el prefijo `P-` a propósito, y no como "PCUS" suelto:
-    // así entran las urgencias (`U-P-PCUS` lleva `P-PCUS` dentro) y se queda
-    // fuera la errata `P-PCCUS`, que tiene una C de más y una sola tarea.
-    marcasEnFases: ["DGRA", "P-PCUS"],
+    // Solo la mesa de diseño. El plóter de corte estuvo aquí del 17/09 al
+    // 23/09/2026 ("P-PCUS"), para que los pedidos donde solo quedaba cortar
+    // salieran en su tablero; no lo quieren, porque el corte se ficha en la
+    // máquina (ver `recursosSoloTiempo`). Sin él, la web tampoco cierra esas
+    // fases al pasar un pedido: las cierra quien corta.
+    marcasEnFases: ["DGRA"],
     // Las seis, en el orden en que las quieren ver. Se escriben TODAS y no
     // solo las dos que se mueven: una lista parcial invita a que la siguiente
     // fase que se añada se quede fuera sin que nadie lo note, y una fase fuera
@@ -223,7 +223,20 @@ export function seccionDe(v: unknown): Seccion {
  *  La comilla se dobla igualmente. No hace falta hoy y no debería hacer falta
  *  nunca; es para que quien añada una sección no tenga que acordarse. */
 export function recursosSql(s: Seccion): string {
-  return s.recursos.map((r) => `'${r.replace(/'/g, "''")}'`).join(",");
+  return listaSql(s.recursos);
+}
+
+/** Los recursos cuyas tareas salen en el TABLERO de la sección: `recursos`
+ *  menos los que solo cuentan tiempo (ver `recursosSoloTiempo`). Para las
+ *  consultas de trabajo pendiente; el tiempo se sigue sumando con
+ *  `recursosSql`. */
+export function recursosDeTrabajoSql(s: Seccion): string {
+  const fuera = new Set(s.recursosSoloTiempo ?? []);
+  return listaSql(s.recursos.filter((r) => !fuera.has(r)));
+}
+
+function listaSql(recursos: readonly string[]): string {
+  return recursos.map((r) => `'${r.replace(/'/g, "''")}'`).join(",");
 }
 
 /** ¿Esta fase es de esta sección? Mira el nombre del centro, que es lo único

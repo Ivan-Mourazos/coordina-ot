@@ -1,5 +1,5 @@
 import { accionesDisponibles, type AccionOF } from "./acciones";
-import { ofsFichables, rolFichajeDe, unaTareaPorOF } from "./fichaje";
+import { ofsFichables, rolFichajeDe } from "./fichaje";
 import type { ConOFs } from "./fases-tablero";
 import type { OF, Rol } from "./types";
 
@@ -45,9 +45,7 @@ export function ofsPara(p: ConOFs, accion: AccionOF): OF[] {
  *  historial.
  *
  *  La regla de qué es fichable vive en `ofsFichables` (lib/fichaje.ts); aquí
- *  solo se añade el filtro por rol, y que de cada OF entre una sola tarea (ver
- *  `unaTareaPorOF`): la fila ficha de golpe, y el diseño no se reparte con el
- *  corte. */
+ *  solo se añade el filtro por rol. */
 export function ofsFichablesDe(p: ConOFs, rol: Rol): OF[] {
-  return unaTareaPorOF(ofsFichables(p).filter((o) => rolFichajeDe(o) === rol));
+  return ofsFichables(p).filter((o) => rolFichajeDe(o) === rol);
 }

@@ -2,7 +2,7 @@ import sql from "mssql";
 import {
   SECCIONES,
   SECCION_POR_DEFECTO,
-  recursosSql,
+  recursosDeTrabajoSql,
   type Seccion,
   type SeccionId,
 } from "../secciones";
@@ -36,9 +36,6 @@ interface FilaVista {
   OF: string | null;
   CodTarea: string | null;
   Tarea: string | null;
-  /** El recurso de la sección por el que entra la tarea (A-DGRA, P-PCUS…).
-   *  Decide el orden de las tareas de una misma OF: ver `recursosAlFinal`. */
-  Recurso?: string | null;
   Pedido: string | null;
   Cliente: string | null;
   Articulo: string | null;
@@ -397,52 +394,18 @@ export function esTareaDeTaller(tarea: string | null): boolean {
  *
  *  Lo que no comparten las filas es de la tarea, no de la OF (descripción de la
  *  MO, tiempo previsto), así que no hay nada que sumar al fusionar: el tiempo
- *  previsto de una tarea de taller no es tiempo de Oficina Técnica.
- *
- *  LO QUE SE FUSIONA ES LA DE TALLER, NO CUALQUIER SEGUNDA TAREA. Dos tareas
- *  que sí son de la sección son dos trabajos, y se quedan las dos. Pasa en
- *  Diseño Gráfico desde que el plóter de corte es suyo (17/09/2026): una OF de
- *  rotulación trae la 6 (diseñar, A-DGRA) y la 10 (cortar, P-PCUS). Fusionando
- *  sobrevivía la primera que diera SQL Server —la consulta no ordena—, y el
- *  22/09 Carrón fichó el diseño de 0232394 en el corte sin poder elegir.
- *
- *  Las tareas de una misma OF salen en el orden en que se hacen: primero las
- *  que no `vaAlFinal` (el corte va detrás del diseño, lo diga o no el número;
- *  ver `Seccion.recursosAlFinal`) y, entre iguales, por CodTarea como NÚMERO
- *  ("10" detrás de "6"). La misma tarea repetida —la consulta cruza con las
- *  líneas del pedido— sale una vez. */
-export function unaFilaPorOF<
-  T extends { OF: string | null; Tarea: string | null; CodTarea?: string | null },
->(filas: readonly T[], vaAlFinal: (f: T) => boolean = () => false): T[] {
-  const porOF = new Map<string, T[]>();
+ *  previsto de una tarea de taller no es tiempo de Oficina Técnica. */
+export function unaFilaPorOF<T extends { OF: string | null; Tarea: string | null }>(
+  filas: readonly T[],
+): T[] {
+  const porOF = new Map<string, T>();
   for (const f of filas) {
-    const orden = (f.OF ?? "").trim();
-    porOF.set(orden, [...(porOF.get(orden) ?? []), f]);
-  }
-  return [...porOF.values()].flatMap((grupo) => {
-    const propias = grupo.filter((f) => !esTareaDeTaller(f.Tarea));
-    if (propias.length === 0) return [grupo[0]];
-    const porTarea = new Map<string, T>();
-    for (const f of propias) {
-      const cod = (f.CodTarea ?? "").trim();
-      if (!porTarea.has(cod)) porTarea.set(cod, f);
+    const ya = porOF.get((f.OF ?? "").trim());
+    if (!ya || (esTareaDeTaller(ya.Tarea) && !esTareaDeTaller(f.Tarea))) {
+      porOF.set((f.OF ?? "").trim(), f);
     }
-    return [...porTarea.values()].sort(
-      (a, b) =>
-        Number(vaAlFinal(a)) - Number(vaAlFinal(b)) ||
-        compararCodTarea((a.CodTarea ?? "").trim(), (b.CodTarea ?? "").trim()),
-    );
-  });
-}
-
-/** Orden de ruta entre dos CodTarea: numérico, con `localeCompare` para lo que
- *  no sea un número. "02" y "2" empatan como número y los desempata el texto,
- *  para que el orden no dependa de cómo lleguen. */
-export function compararCodTarea(a: string, b: string): number {
-  const na = Number(a);
-  const nb = Number(b);
-  if (a !== "" && b !== "" && Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
-  return a.localeCompare(b);
+  }
+  return [...porOF.values()];
 }
 
 /** Lo mínimo de una fila para cruzarla con lo que dice OLANET. Se declara
@@ -660,9 +623,6 @@ function descripcionDe(fila: FilaVista): string {
 }
 
 interface DatosOF {
-  /** La misma OF sale más de una vez en el pedido, una por tarea: entonces la
-   *  tarjeta lleva el nombre de la suya. Ver `OF.tarea`. */
-  variasTareas: boolean;
   /** undefined = nadie fichando; null = fichando alguien de fuera de OT. */
   fichandoOperario: string | null | undefined;
   /** Todo el material de la OF, con lo reservado de cada línea. */
@@ -730,7 +690,6 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     detenida: sit === "DETENIDA",
     fichable: permiteImputaciones(fila),
     ajenaOT: esTareaDeTaller(fila.Tarea),
-    tarea: datos.variasTareas ? (fila.Tarea ?? "").trim() || undefined : undefined,
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     // Lo RESERVADO se sigue contando aparte de lo asignado: son dos cosas
@@ -807,8 +766,7 @@ async function filasPorFase(
 
   const r = await pool.request().query<FilaVista>(`
     SELECT d.CodManufacturingOrder AS [OF], e.CodMOTask AS CodTarea,
-           e.Description AS Tarea, f.CodMOResourceMachine AS Recurso,
-           b.CodOrder AS Pedido, cli.Description AS Cliente,
+           e.Description AS Tarea, b.CodOrder AS Pedido, cli.Description AS Cliente,
            STR(a.Quantity, 3, 0) + ' - ' + fam.CodProductFamily AS Articulo,
            (CASE WHEN ISNULL(l.TextoRotulacion, 'nulo') = 'nulo' THEN NULL
                  ELSE l.TextoRotulacion END) AS Rotulacion,
@@ -831,7 +789,7 @@ async function filasPorFase(
       INNER JOIN dbo.CPRManufacturingOrderSituation AS sit WITH (NOLOCK)
         ON d.IDMOSituation = sit.IDManufacturingOrderSituation
       INNER JOIN dbo.CPRMOResourceMachine AS f WITH (NOLOCK)
-        ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosSql(seccion)})
+        ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosDeTrabajoSql(seccion)})
       LEFT OUTER JOIN dbo.FACOrderLineSL AS a WITH (NOLOCK)
         ON d.IDManufacturingOrder = a.IDManufacturingOrder
       LEFT OUTER JOIN dbo.FACOrderSL AS b WITH (NOLOCK) ON a.IDOrder = b.IDOrder
@@ -889,7 +847,7 @@ export async function fasesDeSeccionDelPedido(pedido: string, seccion: Seccion):
         FROM dbo.CPRMOTask e
         JOIN dbo.CPRManufacturingOrder d ON e.IDManufacturingOrder = d.IDManufacturingOrder
         JOIN dbo.CPRManufacturingOrderSituation sit ON d.IDMOSituation = sit.IDManufacturingOrderSituation
-        JOIN dbo.CPRMOResourceMachine f ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosSql(seccion)})
+        JOIN dbo.CPRMOResourceMachine f ON e.IDMOTask = f.IDMOTask AND f.CodMOResourceMachine IN (${recursosDeTrabajoSql(seccion)})
        WHERE d.CodCompany = '001' AND EXISTS (
          SELECT 1 FROM dbo.FACOrderLineSL l
          JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
@@ -1311,10 +1269,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     // ("0227526") y ahí las dos ordenaciones coinciden, pero uno sin rellenar
     // pondría "10" antes que "9". Con `localeCompare` de reserva para lo que
     // no sea un número.
-    const alFinal = new Set(seccion.recursosAlFinal ?? []);
-    const filas = unaFilaPorOF(grupo.filas, (f) =>
-      alFinal.has((f.Recurso ?? "").trim().toLowerCase()),
-    ).sort((a, b) => {
+    const filas = unaFilaPorOF(grupo.filas).sort((a, b) => {
       const ca = (a.OF ?? "").trim();
       const cb = (b.OF ?? "").trim();
       const na = Number(ca);
@@ -1407,10 +1362,9 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
       comentarioVenta: (venta?.comentario ?? "").trim() || undefined,
       ciudadEntrega: (venta?.ciudad ?? "").trim() || undefined,
       negocio: (venta?.negocio ?? "").trim() || undefined,
-      ofs: filas.map((f, _, todas) => {
+      ofs: filas.map((f) => {
         const orden = (f.OF ?? "").trim();
         const codTareaOT = (f.CodTarea ?? "").trim();
-        const variasTareas = todas.filter((o) => (o.OF ?? "").trim() === orden).length > 1;
         const clave = `${orden}:${codTareaOT}`;
         const ruta = tareasPorOF.get(orden) ?? [];
         const avisos = avisosDe(orden);
@@ -1427,7 +1381,6 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
           .filter((d): d is string => d !== null)
           .sort()[0];
         return aOF(f, {
-          variasTareas,
           fichandoOperario: abiertos.has(clave) ? abiertos.get(clave)! : undefined,
           materiales: materialesPorOF.get(orden) ?? [],
           compras: comprasPorOF.get(orden) ?? [],

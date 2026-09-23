@@ -33,7 +33,7 @@ import {
   etiquetaAccion,
   type AccionOF,
 } from "@/lib/acciones";
-import { esFichable, motivoNoFichable, rolFichajeDe, unaTareaPorOF } from "@/lib/fichaje";
+import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
@@ -377,11 +377,7 @@ export function Drawer({
   // Y solo PLANTEO: un fichaje corriendo tiene un único rol (ver el comentario
   // de `ofsFichablesDe`), así que meter aquí una OF que está en revisión le
   // ficharía la revisión como si fuera planteo, a nombre de quien pulse.
-  // Y de cada OF una sola tarea (ver `unaTareaPorOF`): diseñar y cortar son
-  // dos tarjetas, y fichar las dos a la vez repartiría el diseño con el corte.
-  const fichablesDeOT = unaTareaPorOF(
-    ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear"),
-  );
+  const fichablesDeOT = ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear");
   // Las de ESTE pedido que corren en MI reloj. `esFichable` no mira si la OF ya
   // se está fichando, así que sin esto el botón de arriba seguía diciendo
   // "Fichar las N" con el reloj ya en marcha: no cambiaba nunca a "Pausar".
@@ -1250,14 +1246,6 @@ function OFRow({
           </svg>
         )}
         <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
-        {/* Solo cuando la OF sale más de una vez en el pedido (diseñar y
-            cortar): es lo único que distingue una tarjeta de la otra, y sin
-            ello no se sabía en cuál se estaba fichando. */}
-        {of.tarea && (
-          <span className="truncate text-[11px] font-semibold text-text" title="Tarea de la ruta en RPS">
-            {of.tarea}
-          </span>
-        )}
         <FamiliaTag familia={of.familia} />
         {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
             Es el detalle que le falta a la familia, que en RPS es muy ancha, y
