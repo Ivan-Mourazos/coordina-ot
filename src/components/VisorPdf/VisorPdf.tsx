@@ -23,6 +23,10 @@ const MARGEN = 24;
  *  crecer con ella o el canto del visor la corta y se ve una raya. */
 const MARGEN_ARRIBA = 16;
 const MARGEN_PIE = 16;
+/** Sitio de la barra de scroll vertical, que se descuenta SIEMPRE del ancho,
+ *  haya barra o no. La del visor es la fina del navegador (~11 px); se deja
+ *  algo de holgura. Ver el efecto que mide el hueco. */
+const BARRA = 12;
 /** Rueda acumulada (px) que pasa de hoja: un golpe de ratón son ~100; el
  *  touchpad manda muchos de 2-10 y hay que sumarlos. */
 const UMBRAL_HOJA = 40;
@@ -85,14 +89,24 @@ export function VisorPdf({
   }, [valorZoom]);
 
   // El hueco disponible. ResizeObserver avisa también al empezar a observar,
-  // así que no hace falta medir a mano. `clientWidth` ya descuenta la barra de
-  // scroll, y `scrollbar-gutter: stable` evita que aparecer y desaparecer la
-  // barra haga bailar el encaje al ancho.
+  // así que no hace falta medir a mano.
+  //
+  // SE MIDE POR FUERA (`offsetWidth`/`offsetHeight`), SIN DESCONTAR LAS BARRAS
+  // QUE HAYA EN ESE MOMENTO. Con `clientWidth`/`clientHeight` el hueco cambiaba
+  // al aparecer una barra, y eso hacía un bucle: el parte girado desbordaba por
+  // poco, salía la barra horizontal, el hueco perdía 10 px de alto, la hoja
+  // encogía y dejaba de desbordar, la barra se iba, el hueco volvía… y la hoja
+  // vibraba sin parar (medido el 23/09/2026 con «Ajustar al ancho» y girado:
+  // alto 880↔890 y hoja 732↔744 px, a casi cualquier ancho de ventana). Ahora
+  // la barra vertical se descuenta siempre (`BARRA`), esté o no, y la
+  // horizontal cae sobre el margen de abajo: ninguna de las dos mueve la escala.
   useEffect(() => {
     if (!raiz) return;
-    const ro = new ResizeObserver(() =>
-      setHueco({ ancho: raiz.clientWidth - MARGEN * 2, alto: raiz.clientHeight - MARGEN_ARRIBA - MARGEN_PIE }),
-    );
+    const ro = new ResizeObserver(() => {
+      const ancho = raiz.offsetWidth - BARRA - MARGEN * 2;
+      const alto = raiz.offsetHeight - MARGEN_ARRIBA - MARGEN_PIE;
+      setHueco((h) => (h.ancho === ancho && h.alto === alto ? h : { ancho, alto }));
+    });
     ro.observe(raiz);
     return () => ro.disconnect();
   }, [raiz]);
@@ -144,8 +158,9 @@ export function VisorPdf({
         paso.acumulado = 0;
         paso.quietoHasta = ahora + QUIETO_TRAS_HOJA_MS;
         // Cada hoja mide exactamente una pantalla (su hueco más el aire entre
-        // dos), así que la hoja N empieza en N pantallas.
-        const alto = raiz!.clientHeight;
+        // dos), así que la hoja N empieza en N pantallas. Medida por fuera, como
+        // el hueco: con `clientHeight` una barra horizontal descuadraba el paso.
+        const alto = raiz!.offsetHeight;
         const actual = Math.round(raiz!.scrollTop / alto);
         raiz!.scrollTo({ top: (actual + sentido) * alto, behavior: "smooth" });
         return;
