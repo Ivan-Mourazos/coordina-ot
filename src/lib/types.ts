@@ -240,6 +240,14 @@ export interface FichajeWebOF {
   revisionMin: number;
 }
 
+/** Minutos por minuto de reloj que gana una OF mientras se ficha. Ver
+ *  `OF.ritmoVivo`. `porOperario` tiene la misma forma que `fichadoWeb`. */
+export interface RitmoVivoOF {
+  plantear: number;
+  revisar: number;
+  porOperario: FichajeWebOF[];
+}
+
 /** Orden de Fabricación: una unidad del pedido (p.ej. cada remolque). */
 export interface OF {
   id: string;
@@ -390,6 +398,19 @@ export interface OF {
    *  quién ha echado cada rato, y un total agregado obliga a atribuírselo a
    *  alguien a mano. Ordenado de más minutos a menos. */
   fichadoWeb?: FichajeWebOF[];
+  /** A qué ritmo SUBEN ahora mismo esos minutos: cuántos gana la OF por cada
+   *  minuto de reloj mientras alguien la está fichando (1 con una sola OF en el
+   *  reloj, ½ si se reparte entre dos). Por rol y por persona, igual que los
+   *  minutos que avanza.
+   *
+   *  Existe para que el tiempo se vea correr. Los minutos los calcula el
+   *  servidor y el navegador los pide cada 30 s, así que con la ficha abierta
+   *  —que es casi siempre, con el parte delante— el "Tiempo" se quedaba quieto
+   *  y avanzaba a saltos. Con esto el navegador lo adelanta por su cuenta
+   *  (ver lib/tiempo-vivo.ts) y cada vuelta del tablero lo corrige.
+   *
+   *  undefined = nadie la está fichando. */
+  ritmoVivo?: RitmoVivoOF;
   /** El desglose de ESOS mismos minutos, persona a persona, según RPS.
    *
    *  `tiempoPlanteoMin` es su suma, así que las dos cifras no pueden

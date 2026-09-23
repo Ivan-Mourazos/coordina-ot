@@ -1,6 +1,7 @@
 import type { Tablero } from "../data";
 import type { Intervalo } from "../fichaje";
 import { minutosOF, minutosPorOperarioOF, type Fichaje } from "../fichaje";
+import type { FichajeWebOF, RitmoVivoOF } from "../types";
 
 // ─── Tiempo de fichaje agregado por OF ───────────────────────────────────────
 // Suma pura: trata TODOS los intervalos (de todos los operarios) como una sola
@@ -29,6 +30,33 @@ export interface OpcionesTiempos {
   dobleFichaje: boolean;
 }
 
+/** A qué ritmo sube ahora cada OF: los tramos ABIERTOS que la llevan, cada uno
+ *  repartido entre sus OF como en `minutosOF`. Ver `OF.ritmoVivo`. */
+function ritmosVivos(intervalos: Intervalo[]): Map<string, RitmoVivoOF> {
+  const porOF = new Map<string, RitmoVivoOF>();
+  for (const iv of intervalos) {
+    if (iv.fin !== null || iv.ofIds.length === 0) continue;
+    const parte = 1 / iv.ofIds.length;
+    for (const id of iv.ofIds) {
+      const r = porOF.get(id) ?? { plantear: 0, revisar: 0, porOperario: [] };
+      let op: FichajeWebOF | undefined = r.porOperario.find((o) => o.operarioId === iv.operarioId);
+      if (!op) {
+        op = { operarioId: iv.operarioId, planteoMin: 0, revisionMin: 0 };
+        r.porOperario.push(op);
+      }
+      if (iv.rol === "plantear") {
+        r.plantear += parte;
+        op.planteoMin += parte;
+      } else {
+        r.revisar += parte;
+        op.revisionMin += parte;
+      }
+      porOF.set(id, r);
+    }
+  }
+  return porOF;
+}
+
 export function aplicarTiemposFichaje(
   tablero: Tablero,
   intervalos: Intervalo[],
@@ -37,6 +65,7 @@ export function aplicarTiemposFichaje(
 ): Tablero {
   if (intervalos.length === 0) return tablero;
   const f: Fichaje = { intervalos };
+  const ritmos = ritmosVivos(intervalos);
   return {
     operarios: tablero.operarios,
     pedidos: tablero.pedidos.map((p) => {
@@ -46,11 +75,13 @@ export function aplicarTiemposFichaje(
         const revisionWeb = minutosOF(f, of.id, { rol: "revisar", ahora });
         if (planteoWeb === 0 && revisionWeb === 0) return of;
         cambiado = true;
+        const ritmoVivo = ritmos.get(of.id);
         const base = {
           ...of,
           planteoWebMin: planteoWeb,
           revisionWebMin: revisionWeb,
           fichadoWeb: minutosPorOperarioOF(f, of.id, { ahora }),
+          ritmoVivo,
         };
 
         if (!opciones.dobleFichaje) {
@@ -68,10 +99,13 @@ export function aplicarTiemposFichaje(
         // herramienta vieja entró como planteo.
         const web = planteoWeb + revisionWeb;
         const rps = of.tiempoPlanteoMin;
+        // Cuando manda RPS, el total no sigue a la web: no hay ritmo que
+        // adelantar, y adelantarlo contaría minutos que no se van a enseñar.
         return web >= rps
           ? { ...base, tiempoPlanteoMin: planteoWeb, tiempoRevisionMin: revisionWeb }
           : {
               ...base,
+              ritmoVivo: undefined,
               tiempoPlanteoMin: Math.max(0, rps - revisionWeb),
               tiempoRevisionMin: revisionWeb,
             };

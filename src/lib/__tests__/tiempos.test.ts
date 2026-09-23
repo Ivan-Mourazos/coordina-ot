@@ -163,3 +163,55 @@ describe("reparto entre varias OF, sean del pedido que sean", () => {
     expect(out.pedidos[0].ofs.map((o) => o.planteoWebMin)).toEqual([180, 60]);
   });
 });
+
+// ─── El ritmo al que sube el tiempo mientras se ficha ────────────────────────
+// Con la ficha abierta el "Tiempo" se quedaba quieto hasta la siguiente vuelta
+// del tablero (30 s) y avanzaba a saltos. El servidor dice a qué ritmo sube
+// cada OF y el navegador lo adelanta (ver lib/tiempo-vivo.ts).
+describe("ritmoVivo", () => {
+  const abierto = (ofIds: string[], rol: Intervalo["rol"] = "plantear", operarioId = "a"): Intervalo => ({
+    inicio: "2026-07-22T19:00:00.000Z",
+    fin: null,
+    ofIds,
+    rol,
+    operarioId,
+  });
+
+  test("una OF sola en el reloj sube un minuto por minuto", () => {
+    const [o] = aplicarTiemposFichaje(tablero([of("OF-1")]), [abierto(["OF-1"])], AHORA, ACTIVO).pedidos[0].ofs;
+    expect(o.ritmoVivo).toEqual({
+      plantear: 1,
+      revisar: 0,
+      porOperario: [{ operarioId: "a", planteoMin: 1, revisionMin: 0 }],
+    });
+  });
+
+  test("repartido entre dos OF, medio minuto cada una", () => {
+    const ofs = aplicarTiemposFichaje(tablero([of("OF-1"), of("OF-2")]), [abierto(["OF-1", "OF-2"])], AHORA, ACTIVO)
+      .pedidos[0].ofs;
+    expect(ofs.map((o) => o.ritmoVivo?.plantear)).toEqual([0.5, 0.5]);
+  });
+
+  test("dos personas a la vez suman, cada una en su rol", () => {
+    const [o] = aplicarTiemposFichaje(
+      tablero([of("OF-1")]),
+      [abierto(["OF-1"], "plantear", "a"), abierto(["OF-1"], "revisar", "b")],
+      AHORA,
+      ACTIVO,
+    ).pedidos[0].ofs;
+    expect(o.ritmoVivo?.plantear).toBe(1);
+    expect(o.ritmoVivo?.revisar).toBe(1);
+    expect(o.ritmoVivo?.porOperario).toHaveLength(2);
+  });
+
+  test("con el reloj parado no hay ritmo", () => {
+    const [o] = aplicarTiemposFichaje(tablero([of("OF-1")]), [iv(8, 9, ["OF-1"])], AHORA, ACTIVO).pedidos[0].ofs;
+    expect(o.ritmoVivo).toBeUndefined();
+  });
+
+  test("en pruebas, si manda RPS el total no sigue a la web y no hay ritmo", () => {
+    // 60 min en la web contra 500 de RPS: el total es el de RPS y no se mueve.
+    const [o] = aplicarTiemposFichaje(tablero([of("OF-1", 500)]), [abierto(["OF-1"])], AHORA, PRUEBAS).pedidos[0].ofs;
+    expect(o.ritmoVivo).toBeUndefined();
+  });
+});

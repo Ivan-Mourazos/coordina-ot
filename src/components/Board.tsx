@@ -47,7 +47,8 @@ import {
   avisaParteNuevo,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
-import { desfaseDeCabecera } from "@/lib/reloj-servidor";
+import { ahoraDelServidor, desfaseDeCabecera } from "@/lib/reloj-servidor";
+import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
@@ -257,7 +258,13 @@ export function Board({
   // dos secciones y necesita ver la de diseño sin dejar de ser Ángel. `null` =
   // todavía no ha elegido nada, así que manda la suya (ver el efecto de abajo).
   const [seccionVista, setSeccionVista] = useState<SeccionId | null>(leerSeccionGuardada);
-  const [pedidos, setPedidos] = useState<Pedido[]>(initial);
+  // Los pedidos TAL CUAL llegan del servidor. Lo que se pinta es `pedidos`,
+  // más abajo: estos mismos con el tiempo que sigue corriendo adelantado (ver
+  // lib/tiempo-vivo.ts). Las mutaciones trabajan siempre sobre estos, para no
+  // guardar como dato un adelanto que la siguiente vuelta va a recalcular.
+  const [pedidosBase, setPedidos] = useState<Pedido[]>(initial);
+  /** Hora del servidor a la que se calcularon los minutos de `pedidosBase`. */
+  const [calculadoAt, setCalculadoAt] = useState<string | undefined>(undefined);
   // Espejo síncrono del estado: las mutaciones calculan su resultado sobre él
   // ANTES del re-render (para persistir el snapshot exacto) y el polling lo
   // usa sin meter `pedidos` en dependencias de callbacks estables.
@@ -403,6 +410,36 @@ export function Board({
   // otro, que en realidad cortaria el mio.
   const ofIdsFichandoYo = useMemo(() => new Set(abierto(fichaje)?.ofIds ?? []), [fichaje]);
 
+  // ── El tiempo que se ve correr ────────────────────────────────────────────
+  // El tablero llega cada 30 s y con él los minutos de cada OF; entre medias,
+  // con la ficha y el parte abiertos, el "Tiempo" se quedaba quieto y saltaba.
+  // Se adelanta aquí, en un solo sitio, y todo lo que pinta `pedidos` —ficha,
+  // filas, zonas— lo hereda. Cada 5 s basta: se enseñan minutos.
+  const propio = useMemo<FichajePropio | undefined>(
+    () => (miId ? { operarioId: miId, intervalos: fichaje.intervalos } : undefined),
+    [miId, fichaje],
+  );
+  const [ahoraVivo, setAhoraVivo] = useState(() => Date.now());
+  const corriendo = hayTiempoVivo(pedidosBase, propio);
+  useEffect(() => {
+    if (!corriendo) return;
+    // El primer tick enseguida y no a los 5 s: al fichar, el tiempo tiene que
+    // empezar a moverse ya. Va en un timeout para no pintar dentro del efecto.
+    const primero = setTimeout(() => setAhoraVivo(Date.now()), 0);
+    const id = setInterval(() => setAhoraVivo(Date.now()), 5_000);
+    return () => {
+      clearTimeout(primero);
+      clearInterval(id);
+    };
+  }, [corriendo]);
+  const pedidos = useMemo(
+    () =>
+      corriendo
+        ? adelantarTiempos(pedidosBase, calculadoAt, ahoraDelServidor(desfaseServidor, ahoraVivo), propio)
+        : pedidosBase,
+    [corriendo, pedidosBase, calculadoAt, desfaseServidor, ahoraVivo, propio],
+  );
+
   // Avisos de movimiento: no se pueden deducir del tablero (una OF traspasada
   // no guarda de quién venía), así que se piden aparte. Mismo ritmo que el
   // polling del tablero, que es donde se notaría el cambio.
@@ -547,7 +584,8 @@ export function Board({
           else if (versionCargada.current !== version) setHayVersionNueva(true);
         }
 
-        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[] };
+        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string };
+        setCalculadoAt(t.calculadoAt);
         const ab = abierto(fichajeRef.current);
         setPedidosSync(
           t.pedidos.map((p) => ({

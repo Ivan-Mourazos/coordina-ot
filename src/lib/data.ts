@@ -16,6 +16,9 @@ export interface Tablero {
    *  tiempos y para sacar el cartel del periodo de pruebas; el cálculo de los
    *  minutos ya lo resuelve `aplicarTiemposFichaje`. */
   dobleFichaje?: boolean;
+  /** La hora del servidor a la que se calcularon los minutos de fichaje. Desde
+   *  ella adelanta el navegador los que siguen corriendo (ver `OF.ritmoVivo`). */
+  calculadoAt?: string;
 }
 
 /** El tablero de una sección. Sin decir cuál, la de siempre (Oficina Técnica):
@@ -50,10 +53,11 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
     const { aplicarTiemposFichaje } = await import("./server/tiempos");
     const { modoFichaje } = await import("./server/olanet-outbox");
     const dobleFichaje = modoFichaje() !== "activo";
+    const calculadoAt = new Date().toISOString();
     const conTiempos = aplicarTiemposFichaje(
       conFlujo,
       leerTodosIntervalos(),
-      new Date().toISOString(),
+      calculadoAt,
       { dobleFichaje },
     );
 
@@ -71,6 +75,7 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
         cambiados.has(p.codigo) ? { ...p, scanCambiado: true } : p,
       ),
       dobleFichaje,
+      calculadoAt,
     };
   } catch (e) {
     console.warn("[coordina] overlay no disponible:", (e as Error).message);
