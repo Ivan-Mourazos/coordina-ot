@@ -4,8 +4,11 @@
 // documentos se quedan abiertos. Vive aparte de los componentes para poder
 // probarlo sin DOM: es donde se esconden los errores de «sale recortado».
 
-/** Los cuatro cuartos de vuelta, en el orden en que los da el botón. */
-const GIROS = [0, 90, 180, 270] as const;
+/** Los cuatro cuartos de vuelta, en el orden en que los da el botón: hacia la
+ *  IZQUIERDA, contra las agujas del reloj (pdf.js gira a la derecha con los
+ *  positivos, así que el primer toque es 270). Iba al revés; lo pidió Iván el
+ *  23/09/2026. */
+const GIROS = [0, 270, 180, 90] as const;
 export type Giro = (typeof GIROS)[number];
 
 /** El siguiente cuarto de vuelta. Cuatro pulsaciones = vuelta entera. */

@@ -14,10 +14,12 @@ test("hay un botón para girar el parte", () => {
 });
 
 test("el botón da la vuelta entera en cuatro y empieza otra vez", () => {
-  expect(siguienteGiro(0)).toBe(90);
-  expect(siguienteGiro(90)).toBe(180);
-  expect(siguienteGiro(180)).toBe(270);
-  expect(siguienteGiro(270)).toBe(0);
+  // Hacia la IZQUIERDA (contra las agujas del reloj), pedido por Iván el
+  // 23/09/2026: los partes escaneados tumbados se enderezan así de un toque.
+  expect(siguienteGiro(0)).toBe(270);
+  expect(siguienteGiro(270)).toBe(180);
+  expect(siguienteGiro(180)).toBe(90);
+  expect(siguienteGiro(90)).toBe(0);
 });
 
 test("solo el cuarto IMPAR intercambia ancho y alto", () => {

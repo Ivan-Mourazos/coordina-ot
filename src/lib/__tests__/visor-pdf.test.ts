@@ -26,10 +26,12 @@ import {
 const A4 = { ancho: 595, alto: 842 };
 
 test("el giro da la vuelta entera en cuatro", () => {
-  expect(siguienteGiro(0)).toBe(90);
-  expect(siguienteGiro(90)).toBe(180);
-  expect(siguienteGiro(180)).toBe(270);
-  expect(siguienteGiro(270)).toBe(0);
+  // Hacia la IZQUIERDA (contra las agujas del reloj), pedido por Iván el
+  // 23/09/2026: los partes escaneados tumbados se enderezan así de un toque.
+  expect(siguienteGiro(0)).toBe(270);
+  expect(siguienteGiro(270)).toBe(180);
+  expect(siguienteGiro(180)).toBe(90);
+  expect(siguienteGiro(90)).toBe(0);
 });
 
 test("solo el cuarto impar intercambia ancho y alto", () => {
