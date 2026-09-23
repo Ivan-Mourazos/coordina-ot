@@ -75,9 +75,12 @@ export function ZonaPersonal({
   return (
     <div
       style={{ borderColor: operario.color }}
-      className="glass-panel flex flex-col rounded-2xl border p-3"
+      className="glass-panel flex flex-col rounded-2xl border p-3 bajo:px-3 bajo:py-2"
     >
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+      {/* Sin pedidos, en pantalla baja la zona se queda en su cabecera: ya dice
+          "0 pedidos · 0 OF", y la línea de abajo se comía 40 px de los 611 del
+          monitor de Diseño. */}
+      <div className={`${conItems.length === 0 ? "mb-2 bajo:mb-0" : "mb-2"} flex flex-wrap items-center gap-2`}>
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"
           style={{ background: operario.color, color: tintaSobre(operario.color) }}
@@ -118,7 +121,7 @@ export function ZonaPersonal({
       </div>
 
       {conItems.length === 0 ? (
-        <p className="py-2 text-[11px] text-text-muted">Sin pedidos asignados.</p>
+        <p className="py-2 text-[11px] text-text-muted bajo:hidden">Sin pedidos asignados.</p>
       ) : (
         <div className="flex flex-wrap items-start gap-3">
           {conItems.map((g) => {

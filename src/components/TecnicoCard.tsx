@@ -64,7 +64,7 @@ export const TecnicoCard = memo(function TecnicoCard({
       <button
         onClick={onToggle}
         aria-expanded={expanded}
-        className={`glass-panel w-full rounded-xl px-3 py-2 text-left transition-colors ${expanded ? "ring-1 ring-brand-400" : ""}`}
+        className={`glass-panel w-full rounded-xl px-3 py-2 text-left bajo:py-1.5 transition-colors ${expanded ? "ring-1 ring-brand-400" : ""}`}
       >
         <div className="flex items-center gap-1.5">
           <span
@@ -107,7 +107,7 @@ export const TecnicoCard = memo(function TecnicoCard({
         {/* Barra de carga por fase: dice EN QUÉ está cargado cada uno, no solo
             cuánto. Antes era de 1 px y al 70% de opacidad, ilegible. */}
         <div
-          className="mt-1.5 flex h-1.5 w-full gap-px overflow-hidden rounded-full bg-[var(--glass-highlight)]"
+          className="mt-1.5 flex h-1.5 w-full gap-px bajo:mt-1 overflow-hidden rounded-full bg-[var(--glass-highlight)]"
           title={porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n}`).join(" · ")}
         >
           {facets.length > 0 &&

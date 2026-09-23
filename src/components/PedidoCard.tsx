@@ -127,8 +127,12 @@ export const PedidoCardView = memo(function PedidoCardView({
       {/* `overflow-hidden`: lo que se pone encima del parte (la banda de aviso,
           la barra de asignar) se recorta con el redondeo de la MINIATURA, no
           con el suyo. Con cada uno redondeando por su cuenta, en las esquinas
-          de abajo asomaba un pico de parte por debajo del botón. */}
-      <div className="relative aspect-[210/297] w-full overflow-hidden rounded-md bg-white parte-3d">
+          de abajo asomaba un pico de parte por debajo del botón.
+
+          En pantalla baja, cuadrada: enseña la mitad de arriba del parte
+          (cabecera, cliente), que es lo que se lee en la bandeja. La hoja
+          entera medía 160 px y a 611 de alto solo cabía una fila. */}
+      <div className="relative aspect-[210/297] w-full bajo:aspect-square overflow-hidden rounded-md bg-white parte-3d">
         <PedidoScan pedido={pedido} />
 
         {/* Han vuelto a escanear el parte, o ha aparecido trabajo nuevo después
