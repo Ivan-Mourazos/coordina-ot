@@ -246,13 +246,22 @@ export function PedidoLinea({
         // le tocaba según lo largos que fueran los de la izquierda, y cinco
         // datos sin alinear se leen como un amasijo.
         //
+        // El cliente tiene TOPE (26rem). Estirado hasta el final, en la zona
+        // propia —que ocupa todo el ancho— dejaba 600 px vacíos entre el nombre
+        // y su fecha, y había que cruzar la pantalla para leer una fila. Con
+        // tope, la fecha va detrás del cliente y lo que sobra queda al final
+        // (`justify-start`: una columna `auto` se estira si no); las columnas
+        // siguen alineadas porque el tope es el mismo en todas. Y el resto de
+        // columnas y huecos, ajustados: en los paneles estrechos lo que no
+        // ocupan ellas es lo que le queda al nombre del cliente.
+        //
         // Pidiendo revisor o avisando de quién falta, la fila se queda en el
         // código y el resto del ancho es para ese aviso: ahí no hay columnas
         // que alinear.
-        className={`min-w-0 cursor-pointer items-center gap-2 overflow-hidden text-left ${
+        className={`min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden text-left ${
           mostrandoFalta
             ? "flex shrink-0"
-            : "grid flex-1 grid-cols-[5.75rem_6.5rem_minmax(0,1fr)_auto] @max-[18rem]:grid-cols-[5.75rem_6.5rem_minmax(0,1fr)]"
+            : "grid flex-1 justify-start grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] @max-[18rem]:grid-cols-[5.75rem_6.5rem_minmax(0,1fr)]"
         }`}
       >
         {/* Columna 1: el punto de "lo están fichando" y el código. */}
@@ -420,7 +429,11 @@ export function PedidoLinea({
         // y ahí el clic no llegaba al botón que abre el pedido. Con los botones
         // dentro no se nota —son ellos los que reciben—, pero en una fila sin
         // acción disponible quedaba una tira muerta al borde derecho.
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg bg-inherit pl-4 [&>*]:pointer-events-auto">
+        // El FONDO solo cuando hay botones a la vista (al pasar el ratón, o con
+        // el reloj en marcha). Puesto siempre, la franja vacía velaba lo que
+        // tenía debajo —el fondo de la fila es translúcido— y la fecha del final
+        // se leía a medias: "05/1" y el "0" apagado.
+        <span className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${fichandoYo.length > 0 ? "bg-inherit" : "group-hover:bg-inherit"}`}>
         {/* Pausa: siempre visible mientras se ficha. */}
         {/* Fichar es el único camino para empezar: arranca el reloj y saca la
             OF de "sin empezar" (ver `arrancarFichaje` en Board).
