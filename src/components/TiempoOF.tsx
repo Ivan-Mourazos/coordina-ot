@@ -3,6 +3,13 @@
 import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { fmtMin } from "@/lib/estado";
+
+/** En minutos enteros, como el reloj de una pared: "1m", "2m"… El tiempo de
+ *  una OF que se está fichando corre (ver lib/tiempo-vivo.ts) y con segundos
+ *  cambiaba cada pocos, "10s, 20s, 1m 10s", que se leía raro. Lo pidió Iván
+ *  el 23/09/2026: que sume de minuto en minuto. Hacia abajo, para que no diga
+ *  un minuto que todavía no se ha cumplido. */
+const enMinutos = (min: number) => fmtMin(Math.floor(min + 1e-9));
 import { fmtFechaLarga } from "@/lib/fechas";
 import { nombreHistorial } from "@/lib/nombre-historial";
 import { OpDot } from "./Select";
@@ -105,7 +112,7 @@ export function TiempoOF({
         </p>
         <p className="ml-auto text-[11px]">
           <b className={`font-semibold ${pasado ? "text-amber-700 dark:text-amber-300" : "text-text"}`}>
-            {fmtMin(total)}
+            {enMinutos(total)}
           </b>
           {of.tiempoEstimadoMin > 0 && (
             <span className="text-text-muted"> / est. {fmtMin(of.tiempoEstimadoMin)}</span>
@@ -160,17 +167,17 @@ export function TiempoOF({
                 {dosColumnas ? (
                   <>
                     <span className="w-14 shrink-0 text-right tabular-nums text-text">
-                      {f.rpsMin > 0 ? fmtMin(f.rpsMin) : "—"}
+                      {f.rpsMin > 0 ? enMinutos(f.rpsMin) : "—"}
                     </span>
                     <span className="w-14 shrink-0 text-right tabular-nums text-text">
-                      {f.webMin > 0 ? fmtMin(f.webMin) : "—"}
+                      {f.webMin > 0 ? enMinutos(f.webMin) : "—"}
                     </span>
                   </>
                 ) : gente.length === 1 ? null : (
                   // Con UNA sola persona su tiempo ES el total de arriba: salía
                   // dos veces, casi en la misma fila.
                   <span className="shrink-0 font-semibold tabular-nums text-text">
-                    {fmtMin(f.rpsMin + f.webMin)}
+                    {enMinutos(f.rpsMin + f.webMin)}
                   </span>
                 )}
               </li>
