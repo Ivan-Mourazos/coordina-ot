@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-09-23",
+    "hasta": "fbda9e3",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Al fichar un pedido de rotulación el tiempo podía caer en el corte en vez de en el diseño",
+        "detalle": "Ahora diseñar y cortar salen por separado, cada uno con su nombre. El botón de la fila ficha siempre el diseño; el corte se ficha desde su tarjeta."
+      }
+    ]
+  },
+  {
     "id": "2026-09-22",
     "hasta": "9c116b9",
     "cambios": [
