@@ -249,7 +249,14 @@ export async function confirmarTraspasos(): Promise<number> {
   const sellar = pendientes
     .filter((iv) => intervaloYaEnRps(iv, COD_RPS_POR_OPERARIO, yaEnRps))
     .map((iv) => ({ operarioId: iv.operarioId, inicio: iv.inicio }));
-  return marcarTraspasados(sellar);
+  const sellados = marcarTraspasados(sellar);
+  // El tablero guarda lo de RPS hasta un minuto. Recién sellado, el tiempo ya
+  // no lo pone la web, y con la caché vieja tampoco RPS: se vuelve a leer ya.
+  if (sellados > 0) {
+    const { invalidarCacheTablero } = await import("./rps");
+    for (const s of Object.values(SECCIONES)) invalidarCacheTablero(s.id);
+  }
+  return sellados;
 }
 
 export async function refrescarEnCurso(): Promise<void> {

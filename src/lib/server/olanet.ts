@@ -7,7 +7,7 @@ import {
   type OpcionesFinalizarFase,
   type ResultadoFinalizarFase,
 } from "./finalizar-fase";
-import { getPoolOlanet } from "./db";
+import { getPool, getPoolOlanet } from "./db";
 
 // ─── Escritura del fichaje en OLANET ─────────────────────────────────────────
 // Todo lo que se manda a OLANET_TGM_DATOS pasa por aquí. Consultas siempre
@@ -53,12 +53,17 @@ export async function buscarIdBoletin(
   return r.recordset[0]?.IdBoletin ?? null;
 }
 
-/** Claves de los bonos NUESTROS que OLANET ya traspasó a RPS.
+/** Claves de los bonos NUESTROS cuyo tiempo YA ESTÁ EN RPS.
  *
  *  `traspasado = 0` es "pendiente de traspasar"; cualquier otro valor significa
- *  que OLANET ya lo procesó y el tiempo está en RPS (ver bonos.ts). En la tabla
- *  real no queda ni una fila en 0, ni siquiera del mismo día: el traspaso va
- *  muy por delante de esta comprobación, que corre cada minuto.
+ *  que OLANET ya lo recogió (ver bonos.ts). PERO RECOGIDO NO ES ESTAR EN RPS:
+ *  OLANET lo marca enseguida y lo escribe en RPS en tandas cada cuarto de hora
+ *  (medido el 23/09/2026: las imputaciones entran a las :00, :15, :30 y :45).
+ *  Dándolo por hecho con la marca, la OF se quedaba hasta 15 minutos sin el
+ *  tiempo en la web —ni el nuestro, que ya se había sellado, ni el de RPS, que
+ *  no había llegado—: el bono de Iván en 0232400 salía a 0 con 32 minutos
+ *  echados. Por eso se comprueba además que la imputación exista en RPS: su
+ *  `DocumentNumber` es el `id` del bono.
  *
  *  Se acota por día y operario en vez de preguntar bono a bono: `sch_RPS_bonos`
  *  ronda el medio millón de filas y son decenas de tramos por vuelta. El cruce
@@ -80,17 +85,20 @@ export async function bonosTraspasados(
     return `@o${i}`;
   });
   const r = await peticion.query<{
-    of: string; numope: string; operario: string; ini: Date; horaini: string | number;
+    id: string | number; of: string; numope: string; operario: string; ini: Date; horaini: string | number;
   }>(
-    `SELECT [of], numope, operario, ini, horaini
+    `SELECT id, [of], numope, operario, ini, horaini
        FROM sch_RPS_bonos
       WHERE maquina = @maquina
         AND traspasado <> 0
         AND ini IN (${marcasDia.join(", ")})
         AND operario IN (${marcasOp.join(", ")})`,
   );
+  const enRps = await documentosEnRps(
+    r.recordset.map((f) => ({ id: String(f.id), of: (f.of ?? "").trim() })),
+  );
   return new Set(
-    r.recordset.map((f) =>
+    r.recordset.filter((f) => enRps.has(String(f.id))).map((f) =>
       claveBonoRps({
         of: (f.of ?? "").trim(),
         numope: (f.numope ?? "").trim(),
@@ -102,6 +110,40 @@ export async function bonosTraspasados(
       }),
     ),
   );
+}
+
+/** De esos bonos, cuáles tienen ya su imputación en RPS (`DocumentNumber`
+ *  = `id` del bono). Acotado por la OF, que está indexada: por
+ *  `DocumentNumber` solo, que no lo está, la consulta tardaba 6,5 s y esto
+ *  corre cada minuto; con la OF delante, 18 ms. Por tandas, para no pasar del
+ *  límite de parámetros de SQL Server. */
+async function documentosEnRps(bonos: readonly { id: string; of: string }[]): Promise<Set<string>> {
+  const enRps = new Set<string>();
+  const TANDA = 400;
+  for (let i = 0; i < bonos.length; i += TANDA) {
+    const tanda = bonos.slice(i, i + TANDA);
+    const ordenes = [...new Set(tanda.map((b) => b.of).filter(Boolean))];
+    if (ordenes.length === 0) continue;
+    const peticion = (await getPool()).request();
+    const marcasOF = ordenes.map((o, k) => {
+      peticion.input(`o${k}`, sql.VarChar(25), o);
+      return `@o${k}`;
+    });
+    const marcasDoc = tanda.map((b, k) => {
+      peticion.input(`d${k}`, sql.VarChar(25), b.id);
+      return `@d${k}`;
+    });
+    const r = await peticion.query<{ doc: string }>(
+      `SELECT DISTINCT i.DocumentNumber AS doc
+         FROM dbo.CPRImputationMO i WITH (NOLOCK)
+         JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+           ON mo.IDManufacturingOrder = i.IDManufacturingOrder AND mo.CodCompany = '001'
+        WHERE mo.CodManufacturingOrder IN (${marcasOF.join(", ")})
+          AND i.DocumentNumber IN (${marcasDoc.join(", ")})`,
+    );
+    for (const f of r.recordset) enRps.add((f.doc ?? "").trim());
+  }
+  return enRps;
 }
 
 /** Inserta una línea de tiempo. `id` es IDENTITY: no se cubre. */
