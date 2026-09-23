@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-23",
-    "hasta": "d383d47",
+    "hasta": "57aaa19",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -32,6 +32,11 @@
         "tipo": "mejor",
         "titulo": "Pasar a revisión es un clic menos, y avisa si te lo dejas a medias",
         "detalle": "Al pulsar \"Pasar a revisión\" sale la lista de revisores y con elegir uno ya se manda. Si cierras la ficha sin elegir, arriba te avisa de que la OF sigue en tu mesa."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el panel, la fecha y las OF van justo detrás del cliente",
+        "detalle": "Antes quedaban al otro lado de la fila. Y la fecha del final ya no sale medio tapada."
       }
     ]
   },
