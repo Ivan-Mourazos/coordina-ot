@@ -161,7 +161,9 @@ export function CabeceraFicha({
         )}
       </div>
       {/* En pantalla baja, cliente y datos en UNA línea: la cabecera se comía
-          135 px de los 611 del monitor de Diseño. */}
+          135 px de los 611 del monitor de Diseño. Los datos no pasan del 60 %
+          y se recortan: con varias familias pedían más ancho del que había y
+          se salían del panel por encima del botón de cerrar. */}
       <div className="min-w-0 bajo:flex bajo:items-baseline bajo:gap-2">
       <p className="truncate text-sm text-text-muted bajo:min-w-0 bajo:shrink">
         {cliente || "—"}
@@ -170,7 +172,7 @@ export function CabeceraFicha({
         )}
       </p>
       {(datos.length > 0 || familias.length > 0) && (
-        <div className="mt-1 overflow-hidden text-xs bajo:mt-0 bajo:shrink-0">
+        <div className="mt-1 overflow-hidden text-xs bajo:mt-0 bajo:max-w-[60%] bajo:shrink-0">
           <div className={FILA_CON_PUNTOS}>
             {datos.map((d, i) => (
               // Por índice y no por `d`: son textos ya formateados ("4 piezas",

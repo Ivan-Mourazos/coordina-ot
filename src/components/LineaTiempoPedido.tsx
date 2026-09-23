@@ -118,7 +118,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
           // En pantalla baja, rótulo y fecha en la misma línea: la leyenda en
           // dos pisos era lo que más alto hacía el recorrido.
           <div key={h.clave} className="min-w-0 bajo:flex bajo:items-baseline bajo:gap-1">
-            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-text-muted bajo:min-w-0">
               {h.etiqueta}
             </p>
             {/* La fecha que MANDA en el pedido va destacada: la planificada, o
