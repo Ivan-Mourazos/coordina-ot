@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-09-23",
-    "hasta": "950efce",
+    "hasta": "aa1075b",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "El corte de rotulación ya no sale en el panel de Diseño Gráfico",
         "detalle": "Se ficha en la máquina de cortar, así que ya no se puede fichar ahí el diseño sin querer. Su tiempo se sigue viendo en Tareas y tiempos del pedido."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El tiempo que acabas de fichar ya no se queda a cero un rato",
+        "detalle": "Tras parar el reloj, la OF podía enseñar 0 minutos hasta un cuarto de hora, mientras el tiempo llegaba a RPS."
       },
       {
         "tipo": "mejor",
