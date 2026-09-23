@@ -215,3 +215,32 @@ describe("rotativas", () => {
     expect(familiaDeTexto("LONA ROTATIVA KUNH:6 DISCOS", "1 - AGRIGANA")).toBe("LONA");
   });
 });
+
+// Último recurso: el comentario de la línea del pedido. La descripción de la
+// OF es el nombre de catálogo y a veces no dice nada; el comentario, que
+// escribe el comercial, sí ("POR CONFECCION DE LONA EN TIRA…"). Solo entra
+// cuando no hay nada mejor: sin subfamilia y con una familia de RPS que no es
+// de las nuestras. Antes no, porque habla de todo y cambiaría lo que ya sale bien.
+describe("el comentario de la línea, cuando no hay nada mejor", () => {
+  const det = "POR CONFECCION DE LONA EN TIRA CON BASTILLA DOBLE TODO EL PERIMETRO";
+
+  it("decide cuando la OF quedaría con la familia cruda de RPS", () => {
+    expect(familiaDeTexto("MANDIL ORDEÑO", "1 - AGRIGANA", { detalle: det })).toBe("LONA");
+  });
+
+  it("no manda sobre la descripción", () => {
+    expect(familiaDeTexto("TOLDO VERTICAL IRIS 110", "1 - AGRIGANA", { detalle: det })).toBe("TOLDO");
+  });
+
+  it("no manda sobre la subfamilia", () => {
+    expect(familiaDeTexto("MANDIL ORDEÑO", "1 - AGRIGANA", { subfamilia: "PUERTAS", detalle: det })).toBe("PUERTAS");
+  });
+
+  it("no manda sobre una familia de RPS que ya es nuestra", () => {
+    expect(familiaDeTexto("ALGO RARO", "1 - TOLDO FACHADA", { detalle: det })).toBe("TOLDO");
+  });
+
+  it("sin comentario, como siempre", () => {
+    expect(familiaDeTexto("MANDIL ORDEÑO", "1 - AGRIGANA")).toBe("AGRIGANA");
+  });
+});

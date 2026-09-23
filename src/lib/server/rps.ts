@@ -321,6 +321,10 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
  *  3. Su familia, cuando el artículo no tiene subfamilia puesta (pasa: 450 OF
  *     de OTR.ESTRUCTURAS y 422 de SUMINISTRO no la tienen).
  *  4. Y al final la descripción, que es adivinar.
+ *  5. Si con todo eso la OF se quedaría con el nombre crudo de RPS, el
+ *     COMENTARIO de la línea del pedido (`detalle`), que escribe el comercial y
+ *     dice lo que se vende. Solo aquí y no antes: habla de todo ("toldo con
+ *     lona…") y cambiaría lo que ya sale bien.
  *
  *  Aviso sobre 2: hay subfamilias que cuelgan de familias muy distintas y al
  *  agrupar por ellas se juntan trabajos que antes iban separados —LONASNUEVAS
@@ -330,7 +334,7 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
 export function familiaDeTexto(
   descripcionMO: string | null,
   articulo: string | null,
-  extra?: { cliente?: string | null; subfamilia?: string | null },
+  extra?: { cliente?: string | null; subfamilia?: string | null; detalle?: string | null },
 ): Familia {
   const grupo = textoArticulo(articulo).toUpperCase();
   const desc = (descripcionMO ?? "").toUpperCase();
@@ -347,21 +351,29 @@ export function familiaDeTexto(
   // La familia de siempre: hace falta igual, como respaldo cuando el artículo
   // no tiene subfamilia y como APELLIDO de las subfamilias genéricas.
   const base = familiaBase(grupo);
-  if (!sub) return base;
-  return SUBFAMILIAS_GENERICAS.has(sub) ? `${base}/${sub}` : sub;
+  if (sub) return SUBFAMILIAS_GENERICAS.has(sub) ? `${base.familia}/${sub}` : sub;
+  if (base.conocida) return base.familia;
+
+  // Se iba a quedar con el nombre crudo de RPS. "ROTATIVA EN TIRA EMBASTILLA"
+  // salía como "Agrigana" cuando su línea dice "POR CONFECCION DE LONA EN
+  // TIRA…" (AR.26.04702, 23/09/2026).
+  const detalle = (extra?.detalle ?? "").toUpperCase();
+  if (detalle) for (const [re, familia] of FAMILIA_POR_TEXTO) if (re.test(detalle)) return familia;
+  return base.familia;
 }
 
-function familiaBase(grupo: string): Familia {
-  for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return familia;
+function familiaBase(grupo: string): { familia: Familia; conocida: boolean } {
+  for (const [re, familia] of FAMILIA_POR_GRUPO) if (re.test(grupo)) return { familia, conocida: true };
   // Nada reconocible: se deja el grupo tal cual y familiaMeta le da tinte
   // neutro. Mejor un nombre feo que meterlo en una familia que no es.
-  return grupo || "OTRO";
+  return { familia: grupo || "OTRO", conocida: false };
 }
 
-function familiaDe(fila: FilaVista, subfamilia: string | undefined): Familia {
+function familiaDe(fila: FilaVista, subfamilia: string | undefined, detalle: string | undefined): Familia {
   return familiaDeTexto(fila.DescripcionMO, fila.Articulo, {
     cliente: fila.Cliente,
     subfamilia,
+    detalle,
   });
 }
 
@@ -680,7 +692,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     id: `${orden}:${(fila.CodTarea ?? "").trim()}`,
     codigo: orden,
     descripcion: descripcionDe(fila),
-    familia: familiaDe(fila, datos.subfamilia),
+    familia: familiaDe(fila, datos.subfamilia, datos.detalleVenta),
     subfamilia: datos.subfamilia,
     piezas: Math.max(1, Math.round(fila.Cantidad ?? 1)),
     // Autor: quien ficha ahora la OF o, si nadie, quien más tiempo le ha
