@@ -280,6 +280,10 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   // lleva "lona" en medio (un toldo, una capota) ya se decidió arriba.
   [/^\s*LONAS?\b/, "LONA"],
   [/LONA CON OLLAO|SACO CONFECCIONADO EN LONA/, "LONA"],
+  // Las rotativas del campo son lonas aunque no lo digan: "ROTATIVA EN TIRA
+  // EMBASTILLA" (AR.26.04702) salía como "Agrigana", su familia en RPS, cuando
+  // la línea del pedido dice "confección de lona en tira".
+  [/ROTATIVA/, "LONA"],
   // "Cortina" sirve para las dos cosas y lo que decide es con qué va (Iván):
   // un toldo cortina y un cambio de tela de cortina son TOLDO, pero una
   // cortina de lona con riel es LONA. Mira los dos órdenes, porque en RPS

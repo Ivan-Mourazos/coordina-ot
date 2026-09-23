@@ -202,3 +202,16 @@ describe("familiaMeta", () => {
     expect(familiaMeta("XXX/YYY").label).toBe("Xxx · Yyy");
   });
 });
+
+// AR.26.04702 (23/09/2026): "ROTATIVA EN TIRA EMBASTILLA", familia AGRIGANA
+// sin subfamilia, salía como "Agrigana". Es una lona para las rotativas del
+// campo —el comentario de la línea dice "confección de lona en tira"—, igual
+// que "OTRAS LONAS ROTATIVAS" y "LONA ROTATIVA KUNH", que ya eran Lona porque
+// llevan la palabra.
+describe("rotativas", () => {
+  it("una rotativa es una lona aunque no diga lona", () => {
+    expect(familiaDeTexto("ROTATIVA EN TIRA EMBASTILLA", "1 - AGRIGANA")).toBe("LONA");
+    expect(familiaDeTexto("ROTATIVA EN TIRA EMBASTILLA 55 ", "1 - AGRIGANA")).toBe("LONA");
+    expect(familiaDeTexto("LONA ROTATIVA KUNH:6 DISCOS", "1 - AGRIGANA")).toBe("LONA");
+  });
+});
