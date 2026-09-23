@@ -3,6 +3,11 @@
 /* Dark mode driven by a .dark class on <html>, not the OS setting */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Pantalla BAJA: los monitores de Diseño Gráfico (611 y 785 px de alto). Por
+   debajo de 760 se aprieta la disposición de la ficha y del panel; ver
+   docs/superpowers/specs/2026-09-23-densidad-segun-pantalla-design.md. */
+@custom-variant bajo (@media (max-height: 759px));
+
 @theme {
   /* Dorado CoordinaOT, calibrado al logo real (public/coordina-*.png) */
   --color-brand-50: #fdf8ec;
@@ -162,6 +167,16 @@
 html,
 body {
   height: 100%;
+}
+
+/* El tamaño base sigue al ALTO de la ventana: 16 px a 1080, 14 px a 611, en
+   línea recta y sin salirse de ahí. Con Tailwind 4 los espacios y los textos en
+   rem van detrás; los textos en píxeles fijos (text-[11px] y compañía, los
+   pequeños) no se mueven, y así se aprieta el aire sin que la letra menuda
+   baje de lo legible. A 1362×611 la primera OF de AR.26.04662 caía en el
+   píxel 430 y su botón de fichar, fuera de la pantalla. */
+html {
+  font-size: clamp(14px, calc(14px + (100vh - 611px) * 0.004264), 16px);
 }
 
 body {

@@ -61,14 +61,20 @@ export function MarcoFicha({
           bordes: dos hermanos con reglas distintas, y se notaba justo en la
           línea de arriba, donde uno empezaba 16 px más abajo que el otro.
 
-          El hueco del parte acaba en 33rem —el ancho del panel (32rem) más su
-          margen— y su propio `px-4` deja la calle entre los dos. */}
+          El hueco del parte acaba donde empieza el panel: su ancho más su
+          margen (`right-4`), y su propio `px-4` deja la calle entre los dos.
+
+          El ancho va en PÍXELES y no en rem: el tamaño base baja con el alto de
+          la pantalla (ver globals.css), y en rem la ficha se estrechaba justo
+          en los monitores pequeños, de 512 a 448 px. En pantalla baja gana
+          48 px y los cede el parte: a 1362 de ancho sobraba hoja y faltaba
+          ficha. */}
       <div
         // Sin margen ARRIBA NI ABAJO: lo pone el propio visor (16 px, el mismo
         // que el panel de la derecha), así la hoja arranca y acaba a la misma
         // altura que el panel. Con el de aquí más el del visor, la hoja quedaba
         // 24 px más baja arriba y 64 px más corta abajo.
-        className="overlay-in absolute inset-y-0 left-0 right-[33rem] flex flex-col px-4"
+        className="overlay-in absolute inset-y-0 left-0 right-[calc(512px+1rem)] flex flex-col px-4 bajo:right-[calc(560px+1rem)]"
         onClick={onCerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
@@ -76,7 +82,7 @@ export function MarcoFicha({
         </div>
       </div>
 
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-lg flex-col rounded-xl">
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-[512px] flex-col rounded-xl bajo:max-w-[560px]">
         {/* Sin raya entre cabecera, cuerpo y pie: igual que en el tablero, lo
             que separa son los bloques con relieve, no líneas de 1 px. */}
         <header className="flex items-start gap-3 p-4 pb-2">
