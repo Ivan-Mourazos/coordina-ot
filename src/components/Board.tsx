@@ -1997,6 +1997,10 @@ export function Board({
   // golpe, sin decir a dónde iba ni dar ocasión de rectificar.
   const [pasarPendiente, setPasarPendiente] = useState<string | null>(null);
   const [pasarError, setPasarError] = useState<string | null>(null);
+  /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor: la OF sigue en
+   *  la mesa de quien la plantea. Se avisa en el momento, que es cuando todavía
+   *  se está a tiempo; antes se enteraba minutos después (ver PedirRevisor). */
+  const [sinRevisor, setSinRevisor] = useState<{ pedidoId: string; codigos: string[] } | null>(null);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) setPasarPendiente(pedidoId);
@@ -2245,6 +2249,25 @@ export function Board({
           plantaba encima de la cabecera de la tabla en la vista Lista y tapaba
           dos columnas. Aquí empuja el contenido hacia abajo, que para un aviso
           que sale una vez al día es mejor que esconder datos. */}
+      {sinRevisor && (
+        <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2">
+          <p className="text-xs font-bold text-text">No se ha mandado a revisión</p>
+          <p className="min-w-0 flex-1 text-[11px] text-text-muted">
+            {sinRevisor.codigos.length === 1 ? `La OF ${sinRevisor.codigos[0]} sigue` : `Las OF ${sinRevisor.codigos.join(", ")} siguen`}{" "}
+            en tu mesa: falta elegir el revisor.
+          </p>
+          <button
+            onClick={() => {
+              setOpenId(sinRevisor.pedidoId);
+              setSinRevisor(null);
+            }}
+            className="shrink-0 rounded-lg bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800"
+          >
+            Abrir el pedido
+          </button>
+          <button className="text-xs underline" onClick={() => setSinRevisor(null)}>Cerrar</button>
+        </div>
+      )}
       {pasarError && (
         <div role="alert" className="flex items-center gap-3 border-b border-red-500/30 bg-red-500/10 px-5 py-2 text-sm text-text">
           <span>{pasarError}</span>
@@ -2584,6 +2607,9 @@ export function Board({
 
       <Drawer
         pedido={openPedido}
+        onSinRevisor={(codigos) => {
+          if (openPedido) setSinRevisor({ pedidoId: openPedido.id, codigos });
+        }}
         operarios={operarios}
         miId={miId}
         seccion={laSeccion}

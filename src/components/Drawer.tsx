@@ -190,6 +190,7 @@ export function Drawer({
   onAssignPedido,
   onCompletar,
   onSetRevisor,
+  onSinRevisor,
   onTraspasarAutor,
   onCoger,
   onAccion,
@@ -218,6 +219,8 @@ export function Drawer({
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
+  onSinRevisor?: (ofCodigos: string[]) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
   /** Quedarse con OF de otra persona. Lo pregunta el Board. */
   onCoger?: (ofIds: string[]) => void;
@@ -968,7 +971,7 @@ export function Drawer({
               <PedirRevisor
                 operarios={operarios}
                 excluirIds={autoresParaRevisar}
-                etiquetaConfirmar={etiquetaCantidad("Pasar", paraRevisarBloque.length)}
+                onAbandonado={() => onSinRevisor?.(paraRevisarBloque.map((o) => o.codigo))}
                 onConfirmar={(rev) => {
                   for (const o of paraRevisarBloque) onSetRevisor(o.id, rev);
                   onAccion(paraRevisarBloque.map((o) => o.id), "terminar_planteo");
@@ -1005,6 +1008,7 @@ export function Drawer({
                 }}
                 opById={opById}
                 onSetRevisor={onSetRevisor}
+                onSinRevisor={onSinRevisor}
                 onTraspasarAutor={onTraspasarAutor}
                 onAccion={onAccion}
                 onFichar={onFichar}
@@ -1175,6 +1179,7 @@ function OFRow({
   onCerradoEnRps,
   opById,
   onSetRevisor,
+  onSinRevisor,
   onTraspasarAutor,
   onAccion,
   onFichar,
@@ -1210,6 +1215,8 @@ function OFRow({
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   opById: (id: string | null) => Operario | null;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
+  onSinRevisor?: (ofCodigos: string[]) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -1514,6 +1521,7 @@ function OFRow({
             onCerradoEnRps={onCerradoEnRps}
             onAccion={onAccion}
             onSetRevisor={onSetRevisor}
+                onSinRevisor={onSinRevisor}
             onFichar={onFichar}
             onDesfichar={onDesfichar}
             fichandoYoEsta={fichandoYoEsta}
@@ -1544,6 +1552,7 @@ function AccionesOF({
   onCerradoEnRps,
   onAccion,
   onSetRevisor,
+  onSinRevisor,
   onFichar,
   onDesfichar,
   fichandoYoEsta,
@@ -1566,6 +1575,8 @@ function AccionesOF({
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
+  onSinRevisor?: (ofCodigos: string[]) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
   onDesfichar: (ofId: string) => void;
   /** ¿La estoy fichando YO? Ver el mismo campo en las props del Drawer. */
@@ -1888,6 +1899,7 @@ function AccionesOF({
           operarios={operarios}
           excluirIds={[of.autorId]}
           valorInicial={of.revisorId}
+          onAbandonado={() => onSinRevisor?.([of.codigo])}
           onConfirmar={(rev) => {
             onSetRevisor(of.id, rev);
             onAccion([of.id], "terminar_planteo");

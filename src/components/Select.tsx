@@ -43,6 +43,7 @@ export function Select({
   acentuarActivo = false,
   etiquetaVaciar,
   ariaLabelledBy,
+  abiertoAlMontar = false,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -63,6 +64,9 @@ export function Select({
    *  un `<button>`, y entonces el rótulo gana al contenido del botón al
    *  calcular el nombre accesible — se oye «Estado» y nunca el valor elegido. */
   ariaLabelledBy?: string;
+  /** Sale ya desplegado, con el foco en el botón. Para cuando elegir ES el
+   *  siguiente paso y no un dato opcional: el revisor al pasar a revisión. */
+  abiertoAlMontar?: boolean;
 }) {
   // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
   // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
@@ -140,6 +144,20 @@ export function Select({
     setActiveIx(ix >= 0 ? ix : 0);
     setOpen(true);
   }
+
+  // Abrir al montar. En un timeout y no en el propio efecto: el botón tiene que
+  // estar ya pintado para medir dónde va el menú, y así además no se pinta
+  // dentro del efecto.
+  useEffect(() => {
+    if (!abiertoAlMontar) return;
+    const t = setTimeout(() => {
+      btnRef.current?.focus();
+      abrir();
+    }, 0);
+    return () => clearTimeout(t);
+    // Solo al montar: si se cierra, es porque quien lo usa lo ha cerrado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function elegir(o: SelectOption) {
     onChange(o.value === "" ? null : o.value);
