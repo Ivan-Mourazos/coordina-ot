@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-23",
-    "hasta": "1e9f20a",
+    "hasta": "950efce",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -12,6 +12,11 @@
         "tipo": "mejor",
         "titulo": "La web se ajusta al tamaño de tu pantalla",
         "detalle": "En los monitores pequeños caben más partes en el panel y la primera OF de un pedido se ve con su botón de fichar sin bajar. En las pantallas grandes todo queda un poco más compacto."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El tiempo de la OF corre en directo mientras fichas",
+        "detalle": "Antes, con la ficha abierta, el tiempo se quedaba quieto y avanzaba a saltos cada medio minuto."
       }
     ]
   },
