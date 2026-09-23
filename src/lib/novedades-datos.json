@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-09-23",
-    "hasta": "57aaa19",
+    "hasta": "60136a9",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -17,6 +17,10 @@
         "tipo": "arreglado",
         "titulo": "Las lonas de rotativa salían con la familia «Agrigana»",
         "detalle": "Ahora salen como Lona, igual que las demás."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El parte girado ya no vibra al ajustarlo al alto"
       },
       {
         "tipo": "mejor",
@@ -37,6 +41,10 @@
         "tipo": "mejor",
         "titulo": "En el panel, la fecha y las OF van justo detrás del cliente",
         "detalle": "Antes quedaban al otro lado de la fila. Y la fecha del final ya no sale medio tapada."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El botón de girar el parte gira ahora hacia la izquierda"
       }
     ]
   },
