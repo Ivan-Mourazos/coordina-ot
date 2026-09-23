@@ -34,6 +34,15 @@ export interface Seccion {
   /** Los códigos de `CPRMOResourceMachine` que son suyos. En minúsculas: así
    *  se comparan en las consultas, y SQL Server no distingue mayúsculas. */
   recursos: readonly string[];
+  /** De `recursos`, los que van DETRÁS en una OF que trae más de una tarea de
+   *  la sección. Ausente = ninguno, y manda el número de tarea.
+   *
+   *  Diseño Gráfico: en una OF de rotulación primero se diseña (A-DGRA) y luego
+   *  se corta en el plóter (P-PCUS). El número de tarea NO lo dice: en
+   *  0232394 diseñar es la 6 y cortar la 10, pero en 0232360 cortar es la 10 y
+   *  diseñar la 11. Y de este orden depende qué se ficha al pulsar el botón de
+   *  la fila, que coge una sola tarea por OF (ver `unaTareaPorOF`). */
+  recursosAlFinal?: readonly string[];
   /** La máquina con la que se escriben sus bonos en OLANET. */
   maquina: string;
   /** De dónde sale su lista de trabajo pendiente.
@@ -161,6 +170,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // Carrón 534, contra 5 de Manuel; en P-PCMU es al revés, 38 de Manuel
     // contra 5 de Smith y ninguno de Carrón. P-PCMU es de Impresión Digital.
     recursos: ["a-dgra", "dgra-a", "p-pcus"],
+    recursosAlFinal: ["p-pcus"],
     maquina: "A-DGRA",
     // La mesa de diseño y los dos plóters de corte. Que el corte de vinilo es
     // trabajo suyo lo dijeron ellos y lo confirma RPS: desde junio, los ÚNICOS

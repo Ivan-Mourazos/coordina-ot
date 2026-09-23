@@ -306,6 +306,12 @@ export interface OF {
    *  trabajo nuestro salvo que alguien la rescate asignándole autor.
    *  Ver docs/superpowers/specs/2026-08-07-of-ajenas-a-ot-design.md */
   ajenaOT?: boolean;
+  /** Qué tarea de la ruta es ("DISEÑAR ROTULACION"), SOLO cuando la misma OF
+   *  sale más de una vez en el pedido. Diseño Gráfico tiene dos tareas en una
+   *  OF de rotulación —diseñar y cortar— y cada una es su propio trabajo; sin
+   *  el nombre, las dos tarjetas decían lo mismo y no había forma de saber en
+   *  cuál se estaba fichando. Con una sola tarea no hace falta y no se pone. */
+  tarea?: string;
   /** Texto de rotulación del parte (dato de RPS, no siempre existe). */
   rotulacion?: string;
   /** Fecha ISO en la que llega el material de compras pedido y aún no

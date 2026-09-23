@@ -786,6 +786,7 @@ function OFItem({
     <li className={`rounded-lg bg-surface-2/70 px-2 text-[11px] ${denso ? "py-1" : "py-1.5"}`}>
       <div className="flex items-center gap-2">
         <span className="truncate font-mono font-semibold text-text">{of.codigo}</span>
+        {of.tarea && <span className="truncate text-text-muted">{of.tarea}</span>}
         {/* Etiqueta entera, no la abreviatura: "REVIS." y "POR REV." se
             parecen demasiado, y en este panel sobra ancho para distinguirlas.
             El chip sale de ESTADO: es el mismo color que en el tablero, así que

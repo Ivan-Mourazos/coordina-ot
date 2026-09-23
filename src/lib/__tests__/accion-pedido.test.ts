@@ -9,7 +9,6 @@ import {
 const of = (p: Partial<OF>): OF =>
   ({
     id: "0230001:5",
-    codigo: "0230001",
     descripcion: "LONA",
     familia: "LONA",
     piezas: 1,
@@ -21,6 +20,9 @@ const of = (p: Partial<OF>): OF =>
     tiempoPlanteoMin: 0,
     tiempoRevisionMin: 0,
     ...p,
+    // El código es la orden, la parte del id antes de ":". Dos OF con el mismo
+    // código son dos tareas de la misma orden, y eso ya cambia qué se ficha.
+    codigo: p.codigo ?? (p.id ?? "0230001:5").split(":")[0],
   }) as OF;
 
 describe("accionAlFichar", () => {
@@ -92,5 +94,28 @@ describe("ofsFichablesDe", () => {
     const p = { ofs: [plantear, revisar] };
     expect(ofsFichablesDe(p, "plantear").map((o) => o.id)).toEqual(["plantear:1"]);
     expect(ofsFichablesDe(p, "revisar").map((o) => o.id)).toEqual(["revisar:1"]);
+  });
+
+  // AR.26.04684: la OF 0232394 trae en Diseño la 6 (diseñar) y la 10 (cortar).
+  // Fichar el pedido desde la fila no puede repartir el diseño con el corte.
+  it("de cada OF solo ficha su primera tarea", () => {
+    const p = {
+      ofs: [
+        of({ id: "0232394:6", tarea: "DISEÑAR ROTULACION" }),
+        of({ id: "0232394:10", tarea: "CORTAR ROTULACION" }),
+        of({ id: "0232395:6" }),
+      ],
+    };
+    expect(ofsFichablesDe(p, "plantear").map((o) => o.id)).toEqual(["0232394:6", "0232395:6"]);
+  });
+
+  it("si la primera tarea ya no admite reloj, pasa la siguiente", () => {
+    const p = {
+      ofs: [
+        of({ id: "0232394:6", estado: "anulada" }),
+        of({ id: "0232394:10" }),
+      ],
+    };
+    expect(ofsFichablesDe(p, "plantear").map((o) => o.id)).toEqual(["0232394:10"]);
   });
 });
