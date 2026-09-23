@@ -1,12 +1,12 @@
 [
   {
     "id": "2026-09-23",
-    "hasta": "fbda9e3",
+    "hasta": "5e15399",
     "cambios": [
       {
         "tipo": "arreglado",
-        "titulo": "Al fichar un pedido de rotulación el tiempo podía caer en el corte en vez de en el diseño",
-        "detalle": "Ahora diseñar y cortar salen por separado, cada uno con su nombre. El botón de la fila ficha siempre el diseño; el corte se ficha desde su tarjeta."
+        "titulo": "El corte de rotulación ya no sale en el panel de Diseño Gráfico",
+        "detalle": "Se ficha en la máquina de cortar, así que ya no se puede fichar ahí el diseño sin querer. Su tiempo se sigue viendo en Tareas y tiempos del pedido."
       }
     ]
   },
