@@ -27,8 +27,8 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   const entrega = relativoA(pedido.fechaEntrega, hoy);
 
   return (
-    <div className="bloque-3d mb-4 rounded-xl px-3 pb-3 pt-2">
-      <div className="mb-4 flex items-baseline justify-between gap-2">
+    <div className="bloque-3d mb-4 rounded-xl px-3 pb-3 pt-2 bajo:mb-2 bajo:pb-2 bajo:pt-1.5">
+      <div className="mb-4 flex items-baseline justify-between gap-2 bajo:mb-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Recorrido del pedido
         </p>
@@ -113,9 +113,11 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
 
       {/* Leyenda: en fila, no sobre la barra. Así nunca se pisa, y el orden de
           izquierda a derecha ya dice a qué punto corresponde cada una. */}
-      <div className="mt-2 flex justify-between gap-2">
+      <div className="mt-2 flex justify-between gap-2 bajo:mt-1">
         {hitos.map((h) => (
-          <div key={h.clave} className="min-w-0">
+          // En pantalla baja, rótulo y fecha en la misma línea: la leyenda en
+          // dos pisos era lo que más alto hacía el recorrido.
+          <div key={h.clave} className="min-w-0 bajo:flex bajo:items-baseline bajo:gap-1">
             <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               {h.etiqueta}
             </p>

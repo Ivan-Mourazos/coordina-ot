@@ -17,7 +17,7 @@ export function BloqueDesplegable({
   sufijo,
   abiertoDeSalida = false,
   onAbrir,
-  className = "mb-4",
+  className = "mb-4 bajo:mb-2",
   children,
 }: {
   titulo: string;
@@ -51,7 +51,7 @@ export function BloqueDesplegable({
         }}
         aria-expanded={abierto}
         aria-controls={id}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+        className="flex w-full items-center gap-2 px-3 py-2 bajo:py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
       >
         <svg
           viewBox="0 0 24 24"

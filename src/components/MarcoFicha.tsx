@@ -85,7 +85,7 @@ export function MarcoFicha({
       <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-[512px] flex-col rounded-xl bajo:max-w-[560px]">
         {/* Sin raya entre cabecera, cuerpo y pie: igual que en el tablero, lo
             que separa son los bloques con relieve, no líneas de 1 px. */}
-        <header className="flex items-start gap-3 p-4 pb-2">
+        <header className="flex items-start gap-3 p-4 pb-2 bajo:px-3 bajo:pt-2 bajo:pb-1">
           {cabecera}
           <button
             onClick={onCerrar}
@@ -98,7 +98,7 @@ export function MarcoFicha({
           </button>
         </header>
 
-        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4 bajo:px-3 bajo:pt-2">
           {children}
         </div>
 
@@ -147,7 +147,7 @@ export function CabeceraFicha({
   return (
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2">
-        <h2 className="font-mono text-lg font-bold text-text">{codigo}</h2>
+        <h2 className="font-mono text-lg font-bold text-text bajo:text-base">{codigo}</h2>
         {/* Solo la urgente, como en la bandeja: la normal salía en todos los
             pedidos y dejaba de destacar justo cuando corría prisa. */}
         {prioridad === 3 && (
@@ -160,14 +160,17 @@ export function CabeceraFicha({
           </span>
         )}
       </div>
-      <p className="truncate text-sm text-text-muted">
+      {/* En pantalla baja, cliente y datos en UNA línea: la cabecera se comía
+          135 px de los 611 del monitor de Diseño. */}
+      <div className="min-w-0 bajo:flex bajo:items-baseline bajo:gap-2">
+      <p className="truncate text-sm text-text-muted bajo:min-w-0 bajo:shrink">
         {cliente || "—"}
         {negocioAparte(cliente, negocio) && (
           <span className="font-semibold text-text"> · {negocioAparte(cliente, negocio)}</span>
         )}
       </p>
       {(datos.length > 0 || familias.length > 0) && (
-        <div className="mt-1 overflow-hidden text-xs">
+        <div className="mt-1 overflow-hidden text-xs bajo:mt-0 bajo:shrink-0">
           <div className={FILA_CON_PUNTOS}>
             {datos.map((d, i) => (
               // Por índice y no por `d`: son textos ya formateados ("4 piezas",
@@ -188,7 +191,8 @@ export function CabeceraFicha({
           </div>
         </div>
       )}
-      {extra && <div className="mt-2">{extra}</div>}
+      </div>
+      {extra && <div className="mt-2 bajo:mt-1">{extra}</div>}
     </div>
   );
 }

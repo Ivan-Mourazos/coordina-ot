@@ -142,7 +142,7 @@ export function NotasPedido({
   const vacio = notas !== null && notas.length === 0 && !escribiendo && !error;
 
   return (
-    <div className="bloque-3d mb-4 rounded-xl p-3">
+    <div className="bloque-3d mb-4 rounded-xl p-3 bajo:mb-2 bajo:px-3 bajo:py-2">
       <div className={`flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}

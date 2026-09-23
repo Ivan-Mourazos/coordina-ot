@@ -114,7 +114,9 @@ export function TiempoOF({
       </div>
 
       {gente.length === 0 ? (
-        <p className="mt-1 text-[11px] text-text-muted">Todavía no se ha fichado nada en esta OF.</p>
+        // Fuera en pantalla baja: el "0m / est." de arriba ya lo dice, y esta
+        // línea era lo que dejaba el botón de fichar por debajo del borde.
+        <p className="mt-1 text-[11px] text-text-muted bajo:hidden">Todavía no se ha fichado nada en esta OF.</p>
       ) : (
         <>
           {dosColumnas && (
