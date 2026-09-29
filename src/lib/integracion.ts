@@ -32,7 +32,9 @@ export interface FilaOverlayOf {
 
 // De menos a más avanzada. Con varias tareas de la misma OF manda la primera
 // de esta lista: una devuelta gana a una aprobada, y así nunca se da por buena
-// una OF que alguien ha parado.
+// una OF que alguien ha parado. `anulada` es la excepción: una tarea anulada (p. ej.
+// un duplicado de RPS) no es trabajo pendiente ni parado, así que resumirOf la ignora
+// mientras la OF tenga otra tarea; solo si todas están anuladas la OF sale anulada.
 const AVANCE: readonly EstadoIntegracion[] = [
   "devuelta", "pendiente", "en_curso", "por_revisar", "en_revision", "anulada", "aprobada",
 ];
@@ -58,9 +60,14 @@ function normalizar(estado: string): EstadoIntegracion {
 
 export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOfIntegracion {
   if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "" };
-  const conEstado = filas.map((f) => ({ ...f, normal: normalizar(f.estado) }));
+  const todas = filas.map((f) => ({ ...f, normal: normalizar(f.estado) }));
+  // Una tarea anulada no debe bloquear la OF para siempre: con `anulada` antes que
+  // `aprobada` en AVANCE, un duplicado anulado junto a la tarea aprobada de OT dejaba la
+  // OF sin poder generarse en toldos. Se descartan mientras quede alguna no anulada.
+  const vivas = todas.filter((f) => f.normal !== "anulada");
+  const conEstado = vivas.length > 0 ? vivas : todas;
   const peor = conEstado.reduce((a, b) => (AVANCE.indexOf(b.normal) < AVANCE.indexOf(a.normal) ? b : a));
-  const actualizado = filas.map((f) => f.updatedAt).sort().at(-1) ?? null;
+  const actualizado = conEstado.map((f) => f.updatedAt).sort().at(-1) ?? null;
   // Si la OF no está aprobada del todo no hay revisor que dar: un nombre ahí
   // haría creer en planteamientos que alguien ya la ha dado por buena. Con
   // varias tareas aprobadas vale la última aprobación, que es la que cierra.

@@ -43,6 +43,24 @@ describe("resumirOf", () => {
       { estado: "en_revision", observacion: "nota interna", updatedAt: "2026-09-29T07:00:00Z", revisorId: null },
     ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "" });
   });
+  test("una tarea anulada no cuenta si hay otra: anulada + aprobada = aprobada, con el revisor de la aprobada", () => {
+    expect(resumirOf("0230700", [
+      { estado: "anulada", observacion: "duplicado", updatedAt: "2026-09-29T10:00:00Z", revisorId: "carron" },
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+    ])).toEqual({ of: "0230700", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "angel" });
+  });
+  test("anulada sigue sin frenar a una devuelta: la menos avanzada de las no anuladas manda", () => {
+    expect(resumirOf("0230701", [
+      { estado: "anulada", observacion: null, updatedAt: "2026-09-29T10:00:00Z", revisorId: null },
+      { estado: "devuelta", observacion: "Falta cota", updatedAt: "2026-09-29T08:00:00Z", revisorId: null },
+    ]).estado).toBe("devuelta");
+  });
+  test("solo tareas anuladas: anulada", () => {
+    expect(resumirOf("0230702", [
+      { estado: "anulada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+      { estado: "anulada", observacion: null, updatedAt: "2026-09-29T09:00:00Z", revisorId: null },
+    ])).toEqual({ of: "0230702", estado: "anulada", nota: "", actualizado: "2026-09-29T09:00:00Z", revisor: "" });
+  });
   test("un estado desconocido se trata como pendiente", () => {
     expect(resumirOf("0230194", [{ estado: "rara", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: null }]).estado).toBe("pendiente");
   });
