@@ -50,6 +50,12 @@ RPS_DB_REQUEST_TIMEOUT=60000
 RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
 ```
 
+`INTEGRACION_CLAVE` abre la integración de solo lectura con la web de
+planteamientos (toldos, remolques): `GET /api/integracion/ofs` solo responde a
+quien mande la cabecera `X-Clave-Integracion` con esta clave, y la misma va en
+`COORDINA_CLAVE` de esa web. Sin valor, la ruta responde 503. Generar con
+`node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
+
 ## Actualizar versión
 
 ```bash

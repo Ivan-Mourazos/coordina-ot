@@ -1168,6 +1168,30 @@ export function leerOverlayDeOfs(ofIds: readonly string[]): Map<string, CambioOF
   return ofs;
 }
 
+/** Filas de `of_overlay` de estas OF, agrupadas por número de OF (lo que va
+ *  antes de `:` en `of_id`). Para la integración de solo lectura con la web
+ *  de planteamientos (`/api/integracion/ofs`): una OF puede tener varias
+ *  tareas y allí se decide cuál manda. */
+export function leerOverlayPorOrdenes(
+  ordenes: readonly string[],
+): Map<string, Array<{ estado: string; observacion: string | null; updatedAt: string }>> {
+  const porOrden = new Map<string, Array<{ estado: string; observacion: string | null; updatedAt: string }>>();
+  if (ordenes.length === 0) return porOrden;
+  const filas = abrir()
+    .prepare(
+      `SELECT substr(of_id, 1, instr(of_id || ':', ':') - 1) AS orden, estado, observacion, updated_at AS updatedAt
+         FROM of_overlay
+        WHERE substr(of_id, 1, instr(of_id || ':', ':') - 1) IN (${ordenes.map(() => "?").join(",")})`,
+    )
+    .all(...ordenes) as Array<{ orden: string; estado: string; observacion: string | null; updatedAt: string }>;
+  for (const { orden, ...fila } of filas) {
+    const lista = porOrden.get(orden) ?? [];
+    lista.push(fila);
+    porOrden.set(orden, lista);
+  }
+  return porOrden;
+}
+
 /** OF que esta sección sigue enseñando en el tablero aunque RPS ya no las
  *  traiga (ver el comentario de la tabla `of_retenida`). Las suma
  *  `filasDeLaSeccion` (server/rps.ts) a lo que trae la vista u OLANET. */
