@@ -3,10 +3,10 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
-import type { FilaOverlayOf } from "@/lib/integracion";
+import type { FilaOverlayConSeccion, FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
-import { SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
-import { operariosDeSeccion, seccionDeOperario } from "./operarios";
+import { SECCION_POR_DEFECTO, seccionDeRecurso, type SeccionId } from "../secciones";
+import { operariosDeSeccion, seccionConocidaDeOperario, seccionDeOperario } from "./operarios";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -1173,23 +1173,38 @@ export function leerOverlayDeOfs(ofIds: readonly string[]): Map<string, CambioOF
  *  antes de `:` en `of_id`). Para la integración de solo lectura con la web
  *  de planteamientos (`/api/integracion/ofs`): una OF puede tener varias
  *  tareas y allí se decide cuál manda. Trae también `revisor_id`, el único
- *  dato de personas que sale: planteamientos lo pone en su campo REVISOR. */
+ *  dato de personas que sale: planteamientos lo pone en su campo REVISOR.
+ *
+ *  Cada fila lleva también la SECCIÓN de su tarea, porque planteamientos solo
+ *  quiere la revisión de Oficina Técnica (ver `filasDeOficinaTecnica`). Se
+ *  decide con lo más fiable que haya:
+ *    1. el recurso de la tarea en RPS (`tarea_maquina`): es lo que de verdad
+ *       dice de qué centro es la tarea, aunque la haya tocado otra persona;
+ *    2. si no está, quién la hizo (`autor_id`) y si no quién la revisó
+ *       (`revisor_id`), solo si es alguien del mapa de operarios;
+ *    3. si tampoco, null: "no se sabe", que NO es lo mismo que OT. */
 export function leerOverlayPorOrdenes(
   ordenes: readonly string[],
-): Map<string, FilaOverlayOf[]> {
-  const porOrden = new Map<string, FilaOverlayOf[]>();
+): Map<string, FilaOverlayConSeccion[]> {
+  const porOrden = new Map<string, FilaOverlayConSeccion[]>();
   if (ordenes.length === 0) return porOrden;
   const filas = abrir()
     .prepare(
-      `SELECT substr(of_id, 1, instr(of_id || ':', ':') - 1) AS orden, estado, observacion,
-              updated_at AS updatedAt, revisor_id AS revisorId
-         FROM of_overlay
-        WHERE substr(of_id, 1, instr(of_id || ':', ':') - 1) IN (${ordenes.map(() => "?").join(",")})`,
+      `SELECT substr(o.of_id, 1, instr(o.of_id || ':', ':') - 1) AS orden, o.estado, o.observacion,
+              o.updated_at AS updatedAt, o.revisor_id AS revisorId, o.autor_id AS autorId,
+              t.maquina AS maquina
+         FROM of_overlay o
+         LEFT JOIN tarea_maquina t ON t.of_id = o.of_id
+        WHERE substr(o.of_id, 1, instr(o.of_id || ':', ':') - 1) IN (${ordenes.map(() => "?").join(",")})`,
     )
-    .all(...ordenes) as Array<FilaOverlayOf & { orden: string }>;
-  for (const { orden, ...fila } of filas) {
+    .all(...ordenes) as Array<FilaOverlayOf & { orden: string; autorId: string | null; maquina: string | null }>;
+  for (const { orden, autorId, maquina, ...fila } of filas) {
+    const seccion =
+      seccionDeRecurso(maquina) ??
+      seccionConocidaDeOperario(autorId) ??
+      seccionConocidaDeOperario(fila.revisorId);
     const lista = porOrden.get(orden) ?? [];
-    lista.push(fila);
+    lista.push({ ...fila, seccion });
     porOrden.set(orden, lista);
   }
   return porOrden;

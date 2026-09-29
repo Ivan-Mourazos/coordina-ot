@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { SECCIONES, type SeccionId } from "./secciones";
 
 // ─── Integración de solo lectura con la web de planteamientos ────────────────
 // La web de toldos (y después la de remolques) pregunta cómo están sus OF para
@@ -30,6 +31,12 @@ export interface FilaOverlayOf {
   revisorId: string | null;
 }
 
+/** Una fila de `of_overlay` con la sección de su tarea, o null si no se sabe
+ *  (ver `leerOverlayPorOrdenes` en server/estado-db.ts para cómo se decide). */
+export interface FilaOverlayConSeccion extends FilaOverlayOf {
+  seccion: SeccionId | null;
+}
+
 // De menos a más avanzada. Con varias tareas de la misma OF manda la primera
 // de esta lista: una devuelta gana a una aprobada, y así nunca se da por buena
 // una OF que alguien ha parado. `anulada` es la excepción: una tarea anulada (p. ej.
@@ -56,6 +63,23 @@ export function leerOfsPedidas(param: string | null): string[] | null {
 
 function normalizar(estado: string): EstadoIntegracion {
   return (AVANCE as readonly string[]).includes(estado) ? (estado as EstadoIntegracion) : "pendiente";
+}
+
+/** Las filas que cuentan para la web de planteamientos: solo las de Oficina
+ *  Técnica.
+ *
+ *  Planteamientos pregunta si la OF está revisada por OT para poder generar su
+ *  pedido; lo que haga Diseño Gráfico con la misma OF (rótulos, vinilos) va por
+ *  otro lado. Iván lo decidió el 29/09/2026: una tarea de Diseño abierta,
+ *  devuelta o anulada no puede bloquear la OF, ni poner su nota ni su revisor.
+ *
+ *  Las filas de sección desconocida (tareas sin recurso guardado y sin nadie
+ *  apuntado, típicamente OF antiguas) solo cuentan si la OF no tiene ninguna
+ *  fila reconocida como de OT: así una OF vieja sigue funcionando como antes,
+ *  pero en cuanto se sabe cuál es la tarea de OT manda ella sola. */
+export function filasDeOficinaTecnica<T extends FilaOverlayConSeccion>(filas: readonly T[]): T[] {
+  const deOt = filas.filter((f) => f.seccion === SECCIONES.ot.id);
+  return deOt.length > 0 ? deOt : filas.filter((f) => f.seccion === null);
 }
 
 export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOfIntegracion {

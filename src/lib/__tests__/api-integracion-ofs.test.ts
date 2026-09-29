@@ -63,3 +63,36 @@ test("responde cada OF con solo sus cinco campos", async () => {
     ],
   });
 });
+
+// Iván (29/09/2026): solo cuentan las tareas de Oficina Técnica. La sección de
+// cada tarea sale de su recurso en RPS (tarea_maquina) o, si no está, de quién
+// la hizo o revisó.
+test("una tarea de Diseño devuelta no bloquea la OF aprobada por OT", async () => {
+  const db = estadoDb.getDb();
+  const alta = db.prepare("INSERT INTO of_overlay (of_id, autor_id, revisor_id, estado, observacion, updated_at) VALUES (?, ?, ?, ?, ?, ?)");
+  // Diseño por las personas (manuel).
+  alta.run("0230800:5", "ivan", "jaime", "aprobada", null, "2026-09-29T08:00:00Z");
+  alta.run("0230800:10", "manuel", "manuel", "devuelta", "Falta el logo", "2026-09-29T10:00:00Z");
+  // Diseño por el recurso, aunque la haya tocado alguien de OT: el recurso manda.
+  alta.run("0230801:5", null, "jaime", "aprobada", null, "2026-09-29T08:00:00Z");
+  alta.run("0230801:10", "ivan", null, "devuelta", "Falta el vinilo", "2026-09-29T10:00:00Z");
+  estadoDb.guardarMaquinasDeTarea([["0230801:5", "OTEC-A"], ["0230801:10", "A-DGRA"]]);
+  // Una de OT por el recurso y otra sin saber de quién es: la desconocida no cuenta.
+  alta.run("0230802:5", null, "tamara", "aprobada", null, "2026-09-29T08:00:00Z");
+  alta.run("0230802:7", null, null, "devuelta", "vieja", "2026-09-29T10:00:00Z");
+  estadoDb.guardarMaquinasDeTarea([["0230802:5", "A-OTEC"]]);
+  // Solo Diseño: para planteamientos no hay nada que contar.
+  alta.run("0230803:10", "carron", null, "devuelta", "Otra", "2026-09-29T10:00:00Z");
+
+  const res = await pedir("0230800,0230801,0230802,0230803,0230195");
+  expect(await res.json()).toEqual({
+    ofs: [
+      { of: "0230800", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
+      { of: "0230801", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
+      { of: "0230802", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "tamara" },
+      { of: "0230803", estado: "sin_estado", nota: "", actualizado: null, revisor: "" },
+      // Sin recurso ni personas (una OF antigua): sigue funcionando como antes.
+      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" },
+    ],
+  });
+});

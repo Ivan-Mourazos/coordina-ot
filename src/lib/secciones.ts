@@ -206,6 +206,20 @@ export function esSeccionId(v: unknown): v is SeccionId {
   return v === "ot" || v === "diseno";
 }
 
+/** De qué sección es una tarea según su recurso de RPS (`tarea_maquina`), o
+ *  null si el recurso no es de ninguna (taller, o vacío).
+ *
+ *  A diferencia de `seccionDe`, aquí NO se cae a OT: quien pregunta necesita
+ *  distinguir "es de OT" de "no lo sé", y confundirlos haría pasar por trabajo
+ *  de Oficina Técnica cualquier tarea sin recurso conocido. RPS guarda el
+ *  código en mayúsculas y `recursos` va en minúsculas, así que se compara sin
+ *  distinguirlas. */
+export function seccionDeRecurso(recurso: string | null | undefined): SeccionId | null {
+  const r = (recurso ?? "").trim().toLowerCase();
+  if (!r) return null;
+  return Object.values(SECCIONES).find((s) => s.recursos.includes(r))?.id ?? null;
+}
+
 /** La sección pedida, o la de siempre si no es ninguna conocida.
  *
  *  Nunca lanza: esto llega de la URL y de la BD, y un valor raro no puede

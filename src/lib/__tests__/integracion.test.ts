@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { claveValida, leerOfsPedidas, resumirOf } from "../integracion";
+import { claveValida, filasDeOficinaTecnica, leerOfsPedidas, resumirOf } from "../integracion";
 
 describe("claveValida", () => {
   test("acepta solo la clave exacta", () => {
@@ -75,5 +75,29 @@ describe("resumirOf", () => {
     ]).revisor).toBe("");
     expect(resumirOf("3", []).revisor).toBe("");
     expect(resumirOf("4", [{ estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: null }]).revisor).toBe("");
+  });
+});
+
+// Iván (29/09/2026): para la web de planteamientos solo cuenta la revisión de
+// Oficina Técnica; una tarea de Diseño Gráfico no puede bloquear la OF.
+describe("filasDeOficinaTecnica", () => {
+  const f = (seccion: "ot" | "diseno" | null, estado: string, revisorId: string | null = null) =>
+    ({ estado, observacion: estado === "devuelta" ? "nota de " + (seccion ?? "nadie") : null, updatedAt: "2026-09-29T08:00:00Z", revisorId, seccion });
+
+  test("se queda con las de OT y tira las de Diseño", () => {
+    const ot = f("ot", "aprobada", "jaime");
+    expect(filasDeOficinaTecnica([ot, f("diseno", "devuelta", "manuel")])).toEqual([ot]);
+  });
+  test("las de sección desconocida valen solo si no hay ninguna de OT", () => {
+    const ot = f("ot", "aprobada", "jaime");
+    const sinSaber = f(null, "devuelta");
+    expect(filasDeOficinaTecnica([ot, sinSaber])).toEqual([ot]);
+    expect(filasDeOficinaTecnica([sinSaber])).toEqual([sinSaber]);
+    expect(filasDeOficinaTecnica([sinSaber, f("diseno", "devuelta")])).toEqual([sinSaber]);
+  });
+  test("solo Diseño: no queda nada y la OF sale sin_estado", () => {
+    const filas = filasDeOficinaTecnica([f("diseno", "devuelta", "manuel")]);
+    expect(filas).toEqual([]);
+    expect(resumirOf("0230194", filas).estado).toBe("sin_estado");
   });
 });

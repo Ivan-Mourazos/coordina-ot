@@ -56,6 +56,15 @@ export function seccionDeOperario(operarioId: string): SeccionId {
   return SECCION_POR_OPERARIO[operarioId] ?? SECCION_POR_DEFECTO;
 }
 
+/** La sección de este operario, o null si no está en el mapa.
+ *
+ *  `seccionDeOperario` cae a OT con un id desconocido, que es lo correcto para
+ *  decidir qué lista enseñar pero no para decidir de quién es una tarea: ahí
+ *  "no lo sé" tiene que seguir siendo "no lo sé" (ver `leerOverlayPorOrdenes`). */
+export function seccionConocidaDeOperario(operarioId: string | null | undefined): SeccionId | null {
+  return (operarioId && SECCION_POR_OPERARIO[operarioId]) || null;
+}
+
 /** operarioId → sección, derivado del mapa de arriba para que no puedan quedar
  *  descuadrados. */
 const SECCION_POR_OPERARIO: Readonly<Record<string, SeccionId>> = Object.fromEntries(

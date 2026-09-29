@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { claveValida, leerOfsPedidas, resumirOf } from "@/lib/integracion";
+import { claveValida, filasDeOficinaTecnica, leerOfsPedidas, resumirOf } from "@/lib/integracion";
 import { leerOverlayPorOrdenes } from "@/lib/server/estado-db";
 
 // ─── GET /api/integracion/ofs?ofs=0230194,0230195 ────────────────────────────
@@ -10,6 +10,10 @@ import { leerOverlayPorOrdenes } from "@/lib/server/estado-db";
 // Solo sale `of`, `estado`, `nota`, `actualizado` y `revisor` (quién la aprobó,
 // solo si está aprobada, para el campo REVISOR de planteamientos): ni cliente,
 // ni más personas, ni notas internas.
+//
+// Solo cuentan las tareas de Oficina Técnica (Iván, 29/09/2026): planteamientos
+// espera la revisión de OT, y una tarea de Diseño Gráfico de la misma OF no debe
+// bloquearla ni poner su nota o su revisor. Ver `filasDeOficinaTecnica`.
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +32,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Lista de OF no válida" }, { status: 400, headers: sinCache });
   }
   const filas = leerOverlayPorOrdenes(ofs);
-  return NextResponse.json({ ofs: ofs.map((of) => resumirOf(of, filas.get(of) ?? [])) }, { headers: sinCache });
+  return NextResponse.json({ ofs: ofs.map((of) => resumirOf(of, filasDeOficinaTecnica(filas.get(of) ?? []))) }, { headers: sinCache });
 }
