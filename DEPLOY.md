@@ -35,6 +35,12 @@ La app queda en `http://<host>:4300`. Si se quiere nombre bonito
 
 ## .env.local mínimo
 
+> En el servidor de las webs (192.168.0.90) las credenciales están en
+> **`/webs/coordina-ot/.env`**, no en `.env.local`: Next.js lee los dos, así que
+> vale cualquiera, pero hay que añadir las variables nuevas al que ya existe. El
+> 29/09/2026 `INTEGRACION_CLAVE` se puso primero en `.env.example`, que es solo la
+> plantilla y no se lee, y la integración respondía «sin configurar».
+
 ```ini
 DATASOURCE=rps
 RPS_DB_HOST=192.168.0.124
