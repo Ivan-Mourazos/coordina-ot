@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
+import type { FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
 import { SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
 import { operariosDeSeccion, seccionDeOperario } from "./operarios";
@@ -1171,19 +1172,21 @@ export function leerOverlayDeOfs(ofIds: readonly string[]): Map<string, CambioOF
 /** Filas de `of_overlay` de estas OF, agrupadas por número de OF (lo que va
  *  antes de `:` en `of_id`). Para la integración de solo lectura con la web
  *  de planteamientos (`/api/integracion/ofs`): una OF puede tener varias
- *  tareas y allí se decide cuál manda. */
+ *  tareas y allí se decide cuál manda. Trae también `revisor_id`, el único
+ *  dato de personas que sale: planteamientos lo pone en su campo REVISOR. */
 export function leerOverlayPorOrdenes(
   ordenes: readonly string[],
-): Map<string, Array<{ estado: string; observacion: string | null; updatedAt: string }>> {
-  const porOrden = new Map<string, Array<{ estado: string; observacion: string | null; updatedAt: string }>>();
+): Map<string, FilaOverlayOf[]> {
+  const porOrden = new Map<string, FilaOverlayOf[]>();
   if (ordenes.length === 0) return porOrden;
   const filas = abrir()
     .prepare(
-      `SELECT substr(of_id, 1, instr(of_id || ':', ':') - 1) AS orden, estado, observacion, updated_at AS updatedAt
+      `SELECT substr(of_id, 1, instr(of_id || ':', ':') - 1) AS orden, estado, observacion,
+              updated_at AS updatedAt, revisor_id AS revisorId
          FROM of_overlay
         WHERE substr(of_id, 1, instr(of_id || ':', ':') - 1) IN (${ordenes.map(() => "?").join(",")})`,
     )
-    .all(...ordenes) as Array<{ orden: string; estado: string; observacion: string | null; updatedAt: string }>;
+    .all(...ordenes) as Array<FilaOverlayOf & { orden: string }>;
   for (const { orden, ...fila } of filas) {
     const lista = porOrden.get(orden) ?? [];
     lista.push(fila);

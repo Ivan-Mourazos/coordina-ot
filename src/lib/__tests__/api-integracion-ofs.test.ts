@@ -22,11 +22,11 @@ beforeEach(() => {
   process.env.INTEGRACION_CLAVE = "clave-de-prueba";
   const db = estadoDb.getDb();
   db.prepare("DELETE FROM of_overlay").run();
-  const alta = db.prepare("INSERT INTO of_overlay (of_id, estado, observacion, updated_at) VALUES (?, ?, ?, ?)");
-  alta.run("0230194:5", "aprobada", null, "2026-09-29T08:00:00Z");
-  alta.run("0230195:5", "devuelta", "Falta el lado del brazo", "2026-09-29T09:00:00Z");
-  alta.run("0230700:1", "aprobada", null, "2026-09-29T08:00:00Z");
-  alta.run("0230700:6", "en_revision", "interna", "2026-09-29T07:00:00Z");
+  const alta = db.prepare("INSERT INTO of_overlay (of_id, estado, observacion, updated_at, revisor_id) VALUES (?, ?, ?, ?, ?)");
+  alta.run("0230194:5", "aprobada", null, "2026-09-29T08:00:00Z", "jaime");
+  alta.run("0230195:5", "devuelta", "Falta el lado del brazo", "2026-09-29T09:00:00Z", null);
+  alta.run("0230700:1", "aprobada", null, "2026-09-29T08:00:00Z", null);
+  alta.run("0230700:6", "en_revision", "interna", "2026-09-29T07:00:00Z", null);
 });
 
 const pedir = (ofs: string, clave: string | null = "clave-de-prueba") =>
@@ -50,16 +50,16 @@ test("lista inválida: 400", async () => {
   expect((await pedir("0230194,abc")).status).toBe(400);
 });
 
-test("responde cada OF con solo sus cuatro campos", async () => {
+test("responde cada OF con solo sus cinco campos", async () => {
   const res = await pedir("0230194,0230195,0230700,0239999");
   expect(res.status).toBe(200);
   expect(res.headers.get("cache-control")).toBe("no-store");
   expect(await res.json()).toEqual({
     ofs: [
-      { of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z" },
-      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z" },
-      { of: "0230700", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z" },
-      { of: "0239999", estado: "sin_estado", nota: "", actualizado: null },
+      { of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
+      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" },
+      { of: "0230700", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "" },
+      { of: "0239999", estado: "sin_estado", nota: "", actualizado: null, revisor: "" },
     ],
   });
 });

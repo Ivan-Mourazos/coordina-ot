@@ -17,12 +17,17 @@ export interface EstadoOfIntegracion {
   estado: EstadoIntegracion;
   nota: string;
   actualizado: string | null;
+  // Quién la aprobó, solo si está aprobada. Es el único dato de personas que
+  // sale de CoordinaOT: la web de planteamientos lo pone en su campo REVISOR
+  // para que nadie tenga que escribirlo a mano.
+  revisor: string;
 }
 
 export interface FilaOverlayOf {
   estado: string;
   observacion: string | null;
   updatedAt: string;
+  revisorId: string | null;
 }
 
 // De menos a más avanzada. Con varias tareas de la misma OF manda la primera
@@ -52,14 +57,21 @@ function normalizar(estado: string): EstadoIntegracion {
 }
 
 export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOfIntegracion {
-  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null };
+  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "" };
   const conEstado = filas.map((f) => ({ ...f, normal: normalizar(f.estado) }));
   const peor = conEstado.reduce((a, b) => (AVANCE.indexOf(b.normal) < AVANCE.indexOf(a.normal) ? b : a));
   const actualizado = filas.map((f) => f.updatedAt).sort().at(-1) ?? null;
+  // Si la OF no está aprobada del todo no hay revisor que dar: un nombre ahí
+  // haría creer en planteamientos que alguien ya la ha dado por buena. Con
+  // varias tareas aprobadas vale la última aprobación, que es la que cierra.
+  const ultimaAprobada = peor.normal === "aprobada"
+    ? conEstado.filter((f) => f.normal === "aprobada").reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a))
+    : null;
   return {
     of,
     estado: peor.normal,
     nota: peor.normal === "devuelta" ? (peor.observacion ?? "").trim() : "",
     actualizado,
+    revisor: ultimaAprobada?.revisorId ?? "",
   };
 }

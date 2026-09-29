@@ -26,24 +26,36 @@ describe("leerOfsPedidas", () => {
 
 describe("resumirOf", () => {
   test("sin filas: sin_estado", () => {
-    expect(resumirOf("0230194", [])).toEqual({ of: "0230194", estado: "sin_estado", nota: "", actualizado: null });
+    expect(resumirOf("0230194", [])).toEqual({ of: "0230194", estado: "sin_estado", nota: "", actualizado: null, revisor: "" });
   });
   test("una fila aprobada", () => {
-    expect(resumirOf("0230194", [{ estado: "aprobada", observacion: "vieja", updatedAt: "2026-09-29T08:00:00Z" }]))
-      .toEqual({ of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z" });
+    expect(resumirOf("0230194", [{ estado: "aprobada", observacion: "vieja", updatedAt: "2026-09-29T08:00:00Z", revisorId: "jaime" }]))
+      .toEqual({ of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" });
   });
   test("varias tareas: manda la menos avanzada y la nota solo si está devuelta", () => {
     const r = resumirOf("0230700", [
-      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z" },
-      { estado: "devuelta", observacion: "Falta el lado del brazo", updatedAt: "2026-09-29T09:00:00Z" },
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+      { estado: "devuelta", observacion: "Falta el lado del brazo", updatedAt: "2026-09-29T09:00:00Z", revisorId: null },
     ]);
-    expect(r).toEqual({ of: "0230700", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z" });
+    expect(r).toEqual({ of: "0230700", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" });
     expect(resumirOf("0230701", [
-      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z" },
-      { estado: "en_revision", observacion: "nota interna", updatedAt: "2026-09-29T07:00:00Z" },
-    ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z" });
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+      { estado: "en_revision", observacion: "nota interna", updatedAt: "2026-09-29T07:00:00Z", revisorId: null },
+    ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "" });
   });
   test("un estado desconocido se trata como pendiente", () => {
-    expect(resumirOf("0230194", [{ estado: "rara", observacion: null, updatedAt: "2026-09-29T08:00:00Z" }]).estado).toBe("pendiente");
+    expect(resumirOf("0230194", [{ estado: "rara", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: null }]).estado).toBe("pendiente");
+  });
+  test("revisor solo si está aprobada: el de la aprobada más reciente", () => {
+    expect(resumirOf("1", [
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T09:00:00Z", revisorId: "jaime" },
+    ]).revisor).toBe("jaime");
+    expect(resumirOf("2", [
+      { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
+      { estado: "en_revision", observacion: null, updatedAt: "2026-09-29T09:00:00Z", revisorId: "jaime" },
+    ]).revisor).toBe("");
+    expect(resumirOf("3", []).revisor).toBe("");
+    expect(resumirOf("4", [{ estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: null }]).revisor).toBe("");
   });
 });
