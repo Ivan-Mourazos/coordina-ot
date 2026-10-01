@@ -459,6 +459,16 @@ export function Drawer({
     ...ACCIONES.find((a) => a.id === "aprobar_corregida")!,
     confirmar: `Las ${paraCorregir.length} OF quedan aprobadas sin pasar otra vez por revisión.`,
   };
+  // Las mías en curso que no llevan revisión. Mismo atajo que "Dar por
+  // corregidas", pero para la primera vuelta: un parte entero de trabajo sin
+  // revisión había que cerrarlo OF por OF desde el "⋯" de cada una.
+  const paraSinRevision = ofsDeOT.filter((o) =>
+    accionesDisponibles(o, miId).some((a) => a.id === "aprobar_sin_revision"),
+  );
+  const defSinRevision = {
+    ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
+    confirmar: `Las ${paraSinRevision.length} OF quedan aprobadas SIN que nadie las revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa "Pasar a revisión".`,
+  };
 
   // Con la revisión por pedido, el bloque del pedido es el ÚNICO sitio donde
   // están estas acciones, así que tiene que salir también con una sola OF.
@@ -724,8 +734,10 @@ export function Drawer({
               salen TRES botones a la vez —"Fichar las 3", "Dar por corregidas
               las 2", "Pasar las 2 a revisión"— y en un panel de 32rem no caben
               en la línea del rótulo: el último se salía por el borde derecho y
-              no se podía ni leer ni pulsar. Con el salto bajan a su propia
-              línea y se ven los tres. */}
+              no se podía ni leer ni pulsar.
+              Ahora van SIEMPRE en su propia fila, debajo del rótulo: con el
+              salto automático bailaban, en la línea del texto o debajo según
+              cuántos salieran en cada momento. */}
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <h3 className={TITULO_BLOQUE}>
               Órdenes de fabricación ({ofsDeOT.length})
@@ -744,16 +756,15 @@ export function Drawer({
                 {todasAbiertas ? "Plegar todas" : "Abrir todas"}
               </button>
             )}
+          </div>
             {/* Fichar el pedido entero sin ir OF por OF. Solo con más de una:
                 con una sola, este botón y el de su fila harían lo mismo y
                 sobraría uno. Cada OF conserva el suyo debajo, que es lo que se
                 usa cuando de verdad solo tocas una. */}
-            {/* `ml-auto` para pegarlos a la derecha cuando caben en la línea
-                del rótulo, y `flex-wrap` propio para que, cuando son tres y
-                tampoco caben en una línea para ellos solos, se partan entre
-                sí en vez de desbordar. Sin `shrink-0`: encogerse aquí era lo
-                que empujaba al último fuera del panel. */}
-            <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+            {/* Fila propia, pegada a la derecha; `flex-wrap` para que, si no
+                caben, se partan entre sí en vez de desbordar. `empty:hidden`:
+                sin botones no deja hueco. */}
+            <div className="mb-2 flex flex-wrap items-center justify-end gap-1.5 empty:hidden">
               {/* Con el reloj MÍO en marcha aquí, este botón para; si no, ficha.
                   Mismo par que la fila del tablero (PedidoLinea): antes solo
                   sabía fichar, así que tras fichar seguía ofreciendo fichar
@@ -867,6 +878,20 @@ export function Drawer({
                   {etiquetaCantidad("Dar por corregidas", paraCorregir.length)}
                 </button>
               )}
+              {/* Darlas por buenas sin revisión, todas juntas. Desde dos, como
+                  "Dar por corregidas": con una, el "⋯" de su fila. */}
+              {paraSinRevision.length >= 2 && (
+                <button
+                  onClick={() => {
+                    idsAConfirmar.current = paraSinRevision.map((o) => o.id);
+                    confirmacionPedido.pedirConfirmacion(defSinRevision);
+                  }}
+                  title={`Da por buenas las ${paraSinRevision.length} OF de este pedido sin pasarlas por revisión`}
+                  className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
+                >
+                  {etiquetaCantidad("Dar por buenas", paraSinRevision.length, "sin revisión")}
+                </button>
+              )}
               {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
                   más de una: con una sola, este botón y el de su fila harían lo
                   mismo. */}
@@ -889,8 +914,7 @@ export function Drawer({
                   {etiquetaCantidad("Pasar", paraRevisarBloque.length, "a revisión")}
                 </button>
               )}
-            </span>
-          </div>
+            </div>
 
           {/* LA GUÍA TAMBIÉN AQUÍ. Estaba solo en el panel de Revisiones, y
               revisar desde la ficha —que es donde se está cuando ya tienes el
