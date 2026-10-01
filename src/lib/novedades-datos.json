@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-10-01",
+    "hasta": "33cf58c",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes dar por buenas sin revisión todas las OF de un pedido de una vez",
+        "detalle": "Con dos o más OF tuyas en curso, sale el botón encima de la lista y pide confirmación."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los botones de encima de las OF ya no cambian de sitio",
+        "detalle": "Van siempre en su propia fila, debajo del título, salgan los que salgan."
+      }
+    ]
+  },
+  {
     "id": "2026-09-23",
     "hasta": "60136a9",
     "cambios": [
