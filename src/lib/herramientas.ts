@@ -37,19 +37,12 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
     titulo: "Plantear",
     items: [
       {
-        id: "plantear-toldos",
-        nombre: "Plantear toldos",
-        descripcion: "Cálculo y despiece de toldos.",
+        // Toldos y remolques en una sola web desde el 02/10/2026 (Iván): la
+        // de remolques del 4500 se retira y su puerto redirige aquí.
+        id: "planteamientos-tgm",
+        nombre: "Planteamientos TGM",
+        descripcion: "Cálculo, despiece y planteamiento de toldos y remolques.",
         url: "http://192.168.0.90:4400/",
-      },
-      {
-        id: "plantear-remolques",
-        nombre: "Plantear remolques",
-        descripcion: "Cálculo y despiece de remolques.",
-        // Desplegada el 07/09/2026. Se apunta la raíz y no /planteamiento, que
-        // es donde acaba: la propia web redirige, y así una reorganización
-        // suya no deja este enlace en un 404.
-        url: "http://192.168.0.90:4500/",
       },
       {
         id: "reservar-materiales",
