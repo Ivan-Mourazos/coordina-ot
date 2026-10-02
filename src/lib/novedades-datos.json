@@ -1,8 +1,13 @@
 [
   {
     "id": "2026-10-02",
-    "hasta": "761cc75",
+    "hasta": "79ff089",
     "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Toldos y remolques, en una sola herramienta",
+        "detalle": "En el menú de herramientas, «Planteamientos TGM» abre la web donde se plantean los dos. La web vieja de remolques ya no está."
+      },
       {
         "tipo": "arreglado",
         "titulo": "Los buscadores ya no enseñan una lista con búsquedas anteriores",
