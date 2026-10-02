@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-02",
+    "hasta": "761cc75",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Los buscadores ya no enseñan una lista con búsquedas anteriores",
+        "detalle": "Al escribir en un buscador ya no aparece debajo lo que se buscó otros días; solo los resultados."
+      }
+    ]
+  },
+  {
     "id": "2026-10-01",
     "hasta": "33cf58c",
     "cambios": [
