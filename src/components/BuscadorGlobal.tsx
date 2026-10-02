@@ -159,6 +159,7 @@ export function BuscadorGlobal({
           <path d="m20 20-3.5-3.5" strokeLinecap="round" />
         </svg>
         <input
+          autoComplete="off"
           ref={inputRef}
           value={q}
           onChange={(e) => {

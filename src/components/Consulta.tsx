@@ -115,6 +115,7 @@ export function Consulta() {
         <label className="relative min-w-56 max-w-xl flex-1">
           <span className="sr-only">{pestana === "pedidos" ? "Buscar pedidos" : "Buscar visitas"}</span>
           <input
+            autoComplete="off"
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}

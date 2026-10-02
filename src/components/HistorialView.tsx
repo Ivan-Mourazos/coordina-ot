@@ -231,6 +231,7 @@ export function HistorialView({
             <path d="m20 20-3.5-3.5" strokeLinecap="round" />
           </svg>
           <input
+            autoComplete="off"
             id="buscar-historial"
             value={q}
             onChange={(e) => setQ(e.target.value)}

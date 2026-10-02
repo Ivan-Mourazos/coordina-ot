@@ -222,6 +222,7 @@ export function FilterBar({
           <path d="m20 20-3.5-3.5" strokeLinecap="round" />
         </svg>
         <input
+          autoComplete="off"
           value={filtros.query}
           onChange={(e) => setFiltros({ query: e.target.value })}
           aria-label="Buscar pedidos en esta lista"

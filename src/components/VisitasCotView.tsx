@@ -241,6 +241,7 @@ export function VisitasCotView({
             <span className="sr-only">Buscar visitas</span>
             <SearchIcon />
             <input
+              autoComplete="off"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Comercial, cliente, pedido o incidencia…"
