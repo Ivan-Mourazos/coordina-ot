@@ -792,17 +792,6 @@ export function Drawer({
                   </button>
                 )
               )}
-              {/* Con el reloj corriendo no se manda nada a revisar: primero se
-                  para. Mandar a revisión da por terminado el planteo, y hacerlo
-                  con el reloj en marcha deja tiempo contando sobre un trabajo
-                  que ya dijiste que estaba acabado.
-                  Se dice POR QUÉ en vez de esconder el botón a secas: si no,
-                  parece que la web se ha roto. */}
-              {avisoPausarPrimero && (
-                <span className="text-[11px] text-text-muted">
-                  Pausa el reloj para poder pasar a revisión
-                </span>
-              )}
               {/* Empezar la revisión de todas. Como el "Fichar las N" del
                   planteo: es el reloj quien las pasa a "En revisión". */}
               {fichandoYo.length === 0 && paraEmpezarRevision.length > 1 && (
@@ -915,6 +904,20 @@ export function Drawer({
                 </button>
               )}
             </div>
+            {/* Con el reloj corriendo no se manda nada a revisar: primero se
+                para. Mandar a revisión da por terminado el planteo, y hacerlo
+                con el reloj en marcha deja tiempo contando sobre un trabajo
+                que ya dijiste que estaba acabado.
+                Se dice POR QUÉ en vez de esconder el botón a secas: si no,
+                parece que la web se ha roto.
+                En su propia línea, debajo de los botones: metido entre ellos
+                ocupaba el sitio de uno y empujaba al siguiente a otra fila,
+                con lo que quedaban un botón arriba y otro abajo sin motivo. */}
+            {avisoPausarPrimero && (
+              <p className="-mt-1 mb-2 text-right text-[11px] text-text-muted">
+                Pausa el reloj para poder pasar a revisión
+              </p>
+            )}
 
           {/* LA GUÍA TAMBIÉN AQUÍ. Estaba solo en el panel de Revisiones, y
               revisar desde la ficha —que es donde se está cuando ya tienes el
