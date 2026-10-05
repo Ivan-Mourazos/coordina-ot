@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-05",
-    "hasta": "36b9a93",
+    "hasta": "4429e40",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -12,6 +12,11 @@
         "tipo": "arreglado",
         "titulo": "Un pedido ya pasado no vuelve a salir por la tarea «Plantear en taller»",
         "detalle": "Si el planteo sigue a medias, la OF sí se queda a la vista para seguir fichando."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Si re-escanean un pedido, ya ves el PDF nuevo al abrirlo",
+        "detalle": "Antes podía seguir saliendo el escaneo anterior hasta un día después."
       },
       {
         "tipo": "mejor",
