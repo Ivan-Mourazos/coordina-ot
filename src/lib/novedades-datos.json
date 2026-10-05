@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-10-05",
-    "hasta": "9cdb786",
+    "hasta": "506c199",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "Los toldos de fachada con «Plantear en taller» ya salen como trabajo vuestro",
         "detalle": "Antes se quedaban en «para taller» y había que buscarlos. Capotas y otras estructuras siguen siendo del taller."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido ya pasado no vuelve a salir por la tarea «Plantear en taller»",
+        "detalle": "Si el planteo sigue a medias, la OF sí se queda a la vista para seguir fichando."
       }
     ]
   },
