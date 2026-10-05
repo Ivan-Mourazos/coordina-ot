@@ -143,7 +143,7 @@ export function HistorialDrawer({
     // (react-hooks/set-state-in-effect) y así se evita sin desactivar la regla.
     const id = setTimeout(() => {
       setScanExiste(null);
-      fetch(`/api/pedidos/${pedido}.pdf`, { method: "HEAD" })
+      fetch(`/api/partes/${pedido}.pdf`, { method: "HEAD" })
         .then((r) => {
           if (vivo) setScanExiste(r.status !== 404);
         })
@@ -162,7 +162,7 @@ export function HistorialDrawer({
   const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
 
   if (!pedido) return null;
-  const scanUrl = detalle?.scanUrl ?? `/api/pedidos/${pedido}.pdf`;
+  const scanUrl = detalle?.scanUrl ?? `/api/partes/${pedido}.pdf`;
   // La ruta de PDFs resuelve las tres delegaciones (AR, SA y BE); para lo que
   // no sea un pedido de venta —trabajo interno, OF sueltas— no hay parte que
   // pedir.

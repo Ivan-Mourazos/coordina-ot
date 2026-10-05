@@ -846,7 +846,7 @@ export interface HistorialPedidoDetalle {
   piezas: number;
   familias: string[];
   comentarioVenta: string | null;
-  scanUrl: string; // /api/pedidos/{codigo}.pdf (puede dar 404)
+  scanUrl: string; // /api/partes/{codigo}.pdf (puede dar 404)
   /** Una entrada por OF y centro: el código puede repetirse entre centros. */
   ofs: HistorialOF[];
 
@@ -908,7 +908,7 @@ export function cabeceraADetalle(
     piezas: fila.piezas ?? 0,
     familias,
     comentarioVenta: fila.comentario,
-    scanUrl: `/api/pedidos/${codigo}.pdf`,
+    scanUrl: `/api/partes/${codigo}.pdf`,
     ofs,
     documentos: extras.documentos ?? [],
   };

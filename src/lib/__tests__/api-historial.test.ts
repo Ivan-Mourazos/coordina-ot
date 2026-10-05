@@ -31,7 +31,7 @@ test("GET detalle con código válido responde 200 y el detalle del pedido", asy
   const data = (await res.json()) as { codigo: string; ofs: unknown[]; scanUrl: string };
   expect(data.codigo).toBe("AR.26.03453");
   expect(Array.isArray(data.ofs)).toBe(true);
-  expect(data.scanUrl).toBe("/api/pedidos/AR.26.03453.pdf");
+  expect(data.scanUrl).toBe("/api/partes/AR.26.03453.pdf");
 });
 
 test("GET detalle con código inválido responde 400", async () => {

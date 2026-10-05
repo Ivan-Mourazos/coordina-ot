@@ -1376,7 +1376,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     // El PDF escaneado existe para los pedidos de venta reales (AR/SA/BE);
     // el endpoint responde 404 si falta y la tarjeta enseña la réplica.
     const scanUrl = esCodigoPedido(grupo.codigo)
-      ? `/api/pedidos/${grupo.codigo}.pdf`
+      ? `/api/partes/${grupo.codigo}.pdf`
       : undefined;
 
     return {

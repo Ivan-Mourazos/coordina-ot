@@ -86,7 +86,7 @@ test("cabeceraADetalle arma el detalle con fechas ISO, scanUrl y prioridad sanea
     ["TOLDO"],
   );
   expect(d.codigo).toBe("AR.26.03365");
-  expect(d.scanUrl).toBe("/api/pedidos/AR.26.03365.pdf");
+  expect(d.scanUrl).toBe("/api/partes/AR.26.03365.pdf");
   expect(d.prioridad).toBe(1); // 9 fuera de rango → 1
   expect(d.fechaSolicitud).toBe("2026-06-01");
   expect(d.fechaFinalizacion).toBe("2026-07-22T13:00:00.000Z");
