@@ -86,18 +86,33 @@ function situacionDe(traida: Situacion, completado: boolean, reabierto: boolean)
   return completado ? "completado" : traida;
 }
 
+/** "0231998" de "0231998:5": la orden sin la tarea. */
+const ordenDe = (ofId: string) => ofId.split(":")[0];
+
+/** Las órdenes que tienen alguna tarea ya aprobada aquí, con el id de esa
+ *  tarea. Para reconocer el resto de «plantear en taller» (ver abajo). */
+function ordenesAprobadas(overlay: Overlay): Map<string, Set<string>> {
+  const salida = new Map<string, Set<string>>();
+  for (const c of overlay.ofs.values()) {
+    if (c.estado !== "aprobada") continue;
+    const orden = ordenDe(c.ofId);
+    salida.set(orden, (salida.get(orden) ?? new Set()).add(c.ofId));
+  }
+  return salida;
+}
+
 /** Fusión pura tablero (mock o RPS) + overlay. No muta la entrada. */
 export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
   if (overlay.ofs.size === 0 && overlay.pedidosCompletados.size === 0)
     return tablero;
+  const aprobadas = ordenesAprobadas(overlay);
   return {
     operarios: tablero.operarios,
     pedidos: tablero.pedidos.map((p) => {
       const completado = overlay.pedidosCompletados.has(p.id);
       const ofs = p.ofs.map((of) => {
         const o = overlay.ofs.get(of.id);
-        if (!o) return of;
-        return {
+        const fusionada = !o ? of : {
           ...of,
           autorId: o.autorId,
           revisorId: o.revisorId,
@@ -106,6 +121,21 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
           revisada: o.revisada ?? false,
           cerradaRps: o.cerradaRps ?? undefined,
         };
+        // EL RESTO DE «PLANTEAR EN TALLER». Un toldo de fachada trae dos
+        // tareas de OT, y cuando la del archivo de corte llega al 100 % RPS
+        // solo manda esta. Si aquí ya se dio el planteo por terminado —el
+        // pedido se pasó, o la otra tarea de la orden está aprobada— no queda
+        // nada que hacer y se trata como las de taller: ni ocupa sitio ni
+        // reabre el pedido. Si el planteo sigue a medias no se toca, que es
+        // por donde se sigue fichando (AR.26.04714, 05/10/2026).
+        //
+        // Solo mientras esté sin empezar: si alguien ya trabajó en ella, es
+        // trabajo y esconderla sería mentir.
+        const resto =
+          fusionada.plantearEnTaller === true &&
+          fusionada.estado === "pendiente" &&
+          (completado || [...(aprobadas.get(ordenDe(of.id)) ?? [])].some((id) => id !== of.id));
+        return resto ? { ...fusionada, ajenaOT: true } : fusionada;
       });
       // Solo en los pasados: en un pedido normal, tener OF sin hacer es lo
       // esperado y no significa nada.

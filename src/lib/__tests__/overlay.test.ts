@@ -205,3 +205,52 @@ it("aplicarOverlay copia cerradaRps a la OF, y su ausencia la deja sin marca", (
   expect(a.cerradaRps).toEqual({ at: "2026-09-15T10:00:00.000Z", por: "ivan", modo: "activo" });
   expect(b.cerradaRps).toBeUndefined();
 });
+
+// Los toldos de fachada traen DOS tareas de OT en la ruta: la del archivo de
+// corte y «PLANTEAR EN TALLER». Cuando la primera llega al 100 % RPS deja de
+// traerla y solo queda la segunda. Si el planteo ya se dio por terminado es un
+// resto (AR.26.04444, 05/10/2026: reapareció ya pasado y hubo que anularla);
+// si sigue a medias es por donde se sigue trabajando (AR.26.04714, mismo día).
+// RPS no distingue un caso del otro; lo que se hizo aquí con la otra tarea, sí.
+describe("resto de «plantear en taller»", () => {
+  const resto = (extra: Partial<OF> = {}) => of("0231998:5", { plantearEnTaller: true, ...extra });
+  const hermana = (estado: "aprobada" | "en_curso") =>
+    new Map([["0231998:6", { ofId: "0231998:6", autorId: "tamara", revisorId: null, estado, observacion: null }]]);
+
+  it("en un pedido ya pasado no lo reabre", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [resto()])] };
+    const [p] = aplicarOverlay(t, { ...vacio, pedidosCompletados: new Set(["P1"]), pasos: new Map([["P1", { at: "2026-09-22", ofIds: ["0231998:6"] }]]) }).pedidos;
+    expect(p.situacion).toBe("completado");
+    expect(p.reabiertoPor).toBeUndefined();
+    expect(p.ofs[0].ajenaOT).toBe(true);
+  });
+
+  it("con la otra tarea de la OF ya aprobada no cuenta como trabajo, aunque el pedido siga sin pasar", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [resto()])] };
+    expect(aplicarOverlay(t, { ...vacio, ofs: hermana("aprobada") }).pedidos[0].ofs[0].ajenaOT).toBe(true);
+  });
+
+  it("con la otra tarea todavía en curso SÍ es trabajo: por ahí se sigue fichando", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [resto()])] };
+    expect(aplicarOverlay(t, { ...vacio, ofs: hermana("en_curso") }).pedidos[0].ofs[0].ajenaOT).toBeUndefined();
+  });
+
+  it("si ya se empezó a trabajar en ella, no se esconde", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [resto()])] };
+    const ofs = hermana("aprobada");
+    ofs.set("0231998:5", { ofId: "0231998:5", autorId: "tamara", revisorId: null, estado: "en_curso", observacion: null });
+    expect(aplicarOverlay(t, { ...vacio, ofs }).pedidos[0].ofs[0].ajenaOT).toBeUndefined();
+  });
+
+  it("la tarea aprobada de OTRA OF no la convierte en resto", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [resto()])] };
+    const ofs = new Map([["0231999:6", { ofId: "0231999:6", autorId: "tamara", revisorId: null, estado: "aprobada" as const, observacion: null }]]);
+    expect(aplicarOverlay(t, { ...vacio, ofs }).pedidos[0].ofs[0].ajenaOT).toBeUndefined();
+  });
+
+  it("una OF normal sin hacer sigue reabriendo un pedido pasado", () => {
+    const t = { operarios: [], pedidos: [pedido("P1", [of("0231998:5")])] };
+    const [p] = aplicarOverlay(t, { ...vacio, pedidosCompletados: new Set(["P1"]) }).pedidos;
+    expect(p.reabiertoPor).toEqual(["0231998:5"]);
+  });
+});

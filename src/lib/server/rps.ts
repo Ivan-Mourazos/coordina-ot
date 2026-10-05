@@ -732,6 +732,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     detenida: sit === "DETENIDA",
     fichable: permiteImputaciones(fila),
     ajenaOT: esTareaDeTaller(fila.Tarea, fila.Articulo),
+    plantearEnTaller: (diceTaller(fila.Tarea) && !esTareaDeTaller(fila.Tarea, fila.Articulo)) || undefined,
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     // Lo RESERVADO se sigue contando aparte de lo asignado: son dos cosas

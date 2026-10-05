@@ -314,6 +314,12 @@ export interface OF {
    *  trabajo nuestro salvo que alguien la rescate asignándole autor.
    *  Ver docs/superpowers/specs/2026-08-07-of-ajenas-a-ot-design.md */
   ajenaOT?: boolean;
+  /** Entra por «PLANTEAR EN TALLER» pero es de OT por su familia (toldo de
+   *  fachada). Esas OF traen además la tarea del archivo de corte, y cuando
+   *  esa llega al 100 % en RPS solo queda esta: puede ser un resto de un
+   *  planteo ya terminado. Lo decide `aplicarOverlay`, que es quien sabe qué
+   *  se hizo con la otra. */
+  plantearEnTaller?: boolean;
   /** Texto de rotulación del parte (dato de RPS, no siempre existe). */
   rotulacion?: string;
   /** Fecha ISO en la que llega el material de compras pedido y aún no
