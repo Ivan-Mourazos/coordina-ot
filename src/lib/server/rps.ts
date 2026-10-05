@@ -390,8 +390,30 @@ function familiaDe(fila: FilaVista, subfamilia: string | undefined, detalle: str
  *  alternativas y ninguna sirve. Ninguna tarea tiene máquina asignada
  *  (`IDBudgetMachine` vacío en las 106) y el catálogo tampoco discrimina (la
  *  misma descripción aparece con y sin `IDUsualTask`). Por eso estas OF no se
- *  descartan: se marcan, y basta con asignarles autor para recuperarlas. */
-export function esTareaDeTaller(tarea: string | null): boolean {
+ *  descartan: se marcan, y basta con asignarles autor para recuperarlas.
+ *
+ *  EL TEXTO SOLO NO BASTA: hace falta la familia. "PLANTEAR EN TALLER" de un
+ *  toldo de fachada la plantea Oficina Técnica, y con solo el texto salía como
+ *  ajena (AR.26.04714, 05/10/2026: la OF se quedó en "para taller" en cuanto
+ *  su otra tarea llegó al 100 %). Medido en RPS sobre las imputaciones de 2026
+ *  en tareas que dicen TALLER:
+ *
+ *    TOLDO FACHADA .... OT 31 tareas / 887 min · taller 2 tareas / 0 min
+ *    CAPOTA ........... OT  3 tareas /  47 min · taller 6 tareas / 124 min
+ *    OTR.ESTRUCTURAS .. OT  0                  · taller 7 tareas / 116 min
+ *
+ *  El recurso de la ruta tampoco las separa: todas llevan OTEC-A, las del
+ *  taller incluidas. Sin familia (OF sin línea de venta) no se esconde: no hay
+ *  nada que diga que es del taller, y una OF a la vista de más cuesta menos
+ *  que una escondida. */
+export function esTareaDeTaller(tarea: string | null, articulo: string | null | undefined): boolean {
+  return diceTaller(tarea) && FAMILIAS_DEL_TALLER.test(textoArticulo(articulo ?? null).toUpperCase());
+}
+
+/** Grupos de artículo de RPS cuyo planteo "en taller" hace el taller. */
+const FAMILIAS_DEL_TALLER = /CAPOTA|OTR\.?\s*ESTRUCTURAS/;
+
+function diceTaller(tarea: string | null): boolean {
   return /\bTALLER\b/.test((tarea ?? "").toUpperCase());
 }
 
@@ -408,6 +430,10 @@ export function esTareaDeTaller(tarea: string | null): boolean {
  *  el CodTarea con el que se imputa. Si TODAS son de taller se queda la
  *  primera, y la OF sigue marcada como ajena a OT (que es lo cierto).
  *
+ *  Aquí se mira solo el TEXTO de la tarea, sin la familia: no se decide de
+ *  quién es la OF sino cuál de sus tareas la representa, y eso tiene que salir
+ *  igual venga como venga el orden de RPS (el id de la OF lleva la tarea).
+ *
  *  Lo que no comparten las filas es de la tarea, no de la OF (descripción de la
  *  MO, tiempo previsto), así que no hay nada que sumar al fusionar: el tiempo
  *  previsto de una tarea de taller no es tiempo de Oficina Técnica. */
@@ -417,7 +443,7 @@ export function unaFilaPorOF<T extends { OF: string | null; Tarea: string | null
   const porOF = new Map<string, T>();
   for (const f of filas) {
     const ya = porOF.get((f.OF ?? "").trim());
-    if (!ya || (esTareaDeTaller(ya.Tarea) && !esTareaDeTaller(f.Tarea))) {
+    if (!ya || (diceTaller(ya.Tarea) && !diceTaller(f.Tarea))) {
       porOF.set((f.OF ?? "").trim(), f);
     }
   }
@@ -705,7 +731,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     fichandoRol: fichadaAhora ? "plantear" : null,
     detenida: sit === "DETENIDA",
     fichable: permiteImputaciones(fila),
-    ajenaOT: esTareaDeTaller(fila.Tarea),
+    ajenaOT: esTareaDeTaller(fila.Tarea, fila.Articulo),
     rotulacion: (fila.Rotulacion ?? "").trim() || undefined,
     materialPendienteHasta: fechaISO(fila.FechaCompras) ?? undefined,
     // Lo RESERVADO se sigue contando aparte de lo asignado: son dos cosas
