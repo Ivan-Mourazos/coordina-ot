@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-05",
+    "hasta": "9cdb786",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Los toldos de fachada con «Plantear en taller» ya salen como trabajo vuestro",
+        "detalle": "Antes se quedaban en «para taller» y había que buscarlos. Capotas y otras estructuras siguen siendo del taller."
+      }
+    ]
+  },
+  {
     "id": "2026-10-02",
     "hasta": "79ff089",
     "cambios": [
