@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-10-07",
-    "hasta": "c5ee372",
+    "hasta": "e5bda4c",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Lo que te toca revisar sale en tu Panel",
         "detalle": "Columna \"Te toca revisar\" en tu zona, con lo que tienes por empezar y lo que estás revisando. Ya no hay que ir a Revisiones para enterarse."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Botón \"Plantear\" en la ficha de toldos y remolques",
+        "detalle": "Abre Planteamientos TGM en otra pestaña con el pedido ya cargado, sin tener que teclear el número."
       },
       {
         "tipo": "mejor",
