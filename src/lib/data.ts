@@ -65,15 +65,17 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
     // pedidos hay vivos —para que el vigilante sepa a quién mirar— y se lee lo
     // que ya dejó dicho. El `stat` va contra un share por red y esto corre en
     // cada vuelta del tablero, con 81 pedidos dentro.
-    const { registrarPedidos, pedidosCambiados } = await import("./server/scan-db");
+    const { registrarPedidos, marcasDeCambiados } = await import("./server/scan-db");
     registrarPedidos(conTiempos.pedidos.map((p) => p.codigo));
-    const cambiados = pedidosCambiados();
+    const cambiados = marcasDeCambiados();
 
     return {
       ...conTiempos,
-      pedidos: conTiempos.pedidos.map((p) =>
-        cambiados.has(p.codigo) ? { ...p, scanCambiado: true } : p,
-      ),
+      pedidos: conTiempos.pedidos.map((p) => {
+        const huella = cambiados.get(p.codigo);
+        // Recortada: solo hace falta para distinguir un escaneo del siguiente.
+        return huella ? { ...p, scanCambiado: true, scanMarca: huella.slice(0, 12) } : p;
+      }),
       dobleFichaje,
       calculadoAt,
     };

@@ -147,22 +147,32 @@ export function anotarVistazo(
  *  Es lo que pinta el distintivo, y lo lee `getTablero()` en cada vuelta, así
  *  que la comparación va en SQL y no trayéndose la tabla entera. */
 export function pedidosCambiados(): Set<string> {
-  return new Set(
+  return new Set(marcasDeCambiados().keys());
+}
+
+/** Lo mismo, con la huella del escaneo que está sin dar por visto.
+ *
+ *  La huella es lo que distingue un re-escaneo del siguiente: la campana de
+ *  cada persona se apaga por ella (ver `parteNuevo` en lib/notificaciones.ts),
+ *  así que quien quitó el aviso de ayer se entera igual del de hoy. */
+export function marcasDeCambiados(): Map<string, string> {
+  return new Map(
     (
       getDb()
         .prepare(
-          `SELECT pedido FROM pedido_scan
+          `SELECT pedido, huella_actual FROM pedido_scan
             WHERE huella_vista IS NOT NULL AND huella_actual IS NOT NULL
               AND huella_actual <> huella_vista`,
         )
-        .all() as { pedido: string }[]
-    ).map((f) => f.pedido),
+        .all() as { pedido: string; huella_actual: string }[]
+    ).map((f) => [f.pedido, f.huella_actual]),
   );
 }
 
-/** Da por visto el parte nuevo. Apaga el distintivo PARA TODOS: lo acordado es
- *  que el aviso es del pedido, no de cada persona — quien lo mira, lo mira por
- *  el equipo. La nota del hilo se queda: ese es el registro permanente. */
+/** Da por visto el parte nuevo. Apaga el DISTINTIVO del pedido para todos (el
+ *  de la fila y el de la ficha): quien lo mira, lo mira por el equipo. La
+ *  campana es otra cosa y va por persona, en el navegador de cada uno. La nota
+ *  del hilo se queda: ese es el registro permanente. */
 export function marcarVisto(pedido: string, ahora = new Date().toISOString()): boolean {
   return (
     getDb()

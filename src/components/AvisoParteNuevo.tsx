@@ -7,9 +7,11 @@ import { useState } from "react";
 // todavía (`Pedido.scanCambiado`, que pone getTablero leyendo lo que dejó el
 // vigilante).
 //
-// ES DEL PEDIDO, NO DE CADA PERSONA: quien pulsa "Ya lo he visto" lo apaga para
-// todo el equipo. Eso es lo acordado — el que mira el parte nuevo lo mira por
-// los demás— y por eso el botón no manda operario.
+// ESTE DISTINTIVO ES DEL PEDIDO, NO DE CADA PERSONA: quien pulsa "Ya lo he
+// visto" lo apaga para todo el equipo —el que mira el parte nuevo lo mira por
+// los demás— y por eso el botón no manda operario. Lo personal es el aviso de
+// la campana: ese solo le suena a quien lleva el pedido y cada uno lo quita de
+// la suya (ver `avisaParteNuevo` en lib/notificaciones.ts).
 //
 // El aviso se apaga; lo que NO se va es la nota que el vigilante dejó en el
 // hilo con la fecha del escaneo. Ese es el registro permanente: dentro de tres
@@ -71,7 +73,7 @@ export function AvisoParteNuevo({
         >
           {apagando ? "Guardando…" : "Ya lo he visto"}
         </button>
-        <span className="text-[10px] text-text-muted">Lo apaga para todo el equipo</span>
+        <span className="text-[10px] text-text-muted">Quita la marca del pedido a todo el equipo</span>
       </div>
       {error && (
         <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">

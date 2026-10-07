@@ -484,9 +484,16 @@ export interface Pedido {
    *  mirando el disco: el `stat` va contra un share por red y aquí hay 81
    *  pedidos cada media vuelta de reloj.
    *
-   *  Es del PEDIDO, no de cada persona: quien lo mira, lo mira por el equipo.
-   *  El registro permanente de cuándo pasó vive en el hilo de notas. */
+   *  Este distintivo es del PEDIDO, no de cada persona: quien lo da por visto
+   *  lo apaga para el equipo. El aviso de la campana sí es personal (ver
+   *  `avisaParteNuevo`). El registro permanente de cuándo pasó vive en el hilo
+   *  de notas. */
   scanCambiado?: boolean;
+
+  /** Qué escaneo es el que está sin dar por visto. Solo viene con
+   *  `scanCambiado`, y sirve para que quitar el aviso de la campana apague ESE
+   *  re-escaneo y no los que vengan después. */
+  scanMarca?: string;
 
   /** Comentario del pedido de venta en RPS (condiciones, avisos del comercial). */
   comentarioVenta?: string;

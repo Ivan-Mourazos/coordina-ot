@@ -81,9 +81,14 @@ function detalleDe(item: NotifItem): string {
 export function Notificaciones({
   items,
   onNavigate,
+  onDescartar,
 }: {
   items: NotifItem[];
   onNavigate: (vista: Vista, item: NotifItem) => void;
+  /** Quita el aviso de MI campana sin abrir el pedido. Solo se ofrece en el
+   *  parte re-escaneado: es el único que te puede dar igual —los demás son
+   *  trabajo tuyo— y antes solo se quitaba apagándoselo a todo el equipo. */
+  onDescartar: (item: NotifItem) => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
@@ -127,13 +132,13 @@ export function Notificaciones({
               {items.map((item, i) => {
                 const meta = META[item.tipo];
                 return (
-                  <li key={`${item.pedido.id}-${item.tipo}-${i}`}>
+                  <li key={`${item.pedido.id}-${item.tipo}-${i}`} className="flex items-start">
                     <button
                       onClick={() => {
                         onNavigate(meta.vista, item);
                         setOpen(false);
                       }}
-                      className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
                     >
                       <span className={`mt-1 size-2 shrink-0 rounded-full ${meta.dot}`} />
                       <span className="min-w-0">
@@ -162,6 +167,16 @@ export function Notificaciones({
                         )}
                       </span>
                     </button>
+                    {item.tipo === "parteNuevo" && (
+                      <button
+                        onClick={() => onDescartar(item)}
+                        aria-label={`Quitar de mi campana el aviso de ${item.pedido.codigo}`}
+                        title="Quitarlo de mi campana. A los demás les sigue saliendo."
+                        className="mt-1 grid size-6 shrink-0 place-items-center rounded-md text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+                      >
+                        <span aria-hidden="true">✕</span>
+                      </button>
+                    )}
                   </li>
                 );
               })}

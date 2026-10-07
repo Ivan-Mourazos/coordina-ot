@@ -910,10 +910,12 @@ export function Board({
 
     // Parte re-escaneado. Sale del propio tablero (`scanCambiado`, que pone
     // getTablero leyendo lo que dejó el vigilante), así que no hace falta pedir
-    // nada más. Es de todos: se apaga para el equipo con "Ya lo he visto".
-    // Callado mientras el pedido está parado por Producción (ver avisaParteNuevo).
+    // nada más. Solo le suena a quien lleva el pedido, y callado mientras está
+    // parado por Producción (ver avisaParteNuevo). Cada uno lo quita de SU
+    // campana; "Ya lo he visto" apaga el distintivo del pedido, que es de todos.
     for (const p of procesadosAll) {
-      if (avisaParteNuevo(p)) out.push({ pedido: p, of: null, tipo: "parteNuevo" });
+      if (avisaParteNuevo(p, miId))
+        out.push({ pedido: p, of: null, tipo: "parteNuevo", clave: `parte:${p.scanMarca ?? ""}` });
     }
 
     // Trabajo aparecido en un pedido que ya se había pasado a Producción. Lo
@@ -1157,6 +1159,18 @@ export function Board({
       abrirPedido(item.pedido.id);
     },
     [abrirPedido, seccionActual],
+  );
+  /** Quitar un aviso de MI campana sin abrir el pedido. A nadie más se le
+   *  apaga: el descarte vive en este navegador y a nombre de quien lo pulsa. */
+  const descartarAviso = useCallback(
+    (item: NotifItem) => {
+      if (!esDescartable(item)) return;
+      const clave = identidadAviso(item, seccionActual);
+      setDescartes((prev) =>
+        prev.claves.includes(clave) ? prev : { ...prev, claves: [...prev.claves, clave] },
+      );
+    },
+    [seccionActual],
   );
   const openFacet = useCallback((f: Facet) => abrirPedido(f.pedido.id), [abrirPedido]);
   const openPedidoCb = useCallback((p: Pedido) => abrirPedido(p.id), [abrirPedido]);
@@ -2225,7 +2239,11 @@ export function Board({
                 cuatro sueltos y sumaban 331 px de cabecera, que es lo que la
                 amontonaba en cuanto la ventana se estrechaba. Son cosas que se
                 tocan una vez al día, no a cada rato. */}
-            <Notificaciones items={avisosVisibles} onNavigate={irANotificacion} />
+            <Notificaciones
+              items={avisosVisibles}
+              onNavigate={irANotificacion}
+              onDescartar={descartarAviso}
+            />
             {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
                 aplicación y ahí es donde se busca. */}
             <Herramientas
@@ -2371,6 +2389,10 @@ export function Board({
                 onDesficharVarias={desficharVarias}
                 completarPedido={completarPedido}
                 operarios={operarios}
+                revisiones={misRevisiones}
+                onOpenPedido={openPedidoCb}
+                onEmpezarRevision={(ofIds) => ejecutarAccion(ofIds, "empezar_revision")}
+                onVerRevisiones={() => setVista("revision")}
               />
             </main>
 
@@ -2389,10 +2411,6 @@ export function Board({
                 onDesficharVarias={desficharVarias}
                 completarPedido={completarPedido}
                 operarios={operarios}
-                revisiones={misRevisiones}
-                onOpenPedido={openPedidoCb}
-                onEmpezarRevision={(ofIds) => ejecutarAccion(ofIds, "empezar_revision")}
-                onVerRevisiones={() => setVista("revision")}
               />
             )}
 

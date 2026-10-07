@@ -201,3 +201,14 @@ test("mtimeConocido dice si hace falta volver a leer el fichero", () => {
   expect(db.mtimeConocido("AR.1")).toBe(1000);
   expect(db.mtimeConocido("AR.NO.EXISTE")).toBeNull();
 });
+
+test("la marca de un pedido cambiado es la huella del último escaneo", () => {
+  // De ella sale qué re-escaneo ha quitado cada uno de su campana: si no
+  // cambiara con cada escaneo, quitar el de ayer se tragaría el de hoy.
+  db.registrarPedidos(["AR.1"], "2026-08-24T09:00:00.000Z");
+  db.anotarVistazo("AR.1", { mtimeMs: 1000, huella: "h1000" }, "2026-08-24T09:05:00.000Z");
+  db.anotarVistazo("AR.1", { mtimeMs: 2000, huella: "h2000" }, "2026-08-24T09:10:00.000Z");
+  expect(db.marcasDeCambiados()).toEqual(new Map([["AR.1", "h2000"]]));
+  db.anotarVistazo("AR.1", { mtimeMs: 3000, huella: "h3000" }, "2026-08-24T09:15:00.000Z");
+  expect(db.marcasDeCambiados()).toEqual(new Map([["AR.1", "h3000"]]));
+});

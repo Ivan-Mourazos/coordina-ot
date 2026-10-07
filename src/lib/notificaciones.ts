@@ -25,11 +25,13 @@ export type NotifTipo =
   | "revisarNueva"
   | "revisarQuitada"
   | "pedidoCompleto"
-  // Los dos siguientes son de TODO EL EQUIPO, no de una persona: una nota o un
-  // parte re-escaneado le importan a cualquiera que vaya a tocar ese pedido.
-  // Los demás avisos nacieron personales ("te toca a ti"), pero la regla de la
-  // campana —un hecho que no has provocado tú— vale igual para estos.
+  // Una nota es de TODO EL EQUIPO, no de una persona: le importa a cualquiera
+  // que vaya a tocar ese pedido. Los demás avisos nacieron personales ("te toca
+  // a ti"), pero la regla de la campana —un hecho que no has provocado tú— vale
+  // igual para este.
   | "notaNueva"
+  // El parte re-escaneado es de QUIEN LLEVA EL PEDIDO, y solo del equipo entero
+  // mientras no lo lleve nadie (ver `avisaParteNuevo`).
   | "parteNuevo"
   // Trabajo que apareció DESPUÉS de dar el pedido por terminado: RPS habilitó
   // una OF que antes no había que hacer. Es del equipo, como los dos de
@@ -42,9 +44,18 @@ export type NotifTipo =
  *  No mientras está PARADO (sin trabajo de OT y con algo detenido por
  *  Producción): no se puede tocar, y el aviso solo hacía ruido. Tampoco se
  *  pierde: el distintivo sigue hasta que alguien lo da por visto, así que en
- *  cuanto Producción lo libera la campana avisa, que es cuando importa. */
-export function avisaParteNuevo(p: Pedido): boolean {
-  return p.scanCambiado === true && !pedidoParado(p);
+ *  cuanto Producción lo libera la campana avisa, que es cuando importa.
+ *
+ *  Y solo A QUIEN LO LLEVA: si el pedido tiene autor, el aviso es suyo y de
+ *  nadie más. Sonaba a todo el equipo, y a quien no lleva ese pedido le daba
+ *  igual. Sin autor todavía sí es de todos, porque lo puede coger cualquiera.
+ *  El distintivo de la fila no cambia: ese lo sigue viendo todo el mundo. */
+export function avisaParteNuevo(p: Pedido, miId: string | null): boolean {
+  if (p.scanCambiado !== true || pedidoParado(p)) return false;
+  const autores = new Set(
+    p.ofs.filter((o) => o.estado !== "anulada" && o.autorId !== null).map((o) => o.autorId),
+  );
+  return autores.size === 0 || (miId !== null && autores.has(miId));
 }
 
 /** Un aviso tal y como se detecta: mirando UNA OF. */
@@ -167,6 +178,10 @@ const DEDUCIDOS: ReadonlySet<NotifTipo> = new Set<NotifTipo>([
   // la nota dejaba de contar como reciente: leías el recado y la campana
   // seguía con el punto puesto durante días.
   "notaNueva",
+  // Solo se apagaba con "Ya lo he visto", que lo apaga para TODOS: quien quería
+  // quitárselo de encima se lo quitaba también a quien sí le importaba. Ahora
+  // cada uno lo quita de su campana y el distintivo del pedido se queda.
+  "parteNuevo",
 ]);
 
 export const esDescartable = (item: NotifItem): boolean => DEDUCIDOS.has(item.tipo);
@@ -176,7 +191,10 @@ function situacionAviso(item: NotifItem): string {
   // Una nota no va por OF sino por pedido, así que "las OF concretas" no la
   // distingue de la siguiente: sin el id de la nota, apagar el recado de hoy
   // apagaría también el de mañana. Su `clave` (`nota:<id>`) sí es única.
-  if (item.tipo === "notaNueva") return `${item.pedido.id}:${item.tipo}:${item.clave ?? ""}`;
+  // El parte re-escaneado, igual: su `clave` lleva la marca del escaneo, así que
+  // quitar el aviso de hoy no se traga el de un re-escaneo posterior.
+  if (item.tipo === "notaNueva" || item.tipo === "parteNuevo")
+    return `${item.pedido.id}:${item.tipo}:${item.clave ?? ""}`;
   const ofs = item.ofs
     .map((o) => o.id)
     .sort()
