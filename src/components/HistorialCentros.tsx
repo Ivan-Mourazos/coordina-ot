@@ -1,8 +1,8 @@
 "use client";
 
 import type { HistorialOF, MaterialOF } from "@/lib/historial";
-import { fmtCantidad, personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe, type MaterialGastadoOF } from "@/lib/historial";
-import { fmtMin, ROL } from "@/lib/estado";
+import { fmtCantidad, personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe, tiempoDePersona, type MaterialGastadoOF } from "@/lib/historial";
+import { ROL } from "@/lib/estado";
 import { fmtDiaMesAno } from "@/lib/fechas";
 import { centrosConDesglose, type HistorialCentro } from "@/lib/historial-centros";
 import type { SeccionId } from "@/lib/secciones";
@@ -101,6 +101,7 @@ function PersonasCentro({
     reparto.autores,
     reparto.revisores,
     reparto.consta,
+    reparto.registrados,
   );
   if (personas.length === 0) return null;
   // Con una sola persona su tiempo ES el del centro, que está justo encima.
@@ -117,7 +118,7 @@ function PersonasCentro({
           {/* El papel DELANTE del tiempo: detrás se leía «Iván Sánchez 2m
               planteó», como si el minuto fuera lo planteado. */}
           {p.rol && <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>}
-          {!unaSola && <span className="font-mono tabular-nums"> {fmtMin(p.min)}</span>}
+          {!unaSola && <span className="font-mono tabular-nums"> {tiempoDePersona(p)}</span>}
         </li>
       ))}
     </ul>
@@ -129,7 +130,13 @@ function PersonasCentro({
  *  (ver `repartoDe`). */
 function PersonasOF({ of }: { of: HistorialOF }) {
   const reparto = repartoDe([of]);
-  const personas = personasConRol(personasDeOF(of), reparto.autores, reparto.revisores, reparto.consta);
+  const personas = personasConRol(
+    personasDeOF(of),
+    reparto.autores,
+    reparto.revisores,
+    reparto.consta,
+    reparto.registrados,
+  );
   if (personas.length === 0) {
     return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
   }
@@ -140,7 +147,7 @@ function PersonasOF({ of }: { of: HistorialOF }) {
           {i > 0 && " · "}
           <span className="text-text">{p.nombre}</span>
           {p.rol && <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>}{" "}
-          {fmtMin(p.min)}
+          {tiempoDePersona(p)}
         </span>
       ))}
     </p>

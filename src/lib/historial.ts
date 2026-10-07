@@ -2,6 +2,7 @@
 // Sin acceso a BD: solo los tipos que comparten API y UI, el constructor de
 // cláusulas de filtro (parametrizadas, NUNCA interpoladas) y el mapeo de fila.
 import { normaliza, palabrasDe } from "./buscador";
+import { fmtMin } from "./estado";
 import { FASES, faseDePedido } from "./fases-tablero";
 import type { Pedido } from "./types";
 
@@ -528,17 +529,22 @@ export const porMinutos = (a: RepartoRol, b: RepartoRol): number =>
  *  en su gemela, así que por sí solo enseña medio reparto. */
 export function repartoDe(
   ofs: readonly Pick<HistorialOF, "autorRegistrado" | "revisorRegistrado" | "rol">[],
-): { autores: string[]; revisores: string[]; consta: boolean } {
+): { autores: string[]; revisores: string[]; consta: boolean; registrados: string[] } {
   const autores = new Set<string>();
   const revisores = new Set<string>();
+  // Los que salen del registro y no del reloj: son los que `personasConRol`
+  // enseña aunque no tengan tiempo.
+  const registrados = new Set<string>();
   let consta = false;
   for (const of of ofs) {
     if (of.autorRegistrado) {
       autores.add(of.autorRegistrado);
+      registrados.add(of.autorRegistrado);
       consta = true;
     }
     if (of.revisorRegistrado) {
       revisores.add(of.revisorRegistrado);
+      registrados.add(of.revisorRegistrado);
       consta = true;
     }
     for (const p of of.rol?.planteo ?? []) if (p.min > 0) autores.add(p.nombre);
@@ -547,7 +553,12 @@ export function repartoDe(
   }
   // Quien planteó y además revisó otra OF del grupo cuenta como autor: es lo
   // que más pesa, y dos papeles en el mismo nombre no se pueden pintar.
-  return { autores: [...autores], revisores: [...revisores].filter((n) => !autores.has(n)), consta };
+  return {
+    autores: [...autores],
+    revisores: [...revisores].filter((n) => !autores.has(n)),
+    consta,
+    registrados: [...registrados],
+  };
 }
 
 /** Una persona de la fila con el papel que hizo, cuando CONSTA. */
@@ -572,9 +583,23 @@ export function personasConRol(
   autores: readonly string[] = [],
   revisores: readonly string[] = [],
   registrados = false,
+  /** Quién CONSTA en CoordinaOT como autor o revisor (el registro, no lo
+   *  deducido del reloj). Se añaden con 0 minutos si no traen tiempo. */
+  constan: readonly string[] = [],
 ): PersonaConRol[] {
-  const orden = [...personas].sort(porMinutos);
-  if (!registrados) return orden;
+  if (!registrados) return [...personas].sort(porMinutos);
+  // QUIEN CONSTA EN UN ROL SALE AUNQUE NO TENGA TIEMPO. `personas` solo trae a
+  // quien imputó algo, y RPS guarda minutos enteros: una revisión de menos de
+  // un minuto queda en 0 y su revisor desaparecía de la fila, con la revisión
+  // registrada en CoordinaOT (AR.26.04928 y AR.26.04942, 07/10/2026).
+  const conTiempo = new Set(personas.map((p) => p.nombre));
+  // Solo los del REGISTRO: quien sale del reloj de la web ya trae su tiempo, y
+  // con horas en RPS ese reloj no se enseña aparte (ver `personasDeOF`).
+  const sinTiempo = [...new Set(constan)]
+    .filter((n) => autores.includes(n) || revisores.includes(n))
+    .filter((n) => !conTiempo.has(n))
+    .map((nombre) => ({ nombre, min: 0 }));
+  const orden = [...personas, ...sinTiempo].sort(porMinutos);
   const rolDe = (nombre: string): PersonaConRol["rol"] | undefined =>
     autores.includes(nombre) ? "plantear" : revisores.includes(nombre) ? "revisar" : undefined;
   const rango = (p: PersonaConRol) => (p.rol === "plantear" ? 0 : p.rol === "revisar" ? 1 : 2);
@@ -584,6 +609,15 @@ export function personasConRol(
       return rol ? { ...p, rol } : { ...p };
     })
     .sort((a, b) => rango(a) - rango(b));
+}
+
+/** El tiempo de una persona tal y como se enseña. Quien CONSTA en un rol sin
+ *  tiempo imputado sale como «<1m» y no como «0m» ni en blanco: RPS guarda
+ *  minutos enteros, así que un repaso de medio minuto queda en 0, y el trabajo
+ *  se hizo (Iván, 07/10/2026). No se escribe «1m» porque no es lo que hay en
+ *  RPS, y el total de la fila no cuadraría con la suma. */
+export function tiempoDePersona(p: PersonaConRol): string {
+  return p.min > 0 ? fmtMin(p.min) : p.rol ? "<1m" : fmtMin(0);
 }
 
 /** Quién trabajó en esta OF y cuánto, de más a menos, sin rol.

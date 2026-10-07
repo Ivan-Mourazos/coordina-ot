@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { HistorialItem } from "@/lib/historial";
-import { personasConRol } from "@/lib/historial";
+import { personasConRol, tiempoDePersona } from "@/lib/historial";
 import { CENTRO_CORTO } from "@/lib/historial-centros";
-import { fmtMin, ROL } from "@/lib/estado";
+import { ROL } from "@/lib/estado";
 
 /** En el servidor no hay nada que medir, y `useLayoutEffect` avisa por
  *  consola si se usa allí. */
@@ -36,13 +36,15 @@ export function Quien({ item }: { item: HistorialItem }) {
     autores,
     item.revisores ?? [],
     item.rolesRegistrados === true,
+    // Con roles registrados, lo que manda el servidor ES el registro.
+    [...autores, ...(item.revisores ?? [])],
   );
   const otros = item.otrosCentros ?? [];
   const centro = otros.length > 0 ? `${otros.map((c) => CENTRO_CORTO[c]).join(" y ")} · ` : "";
   const aviso = otros.length > 0 ? "Sin tareas de la sección: es trabajo de otro centro. " : "";
   if (personas.length > 0) {
     const conRol = (p: (typeof personas)[number]) =>
-      `${p.nombre} ${fmtMin(p.min)}${p.rol ? ` (${p.rol === "plantear" ? "planteó" : "revisó"})` : ""}`;
+      `${p.nombre} ${tiempoDePersona(p)}${p.rol ? ` (${p.rol === "plantear" ? "planteó" : "revisó"})` : ""}`;
     return (
       <LosQueCaben
         personas={personas}

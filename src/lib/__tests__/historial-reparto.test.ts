@@ -11,7 +11,13 @@ const of = (extra: OFReparto = {}): OFReparto => extra;
 describe("manda el reparto registrado", () => {
   it("aunque no haya ni un minuto fichado en la web", () => {
     const r = repartoDe([of({ autorRegistrado: "Iván Sánchez", revisorRegistrado: "Adrián Quinteiro" })]);
-    expect(r).toEqual({ autores: ["Iván Sánchez"], revisores: ["Adrián Quinteiro"], consta: true });
+    expect(r).toEqual({
+      autores: ["Iván Sánchez"],
+      revisores: ["Adrián Quinteiro"],
+      consta: true,
+      // Los dos salen del registro: son los que se enseñan aunque no tengan tiempo.
+      registrados: ["Iván Sánchez", "Adrián Quinteiro"],
+    });
   });
 
   it("y se junta el de todas las OF del grupo", () => {
@@ -45,7 +51,8 @@ describe("el reloj completa, pero no manda", () => {
         },
       }),
     ]);
-    expect(r).toEqual({ autores: ["Ana López"], revisores: ["Zoe Ruiz"], consta: true });
+    // Del reloj, no del registro: `registrados` se queda vacío.
+    expect(r).toEqual({ autores: ["Ana López"], revisores: ["Zoe Ruiz"], consta: true, registrados: [] });
   });
 
   it("quien fichó cero no cuenta: tener el turno no es haberlo hecho", () => {
@@ -56,6 +63,6 @@ describe("el reloj completa, pero no manda", () => {
   });
 
   it("sin registro ni reloj, no consta nada y no se marca", () => {
-    expect(repartoDe([of()])).toEqual({ autores: [], revisores: [], consta: false });
+    expect(repartoDe([of()])).toEqual({ autores: [], revisores: [], consta: false, registrados: [] });
   });
 });

@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import type { HistorialOF } from "@/lib/historial";
-import { personasConRol, personasDeOF, repartoDe } from "@/lib/historial";
+import { personasConRol, personasDeOF, repartoDe, tiempoDePersona } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { centrosConDesglose } from "@/lib/historial-centros";
-import { fmtMin, ROL } from "@/lib/estado";
+import { ROL } from "@/lib/estado";
 
 /** Una línea por OF, aunque haya trabajado más de un centro. La sección
  *  seleccionada limita el desglose personal, nunca qué OF se pueden ver.
@@ -42,9 +42,15 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
         const deDesglose = variasOF ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
         // Con el papel de cada uno, igual que la ficha: aquí salía "Adrián 2m ·
         // Iván 2m" mientras la fila de arriba ya decía quién lo planteó.
-        const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false };
+        const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false, registrados: [] };
         const personas = deDesglose
-          ? personasConRol(personasDeOF(deDesglose), reparto.autores, reparto.revisores, reparto.consta)
+          ? personasConRol(
+              personasDeOF(deDesglose),
+              reparto.autores,
+              reparto.revisores,
+              reparto.consta,
+              reparto.registrados,
+            )
           : [];
         const descripcion = centros[0].descripcion;
         const gente = personas.length > 0 && (
@@ -56,7 +62,7 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
                 {p.rol && (
                   <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
                 )}{" "}
-                {fmtMin(p.min)}
+                {tiempoDePersona(p)}
               </span>
             ))}
           </span>
