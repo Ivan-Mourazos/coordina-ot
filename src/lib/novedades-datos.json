@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-10-07",
+    "hasta": "0137062",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Lo que te toca revisar sale en tu Panel",
+        "detalle": "Columna \"Te toca revisar\" en tu zona, con lo que tienes por empezar y lo que estás revisando. Ya no hay que ir a Revisiones para enterarse."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El aviso de parte re-escaneado solo le suena a quien lleva el pedido",
+        "detalle": "Si el pedido aún no lo lleva nadie, avisa a todos. Y cada uno lo quita de su campana con la ✕ sin quitárselo a los demás."
+      }
+    ]
+  },
+  {
     "id": "2026-10-05",
     "hasta": "4429e40",
     "cambios": [
