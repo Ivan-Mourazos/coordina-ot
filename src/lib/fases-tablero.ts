@@ -32,7 +32,8 @@ export const FASES: readonly FaseMeta[] = [
   { id: "sinEmpezar", label: "Sin empezar", color: "#9ca3af" },
   { id: "planteando", label: "Planteando", color: "#059669" },
   // "Esperando revisión", no "Para revisar": es MI trabajo en manos de otro.
-  // Lo que me toca revisar a mí vive en la pestaña Revisión.
+  // Lo que me toca revisar a mí no es una fase de MIS pedidos: va en su propia
+  // columna de la zona personal (ver `facetsQueReviso`) y en la pestaña Revisión.
   { id: "esperandoRevision", label: "Esperando revisión", color: "#7c3aed" },
   { id: "listoParaPasar", label: "Listo para pasar", color: "#0891b2" },
   // Fuera del recorrido, y la última a propósito: aquí no hay trabajo que

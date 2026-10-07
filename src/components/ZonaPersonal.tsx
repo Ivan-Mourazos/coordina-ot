@@ -1,11 +1,13 @@
 "use client";
 
-import type { Operario, Rol } from "@/lib/types";
+import type { Operario, Pedido, Rol } from "@/lib/types";
 import { agruparPorFase, conTope, pedidoParado } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
+import { LineaRevisar } from "./LineaRevisar";
+import type { FacetRevision } from "@/lib/revision";
 import { LiveDot } from "./LiveBadge";
 import { ROL } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
@@ -35,9 +37,21 @@ export function ZonaPersonal({
   completarPedido,
   operarios,
   ofIdsFichandoYo,
+  revisiones,
+  onOpenPedido,
+  onEmpezarRevision,
+  onVerRevisiones,
 }: {
   operario: Operario;
   facets: Facet[];
+  /** Lo que me toca REVISAR a mí: trabajo de un compañero, no mío, y por eso
+   *  no viene en `facets` (que se reparten por autor). Vivía solo en la
+   *  pestaña Revisiones, y había que ir hasta allí para enterarse. */
+  revisiones: FacetRevision[];
+  onOpenPedido: (p: Pedido) => void;
+  onEmpezarRevision: (ofIds: string[]) => void;
+  /** Lleva a la pestaña Revisiones: es el "+N más" de esta columna. */
+  onVerRevisiones: () => void;
   /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
    *  columnas (ver `ordenFases` en lib/secciones.ts). */
   seccion: Seccion;
@@ -71,6 +85,8 @@ export function ZonaPersonal({
   // color. Un cero no es una noticia.
   const conItems = deTrabajo.filter((g) => g.items.length > 0);
   const nOFs = facets.reduce((n, f) => n + f.ofs.length, 0);
+  const revisar = conTope(revisiones, TOPE);
+  const sinNada = conItems.length === 0 && revisiones.length === 0;
 
   return (
     <div
@@ -80,7 +96,7 @@ export function ZonaPersonal({
       {/* Sin pedidos, en pantalla baja la zona se queda en su cabecera: ya dice
           "0 pedidos · 0 OF", y la línea de abajo se comía 40 px de los 611 del
           monitor de Diseño. */}
-      <div className={`${conItems.length === 0 ? "mb-2 bajo:mb-0" : "mb-2"} flex flex-wrap items-center gap-2`}>
+      <div className={`${sinNada ? "mb-2 bajo:mb-0" : "mb-2"} flex flex-wrap items-center gap-2`}>
         <span
           className="grid size-7 place-items-center rounded-full text-[11px] font-bold text-white"
           style={{ background: operario.color, color: tintaSobre(operario.color) }}
@@ -120,10 +136,45 @@ export function ZonaPersonal({
         )}
       </div>
 
-      {conItems.length === 0 ? (
+      {sinNada ? (
         <p className="py-2 text-[11px] text-text-muted bajo:hidden">Sin pedidos asignados.</p>
       ) : (
         <div className="flex flex-wrap items-start gap-3">
+          {/* La primera, delante incluso de "A corregir": son las dos columnas
+              donde hay un compañero esperándote. Como las demás, sin nada que
+              revisar no ocupa sitio. */}
+          {revisiones.length > 0 && (
+            <div className="min-w-[220px] flex-1">
+              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
+                <span className="size-1.5 rounded-full" style={{ background: ROL.revisar.color }} />
+                Te toca revisar · {revisiones.length}
+              </h3>
+              <div className="flex flex-col gap-1">
+                {revisar.visibles.map((f) => (
+                  <LineaRevisar
+                    key={f.pedido.id}
+                    facet={f}
+                    miId={operario.id}
+                    operarios={operarios}
+                    onOpen={onOpenPedido}
+                    onEmpezar={onEmpezarRevision}
+                    onFichar={onFichar}
+                    onDesficharVarias={onDesficharVarias}
+                    ofIdsFichandoYo={ofIdsFichandoYo}
+                  />
+                ))}
+                {revisar.resto > 0 && (
+                  <button
+                    onClick={onVerRevisiones}
+                    title="Abre la pestaña Revisiones, con todas"
+                    className="rounded-md border border-dashed border-[var(--glass-border)] py-0.5 text-[10px] font-semibold text-text-muted hover:border-brand-400 hover:text-text"
+                  >
+                    +{revisar.resto} más
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {conItems.map((g) => {
             const { visibles, resto } = conTope(g.items, TOPE);
             return (

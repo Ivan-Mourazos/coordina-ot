@@ -33,6 +33,37 @@ export function facetsRevisorEnEstado(
     .filter((f) => f.ofs.length > 0);
 }
 
+/** Lo que tengo ENTRE MANOS como revisor: lo que me han dejado y aún no he
+ *  empezado, y lo que estoy revisando. Es la columna "Te toca revisar" de la
+ *  zona personal del Panel (ZonaPersonal.tsx).
+ *
+ *  Lo ya aprobado o devuelto por mí no entra: eso es historia y se consulta en
+ *  la pestaña Revisiones. Tampoco las cerradas en RPS, que salen del tablero
+ *  igual que en el reparto por autor.
+ *
+ *  Por fecha planificada y, a igualdad, por código: el mismo orden que el
+ *  resto de columnas del panel (ver `agruparPorFase`). */
+export function facetsQueReviso(pedidos: Pedido[], miId: string | null): FacetRevision[] {
+  if (!miId) return [];
+  return pedidos
+    .map((p) => ({
+      pedido: p,
+      ofs: p.ofs.filter(
+        (o) =>
+          o.revisorId === miId &&
+          (o.estado === "por_revisar" || o.estado === "en_revision") &&
+          o.cerradaRps === undefined,
+      ),
+    }))
+    .filter((f) => f.ofs.length > 0)
+    .sort((a, b) => {
+      const fa = a.pedido.fechaPlanificacion || "9999-99-99";
+      const fb = b.pedido.fechaPlanificacion || "9999-99-99";
+      if (fa !== fb) return fa < fb ? -1 : 1;
+      return a.pedido.codigo.localeCompare(b.pedido.codigo);
+    });
+}
+
 /** Cuántas OF (sin agrupar por pedido) me tocan como revisor en `estado`. */
 export function contarRevisorEnEstado(
   pedidos: Pedido[],

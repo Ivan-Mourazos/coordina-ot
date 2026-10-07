@@ -9,6 +9,7 @@ import { Logo } from "./Logo";
 import { ViewSwitcher, VISTAS, type Vista } from "./ViewSwitcher";
 import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
+import { facetsQueReviso } from "@/lib/revision";
 import { FaseFlyout } from "./FaseFlyout";
 import { Bandeja, type Agrupacion } from "./Bandeja";
 import { Select } from "./Select";
@@ -787,6 +788,10 @@ export function Board({
     (loc: string | null) => facetsByLoc.get(loc) ?? [],
     [facetsByLoc],
   );
+
+  // Lo que me toca revisar, para la columna "Te toca revisar" de mi zona. Sin
+  // filtros, como el resto de las zonas (ver arriba).
+  const misRevisiones = useMemo(() => facetsQueReviso(procesados, miId), [procesados, miId]);
 
   // La bandeja "Sin asignar": lo que no tiene autor, ya pasado por la barra.
   // Se calcula desde `visiblesAsignar` y no recortando `facetsByLoc`, porque
@@ -2384,6 +2389,10 @@ export function Board({
                 onDesficharVarias={desficharVarias}
                 completarPedido={completarPedido}
                 operarios={operarios}
+                revisiones={misRevisiones}
+                onOpenPedido={openPedidoCb}
+                onEmpezarRevision={(ofIds) => ejecutarAccion(ofIds, "empezar_revision")}
+                onVerRevisiones={() => setVista("revision")}
               />
             )}
 

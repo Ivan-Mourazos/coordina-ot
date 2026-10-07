@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OF, Pedido } from "../types";
-import { contarRevisorEnEstado, facetsRevisorEnEstado } from "../revision";
+import { contarRevisorEnEstado, facetsQueReviso, facetsRevisorEnEstado } from "../revision";
 
 const of = (extra: Partial<OF>): OF => ({
   id: "of1",
@@ -105,5 +105,69 @@ describe("contarRevisorEnEstado", () => {
     ];
     expect(contarRevisorEnEstado(pedidos, "por_revisar", "tamara")).toBe(1);
     expect(contarRevisorEnEstado(pedidos, "en_revision", "tamara")).toBe(1);
+  });
+});
+
+describe("facetsQueReviso", () => {
+  it("sin identidad elegida (miId null) no hay nada mío", () => {
+    const pedidos = [pedido("1", [of({ id: "1:1", estado: "por_revisar", revisorId: "tamara" })])];
+    expect(facetsQueReviso(pedidos, null)).toEqual([]);
+  });
+
+  it("junta lo que está por empezar y lo que ya estoy revisando", () => {
+    const pedidos = [
+      pedido("1", [
+        of({ id: "1:1", estado: "por_revisar", revisorId: "tamara" }),
+        of({ id: "1:2", estado: "en_revision", revisorId: "tamara" }),
+      ]),
+    ];
+    const facets = facetsQueReviso(pedidos, "tamara");
+    expect(facets).toHaveLength(1);
+    expect(facets[0].ofs.map((o) => o.id)).toEqual(["1:1", "1:2"]);
+  });
+
+  it("lo ya aprobado o devuelto por mí no entra: es historia", () => {
+    const pedidos = [
+      pedido("1", [
+        of({ id: "1:1", estado: "aprobada", revisorId: "tamara" }),
+        of({ id: "1:2", estado: "devuelta", revisorId: "tamara" }),
+      ]),
+    ];
+    expect(facetsQueReviso(pedidos, "tamara")).toEqual([]);
+  });
+
+  it("no entran las de otro revisor ni las que planteo yo", () => {
+    const pedidos = [
+      pedido("1", [
+        of({ id: "1:1", estado: "por_revisar", revisorId: "angel" }),
+        of({ id: "1:2", estado: "por_revisar", autorId: "tamara", revisorId: "angel" }),
+      ]),
+    ];
+    expect(facetsQueReviso(pedidos, "tamara")).toEqual([]);
+  });
+
+  it("una OF cerrada en RPS sale, como en el reparto por autor", () => {
+    const pedidos = [
+      pedido("1", [
+        of({
+          id: "1:1",
+          estado: "por_revisar",
+          revisorId: "tamara",
+          cerradaRps: { at: "2026-09-15T10:00:00.000Z", por: "ana", modo: "activo" },
+        }),
+      ]),
+    ];
+    expect(facetsQueReviso(pedidos, "tamara")).toEqual([]);
+  });
+
+  it("ordena por fecha planificada y, a igualdad, por código; sin fecha, al final", () => {
+    const mia = () => [of({ estado: "por_revisar", revisorId: "tamara" })];
+    const pedidos = [
+      { ...pedido("3", mia()), fechaPlanificacion: "" },
+      { ...pedido("2", mia()), fechaPlanificacion: "2026-01-05" },
+      { ...pedido("4", mia()), fechaPlanificacion: "2026-01-02" },
+      { ...pedido("1", mia()), fechaPlanificacion: "2026-01-05" },
+    ];
+    expect(facetsQueReviso(pedidos, "tamara").map((f) => f.pedido.id)).toEqual(["4", "1", "2", "3"]);
   });
 });
