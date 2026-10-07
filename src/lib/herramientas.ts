@@ -84,3 +84,25 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
  *  lista entera de "pronto" sin explicación. */
 export const cuantasDisponibles = (grupos: GrupoHerramientas[] = HERRAMIENTAS): number =>
   grupos.reduce((n, g) => n + g.items.filter((h) => h.url).length, 0);
+
+// ─── Plantear un pedido desde su ficha ───────────────────────────────────────
+// Para plantear un toldo o un remolque había que abrir Planteamientos TGM y
+// teclear allí el número que se tenía delante. El botón «Plantear» de la ficha
+// abre esa web con el pedido ya buscado.
+
+/** Lo que Planteamientos TGM sabe plantear. Las dos de toldo: `TOLDO` es la
+ *  familia y `TOLDO NUEVO` la subfamilia con que RPS trae la mayoría. */
+const FAMILIAS_PLANTEABLES: ReadonlySet<string> = new Set(["TOLDO", "TOLDO NUEVO", "REMOLQUE"]);
+
+/** La dirección que abre Planteamientos TGM con este pedido cargado, o null si
+ *  el pedido no lleva ningún toldo ni remolque (o la web no está publicada).
+ *
+ *  El número va SIN PUNTOS (`AR2604351`, no `AR.26.04351`): es como aquella
+ *  web nombra los archivos que genera. Qué pantalla abre —toldos o remolques—
+ *  lo decide ella al buscarlo. */
+export function enlacePlantear(codigo: string, familias: readonly string[]): string | null {
+  if (!familias.some((f) => FAMILIAS_PLANTEABLES.has(f))) return null;
+  const base = HERRAMIENTAS.flatMap((g) => g.items).find((h) => h.id === "planteamientos-tgm")?.url;
+  if (!base) return null;
+  return `${base}?pedido=${encodeURIComponent(codigo.replace(/[.\s]/g, ""))}`;
+}

@@ -43,6 +43,7 @@ import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
+import { enlacePlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -533,6 +534,11 @@ export function Drawer({
       ? `Faltan ${faltanPuntos} ${faltanPuntos === 1 ? "punto" : "puntos"} por mirar`
       : null;
 
+  const urlPlantear = enlacePlantear(
+    pedido.codigo,
+    pedido.ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia),
+  );
+
   return (
     <MarcoFicha
       refModal={modalRef}
@@ -580,6 +586,24 @@ export function Drawer({
               >
                 ⓘ
               </span>
+              {/* Abre Planteamientos TGM con ESTE pedido ya buscado, en otra
+                  pestaña. Solo en toldos y remolques, que es lo que aquella
+                  web plantea. En la cabecera y de color sólido, a propósito:
+                  es un atajo nuevo y, escondido entre las acciones de cada OF,
+                  no lo iba a encontrar nadie. No ficha ni cambia el estado:
+                  solo abre la herramienta. */}
+              {urlPlantear && (
+                <a
+                  href={urlPlantear}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña"
+                  className={`boton-3d ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${ROL.plantear.solido}`}
+                >
+                  Plantear
+                  <span aria-hidden="true">↗</span>
+                </a>
+              )}
             </div>
           }
         />
