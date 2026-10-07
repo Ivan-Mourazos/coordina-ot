@@ -698,8 +698,10 @@ function Dato({ label, children }: { label: string; children: React.ReactNode })
 function Estado({ tramos }: { tramos: TramoEstado[] }) {
   return (
     <span className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
-      {tramos.map((t) => (
-        <span key={t.rol} className="flex flex-wrap items-baseline gap-x-1.5">
+      {/* Por posición y no por rol: de revisión puede haber una línea por
+          revisor. El `title` dice de qué OF habla cada una. */}
+      {tramos.map((t, i) => (
+        <span key={i} title={t.detalle} className="flex flex-wrap items-baseline gap-x-1.5">
           {/* Con NOMBRE y no con avatar: dos iniciales en un círculo obligan a
               descifrar quién es, y la frase que se dice en el taller lleva el
               nombre — "eso lo tiene Jaime sin empezar". Los avatares valen en
@@ -721,7 +723,7 @@ function Estado({ tramos }: { tramos: TramoEstado[] }) {
               pareciera terminado. */}
           <span
             className={`font-semibold ${
-              t.pendienteDeAlguien ? "text-text-muted" : ROL[t.rol].texto
+              t.pendienteDeAlguien || t.hecho ? "text-text-muted" : ROL[t.rol].texto
             }`}
           >
             {t.verbo}

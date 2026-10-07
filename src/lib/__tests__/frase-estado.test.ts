@@ -182,3 +182,113 @@ describe("estadoDePedido", () => {
     expect(planteo).toMatchObject({ verbo: "Planteado", minutos: 40, enMarcha: false });
   });
 });
+
+// AR.26.04671 y AR.26.04633 (07/10/2026): en Pendientes salía "Ángel · Por
+// revisar" y "Jaime · Por revisar", y ninguno tenía nada en Revisiones. Su OF
+// ya estaba resuelta; lo que le quedaba al pedido eran otras OF. Ahora hay una
+// línea por revisor, y cada una cuenta solo las OF de esa persona.
+describe("estadoDePedido: una línea por revisor", () => {
+  const revision = (ofs: OF[]) => frase(ofs).slice(1);
+
+  it("revisó la suya y el resto está sin entregar: lo dice en pasado y sin total", () => {
+    const lineas = revision([
+      of({ id: "a", codigo: "OF-A", autorId: "ivan", revisorId: "jaime", estado: "aprobada", revisada: true }),
+      of({ id: "b", autorId: "ivan", estado: "en_curso" }),
+      of({ id: "c", autorId: "ivan", estado: "en_curso" }),
+    ]);
+    // "1 OF", no "1 de 3": las otras dos no son suyas.
+    expect(lineas).toEqual([
+      expect.objectContaining({ quien: ["Jaime"], verbo: "Revisó 1 OF", hecho: true, detalle: "OF-A" }),
+    ]);
+  });
+
+  it("devolvió, el autor la dio por corregida, y luego añadieron una OF sin revisor", () => {
+    // El caso contado por Iván del AR.26.04633: a Jaime no le queda nada.
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "aprobada", revisada: true }),
+      of({ id: "b" }),
+    ]);
+    expect(lineas.map((l) => `${l.quien.join()} ${l.verbo}`)).toEqual(["Jaime Revisó 1 OF"]);
+  });
+
+  it("dos revisores: cada uno su línea, primero el que tiene algo pendiente", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "aprobada", revisada: true }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+    ]);
+    expect(lineas.map((l) => `${l.quien.join()} ${l.verbo}`)).toEqual([
+      "Tamara Por revisar 1 OF",
+      "Jaime Revisó 1 OF",
+    ]);
+    expect(lineas[0].hecho).toBeFalsy();
+  });
+
+  it("uno con el reloj en marcha y otro esperando", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "en_revision", fichandoRol: "revisar" }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+    ]);
+    expect(lineas.map((l) => `${l.quien.join()} ${l.verbo}`)).toEqual([
+      "Jaime Revisando 1 OF",
+      "Tamara Por revisar 1 OF",
+    ]);
+    expect(lineas.map((l) => l.enMarcha)).toEqual([true, false]);
+  });
+
+  it("el mismo revisor con una esperando y otra ya revisada: manda lo pendiente", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "aprobada", revisada: true }),
+      of({ id: "c", autorId: "ivan", estado: "en_curso" }),
+    ]);
+    expect(lineas.map((l) => l.verbo)).toEqual(["Por revisar 1 OF · 1 revisada"]);
+  });
+
+  it("una esperando y otra que devolvió: también se apunta la devuelta", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "devuelta" }),
+    ]);
+    expect(lineas.map((l) => l.verbo)).toEqual(["Por revisar 1 OF · 1 devuelta"]);
+  });
+
+  it("si lleva todas las OF del pedido no hace falta contarlas", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "por_revisar" }),
+    ]);
+    expect(lineas.map((l) => l.verbo)).toEqual(["Por revisar"]);
+  });
+
+  it("esperando revisión y sin revisor, aunque otra OF sí lo tuviera: falta revisor", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "aprobada", revisada: true }),
+      of({ id: "b", autorId: "ivan", estado: "por_revisar" }),
+    ]);
+    expect(lineas.map((l) => `${l.quien.join()} ${l.verbo}`)).toEqual([
+      " Falta revisor 1 OF",
+      "Jaime Revisó 1 OF",
+    ]);
+    expect(lineas[0].pendienteDeAlguien).toBe(true);
+  });
+
+  it("los minutos de cada línea son los de sus OF, no los del pedido", () => {
+    const lineas = revision([
+      of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "aprobada", revisada: true, tiempoRevisionMin: 10 }),
+      of({ id: "b", autorId: "ivan", revisorId: "tamara", estado: "por_revisar", tiempoRevisionMin: 4 }),
+    ]);
+    expect(lineas.map((l) => l.minutos)).toEqual([4, 10]);
+  });
+
+  it("aprobada sin revisión, con o sin revisor nombrado, y el resto sin entregar: no hay línea", () => {
+    expect(revision([of({ id: "a", autorId: "ivan", estado: "aprobada" }), of({ id: "b" })])).toEqual([]);
+    expect(
+      revision([of({ id: "a", autorId: "ivan", revisorId: "jaime", estado: "aprobada" }), of({ id: "b" })]),
+    ).toEqual([]);
+  });
+
+  it("revisor nombrado y la OF aún sin entregar: la revisará, no la tiene por revisar", () => {
+    const lineas = revision([of({ autorId: "ivan", revisorId: "jaime", estado: "en_curso" })]);
+    expect(lineas).toEqual([expect.objectContaining({ quien: ["Jaime"], verbo: "Revisará", hecho: true })]);
+  });
+});
