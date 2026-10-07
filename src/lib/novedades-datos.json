@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-07",
-    "hasta": "41ade3a",
+    "hasta": "577f62b",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -17,6 +17,11 @@
         "tipo": "arreglado",
         "titulo": "En Pendientes salía \"por revisar\" a nombre de quien ya había revisado lo suyo",
         "detalle": "Ahora cada revisor tiene su línea con lo suyo: qué le queda por revisar y qué revisó ya."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial no salía quien revisó si le llevó menos de un minuto",
+        "detalle": "Ahora sale siempre quien planteó y quien revisó. Si no llegó al minuto, pone \"<1m\"."
       },
       {
         "tipo": "mejor",
