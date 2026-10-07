@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-07",
-    "hasta": "0137062",
+    "hasta": "c5ee372",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "mejor",
         "titulo": "El aviso de parte re-escaneado solo le suena a quien lleva el pedido",
         "detalle": "Si el pedido aún no lo lleva nadie, avisa a todos. Y cada uno lo quita de su campana con la ✕ sin quitárselo a los demás."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los pedidos detenidos sin asignar se ven en el Panel, debajo de \"Sin asignar\"",
+        "detalle": "Ya no hay que cambiar el filtro para verlos. Cuando Producción los libera, suben solos."
       }
     ]
   },
