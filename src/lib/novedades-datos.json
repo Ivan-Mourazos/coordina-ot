@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-07",
-    "hasta": "e5bda4c",
+    "hasta": "41ade3a",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "Botón \"Plantear\" en la ficha de toldos y remolques",
         "detalle": "Abre Planteamientos TGM en otra pestaña con el pedido ya cargado, sin tener que teclear el número."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Pendientes salía \"por revisar\" a nombre de quien ya había revisado lo suyo",
+        "detalle": "Ahora cada revisor tiene su línea con lo suyo: qué le queda por revisar y qué revisó ya."
       },
       {
         "tipo": "mejor",
