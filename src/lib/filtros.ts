@@ -288,6 +288,36 @@ export function aplicarFiltros(pedidos: Pedido[], f: Filtros, hoy: string, opts?
   return salida;
 }
 
+/** Lo detenido por Producción y SIN ASIGNAR: el bloque que va debajo de la
+ *  bandeja del Panel. Para verlo había que cambiar «Tu trabajo» por «OF
+ *  detenidas», y se perdía de vista todo lo demás.
+ *
+ *  Es lo que sería trabajo normal si no estuviera parado: sin anuladas, sin lo
+ *  de taller, sin lo interno y sin lo ya cerrado en RPS. Respeta el resto de la
+ *  barra (buscador, familia…), y solo sale con «Tu trabajo» puesto: eligiendo
+ *  otra categoría la bandeja enseña esa y nada más. */
+export function detenidosSinAsignar(
+  pedidos: Pedido[],
+  f: Filtros,
+  hoy: string,
+  opts?: OpcionesCategoria,
+): Pedido[] {
+  if (f.categoria !== "normal") return [];
+  const salida: Pedido[] = [];
+  for (const p of aplicarFiltros(pedidos, { ...f, categoria: "detenidas" }, hoy, opts)) {
+    if (esInterno(p, opts)) continue;
+    const ofs = p.ofs.filter(
+      (o) =>
+        o.autorId === null &&
+        o.estado !== "anulada" &&
+        !ofOcultaDeOT(o) &&
+        o.cerradaRps === undefined,
+    );
+    if (ofs.length > 0) salida.push({ ...p, ofs });
+  }
+  return salida;
+}
+
 /** Etiquetas de lo que está recortando ahora mismo, para el botón de limpiar y
  *  para poder decirle a la vista vacía que la culpa es de los filtros. */
 export function filtrosActivos(f: Filtros): string[] {

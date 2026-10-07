@@ -5,6 +5,7 @@ import {
   categoriasDe,
   contarCategorias,
   contarCategoriasVisibles,
+  detenidosSinAsignar,
   opcionesDisponibles,
   filtrosAParams,
   hayFiltrosActivos,
@@ -295,5 +296,49 @@ describe("ida y vuelta a la URL", () => {
   it("una URL a mano con valores imposibles no rompe: cae a los de por defecto", () => {
     const sp = new URLSearchParams("pri=9&ver=marcianos&cli=loquesea&desde=ayer");
     expect(paramsAFiltros(sp)).toEqual(FILTROS_INICIALES);
+  });
+});
+
+// El bloque «Detenidos por Producción» del Panel: lo parado y sin dueño, a la
+// vista sin tener que cambiar de categoría.
+describe("detenidosSinAsignar", () => {
+  const det = (extra: Partial<OF> = {}) => of({ detenida: true, ...extra });
+
+  it("saca las OF detenidas sin autor, y solo esas del pedido", () => {
+    const p = pedido({ ofs: [det({ id: "a" }), of({ id: "b" }), det({ id: "c", autorId: "ana" })] });
+    const salida = detenidosSinAsignar([p], FILTROS_INICIALES, HOY);
+    expect(salida).toHaveLength(1);
+    expect(salida[0].ofs.map((o) => o.id)).toEqual(["a"]);
+  });
+
+  it("sin detenidas no hay bloque", () => {
+    expect(detenidosSinAsignar([pedido()], FILTROS_INICIALES, HOY)).toEqual([]);
+  });
+
+  it("no entran las anuladas ni las cerradas en RPS, aunque estén detenidas", () => {
+    const p = pedido({
+      ofs: [
+        det({ id: "a", estado: "anulada" }),
+        det({ id: "b", cerradaRps: { at: "2026-08-01T10:00:00.000Z", por: "ana", modo: "activo" } }),
+      ],
+    });
+    expect(detenidosSinAsignar([p], FILTROS_INICIALES, HOY)).toEqual([]);
+  });
+
+  it("lo interno no entra, salvo en la sección que lo trata como trabajo", () => {
+    const p = pedido({ interno: true, ofs: [det()] });
+    expect(detenidosSinAsignar([p], FILTROS_INICIALES, HOY)).toEqual([]);
+    expect(detenidosSinAsignar([p], FILTROS_INICIALES, HOY, { internosComoTrabajo: true })).toHaveLength(1);
+  });
+
+  it("respeta el resto de la barra", () => {
+    const p = pedido({ ofs: [det({ familia: "LONA" })] });
+    expect(detenidosSinAsignar([p], { ...FILTROS_INICIALES, familia: "TOLDO" }, HOY)).toEqual([]);
+    expect(detenidosSinAsignar([p], { ...FILTROS_INICIALES, familia: "LONA" }, HOY)).toHaveLength(1);
+  });
+
+  it("solo con «Tu trabajo» puesto: otra categoría enseña la suya y nada más", () => {
+    const p = pedido({ ofs: [det()] });
+    expect(detenidosSinAsignar([p], { ...FILTROS_INICIALES, categoria: "anuladas" }, HOY)).toEqual([]);
   });
 });

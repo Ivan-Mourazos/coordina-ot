@@ -137,6 +137,7 @@ function ScrollRow({
 
 export function Bandeja({
   facets,
+  detenidos = [],
   operarios,
   onOpen,
   onAsignar,
@@ -145,6 +146,10 @@ export function Bandeja({
   hayFiltrosActivos = false,
 }: {
   facets: Facet[];
+  /** Lo que Producción tiene detenido y nadie lleva. Va debajo, aparte: no se
+   *  puede trabajar, pero hay que poder verlo sin cambiar el filtro. Siempre
+   *  seguido y por fecha, se agrupe como se agrupe lo de arriba. */
+  detenidos?: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   onAsignar?: (f: Facet, operarioId: string) => void;
@@ -161,6 +166,8 @@ export function Bandeja({
     () => [...facets].sort(cmpFechaPrio),
     [facets],
   );
+  const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpFechaPrio), [detenidos]);
+  const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
 
   /* ── agrupado por familia ── */
   const filasFamilia = useMemo(() => {
@@ -324,6 +331,41 @@ export function Bandeja({
             </div>
           ))}
         </div>
+      )}
+
+      {/* ── DETENIDOS POR PRODUCCIÓN ── Debajo y con su raya: lo de arriba es
+          lo que se puede coger. Mismas miniaturas, una detrás de otra. */}
+      {detenidosPorFecha.length > 0 && (
+        <section className="mt-5 border-t border-[var(--glass-border)] pt-3">
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="size-2 rounded-full bg-amber-500" />
+            <h2 className="text-base font-bold text-text">Detenidos por Producción</h2>
+            <span
+              className="rounded-full bg-amber-500/12 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300"
+              title="Producción los tiene detenidos: no se pueden fichar. Cuando los libere suben solos a «Sin asignar»."
+            >
+              {detenidosPorFecha.length} ped · {nOFsDetenidas} OF
+            </span>
+          </div>
+          <div
+            className="grid gap-x-2 gap-y-3"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}
+          >
+            {detenidosPorFecha.map((f) => (
+              <div key={f.pedido.id} className="min-w-0">
+                <PedidoCard
+                  facet={f}
+                  operarios={operarios}
+                  onOpen={onOpen}
+                  onAsignar={onAsignar}
+                  miId={miId}
+                  mostrarPrioridad
+                  mostrarFecha
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

@@ -72,6 +72,7 @@ import {
   ORDEN_LABEL,
   aplicarFiltros,
   contarCategoriasVisibles,
+  detenidosSinAsignar,
   CLAVES_URL_FILTROS,
   filtrosAParams,
   hayFiltrosActivos,
@@ -805,6 +806,16 @@ export function Board({
     }
     return salida;
   }, [visiblesAsignar, hoy]);
+
+  // Lo detenido por Producción y sin asignar: su bloque debajo de la bandeja
+  // (ver `detenidosSinAsignar`).
+  const facetsDetenidos = useMemo(
+    () =>
+      detenidosSinAsignar(procesados, filtrosPorVista.asignar, hoy, opcionesCategoria).map(
+        (p): Facet => ({ pedido: p, locationId: null, ofs: p.ofs, atrasado: estaAtrasado(p, hoy) }),
+      ),
+    [procesados, filtrosPorVista.asignar, hoy, opcionesCategoria],
+  );
 
   // Solo pedidos procesados = trabajo real de OT.
   const procesadosAll = procesados;
@@ -2484,6 +2495,7 @@ export function Board({
               <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 pb-24 scroll-thin">
                 <Bandeja
                   facets={facetsBandeja}
+                  detenidos={facetsDetenidos}
                   operarios={operarios}
                   onOpen={openFacet}
                   onAsignar={(f, op) => moverOFs(new Set(f.ofs.map((o) => o.id)), op)}

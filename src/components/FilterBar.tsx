@@ -327,7 +327,13 @@ export function FilterBar({
             onChange={(v) => setFiltros({ categoria: (v as Categoria) ?? "normal" })}
             placeholder={null}
             acentuarActivo={filtros.categoria !== "normal"}
-            options={categoriasDe(seccion).map((c) => ({
+            options={categoriasDe(seccion)
+              // En el Panel las detenidas ya salen en su bloque, debajo de la
+              // bandeja: la opción sobraba. Se deja a quien la traiga puesta
+              // (un enlace guardado), que si no el desplegable saldría en
+              // blanco y no habría forma de ver de dónde salir.
+              .filter((c) => vista !== "asignar" || c !== "detenidas" || filtros.categoria === c)
+              .map((c) => ({
               value: c,
               label: conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
             }))}
