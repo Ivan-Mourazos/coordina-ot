@@ -1,13 +1,20 @@
 "use client";
 
 import type { HistorialOF, MaterialOF } from "@/lib/historial";
-import { fmtCantidad, personasConRol, personasDeOF, personasDeOFs, repartirMateriales, repartoDe, tiempoDePersona, type MaterialGastadoOF } from "@/lib/historial";
+import { fmtCantidad, personasConRol, personasDeOFs, repartirMateriales, repartoDe, tiempoDePersona, type MaterialGastadoOF } from "@/lib/historial";
 import { ROL } from "@/lib/estado";
 import { fmtDiaMesAno } from "@/lib/fechas";
-import { centrosConDesglose, type HistorialCentro } from "@/lib/historial-centros";
+import {
+  NOMBRE_CENTRO,
+  agruparCentros,
+  centrosConDesglose,
+  rangoCentro,
+  type HistorialCentro,
+} from "@/lib/historial-centros";
 import type { SeccionId } from "@/lib/secciones";
-import { TareasPorCentro } from "./HistorialTareas";
-import { BloqueDesplegable } from "./BloqueDesplegable";
+import { fmtMin } from "@/lib/estado";
+import { TareasDeOF } from "./HistorialTareas";
+import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
 import {
   BOTON_DETALLE,
   CabeceraVentana,
@@ -24,62 +31,157 @@ import { IconoAviso, IconoCaja, IconoMaterial } from "./Iconos";
 // del invitado no debe arrastrar el resto del cajón del equipo (notas, parte
 // escaneado, avisos).
 
-/** El centro decide qué minutos se suman; la selección decide el desglose visible.
- *
- *  La PINTURA es la misma que la de «Tareas y tiempos» (`TareasPorCentro`):
- *  centro, OF y debajo sus tareas, todo seguido y sin cajas dentro de cajas.
- *  Antes cada centro era una tarjeta con relieve y cada OF otra dentro, y el
- *  mismo pedido se leía de dos maneras según lo abrieras en la ficha o en la
- *  ventana. Lo que esta ficha añade —el tiempo por persona con su papel y el
- *  material de cada OF— entra por los dos huecos que deja esa pieza. */
-export function HistorialCentros({
+// ─── La ficha del Historial: el resumen arriba y cada OF con lo suyo ────────
+// En el Historial la OF ES la historia del trabajo: quién, cuánto y en qué
+// tareas. Se enseñaba dos veces —la lista de OF y, más abajo, «Tareas y
+// tiempos» con las mismas OF agrupadas por centro— y para saber cuánto costó
+// una había que buscarla en el segundo bloque. Ahora cada OF se despliega con
+// sus tareas y su material, y arriba queda solo lo que es del pedido entero:
+// el tiempo de cada centro y quién lo echó (decisión de Iván, 09/10/2026).
+//
+// Solo en el Historial. En Pendientes la OF es donde se TRABAJA (estado,
+// avisos, botones) y «Tareas y tiempos» sigue siendo una consulta aparte.
+
+/** Una línea por centro con tiempo: cuánto le costó el pedido y quién lo
+ *  echó, con su papel. Es lo único de «Tareas y tiempos» que no es de una OF. */
+export function ResumenCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: SeccionId }) {
+  // Con una sola OF, la OF ya lo dice todo (y al desplegarla, el tiempo de
+  // cada centro): el resumen sería el mismo número escrito encima.
+  if (new Set(ofs.map((of) => of.codigo)).size <= 1) return null;
+  const conDesglose = centrosConDesglose(ofs, seccion);
+  const centros = agruparCentros(ofs)
+    .filter((c) => c.ofs.length && c.totalMin > 0)
+    .sort((a, b) => rangoCentro(a.id, seccion) - rangoCentro(b.id, seccion));
+  if (centros.length === 0) return null;
+  return (
+    <div className="mb-2 space-y-1">
+      {centros.map((centro) => (
+        <div key={centro.id} className="flex flex-wrap items-baseline gap-x-3 text-xs">
+          <span className="font-semibold text-text">{centro.nombre}</span>
+          <span className="font-mono font-semibold tabular-nums text-brand-800 dark:text-brand-300">
+            {fmtMin(centro.totalMin)}
+          </span>
+          {/* Con una sola OF en el centro, quién y cuánto lo dice ya esa OF,
+              justo debajo: aquí sería la misma gente otra vez. */}
+          {centro.ofs.length > 1 && <PersonasCentro centro={centro} conDesglose={conDesglose} enLinea />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Las OF de la ficha del Historial: el resumen por centro y, debajo, cada
+ *  OF desplegable con sus tareas y su material. */
+export function OFsDeLaFicha({
   ofs,
   seccion,
   gastado,
   onReintentarGastado,
-  abiertoDeSalida = false,
+  abiertasDeSalida,
 }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
-  /** undefined = cargando; null = RPS no contestó; objeto = cargado. */
   gastado?: Record<string, MaterialGastadoOF[]> | null;
   onReintentarGastado?: () => void;
-  /** Empezar desplegado. La ficha lo deja plegado —es lo más largo que tiene y
-   *  casi nunca es a lo que se viene—; lo usan las pruebas de presentación,
-   *  que comprueban QUIÉN sale en el desglose y no si está abierto. Mismo
-   *  mecanismo que el `abrirAlMontar` de `HistorialTareas`. */
-  abiertoDeSalida?: boolean;
+  /** Todas desplegadas al montar. Lo usan las pruebas, que miran QUÉ sale
+   *  dentro de cada OF y no pueden pulsar. */
+  abiertasDeSalida?: boolean;
 }) {
-  // Un desglose solo sale si dice algo que el nivel de arriba no dice: las
-  // personas del centro, siempre en el que cuenta; las de cada OF, solo si el
-  // centro tiene varias. Con una sola OF eran los mismos nombres dos veces.
-  const conDesglose = centrosConDesglose(ofs, seccion);
   return (
-    // EL MISMO BLOQUE PLEGADO QUE EN PENDIENTES. Aquí el desglose salía
-    // siempre desplegado y en Pendientes plegado, así que el mismo pedido se
-    // leía de dos formas según por dónde lo abrieras — y en un pedido de siete
-    // OF esto es lo más largo de la ficha, por delante de las notas y de los
-    // documentos, que es lo que se viene a mirar.
-    <BloqueDesplegable titulo="Tareas y tiempos" className="mb-4" abiertoDeSalida={abiertoDeSalida}>
-      <TareasPorCentro
+    <>
+      <ResumenCentros ofs={ofs} seccion={seccion} />
+      <HistorialOFsCompactas
         ofs={ofs}
         seccion={seccion}
-        conColor
-        extraCentro={(centro) => <PersonasCentro centro={centro} conDesglose={conDesglose} />}
-        extraOF={(of, centro) => (
-          <>
-            {/* Quién hizo cada OF solo cuando el centro tiene varias y la OF
-                no trae tareas: con ellas, cada línea ya dice quién la echó. */}
-            {conDesglose.has(centro.id) && centro.ofs.length > 1 && !of.tareas?.length && <PersonasOF of={of} />}
-            <Materiales
-              of={of}
-              gastadoOF={gastado === null ? null : gastado?.[of.codigo]}
-              onReintentarGastado={onReintentarGastado}
-            />
-          </>
+        abiertasDeSalida={abiertasDeSalida}
+        detalle={(_codigo, centros) => (
+          <DetalleOF
+            centros={centros}
+            gastado={gastado}
+            onReintentarGastado={onReintentarGastado}
+          />
         )}
       />
-    </BloqueDesplegable>
+    </>
+  );
+}
+
+/** Lo que se ve al desplegar una OF: sus tareas en cada centro, con quién y
+ *  cuánto, y su material. Los centros sin un minuto, plegados en una línea,
+ *  como estaban en «Tareas y tiempos». */
+export function DetalleOF({
+  centros,
+  gastado,
+  onReintentarGastado,
+}: {
+  /** Las entradas de ESTA OF, una por centro que trabajó en ella. */
+  centros: HistorialOF[];
+  gastado?: Record<string, MaterialGastadoOF[]> | null;
+  onReintentarGastado?: () => void;
+}) {
+  const conTiempo = centros.filter((of) => of.tiempoImputadoMin > 0);
+  const sinTiempo = centros.filter((of) => of.tiempoImputadoMin <= 0 && of.tareas?.length);
+  const nombre = (of: HistorialOF) => NOMBRE_CENTRO[of.centro ?? "ot"];
+  const variosCentros = conTiempo.length > 1;
+  // El papel de cada uno en ESTA OF, para ponerlo junto a su nombre en las
+  // tareas. Manda lo registrado en CoordinaOT; si no hay, lo deducido de las
+  // horas, que se pinta en gris (ver TareasDeOF).
+  const reparto = repartoDe(centros);
+  const deducido = centros.find((of) => of.rolDeducido)?.rolDeducido;
+  const rolDe = (nombre: string) => {
+    if (reparto.consta) {
+      if (reparto.autores.includes(nombre)) return { rol: "plantear" as const, deducido: false };
+      if (reparto.revisores.includes(nombre)) return { rol: "revisar" as const, deducido: false };
+      return undefined;
+    }
+    if (deducido?.quienPlanteo.includes(nombre)) return { rol: "plantear" as const, deducido: true };
+    if (deducido?.quienReviso.includes(nombre)) return { rol: "revisar" as const, deducido: true };
+    return undefined;
+  };
+  // El material es de la OF, no del centro: vale el primero que lo traiga.
+  const conMaterial = centros.find((of) => of.materiales?.length || of.notasProduccion) ?? centros[0];
+  return (
+    <div className="mt-2 border-t border-border pt-2">
+      {conTiempo.map((of) => (
+        <div key={of.centro ?? "ot"} className="mb-2 last:mb-0">
+          {variosCentros && (
+            <p className="mb-0.5 flex items-baseline justify-between text-[11px] font-semibold text-text-muted">
+              <span>{nombre(of)}</span>
+              <span className="font-mono tabular-nums">{fmtMin(of.tiempoImputadoMin)}</span>
+            </p>
+          )}
+          <div className="ml-1 border-l border-border pl-2.5 text-[11px]">
+            <TareasDeOF of={of} conColor rolDe={rolDe} />
+          </div>
+        </div>
+      ))}
+      {sinTiempo.length > 0 && (
+        <details className="mt-1 text-[11px]">
+          <summary className="cursor-pointer text-text-muted hover:text-text">
+            Sin tiempo echado:{" "}
+            {sinTiempo
+              .map((of) => {
+                const n = of.tareas?.length ?? 0;
+                return `${nombre(of)} (${n} ${n === 1 ? "tarea" : "tareas"})`;
+              })
+              .join(" · ")}
+          </summary>
+          {sinTiempo.map((of) => (
+            <div key={of.centro ?? "ot"} className="mt-1.5">
+              <p className="mb-0.5 font-semibold text-text-muted">{nombre(of)}</p>
+              <div className="ml-1 border-l border-border pl-2.5">
+                <TareasDeOF of={of} />
+              </div>
+            </div>
+          ))}
+        </details>
+      )}
+      <Materiales
+        of={conMaterial}
+        gastadoOF={gastado === null ? null : gastado?.[conMaterial.codigo]}
+        onReintentarGastado={onReintentarGastado}
+      />
+    </div>
   );
 }
 
@@ -88,9 +190,13 @@ export function HistorialCentros({
 function PersonasCentro({
   centro,
   conDesglose,
+  enLinea = false,
 }: {
   centro: HistorialCentro;
   conDesglose: ReadonlySet<string>;
+  /** Detrás del nombre y el tiempo del centro, en la misma línea (el resumen
+   *  de la ficha), en vez de en un renglón propio debajo. */
+  enLinea?: boolean;
 }) {
   if (!conDesglose.has(centro.id)) return null;
   // El reparto se junta de TODAS las OF del centro, igual que los minutos, y
@@ -108,7 +214,7 @@ function PersonasCentro({
   const unaSola = personas.length === 1 && personas[0].min === centro.totalMin;
   return (
     <ul
-      className="mb-2 flex flex-wrap gap-x-3 text-[11px] text-text-muted"
+      className={`${enLinea ? "" : "mb-2"} flex flex-wrap gap-x-3 text-[11px] text-text-muted`}
       aria-label={`Tiempos por persona de ${centro.nombre}`}
       title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT"
     >
@@ -122,35 +228,6 @@ function PersonasCentro({
         </li>
       ))}
     </ul>
-  );
-}
-
-/** Quién imputó tiempo a esta OF en RPS, con el suyo, de más a menos. Manda el
- *  reparto registrado en CoordinaOT; lo deducido de las horas no se nombra
- *  (ver `repartoDe`). */
-function PersonasOF({ of }: { of: HistorialOF }) {
-  const reparto = repartoDe([of]);
-  const personas = personasConRol(
-    personasDeOF(of),
-    reparto.autores,
-    reparto.revisores,
-    reparto.consta,
-    reparto.registrados,
-  );
-  if (personas.length === 0) {
-    return <p className="mt-1 text-[11px] text-text-muted">Sin tiempo registrado.</p>;
-  }
-  return (
-    <p className="mt-1 text-[11px] text-text-muted">
-      {personas.map((p, i) => (
-        <span key={p.nombre}>
-          {i > 0 && " · "}
-          <span className="text-text">{p.nombre}</span>
-          {p.rol && <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>}{" "}
-          {tiempoDePersona(p)}
-        </span>
-      ))}
-    </p>
   );
 }
 

@@ -19,8 +19,7 @@ import { DocumentosPedido } from "./DocumentosPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
-import { HistorialCentros } from "./HistorialCentros";
-import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
+import { OFsDeLaFicha } from "./HistorialCentros";
 import { SECCION_POR_DEFECTO, SECCIONES, type SeccionId } from "@/lib/secciones";
 
 function fmtFecha(iso: string | null) {
@@ -310,32 +309,31 @@ export function HistorialDrawer({
 
 
 
-              {/* Reintentar pide SOLO el material gastado. Con `cargar` se
-                  pedía otra vez el detalle, que ya había llegado bien, y la
-                  ficha entera se sustituía por «Cargando…»: se cerraba la
-                  propia ventana desde la que se había pulsado. */}
-              <HistorialCentros
-                key={`${pedido}:${seccion}`}
-                ofs={detalle.ofs}
-                seccion={seccion}
-                gastado={gastado}
-                onReintentarGastado={() => {
-                  setGastado(undefined);
-                  void cargarGastado(pedido, reqSeq.current);
-                }}
-              />
-
-              {/* LAS OF, A LA VISTA. Estaban solo dentro de «Tareas y
-                  tiempos», y al plegar ese bloque se fueron con él: se abría
-                  la ficha de un pedido y no se veía de cuántas OF constaba ni
-                  qué era cada una sin desplegar nada. Son la identidad del
-                  pedido, como el cliente; el desglose por tarea y persona es
-                  otra cosa y sigue plegado ahí abajo. */}
+              {/* LAS OF, Y DENTRO DE CADA UNA SUS TAREAS. Antes iban dos
+                  veces: esta lista y, más arriba, «Tareas y tiempos» con las
+                  mismas OF por centro. En el Historial la OF es la historia
+                  del trabajo, así que cada una se despliega con sus tareas,
+                  quién y cuánto, y su material. Encima, lo único que es del
+                  pedido entero: el tiempo de cada centro y quién lo echó.
+                  (En Pendientes sigue el bloque aparte: allí la OF es donde se
+                  trabaja.) */}
               <section className="mb-4" aria-label="Órdenes de fabricación">
                 <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>
                   Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
                 </h3>
-                <HistorialOFsCompactas ofs={detalle.ofs} seccion={seccion} />
+                <OFsDeLaFicha
+                  key={`${pedido}:${seccion}`}
+                  ofs={detalle.ofs}
+                  seccion={seccion}
+                  gastado={gastado}
+                  // Reintentar pide SOLO el material gastado. Con `cargar` se
+                  // pedía otra vez el detalle, que ya había llegado bien, y la
+                  // ficha entera se sustituía por «Cargando…».
+                  onReintentarGastado={() => {
+                    setGastado(undefined);
+                    void cargarGastado(pedido, reqSeq.current);
+                  }}
+                />
               </section>
 
               {detalle.comentarioVenta && <ComentarioPedido texto={detalle.comentarioVenta} />}
@@ -355,6 +353,3 @@ export function HistorialDrawer({
   );
 }
 
-
-// Reexportado: los tests y quien ya lo importaba de aquí siguen funcionando.
-export { HistorialCentros };

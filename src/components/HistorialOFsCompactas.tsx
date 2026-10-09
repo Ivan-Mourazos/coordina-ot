@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import type { HistorialOF } from "@/lib/historial";
 import { personasConRol, personasDeOF, repartoDe, resumenMaterial, tiempoDePersona } from "@/lib/historial";
 import { IconoAviso, IconoMaterial } from "./Iconos";
@@ -20,11 +22,16 @@ import { ROL } from "@/lib/estado";
  *  —que son casi todos— repetía el total que la fila del pedido enseña justo
  *  encima. El reparto entre centros vive en «Tareas y tiempos», que además lo
  *  desglosa por tarea y por persona. */
-export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
+export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle, abiertasDeSalida = false }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
   columnas?: string;
   accion?: ReactNode;
+  /** Lo que se ve al desplegar cada OF (la ficha: sus tareas y su material).
+   *  Sin él, las filas no se despliegan (la lista). */
+  detalle?: (codigo: string, centros: HistorialOF[]) => ReactNode;
+  /** Todas desplegadas al montar (las pruebas). */
+  abiertasDeSalida?: boolean;
 }) {
   const porCodigo = new Map<string, HistorialOF[]>();
   for (const of of ofs) {
@@ -32,12 +39,37 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
     centros.push(of);
     porCodigo.set(of.codigo, centros);
   }
+  // Con una sola OF, abierta de salida: es lo que se viene a ver y no hay
+  // nada que elegir. Con varias, plegadas, como las de Pendientes.
+  const [abiertas, setAbiertas] = useState<Set<string>>(() =>
+    abiertasDeSalida || porCodigo.size === 1 ? new Set(porCodigo.keys()) : new Set(),
+  );
+  const alternar = (codigo: string) =>
+    setAbiertas((prev) => {
+      const nuevo = new Set(prev);
+      if (nuevo.has(codigo)) nuevo.delete(codigo);
+      else nuevo.add(codigo);
+      return nuevo;
+    });
   if (!ofs.length) return <p className="py-1 text-xs text-text-muted">Sin OF vinculadas al pedido en RPS.</p>;
   // Las personas por OF solo con varias OF: con una, ya están en la fila del
   // pedido, justo encima. Del centro que cuenta (ver `centrosConDesglose`).
   const conDesglose = centrosConDesglose(ofs, seccion);
   const variasOF = porCodigo.size > 1;
+  const todasAbiertas = abiertas.size === porCodigo.size;
   return (
+    <>
+    {detalle && variasOF && (
+      <div className="-mt-1 mb-1.5 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAbiertas(todasAbiertas ? new Set() : new Set(porCodigo.keys()))}
+          className="text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
+        >
+          {todasAbiertas ? "Plegar todas" : "Abrir todas"}
+        </button>
+      </div>
+    )}
     <ul className="space-y-1.5">
       {[...porCodigo].map(([codigo, centros], i) => {
         // En la LISTA, con una sola OF la gente ya está en la fila del pedido,
@@ -117,17 +149,45 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
             key={codigo}
             className="rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border"
           >
+            {/* Con `detalle` (la ficha) la línea de arriba despliega la OF:
+                sus tareas y su material viven dentro de ella. */}
             <div className="flex items-baseline gap-2">
-              <span className="shrink-0 font-mono font-semibold text-text">{codigo}</span>
-              <span className="min-w-0 flex-1 truncate text-text" title={descripcion}>
-                {descripcion}
-              </span>
+              {detalle ? (
+                <button
+                  type="button"
+                  onClick={() => alternar(codigo)}
+                  aria-expanded={abiertas.has(codigo)}
+                  className="-mx-1 flex min-w-0 flex-1 items-baseline gap-2 rounded px-1 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className={`size-3 shrink-0 self-center text-text-muted transition-transform motion-reduce:transition-none ${abiertas.has(codigo) ? "" : "-rotate-90"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="shrink-0 font-mono font-semibold text-text">{codigo}</span>
+                  <span className="min-w-0 flex-1 truncate text-text" title={descripcion}>
+                    {descripcion}
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <span className="shrink-0 font-mono font-semibold text-text">{codigo}</span>
+                  <span className="min-w-0 flex-1 truncate text-text" title={descripcion}>
+                    {descripcion}
+                  </span>
+                </>
+              )}
               {accionAqui}
               {/* SIN el total de la OF a la derecha. Lo llevó un rato y se
                   quitó: al lado de "planteó 6m · revisó 11m" aparecía un "20m"
                   suelto que no cuadraba con ninguno de los dos y obligaba a
                   hacer la cuenta para entender que era la suma. El desglose
-                  entero está en «Tareas y tiempos», justo debajo. */}
+                  por tarea está al desplegar la OF. */}
             </div>
             {/* Debajo, QUIÉN: autor y revisor con su rótulo de color y su
                 tiempo, como en Pendientes. Sin roles registrados (OF de antes
@@ -197,9 +257,11 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
                 )}
               </div>
             )}
+            {detalle && abiertas.has(codigo) && detalle(codigo, centros)}
           </li>
         );
       })}
     </ul>
+    </>
   );
 }

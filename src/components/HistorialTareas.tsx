@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
-import { fmtMin } from "@/lib/estado";
+import { fmtMin, ROL } from "@/lib/estado";
 import { BloqueDesplegable } from "./BloqueDesplegable";
 import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
@@ -194,7 +194,18 @@ function CentroTareas({
  *  Vive aquí y la pintan DOS sitios —este bloque y el lateral de la ficha del
  *  Historial— porque son la misma información. Estuvo duplicada un tiempo y
  *  acabaron diciendo cosas distintas del mismo pedido. */
-export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor?: boolean }) {
+export function TareasDeOF({
+  of,
+  conColor = false,
+  rolDe,
+}: {
+  of: HistorialOF;
+  conColor?: boolean;
+  /** El papel de cada persona en la OF, si se sabe (la ficha del Historial):
+   *  cada nombre de la tarea lleva su «Autor» o «Revisor». Con color si está
+   *  registrado en CoordinaOT; en gris si se dedujo de las horas de RPS. */
+  rolDe?: (nombre: string) => { rol: "plantear" | "revisar"; deducido: boolean } | undefined;
+}) {
   if (!of.tareas?.length) {
     return <p className="text-text-muted">Esta OF no tiene tareas en RPS.</p>;
   }
@@ -233,11 +244,35 @@ export function TareasDeOF({ of, conColor = false }: { of: HistorialOF; conColor
                 {fmtMin(tarea.tiempoImputadoMin)}
               </span>
             </p>
-            {personas.length > 0 && (
+            {personas.length > 0 && !rolDe && (
               <p className="mt-0.5 text-[11px] leading-snug text-text-muted">
                 {solaEllaEntera
                   ? personas[0].nombre
                   : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
+              </p>
+            )}
+            {personas.length > 0 && rolDe && (
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-snug text-text-muted">
+                {personas.map((p, i) => {
+                  const papel = rolDe?.(p.nombre);
+                  return (
+                    <span key={p.nombre} className="flex items-center gap-1">
+                      {i > 0 && <span aria-hidden="true">·</span>}
+                      {papel && (
+                        <span
+                          className={`rounded px-1 text-[9px] font-bold uppercase ${
+                            papel.deducido ? "bg-surface-2 text-text-muted ring-1 ring-border" : ROL[papel.rol].chip
+                          }`}
+                          title={papel.deducido ? "Deducido de las horas de RPS: esta OF no se fichó en CoordinaOT" : undefined}
+                        >
+                          {papel.rol === "plantear" ? "Autor" : "Revisor"}
+                        </span>
+                      )}
+                      <span>{p.nombre}</span>
+                      {!solaEllaEntera && <span>{fmtMin(p.min)}</span>}
+                    </span>
+                  );
+                })}
               </p>
             )}
           </div>

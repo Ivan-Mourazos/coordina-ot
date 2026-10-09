@@ -47,13 +47,16 @@ export function rangoCentro(centro: CentroHistorialId, seccion: SeccionId): numb
   return centro === seccion ? -1 : ORDEN_CENTROS.indexOf(centro);
 }
 
+/** Cómo se llama cada centro en pantalla. */
+export const NOMBRE_CENTRO: Record<CentroHistorialId, string> = {
+  ot: SECCIONES.ot.nombre,
+  diseno: SECCIONES.diseno.nombre,
+  taller: "Taller",
+};
+
 /** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
 export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
-  return [
-    { id: "ot" as const, nombre: SECCIONES.ot.nombre },
-    { id: "diseno" as const, nombre: SECCIONES.diseno.nombre },
-    { id: "taller" as const, nombre: "Taller" },
-  ].map(({ id, nombre }) => {
+  return (["ot", "diseno", "taller"] as const).map((id) => ({ id, nombre: NOMBRE_CENTRO[id] })).map(({ id, nombre }) => {
     const propias = ofs.filter((of) => (of.centro ?? "ot") === id);
     const personas = new Map<string, number>();
     for (const of of propias) {
