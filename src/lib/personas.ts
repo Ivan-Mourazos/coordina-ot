@@ -10,13 +10,35 @@ import type { SeccionId } from "./secciones";
 // propósito: son dos ejes que no se cruzan.
 
 /** Roles ACUMULABLES, no uno por persona: Ángel revisa Y supervisa, así que
- *  lleva los dos. De ahí que una persona tenga una lista y no un valor. */
-export type RolAcceso = "tecnico" | "supervisor";
+ *  lleva los dos. De ahí que una persona tenga una lista y no un valor.
+ *
+ *  · `tecnico`: trabaja — plantea, revisa, ficha, escribe notas.
+ *  · `supervisor`: resetea el PIN de otro. Nada más.
+ *  · `direccion`: entra y lo ve todo, sin escribir. Separado de `supervisor`
+ *    a propósito: mirar todo no es arreglar cuentas, y un PIN reseteado por
+ *    error deja a un técnico fuera. */
+export type RolAcceso = "tecnico" | "supervisor" | "direccion";
 
-export const ROLES_ACCESO: readonly RolAcceso[] = ["tecnico", "supervisor"];
+export const ROLES_ACCESO: readonly RolAcceso[] = ["tecnico", "supervisor", "direccion"];
 
 export function esRolAcceso(v: unknown): v is RolAcceso {
-  return v === "tecnico" || v === "supervisor";
+  return v === "tecnico" || v === "supervisor" || v === "direccion";
+}
+
+/** ¿Se pinta la web sin controles de escribir? Sin `tecnico`, siempre: el
+ *  servidor ya le contesta 403 a cualquier escritura. Con `tecnico`, solo si
+ *  además tiene `direccion` y ha encendido «Ver como Dirección», que es para
+ *  mirar lo que ven ellos sin cambiar de cuenta — su cuenta sigue pudiendo
+ *  escribir en el servidor. */
+export function esSoloLectura(roles: readonly RolAcceso[], verComoDireccion: boolean): boolean {
+  if (!roles.includes("tecnico")) return true;
+  return verComoDireccion && roles.includes("direccion");
+}
+
+/** Quién ve el interruptor «Ver como Dirección»: quien puede trabajar Y mirar
+ *  como Dirección. Hoy solo Iván, mientras se desarrolla. */
+export function puedeVerComoDireccion(roles: readonly RolAcceso[]): boolean {
+  return roles.includes("tecnico") && roles.includes("direccion");
 }
 
 /** Lo que se puede contar de una persona sin comprometer nada.
