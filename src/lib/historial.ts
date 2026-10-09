@@ -678,7 +678,7 @@ export interface TrabajoPedido {
   otrosCentros?: import("./historial-centros").CentroHistorialId[];
 }
 
-const ORDEN_CENTROS = ["ot", "diseno", "taller"] as const;
+const ORDEN_CENTROS = ["ot", "diseno", "impresion", "taller"] as const;
 
 /** Cuánto trabajo enseña cada fila del Historial y de qué centro es.
  *

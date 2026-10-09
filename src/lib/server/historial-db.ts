@@ -1,5 +1,5 @@
 import sql from "mssql";
-import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
+import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, recursosImpresionSql, type FilaTiempoCentro } from "../historial-centros";
 import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
 import { indiceSiListo } from "./historial-indice";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
@@ -227,7 +227,7 @@ async function completarPagina(
 interface FilaExtra {
   tarea: string | null;
   descripcionTarea: string | null;
-  centro: "ot" | "diseno" | "taller";
+  centro: import("../historial-centros").CentroHistorialId;
   nombreEmpleado: string | null;
   pedido: string | null;
   orden: string | null;
@@ -285,6 +285,7 @@ async function extrasDePagina(
            e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos,
            CASE WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.ot)})) THEN 'ot'
                 WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.diseno)})) THEN 'diseno'
+                WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosImpresionSql()})) THEN 'impresion'
                 ELSE 'taller' END AS centro
     FROM dbo.FACOrderSL o
     JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
@@ -674,6 +675,10 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
                  WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
                    WHERE rm.IDMOTask = t.IDMOTask
                      AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.diseno)})) THEN 'diseno'
+                 -- Después de Diseño: lo que lleve su mesa sigue siendo suyo.
+                 WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
+                   WHERE rm.IDMOTask = t.IDMOTask
+                     AND rm.CodMOResourceMachine IN (${recursosImpresionSql()})) THEN 'impresion'
                  ELSE 'taller'
                END AS centro
         FROM dbo.CPRManufacturingOrder mo

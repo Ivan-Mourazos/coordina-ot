@@ -1,7 +1,22 @@
 import type { HistorialOF, RepartoRol } from "./historial";
 import { SECCIONES, type SeccionId } from "./secciones";
 
-export type CentroHistorialId = SeccionId | "taller";
+export type CentroHistorialId = SeccionId | "impresion" | "taller";
+
+/** Los recursos de Impresión Digital: imprimir (IMDI-A), el plóter HP Latex
+ *  (P-HPLA) y el plóter de troquelar (P-PCMU). No son una sección de la web
+ *  —no tienen tablero—, pero en el Historial su tiempo se separa del de
+ *  Taller, donde caía: es el trabajo de Manuel, y mezclado con el de taller no
+ *  se veía (decisión de Iván, 09/10/2026; medido: ~730 h de Manuel imprimiendo
+ *  desde 2025).
+ *
+ *  Diseño Gráfico NO cambia: sus recursos (A-DGRA, DGRA-A, P-PCUS) y sus
+ *  tareas —también «PLANTEAR Y PREPARAR ARCHIVOS IMPRESION DIGITAL», que se
+ *  hace en su mesa— siguen siendo suyos, porque se miran antes. */
+export const RECURSOS_IMPRESION: readonly string[] = ["imdi-a", "p-hpla", "p-pcmu"];
+
+/** Los recursos de Impresión Digital listos para un `IN (…)` de SQL. */
+export const recursosImpresionSql = (): string => RECURSOS_IMPRESION.map((x) => `'${x}'`).join(",");
 
 /** El nombre corto de cada centro: el de la cabecera, el de los pedidos de
  *  otro centro y el del desglose. Uno solo para que no se llame igual en un
@@ -9,6 +24,7 @@ export type CentroHistorialId = SeccionId | "taller";
 export const CENTRO_CORTO: Record<CentroHistorialId, string> = {
   ot: "OT",
   diseno: "Diseño",
+  impresion: "Impresión",
   taller: "Taller",
 };
 
@@ -40,7 +56,7 @@ export function centrosConDesglose(
   return centros.has(seccion) ? new Set([seccion]) : centros;
 }
 
-const ORDEN_CENTROS: readonly CentroHistorialId[] = ["ot", "diseno", "taller"];
+const ORDEN_CENTROS: readonly CentroHistorialId[] = ["ot", "diseno", "impresion", "taller"];
 
 /** Para ordenar: la sección consultada primero; los demás, en el orden de siempre. */
 export function rangoCentro(centro: CentroHistorialId, seccion: SeccionId): number {
@@ -51,12 +67,13 @@ export function rangoCentro(centro: CentroHistorialId, seccion: SeccionId): numb
 export const NOMBRE_CENTRO: Record<CentroHistorialId, string> = {
   ot: SECCIONES.ot.nombre,
   diseno: SECCIONES.diseno.nombre,
+  impresion: "Impresión digital",
   taller: "Taller",
 };
 
 /** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
 export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
-  return (["ot", "diseno", "taller"] as const).map((id) => ({ id, nombre: NOMBRE_CENTRO[id] })).map(({ id, nombre }) => {
+  return (["ot", "diseno", "impresion", "taller"] as const).map((id) => ({ id, nombre: NOMBRE_CENTRO[id] })).map(({ id, nombre }) => {
     const propias = ofs.filter((of) => (of.centro ?? "ot") === id);
     const personas = new Map<string, number>();
     for (const of of propias) {

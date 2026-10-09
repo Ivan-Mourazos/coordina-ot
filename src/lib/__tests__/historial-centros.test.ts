@@ -14,7 +14,9 @@ describe("tiempos del Historial por centro", () => {
       fila({ orden: "0230699", empleado: "Jaime", minutos: 1, descripcionTarea: "PLANTEAR EN TALLER" }),
       fila({ orden: "0230699", empleado: "Iván", minutos: 0, descripcionTarea: "PLANTEAR EN TALLER" }),
     ].map((f) => ({ ...f, centro: centroDeTareaHistorial(f.centro, f.descripcionTarea ?? null) }));
-    const [ot, , taller] = agruparCentros(agruparTiemposPorCentro(filas, (n) => n));
+    const centros = agruparCentros(agruparTiemposPorCentro(filas, (n) => n));
+    const ot = centros.find((c) => c.id === "ot")!;
+    const taller = centros.find((c) => c.id === "taller")!;
     expect(ot.totalMin).toBe(41);
     expect(ot.personas).toEqual([{ nombre: "Iván", min: 35 }, { nombre: "Jaime", min: 6 }]);
     expect(taller.totalMin).toBe(38);
@@ -31,7 +33,10 @@ describe("tiempos del Historial por centro", () => {
       fila({ centro: "taller", empleado: "Corte", tarea: "03", minutos: 998 }),
       fila({ centro: "ot", empleado: "Alberto", orden: "0230002", minutos: 5 }),
     ], (nombre) => nombre);
-    const [ot, diseno, taller] = agruparCentros(ofs);
+    const centros = agruparCentros(ofs);
+    const ot = centros.find((c) => c.id === "ot")!;
+    const diseno = centros.find((c) => c.id === "diseno")!;
+    const taller = centros.find((c) => c.id === "taller")!;
     expect(ot.totalMin).toBe(14);
     expect(ot.personas).toEqual([{ nombre: "Alberto", min: 12 }, { nombre: "Tamara", min: 2 }]);
     expect(diseno.totalMin).toBe(45);
@@ -47,7 +52,8 @@ describe("tiempos del Historial por centro", () => {
       fila({ centro: "taller", empleado: "Confección", minutos: 147 }),
       fila({ orden: " ", minutos: 500 }),
     ], (nombre) => nombre));
-    expect(centros.map((c) => c.totalMin)).toEqual([0, 0, 147]);
+    // OT, Diseño, Impresión digital y Taller, en ese orden.
+    expect(centros.map((c) => c.totalMin)).toEqual([0, 0, 0, 147]);
     expect(centros[0].ofs).toHaveLength(0);
     expect(centros[1].ofs).toHaveLength(1);
     expect(centros[1].personas).toEqual([]);
@@ -97,5 +103,27 @@ describe("orden de las tareas", () => {
   test("sin orden de ruta, al final y por número", () => {
     const [of] = agruparTiemposPorCentro([filaRuta("8", null), filaRuta("7", null), filaRuta("5", 1)], (c) => c);
     expect(of.tareas!.map((t) => t.codigo)).toEqual(["5", "7", "8"]);
+  });
+});
+
+describe("Impresión digital, aparte de Taller", () => {
+  // Decisión de Iván (09/10/2026): imprimir (IMDI-A, P-HPLA, P-PCMU) es el
+  // trabajo de Manuel y no se mezcla con el de taller. Diseño no cambia.
+  test("es un centro propio, con su nombre, entre Diseño y Taller", () => {
+    const ofs = [
+      { codigo: "1", descripcion: "", centro: "taller" as const, tiempoImputadoMin: 10, quien: [] },
+      { codigo: "1", descripcion: "", centro: "impresion" as const, tiempoImputadoMin: 40, quien: [] },
+      { codigo: "1", descripcion: "", centro: "diseno" as const, tiempoImputadoMin: 5, quien: [] },
+    ];
+    const centros = agruparCentros(ofs).filter((c) => c.ofs.length);
+    expect(centros.map((c) => c.nombre)).toEqual(["Diseño Gráfico", "Impresión digital", "Taller"]);
+    expect(centros.find((c) => c.id === "impresion")?.totalMin).toBe(40);
+  });
+
+  test("sus recursos no tocan los de Diseño Gráfico", async () => {
+    const { RECURSOS_IMPRESION } = await import("../historial-centros");
+    const { SECCIONES } = await import("../secciones");
+    expect(RECURSOS_IMPRESION).toEqual(["imdi-a", "p-hpla", "p-pcmu"]);
+    for (const r of RECURSOS_IMPRESION) expect(SECCIONES.diseno.recursos).not.toContain(r);
   });
 });
