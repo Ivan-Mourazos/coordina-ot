@@ -374,18 +374,23 @@ export function Bandeja({
             onClick={() => cambiarDetenidosAbiertos(!detenidosAbiertos)}
             aria-expanded={detenidosAbiertos}
             aria-controls={idDetenidos}
-            className={`${detenidosAbiertos ? "mb-2.5" : ""} flex items-center gap-2 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+            // Toda la fila es el botón y se ilumina al pasar por encima; el
+            // chevron va en su círculo y a la derecha dice qué hace pulsar.
+            // Con solo una flecha pequeña nadie adivinaba que se plegaba.
+            className={`group ${detenidosAbiertos ? "mb-2.5" : ""} -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
           >
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${detenidosAbiertos ? "" : "-rotate-90"}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <span className="glass-chip grid size-6 shrink-0 place-items-center rounded-full text-text transition-colors group-hover:border-brand-400">
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className={`size-3.5 transition-transform motion-reduce:transition-none ${detenidosAbiertos ? "" : "-rotate-90"}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
             <span className="size-2 rounded-full bg-amber-500" />
             <h2 className="text-base font-bold text-text">Detenidos por Producción</h2>
             <span
@@ -393,6 +398,9 @@ export function Bandeja({
               title="Producción los tiene detenidos: no se pueden fichar. Cuando los libere suben solos a «Sin asignar»."
             >
               {detenidosPorFecha.length} ped · {nOFsDetenidas} OF
+            </span>
+            <span className="glass-chip ml-auto rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-text-muted transition-colors group-hover:text-text">
+              {detenidosAbiertos ? "Ocultar" : "Mostrar"}
             </span>
           </button>
           <div id={idDetenidos}>
