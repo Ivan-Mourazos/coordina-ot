@@ -28,17 +28,20 @@ export function ConsultaEnCurso({
   onAbrirPedido: (codigo: string) => void;
 }) {
   const [seccion, setSeccion] = useState<SeccionId>("ot");
-  const [datos, setDatos] = useState<{ operarios: Operario[]; pedidos: Pedido[] } | null>(null);
-  const [error, setError] = useState(false);
+  // Lo cargado va con la sección a la que pertenece: al cambiar de sección,
+  // lo de la anterior deja de valer solo, sin vaciarlo a mano en el efecto.
+  const [cargado, setCargado] = useState<
+    { seccion: SeccionId; operarios: Operario[]; pedidos: Pedido[] } | { seccion: SeccionId; error: true } | null
+  >(null);
+  const datos = cargado?.seccion === seccion && !("error" in cargado) ? cargado : null;
+  const error = cargado?.seccion === seccion && "error" in cargado;
 
   useEffect(() => {
     let vivo = true;
-    setDatos(null);
-    setError(false);
     fetch(`/api/publico/en-curso?seccion=${seccion}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { operarios: Operario[]; pedidos: Pedido[] }) => vivo && setDatos(d))
-      .catch(() => vivo && setError(true));
+      .then((d: { operarios: Operario[]; pedidos: Pedido[] }) => vivo && setCargado({ seccion, ...d }))
+      .catch(() => vivo && setCargado({ seccion, error: true }));
     return () => {
       vivo = false;
     };
