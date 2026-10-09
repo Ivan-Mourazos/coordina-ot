@@ -43,6 +43,7 @@ export function Herramientas({
   loginActivo,
   onSalir,
   roles,
+  verComoDireccion,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
@@ -64,6 +65,8 @@ export function Herramientas({
   /** Roles de acceso de quien está dentro. Ver lib/personas.ts; no confundir
    *  con `Rol` (plantear/revisar), que es lo que se hace en una OF. */
   roles: RolAcceso[];
+  /** Solo para quien tiene técnico y dirección. Cambia lo que se pinta, no lo que puede hacer la cuenta. */
+  verComoDireccion?: { activo: boolean; onCambiar: (v: boolean) => void };
 }) {
   // Ignora los portales: es el único de los cuatro que abre un diálogo
   // (ConfirmDialog, desde ResetPin) DESDE DENTRO de su propio desplegable.
@@ -359,6 +362,20 @@ export function Herramientas({
               `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
               con este `if`. */}
           {loginActivo && roles.includes("supervisor") && <ResetPin />}
+          {verComoDireccion && (
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-text hover:bg-[var(--glass-highlight)]">
+              <span>
+                <span className="block font-semibold">Ver como Dirección</span>
+                <span className="block text-[11px] text-text-muted">La web sin botones de escribir, como la ven Carlos y Esteban</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={verComoDireccion.activo}
+                onChange={(e) => verComoDireccion.onCambiar(e.target.checked)}
+                className="size-4 accent-brand-500"
+              />
+            </label>
+          )}
         </div>
       )}
     </div>

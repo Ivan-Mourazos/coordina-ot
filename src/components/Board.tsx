@@ -31,6 +31,8 @@ import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/l
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
 import type { Yo } from "./LoginGate";
+import { SoloLecturaProvider } from "./SoloLectura";
+import { esSoloLectura, puedeVerComoDireccion } from "@/lib/personas";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
@@ -306,6 +308,30 @@ export function Board({
     loginActivo ? undefined : null,
   );
 
+  // «Ver como Dirección»: solo para quien tiene `tecnico` y `direccion` (hoy,
+  // Iván). Se recuerda en el navegador; ver lib/personas.ts.
+  const [verComoDireccion, setVerComoDireccion] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("coordina-ver-como-direccion") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const cambiarVerComoDireccion = (v: boolean) => {
+    setVerComoDireccion(v);
+    try {
+      if (v) localStorage.setItem("coordina-ver-como-direccion", "1");
+      else localStorage.removeItem("coordina-ver-como-direccion");
+    } catch {
+      // Sin almacenamiento funciona igual; solo no se recuerda.
+    }
+  };
+  // Apagado no hay sesión ni roles: nadie es de solo lectura.
+  const soloLectura = loginActivo && !!sesion && esSoloLectura(sesion.roles, verComoDireccion);
+  // Un ESPECTADOR no tiene sitio en el tablero (Carlos, Esteban). Iván mirando
+  // como Dirección sí lo tiene, pero se le trata igual para ver lo mismo.
+  const espectador = soloLectura;
+
   useEffect(() => {
     if (!loginActivo) return;
     let vivo = true;
@@ -454,7 +480,7 @@ export function Board({
     avisosMovRef.current = avisosMov;
   }, [avisosMov]);
   useEffect(() => {
-    if (!miId) return;
+    if (!miId || espectador) return;
     let vivo = true;
     const cargar = () => {
       fetch(`/api/avisos?operarioId=${encodeURIComponent(miId)}`, { cache: "no-store" })
@@ -484,7 +510,7 @@ export function Board({
       vivo = false;
       clearInterval(id);
     };
-  }, [miId, loginActivo]);
+  }, [miId, loginActivo, espectador]);
 
   // Notas recientes de TODO el equipo: una nota es un hecho del que los demás
   // se tienen que enterar, igual que un traspaso. No depende de quién soy —la
@@ -849,7 +875,7 @@ export function Board({
   const equipo = useMemo(() => {
     const revisiones = new Map<string, ItemCarga[]>();
     for (const o of operarios) {
-      if (o.id === miId) continue;
+      if (o.id === (espectador ? null : miId)) continue;
       revisiones.set(
         o.id,
         facetsQueReviso(procesados, o.id).map((f) => ({ id: f.pedido.id, atrasado: estaAtrasado(f.pedido, hoy) })),
@@ -857,15 +883,15 @@ export function Board({
     }
     const carga = (id: string) => (facetsByLoc.get(id)?.length ?? 0) + (revisiones.get(id)?.length ?? 0);
     const { conTrabajo, libres } = partirEquipo(
-      operarios.filter((o) => o.id !== miId),
+      operarios.filter((o) => o.id !== (espectador ? null : miId)),
       (id) => carga(id) > 0 || liveByOp.has(id),
     );
     return { conTrabajo, libres, revisiones };
-  }, [operarios, miId, facetsByLoc, liveByOp, procesados, hoy]);
+  }, [operarios, miId, espectador, facetsByLoc, liveByOp, procesados, hoy]);
 
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
-    if (!miId) return [];
+    if (!miId || espectador) return [];
     // Se detectan por OF —es la unidad de trabajo— y se agrupan por pedido al
     // final: mandar a revisar un pedido de cuatro OF encendía cuatro avisos
     // idénticos que llevaban todos al mismo sitio.
@@ -968,7 +994,7 @@ export function Board({
       }
     }
     return agruparAvisos(out);
-  }, [procesadosAll, miId, avisosMov, operarios, notasRecientes]);
+  }, [procesadosAll, miId, espectador, avisosMov, operarios, notasRecientes]);
 
   // ── Avisos deducidos ya abiertos ──
   // En localStorage y no en el servidor como los de movimiento: estos se
@@ -1627,7 +1653,7 @@ export function Board({
   // Al conocer quién soy, adopto MI fichaje del server (verdad compartida).
   // No se migra el localStorage previo (era contra datos mock).
   useEffect(() => {
-    if (!miId) return;
+    if (!miId || espectador) return;
     let cancelado = false;
     const traer = (conAviso: boolean) => {
       const seqAlArrancar = postSeqRef.current;
@@ -1676,7 +1702,7 @@ export function Board({
       cancelado = true;
       clearInterval(id);
     };
-  }, [miId, anotarDesfase, loginActivo]);
+  }, [miId, anotarDesfase, loginActivo, espectador]);
 
   // ── Latido: mientras tengo un fichaje corriendo, aviso al server de que la
   // pestaña sigue viva (ver /api/fichaje/latido). Se para al pausar
@@ -2164,8 +2190,16 @@ export function Board({
   // la sección anterior y aquí salía `undefined`, que reventaba el render
   // entero con "Cannot read properties of undefined". Tu identidad no depende
   // de qué lista de trabajo se haya cargado ya.
+  // Dirección no está en la lista de operarios: no planta toldos. Se le hace
+  // un Operario de paso, sin sección (cae en la de siempre) y en gris, para
+  // que lo que solo necesita nombre e id no tenga que preguntar quién es.
   const yo = (TODOS_LOS_OPERARIOS.find((o) => o.id === miId) ??
-    operarios.find((o) => o.id === miId)) as Operario;
+    operarios.find((o) => o.id === miId) ?? {
+      id: miId,
+      nombre: sesion?.nombre ?? miId,
+      iniciales: (sesion?.nombre ?? miId).slice(0, 2).toUpperCase(),
+      color: "#5a6472",
+    }) as Operario;
 
   // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué
   // OF eran y cuáles se pueden volver a fichar AHORA (una que entretanto se
@@ -2203,7 +2237,7 @@ export function Board({
   const laSeccion = SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO];
 
   return (
-    <>
+    <SoloLecturaProvider value={soloLectura}>
       {/* TODA la web del equipo en un ancho máximo centrado (1.800 px): cabecera
           y pestañas. En un monitor de 2.500 px las listas se estiraban hasta que
           la línea de tiempo medía 1.300 px para cuatro fechas, y Métricas, que no
@@ -2279,6 +2313,14 @@ export function Board({
             />
             {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
                 aplicación y ahí es donde se busca. */}
+            {soloLectura && (
+              <span
+                className="glass-chip rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-text-muted"
+                title="Esta cuenta ve toda la web, pero no puede cambiar nada."
+              >
+                Solo lectura
+              </span>
+            )}
             <Herramientas
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
@@ -2294,6 +2336,11 @@ export function Board({
               // sabe nada de accesos. Apagado `sesion` es `null` y el bloque
               // de resetear ni se pinta, así que el valor da igual.
               roles={sesion?.roles ?? []}
+              verComoDireccion={
+                sesion && puedeVerComoDireccion(sesion.roles)
+                  ? { activo: verComoDireccion, onCambiar: cambiarVerComoDireccion }
+                  : undefined
+              }
             />
           </div>
         </header>
@@ -2409,6 +2456,7 @@ export function Board({
             {/* Zona personal: mide lo que necesita. Sin altura fija ni scroll
                 interno — las fases vacías ya no reservan sitio, así que el alto
                 sale del contenido y lo que sobra se lo queda la bandeja. */}
+            {!espectador && (
             <main className="flex shrink-0 flex-col px-5 pt-5 pb-2">
               <ZonaPersonal
                 operario={yo}
@@ -2428,8 +2476,9 @@ export function Board({
                 onVerRevisiones={() => setVista("revision")}
               />
             </main>
+            )}
 
-            {faseAbierta && (
+            {!espectador && faseAbierta && (
               <FaseFlyout
                 facets={facetsDe(yo.id)}
                 seccion={laSeccion}
@@ -2708,6 +2757,7 @@ export function Board({
         onClose={() => setHistorialAbierto(null)}
       />
 
+      {!espectador && (
       <MiFichaje
         miId={miId}
         operarios={operarios}
@@ -2720,6 +2770,7 @@ export function Board({
         onDesficharVarias={desficharVarias}
         onPausarTodo={pausarTodo}
       />
+      )}
 
       <ConfirmDialog
         abierto={pedidoAPasar !== null}
@@ -2911,7 +2962,7 @@ Le llegará el aviso de que ya no lo lleva.`
         }}
         onCancelar={() => setFichajeAjenoPendiente(null)}
       />
-    </>
+    </SoloLecturaProvider>
   );
 }
 
