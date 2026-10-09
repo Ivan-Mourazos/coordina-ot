@@ -1,5 +1,36 @@
 [
   {
+    "id": "2026-10-09",
+    "hasta": "e985e5a",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "En el Panel, los compañeros sin trabajo salen en una línea, «Libres»",
+        "detalle": "Junto al título Equipo. Solo quedan tarjetas para quien lleva algo, así que se ve quién está disponible sin gastar sitio."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las barras del Equipo dicen en qué tiene su trabajo cada uno",
+        "detalle": "Un bloque por pedido, del color de su columna y en el mismo orden que tu zona. Cuenta también lo que tiene por revisar («2 rev»), marca en rojo lo que va tarde y hace latir el pedido en el que está fichando."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los partes de Sin asignar son un poco más pequeños",
+        "detalle": "Cabe uno más por fila, y el número de pedido se sigue leyendo entero."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Sin asignar» y los detenidos se pliegan desde su título, y la web recuerda cómo los dejas",
+        "detalle": "Cada bloque se queda como lo dejaste aunque recargues."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los detenidos por Producción salen plegados, debajo de «Sin asignar»",
+        "detalle": "Así lo primero que ves es lo que se puede coger. Pulsa en su título para verlos: la página baja sola hasta ellos, y si los quieres siempre a la vista la web se acuerda."
+      }
+    ]
+  },
+  {
     "id": "2026-10-07",
     "hasta": "577f62b",
     "cambios": [
