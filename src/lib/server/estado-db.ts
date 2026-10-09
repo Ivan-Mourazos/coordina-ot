@@ -466,6 +466,12 @@ const MIGRACIONES: ReadonlyArray<{
   // (PedirRevisor.tsx), así que solo pudieron llegar así por un camino que se
   // saltara la pantalla — la propia API sin comprobarlo, hasta hoy.
   { version: 10, nombre: "por_revisar_sin_revisor", aplicar: porRevisarSinRevisor },
+  // Carlos y Esteban entran a verlo todo sin escribir (rol `direccion`, ver
+  // lib/personas.ts). Se sembraron en la 7 como supervisores desactivados;
+  // aquí se les cambia el rol y se activan. Iván gana `direccion` además de lo
+  // suyo para poder mirar la web como ellos mientras se desarrolla — cuando
+  // den el visto bueno, otra migración se lo quita. Cris no cambia.
+  { version: 11, nombre: "cuentas_de_direccion", aplicar: cuentasDeDireccion },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -701,6 +707,30 @@ function rolesDeSupervisor(db: Database.Database): void {
     if (roles.includes("supervisor")) continue;
     roles.push("supervisor");
     guardar.run(roles.join(","), id);
+  }
+}
+
+/** Activa las cuentas de Dirección y le da el rol a Iván.
+ *
+ *  Se puede repetir sin estropear nada: a Carlos y Esteban se les deja la
+ *  lista en `direccion` (que es lo único que deben tener), y a Iván solo se le
+ *  AÑADE el rol si le falta, como hace `rolesDeSupervisor`. Ni una ni otra
+ *  tocan `pin_hash`: un PIN ya elegido sigue valiendo. Una fila que no existe
+ *  se salta. */
+function cuentasDeDireccion(db: Database.Database): void {
+  const leer = db.prepare("SELECT roles FROM persona WHERE id = ?");
+  const activar = db.prepare("UPDATE persona SET roles = 'direccion', activo = 1 WHERE id = ?");
+  const guardar = db.prepare("UPDATE persona SET roles = ? WHERE id = ?");
+  for (const id of ["carlos", "esteban"]) {
+    if (leer.get(id)) activar.run(id);
+  }
+  const ivan = leer.get("ivan") as { roles: string } | undefined;
+  if (ivan) {
+    const roles = ivan.roles.split(",").map((r) => r.trim()).filter(Boolean);
+    if (!roles.includes("direccion")) {
+      roles.push("direccion");
+      guardar.run(roles.join(","), "ivan");
+    }
   }
 }
 

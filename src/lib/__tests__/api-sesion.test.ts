@@ -151,7 +151,7 @@ test("GET /api/sesion dice quién eres, y null si no eres nadie", async () => {
     }),
   );
   expect((await con.json()) as { yo: { id: string } }).toEqual({
-    yo: { id: "ivan", nombre: "Iván", roles: ["tecnico", "supervisor"] },
+    yo: { id: "ivan", nombre: "Iván", roles: ["tecnico", "supervisor", "direccion"] },
   });
 });
 

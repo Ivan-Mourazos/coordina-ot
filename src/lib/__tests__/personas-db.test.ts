@@ -40,7 +40,7 @@ test("Ángel lleva los dos roles, porque hace las dos cosas", () => {
 test("Iván también supervisa: resetear un PIN no puede colgar de una sola cuenta", () => {
   // El rol solo sirve para resetearle el PIN a otro. Con un único supervisor,
   // el día que se atasque SU cuenta no queda nadie dentro que la desatasque.
-  expect(db.leerPersona("ivan")?.roles).toEqual(["tecnico", "supervisor"]);
+  expect(db.leerPersona("ivan")?.roles).toEqual(["tecnico", "supervisor", "direccion"]);
   expect(db.leerPersonas("supervisor").map((p) => p.id)).toContain("ivan");
 });
 
@@ -54,8 +54,9 @@ test("el resto del equipo NO supervisa", () => {
 test("los supervisores puros nacen desactivados y no salen en ninguna lista", () => {
   // Sus pantallas (fases 2 y 3) están aplazadas: si entraran hoy no tendrían
   // nada que mirar. La fila existe para no tener que migrar el día que se abran.
-  expect(db.leerPersonas().map((p) => p.id)).not.toContain("esteban");
-  expect(db.leerPersona("esteban")).toBeNull();
+  // Esteban ya no sirve de ejemplo: la migración 11 lo activa como Dirección.
+  expect(db.leerPersonas().map((p) => p.id)).not.toContain("cris");
+  expect(db.leerPersona("cris")).toBeNull();
 });
 
 test("cada técnico nace con su sección, que es de dónde sale su lista", () => {

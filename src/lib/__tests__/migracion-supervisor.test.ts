@@ -63,11 +63,11 @@ afterAll(() => {
 test("al arrancar, Iván pasa a supervisor sin tocar la base a mano", () => {
   // Si esto fallara, el día de encender el login habría que abrir SQLite con
   // el equipo esperando para que alguien pueda resetear un PIN.
-  expect(rolesDe("ivan")).toBe("tecnico,supervisor");
+  expect(rolesDe("ivan")).toBe("tecnico,supervisor,direccion");
   // El número sube cada vez que se añade una migración nueva detrás (ver
   // MIGRACIONES en estado-db.ts); lo que importa aquí es que la base llegue
   // hasta la última, no cuántas hay.
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(10);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(11);
 });
 
 test("a quien ya lo tenía no se le duplica, y a los demás no se les da", () => {
@@ -91,7 +91,7 @@ test("pasarla dos veces deja lo mismo: añade el rol que falta, no reescribe", (
         roles: string;
       }
     ).roles;
-    expect(roles).toBe("tecnico,supervisor");
+    expect(roles).toBe("tecnico,supervisor,direccion");
   });
 });
 
@@ -106,6 +106,6 @@ test("la fila que no existe no revienta la migración", () => {
 
   return import("../server/estado-db").then((otra) => {
     expect(() => otra.getDb()).not.toThrow();
-    expect(otra.getDb().pragma("user_version", { simple: true })).toBe(10);
+    expect(otra.getDb().pragma("user_version", { simple: true })).toBe(11);
   });
 });
