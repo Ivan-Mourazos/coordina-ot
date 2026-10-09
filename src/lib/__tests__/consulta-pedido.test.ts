@@ -55,6 +55,11 @@ test("la fila lleva EXACTAMENTE estas claves: lo que no está aquí no sale de c
       "familias",
       "fechaEntrega",
       "fechaEntregado",
+      // Llegada y número de OF: el principio del recorrido en «Toda la casa»
+      // de Dirección (09/10/2026). Al invitado no le dicen nada que su ficha
+      // no enseñe ya (las OF del pedido).
+      "fechaPedido",
+      "nOf",
       "fueraDePlazo",
       "negocio",
       "situacion",

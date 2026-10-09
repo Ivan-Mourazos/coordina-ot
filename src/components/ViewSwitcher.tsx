@@ -6,7 +6,8 @@ export type Vista =
   | "revision"
   | "visitas"
   | "historial"
-  | "metricas";
+  | "metricas"
+  | "casa";
 
 // Los `id` NO se tocan: viajan en la URL (`?v=asignar`) y hay enlaces
 // guardados por ahí. Lo que cambia es cómo se llaman las pestañas, que es lo
@@ -23,6 +24,8 @@ const OPCIONES: { id: Vista; label: string }[] = [
   // Mirar hacia atrás, no trabajo que tengas delante: por eso va la última y
   // no dentro de Historial, donde quedaría escondida.
   { id: "metricas", label: "Métricas" },
+  // Solo Dirección (ver `conCasa`): los pedidos de toda la fábrica.
+  { id: "casa", label: "Toda la casa" },
 ];
 
 /** Las vistas que existen, en el orden de las pestañas.
@@ -38,10 +41,13 @@ export function ViewSwitcher({
   vista,
   onChange,
   badge,
+  conCasa = false,
 }: {
   vista: Vista;
   onChange: (v: Vista) => void;
   badge?: Partial<Record<Vista, number>>;
+  /** Enseñar «Toda la casa», que es solo de Dirección. */
+  conCasa?: boolean;
 }) {
   // p-[3px] y no p-1: el contenedor mide borde (2) + padding×2 + botón (28),
   // así que con 4 px de padding salían 38 y el resto de la cabecera va a 36.
@@ -52,7 +58,7 @@ export function ViewSwitcher({
   // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
   return (
     <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
-      {OPCIONES.map((o) => {
+      {OPCIONES.filter((o) => o.id !== "casa" || conCasa).map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
         return (

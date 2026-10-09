@@ -320,6 +320,10 @@ export interface PedidoConsulta {
   familias: string[];
   /** Solo en fábrica; vacío en lo demás. */
   donde: DondeOF[];
+  /** Cuándo llegó el pedido (yyyy-mm-dd) y cuántas OF lleva: el principio del
+   *  recorrido en «Toda la casa» de Dirección. */
+  fechaPedido?: string | null;
+  nOf?: number;
 }
 
 export interface RespuestaConsulta {
@@ -350,5 +354,7 @@ export function pedidoConsulta(
     fueraDePlazo: situacion !== "entregado" && fechaEntrega !== null && fechaEntrega < hoy,
     familias: info?.familias ?? [],
     donde,
+    fechaPedido: diaIso(b.fechaPedido),
+    nOf: b.nOf,
   };
 }

@@ -40,6 +40,7 @@ import { Notificaciones } from "./Notificaciones";
 import { Herramientas } from "./Herramientas";
 import { BuscadorGlobal } from "./BuscadorGlobal";
 import { HistorialDrawer } from "./HistorialDrawer";
+import { DireccionCasa } from "./DireccionCasa";
 import {
   agruparAvisos,
   aplicarDescartes,
@@ -556,6 +557,12 @@ export function Board({
   // (decisión de Iván, 09/10/2026). Solo si el enlace no pedía una pestaña:
   // se mira al montar porque la URL se reescribe enseguida con la vista, y
   // la sesión —que dice si es Dirección— llega un instante después.
+  // «Toda la casa» es solo de Dirección: al dejar de mirar como ellos, a
+  // Pendientes en vez de quedarse en una pestaña que ya no existe.
+  const alternarVerComoDireccion = (v: boolean) => {
+    cambiarVerComoDireccion(v);
+    if (!v) setVista((actual) => (actual === "casa" ? "lista" : actual));
+  };
   const vistaPedidaEnUrl = useRef(vistaDeUrl() !== null);
   const entradaDeDireccionHecha = useRef(false);
   useEffect(() => {
@@ -2287,6 +2294,7 @@ export function Board({
                 vista={vista}
                 onChange={setVista}
                 badge={{ revision: misPorRevisar, asignar: misDevueltas }}
+                conCasa={espectador}
               />
             </div>
           </div>
@@ -2350,7 +2358,7 @@ export function Board({
               roles={sesion?.roles ?? []}
               verComoDireccion={
                 sesion && puedeVerComoDireccion(sesion.roles)
-                  ? { activo: verComoDireccion, onCambiar: cambiarVerComoDireccion }
+                  ? { activo: verComoDireccion, onCambiar: alternarVerComoDireccion }
                   : undefined
               }
             />
@@ -2714,6 +2722,13 @@ export function Board({
         {vista === "metricas" && (
           <div className="p-5 pb-24">
             <MetricasView seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)} />
+          </div>
+        )}
+
+        {/* ── TODA LA CASA (solo Dirección) ── */}
+        {vista === "casa" && espectador && (
+          <div className="pb-24">
+            <DireccionCasa onAbrirPedido={setHistorialAbierto} />
           </div>
         )}
 
