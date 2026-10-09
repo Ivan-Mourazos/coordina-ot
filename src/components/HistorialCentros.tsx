@@ -81,7 +81,10 @@ export function OFsDeLaFicha({
   onReintentarGastado,
   abiertasDeSalida,
   conGastado = true,
+  enColumnas = false,
 }: {
+  /** Ver `DetalleOF`. */
+  enColumnas?: boolean;
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** Ver `Materiales`. */
@@ -105,6 +108,7 @@ export function OFsDeLaFicha({
             gastado={gastado}
             onReintentarGastado={onReintentarGastado}
             conGastado={conGastado}
+            enColumnas={enColumnas}
           />
         )}
       />
@@ -120,9 +124,12 @@ export function DetalleOF({
   gastado,
   onReintentarGastado,
   conGastado = true,
+  enColumnas = false,
 }: {
   /** Ver `Materiales`. */
   conGastado?: boolean;
+  /** Los centros uno al lado del otro (la lista del Historial). */
+  enColumnas?: boolean;
   /** Las entradas de ESTA OF, una por centro que trabajó en ella. */
   centros: HistorialOF[];
   gastado?: Record<string, MaterialGastadoOF[]> | null;
@@ -161,6 +168,13 @@ export function DetalleOF({
   const conMaterial = centros.find((of) => of.materiales?.length || of.notasProduccion) ?? centros[0];
   return (
     <div className="mt-2 border-t border-border pt-2">
+      {/* En columnas (la lista, que tiene ancho de sobra): un centro al lado
+          del otro, en el orden de la ruta, y la OF se lee de izquierda a
+          derecha como avanza el trabajo. En la ficha, uno debajo de otro. */}
+      <div
+        className={enColumnas ? "grid gap-x-4 gap-y-2.5" : ""}
+        style={enColumnas ? { gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" } : undefined}
+      >
       {conTiempo.map((of) => {
         const tono = CENTRO_TONO[of.centro ?? "ot"];
         return (
@@ -182,6 +196,7 @@ export function DetalleOF({
           </div>
         );
       })}
+      </div>
       {sinTiempo.length > 0 && (
         <details className="mt-1 text-[11px]">
           <summary className="cursor-pointer text-text-muted hover:text-text">

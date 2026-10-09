@@ -559,8 +559,8 @@ function FilaHistorial({
               ficha, a lo ancho del desplegable, y cada OF se abre en su sitio.
               Sin el botón de Gastado, que es otra consulta por pedido. */}
           {ofs && (
-            <div className="max-w-3xl py-1">
-              <OFsDeLaFicha ofs={ofs} seccion={seccion} conGastado={false} />
+            <div className="py-1">
+              <OFsDeLaFicha ofs={ofs} seccion={seccion} conGastado={false} enColumnas />
             </div>
           )}
         </>
