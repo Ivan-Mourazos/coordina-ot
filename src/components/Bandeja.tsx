@@ -1,12 +1,32 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import type { Operario, Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { familiaMeta } from "@/lib/familia";
+import { Desplegable } from "./Desplegable";
 import { FamiliaIcon } from "./FamiliaTag";
 import { PedidoCard, type Facet } from "./PedidoCard";
 import { IconoBandeja } from "./Iconos";
+
+/** Ancho mínimo de una tarjeta de parte, en px. Era 112 y bajó a 100 para
+ *  que quepan más por fila: no menos, porque el código del pedido
+ *  ("AR.26.04561", en mono a 11 px) tiene que leerse entero, y a 80 el parte
+ *  era un sello de correos que no distinguía un croquis de un correo. La
+ *  miniatura se genera a 420 px (ANCHO_MINIATURA), así que aguanta. */
+const ANCHO_TARJETA = 100;
+
+/** Si el bloque de detenidos está plegado. Por navegador: es una preferencia
+ *  de quien mira, no un dato del equipo. */
+const DETENIDOS_PLEGADOS_KEY = "coordina-detenidos-plegados";
+
+function leerDetenidosAbiertos(): boolean {
+  try {
+    return localStorage.getItem(DETENIDOS_PLEGADOS_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
 
 /* ── cómo se reparten las tarjetas ── */
 
@@ -116,7 +136,7 @@ function ScrollRow({
         style={{ cursor: "grab" }}
       >
         {facets.map((f) => (
-          <div key={`${claveGrupo}:${f.pedido.id}`} className="w-[112px] shrink-0">
+          <div key={`${claveGrupo}:${f.pedido.id}`} className="shrink-0" style={{ width: ANCHO_TARJETA }}>
             <PedidoCard
               facet={f}
               operarios={operarios}
@@ -168,6 +188,17 @@ export function Bandeja({
   );
   const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpFechaPrio), [detenidos]);
   const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
+  const idDetenidos = useId();
+  const [detenidosAbiertos, setDetenidosAbiertos] = useState(leerDetenidosAbiertos);
+  const cambiarDetenidosAbiertos = (abierto: boolean) => {
+    setDetenidosAbiertos(abierto);
+    try {
+      if (abierto) localStorage.removeItem(DETENIDOS_PLEGADOS_KEY);
+      else localStorage.setItem(DETENIDOS_PLEGADOS_KEY, "1");
+    } catch {
+      // Sin almacenamiento se pliega igual; solo no se recuerda.
+    }
+  };
 
   /* ── agrupado por familia ── */
   const filasFamilia = useMemo(() => {
@@ -311,11 +342,8 @@ export function Bandeja({
         // se sube lo justo.
         <div
           className="grid gap-x-2 gap-y-3"
-          // 112 px y no 80: a 80 el parte era un sello de correos y no se
-          // distinguía un croquis de un correo sin abrirlo. La miniatura se
-          // genera a 420 px (ANCHO_MINIATURA), así que aguanta el tamaño. Caben
-          // menos por fila, pero la bandeja tenía media pantalla vacía debajo.
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}
+          // Ver ANCHO_TARJETA.
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
         >
           {flat.map((f) => (
             <div key={f.pedido.id} className="min-w-0">
@@ -335,9 +363,29 @@ export function Bandeja({
 
       {/* ── DETENIDOS POR PRODUCCIÓN ── Debajo y con su raya: lo de arriba es
           lo que se puede coger. Mismas miniaturas, una detrás de otra. */}
+      {/* Se pliega: no se pueden coger, y a quien no los quiere ver le
+          llenaban media bandeja. Plegado sigue diciendo cuántos hay, y se
+          recuerda en el navegador. Arranca abierto: que nadie deje de verlos
+          sin haberlo elegido. */}
       {detenidosPorFecha.length > 0 && (
         <section className="mt-5 border-t border-[var(--glass-border)] pt-3">
-          <div className="mb-2.5 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => cambiarDetenidosAbiertos(!detenidosAbiertos)}
+            aria-expanded={detenidosAbiertos}
+            aria-controls={idDetenidos}
+            className={`${detenidosAbiertos ? "mb-2.5" : ""} flex items-center gap-2 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className={`size-3.5 shrink-0 text-text-muted transition-transform motion-reduce:transition-none ${detenidosAbiertos ? "" : "-rotate-90"}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             <span className="size-2 rounded-full bg-amber-500" />
             <h2 className="text-base font-bold text-text">Detenidos por Producción</h2>
             <span
@@ -346,24 +394,28 @@ export function Bandeja({
             >
               {detenidosPorFecha.length} ped · {nOFsDetenidas} OF
             </span>
-          </div>
-          <div
-            className="grid gap-x-2 gap-y-3"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}
-          >
-            {detenidosPorFecha.map((f) => (
-              <div key={f.pedido.id} className="min-w-0">
-                <PedidoCard
-                  facet={f}
-                  operarios={operarios}
-                  onOpen={onOpen}
-                  onAsignar={onAsignar}
-                  miId={miId}
-                  mostrarPrioridad
-                  mostrarFecha
-                />
+          </button>
+          <div id={idDetenidos}>
+            <Desplegable abierto={detenidosAbiertos}>
+              <div
+                className="grid gap-x-2 gap-y-3"
+                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
+              >
+                {detenidosPorFecha.map((f) => (
+                  <div key={f.pedido.id} className="min-w-0">
+                    <PedidoCard
+                      facet={f}
+                      operarios={operarios}
+                      onOpen={onOpen}
+                      onAsignar={onAsignar}
+                      miId={miId}
+                      mostrarPrioridad
+                      mostrarFecha
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            </Desplegable>
           </div>
         </section>
       )}
