@@ -846,10 +846,6 @@ export function Board({
   // como autor en el Panel —lo que pinta su tarjeta—, revisiones pendientes o
   // el reloj en marcha: sin las dos últimas, quien está revisando o fichando
   // en el pedido de otro saldría como libre.
-  //
-  // `escala` es la carga del más cargado (pedidos que plantea + pedidos que
-  // revisa): todas las barras se miden contra ella, así 2 pedidos no llenan
-  // la barra igual que 12 y se ve a quién pasarle trabajo.
   const equipo = useMemo(() => {
     const revisiones = new Map<string, ItemCarga[]>();
     for (const o of operarios) {
@@ -864,8 +860,7 @@ export function Board({
       operarios.filter((o) => o.id !== miId),
       (id) => carga(id) > 0 || liveByOp.has(id),
     );
-    const escala = Math.max(1, ...conTrabajo.map((o) => carga(o.id)));
-    return { conTrabajo, libres, revisiones, escala };
+    return { conTrabajo, libres, revisiones };
   }, [operarios, miId, facetsByLoc, liveByOp, procesados, hoy]);
 
   // ── Notificaciones personales (según quién eres ahora mismo) ──
@@ -2480,7 +2475,6 @@ export function Board({
                     operario={op}
                     facets={facetsDe(op.id)}
                     revisiones={equipo.revisiones.get(op.id) ?? []}
-                    escala={equipo.escala}
                     seccion={laSeccion}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}

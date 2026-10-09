@@ -20,7 +20,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   operario,
   facets,
   revisiones,
-  escala,
   seccion,
   live,
   expanded,
@@ -36,8 +35,6 @@ export const TecnicoCard = memo(function TecnicoCard({
   facets: Facet[];
   /** Pedidos que le toca revisar (por_revisar o en_revision a su nombre). */
   revisiones: ItemCarga[];
-  /** Carga del compañero más cargado: la barra se mide contra ella. */
-  escala: number;
   /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
    *  columnas (ver `ordenFases` en lib/secciones.ts). */
   seccion: Seccion;
@@ -70,12 +67,15 @@ export const TecnicoCard = memo(function TecnicoCard({
     colorRevisar: ROL.revisar.color,
   });
   const tarde = bloques.filter((b) => b.atrasado).length;
-  // Cada bloque mide lo mismo en TODAS las tarjetas: 1/escala del ancho, con
-  // la escala del más cargado. Con muchos pedidos el bloque se queda en unos
-  // pocos px y el hueco de 1 px se comería la mitad: entonces van pegados y la
-  // barra se lee por tramos de color, como antes.
-  const ancho = `${100 / escala}%`;
-  const conHueco = escala <= 30;
+  // La barra se reparte entre LOS SUYOS, no contra el más cargado del equipo:
+  // hay quien coge doce de golpe y quien los coge de dos en dos, así que
+  // comparar cuántos tiene asignados cada uno no dice quién va más cargado.
+  // Cuántos lo dice el «N ped»; la barra dice en qué está.
+  //
+  // Con muchos pedidos el bloque se queda en unos pocos px y el hueco de 1 px
+  // se comería la mitad: entonces van pegados y se lee por tramos de color.
+  const ancho = `${100 / Math.max(1, bloques.length)}%`;
+  const conHueco = bloques.length <= 30;
   const resumen = [
     revisiones.length > 0 ? `Por revisar: ${revisiones.length}` : null,
     ...porFase.filter((f) => f.n).map((f) => `${f.label}: ${f.n}`),
@@ -149,14 +149,12 @@ export const TecnicoCard = memo(function TecnicoCard({
 
         {/* Barra de carga: un bloque por pedido, del color de su columna y en
             el orden de la zona de arriba (ver bloquesDeCarga). Dice EN QUÉ
-            está cargado cada uno y, con la escala común, CUÁNTO comparado con
-            los demás: lo que queda de pista vacía es margen para más trabajo.
-            El pedido que está fichando late; los fuera de fecha llevan una
+            está cargado cada uno; cuánto lo dice el número de arriba. El pedido que está fichando late; los fuera de fecha llevan una
             raya roja debajo, que el color de la fase ya está cogido. */}
         <div className="mt-1.5 bajo:mt-1" title={resumen}>
           <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
             {bloques.map((b) => (
-              <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
+              <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 last:pr-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
                 <span
                   className={`block h-full ${b.vivo ? "animate-pulse" : ""}`}
                   style={{ background: b.color }}
@@ -167,7 +165,7 @@ export const TecnicoCard = memo(function TecnicoCard({
           {tarde > 0 && (
             <div aria-hidden="true" className="mt-px flex h-0.5 w-full">
               {bloques.map((b) => (
-                <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
+                <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 last:pr-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
                   {b.atrasado && <span className="block h-full rounded-full bg-red-600" />}
                 </span>
               ))}
