@@ -16,17 +16,103 @@ import { IconoBandeja } from "./Iconos";
  *  miniatura se genera a 420 px (ANCHO_MINIATURA), así que aguanta. */
 const ANCHO_TARJETA = 100;
 
-/** Si el bloque de detenidos está plegado. Por navegador: es una preferencia
- *  de quien mira, no un dato del equipo. */
-const DETENIDOS_PLEGADOS_KEY = "coordina-detenidos-plegados";
-
-function leerDetenidosAbiertos(): boolean {
+/** Plegado o no, por bloque y por navegador: es una preferencia de quien
+ *  mira, no un dato del equipo. Hay quien quiere los detenidos siempre a la
+ *  vista y quien no los quiere ver nunca, y lo mismo con «Sin asignar». */
+function leerAbierto(clave: string): boolean {
   try {
-    return localStorage.getItem(DETENIDOS_PLEGADOS_KEY) !== "1";
+    return localStorage.getItem(clave) !== "plegado";
   } catch {
     return true;
   }
 }
+
+function guardarAbierto(clave: string, abierto: boolean) {
+  try {
+    if (abierto) localStorage.removeItem(clave);
+    else localStorage.setItem(clave, "plegado");
+  } catch {
+    // Sin almacenamiento se pliega igual; solo no se recuerda.
+  }
+}
+
+/** Un bloque de la bandeja que se pliega desde su título.
+ *
+ *  Toda la fila es el botón y se ilumina al pasar por encima; el chevron va
+ *  en su círculo y a la derecha dice qué hace pulsar. Con solo una flecha
+ *  pequeña nadie adivinaba que se plegaba. Plegado, el título sigue diciendo
+ *  cuántos hay. Arranca abierto: que nadie deje de ver nada sin haberlo
+ *  elegido. */
+function BloquePlegable({
+  clave,
+  cabecera,
+  bajarAlAbrir = false,
+  className = "",
+  children,
+}: {
+  /** Clave del navegador donde se recuerda si está plegado. */
+  clave: string;
+  /** Icono, título y contador: lo que se ve con el bloque plegado. */
+  cabecera: React.ReactNode;
+  /** Al desplegar, la página baja hasta el bloque. Lo usan los detenidos, que
+   *  están al fondo: abrirlos sin moverse dejaba las tarjetas fuera de la
+   *  pantalla, como si no hubiera pasado nada. «Sin asignar» no lo necesita:
+   *  ya está a la vista y moverle la página a alguien sin motivo desorienta. */
+  bajarAlAbrir?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  const [abierto, setAbierto] = useState(() => leerAbierto(clave));
+  const seccion = useRef<HTMLElement | null>(null);
+  const cambiar = () => {
+    const nuevo = !abierto;
+    setAbierto(nuevo);
+    guardarAbierto(clave, nuevo);
+    // Solo al pulsar, nunca al cargar. Y esperando a que termine de abrirse
+    // (`desplegar` dura 190 ms en globals.css): antes las tarjetas aún no
+    // ocupan su alto, no hay sitio por debajo y el scroll se queda a medias.
+    if (nuevo && bajarAlAbrir) {
+      const sinAnimar = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setTimeout(
+        () => seccion.current?.scrollIntoView({ behavior: sinAnimar ? "auto" : "smooth", block: "start" }),
+        sinAnimar ? 0 : 220,
+      );
+    }
+  };
+  return (
+    <section ref={seccion} className={`scroll-mt-3 ${className}`}>
+      <button
+        type="button"
+        onClick={cambiar}
+        aria-expanded={abierto}
+        aria-controls={id}
+        className={`group ${abierto ? "mb-2.5" : ""} -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+      >
+        <span className="glass-chip grid size-6 shrink-0 place-items-center rounded-full text-text transition-colors group-hover:border-brand-400">
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className={`size-3.5 transition-transform motion-reduce:transition-none ${abierto ? "" : "-rotate-90"}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        {cabecera}
+        <span className="glass-chip ml-auto rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-text-muted transition-colors group-hover:text-text">
+          {abierto ? "Ocultar" : "Mostrar"}
+        </span>
+      </button>
+      <div id={id}>
+        <Desplegable abierto={abierto}>{children}</Desplegable>
+      </div>
+    </section>
+  );
+}
+
 
 /* ── cómo se reparten las tarjetas ── */
 
@@ -188,37 +274,7 @@ export function Bandeja({
   );
   const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpFechaPrio), [detenidos]);
   const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
-  const idDetenidos = useId();
-  const [detenidosAbiertos, setDetenidosAbiertos] = useState(leerDetenidosAbiertos);
-  const seccionDetenidos = useRef<HTMLElement | null>(null);
-  const cambiarDetenidosAbiertos = (abierto: boolean) => {
-    setDetenidosAbiertos(abierto);
-    // Al desplegar, la página baja sola hasta ellos: el bloque está al fondo
-    // de la bandeja y abrirlo sin moverse dejaba las tarjetas fuera de la
-    // pantalla, como si no hubiera pasado nada. Solo al pulsar, nunca al
-    // cargar: que la página se mueva sola sin haber tocado nada desorienta.
-    //
-    // Espera a que termine de abrirse (`desplegar` dura 190 ms en
-    // globals.css): antes de eso las tarjetas aún no ocupan su alto, no hay
-    // sitio por debajo al que bajar y el scroll se quedaba a medias.
-    if (abierto) {
-      const sinAnimar = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setTimeout(
-        () =>
-          seccionDetenidos.current?.scrollIntoView({
-            behavior: sinAnimar ? "auto" : "smooth",
-            block: "start",
-          }),
-        sinAnimar ? 0 : 220,
-      );
-    }
-    try {
-      if (abierto) localStorage.removeItem(DETENIDOS_PLEGADOS_KEY);
-      else localStorage.setItem(DETENIDOS_PLEGADOS_KEY, "1");
-    } catch {
-      // Sin almacenamiento se pliega igual; solo no se recuerda.
-    }
-  };
+
 
   /* ── agrupado por familia ── */
   const filasFamilia = useMemo(() => {
@@ -287,165 +343,145 @@ export function Bandeja({
     // tenían detrás. Igual en oscuro: el papel destaca solo contra el grafito
     // y la caja no aportaba nada.
     <div>
-      <div className="mb-2.5 flex items-center gap-2">
-        <IconoBandeja className="size-4.5 text-text-muted" />
-        <h2 className="text-base font-bold text-text">Sin asignar</h2>
-        <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-800 dark:text-brand-300">
-          {facets.length} ped · {nOFs} OF
-        </span>
-      </div>
-
-      {facets.length === 0 ? (
-        /* Decir "no hay partes sin asignar" cuando lo que pasa es que los
-           filtros se los han comido es mentir: manda a buscar un problema que
-           no existe (o a dar por hecho que no queda trabajo). */
-        <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
-          {hayFiltrosActivos
-            ? "Hay partes sin asignar, pero ninguno pasa los filtros actuales"
-            : "No hay partes sin asignar"}
-        </div>
-      ) : agrupar === "familia" ? (
-        /* ── FILAS POR FAMILIA ── */
-        <div className="space-y-3">
-          {filasFamilia.map((fila) => (
-            <ScrollRow
-              key={fila.familia}
-              claveGrupo={fila.familia}
-              label={fila.meta.label}
-              icon={<FamiliaIcon familia={fila.familia} className="size-4" />}
-              count={fila.facets.length}
-              facets={fila.facets}
-              operarios={operarios}
-              onOpen={onOpen}
-              onAsignar={onAsignar}
-              miId={miId}
-            />
-          ))}
-        </div>
-      ) : agrupar === "prioridad" ? (
-        /* ── FILAS POR PRIORIDAD ── */
-        <div className="space-y-3">
-          {filasPrioridad.map((fila) => (
-            <ScrollRow
-              key={fila.prioridad}
-              claveGrupo={String(fila.prioridad)}
-              label={fila.meta.label}
-              icon={
-                <span
-                  className="size-2.5 rounded-full"
-                  style={{ background: fila.meta.color }}
-                />
-              }
-              count={fila.facets.length}
-              facets={fila.facets}
-              operarios={operarios}
-              onOpen={onOpen}
-              onAsignar={onAsignar}
-              miId={miId}
-            />
-          ))}
-        </div>
-      ) : (
-        /* ── SIN AGRUPAR: tarjetas seguidas, fecha en cada una. Va de última
-             rama, no de primera con un fallback igual detrás: `Agrupacion`
-             tiene tres valores y ya no hay ningún cuarto caso que cubrir. ── */
-        /* Rejilla que se reparte el ancho, no tarjetas fijas que dejan un
-           hueco a la derecha. `auto-fill` mete las que quepan a 112 px mínimo y
-           `1fr` les da el sobrante a partes iguales: con 21 por fila, en vez de
-           una franja muerta al final cada tarjeta crece un pelín. El PDF de
-           dentro escala con ella, así que se lee mejor cuanto más ancha. */
-        // Más aire ENTRE FILAS que entre columnas, y no por gusto: cada
-        // tarjeta lleva ahora una línea de texto encima (fecha y prioridad) y
-        // dos debajo (código y cliente), así que lo que se tocaba era el
-        // cliente de una fila con la fecha de la siguiente. El hueco vertical
-        // sale gratis; el horizontal se paga en tarjetas por fila, así que ahí
-        // se sube lo justo.
-        <div
-          className="grid gap-x-2 gap-y-3"
-          // Ver ANCHO_TARJETA.
-          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
-        >
-          {flat.map((f) => (
-            <div key={f.pedido.id} className="min-w-0">
-              <PedidoCard
-                facet={f}
+      <BloquePlegable
+        clave="coordina-sin-asignar-plegado"
+        cabecera={
+          <>
+            <IconoBandeja className="size-4.5 text-text-muted" />
+            <h2 className="text-base font-bold text-text">Sin asignar</h2>
+            <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-[11px] font-bold text-brand-800 dark:text-brand-300">
+              {facets.length} ped · {nOFs} OF
+            </span>
+          </>
+        }
+      >
+        {facets.length === 0 ? (
+          /* Decir "no hay partes sin asignar" cuando lo que pasa es que los
+             filtros se los han comido es mentir: manda a buscar un problema que
+             no existe (o a dar por hecho que no queda trabajo). */
+          <div className="grid min-h-24 place-items-center rounded-lg border border-dashed border-border text-xs text-text-muted">
+            {hayFiltrosActivos
+              ? "Hay partes sin asignar, pero ninguno pasa los filtros actuales"
+              : "No hay partes sin asignar"}
+          </div>
+        ) : agrupar === "familia" ? (
+          /* ── FILAS POR FAMILIA ── */
+          <div className="space-y-3">
+            {filasFamilia.map((fila) => (
+              <ScrollRow
+                key={fila.familia}
+                claveGrupo={fila.familia}
+                label={fila.meta.label}
+                icon={<FamiliaIcon familia={fila.familia} className="size-4" />}
+                count={fila.facets.length}
+                facets={fila.facets}
                 operarios={operarios}
                 onOpen={onOpen}
                 onAsignar={onAsignar}
                 miId={miId}
-                mostrarPrioridad
-                mostrarFecha
               />
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ) : agrupar === "prioridad" ? (
+          /* ── FILAS POR PRIORIDAD ── */
+          <div className="space-y-3">
+            {filasPrioridad.map((fila) => (
+              <ScrollRow
+                key={fila.prioridad}
+                claveGrupo={String(fila.prioridad)}
+                label={fila.meta.label}
+                icon={
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ background: fila.meta.color }}
+                  />
+                }
+                count={fila.facets.length}
+                facets={fila.facets}
+                operarios={operarios}
+                onOpen={onOpen}
+                onAsignar={onAsignar}
+                miId={miId}
+              />
+            ))}
+          </div>
+        ) : (
+          /* ── SIN AGRUPAR: tarjetas seguidas, fecha en cada una. Va de última
+               rama, no de primera con un fallback igual detrás: `Agrupacion`
+               tiene tres valores y ya no hay ningún cuarto caso que cubrir. ── */
+          /* Rejilla que se reparte el ancho, no tarjetas fijas que dejan un
+             hueco a la derecha. `auto-fill` mete las que quepan a 112 px mínimo y
+             `1fr` les da el sobrante a partes iguales: con 21 por fila, en vez de
+             una franja muerta al final cada tarjeta crece un pelín. El PDF de
+             dentro escala con ella, así que se lee mejor cuanto más ancha. */
+          // Más aire ENTRE FILAS que entre columnas, y no por gusto: cada
+          // tarjeta lleva ahora una línea de texto encima (fecha y prioridad) y
+          // dos debajo (código y cliente), así que lo que se tocaba era el
+          // cliente de una fila con la fecha de la siguiente. El hueco vertical
+          // sale gratis; el horizontal se paga en tarjetas por fila, así que ahí
+          // se sube lo justo.
+          <div
+            className="grid gap-x-2 gap-y-3"
+            // Ver ANCHO_TARJETA.
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
+          >
+            {flat.map((f) => (
+              <div key={f.pedido.id} className="min-w-0">
+                <PedidoCard
+                  facet={f}
+                  operarios={operarios}
+                  onOpen={onOpen}
+                  onAsignar={onAsignar}
+                  miId={miId}
+                  mostrarPrioridad
+                  mostrarFecha
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </BloquePlegable>
 
       {/* ── DETENIDOS POR PRODUCCIÓN ── Debajo y con su raya: lo de arriba es
-          lo que se puede coger. Mismas miniaturas, una detrás de otra. */}
-      {/* Se pliega: no se pueden coger, y a quien no los quiere ver le
-          llenaban media bandeja. Plegado sigue diciendo cuántos hay, y se
-          recuerda en el navegador. Arranca abierto: que nadie deje de verlos
-          sin haberlo elegido. */}
+          lo que se puede coger. Mismas miniaturas, una detrás de otra. Se
+          pliega como «Sin asignar», y al desplegarse baja hasta ellos. */}
       {detenidosPorFecha.length > 0 && (
-        <section ref={seccionDetenidos} className="mt-5 scroll-mt-3 border-t border-[var(--glass-border)] pt-3">
-          <button
-            type="button"
-            onClick={() => cambiarDetenidosAbiertos(!detenidosAbiertos)}
-            aria-expanded={detenidosAbiertos}
-            aria-controls={idDetenidos}
-            // Toda la fila es el botón y se ilumina al pasar por encima; el
-            // chevron va en su círculo y a la derecha dice qué hace pulsar.
-            // Con solo una flecha pequeña nadie adivinaba que se plegaba.
-            className={`group ${detenidosAbiertos ? "mb-2.5" : ""} -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+        <BloquePlegable
+          clave="coordina-detenidos-plegado"
+          bajarAlAbrir
+          className="mt-5 border-t border-[var(--glass-border)] pt-3"
+          cabecera={
+            <>
+              <span className="size-2 rounded-full bg-amber-500" />
+              <h2 className="text-base font-bold text-text">Detenidos por Producción</h2>
+              <span
+                className="rounded-full bg-amber-500/12 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300"
+                title="Producción los tiene detenidos: no se pueden fichar. Cuando los libere suben solos a «Sin asignar»."
+              >
+                {detenidosPorFecha.length} ped · {nOFsDetenidas} OF
+              </span>
+            </>
+          }
+        >
+          <div
+            className="grid gap-x-2 gap-y-3"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
           >
-            <span className="glass-chip grid size-6 shrink-0 place-items-center rounded-full text-text transition-colors group-hover:border-brand-400">
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                className={`size-3.5 transition-transform motion-reduce:transition-none ${detenidosAbiertos ? "" : "-rotate-90"}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              >
-                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span className="size-2 rounded-full bg-amber-500" />
-            <h2 className="text-base font-bold text-text">Detenidos por Producción</h2>
-            <span
-              className="rounded-full bg-amber-500/12 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300"
-              title="Producción los tiene detenidos: no se pueden fichar. Cuando los libere suben solos a «Sin asignar»."
-            >
-              {detenidosPorFecha.length} ped · {nOFsDetenidas} OF
-            </span>
-            <span className="glass-chip ml-auto rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-text-muted transition-colors group-hover:text-text">
-              {detenidosAbiertos ? "Ocultar" : "Mostrar"}
-            </span>
-          </button>
-          <div id={idDetenidos}>
-            <Desplegable abierto={detenidosAbiertos}>
-              <div
-                className="grid gap-x-2 gap-y-3"
-                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
-              >
-                {detenidosPorFecha.map((f) => (
-                  <div key={f.pedido.id} className="min-w-0">
-                    <PedidoCard
-                      facet={f}
-                      operarios={operarios}
-                      onOpen={onOpen}
-                      onAsignar={onAsignar}
-                      miId={miId}
-                      mostrarPrioridad
-                      mostrarFecha
-                    />
-                  </div>
-                ))}
+            {detenidosPorFecha.map((f) => (
+              <div key={f.pedido.id} className="min-w-0">
+                <PedidoCard
+                  facet={f}
+                  operarios={operarios}
+                  onOpen={onOpen}
+                  onAsignar={onAsignar}
+                  miId={miId}
+                  mostrarPrioridad
+                  mostrarFecha
+                />
               </div>
-            </Desplegable>
+            ))}
           </div>
-        </section>
+        </BloquePlegable>
       )}
     </div>
   );
