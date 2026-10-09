@@ -105,7 +105,10 @@ export function RevisionView({
       localStorage.setItem(ALCANCE_KEY, a);
     } catch {}
   };
-  const mias = alcance === "mias";
+  // Dirección no revisa: «Solo mías» siempre estaría vacío. Ve el equipo y
+  // no se le ofrece el conmutador.
+  const soloLecturaVista = useSoloLectura();
+  const mias = !soloLecturaVista && alcance === "mias";
 
   // Las causas, una sola vez para toda la pantalla: de ellas salen la guía de
   // cada fila (su cara en positivo) y las píldoras del cuadro de devolver.
@@ -146,7 +149,7 @@ export function RevisionView({
             cada estado cuelgan de él. El conmutador pasa delante: estaba a
             1.400 px del título, en la otra punta de la pantalla. */}
         <h1 className="sr-only">{mias ? "Lo que tengo que revisar" : "Revisión del equipo"}</h1>
-        <AlcanceToggle alcance={alcance} onChange={setAlcance} />
+        {!soloLecturaVista && <AlcanceToggle alcance={alcance} onChange={setAlcance} />}
         {/* Cuántas OF hay en total en lo que se está mirando. Es el número que
             contesta "¿me queda mucho?" sin sumar las cuatro secciones. "OF"
             no lleva plural, como en el resto de la web. */}

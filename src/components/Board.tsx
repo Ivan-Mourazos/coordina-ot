@@ -551,6 +551,18 @@ export function Board({
   const closeExpanded = useCallback(() => setExpandedId(null), []);
 
   const [vista, setVista] = useState<Vista>(() => vistaDeUrl() ?? "asignar");
+  // Dirección entra en PENDIENTES, no en el Panel: el Panel es para repartir
+  // trabajo y ellos no reparten; Pendientes es el resumen de cómo va todo
+  // (decisión de Iván, 09/10/2026). Solo si el enlace no pedía una pestaña:
+  // se mira al montar porque la URL se reescribe enseguida con la vista, y
+  // la sesión —que dice si es Dirección— llega un instante después.
+  const vistaPedidaEnUrl = useRef(vistaDeUrl() !== null);
+  const entradaDeDireccionHecha = useRef(false);
+  useEffect(() => {
+    if (!espectador || entradaDeDireccionHecha.current) return;
+    entradaDeDireccionHecha.current = true;
+    if (!vistaPedidaEnUrl.current) setVista("lista");
+  }, [espectador]);
   // Cada sección conserva su consulta al salir de Historial y regresar.
   const [filtrosHistorial, setFiltrosHistorial] = useState<Partial<Record<SeccionId, FiltrosHistorial>>>({});
   const [openId, setOpenId] = useState<string | null>(null);

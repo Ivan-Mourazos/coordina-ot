@@ -16,6 +16,8 @@ import {
 } from "@/lib/filtros";
 import type { Seccion } from "@/lib/secciones";
 import { Select, OpDot } from "./Select";
+import { useSoloLectura } from "./SoloLectura";
+import { CENTRO_CORTO } from "@/lib/historial-centros";
 import { FamiliaIcon } from "./FamiliaTag";
 import { SelectorFecha } from "./SelectorFecha";
 
@@ -176,6 +178,11 @@ export function FilterBar({
   ajustes?: React.ReactNode;
   rotuloAjustes?: string;
 }) {
+  // «Tu trabajo» le habla al equipo; a Dirección, que no planta, el «tu» no le
+  // encaja: para ellos es el trabajo DE la sección (Iván, 09/10/2026).
+  const soloLectura = useSoloLectura();
+  const etiquetaCategoria = (c: Categoria) =>
+    soloLectura && c === "normal" ? `Trabajo de ${CENTRO_CORTO[seccion.id]}` : CATEGORIA_LABEL[c];
   // En la barra simple, «Solo atrasados» va en las TRES vistas. En Oficina
   // Técnica la Lista lo esconde porque su columna Recorrido ya pinta la línea
   // de tiempo, pero heredar aquí ese "no" dejaba a Diseño con el rótulo «Ver»
@@ -335,7 +342,7 @@ export function FilterBar({
               .filter((c) => vista !== "asignar" || c !== "detenidas" || filtros.categoria === c)
               .map((c) => ({
               value: c,
-              label: conteos[c] > 0 ? `${CATEGORIA_LABEL[c]} · ${conteos[c]}` : CATEGORIA_LABEL[c],
+              label: conteos[c] > 0 ? `${etiquetaCategoria(c)} · ${conteos[c]}` : etiquetaCategoria(c),
             }))}
           />
         )}
