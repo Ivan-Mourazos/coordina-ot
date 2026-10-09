@@ -7,17 +7,17 @@ describe("resumenMaterial", () => {
     expect(resumenMaterial([])).toBeNull();
   });
 
-  it("cuenta las líneas y cuántas siguen apartadas", () => {
+  it("cuenta las líneas y cuántas siguen reservadas", () => {
     const r = resumenMaterial([
       { texto: "LONA PVC 650 · 12", apartado: true },
       { texto: "CINTA 50 · 4", apartado: false },
       { texto: "OLLAOS · 40", apartado: false },
     ]);
-    expect(r?.texto).toBe("3 materiales · 1 apartado");
-    expect(r?.titulo).toBe("LONA PVC 650 · 12 (apartado)\nCINTA 50 · 4\nOLLAOS · 40");
+    expect(r?.texto).toBe("3 materiales · 1 reservado");
+    expect(r?.titulo).toBe("LONA PVC 650 · 12 (reservado)\nCINTA 50 · 4\nOLLAOS · 40");
   });
 
-  it("en singular y sin apartados no lo menciona", () => {
+  it("en singular y sin reservas no lo menciona", () => {
     expect(resumenMaterial([{ texto: "LONA · 3", apartado: false }])?.texto).toBe("1 material");
   });
 });

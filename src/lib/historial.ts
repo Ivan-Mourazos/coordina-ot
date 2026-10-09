@@ -327,7 +327,7 @@ export function repartirMateriales(materiales: MaterialOF[] | undefined): {
 }
 
 /** El material de una OF en una línea, para la fila de la OF en la ficha:
- *  cuántas líneas lleva y cuántas siguen apartadas en el almacén. El detalle
+ *  cuántas líneas lleva asignadas y cuántas siguen reservadas. El detalle
  *  (cada material) va en el título y en «Tareas y tiempos». Sin material no
  *  dice nada: un «Sin material» en cada OF sería ruido. */
 export function resumenMaterial(
@@ -339,7 +339,7 @@ export function resumenMaterial(
   const texto =
     `${n} ${n === 1 ? "material" : "materiales"}` +
     (apartados.length ? ` · ${apartados.length} ${apartados.length === 1 ? "apartado" : "apartados"}` : "");
-  const titulo = materiales.map((m) => (m.apartado ? `${m.texto} (apartado)` : m.texto)).join("\n");
+  const titulo = materiales.map((m) => (m.apartado ? `${m.texto} (reservado)` : m.texto)).join("\n");
   return { texto, titulo };
 }
 
