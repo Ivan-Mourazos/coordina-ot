@@ -10,7 +10,7 @@ import { ViewSwitcher, VISTAS, type Vista } from "./ViewSwitcher";
 import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
 import { facetsQueReviso } from "@/lib/revision";
-import { partirEquipo } from "@/lib/equipo";
+import { partirEquipo, type ItemCarga } from "@/lib/equipo";
 import { FaseFlyout } from "./FaseFlyout";
 import { Bandeja, type Agrupacion } from "./Bandeja";
 import { Select } from "./Select";
@@ -846,17 +846,27 @@ export function Board({
   // como autor en el Panel —lo que pinta su tarjeta—, revisiones pendientes o
   // el reloj en marcha: sin las dos últimas, quien está revisando o fichando
   // en el pedido de otro saldría como libre.
-  const equipo = useMemo(
-    () =>
-      partirEquipo(
-        operarios.filter((o) => o.id !== miId),
-        (id) =>
-          (facetsByLoc.get(id)?.length ?? 0) > 0 ||
-          liveByOp.has(id) ||
-          facetsQueReviso(procesados, id).length > 0,
-      ),
-    [operarios, miId, facetsByLoc, liveByOp, procesados],
-  );
+  //
+  // `escala` es la carga del más cargado (pedidos que plantea + pedidos que
+  // revisa): todas las barras se miden contra ella, así 2 pedidos no llenan
+  // la barra igual que 12 y se ve a quién pasarle trabajo.
+  const equipo = useMemo(() => {
+    const revisiones = new Map<string, ItemCarga[]>();
+    for (const o of operarios) {
+      if (o.id === miId) continue;
+      revisiones.set(
+        o.id,
+        facetsQueReviso(procesados, o.id).map((f) => ({ id: f.pedido.id, atrasado: estaAtrasado(f.pedido, hoy) })),
+      );
+    }
+    const carga = (id: string) => (facetsByLoc.get(id)?.length ?? 0) + (revisiones.get(id)?.length ?? 0);
+    const { conTrabajo, libres } = partirEquipo(
+      operarios.filter((o) => o.id !== miId),
+      (id) => carga(id) > 0 || liveByOp.has(id),
+    );
+    const escala = Math.max(1, ...conTrabajo.map((o) => carga(o.id)));
+    return { conTrabajo, libres, revisiones, escala };
+  }, [operarios, miId, facetsByLoc, liveByOp, procesados, hoy]);
 
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
@@ -2469,6 +2479,8 @@ export function Board({
                     key={op.id}
                     operario={op}
                     facets={facetsDe(op.id)}
+                    revisiones={equipo.revisiones.get(op.id) ?? []}
+                    escala={equipo.escala}
                     seccion={laSeccion}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}
