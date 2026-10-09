@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diasEntre, fmtDiaMes, fmtDiaMesAno, relativoA, sumarDias, tituloDia } from "../fechas";
+import { diasEntre, fmtDiaMes, fmtDiaMesAno, rangoDias, relativoA, sumarDias, tituloDia } from "../fechas";
 
 const HOY = "2026-08-05";
 
@@ -105,5 +105,24 @@ describe("fmtDiaMesAno", () => {
 
   it("con una fecha ilegible la devuelve tal cual", () => {
     expect(fmtDiaMesAno("")).toBe("");
+  });
+});
+
+describe("rangoDias: cuándo se echó un tiempo, escrito corto", () => {
+  // Para las tareas del Historial (Iván, 09/10/2026): «Óscar 5h 25m · 07–08/10».
+  // Con ceros, como el resto de fechas de la web (`fmtDiaMes`).
+  const hoy = "2026-10-09";
+  it("un solo día", () => {
+    expect(rangoDias("2026-10-07", "2026-10-07", hoy)).toBe("07/10");
+  });
+  it("varios días del mismo mes", () => {
+    expect(rangoDias("2026-10-07", "2026-10-08", hoy)).toBe("07–08/10");
+  });
+  it("de un mes a otro", () => {
+    expect(rangoDias("2026-09-28", "2026-10-02", hoy)).toBe("28/09–02/10");
+  });
+  it("el año solo cuando no es el de hoy", () => {
+    expect(rangoDias("2025-10-12", "2025-10-12", hoy)).toBe("12/10/25");
+    expect(rangoDias("2025-12-30", "2026-01-02", hoy)).toBe("30/12/25–02/01/26");
   });
 });

@@ -690,7 +690,8 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
         )
       )
       SELECT t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, t.ordenRuta,
-             e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos
+             e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos,
+             MIN(i.ImputationDate) AS desde, MAX(i.ImputationDate) AS hasta
       FROM Tareas t
       LEFT JOIN dbo.CPRImputationMO i
         ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = t.IDManufacturingOrder

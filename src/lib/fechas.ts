@@ -118,3 +118,20 @@ export function tituloDia(iso: string | null, hoy: string): { titulo: string; su
     sub: otroAno ? iso.slice(0, 4) : "",
   };
 }
+
+/** Cuándo se echó un tiempo, escrito corto: «07/10», «07–08/10»,
+ *  «28/09–02/10». El año solo cuando no es el de `hoy` («12/10/25»), y en
+ *  los dos extremos si el rango cruza de año. Lo usan las tareas del
+ *  Historial: quién echó cuánto y QUÉ DÍAS. */
+export function rangoDias(desde: string, hasta: string, hoy: string): string {
+  const [ad, md, dd] = desde.slice(0, 10).split("-");
+  const [ah, mh, dh] = hasta.slice(0, 10).split("-");
+  if (!ad || !md || !dd || !ah || !mh || !dh) return "";
+  const anoHoy = hoy.slice(0, 4);
+  const conAno = ad !== anoHoy || ah !== anoHoy;
+  const ano = (a: string) => (conAno ? `/${a.slice(2)}` : "");
+  if (desde.slice(0, 10) === hasta.slice(0, 10)) return `${dd}/${md}${ano(ad)}`;
+  if (ad === ah && md === mh) return `${dd}–${dh}/${mh}${ano(ah)}`;
+  if (ad === ah) return `${dd}/${md}–${dh}/${mh}${ano(ah)}`;
+  return `${dd}/${md}${ano(ad)}–${dh}/${mh}${ano(ah)}`;
+}

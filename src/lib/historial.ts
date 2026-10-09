@@ -139,6 +139,10 @@ export interface HistorialItem {
 export interface RepartoRol {
   nombre: string;
   min: number;
+  /** Primer y último día (yyyy-mm-dd) en que imputó, cuando se sabe: solo
+   *  en las personas de cada TAREA del detalle del Historial. */
+  desde?: string;
+  hasta?: string;
 }
 
 export interface HistorialOF {

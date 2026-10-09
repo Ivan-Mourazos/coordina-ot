@@ -127,3 +127,16 @@ describe("Impresión digital, aparte de Taller", () => {
     for (const r of RECURSOS_IMPRESION) expect(SECCIONES.diseno.recursos).not.toContain(r);
   });
 });
+
+describe("los días en que se echó el tiempo", () => {
+  test("cada persona de la tarea lleva su primer y último día", () => {
+    const filas = [
+      { orden: "0232817", descripcion: "LONA", centro: "taller" as const, tarea: "20", descripcionTarea: "SOLDAR",
+        empleado: "Óscar", minutos: 48, desde: new Date("2026-10-07T00:00:00Z"), hasta: new Date("2026-10-07T00:00:00Z") },
+      { orden: "0232817", descripcion: "LONA", centro: "taller" as const, tarea: "20", descripcionTarea: "SOLDAR",
+        empleado: "Óscar", minutos: 209, desde: "2026-10-08T00:00:00.000Z", hasta: "2026-10-08T00:00:00.000Z" },
+    ];
+    const [of] = agruparTiemposPorCentro(filas, (n) => n);
+    expect(of.tareas![0].personas).toEqual([{ nombre: "Óscar", min: 257, desde: "2026-10-07", hasta: "2026-10-08" }]);
+  });
+});

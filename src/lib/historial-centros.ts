@@ -142,11 +142,21 @@ export interface FilaTiempoCentro {
   empleado: string | null;
   nombreEmpleado?: string | null;
   minutos: number | null;
+  /** Primer y último día en que esta persona imputó a esta tarea. */
+  desde?: Date | string | null;
+  hasta?: Date | string | null;
 }
 
 /** Comparte el formato con los ids de fichaje, tolerando el cero de delante. */
 export function claveTareaHistorial(orden: string, tarea: string): string {
   return `${orden.trim()}:${tarea.trim().replace(/^0+(?=\d)/, "")}`;
+}
+
+/** yyyy-mm-dd de lo que devuelva el driver (Date o texto), o null. */
+function diaIso(v: Date | string | null | undefined): string | null {
+  if (!v) return null;
+  const iso = v instanceof Date ? v.toISOString() : String(v);
+  return /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : null;
 }
 
 export function agruparTiemposPorCentro(
@@ -179,9 +189,18 @@ export function agruparTiemposPorCentro(
     if (fila.empleado?.trim()) {
       const nombre = nombreDeEmpleado(fila.empleado.trim());
       if (tarea) {
-        const personaTarea = tarea.personas.find((p) => p.nombre === nombre);
+        const desde = diaIso(fila.desde);
+        const hasta = diaIso(fila.hasta);
+        let personaTarea = tarea.personas.find((p) => p.nombre === nombre);
         if (personaTarea) personaTarea.min += fila.minutos ?? 0;
-        else tarea.personas.push({ nombre, min: fila.minutos ?? 0 });
+        else {
+          personaTarea = { nombre, min: fila.minutos ?? 0 };
+          tarea.personas.push(personaTarea);
+        }
+        // El rango de días se ensancha con cada fila: una persona puede venir
+        // en varias (mismo nombre con dos códigos de empleado).
+        if (desde && (!personaTarea.desde || desde < personaTarea.desde)) personaTarea.desde = desde;
+        if (hasta && (!personaTarea.hasta || hasta > personaTarea.hasta)) personaTarea.hasta = hasta;
       }
       const persona = of.personas!.find((p) => p.nombre === nombre);
       if (persona) persona.min += fila.minutos ?? 0;

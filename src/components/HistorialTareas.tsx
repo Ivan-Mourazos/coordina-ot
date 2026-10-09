@@ -5,6 +5,8 @@ import type { HistorialOF } from "@/lib/historial";
 import { porMinutos } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin, ROL } from "@/lib/estado";
+import { fmtFechaLarga, rangoDias } from "@/lib/fechas";
+import { hoyISO } from "@/lib/types";
 import { BloqueDesplegable } from "./BloqueDesplegable";
 import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
@@ -261,12 +263,13 @@ export function TareasDeOF({
               </p>
             )}
             {personas.length > 0 && rolDe && (
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-snug text-text-muted">
-                {personas.map((p, i) => {
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted">
+                {/* Sin «·» entre personas: al partirse la línea se quedaba al
+                    principio del renglón siguiente. El hueco las separa. */}
+                {personas.map((p) => {
                   const papel = rolDe?.(p.nombre);
                   return (
                     <span key={p.nombre} className="flex items-center gap-1">
-                      {i > 0 && <span aria-hidden="true">·</span>}
                       {papel && (
                         <span
                           className={`rounded px-1 text-[9px] font-bold uppercase ${
@@ -282,6 +285,20 @@ export function TareasDeOF({
                           de autor y revisor de la OF se retira al desplegar y
                           es aquí donde se lee quién echó cuánto. */}
                       <span>{p.min > 0 ? fmtMin(p.min) : "<1m"}</span>
+                      {/* QUÉ DÍAS lo echó: se ve si la revisión llegó días
+                          después del planteo, o si un trabajo se partió. */}
+                      {p.desde && p.hasta && (
+                        <span
+                          className="text-text-muted/80"
+                          title={
+                            p.desde === p.hasta
+                              ? `Imputado el ${fmtFechaLarga(p.desde)}`
+                              : `Imputado del ${fmtFechaLarga(p.desde)} al ${fmtFechaLarga(p.hasta)}`
+                          }
+                        >
+                          · {rangoDias(p.desde, p.hasta, hoyISO())}
+                        </span>
+                      )}
                     </span>
                   );
                 })}
