@@ -10,6 +10,7 @@ import { ViewSwitcher, VISTAS, type Vista } from "./ViewSwitcher";
 import { FilterBar, type VistaFiltrable } from "./FilterBar";
 import { ZonaPersonal } from "./ZonaPersonal";
 import { facetsQueReviso } from "@/lib/revision";
+import { partirEquipo } from "@/lib/equipo";
 import { FaseFlyout } from "./FaseFlyout";
 import { Bandeja, type Agrupacion } from "./Bandeja";
 import { Select } from "./Select";
@@ -839,6 +840,23 @@ export function Board({
     }
     return map;
   }, [procesadosAll, operarios, fichaje]);
+
+  // Los compañeros del bloque «Equipo»: con tarjeta quien lleva algo, y el
+  // resto en la línea «Libres» (ver lib/equipo.ts). Llevar algo es tener OF
+  // como autor en el Panel —lo que pinta su tarjeta—, revisiones pendientes o
+  // el reloj en marcha: sin las dos últimas, quien está revisando o fichando
+  // en el pedido de otro saldría como libre.
+  const equipo = useMemo(
+    () =>
+      partirEquipo(
+        operarios.filter((o) => o.id !== miId),
+        (id) =>
+          (facetsByLoc.get(id)?.length ?? 0) > 0 ||
+          liveByOp.has(id) ||
+          facetsQueReviso(procesados, id).length > 0,
+      ),
+    [operarios, miId, facetsByLoc, liveByOp, procesados],
+  );
 
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
@@ -2143,7 +2161,6 @@ export function Board({
   // de qué lista de trabajo se haya cargado ya.
   const yo = (TODOS_LOS_OPERARIOS.find((o) => o.id === miId) ??
     operarios.find((o) => o.id === miId)) as Operario;
-  const resto = operarios.filter((o) => o.id !== miId);
 
   // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué
   // OF eran y cuáles se pueden volver a fichar AHORA (una que entretanto se
@@ -2431,14 +2448,23 @@ export function Board({
                   su color, y era la tercera vez que se nombraban en la misma
                   pantalla: las columnas de tu zona ya las titulan, y el panel
                   de cada compañero también. El color de las barras se aprende
-                  de esas columnas, no de una lista de nombres a 10 px. */}
-              <div className="mb-1.5">
+                  de esas columnas, no de una lista de nombres a 10 px.
+                  «Libres» va en la MISMA línea que el rótulo y no en una
+                  propia: el alto que ahorra se lo quedan las tarjetas de
+                  quien sí lleva trabajo. */}
+              <div className="mb-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                 <h2 className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                   Equipo
                 </h2>
+                {equipo.libres.length > 0 && (
+                  <p className="text-[11px] text-text-muted">
+                    <span className="font-semibold">Libres:</span>{" "}
+                    {equipo.libres.map((o) => o.nombre).join(", ")}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {resto.map((op) => (
+                {equipo.conTrabajo.map((op) => (
                   <TecnicoCard
                     key={op.id}
                     operario={op}
