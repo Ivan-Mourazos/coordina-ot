@@ -1,6 +1,7 @@
 import type { DocumentoRps, HistorialOF, HistorialPedidoDetalle } from "./historial";
 import type { SituacionPedido } from "./consulta";
 import type { DondeOF } from "./consulta-donde";
+import type { OF, Pedido } from "./types";
 
 // ─── Nombres de centro para quien no es del taller ───────────────────────────
 // RPS guarda el centro en mayúsculas, sin acentos, y a veces literalmente el
@@ -244,4 +245,71 @@ export function detalleConsulta(
     ofs: detalle.ofs.map(ofConsulta),
     documentos: detalle.documentos.map(documentoPublico),
   };
+}
+
+// ─── «En curso»: los pedidos que tiene la oficina, para el invitado ─────────
+// Pedido por Esteban (09/10/2026): ver el trabajo en curso de OT —quién lo
+// plantea, en qué punto va y para cuándo— como la Pendientes del equipo, en
+// solo lectura. Se reutiliza esa vista, así que el pedido viaja con la forma
+// del tablero; lo que no se enseña se QUITA AQUÍ, en el servidor.
+//
+// Campo a campo y a propósito, igual que `ofConsulta`: cada línea es un «sí»
+// explícito, y lo que el tablero añada mañana no sale sin pasar por aquí.
+//
+// Fuera: la nota de devolución y que una OF esté devuelta (sale como
+// «planteando»: se ve quién lleva el pedido, nunca a quién se lo devolvieron),
+// los avisos de Producción y el comentario de venta (son notas), el material
+// (el invitado no lo ve), la prioridad (interna) y el parte escaneado (lo
+// tiene en la pestaña de pedidos, con su enlace público).
+
+function ofParaInvitado(of: OF): OF {
+  const salida: OF = {
+    id: of.id,
+    codigo: of.codigo,
+    descripcion: of.descripcion,
+    familia: of.familia,
+    piezas: of.piezas,
+    autorId: of.autorId,
+    revisorId: of.revisorId,
+    estado: of.estado === "devuelta" ? "en_curso" : of.estado,
+    fichandoRol: of.fichandoRol,
+    tiempoEstimadoMin: of.tiempoEstimadoMin,
+    tiempoPlanteoMin: of.tiempoPlanteoMin,
+    tiempoRevisionMin: of.tiempoRevisionMin,
+  };
+  if (of.revisada !== undefined) salida.revisada = of.revisada;
+  if (of.detenida !== undefined) salida.detenida = of.detenida;
+  if (of.ajenaOT !== undefined) salida.ajenaOT = of.ajenaOT;
+  if (of.plantearEnTaller !== undefined) salida.plantearEnTaller = of.plantearEnTaller;
+  if (of.cerradaRps) salida.cerradaRps = of.cerradaRps;
+  if (of.subfamilia) salida.subfamilia = of.subfamilia;
+  if (of.fechaLimitePlanteo) salida.fechaLimitePlanteo = of.fechaLimitePlanteo;
+  if (of.planteoWebMin !== undefined) salida.planteoWebMin = of.planteoWebMin;
+  if (of.revisionWebMin !== undefined) salida.revisionWebMin = of.revisionWebMin;
+  if (of.imputaciones) salida.imputaciones = of.imputaciones;
+  return salida;
+}
+
+export function pedidoParaInvitado(p: Pedido): Pedido {
+  const salida: Pedido = {
+    id: p.id,
+    codigo: p.codigo,
+    cliente: p.cliente,
+    situacion: p.situacion,
+    fechaSolicitud: p.fechaSolicitud,
+    fechaPlanificacion: p.fechaPlanificacion,
+    fechaEntrega: p.fechaEntrega,
+    prioridad: 2,
+    ofs: p.ofs.map(ofParaInvitado),
+    accent: "ninguno",
+    lineas: 0,
+    croquis: false,
+  };
+  if (p.fechaCreacion) salida.fechaCreacion = p.fechaCreacion;
+  if (p.planificacionEstimada !== undefined) salida.planificacionEstimada = p.planificacionEstimada;
+  if (p.fechaFabricacion) salida.fechaFabricacion = p.fechaFabricacion;
+  if (p.ciudadEntrega) salida.ciudadEntrega = p.ciudadEntrega;
+  if (p.negocio) salida.negocio = p.negocio;
+  if (p.interno !== undefined) salida.interno = p.interno;
+  return salida;
 }

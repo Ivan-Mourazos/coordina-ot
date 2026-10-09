@@ -105,6 +105,11 @@ const COLUMNAS_LISTA =
  *  ponerse con un pedido. */
 const SOLO_ANCHO = "hidden min-[1440px]:block";
 
+/** Sin la columna de material, a cualquier ancho: la consulta sin login, que
+ *  no enseña material (ver `sinMaterial`). */
+const COLUMNAS_SIN_MATERIAL =
+  "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] items-center gap-x-3";
+
 /** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
  *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */
 const RECORRIDO_PX = 440;
@@ -379,7 +384,10 @@ export function ListaView({
   orden,
   ordenDesc,
   hayFiltrosActivos = false,
+  sinMaterial = false,
 }: {
+  /** Sin la columna de material (la consulta sin login no lo enseña). */
+  sinMaterial?: boolean;
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
   pedidos: Pedido[];
   operarios: Operario[];
@@ -394,6 +402,8 @@ export function ListaView({
   ordenDesc: boolean;
 }) {
   const hoy = hoyISO();
+  const columnas = sinMaterial ? COLUMNAS_SIN_MATERIAL : COLUMNAS_LISTA;
+  const columnaMaterial = sinMaterial ? "hidden" : SOLO_ANCHO;
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
   const nombrePorId = useMemo(() => {
@@ -420,7 +430,7 @@ export function ListaView({
       <span />
       <span>Pedido · cliente</span>
       <span>Quién · estado</span>
-      <span className={SOLO_ANCHO}>Material</span>
+      <span className={columnaMaterial}>Material</span>
       <span>
         <span className="block">Recorrido</span>
         <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
@@ -450,7 +460,7 @@ export function ListaView({
 
   return (
     <div className="overflow-x-auto">
-      <BloqueLista columnas={COLUMNAS_LISTA} cabecera={cabecera} desbordaHorizontal sinCaja>
+      <BloqueLista columnas={columnas} cabecera={cabecera} desbordaHorizontal sinCaja>
         {ordenados.map((p) => {
           // Terminado = la planificación vencida ya no es un problema
           // pendiente. Misma regla que `estaAtrasado`, que también los excluye.
@@ -464,7 +474,7 @@ export function ListaView({
           return (
             <FilaDesplegable
               key={p.id}
-              columnas={COLUMNAS_LISTA}
+              columnas={columnas}
               abierta={expandidos.has(p.id)}
               onAlternar={() => toggle(p.id)}
               etiqueta={p.codigo}
@@ -542,7 +552,7 @@ export function ListaView({
                   <div className="pointer-events-none min-w-0">
                     <Estado tramos={tramos} />
                   </div>
-                  <div className={`pointer-events-none min-w-0 ${SOLO_ANCHO}`}>
+                  <div className={`pointer-events-none min-w-0 ${columnaMaterial}`}>
                     <MaterialFila p={p} hoy={hoy} />
                   </div>
                   {/* Terminado = el recorrido ya no dice nada: el pedido no se

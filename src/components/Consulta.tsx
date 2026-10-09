@@ -18,6 +18,7 @@ import { Select } from "./Select";
 import { SelectorFecha } from "./SelectorFecha";
 import { ThemeToggle } from "./ThemeToggle";
 import { VisitasCotView } from "./VisitasCotView";
+import { ConsultaEnCurso } from "./ConsultaEnCurso";
 
 // ─── La web para quien no ha entrado ─────────────────────────────────────────
 // Comerciales, administración y taller llegan con un nombre o un número y una
@@ -27,10 +28,14 @@ import { VisitasCotView } from "./VisitasCotView";
 // otra pantalla, para que el día que se olvide tapar algo no sea un botón de
 // escribir delante de quien no debe.
 
-type Pestana = "pedidos" | "consultas";
+type Pestana = "pedidos" | "curso" | "consultas";
 
 const PESTANAS: { id: Pestana; label: string }[] = [
   { id: "pedidos", label: "Pedidos" },
+  // El trabajo que tiene ahora la oficina, como la Pendientes del equipo
+  // (pedido por Esteban, 09/10/2026). «Pedidos» queda como el buscador de
+  // toda la casa, con lo entregado.
+  { id: "curso", label: "En curso" },
   { id: "consultas", label: "Consultas con OT" },
 ];
 
@@ -113,14 +118,14 @@ export function Consulta() {
             buscando, y quien llega con un código no tiene por qué mirar antes
             en qué pestaña está. */}
         <label className="relative min-w-56 max-w-xl flex-1">
-          <span className="sr-only">{pestana === "pedidos" ? "Buscar pedidos" : "Buscar visitas"}</span>
+          <span className="sr-only">{pestana === "consultas" ? "Buscar visitas" : "Buscar pedidos"}</span>
           <input
             autoComplete="off"
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={
-              pestana === "pedidos" ? "Pedido, cliente, obra u OF…" : "Comercial, cliente, pedido o incidencia…"
+              pestana === "consultas" ? "Comercial, cliente, pedido o incidencia…" : "Pedido, cliente, obra u OF…"
             }
             className="glass-chip h-9 w-full rounded-lg px-3 pr-9 text-sm text-text outline-none placeholder:text-text-muted focus:border-brand-400"
           />
@@ -250,6 +255,17 @@ export function Consulta() {
             )}
           </div>
           <ConsultaPedidos filtros={filtros} onFamilias={setFamilias} />
+        </div>
+      )}
+      {pestana === "curso" && (
+        <div role="tabpanel" id="panel-curso" aria-labelledby="pestana-curso">
+          <ConsultaEnCurso
+            busqueda={q}
+            onAbrirPedido={(codigo) => {
+              setQ(codigo);
+              setPestana("pedidos");
+            }}
+          />
         </div>
       )}
       {pestana === "consultas" && (
