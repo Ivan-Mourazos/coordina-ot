@@ -190,8 +190,28 @@ export function Bandeja({
   const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
   const idDetenidos = useId();
   const [detenidosAbiertos, setDetenidosAbiertos] = useState(leerDetenidosAbiertos);
+  const seccionDetenidos = useRef<HTMLElement | null>(null);
   const cambiarDetenidosAbiertos = (abierto: boolean) => {
     setDetenidosAbiertos(abierto);
+    // Al desplegar, la página baja sola hasta ellos: el bloque está al fondo
+    // de la bandeja y abrirlo sin moverse dejaba las tarjetas fuera de la
+    // pantalla, como si no hubiera pasado nada. Solo al pulsar, nunca al
+    // cargar: que la página se mueva sola sin haber tocado nada desorienta.
+    //
+    // Espera a que termine de abrirse (`desplegar` dura 190 ms en
+    // globals.css): antes de eso las tarjetas aún no ocupan su alto, no hay
+    // sitio por debajo al que bajar y el scroll se quedaba a medias.
+    if (abierto) {
+      const sinAnimar = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setTimeout(
+        () =>
+          seccionDetenidos.current?.scrollIntoView({
+            behavior: sinAnimar ? "auto" : "smooth",
+            block: "start",
+          }),
+        sinAnimar ? 0 : 220,
+      );
+    }
     try {
       if (abierto) localStorage.removeItem(DETENIDOS_PLEGADOS_KEY);
       else localStorage.setItem(DETENIDOS_PLEGADOS_KEY, "1");
@@ -368,7 +388,7 @@ export function Bandeja({
           recuerda en el navegador. Arranca abierto: que nadie deje de verlos
           sin haberlo elegido. */}
       {detenidosPorFecha.length > 0 && (
-        <section className="mt-5 border-t border-[var(--glass-border)] pt-3">
+        <section ref={seccionDetenidos} className="mt-5 scroll-mt-3 border-t border-[var(--glass-border)] pt-3">
           <button
             type="button"
             onClick={() => cambiarDetenidosAbiertos(!detenidosAbiertos)}
