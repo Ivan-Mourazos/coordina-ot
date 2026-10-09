@@ -20,7 +20,7 @@ import { ROL } from "@/lib/estado";
  *
  *  NO lleva el tiempo por centro en la fila: el reparto por centro y tarea se
  *  ve al desplegar la OF. */
-export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida = false }: {
+export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida = false, sinMaterial = false }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** Lo que se ve al desplegar cada OF (la ficha: sus tareas y su material).
@@ -28,6 +28,8 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
   detalle?: (codigo: string, centros: HistorialOF[]) => ReactNode;
   /** Todas desplegadas al montar (las pruebas). */
   abiertasDeSalida?: boolean;
+  /** Sin el resumen de material (la consulta sin login). */
+  sinMaterial?: boolean;
 }) {
   const porCodigo = new Map<string, HistorialOF[]>();
   for (const of of ofs) {
@@ -101,7 +103,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
         // Con la OF DESPLEGADA no salen: sus botones (Asignado, nota de
         // Producción) ya lo dicen justo debajo, con el detalle.
         const desplegada = !!detalle && abiertas.has(codigo);
-        const material = desplegada ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
+        const material = desplegada || sinMaterial ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
         const notaProduccion = desplegada ? undefined : centros.find((c) => c.notasProduccion)?.notasProduccion;
         // Desplegada, quién y cuánto lo dicen sus tareas: aquí solo queda quien
         // no sale en ninguna (un revisor registrado en la web que no imputó

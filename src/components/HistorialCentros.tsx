@@ -28,7 +28,7 @@ import { IconoAviso, IconoCaja, IconoMaterial } from "./Iconos";
 
 // ─── Tiempos por centro de la ficha del pedido ──────────────────────────────
 // Vivía dentro de HistorialDrawer.tsx. Sale a su fichero porque la consulta
-// sin login pintaba la MISMA ficha (hoy usa `TareasPorCentro`), y la pantalla
+// sin login pinta la MISMA ficha (hoy, `OFsDeLaFicha` sin material), y la pantalla
 // del invitado no debe arrastrar el resto del cajón del equipo (notas, parte
 // escaneado, avisos).
 
@@ -82,9 +82,12 @@ export function OFsDeLaFicha({
   abiertasDeSalida,
   conGastado = true,
   enColumnas = false,
+  sinMaterial = false,
 }: {
   /** Ver `DetalleOF`. */
   enColumnas?: boolean;
+  /** Ni el material ni su resumen: la consulta sin login no lo enseña. */
+  sinMaterial?: boolean;
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** Ver `Materiales`. */
@@ -102,6 +105,7 @@ export function OFsDeLaFicha({
         ofs={ofs}
         seccion={seccion}
         abiertasDeSalida={abiertasDeSalida}
+        sinMaterial={sinMaterial}
         detalle={(_codigo, centros) => (
           <DetalleOF
             centros={centros}
@@ -109,6 +113,7 @@ export function OFsDeLaFicha({
             onReintentarGastado={onReintentarGastado}
             conGastado={conGastado}
             enColumnas={enColumnas}
+            sinMaterial={sinMaterial}
           />
         )}
       />
@@ -125,11 +130,14 @@ export function DetalleOF({
   onReintentarGastado,
   conGastado = true,
   enColumnas = false,
+  sinMaterial = false,
 }: {
   /** Ver `Materiales`. */
   conGastado?: boolean;
   /** Los centros uno al lado del otro (la lista del Historial). */
   enColumnas?: boolean;
+  /** Sin el bloque de material (la consulta sin login). */
+  sinMaterial?: boolean;
   /** Las entradas de ESTA OF, una por centro que trabajó en ella. */
   centros: HistorialOF[];
   gastado?: Record<string, MaterialGastadoOF[]> | null;
@@ -221,12 +229,14 @@ export function DetalleOF({
           ))}
         </details>
       )}
-      <Materiales
-        of={conMaterial}
-        gastadoOF={gastado === null ? null : gastado?.[conMaterial.codigo]}
-        onReintentarGastado={onReintentarGastado}
-        conGastado={conGastado}
-      />
+      {!sinMaterial && (
+        <Materiales
+          of={conMaterial}
+          gastadoOF={gastado === null ? null : gastado?.[conMaterial.codigo]}
+          onReintentarGastado={onReintentarGastado}
+          conGastado={conGastado}
+        />
+      )}
     </div>
   );
 }

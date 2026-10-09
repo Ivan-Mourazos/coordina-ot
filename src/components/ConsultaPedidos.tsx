@@ -11,7 +11,7 @@ import { SECCION_POR_DEFECTO } from "@/lib/secciones";
 import { DocumentosRps } from "./DocumentosRps";
 import { ErrorCarga } from "./ErrorCarga";
 import { FamiliaTag } from "./FamiliaTag";
-import { TareasPorCentro } from "./HistorialTareas";
+import { OFsDeLaFicha } from "./HistorialCentros";
 
 // ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
 // Una sola lista. Se entra buscando; sin buscar, las próximas entregas. Cada
@@ -311,13 +311,16 @@ function FichaConsulta({ codigo }: { codigo: string }) {
       {detalle.situacion === "salir" && (
         <p className="text-xs font-semibold text-text">Fabricado, esperando salir.</p>
       )}
-      {/* El MISMO desglose que la ventana «Tareas y tiempos» del equipo, sin
-          cajas dentro de cajas: centro, OF y debajo sus tareas con quién las
-          echó y cuánto. Con color, que aquí es el cuerpo de la ficha y no una
-          ventana que se abre un momento. */}
+      {/* Las OF como en la ficha del Historial del equipo: cada una con su
+          autor y revisor, y al desplegarla sus tareas por centro, con su
+          color, quién y cuánto y qué días. Que el mismo pedido se lea igual en
+          las dos webs (Iván, 09/10/2026). Sin el material, que el invitado no
+          ve, ni el gastado. */}
       <div className="bloque-3d rounded-xl border-border px-3 py-2.5 [background:var(--surface)]">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Tareas y tiempos</p>
-        <TareasPorCentro ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} conColor />
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
+        </p>
+        <OFsDeLaFicha ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} sinMaterial enColumnas />
       </div>
       {/* Lo que RPS tiene colgado del pedido, con el parte escaneado el
           primero: es el documento que todo el mundo busca aquí. Misma tarjeta
