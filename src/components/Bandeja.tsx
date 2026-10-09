@@ -18,19 +18,23 @@ const ANCHO_TARJETA = 100;
 
 /** Plegado o no, por bloque y por navegador: es una preferencia de quien
  *  mira, no un dato del equipo. Hay quien quiere los detenidos siempre a la
- *  vista y quien no los quiere ver nunca, y lo mismo con «Sin asignar». */
-function leerAbierto(clave: string): boolean {
+ *  vista y quien no los quiere ver nunca, y lo mismo con «Sin asignar».
+ *
+ *  Se guarda la elección EXPLÍCITA ("abierto" o "plegado"), no solo el
+ *  plegado: cada bloque tiene su estado de salida, y quien abre los detenidos
+ *  —que salen plegados— tiene que encontrarlos abiertos al volver. */
+function leerAbierto(clave: string, deSalida: boolean): boolean {
   try {
-    return localStorage.getItem(clave) !== "plegado";
+    const v = localStorage.getItem(clave);
+    return v === null ? deSalida : v === "abierto";
   } catch {
-    return true;
+    return deSalida;
   }
 }
 
 function guardarAbierto(clave: string, abierto: boolean) {
   try {
-    if (abierto) localStorage.removeItem(clave);
-    else localStorage.setItem(clave, "plegado");
+    localStorage.setItem(clave, abierto ? "abierto" : "plegado");
   } catch {
     // Sin almacenamiento se pliega igual; solo no se recuerda.
   }
@@ -43,15 +47,17 @@ function guardarAbierto(clave: string, abierto: boolean) {
  *  encima se marca el borde. El chevron va en su círculo y a la derecha dice
  *  qué hace pulsar. Con solo una flecha pequeña nadie adivinaba que se
  *  plegaba. Plegado, el título sigue diciendo
- *  cuántos hay. Arranca abierto: que nadie deje de ver nada sin haberlo
- *  elegido. */
+ *  cuántos hay. */
 function BloquePlegable({
   clave,
   cabecera,
+  abiertoDeSalida = true,
   bajarAlAbrir = false,
   className = "",
   children,
 }: {
+  /** Cómo está para quien nunca lo ha tocado en este navegador. */
+  abiertoDeSalida?: boolean;
   /** Clave del navegador donde se recuerda si está plegado. */
   clave: string;
   /** Icono, título y contador: lo que se ve con el bloque plegado. */
@@ -65,7 +71,7 @@ function BloquePlegable({
   children: React.ReactNode;
 }) {
   const id = useId();
-  const [abierto, setAbierto] = useState(() => leerAbierto(clave));
+  const [abierto, setAbierto] = useState(() => leerAbierto(clave, abiertoDeSalida));
   const seccion = useRef<HTMLElement | null>(null);
   const cambiar = () => {
     const nuevo = !abierto;
@@ -446,10 +452,15 @@ export function Bandeja({
 
       {/* ── DETENIDOS POR PRODUCCIÓN ── Debajo y con su raya: lo de arriba es
           lo que se puede coger. Mismas miniaturas, una detrás de otra. Se
-          pliega como «Sin asignar», y al desplegarse baja hasta ellos. */}
+          pliega como «Sin asignar», y al desplegarse baja hasta ellos.
+          SALE PLEGADO, al revés que «Sin asignar»: lo que importa siempre es
+          lo que se puede coger, y esto no se puede fichar. El título sigue
+          diciendo cuántos hay, y quien los quiera a la vista los abre una vez
+          y el navegador lo recuerda. */}
       {detenidosPorFecha.length > 0 && (
         <BloquePlegable
           clave="coordina-detenidos-plegado"
+          abiertoDeSalida={false}
           bajarAlAbrir
           className="mt-5 border-t border-[var(--glass-border)] pt-3"
           cabecera={
