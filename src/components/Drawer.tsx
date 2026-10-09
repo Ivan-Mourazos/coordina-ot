@@ -559,7 +559,18 @@ export function Drawer({
           familias={[...new Set(pedido.ofs.map((o) => o.familia))]}
           extra={
             <div className="flex items-center gap-2 text-xs">
-              {!soloLectura && (
+              {/* En solo lectura se ve QUIÉN lleva el pedido, sin poder
+                  cambiarlo: es lo primero que busca Dirección en la ficha. */}
+              {soloLectura ? (
+                <>
+                  <span className="font-semibold text-text-muted">Autor</span>
+                  <span className="text-text">
+                    {pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
+                      ? (operarios.find((o) => o.id === pedido.ofs[0].autorId)?.nombre ?? "Sin asignar")
+                      : "Varios"}
+                  </span>
+                </>
+              ) : (
                 <>
                   <span className="font-semibold text-text-muted">Autor</span>
                   {/* Pegado al rótulo, sin `ml-auto`: al otro lado del panel dejaba
