@@ -11,7 +11,7 @@ import { FamiliaIcon, FamiliaTag } from "./FamiliaTag";
 import { HistorialDrawer } from "./HistorialDrawer";
 import { SelectorFecha } from "./SelectorFecha";
 import { Quien } from "./HistorialQuien";
-import { HistorialOFsCompactas } from "./HistorialOFsCompactas";
+import { OFsDeLaFicha } from "./HistorialCentros";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaDesplegable } from "./FilaDesplegable";
@@ -551,13 +551,18 @@ function FilaHistorial({
         <>
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
-          {/* SOLO LAS OF. El desglose de tareas y tiempos NO vive aquí: está
-              en la ficha, que es donde hay sitio para leerlo y donde Pendientes
-              lo tiene también. Estuvo un tiempo en esta lista —primero como
-              ventana, luego como bloque— y ninguna de las dos funcionó: la
-              ventana tapaba la lista, y el bloque se desplegaba dentro de la
-              columna de 64 px donde vivía su botón. */}
-          {ofs && <HistorialOFsCompactas ofs={ofs} seccion={seccion} columnas={columnas} />}
+          {/* LAS OF COMO EN LA FICHA, con sus tareas y tiempos al
+              desplegarlas: para mirar un pedido sin abrirlo (Iván, 09/10/2026).
+              Las tareas ya estuvieron aquí dos veces y no funcionaron —una
+              ventana que tapaba la lista, y un bloque metido en la columna de
+              64 px de su botón—. Esto es otra cosa: las mismas tarjetas de la
+              ficha, a lo ancho del desplegable, y cada OF se abre en su sitio.
+              Sin el botón de Gastado, que es otra consulta por pedido. */}
+          {ofs && (
+            <div className="max-w-3xl py-1">
+              <OFsDeLaFicha ofs={ofs} seccion={seccion} conGastado={false} />
+            </div>
+          )}
         </>
       }
     />

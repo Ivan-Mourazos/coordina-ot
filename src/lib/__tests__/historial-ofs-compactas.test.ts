@@ -33,17 +33,6 @@ test("una OF compartida ocupa una sola fila y no enseña personas de otros centr
   expect(diseno).not.toContain("Iván");
 });
 
-test("en la lista, cada OF va en las columnas de la fila y el botón solo en la primera", () => {
-  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, {
-    ofs: [{ ...otra, codigo: "0232086" }, { ...otra, codigo: "0232087" }],
-    seccion: "ot",
-    columnas: "grid grid-cols-[28px_136px_minmax(0,1fr)]",
-    accion: createElement("button", null, "Tareas y tiempos"),
-  }));
-  expect(html.match(/<li class="grid grid-cols-\[28px_136px_minmax\(0,1fr\)\]/g)).toHaveLength(2);
-  expect(html.match(/Tareas y tiempos/g)).toHaveLength(1);
-  expect(html.indexOf("Tareas y tiempos")).toBeLessThan(html.indexOf("0232087"));
-});
 
 // Con varias OF, cada una dice quién la hizo: es información que la fila del
 // pedido (que suma todas) no da.
@@ -65,17 +54,10 @@ test("con varias OF, las personas de cada una salen con su tiempo, de más a men
   expect(html).not.toContain("Planteo");
 });
 
-test("en la LISTA, con una sola OF no repite las personas: ya están en la fila del pedido", () => {
-  const html = renderToStaticMarkup(
-    createElement(HistorialOFsCompactas, { ofs: [conGente], seccion: "ot", columnas: "grid" }),
-  );
-  expect(html).toContain("0231922");
-  expect(html).not.toContain("Adrián Quinteiro");
-});
 
-test("en la FICHA, cada OF dice quién trabajó aunque el pedido tenga una sola", () => {
-  // La ficha no tiene fila de pedido encima: si la OF no lo dice, no lo dice
-  // nadie (decisión de Iván, 09/10/2026).
+test("cada OF dice quién trabajó aunque el pedido tenga una sola", () => {
+  // Ni la ficha ni el desplegable de la lista tienen una fila de pedido que
+  // ya lo diga encima (decisión de Iván, 09/10/2026).
   const html = pinta([conGente]);
   expect(html).toContain("0231922");
   expect(html).toContain("Adrián Quinteiro");
@@ -116,18 +98,6 @@ test("tampoco con varias OF y varios centros", () => {
   expect(html).not.toContain("Taller · 34m");
 });
 
-test("en la lista, el botón va al final de la línea, detrás de la gente", () => {
-  const html = renderToStaticMarkup(createElement(HistorialOFsCompactas, {
-    ofs: [conGente, { ...otra, codigo: "0232087" }],
-    seccion: "ot",
-    columnas: "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,24%)_64px]",
-    accion: createElement("button", null, "Tareas y tiempos"),
-  }));
-  // Pegado a la descripción empujaba el texto de la OF; al final cae bajo el
-  // tiempo del pedido, que es la columna con la que se corresponde.
-  expect(html.indexOf("Adrián Quinteiro")).toBeLessThan(html.indexOf("Tareas y tiempos"));
-  expect(html.match(/Tareas y tiempos/g)).toHaveLength(1);
-});
 
 test("en la ficha, cada OF es una fila hundida de dos renglones y no una línea apretada", () => {
   // Trece OF con dos personas cada una dejaban la descripción en "LONA

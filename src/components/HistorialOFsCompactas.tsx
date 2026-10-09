@@ -14,19 +14,15 @@ import { ROL } from "@/lib/estado";
  *  Las personas van con su tiempo, de más a menos, y sin rol: igual que la
  *  fila del pedido y la ficha.
  *
- *  Con `columnas` (las de la lista) cada OF cae debajo de lo mismo en la fila
- *  del pedido: código, descripción y gente bajo «Quién». `accion` va en la
- *  última columna de la primera OF, bajo el tiempo del pedido.
+ *  La pintan la ficha del Historial y el desplegable de su lista (los dos con
+ *  `OFsDeLaFicha`). Tuvo una variante en columnas para la lista, alineada con
+ *  la fila del pedido; se quitó al llevar ahí las OF de la ficha (09/10/2026).
  *
- *  NO lleva el tiempo por centro. Lo llevaba, y en un pedido de una sola OF
- *  —que son casi todos— repetía el total que la fila del pedido enseña justo
- *  encima. El reparto entre centros vive en «Tareas y tiempos», que además lo
- *  desglosa por tarea y por persona. */
-export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle, abiertasDeSalida = false }: {
+ *  NO lleva el tiempo por centro en la fila: el reparto por centro y tarea se
+ *  ve al desplegar la OF. */
+export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida = false }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
-  columnas?: string;
-  accion?: ReactNode;
   /** Lo que se ve al desplegar cada OF (la ficha: sus tareas y su material).
    *  Sin él, las filas no se despliegan (la lista). */
   detalle?: (codigo: string, centros: HistorialOF[]) => ReactNode;
@@ -71,12 +67,10 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
       </div>
     )}
     <ul className="space-y-1.5">
-      {[...porCodigo].map(([codigo, centros], i) => {
-        // En la LISTA, con una sola OF la gente ya está en la fila del pedido,
-        // justo encima. En la FICHA no hay esa fila: ahí cada OF dice siempre
-        // quién la planteó y quién la revisó, aunque el pedido tenga una sola.
-        const deDesglose =
-          variasOF || !columnas ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
+      {[...porCodigo].map(([codigo, centros]) => {
+        // Cada OF dice siempre quién la planteó y quién la revisó, aunque el
+        // pedido tenga una sola: aquí no hay fila de pedido que ya lo diga.
+        const deDesglose = centros.find((of) => conDesglose.has(of.centro ?? "ot"));
         // Con el papel de cada uno, igual que la ficha: aquí salía "Adrián 2m ·
         // Iván 2m" mientras la fila de arriba ya decía quién lo planteó.
         const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false, registrados: [] };
@@ -95,7 +89,7 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
         // 09/10/2026). Es lo mismo que `personasConRol` ya hace con el rol
         // registrado; aquí falta porque lo deducido no pasa por ahí.
         const deducidos: PersonaConRol[] =
-          !columnas && deDesglose?.rolDeducido && !reparto.consta
+          deDesglose?.rolDeducido && !reparto.consta
             ? [...deDesglose.rolDeducido.quienPlanteo, ...deDesglose.rolDeducido.quienReviso]
                 .filter((nombre) => !conTiempo.some((p) => p.nombre === nombre))
                 .map((nombre) => ({ nombre, min: 0 }))
@@ -114,48 +108,7 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
         // nada en RPS), para que nadie se pierda y nadie salga dos veces.
         const enTareas = new Set(centros.flatMap((c) => (c.tareas ?? []).flatMap((t) => t.personas.map((x) => x.nombre))));
         const personasFila = desplegada ? personas.filter((x) => !enTareas.has(x.nombre)) : personas;
-        const gente = personas.length > 0 && (
-          <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
-            {personas.map((p, n) => (
-              <span key={p.nombre}>
-                {n > 0 && " · "}
-                <span className="text-text">{p.nombre}</span>
-                {p.rol && (
-                  <span className={ROL[p.rol].texto}> {p.rol === "plantear" ? "planteó" : "revisó"}</span>
-                )}{" "}
-                {tiempoDePersona(p)}
-              </span>
-            ))}
-          </span>
-        );
-        const accionAqui = i === 0 ? accion : null;
-        if (columnas) {
-          return (
-            // HUNDIDAS sobre el detalle, como las OF de Pendientes (ver
-            // `FilaOF`): la fila del pedido ya está hundida al desplegarse, y
-            // sus OF dentro necesitan despegarse de ese fondo para leerse como
-            // lo que cuelga de ella. Sin esto eran texto suelto sobre el mismo
-            // color y no se veía dónde acababa una OF y empezaba la siguiente.
-            <li
-              key={codigo}
-              className={`${columnas} rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border`}
-            >
-              <span aria-hidden="true" />
-              <span className="font-mono font-semibold text-text">{codigo}</span>
-              <span className="min-w-0 truncate text-text-muted" title={descripcion}>{descripcion}</span>
-              {/* La columna de la familia va vacía en las OF: la familia es del
-                  pedido, no de cada una. Se conserva para que lo de debajo siga
-                  cayendo bajo su columna de la fila. */}
-              <span aria-hidden="true" />
-              <span className="min-w-0 leading-4">{gente}</span>
-              {/* El botón, bajo el tiempo del pedido. Pegado a la descripción
-                  le comía sitio al texto de la OF, que es lo que se viene a
-                  leer aquí. */}
-              <span className="flex justify-end">{accionAqui}</span>
-            </li>
-          );
-        }
-        // EN LA FICHA: fila hundida y DOS renglones, como las OF de Pendientes
+        // Fila hundida y DOS renglones, como las OF de Pendientes
         // (ver `FilaOF`). Iba todo en una línea con `flex-wrap`, y la gente
         // —"Alberto Carbon planteó 23m · Jaime Vázquez revisó 2m"— se comía el
         // ancho: en un pedido de trece OF la descripción quedaba en "LONA
@@ -202,7 +155,6 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
                   </span>
                 </>
               )}
-              {accionAqui}
               {/* SIN el total de la OF a la derecha. Lo llevó un rato y se
                   quitó: al lado de "planteó 6m · revisó 11m" aparecía un "20m"
                   suelto que no cuadraba con ninguno de los dos y obligaba a

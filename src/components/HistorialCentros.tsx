@@ -80,9 +80,12 @@ export function OFsDeLaFicha({
   gastado,
   onReintentarGastado,
   abiertasDeSalida,
+  conGastado = true,
 }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
+  /** Ver `Materiales`. */
+  conGastado?: boolean;
   gastado?: Record<string, MaterialGastadoOF[]> | null;
   onReintentarGastado?: () => void;
   /** Todas desplegadas al montar. Lo usan las pruebas, que miran QUÉ sale
@@ -101,6 +104,7 @@ export function OFsDeLaFicha({
             centros={centros}
             gastado={gastado}
             onReintentarGastado={onReintentarGastado}
+            conGastado={conGastado}
           />
         )}
       />
@@ -115,7 +119,10 @@ export function DetalleOF({
   centros,
   gastado,
   onReintentarGastado,
+  conGastado = true,
 }: {
+  /** Ver `Materiales`. */
+  conGastado?: boolean;
   /** Las entradas de ESTA OF, una por centro que trabajó en ella. */
   centros: HistorialOF[];
   gastado?: Record<string, MaterialGastadoOF[]> | null;
@@ -203,6 +210,7 @@ export function DetalleOF({
         of={conMaterial}
         gastadoOF={gastado === null ? null : gastado?.[conMaterial.codigo]}
         onReintentarGastado={onReintentarGastado}
+        conGastado={conGastado}
       />
     </div>
   );
@@ -274,8 +282,12 @@ function Materiales({
   of,
   gastadoOF,
   onReintentarGastado,
+  conGastado = true,
 }: {
   of: HistorialOF;
+  /** El botón de Gastado. La lista del Historial no lo lleva: el gastado es
+   *  otra consulta a RPS por pedido, y se mira en la ficha. */
+  conGastado?: boolean;
   /** undefined = todavía cargando; null = RPS no contestó; [] = cargado y sin líneas. */
   gastadoOF: MaterialGastadoOF[] | null | undefined;
   onReintentarGastado?: () => void;
@@ -288,7 +300,7 @@ function Materiales({
       {apartados.length + apuntados.length > 0 && (
         <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
-      <MaterialGastado of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />
+      {conGastado && <MaterialGastado of={of.codigo} lineas={gastadoOF} onReintentar={onReintentarGastado} />}
       {of.notasProduccion && <NotasProduccion of={of.codigo} texto={of.notasProduccion} />}
     </div>
   );
