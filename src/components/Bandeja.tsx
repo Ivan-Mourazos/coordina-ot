@@ -38,9 +38,11 @@ function guardarAbierto(clave: string, abierto: boolean) {
 
 /** Un bloque de la bandeja que se pliega desde su título.
  *
- *  Toda la fila es el botón y se ilumina al pasar por encima; el chevron va
- *  en su círculo y a la derecha dice qué hace pulsar. Con solo una flecha
- *  pequeña nadie adivinaba que se plegaba. Plegado, el título sigue diciendo
+ *  Toda la fila es el botón, y lo PARECE sin pasar el ratón: lleva el mismo
+ *  acabado que las tarjetas del Equipo, que también se pulsan. Al pasar por
+ *  encima se marca el borde. El chevron va en su círculo y a la derecha dice
+ *  qué hace pulsar. Con solo una flecha pequeña nadie adivinaba que se
+ *  plegaba. Plegado, el título sigue diciendo
  *  cuántos hay. Arranca abierto: que nadie deje de ver nada sin haberlo
  *  elegido. */
 function BloquePlegable({
@@ -87,7 +89,7 @@ function BloquePlegable({
         onClick={cambiar}
         aria-expanded={abierto}
         aria-controls={id}
-        className={`group ${abierto ? "mb-2.5" : ""} -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+        className={`glass-panel group ${abierto ? "mb-2.5" : ""} flex w-full items-center gap-2 rounded-xl border px-3 py-1.5 text-left transition-colors hover:border-brand-400 hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
       >
         <span className="glass-chip grid size-6 shrink-0 place-items-center rounded-full text-text transition-colors group-hover:border-brand-400">
           <svg
