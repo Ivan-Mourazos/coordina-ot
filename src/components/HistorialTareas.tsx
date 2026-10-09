@@ -198,9 +198,13 @@ export function TareasDeOF({
   of,
   conColor = false,
   rolDe,
+  claseTiempo,
 }: {
   of: HistorialOF;
   conColor?: boolean;
+  /** Color de los tiempos: el de su centro en la ficha del Historial. Manda
+   *  sobre `conColor`. */
+  claseTiempo?: string;
   /** El papel de cada persona en la OF, si se sabe (la ficha del Historial):
    *  cada nombre de la tarea lleva su «Autor» o «Revisor». Con color si está
    *  registrado en CoordinaOT; en gris si se dedujo de las horas de RPS. */
@@ -243,7 +247,7 @@ export function TareasDeOF({
               </span>
               <span
                 className={`shrink-0 font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
-                  conColor && !vacia ? "text-brand-800 dark:text-brand-300" : ""
+                  vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
                 }`}
               >
                 {fmtMin(tarea.tiempoImputadoMin)}

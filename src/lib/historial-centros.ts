@@ -71,6 +71,44 @@ export const NOMBRE_CENTRO: Record<CentroHistorialId, string> = {
   taller: "Taller",
 };
 
+/** El color de cada centro, el MISMO en toda la ficha: su franja, su punto,
+ *  la raya de sus tareas, sus tiempos. La
+ *  ficha era gris sobre gris, con todos los tiempos en el mismo dorado, y no
+ *  se veía de un vistazo dónde se fue el trabajo.
+ *
+ *  OT, el dorado de la marca: es su web. Ni esmeralda ni violeta (son los de
+ *  autor y revisor en toda la app), ni rojo ni ámbar (avisos). Clases
+ *  literales porque Tailwind solo compila las que ve escritas. */
+export const CENTRO_TONO: Record<
+  CentroHistorialId,
+  { punto: string; texto: string; franja: string; raya: string }
+> = {
+  ot: {
+    punto: "bg-brand-500",
+    texto: "text-brand-800 dark:text-brand-300",
+    franja: "bg-brand-500/10 dark:bg-brand-400/10",
+    raya: "border-brand-400/60",
+  },
+  diseno: {
+    punto: "bg-fuchsia-500",
+    texto: "text-fuchsia-700 dark:text-fuchsia-300",
+    franja: "bg-fuchsia-500/10 dark:bg-fuchsia-400/10",
+    raya: "border-fuchsia-400/60",
+  },
+  impresion: {
+    punto: "bg-cyan-500",
+    texto: "text-cyan-700 dark:text-cyan-300",
+    franja: "bg-cyan-500/10 dark:bg-cyan-400/10",
+    raya: "border-cyan-400/60",
+  },
+  taller: {
+    punto: "bg-slate-500",
+    texto: "text-slate-700 dark:text-slate-300",
+    franja: "bg-slate-500/10 dark:bg-slate-400/10",
+    raya: "border-slate-400/60",
+  },
+};
+
 /** Cada OF puede aparecer en varios centros; sus minutos nunca se mezclan. */
 export function agruparCentros(ofs: readonly HistorialOF[]): HistorialCentro[] {
   return (["ot", "diseno", "impresion", "taller"] as const).map((id) => ({ id, nombre: NOMBRE_CENTRO[id] })).map(({ id, nombre }) => {

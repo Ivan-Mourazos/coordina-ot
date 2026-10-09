@@ -5,6 +5,7 @@ import { fmtCantidad, personasConRol, personasDeOFs, repartirMateriales, reparto
 import { ROL } from "@/lib/estado";
 import { fmtDiaMesAno } from "@/lib/fechas";
 import {
+  CENTRO_TONO,
   NOMBRE_CENTRO,
   agruparCentros,
   centrosConDesglose,
@@ -57,8 +58,9 @@ export function ResumenCentros({ ofs, seccion }: { ofs: HistorialOF[]; seccion: 
     <div className="mb-2 space-y-1">
       {centros.map((centro) => (
         <div key={centro.id} className="flex flex-wrap items-baseline gap-x-3 text-xs">
+          <span className={`size-2 self-center rounded-full ${CENTRO_TONO[centro.id].punto}`} aria-hidden="true" />
           <span className="font-semibold text-text">{centro.nombre}</span>
-          <span className="font-mono font-semibold tabular-nums text-brand-800 dark:text-brand-300">
+          <span className={`font-mono font-semibold tabular-nums ${CENTRO_TONO[centro.id].texto}`}>
             {fmtMin(centro.totalMin)}
           </span>
           {/* Con una sola OF en el centro, quién y cuánto lo dice ya esa OF,
@@ -128,7 +130,6 @@ export function DetalleOF({
   const conTiempo = enRuta.filter((of) => of.tiempoImputadoMin > 0);
   const sinTiempo = enRuta.filter((of) => of.tiempoImputadoMin <= 0 && of.tareas?.length);
   const nombre = (of: HistorialOF) => NOMBRE_CENTRO[of.centro ?? "ot"];
-  const variosCentros = conTiempo.length > 1;
   // El papel de cada uno en ESTA OF, para ponerlo junto a su nombre en las
   // tareas. Manda lo registrado en CoordinaOT; si no hay, lo deducido de las
   // horas, que se pinta en gris (ver TareasDeOF).
@@ -153,19 +154,27 @@ export function DetalleOF({
   const conMaterial = centros.find((of) => of.materiales?.length || of.notasProduccion) ?? centros[0];
   return (
     <div className="mt-2 border-t border-border pt-2">
-      {conTiempo.map((of) => (
-        <div key={of.centro ?? "ot"} className="mb-2 last:mb-0">
-          {variosCentros && (
-            <p className="mb-0.5 flex items-baseline justify-between text-[11px] font-semibold text-text-muted">
-              <span>{nombre(of)}</span>
-              <span className="font-mono tabular-nums">{fmtMin(of.tiempoImputadoMin)}</span>
+      {conTiempo.map((of) => {
+        const tono = CENTRO_TONO[of.centro ?? "ot"];
+        return (
+          <div key={of.centro ?? "ot"} className="mb-2.5 last:mb-0">
+            {/* La franja del centro, teñida de su color: es lo que separa un
+                bloque de otro al recorrer la OF con la vista. */}
+            <p className={`mb-1 flex items-center gap-2 rounded-md px-2 py-1 text-[11px] font-semibold ${tono.franja}`}>
+              <span className={`size-2 shrink-0 rounded-full ${tono.punto}`} aria-hidden="true" />
+              <span className="flex-1 text-text">{nombre(of)}</span>
+              {/* El tiempo del centro solo cuando hay varios: con uno es el de
+                  la OF entera, y lo dice ya quien lo echó, justo encima. */}
+              {conTiempo.length > 1 && (
+                <span className={`font-mono tabular-nums ${tono.texto}`}>{fmtMin(of.tiempoImputadoMin)}</span>
+              )}
             </p>
-          )}
-          <div className="ml-1 border-l border-border pl-2.5 text-[11px]">
-            <TareasDeOF of={of} conColor rolDe={rolDe(of)} />
+            <div className={`ml-2 border-l-2 pl-2.5 text-[11px] ${tono.raya}`}>
+              <TareasDeOF of={of} conColor rolDe={rolDe(of)} claseTiempo={tono.texto} />
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {sinTiempo.length > 0 && (
         <details className="mt-1 text-[11px]">
           <summary className="cursor-pointer text-text-muted hover:text-text">
@@ -179,7 +188,10 @@ export function DetalleOF({
           </summary>
           {sinTiempo.map((of) => (
             <div key={of.centro ?? "ot"} className="mt-1.5">
-              <p className="mb-0.5 font-semibold text-text-muted">{nombre(of)}</p>
+              <p className="mb-0.5 flex items-center gap-1.5 font-semibold text-text-muted">
+                <span className={`size-1.5 rounded-full ${CENTRO_TONO[of.centro ?? "ot"].punto}`} aria-hidden="true" />
+                {nombre(of)}
+              </p>
               <div className="ml-1 border-l border-border pl-2.5">
                 <TareasDeOF of={of} />
               </div>
