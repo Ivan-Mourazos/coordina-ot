@@ -326,6 +326,23 @@ export function repartirMateriales(materiales: MaterialOF[] | undefined): {
   };
 }
 
+/** El material de una OF en una línea, para la fila de la OF en la ficha:
+ *  cuántas líneas lleva y cuántas siguen apartadas en el almacén. El detalle
+ *  (cada material) va en el título y en «Tareas y tiempos». Sin material no
+ *  dice nada: un «Sin material» en cada OF sería ruido. */
+export function resumenMaterial(
+  materiales: MaterialOF[] | undefined,
+): { texto: string; titulo: string } | null {
+  if (!materiales?.length) return null;
+  const { apartados } = repartirMateriales(materiales);
+  const n = materiales.length;
+  const texto =
+    `${n} ${n === 1 ? "material" : "materiales"}` +
+    (apartados.length ? ` · ${apartados.length} ${apartados.length === 1 ? "apartado" : "apartados"}` : "");
+  const titulo = materiales.map((m) => (m.apartado ? `${m.texto} (apartado)` : m.texto)).join("\n");
+  return { texto, titulo };
+}
+
 /** Fila cruda de la query de página (antes de mapear). */
 export interface FilaPagina {
   pedido: string;

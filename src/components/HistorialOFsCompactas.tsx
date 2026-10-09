@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { HistorialOF } from "@/lib/historial";
-import { personasConRol, personasDeOF, repartoDe, tiempoDePersona } from "@/lib/historial";
+import { personasConRol, personasDeOF, repartoDe, resumenMaterial, tiempoDePersona } from "@/lib/historial";
+import { IconoAviso, IconoMaterial } from "./Iconos";
 import type { SeccionId } from "@/lib/secciones";
 import { centrosConDesglose } from "@/lib/historial-centros";
 import { ROL } from "@/lib/estado";
@@ -39,7 +40,11 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
   return (
     <ul className="space-y-1.5">
       {[...porCodigo].map(([codigo, centros], i) => {
-        const deDesglose = variasOF ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
+        // En la LISTA, con una sola OF la gente ya está en la fila del pedido,
+        // justo encima. En la FICHA no hay esa fila: ahí cada OF dice siempre
+        // quién la planteó y quién la revisó, aunque el pedido tenga una sola.
+        const deDesglose =
+          variasOF || !columnas ? centros.find((of) => conDesglose.has(of.centro ?? "ot")) : undefined;
         // Con el papel de cada uno, igual que la ficha: aquí salía "Adrián 2m ·
         // Iván 2m" mientras la fila de arriba ya decía quién lo planteó.
         const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false, registrados: [] };
@@ -53,6 +58,10 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
             )
           : [];
         const descripcion = centros[0].descripcion;
+        // El material y la nota son de la OF, no del centro: vale el primer
+        // centro que los traiga.
+        const material = resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
+        const notaProduccion = centros.find((c) => c.notasProduccion)?.notasProduccion;
         const gente = personas.length > 0 && (
           <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
             {personas.map((p, n) => (
@@ -120,7 +129,74 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion }: {
                   hacer la cuenta para entender que era la suma. El desglose
                   entero está en «Tareas y tiempos», justo debajo. */}
             </div>
-            {gente && <div className="mt-0.5 leading-4">{gente}</div>}
+            {/* Debajo, QUIÉN: autor y revisor con su rótulo de color y su
+                tiempo, como en Pendientes. Sin roles registrados (OF de antes
+                de fichar en la web) salen los nombres con su tiempo, sin
+                rótulo: el rol deducido de las horas es una suposición, y
+                pintarla igual que un dato sería mentir con colores. */}
+            {(personas.length > 0 || material || notaProduccion) && (
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 leading-4">
+                {personas.map((p) => {
+                  if (p.rol) {
+                    return (
+                      <span key={p.nombre} className="flex items-center gap-1.5">
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[p.rol].chip}`}>
+                          {p.rol === "plantear" ? "Autor" : "Revisor"}
+                        </span>
+                        <span className="text-text">{p.nombre}</span>
+                        <span className="text-text-muted">{tiempoDePersona(p)}</span>
+                      </span>
+                    );
+                  }
+                  // Deducido de las horas: el mismo rótulo, en GRIS y avisando
+                  // de dónde sale. Así se lee quién hizo qué en las OF de antes
+                  // del fichaje sin hacerlo pasar por un dato registrado.
+                  const deducido = deDesglose?.rolDeducido?.quienPlanteo.includes(p.nombre)
+                    ? "Autor"
+                    : deDesglose?.rolDeducido?.quienReviso.includes(p.nombre)
+                      ? "Revisor"
+                      : null;
+                  return deducido ? (
+                    <span
+                      key={p.nombre}
+                      className="flex items-center gap-1.5"
+                      title={`${deducido} deducido de las horas de RPS: esta OF no se fichó en CoordinaOT`}
+                    >
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border">
+                        {deducido}
+                      </span>
+                      <span className="text-text">{p.nombre}</span>
+                      <span className="text-text-muted">{tiempoDePersona(p)}</span>
+                    </span>
+                  ) : (
+                    <span key={p.nombre} className="text-text-muted">
+                      <span className="text-text">{p.nombre}</span> {tiempoDePersona(p)}
+                    </span>
+                  );
+                })}
+                {/* Material y nota de Producción, a la vista: vivían solo
+                    dentro de «Tareas y tiempos», plegado. Ahí sigue el detalle
+                    entero; aquí basta con saber que los hay. */}
+                {material && (
+                  <span
+                    className="ml-auto flex items-center gap-1 text-[11px] text-text-muted"
+                    title={material.titulo}
+                  >
+                    <IconoMaterial className="size-3.5" />
+                    {material.texto}
+                  </span>
+                )}
+                {notaProduccion && (
+                  <span
+                    className={`${material ? "" : "ml-auto"} flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300`}
+                    title={notaProduccion}
+                  >
+                    <IconoAviso className="size-3" />
+                    Nota de Producción
+                  </span>
+                )}
+              </div>
+            )}
           </li>
         );
       })}
