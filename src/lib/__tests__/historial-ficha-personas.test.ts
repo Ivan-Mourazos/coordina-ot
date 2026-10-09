@@ -211,9 +211,13 @@ describe("los papeles de la web, también en las tareas", () => {
       autorRegistrado: "Iván Sánchez",
       revisorRegistrado: "Jaime Vázquez",
     }]);
-    // Fila de la OF + línea de la tarea: dos rótulos de cada.
-    expect(veces(html, ">Autor<")).toBe(2);
-    expect(veces(html, ">Revisor<")).toBe(2);
+    // Desplegada, quién y cuánto lo dice la tarea; la fila de la OF no lo
+    // repite (Iván, 09/10/2026: «que no se dupliquen»).
+    expect(veces(html, ">Autor<")).toBe(1);
+    expect(veces(html, ">Revisor<")).toBe(1);
+    expect(veces(html, "Jaime Vázquez")).toBe(1);
+    expect(html).toContain("33m");
+    expect(html).toContain("4m");
   });
 
   it("sin registro, el rol deducido de las horas sale en gris y avisando", () => {
@@ -226,6 +230,23 @@ describe("los papeles de la web, también en las tareas", () => {
       rolDeducido: { quienPlanteo: ["Tamara Villar"], quienReviso: ["Jaime Vázquez"] },
     }]);
     expect(html).toContain("Deducido de las horas de RPS");
-    expect(veces(html, ">Autor<")).toBe(2);
+    expect(veces(html, ">Autor<")).toBe(1);
+  });
+});
+
+describe("el revisor de menos de un minuto, dentro de su tarea", () => {
+  it("sale en la tarea con <1m y no se repite en la fila", () => {
+    // AR.26.04928: RPS guarda a Iván en PLANTEAR con 0 minutos.
+    const base = conTareas("0232832", "ot", [
+      { codigo: "1", descripcion: "PLANTEAR", personas: [{ nombre: "Tamara Villar", min: 6 }, { nombre: "Iván Sánchez", min: 0 }] },
+    ]);
+    const html = pinta([{
+      ...base,
+      personas: [{ nombre: "Tamara Villar", min: 6 }, { nombre: "Iván Sánchez", min: 0 }],
+      rolDeducido: { quienPlanteo: ["Tamara Villar"], quienReviso: ["Iván Sánchez"] },
+    }]);
+    expect(veces(html, "Iván Sánchez")).toBe(1);
+    expect(html).toContain("&lt;1m");
+    expect(veces(html, ">Revisor<")).toBe(1);
   });
 });

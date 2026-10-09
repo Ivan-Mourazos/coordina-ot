@@ -109,6 +109,11 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
         const desplegada = !!detalle && abiertas.has(codigo);
         const material = desplegada ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
         const notaProduccion = desplegada ? undefined : centros.find((c) => c.notasProduccion)?.notasProduccion;
+        // Desplegada, quién y cuánto lo dicen sus tareas: aquí solo queda quien
+        // no sale en ninguna (un revisor registrado en la web que no imputó
+        // nada en RPS), para que nadie se pierda y nadie salga dos veces.
+        const enTareas = new Set(centros.flatMap((c) => (c.tareas ?? []).flatMap((t) => t.personas.map((x) => x.nombre))));
+        const personasFila = desplegada ? personas.filter((x) => !enTareas.has(x.nombre)) : personas;
         const gente = personas.length > 0 && (
           <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
             {personas.map((p, n) => (
@@ -209,9 +214,9 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
                 de fichar en la web) salen los nombres con su tiempo, sin
                 rótulo: el rol deducido de las horas es una suposición, y
                 pintarla igual que un dato sería mentir con colores. */}
-            {(personas.length > 0 || material || notaProduccion) && (
+            {(personasFila.length > 0 || material || notaProduccion) && (
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 leading-4">
-                {personas.map((p) => {
+                {personasFila.map((p) => {
                   if (p.rol) {
                     return (
                       <span key={p.nombre} className="flex items-center gap-1.5">

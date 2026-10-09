@@ -212,7 +212,12 @@ export function TareasDeOF({
   return (
     <>
       {of.tareas.map((tarea) => {
-        const personas = tarea.personas.filter((p) => p.min > 0).sort(porMinutos);
+        // Con papeles (la ficha del Historial), quien es autor o revisor sale
+        // aunque su tiempo sea 0: RPS guarda minutos enteros y una revisión de
+        // menos de uno queda a cero (AR.26.04928).
+        const personas = tarea.personas
+          .filter((p) => p.min > 0 || (rolDe && rolDe(p.nombre)))
+          .sort(porMinutos);
         const vacia = tarea.tiempoImputadoMin <= 0;
         // Con UNA sola persona su tiempo es el de la tarea, que está al final
         // de la misma línea: ponerlo detrás del nombre era escribir dos veces
@@ -269,7 +274,10 @@ export function TareasDeOF({
                         </span>
                       )}
                       <span>{p.nombre}</span>
-                      {!solaEllaEntera && <span>{fmtMin(p.min)}</span>}
+                      {/* Con papeles, el tiempo de cada uno SIEMPRE: la línea
+                          de autor y revisor de la OF se retira al desplegar y
+                          es aquí donde se lee quién echó cuánto. */}
+                      <span>{p.min > 0 ? fmtMin(p.min) : "<1m"}</span>
                     </span>
                   );
                 })}
