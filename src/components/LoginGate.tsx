@@ -93,14 +93,12 @@ function Rejilla({
   // Solo los TÉCNICOS salen en la rejilla: son las caras del tablero, y un
   // supervisor puro ahí sobra.
   //
-  // La spec preveía un enlace discreto ("Entrar con otro usuario") para que
-  // ellos entrasen con nombre y PIN escritos. NO se construye todavía: hoy los
-  // tres supervisores puros están desactivados —sus pantallas son las fases 2
-  // y 3, aplazadas— y Ángel, que es el único con ese rol en activo, entra por
-  // la rejilla como el técnico que también es. Un enlace a una pantalla donde
-  // nadie puede entrar es una puerta a un cuarto vacío. Se añade el día que se
-  // activen, junto a lo que van a mirar.
+  // Dirección (Carlos, Esteban) entra por la misma rejilla, en su grupo y
+  // debajo de las secciones: no son caras del tablero, pero tampoco hace falta
+  // otra pantalla para cuatro dígitos. Quien tenga `tecnico` sale arriba, en
+  // su sección, aunque también tenga `direccion` (Iván).
   const tecnicos = personas.filter((p) => p.roles.includes("tecnico"));
+  const direccion = personas.filter((p) => p.roles.includes("direccion") && !p.roles.includes("tecnico"));
   return (
     <>
       <h1 className="mb-1 text-lg font-semibold text-text">¿Quién eres?</h1>
@@ -114,29 +112,52 @@ function Rejilla({
               {SECCIONES[seccion].nombre}
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {suyos.map((p) => {
-                const cara = pinta(p);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => onElegir(p)}
-                    className="glass-panel flex flex-col items-center gap-2 rounded-2xl p-4 transition-all hover:scale-[1.03] hover:border-brand-400"
-                  >
-                    <span
-                      className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
-                      style={{ background: cara.color, color: tintaSobre(cara.color) }}
-                    >
-                      {cara.iniciales}
-                    </span>
-                    <span className="text-sm font-semibold text-text">{p.nombre}</span>
-                  </button>
-                );
-              })}
+              {suyos.map((p) => (
+                <Cara key={p.id} p={p} onElegir={onElegir} />
+              ))}
             </div>
           </section>
         ))}
+        {direccion.length > 0 && (
+          <section>
+            <h2 className="mb-2 border-b border-border pb-1 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
+              Dirección
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {direccion.map((p) => (
+                <Cara key={p.id} p={p} onElegir={onElegir} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </>
+  );
+}
+
+/** El botón de una persona en la rejilla: cara (o iniciales en gris) y nombre.
+ *  Lo comparten los grupos de sección y el de Dirección. */
+function Cara({
+  p,
+  onElegir,
+}: {
+  p: PersonaPublica;
+  onElegir: (p: PersonaPublica) => void;
+}) {
+  const cara = pinta(p);
+  return (
+    <button
+      onClick={() => onElegir(p)}
+      className="glass-panel flex flex-col items-center gap-2 rounded-2xl p-4 transition-all hover:scale-[1.03] hover:border-brand-400"
+    >
+      <span
+        className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
+        style={{ background: cara.color, color: tintaSobre(cara.color) }}
+      >
+        {cara.iniciales}
+      </span>
+      <span className="text-sm font-semibold text-text">{p.nombre}</span>
+    </button>
   );
 }
 
