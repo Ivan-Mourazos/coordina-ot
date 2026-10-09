@@ -142,3 +142,24 @@ test("en la ficha, cada OF es una fila hundida de dos renglones y no una línea 
   // Sin `columnas` no se pinta la rejilla de la lista.
   expect(html).not.toContain("grid-cols-");
 });
+
+test("en la FICHA, el revisor deducido sale aunque su revisión no llegue al minuto", () => {
+  // AR.26.04928 (09/10/2026): RPS guarda minutos enteros, la revisión de Iván
+  // quedó a 0 y desaparecía de la fila aunque el rol deducido lo nombra.
+  const of: HistorialOF = {
+    codigo: "0232832",
+    descripcion: "TOLDO BRAZOS INVISIBLES",
+    centro: "ot",
+    tiempoImputadoMin: 6,
+    quien: ["Tamara Villar", "Iván Sánchez"],
+    personas: [
+      { nombre: "Tamara Villar", min: 6 },
+      { nombre: "Iván Sánchez", min: 0 },
+    ],
+    rolDeducido: { quienPlanteo: ["Tamara Villar"], quienReviso: ["Iván Sánchez"] },
+  };
+  const html = pinta([of]);
+  expect(html).toContain("Iván Sánchez");
+  expect(html).toContain("&lt;1m");
+  expect(html).toContain(">Revisor<");
+});

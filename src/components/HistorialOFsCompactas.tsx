@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import type { HistorialOF } from "@/lib/historial";
+import type { HistorialOF, PersonaConRol } from "@/lib/historial";
 import { personasConRol, personasDeOF, repartoDe, resumenMaterial, tiempoDePersona } from "@/lib/historial";
 import { IconoAviso, IconoMaterial } from "./Iconos";
 import type { SeccionId } from "@/lib/secciones";
@@ -80,7 +80,7 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
         // Con el papel de cada uno, igual que la ficha: aquí salía "Adrián 2m ·
         // Iván 2m" mientras la fila de arriba ya decía quién lo planteó.
         const reparto = deDesglose ? repartoDe([deDesglose]) : { autores: [], revisores: [], consta: false, registrados: [] };
-        const personas = deDesglose
+        const conTiempo = deDesglose
           ? personasConRol(
               personasDeOF(deDesglose),
               reparto.autores,
@@ -89,11 +89,26 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
               reparto.registrados,
             )
           : [];
+        // En la FICHA, quien consta en el rol DEDUCIDO sale aunque sus minutos
+        // sean 0. RPS guarda minutos enteros, y una revisión de menos de uno
+        // queda a cero: el revisor desaparecía de la fila (AR.26.04928,
+        // 09/10/2026). Es lo mismo que `personasConRol` ya hace con el rol
+        // registrado; aquí falta porque lo deducido no pasa por ahí.
+        const deducidos: PersonaConRol[] =
+          !columnas && deDesglose?.rolDeducido && !reparto.consta
+            ? [...deDesglose.rolDeducido.quienPlanteo, ...deDesglose.rolDeducido.quienReviso]
+                .filter((nombre) => !conTiempo.some((p) => p.nombre === nombre))
+                .map((nombre) => ({ nombre, min: 0 }))
+            : [];
+        const personas = [...conTiempo, ...deducidos];
         const descripcion = centros[0].descripcion;
         // El material y la nota son de la OF, no del centro: vale el primer
         // centro que los traiga.
-        const material = resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
-        const notaProduccion = centros.find((c) => c.notasProduccion)?.notasProduccion;
+        // Con la OF DESPLEGADA no salen: sus botones (Asignado, nota de
+        // Producción) ya lo dicen justo debajo, con el detalle.
+        const desplegada = !!detalle && abiertas.has(codigo);
+        const material = desplegada ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
+        const notaProduccion = desplegada ? undefined : centros.find((c) => c.notasProduccion)?.notasProduccion;
         const gente = personas.length > 0 && (
           <span className="text-text-muted" title="Tiempo por persona en esta sección: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT">
             {personas.map((p, n) => (
@@ -226,7 +241,8 @@ export function HistorialOFsCompactas({ ofs, seccion, columnas, accion, detalle,
                         {deducido}
                       </span>
                       <span className="text-text">{p.nombre}</span>
-                      <span className="text-text-muted">{tiempoDePersona(p)}</span>
+                      {/* Con un papel, 0 minutos es «menos de uno», no «nada». */}
+                      <span className="text-text-muted">{p.min > 0 ? tiempoDePersona(p) : "<1m"}</span>
                     </span>
                   ) : (
                     <span key={p.nombre} className="text-text-muted">
