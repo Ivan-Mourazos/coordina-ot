@@ -90,8 +90,8 @@ function Rejilla({
   // identidad en localStorage— sigue viva en IdentityGate.tsx y es la que se ve
   // mientras COORDINA_LOGIN esté apagado. Las dos existen a propósito.
   //
-  // Solo los TÉCNICOS salen en la rejilla: son las caras del tablero, y un
-  // supervisor puro ahí sobra.
+  // Los TÉCNICOS salen por sección: son las caras del tablero. Un supervisor
+  // puro (Cris, mientras siga desactivada) no sale en ningún grupo.
   //
   // Dirección (Carlos, Esteban) entra por la misma rejilla, en su grupo y
   // debajo de las secciones: no son caras del tablero, pero tampoco hace falta
