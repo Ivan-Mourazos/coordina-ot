@@ -566,7 +566,9 @@ export function Drawer({
                   <span className="font-semibold text-text-muted">Autor</span>
                   <span className="text-text">
                     {pedido.ofs.every((of) => of.autorId === pedido.ofs[0].autorId)
-                      ? (operarios.find((o) => o.id === pedido.ofs[0].autorId)?.nombre ?? "Sin asignar")
+                      ? pedido.ofs[0].autorId
+                        ? (operarios.find((o) => o.id === pedido.ofs[0].autorId)?.nombre ?? pedido.ofs[0].autorId)
+                        : "Sin asignar"
                       : "Varios"}
                   </span>
                 </>

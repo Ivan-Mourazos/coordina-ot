@@ -2311,8 +2311,6 @@ export function Board({
               onNavigate={irANotificacion}
               onDescartar={descartarAviso}
             />
-            {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
-                aplicación y ahí es donde se busca. */}
             {soloLectura && (
               <span
                 className="glass-chip rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-text-muted"
@@ -2321,6 +2319,8 @@ export function Board({
                 Solo lectura
               </span>
             )}
+            {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
+                aplicación y ahí es donde se busca. */}
             <Herramientas
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
@@ -2377,7 +2377,9 @@ export function Board({
           <button className="ml-auto text-xs underline" onClick={() => setPasarError(null)}>Cerrar</button>
         </div>
       )}
-      {avisoCierreAuto && (
+      {/* No en solo lectura: su «Reanudar» arranca el reloj, y el reloj no se
+          ve ahí para pararlo (Iván mirando como Dirección). */}
+      {!espectador && avisoCierreAuto && (
         <div
           role="status"
           className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2"

@@ -52,9 +52,9 @@ test("el resto del equipo NO supervisa", () => {
 });
 
 test("los supervisores puros nacen desactivados y no salen en ninguna lista", () => {
-  // Sus pantallas (fases 2 y 3) están aplazadas: si entraran hoy no tendrían
-  // nada que mirar. La fila existe para no tener que migrar el día que se abran.
-  // Esteban ya no sirve de ejemplo: la migración 11 lo activa como Dirección.
+  // Cris sigue sembrada y apagada hasta que alguien pida su cuenta: la fila
+  // existe para no tener que migrar el día que se abra. Carlos y Esteban ya no
+  // sirven de ejemplo: la migración 11 los activa como Dirección.
   expect(db.leerPersonas().map((p) => p.id)).not.toContain("cris");
   expect(db.leerPersona("cris")).toBeNull();
 });
