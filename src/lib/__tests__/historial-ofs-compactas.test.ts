@@ -65,10 +65,20 @@ test("con varias OF, las personas de cada una salen con su tiempo, de más a men
   expect(html).not.toContain("Planteo");
 });
 
-test("con una sola OF no repite las personas: ya están en la fila del pedido", () => {
-  const html = pinta([conGente]);
+test("en la LISTA, con una sola OF no repite las personas: ya están en la fila del pedido", () => {
+  const html = renderToStaticMarkup(
+    createElement(HistorialOFsCompactas, { ofs: [conGente], seccion: "ot", columnas: "grid" }),
+  );
   expect(html).toContain("0231922");
   expect(html).not.toContain("Adrián Quinteiro");
+});
+
+test("en la FICHA, cada OF dice quién trabajó aunque el pedido tenga una sola", () => {
+  // La ficha no tiene fila de pedido encima: si la OF no lo dice, no lo dice
+  // nadie (decisión de Iván, 09/10/2026).
+  const html = pinta([conGente]);
+  expect(html).toContain("0231922");
+  expect(html).toContain("Adrián Quinteiro");
 });
 
 test("con horas en RPS manda RPS: el reloj de la web no se suma ni se enseña aparte", () => {
