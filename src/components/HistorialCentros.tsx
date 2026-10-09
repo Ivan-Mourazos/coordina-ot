@@ -126,17 +126,22 @@ export function DetalleOF({
   // El papel de cada uno en ESTA OF, para ponerlo junto a su nombre en las
   // tareas. Manda lo registrado en CoordinaOT; si no hay, lo deducido de las
   // horas, que se pinta en gris (ver TareasDeOF).
-  const reparto = repartoDe(centros);
-  const deducido = centros.find((of) => of.rolDeducido)?.rolDeducido;
-  const rolDe = (nombre: string) => {
-    if (reparto.consta) {
-      if (reparto.autores.includes(nombre)) return { rol: "plantear" as const, deducido: false };
-      if (reparto.revisores.includes(nombre)) return { rol: "revisar" as const, deducido: false };
+  const rolDe = (entrada: HistorialOF) => {
+    // POR CENTRO: cada uno trae su propio papel (en Diseño planteó Carrón; en
+    // OT, Iván y revisó Jaime). Con el del primer centro para todos, las
+    // tareas de los demás salían sin rótulo (AR.26.04906, 09/10/2026).
+    const reparto = repartoDe([entrada]);
+    const deducido = entrada.rolDeducido;
+    return (nombre: string) => {
+      if (reparto.consta) {
+        if (reparto.autores.includes(nombre)) return { rol: "plantear" as const, deducido: false };
+        if (reparto.revisores.includes(nombre)) return { rol: "revisar" as const, deducido: false };
+        return undefined;
+      }
+      if (deducido?.quienPlanteo.includes(nombre)) return { rol: "plantear" as const, deducido: true };
+      if (deducido?.quienReviso.includes(nombre)) return { rol: "revisar" as const, deducido: true };
       return undefined;
-    }
-    if (deducido?.quienPlanteo.includes(nombre)) return { rol: "plantear" as const, deducido: true };
-    if (deducido?.quienReviso.includes(nombre)) return { rol: "revisar" as const, deducido: true };
-    return undefined;
+    };
   };
   // El material es de la OF, no del centro: vale el primero que lo traiga.
   const conMaterial = centros.find((of) => of.materiales?.length || of.notasProduccion) ?? centros[0];
@@ -151,7 +156,7 @@ export function DetalleOF({
             </p>
           )}
           <div className="ml-1 border-l border-border pl-2.5 text-[11px]">
-            <TareasDeOF of={of} conColor rolDe={rolDe} />
+            <TareasDeOF of={of} conColor rolDe={rolDe(of)} />
           </div>
         </div>
       ))}

@@ -250,3 +250,26 @@ describe("el revisor de menos de un minuto, dentro de su tarea", () => {
     expect(veces(html, ">Revisor<")).toBe(1);
   });
 });
+
+describe("cada centro con su propio papel", () => {
+  it("una OF con Diseño y OT rotula las tareas de los dos centros", () => {
+    // AR.26.04906: se tomaba el papel del primer centro (Diseño, Carrón) para
+    // todos y las tareas de OT salían sin Autor ni Revisor.
+    const diseno = conTareas("0232827", "diseno", [
+      { codigo: "9", descripcion: "DISEÑAR ROTULACION", personas: [{ nombre: "José Luis Carrón", min: 10 }] },
+    ]);
+    const ot = conTareas("0232827", "ot", [
+      {
+        codigo: "5",
+        descripcion: "PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE",
+        personas: [{ nombre: "Iván Sánchez", min: 24 }, { nombre: "Jaime Vázquez", min: 3 }],
+      },
+    ]);
+    const html = pinta([
+      { ...diseno, rolDeducido: { quienPlanteo: ["José Luis Carrón"], quienReviso: [] } },
+      { ...ot, rolDeducido: { quienPlanteo: ["Iván Sánchez"], quienReviso: ["Jaime Vázquez"] } },
+    ]);
+    expect(veces(html, ">Autor<")).toBe(2); // Carrón en Diseño, Iván en OT
+    expect(veces(html, ">Revisor<")).toBe(1); // Jaime en OT
+  });
+});
