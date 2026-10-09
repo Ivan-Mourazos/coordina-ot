@@ -5,6 +5,7 @@ import { familiaMeta } from "@/lib/familia";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 import { PanelFlotante, BotonCerrarPanel } from "./PanelFlotante";
 import { EditorCausas } from "./EditorCausas";
+import { useSoloLectura } from "./SoloLectura";
 
 /** La guía de revisión: lo que se mira en cada trabajo, y de dónde salen las
  *  causas de devolución.
@@ -21,6 +22,7 @@ import { EditorCausas } from "./EditorCausas";
 export function PanelGuiaRevision({ onCerrar }: { onCerrar: () => void }) {
   const [causas, setCausas] = useState<CausaDevolucion[] | null>(null);
   const [editando, setEditando] = useState(false);
+  const soloLectura = useSoloLectura();
 
   useEffect(() => {
     let vivo = true;
@@ -45,12 +47,15 @@ export function PanelGuiaRevision({ onCerrar }: { onCerrar: () => void }) {
     <PanelFlotante titulo="Qué mirar al revisar" onCerrar={onCerrar}>
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-bold text-text">Qué mirar al revisar</h3>
-        <button
-          onClick={() => setEditando((v) => !v)}
-          className="rounded-lg px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-        >
-          {editando ? "Ver la guía" : "Cambiar la lista"}
-        </button>
+        {/* Dirección consulta la guía, no la cambia: el editor escribe. */}
+        {!soloLectura && (
+          <button
+            onClick={() => setEditando((v) => !v)}
+            className="rounded-lg px-2 py-0.5 text-[10px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+          >
+            {editando ? "Ver la guía" : "Cambiar la lista"}
+          </button>
+        )}
         <BotonCerrarPanel className="ml-auto" />
       </div>
 
