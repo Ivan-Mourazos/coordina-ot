@@ -666,7 +666,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
       WITH Tareas AS (
         SELECT mo.IDManufacturingOrder, mo.CodManufacturingOrder AS orden,
                mo.Description AS descripcion, t.IDMOTask, t.CodMOTask AS tarea,
-               t.Description AS descripcionTarea,
+               t.Description AS descripcionTarea, t.[Order] AS ordenRuta,
                CASE
                  WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
                    WHERE rm.IDMOTask = t.IDMOTask
@@ -684,14 +684,14 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
           WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido
         )
       )
-      SELECT t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea,
+      SELECT t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, t.ordenRuta,
              e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos
       FROM Tareas t
       LEFT JOIN dbo.CPRImputationMO i
         ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = t.IDManufacturingOrder
         AND i.ResourceType = 1
       LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
-      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, e.CodEmployee, e.Description
+      GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, t.ordenRuta, e.CodEmployee, e.Description
     `),
     leerMaterialesPedido(pedido),
   ]);

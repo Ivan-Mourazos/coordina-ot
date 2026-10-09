@@ -147,6 +147,9 @@ export interface HistorialOF {
     descripcion: string;
     tiempoImputadoMin: number;
     personas: RepartoRol[];
+    /** Puesto en la ruta de la OF (`CPRMOTask.Order`), el del papel de la OF
+     *  de Producción. Sirve para ordenar; no se enseña. */
+    ordenRuta?: number;
   }>;
   /** El minutaje y los roles de esta entrada pertenecen solo a este centro. */
   centro?: import("./historial-centros").CentroHistorialId;

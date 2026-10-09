@@ -81,6 +81,9 @@ export interface FilaTiempoCentro {
   centro: CentroHistorialId;
   tarea: string | null;
   descripcionTarea?: string | null;
+  /** Orden de la tarea en la ruta de la OF (`CPRMOTask.Order`): el del papel
+   *  de la OF que reparte Producción. No es el número de la tarea. */
+  ordenRuta?: number | null;
   empleado: string | null;
   nombreEmpleado?: string | null;
   minutos: number | null;
@@ -115,6 +118,7 @@ export function agruparTiemposPorCentro(
     if (tareaCodigo && !tarea) {
       tarea = { codigo: tareaCodigo, descripcion: fila.descripcionTarea?.trim() || "Tarea sin descripción", tiempoImputadoMin: 0, personas: [] };
       of.tareas!.push(tarea);
+      if (fila.ordenRuta != null) tarea.ordenRuta = fila.ordenRuta;
     }
     if (tarea) tarea.tiempoImputadoMin += fila.minutos ?? 0;
     if (fila.empleado?.trim()) {
@@ -133,5 +137,17 @@ export function agruparTiemposPorCentro(
     }
     ordenes.set(clave, of);
   }
-  return [...ordenes.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  // Las tareas, en el orden del papel de la OF (la ruta de RPS). Con el mismo
+  // orden —pasa en unas 36 OF al año— o sin él, por el número de la tarea.
+  // Sin esto salían como las agrupaba SQL Server, comparando los códigos como
+  // texto: «10» antes que «9».
+  const porNumero = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
+  for (const of of ordenes.values()) {
+    of.tareas!.sort(
+      (a, b) =>
+        (a.ordenRuta ?? Number.POSITIVE_INFINITY) - (b.ordenRuta ?? Number.POSITIVE_INFINITY) ||
+        porNumero(a.codigo, b.codigo),
+    );
+  }
+  return [...ordenes.values()].sort((a, b) => porNumero(a.codigo, b.codigo));
 }

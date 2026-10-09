@@ -67,3 +67,35 @@ describe("tiempos del Historial por centro", () => {
     expect(claveTareaHistorial("0230001", "01")).not.toBe(claveTareaHistorial("0230001", "02"));
   });
 });
+
+describe("orden de las tareas", () => {
+  // El orden del papel de la OF que reparte Producción es el de la ruta en RPS
+  // (`CPRMOTask.Order`), NO el número de la tarea: en la 0232827 la «10 CORTAR
+  // ROTULACION» va antes que la «9 DISEÑAR ROTULACION». Sin orden explícito
+  // salían como las agrupaba SQL Server, comparando los códigos como texto.
+  const filaRuta = (tarea: string, ordenRuta: number | null, minutos = 1) => ({
+    orden: "0232827",
+    descripcion: "LONA PARA PUERTA PLEGABLE",
+    centro: "taller" as const,
+    tarea,
+    descripcionTarea: `T${tarea}`,
+    ordenRuta,
+    empleado: null,
+    minutos,
+  });
+
+  test("van en el orden de la ruta, no por su número", () => {
+    const [of] = agruparTiemposPorCentro([filaRuta("9", 36), filaRuta("41", 76), filaRuta("10", 35), filaRuta("15", 41)], (c) => c);
+    expect(of.tareas!.map((t) => t.codigo)).toEqual(["10", "9", "15", "41"]);
+  });
+
+  test("con el mismo orden de ruta, desempata el número de la tarea", () => {
+    const [of] = agruparTiemposPorCentro([filaRuta("20", 50), filaRuta("02", 50), filaRuta("5", 1)], (c) => c);
+    expect(of.tareas!.map((t) => t.codigo)).toEqual(["5", "02", "20"]);
+  });
+
+  test("sin orden de ruta, al final y por número", () => {
+    const [of] = agruparTiemposPorCentro([filaRuta("8", null), filaRuta("7", null), filaRuta("5", 1)], (c) => c);
+    expect(of.tareas!.map((t) => t.codigo)).toEqual(["5", "7", "8"]);
+  });
+});

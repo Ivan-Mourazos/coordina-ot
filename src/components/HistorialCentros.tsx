@@ -119,8 +119,14 @@ export function DetalleOF({
   gastado?: Record<string, MaterialGastadoOF[]> | null;
   onReintentarGastado?: () => void;
 }) {
-  const conTiempo = centros.filter((of) => of.tiempoImputadoMin > 0);
-  const sinTiempo = centros.filter((of) => of.tiempoImputadoMin <= 0 && of.tareas?.length);
+  // Los centros, en el orden en que la ruta pasa por ellos: el de su primera
+  // tarea. Así se lee como el papel de la OF (plantear, diseño, taller…) y no
+  // por bloques en un orden cualquiera.
+  const inicio = (of: HistorialOF) =>
+    Math.min(...(of.tareas ?? []).map((t) => t.ordenRuta ?? Number.POSITIVE_INFINITY), Number.POSITIVE_INFINITY);
+  const enRuta = [...centros].sort((a, b) => inicio(a) - inicio(b) || 0);
+  const conTiempo = enRuta.filter((of) => of.tiempoImputadoMin > 0);
+  const sinTiempo = enRuta.filter((of) => of.tiempoImputadoMin <= 0 && of.tareas?.length);
   const nombre = (of: HistorialOF) => NOMBRE_CENTRO[of.centro ?? "ot"];
   const variosCentros = conTiempo.length > 1;
   // El papel de cada uno en ESTA OF, para ponerlo junto a su nombre en las
