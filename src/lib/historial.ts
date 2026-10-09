@@ -338,7 +338,7 @@ export function resumenMaterial(
   const n = materiales.length;
   const texto =
     `${n} ${n === 1 ? "material" : "materiales"}` +
-    (apartados.length ? ` · ${apartados.length} ${apartados.length === 1 ? "apartado" : "apartados"}` : "");
+    (apartados.length ? ` · ${apartados.length} ${apartados.length === 1 ? "reservado" : "reservados"}` : "");
   const titulo = materiales.map((m) => (m.apartado ? `${m.texto} (reservado)` : m.texto)).join("\n");
   return { texto, titulo };
 }
