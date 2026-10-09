@@ -13,6 +13,7 @@ import { familiaMeta } from "@/lib/familia";
 import { avisaDeOFNueva } from "@/lib/fases-tablero";
 import { tintaSobre } from "@/lib/tinta";
 import { IconoCaja, IconoEtiqueta, IconoMaterial } from "./Iconos";
+import { useSoloLectura } from "./SoloLectura";
 
 /** El color de la prioridad CUANDO ES TEXTO. No sale de `PRIORIDAD.color`:
  *  ese ámbar es para fondos y como letra de 9 px da 2,5:1 sobre blanco, que no
@@ -312,7 +313,7 @@ export const PedidoCard = memo(function PedidoCard({
   onAsignar?: (facet: Facet, operarioId: string) => void;
   miId?: string | null;
 }) {
-
+  const soloLectura = useSoloLectura();
   const [peek, setPeek] = useState<DOMRect | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -351,7 +352,7 @@ export const PedidoCard = memo(function PedidoCard({
         mostrarPrioridad={mostrarPrioridad}
         mostrarFecha={mostrarFecha}
         accion={
-          onAsignar && (
+          !soloLectura && onAsignar && (
             <MenuAsignar
               operarios={operarios}
               miId={miId}

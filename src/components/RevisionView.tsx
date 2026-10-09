@@ -20,6 +20,7 @@ import { FilaDesplegable } from "./FilaDesplegable";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaOF } from "./FilaOF";
 import { tintaSobre } from "@/lib/tinta";
+import { useSoloLectura } from "./SoloLectura";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
 // Las cuatro paradas de una OF desde que su autor la suelta hasta que sale a
@@ -351,6 +352,7 @@ function FilaRevision({
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
+  const soloLectura = useSoloLectura();
   const [abierta, setAbierta] = useState(false);
   const { pedido, ofs } = facet;
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
@@ -375,6 +377,7 @@ function FilaRevision({
   // (ver `soloEl` en lib/acciones.ts), no esta vista: al autor no se le ofrecen
   // las decisiones del revisor ni al revés, y aquí solo se pinta lo que salga.
   const puedo = (accion: AccionOF) =>
+    !soloLectura &&
     ofs.length > 0 && ofs.every((o) => accionesDisponibles(o, miId).some((a) => a.id === accion));
 
   // Confirmación de "Aprobar" desde la máquina de estados: mismo texto y tono
@@ -524,7 +527,7 @@ function FilaRevision({
           <div className="flex flex-wrap items-center gap-2">
             {estado === "por_revisar" && (
               <>
-                {selectorRevisor}
+                {!soloLectura && selectorRevisor}
                 {puedo("empezar_revision") && (
                   <button
                     onClick={() => accionTodas("empezar_revision")}
@@ -538,7 +541,7 @@ function FilaRevision({
             )}
             {estado === "en_revision" && (
               <>
-                {selectorRevisor}
+                {!soloLectura && selectorRevisor}
                 {puedo("devolver") && (
                   <GuiaRevision
                     puntos={puntos}

@@ -6,6 +6,7 @@ import { NOTA_MAX, fmtCuandoNota, validarTexto, type NotaPedido } from "@/lib/no
 import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { useSoloLectura } from "./SoloLectura";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
 // El post-it que pidió Ángel: lo que sabe OT y no está en ningún campo de RPS
@@ -23,7 +24,7 @@ export function NotasPedido({
   pedido,
   miId,
   operarios,
-  soloLectura = false,
+  soloLectura: soloLecturaProp = false,
 }: {
   /** CÓDIGO del pedido ("AR.26.03914"), no su id interno: es lo que sobrevive
    *  al paso al Historial, donde el id cambia. */
@@ -33,6 +34,9 @@ export function NotasPedido({
   /** El Historial no escribe: el pedido ya está cerrado para OT. */
   soloLectura?: boolean;
 }) {
+  // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo.
+  const soloLecturaCuenta = useSoloLectura();
+  const soloLectura = soloLecturaProp || soloLecturaCuenta;
   const [notas, setNotas] = useState<NotaPedido[] | null>(null);
   // El error lleva si se arregla recargando. Un fallo de CARGA sí (de ahí el
   // botón "Reintentar"); uno de GUARDADO no, que recargar tiraría lo escrito.

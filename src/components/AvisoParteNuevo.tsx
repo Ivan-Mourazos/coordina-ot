@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSoloLectura } from "./SoloLectura";
 
 // ─── "Han vuelto a escanear el parte" ────────────────────────────────────────
 // Sale cuando el PDF del pedido cambió en el share y nadie lo ha dado por visto
@@ -23,6 +24,7 @@ export function AvisoParteNuevo({
   /** CÓDIGO del pedido. */
   pedido: string;
 }) {
+  const soloLectura = useSoloLectura();
   const [apagando, setApagando] = useState(false);
   // Optimista: al pulsar desaparece en el acto. El tablero tarda hasta 30 s en
   // dar la siguiente vuelta y dejar el aviso puesto todo ese rato parecería que
@@ -64,17 +66,19 @@ export function AvisoParteNuevo({
         Puede traer cambios. Míralo antes de seguir; la fecha exacta queda apuntada
         en las notas.
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void marcar()}
-          disabled={apagando}
-          className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-        >
-          {apagando ? "Guardando…" : "Ya lo he visto"}
-        </button>
-        <span className="text-[10px] text-text-muted">Quita la marca del pedido a todo el equipo</span>
-      </div>
+      {!soloLectura && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void marcar()}
+            disabled={apagando}
+            className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {apagando ? "Guardando…" : "Ya lo he visto"}
+          </button>
+          <span className="text-[10px] text-text-muted">Quita la marca del pedido a todo el equipo</span>
+        </div>
+      )}
       {error && (
         <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">
           No se pudo guardar. Comprueba la conexión.

@@ -7,6 +7,7 @@ import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { ROL } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
 import { FamiliaTag } from "./FamiliaTag";
+import { useSoloLectura } from "./SoloLectura";
 
 /** Una línea por pedido que me toca REVISAR, en la zona personal del Panel.
  *
@@ -43,6 +44,7 @@ export function LineaRevisar({
   /** OFs de MI intervalo abierto; ver el comentario en Board. */
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
+  const soloLectura = useSoloLectura();
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
   const fichandoYo = ofs.filter((o) => ofIdsFichandoYo?.has(o.id));
@@ -119,7 +121,7 @@ export function LineaRevisar({
           fichandoYo.length > 0 ? "bg-inherit" : "group-hover:bg-inherit"
         }`}
       >
-        {fichandoYo.length > 0 ? (
+        {soloLectura ? null : fichandoYo.length > 0 ? (
           <button
             onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
             title="Para el reloj y deja la revisión como está: sigue siendo tuya"

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Operario } from "@/lib/types";
 import { fmtDiaMesAno } from "@/lib/fechas";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { useSoloLectura } from "./SoloLectura";
 
 // ─── "Volver a plantear el pedido" ───────────────────────────────────────────
 // Sección 3 de la spec del 15/09/2026. Vuelve el pedido ENTERO; qué OF se
@@ -41,6 +42,7 @@ export function RecuperarPedido({
    *  no hay nada que esperar aquí). */
   onRecuperado: () => void;
 }) {
+  const soloLectura = useSoloLectura();
   const [abierto, setAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -102,6 +104,8 @@ export function RecuperarPedido({
 
   const nombreDe = (id: string | null) => (id ? (operarios.find((o) => o.id === id)?.nombre ?? id) : null);
 
+  // La cuenta de solo lectura no recupera pedidos: no se pinta el botón.
+  if (soloLectura) return null;
   return (
     <div className="mb-3">
       <button

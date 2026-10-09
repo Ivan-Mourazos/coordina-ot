@@ -18,6 +18,7 @@ import { IconoCandado, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
 import { FamiliaTag } from "./FamiliaTag";
 import { hoyISO } from "@/lib/types";
+import { useSoloLectura } from "./SoloLectura";
 
 /** Una línea por pedido: código, cliente, descripción y nº de OF. El detalle
  *  largo sale al abrir el pedido; aquí manda que quepan muchos sin crecer.
@@ -71,6 +72,7 @@ export function PedidoLinea({
    *  antes: se lo quita de las manos a alguien. */
   onCoger?: (f: Facet) => void;
 }) {
+  const soloLectura = useSoloLectura();
   const { pedido, ofs } = facet;
   const urgente = pedido.prioridad === 3;
   // OJO: `fichandoRol` significa "alguien está fichando esta OF", no "la estoy
@@ -380,7 +382,7 @@ export function PedidoLinea({
         // en reposo, que es cuando se lee, y el botón solo aparece al pasar el
         // ratón — sobre el hueco que deja la fecha, que se esconde sola.
         <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center rounded-r-lg bg-inherit pl-4 [&>*]:pointer-events-auto">
-          {onCoger ? (
+          {onCoger && !soloLectura ? (
             <button
               type="button"
               onClick={(e) => {
@@ -441,7 +443,7 @@ export function PedidoLinea({
             que más se pulsa y esconderlo hasta pasar el ratón obligaba a
             buscarlo. Los demás se revelan al pasar por encima, como el resto de
             acciones de la fila: en reposo la fila es para leerla. */}
-        {fichandoYo.length > 0 ? (
+        {soloLectura ? null : fichandoYo.length > 0 ? (
           <button
             onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
             title={
@@ -476,7 +478,7 @@ export function PedidoLinea({
         {/* Igual que el del reloj: se revela al pasar por encima. Estaba fijo
             por ser "la acción esperada de la fase", pero eso hacía que la fila
             en reposo se leyera distinta según la columna en la que cayera. */}
-        {fase === "listoParaPasar" && listoParaPasar && (
+        {!soloLectura && fase === "listoParaPasar" && listoParaPasar && (
           <button
             onClick={() => completarPedido(pedido.id)}
             title="Pasar el pedido a Producción"

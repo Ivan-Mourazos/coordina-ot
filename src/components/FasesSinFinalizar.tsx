@@ -10,6 +10,7 @@ import {
 } from "@/lib/fase-pendiente";
 import type { Seccion } from "@/lib/secciones";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { useSoloLectura } from "./SoloLectura";
 
 // ─── "Esta OF se quedó sin finalizar" ────────────────────────────────────────
 // Se pasaba el pedido a Producción y la fase de OT se quedaba en pausa: nadie
@@ -45,6 +46,7 @@ export function FasesSinFinalizar({
   miId: string | null;
   seccion: Seccion;
 }) {
+  const soloLectura = useSoloLectura();
   const [fases, setFases] = useState<FaseConBoletin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cerrando, setCerrando] = useState<string | null>(null);
@@ -172,15 +174,17 @@ export function FasesSinFinalizar({
                 <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300">
                   {NOMBRE_SITUACION[situacionDe(f.estado)]}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setConfirmar(f)}
-                  disabled={cerrando !== null || !miId}
-                  title={miId ? undefined : "Elige quién eres antes de finalizar"}
-                  className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-                >
-                  {cerrando === f.idBoletin ? "Finalizando…" : "Finalizar operación"}
-                </button>
+                {!soloLectura && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmar(f)}
+                    disabled={cerrando !== null || !miId}
+                    title={miId ? undefined : "Elige quién eres antes de finalizar"}
+                    className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {cerrando === f.idBoletin ? "Finalizando…" : "Finalizar operación"}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
