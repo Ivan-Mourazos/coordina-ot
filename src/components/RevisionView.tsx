@@ -8,7 +8,7 @@ import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero"
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
-import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
+import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
@@ -110,13 +110,15 @@ export function RevisionView({
   const soloLecturaVista = useSoloLectura();
   const mias = !soloLecturaVista && alcance === "mias";
 
-  // Las causas, una sola vez para toda la pantalla: de ellas salen la guía de
-  // cada fila (su cara en positivo) y las píldoras del cuadro de devolver.
-  // Pedirlas por fila serían decenas de consultas para la misma lista.
+  // Causas y pasos, una sola vez para toda la pantalla: de los pasos sale la
+  // guía de cada fila y de las causas las píldoras del cuadro de devolver.
+  // Pedirlos por fila serían decenas de consultas para la misma lista.
   const [causas, setCausas] = useState<CausaDevolucion[]>([]);
+  const [pasos, setPasos] = useState<PasoRevision[]>([]);
   useEffect(() => {
     let vivo = true;
     leerCausas().then((cs) => vivo && setCausas(cs));
+    leerPasos().then((ps) => vivo && setPasos(ps));
     return () => {
       vivo = false;
     };
@@ -202,6 +204,7 @@ export function RevisionView({
             operarios={operarios}
             miId={miId}
             causas={causas}
+            pasos={pasos}
             hoy={hoy}
             onOpen={onOpen}
             onCambiarRevisor={onCambiarRevisor}
@@ -225,6 +228,7 @@ function SeccionRevision({
   operarios,
   miId,
   causas,
+  pasos,
   hoy,
   onOpen,
   onCambiarRevisor,
@@ -238,6 +242,7 @@ function SeccionRevision({
   operarios: Operario[];
   miId: string;
   causas: CausaDevolucion[];
+  pasos: PasoRevision[];
   hoy: string;
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
@@ -274,6 +279,7 @@ function SeccionRevision({
               operarios={operarios}
               miId={miId}
               causas={causas}
+              pasos={pasos}
               hoy={hoy}
               onOpen={() => onOpen(f.pedido)}
               onCambiarRevisor={onCambiarRevisor}
@@ -336,6 +342,7 @@ function FilaRevision({
   operarios,
   miId,
   causas,
+  pasos,
   hoy,
   onOpen,
   onCambiarRevisor,
@@ -345,10 +352,11 @@ function FilaRevision({
   estado: EstadoOF;
   operarios: Operario[];
   miId: string; // Viene de RevisionView, ya identificado — ver su comentario.
-  /** Todas las que se ofrecen hoy. De aquí salen la guía de esta fila (su
-   *  cara en positivo) y las píldoras del cuadro de devolver, unas y otras
-   *  acotadas a las familias del pedido. */
+  /** Las que se ofrecen hoy: las píldoras del cuadro de devolver, y el nombre
+   *  de la causa de cada paso. */
   causas: CausaDevolucion[];
+  /** De aquí sale la guía de esta fila, acotada a las familias del pedido. */
+  pasos: PasoRevision[];
   /** Para el aviso de "material pendiente" de `FilaOF`. */
   hoy: string;
   onOpen: () => void;
@@ -399,7 +407,7 @@ function FilaRevision({
   // Un pedido puede traer varias (un toldo y su lona) y se repasan las de
   // todas, que es lo que hace el revisor.
   const familias = [...new Set(ofs.map((o) => o.familia).filter(Boolean) as string[])];
-  const puntos = guiaDeFamilias(causas, familias);
+  const puntos = guiaDeFamilias(pasos, causas, familias);
   const fallos = causasDeLoQueFalla(puntos, marcas);
   // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR. La guía deja de ser un
   // recordatorio y pasa a ser el paso previo: dar por buena una OF sin haberla

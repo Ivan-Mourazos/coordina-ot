@@ -16,7 +16,7 @@ import { exigir, loginActivo } from "@/lib/server/sesion";
 //
 // AQUÍ NO SE USA identidad(): el autor de una causa es OPCIONAL en este
 // dominio —el editor de la guía la crea sin que haya nadie identificado
-// delante (ver EditorCausas.tsx, que manda `operarioId: null` a propósito) y
+// delante (ver PanelGuiaRevision.tsx, que manda `operarioId: null` a propósito) y
 // PATCH no manda operarioId en absoluto—. identidad() exige un operarioId
 // válido y apagado contestaría 400, dejando "Cambiar la lista" roto el día
 // del despliegue. Lo que sí se cierra con el login encendido es el ACCESO:

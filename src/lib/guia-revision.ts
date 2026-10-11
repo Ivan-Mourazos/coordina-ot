@@ -1,80 +1,101 @@
 import { claveDeCausa } from "./devolucion";
 
 // ─── Qué mirar al revisar ────────────────────────────────────────────────────
-// Los puntos que se repasan antes de dar un trabajo por bueno. Los primeros los
+// Los pasos que se repasan antes de dar un trabajo por bueno. Los primeros los
 // dictó Ángel el 02/09/2026 para las lonas; desde entonces se editan desde la
-// propia web (menú → Causas y guía de revisión), sin pasar por un despliegue.
+// propia web (menú → Pasos y causas de revisión), sin pasar por un despliegue.
 //
-// NO HAY LISTA EN EL CÓDIGO, y es el punto: la guía son las CAUSAS DE
-// DEVOLUCIÓN vistas del derecho. Cada causa guarda su cara en positivo
-// (`mira`), así que "Medidas de la lona hecha" y "Medidas de la lona mal" son
-// la misma fila. En dos sitios se descuadraban: alguien afinaba la causa, la
-// guía seguía diciendo lo de antes, y lo que marcabas al revisar dejaba de ser
-// lo que se apuntaba al devolver.
+// NO HAY LISTA EN EL CÓDIGO: la mantienen los técnicos. Desde el 11/10/2026 los
+// pasos van en su propia tabla y las causas se quedan en unas pocas globales.
+// Antes cada causa era a la vez un paso (su cara en positivo) y eso obligaba a
+// tener tantas causas como cosas que mirar: la lista creció a trece, nadie las
+// marcaba y el 77 % de las devoluciones se iba sin causa. Ahora muchos pasos
+// apuntan a una misma causa — "la salida del toldo" y "el frente" fallan los
+// dos como Medidas —, y lo que se cuenta sigue siendo pequeño y legible.
 //
-// POR FAMILIA. Una causa sin familia vale para todo; con familia, solo sale en
-// los trabajos de esa. Así el que revisa una funda no tiene delante ocho puntos
-// sobre aumentos y simetría de lona.
+// COMUNES Y POR FAMILIA. Un paso sin familia vale para todos los pedidos; con
+// familia, solo sale en los trabajos de esa. Así el que revisa una funda no
+// tiene delante ocho pasos sobre aumentos y simetría de lona.
 
-/** Lo que hace falta de una causa para pintar la guía. Es un subconjunto de
- *  `CausaDevolucion` a propósito: así esto no arrastra el tipo del servidor ni
- *  el del cliente, y sirve para los dos. */
+/** Tope del texto de un paso: cabe en una línea de la guía. */
+export const PASO_MAX = 120;
+
+/** Un paso de la guía tal como se pinta. Subconjunto a propósito: no arrastra
+ *  el tipo del servidor ni el del cliente, y sirve para los dos. */
 export interface PuntoGuia {
   id: number;
   /** Lo que se comprueba, en positivo. */
   mira: string;
-  /** Lo que se marca si ese punto falla. */
+  /** La causa que se marca al devolver si este paso falla. */
+  causaId: number;
+  /** El nombre de esa causa, para enseñarlo cuando el paso falla. */
   etiqueta: string;
   familia: string | null;
+}
+
+interface PasoParaGuia {
+  id: number;
+  texto: string;
+  familia: string | null;
+  causaId: number;
+  retirado?: boolean;
 }
 
 interface CausaParaGuia {
   id: number;
   etiqueta: string;
-  familia: string | null;
-  mira: string | null;
-  retirada?: boolean;
 }
 
-/** Los puntos que hay que repasar en un trabajo de estas familias.
+/** Los pasos que hay que repasar en un trabajo de estas familias.
  *
  *  Una OF tiene una familia; un pedido puede traer varias (un toldo y su lona),
- *  y entonces se repasan las de todas — el revisor está mirando las dos cosas.
+ *  y entonces se repasan los de todas — el revisor está mirando las dos cosas.
  *
- *  Las genéricas van primero: son las que valen para cualquier trabajo, y
- *  empezar por ellas es el orden en que se revisa. Las retiradas no entran: se
- *  retiran precisamente para dejar de pedirlas. */
+ *  Los comunes van primero: valen para cualquier trabajo, y empezar por ellos
+ *  es el orden en que se revisa. Los retirados no entran: se retiran
+ *  precisamente para dejar de pedirlos. Un paso cuya causa no se encuentra
+ *  sale igual, con la causa sin nombre: mejor revisarlo que perderlo. */
 export function guiaDeFamilias(
+  pasos: readonly PasoParaGuia[],
   causas: readonly CausaParaGuia[],
   familias: readonly string[],
 ): PuntoGuia[] {
   const suyas = new Set(familias.map((f) => f.toUpperCase()));
-  return causas
-    .filter((c) => !c.retirada && c.mira)
-    .filter((c) => c.familia === null || suyas.has(c.familia.toUpperCase()))
-    .map((c) => ({ id: c.id, mira: c.mira!, etiqueta: c.etiqueta, familia: c.familia }));
+  const nombre = new Map(causas.map((c) => [c.id, c.etiqueta]));
+  const vale = pasos.filter(
+    (p) => !p.retirado && (p.familia === null || suyas.has(p.familia.toUpperCase())),
+  );
+  return [...vale.filter((p) => p.familia === null), ...vale.filter((p) => p.familia !== null)].map(
+    (p) => ({
+      id: p.id,
+      mira: p.texto,
+      causaId: p.causaId,
+      etiqueta: nombre.get(p.causaId) ?? p.texto,
+      familia: p.familia,
+    }),
+  );
 }
 
-/** Cómo está cada punto para quien revisa.
+/** Cómo está cada paso para quien revisa.
  *
  *  Tres estados y no dos: "sin mirar" no es lo mismo que "bien". Con una
- *  casilla sola, un punto sin marcar diría a la vez "todavía no he llegado" y
+ *  casilla sola, un paso sin marcar diría a la vez "todavía no he llegado" y
  *  "lo he mirado y falla", que son las dos cosas que hay que distinguir para
  *  saber si queda trabajo. */
 export type EstadoPunto = "sin_mirar" | "bien" | "falla";
 
-/** Los ids de las causas que hay que llevar marcadas a la devolución.
+/** Las causas que hay que llevar marcadas a la devolución.
  *
- *  Ids y no etiquetas: ahora los puntos vienen de la misma tabla que las
- *  causas, así que ya se sabe cuál es cada una y no hay nada que resolver. */
+ *  Sin repetir: dos pasos que fallan por Medidas son UNA causa marcada, que
+ *  es lo que se cuenta luego. En el orden en que aparecen en la guía. */
 export function causasDeLoQueFalla(
   puntos: readonly PuntoGuia[],
   marcas: Readonly<Record<number, EstadoPunto>>,
 ): number[] {
-  return puntos.filter((p) => marcas[p.id] === "falla").map((p) => p.id);
+  return [...new Set(puntos.filter((p) => marcas[p.id] === "falla").map((p) => p.causaId))];
 }
 
-/** Cuántos puntos quedan por mirar. Es lo que decide si se puede aprobar con
+/** Cuántos pasos quedan por mirar. Es lo que decide si se puede aprobar con
  *  tranquilidad o si la revisión se quedó a medias. */
 export function sinMirar(
   puntos: readonly PuntoGuia[],

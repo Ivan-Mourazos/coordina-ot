@@ -105,11 +105,9 @@ export function GuiaRevision({
                   falla ? "bg-red-500/5" : ""
                 }`}
               >
-                {/* Al marcar el fallo, la frase se da la vuelta: deja de ser lo
-                    que compruebas ("Medidas de la lona hecha") y pasa a ser lo
-                    que se le va a decir al autor ("Medidas de la lona mal").
-                    Es la misma fila por las dos caras, y así se ve de dónde
-                    sale la causa que aparecerá marcada al devolver. */}
+                {/* Al marcar el fallo se ve al lado la causa que irá marcada
+                    al devolver: varios pasos comparten causa, y así no hay
+                    sorpresa cuando el cuadro de devolver sale ya relleno. */}
                 <span
                   className={`min-w-0 flex-1 ${
                     falla
@@ -119,7 +117,12 @@ export function GuiaRevision({
                         : "text-text"
                   }`}
                 >
-                  {falla ? p.etiqueta : p.mira}
+                  {p.mira}
+                  {falla && (
+                    <span className="ml-1.5 rounded bg-red-500/10 px-1 py-px text-[10px] font-semibold">
+                      {p.etiqueta}
+                    </span>
+                  )}
                 </span>
                 <Marca
                   activa={estado === "bien"}

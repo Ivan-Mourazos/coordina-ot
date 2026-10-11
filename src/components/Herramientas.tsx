@@ -325,10 +325,10 @@ export function Herramientas({
                 onVerGuiaRevision();
                 setOpen(false);
               }}
-              title="Los ocho puntos que se repasan antes de dar una lona por buena."
+              title="Qué se mira al revisar y por qué vuelve una OF: lo común y lo de cada familia."
               className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
             >
-              Qué mirar al revisar
+              Pasos y causas de revisión
             </button>
 
             {ULTIMA && (

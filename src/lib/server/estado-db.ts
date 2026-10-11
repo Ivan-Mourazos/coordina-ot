@@ -472,6 +472,12 @@ const MIGRACIONES: ReadonlyArray<{
   // suyo para poder mirar la web como ellos mientras se desarrolla — cuando
   // den el visto bueno, otra migración se lo quita. Cris no cambia.
   { version: 11, nombre: "cuentas_de_direccion", aplicar: cuentasDeDireccion },
+  // Los pasos de revisión pasan a su propia tabla —comunes o de una familia,
+  // cada uno apuntando a la causa que se marca si falla— y las causas quedan
+  // en seis globales. Decisión de Iván tras leer las 204 devoluciones
+  // (11/10/2026): la lista de antes no describía lo que se devuelve y solo se
+  // marcaba en el 23 % de las devoluciones.
+  { version: 12, nombre: "pasos_de_revision", aplicar: pasosDeRevision },
 ];
 
 /** Añade las columnas de huella a `pedido_scan`.
@@ -731,6 +737,117 @@ function cuentasDeDireccion(db: Database.Database): void {
       roles.push("direccion");
       guardar.run(roles.join(","), "ivan");
     }
+  }
+}
+
+/** Las seis causas globales, en el orden en que se piensan al revisar. `de`
+ *  son las claves de las causas de antes que se convierten en cada una: se
+ *  RENOMBRAN conservando el id, así las devoluciones viejas siguen contando. */
+const CAUSAS_GLOBALES: ReadonlyArray<{ etiqueta: string; de: readonly string[] }> = [
+  { etiqueta: "Medidas", de: ["error en medidas"] },
+  { etiqueta: "Documentación incompleta", de: ["notas"] },
+  { etiqueta: "Material y acabados", de: ["material equivocado"] },
+  { etiqueta: "Corte", de: [] },
+  { etiqueta: "Elementos y accesorios", de: [] },
+  { etiqueta: "Modelo y colocación", de: ["modelo equivocado"] },
+];
+
+/** A qué causa global va el paso de cada causa de antes que no es global. */
+const PASO_DE_CAUSA_A_GLOBAL: Readonly<Record<string, string>> = {
+  "error en cotas": "medidas",
+  "faltan anotacions": "documentacion incompleta",
+  "medidas de la lona mal": "medidas",
+  "medidas de los aumentos mal": "medidas",
+  "tipo de lona equivocado": "material y acabados",
+  "faltan anotaciones de material": "documentacion incompleta",
+  "faltan elementos": "elementos y accesorios",
+  "faltan piezas en el corte": "corte",
+  "medidas de corte no corresponden": "corte",
+  "falta la simetria": "corte",
+};
+
+/** Las que se retiran: lo suyo ya lo recoge una global, y lo que tenían de
+ *  paso sigue vivo en la tabla de pasos. En producción las de lona ya estaban
+ *  retiradas; esto es para que una base nueva quede igual. */
+const CAUSAS_QUE_SE_RETIRAN = Object.keys(PASO_DE_CAUSA_A_GLOBAL);
+
+/** Separa pasos y causas, y deja las causas en las seis globales.
+ *
+ *  Se puede repetir sin estropear nada: las causas se buscan por clave, y los
+ *  pasos solo se crean (y las marcas solo se reapuntan) si la tabla de pasos
+ *  está vacía. Los pasos de antes se leen ANTES de tocar las causas, porque
+ *  «Modelo equivocado» pasa de TOLDO a común y su paso tiene que seguir siendo
+ *  de toldo. */
+function pasosDeRevision(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS paso_revision (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      texto      TEXT NOT NULL,
+      -- NULL = paso común a todos los pedidos.
+      familia    TEXT,
+      -- La causa que se marca al devolver si este paso falla.
+      causa_id   INTEGER NOT NULL,
+      orden      INTEGER NOT NULL DEFAULT 0,
+      retirado   INTEGER NOT NULL DEFAULT 0,
+      creado_at  TEXT NOT NULL,
+      creado_por TEXT
+    );
+  `);
+  type Vieja = { id: number; clave: string; familia: string | null; mira: string | null; retirada: number; orden: number };
+  const viejas = db
+    .prepare("SELECT id, clave, familia, mira, retirada, orden FROM causa_devolucion WHERE mira IS NOT NULL AND TRIM(mira) <> '' ORDER BY CASE WHEN familia IS NULL THEN 0 ELSE 1 END, familia, orden, id")
+    .all() as Vieja[];
+
+  const porClave = db.prepare("SELECT id FROM causa_devolucion WHERE clave = ?");
+  const ahora = new Date().toISOString();
+  const idDe: Record<string, number> = {};
+  CAUSAS_GLOBALES.forEach((g, i) => {
+    const clave = claveDeCausa(g.etiqueta);
+    let fila = porClave.get(clave) as { id: number } | undefined;
+    if (!fila) {
+      for (const vieja of g.de) {
+        const v = porClave.get(vieja) as { id: number } | undefined;
+        if (v) {
+          db.prepare("UPDATE causa_devolucion SET etiqueta = ?, clave = ? WHERE id = ?").run(g.etiqueta, clave, v.id);
+          fila = v;
+          break;
+        }
+      }
+    }
+    if (!fila) {
+      const r = db
+        .prepare("INSERT INTO causa_devolucion (etiqueta, clave, creada_at, familia, orden) VALUES (?, ?, ?, NULL, ?)")
+        .run(g.etiqueta, clave, ahora, i + 1);
+      fila = { id: Number(r.lastInsertRowid) };
+    }
+    db.prepare("UPDATE causa_devolucion SET familia = NULL, retirada = 0, orden = ? WHERE id = ?").run(i + 1, fila.id);
+    idDe[clave] = fila.id;
+  });
+  for (const clave of CAUSAS_QUE_SE_RETIRAN) db.prepare("UPDATE causa_devolucion SET retirada = 1 WHERE clave = ?").run(clave);
+
+  const yaHayPasos = (db.prepare("SELECT COUNT(*) AS n FROM paso_revision").get() as { n: number }).n > 0;
+  if (yaHayPasos) return;
+  const globales = new Set(Object.values(idDe));
+  const insPaso = db.prepare(
+    "INSERT INTO paso_revision (texto, familia, causa_id, orden, retirado, creado_at) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  const pasoDeCausa = new Map<number, number>();
+  for (const v of viejas) {
+    const causaId = globales.has(v.id) ? v.id : (idDe[PASO_DE_CAUSA_A_GLOBAL[v.clave] ?? ""] ?? idDe["medidas"]);
+    const r = insPaso.run(v.mira!.trim(), v.familia, causaId, v.orden, v.retirada, ahora);
+    pasoDeCausa.set(v.id, Number(r.lastInsertRowid));
+  }
+  // Las marcas en curso apuntaban al id de la causa; ahora, al del paso. Se
+  // reescribe la tabla entera: reapuntar fila a fila podría chocar con un id
+  // nuevo que coincida con uno viejo todavía sin reapuntar.
+  const marcas = db.prepare("SELECT of_id, punto_id, estado, operario_id, at FROM marca_revision").all() as Array<{
+    of_id: string; punto_id: number; estado: string; operario_id: string | null; at: string;
+  }>;
+  db.prepare("DELETE FROM marca_revision").run();
+  const insMarca = db.prepare("INSERT INTO marca_revision (of_id, punto_id, estado, operario_id, at) VALUES (?, ?, ?, ?, ?)");
+  for (const m of marcas) {
+    const paso = pasoDeCausa.get(m.punto_id);
+    if (paso !== undefined) insMarca.run(m.of_id, paso, m.estado, m.operario_id, m.at);
   }
 }
 
@@ -1052,6 +1169,85 @@ export function editarCausaDevolucion(
  *
  *  Vacío para las que no tengan nada marcado, que es lo normal: solo hay filas
  *  mientras una revisión está en marcha. */
+// ─── Pasos de revisión ───────────────────────────────────────────────────────
+// Lo que se mira al revisar, separado de las causas desde la migración 12:
+// comunes a todos los pedidos (familia NULL) o de una familia, y cada uno con
+// la causa que se marca al devolver si falla. Los mantienen los técnicos desde
+// la guía de revisión.
+
+export interface PasoRevision {
+  id: number;
+  texto: string;
+  familia: string | null;
+  causaId: number;
+  orden: number;
+  retirado: boolean;
+}
+
+type FilaPaso = { id: number; texto: string; familia: string | null; causa_id: number; orden: number; retirado: number };
+const aPaso = (f: FilaPaso): PasoRevision => ({
+  id: f.id,
+  texto: f.texto,
+  familia: f.familia,
+  causaId: f.causa_id,
+  orden: f.orden,
+  retirado: f.retirado === 1,
+});
+
+export function leerPasosRevision(incluirRetirados = false): PasoRevision[] {
+  const filas = abrir()
+    .prepare(
+      `SELECT id, texto, familia, causa_id, orden, retirado FROM paso_revision
+        ${incluirRetirados ? "" : "WHERE retirado = 0"}
+        -- Primero los comunes y luego cada familia; dentro, el orden puesto.
+        ORDER BY CASE WHEN familia IS NULL THEN 0 ELSE 1 END, familia COLLATE NOCASE, orden, id`,
+    )
+    .all() as FilaPaso[];
+  return filas.map(aPaso);
+}
+
+/** `null` si la causa no existe: un paso sin causa no sabría qué marcar. */
+export function crearPasoRevision(
+  texto: string,
+  causaId: number,
+  familia: string | null,
+  operarioId: string | null,
+): PasoRevision | null {
+  const db = abrir();
+  const limpio = texto.trim();
+  if (!limpio) return null;
+  const fam = familia?.trim() || null;
+  return db.transaction(() => {
+    if (!db.prepare("SELECT 1 FROM causa_devolucion WHERE id = ?").get(causaId)) return null;
+    const ultimo = db.prepare("SELECT MAX(orden) AS n FROM paso_revision WHERE familia IS ?").get(fam) as { n: number | null };
+    const r = db
+      .prepare("INSERT INTO paso_revision (texto, familia, causa_id, orden, retirado, creado_at, creado_por) VALUES (?, ?, ?, ?, 0, ?, ?)")
+      .run(limpio, fam, causaId, (ultimo.n ?? 0) + 1, new Date().toISOString(), operarioId);
+    return aPaso(db.prepare("SELECT id, texto, familia, causa_id, orden, retirado FROM paso_revision WHERE id = ?").get(Number(r.lastInsertRowid)) as FilaPaso);
+  })();
+}
+
+export function editarPasoRevision(
+  id: number,
+  cambios: { texto?: string; familia?: string | null; causaId?: number; orden?: number; retirado?: boolean },
+): PasoRevision | null {
+  const db = abrir();
+  return db.transaction(() => {
+    const fila = db.prepare("SELECT id, texto, familia, causa_id, orden, retirado FROM paso_revision WHERE id = ?").get(id) as FilaPaso | undefined;
+    if (!fila) return null;
+    const texto = cambios.texto?.trim() || fila.texto;
+    const familia = cambios.familia === undefined ? fila.familia : cambios.familia?.trim() || null;
+    const causaId = cambios.causaId ?? fila.causa_id;
+    if (!db.prepare("SELECT 1 FROM causa_devolucion WHERE id = ?").get(causaId)) return null;
+    const orden = cambios.orden ?? fila.orden;
+    const retirado = cambios.retirado === undefined ? fila.retirado : cambios.retirado ? 1 : 0;
+    db.prepare("UPDATE paso_revision SET texto = ?, familia = ?, causa_id = ?, orden = ?, retirado = ? WHERE id = ?").run(
+      texto, familia, causaId, orden, retirado, id,
+    );
+    return aPaso({ id, texto, familia, causa_id: causaId, orden, retirado });
+  })();
+}
+
 export function leerMarcasRevision(
   ofIds: readonly string[],
 ): Record<string, Record<number, string>> {

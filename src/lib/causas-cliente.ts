@@ -94,3 +94,53 @@ export async function retirarCausa(id: number, retirada: boolean): Promise<boole
     return false;
   }
 }
+
+// ─── Pasos de revisión (/api/revision/pasos) ─────────────────────────────────
+// Lo que se mira al revisar, aparte de las causas desde el 11/10/2026: cada
+// paso apunta a la causa que se marca si falla.
+
+export interface PasoRevision {
+  id: number;
+  texto: string;
+  /** Código de familia de RPS. null = para todos los pedidos. */
+  familia: string | null;
+  causaId: number;
+  orden: number;
+  retirado: boolean;
+}
+
+/** Los pasos en servicio; con `todos`, también los retirados. Si falla, lista
+ *  vacía: sin guía se puede revisar igual, y no se rompe el cajón por ella. */
+export async function leerPasos(todos = false): Promise<PasoRevision[]> {
+  try {
+    const r = await fetch(`/api/revision/pasos${todos ? "?todos=1" : ""}`, { cache: "no-store" });
+    if (!r.ok) return [];
+    const d = (await r.json()) as { pasos?: PasoRevision[] };
+    return d.pasos ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function mandarPaso(method: "POST" | "PATCH", body: object): Promise<{ paso: PasoRevision } | { error: string }> {
+  try {
+    const r = await fetch("/api/revision/pasos", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = (await r.json()) as { paso?: PasoRevision; error?: string };
+    if (!r.ok || !d.paso) return { error: d.error ?? "No se pudo guardar" };
+    return { paso: d.paso };
+  } catch {
+    return { error: "No se pudo guardar" };
+  }
+}
+
+export const crearPaso = (texto: string, causaId: number, familia: string | null, operarioId: string | null) =>
+  mandarPaso("POST", { texto, causaId, familia, operarioId });
+
+export const editarPaso = (
+  id: number,
+  cambios: { texto?: string; familia?: string | null; causaId?: number; orden?: number; retirado?: boolean },
+) => mandarPaso("PATCH", { id, ...cambios });

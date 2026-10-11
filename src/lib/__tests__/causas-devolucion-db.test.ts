@@ -20,85 +20,59 @@ afterAll(() => {
   }
 });
 
-test("la lista nace con las genéricas primero y las de lona detrás", () => {
+test("una base nueva nace con las seis causas globales", () => {
   // Con la lista vacía el primer día, quien devuelve no entiende qué se le
-  // pide y tira de la nota libre, que es de lo que se venía.
-  //
-  // El orden es el que ve el revisor: primero lo que se mira en cualquier
-  // trabajo y luego lo propio de la familia, cada bloque en el orden del
-  // repaso. Alfabético no valía — el repaso tiene un orden y no es ese.
+  // pide y tira de la nota libre. Desde la migración 12 son pocas y comunes;
+  // lo detallado vive en los pasos de revisión.
   expect(db.leerCausasDevolucion().map((c) => c.etiqueta)).toEqual([
-    "Error en medidas",
-    "Error en cotas",
-    "Material equivocado",
-    "Medidas de la lona mal",
-    "Medidas de los aumentos mal",
-    "Tipo de lona equivocado",
-    "Faltan anotaciones de material",
-    "Faltan elementos",
-    "Faltan piezas en el corte",
-    "Medidas de corte no corresponden",
-    "Falta la simetría",
+    "Medidas",
+    "Documentación incompleta",
+    "Material y acabados",
+    "Corte",
+    "Elementos y accesorios",
+    "Modelo y colocación",
   ]);
+  expect(db.leerCausasDevolucion().every((c) => c.familia === null)).toBe(true);
 });
 
-test("las de Ángel son de LONA; las genéricas no tienen familia", () => {
-  // Las suyas hablan de aumentos, simetría y corte: en una funda no pintan
-  // nada. Las genéricas salen en todos los trabajos, incluidos aquellos para
-  // los que nadie ha dictado las suyas todavía.
-  const porEtiqueta = new Map(db.leerCausasDevolucion().map((c) => [c.etiqueta, c]));
-  expect(porEtiqueta.get("Falta la simetría")?.familia).toBe("LONA");
-  expect(porEtiqueta.get("Error en medidas")?.familia).toBeNull();
+test("lo que dictó Ángel para las lonas sigue como pasos de lona, cada uno con su causa", () => {
+  const causa = new Map(db.leerCausasDevolucion().map((c) => [c.etiqueta, c.id]));
+  const pasos = db.leerPasosRevision();
+  const de = (texto: string) => pasos.find((p) => p.texto === texto);
+  expect(de("Medidas de la lona hecha")).toMatchObject({ familia: "LONA", causaId: causa.get("Medidas") });
+  expect(de("Simetría hecha, si hace falta")).toMatchObject({ familia: "LONA", causaId: causa.get("Corte") });
+  expect(de("Están todos los elementos")?.causaId).toBe(causa.get("Elementos y accesorios"));
+  // Los comunes van delante de los de familia.
+  expect(pasos[0].familia).toBeNull();
 });
 
-test("cada punto de la guía trae su cara en positivo", () => {
-  // Sin `mira` la causa se puede marcar al devolver, pero no es un punto que
-  // repasar y no sale en la guía. Las sembradas son todas puntos.
-  for (const c of db.leerCausasDevolucion()) {
-    expect(c.mira, `${c.etiqueta} debería decir qué se comprueba`).toBeTruthy();
-  }
-});
-
-test("las tres de relleno vuelven al servicio, y con su id de siempre", () => {
-  // Se retiraron cuando llegaron las de Ángel porque competían con ellas;
-  // ahora que hay familias son las genéricas y no compiten. Vuelven con su
-  // id, que es lo que hace que la devolución de agosto marcada con "Error en
-  // medidas" siga diciendo de qué fue.
-  const todas = db.leerCausasDevolucion(true);
-  for (const vieja of ["Error en cotas", "Error en medidas", "Material equivocado"]) {
-    const c = todas.find((x) => x.etiqueta === vieja);
-    expect(c, `${vieja} debería seguir existiendo`).toBeDefined();
-    expect(c!.retirada).toBe(false);
-    expect(c!.familia).toBeNull();
-  }
+test("las causas de lona de antes se retiran, pero siguen existiendo", () => {
+  // Las devoluciones viejas las nombran por id: tienen que poder leerse.
+  const vieja = db.leerCausasDevolucion(true).find((c) => c.etiqueta === "Falta la simetría");
+  expect(vieja?.retirada).toBe(true);
 });
 
 test("editar una causa cambia SU fila, sin crear otra", () => {
   // Las devoluciones guardan el id: duplicarla al corregirle una palabra
   // partiría en dos el histórico de un mismo fallo.
-  const antes = db.leerCausasDevolucion().find((c) => c.etiqueta === "Tipo de lona equivocado")!;
-  const despues = db.editarCausaDevolucion(antes.id, {
-    etiqueta: "Tipo de lona que no es",
-    mira: "El tipo de lona",
-  });
+  const antes = db.leerCausasDevolucion().find((c) => c.etiqueta === "Corte")!;
+  const despues = db.editarCausaDevolucion(antes.id, { etiqueta: "Corte y despiece" });
   expect(despues?.id).toBe(antes.id);
-  expect(despues?.etiqueta).toBe("Tipo de lona que no es");
+  expect(despues?.etiqueta).toBe("Corte y despiece");
   // Y la clave se rehace, que es lo que sigue evitando los duplicados.
-  expect(db.crearCausaDevolucion("  tipo de LONA que no es ", null).id).toBe(antes.id);
+  expect(db.crearCausaDevolucion("  corte Y DESPIECE ", null).id).toBe(antes.id);
   // Se deja como estaba para no ensuciar los tests de abajo.
-  db.editarCausaDevolucion(antes.id, { etiqueta: "Tipo de lona equivocado" });
+  db.editarCausaDevolucion(antes.id, { etiqueta: "Corte" });
 });
 
 test("no se puede editar una causa para que diga lo que ya dice otra", () => {
   // Si se dejara, dos filas contarían el mismo fallo por separado y las
   // métricas dejarían de decir nada.
   const causas = db.leerCausasDevolucion();
-  const simetria = causas.find((c) => c.etiqueta === "Falta la simetría")!;
-  expect(db.editarCausaDevolucion(simetria.id, { etiqueta: "faltan ELEMENTOS" })).toBeNull();
+  const corte = causas.find((c) => c.etiqueta === "Corte")!;
+  expect(db.editarCausaDevolucion(corte.id, { etiqueta: "MEDIDAS" })).toBeNull();
   // Y la suya no ha cambiado.
-  expect(
-    db.leerCausasDevolucion().find((c) => c.id === simetria.id)?.etiqueta,
-  ).toBe("Falta la simetría");
+  expect(db.leerCausasDevolucion().find((c) => c.id === corte.id)?.etiqueta).toBe("Corte");
 });
 
 test("crear la misma causa dos veces devuelve la MISMA, no dos", () => {

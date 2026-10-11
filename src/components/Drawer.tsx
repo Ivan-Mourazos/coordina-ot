@@ -14,7 +14,7 @@ import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
-import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
+import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
 import { CerrarEnRpsInline } from "./CerrarEnRpsInline";
 import { ReintentarGemelaInline } from "./ReintentarGemelaInline";
@@ -269,17 +269,19 @@ export function Drawer({
   // plegadas (ver `PLEGAR_DESDE`).
   const [ofsAbiertas, setOfsAbiertas] = useState<ReadonlySet<string>>(new Set());
 
-  // La guía de revisión, la misma que en el panel de Revisiones. Las causas se
-  // piden una vez por ficha: de ellas salen los puntos que hay que repasar (su
-  // cara en positivo) y las píldoras del cuadro de devolver.
+  // La guía de revisión, la misma que en el panel de Revisiones. Pasos y causas
+  // se piden una vez por ficha: de los pasos sale lo que hay que repasar y de
+  // las causas las píldoras del cuadro de devolver.
   //
   // Aquí arriba con el resto de hooks y no junto a lo que las usa: abajo hay un
   // `if (!pedido) return null` de por medio, y un hook detrás de un return se
   // salta en unos renders y en otros no.
   const [causasRevision, setCausasRevision] = useState<CausaDevolucion[]>([]);
+  const [pasosRevision, setPasosRevision] = useState<PasoRevision[]>([]);
   useEffect(() => {
     let vivo = true;
     leerCausas().then((cs) => vivo && setCausasRevision(cs));
+    leerPasos().then((ps) => vivo && setPasosRevision(ps));
     return () => {
       vivo = false;
     };
@@ -524,7 +526,7 @@ export function Drawer({
   const familiasDelPedido = [
     ...new Set(ofsDeOT.map((o) => o.familia).filter(Boolean) as string[]),
   ];
-  const puntosGuia = guiaDeFamilias(causasRevision, familiasDelPedido);
+  const puntosGuia = guiaDeFamilias(pasosRevision, causasRevision, familiasDelPedido);
   const fallosGuia = causasDeLoQueFalla(puntosGuia, marcasGuia);
   // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR: la guía deja de ser un
   // recordatorio y pasa a ser el paso previo. Con la guía vacía —una familia

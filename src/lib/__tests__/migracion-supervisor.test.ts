@@ -67,7 +67,7 @@ test("al arrancar, Iván pasa a supervisor sin tocar la base a mano", () => {
   // El número sube cada vez que se añade una migración nueva detrás (ver
   // MIGRACIONES en estado-db.ts); lo que importa aquí es que la base llegue
   // hasta la última, no cuántas hay.
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(11);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(12);
 });
 
 test("a quien ya lo tenía no se le duplica, y a los demás no se les da", () => {
@@ -106,6 +106,6 @@ test("la fila que no existe no revienta la migración", () => {
 
   return import("../server/estado-db").then((otra) => {
     expect(() => otra.getDb()).not.toThrow();
-    expect(otra.getDb().pragma("user_version", { simple: true })).toBe(11);
+    expect(otra.getDb().pragma("user_version", { simple: true })).toBe(12);
   });
 });
