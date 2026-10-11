@@ -1,5 +1,46 @@
 [
   {
+    "id": "2026-10-11",
+    "hasta": "0502cf3",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En el Historial, Impresión digital sale aparte de Taller",
+        "detalle": "El tiempo de imprimir (impresora, plóter HP Latex y troquelado de vinilo) ya no se mezcla con el de taller: tiene su propio bloque en cada OF."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En el Historial, cada tarea dice qué días se trabajó",
+        "detalle": "Junto al tiempo de cada persona sale el día, o de qué día a qué día, en que lo imputó: por ejemplo «Óscar 5h 25m · 07–08/10»."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial, las tareas de cada OF salen en el orden del papel de la OF",
+        "detalle": "Antes salían desordenadas (la 10 antes que la 9). Ahora siguen la ruta que imprime Producción."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial, cada OF dice quién la planteó y quién la revisó, con su tiempo",
+        "detalle": "Al abrir un pedido terminado, debajo de cada OF salen el autor y el revisor con sus minutos, cuánto material llevaba y si Producción dejó una nota. En los pedidos antiguos el rol sale en gris: se deduce de las horas, porque entonces no se fichaba en la web."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial, las tareas y tiempos van dentro de cada OF",
+        "detalle": "Pulsa en una OF para ver sus tareas con quién las hizo y cuánto, marcando quién fue autor y quién revisor, y su material. Arriba queda el tiempo total de cada centro."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del Historial distingue cada centro por su color",
+        "detalle": "Oficina Técnica, Diseño, Impresión y Taller llevan cada uno su color en las tareas de la OF, para ver de un vistazo dónde se fue el tiempo."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la lista del Historial, al desplegar un pedido ves sus OF con tareas y tiempos",
+        "detalle": "Sin abrir el pedido: quién lo planteó y revisó, y al pulsar cada OF sus tareas por centro."
+      }
+    ]
+  },
+  {
     "id": "2026-10-09",
     "hasta": "e985e5a",
     "cambios": [
