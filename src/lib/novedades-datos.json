@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-11",
-    "hasta": "0502cf3",
+    "hasta": "ef8e60d",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "En el Historial, cada tarea dice qué días se trabajó",
         "detalle": "Junto al tiempo de cada persona sale el día, o de qué día a qué día, en que lo imputó: por ejemplo «Óscar 5h 25m · 07–08/10»."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Los pasos de revisión se pueden poner para todos los pedidos y además por familia",
+        "detalle": "Menú → Pasos y causas de revisión → Editar. Cada paso dice qué causa se marca si falla, y se pueden reordenar o retirar sin perder lo ya revisado."
       },
       {
         "tipo": "arreglado",
@@ -37,6 +42,11 @@
         "tipo": "mejor",
         "titulo": "En la lista del Historial, al desplegar un pedido ves sus OF con tareas y tiempos",
         "detalle": "Sin abrir el pedido: quién lo planteó y revisó, y al pulsar cada OF sus tareas por centro."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las causas de devolución se reducen a seis, comunes a todos los pedidos",
+        "detalle": "Medidas, Documentación incompleta, Material y acabados, Corte, Elementos y accesorios, y Modelo y colocación. El detalle de qué falla va en la nota."
       }
     ]
   },
