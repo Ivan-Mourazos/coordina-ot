@@ -536,10 +536,15 @@ export function Drawer({
       ? `Faltan ${faltanPuntos} ${faltanPuntos === 1 ? "punto" : "puntos"} por mirar`
       : null;
 
-  const urlPlantear = enlacePlantear(
-    pedido.codigo,
-    pedido.ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia),
-  );
+  // En solo lectura no: abre la herramienta donde se TRABAJA el planteo, y
+  // Dirección no plantea (aunque no escriba en CoordinaOT, es un botón de
+  // hacer, no de mirar).
+  const urlPlantear = soloLectura
+    ? null
+    : enlacePlantear(
+        pedido.codigo,
+        pedido.ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia),
+      );
 
   return (
     <MarcoFicha
