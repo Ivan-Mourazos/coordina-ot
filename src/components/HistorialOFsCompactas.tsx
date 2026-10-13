@@ -122,7 +122,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
         return (
           <li
             key={codigo}
-            className="rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border"
+            className="tarjeta-of rounded-lg bg-surface px-2.5 py-1.5 text-xs ring-1 ring-border"
           >
             {/* Con `detalle` (la ficha) la línea de arriba despliega la OF:
                 sus tareas y su material viven dentro de ella. */}

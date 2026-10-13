@@ -128,7 +128,7 @@ export function FilaDesplegable({
           no ocupa nada — `Desplegable` devuelve null. */}
       <div id={idDetalle}>
         <Desplegable abierto={abierta}>
-          <div className="border-t border-border px-3 py-2">{detalle}</div>
+          <div className="detalle-hundido border-t border-border px-3 py-2">{detalle}</div>
         </Desplegable>
       </div>
     </div>
