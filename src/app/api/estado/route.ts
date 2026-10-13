@@ -260,11 +260,13 @@ export async function POST(req: Request) {
       esCodigoPedido(codigoPedido) &&
       modoImpresion() !== "off"
     ) {
-      try {
-        await prepararImpresion(codigoPedido, operarioId);
-      } catch (e) {
-        console.error(`[impresion] no se pudo preparar ${codigoPedido}:`, (e as Error).message);
-      }
+      // Sin esperar: buscar y leer los PDF va contra una carpeta de red y puede
+      // tardar segundos, y quien pasa el pedido no tiene por qué esperarlos.
+      // La copia se hace igual en el momento: RPS tarda minutos en moverlo.
+      const codigo = codigoPedido;
+      void prepararImpresion(codigo, operarioId).catch((e) =>
+        console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
+      );
     }
   }
   return NextResponse.json({ ok: true });

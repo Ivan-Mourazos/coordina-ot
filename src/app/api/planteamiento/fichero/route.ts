@@ -30,7 +30,7 @@ export async function GET(req: Request) {
   return new NextResponse(new Uint8Array(datos), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${encodeURIComponent(f.nombre)}"`,
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(f.nombre)}`,
       "Cache-Control": "no-store",
     },
   });

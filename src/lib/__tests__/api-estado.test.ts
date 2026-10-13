@@ -9,8 +9,8 @@ vi.mock("../data", () => ({ getTablero: tableroMock }));
 vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }));
 // La cola de impresión se simula entera: ningún test de aquí toca una impresora
 // ni un recurso compartido de verdad.
-const { prepararImpresionMock } = vi.hoisted(() => ({ prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
-vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: () => "activo" }));
+const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImpresionMock: vi.fn(() => "activo"), prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
+vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: modoImpresionMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
 const cortarFichajeMock = vi.fn<(ofId: string, ahora: string) => string[]>();
@@ -460,8 +460,15 @@ test("con la casilla desmarcada no se imprime", async () => {
 });
 
 test("Diseño e Impresión no imprimen", async () => {
-  await pasarParaImprimir("P-imprime-3", {}, "diseno");
-  await pasarParaImprimir("P-imprime-3b", {}, "impresion");
+  // Los pases tienen que salir bien: si se rechazaran antes, el test no probaría nada.
+  expect((await pasarParaImprimir("P-imprime-3", {}, "diseno")).status).toBe(200);
+  expect((await pasarParaImprimir("P-imprime-3b", {}, "impresion")).status).toBe(200);
+  expect(prepararImpresionMock).not.toHaveBeenCalled();
+});
+
+test("con la impresión apagada no se prepara nada", async () => {
+  modoImpresionMock.mockReturnValueOnce("off");
+  expect((await pasarParaImprimir("P-imprime-5")).status).toBe(200);
   expect(prepararImpresionMock).not.toHaveBeenCalled();
 });
 
