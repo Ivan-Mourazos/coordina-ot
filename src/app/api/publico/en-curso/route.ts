@@ -22,9 +22,14 @@ export async function GET(req: Request) {
   const seccion = esSeccionId(pedida) ? pedida : SECCION_POR_DEFECTO;
   try {
     const tablero = await getTablero(seccion);
-    const pedidos = aplicarFiltros(tablero.pedidos, FILTROS_INICIALES, hoyISO(), {
-      internosComoTrabajo: SECCIONES[seccion].internosComoTrabajo === true,
-    }).map(pedidoParaInvitado);
+    const opts = { internosComoTrabajo: SECCIONES[seccion].internosComoTrabajo === true };
+    const pedidos = aplicarFiltros(tablero.pedidos, FILTROS_INICIALES, hoyISO(), opts).map(pedidoParaInvitado);
+    // Los que Producción tiene parados del todo, en su bloque aparte (Iván,
+    // 13/10/2026). Uno con alguna OF detenida y otras en marcha ya sale arriba.
+    const enLista = new Set(pedidos.map((p) => p.codigo));
+    const detenidos = aplicarFiltros(tablero.pedidos, { ...FILTROS_INICIALES, categoria: "detenidas" }, hoyISO(), opts)
+      .filter((p) => !enLista.has(p.codigo))
+      .map(pedidoParaInvitado);
     const operarios = tablero.operarios.map((o) => ({
       id: o.id,
       nombre: o.nombre,
@@ -32,7 +37,7 @@ export async function GET(req: Request) {
       color: o.color,
       ...(o.seccion ? { seccion: o.seccion } : {}),
     }));
-    return NextResponse.json({ operarios, pedidos }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ operarios, pedidos, detenidos }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[publico] en curso falló:", (error as Error).message);
     return NextResponse.json({ error: "No se pudo cargar el trabajo en curso" }, { status: 500 });

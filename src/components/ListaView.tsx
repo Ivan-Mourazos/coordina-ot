@@ -385,7 +385,15 @@ export function ListaView({
   ordenDesc,
   hayFiltrosActivos = false,
   sinMaterial = false,
+  fase,
+  unoAbierto = false,
 }: {
+  /** Al desplegar un pedido se pliega el que estuviera abierto (la consulta
+   *  «En curso», como su lista de pedidos). */
+  unoAbierto?: boolean;
+  /** La fase del pedido en una palabra, junto al código (la consulta «En
+   *  curso»). Con ella, el «Listo para Producción» del final sobra: ya lo dice. */
+  fase?: (p: Pedido) => { texto: string; color: string };
   /** Sin la columna de material (la consulta sin login no lo enseña). */
   sinMaterial?: boolean;
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
@@ -419,6 +427,7 @@ export function ListaView({
 
   function toggle(id: string) {
     setExpandidos((prev) => {
+      if (unoAbierto) return prev.has(id) ? new Set() : new Set([id]);
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -500,6 +509,7 @@ export function ListaView({
                           <span className="font-mono text-sm font-semibold text-text">{p.codigo}</span>
                         )}
                       </span>
+                      {fase && <ChipFase {...fase(p)} />}
                       <span
                         className="shrink-0 text-[11px] font-medium text-text-muted"
                         title={`${p.ofs.length} orden${p.ofs.length === 1 ? "" : "es"} de fabricación`}
@@ -524,7 +534,7 @@ export function ListaView({
                           ya está listo"), y así nunca se interpone entre el
                           código y ellas cuando el ancho aprieta — con
                           `flex-wrap` lo que no cabe baja de línea, no tapa. */}
-                      {listoParaPasar && <EtiquetaListo />}
+                      {listoParaPasar && !fase && <EtiquetaListo />}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-text-muted">
                       <span
@@ -800,5 +810,19 @@ function ComentarioComercial({ texto }: { texto: string }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** La fase en una palabra, con su color de siempre (el de las columnas del
+ *  panel) sobre fondo suave. */
+function ChipFase({ texto, color }: { texto: string; color: string }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-px text-[10px] font-semibold"
+      style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+    >
+      <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: color }} />
+      {texto}
+    </span>
   );
 }

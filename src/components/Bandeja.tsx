@@ -48,7 +48,7 @@ function guardarAbierto(clave: string, abierto: boolean) {
  *  qué hace pulsar. Con solo una flecha pequeña nadie adivinaba que se
  *  plegaba. Plegado, el título sigue diciendo
  *  cuántos hay. */
-function BloquePlegable({
+export function BloquePlegable({
   clave,
   cabecera,
   abiertoDeSalida = true,
