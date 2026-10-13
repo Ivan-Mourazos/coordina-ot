@@ -2212,16 +2212,20 @@ export function Board({
   // mientras no llega, el diálogo sale sin la línea. Ver spec 2026-10-13.
   const [vistaPlanteamiento, setVistaPlanteamiento] = useState<{ pedidoId: string; datos: VistaPlanteamiento } | null>(null);
   const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
+  // Pedido cuyo diálogo está abierto ahora. Una respuesta tardía de un pedido
+  // anterior (abrir A, cancelar, abrir B) no debe pisar la vista de B.
+  const pedidoDelDialogo = useRef<string | null>(null);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
+      pedidoDelDialogo.current = pedidoId;
       setPasarPendiente(pedidoId);
       setImprimirAlPasar(true);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
           .then((r) => (r.ok ? r.json() : null))
-          .then((d: VistaPlanteamiento | null) => d && setVistaPlanteamiento({ pedidoId, datos: d }))
+          .then((d: VistaPlanteamiento | null) => d && pedidoDelDialogo.current === pedidoId && setVistaPlanteamiento({ pedidoId, datos: d }))
           .catch(() => {});
       }
     }
@@ -3005,7 +3009,11 @@ export function Board({
             </p>
             {vistaPlanteamiento?.pedidoId === pasarPendiente && textoAntesDePasar(vistaPlanteamiento.datos) && (
               <div className="mt-3 rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
-                <p className="text-text">{textoAntesDePasar(vistaPlanteamiento.datos)}</p>
+                <p className="text-text">
+                  {!imprimirAlPasar && vistaPlanteamiento.datos.ficheros.length > 0
+                    ? "No se imprimirá."
+                    : textoAntesDePasar(vistaPlanteamiento.datos)}
+                </p>
                 {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
                   <p className="mt-1 text-text-muted">
                     Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}

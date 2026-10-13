@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { textoImpresion, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { TITULO_BLOQUE } from "./MarcoFicha";
+import { useSoloLectura } from "./SoloLectura";
 
 /** El planteamiento en la ficha del Historial: qué se imprimió y cuándo, y
  *  «Reimprimir». Pide sus datos aparte, como «gastado»: si falla, el resto de
  *  la ficha no se entera. Solo se monta en la sección OT. */
 export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: string | null }) {
+  // Dirección (solo lectura) no puede reimprimir: la ruta le daría 403.
+  const soloLectura = useSoloLectura();
   const [datos, setDatos] = useState<VistaPlanteamiento | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
           <li key={f.id}>{textoImpresion(f)}</li>
         ))}
       </ul>
-      {datos.ficheros.length > 0 && miId && (
+      {datos.ficheros.length > 0 && miId && !soloLectura && (
         <button
           type="button"
           onClick={reimprimir}
