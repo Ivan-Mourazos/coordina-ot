@@ -8,9 +8,11 @@ import { fmtDiaMesAno } from "@/lib/fechas";
 import { TRAMO } from "@/lib/linea-tiempo";
 import { nombreBonito, type PedidoConsultaDetalle } from "@/lib/publico";
 import { SECCION_POR_DEFECTO } from "@/lib/secciones";
+import { BloqueLista } from "./BloqueLista";
 import { DocumentosRps } from "./DocumentosRps";
 import { ErrorCarga } from "./ErrorCarga";
 import { FamiliaTag } from "./FamiliaTag";
+import { FilaDesplegable } from "./FilaDesplegable";
 import { OFsDeLaFicha } from "./HistorialCentros";
 
 // ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
@@ -19,6 +21,12 @@ import { OFsDeLaFicha } from "./HistorialCentros";
 // ficha que ve el equipo, con quién lo tiene. Ni un botón que guarde.
 
 type Filtros = Omit<FiltrosConsulta, "page">;
+
+/** Las mismas columnas que el Historial del equipo (Iván, 13/10/2026): flecha,
+ *  pedido, cliente, familia, dónde está y fecha. Literales: Tailwind no compila
+ *  las concatenadas. */
+const COLUMNAS =
+  "grid grid-cols-[28px_136px_minmax(0,1fr)_112px_minmax(150px,18rem)_104px] items-center gap-x-3";
 
 function consultaDe(f: Filtros): string {
   const sp = new URLSearchParams({ estado: f.estado });
@@ -104,6 +112,12 @@ export function ConsultaPedidos({
   // en las cuarenta filas de debajo no dice nada. Buscando o en «Todos» no hay
   // días, y entonces sí hace falta en cada fila.
   const fila = (p: PedidoConsulta) => <FilaConsulta key={p.codigo} pedido={p} conFecha={!dias} />;
+  const cabecera = (
+    <>
+      <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Dónde está</span>
+      <span>{dias ? "" : "Fecha"}</span>
+    </>
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1100px] space-y-3 p-4">
@@ -139,23 +153,32 @@ export function ConsultaPedidos({
         </p>
       )}
 
-      {/* UN BLOQUE POR DÍA, con la fecha fuera de él: el mismo relieve que el
-          Historial del equipo, donde el corte entre un día y otro se ve sin
-          leer nada. */}
-      <div className="flex flex-col gap-3">
+      {/* UN BLOQUE POR DÍA, con la fecha fuera de él, y cada pedido su propia
+          tarjeta: igual que el Historial del equipo. La cabecera de columnas,
+          una vez y encima de todo. */}
+      <div className="flex flex-col gap-5">
+        {pedidos.length > 0 && (
+          <div aria-hidden="true" className={`${COLUMNAS} px-3 text-[11px] font-semibold text-text-muted`}>
+            {cabecera}
+          </div>
+        )}
         {dias
           ? dias.map((dia, i) => (
               <section key={`${dia.clave}-${i}`} aria-label={dia.titulo}>
-                <h3 className="mb-1 flex items-baseline gap-2 px-3 text-[11px] font-semibold text-text">
-                  {dia.titulo}
-                  <span className="font-normal text-text">
-                    · {dia.total} pedido{dia.total === 1 ? "" : "s"}
-                  </span>
-                </h3>
-                <ul className="bloque-3d overflow-hidden rounded-xl border-border [background:var(--surface)]">{dia.pedidos.map(fila)}</ul>
+                <BloqueLista
+                  columnas={COLUMNAS}
+                  sinCaja
+                  rotulo={{ texto: dia.titulo, sufijo: `· ${dia.total} pedido${dia.total === 1 ? "" : "s"}` }}
+                >
+                  {dia.pedidos.map(fila)}
+                </BloqueLista>
               </section>
             ))
-          : pedidos.length > 0 && <ul className="bloque-3d overflow-hidden rounded-xl border-border [background:var(--surface)]">{pedidos.map(fila)}</ul>}
+          : pedidos.length > 0 && (
+              <BloqueLista columnas={COLUMNAS} sinCaja>
+                {pedidos.map(fila)}
+              </BloqueLista>
+            )}
       </div>
 
       {/* Lo que carga se dice SIEMPRE, no solo con la lista vacía: con «Ver
@@ -186,8 +209,8 @@ export function ConsultaPedidos({
   );
 }
 
-/** Código · cliente · ciudad · dónde está · fecha. Sin línea de tiempo: la
- *  fecha ya dice lo que hacía falta. */
+/** Código · cliente · ciudad · familia · dónde está · fecha, con la forma de
+ *  las filas del Historial. Al desplegar, la ficha del pedido. */
 function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: boolean }) {
   const [abierto, setAbierto] = useState(false);
   // Abierta una vez, la ficha se queda montada: no se repite la consulta a RPS
@@ -198,64 +221,51 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
   // tapan al código del pedido, que es lo que se busca.
   const cliente = pedido.cliente ? nombreBonito(pedido.cliente) : "—";
   const ciudad = pedido.ciudadEntrega ? nombreBonito(pedido.ciudadEntrega) : null;
-  const id = `ficha-${pedido.codigo}`;
+  const familias = pedido.familias;
 
   return (
-    <li className="border-b border-border last:border-b-0">
-      <button
-        type="button"
-        aria-expanded={abierto}
-        aria-controls={id}
-        onClick={() => {
-          setAbierto((a) => !a);
-          setTocado(true);
-        }}
-        className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-2 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
-      >
-        <span className="font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
-        {/* Con suelo: un «dónde está» largo no puede aplastar de quién es el
-            pedido. Si no caben los dos, baja «dónde está» a otra línea. */}
-        {/* El destino con el color de marca: es lo que se busca al repasar la
-            lista después del cliente («¿cuál es el de Ourense?»). */}
-        <span
-          className="min-w-[12rem] flex-1 truncate text-sm text-text"
-          title={[cliente, ciudad].filter(Boolean).join(" · ")}
-        >
-          {cliente}
-          {ciudad && <span className="text-brand-800 dark:text-brand-300"> · {ciudad}</span>}
-        </span>
-        {donde && <span className="text-xs font-medium text-text">{donde}</span>}
-        {/* Fuera de plazo se dice SIEMPRE: el rótulo del día dice para cuándo
-            era, no si ya pasó. */}
-        {(conFecha || pedido.fueraDePlazo) && (
+    <FilaDesplegable
+      columnas={COLUMNAS}
+      abierta={abierto}
+      onAlternar={() => {
+        setAbierto((a) => !a);
+        setTocado(true);
+      }}
+      etiqueta={pedido.codigo}
+      idDetalle={`ficha-${pedido.codigo}`}
+      tarjeta
+      celdas={
+        <>
+          <span className="pointer-events-none font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
+          {/* El destino con el color de marca: es lo que se busca al repasar la
+              lista después del cliente («¿cuál es el de Ourense?»). */}
           <span
-            className="shrink-0 text-xs font-semibold text-text"
-            style={pedido.fueraDePlazo ? { color: TRAMO.fuera } : undefined}
+            className="pointer-events-none min-w-0 truncate text-[11px] text-text"
+            title={[cliente, ciudad].filter(Boolean).join(" · ")}
           >
-            {pedido.fueraDePlazo && (conFecha ? "Fuera de plazo · " : "Fuera de plazo")}
-            {conFecha && textoFecha(pedido)}
+            {cliente}
+            {ciudad && <span className="text-brand-800 dark:text-brand-300"> · {ciudad}</span>}
           </span>
-        )}
-        <svg
-          viewBox="0 0 24 24"
-          className={`size-4 shrink-0 self-center text-text-muted transition-transform ${abierto ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
-        >
-          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {/* Siempre montado (con `hidden`): `aria-controls` no puede apuntar a un
-          id que no existe mientras la fila está cerrada. */}
-      {/* Con el fondo del lienzo, más oscuro que la fila: lo desplegado se ve
-          DENTRO del pedido que se abrió, y las cajas blancas de dentro
-          (dónde está, centros) se recortan encima. */}
-      <div id={id} hidden={!abierto} className="border-t border-border px-3 py-3 [background:var(--bg)]">
-        {tocado && <FichaConsulta codigo={pedido.codigo} />}
-      </div>
-    </li>
+          <span className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden" title={familias.join(", ")}>
+            {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
+            {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
+          </span>
+          <span className="pointer-events-none min-w-0 truncate text-[11px] font-medium text-text" title={donde ?? undefined}>
+            {donde ?? "—"}
+          </span>
+          {/* Fuera de plazo se dice SIEMPRE: el rótulo del día dice para cuándo
+              era, no si ya pasó. */}
+          <span
+            className="pointer-events-none truncate text-[11px] font-semibold text-text"
+            style={pedido.fueraDePlazo ? { color: TRAMO.fuera } : undefined}
+            title={conFecha ? textoFecha(pedido) : undefined}
+          >
+            {pedido.fueraDePlazo ? "Fuera de plazo" : conFecha ? textoFecha(pedido) : ""}
+          </span>
+        </>
+      }
+      detalle={tocado ? <FichaConsulta codigo={pedido.codigo} /> : null}
+    />
   );
 }
 
