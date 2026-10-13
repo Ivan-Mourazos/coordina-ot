@@ -273,7 +273,7 @@ export function TareasDeOF({
                       {papel && (
                         <span
                           className={`rounded px-1 text-[9px] font-bold uppercase ${
-                            papel.deducido ? "bg-surface-2 text-text-muted ring-1 ring-border" : ROL[papel.rol].chip
+                            papel.deducido ? "bg-text-muted/15 text-text-muted ring-1 ring-border-strong" : ROL[papel.rol].chip
                           }`}
                           title={papel.deducido ? "Deducido de las horas de RPS: esta OF no se fichó en CoordinaOT" : undefined}
                         >

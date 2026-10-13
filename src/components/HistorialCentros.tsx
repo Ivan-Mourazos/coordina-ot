@@ -355,7 +355,7 @@ function MaterialHistorico({
       >
         <IconoMaterial />
         Asignado
-        <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
+        <span className="rounded-full bg-text-muted/15 px-1.5 text-[10px] font-bold text-text ring-1 ring-border-strong">
           {total}
         </span>
       </button>
@@ -423,7 +423,7 @@ function MaterialGastado({
       >
         <IconoCaja />
         Gastado
-        <span className="rounded-full bg-surface-2 px-1.5 text-[10px] font-bold text-text ring-1 ring-border">
+        <span className="rounded-full bg-text-muted/15 px-1.5 text-[10px] font-bold text-text ring-1 ring-border-strong">
           {n}
         </span>
       </button>
