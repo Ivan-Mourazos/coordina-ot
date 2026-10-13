@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { textoFecha, type FiltrosConsulta, type PedidoConsulta, type RespuestaConsulta } from "@/lib/consulta";
-import { textoSituacion, type DondeOF, type PasoDonde } from "@/lib/consulta-donde";
+import { textoSituacion, type DondeOF } from "@/lib/consulta-donde";
 import { agruparPedidosPorDia } from "@/lib/consulta-dias";
-import { fmtDiaMesAno } from "@/lib/fechas";
+import { diasEntre, fmtDiaMesAno } from "@/lib/fechas";
 import { TRAMO } from "@/lib/linea-tiempo";
 import { nombreBonito, type PedidoConsultaDetalle } from "@/lib/publico";
 import { SECCION_POR_DEFECTO } from "@/lib/secciones";
@@ -111,7 +111,19 @@ export function ConsultaPedidos({
   // Agrupado por días, la fecha ya está en el rótulo de la tarjeta: repetirla
   // en las cuarenta filas de debajo no dice nada. Buscando o en «Todos» no hay
   // días, y entonces sí hace falta en cada fila.
-  const fila = (p: PedidoConsulta) => <FilaConsulta key={p.codigo} pedido={p} conFecha={!dias} />;
+  // Uno abierto a la vez: al desplegar otro, el anterior se cierra (Iván,
+  // 13/10/2026). Con varios abiertos la lista se alargaba y se perdía de vista
+  // qué fila era cuál.
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const fila = (p: PedidoConsulta) => (
+    <FilaConsulta
+      key={p.codigo}
+      pedido={p}
+      conFecha={!dias}
+      abierto={abierto === p.codigo}
+      onAlternar={() => setAbierto((a) => (a === p.codigo ? null : p.codigo))}
+    />
+  );
   const cabecera = (
     <>
       <span /><span>Pedido</span><span>Cliente</span><span>Familia</span><span>Dónde está</span>
@@ -211,12 +223,20 @@ export function ConsultaPedidos({
 
 /** Código · cliente · ciudad · familia · dónde está · fecha, con la forma de
  *  las filas del Historial. Al desplegar, la ficha del pedido. */
-function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: boolean }) {
-  const [abierto, setAbierto] = useState(false);
+function FilaConsulta({
+  pedido,
+  conFecha,
+  abierto,
+  onAlternar,
+}: {
+  pedido: PedidoConsulta;
+  conFecha: boolean;
+  abierto: boolean;
+  onAlternar: () => void;
+}) {
   // Abierta una vez, la ficha se queda montada: no se repite la consulta a RPS
   // cada vez que se pliega y despliega.
   const [tocado, setTocado] = useState(false);
-  const donde = textoSituacion(pedido.situacion, pedido.donde);
   // RPS los guarda a gritos; en una lista de cuarenta filas, las mayúsculas
   // tapan al código del pedido, que es lo que se busca.
   const cliente = pedido.cliente ? nombreBonito(pedido.cliente) : "—";
@@ -228,7 +248,7 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
       columnas={COLUMNAS}
       abierta={abierto}
       onAlternar={() => {
-        setAbierto((a) => !a);
+        onAlternar();
         setTocado(true);
       }}
       etiqueta={pedido.codigo}
@@ -250,8 +270,8 @@ function FilaConsulta({ pedido, conFecha }: { pedido: PedidoConsulta; conFecha: 
             {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
             {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
           </span>
-          <span className="pointer-events-none min-w-0 truncate text-[11px] font-medium text-text" title={donde ?? undefined}>
-            {donde ?? "—"}
+          <span className="pointer-events-none min-w-0">
+            <CeldaDonde pedido={pedido} />
           </span>
           {/* Fuera de plazo se dice SIEMPRE: el rótulo del día dice para cuándo
               era, no si ya pasó. */}
@@ -301,7 +321,8 @@ function FichaConsulta({ codigo }: { codigo: string }) {
 
   return (
     <div className="space-y-3">
-      {detalle.familias.length > 0 && (
+      {/* Una sola ya está en la fila; aquí solo si hay más de las que caben. */}
+      {detalle.familias.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
           {detalle.familias.map((f) => (
             <FamiliaTag key={f} familia={f} />
@@ -344,51 +365,119 @@ function FichaConsulta({ codigo }: { codigo: string }) {
   );
 }
 
-/** Una línea por OF: quién lo está haciendo, quién lo tiene pausado o qué
- *  viene ahora. Con el nombre, que es a quien hay que llamar. */
-function DondeEsta({ donde }: { donde: DondeOF[] }) {
+// ─── Dónde está: los mismos colores en la fila y en la ficha ─────────────────
+// Lo que se viene a mirar, con una palabra y un color delante: se distingue
+// «lo están haciendo» de «está parado en la mano de alguien» sin leer la frase
+// (Iván, 13/10/2026: la línea de texto suelta no se leía).
+
+type ClaseDonde = "haciendo" | "pausado" | "siguiente" | "salir" | "fabrica";
+
+const DONDE: Record<ClaseDonde, { palabra: string; punto: string; chip: string }> = {
+  haciendo: {
+    palabra: "Haciendo",
+    punto: "bg-emerald-500",
+    chip: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
+  },
+  pausado: {
+    palabra: "Pausado",
+    punto: "bg-amber-500",
+    chip: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+  },
+  siguiente: {
+    palabra: "Siguiente",
+    punto: "bg-sky-500",
+    chip: "bg-sky-500/12 text-sky-800 dark:text-sky-300",
+  },
+  salir: {
+    palabra: "Fabricado",
+    punto: "bg-violet-500",
+    chip: "bg-violet-500/12 text-violet-800 dark:text-violet-300",
+  },
+  fabrica: {
+    palabra: "En fábrica",
+    punto: "bg-text-muted",
+    chip: "bg-surface-2 text-text-muted",
+  },
+};
+
+function ChipDonde({ clase }: { clase: ClaseDonde }) {
+  const m = DONDE[clase];
   return (
-    <ul className="space-y-1.5">
-      {donde.map((d) => (
-        <li key={d.orden} className="text-xs">
-          <span className="font-mono font-semibold text-text">OF {d.orden}</span>
-          <ul className="mt-0.5 space-y-0.5 pl-3">
-            {d.enCurso.map((p, i) => (
-              <li key={`curso-${i}`}>
-                <LineaPaso paso={p} conNombre="Lo está haciendo" sinNombre="En curso" />
-              </li>
-            ))}
-            {d.pausadas.map((p, i) => (
-              <li key={`pausa-${i}`}>
-                <LineaPaso paso={p} conNombre="Lo tiene pausado" sinNombre="Pausado" />
-              </li>
-            ))}
-            {d.siguientes.length > 0 && (
-              <li className="text-text-muted">Siguiente: {d.siguientes.map((p) => p.paso).join(", ")}</li>
-            )}
-          </ul>
-        </li>
-      ))}
-    </ul>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-px text-[10px] font-semibold ${m.chip}`}>
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${m.punto}`} />
+      {m.palabra}
+    </span>
   );
 }
 
-function LineaPaso({ paso, conNombre, sinNombre }: { paso: PasoDonde; conNombre: string; sinNombre: string }) {
-  return (
-    <span className="text-text">
-      {paso.quien ? (
-        <>
-          {conNombre} <strong>{paso.quien}</strong>
-        </>
-      ) : (
-        sinNombre
-      )}
-      <span className="text-text-muted">
-        {" "}
-        — {paso.paso}
-        {paso.tarea !== paso.paso ? ` · ${paso.tarea}` : ""}
-        {paso.desde ? ` · desde el ${fmtDiaMesAno(paso.desde)}` : ""}
+/** La celda de la fila: lo más vivo que haya (alguien trabajando gana a algo
+ *  pausado, y eso a lo que viene) y sus pasos. El resto, en el `title` y en la
+ *  ficha. Entregado no dice nada: la fecha de al lado ya lo cuenta. */
+function CeldaDonde({ pedido }: { pedido: PedidoConsulta }) {
+  if (pedido.situacion === "entregado") return <span className="text-[11px] text-text-muted">—</span>;
+  if (pedido.situacion === "salir")
+    return (
+      <span className="flex min-w-0 items-center gap-1.5">
+        <ChipDonde clase="salir" />
+        <span className="truncate text-[11px] text-text">esperando salir</span>
       </span>
+    );
+  const d = pedido.donde;
+  const enCurso = [...new Set(d.flatMap((o) => o.enCurso).map((p) => p.paso))];
+  const pausadas = [...new Set(d.flatMap((o) => o.pausadas).map((p) => p.paso))];
+  const siguientes = [...new Set(d.flatMap((o) => o.siguientes).map((p) => p.paso))];
+  const [clase, pasos]: [ClaseDonde, string[]] = enCurso.length
+    ? ["haciendo", enCurso]
+    : pausadas.length
+      ? ["pausado", pausadas]
+      : siguientes.length
+        ? ["siguiente", siguientes]
+        : ["fabrica", []];
+  const mas = (clase === "haciendo" ? pausadas.length : 0) + (clase !== "siguiente" ? siguientes.length : 0);
+  return (
+    <span className="flex min-w-0 items-center gap-1.5" title={textoSituacion(pedido.situacion, d) ?? undefined}>
+      <ChipDonde clase={clase} />
+      <span className="min-w-0 truncate text-[11px] text-text">{pasos.join(", ")}</span>
+      {mas > 0 && <span className="shrink-0 text-[10px] text-text-muted">+{mas}</span>}
     </span>
+  );
+}
+
+/** Una fila por paso abierto, con su OF a la izquierda: qué, quién y desde
+ *  cuándo. Con el nombre, que es a quien hay que llamar. */
+function DondeEsta({ donde }: { donde: DondeOF[] }) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const filas = donde.flatMap((d) => [
+    ...d.enCurso.map((p) => ({ of: d.orden, clase: "haciendo" as const, p })),
+    ...d.pausadas.map((p) => ({ of: d.orden, clase: "pausado" as const, p })),
+    ...d.siguientes.map((p) => ({ of: d.orden, clase: "siguiente" as const, p })),
+  ]);
+  return (
+    <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-xs">
+      {filas.map(({ of, clase, p }, i) => {
+        const primeraDeSuOF = i === 0 || filas[i - 1].of !== of;
+        const dias = p.desde ? diasEntre(p.desde, hoy) : null;
+        return (
+          <Fragment key={`${of}-${clase}-${i}`}>
+            <span className={`font-mono text-[11px] font-semibold ${primeraDeSuOF ? "text-text" : "invisible"}`}>
+              OF {of}
+            </span>
+            <ChipDonde clase={clase} />
+            <span className="min-w-0 truncate text-text" title={p.tarea !== p.paso ? `${p.paso} · ${p.tarea}` : p.paso}>
+              <span className="font-medium">{p.paso}</span>
+              {p.tarea !== p.paso && <span className="text-text-muted"> · {p.tarea}</span>}
+            </span>
+            <span className="text-right text-[11px] text-text-muted">
+              {p.quien && <strong className="font-semibold text-text">{p.quien}</strong>}
+              {p.quien && p.desde && " · "}
+              {p.desde &&
+                (dias !== null && dias <= 0
+                  ? "desde hoy"
+                  : `desde el ${fmtDiaMesAno(p.desde)}${dias !== null ? ` (${dias} ${dias === 1 ? "día" : "días"})` : ""}`)}
+            </span>
+          </Fragment>
+        );
+      })}
+    </div>
   );
 }
