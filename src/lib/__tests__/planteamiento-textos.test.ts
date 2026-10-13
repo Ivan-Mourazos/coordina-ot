@@ -1,0 +1,48 @@
+import { describe, expect, it } from "vitest";
+import { textoAntesDePasar, textoImpresion } from "../planteamiento-textos";
+
+const base = { modo: "activo" as const, aviso: null, impresiones: [] };
+
+describe("lo que dice el diálogo de pasar", () => {
+  it("todo A4", () => {
+    expect(textoAntesDePasar({ ...base, ficheros: [{ nombre: "AR2605016-10.pdf", paginas: 1, todoA4: true }] }))
+      .toBe("Se imprimirá en Producción: AR2605016-10.pdf (1 pág.)");
+  });
+  it("alguna página no A4", () => {
+    expect(textoAntesDePasar({ ...base, ficheros: [{ nombre: "AR2605099-10.pdf", paginas: 2, todoA4: false }] }))
+      .toBe("AR2605099-10.pdf lleva una página que no es A4: al pasar se abrirá el cuadro de imprimir");
+  });
+  it("sin planteamiento", () => {
+    expect(textoAntesDePasar({ ...base, ficheros: [] })).toBe("No encuentro el planteamiento en Planteamientos: se pasará sin imprimir");
+  });
+  it("carpeta ilegible", () => {
+    expect(textoAntesDePasar({ ...base, ficheros: [], aviso: "No puedo leer la carpeta Planteamientos" }))
+      .toBe("No puedo leer la carpeta Planteamientos: se pasará sin imprimir");
+  });
+  it("en ensayo lo dice", () => {
+    expect(textoAntesDePasar({ ...base, modo: "ensayo", ficheros: [{ nombre: "A-10.pdf", paginas: 3, todoA4: true }] }))
+      .toBe("Se imprimirá en la impresora de OT (ensayo): A-10.pdf (3 págs.)");
+  });
+  it("apagado: no dice nada", () => {
+    expect(textoAntesDePasar({ ...base, modo: "off", ficheros: [] })).toBeNull();
+  });
+});
+
+describe("lo que cuenta el Historial", () => {
+  const fila = { id: 1, pedidoId: "AR.26.05016", fichero: "AR2605016-10.pdf", paginas: 1, intentos: 0, error: null, impresora: "ipp://192.168.4.245/ipp", modo: "activo" as const, pasadoPor: "ivan", creadoAt: "2026-10-13T11:05:00Z", enviadoAt: "2026-10-13T11:05:30Z" };
+  it("enviado", () => {
+    expect(textoImpresion({ ...fila, estado: "enviado" })).toBe("Impreso en Producción el 13/10 a las 13:05 · AR2605016-10.pdf");
+  });
+  it("enviado en ensayo lo dice (por el modo, no por la IP)", () => {
+    expect(textoImpresion({ ...fila, estado: "enviado", modo: "ensayo" }))
+      .toBe("Impreso en la impresora de OT (ensayo) el 13/10 a las 13:05 · AR2605016-10.pdf");
+  });
+  it("pendiente con error", () => {
+    expect(textoImpresion({ ...fila, estado: "pendiente", intentos: 3, error: "La impresora no responde", enviadoAt: null }))
+      .toBe("Pendiente de imprimir: La impresora no responde (3 intentos)");
+  });
+  it("manual y sin planteamiento", () => {
+    expect(textoImpresion({ ...fila, estado: "manual" })).toBe("Impresión a mano: AR2605016-10.pdf lleva páginas que no son A4");
+    expect(textoImpresion({ ...fila, estado: "sin_planteamiento", fichero: null })).toBe("Se pasó sin planteamiento en Planteamientos");
+  });
+});

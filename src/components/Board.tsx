@@ -60,6 +60,8 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
+import { textoAntesDePasar, textoImpresion, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
+import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -1388,6 +1390,9 @@ export function Board({
       /** La sección del pedido sobre el que se actúa, si no es la que se mira.
        *  La manda «Impreso»: ver `marcarImpreso`. */
       seccion?: SeccionId;
+      /** Solo con `completar` en OT: false = pasar sin imprimir el
+       *  planteamiento. Ausente = se imprime. */
+      imprimirPlanteamiento?: boolean;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2203,15 +2208,34 @@ export function Board({
    *  la mesa de quien la plantea. Se avisa en el momento, que es cuando todavía
    *  se está a tiempo; antes se enteraba minutos después (ver PedirRevisor). */
   const [sinRevisor, setSinRevisor] = useState<{ pedidoId: string; codigos: string[] } | null>(null);
+  // Lo que se va a imprimir al pasar (solo OT). Se pide al abrir el diálogo;
+  // mientras no llega, el diálogo sale sin la línea. Ver spec 2026-10-13.
+  const [vistaPlanteamiento, setVistaPlanteamiento] = useState<{ pedidoId: string; datos: VistaPlanteamiento } | null>(null);
+  const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
-    if (pedido && puedePasarAProduccion(pedido, miId)) setPasarPendiente(pedidoId);
-  }, [pedidos, miId]);
+    if (pedido && puedePasarAProduccion(pedido, miId)) {
+      setPasarPendiente(pedidoId);
+      setImprimirAlPasar(true);
+      setVistaPlanteamiento(null);
+      if (seccionActual === "ot" && pedido.codigo) {
+        fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d: VistaPlanteamiento | null) => d && setVistaPlanteamiento({ pedidoId, datos: d }))
+          .catch(() => {});
+      }
+    }
+  }, [pedidos, miId, seccionActual]);
   const completarPedidoAhora = useCallback(
     // `recienAprobado`: el pedido tal como acaba de quedar en este mismo gesto
     // (lo manda «Impreso»). `pedidos` es el del último render, de ANTES de
     // aprobar, y con él `puedePasarAProduccion` diría que aún no está listo.
-    async (pedidoId: string, recienAprobado?: Pedido, seccion?: SeccionId) => {
+    async (
+      pedidoId: string,
+      recienAprobado?: Pedido,
+      seccion?: SeccionId,
+      opciones?: { imprimirPlanteamiento?: boolean },
+    ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
       const pedido = recienAprobado ?? pedidos.find((p) => p.id === pedidoId);
@@ -2238,6 +2262,7 @@ export function Board({
         ofIdsPedido,
         cortarFichajeDe: ofIdsPedido,
         seccion,
+        imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -2971,15 +2996,45 @@ export function Board({
         abierto={pedidoAPasar !== null}
         titulo={`Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
         mensaje={
-          `Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido sale ` +
-          `del tablero: deja de estar en Pendientes y pasa al Historial.\n\n` +
-          `Es el final del trabajo de Oficina Técnica. Si después hubiera que retocar algo, habría ` +
-          `que hablarlo con Producción.`
+          <>
+            <p className="whitespace-pre-line">
+              {`Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido sale ` +
+                `del tablero: deja de estar en Pendientes y pasa al Historial.\n\n` +
+                `Es el final del trabajo de Oficina Técnica. Si después hubiera que retocar algo, habría ` +
+                `que hablarlo con Producción.`}
+            </p>
+            {vistaPlanteamiento?.pedidoId === pasarPendiente && textoAntesDePasar(vistaPlanteamiento.datos) && (
+              <div className="mt-3 rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
+                <p className="text-text">{textoAntesDePasar(vistaPlanteamiento.datos)}</p>
+                {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
+                  <p className="mt-1 text-text-muted">
+                    Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
+                  </p>
+                )}
+                {vistaPlanteamiento.datos.ficheros.length > 0 && (
+                  <label className="mt-2 flex items-center gap-2 text-text">
+                    <input type="checkbox" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
+                    Imprimir en Producción
+                  </label>
+                )}
+              </div>
+            )}
+          </>
         }
         onConfirmar={() => {
           const id = pasarPendiente;
           setPasarPendiente(null);
-          if (id) completarPedidoAhora(id);
+          if (!id) return;
+          const vista = vistaPlanteamiento?.pedidoId === id ? vistaPlanteamiento.datos : null;
+          const pedido = pedidos.find((p) => p.id === id);
+          // Los que no son todo A4 se imprimen a mano: el cuadro se abre AQUÍ,
+          // dentro del clic, porque fuera de él el navegador lo bloquea.
+          if (imprimirAlPasar && vista && vista.modo !== "off" && pedido?.codigo) {
+            for (const f of vista.ficheros.filter((x) => !x.todoA4)) {
+              abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
+            }
+          }
+          completarPedidoAhora(id, undefined, undefined, { imprimirPlanteamiento: imprimirAlPasar });
         }}
         onCancelar={() => setPasarPendiente(null)}
       />
