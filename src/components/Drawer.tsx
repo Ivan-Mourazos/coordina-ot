@@ -37,6 +37,7 @@ import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { ofsParaImpreso } from "@/lib/impreso";
 import { MaterialChip } from "./MaterialChip";
 import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
@@ -191,6 +192,7 @@ export function Drawer({
   onClose,
   onAssignPedido,
   onCompletar,
+  onImpreso,
   onSetRevisor,
   onSinRevisor,
   onTraspasarAutor,
@@ -220,6 +222,10 @@ export function Drawer({
   onClose: () => void;
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
+  /** «Impreso»: aprueba lo que queda y pasa el pedido (ver lib/impreso.ts).
+   *  Solo lo da el Board en las secciones sin revisión; sin él, el botón no
+   *  existe y el bloque sigue como siempre. */
+  onImpreso?: (pedidoId: string) => void;
   onSetRevisor: (ofId: string, revisorId: string | null) => void;
   /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
   onSinRevisor?: (ofCodigos: string[]) => void;
@@ -264,6 +270,13 @@ export function Drawer({
   // donde tienen que estar todos —debajo hay un `return` temprano—.
   const idsAConfirmar = useRef<string[]>([]);
   const confirmacionPedido = useConfirmacion((a) => onAccion(idsAConfirmar.current, a.id));
+  // La de «Impreso» (Impresión Digital), aparte: no es una acción de OF que
+  // pase por `onAccion`, sino aprobar y pasar el pedido entero. El pedido se
+  // congela al pulsar, por lo mismo que `idsAConfirmar`.
+  const pedidoAImprimir = useRef<string | null>(null);
+  const confirmacionImpreso = useConfirmacion(() => {
+    if (pedidoAImprimir.current) onImpreso?.(pedidoAImprimir.current);
+  });
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
   // Qué OF se han abierto a mano cuando el pedido tiene tantas que van
   // plegadas (ver `PLEGAR_DESDE`).
@@ -474,6 +487,22 @@ export function Drawer({
     ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
     confirmar: `Las ${paraSinRevision.length} OF quedan aprobadas SIN que nadie las revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa "Pasar a revisión".`,
   };
+  // Impresión Digital: un solo gesto, «Impreso», que aprueba y pasa (ver
+  // lib/impreso.ts). Solo existe donde el Board lo ofrece. Con él, los botones
+  // de bloque de "Pasar a revisión" y "Dar por buenas sin revisión" no salen:
+  // serían otro camino al mismo sitio, y el primero a una revisión que aquí
+  // no hace nadie.
+  const paraImpreso = onImpreso ? ofsParaImpreso(pedido, miId) : [];
+  // `useConfirmacion` habla en `AccionDef`; de la acción solo se usan el
+  // título, el tono y el texto, así que se parte de la más parecida —aprobar
+  // sin revisión, que es lo que hace la primera mitad— y se cambia lo que se lee.
+  const defImpreso = {
+    ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
+    label: "Impreso",
+    tono: "primaria" as const,
+    confirmar:
+      "El pedido queda impreso y pasa a Producción: sale del tablero y sus fases se cierran en OLANET. Si falta algo por imprimir, no lo pulses.",
+  };
 
   // Con la revisión por pedido, el bloque del pedido es el ÚNICO sitio donde
   // están estas acciones, así que tiene que salir también con una sola OF.
@@ -656,7 +685,12 @@ export function Drawer({
       // La confirmación de "Aprobar las N". Cuelga del marco y no de la fila
       // de botones porque el cuadro se pinta en un portal y lo único que
       // necesita es estar montado mientras la ficha lo esté.
-      encima={confirmacionPedido.dialogo}
+      encima={
+        <>
+          {confirmacionPedido.dialogo}
+          {confirmacionImpreso.dialogo}
+        </>
+      }
       // PDF del pedido en grande, ocupando todo el hueco a la izquierda.
       visor={
         <>
@@ -920,7 +954,7 @@ export function Drawer({
                 )}
                 {/* Darlas por buenas sin revisión, todas juntas. Desde dos, como
                     "Dar por corregidas": con una, el "⋯" de su fila. */}
-                {paraSinRevision.length >= 2 && (
+                {!onImpreso && paraSinRevision.length >= 2 && (
                   <button
                     onClick={() => {
                       idsAConfirmar.current = paraSinRevision.map((o) => o.id);
@@ -940,7 +974,23 @@ export function Drawer({
                     porqué de `paraRevisarBloque` más arriba). En OT el término
                     `porPedido` de esta condición es siempre falso, así que aquí
                     no cambia nada: sigue exigiendo el reloj parado del todo. */}
-                {(porPedido || fichandoYo.length === 0) &&
+                {/* «Impreso» va justo antes que "Pasar a revisión", que es el
+                    sitio del botón principal del bloque; donde existe, aquel
+                    no sale (ver `paraImpreso`). */}
+                {paraImpreso.length > 0 && (
+                  <button
+                    onClick={() => {
+                      pedidoAImprimir.current = pedido.id;
+                      confirmacionImpreso.pedirConfirmacion(defImpreso);
+                    }}
+                    title="Da el pedido por impreso y lo pasa a Producción"
+                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
+                  >
+                    Impreso
+                  </button>
+                )}
+                {!onImpreso &&
+                  (porPedido || fichandoYo.length === 0) &&
                   paraRevisarBloque.length >= minimoDelBloque &&
                   (autoresParaRevisar.length === 1 || porPedido) &&
                   !pidiendoRevisorPedido && (
@@ -965,7 +1015,9 @@ export function Drawer({
                 En su propia línea, debajo de los botones: metido entre ellos
                 ocupaba el sitio de uno y empujaba al siguiente a otra fila,
                 con lo que quedaban un botón arriba y otro abajo sin motivo. */}
-            {!soloLectura && avisoPausarPrimero && (
+            {/* Sin "Pasar a revisión" (Impresión) el aviso no tiene a qué
+                referirse. */}
+            {!soloLectura && !onImpreso && avisoPausarPrimero && (
               <p className="-mt-1 mb-2 text-right text-[11px] text-text-muted">
                 Pausa el reloj para poder pasar a revisión
               </p>
@@ -1739,7 +1791,12 @@ function AccionesOF({
       // Las de estado suben al pedido en las secciones que trabajan así. Se
       // quedan fichar —que no pasa por aquí, tiene su propio botón— y anular,
       // que es la única que de verdad es de una OF suelta.
-      !(revisionPorPedido && ACCIONES_DEL_PEDIDO.has(a.id)),
+      !(revisionPorPedido && ACCIONES_DEL_PEDIDO.has(a.id)) &&
+      // Donde no revisa nadie (Impresión) no hay "Pasar a revisión" ni "Dar
+      // por bueno sin revisión": el único final es «Impreso», en el bloque
+      // del pedido (ver lib/impreso.ts). Con los dos aquí, la OF podía
+      // acabar en revisión en una sección que no tiene quién la mire.
+      !(seccion.sinRevision && (a.id === "terminar_planteo" || a.id === "aprobar_sin_revision")),
   );
   // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
   //

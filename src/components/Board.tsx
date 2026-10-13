@@ -57,6 +57,7 @@ import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiemp
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -720,6 +721,15 @@ export function Board({
       internosComoTrabajo:
         SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO].internosComoTrabajo === true,
     }),
+    [seccionDeLosPedidos],
+  );
+  // La fase en una palabra de la Lista, con los nombres de ESTA sección: en
+  // Impresión «Imprimiendo» / «Impreso, sin pasar», no los de OT. Sale de la
+  // sección de los pedidos por lo mismo que `opcionesCategoria`, y memorizada
+  // para no estrenar función —y repintar la lista entera— en cada vuelta.
+  const faseDeLaLista = useCallback(
+    (p: Pedido) =>
+      faseEnUnaPalabra(p, { seccion: SECCIONES[seccionDeLosPedidos ?? SECCION_POR_DEFECTO] }),
     [seccionDeLosPedidos],
   );
 
@@ -2104,10 +2114,13 @@ export function Board({
     if (pedido && puedePasarAProduccion(pedido, miId)) setPasarPendiente(pedidoId);
   }, [pedidos, miId]);
   const completarPedidoAhora = useCallback(
-    async (pedidoId: string) => {
+    // `recienAprobado`: el pedido tal como acaba de quedar en este mismo gesto
+    // (lo manda «Impreso»). `pedidos` es el del último render, de ANTES de
+    // aprobar, y con él `puedePasarAProduccion` diría que aún no está listo.
+    async (pedidoId: string, recienAprobado?: Pedido) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
-      const pedido = pedidos.find((p) => p.id === pedidoId);
+      const pedido = recienAprobado ?? pedidos.find((p) => p.id === pedidoId);
       if (!pedido || !puedePasarAProduccion(pedido, miId)) {
         setPasarError("Solo un autor del pedido puede pasarlo a Producción cuando esté listo.");
         return;
@@ -2145,6 +2158,39 @@ export function Board({
       setOpenId(null);
     },
     [pedidos, miId, setPedidosSync, persistir, soltarDeMiFichaje],
+  );
+  // «Impreso» (Impresión Digital, sin revisión): aprueba lo que queda del
+  // pedido y lo pasa a Producción. Son DOS escrituras porque /api/estado no
+  // acepta un `completar` con cambios de OF; si la segunda falla, el pedido
+  // se queda en «Impreso, sin pasar» con su botón de pasar de siempre.
+  //
+  // El reloj de las aprobadas se corta ya en la primera, igual que al aprobar:
+  // si la segunda fallara, no se quedaría imputando contra una OF dada por
+  // hecha.
+  const marcarImpreso = useCallback(
+    async (pedidoId: string) => {
+      const pedido = pedidosRef.current.find((p) => p.id === pedidoId);
+      if (!pedido || !miId) return;
+      const ofs = ofsParaImpreso(pedido, miId);
+      if (ofs.length === 0) return;
+      const ids = new Set(ofs.map((o) => o.id));
+      const aprobado: Pedido = {
+        ...pedido,
+        ofs: pedido.ofs.map((o) => (ids.has(o.id) ? marcarComoImpreso(o, miId) : o)),
+      };
+      setPedidosSync((prev) => prev.map((p) => (p.id === pedidoId ? aprobado : p)));
+      const ok = await persistir({
+        motivo: "impreso",
+        cambiosOF: aprobado.ofs.filter((o) => ids.has(o.id)).map(snapshotDe),
+        cortarFichajeDe: [...ids],
+      });
+      if (!ok) {
+        setPasarError("No se ha guardado. Vuelve a pulsar «Impreso».");
+        return;
+      }
+      await completarPedidoAhora(pedidoId, aprobado);
+    },
+    [miId, persistir, setPedidosSync, completarPedidoAhora],
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;
@@ -2660,7 +2706,7 @@ export function Board({
                 orden={filtrosPorVista.lista.orden}
                 ordenDesc={filtrosPorVista.lista.ordenDesc}
                 hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
-                fase={faseEnUnaPalabra}
+                fase={faseDeLaLista}
                 unoAbierto
               />
             </div>
@@ -2768,6 +2814,11 @@ export function Board({
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}
+        // «Impreso» solo existe donde no revisa nadie. Va por `laSeccion` (la
+        // de los pedidos en pantalla) y no por `seccionActual`, por lo dicho
+        // allí: en el cambio de lista, un pedido de Diseño no puede ganar un
+        // botón que cierra fases en OLANET.
+        onImpreso={laSeccion.sinRevision ? marcarImpreso : undefined}
         onSetRevisor={setRevisor}
         onTraspasarAutor={traspasarAutorOF}
         onCoger={pedirCogerOFs}
