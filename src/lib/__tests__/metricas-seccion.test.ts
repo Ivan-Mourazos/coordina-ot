@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -32,6 +32,7 @@ afterAll(() => {
 beforeEach(() => {
   db.getDb().prepare("DELETE FROM acciones_log").run();
   db.getDb().prepare("DELETE FROM fichaje_intervalo").run();
+  db.getDb().prepare("DELETE FROM tarea_maquina").run();
 });
 
 /** Una revisión y su devolución, a nombre de quien sea. */
@@ -151,4 +152,78 @@ test("el fichaje de fuera del periodo no entra", () => {
   fichaje("jaime", ["of1"], "2026-07-10T09:00:00.000Z", "2026-07-10T09:30:00.000Z");
 
   expect(fdb.leerIntervalosMetricas("2026-09-01T00:00:00.000Z", undefined, "ot")).toHaveLength(0);
+});
+
+// ─── Quien está en más de una sección cuenta por MÁQUINA ─────────────────────
+// Manuel es de Impresión y sigue en Diseño (`tambienEn`). Filtrando solo por
+// operario, su impresión contaría en Diseño y su diseño en Impresión. Para él
+// manda el recurso de la tarea (`tarea_maquina`); para los de una sola
+// sección, nada cambia.
+
+describe("Manuel cuenta por la máquina de la tarea", () => {
+  beforeEach(() => {
+    db.guardarMaquinasDeTarea([
+      ["dis1", "A-DGRA"],
+      ["imp1", "IMDI-A"],
+    ]);
+  });
+
+  test("un movimiento suyo en A-DGRA cuenta en Diseño y no en Impresión", () => {
+    vuelta("manuel", "dis1", "2026-10-13");
+    expect(db.leerMovimientosMetricas(undefined, undefined, "diseno")).toHaveLength(2);
+    expect(db.leerMovimientosMetricas(undefined, undefined, "impresion")).toHaveLength(0);
+  });
+
+  test("un movimiento suyo en IMDI-A cuenta en Impresión y no en Diseño", () => {
+    vuelta("manuel", "imp1", "2026-10-13");
+    expect(db.leerMovimientosMetricas(undefined, undefined, "impresion")).toHaveLength(2);
+    expect(db.leerMovimientosMetricas(undefined, undefined, "diseno")).toHaveLength(0);
+  });
+
+  test("sin máquina conocida, va a su sección principal", () => {
+    vuelta("manuel", "nada", "2026-10-13");
+    expect(db.leerMovimientosMetricas(undefined, undefined, "impresion")).toHaveLength(2);
+    expect(db.leerMovimientosMetricas(undefined, undefined, "diseno")).toHaveLength(0);
+  });
+
+  test("un fichaje suyo en A-DGRA cuenta en Diseño y no en Impresión", () => {
+    fichaje("manuel", ["dis1"], "2026-10-13T09:00:00.000Z", "2026-10-13T09:30:00.000Z");
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "diseno")).toHaveLength(1);
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "impresion")).toHaveLength(0);
+  });
+
+  test("un fichaje suyo en IMDI-A cuenta en Impresión y no en Diseño", () => {
+    fichaje("manuel", ["imp1"], "2026-10-13T09:00:00.000Z", "2026-10-13T09:30:00.000Z");
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "impresion")).toHaveLength(1);
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "diseno")).toHaveLength(0);
+  });
+
+  test("un fichaje suyo sin máquina conocida va a Impresión", () => {
+    fichaje("manuel", ["nada"], "2026-10-13T09:00:00.000Z", "2026-10-13T09:30:00.000Z");
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "impresion")).toHaveLength(1);
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "diseno")).toHaveLength(0);
+  });
+
+  test("Carrón sigue contando por persona, sea cual sea la máquina", () => {
+    vuelta("carron", "imp1", "2026-10-13");
+    fichaje("carron", ["imp1"], "2026-10-13T09:00:00.000Z", "2026-10-13T09:30:00.000Z");
+    expect(db.leerMovimientosMetricas(undefined, undefined, "diseno")).toHaveLength(2);
+    expect(db.leerMovimientosMetricas(undefined, undefined, "impresion")).toHaveLength(0);
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "diseno")).toHaveLength(1);
+    expect(fdb.leerIntervalosMetricas(undefined, undefined, "impresion")).toHaveLength(0);
+  });
+
+  test("OT no cambia: los suyos y los sin autor, y nada de Manuel", () => {
+    vuelta("jaime", "dis1", "2026-10-13");
+    vuelta(null, "of1", "2026-10-13");
+    vuelta("manuel", "dis1", "2026-10-13");
+    vuelta("manuel", "nada", "2026-10-13");
+    fichaje("jaime", ["imp1"], "2026-10-13T09:00:00.000Z", "2026-10-13T09:30:00.000Z");
+    fichaje("manuel", ["nada"], "2026-10-13T10:00:00.000Z", "2026-10-13T10:30:00.000Z");
+    const ot = db.leerMovimientosMetricas(undefined, undefined, "ot");
+    expect(ot).toHaveLength(4);
+    expect(ot.every((m) => m.operarioId !== "manuel")).toBe(true);
+    const otF = fdb.leerIntervalosMetricas(undefined, undefined, "ot");
+    expect(otF.map((i) => i.operarioId)).toEqual(["jaime"]);
+  });
 });

@@ -6,7 +6,7 @@ import { claveDeCausa } from "../devolucion";
 import type { FilaOverlayConSeccion, FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
 import { SECCION_POR_DEFECTO, seccionDeRecurso, type SeccionId } from "../secciones";
-import { operariosDeSeccion, seccionConocidaDeOperario, seccionDeOperario } from "./operarios";
+import { condicionMetricasSeccionSql, seccionConocidaDeOperario, seccionDeOperario } from "./operarios";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -924,6 +924,11 @@ function migrar(db: Database.Database): void {
  *  —Ángel supervisa las dos y puede—, ese movimiento contaría en la SUYA y no
  *  en la de la OF. Saber de qué sección es una OF exige preguntárselo a RPS por
  *  cada una, y eso son 7-15 s para afinar un caso que casi no se da.
+ *
+ *  LA EXCEPCIÓN es quien está en dos secciones (Manuel: Impresión y Diseño).
+ *  Para él no vale "cada uno en la suya", así que sus filas se reparten por
+ *  la máquina de la OF que guarda `tarea_maquina`, sin preguntar a RPS. Ver
+ *  `condicionMetricasSeccionSql`.
  */
 export function leerMovimientosMetricas(
   desde?: string,
@@ -941,13 +946,21 @@ export function leerMovimientosMetricas(
   ];
   const args: string[] = [];
   if (seccion) {
-    const suyos = operariosDeSeccion(seccion);
     // Los movimientos SIN autor conocido entran en la sección de siempre: los
     // hay en el histórico, y perderlos descuadraría los totales de OT por un
-    // detalle de cómo se registraron hace meses.
-    const sinAutor = seccion === SECCION_POR_DEFECTO ? " OR l.operario_id IS NULL" : "";
-    filtros.push(`(l.operario_id IN (${suyos.map(() => "?").join(",")})${sinAutor})`);
-    args.push(...suyos);
+    // detalle de cómo se registraron hace meses. Quien está en dos secciones
+    // cuenta por la máquina de la OF (ver `condicionMetricasSeccionSql`).
+    const cond = condicionMetricasSeccionSql(
+      seccion,
+      "l.operario_id",
+      (lista) =>
+        `EXISTS (SELECT 1 FROM tarea_maquina t
+                  WHERE t.of_id = json_extract(c.value, '$.ofId')
+                    AND lower(trim(t.maquina)) IN (${lista}))`,
+      seccion === SECCION_POR_DEFECTO,
+    );
+    filtros.push(cond.sql);
+    args.push(...cond.args);
   }
   if (desde) {
     filtros.push("l.ts >= ?");

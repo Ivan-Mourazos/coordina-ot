@@ -1,4 +1,4 @@
-import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
+import { SECCIONES, SECCION_POR_DEFECTO, recursosSql, type SeccionId } from "../secciones";
 
 // ─── Mapa empleado RPS ↔ operario del tablero ────────────────────────────────
 // RPS no tiene un departamento fiable (GENEmployee.IDDepartment = null), así
@@ -93,6 +93,56 @@ export function operariosDeSeccion(seccion: SeccionId): string[] {
   return Object.values(COD_EMPLEADO_A_OPERARIO)
     .filter((e) => e.seccion === seccion || e.tambienEn?.includes(seccion))
     .map((e) => e.operarioId);
+}
+
+/** Qué filas de un registro (movimientos, fichajes) cuentan para las métricas
+ *  de una sección, como condición SQL con sus parámetros.
+ *
+ *  Quien está en UNA sola sección cuenta por persona, como siempre: todo lo
+ *  que firma es de su sección. Quien está en varias (`tambienEn`: Manuel)
+ *  cuenta por MÁQUINA: una fila suya es de esta sección si el recurso de su
+ *  tarea (`tarea_maquina`) es de ella, con la misma regla que
+ *  `seccionDeRecurso`. Sin eso, su impresión contaría en Diseño y su diseño en
+ *  Impresión. Si la tarea no tiene recurso conocido —o es de una sección que no
+ *  es suya—, va a su sección principal.
+ *
+ *  `recursoEn(lista)` lo pone quien llama: devuelve la condición "el recurso de
+ *  la tarea de esta fila está en (lista)", porque cada tabla guarda la OF a su
+ *  manera. `lista` sale de `recursosSql`: literales nuestros, nada de fuera.
+ *
+ *  `sinAutor` añade las filas sin operario (solo OT, ver
+ *  `leerMovimientosMetricas`). */
+export function condicionMetricasSeccionSql(
+  seccion: SeccionId,
+  columnaOperario: string,
+  recursoEn: (lista: string) => string,
+  sinAutor = false,
+): { sql: string; args: string[] } {
+  const partes: string[] = [];
+  const args: string[] = [];
+  const empleados = Object.values(COD_EMPLEADO_A_OPERARIO);
+  const solo = empleados
+    .filter((e) => e.seccion === seccion && !e.tambienEn?.length)
+    .map((e) => e.operarioId);
+  // Igual que antes de que hubiera personas en dos secciones: `IN ()` vacío
+  // no casa con nada, que es lo correcto si la sección no tiene a nadie solo.
+  partes.push(`${columnaOperario} IN (${solo.map(() => "?").join(",")})`);
+  args.push(...solo);
+
+  for (const e of empleados) {
+    if (!e.tambienEn?.length) continue;
+    const suyas = [e.seccion, ...e.tambienEn];
+    if (!suyas.includes(seccion)) continue;
+    const deEsta = recursoEn(recursosSql(SECCIONES[seccion]));
+    const regla =
+      e.seccion === seccion
+        ? `(${deEsta} OR NOT (${recursoEn(suyas.map((s) => recursosSql(SECCIONES[s])).join(","))}))`
+        : deEsta;
+    partes.push(`(${columnaOperario} = ? AND ${regla})`);
+    args.push(e.operarioId);
+  }
+  if (sinAutor) partes.push(`${columnaOperario} IS NULL`);
+  return { sql: `(${partes.join(" OR ")})`, args };
 }
 
 /** El mismo mapa del revés, para ESCRIBIR fichajes: los bonos de OLANET llevan
