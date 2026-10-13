@@ -3,6 +3,7 @@ import type { OF } from "../types";
 import type { Fase } from "../fases-tablero";
 import {
   FASES,
+  FASES_DE_REVISION,
   FASES_DE_TRABAJO,
   agruparPorFase,
   avisaDeOFNueva,
@@ -201,7 +202,7 @@ describe("agruparPorFase", () => {
     for (const s of Object.values(SECCIONES)) {
       const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], s);
       // Sin revisión pierden a propósito sus dos fases (ver su propio test).
-      const esperadas = FASES.map((f) => f.id).filter((id) => !(s.sinRevision && (id === "devuelta" || id === "esperandoRevision")));
+      const esperadas = FASES.map((f) => f.id).filter((id) => !(s.sinRevision && FASES_DE_REVISION.has(id)));
       expect([...g.map((x) => x.id)].sort()).toEqual([...esperadas].sort());
     }
   });
@@ -615,6 +616,22 @@ describe("sección sin revisión (Impresión Digital)", () => {
     expect(grupos.find((g) => g.id === "planteando")?.label).toBe("Imprimiendo");
     expect(etiquetaFase("listoParaPasar", imp)).toBe("Impreso, sin pasar");
     expect(etiquetaFase("sinEmpezar", imp)).toBe("Sin empezar");
+  });
+
+  it("lo que esté en revisión sigue a la vista, en «Imprimiendo»", () => {
+    // Filas viejas del overlay (de cuando Manuel trabajaba en Diseño) o las
+    // acciones genéricas del Drawer pueden dejar OF en revisión: sin columna
+    // propia, el pedido desaparecería del tablero.
+    for (const [estado, fase] of [
+      ["por_revisar", "esperandoRevision"],
+      ["en_revision", "esperandoRevision"],
+      ["devuelta", "devuelta"],
+    ] as const) {
+      const p = { ofs: [of({ estado })] };
+      const en = (s: typeof imp) => agruparPorFase([p], s).filter((g) => g.items.length > 0).map((g) => g.id);
+      expect(en(imp)).toEqual(["planteando"]);
+      expect(en(SECCIONES.diseno)).toEqual([fase]);
+    }
   });
 
   it("Diseño y OT no cambian", () => {
