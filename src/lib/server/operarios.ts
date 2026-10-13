@@ -17,10 +17,19 @@ import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "../secciones";
 // año (2026-09-01): son los únicos tres que trabajan ahí. Ojo con Manuel: en
 // GENEmployee hay tres "Manuel Gómez" y el de diseño es GOMEZ CAMINO, MANUEL
 // RAMON; los dos GOMEZ ALAMANCOS (58, 67) no pisan A-DGRA.
+//
+// Manuel es de Impresión (su sección de entrada y la máquina con la que ficha)
+// pero Carrón y Smith le pasan trabajo en Diseño, así que `tambienEn` lo deja
+// también en el tablero, los selectores y las métricas de Diseño. Decisión de
+// Iván, 13/10/2026.
 
 interface Empleado {
   operarioId: string;
+  /** Sección principal: la de entrada por defecto y de la que sale su máquina. */
   seccion: SeccionId;
+  /** Otras secciones en las que SIGUE contando como de la casa (lista de
+   *  trabajo, selectores de revisor y traspaso, métricas). */
+  tambienEn?: readonly SeccionId[];
 }
 
 const COD_EMPLEADO_A_OPERARIO: Record<string, Empleado> = {
@@ -33,8 +42,13 @@ const COD_EMPLEADO_A_OPERARIO: Record<string, Empleado> = {
   "146": { operarioId: "angel", seccion: "ot" }, // GARCIA COSTOYA, ANGEL
   // ── Diseño Gráfico ──
   "88": { operarioId: "carron", seccion: "diseno" }, // CARRON RODRIGUEZ, JOSE LUIS
-  "22": { operarioId: "manuel", seccion: "diseno" }, // GOMEZ CAMINO, MANUEL RAMON
   "48": { operarioId: "smith", seccion: "diseno" }, // SMITH MARTINEZ, FRANCISCO JAVIER
+  // ── Impresión Digital ──
+  // Manuel también diseña, pero lo suyo es imprimir (Iván, 13/10/2026): entra
+  // en Impresión y sigue en Diseño porque Carrón y Smith le pasan trabajo. Su
+  // tiempo en A-DGRA sigue contando para Diseño — el tiempo va por recurso, no
+  // por persona.
+  "22": { operarioId: "manuel", seccion: "impresion", tambienEn: ["diseno"] }, // GOMEZ CAMINO, MANUEL RAMON
 };
 
 /** Id de operario del tablero para un CodEmployee de RPS (o null si no está en
@@ -71,10 +85,13 @@ const SECCION_POR_OPERARIO: Readonly<Record<string, SeccionId>> = Object.fromEnt
   Object.values(COD_EMPLEADO_A_OPERARIO).map((e) => [e.operarioId, e.seccion]),
 );
 
-/** Los operarios de una sección. */
+/** Los operarios de una sección: los que la tienen como principal y los que
+ *  además trabajan en ella (`tambienEn`). De aquí salen la zona de cada uno en
+ *  el tablero, los selectores y las métricas, así que quien pasa trabajo entre
+ *  secciones no puede desaparecer de ninguna. */
 export function operariosDeSeccion(seccion: SeccionId): string[] {
   return Object.values(COD_EMPLEADO_A_OPERARIO)
-    .filter((e) => e.seccion === seccion)
+    .filter((e) => e.seccion === seccion || e.tambienEn?.includes(seccion))
     .map((e) => e.operarioId);
 }
 

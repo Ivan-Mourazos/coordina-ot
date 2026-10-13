@@ -120,7 +120,8 @@ export function HistorialView({
   const setSoloSeccion = (soloSeccion: boolean) => onFiltros({ soloSeccion });
 
   const buscando = Boolean(q.trim());
-  const equipo = operarios.filter((o) => (o.seccion ?? "ot") === seccion);
+  // Quien también trabaja en esta sección (Manuel, en Diseño) cuenta como suyo.
+  const equipo = operarios.filter((o) => (o.seccion ?? "ot") === seccion || o.tambienEn?.includes(seccion));
 
   // Clave de filtros: al cambiar, se reinicia la lista.
   const filtrosKey = `${seccion}|${q}|${desde}|${hasta}|${familia ?? ""}|${operario ?? ""}|${soloSeccion ? 1 : 0}`;

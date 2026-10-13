@@ -12,7 +12,7 @@ import { bonosDe } from "../bonos";
 import type { Intervalo } from "../fichaje";
 
 describe("quién es de qué sección", () => {
-  it("los tres de Diseño Gráfico son los que imputan en A-DGRA", () => {
+  it("los tres de Diseño Gráfico son los que imputan en A-DGRA, Manuel incluido", () => {
     // Sacados de sus imputaciones del último año (2026-09-01). Ojo con Manuel:
     // en GENEmployee hay tres "Manuel Gómez" y el de diseño es GOMEZ CAMINO,
     // MANUEL RAMON (22); los dos GOMEZ ALAMANCOS (58, 67) no pisan A-DGRA.
@@ -20,6 +20,18 @@ describe("quién es de qué sección", () => {
     expect(operarioDeEmpleado("22")).toBe("manuel");
     expect(operarioDeEmpleado("48")).toBe("smith");
     expect(operariosDeSeccion("diseno").sort()).toEqual(["carron", "manuel", "smith"]);
+  });
+
+  it("Manuel imprime pero sigue siendo de Diseño: Carrón y Smith le pasan trabajo", () => {
+    // Su sección principal es Impresión (entra por ahí y de ella sale su
+    // máquina), pero `tambienEn` lo mantiene en el tablero, los selectores y
+    // las métricas de Diseño.
+    expect(seccionDeOperario("manuel")).toBe("impresion");
+    expect(MAQUINA_POR_OPERARIO.manuel).toBe("IMDI-A");
+    expect(operariosDeSeccion("impresion")).toEqual(["manuel"]);
+    const diseno = operariosDeSeccion("diseno");
+    expect(diseno).toEqual(expect.arrayContaining(["carron", "manuel", "smith"]));
+    expect(diseno).toHaveLength(3);
   });
 
   it("los de Oficina Técnica siguen donde estaban", () => {
@@ -69,7 +81,9 @@ describe("con qué máquina ficha cada uno", () => {
   it("cada sección con la suya", () => {
     expect(MAQUINA_POR_OPERARIO.ivan).toBe(SECCIONES.ot.maquina);
     expect(MAQUINA_POR_OPERARIO.carron).toBe(SECCIONES.diseno.maquina);
-    expect(MAQUINA_POR_OPERARIO.manuel).toBe("A-DGRA");
+    // Manuel entra por Impresión; sus tareas de A-DGRA fichan allí porque la
+    // máquina sale primero de `tarea_maquina`.
+    expect(MAQUINA_POR_OPERARIO.manuel).toBe(SECCIONES.impresion.maquina);
   });
 
   it("el bono de Carrón NO se escribe en la máquina de OT", () => {

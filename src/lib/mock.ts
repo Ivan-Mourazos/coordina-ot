@@ -25,7 +25,7 @@ export const OPERARIOS: Operario[] = [
   // ── Diseño Gráfico ──
   // Nombre y primer apellido, también para los conocidos por su apellido.
   { id: "carron", nombre: "José Luis Carrón", iniciales: "CA", color: "#0f8a8a", seccion: "diseno" },
-  { id: "manuel", nombre: "Manuel Ramón Gómez", iniciales: "MA", color: "#4a5fd0", seccion: "diseno" },
+  { id: "manuel", nombre: "Manuel Ramón Gómez", iniciales: "MA", color: "#4a5fd0", seccion: "impresion", tambienEn: ["diseno"] },
   { id: "smith", nombre: "Francisco Javier Smith", iniciales: "SM", color: "#7a4fc0", seccion: "diseno" },
 ];
 

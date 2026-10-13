@@ -478,7 +478,19 @@ const MIGRACIONES: ReadonlyArray<{
   // (11/10/2026): la lista de antes no describía lo que se devuelve y solo se
   // marcaba en el 23 % de las devoluciones.
   { version: 12, nombre: "pasos_de_revision", aplicar: pasosDeRevision },
+  // Impresión Digital abre con tablero propio y Manuel es quien imprime.
+  { version: 13, nombre: "manuel_a_impresion", aplicar: manuelAImpresion },
 ];
+
+/** Manuel pasa de Diseño Gráfico a Impresión Digital (13/10/2026).
+ *
+ *  La semilla de la 7 solo entra en bases nuevas, así que producción hay que
+ *  moverla aquí. Solo si sigue en Diseño: si alguien le puso otra sección a
+ *  mano, esa decisión manda. Sigue siendo también de Diseño (`tambienEn` en
+ *  operarios.ts): la columna `seccion` es solo la principal. */
+function manuelAImpresion(db: Database.Database): void {
+  db.prepare("UPDATE persona SET seccion = 'impresion' WHERE id = 'manuel' AND seccion = 'diseno'").run();
+}
 
 /** Añade las columnas de huella a `pedido_scan`.
  *
@@ -668,7 +680,7 @@ function personas(db: Database.Database): void {
      VALUES (?, ?, NULL, ?, ?, ?)`,
   );
 
-  // Oficina Técnica y Diseño Gráfico, en el orden en que salen en el tablero.
+  // Oficina Técnica, Diseño Gráfico e Impresión, en el orden en que salen en el tablero.
   const tecnicos: Array<[string, string, string]> = [
     ["alberto", "Alberto", "ot"],
     ["jaime", "Jaime", "ot"],
@@ -677,7 +689,7 @@ function personas(db: Database.Database): void {
     ["ivan", "Iván", "ot"],
     ["angel", "Ángel", "ot"],
     ["carron", "Carrón", "diseno"],
-    ["manuel", "Manuel", "diseno"],
+    ["manuel", "Manuel", "impresion"],
     ["smith", "Smith", "diseno"],
   ];
   for (const [id, nombre, seccion] of tecnicos) {
