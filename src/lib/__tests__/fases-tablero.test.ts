@@ -11,6 +11,7 @@ import {
   faseDeOF,
   faseDePedido,
   faseDeColumna,
+  faseEnUnaPalabra,
   pedidoParado,
   motivoBloqueo,
   ofOcultaDeOT,
@@ -574,5 +575,26 @@ describe("un pedido parado se queda en su columna", () => {
     const parado = { ofs: [of({ estado: "en_curso", detenida: true })] };
     const normal = { ofs: [of({ estado: "en_curso" })] };
     expect([parado, normal].filter(pedidoParado)).toHaveLength(1);
+  });
+});
+
+describe("la fase en una palabra", () => {
+  const ped = (...ofs: OF[]) => ({ ofs }) as unknown as import("../types").Pedido;
+
+  it("sin autor es «Sin asignar»; con autor y sin empezar, «Sin empezar»", () => {
+    expect(faseEnUnaPalabra(ped(of({}))).texto).toBe("Sin asignar");
+    expect(faseEnUnaPalabra(ped(of({ autorId: "ivan" }))).texto).toBe("Sin empezar");
+  });
+
+  it("una devolución es «A corregir» para el equipo y «Planteando» para quien mira de fuera", () => {
+    const devuelta = ped(of({ autorId: "ivan", revisorId: "jaime", estado: "devuelta" }));
+    expect(faseEnUnaPalabra(devuelta).texto).toBe("A corregir");
+    expect(faseEnUnaPalabra(devuelta, { invitado: true }).texto).toBe("Planteando");
+  });
+
+  it("todo aprobado es «Listo para pasar», y «Listo» de fuera", () => {
+    const listo = ped(of({ autorId: "ivan", revisorId: "jaime", estado: "aprobada" }));
+    expect(faseEnUnaPalabra(listo).texto).toBe("Listo para pasar");
+    expect(faseEnUnaPalabra(listo, { invitado: true }).texto).toBe("Listo");
   });
 });

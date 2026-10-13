@@ -56,7 +56,7 @@ import { ahoraDelServidor, desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
-import { ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import {
   FICHAJE_VACIO,
   abierto,
@@ -2660,6 +2660,7 @@ export function Board({
                 orden={filtrosPorVista.lista.orden}
                 ordenDesc={filtrosPorVista.lista.ordenDesc}
                 hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
+                fase={faseEnUnaPalabra}
               />
             </div>
           </>

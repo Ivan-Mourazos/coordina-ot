@@ -361,3 +361,34 @@ export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean
   // campana por una OF que no hay que plantear.
   return p.ofs.some((of) => nuevas.includes(of.id) && of.autorId === null && of.estado !== "aprobada");
 }
+
+/** La fase del pedido en una palabra, con su color de columna, para ponerla
+ *  junto al código en las listas (Pendientes del equipo y «En curso» de la
+ *  consulta, Iván 13/10/2026).
+ *
+ *  `invitado`: quien mira sin entrar no ve devoluciones —«A corregir» sale
+ *  como «Planteando»—. Sin autor no es «sin empezar», es que nadie lo ha
+ *  cogido todavía. */
+export function faseEnUnaPalabra(
+  p: Pedido,
+  { invitado = false }: { invitado?: boolean } = {},
+): { texto: string; color: string } {
+  const fase = faseDePedido(p);
+  const color = (f: Fase) => FASES.find((x) => x.id === f)?.color ?? "#9ca3af";
+  switch (fase) {
+    case "sinEmpezar":
+      return { texto: p.ofs.some((o) => o.autorId) ? "Sin empezar" : "Sin asignar", color: color(fase) };
+    case "devuelta":
+      return invitado
+        ? { texto: "Planteando", color: color("planteando") }
+        : { texto: "A corregir", color: color(fase) };
+    case "planteando":
+      return { texto: "Planteando", color: color(fase) };
+    case "esperandoRevision":
+      return { texto: "Revisando", color: color(fase) };
+    case "listoParaPasar":
+      return { texto: invitado ? "Listo" : "Listo para pasar", color: color(fase) };
+    case "parado":
+      return { texto: "Detenido", color: color(fase) };
+  }
+}

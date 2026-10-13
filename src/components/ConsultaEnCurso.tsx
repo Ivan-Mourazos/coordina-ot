@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Operario, Pedido } from "@/lib/types";
-import { FASES, faseDePedido, type Fase } from "@/lib/fases-tablero";
+import { faseEnUnaPalabra } from "@/lib/fases-tablero";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { BloquePlegable } from "./Bandeja";
 import { ListaView } from "./ListaView";
@@ -23,28 +23,8 @@ import { ListaView } from "./ListaView";
 
 const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno"];
 
-const COLOR_FASE = new Map(FASES.map((f) => [f.id, f.color]));
-
-/** La fase para quien mira desde fuera. Sin «A corregir»: las devoluciones no
- *  se enseñan (el servidor ya las manda como «en curso»), y sin autor no es
- *  «sin empezar», es que nadie lo ha cogido todavía. */
-function faseParaInvitado(p: Pedido): { texto: string; color: string } {
-  const fase: Fase = faseDePedido(p);
-  const color = COLOR_FASE.get(fase) ?? "#9ca3af";
-  switch (fase) {
-    case "sinEmpezar":
-      return p.ofs.some((o) => o.autorId) ? { texto: "Sin empezar", color } : { texto: "Sin asignar", color };
-    case "devuelta":
-    case "planteando":
-      return { texto: "Planteando", color: COLOR_FASE.get("planteando") ?? color };
-    case "esperandoRevision":
-      return { texto: "Revisando", color };
-    case "listoParaPasar":
-      return { texto: "Listo", color };
-    case "parado":
-      return { texto: "Detenido", color };
-  }
-}
+/** Sin devoluciones: quien mira desde fuera no las ve. */
+const faseParaInvitado = (p: Pedido) => faseEnUnaPalabra(p, { invitado: true });
 
 type Datos = { operarios: Operario[]; pedidos: Pedido[]; detenidos: Pedido[] };
 
