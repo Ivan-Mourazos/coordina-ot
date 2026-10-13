@@ -2179,18 +2179,27 @@ export function Board({
         ofs: pedido.ofs.map((o) => (ids.has(o.id) ? marcarComoImpreso(o, miId) : o)),
       };
       setPedidosSync((prev) => prev.map((p) => (p.id === pedidoId ? aprobado : p)));
+      // Es exactamente la transición «aprobada, sin revisión»: con ese motivo
+      // Métricas cuentan lo que sale de Impresión como cualquier aprobación
+      // sin revisión (filtran por motivo; uno inventado no se vería).
       const ok = await persistir({
-        motivo: "impreso",
+        motivo: "aprobar_sin_revision",
         cambiosOF: aprobado.ofs.filter((o) => ids.has(o.id)).map(snapshotDe),
         cortarFichajeDe: [...ids],
       });
       if (!ok) {
+        // Sin guardar: se deshace lo optimista para que el botón siga ahí.
+        setPedidosSync((prev) => prev.map((p) => (p.id === pedidoId ? pedido : p)));
         setPasarError("No se ha guardado. Vuelve a pulsar «Impreso».");
         return;
       }
+      // Ya aprobadas en el servidor: mi fichaje local no debe seguir
+      // reenviándolas, o el próximo «Fichar» reabriría el reloj si falla
+      // el paso a Producción.
+      soltarDeMiFichaje([...ids]);
       await completarPedidoAhora(pedidoId, aprobado);
     },
-    [miId, persistir, setPedidosSync, completarPedidoAhora],
+    [miId, persistir, setPedidosSync, completarPedidoAhora, soltarDeMiFichaje],
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;

@@ -61,6 +61,11 @@ describe("Impreso", () => {
     expect(r.revisada).not.toBe(true);
   });
 
+  it("apaga el reloj de la OF que estaba fichando", () => {
+    const r = marcarComoImpreso(of({ id: "a", estado: "en_curso", autorId: "manuel", fichandoRol: "plantear" }), "manuel");
+    expect(r.fichandoRol).toBeNull();
+  });
+
   it("con todas marcadas, el pedido queda listo para pasar y Manuel puede pasarlo", () => {
     const p = pedido([
       of({ id: "a", estado: "en_curso", autorId: "manuel" }),

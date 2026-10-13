@@ -27,7 +27,8 @@ export function ofsParaImpreso(pedido: Pedido, miId: string | null): OF[] {
 
 /** La OF tal como queda al pulsar «Impreso»: aprobada sin revisión y, si no
  *  era de nadie, mía. Sin autor no se podría pasar el pedido (ver
- *  `puedePasarAProduccion`). `revisada` no se toca: no hubo revisión. */
+ *  `puedePasarAProduccion`). `revisada` no se toca: no hubo revisión. Y el reloj
+ *  se apaga: una OF aprobada no puede seguir fichando. */
 export function marcarComoImpreso(of: OF, miId: string): OF {
-  return { ...of, estado: "aprobada", autorId: of.autorId ?? miId };
+  return { ...of, estado: "aprobada", autorId: of.autorId ?? miId, fichandoRol: null };
 }
