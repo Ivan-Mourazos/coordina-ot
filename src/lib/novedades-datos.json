@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-13",
-    "hasta": "0b4b7c3",
+    "hasta": "42133b7",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -72,6 +72,12 @@
       {
         "tipo": "mejor",
         "titulo": "Sin entrar, autor y revisor salen con su nombre en vez de iniciales"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En «Novedades» se resalta lo que todavía no habías leído",
+        "detalle": "Aunque se actualice varias veces el mismo día, ves de un vistazo qué es lo nuevo desde la última vez.",
+        "tanda": 3
       }
     ]
   },
