@@ -439,7 +439,7 @@ export function ListaView({
     <>
       <span />
       <span>Pedido · cliente</span>
-      <span>Quién · estado</span>
+      <span>{fase ? "Quién" : "Quién · estado"}</span>
       <span className={columnaMaterial}>Material</span>
       <span>
         <span className="block">Recorrido</span>
@@ -565,7 +565,7 @@ export function ListaView({
                     </div>
                   </div>
                   <div className="pointer-events-none min-w-0">
-                    <Estado tramos={tramos} />
+                    {fase ? <Quien tramos={tramos} /> : <Estado tramos={tramos} />}
                   </div>
                   <div className={`pointer-events-none min-w-0 ${columnaMaterial}`}>
                     <MaterialFila p={p} hoy={hoy} />
@@ -757,6 +757,28 @@ function Estado({ tramos }: { tramos: TramoEstado[] }) {
           {t.minutos > 0 && (
             <span className="tabular-nums text-text-muted">{fmtMin(t.minutos)}</span>
           )}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** La columna con la fase ya puesta junto al código: solo QUIÉN y cuánto,
+ *  sin la palabra de estado, que repetía la fase (Iván, 13/10/2026). El nombre
+ *  en el color de su rol; el verbo, en el `title` por si se quiere el detalle.
+ *  Sin nadie: un guion para el autor, y «sin revisor» si ya toca revisar. */
+function Quien({ tramos }: { tramos: TramoEstado[] }) {
+  return (
+    <span className="flex min-w-0 flex-col gap-0.5 text-[11px] leading-4">
+      {tramos.map((t, i) => (
+        <span key={i} title={[t.verbo, t.detalle].filter(Boolean).join(" · ")} className="flex flex-wrap items-baseline gap-x-1.5">
+          {t.quien.length > 0 ? (
+            <span className={`min-w-0 font-semibold ${t.hecho ? "text-text-muted" : ROL[t.rol].texto}`}>{t.quien.join(", ")}</span>
+          ) : (
+            <span className="text-text-muted">{t.rol === "revisar" ? "sin revisor" : "—"}</span>
+          )}
+          {t.enMarcha && <LiveDot rol={t.rol} />}
+          {t.minutos > 0 && <span className="tabular-nums text-text-muted">{fmtMin(t.minutos)}</span>}
         </span>
       ))}
     </span>
