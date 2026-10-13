@@ -3,7 +3,7 @@ import { fichar } from "../fichaje";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
 import { encolarFichajeOLanzar, encolarTramosDeOF } from "./olanet-outbox";
-import { operariosDeSeccion } from "./operarios";
+import { condicionMetricasSeccionSql } from "./operarios";
 import type { SeccionId } from "../secciones";
 
 // ─── Persistencia del fichaje (SQLite propio) ────────────────────────────────
@@ -97,8 +97,9 @@ function leerIntervalosDeOF(ofId: string): Intervalo[] {
  *  lo hace `calcularMetricas`). Los abiertos entran y los descarta el cálculo,
  *  que es donde vive la regla de "lo que no ha acabado no se mide".
  *
- *  La sección se filtra por el operario que ficha, igual que los movimientos
- *  (ver `leerMovimientosMetricas`). */
+ *  La sección se filtra por el operario que ficha, igual que los movimientos,
+ *  y por la máquina de la OF si esa persona está en dos secciones (ver
+ *  `leerMovimientosMetricas`). */
 export function leerIntervalosMetricas(
   desde?: string,
   hasta?: string,
@@ -107,9 +108,18 @@ export function leerIntervalosMetricas(
   const filtros: string[] = [];
   const args: string[] = [];
   if (seccion) {
-    const suyos = operariosDeSeccion(seccion);
-    filtros.push(`operario_id IN (${suyos.map(() => "?").join(",")})`);
-    args.push(...suyos);
+    // Un tramo puede llevar varias OF: cuenta en la sección si ALGUNA es de
+    // ella. Mezclar en un tramo OF de dos secciones no se hace en la práctica.
+    const cond = condicionMetricasSeccionSql(
+      seccion,
+      "operario_id",
+      (lista) =>
+        `EXISTS (SELECT 1 FROM json_each(fichaje_intervalo.of_ids) j
+                   JOIN tarea_maquina t ON t.of_id = j.value
+                  WHERE lower(trim(t.maquina)) IN (${lista}))`,
+    );
+    filtros.push(cond.sql);
+    args.push(...cond.args);
   }
   if (desde) {
     filtros.push("(fin IS NULL OR fin > ?)");

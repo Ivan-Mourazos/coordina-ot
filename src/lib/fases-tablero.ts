@@ -274,8 +274,25 @@ export function agruparPorFase<T extends ConOFs>(
   // recorrido, así que el que corría prisa podía estar el último.
   return fasesEnOrden(seccion).map((meta) => ({
     ...meta,
-    items: pedidos.filter((p) => faseDeColumna(p) === meta.id).sort(porPlanificada),
+    items: pedidos.filter((p) => columnaEn(p, seccion) === meta.id).sort(porPlanificada),
   }));
+}
+
+/** La columna en la que se pinta el pedido EN ESTA SECCIÓN.
+ *
+ *  Igual que `faseDeColumna` salvo en las secciones sin revisión: allí no
+ *  existen las columnas «devuelta» y «esperandoRevision», pero un pedido puede
+ *  seguir teniendo OF en esos estados (filas viejas del overlay de cuando el
+ *  equipo trabajaba en Diseño, o las acciones genéricas del Drawer). Sin
+ *  columna, el pedido no casaría con ninguna y desaparecería del tablero en
+ *  silencio, que es justo lo que no puede pasar. Es trabajo en marcha y nadie
+ *  lo revisa en esa sección, así que va a «planteando» (allí, «Imprimiendo»).
+ *
+ *  Se resuelve aquí y NO en `faseDePedido`/`faseDeColumna`: de ellas
+ *  dependen permisos y avisos, y esos no deben cambiar por la sección. */
+function columnaEn(p: ConOFs, seccion?: Seccion): Fase {
+  const fase = faseDeColumna(p);
+  return seccion?.sinRevision && FASES_DE_REVISION.has(fase) ? "planteando" : fase;
 }
 
 /** Primero lo planificado para antes; los que no tienen fecha, al final (no
@@ -301,6 +318,14 @@ function codigoDe(x: ConOFs): string {
   return (x as { pedido?: { codigo?: string } }).pedido?.codigo ?? "";
 }
 
+/** Las fases a las que no se llega sin revisión. */
+export const FASES_DE_REVISION: ReadonlySet<Fase> = new Set(["devuelta", "esperandoRevision"]);
+
+/** Cómo se llama esta fase en esta sección. Sin sección, como en FASES. */
+export function etiquetaFase(fase: Fase, seccion?: Seccion): string {
+  return seccion?.etiquetasFase?.[fase] ?? FASES.find((f) => f.id === fase)!.label;
+}
+
 /** Las fases en el orden que pida la sección.
  *
  *  Se parte SIEMPRE de `FASES` y se reordena: así una fase nueva aparece
@@ -308,12 +333,21 @@ function codigoDe(x: ConOFs): string {
  *  del panel en silencio. Lo que la lista de la sección decide es el orden de
  *  las que nombra; lo que no nombre se va detrás, como esté en FASES. */
 function fasesEnOrden(seccion?: Seccion): readonly FaseMeta[] {
+  // Sin revisión, sus dos fases no son columnas vacías: no existen. Se quitan
+  // aquí, y no en la lista de la sección, porque `ordenFases` manda lo que no
+  // nombre al final en vez de esconderlo (ver más abajo).
+  const base = seccion?.sinRevision ? FASES.filter((f) => !FASES_DE_REVISION.has(f.id)) : FASES;
   const orden = seccion?.ordenFases;
-  if (!orden) return FASES;
-  const puesto = new Map(orden.map((id, i) => [id, i]));
-  return [...FASES].sort(
-    (a, b) => (puesto.get(a.id) ?? FASES.length) - (puesto.get(b.id) ?? FASES.length),
-  );
+  let ordenadas: readonly FaseMeta[] = base;
+  if (orden) {
+    const puesto = new Map(orden.map((id, i) => [id, i]));
+    ordenadas = [...base].sort(
+      (a, b) => (puesto.get(a.id) ?? FASES.length) - (puesto.get(b.id) ?? FASES.length),
+    );
+  }
+  return seccion?.etiquetasFase
+    ? ordenadas.map((f) => ({ ...f, label: etiquetaFase(f.id, seccion) }))
+    : ordenadas;
 }
 
 /** Recorta a `tope` elementos y dice cuántos se quedan fuera. Es lo que hace
@@ -371,7 +405,7 @@ export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean
  *  cogido todavía. */
 export function faseEnUnaPalabra(
   p: Pedido,
-  { invitado = false }: { invitado?: boolean } = {},
+  { invitado = false, seccion }: { invitado?: boolean; seccion?: Seccion } = {},
 ): { texto: string; color: string } {
   const fase = faseDePedido(p);
   const color = (f: Fase) => FASES.find((x) => x.id === f)?.color ?? "#9ca3af";
@@ -383,11 +417,11 @@ export function faseEnUnaPalabra(
         ? { texto: "Planteando", color: color("planteando") }
         : { texto: "A corregir", color: color(fase) };
     case "planteando":
-      return { texto: "Planteando", color: color(fase) };
+      return { texto: etiquetaFase("planteando", seccion), color: color(fase) };
     case "esperandoRevision":
       return { texto: "Revisando", color: color(fase) };
     case "listoParaPasar":
-      return { texto: invitado ? "Listo" : "Listo para pasar", color: color(fase) };
+      return { texto: invitado ? "Listo" : etiquetaFase("listoParaPasar", seccion), color: color(fase) };
     case "parado":
       return { texto: "Detenido", color: color(fase) };
   }

@@ -61,7 +61,7 @@ afterAll(() => {
 test("Carlos y Esteban pasan a Dirección, activos y sin supervisor", () => {
   expect(fila("carlos")).toMatchObject({ roles: "direccion", activo: 1 });
   expect(fila("esteban")).toMatchObject({ roles: "direccion", activo: 1 });
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(12);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(13);
 });
 
 test("Iván gana direccion sin perder nada; Cris y Jaime no cambian", () => {

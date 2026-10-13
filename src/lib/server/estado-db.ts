@@ -6,7 +6,7 @@ import { claveDeCausa } from "../devolucion";
 import type { FilaOverlayConSeccion, FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
 import { SECCION_POR_DEFECTO, seccionDeRecurso, type SeccionId } from "../secciones";
-import { operariosDeSeccion, seccionConocidaDeOperario, seccionDeOperario } from "./operarios";
+import { condicionMetricasSeccionSql, seccionConocidaDeOperario, seccionDeOperario } from "./operarios";
 
 // ─── BD propia de CoordinaOT (SQLite) ────────────────────────────────────────
 // Guarda el estado del flujo de OT que RPS no conoce. Fichero único en
@@ -478,7 +478,19 @@ const MIGRACIONES: ReadonlyArray<{
   // (11/10/2026): la lista de antes no describía lo que se devuelve y solo se
   // marcaba en el 23 % de las devoluciones.
   { version: 12, nombre: "pasos_de_revision", aplicar: pasosDeRevision },
+  // Impresión Digital abre con tablero propio y Manuel es quien imprime.
+  { version: 13, nombre: "manuel_a_impresion", aplicar: manuelAImpresion },
 ];
+
+/** Manuel pasa de Diseño Gráfico a Impresión Digital (13/10/2026).
+ *
+ *  La semilla de la 7 solo entra en bases nuevas, así que producción hay que
+ *  moverla aquí. Solo si sigue en Diseño: si alguien le puso otra sección a
+ *  mano, esa decisión manda. Sigue siendo también de Diseño (`tambienEn` en
+ *  operarios.ts): la columna `seccion` es solo la principal. */
+function manuelAImpresion(db: Database.Database): void {
+  db.prepare("UPDATE persona SET seccion = 'impresion' WHERE id = 'manuel' AND seccion = 'diseno'").run();
+}
 
 /** Añade las columnas de huella a `pedido_scan`.
  *
@@ -668,7 +680,7 @@ function personas(db: Database.Database): void {
      VALUES (?, ?, NULL, ?, ?, ?)`,
   );
 
-  // Oficina Técnica y Diseño Gráfico, en el orden en que salen en el tablero.
+  // Oficina Técnica, Diseño Gráfico e Impresión, en el orden en que salen en el tablero.
   const tecnicos: Array<[string, string, string]> = [
     ["alberto", "Alberto", "ot"],
     ["jaime", "Jaime", "ot"],
@@ -677,7 +689,7 @@ function personas(db: Database.Database): void {
     ["ivan", "Iván", "ot"],
     ["angel", "Ángel", "ot"],
     ["carron", "Carrón", "diseno"],
-    ["manuel", "Manuel", "diseno"],
+    ["manuel", "Manuel", "impresion"],
     ["smith", "Smith", "diseno"],
   ];
   for (const [id, nombre, seccion] of tecnicos) {
@@ -912,6 +924,11 @@ function migrar(db: Database.Database): void {
  *  —Ángel supervisa las dos y puede—, ese movimiento contaría en la SUYA y no
  *  en la de la OF. Saber de qué sección es una OF exige preguntárselo a RPS por
  *  cada una, y eso son 7-15 s para afinar un caso que casi no se da.
+ *
+ *  LA EXCEPCIÓN es quien está en dos secciones (Manuel: Impresión y Diseño).
+ *  Para él no vale "cada uno en la suya", así que sus filas se reparten por
+ *  la máquina de la OF que guarda `tarea_maquina`, sin preguntar a RPS. Ver
+ *  `condicionMetricasSeccionSql`.
  */
 export function leerMovimientosMetricas(
   desde?: string,
@@ -929,13 +946,21 @@ export function leerMovimientosMetricas(
   ];
   const args: string[] = [];
   if (seccion) {
-    const suyos = operariosDeSeccion(seccion);
     // Los movimientos SIN autor conocido entran en la sección de siempre: los
     // hay en el histórico, y perderlos descuadraría los totales de OT por un
-    // detalle de cómo se registraron hace meses.
-    const sinAutor = seccion === SECCION_POR_DEFECTO ? " OR l.operario_id IS NULL" : "";
-    filtros.push(`(l.operario_id IN (${suyos.map(() => "?").join(",")})${sinAutor})`);
-    args.push(...suyos);
+    // detalle de cómo se registraron hace meses. Quien está en dos secciones
+    // cuenta por la máquina de la OF (ver `condicionMetricasSeccionSql`).
+    const cond = condicionMetricasSeccionSql(
+      seccion,
+      "l.operario_id",
+      (lista) =>
+        `EXISTS (SELECT 1 FROM tarea_maquina t
+                  WHERE t.of_id = json_extract(c.value, '$.ofId')
+                    AND lower(trim(t.maquina)) IN (${lista}))`,
+      seccion === SECCION_POR_DEFECTO,
+    );
+    filtros.push(cond.sql);
+    args.push(...cond.args);
   }
   if (desde) {
     filtros.push("l.ts >= ?");

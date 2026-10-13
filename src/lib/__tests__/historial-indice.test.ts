@@ -35,7 +35,7 @@ const info = (extra: Partial<InfoPedidoHistorial> = {}): InfoPedidoHistorial => 
 
 const indice = (filas: BaseHistorial[], infos: Record<string, Partial<InfoPedidoHistorial>> = {}, personas: Record<string, string[]> = {}): IndiceHistorial => ({
   at: 0,
-  base: { ot: filas, diseno: [] },
+  base: { ot: filas, diseno: [], impresion: [] },
   info: new Map(filas.map((b) => [b.pedido, info(infos[b.pedido])])),
   personas: new Map(Object.entries(personas).map(([p, e]) => [p, new Set(e)])),
 });

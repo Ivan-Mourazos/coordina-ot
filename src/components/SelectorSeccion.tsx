@@ -58,7 +58,7 @@ export function SelectorSeccion({
                 : "text-text-muted hover:text-text"
             }`}
           >
-            {ABREVIADO[s.id] ?? s.nombre}
+            {s.nombreCorto}
             {/* Un punto y ya: dice que ahí todavía no hay trabajo que mirar,
                 sin robarle sitio a una cabecera que va justa. Lo que hay
                 detrás lo cuenta el `title`, y la pantalla entera si se
@@ -76,9 +76,3 @@ export function SelectorSeccion({
   );
 }
 
-/** Cómo se llama cada sección cuando no hay sitio. "OT" es como la llama todo
- *  el mundo en la casa; "Diseño" a secas no se confunde con nada. */
-const ABREVIADO: Partial<Record<SeccionId, string>> = {
-  ot: "OT",
-  diseno: "Diseño",
-};

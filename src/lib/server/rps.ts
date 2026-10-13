@@ -776,6 +776,7 @@ async function clavesDeLaVista(
   pool: import("mssql").ConnectionPool,
   seccion: Seccion,
 ): Promise<FilaCruzable[]> {
+  if (!seccion.vista) throw new Error(`La sección ${seccion.id} no tiene vista de RPS`);
   const r = await pool.request().query<FilaCruzable>(`
     SELECT [OF], CodTarea, SitOF, PermiteImputaciones FROM dbo.${seccion.vista}
   `);
@@ -926,9 +927,14 @@ async function filasDeLaSeccion(
     return filasPorFase(pool, seccion, unirRetenidas(paresDe(claves), retenidas));
   }
 
+  const { fasesPendientesDe } = await import("./olanet");
+  // Sin vista (Impresión Digital): OLANET es toda la lista. Ver `Seccion.vista`.
+  if (!seccion.vista) {
+    const fases = await fasesPendientesDe(seccion);
+    return filasPorFase(pool, seccion, unirRetenidas(fases, retenidas));
+  }
   // OLANET manda, y la vista solo completa lo recién lanzado que OLANET aún no
   // tenga. Las dos consultas van en paralelo: son servidores distintos.
-  const { fasesPendientesDe } = await import("./olanet");
   const [fases, claves] = await Promise.all([
     fasesPendientesDe(seccion),
     clavesDeLaVista(pool, seccion),

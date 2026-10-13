@@ -1,30 +1,23 @@
 import type { HistorialOF, RepartoRol } from "./historial";
-import { SECCIONES, type SeccionId } from "./secciones";
+import { SECCIONES, recursosSql, type SeccionId } from "./secciones";
 
-export type CentroHistorialId = SeccionId | "impresion" | "taller";
+export type CentroHistorialId = SeccionId | "taller";
 
-/** Los recursos de Impresión Digital: imprimir (IMDI-A), el plóter HP Latex
- *  (P-HPLA) y el plóter de troquelar (P-PCMU). No son una sección de la web
- *  —no tienen tablero—, pero en el Historial su tiempo se separa del de
- *  Taller, donde caía: es el trabajo de Manuel, y mezclado con el de taller no
- *  se veía (decisión de Iván, 09/10/2026; medido: ~730 h de Manuel imprimiendo
- *  desde 2025).
- *
- *  Diseño Gráfico NO cambia: sus recursos (A-DGRA, DGRA-A, P-PCUS) y sus
- *  tareas —también «PLANTEAR Y PREPARAR ARCHIVOS IMPRESION DIGITAL», que se
- *  hace en su mesa— siguen siendo suyos, porque se miran antes. */
-export const RECURSOS_IMPRESION: readonly string[] = ["imdi-a", "p-hpla", "p-pcmu"];
+/** Los recursos de Impresión Digital. Desde el 13/10/2026 es una sección de la
+ *  web y la lista vive allí; esto se queda como nombre para el Historial, que
+ *  la separa de Taller desde el 09/10. Diseño se mira ANTES en los CASE: lo
+ *  que lleve su mesa sigue siendo suyo. */
+export const RECURSOS_IMPRESION: readonly string[] = SECCIONES.impresion.recursos;
 
-/** Los recursos de Impresión Digital listos para un `IN (…)` de SQL. */
-export const recursosImpresionSql = (): string => RECURSOS_IMPRESION.map((x) => `'${x}'`).join(",");
+export const recursosImpresionSql = (): string => recursosSql(SECCIONES.impresion);
 
 /** El nombre corto de cada centro: el de la cabecera, el de los pedidos de
  *  otro centro y el del desglose. Uno solo para que no se llame igual en un
  *  sitio y distinto en otro. */
 export const CENTRO_CORTO: Record<CentroHistorialId, string> = {
-  ot: "OT",
-  diseno: "Diseño",
-  impresion: "Impresión",
+  ot: SECCIONES.ot.nombreCorto,
+  diseno: SECCIONES.diseno.nombreCorto,
+  impresion: SECCIONES.impresion.nombreCorto,
   taller: "Taller",
 };
 

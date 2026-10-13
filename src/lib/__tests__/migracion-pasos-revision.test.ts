@@ -17,6 +17,9 @@ let estado: typeof import("../server/estado-db");
 function baseComoProduccion(): void {
   const db = new Database(ruta);
   db.exec(`
+    -- La 13 (Manuel a Impresión) toca persona, que en producción ya existe.
+    CREATE TABLE persona (id TEXT PRIMARY KEY, nombre TEXT NOT NULL, pin_hash TEXT,
+      roles TEXT NOT NULL, seccion TEXT, activo INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE causa_devolucion (
       id INTEGER PRIMARY KEY AUTOINCREMENT, etiqueta TEXT NOT NULL, clave TEXT NOT NULL,
       retirada INTEGER NOT NULL DEFAULT 0, creada_at TEXT NOT NULL, creada_por TEXT,

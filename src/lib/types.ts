@@ -203,6 +203,9 @@ export interface Operario {
   /** En qué sección trabaja. Ausente = Oficina Técnica, que es la de siempre:
    *  la web era solo suya hasta que entró Diseño Gráfico. Ver lib/secciones.ts. */
   seccion?: SeccionId;
+  /** Otras secciones en las que también trabaja (Manuel imprime pero sigue en
+   *  Diseño). Quien filtra el equipo por sección lo cuenta en estas también. */
+  tambienEn?: SeccionId[];
   id: string;
   nombre: string;
   iniciales: string;

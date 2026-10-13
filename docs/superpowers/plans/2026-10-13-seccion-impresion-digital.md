@@ -417,6 +417,19 @@ git commit -m "feat(tablero): secciones sin revisión y con nombres de columna p
 
 ### Task 3: Manuel pasa a Impresión
 
+> **CAMBIO DE IVÁN (13/10/2026, durante la ejecución) — manda sobre el resto de esta tarea:**
+> Carrón y Smith le pasan trabajo a Manuel en Diseño. Manuel **NO puede desaparecer de Diseño**.
+> Entra por defecto en Impresión, pero sigue siendo también de Diseño:
+> - En `operarios.ts`, `Empleado` gana `tambienEn?: readonly SeccionId[]`. Manuel queda `{ operarioId: "manuel", seccion: "impresion", tambienEn: ["diseno"] }`.
+> - `operariosDeSeccion(s)` devuelve a quien tenga `seccion === s` **o** `tambienEn` con `s`. Por eso Manuel sigue teniendo zona en el tablero de Diseño ([rps.ts:1469](../../../src/lib/server/rps.ts)), sigue saliendo en los selectores de revisor y traspaso de Diseño, y sus métricas siguen contando en Diseño.
+> - `seccionDeOperario` sigue devolviendo la sección principal. Es la de entrada por defecto, y de ella sale `MAQUINA_POR_OPERARIO` (IMDI-A). Las tareas de A-DGRA siguen fichando con A-DGRA porque la máquina sale primero de `tarea_maquina`.
+> - En `Operario` (`src/lib/types.ts`), añade `tambienEn?: SeccionId[]`. En `mock.ts`, Manuel queda `seccion: "impresion", tambienEn: ["diseno"]`. Allí donde el cliente filtra el equipo por sección comparando con `o.seccion` —`HistorialView.tsx:123` y `IdentityGate.tsx:75`; busca más sitios con `grep -rn "\.seccion ?? " src/components`—, el filtro acepta también `tambienEn`. Excepción: en IdentityGate y LoginGate, la rejilla de «quién eres» lo pone **una sola vez**, en su sección principal. Que salga dos veces es peor.
+> - Tests obligatorios:
+>   - `operariosDeSeccion("diseno")` contiene a `carron`, `manuel` y `smith`.
+>   - `operariosDeSeccion("impresion")` es `["manuel"]`.
+>   - `seccionDeOperario("manuel")` es `"impresion"`.
+> - El test de Step 1 que dice `operariosDeSeccion("diseno")` = `["carron","smith"]` **queda anulado** por este cambio.
+
 **Files:**
 - Modify: `src/lib/server/operarios.ts:36`
 - Modify: `src/lib/mock.ts:28`

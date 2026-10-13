@@ -1,6 +1,7 @@
 import { pedidoParado } from "./fases-tablero";
 import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "./secciones";
 import type { OF, Pedido } from "./types";
+import type { AvisoMovimiento } from "./avisos";
 
 // ─── Avisos de la campana: uno por PEDIDO, no uno por OF ─────────────────────
 // Mandar a revisar un pedido de cuatro OF encendía cuatro avisos idénticos,
@@ -72,6 +73,9 @@ export interface AvisoSuelto {
    *  texto de la nota. Sin esto habría que meterlo en `otro`, que significa
    *  otra cosa (la otra persona de un traspaso). */
   texto?: string;
+  /** De qué lista es, SOLO si no es la que se está mirando (ver
+   *  `avisosDeOtraSeccion`). Ausente = de la lista de delante, como siempre. */
+  seccion?: SeccionId;
 }
 
 /** Un aviso ya agrupado: lo que se pinta. */
@@ -90,6 +94,72 @@ export interface NotifItem {
   clave?: string;
   /** Ver `AvisoSuelto.texto`. */
   texto?: string;
+  /** Ver `AvisoSuelto.seccion`. */
+  seccion?: SeccionId;
+}
+
+/** Las OTRAS secciones cuya campana le interesa a esta persona, mirando
+ *  `seccionActual`: las suyas (principal y `tambienEn`) menos la de delante.
+ *
+ *  Vacío para quien está en una sola, que es todo el mundo menos Manuel: para
+ *  ellos la campana no cambia ni pide nada más. */
+export function seccionesVecinas(
+  yo: { seccion?: SeccionId; tambienEn?: readonly SeccionId[] } | undefined,
+  seccionActual: SeccionId,
+): SeccionId[] {
+  if (!yo?.tambienEn?.length) return [];
+  const suyas = [yo.seccion ?? SECCION_POR_DEFECTO, ...yo.tambienEn];
+  return [...new Set(suyas)].filter((s) => s !== seccionActual);
+}
+
+/** Los avisos que le tocan a `miId` en OTRA lista que no tiene delante.
+ *
+ *  Manuel entra en Impresión, pero Carrón y Smith le pasan trabajo en Diseño:
+ *  con la campana mirando solo la lista de delante, se enteraba al cambiar de
+ *  lista. Aquí van los que son trabajo SUYO —le piden revisar, se la han
+ *  devuelto, le han pasado o quitado algo—; los del equipo (notas, parte
+ *  re-escaneado, listo para pasar) se quedan en su lista, que para eso los ve
+ *  quien la lleva.
+ *
+ *  Cada aviso lleva `seccion`, que es lo que lo rotula («Diseño · …») y lo
+ *  que hace que al pulsarlo se cambie a esa lista. */
+export function avisosDeOtraSeccion(
+  todos: readonly Pedido[],
+  seccion: SeccionId,
+  miId: string,
+  movimientos: readonly AvisoMovimiento[],
+  nombre: (id: string | null) => string | undefined,
+): AvisoSuelto[] {
+  // Solo los pedidos vivos (`procesado`), igual que la campana de su propia
+  // lista (que lee `procesados`). El tablero trae también los completados y
+  // pendientes; sin este filtro un aviso de Diseño seguía sonando en Impresión
+  // después de pasar el pedido a Producción. La regla vive aquí para que no
+  // dependa de quién llame.
+  const pedidos = todos.filter((p) => p.situacion === "procesado");
+  const out: AvisoSuelto[] = [];
+  for (const p of pedidos) {
+    for (const of of p.ofs) {
+      if (of.revisorId === miId && of.estado === "por_revisar")
+        out.push({ pedido: p, of, tipo: "revisar", seccion });
+      else if (of.autorId === miId && of.estado === "devuelta")
+        out.push({ pedido: p, of, tipo: "devuelta", seccion });
+    }
+  }
+  for (const a of movimientos) {
+    const pedido = pedidos.find((p) => p.ofs.some((o) => o.id === a.ofId));
+    const of = pedido?.ofs.find((o) => o.id === a.ofId);
+    if (!pedido || !of) continue; // no es de esta lista
+    out.push({
+      pedido,
+      of,
+      tipo: a.tipo,
+      quien: nombre(a.quien),
+      otro: nombre(a.otro),
+      clave: a.clave,
+      seccion,
+    });
+  }
+  return out;
 }
 
 /** Las OF que cuentan para decidir si un aviso cubre "el pedido entero".
@@ -110,8 +180,13 @@ const vivas = (p: Pedido): OF[] => p.ofs.filter((o) => o.estado !== "anulada");
 export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
   const porClave = new Map<string, NotifItem>();
   for (const a of sueltos) {
+    // La sección va en la clave: un pedido puede estar en dos listas (parte
+    // de diseño y parte de impresión) y sus avisos no son el mismo.
+    const lista = a.seccion ? `${a.seccion}|` : "";
     const clave =
-      a.tipo === "notaNueva" ? `${a.pedido.id}:${a.tipo}:${a.clave}` : `${a.pedido.id}:${a.tipo}`;
+      a.tipo === "notaNueva"
+        ? `${lista}${a.pedido.id}:${a.tipo}:${a.clave}`
+        : `${lista}${a.pedido.id}:${a.tipo}`;
     const ya = porClave.get(clave);
     if (ya) {
       if (a.of) ya.ofs.push(a.of);
@@ -127,6 +202,7 @@ export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
       otro: a.otro,
       clave: a.clave,
       texto: a.texto,
+      ...(a.seccion ? { seccion: a.seccion } : {}),
     });
   }
 
@@ -216,7 +292,9 @@ function situacionAviso(item: NotifItem): string {
  *  sección y las identidades salen con un "0:" delante que no apaga nada.
  *  Pasó al escribir esto. Siendo obligatorio, el compilador lo canta. */
 export function identidadAviso(item: NotifItem, seccion: SeccionId): string {
-  return `${seccion}:${situacionAviso(item)}`;
+  // Un aviso de otra lista (ver `avisosDeOtraSeccion`) es de SU lista: así la
+  // poda de la de delante no lo toca, y al cambiar a ella sigue apagado.
+  return `${item.seccion ?? seccion}:${situacionAviso(item)}`;
 }
 
 /** De qué lista es un descarte guardado, y qué situación apaga.

@@ -34,7 +34,7 @@ const base = (pedido: string, p: Partial<BaseHistorial> = {}): BaseHistorial => 
 
 const indice = (ot: BaseHistorial[], diseno: BaseHistorial[] = ot): IndiceHistorial => ({
   at: Date.now(),
-  base: { ot, diseno },
+  base: { ot, diseno, impresion: [] },
   info: new Map(ot.map((b) => [b.pedido, {
     cliente: "MAHOU, S.A.", negocio: null, ciudadEntrega: "ARZUA",
     familias: b.pedido.endsWith("R") ? ["REMOLQUE"] : ["TOLDO"],
