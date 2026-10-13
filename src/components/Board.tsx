@@ -23,7 +23,7 @@ import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
 import { VersionNueva } from "./VersionNueva";
-import { MARCA_ULTIMA, ULTIMA, cuantasNuevas } from "@/lib/novedades";
+import { MARCA_ULTIMA, ULTIMA, cambiosSinLeer, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
@@ -2860,6 +2860,9 @@ export function Board({
         {novedadesAbiertas && (
           <PanelNovedades
             fechas={fechasNovedades}
+            // Con la marca de ANTES de abrir: la nueva se guarda al cerrar,
+            // así que mientras está abierto lo pintado no se apaga.
+            nuevos={cambiosSinLeer(vistoNovedades ?? null)}
             onCerrar={() => {
               setNovedadesAbiertas(false);
               // Se dan por vistas al CERRAR, no al abrir: si se marca al abrir

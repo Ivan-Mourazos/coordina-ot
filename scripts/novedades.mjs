@@ -117,6 +117,12 @@ const { hoy, previa } = entradaDeHoy(entradas);
 // Si ya hay entrada de hoy, los cambios se AÑADEN a la suya en vez de abrir
 // otra. Se ordenan todos juntos —los de esta mañana y los de ahora— para que
 // el bloque se lea como una lista sola y no como dos pegadas.
+//
+// Cada despliegue del día lleva su TANDA (1, 2, 3…), porque al ordenar por
+// tipo lo de ahora queda mezclado con lo de la mañana y la web tiene que poder
+// pintar lo que es nuevo de verdad (ver `cambiosSinLeer` en lib/novedades.ts).
+const tanda = previa ? Math.max(...previa.cambios.map((c) => c.tanda ?? 1)) + 1 : 1;
+for (const c of cambios) c.tanda = tanda;
 const todos = [...(previa?.cambios ?? []), ...cambios].sort(
   (a, b) => ORDEN[a.tipo] - ORDEN[b.tipo],
 );

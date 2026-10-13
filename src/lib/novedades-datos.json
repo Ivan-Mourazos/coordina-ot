@@ -16,7 +16,8 @@
       {
         "tipo": "nuevo",
         "titulo": "Impresión Digital tiene su propio tablero",
-        "detalle": "Manuel ve lo que queda por imprimir, ficha desde la web y con «Impreso» pasa el pedido a Producción."
+        "detalle": "Manuel ve lo que queda por imprimir, ficha desde la web y con «Impreso» pasa el pedido a Producción.",
+        "tanda": 2
       },
       {
         "tipo": "arreglado",
