@@ -22,6 +22,15 @@ export interface Cambio {
   titulo: string;
   /** El detalle, si hace falta. Dos líneas como mucho. */
   detalle?: string;
+  /** En qué despliegue del día llegó: 1 el primero, 2 el siguiente… Ausente
+   *  = 1. Lo pone `pnpm novedades` al fundir en la entrada de hoy los cambios
+   *  de un despliegue más.
+   *
+   *  Existe para pintar lo que es nuevo DE VERDAD (ver `cambiosSinLeer`). La
+   *  entrada se ordena por tipo, no por llegada, así que sin esto lo de la
+   *  tarde quedaba mezclado con lo de la mañana y no había forma de saber qué
+   *  te faltaba por leer. */
+  tanda?: number;
 }
 
 export interface Novedad {
@@ -103,6 +112,44 @@ export function cuantasNuevas(visto: string | null): number {
   // es un despliegue más del mismo día y cuenta como una novedad que atender.
   if (i === 0 && n !== undefined && Number(n) < NOVEDADES[0].cambios.length) return 1;
   return i;
+}
+
+/** Los cambios que esta persona todavía no había leído, para pintarlos.
+ *
+ *  Pidió Iván (13/10/2026): con varios despliegues el mismo día, todos caen en
+ *  la misma entrada y no se distinguía lo nuevo de lo que ya habías visto por
+ *  la mañana.
+ *
+ *  Sale de la misma marca que la campana (`id·n`): la entrada que leíste y
+ *  cuántos cambios tenía entonces. Las tandas se añaden siempre detrás, así que
+ *  los `n` que viste son las primeras tandas enteras; lo de las tandas
+ *  siguientes es lo nuevo. Las entradas de días que no llegaste a abrir se
+ *  pintan enteras.
+ *
+ *  Sin marca, con la marca vieja sin número o con una entrada que ya no
+ *  existe, no se pinta nada: sin saber qué leyó, pintar sería pintarlo todo,
+ *  y eso no distingue nada. */
+export function cambiosSinLeer(
+  visto: string | null,
+  entradas: readonly Novedad[] = NOVEDADES,
+): ReadonlySet<Cambio> {
+  const nuevos = new Set<Cambio>();
+  if (visto === null) return nuevos;
+  const [id, n] = visto.split("·");
+  const i = entradas.findIndex((x) => x.id === id);
+  if (i < 0 || n === undefined) return nuevos;
+
+  for (const entrada of entradas.slice(0, i)) for (const c of entrada.cambios) nuevos.add(c);
+
+  const leida = entradas[i];
+  const tandas = [...new Set(leida.cambios.map((c) => c.tanda ?? 1))].sort((a, b) => a - b);
+  let antes = 0;
+  for (const t of tandas) {
+    const suyos = leida.cambios.filter((c) => (c.tanda ?? 1) === t);
+    if (antes >= Number(n)) for (const c of suyos) nuevos.add(c);
+    antes += suyos.length;
+  }
+  return nuevos;
 }
 
 export const ETIQUETA: Record<TipoCambio, string> = {

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { MARCA_ULTIMA, NOVEDADES, cuantasNuevas } from "../novedades";
+import { MARCA_ULTIMA, NOVEDADES, cambiosSinLeer, cuantasNuevas, type Cambio, type Novedad } from "../novedades";
 
 describe("qué actualizaciones se ha perdido cada uno", () => {
   it("quien vio la última no tiene nada nuevo", () => {
@@ -103,5 +103,46 @@ describe("la fecha de salida", () => {
 
   test("sin entradas no hace nada", () => {
     expect(db.fechasDeNovedades([])).toEqual({});
+  });
+});
+
+describe("qué cambios se pintan como nuevos", () => {
+  // Datos de prueba propios: los de verdad cambian con cada despliegue.
+  const c = (titulo: string, tanda?: number): Cambio => ({ tipo: "nuevo", titulo, ...(tanda ? { tanda } : {}) });
+  const hoy: Novedad = {
+    id: "2026-10-13",
+    hasta: null,
+    // Ordenados por tipo, no por llegada: la tanda 2 queda en medio.
+    cambios: [c("a"), c("b"), c("tarde", 2), c("c"), c("noche", 3)],
+  };
+  const ayer: Novedad = { id: "2026-10-12", hasta: null, cambios: [c("ayer")] };
+  const lista = [hoy, ayer];
+  const titulos = (s: ReadonlySet<Cambio>) => [...s].map((x) => x.titulo).sort();
+
+  it("lo que llegó en tandas posteriores a lo que leí, aunque esté en medio", () => {
+    // Leyó la entrada cuando tenía los 3 de la mañana.
+    expect(titulos(cambiosSinLeer("2026-10-13·3", lista))).toEqual(["noche", "tarde"]);
+    // Leyó también la tanda de la tarde.
+    expect(titulos(cambiosSinLeer("2026-10-13·4", lista))).toEqual(["noche"]);
+  });
+
+  it("quien lo leyó todo no tiene nada pintado", () => {
+    expect(cambiosSinLeer("2026-10-13·5", lista).size).toBe(0);
+  });
+
+  it("las entradas que no llegó a ver se pintan enteras", () => {
+    expect(titulos(cambiosSinLeer("2026-10-12·1", lista))).toEqual(["a", "b", "c", "noche", "tarde"]);
+  });
+
+  it("sin marca, con marca vieja sin número o desconocida, no se pinta nada", () => {
+    // Sin saber qué leyó, pintar a ciegas sería pintarlo todo.
+    expect(cambiosSinLeer(null, lista).size).toBe(0);
+    expect(cambiosSinLeer("2026-10-13", lista).size).toBe(0);
+    expect(cambiosSinLeer("no-existe", lista).size).toBe(0);
+  });
+
+  it("los cambios sin tanda cuentan como la primera", () => {
+    const vieja: Novedad = { id: "2026-10-01", hasta: null, cambios: [c("x"), c("y")] };
+    expect(cambiosSinLeer("2026-10-01·2", [vieja]).size).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { PanelFlotante, BotonCerrarPanel } from "./PanelFlotante";
-import { ETIQUETA, NOVEDADES, type TipoCambio } from "@/lib/novedades";
+import { ETIQUETA, NOVEDADES, type Cambio, type TipoCambio } from "@/lib/novedades";
 
 /** Qué ha cambiado en la web, por actualizaciones.
  *
@@ -14,12 +14,15 @@ import { ETIQUETA, NOVEDADES, type TipoCambio } from "@/lib/novedades";
  *  que ya no pasa. */
 export function PanelNovedades({
   fechas,
+  nuevos,
   onCerrar,
 }: {
   /** Cuándo salió cada entrada, por su id. Puede faltar alguna —el sello lo
    *  pone el servidor y quizá no ha contestado todavía—: en ese caso se pinta
    *  el log sin fecha, que es el adorno, no el contenido. */
   fechas: Record<string, string>;
+  /** Lo que esta persona no había leído (ver `cambiosSinLeer`): se pinta. */
+  nuevos: ReadonlySet<Cambio>;
   onCerrar: () => void;
 }) {
   return (
@@ -28,6 +31,14 @@ export function PanelNovedades({
         <h3 className="text-sm font-bold text-text">Novedades de la web</h3>
         <BotonCerrarPanel className="ml-auto" />
       </div>
+      {/* Dicho una vez arriba, y no con una etiqueta en cada línea: lo pintado
+          ya se ve, solo hay que saber qué significa. */}
+      {nuevos.size > 0 && (
+        <p className="mb-3 flex items-center gap-1.5 text-[11px] text-text-muted">
+          <span className="inline-block size-2 rounded-full bg-brand-500" aria-hidden="true" />
+          Lo resaltado es nuevo desde la última vez que lo leíste.
+        </p>
+      )}
 
       <div className="flex flex-col gap-5">
         {NOVEDADES.map((n) => (
@@ -52,7 +63,15 @@ export function PanelNovedades({
                   <p className="text-[10px] text-text-muted">{QUE_ES[tipo]}</p>
                   <ul className="mt-1.5 flex flex-col gap-2">
                     {suyos.map((c) => (
-                      <li key={c.titulo} className="border-l-2 border-border pl-2">
+                      <li
+                        key={c.titulo}
+                        className={
+                          nuevos.has(c)
+                            ? "rounded-r border-l-2 border-brand-500 bg-brand-500/10 py-1 pl-2 pr-1 dark:bg-brand-400/10"
+                            : "border-l-2 border-border pl-2"
+                        }
+                      >
+                        {nuevos.has(c) && <span className="sr-only">Nuevo para ti: </span>}
                         <span className="block text-xs font-semibold text-text">{c.titulo}</span>
                         {c.detalle && (
                           <span className="mt-0.5 block text-[11px] leading-snug text-text-muted">
