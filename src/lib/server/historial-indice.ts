@@ -238,11 +238,16 @@ export async function construirIndice(): Promise<IndiceHistorial> {
 async function construir(): Promise<IndiceHistorial> {
   const t0 = Date.now();
   // Una lista por sección, derivada de SECCIONES: la sección nueva entra sola.
-  // Las consultas van en paralelo (antes, seguidas).
-  const ids = Object.keys(SECCIONES) as SeccionId[];
-  const base = Object.fromEntries(
-    await Promise.all(ids.map(async (s) => [s, await baseDe(s)] as const)),
-  ) as Record<SeccionId, BaseHistorial[]>;
+  //
+  // SEGUIDAS, no en paralelo. Cada una es una consulta pesada a RPS (la base de
+  // producción), y con la tercera sección serían tres a la vez: eso no se ha
+  // medido y cambia la carga que le metemos a la BD de la fábrica. La lista se
+  // construye por detrás cada 30 min, así que lo que se gana en paralelo no lo
+  // nota nadie.
+  const base = {} as Record<SeccionId, BaseHistorial[]>;
+  for (const s of Object.keys(SECCIONES) as SeccionId[]) {
+    base[s] = await baseDe(s);
+  }
   const pedidos = new Set(Object.values(base).flat().map((b) => b.pedido));
   const info = await textosDe(pedidos);
   const personas = await personasDe();
@@ -266,7 +271,21 @@ function refrescar(): Promise<IndiceHistorial> {
  *  nada: así quien la consulta sin pasar por la ruta (los tests de la
  *  consulta SQL) sigue por el camino de siempre. */
 export function indiceSiListo(): IndiceHistorial | null {
-  return globalThis.__coordinaHistorialIndice ?? null;
+  return indiceVigente(globalThis.__coordinaHistorialIndice);
+}
+
+/** La lista guardada, o null si no sirve: no la hay, o le falta alguna de las
+ *  secciones de `SECCIONES`.
+ *
+ *  Lo segundo pasa al añadir una sección sin reiniciar (HMR en desarrollo, que
+ *  conserva `globalThis`): la lista vieja se construyó con las secciones de
+ *  antes y el Historial de la nueva reventaba con un 500 ("is not iterable").
+ *  Una lista así se trata como si no existiera y se reconstruye; taparlo con
+ *  un `?? []` donde se lee enseñaría un Historial vacío como si fuera bueno. */
+export function indiceVigente(indice: IndiceHistorial | undefined | null): IndiceHistorial | null {
+  if (!indice) return null;
+  const completa = (Object.keys(SECCIONES) as SeccionId[]).every((s) => Array.isArray(indice.base?.[s]));
+  return completa ? indice : null;
 }
 
 /** La lista, construyéndola si hace falta. Si ya existe se sirve al momento y,
@@ -274,7 +293,7 @@ export function indiceSiListo(): IndiceHistorial | null {
  *  `esperaMaxMs`; pasado ese tiempo, o si falla, devuelve null y el Historial
  *  sigue con la consulta de siempre. */
 export async function asegurarIndice(esperaMaxMs = 25_000): Promise<IndiceHistorial | null> {
-  const indice = globalThis.__coordinaHistorialIndice;
+  const indice = indiceVigente(globalThis.__coordinaHistorialIndice);
   if (indice) {
     if (Date.now() - indice.at >= VIDA_MS) refrescar().catch((e) => console.warn("[historial] refresco de la lista falló:", (e as Error).message));
     return indice;

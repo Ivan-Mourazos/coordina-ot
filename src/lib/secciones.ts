@@ -1,25 +1,25 @@
 import type { Fase } from "./fases-tablero";
 
 // ─── Las tres secciones que usan CoordinaOT ───────────────────────────────────
-// La web nació para Oficina Técnica. Diseño Gráfico e Impresión Digital hacen
-// lo mismo con otro trabajo, y en RPS la única diferencia es el CENTRO DE TRABAJO al que cuelga
-// la tarea:
+// La web nació para Oficina Técnica. Diseño Gráfico e Impresión Digital
+// hacen lo mismo con otro trabajo, y en RPS la única diferencia es el CENTRO
+// DE TRABAJO al que cuelga la tarea:
 //
-//   Oficina Técnica  →  A-OTEC / OTEC-A
-//   Diseño Gráfico   →  A-DGRA / DGRA-A
-//   Impresión Digital → IMDI-A (impresora), P-HPLA (HP Latex), P-PCMU (troquel)
+//   Oficina Técnica   →  A-OTEC / OTEC-A
+//   Diseño Gráfico    →  A-DGRA / DGRA-A
+//   Impresión Digital →  IMDI-A (impresora), P-HPLA (HP Latex), P-PCMU (troquel)
 //
 // Impresión no tiene vista en RPS y lee solo de OLANET.
 //
 // Tan igual es que `TGM_PENDIENTE_DISENHO` y `TGM_PENDIENTE_OT` son la MISMA
 // vista con esa línea cambiada: mismas 15 columnas, mismo cálculo. Por eso
-// añadir diseño no es una web nueva, es leer de otro sitio.
+// añadir una sección no es una web nueva, es leer de otro sitio.
 //
 // TODO LO QUE DISTINGUE A UNA SECCIÓN DE OTRA VIVE AQUÍ. Antes esos literales
 // estaban repartidos —`a-otec` clavado cinco veces en historial-db, "OTEC" en
-// fase-pendiente, A-OTEC en bonos—, y con dos secciones eso son diez sitios que
-// se desincronizan a la primera. Quien añada una tercera sección debería tener
-// que tocar solo este fichero.
+// fase-pendiente, A-OTEC en bonos—, y con varias secciones eso son decenas de
+// sitios que se desincronizan a la primera. Quien añada otra sección debería
+// tener que tocar solo este fichero.
 //
 // NO ES UN PERMISO. Nadie deja de ver nada por esto: la sección dice de qué
 // lista de trabajo se parte, no quién puede entrar. El modelo sin login del
@@ -239,6 +239,8 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     marcasEnFases: ["IMDI", "P-HPLA"],
     ordenFases: ["sinEmpezar", "planteando", "listoParaPasar", "parado"],
     etiquetasFase: { planteando: "Imprimiendo", listoParaPasar: "Impreso, sin pasar" },
+    // Las dos a la vez: nadie revisa, y el bloque del pedido es donde vive
+    // «Impreso», que aprueba y pasa todas sus OF de un golpe.
     revisionPorPedido: true,
     barraSimple: true,
     internosComoTrabajo: true,

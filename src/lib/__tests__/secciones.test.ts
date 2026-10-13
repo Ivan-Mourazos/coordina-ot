@@ -13,15 +13,23 @@ import {
 } from "../secciones";
 import { esFaseDeOT } from "../fase-pendiente";
 
-describe("las dos secciones", () => {
-  it("no comparten ni vista ni máquina ni recursos", () => {
+describe("todas las secciones", () => {
+  it("ningún par comparte vista, máquina ni recursos", () => {
     // Si alguna de las tres coincidiera, una sección estaría leyendo o
     // escribiendo lo de la otra: Carrón vería el trabajo de OT, o su tiempo se
-    // le sumaría a Oficina Técnica.
-    const { ot, diseno } = SECCIONES;
-    expect(ot.vista).not.toBe(diseno.vista);
-    expect(ot.maquina).not.toBe(diseno.maquina);
-    expect(ot.recursos.some((r) => diseno.recursos.includes(r))).toBe(false);
+    // le sumaría a Oficina Técnica. Sin vista (Impresión) no hay nada que
+    // compartir: dos `undefined` no son la misma vista.
+    const todas = Object.values(SECCIONES);
+    for (const a of todas) {
+      for (const b of todas) {
+        if (a.id === b.id) continue;
+        if (a.vista !== undefined && b.vista !== undefined) {
+          expect(a.vista, `${a.id}/${b.id}`).not.toBe(b.vista);
+        }
+        expect(a.maquina, `${a.id}/${b.id}`).not.toBe(b.maquina);
+        expect(a.recursos.some((r) => b.recursos.includes(r)), `${a.id}/${b.id}`).toBe(false);
+      }
+    }
   });
 
   it("los recursos son los que filtran las vistas de RPS", () => {
