@@ -237,8 +237,9 @@ export async function construirIndice(): Promise<IndiceHistorial> {
 
 async function construir(): Promise<IndiceHistorial> {
   const t0 = Date.now();
-  const base = { ot: await baseDe("ot"), diseno: await baseDe("diseno") };
-  const pedidos = new Set([...base.ot, ...base.diseno].map((b) => b.pedido));
+  // Impresión aún no tiene historial propio: vacía hasta que se le dé uno.
+  const base = { ot: await baseDe("ot"), diseno: await baseDe("diseno"), impresion: [] };
+  const pedidos = new Set([...base.ot, ...base.diseno, ...base.impresion].map((b) => b.pedido));
   const info = await textosDe(pedidos);
   const personas = await personasDe();
   console.info(`[historial] lista en memoria lista en ${Date.now() - t0} ms: ${pedidos.size} pedidos`);

@@ -1,12 +1,15 @@
 import type { Fase } from "./fases-tablero";
 
-// ─── Las dos secciones que usan CoordinaOT ───────────────────────────────────
-// La web nació para Oficina Técnica. Diseño Gráfico hace lo mismo con otro
-// trabajo, y en RPS la única diferencia es el CENTRO DE TRABAJO al que cuelga
+// ─── Las tres secciones que usan CoordinaOT ───────────────────────────────────
+// La web nació para Oficina Técnica. Diseño Gráfico e Impresión Digital hacen
+// lo mismo con otro trabajo, y en RPS la única diferencia es el CENTRO DE TRABAJO al que cuelga
 // la tarea:
 //
 //   Oficina Técnica  →  A-OTEC / OTEC-A
 //   Diseño Gráfico   →  A-DGRA / DGRA-A
+//   Impresión Digital → IMDI-A (impresora), P-HPLA (HP Latex), P-PCMU (troquel)
+//
+// Impresión no tiene vista en RPS y lee solo de OLANET.
 //
 // Tan igual es que `TGM_PENDIENTE_DISENHO` y `TGM_PENDIENTE_OT` son la MISMA
 // vista con esa línea cambiada: mismas 15 columnas, mismo cálculo. Por eso
@@ -23,14 +26,20 @@ import type { Fase } from "./fases-tablero";
 // proyecto no cambia.
 
 /** Las secciones que hay. El id se guarda en la BD y en la URL: NO se renombra. */
-export type SeccionId = "ot" | "diseno";
+export type SeccionId = "ot" | "diseno" | "impresion";
 
 export interface Seccion {
   id: SeccionId;
   /** Cómo se llama en pantalla. */
   nombre: string;
-  /** La vista de RPS con su trabajo pendiente. Las dos son gemelas. */
-  vista: string;
+  /** Cómo se la llama cuando no hay sitio: la cabecera de Herramientas, el
+   *  selector estrecho, los centros del Historial. Era un literal en tres
+   *  sitios y con la tercera sección se desincronizaba. */
+  nombreCorto: string;
+  /** La vista de RPS con su trabajo pendiente. Ausente solo si la fuente es
+   *  OLANET y RPS no tiene vista para ella (Impresión Digital): entonces la
+   *  lista es OLANET y nada más. */
+  vista?: string;
   /** Los códigos de `CPRMOResourceMachine` que son suyos. En minúsculas: así
    *  se comparan en las consultas, y SQL Server no distingue mayúsculas. */
   recursos: readonly string[];
@@ -132,12 +141,23 @@ export interface Seccion {
    *  muestras, cosas de la propia empresa) y tiene que repartirse y pasarse
    *  como cualquier pedido: fuera del tablero, no lo veían. */
   internosComoTrabajo?: boolean;
+  /** Nadie revisa este trabajo: se hace y se pasa.
+   *
+   *  Impresión Digital (Iván, 13/10/2026): lo impreso no lo repasa otra
+   *  persona. El tablero no enseña «A corregir» ni «Esperando revisión» —con
+   *  este flujo nunca se llega a ellas— y la ficha del pedido ofrece «Impreso»,
+   *  que aprueba sus OF y lo pasa a Producción de una vez. */
+  sinRevision?: boolean;
+  /** Cómo se llaman las columnas en esta sección, si no es como en OT. Es de
+   *  PRESENTACIÓN, como `ordenFases`: la fase en que cae un pedido no cambia. */
+  etiquetasFase?: Partial<Record<Fase, string>>;
 }
 
 export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
   ot: {
     id: "ot",
     nombre: "Oficina Técnica",
+    nombreCorto: "OT",
     vista: "TGM_PENDIENTE_OT",
     fuente: "vista",
     recursos: ["a-otec", "otec-a"],
@@ -149,6 +169,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
   diseno: {
     id: "diseno",
     nombre: "Diseño Gráfico",
+    nombreCorto: "Diseño",
     vista: "TGM_PENDIENTE_DISENHO",
     // ABIERTA el 08/09/2026. Estuvo anunciada y sin enseñar trabajo desde el
     // 02/09 porque su lista no era de fiar. Comprobado contra RPS y OLANET a la
@@ -196,6 +217,33 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     barraSimple: true,
     internosComoTrabajo: true,
   },
+  impresion: {
+    id: "impresion",
+    nombre: "Impresión Digital",
+    nombreCorto: "Impresión",
+    // Sin vista: RPS no tiene `TGM_PENDIENTE_*` de impresión. La lista es la
+    // de OLANET, que es la que ya manda en Diseño. Lo que se pierde es lo
+    // recién lanzado que OLANET aún no tenga, y eso son minutos.
+    fuente: "olanet",
+    // Las tres máquinas de Manuel (medido en RPS: ~720 h desde 2025 entre
+    // IMDI-A y P-HPLA). P-PCMU es el plóter de troquelar vinilo: 38 fichajes
+    // de Manuel contra 5 de Smith (17/09/2026).
+    recursos: ["imdi-a", "p-hpla", "p-pcmu"],
+    // Troquelar se ficha en la máquina, como el corte de Diseño (P-PCUS): el
+    // tiempo es de Impresión pero la tarea no sale en su tablero.
+    recursosSoloTiempo: ["p-pcmu"],
+    maquina: "IMDI-A",
+    // IMDI-A sale en OLANET como «U-P-IMDI» (13/10/2026: 33 fases vivas así y
+    // ninguna como «IMDI-A»). "IMDI" recoge las dos. El plóter va entero,
+    // con su «P-», por lo mismo que en Diseño: deja fuera los A-… del taller.
+    marcasEnFases: ["IMDI", "P-HPLA"],
+    ordenFases: ["sinEmpezar", "planteando", "listoParaPasar", "parado"],
+    etiquetasFase: { planteando: "Imprimiendo", listoParaPasar: "Impreso, sin pasar" },
+    revisionPorPedido: true,
+    barraSimple: true,
+    internosComoTrabajo: true,
+    sinRevision: true,
+  },
 };
 
 /** La sección de siempre. Es la de quien no diga otra cosa: la web era solo de
@@ -203,7 +251,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
 export const SECCION_POR_DEFECTO: SeccionId = "ot";
 
 export function esSeccionId(v: unknown): v is SeccionId {
-  return v === "ot" || v === "diseno";
+  return typeof v === "string" && Object.hasOwn(SECCIONES, v);
 }
 
 /** De qué sección es una tarea según su recurso de RPS (`tarea_maquina`), o
@@ -282,8 +330,7 @@ export function condicionMaquinaSql(s: Seccion, prefijo = "marca"): {
   };
 }
 
-/** ¿Es una fase que gestiona CoordinaOT? O sea, de Oficina Técnica o de Diseño
- *  Gráfico.
+/** ¿Es una fase que gestiona CoordinaOT? O sea, de cualquier sección de la web.
  *
  *  Es la regla de "esto lo puedo cerrar yo": el taller no, porque no es trabajo
  *  nuestro y cerrarlo sería escribir en el sistema de la fábrica sobre algo que

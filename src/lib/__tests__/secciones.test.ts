@@ -7,6 +7,8 @@ import {
   recursosSql,
   recursosDeTrabajoSql,
   seccionDe,
+  seccionDeRecurso,
+  esFaseDeLaWeb,
   condicionMaquinaSql,
 } from "../secciones";
 import { esFaseDeOT } from "../fase-pendiente";
@@ -181,5 +183,63 @@ describe("los plóters de corte son de Diseño Gráfico", () => {
     );
     // Ni una comilla ni un valor dentro de la cadena de SQL.
     expect(cond).not.toContain("%");
+  });
+});
+
+describe("Impresión Digital", () => {
+  const { impresion, diseno, ot } = SECCIONES;
+
+  it("es una sección que se puede pedir por la URL", () => {
+    expect(esSeccionId("impresion")).toBe(true);
+    expect(seccionDe("impresion").id).toBe("impresion");
+    expect(esSeccionId("taller")).toBe(false);
+  });
+
+  it("sus recursos son los tres de impresión y no pisan los de nadie", () => {
+    expect(impresion.recursos).toEqual(["imdi-a", "p-hpla", "p-pcmu"]);
+    for (const r of impresion.recursos) {
+      expect(diseno.recursos).not.toContain(r);
+      expect(ot.recursos).not.toContain(r);
+    }
+    expect(seccionDeRecurso("IMDI-A")).toBe("impresion");
+    expect(seccionDeRecurso("P-HPLA")).toBe("impresion");
+    expect(seccionDeRecurso("P-PCMU")).toBe("impresion");
+    // El plóter de Diseño sigue siendo de Diseño.
+    expect(seccionDeRecurso("P-PCUS")).toBe("diseno");
+  });
+
+  it("el troquelado cuenta tiempo pero no sale en el tablero", () => {
+    expect(recursosSql(impresion)).toContain("'p-pcmu'");
+    expect(recursosDeTrabajoSql(impresion)).not.toContain("p-pcmu");
+    expect(esFaseDe("P-PCMU", impresion)).toBe(false);
+  });
+
+  it("reconoce sus fases de OLANET tal como vienen escritas", () => {
+    // IMDI-A sale en scg_Fases como U-P-IMDI (medido el 13/10/2026).
+    expect(esFaseDe("U-P-IMDI", impresion)).toBe(true);
+    expect(esFaseDe("P-HPLA", impresion)).toBe(true);
+    expect(esFaseDeLaWeb("U-P-IMDI")).toBe(true);
+  });
+
+  it("la frontera con Diseño no se cruza en ningún sentido", () => {
+    for (const m of ["A-DGRA", "U-A-DGRA", "P-PCUS", "U-P-PCUS"]) expect(esFaseDe(m, impresion)).toBe(false);
+    for (const m of ["U-P-IMDI", "P-HPLA", "P-PCMU"]) expect(esFaseDe(m, diseno)).toBe(false);
+  });
+
+  it("lee de OLANET, sin vista, sin revisión y con su propia máquina", () => {
+    expect(impresion.fuente).toBe("olanet");
+    expect(impresion.vista).toBeUndefined();
+    expect(impresion.sinRevision).toBe(true);
+    expect(impresion.maquina).toBe("IMDI-A");
+  });
+
+  it("toda sección que lee de la vista tiene vista", () => {
+    for (const s of Object.values(SECCIONES)) {
+      if (s.fuente === "vista") expect(s.vista).toBeTruthy();
+    }
+  });
+
+  it("cada sección tiene nombre corto", () => {
+    expect(Object.values(SECCIONES).map((s) => s.nombreCorto)).toEqual(["OT", "Diseño", "Impresión"]);
   });
 });
