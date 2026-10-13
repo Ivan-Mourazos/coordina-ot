@@ -223,7 +223,10 @@ function ofConsulta(of: HistorialOF): HistorialOF {
   if (of.rol) salida.rol = of.rol;
   if (of.rolDeducido) salida.rolDeducido = of.rolDeducido;
   if (of.materiales) salida.materiales = of.materiales;
-  // notasProduccion NO: es una nota, y las notas no salen de casa.
+  // notasProduccion NO: es una nota, y las notas no salen de casa. El texto
+  // de venta SÍ: lo escribe el comercial y describe el producto (Iván,
+  // 13/10/2026); es el mismo que trae el parte escaneado, que ya es público.
+  if (of.detalleVenta) salida.detalleVenta = of.detalleVenta;
   return salida;
 }
 
@@ -277,6 +280,9 @@ function ofParaInvitado(of: OF): OF {
     tiempoPlanteoMin: of.tiempoPlanteoMin,
     tiempoRevisionMin: of.tiempoRevisionMin,
   };
+  // El texto de la línea de venta sí viaja: describe el producto (medidas y
+  // acabados), no es una nota. Ver `ofConsulta`.
+  if (of.detalleVenta) salida.detalleVenta = of.detalleVenta;
   if (of.revisada !== undefined) salida.revisada = of.revisada;
   if (of.detenida !== undefined) salida.detenida = of.detenida;
   if (of.ajenaOT !== undefined) salida.ajenaOT = of.ajenaOT;

@@ -654,6 +654,36 @@ export async function leerMaterialGastadoPedido(
   return salida;
 }
 
+/** Qué se vendió en cada OF del pedido: el texto de su línea de venta
+ *  (`FACOrderLineSL.Comment`), con medidas y acabados. El mismo que lee el
+ *  tablero (ver `detalleVenta` en rps.ts) y con la misma regla: una OF que
+ *  cuelga de varias líneas junta los textos distintos, sin repetir. */
+async function leerDetallesVentaPedido(pedido: string): Promise<Map<string, string>> {
+  const salida = new Map<string, string>();
+  if (ES_MOCK) return salida;
+  const pool = await getPool();
+  const r = await pool
+    .request()
+    .input("pedido", sql.VarChar(25), pedido)
+    .query<{ orden: string | null; detalle: string | null }>(`
+      SELECT mo.CodManufacturingOrder AS orden, l.Comment AS detalle
+      FROM dbo.FACOrderLineSL l WITH (NOLOCK)
+      JOIN dbo.FACOrderSL o WITH (NOLOCK) ON o.IDOrder = l.IDOrder AND o.CodCompany = '001'
+      JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      WHERE o.CodOrder = @pedido
+    `);
+  const textos = new Map<string, Set<string>>();
+  for (const f of r.recordset) {
+    const orden = (f.orden ?? "").trim();
+    const texto = (f.detalle ?? "").replace(/\s+/g, " ").trim();
+    if (!orden || !texto) continue;
+    textos.set(orden, (textos.get(orden) ?? new Set<string>()).add(texto));
+  }
+  for (const [orden, suyos] of textos) salida.set(orden, [...suyos].join(" · "));
+  return salida;
+}
+
 export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]> {
   if (ES_MOCK) return detalleMock(pedido);
   const nombres = await nombresHistorial();
@@ -662,7 +692,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   // Clasificar la TAREA antes de sumar. EXISTS no multiplica las imputaciones
   // cuando RPS tiene varios recursos de máquina asignados a una misma tarea.
   // Materiales y líneas de venta tampoco se unen al minutaje por ese motivo.
-  const [r, extrasOF] = await Promise.all([
+  const [r, extrasOF, ventas] = await Promise.all([
     pool.request().input("pedido", pedido).query<FilaTiempoCentro>(`
       WITH Tareas AS (
         SELECT mo.IDManufacturingOrder, mo.CodManufacturingOrder AS orden,
@@ -700,6 +730,8 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
       GROUP BY t.orden, t.descripcion, t.centro, t.tarea, t.descripcionTarea, t.ordenRuta, e.CodEmployee, e.Description
     `),
     leerMaterialesPedido(pedido),
+    // Que falle esto no deja la ficha sin tiempos: sin texto de venta, y ya.
+    leerDetallesVentaPedido(pedido).catch(() => new Map<string, string>()),
   ]);
 
   const filas = r.recordset.map((fila) => ({
@@ -728,6 +760,8 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     const extras = extrasOF.get(of.codigo);
     if (extras?.materiales.length) of.materiales = extras.materiales;
     if (extras?.notas) of.notasProduccion = extras.notas;
+    const venta = ventas.get(of.codigo);
+    if (venta) of.detalleVenta = venta;
   }
   return ofs;
 }

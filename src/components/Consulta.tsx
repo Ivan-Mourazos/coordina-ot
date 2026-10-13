@@ -67,7 +67,7 @@ export function Consulta() {
     <div className="min-h-full">
       {/* La misma cabecera que la web del equipo: del color de la página y sin
           raya. Era vidrio blanco con borde, otra web al lado de la de dentro. */}
-      <header className="glass-header sticky top-0 z-10 flex flex-wrap items-center gap-3 px-5 py-2.5">
+      <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-3 px-5 py-2.5">
         <Logo height={36} />
         {/* Las flechas mueven entre pestañas y el tabulador entra y sale de la
             tira entera: es como se recorre un tablist, y es lo que espera

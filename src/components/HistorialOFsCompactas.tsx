@@ -6,6 +6,7 @@ import { personasConRol, personasDeOF, repartoDe, resumenMaterial, tiempoDePerso
 import { IconoAviso, IconoMaterial } from "./Iconos";
 import type { SeccionId } from "@/lib/secciones";
 import { centrosConDesglose } from "@/lib/historial-centros";
+import { DetalleVenta } from "./DetalleVenta";
 import { ROL } from "@/lib/estado";
 
 /** Una línea por OF, aunque haya trabajado más de un centro. La sección
@@ -98,6 +99,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
             : [];
         const personas = [...conTiempo, ...deducidos];
         const descripcion = centros[0].descripcion;
+        const detalleVenta = centros.find((c) => c.detalleVenta)?.detalleVenta;
         // El material y la nota son de la OF, no del centro: vale el primer
         // centro que los traiga.
         // Con la OF DESPLEGADA no salen: sus botones (Asignado, nota de
@@ -163,6 +165,12 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
                   hacer la cuenta para entender que era la suma. El desglose
                   por tarea está al desplegar la OF. */}
             </div>
+            {/* Qué se vendió, con medidas y acabados: plegado (Iván, 13/10/2026). */}
+            {detalleVenta && (
+              <div className="-mx-2.5">
+                <DetalleVenta texto={detalleVenta} />
+              </div>
+            )}
             {/* Debajo, QUIÉN: autor y revisor con su rótulo de color y su
                 tiempo, como en Pendientes. Sin roles registrados (OF de antes
                 de fichar en la web) salen los nombres con su tiempo, sin

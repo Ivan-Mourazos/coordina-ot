@@ -1,7 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
-import { BotonVolverAPlantear, DetalleVenta } from "../../components/Drawer";
+import { BotonVolverAPlantear } from "../../components/Drawer";
+import { DetalleVenta } from "../../components/DetalleVenta";
 
 const html = () =>
   renderToStaticMarkup(

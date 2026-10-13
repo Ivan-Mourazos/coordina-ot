@@ -21,6 +21,7 @@ function detalle(): HistorialPedidoDetalle {
     rol: { planteoMin: 100, revisionMin: 20, planteo: [], revision: [] },
     materiales: [{ texto: "LONA ACRÍLICA · 5", apartado: true }],
     notasProduccion: "BELEN AB - se devolvió por medidas mal tomadas",
+    detalleVenta: "TOLDO COFRE DE 4,00 × 2,50, LONA ACRÍLICA",
     // Un campo que el Historial añadiera mañana no puede salir solo.
     campoNuevoInterno: "no debería salir",
   } as HistorialOF;
@@ -71,6 +72,10 @@ test("vuelven los nombres, los tiempos y quién planteó y revisó: la ficha del
   expect(of.revisorRegistrado).toBe("Jaime López");
   expect(of.rol?.planteoMin).toBe(100);
   expect(of.materiales).toHaveLength(1);
+});
+
+test("el texto de la línea de venta sí sale: describe el producto", () => {
+  expect(detalleConsulta(detalle(), extra).ofs[0].detalleVenta).toBe("TOLDO COFRE DE 4,00 × 2,50, LONA ACRÍLICA");
 });
 
 test("las notas de producción y lo que no está en la lista blanca, no", () => {

@@ -52,7 +52,7 @@ const pedido = (extra: Partial<Pedido> = {}): Pedido => ({
 test("no viajan notas, avisos, comentario de venta, material ni prioridad", () => {
   const p = pedidoParaInvitado(pedido());
   const texto = JSON.stringify(p);
-  for (const prohibido of ["Faltan las medidas", "AVISA LADINA", "Llamar antes", "LONA PVC 650", "línea de venta"]) {
+  for (const prohibido of ["Faltan las medidas", "AVISA LADINA", "Llamar antes", "LONA PVC 650"]) {
     expect(texto).not.toContain(prohibido);
   }
   expect(p.ofs[0].materiales).toBeUndefined();
@@ -60,6 +60,10 @@ test("no viajan notas, avisos, comentario de venta, material ni prioridad", () =
   expect(p.ofs[0].materialPendienteHasta).toBeUndefined();
   expect(p.scanUrl).toBeUndefined();
   expect(p.prioridad).toBe(2);
+});
+
+test("el texto de la línea de venta SÍ viaja: describe el producto, no es una nota", () => {
+  expect(pedidoParaInvitado(pedido()).ofs[0].detalleVenta).toBe("Texto de la línea de venta");
 });
 
 test("una OF devuelta se enseña como planteando: no se ve a quién se le devolvió", () => {

@@ -202,6 +202,11 @@ export interface HistorialOF {
    *  Poco frecuentes (36 de 579 OF de OT), pero cuando están dicen algo. */
   notasProduccion?: string;
 
+  /** Qué se vendió en esta OF, con medidas y acabados: el texto de su línea
+   *  de venta. NO es una nota: lo escribe el comercial y describe el producto,
+   *  así que sí sale en la consulta sin sesión (Iván, 13/10/2026). */
+  detalleVenta?: string;
+
   /** Roles DEDUCIDOS del reparto de minutos de RPS, para las OF anteriores al
    *  fichaje en CoordinaOT: quien más tiempo lleva planteó y quien lleva poco
    *  revisó (ver `deducirRoles`). Va en un campo aparte de `rol` a propósito —

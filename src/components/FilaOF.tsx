@@ -1,9 +1,10 @@
 import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
-import { ESTADO, fmtMin } from "@/lib/estado";
+import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
+import { DetalleVenta } from "./DetalleVenta";
 import { tintaSobre } from "@/lib/tinta";
 
 // ─── Una OF dentro del detalle de un pedido ──────────────────────────────────
@@ -71,7 +72,19 @@ function Fecha({
 /** Una OF, una línea: código, descripción, píldora de estado, avisos que
  *  paran el trabajo (taller, detenida, material) y autor → revisor con el
  *  tiempo a la derecha. */
-export function FilaOF({ of, operarios, hoy }: { of: OF; operarios: Operario[]; hoy: string }) {
+export function FilaOF({
+  of,
+  operarios,
+  hoy,
+  conNombres = false,
+}: {
+  of: OF;
+  operarios: Operario[];
+  hoy: string;
+  /** Nombres en vez de avatares: quien mira sin sesión no sabe de quién son
+   *  unas iniciales en un círculo (Iván, 13/10/2026). */
+  conNombres?: boolean;
+}) {
   const meta = ESTADO[of.estado];
   const autor = operarios.find((o) => o.id === of.autorId);
   const revisor = operarios.find((o) => o.id === of.revisorId);
@@ -113,17 +126,35 @@ export function FilaOF({ of, operarios, hoy }: { of: OF; operarios: Operario[]; 
           Material <Fecha iso={of.materialPendienteHasta} hoy={hoy} />
         </span>
       )}
-      <span className="ml-auto flex items-center gap-1.5">
-        <Avatar op={autor} title="Autor" />
-        <span className="text-text-muted">→</span>
-        <Avatar op={revisor} title="Revisor" />
-      </span>
+      {conNombres ? (
+        <span className="ml-auto flex items-center gap-1.5">
+          <span className={autor ? `font-semibold ${ROL.plantear.texto}` : "text-text-muted"} title="Autor">
+            {autor?.nombre ?? "sin autor"}
+          </span>
+          <span className="text-text-muted">→</span>
+          <span className={revisor ? `font-semibold ${ROL.revisar.texto}` : "text-text-muted"} title="Revisor">
+            {revisor?.nombre ?? "sin revisor"}
+          </span>
+        </span>
+      ) : (
+        <span className="ml-auto flex items-center gap-1.5">
+          <Avatar op={autor} title="Autor" />
+          <span className="text-text-muted">→</span>
+          <Avatar op={revisor} title="Revisor" />
+        </span>
+      )}
       <span
         className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border"
         title={`Planteo ${fmtMin(of.tiempoPlanteoMin)} · Revisión ${fmtMin(of.tiempoRevisionMin)}`}
       >
         {total > 0 ? fmtMin(total) : "—"}
       </span>
+      {/* Qué se vendió, con medidas: plegado y a lo ancho, debajo de la línea. */}
+      {of.detalleVenta && (
+        <div className="-mx-2.5 basis-full">
+          <DetalleVenta texto={of.detalleVenta} />
+        </div>
+      )}
     </li>
   );
 }

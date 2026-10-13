@@ -104,6 +104,7 @@ export function ConsultaEnCurso({
           sinMaterial
           fase={faseParaInvitado}
           unoAbierto
+          conNombres
         />
       )}
       {/* Parados por Producción: la oficina no puede hacer nada con ellos hasta
@@ -137,6 +138,7 @@ export function ConsultaEnCurso({
             sinMaterial
             fase={faseParaInvitado}
             unoAbierto
+            conNombres
           />
         </BloquePlegable>
       )}

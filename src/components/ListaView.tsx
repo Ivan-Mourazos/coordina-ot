@@ -387,7 +387,11 @@ export function ListaView({
   sinMaterial = false,
   fase,
   unoAbierto = false,
+  conNombres = false,
 }: {
+  /** En el desplegable, autor y revisor por su nombre y no con avatar (la
+   *  consulta sin sesión). */
+  conNombres?: boolean;
   /** Al desplegar un pedido se pliega el que estuviera abierto (la consulta
    *  «En curso», como su lista de pedidos). */
   unoAbierto?: boolean;
@@ -578,7 +582,7 @@ export function ListaView({
                   </div>
                 </>
               }
-              detalle={<Detalle p={p} hoy={hoy} operarios={operarios} />}
+              detalle={<Detalle p={p} hoy={hoy} operarios={operarios} conNombres={conNombres} />}
             />
           );
         })}
@@ -603,7 +607,17 @@ export function ListaView({
  *  está reservado, si Compras espera algo (y si llega tarde), los avisos que
  *  Producción deja en la ruta, y cuánto se estimó frente a lo que lleva. Eso es
  *  lo que hay ahora. */
-function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Operario[] }) {
+function Detalle({
+  p,
+  hoy,
+  operarios,
+  conNombres,
+}: {
+  p: Pedido;
+  hoy: string;
+  operarios: Operario[];
+  conNombres: boolean;
+}) {
   const llevado = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
   const estimado = p.ofs.reduce((n, of) => n + of.tiempoEstimadoMin, 0);
   const material = estadoMaterialDe(p.ofs);
@@ -654,7 +668,7 @@ function Detalle({ p, hoy, operarios }: { p: Pedido; hoy: string; operarios: Ope
       {p.comentarioVenta && <ComentarioComercial texto={p.comentarioVenta} />}
       <ul className="space-y-1.5">
         {p.ofs.map((of) => (
-          <FilaOF key={of.id} of={of} operarios={operarios} hoy={hoy} />
+          <FilaOF key={of.id} of={of} operarios={operarios} hoy={hoy} conNombres={conNombres} />
         ))}
       </ul>
     </div>
