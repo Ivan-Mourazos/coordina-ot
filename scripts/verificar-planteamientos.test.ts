@@ -7,22 +7,20 @@ import { readFileSync } from "node:fs";
 // Solo lectura, salvo la última prueba, que IMPRIME una página en la impresora
 // de OT y necesita su propia bandera.
 //
-//   VALIDAR_PLANTEAMIENTOS=1 PEDIDOS_CAD=AR.26.05016 PEDIDOS_TGM=AR.26.04351 \
+//   VALIDAR_PLANTEAMIENTOS=1 PEDIDOS=AR.26.05016,AR.26.04351 \
 //     node --env-file=.env.local node_modules/vitest/vitest.mjs run scripts/verificar-planteamientos.test.ts
 //   …y para imprimir una prueba en OT: IMPRIMIR_PRUEBA_OT=/ruta/a/una-pagina.pdf
 
 const ACTIVO = process.env.VALIDAR_PLANTEAMIENTOS === "1";
 const lista = (v?: string) => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
-test.skipIf(!ACTIVO)("los de CAD se encuentran y los de toldos-testar no", async () => {
-  for (const p of lista(process.env.PEDIDOS_CAD)) {
+// Pedidos con planteamiento, de CAD o de la web de toldos: todos se imprimen.
+test.skipIf(!ACTIVO)("los planteamientos de los pedidos se encuentran", async () => {
+  for (const p of lista(process.env.PEDIDOS)) {
     const r = await planteamientosDe(p);
     console.info(p, r);
     expect(r.aviso).toBeNull();
     expect(r.ficheros.length).toBeGreaterThan(0);
-  }
-  for (const p of lista(process.env.PEDIDOS_TGM)) {
-    expect((await planteamientosDe(p)).ficheros).toEqual([]);
   }
 });
 

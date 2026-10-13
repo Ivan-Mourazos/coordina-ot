@@ -37,18 +37,20 @@ beforeAll(async () => {
 afterAll(() => rmSync(raiz, { recursive: true, force: true }));
 
 describe("leer un PDF", () => {
-  it("cuenta páginas, mira A4 y reconoce los de toldos-testar", async () => {
-    expect(await leerPdf(await pdf([A4, A4]))).toEqual({ paginas: 2, todoA4: true, deToldosTestar: false });
+  it("cuenta páginas y mira si todas son A4", async () => {
+    expect(await leerPdf(await pdf([A4, A4]))).toEqual({ paginas: 2, todoA4: true });
     expect((await leerPdf(await pdf([A4, A5]))).todoA4).toBe(false);
-    expect((await leerPdf(await pdf([A4], "X.remolques.json"))).deToldosTestar).toBe(true);
   });
 });
 
 describe("los planteamientos de un pedido", () => {
-  it("de Planteamientos, sin los de toldos-testar", async () => {
+  it("de Planteamientos, también los de la web de toldos (solo los guarda en la carpeta)", async () => {
     const r = await planteamientosDe("AR.26.05016", { entrada, archivo });
     expect(r.aviso).toBeNull();
-    expect(r.ficheros.map((f) => [f.nombre, f.origen, f.paginas])).toEqual([["AR2605016-10.pdf", "planteamientos", 1]]);
+    expect(r.ficheros.map((f) => [f.nombre, f.origen, f.paginas])).toEqual([
+      ["AR2605016-1.pdf", "planteamientos", 1],
+      ["AR2605016-10.pdf", "planteamientos", 1],
+    ]);
   });
 
   it("del archivo de RPS cuando ya se procesó", async () => {

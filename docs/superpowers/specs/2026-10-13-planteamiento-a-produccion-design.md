@@ -45,8 +45,8 @@ falta, porque el PDF ya lo deja OT en su sitio desde CAD.
 
 1. Solo pedidos de **Oficina Técnica** (sección `ot`), al pasarlos a Producción.
    Diseño e Impresión no imprimen nada.
-2. Los PDF de `toldos-testar` (toldos y remolques) **no se imprimen**: CoordinaOT no
-   hace nada con ellos.
+2. Los PDF de `toldos-testar` (toldos y remolques) **también se imprimen**: esa web
+   solo los guarda en la carpeta (corregido por Iván el 13/10/2026).
 3. **Una copia, a una cara, en A4.**
 4. Si **todas** las páginas son A4, se imprime **solo**. Si alguna no lo es (a veces
    el PDF lleva una A5 que se imprime en OT), **no** se manda: se abre el cuadro de
@@ -69,8 +69,7 @@ Una función de servidor, `planteamientosDe(pedido)`:
    `AR.26.05016-*.pdf` en el archivo de RPS del año.
 3. Une las dos listas por sufijo (`-1`, `-10`…): si un mismo sufijo está en los dos
    sitios, vale el de Planteamientos, que es el más reciente.
-4. Descarta los que llevan adjunto `.toldos.json` o `.remolques.json`.
-5. De cada uno, cuenta las páginas y mira si son A4. A4 son 595 × 842 puntos, con
+4. De cada uno, cuenta las páginas y mira si son A4. A4 son 595 × 842 puntos, con
    unos 3 puntos de margen y en cualquier orientación.
 
 Se leen con `pdfjs-dist`, que ya es dependencia (adjuntos con `getAttachments`,
@@ -184,7 +183,6 @@ Como `FICHAJE_OLANET`, un modo explícito y apagado por defecto:
   `coordina@` (lo decide Esteban con David). Cuando exista, entra como otro tipo de
   trabajo en esta misma cola, con su propio estado y reintentos, sin rehacer nada.
 - Comprobar que RPS ha asociado el PDF al pedido: ya se ve en «Documentos de RPS».
-- Los PDF de `toldos-testar`.
 - Imprimir la página A5 en OT automáticamente.
 
 ## Pruebas
@@ -192,7 +190,6 @@ Como `FICHAJE_OLANET`, un modo explícito y apagado por defecto:
 - **Unitarias:**
   - nombre compacto, nombre del archivo y año, incluida otra serie (`SA.26.00498`);
   - unión por sufijo con preferencia por Planteamientos;
-  - descarte por adjunto de `toldos-testar`;
   - detección de A4, en vertical y apaisado, con margen;
   - bytes del `Print-Job` y lectura de la respuesta (aceptado, rechazado, número de
     trabajo);

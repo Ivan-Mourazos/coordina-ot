@@ -9,16 +9,13 @@ import { cargarPdfjs } from "./pdfjs";
 // Un mismo sufijo en los dos es el mismo documento, y manda el de Planteamientos
 // por ser el último que se guardó.
 //
-// Los de toldos-testar NO cuentan: llevan dentro su `.toldos.json` /
-// `.remolques.json`, y de esos CoordinaOT no hace nada (Iván, 13/10/2026).
+// Cuentan TODOS, también los de la web de toldos (toldos-testar): esa web solo
+// guarda el PDF en la carpeta, no lo imprime ni lo manda (Iván, 13/10/2026).
 
 export interface InfoPdf {
   paginas: number;
   todoA4: boolean;
-  deToldosTestar: boolean;
 }
-
-const ADJUNTOS_TOLDOS_TESTAR = [".toldos.json", ".remolques.json"];
 
 export async function leerPdf(bytes: Uint8Array): Promise<InfoPdf> {
   const { pdfjs, pdfjsDir } = await cargarPdfjs();
@@ -34,13 +31,7 @@ export async function leerPdf(bytes: Uint8Array): Promise<InfoPdf> {
       const [x0, y0, x1, y1] = (await doc.getPage(n)).view;
       if (!esA4(x1 - x0, y1 - y0)) todoA4 = false;
     }
-    // pdfjs 6 devuelve un Map (o null sin adjuntos); en versiones anteriores era
-    // un objeto. Con Object.values sobre el Map la lista sale siempre vacía y
-    // ningún PDF de toldos-testar se reconocería.
-    const adjuntos = await doc.getAttachments();
-    const nombres = [...(adjuntos?.values() ?? [])].map((a) => String(a.filename ?? "").toLowerCase());
-    const deToldosTestar = nombres.some((n) => ADJUNTOS_TOLDOS_TESTAR.some((s) => n.endsWith(s)));
-    return { paginas: doc.numPages, todoA4, deToldosTestar };
+    return { paginas: doc.numPages, todoA4 };
   } finally {
     await tarea.destroy();
   }
@@ -118,7 +109,6 @@ export async function planteamientosDe(
   for (const [, f] of [...porSufijo].sort(([a], [b]) => Number(a.slice(1)) - Number(b.slice(1)))) {
     try {
       const info = await leerPdf(new Uint8Array(await readFile(f.ruta)));
-      if (info.deToldosTestar) continue;
       ficheros.push({ ...f, paginas: info.paginas, todoA4: info.todoA4 });
     } catch (e) {
       // Un PDF roto no se imprime ni tumba la lista: se anota y se sigue.
