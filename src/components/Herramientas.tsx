@@ -102,7 +102,7 @@ export function Herramientas({
         >
           {yo.iniciales}
         </span>
-        <span className="text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>{seccion === "ot" ? "OT" : "Diseño"}</span>
+        <span className="text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>{SECCIONES[seccion].nombreCorto}</span>
         <svg viewBox="0 0 24 24" aria-hidden className="size-4" fill="currentColor">
           <circle cx="5" cy="5" r="1.8" />
           <circle cx="12" cy="5" r="1.8" />

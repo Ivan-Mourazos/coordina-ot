@@ -1,5 +1,5 @@
 import sql from "mssql";
-import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, recursosImpresionSql, type FilaTiempoCentro } from "../historial-centros";
+import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
 import { indiceSiListo } from "./historial-indice";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
@@ -285,7 +285,7 @@ async function extrasDePagina(
            e.CodEmployee AS empleado, e.Description AS nombreEmpleado, SUM(i.ExecutionTime) AS minutos,
            CASE WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.ot)})) THEN 'ot'
                 WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.diseno)})) THEN 'diseno'
-                WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosImpresionSql()})) THEN 'impresion'
+                WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm WHERE rm.IDMOTask=t.IDMOTask AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.impresion)})) THEN 'impresion'
                 ELSE 'taller' END AS centro
     FROM dbo.FACOrderSL o
     JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
@@ -426,9 +426,10 @@ function rolesRegistrados(nombres: ReadonlyMap<string, string>): {
   const revisores = new Map<string, string[]>();
   let overlay;
   try {
-    const ot = leerOverlay("ot");
-    const diseno = leerOverlay("diseno");
-    overlay = { ofs: new Map([...ot.ofs, ...diseno.ofs]) };
+    // Todas las secciones: así los fichajes hechos en la web dentro de Impresión
+    // también salen con autor en el Historial.
+    const todas = (Object.keys(SECCIONES) as SeccionId[]).map((s) => leerOverlay(s).ofs);
+    overlay = { ofs: new Map(todas.flatMap((m) => [...m])) };
   } catch (e) {
     // Como en `anadirDesgloseRol`: el historial vive de RPS, y si nuestra BD
     // local falla se sirve sin autor antes que devolver un error.
@@ -708,7 +709,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
                  -- Después de Diseño: lo que lleve su mesa sigue siendo suyo.
                  WHEN EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm
                    WHERE rm.IDMOTask = t.IDMOTask
-                     AND rm.CodMOResourceMachine IN (${recursosImpresionSql()})) THEN 'impresion'
+                     AND rm.CodMOResourceMachine IN (${recursosSql(SECCIONES.impresion)})) THEN 'impresion'
                  ELSE 'taller'
                END AS centro
         FROM dbo.CPRManufacturingOrder mo
@@ -746,7 +747,7 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
   // Los roles locales se sumaban por OF entera: con dos secciones en una OF,
   // eso atribuiría también el fichaje de Diseño al bloque de OT (y viceversa).
   // Limitar por tarea, no por la sección habitual de quien fichó.
-  for (const centro of ["ot", "diseno"] as const) {
+  for (const centro of Object.keys(SECCIONES) as SeccionId[]) {
     const tareas = new Set(filas
       .filter((f) => f.centro === centro && f.orden && f.tarea)
       .map((f) => claveTareaHistorial(f.orden!, f.tarea!)));

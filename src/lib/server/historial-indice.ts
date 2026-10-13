@@ -3,7 +3,7 @@ import { getPool } from "./db";
 import { ctesFinalizacionHistorial } from "./historial-finalizacion-sql";
 import { familiaDeTexto } from "./rps";
 import { COD_RPS_POR_OPERARIO } from "./operarios";
-import type { SeccionId } from "../secciones";
+import { SECCIONES, type SeccionId } from "../secciones";
 import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial, type InfoPedidoHistorial } from "../historial-indice";
 
 // ─── El Historial en memoria ─────────────────────────────────────────────────
@@ -237,9 +237,13 @@ export async function construirIndice(): Promise<IndiceHistorial> {
 
 async function construir(): Promise<IndiceHistorial> {
   const t0 = Date.now();
-  // Impresión aún no tiene historial propio: vacía hasta que se le dé uno.
-  const base = { ot: await baseDe("ot"), diseno: await baseDe("diseno"), impresion: [] };
-  const pedidos = new Set([...base.ot, ...base.diseno, ...base.impresion].map((b) => b.pedido));
+  // Una lista por sección, derivada de SECCIONES: la sección nueva entra sola.
+  // Las consultas van en paralelo (antes, seguidas).
+  const ids = Object.keys(SECCIONES) as SeccionId[];
+  const base = Object.fromEntries(
+    await Promise.all(ids.map(async (s) => [s, await baseDe(s)] as const)),
+  ) as Record<SeccionId, BaseHistorial[]>;
+  const pedidos = new Set(Object.values(base).flat().map((b) => b.pedido));
   const info = await textosDe(pedidos);
   const personas = await personasDe();
   console.info(`[historial] lista en memoria lista en ${Date.now() - t0} ms: ${pedidos.size} pedidos`);
