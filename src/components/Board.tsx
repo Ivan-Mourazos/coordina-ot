@@ -2661,6 +2661,7 @@ export function Board({
                 ordenDesc={filtrosPorVista.lista.ordenDesc}
                 hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
                 fase={faseEnUnaPalabra}
+                unoAbierto
               />
             </div>
           </>

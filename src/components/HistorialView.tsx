@@ -95,6 +95,9 @@ export function HistorialView({
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [cargando, setCargando] = useState(false);
+  // Un pedido desplegado a la vez: al abrir otro se pliega el anterior (Iván,
+  // 13/10/2026), como en la consulta y en Pendientes.
+  const [desplegado, setDesplegado] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
@@ -205,7 +208,16 @@ export function HistorialView({
   );
   const dias = buscando ? null : agruparPorDia(itemsVisibles, { hayMas: hasMore, hoy, totales: porDia });
   const fila = (it: HistorialItem) => (
-    <FilaHistorial key={`${seccion}:${it.pedido}`} item={it} onOpen={setAbierto} seccion={seccion} columnas={columnas} conFecha={buscando} />
+    <FilaHistorial
+      key={`${seccion}:${it.pedido}`}
+      item={it}
+      onOpen={setAbierto}
+      seccion={seccion}
+      columnas={columnas}
+      conFecha={buscando}
+      desplegado={desplegado === it.pedido}
+      onAlternar={() => setDesplegado((d) => (d === it.pedido ? null : it.pedido))}
+    />
   );
 
   return (
@@ -433,6 +445,8 @@ function FilaHistorial({
   seccion,
   columnas,
   conFecha,
+  desplegado,
+  onAlternar,
 }: {
   item: HistorialItem;
   onOpen: (pedido: string) => void;
@@ -440,8 +454,10 @@ function FilaHistorial({
   columnas: string;
   /** Al buscar: sin separadores de día, la fecha va en su columna. */
   conFecha: boolean;
+  /** Lo lleva la lista: uno abierto a la vez. */
+  desplegado: boolean;
+  onAlternar: () => void;
 }) {
-  const [desplegado, setDesplegado] = useState(false);
   const [ofs, setOfs] = useState<HistorialOF[] | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
@@ -451,7 +467,7 @@ function FilaHistorial({
   // desplegar es un evento de usuario, no una sincronización con nada externo.
   const alternar = useCallback(async () => {
     const abre = !desplegado;
-    setDesplegado(abre);
+    onAlternar();
     if (!abre || ofs || cargando) return;
     setCargando(true);
     setError(false);
@@ -465,7 +481,7 @@ function FilaHistorial({
     } finally {
       setCargando(false);
     }
-  }, [desplegado, ofs, cargando, item.pedido, seccion]);
+  }, [desplegado, onAlternar, ofs, cargando, item.pedido, seccion]);
 
   // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
   // es cuando OLANET registró el cambio y puede ir por detrás.
