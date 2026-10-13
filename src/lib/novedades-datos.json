@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-13",
-    "hasta": "3a6a9ef",
+    "hasta": "0b4b7c3",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -12,6 +12,11 @@
         "tipo": "nuevo",
         "titulo": "Sin entrar, cada OF enseña su descripción de venta, con medidas y acabados",
         "detalle": "En «En curso» y en «Pedidos», al desplegar el pedido. También en el Historial."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Impresión Digital tiene su propio tablero",
+        "detalle": "Manuel ve lo que queda por imprimir, ficha desde la web y con «Impreso» pasa el pedido a Producción."
       },
       {
         "tipo": "arreglado",
