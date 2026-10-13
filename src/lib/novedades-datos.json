@@ -1,5 +1,75 @@
 [
   {
+    "id": "2026-10-13",
+    "hasta": "3a6a9ef",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En «En curso» los detenidos por Producción van aparte",
+        "detalle": "En un bloque plegado al final, para que no se confundan con retrasos de la oficina."
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Sin entrar, cada OF enseña su descripción de venta, con medidas y acabados",
+        "detalle": "En «En curso» y en «Pedidos», al desplegar el pedido. También en el Historial."
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El buscador de la consulta enseñaba dos cruces para borrar"
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la consulta sin entrar, los números de pedido se veían por encima de la cabecera al bajar"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La consulta sin entrar abre directamente en «En curso»",
+        "detalle": "Es lo que más se pregunta: qué tiene ahora la oficina. «Pedidos» sigue al lado para buscar cualquier pedido."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la consulta, la lista de pedidos se lee como el Historial",
+        "detalle": "Cada pedido en su tarjeta y en columnas: cliente, familia, dónde está y fecha."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la consulta, «dónde está» se lee de un vistazo",
+        "detalle": "Cada pedido dice con un color si lo están haciendo, está pausado o qué viene; al abrirlo, quién lo tiene y desde hace cuántos días."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al abrir un pedido en la consulta se cierra el que estaba abierto"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En «En curso» cada pedido dice su fase en una palabra",
+        "detalle": "Sin asignar, Planteando, Revisando o Listo, con su color, junto al número de pedido."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Pendientes cada pedido dice su fase en una palabra",
+        "detalle": "Sin asignar, Planteando, A corregir, Revisando o Listo para pasar, con su color, junto al número de pedido."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Pendientes y en el Historial, al abrir un pedido se cierra el anterior"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Pendientes la columna «Quién» ya no repite el estado",
+        "detalle": "La fase va junto al número de pedido; en la columna quedan el nombre y el tiempo de cada uno."
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al desplegar un pedido, las OF se distinguen mejor del fondo"
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Sin entrar, autor y revisor salen con su nombre en vez de iniciales"
+      }
+    ]
+  },
+  {
     "id": "2026-10-11",
     "hasta": "ef8e60d",
     "cambios": [
