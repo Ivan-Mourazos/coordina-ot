@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { cargarPdfjs, type ModuloPdfJs } from "./pdfjs";
 
 // ─── Miniaturas de ficheros del share de RPS ─────────────────────────────────
 // Dibuja en pequeño la 1ª página de un PDF y encoge una foto, y guarda el
@@ -35,7 +35,6 @@ const MAX_RENDERS_SIMULTANEOS = 4;
 // la raíz del proyecto) quedan fuera del bundle y funcionan tal cual.
 // ---------------------------------------------------------------------------
 
-type ModuloPdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 type ModuloCanvas = typeof import("@napi-rs/canvas");
 
 let motorPromise: Promise<{
@@ -48,13 +47,7 @@ let motorPromise: Promise<{
 function cargarMotor() {
   motorPromise ??= (async () => {
     const require = createRequire(path.join(process.cwd(), "package.json"));
-    const pdfjsDir = path
-      .dirname(require.resolve("pdfjs-dist/package.json"))
-      .replace(/\\/g, "/");
-    const pdfjs: ModuloPdfJs = await import(
-      /* webpackIgnore: true */
-      pathToFileURL(`${pdfjsDir}/legacy/build/pdf.mjs`).href
-    );
+    const { pdfjs, pdfjsDir } = await cargarPdfjs();
     const canvas: ModuloCanvas = require("@napi-rs/canvas");
     return { pdfjs, canvas, pdfjsDir };
   })();
