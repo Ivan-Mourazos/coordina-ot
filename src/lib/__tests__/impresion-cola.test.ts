@@ -1,0 +1,104 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import type { Planteamientos } from "../server/planteamiento-pdf";
+
+let dir: string;
+beforeAll(() => {
+  dir = mkdtempSync(path.join(tmpdir(), "coordina-impresion-"));
+  process.env.COORDINA_DB_PATH = path.join(dir, "test.db");
+  process.env.COORDINA_PLANTEAMIENTOS_COPIAS = path.join(dir, "copias");
+  process.env.DATASOURCE = "mock";
+});
+afterAll(() => {
+  try { rmSync(dir, { recursive: true, force: true }); } catch {}
+});
+
+let cola: typeof import("../server/impresion-cola");
+let worker: typeof import("../server/impresion-worker");
+
+beforeEach(async () => {
+  vi.resetModules();
+  process.env.IMPRESION_PRODUCCION = "activo";
+  const { getDb } = await import("../server/estado-db");
+  getDb().exec("DELETE FROM planteamiento_impresion");
+  cola = await import("../server/impresion-cola");
+  worker = await import("../server/impresion-worker");
+});
+
+const T0 = new Date("2026-10-13T11:00:00Z");
+const pdfDe = (nombre: string, todoA4: boolean): Planteamientos => ({
+  aviso: null,
+  ficheros: [{ nombre, ruta: path.join(__dirname, "planteamiento.test.ts"), origen: "planteamientos", paginas: 1, todoA4 }],
+});
+
+describe("modo y destino", () => {
+  it("apagado por defecto; ensayo va a la de OT", async () => {
+    delete process.env.IMPRESION_PRODUCCION;
+    expect(cola.modoImpresion()).toBe("off");
+    expect(cola.impresoraDestino("ensayo")).toBe("ipp://192.168.4.249/ipp");
+    expect(cola.impresoraDestino("activo")).toBe("ipp://192.168.4.245/ipp");
+    expect(cola.impresoraDestino("off")).toBeNull();
+  });
+});
+
+describe("al pasar el pedido", () => {
+  it("todo A4: copia y encola", async () => {
+    const r = await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    expect(r).toEqual({ encolados: 1, manuales: [], aviso: null });
+    const [f] = cola.leerImpresionesDe("AR.26.05016");
+    expect(f).toMatchObject({ estado: "pendiente", fichero: "AR2605016-10.pdf", pasadoPor: "ivan" });
+  });
+
+  it("alguna página no A4: manual, no se encola", async () => {
+    const r = await cola.prepararImpresion("AR.26.05099", "ivan", T0, async () => pdfDe("AR2605099-10.pdf", false));
+    expect(r.manuales).toEqual(["AR2605099-10.pdf"]);
+    expect(cola.leerImpresionesDe("AR.26.05099")[0].estado).toBe("manual");
+  });
+
+  it("sin planteamiento: se anota con el motivo", async () => {
+    await cola.prepararImpresion("AR.26.00001", "ivan", T0, async () => ({ ficheros: [], aviso: "No puedo leer la carpeta Planteamientos" }));
+    expect(cola.leerImpresionesDe("AR.26.00001")[0]).toMatchObject({ estado: "sin_planteamiento", error: "No puedo leer la carpeta Planteamientos" });
+  });
+});
+
+describe("el trabajador", () => {
+  it("manda lo pendiente, lo marca enviado y borra la copia", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    const imprimir = vi.fn(async (..._a: unknown[]) => ({ trabajo: 77 }));
+    expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
+    expect(imprimir.mock.calls[0][0]).toBe("ipp://192.168.4.245/ipp");
+    const [f] = cola.leerImpresionesDe("AR.26.05016");
+    expect(f).toMatchObject({ estado: "enviado", impresora: "ipp://192.168.4.245/ipp", modo: "activo" });
+    expect(existsSync(path.join(process.env.COORDINA_PLANTEAMIENTOS_COPIAS!, `${f.id}-AR2605016-10.pdf`))).toBe(false);
+  });
+
+  it("en ensayo anota el modo", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    process.env.IMPRESION_PRODUCCION = "ensayo";
+    await worker.vueltaImpresion(T0, vi.fn(async () => ({ trabajo: 1 })));
+    expect(cola.leerImpresionesDe("AR.26.05016")[0]).toMatchObject({ estado: "enviado", modo: "ensayo" });
+  });
+
+  it("si falla, espera cada vez más antes de reintentar", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    const falla = vi.fn(async () => { throw new Error("La impresora no responde (ECONNREFUSED)"); });
+    await worker.vueltaImpresion(T0, falla);
+    expect(cola.leerImpresionesDe("AR.26.05016")[0]).toMatchObject({ estado: "pendiente", intentos: 1, error: "La impresora no responde (ECONNREFUSED)" });
+    // Antes de la espera no se reintenta…
+    await worker.vueltaImpresion(new Date(T0.getTime() + 10_000), falla);
+    expect(falla).toHaveBeenCalledTimes(1);
+    // …y pasada, sí.
+    await worker.vueltaImpresion(new Date(T0.getTime() + 31_000), falla);
+    expect(falla).toHaveBeenCalledTimes(2);
+  });
+
+  it("en off no manda nada", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    process.env.IMPRESION_PRODUCCION = "off";
+    const imprimir = vi.fn(async () => ({ trabajo: 1 }));
+    expect(await worker.vueltaImpresion(T0, imprimir)).toBe(0);
+    expect(imprimir).not.toHaveBeenCalled();
+  });
+});

@@ -49,4 +49,9 @@ export async function register() {
   // que mirar y la lista de vigilados estaría vacía igualmente.
   const { arrancarVigilanciaDePartes } = await import("./lib/server/scan-worker");
   arrancarVigilanciaDePartes();
+
+  // Planteamientos de CAD a la impresora de Producción (spec 2026-10-13).
+  // Arranca siempre; con IMPRESION_PRODUCCION=off cada vuelta no hace nada.
+  const { arrancarImpresion } = await import("./lib/server/impresion-worker");
+  arrancarImpresion();
 }
