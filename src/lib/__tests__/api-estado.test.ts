@@ -7,6 +7,10 @@ import { PEDIDOS } from "../mock";
 const { tableroMock, finalizarMock } = vi.hoisted(() => ({ tableroMock: vi.fn(), finalizarMock: vi.fn() }));
 vi.mock("../data", () => ({ getTablero: tableroMock }));
 vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }));
+// La cola de impresión se simula entera: ningún test de aquí toca una impresora
+// ni un recurso compartido de verdad.
+const { prepararImpresionMock } = vi.hoisted(() => ({ prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
+vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: () => "activo" }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
 const cortarFichajeMock = vi.fn<(ofId: string, ahora: string) => string[]>();
@@ -49,6 +53,7 @@ afterAll(() => {
 beforeEach(() => {
   tableroMock.mockReset();
   finalizarMock.mockReset();
+  prepararImpresionMock.mockClear();
   cortarFichajeMock
     .mockReset()
     .mockImplementation((ofId, ahora) => cortarFichajeReal(ofId, ahora));
@@ -431,4 +436,38 @@ test("sin autor, el mismo id en revisor no bloquea (ambos nulos es válido)", as
     }),
   );
   expect(res.status).toBe(200);
+});
+
+// ─── Impresión del planteamiento al pasar (solo OT) ─────────────────────────
+const CODIGO_IMPRESION = "AR.26.05016";
+async function pasarParaImprimir(id: string, extra: Record<string, unknown> = {}, seccion = "ot") {
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [{ ...PEDIDOS[0], id, codigo: CODIGO_IMPRESION, ofs: [{ ...PEDIDOS[0].ofs[0], id: `of-${id}`, autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false }] }] });
+  return route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "ivan", seccion, motivo: "completar", completarPedidoId: id, ...extra,
+  }) }));
+}
+
+test("al pasar un pedido de OT se prepara la impresión de su planteamiento", async () => {
+  const res = await pasarParaImprimir("P-imprime-1");
+  expect(res.status).toBe(200);
+  expect(prepararImpresionMock).toHaveBeenCalledWith(CODIGO_IMPRESION, "ivan");
+});
+
+test("con la casilla desmarcada no se imprime", async () => {
+  const res = await pasarParaImprimir("P-imprime-2", { imprimirPlanteamiento: false });
+  expect(res.status).toBe(200);
+  expect(prepararImpresionMock).not.toHaveBeenCalled();
+});
+
+test("Diseño e Impresión no imprimen", async () => {
+  await pasarParaImprimir("P-imprime-3", {}, "diseno");
+  await pasarParaImprimir("P-imprime-3b", {}, "impresion");
+  expect(prepararImpresionMock).not.toHaveBeenCalled();
+});
+
+test("si la impresión falla, el pase sale bien igual", async () => {
+  prepararImpresionMock.mockRejectedValueOnce(new Error("disco"));
+  const res = await pasarParaImprimir("P-imprime-4");
+  expect(res.status).toBe(200);
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has("P-imprime-4")).toBe(true);
 });

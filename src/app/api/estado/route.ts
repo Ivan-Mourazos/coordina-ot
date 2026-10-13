@@ -8,6 +8,8 @@ import { getTablero } from "@/lib/data";
 import { pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { esSeccionId } from "@/lib/secciones";
 import { seccionDeOperario } from "@/lib/server/operarios";
+import { modoImpresion, prepararImpresion } from "@/lib/server/impresion-cola";
+import { esCodigoPedido } from "@/lib/types";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -28,6 +30,8 @@ interface Body {
   /** Ids que salen de `of_retenida` en la misma transacción. Los manda
    *  "Volver a plantear" (ver Board.tsx `ejecutarAccion`). */
   quitarRetenida?: string[];
+  /** Casilla del diálogo de pasar: ausente = imprimir el planteamiento. */
+  imprimirPlanteamiento?: boolean;
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -123,6 +127,8 @@ export async function POST(req: Request) {
   // a eliminar. Mandarlo siempre no duplica: `enviarUno` (olanet-worker.ts)
   // relee el estado y no escribe un 3 sobre un 3. Cuesta una consulta por OF.
   let ofIdsSinFinalizar: Set<string> | undefined;
+  // Código del pedido que se pasa, para buscar su planteamiento al final.
+  let codigoPedido: string | undefined;
   if (completarPedidoId) {
     const base = await getTablero(seccion);
     // Releer tras la espera: otra persona puede haber devuelto una OF
@@ -141,6 +147,7 @@ export async function POST(req: Request) {
     if (!puedePasarAProduccion(pedido, operarioId)) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
+    codigoPedido = pedido.codigo;
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
     // Task 9, Step 4 (spec §2, "Al pasar el pedido no se reenvía el cierre"):
     // una OF cerrada de verdad en RPS ("activo") no manda su 3 otra vez —ya
@@ -242,6 +249,23 @@ export async function POST(req: Request) {
       ? (ofIdsPedido ?? []).filter((id) => !ofIdsSinFinalizar!.has(id))
       : ofIdsPedido ?? [];
     encolarFinalizacion(aFinalizar, operarioId);
+    // El planteamiento de CAD sale solo en Producción (spec 2026-10-13). Solo
+    // OT, y lo decide aquí el servidor: vuelve a buscar el PDF en vez de
+    // fiarse de lo que vio el navegador. Nunca tumba el pase: imprimir es lo
+    // de después, el pedido ya está pasado.
+    if (
+      seccion === "ot" &&
+      body.imprimirPlanteamiento !== false &&
+      codigoPedido &&
+      esCodigoPedido(codigoPedido) &&
+      modoImpresion() !== "off"
+    ) {
+      try {
+        await prepararImpresion(codigoPedido, operarioId);
+      } catch (e) {
+        console.error(`[impresion] no se pudo preparar ${codigoPedido}:`, (e as Error).message);
+      }
+    }
   }
   return NextResponse.json({ ok: true });
 }
