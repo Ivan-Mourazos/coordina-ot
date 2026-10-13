@@ -30,10 +30,12 @@ falta, porque el PDF ya lo deja OT en su sitio desde CAD.
 - **Impresora de OT**: `ipp://192.168.4.249/ipp`, Konica, también acepta PDF. Es la
   del modo ensayo.
 - `toldos-testar` corre en el **mismo servidor** y usa las mismas carpetas:
-  - `PLANTEAMIENTOS_DIRECTORY` (con `{YYYY}`): donde se deja el PDF para que RPS lo
-    procese. Nombre compacto: `AR2605016-10.pdf`.
-  - `RPS_PLANTEAMIENTOS_DIRECTORY` (`/mnt/rps/ventas/planteamientos/{YYYY}`): el
-    archivo de RPS, ya procesado, con nombre con puntos: `AR.26.05016-10.pdf`.
+  - `PLANTEAMIENTOS_DIRECTORY=/mnt/escaner/Planteamientos` (valor real en el
+    servidor, 13/10/2026): carpeta ÚNICA, sin año, donde se deja el PDF para que RPS
+    lo procese. Nombre compacto: `AR2605016-10.pdf`.
+  - `RPS_PLANTEAMIENTOS_DIRECTORY=/mnt/rps/VENTAS/PLANTEAMIENTOS/{YYYY}`: el
+    archivo de RPS, ya procesado, con nombre con puntos: `AR.26.05016-10.pdf`. Es el
+    mismo montaje `/mnt/rps` que CoordinaOT ya usa (`RPS_DOCS_DIR`).
   - `RPS_UPLOAD_DIRECTORY` (`/mnt/toldos/rps`) es la subida de MATERIAL (los .xls).
     No tiene nada que ver con esto.
 - Los PDF que genera `toldos-testar` llevan dentro sus datos como fichero adjunto:
@@ -63,7 +65,7 @@ Una función de servidor, `planteamientosDe(pedido)`:
 1. Calcula el **nombre compacto** (`AR.26.05016` → `AR2605016`) y el **año** por las
    dos cifras tras la serie (`26` → 2026), igual que `toldos-testar`
    (`sanitizeOrderCode`, `anioDelPlanteamiento`).
-2. Busca `AR2605016-*.pdf` en la carpeta Planteamientos del año, y
+2. Busca `AR2605016-*.pdf` en la carpeta Planteamientos (única, sin año), y
    `AR.26.05016-*.pdf` en el archivo de RPS del año.
 3. Une las dos listas por sufijo (`-1`, `-10`…): si un mismo sufijo está en los dos
    sitios, vale el de Planteamientos, que es el más reciente.
@@ -168,8 +170,8 @@ Como `FICHAJE_OLANET`, un modo explícito y apagado por defecto:
 | `IMPRESION_PRODUCCION` | `off` (por defecto), `ensayo` o `activo`. |
 | `IMPRESORA_PRODUCCION` | `ipp://192.168.4.245/ipp` |
 | `IMPRESORA_ENSAYO` | `ipp://192.168.4.249/ipp` (la de OT) |
-| `PLANTEAMIENTOS_DIR` | El valor de `PLANTEAMIENTOS_DIRECTORY` del `.env` de `toldos-testar` en el servidor, con `{YYYY}`. |
-| `PLANTEAMIENTOS_ARCHIVO_DIR` | El de `RPS_PLANTEAMIENTOS_DIRECTORY`, con `{YYYY}`. |
+| `PLANTEAMIENTOS_DIR` | `/mnt/escaner/Planteamientos` (el `PLANTEAMIENTOS_DIRECTORY` de `toldos-testar`). Admite `{YYYY}` por si algún día cambia. |
+| `PLANTEAMIENTOS_ARCHIVO_DIR` | `/mnt/rps/VENTAS/PLANTEAMIENTOS/{YYYY}` (su `RPS_PLANTEAMIENTOS_DIRECTORY`). |
 
 - **`off`**: nada cambia; el diálogo no dice nada.
 - **`ensayo`**: todo igual, pero imprime en la impresora de OT. Para probarlo con
@@ -211,13 +213,8 @@ Novedad: nuevo | Al pasar un pedido a Producción, su planteamiento se imprime s
 Detalle: El PDF de CAD que guardas en Planteamientos sale en la impresora de Producción. Si lleva alguna página que no es A4, se abre el cuadro de imprimir.
 ```
 
-## Por confirmar antes del plan
+## Por confirmar en el plan
 
-1. El valor real de `PLANTEAMIENTOS_DIRECTORY` y `RPS_PLANTEAMIENTOS_DIRECTORY` en
-   el servidor:
-   ```
-   cd /webs/coordina-ot && grep -E "PLANTEAMIENTOS_DIRECTORY|RPS_PLANTEAMIENTOS_DIRECTORY" /webs/toldos-testar/.env
-   ```
-2. Que el aviso por campana del parte re-escaneado se puede reutilizar para «la
-   impresión de tu pedido no ha salido». Si no, en esta versión basta con el estado
-   en el Historial.
+- Que el aviso por campana del parte re-escaneado se puede reutilizar para «la
+  impresión de tu pedido no ha salido». Si no, en esta versión basta con el estado
+  en el Historial.
