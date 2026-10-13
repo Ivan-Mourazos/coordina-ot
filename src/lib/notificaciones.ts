@@ -124,12 +124,18 @@ export function seccionesVecinas(
  *  Cada aviso lleva `seccion`, que es lo que lo rotula («Diseño · …») y lo
  *  que hace que al pulsarlo se cambie a esa lista. */
 export function avisosDeOtraSeccion(
-  pedidos: readonly Pedido[],
+  todos: readonly Pedido[],
   seccion: SeccionId,
   miId: string,
   movimientos: readonly AvisoMovimiento[],
   nombre: (id: string | null) => string | undefined,
 ): AvisoSuelto[] {
+  // Solo los pedidos vivos (`procesado`), igual que la campana de su propia
+  // lista (que lee `procesados`). El tablero trae también los completados y
+  // pendientes; sin este filtro un aviso de Diseño seguía sonando en Impresión
+  // después de pasar el pedido a Producción. La regla vive aquí para que no
+  // dependa de quién llame.
+  const pedidos = todos.filter((p) => p.situacion === "procesado");
   const out: AvisoSuelto[] = [];
   for (const p of pedidos) {
     for (const of of p.ofs) {

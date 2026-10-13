@@ -939,7 +939,8 @@ export function Board({
   // Con la campana mirando solo la lista de delante, se enteraba al cambiar.
   // Para él (y solo para quien tenga `tambienEn`) se trae también el tablero
   // de sus otras secciones, al mismo ritmo que el de siempre. Al servidor le
-  // cuesta poco: ese tablero sale de la caché que ya calientan los de Diseño.
+  // cuesta lo mismo que cuando él está en esa sección: el tablero sale de la
+  // caché del servidor (caliente si alguien de esa sección lo está pidiendo).
   // Para todos los demás `vecinas` está vacío y no sale ni una petición más.
   const vecinas = seccionesVecinas(
     espectador ? undefined : TODOS_LOS_OPERARIOS.find((o) => o.id === miId),
@@ -947,6 +948,16 @@ export function Board({
   );
   const vecinasClave = vecinas.join(",");
   const [pedidosVecinos, setPedidosVecinos] = useState<Partial<Record<SeccionId, Pedido[]>>>({});
+  // Al cambiar de sección las vecinas son otras: lo que había de la anterior
+  // (p. ej. Impresión, que ahora es la de delante) es una foto vieja que no
+  // debe seguir sonando mientras llega la nueva. Se vacía al renderizar, no en
+  // un efecto (react-hooks/set-state-in-effect): React admite ajustar el estado
+  // propio durante el render cuando depende de otro valor.
+  const [vecinosDe, setVecinosDe] = useState(seccionActual);
+  if (vecinosDe !== seccionActual) {
+    setVecinosDe(seccionActual);
+    setPedidosVecinos({});
+  }
   useEffect(() => {
     if (!miId || !vecinasClave) return;
     let vivo = true;
@@ -1288,6 +1299,17 @@ export function Board({
    *  tener una OF por revisar y otra devuelta, y atender una no es haber visto
    *  la otra. Los de movimiento no pasan por aquí, ya los apaga `verAvisosDe`
    *  contra el servidor. */
+  const [abrirTrasCambio, setAbrirTrasCambio] = useState<{
+    id: string;
+    seccion: SeccionId;
+  } | null>(null);
+  // Cuando llegan los pedidos de la sección destino se abre la ficha. Se hace
+  // al renderizar y no en un efecto (react-hooks/set-state-in-effect), y va
+  // antes de cualquier return temprano, como el resto de hooks.
+  if (abrirTrasCambio && seccionDeLosPedidos === abrirTrasCambio.seccion) {
+    setOpenId(abrirTrasCambio.id);
+    setAbrirTrasCambio(null);
+  }
   const irANotificacion = useCallback(
     (destino: Vista, item: NotifItem) => {
       if (esDescartable(item)) {
@@ -1307,7 +1329,11 @@ export function Board({
           item.pedido.id,
           item.pedido.ofs.map((o) => o.id),
         );
-        setOpenId(item.pedido.id);
+        // No se abre ya: mientras llega la lista nueva los pedidos de delante
+        // siguen siendo los de la sección vieja, y un pedido que está en las
+        // dos listas abriría la ficha equivocada. Se abre arriba, al
+        // renderizar, cuando los pedidos son los de la sección destino.
+        setAbrirTrasCambio({ id: item.pedido.id, seccion: item.seccion });
         return;
       }
       abrirPedido(item.pedido.id);

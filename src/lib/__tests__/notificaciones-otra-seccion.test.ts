@@ -97,6 +97,16 @@ describe("avisosDeOtraSeccion", () => {
     expect(avisosDeOtraSeccion([p], "diseno", "manuel", [mov("zz", "recibida")], nombre)).toEqual([]);
   });
 
+  it("un pedido ya pasado a Producción (completado) no suena aunque la OF siga por revisar", () => {
+    const vivo = pedido("1", [of("a", { revisorId: "manuel", estado: "por_revisar" })]);
+    const hecho = {
+      ...pedido("2", [of("b", { revisorId: "manuel", estado: "por_revisar" }), of("c", { autorId: "manuel" })]),
+      situacion: "completado" as const,
+    };
+    const r = avisosDeOtraSeccion([vivo, hecho], "diseno", "manuel", [mov("c", "recibida")], nombre);
+    expect(r.map((a) => a.pedido.id)).toEqual(["1"]);
+  });
+
   it("devuelta también es suya", () => {
     const p = pedido("1", [of("a", { autorId: "manuel", estado: "devuelta" })]);
     expect(avisosDeOtraSeccion([p], "diseno", "manuel", [], nombre).map((a) => a.tipo)).toEqual([
