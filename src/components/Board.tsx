@@ -44,7 +44,9 @@ import { DireccionCasa } from "./DireccionCasa";
 import {
   agruparAvisos,
   aplicarDescartes,
+  avisosDeOtraSeccion,
   descartesDePedido,
+  seccionesVecinas,
   esDescartable,
   identidadAviso,
   type AvisoSuelto,
@@ -918,6 +920,58 @@ export function Board({
     return { conTrabajo, libres, revisiones };
   }, [operarios, miId, espectador, facetsByLoc, liveByOp, procesados, hoy]);
 
+  // Qué lista se está mirando. Hace falta AQUÍ —y no solo abajo, donde se pinta
+  // el conmutador— porque cada descarte se guarda sabiendo de qué lista es: la
+  // poda solo puede juzgar los avisos que tiene delante, y los de la otra
+  // sección no están. Sin esto, asomarse a Diseño Gráfico borraba los descartes
+  // de Oficina Técnica y al volver renacían los avisos ya atendidos. Y la
+  // campana la necesita para saber qué OTRAS listas mirar (ver abajo).
+  //
+  // No se usa `yo` porque se define bastante más abajo, tras la puerta de
+  // identidad; el catálogo completo está disponible desde el principio.
+  const seccionActual =
+    seccionVista ??
+    TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
+    SECCION_POR_DEFECTO;
+
+  // ── La campana de quien está en dos secciones ──
+  // Manuel entra en Impresión, pero Carrón y Smith le pasan trabajo en Diseño.
+  // Con la campana mirando solo la lista de delante, se enteraba al cambiar.
+  // Para él (y solo para quien tenga `tambienEn`) se trae también el tablero
+  // de sus otras secciones, al mismo ritmo que el de siempre. Al servidor le
+  // cuesta poco: ese tablero sale de la caché que ya calientan los de Diseño.
+  // Para todos los demás `vecinas` está vacío y no sale ni una petición más.
+  const vecinas = seccionesVecinas(
+    espectador ? undefined : TODOS_LOS_OPERARIOS.find((o) => o.id === miId),
+    seccionActual,
+  );
+  const vecinasClave = vecinas.join(",");
+  const [pedidosVecinos, setPedidosVecinos] = useState<Partial<Record<SeccionId, Pedido[]>>>({});
+  useEffect(() => {
+    if (!miId || !vecinasClave) return;
+    let vivo = true;
+    const lista = vecinasClave.split(",") as SeccionId[];
+    const traer = async () => {
+      for (const s of lista) {
+        try {
+          const q = new URLSearchParams({ operarioId: miId, seccion: s });
+          const r = await fetch(`/api/tablero?${q}`, { cache: "no-store" });
+          if (!r.ok) continue;
+          const t = (await r.json()) as { pedidos: Pedido[] };
+          if (vivo) setPedidosVecinos((prev) => ({ ...prev, [s]: t.pedidos }));
+        } catch {
+          // sin red: el siguiente tick lo reintenta
+        }
+      }
+    };
+    void traer();
+    const id = setInterval(traer, 30_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [miId, vecinasClave]);
+
   // ── Notificaciones personales (según quién eres ahora mismo) ──
   const notifItems: NotifItem[] = useMemo(() => {
     if (!miId || espectador) return [];
@@ -971,6 +1025,10 @@ export function Board({
         clave: a.clave,
       });
     }
+    // Lo que le toca en sus OTRAS secciones (solo quien tiene `tambienEn`).
+    for (const s of vecinasClave ? (vecinasClave.split(",") as SeccionId[]) : []) {
+      out.push(...avisosDeOtraSeccion(pedidosVecinos[s] ?? [], s, miId, avisosMov, nombre));
+    }
     // Notas que ha dejado OTRA persona. Las mías no: la campana avisa de lo
     // que ha pasado y no has provocado tú (ver notificaciones.ts), y avisarme
     // de mi propia nota sería contarme lo que acabo de escribir.
@@ -1023,7 +1081,7 @@ export function Board({
       }
     }
     return agruparAvisos(out);
-  }, [procesadosAll, miId, espectador, avisosMov, operarios, notasRecientes]);
+  }, [procesadosAll, miId, espectador, avisosMov, operarios, notasRecientes, vecinasClave, pedidosVecinos]);
 
   // ── Avisos deducidos ya abiertos ──
   // En localStorage y no en el servidor como los de movimiento: estos se
@@ -1098,18 +1156,8 @@ export function Board({
     opId: null,
     claves: [],
   });
-  // Qué lista se está mirando. Hace falta AQUÍ —y no solo abajo, donde se pinta
-  // el conmutador— porque cada descarte se guarda sabiendo de qué lista es: la
-  // poda solo puede juzgar los avisos que tiene delante, y los de la otra
-  // sección no están. Sin esto, asomarse a Diseño Gráfico borraba los descartes
-  // de Oficina Técnica y al volver renacían los avisos ya atendidos.
-  //
-  // No se usa `yo` porque se define bastante más abajo, tras la puerta de
-  // identidad; el catálogo completo está disponible desde el principio.
-  const seccionActual =
-    seccionVista ??
-    TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
-    SECCION_POR_DEFECTO;
+  // `seccionActual` (qué lista se está mirando) se define más arriba, antes de
+  // la campana: ver allí.
   const { visibles: avisosVisibles, vigentes } = useMemo(
     () => aplicarDescartes(notifItems, descartes.claves, seccionActual),
     [notifItems, descartes.claves, seccionActual],
@@ -1130,8 +1178,10 @@ export function Board({
   // descartar, así que abrir un aviso lo quitaba de la campana pero dejaba el
   // número puesto: salía un "2" en Revisión sin nada detrás que abrir. Un
   // número que no lleva a ninguna parte es peor que no ponerlo.
-  const misPorRevisar = avisosVisibles.filter((i) => i.tipo === "revisar").length;
-  const misDevueltas = avisosVisibles.filter((i) => i.tipo === "devuelta").length;
+  // Los de otra sección no: el número va en las pestañas de ESTA lista, y ahí
+  // no hay nada que abrir. Esos ya salen en la campana, rotulados.
+  const misPorRevisar = avisosVisibles.filter((i) => i.tipo === "revisar" && !i.seccion).length;
+  const misDevueltas = avisosVisibles.filter((i) => i.tipo === "devuelta" && !i.seccion).length;
 
   // Aviso visible aunque la pestaña esté al fondo: "(2) CoordinaOT".
   useEffect(() => {
@@ -1191,7 +1241,7 @@ export function Board({
    *  Lista—: si solo lo hiciera la campana, quien ve la OF aparecer en su zona
    *  y la abre desde ahí arrastraría el aviso hasta que caducase. */
   const verAvisosDe = useCallback(
-    (pedidoId: string) => {
+    (pedidoId: string, ofIds?: readonly string[]) => {
       if (!miId) return;
 
       // Los DEDUCIDOS (nota nueva, listo para pasar, OF nueva, devuelta…) no
@@ -1211,8 +1261,10 @@ export function Board({
         });
       }
 
+      // `ofIds` llega cuando el pedido NO está en la lista de delante (un aviso
+      // de otra sección, ver `irANotificacion`): sus OF no se pueden buscar ahí.
       const suyas = new Set(
-        pedidosRef.current.find((p) => p.id === pedidoId)?.ofs.map((o) => o.id) ?? [],
+        ofIds ?? pedidosRef.current.find((p) => p.id === pedidoId)?.ofs.map((o) => o.id) ?? [],
       );
       const claves = avisosMovRef.current.filter((a) => suyas.has(a.ofId)).map((a) => a.clave);
       if (claves.length === 0) return;
@@ -1245,9 +1297,22 @@ export function Board({
         );
       }
       setVista(destino);
+      // Aviso de OTRA sección (Manuel en Impresión, trabajo en Diseño): se
+      // cambia a esa lista y se deja el pedido marcado para abrir. La ficha
+      // sale en cuanto llega el tablero de esa lista, con el mecanismo de
+      // siempre (`openId` se busca en los pedidos que haya delante).
+      if (item.seccion && item.seccion !== seccionActual) {
+        cambiarSeccion(item.seccion);
+        verAvisosDe(
+          item.pedido.id,
+          item.pedido.ofs.map((o) => o.id),
+        );
+        setOpenId(item.pedido.id);
+        return;
+      }
       abrirPedido(item.pedido.id);
     },
-    [abrirPedido, seccionActual],
+    [abrirPedido, seccionActual, cambiarSeccion, verAvisosDe],
   );
   /** Quitar un aviso de MI campana sin abrir el pedido. A nadie más se le
    *  apaga: el descarte vive en este navegador y a nombre de quien lo pulsa. */
@@ -1294,6 +1359,9 @@ export function Board({
       cortarFichajeDe?: string[];
       /** Ids que salen de `of_retenida` (los manda "volver_a_plantear"). */
       quitarRetenida?: string[];
+      /** La sección del pedido sobre el que se actúa, si no es la que se mira.
+       *  La manda «Impreso»: ver `marcarImpreso`. */
+      seccion?: SeccionId;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -1305,7 +1373,7 @@ export function Board({
       return fetch("/api/estado", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, operarioId: miId, seccion: seccionActual }),
+        body: JSON.stringify({ ...payload, operarioId: miId, seccion: payload.seccion ?? seccionActual }),
       })
         .then((r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -2117,7 +2185,7 @@ export function Board({
     // `recienAprobado`: el pedido tal como acaba de quedar en este mismo gesto
     // (lo manda «Impreso»). `pedidos` es el del último render, de ANTES de
     // aprobar, y con él `puedePasarAProduccion` diría que aún no está listo.
-    async (pedidoId: string, recienAprobado?: Pedido) => {
+    async (pedidoId: string, recienAprobado?: Pedido, seccion?: SeccionId) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
       const pedido = recienAprobado ?? pedidos.find((p) => p.id === pedidoId);
@@ -2143,6 +2211,7 @@ export function Board({
         completarPedidoId: pedidoId,
         ofIdsPedido,
         cortarFichajeDe: ofIdsPedido,
+        seccion,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -2167,8 +2236,13 @@ export function Board({
   // El reloj de las aprobadas se corta ya en la primera, igual que al aprobar:
   // si la segunda fallara, no se quedaría imputando contra una OF dada por
   // hecha.
+  //
+  // Las dos escrituras llevan la sección DEL PEDIDO (`seccion`, que es la de
+  // los pedidos en pantalla: `laSeccion`), no `seccionActual`. Al cambiar de
+  // lista hay unos segundos en que se mira una y en pantalla sigue la otra; con
+  // `seccionActual`, el `completar` podía irse al tablero que no es.
   const marcarImpreso = useCallback(
-    async (pedidoId: string) => {
+    async (pedidoId: string, seccion: SeccionId) => {
       const pedido = pedidosRef.current.find((p) => p.id === pedidoId);
       if (!pedido || !miId) return;
       const ofs = ofsParaImpreso(pedido, miId);
@@ -2186,6 +2260,7 @@ export function Board({
         motivo: "aprobar_sin_revision",
         cambiosOF: aprobado.ofs.filter((o) => ids.has(o.id)).map(snapshotDe),
         cortarFichajeDe: [...ids],
+        seccion,
       });
       if (!ok) {
         // Sin guardar: se deshace lo optimista para que el botón siga ahí.
@@ -2197,7 +2272,7 @@ export function Board({
       // reenviándolas, o el próximo «Fichar» reabriría el reloj si falla
       // el paso a Producción.
       soltarDeMiFichaje([...ids]);
-      await completarPedidoAhora(pedidoId, aprobado);
+      await completarPedidoAhora(pedidoId, aprobado, seccion);
     },
     [miId, persistir, setPedidosSync, completarPedidoAhora, soltarDeMiFichaje],
   );
@@ -2827,7 +2902,7 @@ export function Board({
         // de los pedidos en pantalla) y no por `seccionActual`, por lo dicho
         // allí: en el cambio de lista, un pedido de Diseño no puede ganar un
         // botón que cierra fases en OLANET.
-        onImpreso={laSeccion.sinRevision ? marcarImpreso : undefined}
+        onImpreso={laSeccion.sinRevision ? (id) => marcarImpreso(id, laSeccion.id) : undefined}
         onSetRevisor={setRevisor}
         onTraspasarAutor={traspasarAutorOF}
         onCoger={pedirCogerOFs}

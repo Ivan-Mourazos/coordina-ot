@@ -37,7 +37,7 @@ import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
-import { ofsParaImpreso } from "@/lib/impreso";
+import { accionOcultaSinRevision, ofsParaImpreso } from "@/lib/impreso";
 import { MaterialChip } from "./MaterialChip";
 import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
 import { TiempoOF } from "./TiempoOF";
@@ -1796,7 +1796,7 @@ function AccionesOF({
       // por bueno sin revisión": el único final es «Impreso», en el bloque
       // del pedido (ver lib/impreso.ts). Con los dos aquí, la OF podía
       // acabar en revisión en una sección que no tiene quién la mire.
-      !(seccion.sinRevision && (a.id === "terminar_planteo" || a.id === "aprobar_sin_revision")),
+      !accionOcultaSinRevision(seccion, a.id),
   );
   // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
   //

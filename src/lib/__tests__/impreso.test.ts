@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { OF, Pedido } from "../types";
 import { pedidoListoParaPasar, puedePasarAProduccion } from "../fases-tablero";
-import { marcarComoImpreso, ofsParaImpreso } from "../impreso";
+import { accionOcultaSinRevision, marcarComoImpreso, ofsParaImpreso } from "../impreso";
+import { SECCIONES } from "../secciones";
+import type { AccionOF } from "../acciones";
 
 // Mismo fabricante de OF que fases-tablero.test.ts (allí no se exporta).
 const of = (p: Partial<OF>): OF =>
@@ -74,5 +76,28 @@ describe("Impreso", () => {
     const marcado = { ...p, ofs: p.ofs.map((o) => marcarComoImpreso(o, "manuel")) };
     expect(pedidoListoParaPasar(marcado)).toBe(true);
     expect(puedePasarAProduccion(marcado, "manuel")).toBe(true);
+  });
+});
+
+describe("qué acciones de fila no salen donde nadie revisa", () => {
+  // La regla que aplica la ficha del pedido (Drawer) a cada OF. En Impresión
+  // el único final es «Impreso»: con "Pasar a revisión" o "Dar por bueno sin
+  // revisión" en la fila, la OF podía acabar en revisión sin nadie que la mire.
+  const todas: AccionOF[] = [
+    "empezar_planteo", "terminar_planteo", "recuperar_planteo",
+    "empezar_revision", "aprobar", "aprobar_corregida", "aprobar_sin_revision",
+    "devolver", "reabrir", "recuperar_aprobada", "soltar_revision",
+    "retomar", "anular", "restaurar", "cerrar_en_rps", "volver_a_plantear",
+  ];
+
+  it("en Impresión se esconden las dos que llevan a revisión o la saltan", () => {
+    const fuera = todas.filter((a) => accionOcultaSinRevision(SECCIONES.impresion, a));
+    expect(fuera.sort()).toEqual(["aprobar_sin_revision", "terminar_planteo"]);
+  });
+
+  it("en OT y Diseño no se esconde nada por esto", () => {
+    for (const s of [SECCIONES.ot, SECCIONES.diseno]) {
+      expect(todas.filter((a) => accionOcultaSinRevision(s, a))).toEqual([]);
+    }
   });
 });

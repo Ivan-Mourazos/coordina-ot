@@ -3,6 +3,7 @@
 import type { Vista } from "./ViewSwitcher";
 import { usePopover } from "@/lib/usePopover";
 import { ESTADO } from "@/lib/estado";
+import { SECCIONES } from "@/lib/secciones";
 import type { NotifItem, NotifTipo } from "@/lib/notificaciones";
 
 export type { NotifItem, NotifTipo };
@@ -143,6 +144,9 @@ export function Notificaciones({
                       <span className={`mt-1 size-2 shrink-0 rounded-full ${meta.dot}`} />
                       <span className="min-w-0">
                         <span className="block text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                          {/* De otra lista (Manuel: Impresión y Diseño). Sin
+                              el rótulo parecería trabajo de la de delante. */}
+                          {item.seccion ? `${SECCIONES[item.seccion].nombreCorto} · ` : ""}
                           {meta.label}
                         </span>
                         <span className="block truncate text-xs font-semibold text-text">

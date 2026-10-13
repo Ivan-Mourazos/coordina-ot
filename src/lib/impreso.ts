@@ -1,5 +1,7 @@
 import { ofsQueCuentan } from "./fases-tablero";
 import type { OF, Pedido } from "./types";
+import type { Seccion } from "./secciones";
+import type { AccionOF } from "./acciones";
 
 // ─── «Impreso»: el único gesto de Impresión Digital ──────────────────────────
 // En Impresión no revisa nadie (ver `Seccion.sinRevision`): se imprime y se
@@ -31,4 +33,17 @@ export function ofsParaImpreso(pedido: Pedido, miId: string | null): OF[] {
  *  se apaga: una OF aprobada no puede seguir fichando. */
 export function marcarComoImpreso(of: OF, miId: string): OF {
   return { ...of, estado: "aprobada", autorId: of.autorId ?? miId, fichandoRol: null };
+}
+
+/** ¿Esconde la ficha esta acción de fila porque en la sección no revisa nadie?
+ *
+ *  "Pasar a revisión" (`terminar_planteo`) y "Dar por bueno sin revisión" no
+ *  salen donde el único final es «Impreso», en el bloque del pedido: con ellas
+ *  en la fila, la OF podía acabar en revisión en una sección sin quién la mire.
+ *  En las secciones con revisión no esconde nada. */
+export function accionOcultaSinRevision(
+  seccion: Pick<Seccion, "sinRevision">,
+  accion: AccionOF,
+): boolean {
+  return !!seccion.sinRevision && (accion === "terminar_planteo" || accion === "aprobar_sin_revision");
 }
