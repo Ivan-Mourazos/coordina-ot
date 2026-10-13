@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { getDb } from "./estado-db";
@@ -76,10 +77,21 @@ export async function prepararImpresion(
       manuales.push(f.nombre);
       continue;
     }
-    const { lastInsertRowid } = insertar.run(codigo, f.nombre, f.paginas, "pendiente", null, operarioId, ts, ts);
-    const copia = path.join(dirCopias(), `${lastInsertRowid}-${f.nombre}`);
-    copyFileSync(f.ruta, copia);
-    db.prepare("UPDATE planteamiento_impresion SET copia = ? WHERE id = ?").run(copia, lastInsertRowid);
+    // Se copia ANTES de insertar: si RPS ya movió el fichero o la red falla, la
+    // fila no puede quedar «pendiente» sin copia reintentándose para siempre, ni
+    // el fallo de un fichero cortar los demás. La copia lleva un prefijo único
+    // en vez del id de la fila (que aún no existe).
+    const copia = path.join(dirCopias(), `${randomUUID()}-${f.nombre}`);
+    try {
+      copyFileSync(f.ruta, copia);
+    } catch (e) {
+      insertar.run(codigo, f.nombre, f.paginas, "descartado", `No he podido copiar el PDF: ${(e as Error).message}`.slice(0, 500), operarioId, ts, null);
+      continue;
+    }
+    db.prepare(
+      `INSERT INTO planteamiento_impresion (pedido_id, fichero, copia, paginas, estado, pasado_por, creado_at, proximo_at)
+       VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?)`,
+    ).run(codigo, f.nombre, copia, f.paginas, operarioId, ts, ts);
     encolados += 1;
   }
   return { encolados, manuales, aviso };
@@ -115,7 +127,19 @@ export function marcarImpreso(
   getDb()
     .prepare("UPDATE planteamiento_impresion SET estado = 'enviado', trabajo_ipp = ?, impresora = ?, modo = ?, enviado_at = ?, error = NULL, copia = NULL WHERE id = ?")
     .run(trabajo, impresora, modo, ahora.toISOString(), id);
-  if (copia) rmSync(copia, { force: true });
+  // Ya se envió: borrar la copia es limpieza. Si falla no debe pasar por
+  // marcarFallo, que reintentaría una fila que ya salió por la impresora.
+  if (copia) {
+    try { rmSync(copia, { force: true }); }
+    catch (e) { console.warn(`[impresion] no pude borrar la copia ${copia}:`, (e as Error).message); }
+  }
+}
+
+/** Fallo permanente (la copia no existe): reintentar no lo arregla. */
+export function descartar(id: number, error: string): void {
+  getDb()
+    .prepare("UPDATE planteamiento_impresion SET estado = 'descartado', error = ?, copia = NULL WHERE id = ?")
+    .run(error.slice(0, 500), id);
 }
 
 /** 30 s, 1 min, 2, 4, 8… hasta 10 minutos. Una impresora apagada no se

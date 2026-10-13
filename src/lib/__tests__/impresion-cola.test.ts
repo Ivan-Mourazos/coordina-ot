@@ -57,6 +57,18 @@ describe("al pasar el pedido", () => {
     expect(cola.leerImpresionesDe("AR.26.05099")[0].estado).toBe("manual");
   });
 
+  it("si una copia falla: se descarta con el motivo, las demás se encolan y no lanza", async () => {
+    const buenos = pdfDe("BUENO.pdf", true).ficheros[0];
+    const roto = { ...buenos, nombre: "ROTO.pdf", ruta: path.join(dir, "no-existe.pdf") };
+    const r = await cola.prepararImpresion("AR.26.07000", "ivan", T0, async () => ({ aviso: null, ficheros: [roto, buenos] }));
+    expect(r.encolados).toBe(1);
+    const filas = cola.leerImpresionesDe("AR.26.07000");
+    expect(filas.find((f) => f.fichero === "ROTO.pdf")).toMatchObject({ estado: "descartado" });
+    expect(filas.find((f) => f.fichero === "ROTO.pdf")!.error).toBeTruthy();
+    expect(filas.find((f) => f.fichero === "BUENO.pdf")).toMatchObject({ estado: "pendiente" });
+    expect(cola.pendientesParaEnviar(T0).every((p) => p.copia)).toBe(true);
+  });
+
   it("sin planteamiento: se anota con el motivo", async () => {
     await cola.prepararImpresion("AR.26.00001", "ivan", T0, async () => ({ ficheros: [], aviso: "No puedo leer la carpeta Planteamientos" }));
     expect(cola.leerImpresionesDe("AR.26.00001")[0]).toMatchObject({ estado: "sin_planteamiento", error: "No puedo leer la carpeta Planteamientos" });
@@ -72,6 +84,20 @@ describe("el trabajador", () => {
     const [f] = cola.leerImpresionesDe("AR.26.05016");
     expect(f).toMatchObject({ estado: "enviado", impresora: "ipp://192.168.4.245/ipp", modo: "activo" });
     expect(existsSync(path.join(process.env.COORDINA_PLANTEAMIENTOS_COPIAS!, `${f.id}-AR2605016-10.pdf`))).toBe(false);
+  });
+
+  it("si la copia ya no existe: se descarta y la vuelta sigue con la siguiente", async () => {
+    await cola.prepararImpresion("AR.26.07001", "ivan", T0, async () => pdfDe("A.pdf", true));
+    await cola.prepararImpresion("AR.26.07002", "ivan", T0, async () => pdfDe("B.pdf", true));
+    const { getDb } = await import("../server/estado-db");
+    const primera = getDb().prepare("SELECT copia FROM planteamiento_impresion WHERE pedido_id = 'AR.26.07001'").get() as { copia: string };
+    rmSync(primera.copia, { force: true });
+    const imprimir = vi.fn(async (..._a: unknown[]) => ({ trabajo: 5 }));
+    expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
+    expect(imprimir).toHaveBeenCalledTimes(1);
+    expect(cola.leerImpresionesDe("AR.26.07001")[0]).toMatchObject({ estado: "descartado" });
+    expect(cola.leerImpresionesDe("AR.26.07001")[0].error).toMatch(/copia/i);
+    expect(cola.leerImpresionesDe("AR.26.07002")[0]).toMatchObject({ estado: "enviado" });
   });
 
   it("en ensayo anota el modo", async () => {
