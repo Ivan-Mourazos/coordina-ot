@@ -55,12 +55,13 @@ impresion: {
   recursosSoloTiempo: ["p-pcmu"],
   maquina: "IMDI-A",
   marcasEnFases: ["IMDI", "P-HPLA"],
-  ordenFases: ["sinEmpezar", "planteando", "parado"],
+  nombreCorto: "Impresión",
+  ordenFases: ["sinEmpezar", "planteando", "listoParaPasar", "parado"],
   revisionPorPedido: true,
   barraSimple: true,
   internosComoTrabajo: true,
   sinRevision: true,
-  etiquetasFase: { planteando: "Imprimiendo" },
+  etiquetasFase: { planteando: "Imprimiendo", listoParaPasar: "Impreso, sin pasar" },
 }
 ```
 
@@ -81,15 +82,20 @@ impresion: {
 
 Flag nuevo en `Seccion`. Ausente significa el flujo de siempre. Con él:
 
-- **Columnas del tablero:** Sin empezar → Imprimiendo → Parado. Se quitan
-  «A corregir», «Esperando revisión» y «Listo para pasar», porque con este
-  flujo nunca se llega a ellas.
-- **Acción «Impreso»** sobre el pedido (`revisionPorPedido`). Pone sus OF en
-  `aprobada`, usando la regla de `aprobar_sin_revision` pero sin exigir que la
-  OF no haya sido revisada nunca. En la misma petición completa el pedido con
-  el camino de `motivo:"completar"`: corta relojes, `encolarFinalizacion` y
-  OLANET a estado 3. El servidor rechaza el paso si alguna OF tiene el reloj
-  corriendo de otra persona, igual que ya hace con «completar».
+- **Columnas del tablero:** Sin empezar → Imprimiendo → Impreso, sin pasar →
+  Parado. Se quitan «A corregir» y «Esperando revisión», porque con este flujo
+  nunca se llega a ellas. «Listo para pasar» se queda con el nombre «Impreso,
+  sin pasar» (decidido al planificar): si el segundo guardado de «Impreso»
+  falla, el pedido no puede desaparecer del tablero.
+- **Acción «Impreso»** sobre el pedido (`revisionPorPedido`). Solo sale si
+  todo lo que queda del pedido es de Manuel o no es de nadie, y está sin
+  empezar o en curso.
+  - Pone esas OF en `aprobada`, sin revisión. Las que no tenían autor quedan
+    con Manuel como autor.
+  - Después pasa el pedido con el `completar` de siempre: corta relojes,
+    `encolarFinalizacion` y OLANET a estado 3.
+  - Son dos peticiones porque `/api/estado` rechaza un `completar` que lleve
+    cambios de OF. La regla vive en `lib/impreso.ts`.
 - **En la ficha** no se ofrecen «Terminar planteo», «Pedir revisor» ni las
   acciones de revisor.
 - **La pestaña Revisión** no lista nada de esta sección.
