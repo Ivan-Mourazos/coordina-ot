@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Planteamientos } from "../server/planteamiento-pdf";
@@ -78,12 +78,16 @@ describe("al pasar el pedido", () => {
 describe("el trabajador", () => {
   it("manda lo pendiente, lo marca enviado y borra la copia", async () => {
     await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    // Otras pruebas comparten la carpeta de copias: se cuenta antes y después.
+    const copias = () => readdirSync(process.env.COORDINA_PLANTEAMIENTOS_COPIAS!).length;
+    const antes = copias();
+    expect(antes).toBeGreaterThan(0);
     const imprimir = vi.fn(async (..._a: unknown[]) => ({ trabajo: 77 }));
     expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
     expect(imprimir.mock.calls[0][0]).toBe("ipp://192.168.4.245/ipp");
     const [f] = cola.leerImpresionesDe("AR.26.05016");
     expect(f).toMatchObject({ estado: "enviado", impresora: "ipp://192.168.4.245/ipp", modo: "activo" });
-    expect(existsSync(path.join(process.env.COORDINA_PLANTEAMIENTOS_COPIAS!, `${f.id}-AR2605016-10.pdf`))).toBe(false);
+    expect(copias()).toBe(antes - 1);
   });
 
   it("si la copia ya no existe: se descarta y la vuelta sigue con la siguiente", async () => {
