@@ -301,6 +301,14 @@ function codigoDe(x: ConOFs): string {
   return (x as { pedido?: { codigo?: string } }).pedido?.codigo ?? "";
 }
 
+/** Las fases a las que no se llega sin revisión. */
+const FASES_DE_REVISION: ReadonlySet<Fase> = new Set(["devuelta", "esperandoRevision"]);
+
+/** Cómo se llama esta fase en esta sección. Sin sección, como en FASES. */
+export function etiquetaFase(fase: Fase, seccion?: Seccion): string {
+  return seccion?.etiquetasFase?.[fase] ?? FASES.find((f) => f.id === fase)!.label;
+}
+
 /** Las fases en el orden que pida la sección.
  *
  *  Se parte SIEMPRE de `FASES` y se reordena: así una fase nueva aparece
@@ -308,12 +316,22 @@ function codigoDe(x: ConOFs): string {
  *  del panel en silencio. Lo que la lista de la sección decide es el orden de
  *  las que nombra; lo que no nombre se va detrás, como esté en FASES. */
 function fasesEnOrden(seccion?: Seccion): readonly FaseMeta[] {
+  // Sin revisión, sus dos fases no son columnas vacías: no existen. Se quitan
+  // aquí, y no en la lista de la sección, porque `ordenFases` manda lo que no
+  // nombre al final en vez de esconderlo (ver más abajo).
+  const base = seccion?.sinRevision ? FASES.filter((f) => !FASES_DE_REVISION.has(f.id)) : FASES;
   const orden = seccion?.ordenFases;
-  if (!orden) return FASES;
-  const puesto = new Map(orden.map((id, i) => [id, i]));
-  return [...FASES].sort(
-    (a, b) => (puesto.get(a.id) ?? FASES.length) - (puesto.get(b.id) ?? FASES.length),
-  );
+  const ordenadas = !orden
+    ? base
+    : (() => {
+        const puesto = new Map(orden.map((id, i) => [id, i]));
+        return [...base].sort(
+          (a, b) => (puesto.get(a.id) ?? FASES.length) - (puesto.get(b.id) ?? FASES.length),
+        );
+      })();
+  return seccion?.etiquetasFase
+    ? ordenadas.map((f) => ({ ...f, label: etiquetaFase(f.id, seccion) }))
+    : ordenadas;
 }
 
 /** Recorta a `tope` elementos y dice cuántos se quedan fuera. Es lo que hace
@@ -371,7 +389,7 @@ export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean
  *  cogido todavía. */
 export function faseEnUnaPalabra(
   p: Pedido,
-  { invitado = false }: { invitado?: boolean } = {},
+  { invitado = false, seccion }: { invitado?: boolean; seccion?: Seccion } = {},
 ): { texto: string; color: string } {
   const fase = faseDePedido(p);
   const color = (f: Fase) => FASES.find((x) => x.id === f)?.color ?? "#9ca3af";
@@ -383,11 +401,11 @@ export function faseEnUnaPalabra(
         ? { texto: "Planteando", color: color("planteando") }
         : { texto: "A corregir", color: color(fase) };
     case "planteando":
-      return { texto: "Planteando", color: color(fase) };
+      return { texto: etiquetaFase("planteando", seccion), color: color(fase) };
     case "esperandoRevision":
       return { texto: "Revisando", color: color(fase) };
     case "listoParaPasar":
-      return { texto: invitado ? "Listo" : "Listo para pasar", color: color(fase) };
+      return { texto: invitado ? "Listo" : etiquetaFase("listoParaPasar", seccion), color: color(fase) };
     case "parado":
       return { texto: "Detenido", color: color(fase) };
   }

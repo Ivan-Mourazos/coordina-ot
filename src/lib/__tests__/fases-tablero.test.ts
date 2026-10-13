@@ -8,6 +8,7 @@ import {
   avisaDeOFNueva,
   autoresQueFaltan,
   conTope,
+  etiquetaFase,
   faseDeOF,
   faseDePedido,
   faseDeColumna,
@@ -199,7 +200,9 @@ describe("agruparPorFase", () => {
     // cualquier sección que declare orden, hoy y mañana.
     for (const s of Object.values(SECCIONES)) {
       const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], s);
-      expect([...g.map((x) => x.id)].sort()).toEqual([...FASES.map((f) => f.id)].sort());
+      // Sin revisión pierden a propósito sus dos fases (ver su propio test).
+      const esperadas = FASES.map((f) => f.id).filter((id) => !(s.sinRevision && (id === "devuelta" || id === "esperandoRevision")));
+      expect([...g.map((x) => x.id)].sort()).toEqual([...esperadas].sort());
     }
   });
 
@@ -596,5 +599,29 @@ describe("la fase en una palabra", () => {
     const listo = ped(of({ autorId: "ivan", revisorId: "jaime", estado: "aprobada" }));
     expect(faseEnUnaPalabra(listo).texto).toBe("Listo para pasar");
     expect(faseEnUnaPalabra(listo, { invitado: true }).texto).toBe("Listo");
+  });
+});
+
+describe("sección sin revisión (Impresión Digital)", () => {
+  const imp = SECCIONES.impresion;
+
+  it("no tiene columnas de revisión", () => {
+    const ids = agruparPorFase([], imp).map((g) => g.id);
+    expect(ids).toEqual(["sinEmpezar", "planteando", "listoParaPasar", "parado"]);
+  });
+
+  it("las columnas se llaman como en la sección", () => {
+    const grupos = agruparPorFase([], imp);
+    expect(grupos.find((g) => g.id === "planteando")?.label).toBe("Imprimiendo");
+    expect(etiquetaFase("listoParaPasar", imp)).toBe("Impreso, sin pasar");
+    expect(etiquetaFase("sinEmpezar", imp)).toBe("Sin empezar");
+  });
+
+  it("Diseño y OT no cambian", () => {
+    expect(agruparPorFase([], SECCIONES.diseno).map((g) => g.id)).toEqual([
+      "devuelta", "sinEmpezar", "planteando", "listoParaPasar", "esperandoRevision", "parado",
+    ]);
+    expect(agruparPorFase([], SECCIONES.ot).map((g) => g.label)).toContain("Planteando");
+    expect(etiquetaFase("planteando")).toBe("Planteando");
   });
 });
