@@ -31,16 +31,17 @@ import { ConsultaEnCurso } from "./ConsultaEnCurso";
 type Pestana = "pedidos" | "curso" | "consultas";
 
 const PESTANAS: { id: Pestana; label: string }[] = [
-  { id: "pedidos", label: "Pedidos" },
   // El trabajo que tiene ahora la oficina, como la Pendientes del equipo
-  // (pedido por Esteban, 09/10/2026). «Pedidos» queda como el buscador de
+  // (pedido por Esteban, 09/10/2026). Es la de entrada desde el 13/10: lo que
+  // más se pregunta es qué hay ahora. «Pedidos» queda como el buscador de
   // toda la casa, con lo entregado.
   { id: "curso", label: "En curso" },
+  { id: "pedidos", label: "Pedidos" },
   { id: "consultas", label: "Consultas con OT" },
 ];
 
 export function Consulta() {
-  const [pestana, setPestana] = useState<Pestana>("pedidos");
+  const [pestana, setPestana] = useState<Pestana>("curso");
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<EstadoConsulta>("proximas");
   const [paso, setPaso] = useState<PasoConsulta | null>(null);
@@ -121,7 +122,8 @@ export function Consulta() {
           <span className="sr-only">{pestana === "consultas" ? "Buscar visitas" : "Buscar pedidos"}</span>
           <input
             autoComplete="off"
-            type="search"
+            type="text"
+            enterKeyHint="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={
@@ -259,13 +261,7 @@ export function Consulta() {
       )}
       {pestana === "curso" && (
         <div role="tabpanel" id="panel-curso" aria-labelledby="pestana-curso">
-          <ConsultaEnCurso
-            busqueda={q}
-            onAbrirPedido={(codigo) => {
-              setQ(codigo);
-              setPestana("pedidos");
-            }}
-          />
+          <ConsultaEnCurso busqueda={q} />
         </div>
       )}
       {pestana === "consultas" && (

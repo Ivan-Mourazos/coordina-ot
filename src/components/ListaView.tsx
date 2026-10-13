@@ -391,7 +391,8 @@ export function ListaView({
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
   pedidos: Pedido[];
   operarios: Operario[];
-  onOpen: (p: Pedido) => void;
+  /** Sin ella el código del pedido no se pulsa (la consulta «En curso»). */
+  onOpen?: (p: Pedido) => void;
   /** ¿Hay algún filtro puesto en la barra? Solo cambia lo que dice la lista
    *  vacía, y la diferencia importa: "no queda trabajo pendiente" y "lo hay,
    *  pero lo estás tapando con un filtro" se arreglan de formas distintas. */
@@ -493,7 +494,11 @@ export function ListaView({
                       />
                       {/* El código SÍ se pulsa: sale del `pointer-events-none`. */}
                       <span className="pointer-events-auto">
-                        <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
+                        {onOpen ? (
+                          <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
+                        ) : (
+                          <span className="font-mono text-sm font-semibold text-text">{p.codigo}</span>
+                        )}
                       </span>
                       <span
                         className="shrink-0 text-[11px] font-medium text-text-muted"

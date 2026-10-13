@@ -20,12 +20,9 @@ const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno"];
 
 export function ConsultaEnCurso({
   busqueda,
-  onAbrirPedido,
 }: {
   /** El buscador de arriba: recorta por pedido, cliente u obra. */
   busqueda: string;
-  /** Pulsar un pedido lo abre en la pestaña de pedidos, con su ficha. */
-  onAbrirPedido: (codigo: string) => void;
 }) {
   const [seccion, setSeccion] = useState<SeccionId>("ot");
   // Lo cargado va con la sección a la que pertenece: al cambiar de sección,
@@ -85,7 +82,6 @@ export function ConsultaEnCurso({
         <ListaView
           pedidos={pedidos}
           operarios={datos.operarios}
-          onOpen={(p) => onAbrirPedido(p.codigo)}
           orden="planificacion"
           ordenDesc={false}
           hayFiltrosActivos={q !== ""}
