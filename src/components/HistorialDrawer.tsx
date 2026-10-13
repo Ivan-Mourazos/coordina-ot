@@ -16,6 +16,7 @@ import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
+import { PlanteamientoPedido } from "./PlanteamientoPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
@@ -306,6 +307,12 @@ export function HistorialDrawer({
                   en el número dejaría un rótulo que no cuadra con nada. */}
 
               <DocumentosPedido key={`docs:${pedido}`} pedido={pedido} documentos={detalle.documentos} />
+
+              {/* Qué se imprimió del planteamiento al pasar a Producción, y la
+                  reimpresión. Solo en OT: es donde se imprime. */}
+              {seccion === "ot" && esCodigoPedido(pedido) && (
+                <PlanteamientoPedido key={`plan:${pedido}`} pedido={pedido} miId={miId} />
+              )}
 
 
 

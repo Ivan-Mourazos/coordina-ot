@@ -235,6 +235,32 @@ function abrir(): Database.Database {
       PRIMARY KEY (of_id, seccion)
     );
     CREATE INDEX IF NOT EXISTS idx_of_retenida_pedido ON of_retenida(pedido, seccion);
+
+    -- Planteamientos de CAD que se mandan a la impresora de Producción al pasar
+    -- un pedido de OT (spec 2026-10-13-planteamiento-a-produccion). Una fila
+    -- por fichero y por pase; también las que NO se imprimen solas —«manual»,
+    -- «sin_planteamiento»— para que el Historial pueda decir qué pasó.
+    -- El modo (ensayo/activo) se anota al enviar: la IP de la impresora puede
+    -- cambiar y no sirve para saber a posteriori si fue un ensayo.
+    CREATE TABLE IF NOT EXISTS planteamiento_impresion (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido_id   TEXT NOT NULL,
+      fichero     TEXT,
+      copia       TEXT,
+      paginas     INTEGER,
+      estado      TEXT NOT NULL,
+      intentos    INTEGER NOT NULL DEFAULT 0,
+      error       TEXT,
+      trabajo_ipp INTEGER,
+      impresora   TEXT,
+      modo        TEXT,
+      pasado_por  TEXT,
+      creado_at   TEXT NOT NULL,
+      proximo_at  TEXT,
+      enviado_at  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_planteamiento_impresion ON planteamiento_impresion(pedido_id, id);
+    CREATE INDEX IF NOT EXISTS idx_planteamiento_impresion_cola ON planteamiento_impresion(estado, proximo_at);
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
