@@ -54,3 +54,12 @@ export function esA4(ancho: number, alto: number): boolean {
   const [corto, largo] = ancho <= alto ? [ancho, alto] : [alto, ancho];
   return Math.abs(corto - A4_CORTO) <= MARGEN && Math.abs(largo - A4_LARGO) <= MARGEN;
 }
+
+/** ¿Va adjunto al correo? La norma de la casa (Iván, 14/10/2026): los de PVC
+ *  (-10 en adelante: -10, -11, -12…) se mandan adjuntos; los de toldos y
+ *  acrílico (-1 a -9) solo se imprimen arriba, y el correo avisa de que se
+ *  imprimieron, sin el PDF. Un nombre que no es de este pedido, nunca. */
+export function vaAdjunto(fichero: string, codigo: string): boolean {
+  const s = sufijoDe(fichero, codigo);
+  return s !== null && Number(s.slice(1)) >= 10;
+}

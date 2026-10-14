@@ -54,4 +54,9 @@ export async function register() {
   // Arranca siempre; con IMPRESION_PRODUCCION=off cada vuelta no hace nada.
   const { arrancarImpresion } = await import("./lib/server/impresion-worker");
   arrancarImpresion();
+
+  // El correo del planteamiento (spec 2026-10-14). Igual: con
+  // CORREO_PLANTEAMIENTO=off, o sin credenciales de Microsoft, no hace nada.
+  const { arrancarCorreo } = await import("./lib/server/correo-worker");
+  arrancarCorreo();
 }

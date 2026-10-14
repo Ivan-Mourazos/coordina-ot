@@ -9,6 +9,10 @@ import { pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero
 import { esSeccionId } from "@/lib/secciones";
 import { seccionDeOperario } from "@/lib/server/operarios";
 import { modoImpresion, prepararImpresion } from "@/lib/server/impresion-cola";
+import { modoCorreo, prepararCorreo } from "@/lib/server/correo-cola";
+import { planteamientosDe, type Planteamientos } from "@/lib/server/planteamiento-pdf";
+import { leerPersona } from "@/lib/server/personas-db";
+import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
@@ -32,6 +36,8 @@ interface Body {
   quitarRetenida?: string[];
   /** Casilla del diálogo de pasar: ausente = imprimir el planteamiento. */
   imprimirPlanteamiento?: boolean;
+  /** Ausente = sí. La casilla «Mandar por correo» del diálogo de pasar. */
+  mandarCorreo?: boolean;
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -129,6 +135,9 @@ export async function POST(req: Request) {
   let ofIdsSinFinalizar: Set<string> | undefined;
   // Código del pedido que se pasa, para buscar su planteamiento al final.
   let codigoPedido: string | undefined;
+  // Lo que lleva el correo del planteamiento, sacado del pedido que el servidor
+  // acaba de releer: nada viene del navegador.
+  let datosCorreo: DatosCorreo | undefined;
   if (completarPedidoId) {
     const base = await getTablero(seccion);
     // Releer tras la espera: otra persona puede haber devuelto una OF
@@ -148,6 +157,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     codigoPedido = pedido.codigo;
+    // Nombre de una persona por su id, para el correo. Una que ya no está
+    // (o un id raro) sale como su id antes que desaparecer.
+    const nombreDe = (id: string | null) => (id ? leerPersona(id)?.nombre ?? id : null);
+    datosCorreo = {
+      pedido: pedido.codigo,
+      cliente: pedido.cliente,
+      // Una línea por OF de Oficina Técnica: sin anuladas ni las de taller.
+      ofs: pedido.ofs
+        .filter((of) => of.estado !== "anulada" && !of.ajenaOT)
+        .map((of) => ({
+          codigo: of.codigo,
+          descripcion: of.descripcion,
+          planteoMin: of.tiempoPlanteoMin,
+          autor: nombreDe(of.autorId),
+          revisionMin: of.tiempoRevisionMin,
+          revisor: nombreDe(of.revisorId),
+        })),
+      pasadoPor: nombreDe(operarioId) ?? operarioId,
+    };
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
     // Task 9, Step 4 (spec §2, "Al pasar el pedido no se reenvía el cierre"):
     // una OF cerrada de verdad en RPS ("activo") no manda su 3 otra vez —ya
@@ -249,24 +277,30 @@ export async function POST(req: Request) {
       ? (ofIdsPedido ?? []).filter((id) => !ofIdsSinFinalizar!.has(id))
       : ofIdsPedido ?? [];
     encolarFinalizacion(aFinalizar, operarioId);
-    // El planteamiento de CAD sale solo en Producción (spec 2026-10-13). Solo
-    // OT, y lo decide aquí el servidor: vuelve a buscar el PDF en vez de
-    // fiarse de lo que vio el navegador. Nunca tumba el pase: imprimir es lo
-    // de después, el pedido ya está pasado.
-    if (
-      seccion === "ot" &&
-      body.imprimirPlanteamiento !== false &&
-      codigoPedido &&
-      esCodigoPedido(codigoPedido) &&
-      modoImpresion() !== "off"
-    ) {
-      // Sin esperar: buscar y leer los PDF va contra una carpeta de red y puede
-      // tardar segundos, y quien pasa el pedido no tiene por qué esperarlos.
-      // La copia se hace igual en el momento: RPS tarda minutos en moverlo.
+    // El planteamiento sale solo en Producción y por correo (specs 2026-10-13
+    // y 2026-10-14). Solo OT, y lo decide aquí el servidor: vuelve a buscar el
+    // PDF en vez de fiarse de lo que vio el navegador. Nunca tumba el pase:
+    // imprimir y mandar el correo son lo de después, el pedido ya está pasado.
+    if (seccion === "ot" && codigoPedido && esCodigoPedido(codigoPedido)) {
       const codigo = codigoPedido;
-      void prepararImpresion(codigo, operarioId).catch((e) =>
-        console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
-      );
+      // Una sola búsqueda para las dos cosas: es contra una carpeta de red y no
+      // hace falta recorrerla dos veces.
+      let busqueda: Promise<Planteamientos> | null = null;
+      const buscar = (c: string) => (busqueda ??= planteamientosDe(c));
+      // Sin esperar: buscar y leer los PDF puede tardar segundos, y quien pasa
+      // el pedido no tiene por qué esperarlos. La copia se hace igual en el
+      // momento: RPS tarda minutos en moverlo.
+      if (body.imprimirPlanteamiento !== false && modoImpresion() !== "off") {
+        void prepararImpresion(codigo, operarioId, undefined, buscar).catch((e) =>
+          console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
+        );
+      }
+      if (body.mandarCorreo !== false && modoCorreo() !== "off" && datosCorreo) {
+        const datos = datosCorreo;
+        void prepararCorreo(datos, operarioId, undefined, buscar).catch((e) =>
+          console.error(`[correo] no se pudo preparar ${codigo}:`, (e as Error).message),
+        );
+      }
     }
   }
   return NextResponse.json({ ok: true });

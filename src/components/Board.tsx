@@ -60,7 +60,7 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
-import { textoAntesDePasar, textoImpresion, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
+import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
   FICHAJE_VACIO,
@@ -1393,6 +1393,7 @@ export function Board({
       /** Solo con `completar` en OT: false = pasar sin imprimir el
        *  planteamiento. Ausente = se imprime. */
       imprimirPlanteamiento?: boolean;
+      mandarCorreo?: boolean;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2211,16 +2212,20 @@ export function Board({
   // Lo que se va a imprimir al pasar (solo OT). Se pide al abrir el diálogo;
   // mientras no llega, el diálogo sale sin la línea. Ver spec 2026-10-13.
   const [vistaPlanteamiento, setVistaPlanteamiento] = useState<{ pedidoId: string; datos: VistaPlanteamiento } | null>(null);
-  const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
   // Pedido cuyo diálogo está abierto ahora. Una respuesta tardía de un pedido
   // anterior (abrir A, cancelar, abrir B) no debe pisar la vista de B.
   const pedidoDelDialogo = useRef<string | null>(null);
+  // Solo se pueden desmarcar al volver a pasar un pedido que ya se pasó (ver
+  // `yaSePasoAntes`). Se marcan de nuevo cada vez que se abre el diálogo.
+  const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
+  const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
       pedidoDelDialogo.current = pedidoId;
       setPasarPendiente(pedidoId);
       setImprimirAlPasar(true);
+      setMandarCorreoAlPasar(true);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -2238,7 +2243,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2267,6 +2272,7 @@ export function Board({
         cortarFichajeDe: ofIdsPedido,
         seccion,
         imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
+        mandarCorreo: opciones?.mandarCorreo,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -3007,23 +3013,53 @@ export function Board({
                 `Es el final del trabajo de Oficina Técnica. Si después hubiera que retocar algo, habría ` +
                 `que hablarlo con Producción.`}
             </p>
-            {vistaPlanteamiento?.pedidoId === pasarPendiente && textoAntesDePasar(vistaPlanteamiento.datos) && (
+            {vistaPlanteamiento?.pedidoId === pasarPendiente &&
+              (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (
               <div className="mt-3 rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
-                <p className="text-text">
-                  {!imprimirAlPasar && vistaPlanteamiento.datos.ficheros.length > 0
-                    ? "No se imprimirá."
-                    : textoAntesDePasar(vistaPlanteamiento.datos)}
-                </p>
-                {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
-                  <p className="mt-1 text-text-muted">
-                    Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
-                  </p>
+                {/* La primera vez solo informa: la norma es imprimir siempre y
+                    mandar siempre el correo (Iván, 14/10/2026). Si el pedido ya
+                    se pasó antes (se recuperó para volver a plantearlo), se
+                    PREGUNTA, con las dos casillas marcadas: lo normal es que el
+                    planteamiento haya cambiado y haya que mandarlo de nuevo. */}
+                {textoAntesDePasar(vistaPlanteamiento.datos) && (
+                  <>
+                    <p className="text-text">
+                      {yaSePasoAntes(vistaPlanteamiento.datos) && !imprimirAlPasar && vistaPlanteamiento.datos.ficheros.length > 0
+                        ? "No se imprimirá otra vez."
+                        : textoAntesDePasar(vistaPlanteamiento.datos)}
+                    </p>
+                    {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
+                      <p className="mt-1 text-text-muted">
+                        Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
+                      </p>
+                    )}
+                    {yaSePasoAntes(vistaPlanteamiento.datos) && vistaPlanteamiento.datos.ficheros.length > 0 && (
+                      <label className="mt-2 flex items-center gap-2 text-text">
+                        <input type="checkbox" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
+                        Imprimir otra vez en Producción
+                      </label>
+                    )}
+                  </>
                 )}
-                {vistaPlanteamiento.datos.ficheros.length > 0 && (
-                  <label className="mt-2 flex items-center gap-2 text-text">
-                    <input type="checkbox" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
-                    Imprimir en Producción
-                  </label>
+                {textoCorreoAntesDePasar(vistaPlanteamiento.datos) && (
+                  <>
+                    <p className="mt-2 text-text">
+                      {yaSePasoAntes(vistaPlanteamiento.datos) && !mandarCorreoAlPasar
+                        ? "No se mandará el correo otra vez."
+                        : textoCorreoAntesDePasar(vistaPlanteamiento.datos)}
+                    </p>
+                    {vistaPlanteamiento.datos.correo?.envios.some((f) => f.estado === "enviado") && (
+                      <p className="mt-1 text-text-muted">
+                        Ya se mandó antes: {textoCorreo(vistaPlanteamiento.datos.correo.envios.find((f) => f.estado === "enviado")!)}
+                      </p>
+                    )}
+                    {yaSePasoAntes(vistaPlanteamiento.datos) && (
+                      <label className="mt-2 flex items-center gap-2 text-text">
+                        <input type="checkbox" checked={mandarCorreoAlPasar} onChange={(e) => setMandarCorreoAlPasar(e.target.checked)} />
+                        Mandar el correo otra vez
+                      </label>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -3037,12 +3073,14 @@ export function Board({
           const pedido = pedidos.find((p) => p.id === id);
           // Los que no son todo A4 se imprimen a mano: el cuadro se abre AQUÍ,
           // dentro del clic, porque fuera de él el navegador lo bloquea.
+          // Las casillas solo existen si el pedido ya se pasó antes; la primera
+          // vez valen siempre «sí» (marcadas al abrir el diálogo).
           if (imprimirAlPasar && vista && vista.modo !== "off" && pedido?.codigo) {
             for (const f of vista.ficheros.filter((x) => !x.todoA4)) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
           }
-          completarPedidoAhora(id, undefined, undefined, { imprimirPlanteamiento: imprimirAlPasar });
+          completarPedidoAhora(id, undefined, undefined, { imprimirPlanteamiento: imprimirAlPasar, mandarCorreo: mandarCorreoAlPasar });
         }}
         onCancelar={() => setPasarPendiente(null)}
       />

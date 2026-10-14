@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { textoImpresion, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
+import { textoCorreo, textoImpresion, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { TITULO_BLOQUE } from "./MarcoFicha";
 import { useSoloLectura } from "./SoloLectura";
 
-/** El planteamiento en la ficha del Historial: qué se imprimió y cuándo, y
- *  «Reimprimir». Pide sus datos aparte, como «gastado»: si falla, el resto de
+/** El planteamiento en la ficha del Historial: qué se imprimió y qué se mandó
+ *  por correo, y cuándo, con «Reimprimir» y «Reenviar». Pide sus datos aparte, como «gastado»: si falla, el resto de
  *  la ficha no se entera. Solo se monta en la sección OT. */
 export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: string | null }) {
   // Dirección (solo lectura) no puede reimprimir: la ruta le daría 403.
@@ -26,7 +26,32 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
     cargar();
   }, [cargar]);
 
-  if (!datos || datos.modo === "off" || (datos.impresiones.length === 0 && datos.ficheros.length === 0)) return null;
+  if (!datos) return null;
+  const correo = datos.correo;
+  const impresionViva = datos.modo !== "off";
+  const correoVivo = !!correo && correo.modo !== "off";
+  // Con las dos cosas apagadas, o sin nada que contar, el bloque no sale.
+  const hayAlgo = datos.impresiones.length > 0 || (correo?.envios.length ?? 0) > 0 || datos.ficheros.length > 0;
+  if ((!impresionViva && !correoVivo) || !hayAlgo) return null;
+  const puedeActuar = !!miId && !soloLectura;
+
+  const reenviar = async () => {
+    setEnviando(true);
+    setMensaje(null);
+    try {
+      const r = await fetch("/api/planteamiento/reenviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido, operarioId: miId }),
+      });
+      setMensaje(r.ok ? "Correo en cola para reenviar" : "No se ha podido reenviar");
+      cargar();
+    } catch {
+      setMensaje("No se ha podido reenviar");
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   const reimprimir = async () => {
     setEnviando(true);
@@ -51,19 +76,36 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
       <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>Planteamiento</h3>
       <ul className="flex flex-col gap-1 text-xs text-text">
         {datos.impresiones.slice(0, 3).map((f) => (
-          <li key={f.id}>{textoImpresion(f)}</li>
+          <li key={`i${f.id}`}>{textoImpresion(f)}</li>
+        ))}
+        {correo?.envios.slice(0, 3).map((f) => (
+          <li key={`c${f.id}`}>{textoCorreo(f)}</li>
         ))}
       </ul>
-      {datos.ficheros.length > 0 && miId && !soloLectura && (
-        <button
-          type="button"
-          onClick={reimprimir}
-          disabled={enviando}
-          className="chip-3d mt-2 rounded-lg px-2.5 py-1 text-xs font-semibold text-text disabled:opacity-40"
-        >
-          Reimprimir
-        </button>
-      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        {impresionViva && datos.ficheros.length > 0 && puedeActuar && (
+          <button
+            type="button"
+            onClick={reimprimir}
+            disabled={enviando}
+            className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text disabled:opacity-40"
+          >
+            Reimprimir
+          </button>
+        )}
+        {/* Reenviar solo si ya hubo un correo de verdad (con o sin adjunto: el
+            de toldos solo avisa de lo impreso): es repetir ese. */}
+        {correoVivo && correo!.envios.some((f) => f.asunto) && puedeActuar && (
+          <button
+            type="button"
+            onClick={reenviar}
+            disabled={enviando}
+            className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text disabled:opacity-40"
+          >
+            Reenviar correo
+          </button>
+        )}
+      </div>
       {mensaje && <p className="mt-1 text-[11px] text-text-muted">{mensaje}</p>}
     </section>
   );

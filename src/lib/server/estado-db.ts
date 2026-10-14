@@ -261,6 +261,29 @@ function abrir(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_planteamiento_impresion ON planteamiento_impresion(pedido_id, id);
     CREATE INDEX IF NOT EXISTS idx_planteamiento_impresion_cola ON planteamiento_impresion(estado, proximo_at);
+    -- Correo del planteamiento a Oficina Técnica y Producción al pasar un pedido
+    -- de OT (spec 2026-10-14). Una fila por pase, con TODO congelado: los PDF
+    -- copiados, asunto, cuerpo y destinatarios. Un reintento manda lo mismo.
+    -- Tabla propia y no un tipo más en la de impresión: esa ya existe en
+    -- producción y añadirle columnas pediría migrarla.
+    CREATE TABLE IF NOT EXISTS planteamiento_correo (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido_id   TEXT NOT NULL,
+      ficheros    TEXT NOT NULL,
+      para        TEXT NOT NULL,
+      asunto      TEXT,
+      cuerpo      TEXT,
+      estado      TEXT NOT NULL,
+      intentos    INTEGER NOT NULL DEFAULT 0,
+      error       TEXT,
+      modo        TEXT,
+      pasado_por  TEXT,
+      creado_at   TEXT NOT NULL,
+      proximo_at  TEXT,
+      enviado_at  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_planteamiento_correo ON planteamiento_correo(pedido_id, id);
+    CREATE INDEX IF NOT EXISTS idx_planteamiento_correo_cola ON planteamiento_correo(estado, proximo_at);
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe } from "../planteamiento";
+import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto } from "../planteamiento";
 
 describe("nombres del planteamiento", () => {
   it("parte el código de pedido", () => {
@@ -42,5 +42,15 @@ describe("nombres del planteamiento", () => {
     expect(esA4(596, 842)).toBe(true);
     expect(esA4(419.53, 595.28)).toBe(false); // A5
     expect(esA4(841.89, 1190.55)).toBe(false); // A3
+  });
+});
+
+describe("qué planteamiento va adjunto al correo", () => {
+  it("del -10 en adelante (PVC) sí; del -1 al -9 (toldos, acrílico) no", () => {
+    expect(vaAdjunto("AR2605023-10.pdf", "AR.26.05023")).toBe(true);
+    expect(vaAdjunto("AR.26.05023-12.pdf", "AR.26.05023")).toBe(true);
+    expect(vaAdjunto("AR2605023-1.pdf", "AR.26.05023")).toBe(false);
+    expect(vaAdjunto("AR2605023-9.pdf", "AR.26.05023")).toBe(false);
+    expect(vaAdjunto("otro.pdf", "AR.26.05023")).toBe(false);
   });
 });
