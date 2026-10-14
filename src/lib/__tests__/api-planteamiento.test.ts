@@ -90,8 +90,15 @@ test("reimprimir encola y devuelve el resultado", async () => {
 const post = (b: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(b) });
 
 test("GET también cuenta el correo", async () => {
-  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
-  expect((await r.json()).correo).toEqual({ modo: "activo", envios: [{ id: 1, estado: "enviado" }] });
+  // Con la caducidad lejos, sin aviso; sin fijarla, este test fallaría solo
+  // al acercarse la fecha de verdad.
+  process.env.GRAPH_SECRETO_CADUCA = "2099-01-01";
+  try {
+    const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
+    expect((await r.json()).correo).toEqual({ modo: "activo", envios: [{ id: 1, estado: "enviado" }], caducaSecreto: null });
+  } finally {
+    delete process.env.GRAPH_SECRETO_CADUCA;
+  }
 });
 
 test("reenviar: encola y responde ok", async () => {

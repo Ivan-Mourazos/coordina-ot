@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes } from "../planteamiento-textos";
+import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes } from "../planteamiento-textos";
 
 const base = { modo: "activo" as const, aviso: null, impresiones: [] };
 
@@ -104,5 +104,30 @@ describe("impresión que no salió", () => {
     const fila = { id: 1, pedidoId: "AR.26.05017", fichero: "AR2605017-10.pdf", paginas: 1, intentos: 0, impresora: null, modo: null, pasadoPor: "ivan", creadoAt: "2026-10-14T08:00:00Z", enviadoAt: null };
     expect(textoImpresion({ ...fila, estado: "descartado", error: "La impresora aceptó el trabajo pero lo abortó sin imprimir" }))
       .toBe("No se imprimió AR2605017-10.pdf: La impresora aceptó el trabajo pero lo abortó sin imprimir");
+  });
+});
+
+describe("aviso de que caduca el permiso de mandar correos", () => {
+  const vista = (caducaSecreto: { fecha: string; dias: number } | null, modo: "activo" | "off" = "activo") => ({
+    modo: "activo" as const, aviso: null, ficheros: [], impresiones: [], correo: { modo, envios: [], caducaSecreto },
+  });
+
+  it("con tiempo de sobra no dice nada", () => {
+    expect(textoCaducidadSecreto(vista(null))).toBeNull();
+  });
+
+  it("antes de caducar, la fecha y los días que quedan", () => {
+    expect(textoCaducidadSecreto(vista({ fecha: "2027-10-13", dias: 12 }))).toBe(
+      "Ojo: el permiso de Coordina para mandar correos caduca el 13/10/2027 (en 12 días). Avisa a Iván para que IT lo renueve, o el correo dejará de salir.",
+    );
+    expect(textoCaducidadSecreto(vista({ fecha: "2027-10-13", dias: 1 }))).toContain("(mañana)");
+  });
+
+  it("ya caducado: que el correo no va a salir", () => {
+    expect(textoCaducidadSecreto(vista({ fecha: "2027-10-13", dias: -2 }))).toContain("caducó el 13/10/2027: el correo NO va a salir");
+  });
+
+  it("con el correo apagado, nada", () => {
+    expect(textoCaducidadSecreto(vista({ fecha: "2027-10-13", dias: 3 }, "off"))).toBeNull();
   });
 });
