@@ -32,9 +32,9 @@ const base = (pedido: string, p: Partial<BaseHistorial> = {}): BaseHistorial => 
   ...p,
 });
 
-const indice = (ot: BaseHistorial[], diseno: BaseHistorial[] = ot): IndiceHistorial => ({
+const indice = (ot: BaseHistorial[], diseno: BaseHistorial[] = ot, impresion: BaseHistorial[] = []): IndiceHistorial => ({
   at: Date.now(),
-  base: { ot, diseno, impresion: [] },
+  base: { ot, diseno, impresion },
   info: new Map(ot.map((b) => [b.pedido, {
     cliente: "MAHOU, S.A.", negocio: null, ciudadEntrega: "ARZUA",
     familias: b.pedido.endsWith("R") ? ["REMOLQUE"] : ["TOLDO"],
@@ -105,22 +105,26 @@ test("con un estado elegido a mano, buscar respeta el estado", () => {
   expect(codigos(i, { estado: "entregados", q: "MAHOU" })).toEqual(["AR.26.00001"]);
 });
 
-test("paso: Oficina Técnica, Diseño Gráfico y Taller por descarte, solo en fábrica", () => {
+test("paso: Oficina Técnica, Diseño Gráfico, Impresión Digital y Taller por descarte, solo en fábrica", () => {
   const ot = [
     base("OT", { pendienteSeccion: true }),
     base("DIS"),
+    base("IMP"),
     base("TALLER"),
     base("SALIR_OT", { pendienteSeccion: true, trabajoAbierto: false }),
   ];
   const diseno = [
     base("OT"),
     base("DIS", { pendienteSeccion: true }),
+    base("IMP"),
     base("TALLER"),
     base("SALIR_OT"),
   ];
-  const i = indice(ot, diseno);
+  const impresion = [base("OT"), base("DIS"), base("IMP", { pendienteSeccion: true }), base("TALLER"), base("SALIR_OT")];
+  const i = indice(ot, diseno, impresion);
   expect(codigos(i, { estado: "todos", paso: "ot" })).toEqual(["OT"]);
   expect(codigos(i, { estado: "todos", paso: "diseno" })).toEqual(["DIS"]);
+  expect(codigos(i, { estado: "todos", paso: "impresion" })).toEqual(["IMP"]);
   expect(codigos(i, { estado: "todos", paso: "taller" })).toEqual(["TALLER"]);
 });
 
