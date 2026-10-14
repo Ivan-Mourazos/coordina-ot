@@ -36,7 +36,7 @@ describe("correo del planteamiento", () => {
         "Adjunto: AR2605023-10.pdf",
         "Pasado a Producción por: Iván Sánchez",
         "",
-        "Enviado automáticamente por CoordinaOT.",
+        "Enviado automáticamente por Coordina.",
       ].join("\n"),
     );
   });

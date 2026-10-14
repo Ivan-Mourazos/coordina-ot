@@ -92,7 +92,7 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
         <div className="mt-auto flex flex-col gap-1.5">
           <Separador />
           <Pista
-            texto={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+            texto={propio ? "Ver con el visor del navegador" : "Volver al visor de Coordina"}
             detalle={
               propio
                 ? "Si prefieres el tuyo (Chrome, Adobe…). Se recuerda en este ordenador"
@@ -103,7 +103,7 @@ export function ParteEscaneado({ codigo, scanUrl }: { codigo: string; scanUrl: s
               type="button"
               onClick={() => setMotor(propio ? "navegador" : "propio")}
               aria-pressed={!propio}
-              aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+              aria-label={propio ? "Ver con el visor del navegador" : "Volver al visor de Coordina"}
               className={`${chip} ${propio ? "" : puesto}`}
             >
               ⇄

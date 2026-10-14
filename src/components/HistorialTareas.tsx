@@ -275,7 +275,7 @@ export function TareasDeOF({
                           className={`rounded px-1 text-[9px] font-bold uppercase ${
                             papel.deducido ? "bg-text-muted/15 text-text-muted ring-1 ring-border-strong" : ROL[papel.rol].chip
                           }`}
-                          title={papel.deducido ? "Deducido de las horas de RPS: esta OF no se fichó en CoordinaOT" : undefined}
+                          title={papel.deducido ? "Deducido de las horas de RPS: esta OF no se fichó en Coordina" : undefined}
                         >
                           {papel.rol === "plantear" ? "Autor" : "Revisor"}
                         </span>

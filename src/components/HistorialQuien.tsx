@@ -58,7 +58,7 @@ export function Quien({ item }: { item: HistorialItem }) {
   // lo que se sabe.
   if (autores.length > 0) {
     return (
-      <span className="block truncate" title={`${aviso}Registrado en CoordinaOT, sin horas imputadas en RPS`}>
+      <span className="block truncate" title={`${aviso}Registrado en Coordina, sin horas imputadas en RPS`}>
         {centro}<span className="text-text">{autores.join(" y ")}</span>
       </span>
     );

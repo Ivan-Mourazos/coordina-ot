@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       {
         modo,
         desde,
-        error: `Sin fichaje en CoordinaOT desde el ${desde}: no hay nada que contrastar.`,
+        error: `Sin fichaje en Coordina desde el ${desde}: no hay nada que contrastar.`,
       },
       { status: 404 },
     );

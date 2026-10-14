@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   // ("(2) CoordinaOT"), así que este es el de la carga inicial. "Asignación de
   // partes" contaba solo lo primero que se hace aquí; el trabajo es el
   // recorrido entero, de que llega el parte a que se pasa a Producción.
-  title: "CoordinaOT",
+  title: "Coordina",
   description:
-    "Tablero de trabajo de Oficina Técnica: reparto de partes, planteo, revisión y paso a Producción.",
+    "Tablero de trabajo de Oficina Técnica, Diseño Gráfico e Impresión Digital: reparto, planteo, revisión y paso a Producción.",
 };
 
 export default function RootLayout({

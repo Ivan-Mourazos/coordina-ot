@@ -33,7 +33,7 @@ function trabajoDe(nombre: string, modo: string): TrabajoImpresion {
   const claveCifrada = process.env.IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE?.trim();
   return {
     nombre,
-    usuario: process.env.IMPRESORA_USUARIO ?? "CoordinaOT",
+    usuario: process.env.IMPRESORA_USUARIO ?? "Coordina",
     ...(codigo && claveCifrada ? { departamento: { codigo, claveCifrada } } : {}),
   };
 }

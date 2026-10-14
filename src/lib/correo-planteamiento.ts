@@ -94,7 +94,7 @@ export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
   }
   if (f.aMano.length) lineas.push(`Para imprimir a mano (no es todo A4): ${f.aMano.join(", ")}`);
   if (f.adjuntos.length) lineas.push(enumerar("Adjunto", "Adjuntos", f.adjuntos));
-  lineas.push(`Pasado a Producción por: ${d.pasadoPor}`, "", "Enviado automáticamente por CoordinaOT.");
+  lineas.push(`Pasado a Producción por: ${d.pasadoPor}`, "", "Enviado automáticamente por Coordina.");
   return lineas.join("\n");
 }
 
@@ -143,6 +143,6 @@ export function cuerpoCorreoHtml(d: DatosCorreo, f: FicherosCorreo): string {
   <p style="margin:2px 0 16px 0"><b style="font-size:20px">${esc(d.pedido)}</b>${cliente ? `<span style="font-size:16px"> · ${esc(cliente)}</span>` : ""}</p>${nota ? `
   <p style="margin:0 0 16px 0">${esc(nota).replace(/\r?\n/g, "<br>")}</p>` : ""}${filasOf}
   <p style="margin:16px 0 0 0;line-height:1.6">${pie.join("<br>")}</p>
-  <p style="margin:16px 0 0 0;font-size:11px;color:#999999">Enviado automáticamente por CoordinaOT.</p>
+  <p style="margin:16px 0 0 0;font-size:11px;color:#999999">Enviado automáticamente por Coordina.</p>
 </body></html>`;
 }

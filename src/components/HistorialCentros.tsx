@@ -272,7 +272,7 @@ function PersonasCentro({
     <ul
       className={`${enLinea ? "" : "mb-2"} flex flex-wrap gap-x-3 text-[11px] text-text-muted`}
       aria-label={`Tiempos por persona de ${centro.nombre}`}
-      title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en CoordinaOT"
+      title="Tiempo por persona: el imputado en RPS o, si aún no hay, el fichado en Coordina"
     >
       {personas.map((p) => (
         <li key={p.nombre}>

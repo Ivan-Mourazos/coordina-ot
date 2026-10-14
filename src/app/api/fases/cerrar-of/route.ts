@@ -149,14 +149,14 @@ async function cerrar({
     if (descartados > 0)
       return NextResponse.json(
         {
-          error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha cerrado nada; el reloj sí se ha parado. Hay que revisar ese tiempo antes de darla por terminada: avisa a quien lleva CoordinaOT.",
+          error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha cerrado nada; el reloj sí se ha parado. Hay que revisar ese tiempo antes de darla por terminada: avisa a quien lleva Coordina.",
           descartado: true,
         },
         { status: 409 },
       );
     if (fasesDescartadas > 0)
       return NextResponse.json(
-        { error: "RPS ya no reconoce esta operación, así que no se puede dar por terminada desde aquí. No se ha cerrado nada; el reloj sí se ha parado. Avisa a quien lleva CoordinaOT." },
+        { error: "RPS ya no reconoce esta operación, así que no se puede dar por terminada desde aquí. No se ha cerrado nada; el reloj sí se ha parado. Avisa a quien lleva Coordina." },
         { status: 409 },
       );
     return pendientes > 0 ? tiempoSinSubir() : null;

@@ -202,7 +202,7 @@ export function VisorDocumento({
             <Separador />
             <Pista
               lado="abajo"
-              texto={motor === "propio" ? "Ver con el visor del navegador" : "Volver al visor de CoordinaOT"}
+              texto={motor === "propio" ? "Ver con el visor del navegador" : "Volver al visor de Coordina"}
               detalle="Se recuerda en este ordenador, también para el parte"
             >
               <button
@@ -214,7 +214,7 @@ export function VisorDocumento({
                 }}
                 className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white"
               >
-                {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de CoordinaOT"}
+                {motor === "propio" ? "⇄ Visor del navegador" : "⇄ Visor de Coordina"}
               </button>
             </Pista>
           </>

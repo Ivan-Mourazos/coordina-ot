@@ -229,7 +229,7 @@ export function NotasPedido({
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
                   <span className="font-semibold text-text">
-                    {delSistema ? "CoordinaOT" : (op?.nombre ?? n.operarioId)}
+                    {delSistema ? "Coordina" : (op?.nombre ?? n.operarioId)}
                   </span>
                   <span className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</span>
                   {n.editadoAt && (
