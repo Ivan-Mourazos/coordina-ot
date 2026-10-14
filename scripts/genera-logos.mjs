@@ -7,8 +7,8 @@
 // el caballo, la línea y «Coordina». Las siglas se DIBUJAN con la geometría de
 // aquella O y aquella T —trazo de 65 px, mayúscula de 364, la redonda
 // rebasando 8 px arriba y abajo— para que las cuatro versiones sean de la misma
-// familia, incluida la de OT. La primera letra pisa «na» como la O original, y
-// el texto va siempre por encima del amarillo.
+// familia, incluida la de OT. Van DETRÁS de «Coordina», sin pisarla (Iván,
+// 14/10/2026: la O original pisaba «na»), a la misma altura que tenían.
 
 import { createRequire } from "node:module";
 
@@ -27,7 +27,7 @@ const ARRIBA = 402; // altura de mayúscula
 const BASE = 766; // línea base
 const CY = 584; // centro de las redondas
 const R = 190; // radio exterior de las redondas (rebasan: 394–774)
-const X0 = 1036; // donde empieza la primera sigla (la O original)
+const X0 = 1310 + 45; // la primera sigla: tras «Coordina» (acaba en 1310) y un hueco
 const HUECO = 22; // entre siglas
 const LINEA = { y: 356, alto: 17, x: 1041 }; // tramo derecho de la línea
 const CORTE_X = 1030; // a la derecha de esto, el amarillo del original es la «OT»
