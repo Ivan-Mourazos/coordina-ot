@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "d8c0459",
+    "hasta": "f1496dc",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -14,6 +14,17 @@
         "titulo": "Al pasar un pedido a Producción se manda solo el correo del planteamiento",
         "detalle": "Llega a Oficina Técnica y a Producción con el pedido, cada OF con sus tiempos y quién lo pasó. Los de PVC llevan el PDF adjunto; los de toldos avisan de que está impreso.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al pasar a Producción puedes cambiar qué se imprime, qué va adjunto y qué dice el correo",
+        "detalle": "En el aviso, «Cambiar lo que se imprime y se manda»: quitas un PDF que ya está impreso, adjuntas otro, quitas una OF del correo o añades una nota.",
+        "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El correo del planteamiento se lee mejor: pedido y OF en negrita, tiempos debajo",
+        "tanda": 2
       }
     ]
   },
