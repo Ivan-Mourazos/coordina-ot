@@ -484,7 +484,7 @@ export function MiFichaje({
           </div>
 
           {/* ── AVISO TEMPORAL DEL PERIODO DE PRUEBAS ────────────────────────
-              Mientras el fichaje de CoordinaOT se contrasta con el de siempre,
+              Mientras el fichaje de Coordina se contrasta con el de siempre,
               hay que fichar en los DOS: aquí y en la herramienta antigua. Es lo
               único que garantiza que no se pierdan horas si algo no cuadra.
               Va en el panel del reloj, y no en un diálogo de una vez, porque el

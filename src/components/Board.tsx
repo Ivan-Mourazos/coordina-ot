@@ -1201,7 +1201,7 @@ export function Board({
   // Aviso visible aunque la pestaña esté al fondo: "(2) CoordinaOT".
   useEffect(() => {
     const n = misPorRevisar + misDevueltas;
-    document.title = n > 0 ? `(${n}) CoordinaOT` : "CoordinaOT";
+    document.title = n > 0 ? `(${n}) Coordina` : "Coordina";
   }, [misPorRevisar, misDevueltas]);
   // Ajuste durante el render, no en un efecto (que además el lint rechaza):
   // React descarta este render y repite con el valor bueno, sin pintar el
@@ -2370,7 +2370,7 @@ export function Board({
     return (
       <div className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
         <header className="flex items-center gap-4 bg-bg px-5 py-3">
-          <Logo />
+          <Logo siglas={SECCIONES[seccionActual].siglas} />
         </header>
         <div className="grid flex-1 place-items-center text-sm text-text-muted">
           Cargando tablero…
@@ -2490,7 +2490,7 @@ export function Board({
         <header className="glass-header sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-2.5 lg:flex lg:gap-3">
           <div className="contents lg:flex lg:min-w-0 lg:items-center lg:gap-3">
             {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
-            <Logo className="-my-3 shrink-0" />
+            <Logo className="-my-3 shrink-0" siglas={SECCIONES[seccionActual].siglas} />
             {/* Las seis pestañas ocupan unos 500 px y no se pueden acortar
                 —no hay iconos, y una pestaña sin nombre no se usa—, así que
                 por debajo de cierto ancho no caben junto al buscador y los

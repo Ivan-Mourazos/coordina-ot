@@ -68,7 +68,8 @@ export function Consulta() {
       {/* La misma cabecera que la web del equipo: del color de la página y sin
           raya. Era vidrio blanco con borde, otra web al lado de la de dentro. */}
       <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-3 px-5 py-2.5">
-        <Logo height={36} />
+        {/* La consulta es lo que usa Producción: «OP», Oficina de Producción. */}
+        <Logo height={36} siglas="OP" />
         {/* Las flechas mueven entre pestañas y el tabulador entra y sale de la
             tira entera: es como se recorre un tablist, y es lo que espera
             quien navega con teclado. */}

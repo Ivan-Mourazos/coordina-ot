@@ -202,7 +202,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
                     <span
                       key={p.nombre}
                       className="flex items-center gap-1.5"
-                      title={`${deducido} deducido de las horas de RPS: esta OF no se fichó en CoordinaOT`}
+                      title={`${deducido} deducido de las horas de RPS: esta OF no se fichó en Coordina`}
                     >
                       <span className="rounded bg-text-muted/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border-strong">
                         {deducido}

@@ -110,7 +110,7 @@ async function reintentar({
     if (descartados > 0)
       return NextResponse.json(
         {
-          error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha escrito nada. Hay que revisar ese tiempo: avisa a quien lleva CoordinaOT.",
+          error: "RPS rechazó tiempo fichado en esta OF y no ha llegado a subir. No se ha escrito nada. Hay que revisar ese tiempo: avisa a quien lleva Coordina.",
           descartado: true,
         },
         { status: 409 },
@@ -121,7 +121,7 @@ async function reintentar({
     // el `descartados` de arriba; al separarlos, sin esto dejaría de frenar.
     if (fasesDescartadas > 0)
       return NextResponse.json(
-        { error: "RPS ya no reconoce esta operación, así que no se puede escribir en ella desde aquí. No se ha escrito nada. Avisa a quien lleva CoordinaOT." },
+        { error: "RPS ya no reconoce esta operación, así que no se puede escribir en ella desde aquí. No se ha escrito nada. Avisa a quien lleva Coordina." },
         { status: 409 },
       );
     if (pendientes > 0)

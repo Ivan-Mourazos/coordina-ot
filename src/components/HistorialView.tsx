@@ -487,7 +487,7 @@ function FilaHistorial({
   // El momento real en que se pasó a Producción es el de CoordinaOT; el de RPS
   // es cuando OLANET registró el cambio y puede ir por detrás.
   const pasado = fmtFecha(item.pasadoAt ?? item.finalizada);
-  const origen = item.pasadoAt ? "Marcado en CoordinaOT" : "Según el cambio de estado en RPS";
+  const origen = item.pasadoAt ? "Marcado en Coordina" : "Según el cambio de estado en RPS";
   const tituloPasado = item.pasadoPor
     ? `${origen}: ${pasado.completa} · lo pasó ${item.pasadoPor}`
     : `${origen}: ${pasado.completa}`;

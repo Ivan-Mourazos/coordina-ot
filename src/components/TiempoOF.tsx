@@ -132,7 +132,7 @@ export function TiempoOF({
               <span className="w-14 text-right" title="Lo fichado en el terminal de siempre">
                 RPS
               </span>
-              <span className="w-14 text-right" title="Lo fichado en CoordinaOT">
+              <span className="w-14 text-right" title="Lo fichado en Coordina">
                 Aquí
               </span>
             </div>

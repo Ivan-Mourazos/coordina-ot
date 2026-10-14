@@ -35,7 +35,7 @@ export function SeccionEnObras({
         </p>
         <h1 className="mt-2 text-2xl font-bold text-text">{seccion.nombre}</h1>
         <p className="mt-4 text-sm leading-relaxed text-text-muted">
-          Es lo siguiente que entra en CoordinaOT. Todavía no está lista, así que
+          Es lo siguiente que entra en Coordina. Todavía no está lista, así que
           de momento no enseña trabajo: preferimos que no haya lista a que haya
           una lista que no se pueda creer.
         </p>

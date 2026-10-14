@@ -28,6 +28,11 @@ import type { Fase } from "./fases-tablero";
 /** Las secciones que hay. El id se guarda en la BD y en la URL: NO se renombra. */
 export type SeccionId = "ot" | "diseno" | "impresion";
 
+/** Las siglas del logo según dónde estás (Iván, 14/10/2026: la web se llama
+ *  «Coordina» y el logo dice de qué oficina es la pantalla). OP es la Oficina
+ *  de Producción: la consulta, que no es una sección con tablero. */
+export type SiglasLogo = "OT" | "DG" | "ID" | "OP";
+
 export interface Seccion {
   id: SeccionId;
   /** Cómo se llama en pantalla. */
@@ -36,6 +41,8 @@ export interface Seccion {
    *  selector estrecho, los centros del Historial. Era un literal en tres
    *  sitios y con la tercera sección se desincronizaba. */
   nombreCorto: string;
+  /** Las del logo («Coordina OT», «Coordina DG»…). */
+  siglas: SiglasLogo;
   /** La vista de RPS con su trabajo pendiente. Ausente solo si la fuente es
    *  OLANET y RPS no tiene vista para ella (Impresión Digital): entonces la
    *  lista es OLANET y nada más. */
@@ -158,6 +165,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "ot",
     nombre: "Oficina Técnica",
     nombreCorto: "OT",
+    siglas: "OT",
     vista: "TGM_PENDIENTE_OT",
     fuente: "vista",
     recursos: ["a-otec", "otec-a"],
@@ -170,6 +178,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "diseno",
     nombre: "Diseño Gráfico",
     nombreCorto: "Diseño",
+    siglas: "DG",
     vista: "TGM_PENDIENTE_DISENHO",
     // ABIERTA el 08/09/2026. Estuvo anunciada y sin enseñar trabajo desde el
     // 02/09 porque su lista no era de fiar. Comprobado contra RPS y OLANET a la
@@ -221,6 +230,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     id: "impresion",
     nombre: "Impresión Digital",
     nombreCorto: "Impresión",
+    siglas: "ID",
     // Sin vista: RPS no tiene `TGM_PENDIENTE_*` de impresión. La lista es la
     // de OLANET, que es la que ya manda en Diseño. Lo que se pierde es lo
     // recién lanzado que OLANET aún no tenga, y eso son minutos.

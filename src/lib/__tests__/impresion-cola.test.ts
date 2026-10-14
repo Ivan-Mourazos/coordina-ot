@@ -153,7 +153,7 @@ describe("departamento de la impresora y comprobación", () => {
   it("en ensayo (la de OT, de color) el trabajo lleva el departamento", async () => {
     const [uri, , t] = await conDepartamento("ensayo", "ABCDEF");
     expect(uri).toBe("ipp://192.168.4.249/ipp");
-    expect(t).toMatchObject({ usuario: "CoordinaOT", departamento: { codigo: "66", claveCifrada: "ABCDEF" } });
+    expect(t).toMatchObject({ usuario: "Coordina", departamento: { codigo: "66", claveCifrada: "ABCDEF" } });
   });
 
   it("en activo (Producción, sin control de copias) no lleva departamento: va por IPP", async () => {
@@ -172,7 +172,7 @@ describe("departamento de la impresora y comprobación", () => {
     const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 8597 }));
     const comprobar = vi.fn(async () => 8);
     expect(await worker.vueltaImpresion(T0, imprimir, comprobar)).toBe(0);
-    expect(comprobar.mock.calls[0]).toEqual(["ipp://192.168.4.245/ipp", 8597, expect.objectContaining({ usuario: "CoordinaOT" })]);
+    expect(comprobar.mock.calls[0]).toEqual(["ipp://192.168.4.245/ipp", 8597, expect.objectContaining({ usuario: "Coordina" })]);
     const [f] = cola.leerImpresionesDe("AR.26.05016");
     expect(f.estado).toBe("descartado");
     expect(f.error).toMatch(/abortó/);
