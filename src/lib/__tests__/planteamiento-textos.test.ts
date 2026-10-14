@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion } from "../planteamiento-textos";
+import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes } from "../planteamiento-textos";
 
 const base = { modo: "activo" as const, aviso: null, impresiones: [] };
 
@@ -84,5 +84,17 @@ describe("lo que se dice del correo", () => {
     expect(textoCorreo({ ...envio, estado: "sin_planteamiento", enviadoAt: null })).toBe("Sin correo: no había planteamiento");
     expect(textoCorreo({ ...envio, estado: "descartado", enviadoAt: null, error: "Access is denied" }))
       .toBe("Correo no enviado: Access is denied");
+  });
+});
+
+describe("¿el pedido ya se pasó antes?", () => {
+  const base = { modo: "activo" as const, aviso: null, ficheros: [], impresiones: [], correo: { modo: "activo" as const, envios: [] } };
+  it("primera vez: no", () => {
+    expect(yaSePasoAntes(base)).toBe(false);
+    expect(yaSePasoAntes({ ...base, correo: undefined })).toBe(false);
+  });
+  it("con alguna impresión o algún correo de antes: sí", () => {
+    expect(yaSePasoAntes({ ...base, impresiones: [{ id: 1 } as never] })).toBe(true);
+    expect(yaSePasoAntes({ ...base, correo: { modo: "activo", envios: [{ id: 1 } as never] } })).toBe(true);
   });
 });

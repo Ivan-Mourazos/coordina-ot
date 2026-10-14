@@ -87,3 +87,12 @@ export function textoCorreo(f: FilaCorreo): string {
       return `Correo no enviado: ${f.error ?? "motivo desconocido"}`;
   }
 }
+
+/** ¿Este pedido ya se pasó a Producción alguna vez? Se sabe porque hay rastro de
+ *  una impresión o de un correo suyos. Pasa cuando se recupera del Historial
+ *  para volver a plantearlo: entonces, al pasarlo otra vez, se PREGUNTA si
+ *  imprimir y mandar el correo de nuevo (Iván, 14/10/2026). La primera vez no
+ *  se pregunta: la norma es hacer las dos cosas siempre. */
+export function yaSePasoAntes(d: VistaPlanteamiento): boolean {
+  return d.impresiones.length > 0 || (d.correo?.envios.length ?? 0) > 0;
+}
