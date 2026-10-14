@@ -2490,7 +2490,9 @@ export function Board({
         <header className="glass-header sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-2.5 lg:flex lg:gap-3">
           <div className="contents lg:flex lg:min-w-0 lg:items-center lg:gap-3">
             {/* el PNG del logo trae aire vertical: se deja desbordar sin engordar la cabecera */}
-            <Logo className="-my-3 shrink-0" siglas={SECCIONES[seccionActual].siglas} />
+            {/* «OP» en la vista de Dirección (Carlos, Esteban, e Iván mirando como
+                Dirección); en el resto, las siglas de la sección (Iván, 14/10/2026). */}
+            <Logo className="-my-3 shrink-0" siglas={soloLectura ? "OP" : SECCIONES[seccionActual].siglas} />
             {/* Las seis pestañas ocupan unos 500 px y no se pueden acortar
                 —no hay iconos, y una pestaña sin nombre no se usa—, así que
                 por debajo de cierto ancho no caben junto al buscador y los
