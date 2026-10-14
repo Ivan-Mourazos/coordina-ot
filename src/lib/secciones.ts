@@ -241,8 +241,10 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // IMDI-A y P-HPLA). P-PCMU es el plóter de troquelar vinilo: 38 fichajes
     // de Manuel contra 5 de Smith (17/09/2026).
     // P-IDUV (impresora UV) y P-JETI (plóter Jeti) los añadió IT a la vista y
-    // son de Impresión (Iván, 14/10/2026). OJO: A-JETI es OTRA, de taller
-    // (34.740 fases en OLANET), y no entra.
+    // son de Impresión (Iván, 14/10/2026). A-JETI es la misma Jeti con su
+    // nombre de antes (IT, 14/10): fichada de 2009 a 2020 y nada desde
+    // entonces. No entra a propósito: movería once años de Historial de Taller
+    // a Impresión, con 6.393 tareas de EMBALAJE que colgaban de ella.
     recursos: ["imdi-a", "u-p-imdi", "p-hpla", "p-iduv", "p-jeti", "p-pcmu"],
     // Troquelar se ficha en la máquina, como el corte de Diseño (P-PCUS): el
     // tiempo es de Impresión pero la tarea no sale en su tablero.

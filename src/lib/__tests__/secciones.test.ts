@@ -214,7 +214,7 @@ describe("Impresión Digital", () => {
     expect(seccionDeRecurso("P-PCMU")).toBe("impresion");
     expect(seccionDeRecurso("P-JETI")).toBe("impresion");
     expect(seccionDeRecurso("P-IDUV")).toBe("impresion");
-    // A-JETI es de taller: misma máquina de nombre, otra cosa.
+    // A-JETI es el nombre antiguo de la Jeti (sin uso desde 2020): fuera.
     expect(seccionDeRecurso("A-JETI")).not.toBe("impresion");
     // El plóter de Diseño sigue siendo de Diseño.
     expect(seccionDeRecurso("P-PCUS")).toBe("diseno");
