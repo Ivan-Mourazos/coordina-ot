@@ -22,12 +22,15 @@ export interface TrabajoImpresion extends TrabajoIpp {
   departamento?: Departamento;
 }
 
-/** Las Konica abortan lo que llega sin código de departamento (14/10/2026). El
- *  código va en `IMPRESORA_DEPARTAMENTO` y su clave, tal como la cifra el
- *  driver de Windows, en `IMPRESORA_DEPARTAMENTO_CLAVE` (ver pjl.ts). */
-function trabajoDe(nombre: string): TrabajoImpresion {
-  const codigo = process.env.IMPRESORA_DEPARTAMENTO?.trim();
-  const claveCifrada = process.env.IMPRESORA_DEPARTAMENTO_CLAVE?.trim();
+/** Solo las Konica de COLOR llevan control de copias por departamento y
+ *  abortan lo que llega sin código (David, 14/10/2026). De las dos, la de color
+ *  es la de OT, que es la del ensayo; la de Producción (blanco y negro) imprime
+ *  por IPP sin más. El código va en `IMPRESORA_ENSAYO_DEPARTAMENTO` y su clave,
+ *  tal como la cifra el driver de Windows, en
+ *  `IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE` (ver pjl.ts). */
+function trabajoDe(nombre: string, modo: string): TrabajoImpresion {
+  const codigo = modo === "ensayo" ? process.env.IMPRESORA_ENSAYO_DEPARTAMENTO?.trim() : undefined;
+  const claveCifrada = process.env.IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE?.trim();
   return {
     nombre,
     usuario: process.env.IMPRESORA_USUARIO ?? "CoordinaOT",
@@ -83,12 +86,12 @@ export async function vueltaImpresion(
         continue;
       }
       try {
-        const t = trabajoDe(`Planteamiento ${p.pedidoId}`);
+        const t = trabajoDe(`Planteamiento ${p.pedidoId}`, modo);
         const { trabajo } = await imprimir(destino, pdf, t);
         const estado = comprobar && trabajo !== null ? await comprobar(destino, trabajo, t) : null;
         if (estado !== null && NO_SALIO.has(estado)) {
           // «Reimprimir» lo vuelve a buscar y mandar cuando se arregle.
-          descartar(p.id, `La impresora aceptó el trabajo pero lo ${estado === 7 ? "canceló" : "abortó"} sin imprimir: falta el código de departamento (IMPRESORA_DEPARTAMENTO / IMPRESORA_DEPARTAMENTO_CLAVE)`);
+          descartar(p.id, `La impresora aceptó el trabajo pero lo ${estado === 7 ? "canceló" : "abortó"} sin imprimir: ¿pide código de departamento? (IMPRESORA_ENSAYO_DEPARTAMENTO / IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE)`);
           console.warn(`[impresion] ${p.pedidoId} ${p.fichero}: la impresora abortó el trabajo ${trabajo}`);
           continue;
         }
