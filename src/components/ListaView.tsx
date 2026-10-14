@@ -611,15 +611,20 @@ export function ListaView({
                 </>
               )}
               detalle={
-                <>
-                  {/* En compacto la fila no lleva el recorrido: va aquí. */}
-                  {compacta && (
-                    <div className={`mb-2 max-w-3xl ${hecho ? "opacity-40 grayscale" : ""}`}>
+                <Detalle
+                  p={p}
+                  hoy={hoy}
+                  operarios={operarios}
+                  conNombres={conNombres}
+                  // En compacto la fila no lleva el recorrido: va en el
+                  // desplegable, a la derecha de piezas y tiempo (una línea
+                  // menos, Iván 14/10/2026).
+                  recorrido={compacta ? (
+                    <div className={`min-w-[280px] max-w-3xl flex-1 ${hecho ? "opacity-40 grayscale" : ""}`}>
                       <Recorrido pedido={p} hoy={hoy} />
                     </div>
-                  )}
-                  <Detalle p={p} hoy={hoy} operarios={operarios} conNombres={conNombres} />
-                </>
+                  ) : undefined}
+                />
               }
             />
           );
@@ -740,11 +745,14 @@ function Detalle({
   hoy,
   operarios,
   conNombres,
+  recorrido,
 }: {
   p: Pedido;
   hoy: string;
   operarios: Operario[];
   conNombres: boolean;
+  /** La línea de tiempo, al final de la fila de datos (la lista compacta). */
+  recorrido?: ReactNode;
 }) {
   const llevado = p.ofs.reduce((n, of) => n + tiempoTotalOF(of), 0);
   const estimado = p.ofs.reduce((n, of) => n + of.tiempoEstimadoMin, 0);
@@ -754,32 +762,35 @@ function Detalle({
 
   return (
     <div className="space-y-2.5">
-      <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[11px]">
-        <Dato label="Piezas">{piezasTotal(p)}</Dato>
-        {/* Lo llevado CONTRA lo estimado, no cada uno por su lado: el número
-            solo dice algo comparado con el otro. */}
-        {estimado > 0 && (
-          <Dato label="Tiempo">
-            <span className={llevado > estimado ? "font-semibold text-text" : undefined}>
-              {fmtMin(llevado)}
-            </span>
-            <span className="text-text-muted"> / est. {fmtMin(estimado)}</span>
-          </Dato>
-        )}
-        {material && (
-          <Dato label="Material">
-            <span className={MATERIAL[material].clase}>{MATERIAL[material].texto}</span>
-          </Dato>
-        )}
-        {compras.porLlegar > 0 && (
-          <Dato label="Compras">
-            <span className={compras.tarde > 0 ? "font-semibold text-red-600 dark:text-red-400" : undefined}>
-              {compras.porLlegar} por llegar
-              {compras.tarde > 0 && ` · ${compras.tarde} con la fecha pasada`}
-            </span>
-          </Dato>
-        )}
-      </dl>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+        <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[11px]">
+          <Dato label="Piezas">{piezasTotal(p)}</Dato>
+          {/* Lo llevado CONTRA lo estimado, no cada uno por su lado: el número
+              solo dice algo comparado con el otro. */}
+          {estimado > 0 && (
+            <Dato label="Tiempo">
+              <span className={llevado > estimado ? "font-semibold text-text" : undefined}>
+                {fmtMin(llevado)}
+              </span>
+              <span className="text-text-muted"> / est. {fmtMin(estimado)}</span>
+            </Dato>
+          )}
+          {material && (
+            <Dato label="Material">
+              <span className={MATERIAL[material].clase}>{MATERIAL[material].texto}</span>
+            </Dato>
+          )}
+          {compras.porLlegar > 0 && (
+            <Dato label="Compras">
+              <span className={compras.tarde > 0 ? "font-semibold text-red-600 dark:text-red-400" : undefined}>
+                {compras.porLlegar} por llegar
+                {compras.tarde > 0 && ` · ${compras.tarde} con la fecha pasada`}
+              </span>
+            </Dato>
+          )}
+        </dl>
+        {recorrido}
+      </div>
       {/* Las "tareas-nota" que Producción deja en la ruta de la OF ("22/06
           VISITA MEDIR"). Se enseñan sin repetir: en un pedido de seis OF suele
           ser el mismo aviso seis veces. */}
