@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asuntoCorreo, cuerpoCorreo, cuerpoCorreoHtml, minutosATexto } from "../correo-planteamiento";
+import { asuntoCorreo, cuerpoCorreo, cuerpoCorreoHtml, esDePlanteamiento, minutosATexto } from "../correo-planteamiento";
 
 const D = {
   pedido: "AR.26.05023",
@@ -106,5 +106,27 @@ describe("versión HTML del correo", () => {
     const h = cuerpoCorreoHtml({ ...D, cliente: "A & B <Toldos>" }, F);
     expect(h).toContain("A &amp; B &lt;Toldos&gt;");
     expect(h).not.toContain("<Toldos>");
+  });
+});
+
+describe("nota y título cuando se cambia a mano", () => {
+  const F = { adjuntos: [], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" };
+
+  it("la nota sale arriba, debajo del pedido, en texto y en HTML (escapada)", () => {
+    const c = cuerpoCorreo({ ...D, nota: "Ojo: la lona va <aparte>\nLlamar a Juan" }, F);
+    expect(c).toContain("Pedido AR.26.05023 · Bar Central\n\nOjo: la lona va <aparte>\nLlamar a Juan\n\nOF 0232963");
+    const h = cuerpoCorreoHtml({ ...D, nota: "Ojo: la lona va <aparte>\nLlamar a Juan" }, F);
+    expect(h).toContain("Ojo: la lona va &lt;aparte&gt;<br>Llamar a Juan");
+  });
+
+  it("sin nota no hay hueco", () => {
+    expect(cuerpoCorreo({ ...D, nota: "   " }, F)).toBe(cuerpoCorreo(D, F));
+  });
+
+  it("sin adjuntos ni nada impreso no dice «IMPRESO»", () => {
+    const nada = { adjuntos: [], impresos: [], aMano: [], dondeImprime: "Producción" };
+    expect(cuerpoCorreo(D, nada).startsWith("PLANTEAMIENTO")).toBe(true);
+    expect(esDePlanteamiento(nada)).toBe(true);
+    expect(esDePlanteamiento(F)).toBe(false);
   });
 });

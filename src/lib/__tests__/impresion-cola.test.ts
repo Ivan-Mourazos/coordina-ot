@@ -184,3 +184,19 @@ describe("departamento de la impresora y comprobación", () => {
     expect(cola.leerImpresionesDe("AR.26.05016")[0].estado).toBe("enviado");
   });
 });
+
+describe("lo elegido a mano al pasar", () => {
+  it("solo se encola lo elegido", async () => {
+    const r = await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => ({
+      aviso: null,
+      ficheros: [...pdfDe("AR2605016-1.pdf", true).ficheros, ...pdfDe("AR2605016-10.pdf", true).ficheros],
+    }), new Set(["AR2605016-10.pdf"]));
+    expect(r.encolados).toBe(1);
+    expect(cola.leerImpresionesDe("AR.26.05016").map((f) => f.fichero)).toEqual(["AR2605016-10.pdf"]);
+  });
+
+  it("si no se eligió ninguno de los que hay, no se anota «sin planteamiento»", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-1.pdf", true), new Set(["otro.pdf"]));
+    expect(cola.leerImpresionesDe("AR.26.05016")).toEqual([]);
+  });
+});

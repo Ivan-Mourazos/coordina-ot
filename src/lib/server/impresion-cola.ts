@@ -56,8 +56,14 @@ export async function prepararImpresion(
   operarioId: string,
   ahora = new Date(),
   buscar: typeof planteamientosDe = planteamientosDe,
+  /** Solo estos PDF, si se eligieron a mano al pasar (ver `EleccionPase`). */
+  solo?: ReadonlySet<string>,
 ): Promise<{ encolados: number; manuales: string[]; aviso: string | null }> {
-  const { ficheros, aviso } = await buscar(codigo);
+  const encontrados = await buscar(codigo);
+  const { aviso } = encontrados;
+  const ficheros = solo ? encontrados.ficheros.filter((f) => solo.has(f.nombre)) : encontrados.ficheros;
+  // Había planteamiento pero se quitó todo a mano: no es «sin planteamiento».
+  if (solo && ficheros.length === 0 && encontrados.ficheros.length > 0) return { encolados: 0, manuales: [], aviso };
   const db = getDb();
   const ts = ahora.toISOString();
   const insertar = db.prepare(

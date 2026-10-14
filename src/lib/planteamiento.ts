@@ -63,3 +63,38 @@ export function vaAdjunto(fichero: string, codigo: string): boolean {
   const s = sufijoDe(fichero, codigo);
   return s !== null && Number(s.slice(1)) >= 10;
 }
+
+/** Lo que se eligió a mano en el aviso de pasar, con «Cambiar lo que se
+ *  imprime y se manda» (Iván, 14/10/2026: por si algo ya se imprimió, no va
+ *  adjunto, o una OF no pinta en el correo). Si viene, manda sobre la norma de
+ *  arriba; si no, se aplica la norma. Los nombres son de los PDF que vio el
+ *  navegador: uno que aparezca después no se imprime ni se adjunta. */
+export interface EleccionPase {
+  /** PDF que se imprimen (vacío = ninguno). */
+  imprimir: string[];
+  /** PDF que van adjuntos al correo. */
+  adjuntar: string[];
+  /** Códigos de las OF que salen en el correo. */
+  ofs: string[];
+  /** Texto libre que sale arriba del correo. */
+  nota: string;
+}
+
+export const NOTA_MAX = 1000;
+
+const listaDeTextos = (v: unknown): string[] | null =>
+  Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === "string" && x.length > 0 && x.length <= 200)
+    ? (v as string[])
+    : null;
+
+/** La elección tal como llega en el cuerpo de la petición, o null si no viene
+ *  o no tiene la forma esperada (y entonces vale la norma). */
+export function leerEleccion(v: unknown): EleccionPase | null {
+  if (typeof v !== "object" || v === null) return null;
+  const x = v as Record<string, unknown>;
+  const imprimir = listaDeTextos(x.imprimir);
+  const adjuntar = listaDeTextos(x.adjuntar);
+  const ofs = listaDeTextos(x.ofs);
+  if (!imprimir || !adjuntar || !ofs || typeof x.nota !== "string") return null;
+  return { imprimir, adjuntar, ofs, nota: x.nota.trim().slice(0, NOTA_MAX) };
+}

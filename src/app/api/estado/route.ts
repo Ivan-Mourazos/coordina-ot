@@ -14,6 +14,7 @@ import { planteamientosDe, type Planteamientos } from "@/lib/server/planteamient
 import { leerPersona } from "@/lib/server/personas-db";
 import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
+import { leerEleccion } from "@/lib/planteamiento";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -38,6 +39,9 @@ interface Body {
   imprimirPlanteamiento?: boolean;
   /** Ausente = sí. La casilla «Mandar por correo» del diálogo de pasar. */
   mandarCorreo?: boolean;
+  /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
+   *  `EleccionPase`). Ausente = la norma. */
+  planteamiento?: unknown;
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -283,6 +287,12 @@ export async function POST(req: Request) {
     // imprimir y mandar el correo son lo de después, el pedido ya está pasado.
     if (seccion === "ot" && codigoPedido && esCodigoPedido(codigoPedido)) {
       const codigo = codigoPedido;
+      const eleccion = leerEleccion(body.planteamiento);
+      // Qué se imprime: lo elegido, nada si se desmarcó «Imprimir otra vez», o
+      // (undefined) todo, por la norma.
+      const imprimir = eleccion
+        ? new Set(eleccion.imprimir)
+        : body.imprimirPlanteamiento === false ? new Set<string>() : undefined;
       // Una sola búsqueda para las dos cosas: es contra una carpeta de red y no
       // hace falta recorrerla dos veces.
       let busqueda: Promise<Planteamientos> | null = null;
@@ -290,14 +300,21 @@ export async function POST(req: Request) {
       // Sin esperar: buscar y leer los PDF puede tardar segundos, y quien pasa
       // el pedido no tiene por qué esperarlos. La copia se hace igual en el
       // momento: RPS tarda minutos en moverlo.
-      if (body.imprimirPlanteamiento !== false && modoImpresion() !== "off") {
-        void prepararImpresion(codigo, operarioId, undefined, buscar).catch((e) =>
+      if ((!imprimir || imprimir.size > 0) && modoImpresion() !== "off") {
+        void prepararImpresion(codigo, operarioId, undefined, buscar, imprimir).catch((e) =>
           console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
         );
       }
       if (body.mandarCorreo !== false && modoCorreo() !== "off" && datosCorreo) {
-        const datos = datosCorreo;
-        void prepararCorreo(datos, operarioId, undefined, buscar).catch((e) =>
+        // Las OF y la nota también se pueden tocar a mano; las OF solo se
+        // QUITAN: el servidor sigue siendo quien dice qué OF tiene el pedido.
+        const datos = eleccion
+          ? { ...datosCorreo, ofs: datosCorreo.ofs.filter((of) => eleccion.ofs.includes(of.codigo)), nota: eleccion.nota }
+          : datosCorreo;
+        void prepararCorreo(datos, operarioId, undefined, buscar, {
+          adjuntar: eleccion ? new Set(eleccion.adjuntar) : undefined,
+          imprimir,
+        }).catch((e) =>
           console.error(`[correo] no se pudo preparar ${codigo}:`, (e as Error).message),
         );
       }
