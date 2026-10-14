@@ -1,6 +1,7 @@
 // Solo tipos del servidor: este módulo lo importan componentes de cliente y
 // no puede arrastrar código de servidor (SQLite, fs) al bundle.
 import type { FilaImpresion, ModoImpresion } from "./server/impresion-cola";
+import type { FilaCorreo, ModoCorreo } from "./server/correo-cola";
 
 // ─── Lo que la pantalla dice del planteamiento ───────────────────────────────
 // Funciones puras para que el diálogo de pasar y la ficha del Historial digan
@@ -11,6 +12,9 @@ export interface VistaPlanteamiento {
   ficheros: { nombre: string; paginas: number; todoA4: boolean }[];
   aviso: string | null;
   impresiones: FilaImpresion[];
+  /** El correo del planteamiento (spec 2026-10-14). Opcional: un servidor de
+   *  antes no lo manda, y entonces la pantalla simplemente no lo cuenta. */
+  correo?: { modo: ModoCorreo; envios: FilaCorreo[] };
 }
 
 const pags = (n: number) => `${n} ${n === 1 ? "pág." : "págs."}`;
@@ -52,5 +56,29 @@ export function textoImpresion(f: FilaImpresion): string {
       return "Se pasó sin planteamiento en Planteamientos";
     case "descartado":
       return `Descartado: ${f.fichero ?? ""}`;
+  }
+}
+
+/** La línea del correo en el diálogo de pasar. Sin planteamiento no dice nada:
+ *  ya lo avisa la línea de la impresión, y sin PDF no se manda correo. */
+export function textoCorreoAntesDePasar(d: VistaPlanteamiento): string | null {
+  if (!d.correo || d.correo.modo === "off" || d.ficheros.length === 0) return null;
+  return d.correo.modo === "ensayo"
+    ? "Se mandará por correo solo a ti (prueba)"
+    : "Se mandará por correo a Oficina Técnica y Producción";
+}
+
+export function textoCorreo(f: FilaCorreo): string {
+  switch (f.estado) {
+    case "enviado":
+      return `Correo enviado el ${cuando(f.enviadoAt ?? f.creadoAt)} a ${f.para.join(", ")}${f.modo === "ensayo" ? " (prueba)" : ""}`;
+    case "pendiente":
+      return f.error
+        ? `Correo pendiente: ${f.error} (${f.intentos} ${f.intentos === 1 ? "intento" : "intentos"})`
+        : "Correo pendiente";
+    case "sin_planteamiento":
+      return "Sin correo: no había planteamiento";
+    case "descartado":
+      return `Correo no enviado: ${f.error ?? "motivo desconocido"}`;
   }
 }

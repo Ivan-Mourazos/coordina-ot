@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { textoAntesDePasar, textoImpresion } from "../planteamiento-textos";
+import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion } from "../planteamiento-textos";
 
 const base = { modo: "activo" as const, aviso: null, impresiones: [] };
 
@@ -44,5 +44,38 @@ describe("lo que cuenta el Historial", () => {
   it("manual y sin planteamiento", () => {
     expect(textoImpresion({ ...fila, estado: "manual" })).toBe("Impresión a mano: AR2605016-10.pdf lleva páginas que no son A4");
     expect(textoImpresion({ ...fila, estado: "sin_planteamiento", fichero: null })).toBe("Se pasó sin planteamiento en Planteamientos");
+  });
+});
+
+describe("lo que se dice del correo", () => {
+  const vista = (modo: "off" | "ensayo" | "activo", ficheros = [{ nombre: "A-10.pdf", paginas: 1, todoA4: true }]) => ({
+    modo: "activo" as const, aviso: null, impresiones: [], ficheros,
+    correo: { modo, envios: [] },
+  });
+  const envio = {
+    id: 1, pedidoId: "AR.26.05016", ficheros: ["A-10.pdf"], asunto: "Planteamiento AR.26.05016",
+    para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"], intentos: 0, error: null,
+    modo: "activo" as const, pasadoPor: "ivan", creadoAt: "2026-10-13T11:05:00Z", enviadoAt: "2026-10-13T11:05:30Z",
+  };
+
+  it("antes de pasar", () => {
+    expect(textoCorreoAntesDePasar(vista("activo"))).toBe("Se mandará por correo a Oficina Técnica y Producción");
+    expect(textoCorreoAntesDePasar(vista("ensayo"))).toBe("Se mandará por correo solo a ti (prueba)");
+    expect(textoCorreoAntesDePasar(vista("activo", []))).toBeNull();
+    expect(textoCorreoAntesDePasar(vista("off"))).toBeNull();
+    expect(textoCorreoAntesDePasar({ ...vista("activo"), correo: undefined })).toBeNull();
+  });
+
+  it("en el Historial", () => {
+    expect(textoCorreo({ ...envio, estado: "enviado" }))
+      .toBe("Correo enviado el 13/10 a las 13:05 a of.tecnica@toldosgomez.com, produccion@toldosgomez.com");
+    expect(textoCorreo({ ...envio, estado: "enviado", modo: "ensayo", para: ["ivan.sanchez@toldosgomez.com"] }))
+      .toBe("Correo enviado el 13/10 a las 13:05 a ivan.sanchez@toldosgomez.com (prueba)");
+    expect(textoCorreo({ ...envio, estado: "pendiente", enviadoAt: null, intentos: 2, error: "Microsoft no responde" }))
+      .toBe("Correo pendiente: Microsoft no responde (2 intentos)");
+    expect(textoCorreo({ ...envio, estado: "pendiente", enviadoAt: null })).toBe("Correo pendiente");
+    expect(textoCorreo({ ...envio, estado: "sin_planteamiento", enviadoAt: null })).toBe("Sin correo: no había planteamiento");
+    expect(textoCorreo({ ...envio, estado: "descartado", enviadoAt: null, error: "Access is denied" }))
+      .toBe("Correo no enviado: Access is denied");
   });
 });
