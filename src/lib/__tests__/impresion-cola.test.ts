@@ -133,18 +133,30 @@ describe("el trabajador", () => {
   });
 });
 
-describe("usuario de la impresora y comprobación", () => {
-  it("manda el usuario y la clave de IMPRESORA_USUARIO / IMPRESORA_CLAVE", async () => {
-    process.env.IMPRESORA_USUARIO = "coordina";
-    process.env.IMPRESORA_CLAVE = "s3creta";
+describe("departamento de la impresora y comprobación", () => {
+  it("con IMPRESORA_DEPARTAMENTO y su clave, el trabajo lleva el departamento", async () => {
+    process.env.IMPRESORA_DEPARTAMENTO = "66";
+    process.env.IMPRESORA_DEPARTAMENTO_CLAVE = "ABCDEF";
+    try {
+      await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+      const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: null }));
+      expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
+      expect(imprimir.mock.calls[0][2]).toMatchObject({ usuario: "CoordinaOT", departamento: { codigo: "66", claveCifrada: "ABCDEF" } });
+    } finally {
+      delete process.env.IMPRESORA_DEPARTAMENTO;
+      delete process.env.IMPRESORA_DEPARTAMENTO_CLAVE;
+    }
+  });
+
+  it("sin clave del departamento no se manda departamento (iría por IPP)", async () => {
+    process.env.IMPRESORA_DEPARTAMENTO = "66";
     try {
       await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
       const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 1 }));
       await worker.vueltaImpresion(T0, imprimir);
-      expect(imprimir.mock.calls[0][2]).toMatchObject({ usuario: "coordina", clave: "s3creta" });
+      expect(imprimir.mock.calls[0][2]).not.toHaveProperty("departamento");
     } finally {
-      delete process.env.IMPRESORA_USUARIO;
-      delete process.env.IMPRESORA_CLAVE;
+      delete process.env.IMPRESORA_DEPARTAMENTO;
     }
   });
 

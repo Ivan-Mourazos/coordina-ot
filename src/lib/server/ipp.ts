@@ -10,13 +10,11 @@
 export interface TrabajoIpp {
   nombre: string;
   usuario: string;
-  /** Contraseña de `usuario` en la impresora. Las Konica de la casa tienen la
-   *  autenticación de usuario activada: sin usuario válido aceptan el trabajo
-   *  y luego lo ABORTAN sin imprimir (visto el 14/10/2026 en la de OT, estado
-   *  8 con 0 páginas). Con clave se manda autenticación básica de HTTP, que es
-   *  la que usa la autenticación IPP de la impresora. */
-  clave?: string;
 }
+
+// OJO: las Konica de la casa abortan lo que llega sin código de departamento,
+// y por IPP no se puede mandar (ver pjl.ts). Con código, se imprime por PJL;
+// esto queda para impresoras sin control de copias.
 
 const enc = new TextEncoder();
 
@@ -81,7 +79,6 @@ export async function imprimirPdf(
 ): Promise<{ trabajo: number | null }> {
   let r: Response;
   const cabeceras: Record<string, string> = { "Content-Type": "application/ipp" };
-  if (t.clave) cabeceras.Authorization = `Basic ${Buffer.from(`${t.usuario}:${t.clave}`).toString("base64")}`;
   try {
     r = await f(urlHttp(uri), {
       method: "POST",
@@ -93,7 +90,7 @@ export async function imprimirPdf(
     throw new Error(`La impresora no responde (${(e as Error).message})`);
   }
   if (r.status === 401 || r.status === 403) {
-    throw new Error(`La impresora pide usuario y contraseña (HTTP ${r.status}): revisa IMPRESORA_USUARIO e IMPRESORA_CLAVE`);
+    throw new Error(`La impresora no deja imprimir por IPP (HTTP ${r.status})`);
   }
   if (!r.ok) throw new Error(`La impresora contestó HTTP ${r.status}`);
   const res = leerRespuesta(new Uint8Array(await r.arrayBuffer()));
@@ -141,7 +138,6 @@ export async function estadoTrabajo(
   atributo(b, 0x44, "requested-attributes", texto("job-state"));
   b.push(0x03);
   const cabeceras: Record<string, string> = { "Content-Type": "application/ipp" };
-  if (t.clave) cabeceras.Authorization = `Basic ${Buffer.from(`${t.usuario}:${t.clave}`).toString("base64")}`;
   try {
     const r = await f(urlHttp(uri), {
       method: "POST",
