@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asuntoCorreo, cuerpoCorreo, minutosATexto } from "../correo-planteamiento";
+import { asuntoCorreo, cuerpoCorreo, cuerpoCorreoHtml, minutosATexto } from "../correo-planteamiento";
 
 const D = {
   pedido: "AR.26.05023",
@@ -78,5 +78,33 @@ describe("correo del planteamiento", () => {
     expect(minutosATexto(25)).toBe("25 min");
     expect(minutosATexto(60)).toBe("1 h");
     expect(minutosATexto(85)).toBe("1 h 25 min");
+  });
+});
+
+describe("versión HTML del correo", () => {
+  const F = { adjuntos: ["AR2605023-10.pdf"], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" };
+
+  it("lleva lo mismo que el texto: título, pedido, cada OF con tiempos y quién lo pasó", () => {
+    const h = cuerpoCorreoHtml(D, F);
+    expect(h).toContain("PLANTEAMIENTO");
+    expect(h).toContain("AR.26.05023");
+    expect(h).toContain("Bar Central");
+    expect(h).toContain("0232963");
+    expect(h).toContain("TOLDO PUNTO RECTO");
+    expect(h).toContain("Planteo 1 h 10 min (Tamara) · Revisión 10 min (Ángel)");
+    expect(h).toContain("AR2605023-1.pdf");
+    expect(h).toContain("Iván Sánchez");
+  });
+
+  it("IMPRESO cuando no lleva adjuntos", () => {
+    const h = cuerpoCorreoHtml(D, { ...F, adjuntos: [] });
+    expect(h).toContain("IMPRESO");
+    expect(h).not.toContain("PLANTEAMIENTO");
+  });
+
+  it("escapa lo que viene de RPS: un cliente con «<» no rompe el correo", () => {
+    const h = cuerpoCorreoHtml({ ...D, cliente: "A & B <Toldos>" }, F);
+    expect(h).toContain("A &amp; B &lt;Toldos&gt;");
+    expect(h).not.toContain("<Toldos>");
   });
 });

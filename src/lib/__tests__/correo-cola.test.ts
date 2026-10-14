@@ -113,6 +113,9 @@ describe("el trabajador", () => {
     });
     expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
     expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO");
+    // Sale en HTML (negritas y tamaños); el texto queda de respaldo.
+    expect(enviados[0].html).toContain("<b>OF 0232968</b> · TOLDO PUNTO RECTO");
+    expect(enviados[0].html).toContain("PLANTEAMIENTO");
     expect(enviados[0].adjuntos[0].nombre).toBe("AR2605016-10.pdf");
     expect(enviados[0].adjuntos[0].bytes.length).toBeGreaterThan(0);
     expect(cola.leerCorreosDe("AR.26.05016")[0].estado).toBe("enviado");
@@ -209,6 +212,15 @@ describe("reenviar", () => {
     expect(ok).toBe(true);
     const [nuevo, viejo] = cola.leerCorreosDe("AR.26.05016");
     expect(nuevo).toMatchObject({ estado: "pendiente", asunto: viejo.asunto, ficheros: ["AR2605016-10.pdf"], pasadoPor: "tamara" });
+  });
+
+  it("el reenvío sale en HTML como el original", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    await worker.vueltaCorreo(T0, vi.fn(async () => {}));
+    await cola.reenviarUltimo("AR.26.05016", "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    const enviados: Correo[] = [];
+    await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
+    expect(enviados[0].html).toContain("<b>OF 0232968</b>");
   });
 
   it("sin correo previo no hay nada que reenviar", async () => {

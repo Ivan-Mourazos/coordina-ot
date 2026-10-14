@@ -88,3 +88,50 @@ export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
   lineas.push(`Pasado a Producción por: ${d.pasadoPor}`, "", "Enviado automáticamente por CoordinaOT.");
   return lineas.join("\n");
 }
+
+// ─── La misma información, en HTML ──────────────────────────────────────────
+// Outlook lo pinta con negrita y color (Iván, 14/10/2026). Hecho a la antigua
+// a propósito —tablas y estilos en línea, sin hojas de estilo ni imágenes—,
+// que es lo único que los clientes de correo respetan todos. TODO lo que viene
+// de RPS (cliente, descripciones, nombres) pasa por `esc`: un «<» en un
+// nombre de cliente no puede romper el correo.
+
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** Verde para lo impreso (toldos), azul para el planteamiento con adjunto (PVC). */
+
+export function cuerpoCorreoHtml(d: DatosCorreo, f: FicherosCorreo): string {
+  // Sobrio a propósito: sin bloques de color (a Iván le chocaban, 14/10), solo
+  // tamaños y negritas para que se lea de un vistazo.
+  const titulo = f.adjuntos.length > 0 ? "PLANTEAMIENTO" : "IMPRESO";
+  const cliente = d.cliente.trim();
+
+  const filasOf = d.ofs
+    .map((of) => {
+      const desc = of.descripcion.trim();
+      return `
+  <p style="margin:0 0 10px 0"><b>OF ${esc(of.codigo)}</b>${desc ? ` · ${esc(desc)}` : ""}<br>
+  <span style="font-size:13px;color:#555555">${esc(lineaTiempos(of).trim())}</span></p>`;
+    })
+    .join("");
+
+  const pie: string[] = [];
+  if (f.impresos.length) {
+    pie.push(f.dondeImprime
+      ? `<b>Impreso en ${esc(f.dondeImprime)}:</b> ${esc(f.impresos.join(", "))}`
+      : `<b>Para imprimir:</b> ${esc(f.impresos.join(", "))}`);
+  }
+  if (f.aMano.length) pie.push(`<b>Para imprimir a mano (no es todo A4):</b> ${esc(f.aMano.join(", "))}`);
+  if (f.adjuntos.length) {
+    pie.push(`<b>${f.adjuntos.length === 1 ? "Adjunto" : "Adjuntos"}:</b> ${esc(f.adjuntos.join(", "))}`);
+  }
+  pie.push(`<b>Pasado a Producción por:</b> ${esc(d.pasadoPor)}`);
+
+  return `<!doctype html><html><body style="margin:0;padding:12px;font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#222222">
+  <p style="margin:0;font-size:13px;font-weight:bold;letter-spacing:1px">${titulo}</p>
+  <p style="margin:2px 0 16px 0"><b style="font-size:20px">${esc(d.pedido)}</b>${cliente ? `<span style="font-size:16px"> · ${esc(cliente)}</span>` : ""}</p>${filasOf}
+  <p style="margin:16px 0 0 0;line-height:1.6">${pie.join("<br>")}</p>
+  <p style="margin:16px 0 0 0;font-size:11px;color:#999999">Enviado automáticamente por CoordinaOT.</p>
+</body></html>`;
+}

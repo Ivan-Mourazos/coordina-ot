@@ -288,6 +288,7 @@ function abrir(): Database.Database {
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
   prepararCierreRps(db);
+  prepararCorreoHtml(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -348,6 +349,14 @@ function prepararTraspasado(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(fichaje_intervalo)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "traspasado_at")) return;
   db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
+}
+
+/** El correo del planteamiento en HTML (14/10/2026), junto al texto que ya se
+ *  guardaba. Las filas de antes quedan a NULL y salen en texto, como salían. */
+function prepararCorreoHtml(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(planteamiento_correo)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "cuerpo_html")) return;
+  db.exec("ALTER TABLE planteamiento_correo ADD COLUMN cuerpo_html TEXT");
 }
 
 /** Las tres columnas de la marca «cerrada en RPS» (ver `OF.cerradaRps`). Sin

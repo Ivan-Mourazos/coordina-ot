@@ -98,3 +98,14 @@ describe("credencialesGraph", () => {
     expect(g.credencialesGraph()).toEqual({ tenant: "t", cliente: "c", secreto: "s" });
   });
 });
+
+describe("correo en HTML", () => {
+  it("si trae html, el cuerpo va como HTML", async () => {
+    const { f, llamadas } = fetchFalso([
+      { status: 200, json: { access_token: "TOK", expires_in: 3600 } },
+      { status: 202 },
+    ]);
+    await g.enviarCorreo({ ...CORREO, html: "<b>hola</b>" }, CRED, f, () => 0);
+    expect(JSON.parse(String(llamadas[1].init.body)).message.body).toEqual({ contentType: "HTML", content: "<b>hola</b>" });
+  });
+});
