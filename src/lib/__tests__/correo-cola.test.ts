@@ -120,6 +120,16 @@ describe("el trabajador", () => {
     expect(copias()).toBe(antes - 1);
   });
 
+  it("con varios planteamientos (-10, -11, -12) van todos adjuntos en el mismo correo", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(
+      ["AR2605016-10.pdf", EXISTE, true], ["AR.26.05016-11.pdf", EXISTE, true], ["AR2605016-12.pdf", EXISTE, false]));
+    const enviados: Correo[] = [];
+    await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0].adjuntos.map((a) => a.nombre)).toEqual(["AR2605016-10.pdf", "AR.26.05016-11.pdf", "AR2605016-12.pdf"]);
+    expect(enviados[0].texto).toContain("Adjuntos: AR2605016-10.pdf, AR.26.05016-11.pdf, AR2605016-12.pdf");
+  });
+
   it("rechazo que no se arregla reintentando: descartado y sigue con el siguiente", async () => {
     await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
     await cola.prepararCorreo({ ...DATOS, pedido: "AR.26.05017" }, "ivan", T0, async () => planteamientos(["B-10.pdf", EXISTE, true]));

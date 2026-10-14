@@ -28,6 +28,10 @@ beforeAll(async () => {
   writeFileSync(path.join(entrada, "AR2605016-10.pdf"), await pdf([A4]));
   writeFileSync(path.join(entrada, "AR2605016-1.pdf"), await pdf([A4], "AR2605016.toldos.json"));
   writeFileSync(path.join(entrada, "AR2605099-10.pdf"), await pdf([A4, A5]));
+  // Varios planteamientos del mismo pedido, uno ya procesado por RPS.
+  writeFileSync(path.join(entrada, "AR2605030-12.pdf"), await pdf([A4]));
+  writeFileSync(path.join(entrada, "AR2605030-10.pdf"), await pdf([A4]));
+  writeFileSync(path.join(raiz, "ARCHIVO", "2026", "AR.26.05030-11.pdf"), await pdf([A4]));
   // Ya procesado por RPS: solo está en el archivo, con puntos.
   writeFileSync(path.join(raiz, "ARCHIVO", "2026", "AR.26.05020-10.pdf"), await pdf([A4, A4]));
   // El mismo sufijo en los dos sitios: manda el de Planteamientos.
@@ -61,6 +65,11 @@ describe("los planteamientos de un pedido", () => {
   it("marca el que lleva páginas que no son A4", async () => {
     const r = await planteamientosDe("AR.26.05099", { entrada, archivo });
     expect(r.ficheros[0].todoA4).toBe(false);
+  });
+
+  it("varios planteamientos (-10, -11, -12): todos, en orden, vengan de donde vengan", async () => {
+    const r = await planteamientosDe("AR.26.05030", { entrada, archivo });
+    expect(r.ficheros.map((f) => f.nombre)).toEqual(["AR2605030-10.pdf", "AR.26.05030-11.pdf", "AR2605030-12.pdf"]);
   });
 
   it("sin planteamiento, lista vacía y sin aviso", async () => {
