@@ -596,6 +596,11 @@ describe("la fase en una palabra", () => {
     expect(faseEnUnaPalabra(devuelta, { invitado: true }).texto).toBe("Planteando");
   });
 
+  it("esperando revisión: «Por revisar» hasta que alguien empieza, «Revisando» después", () => {
+    expect(faseEnUnaPalabra(ped(of({ autorId: "ivan", revisorId: "jaime", estado: "por_revisar" }))).texto).toBe("Por revisar");
+    expect(faseEnUnaPalabra(ped(of({ autorId: "ivan", revisorId: "jaime", estado: "en_revision" }))).texto).toBe("Revisando");
+  });
+
   it("todo aprobado es «Listo para pasar», y «Listo» de fuera", () => {
     const listo = ped(of({ autorId: "ivan", revisorId: "jaime", estado: "aprobada" }));
     expect(faseEnUnaPalabra(listo).texto).toBe("Listo para pasar");
