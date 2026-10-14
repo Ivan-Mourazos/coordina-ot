@@ -559,6 +559,12 @@ export function Board({
   const closeExpanded = useCallback(() => setExpandedId(null), []);
 
   const [vista, setVista] = useState<Vista>(() => vistaDeUrl() ?? "asignar");
+  // Cambiar de sección, y si la nueva no tiene revisión (Impresión Digital),
+  // salir de «Revisiones», que ahí no existe: al Panel.
+  const irASeccion = (sec: SeccionId) => {
+    cambiarSeccion(sec);
+    if (SECCIONES[sec].sinRevision) setVista((v) => (v === "revision" ? "asignar" : v));
+  };
   // Dirección entra en PENDIENTES, no en el Panel: el Panel es para repartir
   // trabajo y ellos no reparten; Pendientes es el resumen de cómo va todo
   // (decisión de Iván, 09/10/2026). Solo si el enlace no pedía una pestaña:
@@ -2504,6 +2510,7 @@ export function Board({
                 onChange={setVista}
                 badge={{ revision: misPorRevisar, asignar: misDevueltas }}
                 conCasa={espectador}
+                sinRevision={SECCIONES[seccionActual].sinRevision === true}
               />
             </div>
           </div>
@@ -2555,7 +2562,7 @@ export function Board({
               onVerNovedades={() => setNovedadesAbiertas(true)}
               onVerGuiaRevision={() => setGuiaAbierta(true)}
               seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
-              onCambiarSeccion={cambiarSeccion}
+              onCambiarSeccion={irASeccion}
               yo={yo}
               operarios={TODOS_LOS_OPERARIOS}
               onCambiarIdentidad={solicitarCambioIdentidad}
