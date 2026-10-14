@@ -1,5 +1,23 @@
 [
   {
+    "id": "2026-10-14",
+    "hasta": "d8c0459",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al pasar un pedido a Producción, su planteamiento se imprime solo arriba",
+        "detalle": "El PDF que se guarda en Planteamientos sale en la impresora de Producción. Si lleva alguna página que no es A4, se abre el cuadro de imprimir.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Al pasar un pedido a Producción se manda solo el correo del planteamiento",
+        "detalle": "Llega a Oficina Técnica y a Producción con el pedido, cada OF con sus tiempos y quién lo pasó. Los de PVC llevan el PDF adjunto; los de toldos avisan de que está impreso.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-13",
     "hasta": "42133b7",
     "cambios": [
