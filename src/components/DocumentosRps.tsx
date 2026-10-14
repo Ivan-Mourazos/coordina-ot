@@ -57,6 +57,9 @@ export function DocumentosRps({
     [documentos, clasePrimero],
   );
   const [enVisor, setEnVisor] = useState<number | null>(null);
+  // Una carpeta abierta a la vez: abrir el pedido escaneado cierra las fotos,
+  // como al desplegar pedidos en las listas (Iván, 14/10/2026).
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   if (documentos.length === 0) {
     return <p className="text-[11px] text-text-muted">RPS no tiene nada colgado de este pedido.</p>;
@@ -70,6 +73,8 @@ export function DocumentosRps({
             key={clase}
             clase={clase}
             documentos={suyos}
+            abierto={abierta === clase}
+            onAlternar={() => setAbierta((a) => (a === clase ? null : clase))}
             onAbrir={(doc) => setEnVisor(abribles.indexOf(doc))}
           />
         ))}
@@ -190,13 +195,16 @@ function ordenarPorVersion(docs: DocumentoAbrible[]): void {
 function Grupo({
   clase,
   documentos,
+  abierto,
+  onAlternar,
   onAbrir,
 }: {
   clase: string;
   documentos: DocumentoAbrible[];
+  abierto: boolean;
+  onAlternar: () => void;
   onAbrir: (doc: DocumentoAbrible) => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
 
   return (
     <div className="glass-chip overflow-hidden rounded-lg">
@@ -204,7 +212,7 @@ function Grupo({
           sobre el rótulo. */}
       <button
         type="button"
-        onClick={() => setAbierto((v) => !v)}
+        onClick={onAlternar}
         aria-expanded={abierto}
         className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
       >
@@ -218,7 +226,7 @@ function Grupo({
       </button>
 
       <Desplegable abierto={abierto}>
-        <ul className="grid grid-cols-3 gap-1.5 border-t border-[var(--glass-border)] p-2">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-1.5 border-t border-[var(--glass-border)] p-2">
           {/* La clave lleva el índice porque el nombre no sirve solo: dos
               documentos pueden llamarse igual. */}
           {documentos.map((d, i) => (

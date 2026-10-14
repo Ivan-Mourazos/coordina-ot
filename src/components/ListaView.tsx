@@ -397,7 +397,11 @@ export function ListaView({
   rotulo,
   sinCabecera = false,
   compacta = false,
+  extraDetalle,
 }: {
+  /** Lo que va al final del desplegable de cada pedido (los documentos de RPS
+   *  en «En curso»). */
+  extraDetalle?: (p: Pedido) => ReactNode;
   /** Una línea por pedido (ver `COLUMNAS_COMPACTAS`). Sin material. */
   compacta?: boolean;
   /** El nombre del grupo encima de la lista (la consulta «En curso», agrupada
@@ -624,6 +628,7 @@ export function ListaView({
                       <Recorrido pedido={p} hoy={hoy} />
                     </div>
                   ) : undefined}
+                  extra={extraDetalle?.(p)}
                 />
               }
             />
@@ -746,11 +751,14 @@ function Detalle({
   operarios,
   conNombres,
   recorrido,
+  extra,
 }: {
   p: Pedido;
   hoy: string;
   operarios: Operario[];
   conNombres: boolean;
+  /** Al final del todo (ver `extraDetalle`). */
+  extra?: ReactNode;
   /** La línea de tiempo, al final de la fila de datos (la lista compacta). */
   recorrido?: ReactNode;
 }) {
@@ -810,6 +818,7 @@ function Detalle({
           <FilaOF key={of.id} of={of} operarios={operarios} hoy={hoy} conNombres={conNombres} />
         ))}
       </ul>
+      {extra}
     </div>
   );
 }
