@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "cbee028",
+    "hasta": "a939068",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -35,6 +35,11 @@
         "tipo": "mejor",
         "titulo": "El correo del planteamiento se lee mejor: pedido y OF en negrita, tiempos debajo",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Impresión Digital ve también el trabajo de la impresora UV y del plóter Jeti",
+        "tanda": 4
       }
     ]
   },
