@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "fd822a3",
+    "hasta": "e59aae1",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -70,6 +70,11 @@
         "tipo": "mejor",
         "titulo": "En Impresión Digital ya no sale la pestaña de Revisiones, que allí no se usa",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La consulta «En curso» es más compacta: una línea por pedido y grupos que se pliegan",
+        "tanda": 7
       }
     ]
   },
