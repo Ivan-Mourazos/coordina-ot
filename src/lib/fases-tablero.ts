@@ -419,7 +419,13 @@ export function faseEnUnaPalabra(
     case "planteando":
       return { texto: etiquetaFase("planteando", seccion), color: color(fase) };
     case "esperandoRevision":
-      return { texto: "Revisando", color: color(fase) };
+      // La fase junta las que esperan revisor y las que ya se están
+      // revisando: «Revisando» solo si alguien ha empezado (Iván, 14/10/2026:
+      // salía «Revisando» con todas por revisar).
+      return {
+        texto: p.ofs.some((o) => o.estado === "en_revision") ? "Revisando" : "Por revisar",
+        color: color(fase),
+      };
     case "listoParaPasar":
       return { texto: invitado ? "Listo" : etiquetaFase("listoParaPasar", seccion), color: color(fase) };
     case "parado":
