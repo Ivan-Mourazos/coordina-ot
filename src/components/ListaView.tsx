@@ -2,7 +2,7 @@
 
 import { PedidoCodigo } from "./PedidoCodigo";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { EstadoMaterial, Operario, Pedido } from "@/lib/types";
 import {
   comprasPendientes,
@@ -388,7 +388,15 @@ export function ListaView({
   fase,
   unoAbierto = false,
   conNombres = false,
+  rotulo,
+  sinCabecera = false,
 }: {
+  /** El nombre del grupo encima de la lista (la consulta «En curso», agrupada
+   *  por cómo va cada pedido). Ver `BloqueLista`. */
+  rotulo?: { texto: string; color?: string; sufijo?: ReactNode };
+  /** Sin los rótulos de columna: cuando van varias listas seguidas, solo la
+   *  primera los lleva. */
+  sinCabecera?: boolean;
   /** En el desplegable, autor y revisor por su nombre y no con avatar (la
    *  consulta sin sesión). */
   conNombres?: boolean;
@@ -474,7 +482,7 @@ export function ListaView({
 
   return (
     <div className="overflow-x-auto">
-      <BloqueLista columnas={columnas} cabecera={cabecera} desbordaHorizontal sinCaja>
+      <BloqueLista columnas={columnas} cabecera={sinCabecera ? undefined : cabecera} rotulo={rotulo} desbordaHorizontal sinCaja>
         {ordenados.map((p) => {
           // Terminado = la planificación vencida ya no es un problema
           // pendiente. Misma regla que `estaAtrasado`, que también los excluye.

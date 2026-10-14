@@ -1,20 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
+
+// El tema lo pone el script del <head> (layout.tsx) antes de pintar, como
+// clase «dark» en el <html>. Aquí solo se LEE esa clase, y en el servidor se
+// dice siempre «claro». Antes se leía en el primer render: en la consulta, que
+// se pinta en el servidor, el icono no coincidía con el del navegador, React
+// rehacía la página entera y de paso le quitaba al <html> la clase «dark» —se
+// perdía el modo oscuro al recargar, con el icono del sol— (Iván, 14/10/2026).
+const html = () => document.documentElement;
+function suscribir(aviso: () => void) {
+  const o = new MutationObserver(aviso);
+  o.observe(html(), { attributes: true, attributeFilter: ["class"] });
+  return () => o.disconnect();
+}
 
 export function ThemeToggle() {
-  // Solo se monta tras hidratar (gate de Board), así que puede leer la clase
-  // del <html> directamente en el primer render sin desajustes con el SSR.
-  const [dark, setDark] = useState(() =>
-    typeof document !== "undefined"
-      ? document.documentElement.classList.contains("dark")
-      : false,
+  const dark = useSyncExternalStore(
+    suscribir,
+    () => html().classList.contains("dark"),
+    () => false,
   );
 
   function toggle() {
     const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
+    html().classList.toggle("dark", next);
     try {
       localStorage.setItem("coordina-theme", next ? "dark" : "light");
     } catch {}

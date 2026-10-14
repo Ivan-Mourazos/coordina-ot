@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Operario, Pedido } from "@/lib/types";
-import { faseEnUnaPalabra } from "@/lib/fases-tablero";
+import { faseEnUnaPalabra, gruposEnCurso } from "@/lib/fases-tablero";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { BloquePlegable } from "./Bandeja";
 import { ListaView } from "./ListaView";
@@ -21,10 +21,12 @@ import { ListaView } from "./ListaView";
 // una rotulación le sirve Diseño Gráfico. Sin sondeo: se carga al entrar y al
 // cambiar de sección («Actualizar» es recargar la pestaña).
 
-const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno"];
+const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno", "impresion"];
 
-/** Sin devoluciones: quien mira desde fuera no las ve. */
-const faseParaInvitado = (p: Pedido) => faseEnUnaPalabra(p, { invitado: true });
+/** Sin devoluciones: quien mira desde fuera no las ve. Con la sección, para
+ *  que Impresión diga «Imprimiendo» y no «Planteando». */
+const faseParaInvitado = (seccion: SeccionId) => (p: Pedido) =>
+  faseEnUnaPalabra(p, { invitado: true, seccion: SECCIONES[seccion] });
 
 type Datos = { operarios: Operario[]; pedidos: Pedido[]; detenidos: Pedido[] };
 
@@ -95,19 +97,41 @@ export function ConsultaEnCurso({
       </div>
       {error && <p className="py-6 text-center text-sm text-red-600">No se pudo cargar el trabajo en curso. Recarga la página.</p>}
       {!error && !datos && <p className="py-6 text-center text-sm text-text-muted">Cargando lo que tiene la oficina…</p>}
-      {datos && (
-        <ListaView
-          pedidos={pedidos}
-          operarios={datos.operarios}
-          orden="planificacion"
-          ordenDesc={false}
-          hayFiltrosActivos={q !== ""}
-          sinMaterial
-          fase={faseParaInvitado}
-          unoAbierto
-          conNombres
-        />
-      )}
+      {/* Agrupados por cómo va cada pedido, como el Historial por días
+          (Iván, 14/10/2026). Los rótulos de columna, solo en el primero. Sin
+          pedidos, una lista sola para que diga por qué está vacía. */}
+      {datos &&
+        (pedidos.length === 0 ? (
+          <ListaView
+            pedidos={pedidos}
+            operarios={datos.operarios}
+            orden="planificacion"
+            ordenDesc={false}
+            hayFiltrosActivos={q !== ""}
+            sinMaterial
+            fase={faseParaInvitado(seccion)}
+            unoAbierto
+            conNombres
+          />
+        ) : (
+          <div className="space-y-5">
+            {gruposEnCurso(pedidos, SECCIONES[seccion]).map((g, i) => (
+              <ListaView
+                key={g.id}
+                pedidos={g.pedidos}
+                operarios={datos.operarios}
+                orden="planificacion"
+                ordenDesc={false}
+                sinMaterial
+                fase={faseParaInvitado(seccion)}
+                unoAbierto
+                conNombres
+                sinCabecera={i > 0}
+                rotulo={{ texto: g.titulo, color: g.color, sufijo: `${g.pedidos.length} ${g.pedidos.length === 1 ? "pedido" : "pedidos"}` }}
+              />
+            ))}
+          </div>
+        ))}
       {/* Parados por Producción: la oficina no puede hacer nada con ellos hasta
           que los liberen. Aparte y plegados, para que no se lean como retrasos
           de la oficina; el navegador recuerda si se dejaron abiertos. */}
@@ -137,7 +161,7 @@ export function ConsultaEnCurso({
             ordenDesc={false}
             hayFiltrosActivos={q !== ""}
             sinMaterial
-            fase={faseParaInvitado}
+            fase={faseParaInvitado(seccion)}
             unoAbierto
             conNombres
           />

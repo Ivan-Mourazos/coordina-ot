@@ -14,6 +14,7 @@ import {
   faseDePedido,
   faseDeColumna,
   faseEnUnaPalabra,
+  gruposEnCurso,
   pedidoParado,
   motivoBloqueo,
   ofOcultaDeOT,
@@ -645,5 +646,17 @@ describe("sección sin revisión (Impresión Digital)", () => {
     ]);
     expect(agruparPorFase([], SECCIONES.ot).map((g) => g.label)).toContain("Planteando");
     expect(etiquetaFase("planteando")).toBe("Planteando");
+  });
+});
+
+describe("«En curso» agrupado por cómo va cada pedido", () => {
+  const ped = (...ofs: OF[]) => ({ ofs }) as unknown as import("../types").Pedido;
+  it("en el orden del recorrido, solo los grupos con algo, y lo devuelto con lo que se plantea", () => {
+    const sin = { ...ped(of({})), id: "a" };
+    const devuelto = { ...ped(of({ autorId: "ivan", estado: "devuelta" })), id: "b" };
+    const listo = { ...ped(of({ autorId: "ivan", estado: "aprobada" })), id: "c" };
+    const grupos = gruposEnCurso([listo, devuelto, sin]);
+    expect(grupos.map((g) => g.titulo)).toEqual(["Sin empezar", "Planteando", "Listos para pasar"]);
+    expect(grupos[1].pedidos.map((p) => p.id)).toEqual(["b"]);
   });
 });
