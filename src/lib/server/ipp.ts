@@ -10,6 +10,12 @@
 export interface TrabajoIpp {
   nombre: string;
   usuario: string;
+  /** Contraseña de `usuario` en la impresora. Las Konica de la casa tienen la
+   *  autenticación de usuario activada: sin usuario válido aceptan el trabajo
+   *  y luego lo ABORTAN sin imprimir (visto el 14/10/2026 en la de OT, estado
+   *  8 con 0 páginas). Con clave se manda autenticación básica de HTTP, que es
+   *  la que usa la autenticación IPP de la impresora. */
+  clave?: string;
 }
 
 const enc = new TextEncoder();
@@ -74,18 +80,78 @@ export async function imprimirPdf(
   f: typeof fetch = fetch,
 ): Promise<{ trabajo: number | null }> {
   let r: Response;
+  const cabeceras: Record<string, string> = { "Content-Type": "application/ipp" };
+  if (t.clave) cabeceras.Authorization = `Basic ${Buffer.from(`${t.usuario}:${t.clave}`).toString("base64")}`;
   try {
     r = await f(urlHttp(uri), {
       method: "POST",
-      headers: { "Content-Type": "application/ipp" },
+      headers: cabeceras,
       body: peticionPrintJob(uri, pdf, t) as BodyInit, // TS 5.9: Uint8Array genérico no encaja en BodyInit
       signal: AbortSignal.timeout(30_000),
     });
   } catch (e) {
     throw new Error(`La impresora no responde (${(e as Error).message})`);
   }
+  if (r.status === 401 || r.status === 403) {
+    throw new Error(`La impresora pide usuario y contraseña (HTTP ${r.status}): revisa IMPRESORA_USUARIO e IMPRESORA_CLAVE`);
+  }
   if (!r.ok) throw new Error(`La impresora contestó HTTP ${r.status}`);
   const res = leerRespuesta(new Uint8Array(await r.arrayBuffer()));
   if (!res.ok) throw new Error(`La impresora rechazó el trabajo (IPP 0x${res.estado.toString(16).padStart(4, "0")})`);
   return { trabajo: res.trabajo };
+}
+
+/** Un atributo entero o enum (job-id, job-state…) de una respuesta IPP, o null. */
+function enteroDe(bytes: Uint8Array, buscado: string): number | null {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let i = 8;
+  while (i < bytes.length) {
+    const tag = bytes[i++];
+    if (tag === 0x03) break;
+    if (tag < 0x10) continue;
+    const ln = dv.getUint16(i); i += 2;
+    const nombre = new TextDecoder().decode(bytes.slice(i, i + ln)); i += ln;
+    const lv = dv.getUint16(i); i += 2;
+    if (nombre === buscado && (tag === 0x21 || tag === 0x23) && lv === 4) return dv.getInt32(i);
+    i += lv;
+  }
+  return null;
+}
+
+/** Cómo va un trabajo en la impresora: el `job-state` de IPP (3 pendiente,
+ *  5 imprimiendo, 7 cancelado, 8 abortado, 9 terminado…), o null si no se
+ *  puede saber.
+ *
+ *  Existe porque «aceptado» no basta: las Konica aceptan el trabajo y lo
+ *  abortan después si no les gusta el usuario (14/10/2026), y sin preguntar
+ *  el Historial diría «Impreso» de algo que no salió. */
+export async function estadoTrabajo(
+  uri: string,
+  trabajo: number,
+  t: TrabajoIpp,
+  f: typeof fetch = fetch,
+): Promise<number | null> {
+  const b: number[] = [0x02, 0x00, 0x00, 0x09, ...entero(1)];
+  b.push(0x01);
+  atributo(b, 0x47, "attributes-charset", texto("utf-8"));
+  atributo(b, 0x48, "attributes-natural-language", texto("es"));
+  atributo(b, 0x45, "printer-uri", texto(uri));
+  atributo(b, 0x21, "job-id", entero(trabajo));
+  atributo(b, 0x42, "requesting-user-name", texto(t.usuario));
+  atributo(b, 0x44, "requested-attributes", texto("job-state"));
+  b.push(0x03);
+  const cabeceras: Record<string, string> = { "Content-Type": "application/ipp" };
+  if (t.clave) cabeceras.Authorization = `Basic ${Buffer.from(`${t.usuario}:${t.clave}`).toString("base64")}`;
+  try {
+    const r = await f(urlHttp(uri), {
+      method: "POST",
+      headers: cabeceras,
+      body: new Uint8Array(b) as BodyInit,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!r.ok) return null;
+    return enteroDe(new Uint8Array(await r.arrayBuffer()), "job-state");
+  } catch {
+    return null;
+  }
 }
