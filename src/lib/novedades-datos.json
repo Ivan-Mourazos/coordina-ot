@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "9517fca",
+    "hasta": "fd822a3",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -32,6 +32,11 @@
         "tanda": 5
       },
       {
+        "tipo": "nuevo",
+        "titulo": "En la consulta de pedidos puedes filtrar por los que están en Impresión Digital",
+        "tanda": 6
+      },
+      {
         "tipo": "arreglado",
         "titulo": "En la consulta, la pestaña de Diseño Gráfico ya no habla de «plantear»",
         "tanda": 3
@@ -60,6 +65,11 @@
         "tipo": "mejor",
         "titulo": "En la consulta, «En curso» separa los pedidos por cómo van: sin empezar, planteándose, esperando revisión y listos",
         "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Impresión Digital ya no sale la pestaña de Revisiones, que allí no se usa",
+        "tanda": 6
       }
     ]
   },
