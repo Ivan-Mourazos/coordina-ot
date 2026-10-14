@@ -57,7 +57,8 @@ export function textoImpresion(f: FilaImpresion): string {
     case "sin_planteamiento":
       return "Se pasó sin planteamiento en Planteamientos";
     case "descartado":
-      return `Descartado: ${f.fichero ?? ""}`;
+      // Con el motivo: «descartado» a secas no dice qué hacer.
+      return `No se imprimió ${f.fichero ?? ""}${f.error ? `: ${f.error}` : ""}`;
   }
 }
 

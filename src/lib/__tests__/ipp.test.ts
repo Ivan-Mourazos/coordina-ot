@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { imprimirPdf, leerRespuesta, peticionPrintJob, urlHttp } from "../server/ipp";
+import { estadoTrabajo, imprimirPdf, leerRespuesta, peticionPrintJob, urlHttp } from "../server/ipp";
 
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // "%PDF"
 const T = { nombre: "Planteamiento AR.26.05016", usuario: "CoordinaOT" };
@@ -80,5 +80,51 @@ describe("respuesta", () => {
   it("ipp:// pasa a http:// con el puerto 631 si no lo trae", () => {
     expect(urlHttp("ipp://192.168.4.245/ipp")).toBe("http://192.168.4.245:631/ipp");
     expect(urlHttp("ipp://impresora:8631/ipp/print")).toBe("http://impresora:8631/ipp/print");
+  });
+});
+
+describe("usuario de la impresora", () => {
+  const ok = () => new Response(new Uint8Array([0x02, 0x00, 0x00, 0x00, 0, 0, 0, 1, 0x03]));
+
+  it("con clave, manda autenticación básica y ese usuario como requesting-user-name", async () => {
+    const f = vi.fn(async () => ok());
+    await imprimirPdf("ipp://192.168.4.249/ipp", PDF, { nombre: "x", usuario: "coordina", clave: "s3creta" }, f as unknown as typeof fetch);
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Basic ${Buffer.from("coordina:s3creta").toString("base64")}`);
+    expect(atributos(init.body as Uint8Array)["requesting-user-name"]).toBe("coordina");
+  });
+
+  it("sin clave, no manda autenticación", async () => {
+    const f = vi.fn(async () => ok());
+    await imprimirPdf("ipp://192.168.4.249/ipp", PDF, T, f as unknown as typeof fetch);
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it("si la impresora pide usuario (401), lo dice claro", async () => {
+    const f = vi.fn(async () => new Response(null, { status: 401 }));
+    await expect(imprimirPdf("ipp://192.168.4.249/ipp", PDF, T, f as unknown as typeof fetch)).rejects.toThrow(/usuario y contraseña/);
+  });
+});
+
+describe("cómo terminó el trabajo", () => {
+  // Respuesta de Get-Job-Attributes con job-state = n.
+  const conEstado = (n: number) => {
+    const nombre = new TextEncoder().encode("job-state");
+    return new Uint8Array([0x02, 0x00, 0x00, 0x00, 0, 0, 0, 1, 0x02, 0x23, 0, nombre.length, ...nombre, 0, 4, 0, 0, 0, n, 0x03]);
+  };
+
+  it("pregunta por el trabajo con Get-Job-Attributes y devuelve su estado", async () => {
+    const f = vi.fn(async () => new Response(conEstado(8)));
+    expect(await estadoTrabajo("ipp://192.168.4.249/ipp", 8597, T, f as unknown as typeof fetch)).toBe(8);
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    const b = init.body as Uint8Array;
+    expect([b[2], b[3]]).toEqual([0x00, 0x09]);
+    expect(atributos(b)["job-id"]).toBe(8597);
+  });
+
+  it("si la impresora no contesta, null (no se sabe, no es un fallo)", async () => {
+    const f = vi.fn(async () => { throw new TypeError("fetch failed"); });
+    expect(await estadoTrabajo("ipp://192.168.4.249/ipp", 1, T, f as unknown as typeof fetch)).toBeNull();
   });
 });

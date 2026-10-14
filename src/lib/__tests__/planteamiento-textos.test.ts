@@ -98,3 +98,11 @@ describe("¿el pedido ya se pasó antes?", () => {
     expect(yaSePasoAntes({ ...base, correo: { modo: "activo", envios: [{ id: 1 } as never] } })).toBe(true);
   });
 });
+
+describe("impresión que no salió", () => {
+  it("dice por qué", () => {
+    const fila = { id: 1, pedidoId: "AR.26.05017", fichero: "AR2605017-10.pdf", paginas: 1, intentos: 0, impresora: null, modo: null, pasadoPor: "ivan", creadoAt: "2026-10-14T08:00:00Z", enviadoAt: null };
+    expect(textoImpresion({ ...fila, estado: "descartado", error: "La impresora aceptó el trabajo pero lo abortó sin imprimir" }))
+      .toBe("No se imprimió AR2605017-10.pdf: La impresora aceptó el trabajo pero lo abortó sin imprimir");
+  });
+});

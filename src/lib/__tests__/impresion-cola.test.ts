@@ -82,7 +82,7 @@ describe("el trabajador", () => {
     const copias = () => readdirSync(process.env.COORDINA_PLANTEAMIENTOS_COPIAS!).length;
     const antes = copias();
     expect(antes).toBeGreaterThan(0);
-    const imprimir = vi.fn(async (..._a: unknown[]) => ({ trabajo: 77 }));
+    const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 77 }));
     expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
     expect(imprimir.mock.calls[0][0]).toBe("ipp://192.168.4.245/ipp");
     const [f] = cola.leerImpresionesDe("AR.26.05016");
@@ -96,7 +96,7 @@ describe("el trabajador", () => {
     const { getDb } = await import("../server/estado-db");
     const primera = getDb().prepare("SELECT copia FROM planteamiento_impresion WHERE pedido_id = 'AR.26.07001'").get() as { copia: string };
     rmSync(primera.copia, { force: true });
-    const imprimir = vi.fn(async (..._a: unknown[]) => ({ trabajo: 5 }));
+    const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 5 }));
     expect(await worker.vueltaImpresion(T0, imprimir)).toBe(1);
     expect(imprimir).toHaveBeenCalledTimes(1);
     expect(cola.leerImpresionesDe("AR.26.07001")[0]).toMatchObject({ estado: "descartado" });
@@ -130,5 +130,38 @@ describe("el trabajador", () => {
     const imprimir = vi.fn(async () => ({ trabajo: 1 }));
     expect(await worker.vueltaImpresion(T0, imprimir)).toBe(0);
     expect(imprimir).not.toHaveBeenCalled();
+  });
+});
+
+describe("usuario de la impresora y comprobación", () => {
+  it("manda el usuario y la clave de IMPRESORA_USUARIO / IMPRESORA_CLAVE", async () => {
+    process.env.IMPRESORA_USUARIO = "coordina";
+    process.env.IMPRESORA_CLAVE = "s3creta";
+    try {
+      await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+      const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 1 }));
+      await worker.vueltaImpresion(T0, imprimir);
+      expect(imprimir.mock.calls[0][2]).toMatchObject({ usuario: "coordina", clave: "s3creta" });
+    } finally {
+      delete process.env.IMPRESORA_USUARIO;
+      delete process.env.IMPRESORA_CLAVE;
+    }
+  });
+
+  it("si la impresora aborta el trabajo, no se da por impreso", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    const imprimir = vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 8597 }));
+    const comprobar = vi.fn(async () => 8);
+    expect(await worker.vueltaImpresion(T0, imprimir, comprobar)).toBe(0);
+    expect(comprobar.mock.calls[0]).toEqual(["ipp://192.168.4.245/ipp", 8597, expect.objectContaining({ usuario: "CoordinaOT" })]);
+    const [f] = cola.leerImpresionesDe("AR.26.05016");
+    expect(f.estado).toBe("descartado");
+    expect(f.error).toMatch(/abortó/);
+  });
+
+  it("si termina o sigue en cola, sí cuenta como enviado", async () => {
+    await cola.prepararImpresion("AR.26.05016", "ivan", T0, async () => pdfDe("AR2605016-10.pdf", true));
+    expect(await worker.vueltaImpresion(T0, vi.fn<(...a: unknown[]) => Promise<{ trabajo: number | null }>>(async () => ({ trabajo: 1 })), vi.fn(async () => 9))).toBe(1);
+    expect(cola.leerImpresionesDe("AR.26.05016")[0].estado).toBe("enviado");
   });
 });

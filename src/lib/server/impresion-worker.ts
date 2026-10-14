@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { imprimirPdf } from "./ipp";
+import { estadoTrabajo, imprimirPdf, type TrabajoIpp } from "./ipp";
 import { descartar, impresoraDestino, marcarFallo, marcarImpreso, modoImpresion, pendientesParaEnviar } from "./impresion-cola";
 
 // ─── El que manda los planteamientos a la impresora ─────────────────────────
@@ -16,7 +16,33 @@ declare global {
 
 let corriendo = false;
 
-export async function vueltaImpresion(ahora = new Date(), imprimir = imprimirPdf): Promise<number> {
+/** Con qué usuario se imprime. Las Konica tienen la autenticación de usuario
+ *  activada y abortan lo que llega sin uno válido (14/10/2026); el usuario y su
+ *  clave los da David, en `IMPRESORA_USUARIO` / `IMPRESORA_CLAVE`. */
+function usuarioImpresora(): Pick<TrabajoIpp, "usuario" | "clave"> {
+  const clave = process.env.IMPRESORA_CLAVE;
+  return { usuario: process.env.IMPRESORA_USUARIO ?? "CoordinaOT", ...(clave ? { clave } : {}) };
+}
+
+/** Pregunta a la impresora cómo acabó un trabajo, para no dar por impreso lo
+ *  que abortó. Devuelve el job-state de IPP, o null si no se sabe. */
+export type Comprobador = (uri: string, trabajo: number, t: TrabajoIpp) => Promise<number | null>;
+
+/** job-state de IPP que significan «no ha salido»: cancelado y abortado. */
+const NO_SALIO: ReadonlySet<number> = new Set([7, 8]);
+
+/** Lo que tarda una Konica en decidir si aborta: unos segundos. */
+const ESPERA_COMPROBACION_MS = 10_000;
+const dormir = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+/** `comprobar`: si se da, tras mandar cada trabajo se pregunta cómo acabó, y
+ *  si la impresora lo abortó queda como error en vez de «impreso». El
+ *  trabajador de verdad siempre comprueba (ver `arrancarImpresion`). */
+export async function vueltaImpresion(
+  ahora = new Date(),
+  imprimir = imprimirPdf,
+  comprobar?: Comprobador,
+): Promise<number> {
   const modo = modoImpresion();
   const destino = impresoraDestino(modo);
   if (!destino || corriendo) return 0;
@@ -39,10 +65,15 @@ export async function vueltaImpresion(ahora = new Date(), imprimir = imprimirPdf
         continue;
       }
       try {
-        const { trabajo } = await imprimir(destino, pdf, {
-          nombre: `Planteamiento ${p.pedidoId}`,
-          usuario: "CoordinaOT",
-        });
+        const t: TrabajoIpp = { nombre: `Planteamiento ${p.pedidoId}`, ...usuarioImpresora() };
+        const { trabajo } = await imprimir(destino, pdf, t);
+        const estado = comprobar && trabajo !== null ? await comprobar(destino, trabajo, t) : null;
+        if (estado !== null && NO_SALIO.has(estado)) {
+          // «Reimprimir» lo vuelve a buscar y mandar cuando se arregle.
+          descartar(p.id, `La impresora aceptó el trabajo pero lo ${estado === 7 ? "canceló" : "abortó"} sin imprimir: revisa el usuario de la impresora (IMPRESORA_USUARIO / IMPRESORA_CLAVE)`);
+          console.warn(`[impresion] ${p.pedidoId} ${p.fichero}: la impresora abortó el trabajo ${trabajo}`);
+          continue;
+        }
         marcarImpreso(p.id, trabajo, destino, modo, ahora, p.copia);
         enviados += 1;
       } catch (e) {
@@ -60,7 +91,10 @@ export async function vueltaImpresion(ahora = new Date(), imprimir = imprimirPdf
 export function arrancarImpresion(): void {
   if (globalThis.__coordinaImpresion) return;
   globalThis.__coordinaImpresion = setInterval(() => {
-    vueltaImpresion().catch((e) => console.error("[impresion] la vuelta falló:", e));
+    vueltaImpresion(new Date(), imprimirPdf, async (uri, trabajo, t) => {
+      await dormir(ESPERA_COMPROBACION_MS);
+      return estadoTrabajo(uri, trabajo, t);
+    }).catch((e) => console.error("[impresion] la vuelta falló:", e));
   }, CADA_MS);
   globalThis.__coordinaImpresion.unref?.();
 }
