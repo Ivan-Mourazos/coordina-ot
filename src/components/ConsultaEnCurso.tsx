@@ -6,6 +6,7 @@ import { faseEnUnaPalabra, gruposEnCurso } from "@/lib/fases-tablero";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { BloquePlegable } from "./Bandeja";
 import { ListaView } from "./ListaView";
+import { DocumentosEnCurso } from "./DocumentosEnCurso";
 
 // ─── «En curso»: el trabajo que tiene ahora la oficina ──────────────────────
 // Pedido por Esteban (09/10/2026): ver qué está planteando OT, quién, en qué
@@ -145,6 +146,7 @@ export function ConsultaEnCurso({
                   sinMaterial
                   compacta
                   sinCabecera
+                  extraDetalle={(p) => <DocumentosEnCurso codigo={p.codigo} />}
                   // El estado de cada pedido solo si dice algo que el grupo no
                   // dice: «Sin asignar», «Por revisar» frente a «Revisando».
                   fase={(p) => {
