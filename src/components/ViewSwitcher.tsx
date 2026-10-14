@@ -42,7 +42,11 @@ export function ViewSwitcher({
   onChange,
   badge,
   conCasa = false,
+  sinRevision = false,
 }: {
+  /** La sección no tiene revisión (Impresión Digital): sin «Revisiones»,
+   *  que saldría siempre vacía. */
+  sinRevision?: boolean;
   vista: Vista;
   onChange: (v: Vista) => void;
   badge?: Partial<Record<Vista, number>>;
@@ -58,7 +62,7 @@ export function ViewSwitcher({
   // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
   return (
     <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
-      {OPCIONES.filter((o) => o.id !== "casa" || conCasa).map((o) => {
+      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "revision" || !sinRevision)).map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
         return (
