@@ -5,6 +5,7 @@ import { planteamientosDe } from "@/lib/server/planteamiento-pdf";
 import { leerImpresionesDe, modoImpresion } from "@/lib/server/impresion-cola";
 import { leerCorreosDe, modoCorreo } from "@/lib/server/correo-cola";
 import { soloConSesion } from "@/lib/server/sesion";
+import { avisoCaducidadSecreto } from "@/lib/server/graph-correo";
 
 // ─── GET /api/planteamiento?pedido=AR.26.05016 ───────────────────────────────
 // Lo que el diálogo de pasar enseña («se imprimirá…») y lo que la ficha del
@@ -17,7 +18,9 @@ export const dynamic = "force-dynamic";
  *  fallara, el diálogo y la ficha siguen contando lo de la impresión. */
 function correoDe(pedido: string) {
   try {
-    return { modo: modoCorreo(), envios: leerCorreosDe(pedido) };
+    const modo = modoCorreo();
+    // Para avisar al pasar de que el permiso de mandar correos caduca pronto.
+    return { modo, envios: leerCorreosDe(pedido), caducaSecreto: modo === "off" ? null : avisoCaducidadSecreto() };
   } catch (e) {
     console.error(`[correo] no se pudo leer el estado de ${pedido}:`, (e as Error).message);
     return { modo: modoCorreo(), envios: [] };

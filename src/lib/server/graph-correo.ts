@@ -33,6 +33,24 @@ export class ErrorGraph extends Error {
   }
 }
 
+/** Cuándo caduca el secreto de la aplicación «Coordina» en Entra ID. Se creó
+ *  el 13/10/2026 con un año de vida. Al renovarlo, IT da otro con otra fecha:
+ *  se pone en `GRAPH_SECRETO_CADUCA` (AAAA-MM-DD) junto al secreto nuevo. */
+export const CADUCA_SECRETO_POR_DEFECTO = "2027-10-13";
+/** Cuántos días antes se empieza a avisar al pasar un pedido. */
+export const DIAS_AVISO_SECRETO = 30;
+
+/** Si el secreto caduca pronto (o ya caducó): su fecha y los días que le
+ *  quedan (0 o menos = caducado). null si queda tiempo de sobra. Existe para
+ *  que no pille por sorpresa: con el secreto caducado Microsoft rechaza todo
+ *  y el correo deja de salir sin que nadie lo note (Iván, 14/10/2026). */
+export function avisoCaducidadSecreto(ahora = new Date()): { fecha: string; dias: number } | null {
+  const conf = process.env.GRAPH_SECRETO_CADUCA?.trim() ?? "";
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(conf) && !Number.isNaN(Date.parse(conf)) ? conf : CADUCA_SECRETO_POR_DEFECTO;
+  const dias = Math.ceil((Date.parse(`${fecha}T00:00:00Z`) - ahora.getTime()) / 86_400_000);
+  return dias <= DIAS_AVISO_SECRETO ? { fecha, dias } : null;
+}
+
 export function credencialesGraph(): CredencialesGraph | null {
   const tenant = process.env.GRAPH_TENANT_ID;
   const cliente = process.env.GRAPH_CLIENT_ID;

@@ -109,3 +109,26 @@ describe("correo en HTML", () => {
     expect(JSON.parse(String(llamadas[1].init.body)).message.body).toEqual({ contentType: "HTML", content: "<b>hola</b>" });
   });
 });
+
+describe("aviso de que el secreto caduca", () => {
+  it("nada hasta 30 días antes; luego los días que quedan, y 0 o menos si ya caducó", async () => {
+    const { avisoCaducidadSecreto } = await import("../server/graph-correo");
+    delete process.env.GRAPH_SECRETO_CADUCA;
+    expect(avisoCaducidadSecreto(new Date("2027-09-01T10:00:00Z"))).toBeNull();
+    expect(avisoCaducidadSecreto(new Date("2027-09-13T10:00:00Z"))).toEqual({ fecha: "2027-10-13", dias: 30 });
+    expect(avisoCaducidadSecreto(new Date("2027-10-12T10:00:00Z"))).toEqual({ fecha: "2027-10-13", dias: 1 });
+    expect(avisoCaducidadSecreto(new Date("2027-10-14T10:00:00Z"))!.dias).toBeLessThanOrEqual(0);
+  });
+
+  it("la fecha del .env manda; si está mal escrita, vale la de por defecto", async () => {
+    const { avisoCaducidadSecreto } = await import("../server/graph-correo");
+    try {
+      process.env.GRAPH_SECRETO_CADUCA = "2028-10-01";
+      expect(avisoCaducidadSecreto(new Date("2027-10-12T10:00:00Z"))).toBeNull();
+      process.env.GRAPH_SECRETO_CADUCA = "13/10/2027";
+      expect(avisoCaducidadSecreto(new Date("2027-10-12T10:00:00Z"))?.fecha).toBe("2027-10-13");
+    } finally {
+      delete process.env.GRAPH_SECRETO_CADUCA;
+    }
+  });
+});

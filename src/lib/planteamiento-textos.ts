@@ -16,7 +16,13 @@ export interface VistaPlanteamiento {
   impresiones: FilaImpresion[];
   /** El correo del planteamiento (spec 2026-10-14). Opcional: un servidor de
    *  antes no lo manda, y entonces la pantalla simplemente no lo cuenta. */
-  correo?: { modo: ModoCorreo; envios: FilaCorreo[] };
+  correo?: {
+    modo: ModoCorreo;
+    envios: FilaCorreo[];
+    /** El permiso de Coordina para mandar correos caduca pronto (o caducó):
+     *  su fecha y los días que quedan. Ver `avisoCaducidadSecreto`. */
+    caducaSecreto?: { fecha: string; dias: number } | null;
+  };
 }
 
 const pags = (n: number) => `${n} ${n === 1 ? "pág." : "págs."}`;
@@ -72,6 +78,20 @@ export function textoCorreoAntesDePasar(d: VistaPlanteamiento): string | null {
   return adjuntos.length
     ? `Se mandará el correo ${a} con ${adjuntos.join(", ")} adjunto${adjuntos.length === 1 ? "" : "s"}`
     : `Se mandará el correo ${a} avisando de que está impreso`;
+}
+
+/** El aviso de que el permiso de mandar correos caduca, en el diálogo de pasar
+ *  y cada vez (Iván, 14/10/2026), para que se renueve a tiempo. */
+export function textoCaducidadSecreto(d: VistaPlanteamiento): string | null {
+  const c = d.correo?.caducaSecreto;
+  if (!c || !d.correo || d.correo.modo === "off") return null;
+  const [anio, mes, dia] = c.fecha.split("-");
+  const fecha = `${dia}/${mes}/${anio}`;
+  if (c.dias <= 0) {
+    return `El permiso de Coordina para mandar correos caducó el ${fecha}: el correo NO va a salir. Avisa a Iván para que IT lo renueve.`;
+  }
+  const cuando = c.dias === 1 ? "mañana" : `en ${c.dias} días`;
+  return `Ojo: el permiso de Coordina para mandar correos caduca el ${fecha} (${cuando}). Avisa a Iván para que IT lo renueve, o el correo dejará de salir.`;
 }
 
 export function textoCorreo(f: FilaCorreo): string {

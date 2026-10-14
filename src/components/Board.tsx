@@ -62,7 +62,7 @@ import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduc
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
 import type { EleccionPase } from "@/lib/planteamiento";
-import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
+import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
   FICHAJE_VACIO,
@@ -3120,6 +3120,11 @@ export function Board({
                   </button>
                 )}
                 </>
+                )}
+                {mandarCorreoAlPasar && textoCaducidadSecreto(vistaPlanteamiento.datos) && (
+                  <p role="alert" className="mt-2 font-semibold text-amber-800 dark:text-amber-300">
+                    {textoCaducidadSecreto(vistaPlanteamiento.datos)}
+                  </p>
                 )}
               </div>
             )}
