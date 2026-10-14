@@ -72,8 +72,11 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
   };
 
   return (
-    <section className="mb-4" aria-label="Planteamiento">
-      <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>Planteamiento</h3>
+    <section className="mb-4" aria-label="Planteamiento enviado a Producción">
+      {/* No «Planteamiento» a secas: justo encima está la carpeta Planteamiento
+          de los documentos de RPS, que es el PDF archivado; esto es lo que
+          CoordinaOT hizo con él al pasar (Iván, 14/10/2026). */}
+      <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>Planteamiento enviado a Producción</h3>
       <ul className="flex flex-col gap-1 text-xs text-text">
         {datos.impresiones.slice(0, 3).map((f) => (
           <li key={`i${f.id}`}>{textoImpresion(f)}</li>
@@ -90,7 +93,7 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
             disabled={enviando}
             className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text disabled:opacity-40"
           >
-            Reimprimir
+            Reimprimir planteamiento
           </button>
         )}
         {/* Reenviar solo si ya hubo un correo de verdad (con o sin adjunto: el
