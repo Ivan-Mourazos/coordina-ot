@@ -21,10 +21,12 @@ import { ListaView } from "./ListaView";
 // una rotulación le sirve Diseño Gráfico. Sin sondeo: se carga al entrar y al
 // cambiar de sección («Actualizar» es recargar la pestaña).
 
-const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno"];
+const SECCIONES_EN_CURSO: SeccionId[] = ["ot", "diseno", "impresion"];
 
-/** Sin devoluciones: quien mira desde fuera no las ve. */
-const faseParaInvitado = (p: Pedido) => faseEnUnaPalabra(p, { invitado: true });
+/** Sin devoluciones: quien mira desde fuera no las ve. Con la sección, para
+ *  que Impresión diga «Imprimiendo» y no «Planteando». */
+const faseParaInvitado = (seccion: SeccionId) => (p: Pedido) =>
+  faseEnUnaPalabra(p, { invitado: true, seccion: SECCIONES[seccion] });
 
 type Datos = { operarios: Operario[]; pedidos: Pedido[]; detenidos: Pedido[] };
 
@@ -103,7 +105,7 @@ export function ConsultaEnCurso({
           ordenDesc={false}
           hayFiltrosActivos={q !== ""}
           sinMaterial
-          fase={faseParaInvitado}
+          fase={faseParaInvitado(seccion)}
           unoAbierto
           conNombres
         />
@@ -137,7 +139,7 @@ export function ConsultaEnCurso({
             ordenDesc={false}
             hayFiltrosActivos={q !== ""}
             sinMaterial
-            fase={faseParaInvitado}
+            fase={faseParaInvitado(seccion)}
             unoAbierto
             conNombres
           />
