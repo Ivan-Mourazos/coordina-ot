@@ -90,9 +90,11 @@ export function ConsultaEnCurso({
           ))}
         </div>
         <p className="text-[11px] text-text-muted">
-          {/* «Plantea» solo vale para OT (David, 14/10/2026): en Diseño no se plantea. */}
-          {`Lo que tiene ahora ${SECCIONES[seccion].nombre}: ${seccion === "ot" ? "quién lo plantea" : "quién lo lleva"}, en qué punto va y para cuándo.`}
-          {datos && ` ${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"}.`}
+          {/* Solo la cuenta: cómo va cada pedido ya lo dicen los grupos de
+              abajo (Iván, 14/10/2026). */}
+          {datos
+            ? `${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"} en curso en ${SECCIONES[seccion].nombre}`
+            : `En curso en ${SECCIONES[seccion].nombre}`}
         </p>
       </div>
       {error && <p className="py-6 text-center text-sm text-red-600">No se pudo cargar el trabajo en curso. Recarga la página.</p>}
