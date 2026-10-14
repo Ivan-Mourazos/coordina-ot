@@ -2212,9 +2212,6 @@ export function Board({
   // Lo que se va a imprimir al pasar (solo OT). Se pide al abrir el diálogo;
   // mientras no llega, el diálogo sale sin la línea. Ver spec 2026-10-13.
   const [vistaPlanteamiento, setVistaPlanteamiento] = useState<{ pedidoId: string; datos: VistaPlanteamiento } | null>(null);
-  const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
-  // Y si se manda el correo del planteamiento (spec 2026-10-14). Marcada al abrir.
-  const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
   // Pedido cuyo diálogo está abierto ahora. Una respuesta tardía de un pedido
   // anterior (abrir A, cancelar, abrir B) no debe pisar la vista de B.
   const pedidoDelDialogo = useRef<string | null>(null);
@@ -2223,8 +2220,6 @@ export function Board({
     if (pedido && puedePasarAProduccion(pedido, miId)) {
       pedidoDelDialogo.current = pedidoId;
       setPasarPendiente(pedidoId);
-      setImprimirAlPasar(true);
-      setMandarCorreoAlPasar(true);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -3015,43 +3010,27 @@ export function Board({
             {vistaPlanteamiento?.pedidoId === pasarPendiente &&
               (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (
               <div className="mt-3 rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
-                {/* Impresión y correo van cada uno con su casilla: se puede
-                    querer uno sin el otro (volver a pasar un pedido recuperado
-                    sin repetir el correo, por ejemplo). */}
+                {/* Solo informa: la norma es imprimir siempre y mandar siempre
+                    el correo (Iván, 14/10/2026), así que no hay casillas que
+                    alguien pueda desmarcar por error. */}
                 {textoAntesDePasar(vistaPlanteamiento.datos) && (
                   <>
-                    <p className="text-text">
-                      {!imprimirAlPasar && vistaPlanteamiento.datos.ficheros.length > 0
-                        ? "No se imprimirá."
-                        : textoAntesDePasar(vistaPlanteamiento.datos)}
-                    </p>
+                    <p className="text-text">{textoAntesDePasar(vistaPlanteamiento.datos)}</p>
                     {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
                       <p className="mt-1 text-text-muted">
                         Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
                       </p>
                     )}
-                    {vistaPlanteamiento.datos.ficheros.length > 0 && (
-                      <label className="mt-2 flex items-center gap-2 text-text">
-                        <input type="checkbox" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
-                        Imprimir en Producción
-                      </label>
-                    )}
                   </>
                 )}
                 {textoCorreoAntesDePasar(vistaPlanteamiento.datos) && (
                   <>
-                    <p className="mt-2 text-text">
-                      {mandarCorreoAlPasar ? textoCorreoAntesDePasar(vistaPlanteamiento.datos) : "No se mandará el correo."}
-                    </p>
+                    <p className="mt-2 text-text">{textoCorreoAntesDePasar(vistaPlanteamiento.datos)}</p>
                     {vistaPlanteamiento.datos.correo?.envios.some((f) => f.estado === "enviado") && (
                       <p className="mt-1 text-text-muted">
                         Ya se mandó antes: {textoCorreo(vistaPlanteamiento.datos.correo.envios.find((f) => f.estado === "enviado")!)}
                       </p>
                     )}
-                    <label className="mt-2 flex items-center gap-2 text-text">
-                      <input type="checkbox" checked={mandarCorreoAlPasar} onChange={(e) => setMandarCorreoAlPasar(e.target.checked)} />
-                      Mandar por correo
-                    </label>
                   </>
                 )}
               </div>
@@ -3066,12 +3045,12 @@ export function Board({
           const pedido = pedidos.find((p) => p.id === id);
           // Los que no son todo A4 se imprimen a mano: el cuadro se abre AQUÍ,
           // dentro del clic, porque fuera de él el navegador lo bloquea.
-          if (imprimirAlPasar && vista && vista.modo !== "off" && pedido?.codigo) {
+          if (vista && vista.modo !== "off" && pedido?.codigo) {
             for (const f of vista.ficheros.filter((x) => !x.todoA4)) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
           }
-          completarPedidoAhora(id, undefined, undefined, { imprimirPlanteamiento: imprimirAlPasar, mandarCorreo: mandarCorreoAlPasar });
+          completarPedidoAhora(id);
         }}
         onCancelar={() => setPasarPendiente(null)}
       />

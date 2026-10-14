@@ -91,3 +91,26 @@ pasar el pedido a Producción, CoordinaOT manda ese correo solo.
 Novedad: nuevo | Al pasar un pedido a Producción se manda solo el correo del planteamiento
 Detalle: Llega a Oficina Técnica y a Producción con el PDF adjunto y los datos del pedido. Ya no hace falta mandarlo a mano.
 ```
+
+## Cambio de Iván (14/10/2026): la norma de la casa
+
+Sustituye a las decisiones 2, 4 y 7 de arriba.
+
+- **Siempre se imprime y siempre se manda el correo.** Fuera las casillas del
+  diálogo de pasar: solo informa de lo que va a pasar.
+- **Qué va adjunto:**
+  - Los PDF de **PVC** (`-10` en adelante: `-10`, `-11`, `-12`…) van adjuntos al
+    correo.
+  - Los de **toldos y acrílico** (`-1` a `-9`) solo se imprimen, y el correo avisa
+    de que están impresos, sin adjunto. Es lo que se hacía a mano: responder
+    «IMPRESO».
+- **Cuerpo del correo:**
+  - el pedido con su cliente;
+  - una línea por OF con su descripción de catálogo;
+  - debajo de cada OF, sus tiempos de planteo y revisión, con el autor y el
+    revisor si los tiene (si no hubo revisión, «Sin revisión»);
+  - qué se imprimió y qué va adjunto;
+  - quién lo pasó.
+  - Sin fecha de entrega.
+- **Varios planteamientos del mismo pedido** (`-10`, `-11`, `-12`…): todos, en
+  orden, en el mismo correo.

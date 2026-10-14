@@ -39,9 +39,7 @@ const EXISTE = path.join(__dirname, "planteamiento.test.ts");
 const DATOS = {
   pedido: "AR.26.05016",
   cliente: "Bar Central",
-  ofs: ["0232968"],
-  entrega: "2026-10-24",
-  minutosPlanteo: 30,
+  ofs: [{ codigo: "0232968", descripcion: "TOLDO PUNTO RECTO", planteoMin: 30, autor: "Tamara", revisionMin: 0, revisor: null }],
   pasadoPor: "Iván Sánchez",
 };
 const planteamientos = (...f: Array<[string, string, boolean]>): Planteamientos => ({
@@ -61,14 +59,14 @@ describe("modo y destinatarios", () => {
 });
 
 describe("al pasar el pedido", () => {
-  it("un correo con TODOS los PDF, A4 o no, y lo que toca congelado", async () => {
+  it("adjunta solo los de PVC (-10 en adelante) y congela lo que toca", async () => {
     const r = await cola.prepararCorreo(DATOS, "ivan", T0, async () =>
       planteamientos(["AR2605016-1.pdf", EXISTE, false], ["AR2605016-10.pdf", EXISTE, true]));
     expect(r).toEqual({ encolado: true, aviso: null });
     const [f] = cola.leerCorreosDe("AR.26.05016");
     expect(f).toMatchObject({
       estado: "pendiente",
-      ficheros: ["AR2605016-1.pdf", "AR2605016-10.pdf"],
+      ficheros: ["AR2605016-10.pdf"],
       para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"],
       asunto: "Planteamiento AR.26.05016 · Bar Central",
       modo: "activo",
@@ -82,27 +80,27 @@ describe("al pasar el pedido", () => {
     expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ estado: "sin_planteamiento", error: "No puedo leer la carpeta Planteamientos" });
   });
 
-  it("un PDF que no se deja copiar se queda fuera; si no queda ninguno, descartado; nunca lanza", async () => {
+  it("un PDF que no se deja copiar se queda fuera; si no queda ninguno de los adjuntos, descartado; nunca lanza", async () => {
     await cola.prepararCorreo(DATOS, "ivan", T0, async () =>
-      planteamientos(["A-1.pdf", path.join(dir, "no-existe.pdf"), true], ["A-10.pdf", EXISTE, true]));
-    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ estado: "pendiente", ficheros: ["A-10.pdf"] });
-    expect(cola.leerCorreosDe("AR.26.05016")[0].error).toMatch(/A-1\.pdf/);
+      planteamientos(["AR2605016-11.pdf", path.join(dir, "no-existe.pdf"), true], ["AR2605016-10.pdf", EXISTE, true]));
+    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ estado: "pendiente", ficheros: ["AR2605016-10.pdf"] });
+    expect(cola.leerCorreosDe("AR.26.05016")[0].error).toContain("AR2605016-11.pdf");
 
     await cola.prepararCorreo({ ...DATOS, pedido: "AR.26.05017" }, "ivan", T0, async () =>
-      planteamientos(["B-1.pdf", path.join(dir, "no-existe.pdf"), true]));
+      planteamientos(["AR2605017-10.pdf", path.join(dir, "no-existe.pdf"), true]));
     expect(cola.leerCorreosDe("AR.26.05017")[0].estado).toBe("descartado");
   });
 
   it("en ensayo va solo a Iván", async () => {
     process.env.CORREO_PLANTEAMIENTO = "ensayo";
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ para: ["ivan.sanchez@toldosgomez.com"], modo: "ensayo" });
   });
 });
 
 describe("el trabajador", () => {
   it("manda el correo congelado con sus adjuntos, lo marca enviado y borra las copias", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     const antes = copias();
     const enviados: Correo[] = [];
     const enviar = vi.fn(async (c: Correo) => { enviados.push(c); });
@@ -113,8 +111,9 @@ describe("el trabajador", () => {
       responderA: "of.tecnica@toldosgomez.com",
       asunto: "Planteamiento AR.26.05016 · Bar Central",
     });
-    expect(enviados[0].texto).toContain("Cliente: Bar Central");
-    expect(enviados[0].adjuntos[0].nombre).toBe("A-10.pdf");
+    expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
+    expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO");
+    expect(enviados[0].adjuntos[0].nombre).toBe("AR2605016-10.pdf");
     expect(enviados[0].adjuntos[0].bytes.length).toBeGreaterThan(0);
     expect(cola.leerCorreosDe("AR.26.05016")[0].estado).toBe("enviado");
     expect(copias()).toBe(antes - 1);
@@ -130,9 +129,23 @@ describe("el trabajador", () => {
     expect(enviados[0].texto).toContain("Adjuntos: AR2605016-10.pdf, AR.26.05016-11.pdf, AR2605016-12.pdf");
   });
 
+  it("solo toldos (-1): correo sin adjuntos que avisa de lo impreso", async () => {
+    process.env.IMPRESION_PRODUCCION = "activo";
+    try {
+      await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true]));
+      const enviados: Correo[] = [];
+      expect(await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }))).toBe(1);
+      expect(enviados[0].adjuntos).toEqual([]);
+      expect(enviados[0].texto).toContain("Impreso en Producción: AR2605016-1.pdf");
+      expect(enviados[0].texto).not.toContain("Adjunto");
+    } finally {
+      delete process.env.IMPRESION_PRODUCCION;
+    }
+  });
+
   it("rechazo que no se arregla reintentando: descartado y sigue con el siguiente", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
-    await cola.prepararCorreo({ ...DATOS, pedido: "AR.26.05017" }, "ivan", T0, async () => planteamientos(["B-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo({ ...DATOS, pedido: "AR.26.05017" }, "ivan", T0, async () => planteamientos(["AR2605017-10.pdf", EXISTE, true]));
     let n = 0;
     const enviar = vi.fn(async () => {
       n += 1;
@@ -144,7 +157,7 @@ describe("el trabajador", () => {
   });
 
   it("fallo reintentable: espera cada vez más y para la vuelta", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     const falla = vi.fn(async () => { throw new graph.ErrorGraph("Microsoft no responde (fetch failed)", true); });
     await worker.vueltaCorreo(T0, falla);
     expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ estado: "pendiente", intentos: 1 });
@@ -155,7 +168,7 @@ describe("el trabajador", () => {
   });
 
   it("si falta una copia, descartado con el motivo y sigue", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     const d = process.env.COORDINA_PLANTEAMIENTOS_COPIAS!;
     for (const n of readdirSync(d).filter((x) => x.startsWith("correo-"))) unlinkSync(path.join(d, n));
     const enviar = vi.fn(async () => {});
@@ -165,7 +178,7 @@ describe("el trabajador", () => {
   });
 
   it("sin credenciales de Microsoft no intenta nada; en off tampoco", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     delete process.env.GRAPH_CLIENT_SECRET;
     const enviar = vi.fn(async () => {});
     expect(await worker.vueltaCorreo(T0, enviar)).toBe(0);
@@ -177,13 +190,20 @@ describe("el trabajador", () => {
 });
 
 describe("reenviar", () => {
-  it("vuelve a encolar el último correo con el mismo asunto y PDF", async () => {
-    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+  it("el de toldos, sin adjuntos, también se puede reenviar", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true]));
     await worker.vueltaCorreo(T0, vi.fn(async () => {}));
-    const ok = await cola.reenviarUltimo("AR.26.05016", "tamara", T0, async () => planteamientos(["A-10.pdf", EXISTE, true]));
+    expect(await cola.reenviarUltimo("AR.26.05016", "ivan", T0, async () => ({ ficheros: [], aviso: null }))).toBe(true);
+    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ estado: "pendiente", ficheros: [] });
+  });
+
+  it("vuelve a encolar el último correo con el mismo asunto y PDF", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    await worker.vueltaCorreo(T0, vi.fn(async () => {}));
+    const ok = await cola.reenviarUltimo("AR.26.05016", "tamara", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     expect(ok).toBe(true);
     const [nuevo, viejo] = cola.leerCorreosDe("AR.26.05016");
-    expect(nuevo).toMatchObject({ estado: "pendiente", asunto: viejo.asunto, ficheros: ["A-10.pdf"], pasadoPor: "tamara" });
+    expect(nuevo).toMatchObject({ estado: "pendiente", asunto: viejo.asunto, ficheros: ["AR2605016-10.pdf"], pasadoPor: "tamara" });
   });
 
   it("sin correo previo no hay nada que reenviar", async () => {

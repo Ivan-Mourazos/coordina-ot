@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
+import { vaAdjunto } from "@/lib/planteamiento";
 import { planteamientosDe } from "@/lib/server/planteamiento-pdf";
 import { leerImpresionesDe, modoImpresion } from "@/lib/server/impresion-cola";
 import { leerCorreosDe, modoCorreo } from "@/lib/server/correo-cola";
@@ -32,7 +33,8 @@ export async function GET(req: Request) {
   return NextResponse.json(
     {
       modo: modoImpresion(),
-      ficheros: ficheros.map(({ nombre, paginas, todoA4 }) => ({ nombre, paginas, todoA4 })),
+      // `adjunto`: si va en el correo (PVC, -10 en adelante) o solo se imprime.
+      ficheros: ficheros.map(({ nombre, paginas, todoA4 }) => ({ nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido) })),
       aviso,
       impresiones: leerImpresionesDe(pedido),
       correo: correoDe(pedido),

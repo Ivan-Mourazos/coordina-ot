@@ -12,7 +12,7 @@ vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }
 const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImpresionMock: vi.fn(() => "activo"), prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
 vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: modoImpresionMock }));
 // Y la del correo: ningún test de aquí habla con Microsoft.
-const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: string[]; pasadoPor: string }, o: string) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
+const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: Array<{ codigo: string; descripcion: string; autor: string | null }>; pasadoPor: string }, o: string) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
 vi.mock("../server/correo-cola", () => ({ prepararCorreo: prepararCorreoMock, modoCorreo: modoCorreoMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
@@ -490,7 +490,9 @@ test("al pasar un pedido de OT se prepara el correo con los datos del pedido", a
   expect(prepararCorreoMock).toHaveBeenCalledTimes(1);
   const [datos, operario] = prepararCorreoMock.mock.calls[0];
   expect(operario).toBe("ivan");
-  expect(datos).toMatchObject({ pedido: CODIGO_IMPRESION, cliente: PEDIDOS[0].cliente, ofs: [PEDIDOS[0].ofs[0].codigo] });
+  expect(datos).toMatchObject({ pedido: CODIGO_IMPRESION, cliente: PEDIDOS[0].cliente });
+  // Una línea por OF con su código, descripción de catálogo y autor (por nombre).
+  expect(datos.ofs).toEqual([expect.objectContaining({ codigo: PEDIDOS[0].ofs[0].codigo, descripcion: PEDIDOS[0].ofs[0].descripcion, autor: expect.any(String) })]);
   expect(typeof datos.pasadoPor).toBe("string");
 });
 

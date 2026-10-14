@@ -48,7 +48,7 @@ describe("lo que cuenta el Historial", () => {
 });
 
 describe("lo que se dice del correo", () => {
-  const vista = (modo: "off" | "ensayo" | "activo", ficheros = [{ nombre: "A-10.pdf", paginas: 1, todoA4: true }]) => ({
+  const vista = (modo: "off" | "ensayo" | "activo", ficheros: Array<{ nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean }> = [{ nombre: "A-10.pdf", paginas: 1, todoA4: true, adjunto: true }]) => ({
     modo: "activo" as const, aviso: null, impresiones: [], ficheros,
     correo: { modo, envios: [] },
   });
@@ -59,8 +59,15 @@ describe("lo que se dice del correo", () => {
   };
 
   it("antes de pasar", () => {
-    expect(textoCorreoAntesDePasar(vista("activo"))).toBe("Se mandará por correo a Oficina Técnica y Producción");
-    expect(textoCorreoAntesDePasar(vista("ensayo"))).toBe("Se mandará por correo solo a ti (prueba)");
+    expect(textoCorreoAntesDePasar(vista("activo"))).toBe("Se mandará el correo a Oficina Técnica y Producción con A-10.pdf adjunto");
+    expect(textoCorreoAntesDePasar(vista("ensayo"))).toBe("Se mandará el correo solo a ti (prueba) con A-10.pdf adjunto");
+    // Toldos: solo se imprime, el correo avisa.
+    expect(textoCorreoAntesDePasar(vista("activo", [{ nombre: "A-1.pdf", paginas: 1, todoA4: true, adjunto: false }])))
+      .toBe("Se mandará el correo a Oficina Técnica y Producción avisando de que está impreso");
+    expect(textoCorreoAntesDePasar(vista("activo", [
+      { nombre: "A-10.pdf", paginas: 1, todoA4: true, adjunto: true },
+      { nombre: "A-11.pdf", paginas: 1, todoA4: true, adjunto: true },
+    ]))).toBe("Se mandará el correo a Oficina Técnica y Producción con A-10.pdf, A-11.pdf adjuntos");
     expect(textoCorreoAntesDePasar(vista("activo", []))).toBeNull();
     expect(textoCorreoAntesDePasar(vista("off"))).toBeNull();
     expect(textoCorreoAntesDePasar({ ...vista("activo"), correo: undefined })).toBeNull();

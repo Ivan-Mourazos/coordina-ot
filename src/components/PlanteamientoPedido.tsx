@@ -93,8 +93,9 @@ export function PlanteamientoPedido({ pedido, miId }: { pedido: string; miId: st
             Reimprimir
           </button>
         )}
-        {/* Reenviar solo si ya hubo un correo con el PDF: es repetir ese. */}
-        {correoVivo && correo!.envios.some((f) => f.ficheros.length > 0) && puedeActuar && (
+        {/* Reenviar solo si ya hubo un correo de verdad (con o sin adjunto: el
+            de toldos solo avisa de lo impreso): es repetir ese. */}
+        {correoVivo && correo!.envios.some((f) => f.asunto) && puedeActuar && (
           <button
             type="button"
             onClick={reenviar}

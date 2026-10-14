@@ -9,7 +9,9 @@ import type { FilaCorreo, ModoCorreo } from "./server/correo-cola";
 
 export interface VistaPlanteamiento {
   modo: ModoImpresion;
-  ficheros: { nombre: string; paginas: number; todoA4: boolean }[];
+  /** `adjunto`: va en el correo (PVC); si no, solo se imprime y el correo
+   *  avisa. Opcional: un servidor de antes no lo manda. */
+  ficheros: { nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean }[];
   aviso: string | null;
   impresiones: FilaImpresion[];
   /** El correo del planteamiento (spec 2026-10-14). Opcional: un servidor de
@@ -63,9 +65,12 @@ export function textoImpresion(f: FilaImpresion): string {
  *  ya lo avisa la línea de la impresión, y sin PDF no se manda correo. */
 export function textoCorreoAntesDePasar(d: VistaPlanteamiento): string | null {
   if (!d.correo || d.correo.modo === "off" || d.ficheros.length === 0) return null;
-  return d.correo.modo === "ensayo"
-    ? "Se mandará por correo solo a ti (prueba)"
-    : "Se mandará por correo a Oficina Técnica y Producción";
+  const a = d.correo.modo === "ensayo" ? "solo a ti (prueba)" : "a Oficina Técnica y Producción";
+  // La norma: los de PVC van adjuntos; de los de toldos el correo solo avisa.
+  const adjuntos = d.ficheros.filter((f) => f.adjunto).map((f) => f.nombre);
+  return adjuntos.length
+    ? `Se mandará el correo ${a} con ${adjuntos.join(", ")} adjunto${adjuntos.length === 1 ? "" : "s"}`
+    : `Se mandará el correo ${a} avisando de que está impreso`;
 }
 
 export function textoCorreo(f: FilaCorreo): string {

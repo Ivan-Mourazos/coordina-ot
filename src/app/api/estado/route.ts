@@ -157,13 +157,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     codigoPedido = pedido.codigo;
+    // Nombre de una persona por su id, para el correo. Una que ya no está
+    // (o un id raro) sale como su id antes que desaparecer.
+    const nombreDe = (id: string | null) => (id ? leerPersona(id)?.nombre ?? id : null);
     datosCorreo = {
       pedido: pedido.codigo,
       cliente: pedido.cliente,
-      ofs: pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT).map((of) => of.codigo),
-      entrega: pedido.fechaEntrega || null,
-      minutosPlanteo: pedido.ofs.filter((of) => !of.ajenaOT).reduce((n, of) => n + of.tiempoPlanteoMin, 0),
-      pasadoPor: leerPersona(operarioId)?.nombre ?? operarioId,
+      // Una línea por OF de Oficina Técnica: sin anuladas ni las de taller.
+      ofs: pedido.ofs
+        .filter((of) => of.estado !== "anulada" && !of.ajenaOT)
+        .map((of) => ({
+          codigo: of.codigo,
+          descripcion: of.descripcion,
+          planteoMin: of.tiempoPlanteoMin,
+          autor: nombreDe(of.autorId),
+          revisionMin: of.tiempoRevisionMin,
+          revisor: nombreDe(of.revisorId),
+        })),
+      pasadoPor: nombreDe(operarioId) ?? operarioId,
     };
     ofIdsPedido = pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT && !of.detenida).map((of) => of.id);
     // Task 9, Step 4 (spec §2, "Al pasar el pedido no se reenvía el cierre"):

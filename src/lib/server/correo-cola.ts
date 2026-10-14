@@ -3,7 +3,8 @@ import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { asuntoCorreo, cuerpoCorreo, type DatosCorreo } from "../correo-planteamiento";
 import { getDb } from "./estado-db";
-import { dirCopias, esperaTras } from "./impresion-cola";
+import { dirCopias, esperaTras, modoImpresion } from "./impresion-cola";
+import { vaAdjunto } from "../planteamiento";
 import { planteamientosDe } from "./planteamiento-pdf";
 
 // ─── Cola del correo del planteamiento ───────────────────────────────────────
@@ -112,8 +113,19 @@ const insertar = (
     .run(pedido, JSON.stringify(ficheros), JSON.stringify(para), asunto, cuerpo, estado,
       error?.slice(0, 500) ?? null, modo, operarioId, ts, estado === "pendiente" ? ts : null);
 
+/** Dónde se imprimen los planteamientos, para decirlo en el correo. null si la
+ *  impresión está apagada: entonces no se puede decir «impreso». */
+function dondeSeImprime(): string | null {
+  const m = modoImpresion();
+  return m === "activo" ? "Producción" : m === "ensayo" ? "la impresora de OT (prueba)" : null;
+}
+
 /** Encola el correo del pase. Nunca lanza por un PDF que no se deja copiar.
- *  Sin planteamiento no hay correo: un correo sin el PDF no le sirve a nadie. */
+ *
+ *  La norma de la casa (Iván, 14/10/2026): siempre hay correo; los PDF de PVC
+ *  (-10 en adelante) van ADJUNTOS y los de toldos y acrílico solo se imprimen,
+ *  así que de esos el correo solo avisa. Sin ningún planteamiento no hay
+ *  correo: no habría nada que contar. */
 export async function prepararCorreo(
   datos: DatosCorreo,
   operarioId: string,
@@ -128,14 +140,23 @@ export async function prepararCorreo(
     insertar(datos.pedido, [], para, null, null, "sin_planteamiento", aviso, modo, operarioId, ts);
     return { encolado: false, aviso };
   }
-  const { copiados, fallos } = copiar(ficheros);
+  const paraAdjuntar = ficheros.filter((f) => vaAdjunto(f.nombre, datos.pedido));
+  const soloImpresos = ficheros.filter((f) => !vaAdjunto(f.nombre, datos.pedido));
+  const { copiados, fallos } = copiar(paraAdjuntar);
   const error = fallos.length ? `No he podido copiar: ${fallos.join(", ")}` : null;
-  if (copiados.length === 0) {
+  // Tocaba adjuntar algo y no se ha podido nada: un correo de PVC sin su PDF
+  // engañaría. Se descarta y se dice; «Reenviar» lo intenta de nuevo.
+  if (paraAdjuntar.length > 0 && copiados.length === 0) {
     insertar(datos.pedido, [], para, null, null, "descartado", error, modo, operarioId, ts);
     return { encolado: false, aviso: error };
   }
-  const nombres = copiados.map((c) => c.nombre);
-  insertar(datos.pedido, copiados, para, asuntoCorreo(datos), cuerpoCorreo(datos, nombres), "pendiente", error, modo, operarioId, ts);
+  const cuerpo = cuerpoCorreo(datos, {
+    adjuntos: copiados.map((c) => c.nombre),
+    impresos: soloImpresos.filter((f) => f.todoA4).map((f) => f.nombre),
+    aMano: soloImpresos.filter((f) => !f.todoA4).map((f) => f.nombre),
+    dondeImprime: dondeSeImprime(),
+  });
+  insertar(datos.pedido, copiados, para, asuntoCorreo(datos), cuerpo, "pendiente", error, modo, operarioId, ts);
   return { encolado: true, aviso };
 }
 
@@ -216,13 +237,22 @@ export async function reenviarUltimo(
     .get(pedidoId) as FilaDb | undefined;
   if (!fila) return false;
   const antes = parsear<FicheroCopiado[]>(fila.ficheros, []);
-  const vivas = antes.filter((f) => existsSync(f.copia)).map((f) => ({ nombre: f.nombre, ruta: f.copia }));
-  const origen = vivas.length === antes.length && vivas.length > 0
-    ? vivas
-    : (await buscar(pedidoId)).ficheros.map((f) => ({ nombre: f.nombre, ruta: f.ruta }));
-  if (origen.length === 0) return false;
-  const { copiados, fallos } = copiar(origen);
-  if (copiados.length === 0) return false;
+  // El de toldos no llevaba adjuntos (solo avisaba de lo impreso): se repite tal cual.
+  let copiados: FicheroCopiado[] = [];
+  let fallos: string[] = [];
+  if (antes.length > 0) {
+    const vivas = antes.filter((f) => existsSync(f.copia)).map((f) => ({ nombre: f.nombre, ruta: f.copia }));
+    // Si las copias ya se borraron al enviarse, se vuelven a buscar los PDF, y
+    // solo los que van adjuntos (PVC).
+    const origen = vivas.length === antes.length
+      ? vivas
+      : (await buscar(pedidoId)).ficheros
+        .filter((f) => vaAdjunto(f.nombre, pedidoId))
+        .map((f) => ({ nombre: f.nombre, ruta: f.ruta }));
+    if (origen.length === 0) return false;
+    ({ copiados, fallos } = copiar(origen));
+    if (copiados.length === 0) return false;
+  }
   const modo = modoCorreo();
   insertar(pedidoId, copiados, destinatariosCorreo(modo), fila.asunto, fila.cuerpo, "pendiente",
     fallos.length ? `No he podido copiar: ${fallos.join(", ")}` : null, modo, operarioId, ahora.toISOString());
