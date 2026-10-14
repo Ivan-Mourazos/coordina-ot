@@ -107,6 +107,12 @@ const SOLO_ANCHO = "hidden min-[1440px]:block";
 
 /** Sin la columna de material, a cualquier ancho: la consulta sin login, que
  *  no enseña material (ver `sinMaterial`). */
+/** Una línea por pedido, como el Historial (la consulta «En curso», Iván
+ *  14/10/2026): código, cliente, familia, quién y la fecha planificada. El
+ *  recorrido entero sigue en el desplegable. */
+const COLUMNAS_COMPACTAS =
+  "grid grid-cols-[28px_150px_minmax(0,24rem)_112px_minmax(150px,1fr)_92px] items-center gap-x-3";
+
 const COLUMNAS_SIN_MATERIAL =
   "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] items-center gap-x-3";
 
@@ -390,7 +396,10 @@ export function ListaView({
   conNombres = false,
   rotulo,
   sinCabecera = false,
+  compacta = false,
 }: {
+  /** Una línea por pedido (ver `COLUMNAS_COMPACTAS`). Sin material. */
+  compacta?: boolean;
   /** El nombre del grupo encima de la lista (la consulta «En curso», agrupada
    *  por cómo va cada pedido). Ver `BloqueLista`. */
   rotulo?: { texto: string; color?: string; sufijo?: ReactNode };
@@ -405,7 +414,7 @@ export function ListaView({
   unoAbierto?: boolean;
   /** La fase del pedido en una palabra, junto al código (la consulta «En
    *  curso»). Con ella, el «Listo para Producción» del final sobra: ya lo dice. */
-  fase?: (p: Pedido) => { texto: string; color: string };
+  fase?: (p: Pedido) => { texto: string; color: string } | null;
   /** Sin la columna de material (la consulta sin login no lo enseña). */
   sinMaterial?: boolean;
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
@@ -423,7 +432,7 @@ export function ListaView({
   ordenDesc: boolean;
 }) {
   const hoy = hoyISO();
-  const columnas = sinMaterial ? COLUMNAS_SIN_MATERIAL : COLUMNAS_LISTA;
+  const columnas = compacta ? COLUMNAS_COMPACTAS : sinMaterial ? COLUMNAS_SIN_MATERIAL : COLUMNAS_LISTA;
   const columnaMaterial = sinMaterial ? "hidden" : SOLO_ANCHO;
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
@@ -447,7 +456,16 @@ export function ListaView({
     });
   }
 
-  const cabecera = (
+  const cabecera = compacta ? (
+    <>
+      <span />
+      <span>Pedido</span>
+      <span>Cliente</span>
+      <span>Familia</span>
+      <span>Quién</span>
+      <span className="text-right">Planificada</span>
+    </>
+  ) : (
     <>
       <span />
       <span>Pedido · cliente</span>
@@ -502,7 +520,9 @@ export function ListaView({
               etiqueta={p.codigo}
               idDetalle={`detalle-${p.id}`}
               tarjeta
-              celdas={
+              celdas={compacta ? (
+                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} onOpen={onOpen} />
+              ) : (
                 <>
                   {/* ─── La celda de identidad ───────────────────────────
                       Arriba QUÉ pedido es y de qué va; abajo, de quién es. */}
@@ -521,7 +541,7 @@ export function ListaView({
                           <span className="font-mono text-sm font-semibold text-text">{p.codigo}</span>
                         )}
                       </span>
-                      {fase && <ChipFase {...fase(p)} />}
+                      {fase && (() => { const f = fase(p); return f ? <ChipFase {...f} /> : null; })()}
                       <span
                         className="shrink-0 text-[11px] font-medium text-text-muted"
                         title={`${p.ofs.length} orden${p.ofs.length === 1 ? "" : "es"} de fabricación`}
@@ -589,13 +609,113 @@ export function ListaView({
                     <Recorrido pedido={p} hoy={hoy} />
                   </div>
                 </>
+              )}
+              detalle={
+                <>
+                  {/* En compacto la fila no lleva el recorrido: va aquí. */}
+                  {compacta && (
+                    <div className={`mb-2 max-w-3xl ${hecho ? "opacity-40 grayscale" : ""}`}>
+                      <Recorrido pedido={p} hoy={hoy} />
+                    </div>
+                  )}
+                  <Detalle p={p} hoy={hoy} operarios={operarios} conNombres={conNombres} />
+                </>
               }
-              detalle={<Detalle p={p} hoy={hoy} operarios={operarios} conNombres={conNombres} />}
             />
           );
         })}
       </BloqueLista>
     </div>
+  );
+}
+
+/** Las celdas de una fila compacta (ver `COLUMNAS_COMPACTAS`). */
+function CeldasCompactas({
+  p,
+  hoy,
+  tramos,
+  fase,
+  fichando,
+  onOpen,
+}: {
+  p: Pedido;
+  hoy: string;
+  tramos: TramoEstado[];
+  fase: { texto: string; color: string } | null;
+  fichando: "plantear" | "revisar" | null;
+  onOpen?: (p: Pedido) => void;
+}) {
+  const familias = familiasDe(p);
+  const linea = lineaTiempo(p, hoy);
+  const { color, sinPlanificar, diasTarde } = urgenciaRecorrido(linea, p, hoy);
+  const ref = linea.hitos.find((h) => h.referencia);
+  const fecha = ref ? `${ref.iso.slice(8)}/${ref.iso.slice(5, 7)}` : "—";
+  return (
+    <>
+      <div className="pointer-events-none flex min-w-0 items-center gap-1.5">
+        <span
+          className="h-3.5 w-1 shrink-0 rounded-full"
+          style={{ background: PRIORIDAD[p.prioridad].color }}
+          title={`Prioridad ${PRIORIDAD[p.prioridad].label}`}
+        />
+        <span className="pointer-events-auto">
+          {onOpen ? (
+            <PedidoCodigo codigo={p.codigo} onAbrir={() => onOpen(p)} />
+          ) : (
+            <span className="font-mono text-[13px] font-semibold text-text">{p.codigo}</span>
+          )}
+        </span>
+        {p.ofs.length > 1 && (
+          <span className="shrink-0 text-[11px] font-medium text-text-muted" title={`${p.ofs.length} órdenes de fabricación`}>
+            {p.ofs.length} OF
+          </span>
+        )}
+        {fichando && (
+          <span title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"} className="inline-flex">
+            <LiveDot rol={fichando} />
+          </span>
+        )}
+      </div>
+      <span
+        className="pointer-events-none flex min-w-0 items-center gap-2 text-[11px] text-text"
+        title={p.negocio ? `Cliente ${p.cliente} · Negocio ${p.negocio}` : `Cliente ${p.cliente}`}
+      >
+        {/* El estado solo cuando dice algo que el grupo no dice («Sin asignar»,
+            «Por revisar»…): el resto ya va en el rótulo de encima. */}
+        {fase && <ChipFase {...fase} />}
+        <span className="min-w-0 truncate">
+          {p.cliente}
+          {negocioAparte(p.cliente, p.negocio) && (
+            <span className="text-text-muted"> · {negocioAparte(p.cliente, p.negocio)}</span>
+          )}
+        </span>
+        {p.situacion === "pendiente" && (
+          <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border" title="Producción todavía no lo ha pasado a Oficina Técnica">
+            Sin procesar
+          </span>
+        )}
+      </span>
+      <span className="pointer-events-none flex min-w-0 items-center gap-1 overflow-hidden" title={familias.join(", ")}>
+        {familias.slice(0, 1).map((f) => <FamiliaTag key={f} familia={f} />)}
+        {familias.length > 1 && <span className="text-[10px] text-text-muted">+{familias.length - 1}</span>}
+      </span>
+      <div className="pointer-events-none min-w-0">
+        <Quien tramos={tramos} />
+      </div>
+      <div
+        className="pointer-events-none flex items-center justify-end gap-1.5 text-[11px] tabular-nums"
+        title={sinPlanificar ? "Sin fecha de planificación: es la entrega solicitada" : "Fecha planificada para Oficina Técnica"}
+      >
+        <span className={sinPlanificar ? "text-text-muted" : "font-semibold"} style={color ? { color } : undefined}>
+          {fecha}
+        </span>
+        {!sinPlanificar && diasTarde > 0 && (
+          <span className="rounded px-1 text-[10px] font-bold text-white" style={{ background: color ?? "#d97706" }}>
+            +{diasTarde}d
+          </span>
+        )}
+      </div>
+    </>
   );
 }
 

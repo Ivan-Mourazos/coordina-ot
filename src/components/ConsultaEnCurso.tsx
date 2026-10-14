@@ -116,21 +116,45 @@ export function ConsultaEnCurso({
             conNombres
           />
         ) : (
-          <div className="space-y-5">
-            {gruposEnCurso(pedidos, SECCIONES[seccion]).map((g, i) => (
-              <ListaView
+          <div className="space-y-2">
+            {/* Una línea por pedido, como el Historial, y cada grupo plegable:
+                abiertos de salida los que se están moviendo (planteando y en
+                revisión); el navegador recuerda cómo se dejaron (Iván,
+                14/10/2026). */}
+            {gruposEnCurso(pedidos, SECCIONES[seccion]).map((g) => (
+              <BloquePlegable
                 key={g.id}
-                pedidos={g.pedidos}
-                operarios={datos.operarios}
-                orden="planificacion"
-                ordenDesc={false}
-                sinMaterial
-                fase={faseParaInvitado(seccion)}
-                unoAbierto
-                conNombres
-                sinCabecera={i > 0}
-                rotulo={{ texto: g.titulo, color: g.color, sufijo: `${g.pedidos.length} ${g.pedidos.length === 1 ? "pedido" : "pedidos"}` }}
-              />
+                clave={`coordina-en-curso-${g.id}-plegado`}
+                abiertoDeSalida={g.id === "planteando" || g.id === "esperandoRevision"}
+                className="pt-1"
+                cabecera={
+                  <>
+                    <span className="size-2 rounded-full" style={{ background: g.color }} />
+                    <h2 className="text-sm font-bold text-text">{g.titulo}</h2>
+                    <span className="text-xs text-text-muted">
+                      {g.pedidos.length} {g.pedidos.length === 1 ? "pedido" : "pedidos"}
+                    </span>
+                  </>
+                }
+              >
+                <ListaView
+                  pedidos={g.pedidos}
+                  operarios={datos.operarios}
+                  orden="planificacion"
+                  ordenDesc={false}
+                  sinMaterial
+                  compacta
+                  sinCabecera
+                  // El estado de cada pedido solo si dice algo que el grupo no
+                  // dice: «Sin asignar», «Por revisar» frente a «Revisando».
+                  fase={(p) => {
+                    const f = faseParaInvitado(seccion)(p);
+                    return f.texto === g.titulo || g.id === "listoParaPasar" || g.id === "planteando" ? null : f;
+                  }}
+                  unoAbierto
+                  conNombres
+                />
+              </BloquePlegable>
             ))}
           </div>
         ))}
