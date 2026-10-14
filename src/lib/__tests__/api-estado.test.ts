@@ -9,10 +9,10 @@ vi.mock("../data", () => ({ getTablero: tableroMock }));
 vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }));
 // La cola de impresión se simula entera: ningún test de aquí toca una impresora
 // ni un recurso compartido de verdad.
-const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImpresionMock: vi.fn(() => "activo"), prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
+const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImpresionMock: vi.fn(() => "activo"), prepararImpresionMock: vi.fn<(c: string, o: string, ahora?: Date, buscar?: unknown, solo?: Set<string>) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
 vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: modoImpresionMock }));
 // Y la del correo: ningún test de aquí habla con Microsoft.
-const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: Array<{ codigo: string; descripcion: string; autor: string | null }>; pasadoPor: string }, o: string) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
+const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: Array<{ codigo: string; descripcion: string; autor: string | null }>; pasadoPor: string; nota?: string }, o: string, ahora?: Date, buscar?: unknown, eleccion?: { adjuntar?: Set<string>; imprimir?: Set<string> }) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
 vi.mock("../server/correo-cola", () => ({ prepararCorreo: prepararCorreoMock, modoCorreo: modoCorreoMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
@@ -517,4 +517,40 @@ test("si el correo falla, el pase sale bien igual", async () => {
   prepararCorreoMock.mockRejectedValueOnce(new Error("microsoft"));
   expect((await pasarParaImprimir("P-correo-5")).status).toBe(200);
   expect(estadoDb.leerOverlay("ot").pedidosCompletados.has("P-correo-5")).toBe(true);
+});
+
+// ─── Lo elegido a mano en el aviso de pasar ─────────────────────────────────
+test("lo elegido a mano manda: qué se imprime, qué va adjunto, qué OF y la nota", async () => {
+  const codigoOf = PEDIDOS[0].ofs[0].codigo;
+  const res = await pasarParaImprimir("P-elige-1", {
+    planteamiento: { imprimir: ["AR2605016-1.pdf"], adjuntar: ["AR2605016-1.pdf"], ofs: [], nota: "  Ojo con la medida  " },
+  });
+  expect(res.status).toBe(200);
+  expect([...prepararImpresionMock.mock.calls[0][4]!]).toEqual(["AR2605016-1.pdf"]);
+  const [datos, , , , eleccion] = prepararCorreoMock.mock.calls[0];
+  // La OF que no se marcó no sale; la nota llega recortada.
+  expect(datos.ofs.map((o: { codigo: string }) => o.codigo)).not.toContain(codigoOf);
+  expect(datos.nota).toBe("Ojo con la medida");
+  expect([...eleccion!.adjuntar!]).toEqual(["AR2605016-1.pdf"]);
+  expect([...eleccion!.imprimir!]).toEqual(["AR2605016-1.pdf"]);
+});
+
+test("si se desmarca todo lo de imprimir, no se imprime, pero el correo sale", async () => {
+  expect((await pasarParaImprimir("P-elige-2", {
+    planteamiento: { imprimir: [], adjuntar: [], ofs: [PEDIDOS[0].ofs[0].codigo], nota: "" },
+  })).status).toBe(200);
+  expect(prepararImpresionMock).not.toHaveBeenCalled();
+  expect(prepararCorreoMock).toHaveBeenCalledTimes(1);
+  expect([...prepararCorreoMock.mock.calls[0][4]!.imprimir!]).toEqual([]);
+});
+
+test("una elección mal formada se ignora y vale la norma", async () => {
+  expect((await pasarParaImprimir("P-elige-3", { planteamiento: { imprimir: "todo" } })).status).toBe(200);
+  expect(prepararImpresionMock.mock.calls[0][4]).toBeUndefined();
+  expect(prepararCorreoMock.mock.calls[0][4]).toEqual({ adjuntar: undefined, imprimir: undefined });
+});
+
+test("sin elección, «Imprimir otra vez» desmarcado: el correo no cuenta nada como impreso", async () => {
+  expect((await pasarParaImprimir("P-elige-4", { imprimirPlanteamiento: false })).status).toBe(200);
+  expect([...prepararCorreoMock.mock.calls[0][4]!.imprimir!]).toEqual([]);
 });

@@ -60,6 +60,8 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
+import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
+import type { EleccionPase } from "@/lib/planteamiento";
 import { textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
@@ -1394,6 +1396,8 @@ export function Board({
        *  planteamiento. Ausente = se imprime. */
       imprimirPlanteamiento?: boolean;
       mandarCorreo?: boolean;
+      /** Lo elegido a mano en el aviso de pasar; ausente = la norma. */
+      planteamiento?: EleccionPase;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2219,6 +2223,8 @@ export function Board({
   // `yaSePasoAntes`). Se marcan de nuevo cada vez que se abre el diálogo.
   const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
   const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
+  // «Cambiar lo que se imprime y se manda»: null = la norma, sin tocar nada.
+  const [eleccionPase, setEleccionPase] = useState<EleccionPase | null>(null);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
@@ -2226,6 +2232,7 @@ export function Board({
       setPasarPendiente(pedidoId);
       setImprimirAlPasar(true);
       setMandarCorreoAlPasar(true);
+      setEleccionPase(null);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -2243,7 +2250,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2273,6 +2280,7 @@ export function Board({
         seccion,
         imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
         mandarCorreo: opciones?.mandarCorreo,
+        planteamiento: opciones?.planteamiento,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -2339,6 +2347,14 @@ export function Board({
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;
+  // Las mismas OF que pone el servidor en el correo (api/estado): sin anuladas
+  // ni las de taller.
+  const ofsDelCorreo = useMemo(
+    () => (pedidoAPasar?.ofs ?? [])
+      .filter((o) => o.estado !== "anulada" && !o.ajenaOT)
+      .map((o) => ({ codigo: o.codigo, descripcion: o.descripcion })),
+    [pedidoAPasar],
+  );
 
 
   const openPedido = pedidos.find((p) => p.id === openId) ?? null;
@@ -3021,6 +3037,31 @@ export function Board({
                     se pasó antes (se recuperó para volver a plantearlo), se
                     PREGUNTA, con las dos casillas marcadas: lo normal es que el
                     planteamiento haya cambiado y haya que mandarlo de nuevo. */}
+                {eleccionPase ? (
+                  <>
+                  {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
+                    <p className="mb-2 text-text-muted">
+                      Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
+                    </p>
+                  )}
+                  <CambiarPlanteamiento
+                    ficheros={vistaPlanteamiento.datos.ficheros}
+                    ofs={ofsDelCorreo}
+                    eleccion={eleccionPase}
+                    onCambiar={setEleccionPase}
+                    conImpresion={vistaPlanteamiento.datos.modo !== "off"}
+                    conCorreo={!!vistaPlanteamiento.datos.correo && vistaPlanteamiento.datos.correo.modo !== "off"}
+                    mandarCorreo={mandarCorreoAlPasar}
+                    onMandarCorreo={setMandarCorreoAlPasar}
+                    onDeshacer={() => {
+                      setEleccionPase(null);
+                      setImprimirAlPasar(true);
+                      setMandarCorreoAlPasar(true);
+                    }}
+                  />
+                  </>
+                ) : (
+                <>
                 {textoAntesDePasar(vistaPlanteamiento.datos) && (
                   <>
                     <p className="text-text">
@@ -3061,6 +3102,25 @@ export function Board({
                     )}
                   </>
                 )}
+                {vistaPlanteamiento.datos.ficheros.length > 0 && (
+                  <button
+                    type="button"
+                    className="mt-2 text-text-muted underline underline-offset-2 hover:text-text"
+                    onClick={() => {
+                      const f = vistaPlanteamiento.datos.ficheros;
+                      setEleccionPase({
+                        imprimir: imprimirAlPasar ? f.map((x) => x.nombre) : [],
+                        adjuntar: f.filter((x) => x.adjunto).map((x) => x.nombre),
+                        ofs: ofsDelCorreo.map((o) => o.codigo),
+                        nota: "",
+                      });
+                    }}
+                  >
+                    Cambiar lo que se imprime y se manda
+                  </button>
+                )}
+                </>
+                )}
               </div>
             )}
           </>
@@ -3075,12 +3135,18 @@ export function Board({
           // dentro del clic, porque fuera de él el navegador lo bloquea.
           // Las casillas solo existen si el pedido ya se pasó antes; la primera
           // vez valen siempre «sí» (marcadas al abrir el diálogo).
-          if (imprimirAlPasar && vista && vista.modo !== "off" && pedido?.codigo) {
-            for (const f of vista.ficheros.filter((x) => !x.todoA4)) {
+          const eleccion = eleccionPase;
+          const seImprime = (nombre: string) => (eleccion ? eleccion.imprimir.includes(nombre) : imprimirAlPasar);
+          if (vista && vista.modo !== "off" && pedido?.codigo) {
+            for (const f of vista.ficheros.filter((x) => !x.todoA4 && seImprime(x.nombre))) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
           }
-          completarPedidoAhora(id, undefined, undefined, { imprimirPlanteamiento: imprimirAlPasar, mandarCorreo: mandarCorreoAlPasar });
+          completarPedidoAhora(id, undefined, undefined, {
+            imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : imprimirAlPasar,
+            mandarCorreo: mandarCorreoAlPasar,
+            ...(eleccion ? { planteamiento: eleccion } : {}),
+          });
         }}
         onCancelar={() => setPasarPendiente(null)}
       />

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import { asuntoCorreo, cuerpoCorreo, cuerpoCorreoHtml, type DatosCorreo } from "../correo-planteamiento";
+import { asuntoCorreo, cuerpoCorreo, cuerpoCorreoHtml, esDePlanteamiento, type DatosCorreo } from "../correo-planteamiento";
 import { getDb } from "./estado-db";
 import { dirCopias, esperaTras, modoImpresion } from "./impresion-cola";
 import { vaAdjunto } from "../planteamiento";
@@ -131,6 +131,10 @@ export async function prepararCorreo(
   operarioId: string,
   ahora = new Date(),
   buscar: typeof planteamientosDe = planteamientosDe,
+  /** Lo elegido a mano al pasar: qué va adjunto y qué se imprime. Lo que no
+   *  venga, por la norma. `imprimir` vacío = no se imprime nada (y entonces el
+   *  correo no puede decir «impreso»). */
+  eleccion: { adjuntar?: ReadonlySet<string>; imprimir?: ReadonlySet<string> } = {},
 ): Promise<{ encolado: boolean; aviso: string | null }> {
   const modo = modoCorreo();
   const ts = ahora.toISOString();
@@ -140,8 +144,11 @@ export async function prepararCorreo(
     insertar(datos.pedido, [], para, null, null, null, "sin_planteamiento", aviso, modo, operarioId, ts);
     return { encolado: false, aviso };
   }
-  const paraAdjuntar = ficheros.filter((f) => vaAdjunto(f.nombre, datos.pedido));
-  const soloImpresos = ficheros.filter((f) => !vaAdjunto(f.nombre, datos.pedido));
+  const adjunta = (n: string) => (eleccion.adjuntar ? eleccion.adjuntar.has(n) : vaAdjunto(n, datos.pedido));
+  const imprime = (n: string) => (eleccion.imprimir ? eleccion.imprimir.has(n) : true);
+  const paraAdjuntar = ficheros.filter((f) => adjunta(f.nombre));
+  // Los adjuntos también se imprimen, pero el correo los cuenta como adjuntos.
+  const soloImpresos = ficheros.filter((f) => !adjunta(f.nombre) && imprime(f.nombre));
   const { copiados, fallos } = copiar(paraAdjuntar);
   const error = fallos.length ? `No he podido copiar: ${fallos.join(", ")}` : null;
   // Tocaba adjuntar algo y no se ha podido nada: un correo de PVC sin su PDF
@@ -156,7 +163,7 @@ export async function prepararCorreo(
     aMano: soloImpresos.filter((f) => !f.todoA4).map((f) => f.nombre),
     dondeImprime: dondeSeImprime(),
   };
-  insertar(datos.pedido, copiados, para, asuntoCorreo(datos, copiados.length > 0), cuerpoCorreo(datos, listas),
+  insertar(datos.pedido, copiados, para, asuntoCorreo(datos, esDePlanteamiento(listas)), cuerpoCorreo(datos, listas),
     cuerpoCorreoHtml(datos, listas), "pendiente", error, modo, operarioId, ts);
   return { encolado: true, aviso };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto } from "../planteamiento";
+import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto, leerEleccion, NOTA_MAX } from "../planteamiento";
 
 describe("nombres del planteamiento", () => {
   it("parte el código de pedido", () => {
@@ -52,5 +52,20 @@ describe("qué planteamiento va adjunto al correo", () => {
     expect(vaAdjunto("AR2605023-1.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("AR2605023-9.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("otro.pdf", "AR.26.05023")).toBe(false);
+  });
+});
+
+describe("lo elegido a mano al pasar", () => {
+  it("se acepta con su forma, y la nota se recorta y se limita", () => {
+    expect(leerEleccion({ imprimir: ["a.pdf"], adjuntar: [], ofs: ["0232963"], nota: "  hola  " }))
+      .toEqual({ imprimir: ["a.pdf"], adjuntar: [], ofs: ["0232963"], nota: "hola" });
+    expect(leerEleccion({ imprimir: [], adjuntar: [], ofs: [], nota: "x".repeat(NOTA_MAX + 50) })?.nota).toHaveLength(NOTA_MAX);
+  });
+
+  it("si falta algo o no es de la forma esperada, null (vale la norma)", () => {
+    expect(leerEleccion(undefined)).toBeNull();
+    expect(leerEleccion({ imprimir: "todo", adjuntar: [], ofs: [], nota: "" })).toBeNull();
+    expect(leerEleccion({ imprimir: [1], adjuntar: [], ofs: [], nota: "" })).toBeNull();
+    expect(leerEleccion({ imprimir: [], adjuntar: [], ofs: [] })).toBeNull();
   });
 });

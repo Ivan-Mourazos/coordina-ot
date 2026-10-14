@@ -227,3 +227,39 @@ describe("reenviar", () => {
     expect(await cola.reenviarUltimo("AR.26.09999", "ivan", T0, async () => ({ ficheros: [], aviso: null }))).toBe(false);
   });
 });
+
+describe("lo elegido a mano al pasar", () => {
+  it("adjunta lo elegido aunque sea de toldos, y no adjunta el PVC desmarcado", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true], ["AR2605016-10.pdf", EXISTE, true]), {
+      adjuntar: new Set(["AR2605016-1.pdf"]),
+    });
+    const enviados: Correo[] = [];
+    await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
+    expect(enviados[0].adjuntos.map((a) => a.nombre)).toEqual(["AR2605016-1.pdf"]);
+    expect(enviados[0].asunto).toBe("Planteamiento AR.26.05016 · Bar Central");
+    // El -10 no va adjunto: se cuenta como lo que se imprime.
+    expect(enviados[0].texto).toContain("AR2605016-10.pdf");
+    expect(enviados[0].texto).not.toMatch(/Adjunto.*AR2605016-10/);
+  });
+
+  it("lo que no se imprime ni se adjunta no sale en el correo", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true], ["AR2605016-2.pdf", EXISTE, true]), {
+      imprimir: new Set(["AR2605016-2.pdf"]),
+    });
+    const enviados: Correo[] = [];
+    await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
+    expect(enviados[0].texto).toContain("AR2605016-2.pdf");
+    expect(enviados[0].texto).not.toContain("AR2605016-1.pdf");
+  });
+
+  it("sin nada adjunto ni impreso, sale igual (con las OF y la nota) como «Planteamiento»", async () => {
+    await cola.prepararCorreo({ ...DATOS, nota: "Ya lo tenéis impreso de ayer" }, "ivan", T0,
+      async () => planteamientos(["AR2605016-1.pdf", EXISTE, true]), { adjuntar: new Set(), imprimir: new Set() });
+    const enviados: Correo[] = [];
+    await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
+    expect(enviados[0].asunto).toBe("Planteamiento AR.26.05016 · Bar Central");
+    expect(enviados[0].adjuntos).toEqual([]);
+    expect(enviados[0].texto).toContain("Ya lo tenéis impreso de ayer");
+    expect(enviados[0].texto).not.toContain("AR2605016-1.pdf");
+  });
+});
