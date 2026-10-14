@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "f1496dc",
+    "hasta": "cbee028",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -20,6 +20,16 @@
         "titulo": "Al pasar a Producción puedes cambiar qué se imprime, qué va adjunto y qué dice el correo",
         "detalle": "En el aviso, «Cambiar lo que se imprime y se manda»: quitas un PDF que ya está impreso, adjuntas otro, quitas una OF del correo o añades una nota.",
         "tanda": 2
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La web pasa a llamarse Coordina, y el logo dice en qué oficina estás: OT, DG, ID u OP",
+        "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la consulta, la pestaña de Diseño Gráfico ya no habla de «plantear»",
+        "tanda": 3
       },
       {
         "tipo": "mejor",
