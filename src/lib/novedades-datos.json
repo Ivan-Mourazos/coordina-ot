@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "e59aae1",
+    "hasta": "8658460",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -35,6 +35,11 @@
         "tipo": "nuevo",
         "titulo": "En la consulta de pedidos puedes filtrar por los que están en Impresión Digital",
         "tanda": 6
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En «En curso» puedes abrir las fotos y el pedido escaneado al desplegar el pedido",
+        "tanda": 8
       },
       {
         "tipo": "arreglado",
@@ -75,6 +80,11 @@
         "tipo": "mejor",
         "titulo": "La consulta «En curso» es más compacta: una línea por pedido y grupos que se pliegan",
         "tanda": 7
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los documentos de RPS se abren de carpeta en carpeta y con miniaturas más pequeñas",
+        "tanda": 8
       }
     ]
   },
