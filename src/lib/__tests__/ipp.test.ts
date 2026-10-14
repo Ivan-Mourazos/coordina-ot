@@ -86,24 +86,17 @@ describe("respuesta", () => {
 describe("usuario de la impresora", () => {
   const ok = () => new Response(new Uint8Array([0x02, 0x00, 0x00, 0x00, 0, 0, 0, 1, 0x03]));
 
-  it("con clave, manda autenticación básica y ese usuario como requesting-user-name", async () => {
+  it("manda el usuario como requesting-user-name y sin autenticación", async () => {
     const f = vi.fn(async () => ok());
-    await imprimirPdf("ipp://192.168.4.249/ipp", PDF, { nombre: "x", usuario: "coordina", clave: "s3creta" }, f as unknown as typeof fetch);
+    await imprimirPdf("ipp://192.168.4.249/ipp", PDF, { nombre: "x", usuario: "coordina" }, f as unknown as typeof fetch);
     const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
-    expect((init.headers as Record<string, string>).Authorization).toBe(`Basic ${Buffer.from("coordina:s3creta").toString("base64")}`);
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
     expect(atributos(init.body as Uint8Array)["requesting-user-name"]).toBe("coordina");
   });
 
-  it("sin clave, no manda autenticación", async () => {
-    const f = vi.fn(async () => ok());
-    await imprimirPdf("ipp://192.168.4.249/ipp", PDF, T, f as unknown as typeof fetch);
-    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
-    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
-  });
-
-  it("si la impresora pide usuario (401), lo dice claro", async () => {
+  it("si la impresora no deja (401), lo dice", async () => {
     const f = vi.fn(async () => new Response(null, { status: 401 }));
-    await expect(imprimirPdf("ipp://192.168.4.249/ipp", PDF, T, f as unknown as typeof fetch)).rejects.toThrow(/usuario y contraseña/);
+    await expect(imprimirPdf("ipp://192.168.4.249/ipp", PDF, T, f as unknown as typeof fetch)).rejects.toThrow(/no deja imprimir por IPP/);
   });
 });
 
