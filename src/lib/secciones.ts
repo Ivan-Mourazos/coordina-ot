@@ -29,8 +29,8 @@ import type { Fase } from "./fases-tablero";
 export type SeccionId = "ot" | "diseno" | "impresion";
 
 /** Las siglas del logo según dónde estás (Iván, 14/10/2026: la web se llama
- *  «Coordina» y el logo dice de qué oficina es la pantalla). OP es la Oficina
- *  de Producción: la consulta, que no es una sección con tablero. */
+ *  «Coordina» y el logo dice de qué oficina es la pantalla). OP es la vista de
+ *  Dirección (Carlos, Esteban): sale con la vista de solo lectura del tablero. */
 export type SiglasLogo = "OT" | "DG" | "ID" | "OP";
 
 export interface Seccion {
