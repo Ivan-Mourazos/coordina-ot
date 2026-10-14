@@ -136,6 +136,7 @@ describe("el trabajador", () => {
       const enviados: Correo[] = [];
       expect(await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }))).toBe(1);
       expect(enviados[0].adjuntos).toEqual([]);
+      expect(enviados[0].asunto).toBe("Impreso AR.26.05016 · Bar Central");
       expect(enviados[0].texto).toContain("Impreso en Producción: AR2605016-1.pdf");
       expect(enviados[0].texto).not.toContain("Adjunto");
       // Lleva lo mismo que el de PVC: pedido, cada OF con sus tiempos y quién lo pasó.

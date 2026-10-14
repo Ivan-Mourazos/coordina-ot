@@ -37,8 +37,14 @@ export interface FicherosCorreo {
   dondeImprime: string | null;
 }
 
-export function asuntoCorreo(d: Pick<DatosCorreo, "pedido" | "cliente">): string {
-  return d.cliente.trim() ? `Planteamiento ${d.pedido} · ${d.cliente.trim()}` : `Planteamiento ${d.pedido}`;
+/** «Planteamiento» si el correo lleva el PDF adjunto (PVC); «Impreso» si solo
+ *  avisa de que se imprimió (toldos, acrílico). Es lo que se ponía a mano:
+ *  «PLANTEAMENTO» con el adjunto, «IMPRESO» sin él. */
+const titulo = (conAdjuntos: boolean) => (conAdjuntos ? "Planteamiento" : "Impreso");
+
+export function asuntoCorreo(d: Pick<DatosCorreo, "pedido" | "cliente">, conAdjuntos: boolean): string {
+  const t = titulo(conAdjuntos);
+  return d.cliente.trim() ? `${t} ${d.pedido} · ${d.cliente.trim()}` : `${t} ${d.pedido}`;
 }
 
 export function minutosATexto(min: number): string {
@@ -64,7 +70,12 @@ const enumerar = (titulo: string, plural: string, nombres: string[]) =>
 
 export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
   const cliente = d.cliente.trim();
-  const lineas = [cliente ? `Pedido ${d.pedido} · ${cliente}` : `Pedido ${d.pedido}`, ""];
+  const lineas = [
+    titulo(f.adjuntos.length > 0).toUpperCase(),
+    "",
+    cliente ? `Pedido ${d.pedido} · ${cliente}` : `Pedido ${d.pedido}`,
+    "",
+  ];
   for (const of of d.ofs) {
     lineas.push(`OF ${of.codigo}${of.descripcion.trim() ? ` · ${of.descripcion.trim()}` : ""}`, lineaTiempos(of));
   }

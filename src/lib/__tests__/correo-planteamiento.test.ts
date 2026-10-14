@@ -12,9 +12,10 @@ const D = {
 };
 
 describe("correo del planteamiento", () => {
-  it("asunto con pedido y cliente", () => {
-    expect(asuntoCorreo(D)).toBe("Planteamiento AR.26.05023 · Bar Central");
-    expect(asuntoCorreo({ ...D, cliente: "" })).toBe("Planteamiento AR.26.05023");
+  it("asunto: «Planteamiento» si lleva adjuntos (PVC), «Impreso» si solo se imprimió (toldos)", () => {
+    expect(asuntoCorreo(D, true)).toBe("Planteamiento AR.26.05023 · Bar Central");
+    expect(asuntoCorreo(D, false)).toBe("Impreso AR.26.05023 · Bar Central");
+    expect(asuntoCorreo({ ...D, cliente: "" }, true)).toBe("Planteamiento AR.26.05023");
   });
 
   it("una línea por OF con su descripción, tiempos, autor y revisor; lo impreso y lo adjunto", () => {
@@ -22,6 +23,8 @@ describe("correo del planteamiento", () => {
       cuerpoCorreo(D, { adjuntos: ["AR2605023-10.pdf"], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" }),
     ).toBe(
       [
+        "PLANTEAMIENTO",
+        "",
         "Pedido AR.26.05023 · Bar Central",
         "",
         "OF 0232963 · TOLDO PUNTO RECTO",
@@ -42,6 +45,7 @@ describe("correo del planteamiento", () => {
     const c = cuerpoCorreo(D, { adjuntos: [], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" });
     expect(c).toContain("Impreso en Producción: AR2605023-1.pdf");
     expect(c).not.toContain("Adjunto");
+    expect(c.split("\n").slice(0, 3)).toEqual(["IMPRESO", "", "Pedido AR.26.05023 · Bar Central"]);
   });
 
   it("varios adjuntos, en ensayo, y lo que hay que imprimir a mano", () => {

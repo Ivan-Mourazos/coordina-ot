@@ -156,7 +156,7 @@ export async function prepararCorreo(
     aMano: soloImpresos.filter((f) => !f.todoA4).map((f) => f.nombre),
     dondeImprime: dondeSeImprime(),
   });
-  insertar(datos.pedido, copiados, para, asuntoCorreo(datos), cuerpo, "pendiente", error, modo, operarioId, ts);
+  insertar(datos.pedido, copiados, para, asuntoCorreo(datos, copiados.length > 0), cuerpo, "pendiente", error, modo, operarioId, ts);
   return { encolado: true, aviso };
 }
 
