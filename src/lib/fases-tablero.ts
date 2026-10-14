@@ -432,3 +432,32 @@ export function faseEnUnaPalabra(
       return { texto: "Detenido", color: color(fase) };
   }
 }
+
+/** La consulta «En curso» agrupada por cómo va cada pedido (Iván, 14/10/2026:
+ *  «sin empezar, planteándose, a espera de revisión y listos»). Para quien
+ *  mira desde fuera: las devoluciones van con lo que se está planteando, como
+ *  en `faseEnUnaPalabra`. Solo los grupos con algo, en el orden del recorrido;
+ *  dentro de cada uno, el orden lo pone la lista. */
+export function gruposEnCurso(
+  pedidos: Pedido[],
+  seccion?: Seccion,
+): { id: Fase; titulo: string; color: string; pedidos: Pedido[] }[] {
+  const orden: Fase[] = ["sinEmpezar", "planteando", "esperandoRevision", "listoParaPasar", "parado"];
+  const titulos: Record<Fase, string> = {
+    sinEmpezar: "Sin empezar",
+    devuelta: etiquetaFase("planteando", seccion),
+    planteando: etiquetaFase("planteando", seccion),
+    esperandoRevision: "Esperando revisión",
+    listoParaPasar: seccion?.etiquetasFase?.listoParaPasar ?? "Listos para pasar",
+    parado: "Detenidos",
+  };
+  const por = new Map<Fase, Pedido[]>();
+  for (const p of pedidos) {
+    const f = faseDePedido(p);
+    const g = f === "devuelta" ? "planteando" : f;
+    por.set(g, [...(por.get(g) ?? []), p]);
+  }
+  return orden
+    .filter((f) => por.has(f))
+    .map((f) => ({ id: f, titulo: titulos[f], color: FASES.find((x) => x.id === f)!.color, pedidos: por.get(f)! }));
+}
