@@ -32,11 +32,12 @@ export const ESTADOS_CONSULTA: { id: EstadoConsulta; label: string }[] = [
   { id: "todos", label: "Todos" },
 ];
 
-export type PasoConsulta = "ot" | "diseno" | "taller";
+export type PasoConsulta = "ot" | "diseno" | "impresion" | "taller";
 
 export const PASOS_CONSULTA: { id: PasoConsulta; label: string }[] = [
   { id: "ot", label: "Oficina Técnica" },
   { id: "diseno", label: "Diseño Gráfico" },
+  { id: "impresion", label: "Impresión Digital" },
   { id: "taller", label: "Taller" },
 ];
 
@@ -134,6 +135,8 @@ interface FilaLista {
   familias: string[];
   /** Le queda trabajo de Diseño Gráfico (sale de la otra sección del índice). */
   deDiseno: boolean;
+  /** Y de Impresión Digital (14/10/2026), igual. */
+  deImpresion: boolean;
 }
 
 interface Preparado {
@@ -149,6 +152,7 @@ function prepararIndice(indice: IndiceHistorial): Preparado {
   // Las dos secciones llevan los MISMOS pedidos; la de diseño solo hace falta
   // para saber si le queda trabajo de Diseño Gráfico.
   const diseno = new Map(indice.base.diseno.map((b) => [b.pedido, b]));
+  const impresion = new Map(indice.base.impresion.map((b) => [b.pedido, b]));
   const filas: FilaLista[] = [];
   const porPedido = new Map<string, BaseHistorial>();
   for (const b of indice.base[SECCION_POR_DEFECTO]) {
@@ -160,6 +164,7 @@ function prepararIndice(indice: IndiceHistorial): Preparado {
       dia: situacion === "entregado" ? diaIso(b.fechaEntregado) : diaIso(b.fechaEntrega),
       familias: indice.info.get(b.pedido)?.familias ?? [],
       deDiseno: diseno.get(b.pedido)?.pendienteSeccion ?? false,
+      deImpresion: impresion.get(b.pedido)?.pendienteSeccion ?? false,
     });
     porPedido.set(b.pedido, b);
   }
@@ -179,7 +184,8 @@ function enPaso(paso: PasoConsulta, fila: FilaLista): boolean {
   const deOt = fila.b.pendienteSeccion;
   if (paso === "ot") return deOt;
   if (paso === "diseno") return fila.deDiseno;
-  return !deOt && !fila.deDiseno;
+  if (paso === "impresion") return fila.deImpresion;
+  return !deOt && !fila.deDiseno && !fila.deImpresion;
 }
 
 /** Por fecha, y los que no tienen al final: un pedido sin fecha no es urgente,
