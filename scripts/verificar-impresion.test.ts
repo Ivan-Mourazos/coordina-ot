@@ -39,5 +39,15 @@ test.skipIf(!ACTIVO)("la cola de impresión es de impresión y de nadie más", a
      WHERE mo.CodCompany = '001' AND (${pares.join(" OR ")})`);
   const recursos = new Set(r.recordset.map((f) => f.recurso));
   console.info("[impresion] filas RPS:", r.recordset.length, "recursos en RPS:", [...recursos]);
-  for (const rec of recursos) expect(["imdi-a", "p-hpla"]).toContain(rec);
+  // Las del tablero: todas las de la sección menos las que solo cuentan tiempo.
+  const delTablero = SECCIONES.impresion.recursos.filter((x) => !SECCIONES.impresion.recursosSoloTiempo?.includes(x));
+  for (const rec of recursos) expect(delTablero).toContain(rec);
 }, 120_000);
+
+test.skipIf(!ACTIVO)("el tablero de Impresión sale con OLANET y la vista TGM_PENDIENTE_IMPRESION", async () => {
+  const { getTableroRPS } = await import("../src/lib/server/rps");
+  const t = await getTableroRPS("impresion");
+  const ofs = t.pedidos.flatMap((p) => p.ofs);
+  console.info(`[impresion] tablero: ${t.pedidos.length} pedidos, ${ofs.length} OF`);
+  expect(t.pedidos.length).toBeGreaterThan(0);
+}, 180_000);

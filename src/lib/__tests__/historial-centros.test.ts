@@ -123,7 +123,7 @@ describe("Impresión digital, aparte de Taller", () => {
   test("sus recursos no tocan los de Diseño Gráfico", async () => {
     const { RECURSOS_IMPRESION } = await import("../historial-centros");
     const { SECCIONES } = await import("../secciones");
-    expect(RECURSOS_IMPRESION).toEqual(["imdi-a", "p-hpla", "p-pcmu"]);
+    expect(RECURSOS_IMPRESION).toEqual(["imdi-a", "u-p-imdi", "p-hpla", "p-iduv", "p-jeti", "p-pcmu"]);
     for (const r of RECURSOS_IMPRESION) expect(SECCIONES.diseno.recursos).not.toContain(r);
   });
 });
