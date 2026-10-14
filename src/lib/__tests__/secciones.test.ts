@@ -203,8 +203,8 @@ describe("Impresión Digital", () => {
     expect(esSeccionId("taller")).toBe(false);
   });
 
-  it("sus recursos son los tres de impresión y no pisan los de nadie", () => {
-    expect(impresion.recursos).toEqual(["imdi-a", "p-hpla", "p-pcmu"]);
+  it("sus recursos son los de impresión y no pisan los de nadie", () => {
+    expect(impresion.recursos).toEqual(["imdi-a", "u-p-imdi", "p-hpla", "p-iduv", "p-jeti", "p-pcmu"]);
     for (const r of impresion.recursos) {
       expect(diseno.recursos).not.toContain(r);
       expect(ot.recursos).not.toContain(r);
@@ -212,6 +212,10 @@ describe("Impresión Digital", () => {
     expect(seccionDeRecurso("IMDI-A")).toBe("impresion");
     expect(seccionDeRecurso("P-HPLA")).toBe("impresion");
     expect(seccionDeRecurso("P-PCMU")).toBe("impresion");
+    expect(seccionDeRecurso("P-JETI")).toBe("impresion");
+    expect(seccionDeRecurso("P-IDUV")).toBe("impresion");
+    // A-JETI es de taller: misma máquina de nombre, otra cosa.
+    expect(seccionDeRecurso("A-JETI")).not.toBe("impresion");
     // El plóter de Diseño sigue siendo de Diseño.
     expect(seccionDeRecurso("P-PCUS")).toBe("diseno");
   });
@@ -226,6 +230,9 @@ describe("Impresión Digital", () => {
     // IMDI-A sale en scg_Fases como U-P-IMDI (medido el 13/10/2026).
     expect(esFaseDe("U-P-IMDI", impresion)).toBe(true);
     expect(esFaseDe("P-HPLA", impresion)).toBe(true);
+    expect(esFaseDe("P-JETI", impresion)).toBe(true);
+    expect(esFaseDe("P-IDUV", impresion)).toBe(true);
+    expect(esFaseDe("A-JETI", impresion)).toBe(false);
     expect(esFaseDeLaWeb("U-P-IMDI")).toBe(true);
   });
 
@@ -234,9 +241,9 @@ describe("Impresión Digital", () => {
     for (const m of ["U-P-IMDI", "P-HPLA", "P-PCMU"]) expect(esFaseDe(m, diseno)).toBe(false);
   });
 
-  it("lee de OLANET, sin vista, sin revisión y con su propia máquina", () => {
+  it("lee de OLANET completado con su vista, sin revisión y con su propia máquina", () => {
     expect(impresion.fuente).toBe("olanet");
-    expect(impresion.vista).toBeUndefined();
+    expect(impresion.vista).toBe("TGM_PENDIENTE_IMPRESION");
     expect(impresion.sinRevision).toBe(true);
     expect(impresion.maquina).toBe("IMDI-A");
   });

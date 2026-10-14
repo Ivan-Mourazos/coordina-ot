@@ -231,14 +231,19 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     nombre: "Impresión Digital",
     nombreCorto: "Impresión",
     siglas: "ID",
-    // Sin vista: RPS no tiene `TGM_PENDIENTE_*` de impresión. La lista es la
-    // de OLANET, que es la que ya manda en Diseño. Lo que se pierde es lo
-    // recién lanzado que OLANET aún no tenga, y eso son minutos.
+    // Como Diseño: OLANET manda y la vista solo completa lo recién lanzado
+    // que OLANET aún no tenga. La vista la hizo IT el 14/10/2026 (copia de la
+    // de OT con IMDI-A, U-P-IMDI, P-HPLA, P-IDUV y P-JETI); hasta entonces la
+    // lista era solo OLANET.
+    vista: "TGM_PENDIENTE_IMPRESION",
     fuente: "olanet",
     // Las tres máquinas de Manuel (medido en RPS: ~720 h desde 2025 entre
     // IMDI-A y P-HPLA). P-PCMU es el plóter de troquelar vinilo: 38 fichajes
     // de Manuel contra 5 de Smith (17/09/2026).
-    recursos: ["imdi-a", "p-hpla", "p-pcmu"],
+    // P-IDUV (impresora UV) y P-JETI (plóter Jeti) los añadió IT a la vista y
+    // son de Impresión (Iván, 14/10/2026). OJO: A-JETI es OTRA, de taller
+    // (34.740 fases en OLANET), y no entra.
+    recursos: ["imdi-a", "u-p-imdi", "p-hpla", "p-iduv", "p-jeti", "p-pcmu"],
     // Troquelar se ficha en la máquina, como el corte de Diseño (P-PCUS): el
     // tiempo es de Impresión pero la tarea no sale en su tablero.
     recursosSoloTiempo: ["p-pcmu"],
@@ -246,7 +251,7 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     // IMDI-A sale en OLANET como «U-P-IMDI» (13/10/2026: 33 fases vivas así y
     // ninguna como «IMDI-A»). "IMDI" recoge las dos. El plóter va entero,
     // con su «P-», por lo mismo que en Diseño: deja fuera los A-… del taller.
-    marcasEnFases: ["IMDI", "P-HPLA"],
+    marcasEnFases: ["IMDI", "P-HPLA", "P-IDUV", "P-JETI"],
     ordenFases: ["sinEmpezar", "planteando", "listoParaPasar", "parado"],
     etiquetasFase: { planteando: "Imprimiendo", listoParaPasar: "Impreso, sin pasar" },
     // Las dos a la vez: nadie revisa, y el bloque del pedido es donde vive
