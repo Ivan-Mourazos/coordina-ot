@@ -88,7 +88,8 @@ export function ConsultaEnCurso({
           ))}
         </div>
         <p className="text-[11px] text-text-muted">
-          Lo que tiene ahora la oficina: quién lo plantea, en qué punto va y para cuándo.
+          {/* «Plantea» solo vale para OT (David, 14/10/2026): en Diseño no se plantea. */}
+          {`Lo que tiene ahora ${SECCIONES[seccion].nombre}: ${seccion === "ot" ? "quién lo plantea" : "quién lo lleva"}, en qué punto va y para cuándo.`}
           {datos && ` ${pedidos.length} ${pedidos.length === 1 ? "pedido" : "pedidos"}.`}
         </p>
       </div>
