@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-14",
-    "hasta": "a939068",
+    "hasta": "9517fca",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -27,9 +27,24 @@
         "tanda": 3
       },
       {
+        "tipo": "nuevo",
+        "titulo": "La consulta «En curso» enseña también Impresión Digital",
+        "tanda": 5
+      },
+      {
         "tipo": "arreglado",
         "titulo": "En la consulta, la pestaña de Diseño Gráfico ya no habla de «plantear»",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido salía como «Revisando» aunque nadie hubiera empezado a revisarlo: ahora dice «Por revisar»",
+        "tanda": 5
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la consulta sin entrar, el modo oscuro se perdía al recargar la página",
+        "tanda": 5
       },
       {
         "tipo": "mejor",
@@ -40,6 +55,11 @@
         "tipo": "mejor",
         "titulo": "Impresión Digital ve también el trabajo de la impresora UV y del plóter Jeti",
         "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la consulta, «En curso» separa los pedidos por cómo van: sin empezar, planteándose, esperando revisión y listos",
+        "tanda": 5
       }
     ]
   },
