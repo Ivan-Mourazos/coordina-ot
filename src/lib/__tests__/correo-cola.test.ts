@@ -138,6 +138,10 @@ describe("el trabajador", () => {
       expect(enviados[0].adjuntos).toEqual([]);
       expect(enviados[0].texto).toContain("Impreso en Producción: AR2605016-1.pdf");
       expect(enviados[0].texto).not.toContain("Adjunto");
+      // Lleva lo mismo que el de PVC: pedido, cada OF con sus tiempos y quién lo pasó.
+      expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
+      expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO\n   Planteo 30 min (Tamara) · Sin revisión");
+      expect(enviados[0].texto).toContain("Pasado a Producción por: Iván Sánchez");
     } finally {
       delete process.env.IMPRESION_PRODUCCION;
     }
