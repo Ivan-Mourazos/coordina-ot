@@ -49,6 +49,7 @@ export async function vueltaCorreo(ahora = new Date(), enviar = enviarCorreo): P
             responderA: process.env.CORREO_RESPONDER_A ?? "of.tecnica@toldosgomez.com",
             asunto: c.asunto,
             texto: c.cuerpo,
+            html: c.html ?? undefined,
             adjuntos,
           },
           cred,

@@ -14,6 +14,9 @@ export interface Correo {
   responderA: string | null;
   asunto: string;
   texto: string;
+  /** Si viene, el correo va en HTML (con negrita y color) y `texto` no se usa.
+   *  Graph manda un solo cuerpo: o uno o el otro. */
+  html?: string;
   adjuntos: Adjunto[];
 }
 export interface CredencialesGraph { tenant: string; cliente: string; secreto: string }
@@ -97,7 +100,7 @@ export async function enviarCorreo(
       saveToSentItems: true,
       message: {
         subject: c.asunto,
-        body: { contentType: "Text", content: c.texto },
+        body: c.html ? { contentType: "HTML", content: c.html } : { contentType: "Text", content: c.texto },
         toRecipients: c.para.map(direccion),
         ...(c.responderA ? { replyTo: [direccion(c.responderA)] } : {}),
         attachments: c.adjuntos.map((a) => ({
