@@ -15,11 +15,22 @@ vi.mock("../server/impresion-cola", () => ({
   prepararImpresion: prepararMock,
   leerImpresionesDe: () => [],
 }));
+// Y el correo: nada habla con Microsoft.
+const { modoCorreoMock, reenviarMock } = vi.hoisted(() => ({
+  modoCorreoMock: vi.fn(() => "activo"),
+  reenviarMock: vi.fn(async () => true),
+}));
+vi.mock("../server/correo-cola", () => ({
+  modoCorreo: modoCorreoMock,
+  leerCorreosDe: () => [{ id: 1, estado: "enviado" }],
+  reenviarUltimo: reenviarMock,
+}));
 
 let dir: string;
 let ruta: typeof import("../../app/api/planteamiento/route");
 let fichero: typeof import("../../app/api/planteamiento/fichero/route");
 let reimprimir: typeof import("../../app/api/planteamiento/reimprimir/route");
+let reenviar: typeof import("../../app/api/planteamiento/reenviar/route");
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "coordina-planteamiento-"));
@@ -28,6 +39,7 @@ beforeAll(async () => {
   ruta = await import("../../app/api/planteamiento/route");
   fichero = await import("../../app/api/planteamiento/fichero/route");
   reimprimir = await import("../../app/api/planteamiento/reimprimir/route");
+  reenviar = await import("../../app/api/planteamiento/reenviar/route");
 });
 afterAll(() => {
   delete process.env.DATASOURCE;
@@ -36,6 +48,8 @@ afterAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   modoMock.mockReturnValue("activo");
+  modoCorreoMock.mockReturnValue("activo");
+  reenviarMock.mockResolvedValue(true);
   planteamientosMock.mockResolvedValue({
     ficheros: [{ nombre: "AR2605016-10.pdf", ruta: "Z:/no/existe/AR2605016-10.pdf", origen: "cad", paginas: 1, todoA4: true }],
     aviso: null,
@@ -71,4 +85,25 @@ test("reimprimir encola y devuelve el resultado", async () => {
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ encolados: 1, manuales: [], aviso: null });
   expect(prepararMock).toHaveBeenCalledWith("AR.26.05016", "ivan");
+});
+
+const post = (b: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(b) });
+
+test("GET también cuenta el correo", async () => {
+  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
+  expect((await r.json()).correo).toEqual({ modo: "activo", envios: [{ id: 1, estado: "enviado" }] });
+});
+
+test("reenviar: encola y responde ok", async () => {
+  const r = await reenviar.POST(post({ pedido: "AR.26.05016", operarioId: "ivan" }));
+  expect(r.status).toBe(200);
+  expect(reenviarMock).toHaveBeenCalledWith("AR.26.05016", "ivan");
+});
+
+test("reenviar sin correo previo: 404; en off: 409; pedido raro: 400", async () => {
+  reenviarMock.mockResolvedValueOnce(false);
+  expect((await reenviar.POST(post({ pedido: "AR.26.05016", operarioId: "ivan" }))).status).toBe(404);
+  modoCorreoMock.mockReturnValueOnce("off");
+  expect((await reenviar.POST(post({ pedido: "AR.26.05016", operarioId: "ivan" }))).status).toBe(409);
+  expect((await reenviar.POST(post({ pedido: "../x", operarioId: "ivan" }))).status).toBe(400);
 });

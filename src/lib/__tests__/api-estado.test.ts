@@ -11,6 +11,9 @@ vi.mock("../server/olanet-outbox", () => ({ encolarFinalizacion: finalizarMock }
 // ni un recurso compartido de verdad.
 const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImpresionMock: vi.fn(() => "activo"), prepararImpresionMock: vi.fn<(c: string, o: string) => Promise<{ encolados: number; manuales: string[]; aviso: string | null }>>(async () => ({ encolados: 1, manuales: [], aviso: null })) }));
 vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: modoImpresionMock }));
+// Y la del correo: ningún test de aquí habla con Microsoft.
+const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: string[]; pasadoPor: string }, o: string) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
+vi.mock("../server/correo-cola", () => ({ prepararCorreo: prepararCorreoMock, modoCorreo: modoCorreoMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
 const cortarFichajeMock = vi.fn<(ofId: string, ahora: string) => string[]>();
@@ -54,6 +57,7 @@ beforeEach(() => {
   tableroMock.mockReset();
   finalizarMock.mockReset();
   prepararImpresionMock.mockClear();
+  prepararCorreoMock.mockClear();
   cortarFichajeMock
     .mockReset()
     .mockImplementation((ofId, ahora) => cortarFichajeReal(ofId, ahora));
@@ -450,7 +454,8 @@ async function pasarParaImprimir(id: string, extra: Record<string, unknown> = {}
 test("al pasar un pedido de OT se prepara la impresión de su planteamiento", async () => {
   const res = await pasarParaImprimir("P-imprime-1");
   expect(res.status).toBe(200);
-  expect(prepararImpresionMock).toHaveBeenCalledWith(CODIGO_IMPRESION, "ivan");
+  // Los dos primeros argumentos: el resto es la búsqueda compartida con el correo.
+  expect(prepararImpresionMock.mock.calls[0].slice(0, 2)).toEqual([CODIGO_IMPRESION, "ivan"]);
 });
 
 test("con la casilla desmarcada no se imprime", async () => {
@@ -477,4 +482,37 @@ test("si la impresión falla, el pase sale bien igual", async () => {
   const res = await pasarParaImprimir("P-imprime-4");
   expect(res.status).toBe(200);
   expect(estadoDb.leerOverlay("ot").pedidosCompletados.has("P-imprime-4")).toBe(true);
+});
+
+// ─── Correo del planteamiento al pasar (solo OT) ─────────────────────────────
+test("al pasar un pedido de OT se prepara el correo con los datos del pedido", async () => {
+  expect((await pasarParaImprimir("P-correo-1")).status).toBe(200);
+  expect(prepararCorreoMock).toHaveBeenCalledTimes(1);
+  const [datos, operario] = prepararCorreoMock.mock.calls[0];
+  expect(operario).toBe("ivan");
+  expect(datos).toMatchObject({ pedido: CODIGO_IMPRESION, cliente: PEDIDOS[0].cliente, ofs: [PEDIDOS[0].ofs[0].codigo] });
+  expect(typeof datos.pasadoPor).toBe("string");
+});
+
+test("con «Mandar por correo» desmarcado no se manda, pero sí se imprime", async () => {
+  expect((await pasarParaImprimir("P-correo-2", { mandarCorreo: false })).status).toBe(200);
+  expect(prepararCorreoMock).not.toHaveBeenCalled();
+  expect(prepararImpresionMock).toHaveBeenCalledTimes(1);
+});
+
+test("Diseño no manda correo", async () => {
+  expect((await pasarParaImprimir("P-correo-3", {}, "diseno")).status).toBe(200);
+  expect(prepararCorreoMock).not.toHaveBeenCalled();
+});
+
+test("con el correo apagado no se prepara", async () => {
+  modoCorreoMock.mockReturnValueOnce("off");
+  expect((await pasarParaImprimir("P-correo-4")).status).toBe(200);
+  expect(prepararCorreoMock).not.toHaveBeenCalled();
+});
+
+test("si el correo falla, el pase sale bien igual", async () => {
+  prepararCorreoMock.mockRejectedValueOnce(new Error("microsoft"));
+  expect((await pasarParaImprimir("P-correo-5")).status).toBe(200);
+  expect(estadoDb.leerOverlay("ot").pedidosCompletados.has("P-correo-5")).toBe(true);
 });
