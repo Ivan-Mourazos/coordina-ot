@@ -620,7 +620,7 @@ export function ListaView({
                   // desplegable, a la derecha de piezas y tiempo (una línea
                   // menos, Iván 14/10/2026).
                   recorrido={compacta ? (
-                    <div className={`min-w-[280px] max-w-3xl flex-1 ${hecho ? "opacity-40 grayscale" : ""}`}>
+                    <div className={`ml-auto min-w-[280px] max-w-3xl flex-1 ${hecho ? "opacity-40 grayscale" : ""}`}>
                       <Recorrido pedido={p} hoy={hoy} />
                     </div>
                   ) : undefined}
