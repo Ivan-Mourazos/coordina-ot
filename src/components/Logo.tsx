@@ -19,6 +19,12 @@ const IMAGENES: Record<SiglasLogo | "solo", { claro: StaticImageData; oscuro: St
   OP: { claro: opClaro, oscuro: opOscuro },
 };
 
+/** Con siglas el logo es más ancho que el de antes (1672 px de ancho en el
+ *  original; DG llega a 2140). Se encoge un poco, igual en todas las
+ *  secciones para que «Coordina» no cambie de tamaño al pasar de una a otra:
+ *  así ocupa más o menos lo mismo que el logo de antes (Iván, 14/10/2026). */
+const ESCALA_CON_SIGLAS = 0.85;
+
 /** Logotipo (public/coordina-*.png, generados con scripts/genera-logos.mjs):
  *  variante por tema vía CSS, sin JS. Sin `siglas`, solo «Coordina» (entrar).
  *  Los imports estáticos dejan que Next optimice y evitan errores de ruta en
@@ -33,21 +39,22 @@ export function Logo({
   siglas?: SiglasLogo | null;
 }) {
   const { claro, oscuro } = IMAGENES[siglas ?? "solo"];
-  const width = Math.round(height * (claro.width / claro.height));
+  const alto = siglas ? Math.round(height * ESCALA_CON_SIGLAS) : height;
+  const width = Math.round(alto * (claro.width / claro.height));
   const alt = siglas ? `Coordina ${siglas}` : "Coordina";
   return (
-    <span className={`inline-flex shrink-0 ${className}`} style={{ height, width }}>
+    <span className={`inline-flex shrink-0 ${className}`} style={{ height: alto, width }}>
       <Image
         src={claro}
         alt={alt}
-        height={height}
+        height={alto}
         className="block h-full w-auto dark:hidden"
         priority
       />
       <Image
         src={oscuro}
         alt={alt}
-        height={height}
+        height={alto}
         className="hidden h-full w-auto dark:block"
         priority
       />
