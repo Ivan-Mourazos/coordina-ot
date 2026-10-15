@@ -1318,9 +1318,12 @@ body {
 /* La tira de pestañas lleva `glass-chip` por herencia, pero es solo el hueco
    que las agrupa: sin placa detrás, que salía como un fondo raro entre las
    pestañas. Cada pestaña lleva su propio resalto (arriba). */
-:root .tira-3d,
-:root .tira-3d:hover,
-:root .tira-3d:active {
+/* `.glass-chip` repetido para igualar la especificidad de
+   `:root .glass-chip:hover:not(:disabled)`, que si no ganaba y levantaba la
+   tira entera al pasar el ratón en vez de la pestaña de debajo. */
+:root .tira-3d.glass-chip,
+:root .tira-3d.glass-chip:hover:not(:disabled),
+:root .tira-3d.glass-chip:active:not(:disabled) {
   background-image: none;
   border-top-color: transparent;
   box-shadow: none;
