@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { calcularMetricas } from "@/lib/metricas";
+import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
+import { operariosDeSeccion } from "@/lib/server/operarios";
 import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
@@ -49,8 +51,13 @@ export async function GET(req: Request) {
     // trabajó. Separadas, "corregir tarda dos días" hace pensar en poner más
     // gente cuando son veinte minutos repartidos en dos días de espera.
     const intervalos = leerIntervalosMetricas(desde, hasta, seccion);
+    // El contexto solo atribuye autores y mide ciclos completos: no altera
+    // los totales de sección, que siguen filtrándose por quien firma.
+    const cuadro = calcularCuadroMetricas(movs, leerMovimientosMetricas(undefined, hasta), operariosDeSeccion(seccion), {
+      desde: desde?.slice(0, 10) ?? "", hasta: limite(q.get("hasta"))?.slice(0, 10) ?? "",
+    });
     return NextResponse.json(
-      { metricas: calcularMetricas(movs, intervalos), causas: leerCausasDevolucion(true) },
+      { metricas: calcularMetricas(movs, intervalos), cuadro, causas: leerCausasDevolucion(true) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
