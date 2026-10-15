@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, type ReactNode, type Ref } from "react";
+import { useId, type ReactNode, type Ref } from "react";
+import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
+import { AcentoBloque } from "./AcentoBloque";
 import type { Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -99,7 +101,9 @@ export function MarcoFicha({
         </header>
 
         <div className="pedido-contenido scroll-thin min-h-0 flex-1 overflow-y-auto p-4 bajo:px-3 bajo:pt-2">
-          {children}
+          <GrupoAcordeon tipo="bloques">
+            <GrupoAcordeon tipo="descripciones">{children}</GrupoAcordeon>
+          </GrupoAcordeon>
         </div>
 
         {pie && (
@@ -251,7 +255,7 @@ export function DatosEnLinea({
 export function BloqueFicha({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="bloque-3d mb-4 rounded-xl p-3">
-      <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>{titulo}</h3>
+      <h3 data-bloque="comentario" className={`cabecera-bloque mb-1.5 flex items-center gap-2 ${TITULO_BLOQUE}`}><AcentoBloque tipo="comentario" />{titulo}</h3>
       {children}
     </section>
   );
@@ -261,7 +265,7 @@ export function BloqueFicha({ titulo, children }: { titulo: string; children: Re
  *  comentario, documentos, tareas. Había cuatro estilos distintos dentro del
  *  mismo panel (10 px en mayúsculas, 12 px en mayúsculas, 12 px en minúsculas
  *  y uno suelto sin caja), y los bloques no parecían piezas del mismo juego. */
-export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide text-text-muted";
+export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide text-text";
 
 /** El comentario de venta, plegado a dos líneas. Casi siempre es el mismo
  *  texto legal de TGM (ocho líneas sobre la lona y la estructura del cliente)
@@ -269,18 +273,20 @@ export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide 
  *  trabaja. Lo que no es de siempre —"NO INCLUYE INSTALACIÓN ELÉCTRICA"— suele
  *  ir al principio y se sigue leyendo sin desplegar. */
 export function ComentarioPedido({ texto }: { texto: string }) {
-  const [abierto, setAbierto] = useState(false);
+  const id = useId();
+  const { abierto, alternar } = useElementoAcordeon("bloques");
   const largo = texto.length > 160 || texto.includes("\n");
   return (
     <BloqueFicha titulo="Comentario del pedido">
-      <p className={`whitespace-pre-line text-[11px] leading-snug text-text ${abierto || !largo ? "" : "line-clamp-2"}`}>
+      <p id={id} className={`whitespace-pre-line text-[11px] leading-snug text-text ${abierto || !largo ? "" : "line-clamp-2"}`}>
         {texto}
       </p>
       {largo && (
         <button
           type="button"
-          onClick={() => setAbierto((a) => !a)}
+          onClick={alternar}
           aria-expanded={abierto}
+          aria-controls={id}
           className="mt-1 text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
         >
           {abierto ? "Ver menos" : "Ver más"}

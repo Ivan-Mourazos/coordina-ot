@@ -55,7 +55,11 @@ export function AvisoParteNuevo({
   }
 
   return (
-    <div className="mb-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3">
+    // Placa del mismo acabado que los bloques de la ficha, con una raya ámbar
+    // SÓLIDA que dice «aviso». El fondo ámbar translúcido de antes salía crema
+    // en claro, que es justo lo que Iván no quiere (15/10/2026).
+    <div className="bloque-3d relative mb-3 overflow-hidden rounded-xl p-3 pl-4">
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-amber-600 dark:bg-amber-400" />
       <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
         Han vuelto a escanear el parte
       </p>
@@ -72,7 +76,7 @@ export function AvisoParteNuevo({
             type="button"
             onClick={() => void marcar()}
             disabled={apagando}
-            className="rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+            className="boton-3d rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
           >
             {apagando ? "Guardando…" : "Ya lo he visto"}
           </button>

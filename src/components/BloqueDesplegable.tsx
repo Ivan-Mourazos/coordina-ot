@@ -1,6 +1,8 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { useElementoAcordeon } from "./Acordeon";
+import { AcentoBloque, type TipoBloque } from "./AcentoBloque";
 import { Desplegable } from "./Desplegable";
 
 // ─── Un bloque plegado de la ficha ───────────────────────────────────────────
@@ -13,6 +15,7 @@ import { Desplegable } from "./Desplegable";
 
 export function BloqueDesplegable({
   titulo,
+  tipo,
   insignia,
   sufijo,
   abiertoDeSalida = false,
@@ -21,6 +24,7 @@ export function BloqueDesplegable({
   children,
 }: {
   titulo: string;
+  tipo?: TipoBloque;
   /** Un contador pegado al rótulo ("Documentos de RPS · 3"). */
   insignia?: ReactNode;
   /** Lo que va al final de la línea del rótulo, en gris: un total, un código. */
@@ -35,7 +39,7 @@ export function BloqueDesplegable({
   children: ReactNode;
 }) {
   const id = useId();
-  const [abierto, setAbierto] = useState(abiertoDeSalida);
+  const { abierto, alternar } = useElementoAcordeon("bloques", abiertoDeSalida);
   return (
     // `bloque-3d`: el mismo relieve que las tarjetas de OF y las filas de las
     // listas. Los bloques de la ficha llevaban dos acabados —unos con relieve
@@ -43,15 +47,16 @@ export function BloqueDesplegable({
     // uno encima del otro, no parecían el mismo tipo de bloque.
     <section className={`bloque-3d ${className} rounded-xl`}>
       <button
+        data-bloque={tipo}
         type="button"
         onClick={() => {
           const nuevo = !abierto;
-          setAbierto(nuevo);
+          alternar();
           if (nuevo) onAbrir?.();
         }}
         aria-expanded={abierto}
         aria-controls={id}
-        className="flex w-full items-center gap-2 px-3 py-2 bajo:py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+        className={`${tipo ? "cabecera-bloque" : ""} flex w-full items-center gap-2 px-3 py-2 bajo:py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-text`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -63,6 +68,7 @@ export function BloqueDesplegable({
         >
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
+        {tipo && <AcentoBloque tipo={tipo} />}
         {titulo}
         {insignia}
         {sufijo !== undefined && (

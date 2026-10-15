@@ -45,6 +45,7 @@ export function HistorialTareas({
   return (
     <BloqueDesplegable
       titulo={compacto ? "Tareas" : "Tareas y tiempos"}
+      tipo="tareas"
       abiertoDeSalida={abrirAlMontar}
       className={className}
     >
@@ -345,43 +346,23 @@ export function TareasDelPedido({
     }
   }
 
-  if (ofs) {
-    return <HistorialTareas pedido={pedido} ofs={ofs} seccion={seccion} className={className} abrirAlMontar />;
-  }
-  // LA MISMA CAJA que la versión ya cargada de arriba: borde, fondo, chevron
-  // y rótulo. Antes esto era un `chip-3d` —un chip suelto y pequeño, distinto
-  // de "Documentos de RPS" y "NOTAS", los otros dos bloques con los que
-  // convive en la ficha— y solo se volvía un bloque de verdad DESPUÉS de
-  // cargar los datos: pulsar cambiaba lo que se veía por algo que no se
-  // parecía en nada. Ahora se ve igual desde el principio; lo único que
-  // cambia al pulsar es que carga y se abre.
+  // El bloque permanece montado mientras llegan los datos: si se sustituyera
+  // al terminar la petición, se abriría otra vez aunque ya hubiéramos abierto
+  // Documentos. La carga no decide qué apartado está abierto.
   return (
-    <section
-      className={`bloque-3d ${className ?? "mb-4"} rounded-xl`}
+    <BloqueDesplegable
+      titulo="Tareas y tiempos"
+      tipo="tareas"
+      className={className}
+      onAbrir={() => { if (!ofs && estado !== "cargando") void cargar(); }}
     >
-      <button
-        type="button"
-        onClick={cargar}
-        disabled={estado === "cargando"}
-        title="Qué tareas lleva el pedido y cuánto se ha echado en cada una, según RPS"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted disabled:opacity-60"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className="size-3.5 shrink-0 text-text-muted"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-        >
-          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {estado === "cargando"
-          ? "Cargando tareas…"
-          : estado === "error"
-            ? "No se pudo cargar · reintentar"
-            : "Tareas y tiempos"}
-      </button>
-    </section>
+      {ofs && <TareasPorCentro ofs={ofs} seccion={seccion} conColor />}
+      {estado === "cargando" && <p role="status" className="text-[11px] text-text-muted">Cargando tareas…</p>}
+      {estado === "error" && (
+        <p role="alert" className="text-[11px] text-text">
+          No se pudieron cargar las tareas. <button type="button" onClick={() => void cargar()} className="chip-3d rounded px-2 py-1 font-semibold">Reintentar</button>
+        </p>
+      )}
+    </BloqueDesplegable>
   );
 }

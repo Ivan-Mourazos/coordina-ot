@@ -2910,7 +2910,6 @@ export function Board({
                 ordenDesc={filtrosPorVista.lista.ordenDesc}
                 hayFiltrosActivos={hayFiltrosActivos(filtrosPorVista.lista)}
                 fase={faseDeLaLista}
-                unoAbierto
               />
             </div>
           </>

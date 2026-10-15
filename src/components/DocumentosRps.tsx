@@ -226,7 +226,10 @@ function Grupo({
       </button>
 
       <Desplegable abierto={abierto}>
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-1.5 border-t border-[var(--glass-border)] p-2">
+        {/* Las miniaturas en un hueco HUNDIDO y cada una como una placa que
+            sube al pasar y se hunde al pulsar: el mismo lenguaje que el resto
+            de la ficha (Iván, 16/10/2026). */}
+        <ul className="recuadro m-1.5 mt-0 grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-2 rounded-md p-2">
           {/* La clave lleva el índice porque el nombre no sirve solo: dos
               documentos pueden llamarse igual. */}
           {documentos.map((d, i) => (
@@ -262,7 +265,7 @@ function Tarjeta({
       type="button"
       onClick={() => onAbrir(doc)}
       title={`${titulo} — abrir`}
-      className="block w-full overflow-hidden rounded-lg border border-border text-left hover:border-brand-500 focus-visible:border-focus"
+      className="chip-3d block w-full overflow-hidden rounded-lg text-left focus-visible:border-focus"
     >
       {dibujable && !sinMiniatura ? (
         // `img` a pelo y no `next/image`: son ficheros de un share interno
@@ -285,7 +288,7 @@ function Tarjeta({
           <span className="text-[11px] font-bold text-text-muted">{ext || "?"}</span>
         </div>
       )}
-      <span className="block truncate px-1.5 py-1 text-[10px] text-text">{etiqueta}</span>
+      <span className="block truncate px-1.5 py-1 text-[10px] font-medium text-text">{etiqueta}</span>
     </button>
   );
 }

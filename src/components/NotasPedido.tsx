@@ -7,6 +7,7 @@ import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useSoloLectura } from "./SoloLectura";
+import { AcentoBloque } from "./AcentoBloque";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
 // El post-it que pidió Ángel: lo que sabe OT y no está en ningún campo de RPS
@@ -147,8 +148,9 @@ export function NotasPedido({
 
   return (
     <div className="bloque-3d mb-4 rounded-xl p-3 bajo:mb-2 bajo:px-3 bajo:py-2">
-      <div className={`flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+      <div data-bloque="notas" className={`cabecera-bloque flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
+        <AcentoBloque tipo="notas" />
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-text">
           Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}
         </p>
         {vacio && (
@@ -180,7 +182,7 @@ export function NotasPedido({
       {notas === null && !error && <p className="text-[11px] text-text-muted">Cargando notas…</p>}
 
 
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {(notas ?? []).map((n) => {
           const op = opPorId(n.operarioId);
           // Las notas que escribe la propia web (p. ej. "han vuelto a escanear
@@ -210,11 +212,11 @@ export function NotasPedido({
             );
           }
           return (
-            <li key={n.id} className="flex gap-2">
+            <li key={n.id} className="group/nota recuadro flex gap-2.5 rounded-lg p-3">
               {delSistema ? (
                 <span
                   aria-hidden
-                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[9px] text-amber-800 ring-1 ring-inset ring-amber-500/40 dark:text-amber-300"
+                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[9px] font-bold text-white dark:bg-amber-400 dark:text-stone-950"
                 >
                   !
                 </span>
@@ -231,17 +233,19 @@ export function NotasPedido({
                   <span className="font-semibold text-text">
                     {delSistema ? "Coordina" : (op?.nombre ?? n.operarioId)}
                   </span>
-                  <span className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</span>
+                  <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
                   {n.editadoAt && (
                     <span
                       className="text-text-muted"
                       title={`Editada el ${fmtCuandoNota(n.editadoAt, ahora)}`}
                     >
-                      · editado
+                      · editada
                     </span>
                   )}
                   {mia && !soloLectura && !hayEditorAbierto && (
-                    <span className="ml-auto flex shrink-0 gap-2">
+                    // Con ratón se descubren al pasar; en táctil y con teclado
+                    // siguen disponibles sin tener que acertar un gesto de hover.
+                    <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
                       <button
                         type="button"
                         onClick={() => setEditando({ id: n.id, texto: n.texto })}
@@ -259,7 +263,7 @@ export function NotasPedido({
                     </span>
                   )}
                 </p>
-                <p className="whitespace-pre-line text-[13px] leading-snug text-text">{n.texto}</p>
+                <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-relaxed text-text">{n.texto}</p>
               </div>
             </li>
           );
@@ -377,14 +381,14 @@ function Editor({
         // Bloqueado mientras se guarda: el camino de éxito limpia el borrador,
         // así que lo que se teclease en esa ventana se iría sin avisar.
         disabled={guardando}
-        className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-[13px] leading-snug text-text disabled:opacity-60"
+        className="recuadro w-full rounded-lg border border-border-strong px-3 py-2 text-[13px] leading-relaxed text-text disabled:opacity-60"
       />
       <div className="mt-1 flex items-center gap-2">
         <button
           type="button"
           onClick={onGuardar}
           disabled={vacio || pasado || guardando}
-          className="rounded-lg bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+          className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>

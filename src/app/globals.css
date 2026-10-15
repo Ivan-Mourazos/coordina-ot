@@ -47,6 +47,14 @@
   --border: #e2e4e9;
   --border-strong: #c8ccd4;
   --text: #17181c;
+  /* Acentos opacos por apartado: la semántica de OT, documentos/listo y
+     revisión se conserva sin teñir de crema las placas de aluminio. */
+  --bloque-documentos: #0e7490;
+  --bloque-tareas: #7c3aed;
+  --bloque-notas: #9e6512;
+  --bloque-recorrido: #2563a6;
+  --bloque-comentario: #b45309;
+  --bloque-ofs: #047857;
   /* Fechas, recuentos y rótulos pequeños viven sobre vidrio y también sobre
      el fondo plata. #4b505a da ~5,8:1 sobre --bg y ~8:1 sobre blanco:
      gana cuerpo sin competir con --text. Se usa opaco: añadir /50 o /60
@@ -193,6 +201,12 @@
   --border: #35373d;
   --border-strong: #45484f;
   --text: #eef0f2;
+  --bloque-documentos: #22d3ee;
+  --bloque-tareas: #a78bfa;
+  --bloque-notas: #f2b234;
+  --bloque-recorrido: #60a5fa;
+  --bloque-comentario: #fb923c;
+  --bloque-ofs: #34d399;
   /* El vidrio sobre vidrio y el tinte de familia apagan los rótulos pequeños.
      #c4cad3 les da margen también ahí, manteniéndolos por debajo del texto
      principal #eef0f2. No se atenúan después con alfa. */
@@ -1306,6 +1320,30 @@ body {
 :root .bloque-3d-hundido {
   transform: none;
 }
+
+/* Un acento por tipo, sin teñir el fondo ni convertir el rótulo en color. */
+.cabecera-bloque {
+  position: relative;
+  padding-left: 12px;
+  color: var(--text);
+}
+.cabecera-bloque::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--acento-bloque);
+}
+[data-bloque="documentos"] { --acento-bloque: var(--bloque-documentos); }
+[data-bloque="tareas"] { --acento-bloque: var(--bloque-tareas); }
+[data-bloque="notas"] { --acento-bloque: var(--bloque-notas); }
+[data-bloque="recorrido"] { --acento-bloque: var(--bloque-recorrido); }
+[data-bloque="comentario"] { --acento-bloque: var(--bloque-comentario); }
+[data-bloque="ofs"] { --acento-bloque: var(--bloque-ofs); }
+.icono-bloque { color: var(--acento-bloque); }
 
 /* Lo desplegado dentro de un bloque. Clase propia y no `ring-1`: el filo y la
    sombra hacia dentro son la misma propiedad. */

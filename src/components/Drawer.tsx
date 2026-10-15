@@ -43,6 +43,7 @@ import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./Ma
 import { TiempoOF } from "./TiempoOF";
 import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
+import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
 import { enlacePlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
@@ -818,7 +819,8 @@ export function Drawer({
               Ahora van SIEMPRE en su propia fila, debajo del rótulo: con el
               salto automático bailaban, en la línea del texto o debajo según
               cuántos salieran en cada momento. */}
-          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <div data-bloque="ofs" className="cabecera-bloque mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <AcentoBloque tipo="ofs" />
             <h3 className={TITULO_BLOQUE}>
               Órdenes de fabricación ({ofsDeOT.length})
               {ofsDeOT.length !== pedido.ofs.length && (

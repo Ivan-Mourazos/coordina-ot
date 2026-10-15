@@ -41,6 +41,8 @@ export function Desplegable({
 
   return (
     <div
+      aria-hidden={!abierto}
+      inert={!abierto}
       className={`desplegable ${abierto ? "desplegable-abre" : "desplegable-cierra"}`}
       onAnimationEnd={(e) => {
         // Solo la animación de ESTA caja. `animationend` burbujea, y dentro del

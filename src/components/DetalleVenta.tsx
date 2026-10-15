@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId } from "react";
+import { useElementoAcordeon } from "./Acordeon";
 import { Desplegable } from "./Desplegable";
 
 /** El texto de la línea del pedido de venta, plegado.
@@ -10,12 +11,12 @@ import { Desplegable } from "./Desplegable";
  *  añade un marco por cada OF. Aquí basta una línea que se abre. */
 export function DetalleVenta({ texto }: { texto: string }) {
   const id = useId();
-  const [abierto, setAbierto] = useState(false);
+  const { abierto, alternar } = useElementoAcordeon("descripciones");
   return (
     <div className="mt-1 px-2.5">
       <button
         type="button"
-        onClick={() => setAbierto((a) => !a)}
+        onClick={alternar}
         aria-expanded={abierto}
         aria-controls={id}
         className="flex w-full items-center gap-1.5 text-left text-[11px] font-medium text-text-muted hover:text-text"
