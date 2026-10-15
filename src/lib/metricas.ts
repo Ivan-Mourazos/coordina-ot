@@ -32,10 +32,11 @@ import { diasEntre, sumarDias } from "./fechas";
 // 100 %: septiembre llegó a enseñar "7 de 6". No es inventarse nada — si una
 // OF volvió, alguien la revisó; lo que faltaba era el apunte de que empezó.
 //
-// Lo que NO lleva, a propósito: reparto por persona. El dato está en el
-// registro, pero un tablero de "quién falla más" cambia cómo se usa la
+// Reparto por persona: SOLO volumen (planteos entregados, revisiones hechas),
+// visible para todo el equipo. El % de devoluciones por persona NO va, a
+// propósito: un tablero de "quién falla más" cambia cómo se usa la
 // herramienta —se devuelve menos para no señalar a nadie— y entonces los
-// números dejan de valer. Si se pide, se habla; por defecto no va.
+// números dejan de valer. Iván lo decidió así sabiendo el riesgo (15/10/2026).
 //
 // LOS NÚMEROS SON DE UNA SECCIÓN, no de las dos juntas. El "1 de cada 3
 // vuelve" de Oficina Técnica es un número suyo: mezclarle las devoluciones de

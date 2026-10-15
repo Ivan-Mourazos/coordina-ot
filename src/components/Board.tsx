@@ -2974,8 +2974,8 @@ export function Board({
         )}
 
         {vista === "metricas" && (
-          <div className="p-5 pb-24">
-            <MetricasView seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)} />
+          <div className="min-h-0 flex-1 p-4 bajo:p-3">
+            <MetricasView seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)} operarios={operarios} miId={miId} />
           </div>
         )}
 
