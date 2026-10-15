@@ -54,7 +54,7 @@ test("la fila abierta pinta el detalle y se marca con el acento de marca", () =>
   expect(html).toContain("Plegar AR.26.03914");
   expect(html).toContain("el detalle");
   // La barra dorada a la izquierda es lo que dice dónde empieza y dónde acaba
-  // lo desplegado cuando hay tres abiertos a la vez. El fondo de la cabecera
+  // el único pedido desplegado (Iván, 15/10/2026). El fondo de la cabecera
   // abierta ya no es crema translúcido (Iván, 15/10/2026): blanco en claro y
   // dorado oscuro sólido en oscuro (--fila-abierta).
   expect(html).toContain("bg-brand-500");

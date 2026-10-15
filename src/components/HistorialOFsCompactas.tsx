@@ -7,6 +7,7 @@ import { IconoAviso, IconoMaterial } from "./Iconos";
 import type { SeccionId } from "@/lib/secciones";
 import { centrosConDesglose } from "@/lib/historial-centros";
 import { DetalleVenta } from "./DetalleVenta";
+import { GrupoAcordeon } from "./Acordeon";
 import { ROL } from "@/lib/estado";
 
 /** Una línea por OF, aunque haya trabajado más de un centro. La sección
@@ -57,7 +58,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
   const variasOF = porCodigo.size > 1;
   const todasAbiertas = abiertas.size === porCodigo.size;
   return (
-    <>
+    <GrupoAcordeon tipo="descripciones">
     {detalle && variasOF && (
       <div className="-mt-1 mb-1.5 flex justify-end">
         <button
@@ -245,6 +246,6 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
         );
       })}
     </ul>
-    </>
+    </GrupoAcordeon>
   );
 }

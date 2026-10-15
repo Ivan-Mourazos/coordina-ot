@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { useElementoAcordeon } from "./Acordeon";
 import { Desplegable } from "./Desplegable";
 
 // ─── Un bloque plegado de la ficha ───────────────────────────────────────────
@@ -35,7 +36,7 @@ export function BloqueDesplegable({
   children: ReactNode;
 }) {
   const id = useId();
-  const [abierto, setAbierto] = useState(abiertoDeSalida);
+  const { abierto, alternar } = useElementoAcordeon("bloques", abiertoDeSalida);
   return (
     // `bloque-3d`: el mismo relieve que las tarjetas de OF y las filas de las
     // listas. Los bloques de la ficha llevaban dos acabados —unos con relieve
@@ -46,7 +47,7 @@ export function BloqueDesplegable({
         type="button"
         onClick={() => {
           const nuevo = !abierto;
-          setAbierto(nuevo);
+          alternar();
           if (nuevo) onAbrir?.();
         }}
         aria-expanded={abierto}

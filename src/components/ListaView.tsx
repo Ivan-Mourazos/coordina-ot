@@ -22,6 +22,7 @@ import { FamiliaTag } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
+import { useAcordeon } from "./Acordeon";
 import { FilaOF } from "./FilaOF";
 import { negocioAparte } from "@/lib/negocio";
 import { IconoAviso } from "./Iconos";
@@ -46,8 +47,8 @@ import { IconoAviso } from "./Iconos";
 //     Mahou") y sueltos se comían el ancho que necesita el recorrido, que es a
 //     lo que de verdad se viene aquí. Ver "La celda de identidad".
 //   · Un pedido desplegado se marca con una barra a la izquierda que recorre su
-//     fila y su detalle: con dos o tres abiertos a la vez, el detalle de uno
-//     parecía el principio del siguiente. Eso lo pone `FilaDesplegable`, que es
+//     fila y su detalle. Solo se abre uno a la vez (Iván, 15/10/2026).
+//     Eso lo pone `FilaDesplegable`, que es
 //     de donde salen también el chevron y la animación.
 
 // ─── El ancho del recorrido ──────────────────────────────────────────────────
@@ -392,7 +393,6 @@ export function ListaView({
   hayFiltrosActivos = false,
   sinMaterial = false,
   fase,
-  unoAbierto = false,
   conNombres = false,
   rotulo,
   sinCabecera = false,
@@ -413,9 +413,6 @@ export function ListaView({
   /** En el desplegable, autor y revisor por su nombre y no con avatar (la
    *  consulta sin sesión). */
   conNombres?: boolean;
-  /** Al desplegar un pedido se pliega el que estuviera abierto (la consulta
-   *  «En curso», como su lista de pedidos). */
-  unoAbierto?: boolean;
   /** La fase del pedido en una palabra, junto al código (la consulta «En
    *  curso»). Con ella, el «Listo para Producción» del final sobra: ya lo dice. */
   fase?: (p: Pedido) => { texto: string; color: string; tinta: string } | null;
@@ -438,7 +435,7 @@ export function ListaView({
   const hoy = hoyISO();
   const columnas = compacta ? COLUMNAS_COMPACTAS : sinMaterial ? COLUMNAS_SIN_MATERIAL : COLUMNAS_LISTA;
   const columnaMaterial = sinMaterial ? "hidden" : SOLO_ANCHO;
-  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const { abierto, alternar } = useAcordeon();
 
   const nombrePorId = useMemo(() => {
     const m = new Map(operarios.map((o) => [o.id, o.nombre]));
@@ -449,16 +446,6 @@ export function ListaView({
     const nombres = new Map(operarios.map((o) => [o.id, o.nombre]));
     return [...pedidos].sort(comparar(orden, ordenDesc, nombres));
   }, [pedidos, operarios, orden, ordenDesc]);
-
-  function toggle(id: string) {
-    setExpandidos((prev) => {
-      if (unoAbierto) return prev.has(id) ? new Set() : new Set([id]);
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   const cabecera = compacta ? (
     <>
@@ -519,8 +506,8 @@ export function ListaView({
             <FilaDesplegable
               key={p.id}
               columnas={columnas}
-              abierta={expandidos.has(p.id)}
-              onAlternar={() => toggle(p.id)}
+              abierta={abierto === p.id}
+              onAlternar={() => alternar(p.id)}
               etiqueta={p.codigo}
               idDetalle={`detalle-${p.id}`}
               tarjeta

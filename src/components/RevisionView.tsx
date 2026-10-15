@@ -17,6 +17,7 @@ import { NotaDevolucion } from "./NotaDevolucion";
 import { BotonesRevisor } from "./PedirRevisor";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
+import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaOF } from "./FilaOF";
 import { tintaSobre } from "@/lib/tinta";
@@ -189,6 +190,7 @@ export function RevisionView({
           cabe, y el recorrido se sigue leyendo igual porque el orden de los
           cuatro no cambia — solo va de arriba abajo en vez de izquierda a
           derecha. */}
+      <GrupoAcordeon tipo="filas">
       <div className="flex flex-col gap-4">
         {columnas.map((col) => (
           <SeccionRevision
@@ -212,6 +214,7 @@ export function RevisionView({
           />
         ))}
       </div>
+      </GrupoAcordeon>
     </>
   );
 }
@@ -364,7 +367,7 @@ function FilaRevision({
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
 }) {
   const soloLectura = useSoloLectura();
-  const [abierta, setAbierta] = useState(false);
+  const { abierto: abierta, alternar } = useElementoAcordeon("filas");
   const { pedido, ofs } = facet;
   const autores = new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[]);
   const ofIds = ofs.map((o) => o.id);
@@ -444,7 +447,7 @@ function FilaRevision({
          de más por detrás. */
       tarjeta
       abierta={abierta}
-      onAlternar={() => setAbierta((a) => !a)}
+      onAlternar={alternar}
       etiqueta={pedido.codigo}
       idDetalle={`revision-${estado}-${pedido.id}`}
       celdas={

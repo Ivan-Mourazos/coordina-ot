@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Desplegable } from "./Desplegable";
+import { GrupoAcordeon } from "./Acordeon";
 
 // ─── Una fila que se abre ────────────────────────────────────────────────────
 // Sale del Historial, que es donde se resolvió primero, y ahora la usan las
@@ -14,10 +15,8 @@ import { Desplegable } from "./Desplegable";
 // dos acciones. Por eso `celdas` va con `pointer-events-none` en lo que solo
 // se lee y sin él en lo que se pulsa — eso lo decide quien pinta las celdas.
 //
-// El acento de lo abierto es una barra dorada que recorre fila y detalle, más
-// el mismo dorado al 10 % de fondo. Sobre blanco queda crema y sobre grafito,
-// cálido: en los dos casos se distingue del gris del hover, que es lo que
-// fallaba cuando la fila abierta se marcaba con `bg-surface-2`.
+// El acento de lo abierto es una barra dorada que recorre fila y detalle,
+// sobre fondos opacos: el tinte translúcido se veía crema en claro.
 //
 // `tarjeta` cambia el corte entre filas de una raya de 1 px a un hueco con
 // relieve propio (`bloque-3d`): sin agrupar (los pedidos van sueltos, en el
@@ -25,8 +24,8 @@ import { Desplegable } from "./Desplegable";
 // `border-b` se leen como un muro. Abierta, ese mismo relieve se invierte a
 // `bloque-3d-hundido`: es el tacto de tecla pulsada que ya tienen los botones
 // de la casa (`chip-3d:active`), y dice "esto está abierto" sin depender solo
-// del tinte dorado — con dos o tres tarjetas abiertas a la vez, el hundido de
-// cada una sigue marcando dónde acaba y dónde empieza la siguiente. Las otras
+// del tinte dorado. Solo se abre una fila a la vez (Iván, 15/10/2026), y el
+// hundido marca dónde empieza y acaba ese pedido. Las otras
 // tres vistas ya separan por bloque (Historial por día, Revisiones por
 // estado) y no lo necesitan — cambiarles el corte de golpe sería un lenguaje
 // nuevo sin que nadie lo haya pedido—, así que es opt-in y no el nuevo
@@ -62,6 +61,34 @@ export function FilaDesplegable({
    *  relieve propio, en vez de compartir raya con la siguiente. */
   tarjeta?: boolean;
 }) {
+  const cabecera = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierta) return;
+    const el = cabecera.current;
+    if (!el) return;
+    // El cierre animado del pedido anterior puede subir esta cabecera fuera
+    // de pantalla. Se comprueba también al acabar esa animación, sin adivinar
+    // su duración; con movimiento reducido basta el siguiente frame.
+    const mostrar = () => {
+      const rect = el.getBoundingClientRect();
+      const techo = Math.max(0, document.querySelector(".glass-header")?.getBoundingClientRect().bottom ?? 0) + 8;
+      // «Nearest» por sí solo alinea con el viewport y deja la fila detrás
+      // de la cabecera sticky. El margen reserva también ese espacio.
+      el.style.scrollMarginTop = `${techo}px`;
+      if (rect.top < techo || rect.bottom > window.innerHeight) {
+        el.scrollIntoView({ block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      }
+    };
+    const frame = requestAnimationFrame(mostrar);
+    // Solo los cierres que ya están ocurriendo. Escuchar toda la lista para
+    // siempre nos devolvería arriba al animar algo mientras leemos el detalle.
+    const cierres = document.querySelectorAll(".desplegable-cierra");
+    cierres.forEach((cierre) => cierre.addEventListener("animationend", mostrar, { once: true }));
+    return () => {
+      cancelAnimationFrame(frame);
+      cierres.forEach((cierre) => cierre.removeEventListener("animationend", mostrar));
+    };
+  }, [abierta]);
   return (
     <div
       className={
@@ -81,6 +108,7 @@ export function FilaDesplegable({
           pareciera apagado (Iván, 15/10/2026). La raya dorada de la izquierda
           dice cuál está abierto. */}
       <div
+        ref={cabecera}
         className={`relative ${columnas} px-3 py-1.5 ${
           abierta ? "bg-[var(--fila-abierta)]" : "hover:bg-surface-2"
         }`}
@@ -133,7 +161,9 @@ export function FilaDesplegable({
           no ocupa nada — `Desplegable` devuelve null. */}
       <div id={idDetalle}>
         <Desplegable abierto={abierta}>
-          <div className="detalle-hundido border-t border-border px-3 py-2">{detalle}</div>
+          <div className="detalle-hundido border-t border-border px-3 py-2">
+            <GrupoAcordeon tipo="descripciones">{detalle}</GrupoAcordeon>
+          </div>
         </Desplegable>
       </div>
     </div>

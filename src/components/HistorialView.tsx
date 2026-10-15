@@ -15,6 +15,7 @@ import { OFsDeLaFicha } from "./HistorialCentros";
 import { OpDot, Select } from "./Select";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaDesplegable } from "./FilaDesplegable";
+import { useAcordeon } from "./Acordeon";
 import { BloqueLista } from "./BloqueLista";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
@@ -97,7 +98,7 @@ export function HistorialView({
   const [cargando, setCargando] = useState(false);
   // Un pedido desplegado a la vez: al abrir otro se pliega el anterior (Iván,
   // 13/10/2026), como en la consulta y en Pendientes.
-  const [desplegado, setDesplegado] = useState<string | null>(null);
+  const { abierto: desplegado, alternar } = useAcordeon();
   const [error, setError] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [claveResultado, setClaveResultado] = useState<string | null>(null);
@@ -217,7 +218,7 @@ export function HistorialView({
       columnas={columnas}
       conFecha={buscando}
       desplegado={desplegado === it.pedido}
-      onAlternar={() => setDesplegado((d) => (d === it.pedido ? null : it.pedido))}
+      onAlternar={() => alternar(it.pedido)}
     />
   );
 

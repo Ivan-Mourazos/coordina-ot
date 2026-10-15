@@ -113,7 +113,6 @@ export function ConsultaEnCurso({
             hayFiltrosActivos={q !== ""}
             sinMaterial
             fase={faseParaInvitado(seccion)}
-            unoAbierto
             conNombres
           />
         ) : (
@@ -153,7 +152,6 @@ export function ConsultaEnCurso({
                     const f = faseParaInvitado(seccion)(p);
                     return f.texto === g.titulo || g.id === "listoParaPasar" || g.id === "planteando" ? null : f;
                   }}
-                  unoAbierto
                   conNombres
                 />
               </BloquePlegable>
@@ -190,7 +188,6 @@ export function ConsultaEnCurso({
             hayFiltrosActivos={q !== ""}
             sinMaterial
             fase={faseParaInvitado(seccion)}
-            unoAbierto
             conNombres
           />
         </BloquePlegable>
