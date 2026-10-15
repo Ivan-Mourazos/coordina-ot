@@ -45,6 +45,7 @@ export function HistorialTareas({
   return (
     <BloqueDesplegable
       titulo={compacto ? "Tareas" : "Tareas y tiempos"}
+      tipo="tareas"
       abiertoDeSalida={abrirAlMontar}
       className={className}
     >
@@ -351,6 +352,7 @@ export function TareasDelPedido({
   return (
     <BloqueDesplegable
       titulo="Tareas y tiempos"
+      tipo="tareas"
       className={className}
       onAbrir={() => { if (!ofs && estado !== "cargando") void cargar(); }}
     >

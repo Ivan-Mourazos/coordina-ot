@@ -51,6 +51,7 @@ export function DocumentosPedido({ pedido, documentos }: { pedido: string; docum
     // tipo de bloque.
     <BloqueDesplegable
       titulo="Documentos de RPS"
+      tipo="documentos"
       onAbrir={() => setAbierto(true)}
       insignia={
         docs ? (

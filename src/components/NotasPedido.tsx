@@ -7,6 +7,7 @@ import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useSoloLectura } from "./SoloLectura";
+import { AcentoBloque } from "./AcentoBloque";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
 // El post-it que pidió Ángel: lo que sabe OT y no está en ningún campo de RPS
@@ -147,8 +148,9 @@ export function NotasPedido({
 
   return (
     <div className="bloque-3d mb-4 rounded-xl p-3 bajo:mb-2 bajo:px-3 bajo:py-2">
-      <div className={`flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+      <div data-bloque="notas" className={`cabecera-bloque flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
+        <AcentoBloque tipo="notas" />
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-text">
           Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}
         </p>
         {vacio && (

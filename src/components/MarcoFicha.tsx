@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode, type Ref } from "react";
 import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
+import { AcentoBloque } from "./AcentoBloque";
 import type { Prioridad } from "@/lib/types";
 import { PRIORIDAD } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
@@ -254,7 +255,7 @@ export function DatosEnLinea({
 export function BloqueFicha({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <section className="bloque-3d mb-4 rounded-xl p-3">
-      <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>{titulo}</h3>
+      <h3 data-bloque="comentario" className={`cabecera-bloque mb-1.5 flex items-center gap-2 ${TITULO_BLOQUE}`}><AcentoBloque tipo="comentario" />{titulo}</h3>
       {children}
     </section>
   );
@@ -264,7 +265,7 @@ export function BloqueFicha({ titulo, children }: { titulo: string; children: Re
  *  comentario, documentos, tareas. Había cuatro estilos distintos dentro del
  *  mismo panel (10 px en mayúsculas, 12 px en mayúsculas, 12 px en minúsculas
  *  y uno suelto sin caja), y los bloques no parecían piezas del mismo juego. */
-export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide text-text-muted";
+export const TITULO_BLOQUE = "text-[11px] font-semibold uppercase tracking-wide text-text";
 
 /** El comentario de venta, plegado a dos líneas. Casi siempre es el mismo
  *  texto legal de TGM (ocho líneas sobre la lona y la estructura del cliente)

@@ -4,6 +4,7 @@ import type { Pedido } from "@/lib/types";
 import { hoyISO } from "@/lib/types";
 import { TRAMO, lineaTiempo, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import { fmtDiaMes, relativoA } from "@/lib/fechas";
+import { AcentoBloque } from "./AcentoBloque";
 
 /** Las fechas del pedido puestas a escala, con hoy encima.
  *
@@ -29,7 +30,8 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   return (
     <div className="bloque-3d mb-4 rounded-xl px-3 pb-3 pt-2 bajo:mb-2 bajo:pb-2 bajo:pt-1.5">
       <div className="mb-4 flex items-baseline justify-between gap-2 bajo:mb-1.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+        <p data-bloque="recorrido" className="cabecera-bloque flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text">
+          <AcentoBloque tipo="recorrido" />
           Recorrido del pedido
         </p>
         {/* Lo que se dice aquí es el estado de OT, no el del cliente: lo que

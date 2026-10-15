@@ -12,6 +12,7 @@ import {
   TITULO_BLOQUE,
 } from "./MarcoFicha";
 import { NotasPedido } from "./NotasPedido";
+import { AcentoBloque } from "./AcentoBloque";
 import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { RecuperarPedido } from "./RecuperarPedido";
@@ -325,7 +326,8 @@ export function HistorialDrawer({
                   (En Pendientes sigue el bloque aparte: allí la OF es donde se
                   trabaja.) */}
               <section className="mb-4" aria-label="Órdenes de fabricación">
-                <h3 className={`mb-1.5 ${TITULO_BLOQUE}`}>
+                <h3 data-bloque="ofs" className={`cabecera-bloque mb-1.5 flex items-center gap-2 ${TITULO_BLOQUE}`}>
+                  <AcentoBloque tipo="ofs" />
                   Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
                 </h3>
                 <OFsDeLaFicha
