@@ -67,6 +67,44 @@
      pantalla (Iván lo eligió con capturas, 15/10/2026). */
   --fila-filo: #aeb4be;
   --fila-sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
+  /* Franja de resalte OPACA (fila abierta de una lista, cabecera de un
+     centro en las tareas). Iván pidió contraste y no crema translúcido
+     (15/10/2026): el dorado al 10 % sobre blanco salía amarillento y flojo. */
+  --franja: #e1e4e9;
+  /* Recuadro de lo desplegado dentro de un bloque blanco (descripción de la
+     OF, tareas y tiempos, «Tiempo»). surface-2 (#f4f5f7) sobre blanco no se
+     veía: hace falta un gris de verdad (Iván, 15/10/2026). */
+  --recuadro: #dfe3e8;
+  /* Franja de cada centro en las tareas, y cabecera del pedido abierto en las
+     listas. En claro, la misma franja gris para todos; en oscuro cada centro
+     lleva su tono (ver el bloque «Metal» al final del fichero). */
+  --franja-ot: #e1e4e9;
+  --franja-diseno: #e1e4e9;
+  --franja-impresion: #e1e4e9;
+  --franja-taller: #e1e4e9;
+  --fila-abierta: #ffffff;
+  /* Aluminio (claro). Ver el bloque «Metal y aluminio» al final del fichero.
+     Vetas de cepillado: ruido estirado en horizontal, gris azulado. */
+  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.33 0 0 0 0 0.4 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.24 0 0 0 0 0.3 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --fondo-metal: linear-gradient(180deg, #dde1e7, #cfd4dc);
+  --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(226, 230, 236, 0.35));
+  --relieve-canto: #ffffff;
+  --relieve-sombra:
+    inset 0 1px 0 #ffffff,
+    0 1px 0 rgba(120, 128, 140, 0.35),
+    0 2px 0 -1px rgba(150, 158, 170, 0.5),
+    0 8px 16px -10px rgba(40, 50, 70, 0.35);
+  --relieve-sombra-alto:
+    inset 0 1px 0 #ffffff,
+    0 2px 0 rgba(120, 128, 140, 0.35),
+    0 3px 0 -1px rgba(150, 158, 170, 0.5),
+    0 12px 20px -10px rgba(40, 50, 70, 0.4);
+  /* Pulsado: el hueco recibe menos luz arriba (degradado invertido) y la
+     sombra interior es honda, como una tecla de aluminio apretada. */
+  --hundir: linear-gradient(180deg, rgba(40, 50, 70, 0.12), rgba(255, 255, 255, 0.3));
+  --pulsado-sombra: inset 0 3px 6px rgba(40, 50, 70, 0.35), inset 0 1px 2px rgba(40, 50, 70, 0.35), 0 1px 0 #ffffff;
+  --hundido-sombra: inset 0 2px 4px rgba(40, 50, 70, 0.22), inset 0 -1px 0 #ffffff;
   /* El dorado del logo apenas contrasta sobre blanco. El foco tiene tinta
      propia, más oscura en claro, sin cambiar el acento de marca. */
   --focus: #9e6512;
@@ -165,6 +203,27 @@
   --fila-borde: #42454d;
   --fila-filo: #5c606a;
   --fila-sombra: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --franja: #3a3d45;
+  /* Hundido: por debajo del panel, casi negro, como fresado en la placa. */
+  --recuadro: #141518;
+  /* Tonos oscuros de cada centro: OT el dorado de la casa, Diseño ciruela,
+     Impresión petróleo, Taller acero. */
+  --franja-ot: #3b2f15;
+  --franja-diseno: #3a1f37;
+  --franja-impresion: #12343a;
+  --franja-taller: #232c3a;
+  --fila-abierta: #33291a;
+  /* Vetas de metal cepillado: ruido estirado en horizontal, blanco al 9 %. */
+  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta-fondo: var(--veta);
+  --fondo-metal: linear-gradient(180deg, #1d1e22, #16171a);
+  --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.14));
+  --relieve-canto: #4a4d55;
+  --relieve-sombra: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 0 rgba(0, 0, 0, 0.55), 0 8px 16px -8px rgba(0, 0, 0, 0.8);
+  --relieve-sombra-alto: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 3px 0 rgba(0, 0, 0, 0.55), 0 12px 20px -8px rgba(0, 0, 0, 0.85);
+  --hundir: linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(255, 255, 255, 0.02));
+  --pulsado-sombra: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.06);
+  --hundido-sombra: inset 0 2px 5px rgba(0, 0, 0, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   --focus: var(--color-brand-400);
   --error: var(--color-red-300);
   --fase-devuelta-texto: var(--color-red-300);
@@ -1178,4 +1237,119 @@ html::-webkit-scrollbar-track {
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 2px 0 -1px rgba(0, 0, 0, 0.5),
     0 6px 14px -8px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Metal y aluminio: resaltos y hundidos ──
+   Iván lo eligió con capturas (15/10/2026): en oscuro, metal cepillado sobre el
+   carbón mate; en claro, aluminio. Las MISMAS reglas para los dos temas; lo que
+   cambia son las variables (`--veta`, `--relieve`… arriba, en :root y .dark).
+   - En resalto, lo que está encima: paneles, bloques, filas, botones, menús.
+     La capa de resalto es TRANSLÚCIDA sobre el color que ya tiene cada cosa,
+     así una fila que se está fichando conserva su tinte verde o violeta.
+   - Hundido, lo desplegado dentro de un bloque (`.recuadro`, el detalle de
+     las listas) y lo pulsado: filtro activo, pestaña actual, tarjeta abierta.
+   `:root` delante de cada selector: sube la especificidad para ganar a las
+   reglas `.dark …` de arriba, y el bloque va al final para ganar por orden. */
+body {
+  background-image: var(--veta-fondo), var(--fondo-metal);
+  background-attachment: fixed;
+}
+
+:root .glass-panel,
+:root .glass-panel-strong,
+:root .glass-chip,
+:root .chip-3d,
+:root .glass-pop,
+:root .bloque-3d,
+:root .fila-sombra,
+:root .placa-of,
+:root .tira-3d > :not(.pestana-activa) {
+  background-image: var(--veta), var(--relieve);
+  border-top-color: var(--relieve-canto);
+  box-shadow: var(--relieve-sombra);
+}
+
+/* Los botones suben un poco al pasar por encima y se hunden al pulsarlos. */
+:root .glass-chip:hover:not(:disabled),
+:root .chip-3d:hover:not(:disabled),
+:root .tira-3d > :not(.pestana-activa):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--relieve-sombra-alto);
+}
+:root .glass-chip:active:not(:disabled),
+:root .chip-3d:active:not(:disabled),
+:root .tira-3d > :not(.pestana-activa):active {
+  background-image: var(--veta), var(--hundir);
+  border-top-color: transparent;
+  transform: translateY(1px);
+  box-shadow: var(--pulsado-sombra);
+}
+/* Desactivado: ni sube ni baja; ya lo dice su opacidad. */
+:root .glass-chip:disabled,
+:root .chip-3d:disabled {
+  transform: none;
+}
+
+/* Lo que se queda pulsado (un filtro puesto, la pestaña en la que estás, la
+   tarjeta abierta de una lista) está hundido y sin canto de luz. Conserva su
+   fondo: el dorado de lo activo, la placa de la tarjeta. */
+:root .glass-chip-activo,
+:root .glass-chip-activo:hover,
+:root .pestana-activa,
+:root .pestana-activa:hover,
+:root .bloque-3d-hundido {
+  background-image: var(--veta), var(--hundir);
+  border-top-color: transparent;
+  transform: translateY(1px);
+  box-shadow: var(--pulsado-sombra);
+}
+:root .bloque-3d-hundido {
+  transform: none;
+}
+
+/* Lo desplegado dentro de un bloque. Clase propia y no `ring-1`: el filo y la
+   sombra hacia dentro son la misma propiedad. */
+.recuadro,
+:root .detalle-hundido {
+  background: var(--recuadro);
+  box-shadow: var(--hundido-sombra);
+}
+
+/* La tira de pestañas lleva `glass-chip` por herencia, pero es solo el hueco
+   que las agrupa: sin placa detrás, que salía como un fondo raro entre las
+   pestañas. Cada pestaña lleva su propio resalto (arriba). */
+:root .tira-3d,
+:root .tira-3d:hover,
+:root .tira-3d:active {
+  background-image: none;
+  border-top-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+/* La cabecera fija lleva la misma veta que el fondo, fija a la ventana, para
+   que no se vea como una banda lisa encima del metal. */
+:root .glass-header {
+  background-image: var(--veta-fondo), var(--fondo-metal);
+  background-attachment: fixed;
+}
+
+/* Lo pulsado, sin borde amarillo: el filo dorado alrededor de una tecla
+   hundida quedaba raro (Iván, 15/10/2026). La tecla se queda hundida en el
+   metal de siempre —el hueco ya dice «está pulsado»— y el dorado va en la
+   letra, que dice cuál es. */
+:root .glass-chip-activo,
+:root .glass-chip-activo:hover,
+:root .pestana-activa,
+:root .pestana-activa:hover {
+  background-color: var(--recuadro);
+  border-color: transparent;
+  color: var(--color-brand-800);
+  font-weight: 600;
+}
+.dark .glass-chip-activo,
+.dark .glass-chip-activo:hover,
+.dark .pestana-activa,
+.dark .pestana-activa:hover {
+  color: var(--color-brand-300);
 }

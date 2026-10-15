@@ -631,19 +631,11 @@ export function Drawer({
                       // devolver un pedido a la bandeja.
                       etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
                       options={opcionesOperario(operarios, miId)}
+                      plano
                     />
                   </div>
                 </>
               )}
-              {/* La regla que antes ocupaba un pie fijo en todas las fichas:
-                  se aprende una vez y no hace falta leerla cada vez. */}
-              <span
-                className="cursor-help text-text-muted"
-                title="El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El revisor nunca puede ser el autor."
-                aria-label="Cómo se cuenta el tiempo de cada rol"
-              >
-                ⓘ
-              </span>
               {/* Abre Planteamientos TGM con ESTE pedido ya buscado, en otra
                   pestaña. Solo en toldos y remolques, que es lo que aquella
                   web plantea. En la cabecera y de color sólido, a propósito:
@@ -1505,7 +1497,7 @@ function OFRow({
           {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
 
           {of.avisos && of.avisos.length > 0 && (
-            <div className="mt-1.5 space-y-1 rounded-md bg-indigo-500/10 px-2.5 py-1.5">
+            <div className="mt-1.5 space-y-1 recuadro rounded-md px-2.5 py-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
                 Avisos de Producción
               </p>

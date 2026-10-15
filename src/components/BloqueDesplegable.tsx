@@ -71,7 +71,7 @@ export function BloqueDesplegable({
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>
-          <div className="border-t border-[var(--glass-border)] px-3 py-3">{children}</div>
+          <div className="recuadro rounded-b-xl px-3 py-3">{children}</div>
         </Desplegable>
       </div>
     </section>

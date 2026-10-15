@@ -44,6 +44,7 @@ export function Select({
   etiquetaVaciar,
   ariaLabelledBy,
   abiertoAlMontar = false,
+  plano = false,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -67,6 +68,11 @@ export function Select({
   /** Sale ya desplegado, con el foco en el botón. Para cuando elegir ES el
    *  siguiente paso y no un dato opcional: el revisor al pasar a revisión. */
   abiertoAlMontar?: boolean;
+  /** Sin aspecto de botón: el valor como texto, con la flecha discreta. Para
+   *  un DATO que además se puede cambiar (el autor en la ficha), no una
+   *  acción: con relieve de botón parecía lo primero que había que pulsar
+   *  (Iván, 15/10/2026). */
+  plano?: boolean;
 }) {
   // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
   // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
@@ -223,7 +229,11 @@ export function Select({
         // `.glass-chip` gana siempre a las utilidades (ver globals.css), así
         // que el acento de "este filtro está recortando la lista" no llegaba a
         // pintarse nunca.
-        className={`glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
+        className={`${
+          plano
+            ? "group -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold transition-colors hover:bg-surface-2"
+            : "glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
+        } ${
           acentuarActivo && selected
             ? "glass-chip-activo text-brand-800 dark:text-brand-300"
             : selected
@@ -238,7 +248,9 @@ export function Select({
         <svg
           viewBox="0 0 24 24"
           aria-hidden="true"
-          className={`size-3 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""}`}
+          className={`size-3 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""} ${
+            plano && !open ? "opacity-40 group-hover:opacity-100 group-focus-visible:opacity-100" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2.5"

@@ -90,7 +90,7 @@ export function FilaOF({
   const revisor = operarios.find((o) => o.id === of.revisorId);
   const total = tiempoTotalOF(of);
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-[11px] ring-1 ring-[var(--fila-borde)]">
+    <li className="placa-of flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-[11px] ring-1 ring-[var(--fila-borde)]">
       <FamiliaIcon familia={of.familia} className="size-3.5 shrink-0" />
       <span className="font-mono font-semibold text-text">{of.codigo}</span>
       <span className="truncate text-text">{of.descripcion}</span>
