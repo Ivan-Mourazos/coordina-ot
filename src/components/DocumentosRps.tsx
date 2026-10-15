@@ -262,7 +262,7 @@ function Tarjeta({
       type="button"
       onClick={() => onAbrir(doc)}
       title={`${titulo} — abrir`}
-      className="block w-full overflow-hidden rounded-lg border border-border text-left hover:border-brand-500 focus-visible:border-brand-500"
+      className="block w-full overflow-hidden rounded-lg border border-border text-left hover:border-brand-500 focus-visible:border-focus"
     >
       {dibujable && !sinMiniatura ? (
         // `img` a pelo y no `next/image`: son ficheros de un share interno

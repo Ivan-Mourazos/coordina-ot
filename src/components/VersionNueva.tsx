@@ -29,7 +29,7 @@ export function VersionNueva({ onRecargar }: { onRecargar?: () => void }) {
         </span>
         <button
           onClick={() => (onRecargar ? onRecargar() : window.location.reload())}
-          className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+          className="shrink-0 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-800"
         >
           Actualizar
         </button>

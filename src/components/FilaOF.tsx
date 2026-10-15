@@ -19,8 +19,8 @@ import { tintaSobre } from "@/lib/tinta";
 /** Color del texto de una fecha según su urgencia. Clases literales: Tailwind
  *  no compila las que se construyen concatenando. */
 const TONO: Record<TonoFecha, string> = {
-  vencida: "font-semibold text-red-600 dark:text-red-400",
-  hoy: "font-semibold text-amber-600 dark:text-amber-400",
+  vencida: "font-semibold text-error",
+  hoy: "font-semibold text-amber-700 dark:text-amber-400",
   proxima: "text-text",
   lejana: "text-text-muted",
 };

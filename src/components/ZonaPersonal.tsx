@@ -127,8 +127,7 @@ export function ZonaPersonal({
 
         {live && (
           <span
-            className="ml-auto flex items-center gap-1.5 text-[11px] font-semibold"
-            style={{ color: ROL[live.rol].color }}
+            className={`ml-auto flex items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}

@@ -84,7 +84,7 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
               // La fecha que MANDA lleva el color de la escalada; las otras
               // tres son contexto y van en gris. Igual que en la lista: el
               // color vive siempre en el mismo hito.
-              background: h.referencia && color ? color : "var(--text-muted)",
+              background: h.referencia && color ? color : "var(--progress-pending)",
             }}
             title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}`}
           />

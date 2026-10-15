@@ -117,7 +117,7 @@ export function FotoConZoom({ src, alt }: { src: string; alt: string }) {
         >
           −
         </BotonZoom>
-        <span className="w-10 text-center text-[11px] tabular-nums text-white/70">
+        <span className="w-10 text-center text-[11px] tabular-nums text-white">
           {Math.round(escala * 100)}%
         </span>
         <BotonZoom

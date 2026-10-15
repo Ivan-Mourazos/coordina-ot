@@ -45,8 +45,8 @@ export function QuickLook({ pedido, anchor }: { pedido: Pedido; anchor: DOMRect 
         </div>
         <div className="flex items-center gap-2 border-t border-black/5 bg-[#faf8f3] px-3 py-2">
           <span className="font-mono text-xs font-bold text-[#3b3a36]">{pedido.codigo}</span>
-          <span className="truncate text-xs text-[#8a877f]">{pedido.cliente}</span>
-          <span className="ml-auto text-[10px] text-[#8a877f]">
+          <span className="truncate text-xs text-[#4b505a]">{pedido.cliente}</span>
+          <span className="ml-auto text-[10px] text-[#4b505a]">
             {pedido.ofs.length} OF
           </span>
         </div>

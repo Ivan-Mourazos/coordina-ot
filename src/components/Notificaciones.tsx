@@ -20,9 +20,9 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisar: { label: "Me toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
   devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: ESTADO.devuelta.dot },
   recibida: { label: "Te han pasado trabajo", vista: "asignar", dot: "bg-emerald-600" },
-  cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-gray-400" },
+  cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-progress-pending" },
   revisarNueva: { label: "Te toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
-  revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
+  revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-progress-pending" },
   // "Listo para pasar" es que están todas sus OF aprobadas.
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: ESTADO.aprobada.dot },
   notaNueva: { label: "Nota nueva", vista: "asignar", dot: "bg-teal-600" },

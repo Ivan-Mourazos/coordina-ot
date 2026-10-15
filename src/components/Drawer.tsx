@@ -1929,7 +1929,7 @@ function AccionesOF({
               // El motivo también por `aria-label`: el `title` no lo anuncia un
               // lector de pantalla, y aquí es la única explicación que hay.
               aria-label={motivo ? `${rotulo}. ${motivo}` : undefined}
-              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted/60"
+              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted"
             >
               {rotulo}
             </span>

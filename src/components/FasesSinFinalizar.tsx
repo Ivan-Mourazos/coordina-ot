@@ -180,7 +180,7 @@ export function FasesSinFinalizar({
                     onClick={() => setConfirmar(f)}
                     disabled={cerrando !== null || !miId}
                     title={miId ? undefined : "Elige quién eres antes de finalizar"}
-                    className="ml-auto rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                    className="ml-auto rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
                   >
                     {cerrando === f.idBoletin ? "Finalizando…" : "Finalizar operación"}
                   </button>

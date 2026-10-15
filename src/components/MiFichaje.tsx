@@ -801,7 +801,7 @@ function OFItem({
         {!fichando && motivoNoFichable(of) ? (
           <span
             title={motivoNoFichable(of)!}
-            className="shrink-0 cursor-help rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted/60"
+            className="shrink-0 cursor-help rounded-lg border border-border px-2 py-1 text-[10px] font-semibold text-text-muted"
           >
             {of.detenida ? "Detenida" : "No fichable"}
           </span>

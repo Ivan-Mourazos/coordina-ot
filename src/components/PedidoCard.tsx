@@ -228,7 +228,7 @@ export const PedidoCardView = memo(function PedidoCardView({
         {fichando?.fichandoRol && (
           <span
             className="absolute bottom-1 left-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow"
-            style={{ background: ROL[fichando.fichandoRol].color }}
+            style={{ background: ROL[fichando.fichandoRol].color, color: tintaSobre(ROL[fichando.fichandoRol].color) }}
           >
             <LiveDot rol={fichando.fichandoRol} className="size-1.5" />
             {fichando.fichandoRol === "revisar" ? "Revisando" : "Planteando"}
@@ -267,7 +267,7 @@ export const PedidoCardView = memo(function PedidoCardView({
               style={{ background: revisor.color, color: tintaSobre(revisor.color) }}
               title={`Revisa: ${revisor.nombre}`}
             >
-              <span className="opacity-80">rev</span>
+              <span>rev</span>
               {revisor.iniciales}
             </span>
           )}
@@ -344,7 +344,7 @@ export const PedidoCard = memo(function PedidoCard({
           onOpen(facet);
         }
       }}
-      className="group relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+      className="group relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >
       <PedidoCardView
         facet={facet}

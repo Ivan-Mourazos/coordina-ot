@@ -77,7 +77,7 @@ export function GuiaRevision({
           {vistos} de {puntos.length}
         </span>
         {fallos > 0 && (
-          <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[10px] font-bold normal-case text-red-600 dark:text-red-400">
+          <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[10px] font-bold normal-case text-error">
             {fallos === 1 ? "1 falla" : `${fallos} fallan`}
           </span>
         )}
@@ -111,7 +111,7 @@ export function GuiaRevision({
                 <span
                   className={`min-w-0 flex-1 ${
                     falla
-                      ? "font-medium text-red-600 dark:text-red-400"
+                      ? "font-medium text-error"
                       : estado === "bien"
                         ? "text-text-muted line-through decoration-text-muted/40"
                         : "text-text"
@@ -162,7 +162,7 @@ function Marca({
     ? tono === "bien"
       ? "bg-teal-700 text-white"
       : "bg-red-600 text-white"
-    : "text-text-muted/50 ring-1 ring-border hover:text-text";
+    : "text-text-muted ring-1 ring-border hover:text-text";
   return (
     <button
       type="button"

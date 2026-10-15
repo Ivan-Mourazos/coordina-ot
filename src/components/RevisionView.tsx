@@ -528,7 +528,7 @@ function FilaRevision({
           {estado === "devuelta" && ofs.find((o) => o.observacion) && (
             <NotaDevolucion
               observacion={ofs.find((o) => o.observacion)!.observacion!}
-              className="rounded bg-red-500/10 px-2 py-1.5 text-[11px] text-red-600 dark:text-red-400"
+              className="rounded bg-red-500/10 px-2 py-1.5 text-[11px] text-error"
             />
           )}
 

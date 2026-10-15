@@ -50,7 +50,7 @@ export function SeccionEnObras({
               <button
                 key={s.id}
                 onClick={() => onVolver(s.id)}
-                className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-600"
+                className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-[#231903] transition-colors hover:bg-brand-600"
               >
                 Ir a {s.nombre}
               </button>

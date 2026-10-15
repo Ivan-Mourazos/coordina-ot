@@ -16,7 +16,7 @@ export function RolChip({ rol, min, quien }: { rol: Rol; min: number; quien: str
       }
     >
       {etiqueta} {fmtMin(min)}
-      {quien.length > 0 && <span className="font-normal opacity-80">· {quien.join(", ")}</span>}
+      {quien.length > 0 && <span className="font-normal">· {quien.join(", ")}</span>}
     </span>
   );
 }

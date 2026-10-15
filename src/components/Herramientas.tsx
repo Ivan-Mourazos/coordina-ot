@@ -218,7 +218,7 @@ export function Herramientas({
               y su rótulo se lee como las demás, y los dos van juntos a la
               izquierda en vez de empujados a los extremos. */}
           <div className="mt-2 border-t border-border pt-2">
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               Qué miras y cómo
             </p>
             <div className="flex items-center gap-2 px-2">
@@ -249,7 +249,7 @@ export function Herramientas({
               <div key={grupo.titulo} className="mb-2 last:mb-0">
                 {/* Mismo sangrado que las filas (px-2): con el rótulo a px-1
                     el título quedaba 4 px a la izquierda de lo que titula. */}
-                <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+                <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
                   {grupo.titulo}
                 </p>
                 <ul>
@@ -282,7 +282,7 @@ export function Herramientas({
                     ) : (
                       <li
                         key={h.id}
-                        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text"
                         title={`${h.descripcion} Todavía no está publicada: aparecerá aquí en cuanto lo esté.`}
                       >
                         {h.nombre}
