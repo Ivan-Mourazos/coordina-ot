@@ -20,10 +20,19 @@ const { modoCorreoMock, reenviarMock } = vi.hoisted(() => ({
   modoCorreoMock: vi.fn(() => "activo"),
   reenviarMock: vi.fn(async () => true),
 }));
-vi.mock("../server/correo-cola", () => ({
+vi.mock("../server/correo-cola", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../server/correo-cola")>(),
   modoCorreo: modoCorreoMock,
   leerCorreosDe: () => [{ id: 1, estado: "enviado" }],
   reenviarUltimo: reenviarMock,
+}));
+
+vi.mock("../data", () => ({
+  getTablero: vi.fn(async () => ({ pedidos: [{ codigo: "AR.26.05016", ofs: [
+    { autorId: "tamara", estado: "aprobada" }, { autorId: "angel", estado: "aprobada" },
+    { autorId: "tamara", estado: "aprobada" }, { autorId: "jaime", estado: "anulada" },
+    { autorId: "alberto", estado: "aprobada", ajenaOT: true }, { autorId: "sin-correo", estado: "aprobada" },
+  ] }] })),
 }));
 
 let dir: string;
@@ -95,7 +104,7 @@ test("GET también cuenta el correo", async () => {
   process.env.GRAPH_SECRETO_CADUCA = "2099-01-01";
   try {
     const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
-    expect((await r.json()).correo).toEqual({ modo: "activo", envios: [{ id: 1, estado: "enviado" }], caducaSecreto: null });
+    expect((await r.json()).correo).toEqual({ modo: "activo", cc: ["tamara@toldosgomez.com", "angel@toldosgomez.com"], envios: [{ id: 1, estado: "enviado" }], caducaSecreto: null });
   } finally {
     delete process.env.GRAPH_SECRETO_CADUCA;
   }
@@ -105,6 +114,21 @@ test("reenviar: encola y responde ok", async () => {
   const r = await reenviar.POST(post({ pedido: "AR.26.05016", operarioId: "ivan" }));
   expect(r.status).toBe(200);
   expect(reenviarMock).toHaveBeenCalledWith("AR.26.05016", "ivan");
+});
+
+test("GET en ensayo no anuncia copias ni consulta los autores en RPS", async () => {
+  const { getTablero } = await import("../data");
+  modoCorreoMock.mockReturnValue("ensayo");
+  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
+  expect((await r.json()).correo).toMatchObject({ modo: "ensayo", cc: [] });
+  expect(getTablero).not.toHaveBeenCalled();
+});
+
+test("GET conserva el historial del correo aunque falle consultar los autores", async () => {
+  const { getTablero } = await import("../data");
+  vi.mocked(getTablero).mockRejectedValueOnce(new Error("RPS no responde"));
+  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
+  expect((await r.json()).correo).toMatchObject({ cc: [], envios: [{ id: 1, estado: "enviado" }] });
 });
 
 test("reenviar sin correo previo: 404; en off: 409; pedido raro: 400", async () => {

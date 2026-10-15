@@ -6,6 +6,7 @@ import { getDb } from "./estado-db";
 import { dirCopias, esperaTras, modoImpresion } from "./impresion-cola";
 import { vaAdjunto } from "../planteamiento";
 import { planteamientosDe } from "./planteamiento-pdf";
+import { correoDeOperario } from "./operarios";
 
 // ─── Cola del correo del planteamiento ───────────────────────────────────────
 // Al pasar un pedido de OT, el planteamiento sale por correo desde coordina@
@@ -35,6 +36,21 @@ export function destinatariosCorreo(modo: ModoCorreo): string[] {
   return [];
 }
 
+/** El ensayo solo le llega a Iván. En activo, cada autor recibe una copia,
+ *  salvo que ya vaya en «para» o lo hayamos contado por otra OF del pedido. */
+export function copiasCorreo(modo: ModoCorreo, autores: readonly (string | null | undefined)[], para = destinatariosCorreo(modo)): string[] {
+  if (modo !== "activo") return [];
+  const vistos = new Set(para.map((c) => c.trim().toLowerCase()));
+  const cc: string[] = [];
+  for (const autor of autores) {
+    const correo = correoDeOperario(autor);
+    if (!correo || vistos.has(correo.toLowerCase())) continue;
+    vistos.add(correo.toLowerCase());
+    cc.push(correo);
+  }
+  return cc;
+}
+
 export type EstadoCorreo = "pendiente" | "enviado" | "sin_planteamiento" | "descartado";
 
 export interface FilaCorreo {
@@ -42,6 +58,7 @@ export interface FilaCorreo {
   pedidoId: string;
   ficheros: string[];
   para: string[];
+  cc: string[];
   asunto: string | null;
   estado: EstadoCorreo;
   intentos: number;
@@ -58,7 +75,7 @@ interface FicheroCopiado {
 }
 
 interface FilaDb {
-  id: number; pedido_id: string; ficheros: string; para: string; asunto: string | null; cuerpo: string | null; cuerpo_html: string | null;
+  id: number; pedido_id: string; ficheros: string; para: string; cc: string; autores: string; asunto: string | null; cuerpo: string | null; cuerpo_html: string | null;
   estado: EstadoCorreo; intentos: number; error: string | null; modo: ModoCorreo | null;
   pasado_por: string | null; creado_at: string; enviado_at: string | null;
 }
@@ -72,6 +89,7 @@ const aFila = (r: FilaDb): FilaCorreo => ({
   pedidoId: r.pedido_id,
   ficheros: parsear<FicheroCopiado[]>(r.ficheros, []).map((f) => f.nombre),
   para: parsear<string[]>(r.para, []),
+  cc: parsear<string[]>(r.cc, []),
   asunto: r.asunto,
   estado: r.estado,
   intentos: r.intentos,
@@ -102,15 +120,15 @@ function copiar(ficheros: Array<{ nombre: string; ruta: string }>): { copiados: 
 }
 
 const insertar = (
-  pedido: string, ficheros: FicheroCopiado[], para: string[], asunto: string | null, cuerpo: string | null,
+  pedido: string, ficheros: FicheroCopiado[], para: string[], cc: string[], autores: string[], asunto: string | null, cuerpo: string | null,
   html: string | null, estado: EstadoCorreo, error: string | null, modo: ModoCorreo, operarioId: string, ts: string,
 ) =>
   getDb()
     .prepare(
-      `INSERT INTO planteamiento_correo (pedido_id, ficheros, para, asunto, cuerpo, cuerpo_html, estado, error, modo, pasado_por, creado_at, proximo_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO planteamiento_correo (pedido_id, ficheros, para, cc, autores, asunto, cuerpo, cuerpo_html, estado, error, modo, pasado_por, creado_at, proximo_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(pedido, JSON.stringify(ficheros), JSON.stringify(para), asunto, cuerpo, html, estado,
+    .run(pedido, JSON.stringify(ficheros), JSON.stringify(para), JSON.stringify(cc), JSON.stringify(autores), asunto, cuerpo, html, estado,
       error?.slice(0, 500) ?? null, modo, operarioId, ts, estado === "pendiente" ? ts : null);
 
 /** Dónde se imprimen los planteamientos, para decirlo en el correo. null si la
@@ -139,9 +157,11 @@ export async function prepararCorreo(
   const modo = modoCorreo();
   const ts = ahora.toISOString();
   const para = destinatariosCorreo(modo);
+  const autores = [...new Set(datos.autoresPedido ?? datos.ofs.flatMap((of) => of.autorId ? [of.autorId] : []))];
+  const cc = copiasCorreo(modo, autores, para);
   const { ficheros, aviso } = await buscar(datos.pedido);
   if (ficheros.length === 0) {
-    insertar(datos.pedido, [], para, null, null, null, "sin_planteamiento", aviso, modo, operarioId, ts);
+    insertar(datos.pedido, [], para, cc, autores, null, null, null, "sin_planteamiento", aviso, modo, operarioId, ts);
     return { encolado: false, aviso };
   }
   const adjunta = (n: string) => (eleccion.adjuntar ? eleccion.adjuntar.has(n) : vaAdjunto(n, datos.pedido));
@@ -154,7 +174,7 @@ export async function prepararCorreo(
   // Tocaba adjuntar algo y no se ha podido nada: un correo de PVC sin su PDF
   // engañaría. Se descarta y se dice; «Reenviar» lo intenta de nuevo.
   if (paraAdjuntar.length > 0 && copiados.length === 0) {
-    insertar(datos.pedido, [], para, null, null, null, "descartado", error, modo, operarioId, ts);
+    insertar(datos.pedido, [], para, cc, autores, null, null, null, "descartado", error, modo, operarioId, ts);
     return { encolado: false, aviso: error };
   }
   const listas = {
@@ -163,7 +183,7 @@ export async function prepararCorreo(
     aMano: soloImpresos.filter((f) => !f.todoA4).map((f) => f.nombre),
     dondeImprime: dondeSeImprime(),
   };
-  insertar(datos.pedido, copiados, para, asuntoCorreo(datos, esDePlanteamiento(listas)), cuerpoCorreo(datos, listas),
+  insertar(datos.pedido, copiados, para, cc, autores, asuntoCorreo(datos, esDePlanteamiento(listas)), cuerpoCorreo(datos, listas),
     cuerpoCorreoHtml(datos, listas), "pendiente", error, modo, operarioId, ts);
   return { encolado: true, aviso };
 }
@@ -179,6 +199,7 @@ export interface CorreoPendiente {
   pedidoId: string;
   ficheros: FicheroCopiado[];
   para: string[];
+  cc: string[];
   asunto: string;
   cuerpo: string;
   /** null en las filas de antes del HTML: esas salen en texto. */
@@ -194,6 +215,7 @@ export function correosParaEnviar(ahora: Date): CorreoPendiente[] {
     pedidoId: r.pedido_id,
     ficheros: parsear<FicheroCopiado[]>(r.ficheros, []),
     para: parsear<string[]>(r.para, []),
+    cc: parsear<string[]>(r.cc, []),
     asunto: r.asunto ?? `Planteamiento ${r.pedido_id}`,
     cuerpo: r.cuerpo ?? "",
     html: r.cuerpo_html,
@@ -265,7 +287,9 @@ export async function reenviarUltimo(
     if (copiados.length === 0) return false;
   }
   const modo = modoCorreo();
-  insertar(pedidoId, copiados, destinatariosCorreo(modo), fila.asunto, fila.cuerpo, fila.cuerpo_html, "pendiente",
+  const para = destinatariosCorreo(modo);
+  const autores = parsear<string[]>(fila.autores, []);
+  insertar(pedidoId, copiados, para, copiasCorreo(modo, autores, para), autores, fila.asunto, fila.cuerpo, fila.cuerpo_html, "pendiente",
     fallos.length ? `No he podido copiar: ${fallos.join(", ")}` : null, modo, operarioId, ahora.toISOString());
   return true;
 }

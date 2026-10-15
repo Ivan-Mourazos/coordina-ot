@@ -13,6 +13,8 @@ export interface OfCorreo {
   descripcion: string;
   planteoMin: number;
   autor: string | null;
+  /** El nombre es para leer; el id permite resolver su correo sin adivinarlo. */
+  autorId?: string | null;
   revisionMin: number;
   revisor: string | null;
 }
@@ -21,6 +23,8 @@ export interface DatosCorreo {
   pedido: string;
   cliente: string;
   ofs: OfCorreo[];
+  /** Los autores del pedido completo: quitar una OF del texto no les quita la copia. */
+  autoresPedido?: string[];
   pasadoPor: string;
   /** Lo que escribió a mano quien pasa el pedido; sale arriba del todo. */
   nota?: string;
