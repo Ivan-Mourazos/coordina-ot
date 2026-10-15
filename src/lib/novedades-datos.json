@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-15",
-    "hasta": "689ce38",
+    "hasta": "8a95f41",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -84,6 +84,32 @@
         "tipo": "mejor",
         "titulo": "Las filas de pedido se distinguen del panel también por el borde de arriba",
         "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas en una sola pantalla: lo importante arriba y el reparto por técnico",
+        "detalle": "Cuatro cifras con su tendencia, mes a mes, dónde se para el trabajo, por qué vuelven y se anulan, y una tabla por técnico.",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las notas del pedido se leen mejor: quién, cuándo y qué, cada una en su sitio",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al abrir un desplegable se cierra el anterior: en la ficha, en las descripciones y en las listas",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Cada apartado de la ficha lleva su color para encontrarlo de un vistazo",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El aviso de parte re-escaneado y los documentos de RPS llevan el nuevo acabado",
+        "tanda": 5
       }
     ]
   },
