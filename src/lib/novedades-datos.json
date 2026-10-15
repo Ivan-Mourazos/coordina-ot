@@ -1,13 +1,25 @@
 [
   {
     "id": "2026-10-15",
-    "hasta": "656ec16",
+    "hasta": "ca83e47",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "El correo a Producción llega también a quien planteó el pedido",
         "detalle": "Al pasar un pedido, el técnico que lo planteó va en copia del correo que manda Coordina.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los textos grises y las barras del equipo se leen mejor",
+        "detalle": "Fechas, recuentos, rótulos y estados secundarios tienen más contraste, en claro y en oscuro.",
+        "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las filas de pedido y los bloques de la ficha ya no se confunden con el fondo",
+        "detalle": "Cada pedido y cada OF tienen ahora su propio fondo y un filo que marca dónde empiezan y acaban, en claro y en oscuro.",
+        "tanda": 2
       }
     ]
   },
