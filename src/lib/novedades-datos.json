@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-15",
-    "hasta": "e18c6ff",
+    "hasta": "689ce38",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -25,6 +25,11 @@
         "titulo": "Al pasar un pedido a revisión podía quedarse en Planteando aunque tuviera revisor",
         "detalle": "El revisor y el pase se guardan juntos; si alguna OF no puede pasar o falla el guardado, la ficha explica qué ocurre.",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al pasar el ratón por las pestañas de arriba se levantaba toda la barra",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
@@ -74,6 +79,11 @@
         "tipo": "mejor",
         "titulo": "Los filtros y pestañas activos se ven hundidos, sin el borde amarillo",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las filas de pedido se distinguen del panel también por el borde de arriba",
+        "tanda": 4
       }
     ]
   },
