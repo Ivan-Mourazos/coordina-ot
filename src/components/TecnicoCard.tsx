@@ -153,7 +153,7 @@ export const TecnicoCard = memo(function TecnicoCard({
             junto al código. Los fuera de fecha llevan una raya roja debajo,
             que el color de la fase ya está cogido. */}
         <div className="mt-1.5 bajo:mt-1" title={resumen}>
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)] ring-1 ring-inset ring-black/10 dark:ring-white/10">
             {bloques.map((b) => (
               <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 last:pr-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
                 <span
