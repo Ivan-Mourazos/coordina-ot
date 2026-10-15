@@ -1,4 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
+
+// Más margen que los 5 s de siempre: estos tests montan la base de datos y,
+// con toda la batería a la vez, a veces pasaban del límite sin estar mal.
+vi.setConfig({ testTimeout: 20_000 });
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
