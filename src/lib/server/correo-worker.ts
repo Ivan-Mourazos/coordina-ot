@@ -46,6 +46,7 @@ export async function vueltaCorreo(ahora = new Date(), enviar = enviarCorreo): P
           {
             de: process.env.CORREO_REMITENTE ?? "coordina@toldosgomez.com",
             para: c.para,
+            cc: c.cc,
             responderA: process.env.CORREO_RESPONDER_A ?? "of.tecnica@toldosgomez.com",
             asunto: c.asunto,
             texto: c.cuerpo,

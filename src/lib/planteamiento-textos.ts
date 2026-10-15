@@ -18,6 +18,8 @@ export interface VistaPlanteamiento {
    *  antes no lo manda, y entonces la pantalla simplemente no lo cuenta. */
   correo?: {
     modo: ModoCorreo;
+    /** Opcional para seguir leyendo respuestas de servidores anteriores. */
+    cc?: string[];
     envios: FilaCorreo[];
     /** El permiso de Coordina para mandar correos caduca pronto (o caducó):
      *  su fecha y los días que quedan. Ver `avisoCaducidadSecreto`. */
@@ -73,11 +75,16 @@ export function textoImpresion(f: FilaImpresion): string {
 export function textoCorreoAntesDePasar(d: VistaPlanteamiento): string | null {
   if (!d.correo || d.correo.modo === "off" || d.ficheros.length === 0) return null;
   const a = d.correo.modo === "ensayo" ? "solo a ti (prueba)" : "a Oficina Técnica y Producción";
+  const copia = d.correo.modo === "activo" ? textoCopias(d.correo.cc) : "";
   // La norma: los de PVC van adjuntos; de los de toldos el correo solo avisa.
   const adjuntos = d.ficheros.filter((f) => f.adjunto).map((f) => f.nombre);
   return adjuntos.length
-    ? `Se mandará el correo ${a} con ${adjuntos.join(", ")} adjunto${adjuntos.length === 1 ? "" : "s"}`
-    : `Se mandará el correo ${a} avisando de que está impreso`;
+    ? `Se mandará el correo ${a} con ${adjuntos.join(", ")} adjunto${adjuntos.length === 1 ? "" : "s"}${copia}`
+    : `Se mandará el correo ${a} avisando de que está impreso${copia}`;
+}
+
+function textoCopias(cc: readonly string[] = []): string {
+  return cc.length ? `, con copia ${cc.length === 1 ? "al autor" : "a los autores"} (${cc.join(", ")})` : "";
 }
 
 /** El aviso de que el permiso de mandar correos caduca, en el diálogo de pasar
@@ -97,7 +104,7 @@ export function textoCaducidadSecreto(d: VistaPlanteamiento): string | null {
 export function textoCorreo(f: FilaCorreo): string {
   switch (f.estado) {
     case "enviado":
-      return `Correo enviado el ${cuando(f.enviadoAt ?? f.creadoAt)} a ${f.para.join(", ")}${f.modo === "ensayo" ? " (prueba)" : ""}`;
+      return `Correo enviado el ${cuando(f.enviadoAt ?? f.creadoAt)} a ${f.para.join(", ")}${f.modo === "ensayo" ? " (prueba)" : textoCopias(f.cc)}`;
     case "pendiente":
       return f.error
         ? `Correo pendiente: ${f.error} (${f.intentos} ${f.intentos === 1 ? "intento" : "intentos"})`

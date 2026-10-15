@@ -54,7 +54,7 @@ describe("lo que se dice del correo", () => {
   });
   const envio = {
     id: 1, pedidoId: "AR.26.05016", ficheros: ["A-10.pdf"], asunto: "Planteamiento AR.26.05016",
-    para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"], intentos: 0, error: null,
+    para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"], cc: [], intentos: 0, error: null,
     modo: "activo" as const, pasadoPor: "ivan", creadoAt: "2026-10-13T11:05:00Z", enviadoAt: "2026-10-13T11:05:30Z",
   };
 
@@ -71,6 +71,20 @@ describe("lo que se dice del correo", () => {
     expect(textoCorreoAntesDePasar(vista("activo", []))).toBeNull();
     expect(textoCorreoAntesDePasar(vista("off"))).toBeNull();
     expect(textoCorreoAntesDePasar({ ...vista("activo"), correo: undefined })).toBeNull();
+  });
+
+  it("dice a quién se copia solo cuando hay copias en activo", () => {
+    const cc = ["tamara@toldosgomez.com"];
+    const d = vista("activo");
+    expect(textoCorreoAntesDePasar({ ...d, correo: { ...d.correo, cc } }))
+      .toBe("Se mandará el correo a Oficina Técnica y Producción con A-10.pdf adjunto, con copia al autor (tamara@toldosgomez.com)");
+    expect(textoCorreo({ ...envio, estado: "enviado", cc }))
+      .toContain(", con copia al autor (tamara@toldosgomez.com)");
+    const varios = [...cc, "angel@toldosgomez.com"];
+    expect(textoCorreoAntesDePasar({ ...d, correo: { ...d.correo, cc: varios } })).toContain("con copia a los autores");
+    expect(textoCorreo({ ...envio, estado: "enviado", cc: varios })).toContain("con copia a los autores");
+    expect(textoCorreoAntesDePasar({ ...d, correo: { ...d.correo, modo: "ensayo", cc } })).not.toContain("copia");
+    expect(textoCorreo({ ...envio, estado: "enviado", modo: "ensayo", cc })).not.toContain("copia");
   });
 
   it("en el Historial", () => {

@@ -289,6 +289,7 @@ function abrir(): Database.Database {
   prepararTraspasado(db);
   prepararCierreRps(db);
   prepararCorreoHtml(db);
+  prepararCorreoCopias(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -357,6 +358,17 @@ function prepararCorreoHtml(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(planteamiento_correo)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "cuerpo_html")) return;
   db.exec("ALTER TABLE planteamiento_correo ADD COLUMN cuerpo_html TEXT");
+}
+
+/** Las filas anteriores no llevaban copia y conservan esa lista vacía.
+ *  Guardamos también los autores: en ensayo no hay copias, pero al reenviar
+ *  en activo deben poder calcularse aunque el pedido ya no esté en RPS. */
+function prepararCorreoCopias(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(planteamiento_correo)").all() as Array<{ name: string }>;
+  for (const nombre of ["cc", "autores"]) {
+    if (!columnas.some((c) => c.name === nombre))
+      db.exec(`ALTER TABLE planteamiento_correo ADD COLUMN ${nombre} TEXT NOT NULL DEFAULT '[]'`);
+  }
 }
 
 /** Las tres columnas de la marca «cerrada en RPS» (ver `OF.cerradaRps`). Sin

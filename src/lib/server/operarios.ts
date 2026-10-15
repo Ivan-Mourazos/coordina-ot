@@ -25,6 +25,7 @@ import { SECCIONES, SECCION_POR_DEFECTO, recursosSql, type SeccionId } from "../
 
 interface Empleado {
   operarioId: string;
+  correo: string;
   /** Sección principal: la de entrada por defecto y de la que sale su máquina. */
   seccion: SeccionId;
   /** Otras secciones en las que SIGUE contando como de la casa (lista de
@@ -34,22 +35,28 @@ interface Empleado {
 
 const COD_EMPLEADO_A_OPERARIO: Record<string, Empleado> = {
   // ── Oficina Técnica ──
-  "10": { operarioId: "alberto", seccion: "ot" }, // CARBON SEXTO, ALBERTO
-  "120": { operarioId: "jaime", seccion: "ot" }, // VAZQUEZ VILLARES, JAIME
-  "170": { operarioId: "tamara", seccion: "ot" }, // VILLAR FERNANDEZ, TAMARA
-  "187": { operarioId: "adrian", seccion: "ot" }, // QUINTEIRO VAAMONDE, ADRIAN
-  "195": { operarioId: "ivan", seccion: "ot" }, // SANCHEZ VAZQUEZ, IVAN
-  "146": { operarioId: "angel", seccion: "ot" }, // GARCIA COSTOYA, ANGEL
+  "10": { operarioId: "alberto", correo: "alberto@toldosgomez.com", seccion: "ot" }, // CARBON SEXTO, ALBERTO
+  "120": { operarioId: "jaime", correo: "jaime@toldosgomez.com", seccion: "ot" }, // VAZQUEZ VILLARES, JAIME
+  "170": { operarioId: "tamara", correo: "tamara@toldosgomez.com", seccion: "ot" }, // VILLAR FERNANDEZ, TAMARA
+  "187": { operarioId: "adrian", correo: "adrian.quinteiro@toldosgomez.com", seccion: "ot" }, // QUINTEIRO VAAMONDE, ADRIAN
+  "195": { operarioId: "ivan", correo: "ivan.sanchez@toldosgomez.com", seccion: "ot" }, // SANCHEZ VAZQUEZ, IVAN
+  // Ángel no tiene Email en RPS: dirección facilitada por Iván (15/10/2026).
+  "146": { operarioId: "angel", correo: "angel@toldosgomez.com", seccion: "ot" }, // GARCIA COSTOYA, ANGEL
   // ── Diseño Gráfico ──
-  "88": { operarioId: "carron", seccion: "diseno" }, // CARRON RODRIGUEZ, JOSE LUIS
-  "48": { operarioId: "smith", seccion: "diseno" }, // SMITH MARTINEZ, FRANCISCO JAVIER
+  "88": { operarioId: "carron", correo: "carron@toldosgomez.com", seccion: "diseno" }, // CARRON RODRIGUEZ, JOSE LUIS
+  "48": { operarioId: "smith", correo: "javier.smith@toldosgomez.com", seccion: "diseno" }, // SMITH MARTINEZ, FRANCISCO JAVIER
   // ── Impresión Digital ──
   // Manuel también diseña, pero lo suyo es imprimir (Iván, 13/10/2026): entra
   // en Impresión y sigue en Diseño porque Carrón y Smith le pasan trabajo. Su
   // tiempo en A-DGRA sigue contando para Diseño — el tiempo va por recurso, no
   // por persona.
-  "22": { operarioId: "manuel", seccion: "impresion", tambienEn: ["diseno"] }, // GOMEZ CAMINO, MANUEL RAMON
+  "22": { operarioId: "manuel", correo: "manuel@toldosgomez.com", seccion: "impresion", tambienEn: ["diseno"] }, // GOMEZ CAMINO, MANUEL RAMON
 };
+
+/** Un autor antiguo o ajeno al mapa no debe impedir el correo del pedido. */
+export function correoDeOperario(operarioId: string | null | undefined): string | null {
+  return Object.values(COD_EMPLEADO_A_OPERARIO).find((e) => e.operarioId === operarioId)?.correo ?? null;
+}
 
 /** Id de operario del tablero para un CodEmployee de RPS (o null si no está en
  *  ninguna sección). Admite número o texto y descarta los códigos "S…". */

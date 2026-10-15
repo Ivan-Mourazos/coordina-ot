@@ -11,6 +11,7 @@ export interface Adjunto { nombre: string; bytes: Uint8Array }
 export interface Correo {
   de: string;
   para: string[];
+  cc?: string[];
   responderA: string | null;
   asunto: string;
   texto: string;
@@ -120,6 +121,7 @@ export async function enviarCorreo(
         subject: c.asunto,
         body: c.html ? { contentType: "HTML", content: c.html } : { contentType: "Text", content: c.texto },
         toRecipients: c.para.map(direccion),
+        ...(c.cc?.length ? { ccRecipients: c.cc.map(direccion) } : {}),
         ...(c.responderA ? { replyTo: [direccion(c.responderA)] } : {}),
         attachments: c.adjuntos.map((a) => ({
           "@odata.type": "#microsoft.graph.fileAttachment",

@@ -167,6 +167,8 @@ export async function POST(req: Request) {
     datosCorreo = {
       pedido: pedido.codigo,
       cliente: pedido.cliente,
+      autoresPedido: [...new Set(pedido.ofs.filter((of) => of.estado !== "anulada" && !of.ajenaOT)
+        .flatMap((of) => of.autorId ? [of.autorId] : []))],
       // Una línea por OF de Oficina Técnica: sin anuladas ni las de taller.
       ofs: pedido.ofs
         .filter((of) => of.estado !== "anulada" && !of.ajenaOT)
@@ -175,6 +177,7 @@ export async function POST(req: Request) {
           descripcion: of.descripcion,
           planteoMin: of.tiempoPlanteoMin,
           autor: nombreDe(of.autorId),
+          autorId: of.autorId,
           revisionMin: of.tiempoRevisionMin,
           revisor: nombreDe(of.revisorId),
         })),

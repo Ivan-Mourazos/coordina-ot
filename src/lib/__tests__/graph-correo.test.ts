@@ -43,12 +43,27 @@ describe("enviarCorreo", () => {
     expect(cuerpo.message.body).toEqual({ contentType: "Text", content: "hola" });
     expect(cuerpo.message.toRecipients.map((r: { emailAddress: { address: string } }) => r.emailAddress.address)).toEqual(["a@x.com", "b@x.com"]);
     expect(cuerpo.message.replyTo[0].emailAddress.address).toBe("of.tecnica@toldosgomez.com");
+    expect(cuerpo.message).not.toHaveProperty("ccRecipients");
     expect(cuerpo.message.attachments[0]).toMatchObject({
       "@odata.type": "#microsoft.graph.fileAttachment",
       name: "AR2605016-10.pdf",
       contentType: "application/pdf",
       contentBytes: "JVBERg==",
     });
+  });
+
+  it("manda ccRecipients cuando hay copias y lo omite si la lista está vacía", async () => {
+    const { f, llamadas } = fetchFalso([
+      { status: 200, json: { access_token: "TOK", expires_in: 3600 } },
+      { status: 202 }, { status: 202 },
+    ]);
+    await g.enviarCorreo({ ...CORREO, cc: ["tamara@toldosgomez.com", "angel@toldosgomez.com"] }, CRED, f, () => 0);
+    expect(JSON.parse(String(llamadas[1].init.body)).message.ccRecipients).toEqual([
+      { emailAddress: { address: "tamara@toldosgomez.com" } },
+      { emailAddress: { address: "angel@toldosgomez.com" } },
+    ]);
+    await g.enviarCorreo({ ...CORREO, cc: [] }, CRED, f, () => 0);
+    expect(JSON.parse(String(llamadas[2].init.body)).message).not.toHaveProperty("ccRecipients");
   });
 
   it("reutiliza el token mientras no caduca", async () => {

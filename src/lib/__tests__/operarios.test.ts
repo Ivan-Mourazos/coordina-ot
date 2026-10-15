@@ -2,10 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   COD_RPS_POR_OPERARIO,
   codigoRpsDe,
+  correoDeOperario,
   operarioDeEmpleado,
 } from "../server/operarios";
 
 describe("mapa operario ↔ empleado de RPS", () => {
+  it.each([
+    ["alberto", "alberto"], ["jaime", "jaime"], ["tamara", "tamara"],
+    ["adrian", "adrian.quinteiro"], ["ivan", "ivan.sanchez"], ["angel", "angel"],
+    ["carron", "carron"], ["smith", "javier.smith"], ["manuel", "manuel"],
+  ])("correo de empresa de %s", (id, buzón) => {
+    expect(correoDeOperario(id)).toBe(`${buzón}@toldosgomez.com`);
+  });
+
+  it("sin autor conocido no inventa correo", () => {
+    for (const id of [null, undefined, "nadie"]) expect(correoDeOperario(id)).toBeNull();
+  });
+
   it("las dos direcciones son coherentes", () => {
     for (const [operario, cod] of Object.entries(COD_RPS_POR_OPERARIO)) {
       expect(operarioDeEmpleado(cod)).toBe(operario);

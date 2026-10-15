@@ -492,7 +492,8 @@ test("al pasar un pedido de OT se prepara el correo con los datos del pedido", a
   expect(operario).toBe("ivan");
   expect(datos).toMatchObject({ pedido: CODIGO_IMPRESION, cliente: PEDIDOS[0].cliente });
   // Una línea por OF con su código, descripción de catálogo y autor (por nombre).
-  expect(datos.ofs).toEqual([expect.objectContaining({ codigo: PEDIDOS[0].ofs[0].codigo, descripcion: PEDIDOS[0].ofs[0].descripcion, autor: expect.any(String) })]);
+  expect(datos.ofs).toEqual([expect.objectContaining({ codigo: PEDIDOS[0].ofs[0].codigo, descripcion: PEDIDOS[0].ofs[0].descripcion, autor: expect.any(String), autorId: "ivan" })]);
+  expect(datos).toMatchObject({ autoresPedido: ["ivan"] });
   expect(typeof datos.pasadoPor).toBe("string");
 });
 
@@ -530,6 +531,7 @@ test("lo elegido a mano manda: qué se imprime, qué va adjunto, qué OF y la no
   const [datos, , , , eleccion] = prepararCorreoMock.mock.calls[0];
   // La OF que no se marcó no sale; la nota llega recortada.
   expect(datos.ofs.map((o: { codigo: string }) => o.codigo)).not.toContain(codigoOf);
+  expect(datos).toMatchObject({ autoresPedido: ["ivan"] });
   expect(datos.nota).toBe("Ojo con la medida");
   expect([...eleccion!.adjuntar!]).toEqual(["AR2605016-1.pdf"]);
   expect([...eleccion!.imprimir!]).toEqual(["AR2605016-1.pdf"]);

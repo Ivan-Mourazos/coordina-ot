@@ -39,7 +39,7 @@ const EXISTE = path.join(__dirname, "planteamiento.test.ts");
 const DATOS = {
   pedido: "AR.26.05016",
   cliente: "Bar Central",
-  ofs: [{ codigo: "0232968", descripcion: "TOLDO PUNTO RECTO", planteoMin: 30, autor: "Tamara", revisionMin: 0, revisor: null }],
+  ofs: [{ codigo: "0232968", descripcion: "TOLDO PUNTO RECTO", planteoMin: 30, autor: "Tamara", autorId: "tamara", revisionMin: 0, revisor: null }],
   pasadoPor: "Iván Sánchez",
 };
 const planteamientos = (...f: Array<[string, string, boolean]>): Planteamientos => ({
@@ -68,6 +68,7 @@ describe("al pasar el pedido", () => {
       estado: "pendiente",
       ficheros: ["AR2605016-10.pdf"],
       para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"],
+      cc: ["tamara@toldosgomez.com"],
       asunto: "Planteamiento AR.26.05016 · Bar Central",
       modo: "activo",
       pasadoPor: "ivan",
@@ -94,7 +95,28 @@ describe("al pasar el pedido", () => {
   it("en ensayo va solo a Iván", async () => {
     process.env.CORREO_PLANTEAMIENTO = "ensayo";
     await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
-    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ para: ["ivan.sanchez@toldosgomez.com"], modo: "ensayo" });
+    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({ para: ["ivan.sanchez@toldosgomez.com"], cc: [], modo: "ensayo" });
+  });
+
+  it("varias OF: copia a cada autor conocido una sola vez, sin repetir a quien ya va en para", async () => {
+    process.env.CORREO_PARA = "PRODUCCION@toldosgomez.com, TAMARA@TOLDOSGOMEZ.COM";
+    const datos = { ...DATOS, ofs: ["tamara", "angel", "angel", "smith", "desconocido"].map((autorId) => ({ ...DATOS.ofs[0], autorId })) };
+    await cola.prepararCorreo(datos, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    expect(cola.leerCorreosDe(DATOS.pedido)[0].cc).toEqual(["angel@toldosgomez.com", "javier.smith@toldosgomez.com"]);
+    expect(cola.correosParaEnviar(T0)[0].cc).toEqual(["angel@toldosgomez.com", "javier.smith@toldosgomez.com"]);
+  });
+
+  it("quitar una OF del texto mantiene la copia a los autores del pedido completo", async () => {
+    await cola.prepararCorreo({ ...DATOS, ofs: [], autoresPedido: ["tamara", "angel"] }, "ivan", T0,
+      async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    expect(cola.leerCorreosDe(DATOS.pedido)[0].cc).toEqual(["tamara@toldosgomez.com", "angel@toldosgomez.com"]);
+  });
+
+  it("autor desconocido o sin autor: se encola sin copias y sin adivinar por el nombre", async () => {
+    const datos = { ...DATOS, ofs: [undefined, null, "desconocido"].map((autorId) => ({ ...DATOS.ofs[0], autorId })) };
+    await cola.prepararCorreo(datos, "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
+    expect(cola.leerCorreosDe(DATOS.pedido)[0]).toMatchObject({ estado: "pendiente", cc: [] });
+    expect(cola.copiasCorreo("off", ["tamara"])).toEqual([]);
   });
 });
 
@@ -109,6 +131,7 @@ describe("el trabajador", () => {
       de: "coordina@toldosgomez.com",
       para: ["of.tecnica@toldosgomez.com", "produccion@toldosgomez.com"],
       responderA: "of.tecnica@toldosgomez.com",
+      cc: ["tamara@toldosgomez.com"],
       asunto: "Planteamiento AR.26.05016 · Bar Central",
     });
     expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
@@ -198,6 +221,18 @@ describe("el trabajador", () => {
 });
 
 describe("reenviar", () => {
+  it("del ensayo al activo recalcula copias; al volver a ensayo las quita", async () => {
+    process.env.CORREO_PLANTEAMIENTO = "ensayo";
+    const datos = { ...DATOS, ofs: ["tamara", "angel", "tamara"].map((autorId) => ({ ...DATOS.ofs[0], autorId })) };
+    await cola.prepararCorreo(datos, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true]));
+    process.env.CORREO_PLANTEAMIENTO = "activo";
+    process.env.CORREO_PARA = "ANGEL@TOLDOSGOMEZ.COM,produccion@toldosgomez.com";
+    await cola.reenviarUltimo(DATOS.pedido, "ivan", T0);
+    expect(cola.leerCorreosDe(DATOS.pedido)[0]).toMatchObject({ cc: ["tamara@toldosgomez.com"], modo: "activo" });
+    process.env.CORREO_PLANTEAMIENTO = "ensayo";
+    await cola.reenviarUltimo(DATOS.pedido, "ivan", T0);
+    expect(cola.leerCorreosDe(DATOS.pedido)[0]).toMatchObject({ cc: [], modo: "ensayo" });
+  });
   it("el de toldos, sin adjuntos, también se puede reenviar", async () => {
     await cola.prepararCorreo(DATOS, "ivan", T0, async () => planteamientos(["AR2605016-1.pdf", EXISTE, true]));
     await worker.vueltaCorreo(T0, vi.fn(async () => {}));
