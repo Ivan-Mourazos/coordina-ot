@@ -1,13 +1,30 @@
 [
   {
     "id": "2026-10-15",
-    "hasta": "ca83e47",
+    "hasta": "e18c6ff",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "El correo a Producción llega también a quien planteó el pedido",
         "detalle": "Al pasar un pedido, el técnico que lo planteó va en copia del correo que manda Coordina.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La web estrena acabado metálico: lo que está encima resalta y lo desplegado se hunde",
+        "detalle": "En oscuro, metal cepillado sobre el carbón de siempre; en claro, aluminio. Los botones se hunden al pulsarlos.",
+        "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los avisos que quitabas de la campana volvían al salir de la vista de Dirección",
+        "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al pasar un pedido a revisión podía quedarse en Planteando aunque tuviera revisor",
+        "detalle": "El revisor y el pase se guardan juntos; si alguna OF no puede pasar o falla el guardado, la ficha explica qué ocurre.",
+        "tanda": 3
       },
       {
         "tipo": "mejor",
@@ -20,6 +37,43 @@
         "titulo": "Las filas de pedido y los bloques de la ficha ya no se confunden con el fondo",
         "detalle": "Cada pedido y cada OF tienen ahora su propio fondo y un filo que marca dónde empiezan y acaban, en claro y en oscuro.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas, los documentos y la descripción de la OF se distinguen del resto de la ficha",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al desplegar un pedido ya no sale el fondo crema; se ve más claro cuál está abierto",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las filas de Visitas ocupan una línea y se leen de un vistazo",
+        "detalle": "Comentario, pedido, número de visita y estado ya no parten la fila sin necesidad.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Para pedir revisor ahora tocas el nombre del compañero y ya está",
+        "detalle": "Los compañeros aparecen con su avatar, también al cambiar de revisor desde Revisión.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las notas de cada visita se ven en la lista sin tener que desplegarla",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El autor en la ficha del pedido ya no parece un botón",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los filtros y pestañas activos se ven hundidos, sin el borde amarillo",
+        "tanda": 3
       }
     ]
   },
