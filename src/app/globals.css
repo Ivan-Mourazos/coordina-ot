@@ -62,6 +62,11 @@
      oscurecer el panel (Iván, 15/10/2026). */
   --fila: #ffffff;
   --fila-borde: #d5d9e0;
+  /* Las filas de pedido van con un filo más marcado y una sombra ligera: con
+     el filo de los bloques (#d5d9e0) seguían leyéndose pegadas al panel en
+     pantalla (Iván lo eligió con capturas, 15/10/2026). */
+  --fila-filo: #aeb4be;
+  --fila-sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
   /* El dorado del logo apenas contrasta sobre blanco. El foco tiene tinta
      propia, más oscura en claro, sin cambiar el acento de marca. */
   --focus: #9e6512;
@@ -156,8 +161,10 @@
   --text-muted: #c4cad3;
   --progress-pending: #8b95a5;
   /* En oscuro la fila se aclara sobre el panel (#23252b), no se oscurece. */
-  --fila: #2e3037;
+  --fila: #33363d;
   --fila-borde: #42454d;
+  --fila-filo: #5c606a;
+  --fila-sombra: 0 1px 3px rgba(0, 0, 0, 0.5);
   --focus: var(--color-brand-400);
   --error: var(--color-red-300);
   --fase-devuelta-texto: var(--color-red-300);
@@ -504,6 +511,13 @@ body {
 /* Bloque de ficha (notas, documentos, centros): el mismo relieve que las
    tarjetas de OF que lleva dentro, pero sin levantarse al pasar por encima:
    el bloque no es un botón. */
+/* Sombra de las filas de pedido (PedidoLinea, LineaRevisar). Clase propia y
+   no `shadow-[var(...)]`: Tailwind no sabe si esa variable es una sombra o
+   un color. */
+.fila-sombra {
+  box-shadow: var(--fila-sombra);
+}
+
 /* Fondo y filo de `--fila`, no del vidrio: la ficha es vidrio casi blanco y
    un bloque de `--glass-chip` con filo `--glass-border` salía blanco sobre
    blanco con filo blanco (1,05:1). No se veía dónde acababa una OF y
