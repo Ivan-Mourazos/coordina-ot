@@ -250,7 +250,7 @@ export function HistorialView({
             onChange={(e) => setQ(e.target.value)}
             aria-label="Buscar en el Historial"
             placeholder="Pedido, OF, cliente o descripción…"
-            className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+            className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-focus"
           />
           {q && (
             <button type="button" aria-label="Vaciar la búsqueda del Historial" onClick={() => setQ("")}
@@ -567,7 +567,7 @@ function FilaHistorial({
       detalle={
         <>
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
-          {error && <p className="py-1 text-xs text-red-500">No se pudieron cargar las OF.</p>}
+          {error && <p className="py-1 text-xs text-error">No se pudieron cargar las OF.</p>}
           {/* LAS OF COMO EN LA FICHA, con sus tareas y tiempos al
               desplegarlas: para mirar un pedido sin abrirlo (Iván, 09/10/2026).
               Las tareas ya estuvieron aquí dos veces y no funcionaron —una

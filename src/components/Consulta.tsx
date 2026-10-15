@@ -107,7 +107,7 @@ export function Consulta() {
               /* La pestaña activa con el color de marca, como el selector de
                  ámbito de la agenda: quien entra de fuera tiene que ver de un
                  vistazo en cuál de las dos está. */
-              className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+              className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                 p.id === pestana
                   ? "pestana-activa"
                   : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
@@ -131,7 +131,7 @@ export function Consulta() {
             placeholder={
               pestana === "consultas" ? "Comercial, cliente, pedido o incidencia…" : "Pedido, cliente, obra u OF…"
             }
-            className="glass-chip h-9 w-full rounded-lg px-3 pr-9 text-sm text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+            className="glass-chip h-9 w-full rounded-lg px-3 pr-9 text-sm text-text outline-none placeholder:text-text-muted focus:border-focus"
           />
           {q && (
             <button

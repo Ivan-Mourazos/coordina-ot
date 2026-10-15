@@ -72,7 +72,7 @@ export function AvisoParteNuevo({
             type="button"
             onClick={() => void marcar()}
             disabled={apagando}
-            className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            className="rounded-lg bg-amber-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
           >
             {apagando ? "Guardando…" : "Ya lo he visto"}
           </button>
@@ -80,7 +80,7 @@ export function AvisoParteNuevo({
         </div>
       )}
       {error && (
-        <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">
+        <p className="mt-1.5 text-[11px] text-error" role="alert">
           No se pudo guardar. Comprueba la conexión.
         </p>
       )}

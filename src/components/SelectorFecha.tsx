@@ -228,10 +228,10 @@ export function SelectorFecha({
                         // agosto, obligar a cambiar de mes es un paso de más.
                         className={`grid h-7 place-items-center rounded text-[11px] tabular-nums transition-colors ${
                           marcado
-                            ? "bg-brand-500 font-bold text-white"
+                            ? "bg-brand-500 font-bold text-[#231903]"
                             : c.delMes
                               ? "text-text hover:bg-[var(--glass-highlight)]"
-                              : "text-text-muted/50 hover:bg-[var(--glass-highlight)]"
+                              : "text-text-muted hover:bg-[var(--glass-highlight)]"
                         } ${esHoy && !marcado ? "ring-1 ring-brand-400" : ""}`}
                       >
                         {Number(c.iso.slice(8))}

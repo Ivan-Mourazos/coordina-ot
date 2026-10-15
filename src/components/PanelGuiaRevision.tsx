@@ -56,7 +56,7 @@ const porOrden = <T extends { orden: number; id: number }>(a: T, b: T) => a.orde
 const mismaFamilia = (f: string | null, g: Grupo) => (f?.toUpperCase() ?? null) === (g?.toUpperCase() ?? null);
 
 const INPUT =
-  "min-w-0 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-brand-400";
+  "min-w-0 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-focus";
 const BOTON_SUAVE =
   "rounded-lg px-2 py-0.5 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text disabled:opacity-30 disabled:hover:bg-transparent";
 
@@ -117,7 +117,7 @@ export function PanelGuiaRevision({ onCerrar }: { onCerrar: () => void }) {
               aria-selected={pestana === id}
               onClick={() => setPestana(id)}
               className={`rounded-md px-2.5 py-0.5 text-[11px] font-semibold ${
-                pestana === id ? "bg-brand-600 text-white" : "text-text-muted hover:text-text"
+                pestana === id ? "bg-brand-700 text-white" : "text-text-muted hover:text-text"
               }`}
             >
               {texto}
@@ -130,7 +130,7 @@ export function PanelGuiaRevision({ onCerrar }: { onCerrar: () => void }) {
             onClick={() => setEditando((v) => !v)}
             className={`rounded-lg px-2.5 py-0.5 text-[11px] font-semibold ${
               editando
-                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                ? "bg-emerald-700 text-white hover:bg-emerald-800"
                 : "text-text-muted ring-1 ring-border hover:text-text"
             }`}
           >
@@ -224,7 +224,7 @@ function BotonGrupo({
       }`}
     >
       {children}
-      <span className={`ml-auto pl-2 tabular-nums ${cuenta === 0 ? "opacity-40" : ""}`}>{cuenta}</span>
+      <span className="ml-auto pl-2 tabular-nums">{cuenta}</span>
     </button>
   );
 }
@@ -359,13 +359,13 @@ function ListaPasos({
             className="w-48 shrink-0"
             options={elegibles.map((c) => ({ value: String(c.id), label: c.etiqueta }))}
           />
-          <button type="submit" className="rounded-lg bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-lg bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-800">
             Añadir
           </button>
         </form>
       )}
 
-      {error && <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-1.5 text-[11px] text-error">{error}</p>}
 
       {edita && retirados.length > 0 && (
         <Retirados
@@ -576,13 +576,13 @@ function ListaCausas({
             aria-label="Nueva causa"
             className={`${INPUT} flex-1`}
           />
-          <button type="submit" className="rounded-lg bg-brand-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-700">
+          <button type="submit" className="rounded-lg bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-brand-800">
             Añadir
           </button>
         </form>
       )}
 
-      {error && <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-1.5 text-[11px] text-error">{error}</p>}
 
       {edita && retiradas.length > 0 && (
         <Retirados

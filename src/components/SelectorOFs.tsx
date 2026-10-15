@@ -34,7 +34,7 @@ export function SelectorOFs({
 }) {
   if (ofs.length <= 1) return null;
 
-  const marcada = tono === "devolver" ? "bg-red-600" : "bg-teal-600";
+  const marcada = tono === "devolver" ? "bg-red-600" : "bg-teal-700";
   return (
     <div className="mb-2">
       <p className="mb-1 text-[11px] font-semibold text-text">

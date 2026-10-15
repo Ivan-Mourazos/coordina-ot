@@ -134,7 +134,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
                   type="button"
                   onClick={() => alternar(codigo)}
                   aria-expanded={abiertas.has(codigo)}
-                  className="-mx-1 flex min-w-0 flex-1 items-baseline gap-2 rounded px-1 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                  className="-mx-1 flex min-w-0 flex-1 items-baseline gap-2 rounded px-1 text-left hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   <svg
                     viewBox="0 0 24 24"

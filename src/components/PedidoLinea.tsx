@@ -228,8 +228,8 @@ export function PedidoLinea({
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.
       style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
-      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--glass-border)] px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
-        fichandoAlguien ? "bg-emerald-500/10" : detenidoDelTodo ? "bg-surface-2/30" : "bg-surface-2/60"
+      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+        fichandoAlguien ? "bg-[color-mix(in_srgb,var(--color-emerald-500)_10%,var(--fila))]" : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
       }`}
     >
       <button

@@ -60,11 +60,11 @@ export const TecnicoCard = memo(function TecnicoCard({
     revisiones,
     grupos: porFase.map((g) => ({
       label: g.label,
-      color: g.color,
+      color: g.relleno,
       items: g.items.map((f) => ({ id: f.pedido.id, atrasado: !!f.atrasado })),
     })),
     vivo: live ? { id: live.pedido.id, revisando: live.rol === "revisar" } : null,
-    colorRevisar: ROL.revisar.color,
+    colorRevisar: ROL.revisar.relleno,
   });
   const tarde = bloques.filter((b) => b.atrasado).length;
   // La barra se reparte entre LOS SUYOS, no contra el más cargado del equipo:
@@ -108,8 +108,7 @@ export const TecnicoCard = memo(function TecnicoCard({
 
           {live && (
             <span
-              className="ml-auto flex min-w-0 shrink items-center gap-1 text-[10px] font-bold"
-              style={{ color: ROL[live.rol].color }}
+              className={`ml-auto flex min-w-0 shrink items-center gap-1 text-[10px] font-bold ${ROL[live.rol].texto}`}
               title={`${ROL[live.rol].label} ${live.pedido.codigo} · ${live.of.descripcion}`}
             >
               <LiveDot rol={live.rol} className="size-1.5" />
@@ -149,14 +148,16 @@ export const TecnicoCard = memo(function TecnicoCard({
 
         {/* Barra de carga: un bloque por pedido, del color de su columna y en
             el orden de la zona de arriba (ver bloquesDeCarga). Dice EN QUÉ
-            está cargado cada uno; cuánto lo dice el número de arriba. El pedido que está fichando late; los fuera de fecha llevan una
-            raya roja debajo, que el color de la fase ya está cogido. */}
+            está cargado cada uno; cuánto lo dice el número de arriba. El relleno
+            permanece opaco: el pulso lo apagaba y LiveDot ya señala la actividad
+            junto al código. Los fuera de fecha llevan una raya roja debajo,
+            que el color de la fase ya está cogido. */}
         <div className="mt-1.5 bajo:mt-1" title={resumen}>
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)] ring-1 ring-inset ring-black/10 dark:ring-white/10">
             {bloques.map((b) => (
               <span key={`${b.fase}-${b.id}`} className={`h-full shrink-0 last:pr-0 ${conHueco ? "pr-px" : ""}`} style={{ width: ancho }}>
                 <span
-                  className={`block h-full ${b.vivo ? "animate-pulse" : ""}`}
+                  className="block h-full"
                   style={{ background: b.color }}
                 />
               </span>

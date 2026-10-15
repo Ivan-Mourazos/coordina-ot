@@ -19,8 +19,8 @@ import { tintaSobre } from "@/lib/tinta";
 /** Color del texto de una fecha según su urgencia. Clases literales: Tailwind
  *  no compila las que se construyen concatenando. */
 const TONO: Record<TonoFecha, string> = {
-  vencida: "font-semibold text-red-600 dark:text-red-400",
-  hoy: "font-semibold text-amber-600 dark:text-amber-400",
+  vencida: "font-semibold text-error",
+  hoy: "font-semibold text-amber-700 dark:text-amber-400",
   proxima: "text-text",
   lejana: "text-text-muted",
 };
@@ -90,7 +90,7 @@ export function FilaOF({
   const revisor = operarios.find((o) => o.id === of.revisorId);
   const total = tiempoTotalOF(of);
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-[11px] ring-1 ring-border">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-[11px] ring-1 ring-[var(--fila-borde)]">
       <FamiliaIcon familia={of.familia} className="size-3.5 shrink-0" />
       <span className="font-mono font-semibold text-text">{of.codigo}</span>
       <span className="truncate text-text">{of.descripcion}</span>

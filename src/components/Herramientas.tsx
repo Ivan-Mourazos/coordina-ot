@@ -147,7 +147,7 @@ export function Herramientas({
                   onSalir();
                   setOpen(false);
                 }}
-                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-surface-2 hover:text-text"
               >
                 Salir
               </button>
@@ -155,7 +155,7 @@ export function Herramientas({
               <button
                 onClick={() => setCambiando((v) => !v)}
                 aria-expanded={cambiando}
-                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+                className="shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-surface-2 hover:text-text"
               >
                 {cambiando ? "Cancelar" : "Cambiar"}
               </button>
@@ -182,7 +182,7 @@ export function Herramientas({
                     onCambiarIdentidad(op.id);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-[var(--glass-highlight)] ${
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium hover:bg-surface-2 ${
                     op.id === yo.id ? "text-brand-800 dark:text-brand-400" : "text-text"
                   }`}
                 >
@@ -218,7 +218,7 @@ export function Herramientas({
               y su rótulo se lee como las demás, y los dos van juntos a la
               izquierda en vez de empujados a los extremos. */}
           <div className="mt-2 border-t border-border pt-2">
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               Qué miras y cómo
             </p>
             <div className="flex items-center gap-2 px-2">
@@ -249,7 +249,7 @@ export function Herramientas({
               <div key={grupo.titulo} className="mb-2 last:mb-0">
                 {/* Mismo sangrado que las filas (px-2): con el rótulo a px-1
                     el título quedaba 4 px a la izquierda de lo que titula. */}
-                <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">
+                <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
                   {grupo.titulo}
                 </p>
                 <ul>
@@ -264,7 +264,7 @@ export function Herramientas({
                           rel="noopener noreferrer"
                           title={h.descripcion}
                           onClick={() => setOpen(false)}
-                          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
+                          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-surface-2"
                         >
                           {h.nombre}
                           <svg
@@ -282,7 +282,7 @@ export function Herramientas({
                     ) : (
                       <li
                         key={h.id}
-                        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text"
                         title={`${h.descripcion} Todavía no está publicada: aparecerá aquí en cuanto lo esté.`}
                       >
                         {h.nombre}
@@ -326,7 +326,7 @@ export function Herramientas({
                 setOpen(false);
               }}
               title="Qué se mira al revisar y por qué vuelve una OF: lo común y lo de cada familia."
-              className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
+              className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-surface-2"
             >
               Pasos y causas de revisión
             </button>
@@ -338,7 +338,7 @@ export function Herramientas({
                   setOpen(false);
                 }}
                 title="Qué ha cambiado en la web."
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-[var(--glass-highlight)]"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-surface-2"
               >
                 Novedades de la web
                 {fechaUltimaNovedad && (
@@ -363,7 +363,7 @@ export function Herramientas({
               con este `if`. */}
           {loginActivo && roles.includes("supervisor") && <ResetPin />}
           {verComoDireccion && (
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-text hover:bg-[var(--glass-highlight)]">
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-text hover:bg-surface-2">
               <span>
                 <span className="block font-semibold">Ver como Dirección</span>
                 <span className="block text-[11px] text-text-muted">La web sin botones de escribir, como la ven Carlos y Esteban</span>

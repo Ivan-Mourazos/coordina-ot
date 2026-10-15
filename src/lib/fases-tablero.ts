@@ -17,9 +17,12 @@ export type Fase =
 export interface FaseMeta {
   id: Fase;
   label: string;
-  /** Color del punto y de la barra de carga. Literal, no clase de Tailwind:
-   *  se usa en `style`, porque Tailwind no compila clases construidas. */
+  /** Acento de identidad para puntos y fondos tintados. */
   color: string;
+  /** La palabra y la barra necesitan tintas distintas sobre vidrio. Variables
+   *  de tema para `style`, sin construir clases Tailwind en ejecución. */
+  tinta: string;
+  relleno: string;
 }
 
 export const FASES: readonly FaseMeta[] = [
@@ -28,14 +31,14 @@ export const FASES: readonly FaseMeta[] = [
   // "Planteando" y el resultado fue el esperable — te devuelven un pedido, la
   // campana avisa una vez, y en el tablero aparece indistinguible de lo que ya
   // tenías a medias: nada dice que hubo devolución.
-  { id: "devuelta", label: "A corregir", color: "#dc2626" },
-  { id: "sinEmpezar", label: "Sin empezar", color: "#9ca3af" },
-  { id: "planteando", label: "Planteando", color: "#059669" },
+  { id: "devuelta", label: "A corregir", color: "#dc2626", tinta: "var(--fase-devuelta-texto)", relleno: "var(--fase-devuelta-relleno)" },
+  { id: "sinEmpezar", label: "Sin empezar", color: "#9ca3af", tinta: "var(--text-muted)", relleno: "var(--progress-pending)" },
+  { id: "planteando", label: "Planteando", color: "#059669", tinta: "var(--fase-planteando-texto)", relleno: "var(--fase-planteando-relleno)" },
   // "Esperando revisión", no "Para revisar": es MI trabajo en manos de otro.
   // Lo que me toca revisar a mí no es una fase de MIS pedidos: va en su propia
   // columna de la zona personal (ver `facetsQueReviso`) y en la pestaña Revisión.
-  { id: "esperandoRevision", label: "Esperando revisión", color: "#7c3aed" },
-  { id: "listoParaPasar", label: "Listo para pasar", color: "#0891b2" },
+  { id: "esperandoRevision", label: "Esperando revisión", color: "#7c3aed", tinta: "var(--fase-revision-texto)", relleno: "var(--fase-revision-relleno)" },
+  { id: "listoParaPasar", label: "Listo para pasar", color: "#0891b2", tinta: "var(--fase-listo-texto)", relleno: "var(--fase-listo-relleno)" },
   // Fuera del recorrido, y la última a propósito: aquí no hay trabajo que
   // hacer ni decisión que tomar. Producción tiene el pedido detenido y OT no
   // puede ni fichar ni darlo por terminado — liberarlo no está en nuestra mano.
@@ -47,7 +50,7 @@ export const FASES: readonly FaseMeta[] = [
   //
   // Se resuelve solo: en cuanto RPS deja de decir DETENIDA, el pedido vuelve a
   // su fase de siempre sin que nadie tenga que acordarse de nada.
-  { id: "parado", label: "Parado por Producción", color: "#a16207" },
+  { id: "parado", label: "Parado por Producción", color: "#a16207", tinta: "var(--fase-parado-texto)", relleno: "var(--fase-parado-relleno)" },
 ];
 
 /** Las fases que son TRABAJO, en el orden del recorrido. Es lo que se pinta en
@@ -406,30 +409,33 @@ export function avisaDeOFNueva(p: ConOFs & { reabiertoPor?: string[] }): boolean
 export function faseEnUnaPalabra(
   p: Pedido,
   { invitado = false, seccion }: { invitado?: boolean; seccion?: Seccion } = {},
-): { texto: string; color: string } {
+): { texto: string; color: string; tinta: string } {
   const fase = faseDePedido(p);
-  const color = (f: Fase) => FASES.find((x) => x.id === f)?.color ?? "#9ca3af";
+  const color = (f: Fase) => {
+    const meta = FASES.find((x) => x.id === f)!;
+    return { color: meta.color, tinta: meta.tinta };
+  };
   switch (fase) {
     case "sinEmpezar":
-      return { texto: p.ofs.some((o) => o.autorId) ? "Sin empezar" : "Sin asignar", color: color(fase) };
+      return { texto: p.ofs.some((o) => o.autorId) ? "Sin empezar" : "Sin asignar", ...color(fase) };
     case "devuelta":
       return invitado
-        ? { texto: "Planteando", color: color("planteando") }
-        : { texto: "A corregir", color: color(fase) };
+        ? { texto: "Planteando", ...color("planteando") }
+        : { texto: "A corregir", ...color(fase) };
     case "planteando":
-      return { texto: etiquetaFase("planteando", seccion), color: color(fase) };
+      return { texto: etiquetaFase("planteando", seccion), ...color(fase) };
     case "esperandoRevision":
       // La fase junta las que esperan revisor y las que ya se están
       // revisando: «Revisando» solo si alguien ha empezado (Iván, 14/10/2026:
       // salía «Revisando» con todas por revisar).
       return {
         texto: p.ofs.some((o) => o.estado === "en_revision") ? "Revisando" : "Por revisar",
-        color: color(fase),
+        ...color(fase),
       };
     case "listoParaPasar":
-      return { texto: invitado ? "Listo" : etiquetaFase("listoParaPasar", seccion), color: color(fase) };
+      return { texto: invitado ? "Listo" : etiquetaFase("listoParaPasar", seccion), ...color(fase) };
     case "parado":
-      return { texto: "Detenido", color: color(fase) };
+      return { texto: "Detenido", ...color(fase) };
   }
 }
 

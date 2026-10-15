@@ -289,7 +289,7 @@ export function TareasDeOF({
                           después del planteo, o si un trabajo se partió. */}
                       {p.desde && p.hasta && (
                         <span
-                          className="text-text-muted/80"
+                          className="text-text-muted"
                           title={
                             p.desde === p.hasta
                               ? `Imputado el ${fmtFechaLarga(p.desde)}`

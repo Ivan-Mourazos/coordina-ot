@@ -47,14 +47,44 @@
   --border: #e2e4e9;
   --border-strong: #c8ccd4;
   --text: #17181c;
-  /* Los secundarios (tiempos, "3 OF", cliente) viven sobre vidrio, no sobre
-     blanco: el fondo real es el panel translúcido, más oscuro que #fff. Con
-     #676c76 quedaban en el filo del mínimo legible a 10-11 px; este tono da
-     ~5,6:1 contra el vidrio y ~6:1 contra blanco. */
-  /* Y un punto más oscuro al oscurecer --bg: #5c616b sobre el fondo nuevo se
-     quedaba en 4,47:1 ("EQUIPO", "VER", los rótulos van directamente sobre
-     él). #565b65 da 4,9:1 sobre el fondo y 6,8:1 sobre blanco. */
-  --text-muted: #565b65;
+  /* Fechas, recuentos y rótulos pequeños viven sobre vidrio y también sobre
+     el fondo plata. #4b505a da ~5,8:1 sobre --bg y ~8:1 sobre blanco:
+     gana cuerpo sin competir con --text. Se usa opaco: añadir /50 o /60
+     vuelve a perder el contraste que necesitan esos datos. */
+  --text-muted: #4b505a;
+  /* Los separadores siguen suaves; un segmento o hito sí comunica un dato
+     y necesita distinguirse de la pista, incluso cuando aún no ha empezado. */
+  --progress-pending: #6f7784;
+  /* Las filas de pedido van sobre el panel de vidrio, que en claro ya es casi
+     blanco (#f3f4f6). Con surface-2 al 60 % la fila salía del mismo color que
+     el panel y solo la separaba un filo blanco invisible: no se veía dónde
+     empezaba cada pedido. Blanco opaco y un filo gris la despegan sin
+     oscurecer el panel (Iván, 15/10/2026). */
+  --fila: #ffffff;
+  --fila-borde: #d5d9e0;
+  /* Las filas de pedido van con un filo más marcado y una sombra ligera: con
+     el filo de los bloques (#d5d9e0) seguían leyéndose pegadas al panel en
+     pantalla (Iván lo eligió con capturas, 15/10/2026). */
+  --fila-filo: #aeb4be;
+  --fila-sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
+  /* El dorado del logo apenas contrasta sobre blanco. El foco tiene tinta
+     propia, más oscura en claro, sin cambiar el acento de marca. */
+  --focus: #9e6512;
+  --error: var(--color-red-700);
+
+  /* Tinta y relleno no son intercambiables: una palabra pequeña pide más
+     contraste que una barra. Los acentos originales conservan su identidad. */
+  --fase-devuelta-texto: var(--color-red-700);
+  --fase-planteando-texto: var(--color-emerald-800);
+  --fase-revision-texto: var(--color-violet-700);
+  /* El -700 pasa sobre blanco, pero cae a ~4,1:1 sobre el tinte del chip. */
+  --fase-listo-texto: var(--color-cyan-800);
+  --fase-parado-texto: var(--color-yellow-800);
+  --fase-devuelta-relleno: #dc2626;
+  --fase-planteando-relleno: #059669;
+  --fase-revision-relleno: #7c3aed;
+  --fase-listo-relleno: #0891b2;
+  --fase-parado-relleno: #a16207;
 
   /* Vidrio: translúcido + saturado + highlight especular en el canto */
   /* 0,7 y no 0,52: sobre el fondo más oscuro, el panel translúcido salía gris
@@ -125,11 +155,28 @@
   --border: #35373d;
   --border-strong: #45484f;
   --text: #eef0f2;
-  /* Medido sobre el fondo REAL de la ficha (telón + vidrio + el tinte de
-     `--glass-highlight` de los bloques): con #989ea8 los rótulos y las
-     familias quedaban a 3,4–3,7:1. Este da ≥4,6:1 incluso en una etiqueta de
-     familia, que es vidrio sobre vidrio. */
-  --text-muted: #b3b9c2;
+  /* El vidrio sobre vidrio y el tinte de familia apagan los rótulos pequeños.
+     #c4cad3 les da margen también ahí, manteniéndolos por debajo del texto
+     principal #eef0f2. No se atenúan después con alfa. */
+  --text-muted: #c4cad3;
+  --progress-pending: #8b95a5;
+  /* En oscuro la fila se aclara sobre el panel (#23252b), no se oscurece. */
+  --fila: #33363d;
+  --fila-borde: #42454d;
+  --fila-filo: #5c606a;
+  --fila-sombra: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --focus: var(--color-brand-400);
+  --error: var(--color-red-300);
+  --fase-devuelta-texto: var(--color-red-300);
+  --fase-planteando-texto: var(--color-emerald-300);
+  --fase-revision-texto: var(--color-violet-300);
+  --fase-listo-texto: var(--color-cyan-300);
+  --fase-parado-texto: var(--color-yellow-300);
+  --fase-devuelta-relleno: #f87171;
+  --fase-planteando-relleno: #34d399;
+  --fase-revision-relleno: #a78bfa;
+  --fase-listo-relleno: #22d3ee;
+  --fase-parado-relleno: #facc15;
 
   --glass-bg: rgba(36, 38, 44, 0.92);
   --glass-bg-strong: rgba(40, 42, 48, 0.95);
@@ -162,6 +209,9 @@
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
+  --color-progress-pending: var(--progress-pending);
+  --color-focus: var(--focus);
+  --color-error: var(--error);
 }
 
 html,
@@ -192,7 +242,7 @@ body {
 
 /* Foco de teclado consistente en toda la app */
 :focus-visible {
-  outline: 2px solid var(--color-brand-400);
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -461,11 +511,22 @@ body {
 /* Bloque de ficha (notas, documentos, centros): el mismo relieve que las
    tarjetas de OF que lleva dentro, pero sin levantarse al pasar por encima:
    el bloque no es un botón. */
+/* Sombra de las filas de pedido (PedidoLinea, LineaRevisar). Clase propia y
+   no `shadow-[var(...)]`: Tailwind no sabe si esa variable es una sombra o
+   un color. */
+.fila-sombra {
+  box-shadow: var(--fila-sombra);
+}
+
+/* Fondo y filo de `--fila`, no del vidrio: la ficha es vidrio casi blanco y
+   un bloque de `--glass-chip` con filo `--glass-border` salía blanco sobre
+   blanco con filo blanco (1,05:1). No se veía dónde acababa una OF y
+   empezaba la siguiente; es el mismo fallo que tenían las filas del panel. */
 .bloque-3d {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
-    var(--glass-chip);
-  border: 1px solid var(--glass-border);
+    var(--fila);
+  border: 1px solid var(--fila-borde);
   box-shadow:
     0 0 0 1px var(--edge),
     0 1px 2px var(--contact),
@@ -495,8 +556,8 @@ body {
 .bloque-3d-hundido {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--glass-highlight) 40%, transparent), transparent 45%),
-    var(--glass-chip);
-  border: 1px solid var(--glass-border);
+    var(--fila);
+  border: 1px solid var(--fila-borde);
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.12),
     0 1px 2px -1px var(--glass-shadow);
@@ -580,7 +641,8 @@ body {
    del chip gris: en oscuro, el icono —con su color pensado para fondo claro,
    p. ej. el azul #1673b1 de Lonas— casi desaparecía sobre el gris grafito, y
    la familia se reconoce antes por el color que por la palabra. En oscuro el
-   icono se aclara hacia blanco para que se vea sobre el fondo oscuro. */
+   icono se aclara hacia blanco para que se vea sobre el fondo oscuro, tanto
+   dentro del chip como cuando aparece suelto junto a una OF. */
 .familia-tag {
   background: color-mix(in srgb, var(--fam) 9%, var(--glass-chip));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fam) 22%, transparent);
@@ -589,7 +651,7 @@ body {
   background: color-mix(in srgb, var(--fam) 20%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fam) 35%, transparent);
 }
-.dark .familia-tag svg {
+.dark .familia-icon {
   stroke: color-mix(in srgb, var(--fam) 55%, white);
 }
 

@@ -26,9 +26,9 @@ import { negocioAparte } from "@/lib/negocio";
 // esperar, y si RPS no contesta el buscador sigue sirviendo.
 
 const COLOR: Record<Ubicacion, string> = {
-  sinAsignar: "bg-gray-400",
+  sinAsignar: "bg-progress-pending",
   conAutor: "bg-emerald-600",
-  historial: "bg-slate-400",
+  historial: "bg-progress-pending",
   taller: "bg-amber-500",
   fuera: "bg-cyan-600",
 };

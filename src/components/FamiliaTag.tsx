@@ -12,7 +12,8 @@ export function FamiliaIcon({
   return (
     <svg
       viewBox="0 0 24 24"
-      className={`shrink-0 ${className}`}
+      className={`familia-icon shrink-0 ${className}`}
+      style={{ "--fam": meta.color } as React.CSSProperties}
       fill="none"
       stroke={meta.color}
       strokeWidth="1.8"

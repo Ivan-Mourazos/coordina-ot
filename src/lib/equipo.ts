@@ -53,8 +53,8 @@ export function bloquesDeCarga({
   revisiones: ItemCarga[];
   grupos: { label: string; color: string; items: ItemCarga[] }[];
   /** El pedido del reloj, y si ficha revisando. Un pedido puede estar en
-   *  los dos lados (plantea una OF y revisa otra): el pulso va solo en el
-   *  bloque del rol con el que ficha. */
+   *  los dos lados (plantea una OF y revisa otra): se identifica solo el
+   *  bloque del rol con el que ficha, sin atenuar el relleno de datos. */
   vivo: { id: string; revisando: boolean } | null;
   colorRevisar: string;
 }): BloqueCarga[] {

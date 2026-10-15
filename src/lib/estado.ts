@@ -43,7 +43,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
   pendiente: {
     label: "Pendiente",
     short: "Pend.",
-    dot: "bg-gray-400",
+    dot: "bg-progress-pending",
     borderIzq: "border-l-border",
     chip: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
     texto: "text-gray-600 dark:text-gray-300",
@@ -83,7 +83,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
     short: "Por rev.",
     dot: "bg-amber-500",
     borderIzq: "border-l-amber-400",
-    chip: "bg-amber-600 text-white",
+    chip: "bg-amber-700 text-white",
     texto: "text-amber-700 dark:text-amber-300",
     rank: 6,
   },
@@ -99,7 +99,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
   anulada: {
     label: "Anulada",
     short: "Anul.",
-    dot: "bg-slate-400",
+    dot: "bg-progress-pending",
     borderIzq: "border-l-slate-300",
     chip: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
     texto: "text-slate-600 dark:text-slate-300",
@@ -114,6 +114,7 @@ export const ESTADO: Record<EstadoOF, EstadoMeta> = {
 export interface RolMeta {
   label: string; // "Planteando" / "Revisando"
   color: string; // sólido para dots/anillos
+  relleno: string; // barra opaca, adaptada al tema y a la pista de vidrio
   chip: string; // clases del badge (fondo tintado + texto)
   /** Solo el color del texto, sin fondo. Para sitios densos donde 40 badges
    *  seguidos son 40 pastillas compitiendo: el color dice de que rol se habla
@@ -126,6 +127,7 @@ export const ROL: Record<Rol, RolMeta> = {
   plantear: {
     label: "Planteando",
     color: "#059669",
+    relleno: "var(--fase-planteando-relleno)",
     chip: "bg-emerald-600/12 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300",
     texto: "text-emerald-800 dark:text-emerald-300",
     solido: "bg-emerald-700 text-white hover:bg-emerald-800",
@@ -133,6 +135,7 @@ export const ROL: Record<Rol, RolMeta> = {
   revisar: {
     label: "Revisando",
     color: "#7c3aed",
+    relleno: "var(--fase-revision-relleno)",
     chip: "bg-violet-600/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
     texto: "text-violet-700 dark:text-violet-300",
     solido: "bg-violet-600 text-white hover:bg-violet-700",

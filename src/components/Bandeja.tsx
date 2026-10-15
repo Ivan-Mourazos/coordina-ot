@@ -95,7 +95,7 @@ export function BloquePlegable({
         onClick={cambiar}
         aria-expanded={abierto}
         aria-controls={id}
-        className={`glass-panel group ${abierto ? "mb-2.5" : ""} flex w-full items-center gap-2 rounded-xl border px-3 py-1.5 text-left transition-colors hover:border-brand-400 hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`}
+        className={`glass-panel group ${abierto ? "mb-2.5" : ""} flex w-full items-center gap-2 rounded-xl border px-3 py-1.5 text-left transition-colors hover:border-brand-400 hover:bg-[var(--glass-highlight)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus`}
       >
         <span className="glass-chip grid size-6 shrink-0 place-items-center rounded-full text-text transition-colors group-hover:border-brand-400">
           <svg
@@ -462,7 +462,7 @@ export function Bandeja({
           clave="coordina-detenidos-plegado"
           abiertoDeSalida={false}
           bajarAlAbrir
-          className="mt-5 border-t border-[var(--glass-border)] pt-3"
+          className="mt-5 border-t border-border-strong pt-3"
           cabecera={
             <>
               <span className="size-2 rounded-full bg-amber-500" />

@@ -19,7 +19,7 @@ export function ScanViewer({ pedido, onClose }: { pedido: Pedido; onClose: () =>
       {/* barra superior */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-3 p-4 text-white">
         <span className="font-mono text-sm font-bold">{pedido.codigo}</span>
-        <span className="text-sm text-white/70">{pedido.cliente}</span>
+        <span className="text-sm text-white">{pedido.cliente}</span>
         {pedido.scanUrl && (
           <a
             href={pedido.scanUrl}

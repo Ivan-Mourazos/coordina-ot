@@ -82,7 +82,7 @@ export function ConsultaEnCurso({
               type="button"
               aria-pressed={seccion === id}
               onClick={() => setSeccion(id)}
-              className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+              className={`h-8 rounded-md px-3.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                 seccion === id ? "pestana-activa" : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               }`}
             >

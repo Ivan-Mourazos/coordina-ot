@@ -603,7 +603,7 @@ function BarraCausa({
           <strong className="font-semibold text-text">{n}</strong> · {pct}%
         </span>
       </div>
-      <div className="mt-1 h-2 w-full rounded-full bg-[var(--glass-highlight)]">
+      <div className="mt-1 h-2 w-full rounded-full bg-[var(--glass-highlight)] ring-1 ring-inset ring-black/10 dark:ring-white/10">
         <div
           // Contra la MÁS ALTA, no contra el total: así la más frecuente llena
           // la barra y las demás se comparan con ella de un vistazo. El
@@ -704,7 +704,7 @@ function BarraTrabajo({
       </div>
       <div className={`mt-1 flex flex-col gap-0.5 ${enCurso ? "opacity-60" : ""}`}>
         {SERIES.map((s) => (
-          <div key={s.clave} className="h-1.5 w-full rounded-full bg-[var(--glass-highlight)]">
+          <div key={s.clave} className="h-1.5 w-full rounded-full bg-[var(--glass-highlight)] ring-1 ring-inset ring-black/10 dark:ring-white/10">
             <div
               style={{ width: `${Math.min(100, (mes[s.clave] / max) * 100)}%` }}
               className={`h-full rounded-full ${s.barra}`}
@@ -743,7 +743,7 @@ function BarraMes({
           otro— la barra se pintaba media pantalla por fuera del panel. Eso ya
           no pasa (ver metricas.ts), pero una barra no puede depender de que el
           número que la alimenta esté bien: ninguna medida se sale de su caja. */}
-      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)]">
+      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[var(--glass-highlight)] ring-1 ring-inset ring-black/10 dark:ring-white/10">
         <div
           style={{ width: `${Math.min(100, (prop ?? 0) * 100)}%` }}
           className="h-full rounded-full bg-red-600"

@@ -20,9 +20,9 @@ const META: Record<NotifTipo, { label: string; vista: Vista; dot: string }> = {
   revisar: { label: "Me toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
   devuelta: { label: "Devuelta, a corregir", vista: "asignar", dot: ESTADO.devuelta.dot },
   recibida: { label: "Te han pasado trabajo", vista: "asignar", dot: "bg-emerald-600" },
-  cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-gray-400" },
+  cedida: { label: "Ya no lo tienes tú", vista: "asignar", dot: "bg-progress-pending" },
   revisarNueva: { label: "Te toca revisar", vista: "revision", dot: ESTADO.en_revision.dot },
-  revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-gray-400" },
+  revisarQuitada: { label: "Ya no lo revisas tú", vista: "revision", dot: "bg-progress-pending" },
   // "Listo para pasar" es que están todas sus OF aprobadas.
   pedidoCompleto: { label: "Listo para pasar", vista: "asignar", dot: ESTADO.aprobada.dot },
   notaNueva: { label: "Nota nueva", vista: "asignar", dot: "bg-teal-600" },
@@ -139,7 +139,7 @@ export function Notificaciones({
                         onNavigate(meta.vista, item);
                         setOpen(false);
                       }}
-                      className="flex min-w-0 flex-1 items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
                     >
                       <span className={`mt-1 size-2 shrink-0 rounded-full ${meta.dot}`} />
                       <span className="min-w-0">
@@ -176,7 +176,7 @@ export function Notificaciones({
                         onClick={() => onDescartar(item)}
                         aria-label={`Quitar de mi campana el aviso de ${item.pedido.codigo}`}
                         title="Quitarlo de mi campana. A los demás les sigue saliendo."
-                        className="mt-1 grid size-6 shrink-0 place-items-center rounded-md text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+                        className="mt-1 grid size-6 shrink-0 place-items-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
                       >
                         <span aria-hidden="true">✕</span>
                       </button>

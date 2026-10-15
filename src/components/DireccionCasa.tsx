@@ -99,7 +99,7 @@ export function DireccionCasa({ onAbrirPedido }: { onAbrirPedido: (codigo: strin
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Pedido, cliente, obra u OF…"
-            className="glass-chip h-9 w-full rounded-lg px-3 text-sm text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+            className="glass-chip h-9 w-full rounded-lg px-3 text-sm text-text outline-none placeholder:text-text-muted focus:border-focus"
           />
         </label>
         <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ function FilaCasa({ p, hoy, onAbrirPedido }: { p: PedidoConsulta; hoy: string; o
       }
       detalle={
         <div className="py-1">
-          {error && <p className="text-xs text-red-600">No se pudo cargar el pedido.</p>}
+          {error && <p className="text-xs text-error">No se pudo cargar el pedido.</p>}
           {!error && !ofs && <p className="text-xs text-text-muted">Cargando OF…</p>}
           {ofs && <OFsDeLaFicha ofs={ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} enColumnas />}
         </div>
@@ -281,7 +281,7 @@ function RecorridoCasa({ p, hoy }: { p: PedidoConsulta; hoy: string }) {
           style={{ left: `${pos(llegada)}%`, width: `${pos(fin) - pos(llegada)}%` }}
         />
       )}
-      {llegada && <Hito x={pos(llegada)} xTexto={texto[0]!} etiqueta={fmtDiaMes(llegada)} clase="bg-slate-400" />}
+      {llegada && <Hito x={pos(llegada)} xTexto={texto[0]!} etiqueta={fmtDiaMes(llegada)} clase="bg-progress-pending" />}
       {solicitada && <Hito x={pos(solicitada)} xTexto={texto[1]!} etiqueta={fmtDiaMes(solicitada)} clase="bg-brand-500" fuerte />}
       {fin && (
         <Hito

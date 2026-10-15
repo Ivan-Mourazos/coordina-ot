@@ -245,7 +245,7 @@ export function VisitasCotView({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Comercial, cliente, pedido o incidencia…"
-              className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-3 text-xs text-text outline-none placeholder:text-text-muted focus:border-brand-400"
+              className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-3 text-xs text-text outline-none placeholder:text-text-muted focus:border-focus"
             />
           </label>
         )}

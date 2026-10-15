@@ -120,15 +120,14 @@ export function ZonaPersonal({
             title="Producción los tiene detenidos: no se pueden fichar ni dar por terminados. Están en su columna, marcados como «Detenido», y se liberan solos."
             className="flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-600/25 dark:text-amber-300"
           >
-            <span className="size-1.5 rounded-full bg-amber-500" />
+            <span className="size-1.5 rounded-full bg-amber-600 dark:bg-amber-400" />
             {parados.length} parado{parados.length === 1 ? "" : "s"} por Producción
           </span>
         )}
 
         {live && (
           <span
-            className="ml-auto flex items-center gap-1.5 text-[11px] font-semibold"
-            style={{ color: ROL[live.rol].color }}
+            className={`ml-auto flex items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}

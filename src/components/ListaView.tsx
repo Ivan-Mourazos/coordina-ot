@@ -143,7 +143,7 @@ const ANCHO_FECHA_PCT = (ANCHO_FECHA_PX / (RECORRIDO_PX - CHIP_TARDE_PX)) * 100;
  *
  *  Los rótulos (Creación, Planificación…) NO se repiten por fila: el orden es
  *  el mismo en todas, así que viven una sola vez en la cabecera. */
-function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
+function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: string; terminado?: boolean }) {
   const linea = lineaTiempo(pedido, hoy);
   const { hitos, hoyPct, hoyFuera, diasParaEntrega } = linea;
   const etiquetas = repartirEtiquetas(
@@ -193,7 +193,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
           // (ahí no se pinta hito de planificación, porque sería la misma fecha
           // repetida). Así el color está siempre en el mismo sitio de la línea:
           // la fecha que manda.
-          const colorHito = h.referencia ? color : undefined;
+          const colorHito = terminado ? "var(--text-muted)" : h.referencia ? color : undefined;
           const cuanto = esHoyLaPlanificada
             ? " (es hoy)"
             : diasTarde < 0
@@ -220,7 +220,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
         })}
       </div>
 
-      <div className="relative h-2">
+      <div className={`relative h-2 ${terminado ? "opacity-40" : ""}`}>
         {/* El color dice EN QUÉ TRAMO va el pedido, no cuánto lleva: verde
             hasta la planificación (hay margen), naranja mientras el trabajo es
             de OT, rojo en el último tramo. Cortes secos, no degradado: el
@@ -228,7 +228,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
 
             Lo ya recorrido va a todo color y lo que queda apagado, así se ven
             a la vez el plan entero y por dónde se va. */}
-        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
+        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border-strong" />
         {/* El día exacto de la planificada, el tramo VERDE se sigue pintando.
             Antes ese día la barra se quedaba entera en gris y todo el aviso lo
             llevaba el punto: la fila se leía como "este pedido no tiene fecha",
@@ -249,7 +249,7 @@ function Recorrido({ pedido, hoy }: { pedido: Pedido; hoy: string }) {
         {hitos.map((h) => (
           <span
             key={h.clave}
-            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-border-strong"
+            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-progress-pending"
             style={{ left: `${h.pct}%` }}
           />
         ))}
@@ -418,7 +418,7 @@ export function ListaView({
   unoAbierto?: boolean;
   /** La fase del pedido en una palabra, junto al código (la consulta «En
    *  curso»). Con ella, el «Listo para Producción» del final sobra: ya lo dice. */
-  fase?: (p: Pedido) => { texto: string; color: string } | null;
+  fase?: (p: Pedido) => { texto: string; color: string; tinta: string } | null;
   /** Sin la columna de material (la consulta sin login no lo enseña). */
   sinMaterial?: boolean;
   /** SIN ordenar: el orden lo pone esta vista, ver "Orden por cabecera". */
@@ -606,11 +606,11 @@ export function ListaView({
                   <div className={`pointer-events-none min-w-0 ${columnaMaterial}`}>
                     <MaterialFila p={p} hoy={hoy} />
                   </div>
-                  {/* Terminado = el recorrido ya no dice nada: el pedido no se
-                      mueve más. Se apaga entero en vez de teñir media lista de
-                      rojo por trabajo que ya está hecho. */}
-                  <div className={`pointer-events-none min-w-0 ${hecho ? "opacity-40 grayscale" : ""}`}>
-                    <Recorrido pedido={p} hoy={hoy} />
+                  {/* Terminado: la urgencia pierde color y solo se atenúa el
+                      dibujo. Las fechas históricas siguen siendo datos que
+                      hay que poder leer. */}
+                  <div className={`pointer-events-none min-w-0 ${hecho ? "grayscale" : ""}`}>
+                    <Recorrido pedido={p} hoy={hoy} terminado={hecho} />
                   </div>
                 </>
               )}
@@ -624,8 +624,8 @@ export function ListaView({
                   // desplegable, a la derecha de piezas y tiempo (una línea
                   // menos, Iván 14/10/2026).
                   recorrido={compacta ? (
-                    <div className={`ml-auto min-w-[280px] max-w-3xl flex-1 ${hecho ? "opacity-40 grayscale" : ""}`}>
-                      <Recorrido pedido={p} hoy={hoy} />
+                    <div className={`ml-auto min-w-[280px] max-w-3xl flex-1 ${hecho ? "grayscale" : ""}`}>
+                      <Recorrido pedido={p} hoy={hoy} terminado={hecho} />
                     </div>
                   ) : undefined}
                   extra={extraDetalle?.(p)}
@@ -651,7 +651,7 @@ function CeldasCompactas({
   p: Pedido;
   hoy: string;
   tramos: TramoEstado[];
-  fase: { texto: string; color: string } | null;
+  fase: { texto: string; color: string; tinta: string } | null;
   fichando: "plantear" | "revisar" | null;
   onOpen?: (p: Pedido) => void;
 }) {
@@ -720,7 +720,7 @@ function CeldasCompactas({
           {fecha}
         </span>
         {!sinPlanificar && diasTarde > 0 && (
-          <span className="rounded px-1 text-[10px] font-bold text-white" style={{ background: color ?? "#d97706" }}>
+          <span className="rounded px-1 text-[10px] font-bold" style={{ background: color ?? TRAMO.trabajo, color: "var(--surface)" }}>
             +{diasTarde}d
           </span>
         )}
@@ -999,11 +999,11 @@ function ComentarioComercial({ texto }: { texto: string }) {
 
 /** La fase en una palabra, con su color de siempre (el de las columnas del
  *  panel) sobre fondo suave. */
-function ChipFase({ texto, color }: { texto: string; color: string }) {
+function ChipFase({ texto, color, tinta }: { texto: string; color: string; tinta: string }) {
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-px text-[10px] font-semibold"
-      style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+      style={{ color: tinta, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: color }} />
       {texto}

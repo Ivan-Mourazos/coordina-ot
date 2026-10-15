@@ -71,8 +71,7 @@ export function PanelCompanero({
 
         {live && (
           <span
-            className="flex items-center gap-1.5 text-[11px] font-semibold"
-            style={{ color: ROL[live.rol].color }}
+            className={`flex items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}
