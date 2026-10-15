@@ -1180,8 +1180,8 @@ export function Board({
   // `seccionActual` (qué lista se está mirando) se define más arriba, antes de
   // la campana: ver allí.
   const { visibles: avisosVisibles, vigentes } = useMemo(
-    () => aplicarDescartes(notifItems, descartes.claves, seccionActual),
-    [notifItems, descartes.claves, seccionActual],
+    () => aplicarDescartes(notifItems, descartes.claves, seccionActual, espectador),
+    [notifItems, descartes.claves, seccionActual, espectador],
   );
   // Para `verAvisosDe`, que se llama al abrir un pedido y necesita los avisos
   // de AHORA sin recrearse en cada vuelta del tablero. Se escriben en un efecto
@@ -1217,6 +1217,7 @@ export function Board({
     // Cambio de técnico: los descartes son suyos, no se heredan.
     setDescartes({ opId: miId, claves: leerDescartes(miId) });
   } else if (
+    !espectador &&
     notasCargadas &&
     // Y los pedidos que hay delante tienen que ser LOS DE ESTA SECCIÓN. Al
     // volver de Diseño Gráfico a Oficina Técnica, la sección cambia en el acto
@@ -1251,11 +1252,12 @@ export function Board({
     setDescartes({ opId: miId, claves: vigentes });
   }
   useEffect(() => {
-    if (!descartes.opId) return;
+    // Mirar como Dirección no debe modificar la memoria de avisos del técnico.
+    if (espectador || !descartes.opId) return;
     try {
       localStorage.setItem(`${DESCARTES_KEY}:${descartes.opId}`, JSON.stringify(descartes.claves));
     } catch {}
-  }, [descartes]);
+  }, [descartes, espectador]);
 
   /** Abrir el pedido ES haber visto sus avisos: se apagan solos, sin un botón
    *  más que pulsar. Da igual por dónde se abra —la campana, el tablero, la
