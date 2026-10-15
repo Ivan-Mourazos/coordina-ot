@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-15",
+    "hasta": "656ec16",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "El correo a Producción llega también a quien planteó el pedido",
+        "detalle": "Al pasar un pedido, el técnico que lo planteó va en copia del correo que manda Coordina.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-14",
     "hasta": "8658460",
     "cambios": [
