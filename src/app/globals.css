@@ -1356,3 +1356,10 @@ body {
 .dark .pestana-activa:hover {
   color: var(--color-brand-300);
 }
+
+/* Las filas de pedido llevan el filo gris también ARRIBA. El canto de luz del
+   resalto es blanco y, sobre el panel blanco, la fila se separaba por abajo
+   pero no por arriba (Iván, 15/10/2026). El brillo sigue, justo por dentro. */
+:root .fila-sombra {
+  border-top-color: var(--fila-filo);
+}
