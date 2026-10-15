@@ -228,7 +228,7 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
 
             Lo ya recorrido va a todo color y lo que queda apagado, así se ven
             a la vez el plan entero y por dónde se va. */}
-        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border" />
+        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border-strong" />
         {/* El día exacto de la planificada, el tramo VERDE se sigue pintando.
             Antes ese día la barra se quedaba entera en gris y todo el aviso lo
             llevaba el punto: la fila se leía como "este pedido no tiene fecha",

@@ -462,7 +462,7 @@ export function Bandeja({
           clave="coordina-detenidos-plegado"
           abiertoDeSalida={false}
           bajarAlAbrir
-          className="mt-5 border-t border-[var(--glass-border)] pt-3"
+          className="mt-5 border-t border-border-strong pt-3"
           cabecera={
             <>
               <span className="size-2 rounded-full bg-amber-500" />
