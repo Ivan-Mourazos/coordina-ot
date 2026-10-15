@@ -342,7 +342,11 @@ export function aplicarDescartes(
   items: readonly NotifItem[],
   descartados: readonly string[],
   seccion: SeccionId = SECCION_POR_DEFECTO,
+  espectador = false,
 ): AvisosTrasDescartes {
+  // Dirección no calcula avisos personales: su lista vacía no significa que
+  // hayan caducado. Conservamos los descartes hasta volver a la vista propia.
+  if (espectador) return { visibles: [], vigentes: [...descartados] };
   // Normalizados: lo viejo viene sin sección y aquí ya se sabe de quién es.
   const fuera = new Set(
     descartados.map((d) => {

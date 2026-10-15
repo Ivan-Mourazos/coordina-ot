@@ -2,7 +2,8 @@ import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { PEDIDOS } from "../mock";
+import { OPERARIOS, PEDIDOS } from "../mock";
+import type { Pedido } from "../types";
 
 const { tableroMock, finalizarMock } = vi.hoisted(() => ({ tableroMock: vi.fn(), finalizarMock: vi.fn() }));
 vi.mock("../data", () => ({ getTablero: tableroMock }));
@@ -61,6 +62,95 @@ beforeEach(() => {
   cortarFichajeMock
     .mockReset()
     .mockImplementation((ofId, ahora) => cortarFichajeReal(ofId, ahora));
+});
+
+function prepararPedidoRevision(ids: string[], extra: Record<string, unknown> = {}) {
+  const pedido: Pedido = { ...PEDIDOS[0], id: `pedido-${ids[0]}`, ofs: ids.map((id) => ({
+    ...PEDIDOS[0].ofs[0], id, codigo: `OF-${id}`, autorId: "ivan", revisorId: null,
+    estado: "en_curso" as const, ajenaOT: false, detenida: false, cerradaRps: undefined, ...extra,
+  })) };
+  tableroMock.mockResolvedValue({ pedidos: [pedido], operarios: OPERARIOS });
+  return pedido;
+}
+
+const peticionRevision = (ofIds: string[], revisorId = "jaime") => new Request("http://x/api/estado", {
+  method: "POST", body: JSON.stringify({ motivo: "terminar_planteo", operarioId: "ivan", seccion: "ot", pasarRevision: { ofIds, revisorId } }),
+});
+
+test("nombrar revisor y terminar planteo se guardan juntos para todo el lote", async () => {
+  const ids = ["revision-atomica-a", "revision-atomica-b"];
+  prepararPedidoRevision(ids);
+  const res = await route.POST(peticionRevision(ids));
+  expect(res.status).toBe(200);
+  expect((await res.json()).cambiosOF).toHaveLength(2);
+  for (const id of ids) {
+    expect(estadoDb.leerOverlay("ot").ofs.get(id)).toMatchObject({ estado: "por_revisar", revisorId: "jaime" });
+  }
+  const registro = estadoDb.leerAccionesDesde("1970-01-01T00:00:00.000Z")
+    .find((a) => a.cambiosOF.some((c) => c.ofId === ids[0]));
+  expect(registro?.cambiosOF).toHaveLength(2);
+});
+
+test.each(["antes", "después"])("un POST antiguo de revisor que llega %s no deja el pase en Planteando", async (orden) => {
+  const id = `revision-carrera-${orden}`;
+  prepararPedidoRevision([id]);
+  const antiguo = () => route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    motivo: "revisor", operarioId: "ivan", seccion: "ot",
+    cambiosOF: [{ ofId: id, autorId: "ivan", revisorId: "jaime", estado: "en_curso", observacion: null }],
+  }) }));
+  if (orden === "antes") expect((await antiguo()).status).toBe(200);
+  expect((await route.POST(peticionRevision([id]))).status).toBe(200);
+  if (orden === "después") expect((await antiguo()).status).toBe(409);
+  expect(estadoDb.leerOverlay("ot").ofs.get(id)).toMatchObject({ estado: "por_revisar", revisorId: "jaime" });
+});
+
+test("una OF sin empezar rechaza todo el lote sin dejar revisores puestos", async () => {
+  const ids = ["revision-invalida-a", "revision-invalida-b"];
+  const pedido = prepararPedidoRevision(ids);
+  pedido.ofs[1].estado = "pendiente";
+  const res = await route.POST(peticionRevision(ids));
+  expect(res.status).toBe(409);
+  expect((await res.json()).error).toContain(`OF-${ids[1]}: todavía no se ha empezado`);
+  for (const id of ids) expect(estadoDb.leerOverlay("ot").ofs.has(id)).toBe(false);
+  expect(cortarFichajeMock).not.toHaveBeenCalled();
+});
+
+test("el pase explica qué queda sin mandar y no asigna revisor a las OF omitidas", async () => {
+  const ids = ["revision-parcial-a", "revision-parcial-b"];
+  prepararPedidoRevision(ids);
+  const res = await route.POST(peticionRevision([ids[0]]));
+  expect(res.status).toBe(200);
+  expect((await res.json()).pendientes).toEqual([`OF-${ids[1]}: no se incluyó en este envío`]);
+  expect(estadoDb.leerOverlay("ot").ofs.has(ids[1])).toBe(false);
+});
+
+test("relee el estado tras esperar a RPS y no sobreescribe una OF ya movida", async () => {
+  const ids = ["revision-durante-espera-a", "revision-durante-espera-b"];
+  const pedido = prepararPedidoRevision(ids);
+  tableroMock.mockImplementationOnce(async () => {
+    estadoDb.guardarMutacion({ operarioId: "ivan", motivo: "anular", seccion: "ot", cambiosOF: [
+      { ofId: ids[1], autorId: "ivan", revisorId: null, estado: "anulada", observacion: null },
+    ] });
+    return { pedidos: [pedido], operarios: OPERARIOS };
+  });
+  const res = await route.POST(peticionRevision(ids));
+  expect(res.status).toBe(409);
+  expect(estadoDb.leerOverlay("ot").ofs.has(ids[0])).toBe(false);
+  expect(estadoDb.leerOverlay("ot").ofs.get(ids[1])?.estado).toBe("anulada");
+});
+
+test("un fallo al guardar el pase se comunica sin confirmar ninguna OF", async () => {
+  const ids = ["revision-fallo-guardar"];
+  prepararPedidoRevision(ids);
+  const guardar = vi.spyOn(estadoDb, "guardarMutacion").mockImplementationOnce(() => { throw new Error("Disco lleno"); });
+  const consola = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const res = await route.POST(peticionRevision(ids));
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toContain("Ninguna OF se ha enviado");
+    expect(estadoDb.leerOverlay("ot").ofs.has(ids[0])).toBe(false);
+    expect(cortarFichajeMock).not.toHaveBeenCalled();
+  } finally { guardar.mockRestore(); consola.mockRestore(); }
 });
 
 test("el servidor rechaza pasar un pedido que sigue por revisar aunque el cliente mande aprobado", async () => {

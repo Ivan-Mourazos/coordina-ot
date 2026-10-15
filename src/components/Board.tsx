@@ -58,6 +58,7 @@ import { ahoraDelServidor, desfaseDeCabecera } from "@/lib/reloj-servidor";
 import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
+import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
@@ -609,6 +610,7 @@ export function Board({
   // Cuenta los POST de fichaje emitidos: la carga inicial (GET por miId) no
   // debe pisar con un snapshot viejo un POST disparado después de arrancar.
   const postSeqRef = useRef(0);
+  const revisionGuardadaSeq = useRef(0);
   useEffect(() => {
     // El tablero se pide A NOMBRE DE QUIEN MIRA: de ahí sale su sección, y con
     // ella su lista de trabajo (Oficina Técnica o Diseño Gráfico).
@@ -618,6 +620,7 @@ export function Board({
     // navegador— así que arranca con el de OT. Sin esta primera vuelta, quien
     // sea de diseño se pasaría medio minuto mirando trabajo que no es suyo.
     const traer = async () => {
+      const revisionAlPedir = revisionGuardadaSeq.current;
       try {
         const q = new URLSearchParams();
         if (miId) q.set("operarioId", miId);
@@ -646,6 +649,9 @@ export function Board({
         }
 
         const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string };
+        // Un sondeo arrancado antes del pase no puede reponer la foto vieja
+        // después de que el servidor haya confirmado el envío.
+        if (revisionAlPedir !== revisionGuardadaSeq.current) return;
         setCalculadoAt(t.calculadoAt);
         const ab = abierto(fichajeRef.current);
         setPedidosSync(
@@ -1180,8 +1186,8 @@ export function Board({
   // `seccionActual` (qué lista se está mirando) se define más arriba, antes de
   // la campana: ver allí.
   const { visibles: avisosVisibles, vigentes } = useMemo(
-    () => aplicarDescartes(notifItems, descartes.claves, seccionActual),
-    [notifItems, descartes.claves, seccionActual],
+    () => aplicarDescartes(notifItems, descartes.claves, seccionActual, espectador),
+    [notifItems, descartes.claves, seccionActual, espectador],
   );
   // Para `verAvisosDe`, que se llama al abrir un pedido y necesita los avisos
   // de AHORA sin recrearse en cada vuelta del tablero. Se escriben en un efecto
@@ -1217,6 +1223,7 @@ export function Board({
     // Cambio de técnico: los descartes son suyos, no se heredan.
     setDescartes({ opId: miId, claves: leerDescartes(miId) });
   } else if (
+    !espectador &&
     notasCargadas &&
     // Y los pedidos que hay delante tienen que ser LOS DE ESTA SECCIÓN. Al
     // volver de Diseño Gráfico a Oficina Técnica, la sección cambia en el acto
@@ -1251,11 +1258,12 @@ export function Board({
     setDescartes({ opId: miId, claves: vigentes });
   }
   useEffect(() => {
-    if (!descartes.opId) return;
+    // Mirar como Dirección no debe modificar la memoria de avisos del técnico.
+    if (espectador || !descartes.opId) return;
     try {
       localStorage.setItem(`${DESCARTES_KEY}:${descartes.opId}`, JSON.stringify(descartes.claves));
     } catch {}
-  }, [descartes]);
+  }, [descartes, espectador]);
 
   /** Abrir el pedido ES haber visto sus avisos: se apagan solos, sin un botón
    *  más que pulsar. Da igual por dónde se abra —la campana, el tablero, la
@@ -1616,16 +1624,41 @@ export function Board({
     },
     [openId, moverOFs, operarios],
   );
-  // Asignar revisor NO cambia el estado: la OF queda "por revisar" hasta que
-  // el revisor pulse "Empezar revisión" (o fiche como revisor), que es lo que
-  // arranca su fichaje. Antes saltaba sola a en_revision y dejaba muerta la
-  // acción empezar_revision de la máquina de estados.
-  const setRevisor = useCallback(
-    (ofId: string, revisorId: string | null) => {
-      mut(new Set([ofId]), (of) => ({ ...of, revisorId }), "revisor");
-    },
-    [mut],
-  );
+  const [mensajeRevision, setMensajeRevision] = useState<{ error: boolean; texto: string } | null>(null);
+  const enviandoRevision = useRef(false);
+  const pasarRevision = useCallback(async (ofIds: string[], revisorId: string) => {
+    if (!miId || enviandoRevision.current) return false;
+    enviandoRevision.current = true;
+    setMensajeRevision({ error: false, texto: "Mandando las OF a revisión…" });
+    try {
+      // Foto síncrona, no la del último render. Si una sola ya no puede pasar,
+      // se explica cuál es y no se nombra revisor en ninguna.
+      prepararPaseRevision(pedidosRef.current, ofIds, revisorId, miId,
+        new Set(abierto(fichajeRef.current)?.ofIds ?? []));
+      const resultado = await solicitarPaseRevision(ofIds, revisorId, miId, seccionActual);
+      revisionGuardadaSeq.current += 1;
+      postSeqRef.current += 1;
+      // Solo después del guardado: un error no deja la pantalla diciendo que
+      // está enviado mientras en el servidor sigue en la mesa de su autor.
+      if (seccionRef.current === seccionActual) {
+        const cambios = new Map(resultado.cambiosOF.map((c) => [c.ofId, c]));
+        setPedidosSync((prev) => prev.map((p) => ({ ...p, ofs: p.ofs.map((of) => {
+          const c = cambios.get(of.id);
+          return c ? { ...of, estado: c.estado, revisorId: c.revisorId, fichandoRol: null } : of;
+        }) })));
+        soltarDeMiFichaje(ofIds);
+      }
+      setMensajeRevision({ error: false, texto: resultado.pendientes.length
+        ? `Las OF seleccionadas ya están en revisión. El pedido sigue en Planteando porque quedan OF sin mandar: ${resultado.pendientes.join("; ")}.`
+        : "Las OF seleccionadas ya se han mandado a revisión." });
+      return true;
+    } catch (e) {
+      setMensajeRevision({ error: true, texto: e instanceof Error ? e.message : "No se ha podido guardar el pase a revisión. Vuelve a intentarlo." });
+      return false;
+    } finally {
+      enviandoRevision.current = false;
+    }
+  }, [miId, seccionActual, setPedidosSync, soltarDeMiFichaje]);
   // Traspasar UNA OF a otro operario. `mut` no vale tal cual: hay que mandar
   // también `cortarFichajeDe` para que el servidor cierre el fichaje que el
   // anterior tuviera abierto sobre ella (no lo puede hacer este navegador).
@@ -1663,7 +1696,7 @@ export function Board({
         nueva = cambiarRevisor(antes, revisorId);
       } catch {
         // cambiarRevisor() lanza si revisorId === autorId (regla dura: revisor
-        // ≠ autor). Hoy el Select del tablero ya lo filtra y es inalcanzable,
+        // ≠ autor). Los botones de compañeros ya lo filtran y es inalcanzable,
         // pero el resto del código no confía en eso: mismo criterio que el
         // try/catch por-OF de mut(), se ignora en vez de tumbar el manejador.
         return;
@@ -2977,6 +3010,12 @@ export function Board({
 
       <Drawer
         pedido={openPedido}
+        avisoRevision={mensajeRevision && (
+          <div role={mensajeRevision.error ? "alert" : "status"} className="sticky top-0 z-10 mb-3 flex items-start gap-3 rounded-lg border border-[var(--glass-border)] bg-surface p-3 text-sm text-text shadow-lg">
+            <p className="flex-1">{mensajeRevision.texto}</p>
+            <button type="button" aria-label="Cerrar aviso de revisión" onClick={() => setMensajeRevision(null)} className="rounded px-2 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Cerrar</button>
+          </div>
+        )}
         onSinRevisor={(codigos) => {
           if (openPedido) setSinRevisor({ pedidoId: openPedido.id, codigos });
         }}
@@ -2992,7 +3031,7 @@ export function Board({
         // allí: en el cambio de lista, un pedido de Diseño no puede ganar un
         // botón que cierra fases en OLANET.
         onImpreso={laSeccion.sinRevision ? (id) => marcarImpreso(id, laSeccion.id) : undefined}
-        onSetRevisor={setRevisor}
+        onPasarRevision={pasarRevision}
         onTraspasarAutor={traspasarAutorOF}
         onCoger={pedirCogerOFs}
         onAccion={ejecutarAccion}

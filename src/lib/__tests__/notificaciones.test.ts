@@ -347,6 +347,26 @@ describe("dos secciones comparten la lista de descartes", () => {
   });
 });
 
+describe("ver como Dirección conserva los descartes personales", () => {
+  it("las notas y reescaneos siguen apagados tras entrar y salir varias veces", () => {
+    const p = pedido("1", [of("a")]);
+    const items = agruparAvisos([
+      { tipo: "notaNueva", pedido: p, of: null, clave: "nota:7", texto: "ojo" },
+      { tipo: "parteNuevo", pedido: p, of: null, clave: "scan:7" },
+    ]);
+    let guardados = items.map((i) => identidadAviso(i, "ot"));
+    for (let vuelta = 0; vuelta < 3; vuelta++) {
+      guardados = aplicarDescartes([], guardados, "ot", true).vigentes;
+      const alVolver = aplicarDescartes(items, guardados, "ot");
+      expect(alVolver.visibles).toHaveLength(0);
+      expect(alVolver.vigentes).toHaveLength(2);
+      guardados = alVolver.vigentes;
+    }
+    // En la vista propia sí se eliminan los que han caducado de verdad.
+    expect(aplicarDescartes([], guardados, "ot").vigentes).toEqual([]);
+  });
+});
+
 describe("abrir el pedido apaga sus avisos deducidos", () => {
   // Los de movimiento se apagan contra el servidor al abrir el pedido, pero los
   // deducidos solo se apagaban pulsando su entrada EN la campana. Quien abría
