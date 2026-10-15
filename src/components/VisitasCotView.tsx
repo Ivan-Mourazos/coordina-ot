@@ -16,7 +16,7 @@ import {
   ultimoDiaDelMes,
   type DiaConVisitas,
 } from "./CalendarioVisitas";
-import { FilaDesplegable } from "./FilaDesplegable";
+import { Desplegable } from "./Desplegable";
 import { BloqueLista } from "./BloqueLista";
 import { tintaSobre } from "@/lib/tinta";
 
@@ -32,9 +32,8 @@ import { tintaSobre } from "@/lib/tinta";
 // calendario es la pregunta que se hace de verdad ("¿qué tengo esta semana?");
 // la lista, la respuesta.
 //
-// La lista usa `BloqueLista` y `FilaDesplegable`, las mismas piezas que
-// Pendientes, Revisiones y el Historial: el gesto de abrir una fila se
-// comporta igual en las cuatro pestañas.
+// La lista usa `BloqueLista` y `Desplegable`, como las demás pestañas; la fila
+// propia permite leer las notas sin abrir un detalle ni teñirlo de dorado.
 
 const REFRESCO_MS = 60_000;
 /** Tope de páginas encadenadas al cargar un mes. Un mes malo son ~55 visitas y
@@ -445,33 +444,86 @@ function GrupoDia({
   );
 }
 
-/** Las columnas de una visita. Literal entera (Tailwind).
- *  chevron · comercial · motivo · códigos */
+/** El comercial y los códigos miden lo que contienen: un pedido ausente no
+ *  reserva una columna vacía. El motivo recibe el espacio que queda. En móvil
+ *  pasan a renglones separados para no cortar los códigos. */
 const COLUMNAS_VISITA =
-  "grid grid-cols-[28px_minmax(140px,180px)_minmax(0,1fr)_minmax(120px,200px)] items-start gap-x-3";
+  "grid grid-cols-[24px_minmax(0,1fr)] items-center gap-x-2 md:grid-cols-[24px_fit-content(15rem)_minmax(0,1fr)_auto]";
 
 export function VisitaCard({ visita }: { visita: VisitaCot }) {
   const [abierta, setAbierta] = useState(false);
+  const [todasLasNotas, setTodasLasNotas] = useState(false);
+  const [hayTextoRecortado, setHayTextoRecortado] = useState(false);
+  const resumenRef = useRef<HTMLDivElement>(null);
+  const notas = (visita.notas ?? "").split(/\r?\n/).map((nota) => nota.trim()).filter(Boolean);
+  const notasVisibles = todasLasNotas ? notas : notas.slice(0, 3);
+  const fechaAviso = fmtAviso(visita.fechaAviso);
+  // RPS entrega las notas como texto con saltos de línea, sin fechas propias.
+  // La fecha que acompaña a cada una sigue siendo la del aviso de la visita.
+  const fechaNota = fechaAviso.replace(/^Avisado el /, "");
+  // Si ya se ve todo, abrir solo repetiría la fila. Medimos el recorte real:
+  // cambia con el ancho de pantalla, no con un número arbitrario de letras.
+  useEffect(() => {
+    const resumen = resumenRef.current;
+    if (!resumen) return;
+    const medir = () => setHayTextoRecortado(
+      Array.from(resumen.querySelectorAll("[data-resumen-visita]")).some(
+        (elemento) => elemento.scrollWidth > elemento.clientWidth || elemento.scrollHeight > elemento.clientHeight,
+      ),
+    );
+    medir();
+    const observer = new ResizeObserver(medir);
+    observer.observe(resumen);
+    return () => observer.disconnect();
+  }, [visita.responsable, visita.cliente, visita.motivo, visita.solucion]);
+  const tieneDetalle = notas.length === 0 || hayTextoRecortado;
   const pendiente = visita.estado === "pendiente";
   const color = colorDe(visita.responsable);
+  // «Hecha» ya cuenta que la consulta se realizó. Conservamos lo que viene
+  // después («paso pedido», «volver a la instalación»...), y el texto original
+  // sigue entero tanto al posar el ratón como al abrir la visita.
+  const solucionResumen = !pendiente
+    ? visita.solucion?.replace(/^consulta realizada,\s*/i, "")
+    : visita.solucion;
   // No es un dato: es la costura entre la fila y su detalle. El id interno de
   // la orden no lo lee nadie y no hace falta —a diferencia del código de
   // pedido en las demás listas— para que la fila y su detalle se encuentren.
   const idDetalle = useId();
 
   return (
-    <FilaDesplegable
-      columnas={COLUMNAS_VISITA}
-      tarjeta
-      abierta={abierta}
-      onAlternar={() => setAbierta((a) => !a)}
-      etiqueta={`la visita de ${visita.responsable}`}
-      idDetalle={idDetalle}
-      celdas={
-        <>
+    <div className="relative mb-1.5 overflow-hidden rounded-lg bloque-3d last:mb-0">
+      <div
+        ref={resumenRef}
+        className={`relative ${COLUMNAS_VISITA} px-3 py-1.5 hover:bg-surface-2`}
+      >
+        {tieneDetalle && (
+          <button
+            type="button"
+            onClick={() => setAbierta((a) => !a)}
+            aria-expanded={abierta}
+            aria-controls={idDetalle}
+            aria-label={`${abierta ? "Plegar" : "Desplegar"} la visita de ${visita.responsable}`}
+            className="absolute inset-0 cursor-pointer rounded-sm focus-visible:z-10 focus-visible:outline-offset-[-2px]!"
+            title={[
+        visita.responsable,
+        visita.cliente,
+        visita.motivo || "Sin motivo escrito",
+        visita.solucion,
+        visita.incidencia,
+        visita.pedido,
+            ].filter(Boolean).join("\n")}
+          />
+        )}
+        <span aria-hidden="true" className="pointer-events-none grid size-6 place-items-center text-text-muted">
+          {tieneDetalle && (
+            <svg viewBox="0 0 24 24" className={`size-3.5 transition-transform motion-reduce:transition-none ${abierta ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
           {/* El comercial primero y con cara: es el dato con el que se habla de
               estas visitas ("la de Juan José"). */}
-          <span className="pointer-events-none flex min-w-0 items-center gap-2 py-1">
+          <span className="pointer-events-none col-start-2 flex min-w-0 items-center gap-2 py-1 md:col-auto">
             <span
               className="grid size-6 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
               style={{ background: color, color: tintaSobre(color) }}
@@ -479,67 +531,100 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
             >
               {inicialesDe(visita.responsable)}
             </span>
-            <span className="min-w-0">
-              <span className="block truncate text-[12px] font-semibold text-text">
+            <span className="flex min-w-0 items-baseline gap-1.5">
+              <span data-resumen-visita className="min-w-0 shrink-0 max-w-36 truncate text-[12px] font-semibold text-text">
                 {visita.responsable}
               </span>
               {visita.cliente && (
-                <span className="block truncate text-[11px] text-text-muted">{visita.cliente}</span>
+                <span data-resumen-visita className="min-w-0 truncate text-[11px] text-text-muted">{visita.cliente}</span>
               )}
             </span>
           </span>
-          {/* El MOTIVO entero, sin truncar: es la razón de que la visita
-              exista, y recortado obligaba a abrir cada una para saber de qué
-              iba. */}
-          <span className="pointer-events-none min-w-0 whitespace-pre-line py-1 text-[13px] leading-snug text-text">
-            {visita.motivo || "Sin motivo escrito"}
+          {/* Dos líneas bastan para orientarse sin que un comentario largo
+              estire toda la agenda. El detalle y el título lo guardan entero. */}
+          <span className="pointer-events-none col-start-2 min-w-0 py-1 text-[13px] leading-snug text-text md:col-auto">
+            <span data-resumen-visita className="line-clamp-2 break-words">
+              {visita.motivo || "Sin motivo escrito"}
+            </span>
           </span>
-          <span className="pointer-events-none flex flex-wrap items-center justify-end gap-x-2 gap-y-1 py-1 text-[10px]">
+          <span className="pointer-events-none col-start-2 flex min-w-0 items-center gap-2 whitespace-nowrap py-1 text-[10px] md:col-auto md:justify-end">
             {!pendiente && (
               <span className="rounded-full bg-cyan-600/12 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cyan-700 dark:text-cyan-300">
                 Hecha
               </span>
             )}
             {visita.solucion && (
-              // Llega de RPS en MAYÚSCULAS ("CONSULTA REALIZADA, VOLVER A LA
-              // INSTALACION") y, a 10 px, en bloque costaba leerla. Se enseña en
-              // minúsculas con la inicial en mayúscula; el dato no se toca.
-              <span className="inline-block text-[11px] font-semibold lowercase text-cyan-700 first-letter:uppercase dark:text-cyan-300">
-                {visita.solucion}
+              <span data-resumen-visita className="max-w-32 truncate text-[11px] font-semibold lowercase text-cyan-700 first-letter:uppercase dark:text-cyan-300">
+                {solucionResumen}
               </span>
             )}
             {visita.incidencia && (
-              <span className="font-mono text-text-muted" title="Código de la incidencia en RPS">
+              <span className="shrink-0 whitespace-nowrap font-mono text-text-muted" title="Código de la incidencia en RPS">
                 {visita.incidencia}
               </span>
             )}
             {visita.pedido && (
-              <span className="font-mono text-text-muted" title="Pedido enlazado">
+              <span className="shrink-0 whitespace-nowrap font-mono text-text-muted" title="Pedido enlazado">
                 {visita.pedido}
               </span>
             )}
           </span>
-        </>
-      }
-      detalle={
-        <div className="space-y-2">
-          {visita.notas && (
+        {/* La segunda fila comparte columnas con el comentario: las notas no
+            desplazan al comercial ni añaden altura cuando no existen. */}
+        {notas.length > 0 && (
+          <div className="relative col-start-2 min-w-0 text-[12px] leading-4 text-text md:col-start-3 md:col-end-5">
+            {notasVisibles.map((nota, indice) => (
+              <p key={indice} className="flex items-baseline gap-1" title={nota}>
+                <span className="line-clamp-2 min-w-0 break-words">{nota}</span>
+                <span className="shrink-0 whitespace-nowrap text-[11px] text-text-muted">· {fechaNota}</span>
+              </p>
+            ))}
+            {notas.length > 3 && (
+              <button
+                type="button"
+                aria-expanded={todasLasNotas}
+                onClick={() => setTodasLasNotas((todas) => !todas)}
+                className="cursor-pointer text-[11px] text-text-muted underline-offset-2 hover:text-text hover:underline"
+              >
+                {todasLasNotas ? "Menos notas" : `+${notas.length - 3} notas`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <div id={idDetalle}>
+        <Desplegable abierto={tieneDetalle && abierta}>
+        <div className="space-y-2 border-t border-(--fila-borde) px-3 py-2">
+          <p className="text-xs font-semibold text-text">{visita.responsable}</p>
+          {visita.cliente && (
+            <p className="text-xs text-text">{visita.cliente}</p>
+          )}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
+              Comentario del comercial
+            </p>
+            <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
+              {visita.motivo || "Sin motivo escrito"}
+            </p>
+          </div>
+          {visita.solucion && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
-                Notas
+                Solución
               </p>
-              <p className="mt-0.5 whitespace-pre-wrap text-xs leading-5 text-text">
-                {visita.notas}
+              <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
+                {visita.solucion}
               </p>
             </div>
           )}
           {/* Se fueron el id de la orden y el código crudo del estado de RPS.
               El primero no lo usa nadie para hablar de una visita; el segundo
               es el mismo dato que la píldora "Hecha", escrito para RPS. */}
-          <p className="text-[11px] text-text-muted">{fmtAviso(visita.fechaAviso)}</p>
+          {notas.length === 0 && <p className="text-[11px] text-text-muted">{fechaAviso}</p>}
         </div>
-      }
-    />
+        </Desplegable>
+      </div>
+    </div>
   );
 }
 
