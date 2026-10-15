@@ -1,13 +1,14 @@
 import { calcularMetricas, type Medida, type MesMetricas, type MovimientoRegistrado, type Periodo } from "./metricas";
 import { diasEntre, sumarDias } from "./fechas";
 
+/** Solo VOLUMEN por persona, a propósito. Un «% que te devuelven» a la vista
+ *  de todos cambia cómo se usa la herramienta: se devuelve menos para no
+ *  señalar a un compañero, y entonces el número deja de valer. Iván lo decidió
+ *  así sabiendo el riesgo (15/10/2026); el % va solo en el total de sección. */
 export interface TecnicoMetricas {
   operarioId: string;
   planteos: number;
   revisiones: number;
-  planteosRevisados: number;
-  devoluciones: number;
-  proporcion: number | null;
 }
 export interface PuntoTendencia {
   desde: string;
@@ -49,13 +50,11 @@ export function calcularCuadroMetricas(
     if (!id || !permitidos.has(id)) return undefined;
     let p = personas.get(id);
     if (!p) {
-      p = { operarioId: id, planteos: 0, revisiones: 0, planteosRevisados: 0, devoluciones: 0, proporcion: null };
+      p = { operarioId: id, planteos: 0, revisiones: 0 };
       personas.set(id, p);
     }
     return p;
   };
-  const ultimoAutor = new Map<string, string | null>();
-  const revision = new Map<string, { autor: string | null; seleccionada: boolean }>();
   const enviado = new Map<string, string>();
   const aprobaciones: { at: string; minutos: number }[] = [];
   // Orden estable sin mutar el registro. La unión evita duplicar el periodo
@@ -66,29 +65,10 @@ export function calcularCuadroMetricas(
     const dentro = seleccion.has(clave(m));
     const firmante = dentro ? persona(m.operarioId) : undefined;
     if (m.motivo === "terminar_planteo") {
-      ultimoAutor.set(m.ofId, m.operarioId ?? null);
       if (!enviado.has(m.ofId)) enviado.set(m.ofId, m.at);
       if (firmante) firmante.planteos++;
     } else if (m.motivo === "empezar_revision") {
       if (firmante) firmante.revisiones++;
-      const autor = ultimoAutor.get(m.ofId) ?? null;
-      revision.set(m.ofId, { autor, seleccionada: dentro });
-      if (dentro) {
-        const p = persona(autor);
-        if (p) p.planteosRevisados++;
-      }
-    } else if (m.motivo === "devolver") {
-      // Sin entrega previa no se inventa un autor a partir de quien devuelve.
-      const autor = ultimoAutor.get(m.ofId);
-      const p = dentro ? persona(autor) : undefined;
-      if (p) {
-        p.devoluciones++;
-        const r = revision.get(m.ofId);
-        // Igual que el total: una devolución sin revisión seleccionada prueba
-        // que hubo un repaso; numerador y denominador comparten ventana.
-        if (!r?.seleccionada || r.autor !== autor) p.planteosRevisados++;
-      }
-      revision.delete(m.ofId);
     } else if (cierre(m.motivo)) {
       const inicio = enviado.get(m.ofId);
       if (dentro && inicio) {
@@ -96,14 +76,9 @@ export function calcularCuadroMetricas(
         if (Number.isFinite(minutos) && minutos >= 0) aprobaciones.push({ at: m.at, minutos });
       }
       enviado.delete(m.ofId);
-      revision.delete(m.ofId);
     } else if (m.motivo === "anular" || m.motivo === "recuperar_planteo") {
       enviado.delete(m.ofId);
-      revision.delete(m.ofId);
     }
-  }
-  for (const p of personas.values()) {
-    p.proporcion = p.planteosRevisados ? p.devoluciones / p.planteosRevisados : null;
   }
   const fechas = movimientos.map((m) => m.at.slice(0, 10)).sort();
   const desde = periodo?.desde || fechas[0];

@@ -6,53 +6,32 @@ const mov = (dia: string, motivo: string, operarioId: string | null = "alberto",
 const calcular = (m: MovimientoRegistrado[], contexto = m) => calcularCuadroMetricas(m, contexto, ["alberto", "jaime", "ivan"]);
 
 describe("reparto por técnico", () => {
-  it("cuenta las firmas y atribuye la devolución a quien entregó, no al revisor", () => {
+  it("cuenta solo volumen firmado: planteos entregados y revisiones hechas", () => {
     const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime")]);
     expect(c.porTecnico).toEqual([
-      { operarioId: "alberto", planteos: 1, revisiones: 0, planteosRevisados: 1, devoluciones: 1, proporcion: 1 },
-      { operarioId: "jaime", planteos: 0, revisiones: 1, planteosRevisados: 0, devoluciones: 0, proporcion: null },
+      { operarioId: "alberto", planteos: 1, revisiones: 0 },
+      { operarioId: "jaime", planteos: 0, revisiones: 1 },
     ]);
   });
-  it("usa la última entrega anterior aunque cambie el autor y haya varias vueltas", () => {
-    const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime"),
-      mov("09-02T08:00", "terminar_planteo", "ivan"), mov("09-02T09:00", "empezar_revision", "jaime"), mov("09-02T10:00", "devolver", "jaime")]);
-    expect(c.porTecnico.find((p) => p.operarioId === "alberto")).toMatchObject({ devoluciones: 1, planteosRevisados: 1 });
-    expect(c.porTecnico.find((p) => p.operarioId === "ivan")).toMatchObject({ planteos: 1, devoluciones: 1, proporcion: 1 });
+  it("no expone devoluciones ni porcentajes por persona (decisión de Iván, 15/10/2026)", () => {
+    const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime")]);
+    for (const p of c.porTecnico) expect(Object.keys(p).sort()).toEqual(["operarioId", "planteos", "revisiones"]);
   });
-  it("divide por revisiones de sus entregas, no por revisiones que él hace", () => {
-    const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime"),
-      mov("09-02T08:00", "terminar_planteo", "alberto", "of2"), mov("09-02T09:00", "empezar_revision", "ivan", "of2"), mov("09-02T10:00", "aprobar", "ivan", "of2")]);
-    expect(c.porTecnico[0]).toMatchObject({ revisiones: 0, planteosRevisados: 2, devoluciones: 1, proporcion: .5 });
-  });
-  it("consulta el autor anterior al filtro sin sumar su entrega al periodo", () => {
+  it("no suma al periodo una entrega anterior al filtro", () => {
     const entrega = mov("08-31T08:00", "terminar_planteo");
-    const seleccion = [mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime")];
+    const seleccion = [mov("09-01T09:00", "empezar_revision", "jaime")];
     const c = calcular(seleccion, [entrega, ...seleccion]);
-    expect(c.porTecnico[0]).toMatchObject({ operarioId: "alberto", planteos: 0, planteosRevisados: 1, devoluciones: 1 });
-  });
-  it("no asigna al revisor una devolución sin autor fiable", () => {
-    const c = calcular([mov("09-01T09:00", "empezar_revision", "jaime"), mov("09-01T10:00", "devolver", "jaime")]);
-    expect(c.porTecnico).toHaveLength(1);
-    expect(c.porTecnico[0]).toMatchObject({ operarioId: "jaime", devoluciones: 0, proporcion: null });
-  });
-  it("una entrega sin firma reemplaza la atribución anterior", () => {
-    const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T09:00", "terminar_planteo", null), mov("09-01T10:00", "devolver", "jaime")]);
-    expect(c.porTecnico[0]).toMatchObject({ devoluciones: 0, proporcion: null });
-  });
-  it("infiere el repaso de una devolución sin inicio y no inventa revisiones firmadas", () => {
-    const c = calcular([mov("09-01T08:00", "terminar_planteo"), mov("09-01T10:00", "devolver", "jaime"), mov("09-01T11:00", "devolver", "jaime")]);
-    expect(c.porTecnico[0]).toMatchObject({ planteosRevisados: 2, devoluciones: 2, proporcion: 1 });
-    expect(c.porTecnico[1].revisiones).toBe(0);
+    expect(c.porTecnico).toEqual([{ operarioId: "jaime", planteos: 0, revisiones: 1 }]);
   });
   it("respeta la sección y no incorpora a quien solo tiene contexto antiguo", () => {
     const seleccionado = [mov("09-01T08:00", "terminar_planteo", "ivan")];
     const c = calcularCuadroMetricas(seleccionado, [mov("08-01T08:00", "terminar_planteo"), ...seleccionado], ["ivan"]);
     expect(c.porTecnico.map((p) => p.operarioId)).toEqual(["ivan"]);
   });
-  it("no atribuye una entrega futura ni modifica los arrays recibidos", () => {
+  it("no modifica los arrays recibidos", () => {
     const m = [mov("09-02T08:00", "terminar_planteo"), mov("09-01T08:00", "devolver", "jaime")];
     const copia = structuredClone(m);
-    expect(calcular(m).porTecnico.find((p) => p.operarioId === "alberto")?.devoluciones).toBe(0);
+    calcular(m);
     expect(m).toEqual(copia);
   });
 });

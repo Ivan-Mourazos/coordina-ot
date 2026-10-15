@@ -166,14 +166,13 @@ function Tecnicos({ cuadro, operarios, miId }: { cuadro: CuadroMetricas; operari
   if (!cuadro.porTecnico.length) return <Vacio>Sin actividad de técnicos en este periodo.</Vacio>;
   // No se ofrece planteo fichado: un intervalo identifica persona y OF, pero
   // el registro del ciclo no delimita de forma fiable cada planteo completo.
-  return <div className="scroll-thin min-h-0 overflow-auto"><table className="w-full text-[11px] tabular-nums"><caption className="sr-only">Actividad por técnico. Devoluciones atribuidas a quien firmó la última entrega.</caption><thead><tr className="text-right text-[9px] font-semibold text-text-muted"><th className="pb-2 text-left font-semibold">Técnico</th><th className="px-2 pb-2 font-semibold" title="Entregas a revisión firmadas por esta persona">Planteos<br />entregados</th><th className="px-2 pb-2 font-semibold" title="Inicios de revisión firmados por esta persona">Revisiones<br />hechas</th><th className="pb-2 font-semibold" title="Devoluciones de sus entregas / revisiones de sus entregas, no sus revisiones hechas">Vuelven<br />al autor</th></tr></thead><tbody>{cuadro.porTecnico.map((p) => {
+  return <div className="scroll-thin min-h-0 overflow-auto"><table className="w-full text-[11px] tabular-nums"><caption className="sr-only">Actividad por técnico: planteos entregados y revisiones hechas.</caption><thead><tr className="text-right text-[9px] font-semibold text-text-muted"><th className="pb-2 text-left font-semibold">Técnico</th><th className="px-2 pb-2 font-semibold" title="Entregas a revisión firmadas por esta persona">Planteos<br />entregados</th><th className="pb-2 pl-2 font-semibold" title="Inicios de revisión firmados por esta persona">Revisiones<br />hechas</th></tr></thead><tbody>{cuadro.porTecnico.map((p) => {
     const o = operarios.find((o) => o.id === p.operarioId);
     return <tr key={p.operarioId} className={`border-t border-border text-right ${p.operarioId === miId ? "font-bold" : ""}`}>
       <th scope="row" className={`py-1 text-left ${p.operarioId === miId ? "font-bold" : "font-normal"}`}>
         <span className="flex items-center gap-1.5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[8px] font-bold text-white" style={{ background: o?.color ?? "var(--text-muted)" }}>{o?.iniciales ?? "?"}</span><span>{o?.nombre ?? p.operarioId}{p.operarioId === miId && " (tú)"}</span></span>
       </th>
-      <td className="px-2">{p.planteos}</td><td className="px-2">{p.revisiones}</td>
-      <td title={p.proporcion === null ? "Sin planteos revisados con una entrega previa atribuible de forma fiable. Las devoluciones sin autor conocido no se asignan al revisor." : `${p.devoluciones} devoluciones / ${p.planteosRevisados} revisiones de sus entregas. Cada devolución se atribuye al autor de la última entrega anterior.`}>{porcentaje(p.proporcion)}</td>
+      <td className="px-2">{p.planteos}</td><td className="pl-2">{p.revisiones}</td>
     </tr>;
   })}</tbody></table></div>;
 }
