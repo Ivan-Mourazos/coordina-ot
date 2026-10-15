@@ -1080,9 +1080,8 @@ export function Drawer({
             </div>
           )}
 
-          {/* El revisor se elige UNA vez y vale para todas. Va debajo del
-              rótulo y a lo ancho: metido en la misma fila que los botones se
-              quedaba sin sitio para el desplegable. */}
+          {/* El revisor se elige una vez y vale para todas. Los compañeros van
+              debajo del rótulo y pueden saltar de línea en paneles estrechos. */}
           {!soloLectura && pidiendoRevisorPedido && (
             <div className="mb-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2">
               <p className="mb-1.5 text-[11px] text-text-muted">

@@ -1696,7 +1696,7 @@ export function Board({
         nueva = cambiarRevisor(antes, revisorId);
       } catch {
         // cambiarRevisor() lanza si revisorId === autorId (regla dura: revisor
-        // ≠ autor). Hoy el Select del tablero ya lo filtra y es inalcanzable,
+        // ≠ autor). Los botones de compañeros ya lo filtran y es inalcanzable,
         // pero el resto del código no confía en eso: mismo criterio que el
         // try/catch por-OF de mut(), se ignora en vez de tumbar el manejador.
         return;

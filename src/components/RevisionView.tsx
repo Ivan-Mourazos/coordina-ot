@@ -14,7 +14,7 @@ import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { AprobarInline } from "./AprobarInline";
 import { NotaDevolucion } from "./NotaDevolucion";
-import { Select, OpDot } from "./Select";
+import { BotonesRevisor } from "./PedirRevisor";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { PedidoCodigo } from "./PedidoCodigo";
@@ -377,12 +377,11 @@ function FilaRevision({
   }
 
   // Revisor común del grupo (si todas las OFs comparten uno) para pintar el
-  // Select con el valor real en vez de vacío.
+  // nombre actual entre los botones, sin pedir que se abra una lista.
   const revisorComun =
     ofs.length > 0 && ofs.every((o) => o.revisorId === ofs[0].revisorId)
       ? ofs[0].revisorId
       : null;
-  const sinRevisor = ofs.filter((o) => !o.revisorId);
 
   // Qué puedo hacer YO con este grupo. Es la máquina de estados la que decide
   // (ver `soloEl` en lib/acciones.ts), no esta vista: al autor no se le ofrecen
@@ -418,26 +417,17 @@ function FilaRevision({
   const faltan = sinMirar(puntos, marcas);
   const impedido = faltan > 0 ? `Faltan ${faltan} ${faltan === 1 ? "punto" : "puntos"} por mirar` : null;
 
-  // Revisor y acción COMPARTEN LÍNEA. Esto era un `flex w-full` con el
-  // desplegable en `ml-auto`: el `w-full` le daba un renglón para él solo y el
-  // `ml-auto` mandaba el selector al otro extremo, así que entre la palabra
-  // "Revisor:" y el nombre quedaba media pantalla en blanco, y el botón de
-  // empezar caía en un tercer renglón. Suelto y compacto, los dos entran en la
-  // misma fila de acciones y el hueco desaparece.
+  // También al cambiar de revisor se elige directamente. Se conservan las
+  // exclusiones de todos los autores del grupo y el orden de los compañeros.
   const selectorRevisor = (
-    <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
       Revisor:
-      <Select
-        value={revisorComun}
-        onChange={(v) => v && ofIds.forEach((id) => onCambiarRevisor(id, v))}
-        placeholder={sinRevisor.length > 0 ? "Sin nombrar" : null}
-        options={operarios
-          .filter((o) => !autores.has(o.id))
-          .map((o) => ({
-            value: o.id,
-            label: o.id === miId ? `${o.nombre} (tú)` : o.nombre,
-            icon: <OpDot color={o.color} iniciales={o.iniciales} />,
-          }))}
+      <BotonesRevisor
+        operarios={operarios}
+        excluirIds={[...autores]}
+        valorActual={revisorComun}
+        miId={miId}
+        onElegir={(v) => ofIds.forEach((id) => onCambiarRevisor(id, v))}
       />
     </div>
   );
