@@ -32,10 +32,31 @@ test("lo que sí sirve para encontrar la visita en RPS se queda", () => {
   expect(html).toContain("Presupuestar");
 });
 
-test("la visita se abre con la misma animación que el resto de la web", () => {
+// Las notas se consultan desde la lista: exigir que estuvieran ocultas
+// obligaba a desplegar cada visita para saber qué había que corregir.
+test("las notas y su fecha se leen sin desplegar la visita", () => {
   const html = pintar();
+  expect(html).toContain("Llamar antes");
+  expect(html).toContain("· 4 sep, 11:32");
+  expect(html).not.toContain(">Notas<");
+});
+
+test("sin notas se conserva la fila con su detalle cerrado", () => {
+  const html = pintar({ notas: null });
   expect(html).toContain('aria-expanded="false"');
   expect(html).not.toContain("Llamar antes");
+  expect(html).not.toContain("· 4 sep, 11:32");
+});
+
+test("solo se muestran tres notas y se ofrece desplegar las restantes", () => {
+  const html = pintar({ notas: "Primera\r\nSegunda\n\nTercera\nCuarta\nQuinta" });
+  expect(html).toContain("Primera");
+  expect(html).toContain("Segunda");
+  expect(html).toContain("Tercera");
+  expect(html).not.toContain("Cuarta");
+  expect(html).not.toContain("Quinta");
+  expect(html).toContain("+2 notas");
+  expect(html).toContain('aria-expanded="false"');
 });
 
 test("una visita sin motivo lo dice como se diría hablando", () => {
