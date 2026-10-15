@@ -82,7 +82,7 @@ export function FilaDesplegable({
           dice cuál está abierto. */}
       <div
         className={`relative ${columnas} px-3 py-1.5 ${
-          abierta ? "bg-[var(--fila)]" : "hover:bg-surface-2"
+          abierta ? "bg-[var(--fila-abierta)]" : "hover:bg-surface-2"
         }`}
       >
         <button

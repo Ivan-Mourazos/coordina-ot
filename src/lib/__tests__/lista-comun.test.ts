@@ -55,10 +55,11 @@ test("la fila abierta pinta el detalle y se marca con el acento de marca", () =>
   expect(html).toContain("el detalle");
   // La barra dorada a la izquierda es lo que dice dónde empieza y dónde acaba
   // lo desplegado cuando hay tres abiertos a la vez. El fondo de la cabecera
-  // abierta ya no es crema translúcido (Iván, 15/10/2026): es el de fila.
+  // abierta ya no es crema translúcido (Iván, 15/10/2026): blanco en claro y
+  // dorado oscuro sólido en oscuro (--fila-abierta).
   expect(html).toContain("bg-brand-500");
   expect(html).not.toContain("bg-brand-500/10");
-  expect(html).toContain("bg-[var(--fila)]");
+  expect(html).toContain("bg-[var(--fila-abierta)]");
 });
 
 test("el botón que cubre la fila apunta al detalle, para el lector de pantalla", () => {

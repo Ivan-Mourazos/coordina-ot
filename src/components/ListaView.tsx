@@ -803,7 +803,7 @@ function Detalle({
           VISITA MEDIR"). Se enseñan sin repetir: en un pedido de seis OF suele
           ser el mismo aviso seis veces. */}
       {avisos.length > 0 && (
-        <ul className="space-y-0.5 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
+        <ul className="space-y-0.5 recuadro rounded-lg px-2.5 py-1.5">
           {avisos.map((a) => (
             <li key={a} className="flex items-start gap-1.5 text-[11px] leading-5 text-indigo-800 dark:text-indigo-200">
               <IconoAviso className="mt-1 size-3.5" />

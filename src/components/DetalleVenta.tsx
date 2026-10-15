@@ -34,7 +34,7 @@ export function DetalleVenta({ texto }: { texto: string }) {
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>
-          <p className="mt-1 whitespace-pre-line rounded-lg bg-surface-2 px-2 py-1.5 ring-1 ring-[var(--fila-borde)] text-[11px] leading-5 text-text">
+          <p className="mt-1 whitespace-pre-line recuadro rounded-lg px-2 py-1.5 text-[11px] leading-5 text-text">
             {texto}
           </p>
         </Desplegable>

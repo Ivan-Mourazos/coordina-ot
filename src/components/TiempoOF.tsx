@@ -105,7 +105,7 @@ export function TiempoOF({
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
 
   return (
-    <div className="mt-2 rounded-lg bg-surface-2 px-2 ring-1 ring-[var(--fila-borde)] py-1.5">
+    <div className="recuadro mt-2 rounded-lg px-2 py-1.5">
       <div className="flex items-baseline gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
           Tiempo
