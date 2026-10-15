@@ -79,25 +79,27 @@ export const CENTRO_TONO: Record<
   ot: {
     punto: "bg-brand-500",
     texto: "text-brand-800 dark:text-brand-300",
-    franja: "bg-brand-500/10 dark:bg-brand-400/10",
+    // Franja gris en claro: el crema dorado sobre blanco se leía amarillento
+    // (Iván, 15/10/2026). El punto sigue siendo el dorado de OT.
+    franja: "bg-[var(--franja)]",
     raya: "border-brand-400/60",
   },
   diseno: {
     punto: "bg-fuchsia-500",
     texto: "text-fuchsia-700 dark:text-fuchsia-300",
-    franja: "bg-fuchsia-500/10 dark:bg-fuchsia-400/10",
+    franja: "bg-[var(--franja)]",
     raya: "border-fuchsia-400/60",
   },
   impresion: {
     punto: "bg-cyan-500",
     texto: "text-cyan-700 dark:text-cyan-300",
-    franja: "bg-cyan-500/10 dark:bg-cyan-400/10",
+    franja: "bg-[var(--franja)]",
     raya: "border-cyan-400/60",
   },
   taller: {
     punto: "bg-slate-500",
     texto: "text-slate-700 dark:text-slate-300",
-    franja: "bg-slate-500/10 dark:bg-slate-400/10",
+    franja: "bg-[var(--franja)]",
     raya: "border-slate-400/60",
   },
 };

@@ -67,6 +67,10 @@
      pantalla (Iván lo eligió con capturas, 15/10/2026). */
   --fila-filo: #aeb4be;
   --fila-sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
+  /* Franja de resalte OPACA (fila abierta de una lista, cabecera de un
+     centro en las tareas). Iván pidió contraste y no crema translúcido
+     (15/10/2026): el dorado al 10 % sobre blanco salía amarillento y flojo. */
+  --franja: #e1e4e9;
   /* El dorado del logo apenas contrasta sobre blanco. El foco tiene tinta
      propia, más oscura en claro, sin cambiar el acento de marca. */
   --focus: #9e6512;
@@ -165,6 +169,7 @@
   --fila-borde: #42454d;
   --fila-filo: #5c606a;
   --fila-sombra: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --franja: #3a3d45;
   --focus: var(--color-brand-400);
   --error: var(--color-red-300);
   --fase-devuelta-texto: var(--color-red-300);

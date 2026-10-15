@@ -73,11 +73,16 @@ export function FilaDesplegable({
       }
     >
       {abierta && (
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-brand-500" />
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 z-10 w-1 bg-brand-500" />
       )}
+      {/* Abierta: cabecera en el fondo de fila (blanco en claro), y debajo el
+          detalle hundido en gris. El crema dorado translúcido se leía
+          amarillento, y un gris en la cabecera hacía que el pedido abierto
+          pareciera apagado (Iván, 15/10/2026). La raya dorada de la izquierda
+          dice cuál está abierto. */}
       <div
         className={`relative ${columnas} px-3 py-1.5 ${
-          abierta ? "bg-brand-500/10" : "hover:bg-surface-2"
+          abierta ? "bg-[var(--fila)]" : "hover:bg-surface-2"
         }`}
       >
         <button
