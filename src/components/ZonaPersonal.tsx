@@ -103,10 +103,9 @@ export function ZonaPersonal({
         >
           {operario.iniciales}
         </span>
+        {/* Sin píldora «Tú»: al lado del propio nombre sobraba, y el borde
+            dorado de la tarjeta ya dice que es la tuya (Iván, 15/10/2026). */}
         <h2 className="text-sm font-semibold text-text">{operario.nombre}</h2>
-        <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-800 dark:text-brand-300">
-          Tú
-        </span>
         <span className="text-[11px] text-text-muted">
           {facets.length} pedido{facets.length === 1 ? "" : "s"} · {nOFs} OF
         </span>

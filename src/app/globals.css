@@ -1333,3 +1333,23 @@ body {
   background-image: var(--veta-fondo), var(--fondo-metal);
   background-attachment: fixed;
 }
+
+/* Lo pulsado, sin borde amarillo: el filo dorado alrededor de una tecla
+   hundida quedaba raro (Iván, 15/10/2026). La tecla se queda hundida en el
+   metal de siempre —el hueco ya dice «está pulsado»— y el dorado va en la
+   letra, que dice cuál es. */
+:root .glass-chip-activo,
+:root .glass-chip-activo:hover,
+:root .pestana-activa,
+:root .pestana-activa:hover {
+  background-color: var(--recuadro);
+  border-color: transparent;
+  color: var(--color-brand-800);
+  font-weight: 600;
+}
+.dark .glass-chip-activo,
+.dark .glass-chip-activo:hover,
+.dark .pestana-activa,
+.dark .pestana-activa:hover {
+  color: var(--color-brand-300);
+}

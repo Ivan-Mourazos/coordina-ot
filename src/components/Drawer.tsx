@@ -633,15 +633,6 @@ export function Drawer({
                   </div>
                 </>
               )}
-              {/* La regla que antes ocupaba un pie fijo en todas las fichas:
-                  se aprende una vez y no hace falta leerla cada vez. */}
-              <span
-                className="cursor-help text-text-muted"
-                title="El tiempo de cada rol lo suma quien lo ficha, aunque la OF sea de otro. El revisor nunca puede ser el autor."
-                aria-label="Cómo se cuenta el tiempo de cada rol"
-              >
-                ⓘ
-              </span>
               {/* Abre Planteamientos TGM con ESTE pedido ya buscado, en otra
                   pestaña. Solo en toldos y remolques, que es lo que aquella
                   web plantea. En la cabecera y de color sólido, a propósito:
