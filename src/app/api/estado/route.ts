@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { guardarMutacion, leerOverlay } from "@/lib/server/estado-db";
-import { cortarFichajeDeOF } from "@/lib/server/fichaje-db";
+import { cortarFichajeDeOF, leerFichaje } from "@/lib/server/fichaje-db";
+import { abierto } from "@/lib/fichaje";
+import { prepararPaseRevision } from "@/lib/pase-revision";
 import { encolarFinalizacion } from "@/lib/server/olanet-outbox";
 import { aplicarOverlay, ESTADOS_OF, type CambioOF } from "@/lib/server/overlay";
 import { identidad } from "@/lib/server/sesion";
@@ -42,6 +44,8 @@ interface Body {
   /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
    *  `EleccionPase`). Ausente = la norma. */
   planteamiento?: unknown;
+  /** Una intención, no dos instantáneas que puedan llegar en orden inverso. */
+  pasarRevision?: { ofIds: string[]; revisorId: string };
 }
 
 function cambioValido(c: unknown): c is CambioOF {
@@ -81,15 +85,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
 
-  const cambios = body.cambiosOF ?? [];
+  let cambios = body.cambiosOF ?? [];
   if (!body.motivo || typeof body.motivo !== "string")
     return NextResponse.json({ error: "Falta motivo" }, { status: 400 });
-  const previos = body.previosOF ?? [];
+  let previos = body.previosOF ?? [];
   if (!previos.every(cambioValido))
     return NextResponse.json({ error: "previosOF inválidos" }, { status: 400 });
   if (!cambios.every(cambioValido))
     return NextResponse.json({ error: "cambiosOF inválidos" }, { status: 400 });
-  if (cambios.length === 0 && !body.completarPedidoId)
+  if (cambios.length === 0 && !body.completarPedidoId && !body.pasarRevision)
     return NextResponse.json({ error: "Mutación vacía" }, { status: 400 });
   // Decisión de Iván (Task 14): una OF en revisión SIEMPRE tiene revisor, o
   // vuelve al panel de su autor — nunca se queda en tierra de nadie. El botón
@@ -123,6 +127,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sección inválida." }, { status: 400 });
   }
   const seccion = esSeccionId(body.seccion) ? body.seccion : seccionDeOperario(operarioId);
+  let pendientesRevision: string[] = [];
+  if (body.pasarRevision) {
+    const pase = body.pasarRevision;
+    if (body.motivo !== "terminar_planteo" || cambios.length || previos.length || completarPedidoId ||
+      !Array.isArray(pase.ofIds) || !pase.ofIds.every((id) => typeof id === "string" && id.length > 0) ||
+      typeof pase.revisorId !== "string") {
+      return NextResponse.json({ error: "El pase a revisión no es válido." }, { status: 400 });
+    }
+    const base = await getTablero(seccion);
+    // RPS puede tardar: releemos después de la espera. Desde aquí hasta la
+    // transacción no hay await; se validan TODAS y se guardan juntas.
+    const tablero = aplicarOverlay(base, leerOverlay(seccion));
+    if (!tablero.operarios.some((o) => o.id === pase.revisorId)) {
+      return NextResponse.json({ error: "Ese compañero ya no está disponible para revisar en esta sección." }, { status: 409 });
+    }
+    try {
+      const preparado = prepararPaseRevision(tablero.pedidos, pase.ofIds, pase.revisorId, operarioId,
+        new Set(abierto(leerFichaje(operarioId))?.ofIds ?? []));
+      cambios = preparado.cambiosOF;
+      previos = preparado.previosOF;
+      pendientesRevision = preparado.pendientes;
+      body.cortarFichajeDe = cambios.map((c) => c.ofId);
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 409 });
+    }
+  }
   let ofIdsPedido: string[] | undefined;
   // OF que YA están en 3 en RPS y no hace falta reenviarlo al pasar el pedido:
   // SOLO las cerradas de verdad con "Dar por terminada en RPS" (spec §2,
@@ -201,6 +231,14 @@ export async function POST(req: Request) {
   //    borre al repartir el pedido: `guardarMutacion` escribe NULL si el
   //    cambio no la trae.
   const guardadas = leerOverlay(seccion).ofs;
+  // Compatibilidad con una pestaña antigua: su POST de «revisor» podía llegar
+  // DESPUÉS del pase y reponer el planteo. Una foto atrasada no deshace un pase.
+  if (body.motivo === "revisor" && cambios.some((c) => {
+    const actual = guardadas.get(c.ofId);
+    return actual && actual.estado !== c.estado;
+  })) {
+    return NextResponse.json({ error: "La OF ha cambiado mientras elegías revisor. Actualiza la ficha." }, { status: 409 });
+  }
   const esVolverAPlantear = body.motivo === "volver_a_plantear";
 
   // Fallo I-B (revisión Task 6): una OF ya cerrada en RPS no puede cambiar de
@@ -225,23 +263,29 @@ export async function POST(req: Request) {
     cerradaRps: esVolverAPlantear ? null : (guardadas.get(c.ofId)?.cerradaRps ?? null),
   }));
 
-  guardarMutacion({
-    operarioId,
-    motivo: body.motivo,
-    cambiosOF: cambiosConMarca,
-    previosOF: previosAplicables,
-    completarPedidoId,
-    seccion,
-    ofIdsPedido,
-    // Igual que la marca: "quitarRetenida" solo lo manda "Volver a plantear"
-    // (ver Board.tsx ejecutarAccion). Aceptarlo con cualquier otro motivo
-    // dejaría sacar una OF de `of_retenida` —y perder su sitio en el
-    // tablero en cuanto RPS deje de traerla— sin que de verdad se haya
-    // vuelto a plantear nada.
-    quitarRetenida: esVolverAPlantear && Array.isArray(body.quitarRetenida)
-      ? body.quitarRetenida.filter((x): x is string => typeof x === "string" && x.length > 0)
-      : undefined,
-  });
+  try {
+    guardarMutacion({
+      operarioId,
+      motivo: body.motivo,
+      cambiosOF: cambiosConMarca,
+      previosOF: previosAplicables,
+      completarPedidoId,
+      seccion,
+      ofIdsPedido,
+      // Igual que la marca: "quitarRetenida" solo lo manda "Volver a plantear"
+      // (ver Board.tsx ejecutarAccion). Aceptarlo con cualquier otro motivo
+      // dejaría sacar una OF de `of_retenida` —y perder su sitio en el
+      // tablero en cuanto RPS deje de traerla— sin que de verdad se haya
+      // vuelto a plantear nada.
+      quitarRetenida: esVolverAPlantear && Array.isArray(body.quitarRetenida)
+        ? body.quitarRetenida.filter((x): x is string => typeof x === "string" && x.length > 0)
+        : undefined,
+    });
+  } catch (e) {
+    if (!body.pasarRevision) throw e;
+    console.error("[estado] no se pudo guardar el pase a revisión:", e);
+    return NextResponse.json({ error: "No se ha podido guardar el pase a revisión. Ninguna OF se ha enviado; vuelve a intentarlo." }, { status: 500 });
+  }
 
   // Soltar una OF cierra el fichaje de quien la tenía. NO lo puede hacer su
   // navegador: puede estar en otro equipo o con la app cerrada, así que lo
@@ -323,5 +367,7 @@ export async function POST(req: Request) {
       }
     }
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(body.pasarRevision
+    ? { ok: true, cambiosOF: cambiosConMarca, pendientes: pendientesRevision }
+    : { ok: true });
 }

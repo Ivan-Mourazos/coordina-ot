@@ -193,7 +193,8 @@ export function Drawer({
   onAssignPedido,
   onCompletar,
   onImpreso,
-  onSetRevisor,
+  onPasarRevision,
+  avisoRevision,
   onSinRevisor,
   onTraspasarAutor,
   onCoger,
@@ -226,7 +227,9 @@ export function Drawer({
    *  Solo lo da el Board en las secciones sin revisión; sin él, el botón no
    *  existe y el bloque sigue como siempre. */
   onImpreso?: (pedidoId: string) => void;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onPasarRevision: (ofIds: string[], revisorId: string) => Promise<boolean>;
+  /** Dentro del modal para que su botón de cierre también se alcance con Tab. */
+  avisoRevision?: React.ReactNode;
   /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
   onSinRevisor?: (ofCodigos: string[]) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -259,7 +262,7 @@ export function Drawer({
   // Qué grupos de OF ajenas al trabajo de OT se han desplegado a mano.
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
   // Eligiendo el revisor del pedido entero (ver `paraRevisar` más abajo).
-  const [pidiendoRevisorPedido, setPidiendoRevisorPedido] = useState(false);
+  const [pidiendoRevisorPedido, setPidiendoRevisorPedido] = useState<OF[] | null>(null);
   // Confirmación de las acciones de PEDIDO ENTERO ("Aprobar las N"); las de
   // cada OF tienen la suya dentro de `AccionesOF`.
   //
@@ -357,7 +360,7 @@ export function Drawer({
     setUltimoPedido(pedido.id);
     if (mostrar.size > 0) setMostrar(new Set());
     if (ofsAbiertas.size > 0) setOfsAbiertas(new Set());
-    if (pidiendoRevisorPedido) setPidiendoRevisorPedido(false);
+    if (pidiendoRevisorPedido) setPidiendoRevisorPedido(null);
   }
 
   if (!pedido) return null;
@@ -532,7 +535,7 @@ export function Drawer({
   // porque el revisor no puede ser el autor y con dos autores no hay un único
   // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
   // manda desde su fila, que es donde se ve de quién es cada una.
-  const autoresParaRevisar = [...new Set(paraRevisarBloque.map((o) => o.autorId))];
+  const autoresParaRevisar = [...new Set((pidiendoRevisorPedido ?? paraRevisarBloque).map((o) => o.autorId))];
   // Aviso de "para el reloj primero". En OT tal cual estaba: cualquier ficha en
   // marcha en el pedido lo dispara, porque allí el bloque es todo o nada. En
   // Diseño solo tiene sentido si YA no queda nada que mandar sin pausar —si
@@ -718,6 +721,7 @@ export function Drawer({
         </>
       }
     >
+          {avisoRevision}
           <LineaTiempoPedido pedido={pedido} />
 
           {avisosCierreRps?.pedido === pedido.codigo && (
@@ -995,7 +999,11 @@ export function Drawer({
                   (autoresParaRevisar.length === 1 || porPedido) &&
                   !pidiendoRevisorPedido && (
                   <button
-                    onClick={() => setPidiendoRevisorPedido(true)}
+                    onClick={() => {
+                      // Las OF elegidas no cambian si llega un sondeo mientras
+                      // se busca al compañero. El servidor vuelve a validarlas.
+                      setPidiendoRevisorPedido(paraRevisarBloque);
+                    }}
                     title={`Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`}
                     className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
                   >
@@ -1081,9 +1089,9 @@ export function Drawer({
                 {/* Con una sola OF (lo normal en Diseño) "el mismo revisor"
                     no dice nada -ya es uno solo- y "la 1 OF" tampoco es
                     castellano: la frase se reescribe entera en singular. */}
-                {paraRevisarBloque.length > 1 ? (
+                {pidiendoRevisorPedido.length > 1 ? (
                   <>
-                    Se mandan a revisar las {paraRevisarBloque.length} OF de{" "}
+                    Se mandan a revisar las {pidiendoRevisorPedido.length} OF de{" "}
                     {autoresParaRevisar.length === 1
                       ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
                       : "este pedido"}
@@ -1101,14 +1109,14 @@ export function Drawer({
               </p>
               <PedirRevisor
                 operarios={operarios}
-                excluirIds={autoresParaRevisar}
-                onAbandonado={() => onSinRevisor?.(paraRevisarBloque.map((o) => o.codigo))}
-                onConfirmar={(rev) => {
-                  for (const o of paraRevisarBloque) onSetRevisor(o.id, rev);
-                  onAccion(paraRevisarBloque.map((o) => o.id), "terminar_planteo");
-                  setPidiendoRevisorPedido(false);
+                excluirIds={pidiendoRevisorPedido.map((o) => o.autorId)}
+                onAbandonado={() => onSinRevisor?.(pidiendoRevisorPedido.map((o) => o.codigo))}
+                onConfirmar={async (rev) => {
+                  if (await onPasarRevision(pidiendoRevisorPedido.map((o) => o.id), rev)) {
+                    setPidiendoRevisorPedido((actual) => actual === pidiendoRevisorPedido ? null : actual);
+                  }
                 }}
-                onCancelar={() => setPidiendoRevisorPedido(false)}
+                onCancelar={() => setPidiendoRevisorPedido(null)}
               />
             </div>
           )}
@@ -1138,7 +1146,7 @@ export function Drawer({
                   onCerradoEnRps(id, cerradaRps);
                 }}
                 opById={opById}
-                onSetRevisor={onSetRevisor}
+                onPasarRevision={onPasarRevision}
                 onSinRevisor={onSinRevisor}
                 onTraspasarAutor={onTraspasarAutor}
                 onAccion={onAccion}
@@ -1309,7 +1317,7 @@ function OFRow({
   esLaUltima,
   onCerradoEnRps,
   opById,
-  onSetRevisor,
+  onPasarRevision,
   onSinRevisor,
   onTraspasarAutor,
   onAccion,
@@ -1345,7 +1353,7 @@ function OFRow({
   esLaUltima: boolean;
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   opById: (id: string | null) => Operario | null;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onPasarRevision: (ofIds: string[], revisorId: string) => Promise<boolean>;
   /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
   onSinRevisor?: (ofCodigos: string[]) => void;
   onTraspasarAutor: (ofId: string, autorId: string) => void;
@@ -1653,7 +1661,7 @@ function OFRow({
               esLaUltima={esLaUltima}
               onCerradoEnRps={onCerradoEnRps}
               onAccion={onAccion}
-              onSetRevisor={onSetRevisor}
+              onPasarRevision={onPasarRevision}
                   onSinRevisor={onSinRevisor}
               onFichar={onFichar}
               onDesfichar={onDesfichar}
@@ -1685,7 +1693,7 @@ function AccionesOF({
   esLaUltima,
   onCerradoEnRps,
   onAccion,
-  onSetRevisor,
+  onPasarRevision,
   onSinRevisor,
   onFichar,
   onDesfichar,
@@ -1708,7 +1716,7 @@ function AccionesOF({
   esLaUltima: boolean;
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
   onAccion: (ofIds: string[], accion: AccionOF, obs?: string) => void;
-  onSetRevisor: (ofId: string, revisorId: string | null) => void;
+  onPasarRevision: (ofIds: string[], revisorId: string) => Promise<boolean>;
   /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor (ver PedirRevisor). */
   onSinRevisor?: (ofCodigos: string[]) => void;
   onFichar: (ofIds: string[], rol: Rol) => void;
@@ -2039,10 +2047,8 @@ function AccionesOF({
           excluirIds={[of.autorId]}
           valorInicial={of.revisorId}
           onAbandonado={() => onSinRevisor?.([of.codigo])}
-          onConfirmar={(rev) => {
-            onSetRevisor(of.id, rev);
-            onAccion([of.id], "terminar_planteo");
-            setPidiendoRevisor(false);
+          onConfirmar={async (rev) => {
+            if (await onPasarRevision([of.id], rev)) setPidiendoRevisor(false);
           }}
           onCancelar={() => setPidiendoRevisor(false)}
         />

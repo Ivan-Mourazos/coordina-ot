@@ -23,7 +23,7 @@ const pinta = (ofs: OF[], miId: string) =>
     createElement(Drawer, {
       pedido: { ...PEDIDOS[0], situacion: "procesado" as const, ofs },
       operarios: OPERARIOS, seccion: SECCIONES.ot, miId,
-      onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
+      onClose: noop, onAssignPedido: noop, onCompletar: noop, onPasarRevision: async () => true,
       onTraspasarAutor: noop, onCoger: noop, onAccion: noop, onFichar: noop, onDesfichar: noop,
       onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
     }),

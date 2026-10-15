@@ -12,7 +12,7 @@ test("la ficha aprobada enseña Pasar a Producción al autor y lo oculta al revi
   }] };
   const noop = () => {};
   const props = { pedido, operarios: OPERARIOS, seccion: SECCIONES.ot,
-    onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
+    onClose: noop, onAssignPedido: noop, onCompletar: noop, onPasarRevision: async () => true,
     onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop, onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
   };
   expect(renderToStaticMarkup(createElement(Drawer, { ...props, miId: "ivan" }))).toContain("Pasar a Producción");
@@ -34,7 +34,7 @@ test("con tres botones a la vez, la fila del rótulo se parte en vez de salirse 
     pedido: { ...PEDIDOS[0], situacion: "procesado" as const,
       ofs: [of("en_curso", 1), of("devuelta", 2), of("por_revisar", 3)] },
     operarios: OPERARIOS, seccion: SECCIONES.ot, miId: "ivan",
-    onClose: noop, onAssignPedido: noop, onCompletar: noop, onSetRevisor: noop,
+    onClose: noop, onAssignPedido: noop, onCompletar: noop, onPasarRevision: async () => true,
     onTraspasarAutor: noop, onAccion: noop, onFichar: noop, onDesfichar: noop,
     onDesficharVarias: noop, onCerradoEnRps: noop, onGemelaReintentada: noop,
   }));
