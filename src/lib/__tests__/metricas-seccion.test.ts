@@ -109,6 +109,29 @@ test("el trabajo dado por bueno sin revisión llega a las métricas", () => {
   expect(ot.filter((m) => m.motivo === "aprobar_sin_revision")).toHaveLength(1);
 });
 
+test("la revisión que se arranca fichando cuenta como revisión, y retomarla no", () => {
+  // Desde septiembre el revisor casi nunca pulsa «Empezar revisión»: pulsa
+  // Fichar, y eso pasa la OF a «En revisión» con motivo `fichar`. Contando
+  // solo `empezar_revision` salían 64 revisiones de 329 en septiembre.
+  const ins = db
+    .getDb()
+    .prepare("INSERT INTO acciones_log (ts, operario_id, motivo, detalle) VALUES (?, ?, ?, ?)");
+  const paso = (ofId: string, antes: string, despues: string) =>
+    JSON.stringify({
+      cambiosOF: [{ ofId, estado: despues, observacion: null }],
+      previos: [{ ofId, estado: antes }],
+    });
+  ins.run("2026-10-14T09:00:00.000Z", "jaime", "fichar", paso("of1", "por_revisar", "en_revision"));
+  // Fichar otra vez en la misma OF ya en revisión es retomarla, no otra.
+  ins.run("2026-10-14T11:00:00.000Z", "jaime", "fichar", paso("of1", "en_revision", "en_revision"));
+  // Y el fichaje del autor en su planteo no tiene nada que ver.
+  ins.run("2026-10-14T12:00:00.000Z", "tamara", "fichar", paso("of2", "pendiente", "en_curso"));
+
+  const ot = db.leerMovimientosMetricas(undefined, undefined, "ot");
+  expect(ot).toHaveLength(1);
+  expect(ot[0]).toMatchObject({ motivo: "empezar_revision", ofId: "of1", operarioId: "jaime" });
+});
+
 /** Un tramo de fichaje ya cerrado, tal cual lo guarda el motor. */
 function fichaje(operarioId: string, ofIds: string[], inicio: string, fin: string, traspasado = false) {
   db.getDb()

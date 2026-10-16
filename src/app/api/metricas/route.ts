@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calcularMetricas } from "@/lib/metricas";
+import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { operariosDeSeccion } from "@/lib/server/operarios";
 import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
@@ -43,7 +43,11 @@ export async function GET(req: Request) {
     // Sin sección se sirve la de siempre, que es lo que había.
     const pedida = q.get("seccion");
     const seccion = esSeccionId(pedida) ? pedida : SECCION_POR_DEFECTO;
-    const desde = limite(q.get("desde"));
+    // Nada antes de que la web estuviera en uso (ver INICIO_METRICAS), pida
+    // el periodo que pida — también «Todo».
+    const inicio = limite(INICIO_METRICAS)!;
+    const pedido = limite(q.get("desde"));
+    const desde = pedido && pedido > inicio ? pedido : inicio;
     const hasta = limite(q.get("hasta"), true);
     const movs = leerMovimientosMetricas(desde, hasta, seccion);
     // El fichaje va con los movimientos porque responde a la otra mitad de la
@@ -54,7 +58,7 @@ export async function GET(req: Request) {
     // El contexto solo atribuye autores y mide ciclos completos: no altera
     // los totales de sección, que siguen filtrándose por quien firma.
     const cuadro = calcularCuadroMetricas(movs, leerMovimientosMetricas(undefined, hasta), operariosDeSeccion(seccion), {
-      desde: desde?.slice(0, 10) ?? "", hasta: limite(q.get("hasta"))?.slice(0, 10) ?? "",
+      desde: desde.slice(0, 10), hasta: limite(q.get("hasta"))?.slice(0, 10) ?? "",
     });
     return NextResponse.json(
       { metricas: calcularMetricas(movs, intervalos), cuadro, causas: leerCausasDevolucion(true) },

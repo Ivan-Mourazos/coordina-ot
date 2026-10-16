@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularMetricas, periodoAnterior, sinActividad, ventanaDeDias } from "../metricas";
+import { calcularMetricas, mesDePeriodo, periodoAnterior, periodoDeMes, sinActividad, ventanaDeDias } from "../metricas";
 
 // Un número solo no dice nada: un 33 % de devueltas puede ser una mejora o un
 // desastre según cómo viniera el trimestre anterior. Estas dos funciones son
@@ -53,6 +53,34 @@ describe("el periodo anterior", () => {
   it("sin periodo no hay periodo anterior: nada con que comparar", () => {
     expect(periodoAnterior("", "")).toBeNull();
     expect(periodoAnterior("2026-09-01", "")).toBeNull();
+  });
+});
+
+describe("por mes", () => {
+  it("el mes en curso va del día 1 a hoy; uno pasado, entero", () => {
+    expect(periodoDeMes("2026-10", "2026-10-16")).toEqual({ desde: "2026-10-01", hasta: "2026-10-16" });
+    expect(periodoDeMes("2026-09", "2026-10-16")).toEqual({ desde: "2026-09-01", hasta: "2026-09-30" });
+    expect(periodoDeMes("2028-02", "2028-06-01")).toEqual({ desde: "2028-02-01", hasta: "2028-02-29" });
+  });
+
+  it("reconoce cuándo un periodo es un mes y cuándo un tramo libre", () => {
+    expect(mesDePeriodo("2026-10-01", "2026-10-16", "2026-10-16")).toBe("2026-10");
+    expect(mesDePeriodo("2026-09-01", "2026-09-30", "2026-10-16")).toBe("2026-09");
+    expect(mesDePeriodo("2026-09-01", "2026-09-20", "2026-10-16")).toBeNull();
+    expect(mesDePeriodo("", "", "2026-10-16")).toBeNull();
+  });
+
+  it("el mes en curso se compara con los MISMOS días del anterior", () => {
+    // El 1-16 de octubre contra septiembre entero siempre saldría a la baja,
+    // y no por trabajar menos: por tener la mitad de días.
+    expect(periodoAnterior("2026-10-01", "2026-10-16")).toEqual({ desde: "2026-09-01", hasta: "2026-09-16" });
+    // Y si el anterior es más corto, hasta su último día.
+    expect(periodoAnterior("2026-03-01", "2026-03-30")).toEqual({ desde: "2026-02-01", hasta: "2026-02-28" });
+  });
+
+  it("un mes cerrado se compara con el anterior entero, aunque tengan distintos días", () => {
+    expect(periodoAnterior("2026-10-01", "2026-10-31")).toEqual({ desde: "2026-09-01", hasta: "2026-09-30" });
+    expect(periodoAnterior("2026-03-01", "2026-03-31")).toEqual({ desde: "2026-02-01", hasta: "2026-02-28" });
   });
 });
 

@@ -101,7 +101,7 @@ export function calcularCuadroMetricas(
       const fin = siguiente > hasta ? hasta : sumarDias(siguiente, -1);
       const filas = movimientos.filter((m) => m.at.slice(0, 10) >= d && m.at.slice(0, 10) <= fin);
       const datos = calcularMetricas(filas);
-      tendencia.push({ desde: d, hasta: fin, terminadas: datos.volumen.ofTerminadas, planteos: datos.volumen.planteos,
+      tendencia.push({ desde: d, hasta: fin, terminadas: datos.volumen.ofTerminadas, planteos: datos.volumen.ofEntregadas,
         proporcion: datos.revisiones ? datos.devoluciones / datos.revisiones : null,
         aprobacion: mediana(aprobaciones.filter((a) => a.at.slice(0, 10) >= d && a.at.slice(0, 10) <= fin).map((a) => a.minutos)) });
       d = siguiente;
