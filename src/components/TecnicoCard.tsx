@@ -154,6 +154,15 @@ export const TecnicoCard = memo(function TecnicoCard({
             <RelojVivo desde={live.desde} className="ml-auto shrink-0 font-bold" />
           </div>
         )}
+        {/* La línea va en TODAS, también sin reloj: si solo la llevaran las de
+            quien ficha, las tarjetas de una misma fila salían de dos alturas
+            (Iván, 16/10/2026). Y de paso se ve quién está parado. */}
+        {!live && (
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
+            <span className="size-1.5 shrink-0 rounded-full bg-text-muted/40" aria-hidden="true" />
+            Sin fichar ahora
+          </div>
+        )}
 
         {/* Barra de carga: un bloque por pedido, del color de su columna y en
             el orden de la zona de arriba (ver bloquesDeCarga). Dice EN QUÉ
