@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "e745dee",
+    "hasta": "c64529b",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -35,6 +35,11 @@
         "tipo": "arreglado",
         "titulo": "Revisando, la cabecera de la OF se partía en varias líneas",
         "tanda": 7
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la ficha, la raya de color de Documentos y Tareas se salía de su recuadro",
+        "tanda": 10
       },
       {
         "tipo": "mejor",
