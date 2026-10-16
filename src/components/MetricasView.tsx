@@ -12,7 +12,7 @@ import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 
-interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaDevolucion[] }
+interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaDevolucion[]; pasos?: { id: number; texto: string }[] }
 const nombreMes = (mes: string) =>
   new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" }).replace(" de ", " ");
 const SERIES = [
@@ -71,7 +71,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   const c = datos?.cuadro;
   const comparable = !!previo && !sinActividad(previo.metricas) && !!periodoAnterior(desde, hasta);
   const prop = m ? proporcionDevueltas(m) : null;
-  const causa = (id: number | null) => id === null ? "Sin causa apuntada" : datos?.causas.find((c) => c.id === id)?.etiqueta ?? `Causa ${id}`;
+  const causa = (id: number | null) => id === null ? "Otra cosa o sin causa" : datos?.causas.find((c) => c.id === id)?.etiqueta ?? `Causa ${id}`;
 
   return (
     <div ref={contenedor} className="flex flex-col gap-3 text-text lg:h-[var(--alto-metricas)] bajo:h-auto" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 110px)" } as CSSProperties}>
@@ -109,7 +109,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
           <Panel titulo="Cuánto tarda cada paso de la revisión"><Recorrido m={m} /></Panel>
         </div>
         <div className="grid min-h-0 gap-3 lg:grid-cols-[1fr_1fr_1.4fr]">
-          <Panel titulo="Por qué vuelven" extra={`${m.devoluciones} devoluciones`}><Ranking filas={m.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /></Panel>
+          <Panel titulo="Por qué vuelven" extra={`${m.devoluciones} devoluciones`}><PorQueVuelven m={m} causa={causa} pasos={datos?.pasos ?? []} /></Panel>
           <Panel titulo="Por qué se anulan" extra={`${m.anulaciones} anulaciones`}><Ranking filas={m.porCausaAnulacion.map((x) => ({ etiqueta: x.causa === null ? "Sin causa apuntada" : CAUSAS.find((c) => c.id === x.causa)?.label ?? x.causa, n: x.n }))} color="var(--text-muted)" vacio="Sin anulaciones en este periodo." /></Panel>
           <Panel titulo="Por técnico"><Tecnicos cuadro={c} operarios={operarios} miId={miId} /></Panel>
         </div>
@@ -118,6 +118,21 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   );
 }
 
+/** Por causa (lo que se cuenta desde siempre) o por PASO de la guía, que es
+ *  más fino: «Medidas» junta la salida del toldo, el frente y los aumentos
+ *  (16/10/2026). Por paso solo cuentan las devoluciones hechas desde la guía. */
+function PorQueVuelven({ m, causa, pasos }: { m: Metricas; causa: (id: number | null) => string; pasos: { id: number; texto: string }[] }) {
+  const [vista, setVista] = useState<"causa" | "paso">("causa");
+  const texto = (id: number) => pasos.find((p) => p.id === id)?.texto ?? `Paso ${id}`;
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="tira-3d glass-chip flex shrink-0 gap-1 self-start rounded-lg p-0.5" role="tablist" aria-label="Contar por">
+      {([["causa", "Por causa"], ["paso", "Por paso"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)} className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${vista === v ? "pestana-activa text-text" : "text-text-muted"}`}>{l}</button>)}
+    </div>
+    {vista === "causa"
+      ? <Ranking filas={m.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." />
+      : <Ranking filas={m.porPaso.map((x) => ({ etiqueta: texto(x.id), n: x.n }))} color={SERIES[1].color} vacio="Ninguna devolución desde la guía en este periodo." />}
+  </div>;
+}
 function Panel({ titulo, extra, children }: { titulo: string; extra?: string; children: ReactNode }) {
   return <section className="glass-panel flex min-h-0 min-w-0 flex-col rounded-xl p-3"><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal">{extra}</span>}</h3>{children}</section>;
 }

@@ -6,6 +6,8 @@ import { SECCIONES, type SeccionId } from "./secciones";
 // enseñar «aprobado» o «devuelto» sin que nadie lo copie a mano. CoordinaOT
 // manda: aquí solo se lee, y solo se cuenta el estado de las OF que se piden.
 
+import { leerDevolucion } from "./devolucion";
+
 export const MAX_OFS = 50;
 const OF_RE = /^\d{5,9}$/;
 
@@ -101,7 +103,9 @@ export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOf
   return {
     of,
     estado: peor.normal,
-    nota: peor.normal === "devuelta" ? (peor.observacion ?? "").trim() : "",
+    // Sin el prefijo de causas y pasos («[1,3;p4,7] »): es para que lo lea una
+    // persona en la web de planteamientos, no para contar.
+    nota: peor.normal === "devuelta" ? leerDevolucion(peor.observacion).nota.trim() : "",
     actualizado,
     revisor: ultimaAprobada?.revisorId ?? "",
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { leerDevolucion } from "@/lib/devolucion";
+import { leerDevolucion, partirNota } from "@/lib/devolucion";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 
 /** La nota del revisor cuando devuelve, con sus causas delante.
@@ -37,6 +37,10 @@ export function NotaDevolucion({ observacion, className }: { observacion: string
   const deEsta = causas
     .map((id) => rotulos.find((c) => c.id === id))
     .filter((c): c is CausaDevolucion => c !== undefined);
+  // LO QUE HAY QUE CORREGIR, COMO LISTA (16/10/2026). Las líneas «✗ …» salen de
+  // la guía, una por paso que falló: se leen y se van tachando de cabeza. Lo
+  // que el revisor añadió a mano, debajo. Una nota de antes sale como siempre.
+  const { fallos, texto } = partirNota(nota);
 
   return (
     <div className={className}>
@@ -52,7 +56,22 @@ export function NotaDevolucion({ observacion, className }: { observacion: string
           ))}
         </span>
       )}
-      ⚠ {nota}
+      {fallos.length > 0 ? (
+        <>
+          <span className="font-semibold">⚠ Qué corregir:</span>
+          <ul className="mt-1 space-y-0.5">
+            {fallos.map((f, i) => (
+              <li key={i} className="flex gap-1.5">
+                <span aria-hidden="true" className="font-bold">✗</span>
+                <span className="min-w-0">{f}</span>
+              </li>
+            ))}
+          </ul>
+          {texto && <p className="mt-1 whitespace-pre-line">{texto}</p>}
+        </>
+      ) : (
+        <span className="whitespace-pre-line">⚠ {nota}</span>
+      )}
     </div>
   );
 }

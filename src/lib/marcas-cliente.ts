@@ -44,6 +44,10 @@ function fusionar(
 // guardó.
 export function useMarcasRevision(ofIds: readonly string[], operarioId: string) {
   const [marcas, setMarcas] = useState<Record<number, EstadoPunto>>({});
+  // Qué falla en cada ✗ («la cota del primer ollao»). De aquí sale la nota de
+  // la devolución. Se toma el de la primera OF: la guía es del pedido y se
+  // escribe en todas a la vez.
+  const [comentarios, setComentarios] = useState<Record<number, string>>({});
   // Las ids en una cadena: como dependencia, un array nuevo en cada render
   // volvería a pedirlas sin parar.
   const clave = [...ofIds].sort().join(",");
@@ -53,8 +57,10 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string) 
     let vivo = true;
     fetch(`/api/revision/marcas?ofIds=${encodeURIComponent(clave)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { marcas: Record<string, Record<number, string>> }) => {
-        if (vivo) setMarcas(fusionar(d.marcas ?? {}, clave.split(",")));
+      .then((d: { marcas: Record<string, Record<number, string>>; comentarios?: Record<string, Record<number, string>> }) => {
+        if (!vivo) return;
+        setMarcas(fusionar(d.marcas ?? {}, clave.split(",")));
+        setComentarios((d.comentarios ?? {})[clave.split(",")[0]] ?? {});
       })
       .catch(() => {
         // Sin marcas guardadas se empieza de cero, que es lo que había antes de
@@ -66,11 +72,22 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string) 
   }, [clave]);
 
   const marcar = useCallback(
-    (puntoId: number, estado: EstadoPunto) => {
+    (puntoId: number, estado: EstadoPunto, comentario?: string) => {
       // Se pinta YA y se guarda detrás: marcar ocho puntos esperando al
       // servidor en cada uno se siente roto. Si falla el guardado, la próxima
       // carga dirá la verdad.
       setMarcas((p) => ({ ...p, [puntoId]: estado }));
+      // El comentario solo vive en un ✗: al quitarlo, se va con él.
+      if (estado !== "falla") {
+        setComentarios((p) => {
+          if (!(puntoId in p)) return p;
+          const { [puntoId]: _fuera, ...resto } = p;
+          void _fuera;
+          return resto;
+        });
+      } else if (comentario !== undefined) {
+        setComentarios((p) => ({ ...p, [puntoId]: comentario }));
+      }
       // Antes esto acababa en un `.catch(() => {})` mudo, y encima solo
       // atrapaba un fallo de RED: un 400 de la propia ruta (un `estado`
       // suelto, un `operarioId` que ya no cuela) es una respuesta normal para
@@ -87,6 +104,7 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string) 
           // "sin mirar" no se guarda: se borra la fila.
           estado: estado === "sin_mirar" ? null : estado,
           operarioId,
+          ...(comentario !== undefined ? { comentario } : {}),
         }),
       })
         .then((r) => {
@@ -102,5 +120,5 @@ export function useMarcasRevision(ofIds: readonly string[], operarioId: string) 
     [clave, operarioId],
   );
 
-  return { marcas, marcar };
+  return { marcas, comentarios, marcar };
 }

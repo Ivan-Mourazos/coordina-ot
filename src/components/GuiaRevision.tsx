@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { EstadoPunto, PuntoGuia } from "@/lib/guia-revision";
 
 // ─── Qué mirar al revisar ────────────────────────────────────────────────────
@@ -16,11 +17,18 @@ import type { EstadoPunto, PuntoGuia } from "@/lib/guia-revision";
 // Tres estados y no una casilla: "sin mirar" y "bien" no son lo mismo. Con una
 // sola casilla, lo no marcado diría a la vez "no he llegado" y "está mal".
 //
-// Lo marcado NO se guarda. Vive mientras la tarjeta esté en pantalla, como el
-// dedo sobre el papel: es una ayuda para no perder el hilo, no un parte de
-// trabajo. Guardarlo por OF convertiría la revisión en papeleo —un pedido de 12
-// OF son 96 casillas— y dejaría por escrito quién no marcó qué, que es otra
-// cosa distinta y nadie la ha pedido.
+// Lo marcado SE GUARDA mientras dura la revisión (ver useMarcasRevision): de
+// ello depende poder aprobar, y perderlo al refrescar obligaba a repasarlo
+// todo. Se borra al aprobar o devolver.
+//
+// QUÉ FALLA, EN EL MISMO SITIO (16/10/2026). Junto a cada ✗ sale una línea para
+// decirlo («la cota del primer ollao»). Es lo que se escribía después, de
+// memoria, en la nota de la devolución: ahora la nota sale de aquí, paso a
+// paso, y el autor recibe una lista de qué corregir.
+//
+// SEGUNDA VUELTA. Lo que falló la vez anterior va arriba y señalado: se repasa
+// todo igual —una corrección puede estropear otra cosa—, pero empezando por lo
+// que había que corregir.
 
 export function GuiaRevision({
   puntos,
@@ -28,16 +36,26 @@ export function GuiaRevision({
   onMarcar,
   abierta,
   onAbrir,
+  comentarios = {},
+  fallaronAntes,
 }: {
   puntos: readonly PuntoGuia[];
   marcas: Readonly<Record<number, EstadoPunto>>;
-  onMarcar: (id: number, estado: EstadoPunto) => void;
+  onMarcar: (id: number, estado: EstadoPunto, comentario?: string) => void;
   abierta: boolean;
   onAbrir: (abierta: boolean) => void;
+  /** Qué falla en cada ✗, por paso. */
+  comentarios?: Readonly<Record<number, string>>;
+  /** Los pasos que fallaron en la devolución anterior (ver `leerDevolucion`). */
+  fallaronAntes?: ReadonlySet<number>;
 }) {
   // Sin puntos no se pinta nada. Pasa cuando alguien retira todas las de una
   // familia, y un recuadro vacío titulado "Qué mirar" sería peor que nada.
   if (puntos.length === 0) return null;
+  // Lo que falló la otra vez, primero; el resto en su orden.
+  const ordenados = fallaronAntes?.size
+    ? [...puntos.filter((p) => fallaronAntes.has(p.id)), ...puntos.filter((p) => !fallaronAntes.has(p.id))]
+    : puntos;
 
   const fallos = puntos.filter((p) => marcas[p.id] === "falla").length;
   const vistos = puntos.filter((p) => marcas[p.id] && marcas[p.id] !== "sin_mirar").length;
@@ -95,16 +113,13 @@ export function GuiaRevision({
 
       {abierta && (
         <ul className="border-t border-border bg-surface">
-          {puntos.map((p) => {
+          {ordenados.map((p) => {
             const estado = marcas[p.id] ?? "sin_mirar";
             const falla = estado === "falla";
+            const antes = fallaronAntes?.has(p.id) ?? false;
             return (
-              <li
-                key={p.id}
-                className={`flex items-center gap-1.5 px-2 py-1 text-[11px] leading-snug ${
-                  falla ? "bg-red-500/5" : ""
-                }`}
-              >
+              <li key={p.id} className={falla ? "bg-red-500/5" : antes ? "bg-amber-500/10" : ""}>
+              <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] leading-snug">
                 {/* Al marcar el fallo se ve al lado la causa que irá marcada
                     al devolver: varios pasos comparten causa, y así no hay
                     sorpresa cuando el cuadro de devolver sale ya relleno. */}
@@ -118,6 +133,14 @@ export function GuiaRevision({
                   }`}
                 >
                   {p.mira}
+                  {antes && !falla && (
+                    <span
+                      className="ml-1.5 rounded bg-amber-500/20 px-1 py-px text-[10px] font-semibold text-amber-800 dark:text-amber-200"
+                      title="Falló en la revisión anterior: mira que esté corregido"
+                    >
+                      falló la otra vez
+                    </span>
+                  )}
                   {falla && (
                     <span className="ml-1.5 rounded bg-red-500/10 px-1 py-px text-[10px] font-semibold">
                       {p.etiqueta}
@@ -136,11 +159,58 @@ export function GuiaRevision({
                   etiqueta={`${p.mira}: falla`}
                   tono="falla"
                 />
+              </div>
+              {falla && (
+                <ComentarioFallo
+                  inicial={comentarios[p.id] ?? ""}
+                  onGuardar={(texto) => onMarcar(p.id, "falla", texto)}
+                />
+              )}
               </li>
             );
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** «¿Qué falla?» bajo un ✗. Opcional, en una línea. Se guarda al salir del
+ *  campo, con Intro, o al dejar de escribir un momento: sin botón de guardar
+ *  que olvidar. */
+function ComentarioFallo({ inicial, onGuardar }: { inicial: string; onGuardar: (texto: string) => void }) {
+  const [texto, setTexto] = useState(inicial);
+  const guardado = useRef(inicial);
+  const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const guardar = (t: string) => {
+    clearTimeout(temporizador.current);
+    if (t.trim() === guardado.current.trim()) return;
+    guardado.current = t;
+    onGuardar(t.trim());
+  };
+  useEffect(() => () => clearTimeout(temporizador.current), []);
+  return (
+    <div className="px-2 pb-1.5 pl-4">
+      <input
+        value={texto}
+        maxLength={200}
+        onChange={(e) => {
+          const t = e.target.value;
+          setTexto(t);
+          clearTimeout(temporizador.current);
+          temporizador.current = setTimeout(() => guardar(t), 900);
+        }}
+        onBlur={() => guardar(texto)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            guardar(texto);
+          }
+        }}
+        placeholder="¿Qué falla? (opcional: «la cota del primer ollao»)"
+        aria-label="Qué falla en este paso"
+        className="w-full rounded-md bg-surface px-2 py-1 text-[11px] text-text outline-none ring-1 ring-red-500/30 placeholder:text-text-muted focus:ring-red-400"
+      />
     </div>
   );
 }

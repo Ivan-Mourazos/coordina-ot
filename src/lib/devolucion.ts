@@ -26,6 +26,11 @@ export interface Devolucion {
   /** Ids de `causa_devolucion`. Vacío = devolución sin causas, que es lo que
    *  son todas las anteriores a esto. */
   causas: number[];
+  /** Ids de `paso_revision` que fallaron en la guía (16/10/2026). Las marcas
+   *  las borra la propia revisión al cerrarse; aquí quedan para la segunda
+   *  vuelta —lo que falló sale primero— y para contar qué paso falla más.
+   *  Vacío en las de antes y en las de «Otra cosa». */
+  pasos?: number[];
   /** Siempre. Ver la cabecera. */
   nota: string;
 }
@@ -36,7 +41,7 @@ export interface Devolucion {
  *  pero aquí la lista crece y no hay conjunto contra el que comprobar. Con
  *  `dos: mira las medidas` no habría forma de saber si "dos" es una causa o el
  *  principio de una frase; con `[2] mira las medidas`, sí. */
-const CAUSAS_AL_PRINCIPIO = /^\[(\d+(?:,\d+)*)\]\s*/;
+const CAUSAS_AL_PRINCIPIO = /^\[(\d+(?:,\d+)*)(?:;p(\d+(?:,\d+)*))?\]\s*/;
 
 /** Empaqueta la devolución para que viaje en `observacion`, el campo que ya
  *  llega hasta la base local (mismo sitio y mismo motivo que en `anulacion.ts`:
@@ -44,7 +49,11 @@ const CAUSAS_AL_PRINCIPIO = /^\[(\d+(?:,\d+)*)\]\s*/;
 export function codificarDevolucion(d: Devolucion): string {
   const nota = d.nota.trim();
   if (d.causas.length === 0) return nota;
-  return `[${[...d.causas].sort((a, b) => a - b).join(",")}] ${nota}`;
+  const orden = (xs: readonly number[]) => [...new Set(xs)].sort((a, b) => a - b).join(",");
+  // Los pasos, detrás de las causas: `[1,3;p4,7]`. Las de antes, sin pasos,
+  // siguen leyéndose igual.
+  const pasos = d.pasos?.length ? `;p${orden(d.pasos)}` : "";
+  return `[${orden(d.causas)}${pasos}] ${nota}`;
 }
 
 /** Lo contrario.
@@ -59,8 +68,32 @@ export function leerDevolucion(observacion: string | null | undefined): Devoluci
   if (!m) return { causas: [], nota: texto };
   return {
     causas: m[1].split(",").map(Number),
+    ...(m[2] ? { pasos: m[2].split(",").map(Number) } : {}),
     nota: texto.slice(m[0].length),
   };
+}
+
+/** La nota que sale de la guía: una línea por paso que falla, con lo que se
+ *  escribió en él. Es lo que el autor recibe como lista de qué corregir.
+ *  Con `extra`, lo que el revisor añadió a mano, detrás. */
+export function notaDeLaGuia(
+  fallos: readonly { mira: string; comentario?: string }[],
+  extra = "",
+): string {
+  const lineas = fallos.map((f) => `✗ ${f.mira}${f.comentario?.trim() ? ` — ${f.comentario.trim()}` : ""}`);
+  return [...lineas, extra.trim()].filter(Boolean).join("\n");
+}
+
+/** Lo contrario de `notaDeLaGuia`, para enseñarla: las líneas «✗ …» como
+ *  lista y el resto como texto. Una nota escrita a mano sale toda como texto. */
+export function partirNota(nota: string): { fallos: string[]; texto: string } {
+  const fallos: string[] = [];
+  const resto: string[] = [];
+  for (const l of nota.split(/\r?\n/)) {
+    if (/^\s*✗\s/.test(l)) fallos.push(l.replace(/^\s*✗\s+/, "").trim());
+    else resto.push(l);
+  }
+  return { fallos, texto: resto.join("\n").trim() };
 }
 
 /** ¿Se puede devolver con esto? La nota es lo que manda al autor a hacer algo,

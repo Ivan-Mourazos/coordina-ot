@@ -155,6 +155,10 @@ export interface Metricas {
    *  devolución lleva varias causas, y así es como se lee: "22 de las 40
    *  llevaban error en cotas". */
   porCausa: CuentaCausa[];
+  /** Qué PASO de la guía falla, de más a menos (16/10/2026): más fino que la
+   *  causa —«Medidas» junta la salida del toldo, el frente y los aumentos—.
+   *  Solo de las devoluciones hechas desde la guía; las de antes no lo traen. */
+  porPaso: { id: number; n: number }[];
   /** Del mes más antiguo al más reciente. */
   porMes: MesMetricas[];
 
@@ -203,6 +207,7 @@ export function calcularMetricas(
     mes(at);
   };
   const porCausa = new Map<number | null, number>();
+  const porPaso = new Map<number, number>();
   const porCausaAnulacion = new Map<string | null, number>();
   const porMes = new Map<string, MesMetricas>();
   const cronometro = new Cronometro(intervalos);
@@ -283,7 +288,8 @@ export function calcularMetricas(
       mes(mov.at).revisiones++;
     }
     revisionAbierta.delete(mov.ofId);
-    const causas = leerDevolucion(mov.observacion).causas;
+    const { causas, pasos } = leerDevolucion(mov.observacion);
+    for (const id of new Set(pasos ?? [])) porPaso.set(id, (porPaso.get(id) ?? 0) + 1);
     if (causas.length === 0) porCausa.set(null, (porCausa.get(null) ?? 0) + 1);
     // `new Set`: si una devolución trajera la misma causa dos veces, cuenta
     // una. No debería pasar desde la interfaz, pero el registro es de solo
@@ -305,6 +311,7 @@ export function calcularMetricas(
       // A igualdad de cuenta, las que tienen causa antes que el cajón sin
       // causa: ese no dice nada y no debe encabezar la lista.
       .sort((a, b) => b.n - a.n || (a.id === null ? 1 : b.id === null ? -1 : a.id - b.id)),
+    porPaso: [...porPaso.entries()].map(([id, n]) => ({ id, n })).sort((a, b) => b.n - a.n || a.id - b.id),
     porMes: [...porMes.values()]
       .map((m) => ({ ...m, planteos: entregadasMes.get(m.mes)?.size ?? 0, terminadas: terminadasMes.get(m.mes)?.size ?? 0 }))
       .sort((a, b) => a.mes.localeCompare(b.mes)),

@@ -95,6 +95,29 @@ export function causasDeLoQueFalla(
   return [...new Set(puntos.filter((p) => marcas[p.id] === "falla").map((p) => p.causaId))];
 }
 
+/** Un paso que falla, con lo que hace falta para devolver: su causa (lo que
+ *  se cuenta) y qué falla (lo que el autor lee). */
+export interface FalloGuia {
+  pasoId: number;
+  mira: string;
+  causaId: number;
+  comentario?: string;
+}
+
+/** Lo que la guía lleva marcado como fallo, en su orden. Es lo que llega al
+ *  cuadro de devolver: las causas ya puestas y la nota escrita, una línea por
+ *  paso (16/10/2026). Antes solo viajaban las causas, y no a todos los
+ *  botones de devolver. */
+export function fallosDeLaGuia(
+  puntos: readonly PuntoGuia[],
+  marcas: Readonly<Record<number, EstadoPunto>>,
+  comentarios: Readonly<Record<number, string>> = {},
+): FalloGuia[] {
+  return puntos
+    .filter((p) => marcas[p.id] === "falla")
+    .map((p) => ({ pasoId: p.id, mira: p.mira, causaId: p.causaId, comentario: comentarios[p.id] || undefined }));
+}
+
 /** Cuántos pasos quedan por mirar. Es lo que decide si se puede aprobar con
  *  tranquilidad o si la revisión se quedó a medias. */
 export function sinMirar(
