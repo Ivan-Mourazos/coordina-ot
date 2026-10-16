@@ -1,8 +1,20 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "168d455",
+    "hasta": "523e33a",
     "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "En Métricas salían muchas menos revisiones de las que se hacían",
+        "detalle": "No contaba las revisiones empezadas con el botón Fichar; por eso el porcentaje de devueltas salía tan alto.",
+        "tanda": 2
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Métricas, las OF entregadas ya no cuentan dos veces la misma OF",
+        "detalle": "Las que vuelven y se mandan otra vez corregidas salen aparte, como reentregas.",
+        "tanda": 2
+      },
       {
         "tipo": "mejor",
         "titulo": "«Tareas y tiempos» se lee de un vistazo",
@@ -20,6 +32,22 @@
         "titulo": "Al abrir una visita cada dato lleva su nombre delante",
         "detalle": "Comercial, cliente, comentario, solución, incidencia, pedido y fecha del aviso, siempre en el mismo orden.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las métricas se miran por meses",
+        "detalle": "Con las flechas pasas de un mes a otro, y cada mes se compara con el anterior.",
+        "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas, cada paso de la revisión explica qué mide",
+        "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las métricas empiezan en agosto, cuando se empezó a usar la web",
+        "tanda": 2
       }
     ]
   },
