@@ -1,5 +1,29 @@
 [
   {
+    "id": "2026-10-16",
+    "hasta": "168d455",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "«Tareas y tiempos» se lee de un vistazo",
+        "detalle": "Cada OF va en su tarjeta, con una barra que dice qué tarea se llevó más tiempo.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Si cambias el revisor de un pedido que no es tuyo, te pregunta antes",
+        "detalle": "Tus pedidos se cambian como siempre; en los de otro sale un aviso y eliges si seguir.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al abrir una visita cada dato lleva su nombre delante",
+        "detalle": "Comercial, cliente, comentario, solución, incidencia, pedido y fecha del aviso, siempre en el mismo orden.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-15",
     "hasta": "8a95f41",
     "cambios": [
