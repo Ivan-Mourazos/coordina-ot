@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "523e33a",
+    "hasta": "05c0c9b",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -14,6 +14,11 @@
         "titulo": "En Métricas, las OF entregadas ya no cuentan dos veces la misma OF",
         "detalle": "Las que vuelven y se mandan otra vez corregidas salen aparte, como reentregas.",
         "tanda": 2
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al revisar, la fila y el botón de pausar salían en verde, como si estuvieras planteando",
+        "tanda": 3
       },
       {
         "tipo": "mejor",
@@ -48,6 +53,12 @@
         "tipo": "mejor",
         "titulo": "Las métricas empiezan en agosto, cuando se empezó a usar la web",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El pedido que estás fichando se ve de un vistazo en Pendientes",
+        "detalle": "La fila se pinta de verde si planteas y de violeta si revisas.",
+        "tanda": 3
       }
     ]
   },
