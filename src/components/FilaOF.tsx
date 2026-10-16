@@ -1,6 +1,6 @@
 import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
-import { ESTADO, ROL, fmtMin } from "@/lib/estado";
+import { ESTADO, ROL, fmtMin, fmtMinEnteros } from "@/lib/estado";
 import { relativoA, type TonoFecha } from "@/lib/fechas";
 import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -144,10 +144,12 @@ export function FilaOF({
         </span>
       )}
       <span
-        className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border"
+        // Sin caja: era la única cifra de la fila con fondo y borde, y se leía
+        // como un botón (Iván, 16/10/2026).
+        className="w-14 shrink-0 text-right font-semibold tabular-nums text-text"
         title={`Planteo ${fmtMin(of.tiempoPlanteoMin)} · Revisión ${fmtMin(of.tiempoRevisionMin)}`}
       >
-        {total > 0 ? fmtMin(total) : "—"}
+        {total > 0 ? fmtMinEnteros(total) : "—"}
       </span>
       {/* Qué se vendió, con medidas: plegado y a lo ancho, debajo de la línea. */}
       {of.detalleVenta && (

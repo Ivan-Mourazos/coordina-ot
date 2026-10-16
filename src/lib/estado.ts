@@ -183,6 +183,16 @@ export function fmtMin(min: number): string {
   return partes.join(" ");
 }
 
+/** `fmtMin` de minuto en minuto, sin segundos: "1h 59m", no "1h 59m 32s".
+ *
+ *  Para los tiempos que se ven CORRER (los adelanta lib/tiempo-vivo.ts): con
+ *  segundos cambiaban cada pocos y, al lado del reloj de quien ficha, parecían
+ *  otra cuenta distinta (Iván, 23/09 y 16/10/2026). Hacia abajo, para no decir
+ *  un minuto que aún no se ha cumplido. El reloj al segundo es `RelojVivo`. */
+export function fmtMinEnteros(min: number): string {
+  return fmtMin(Math.floor(min + 1e-9));
+}
+
 /** Etiqueta de un botón que actúa sobre 1..n OF a la vez: singular a secas,
  *  plural con "las N" delante del resto. `resto` es lo que va DESPUÉS del
  *  número ("a revisión" en "Pasar las 3 a revisión"); sin él, el verbo solo

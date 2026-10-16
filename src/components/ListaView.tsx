@@ -13,13 +13,13 @@ import {
   piezasTotal,
   tiempoTotalOF,
 } from "@/lib/types";
-import { ESTADO, fmtMin, PRIORIDAD, ROL } from "@/lib/estado";
+import { ESTADO, fmtMin, fmtMinEnteros, PRIORIDAD, ROL } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { estadoDePedido, type TramoEstado } from "@/lib/frase-estado";
 import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveDot, QuienFicha, relojesPorOperario, type RelojPersona } from "./LiveBadge";
+import { LiveDot } from "./LiveBadge";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { useAcordeon } from "./Acordeon";
@@ -441,12 +441,6 @@ export function ListaView({
     const m = new Map(operarios.map((o) => [o.id, o.nombre]));
     return (id: string) => m.get(id) ?? id;
   }, [operarios]);
-  // El reloj de cada persona sobre todo lo que ficha, para que en la fila
-  // corra entero aunque esté con varios pedidos a la vez (ver QuienFicha).
-  const relojDe = useMemo(() => {
-    const m = relojesPorOperario(pedidos);
-    return (id: string) => m.get(id);
-  }, [pedidos]);
 
   const ordenados = useMemo(() => {
     const nombres = new Map(operarios.map((o) => [o.id, o.nombre]));
@@ -519,7 +513,7 @@ export function ListaView({
               tarjeta
               fichando={fichando}
               celdas={compacta ? (
-                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} nombre={nombrePorId} relojDe={relojDe} onOpen={onOpen} />
+                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} onOpen={onOpen} />
               ) : (
                 <>
                   {/* ─── La celda de identidad ───────────────────────────
@@ -546,13 +540,6 @@ export function ListaView({
                       >
                         · {p.ofs.length} OF
                       </span>
-                      {fichando && (
-                        <QuienFicha
-                          vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
-                          nombre={(id) => nombrePorId(id).split(" ")[0]}
-                          relojDe={relojDe}
-                        />
-                      )}
                       {familiasDe(p).map((f) => (
                         <FamiliaTag key={f} familia={f} />
                       ))}
@@ -638,19 +625,12 @@ function CeldasCompactas({
   hoy,
   tramos,
   fase,
-  fichando,
-  nombre,
-  relojDe,
   onOpen,
 }: {
   p: Pedido;
   hoy: string;
   tramos: TramoEstado[];
   fase: { texto: string; color: string; tinta: string } | null;
-  fichando: "plantear" | "revisar" | null;
-  /** Nombre del operario, para decir quién está fichando. */
-  nombre?: (id: string) => string;
-  relojDe?: (id: string) => RelojPersona | undefined;
   onOpen?: (p: Pedido) => void;
 }) {
   const familias = familiasDe(p);
@@ -677,13 +657,6 @@ function CeldasCompactas({
           <span className="shrink-0 text-[11px] font-medium text-text-muted" title={`${p.ofs.length} órdenes de fabricación`}>
             {p.ofs.length} OF
           </span>
-        )}
-        {fichando && (
-          <QuienFicha
-            vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
-            nombre={(id) => (nombre?.(id) ?? id).split(" ")[0]}
-            relojDe={relojDe}
-          />
         )}
       </div>
       <span
@@ -778,7 +751,7 @@ function Detalle({
           {estimado > 0 && (
             <Dato label="Tiempo">
               <span className={llevado > estimado ? "font-semibold text-text" : undefined}>
-                {fmtMin(llevado)}
+                {fmtMinEnteros(llevado)}
               </span>
               <span className="text-text-muted"> / est. {fmtMin(estimado)}</span>
             </Dato>
@@ -915,13 +888,27 @@ function Estado({ tramos }: { tramos: TramoEstado[] }) {
           >
             {t.verbo}
           </span>
-          {t.enMarcha && <LiveDot rol={t.rol} />}
-          {t.minutos > 0 && (
-            <span className="tabular-nums text-text-muted">{fmtMin(t.minutos)}</span>
-          )}
+          <TiempoTramo t={t} />
         </span>
       ))}
     </span>
+  );
+}
+
+
+/** Cuánto lleva una persona en el pedido: sus minutos ENTEROS, con el punto
+ *  que late si está fichando (los minutos ya se mueven solos, ver
+ *  lib/tiempo-vivo.ts). El reloj al segundo va en la línea de la OF que se
+ *  ficha, que es su misma cuenta: aquí, en vez del total del pedido, al
+ *  empezar a fichar parecía que el tiempo bajaba. La fila llegó a decir lo
+ *  mismo cuatro veces —«Alberto 2:00:15» junto al código, «1h 59m 32s»
+ *  aquí, en el detalle y en la OF— sin coincidir nunca (Iván, 16/10/2026). */
+function TiempoTramo({ t }: { t: TramoEstado }) {
+  return (
+    <>
+      {t.enMarcha && <LiveDot rol={t.rol} />}
+      {t.minutos > 0 && <span className="tabular-nums text-text-muted">{fmtMinEnteros(t.minutos)}</span>}
+    </>
   );
 }
 
@@ -939,8 +926,7 @@ function Quien({ tramos }: { tramos: TramoEstado[] }) {
           ) : (
             <span className="text-text-muted">{t.rol === "revisar" ? "sin revisor" : "—"}</span>
           )}
-          {t.enMarcha && <LiveDot rol={t.rol} />}
-          {t.minutos > 0 && <span className="tabular-nums text-text-muted">{fmtMin(t.minutos)}</span>}
+          <TiempoTramo t={t} />
         </span>
       ))}
     </span>
