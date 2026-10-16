@@ -13,7 +13,7 @@ export { SECCIONES } from "../secciones";
 import { operariosDeSeccion } from "./operarios";
 import type { Tablero } from "../data";
 import type {
-  CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, Pedido, Prioridad,
+  CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, OFFuera, Pedido, Prioridad,
 } from "../types";
 import { esCodigoPedido, hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
@@ -942,6 +942,59 @@ async function filasDeLaSeccion(
   return filasPorFase(pool, seccion, unirRetenidas([...fases, ...paresDe(filasQueFaltan(claves, fases))], retenidas));
 }
 
+interface FilaFuera {
+  pedido: string | null;
+  orden: string | null;
+  descripcion: string | null;
+  cantidad: number | null;
+  codTarea: string | null;
+  tarea: string | null;
+  maquina: string | null;
+}
+
+/** Agrupa las filas de `FilaFuera` (una por tarea) en OF por pedido, con su
+ *  ruta ordenada por número de tarea, como se lee el parte. */
+export function ofsFueraPorPedido(
+  filas: readonly FilaFuera[],
+  /** Las máquinas de la sección (`Seccion.recursos`): una OF con tarea en
+   *  alguna SÍ es nuestra, y si no sale en la vista es que ya está hecha. */
+  recursos: readonly string[] = [],
+): Map<string, OFFuera[]> {
+  const nuestras = new Set(recursos.map((r) => r.toLowerCase()));
+  const porOF = new Map<string, { pedido: string; of: OFFuera; tareas: { cod: string; texto: string }[] }>();
+  for (const f of filas) {
+    const pedido = (f.pedido ?? "").trim();
+    const orden = (f.orden ?? "").trim();
+    if (!pedido || !orden) continue;
+    const e = porOF.get(orden) ?? {
+      pedido,
+      of: {
+        codigo: orden,
+        descripcion: (f.descripcion ?? "").replace(/\s+/g, " ").trim(),
+        piezas: Math.max(1, Math.round(f.cantidad ?? 1)),
+        tareas: [],
+        motivo: "sinTarea",
+      },
+      tareas: [],
+    };
+    if (nuestras.has((f.maquina ?? "").trim().toLowerCase())) e.of.motivo = "hecha";
+    const texto = (f.tarea ?? "").replace(/\s+/g, " ").trim();
+    if (texto && !e.tareas.some((t) => t.texto === texto)) e.tareas.push({ cod: (f.codTarea ?? "").trim(), texto });
+    porOF.set(orden, e);
+  }
+  const porPedido = new Map<string, OFFuera[]>();
+  for (const e of porOF.values()) {
+    e.of.tareas = e.tareas
+      .sort((a, b) => a.cod.localeCompare(b.cod, "es", { numeric: true }))
+      .map((t) => t.texto);
+    const lista = porPedido.get(e.pedido) ?? [];
+    lista.push(e.of);
+    porPedido.set(e.pedido, lista);
+  }
+  for (const lista of porPedido.values()) lista.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  return porPedido;
+}
+
 async function consultarTablero(seccion: Seccion): Promise<Tablero> {
   const { getPool } = await import("./db");
   const pool = await getPool();
@@ -980,7 +1033,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, maquinasTarea, tareas, subfamilias] =
+  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, maquinasTarea, tareas, subfamilias, fuera] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -1166,7 +1219,27 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
         AND mo.CodManufacturingOrder IN (${listaIn})
       GROUP BY mo.CodManufacturingOrder
     `),
+    // Las OF de ESOS pedidos que no salen en la vista de la sección: no tienen
+    // tarea suya (las solapas de AR.26.04890 solo pasan por costura). Para
+    // enseñarlas plegadas en la ficha, con su ruta (ver `OFFuera`). Una fila
+    // por tarea; sin tareas canceladas. Medido: 91 ms para un pedido.
+    pool.request().query<FilaFuera>(`
+      SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
+             l.Description AS descripcion, l.Quantity AS cantidad,
+             t.CodMOTask AS codTarea, t.Description AS tarea,
+             (SELECT TOP 1 rm.CodMOResourceMachine FROM dbo.CPRMOResourceMachine rm WITH (NOLOCK)
+               WHERE rm.IDMOTask = t.IDMOTask) AS maquina
+      FROM dbo.FACOrderSL o WITH (NOLOCK)
+      JOIN dbo.FACOrderLineSL l WITH (NOLOCK) ON l.IDOrder = o.IDOrder
+      JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK)
+        ON mo.IDManufacturingOrder = l.IDManufacturingOrder AND mo.CodCompany = '001'
+      LEFT JOIN dbo.CPRMOTask t WITH (NOLOCK)
+        ON t.IDManufacturingOrder = mo.IDManufacturingOrder AND (t.Canceled = 0 OR t.Canceled IS NULL)
+      WHERE o.CodCompany = '001' AND o.CodOrder IN (${listaPedidosIn})
+        AND mo.CodManufacturingOrder NOT IN (${listaIn})
+    `),
   ]);
+  const fueraPorPedido = ofsFueraPorPedido(fuera.recordset, seccion.recursos);
 
   // La máquina de cada tarea, con la clave "orden:tarea" que usa toda la web
   // para nombrar una OF. Se guarda para cuando haya que escribir su bono (ver
@@ -1388,6 +1461,10 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     return {
       id: clave,
       codigo: grupo.codigo,
+      // Las OF del pedido que no salen en la vista (ver `OFFuera`). Si les
+      // ponen una tarea de la sección entran en la vista y, en la siguiente
+      // vuelta, ya no están aquí: la consulta las excluye por estar en ella.
+      ofsFuera: fueraPorPedido.get(grupo.codigo),
       cliente,
       // Trabajo interno (mantenimiento, muestras, desarrollos): se ficha, pero
       // no entra en el tablero de asignación.
