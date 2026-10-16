@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { OF, Operario, Pedido, Rol } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
-import { abierto, esFichable, inicioDelTramoContinuo, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
+import { abierto, esFichable, inicioDelTramoContinuo, minutosOF, motivoNoFichable, previoSegundos, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
 import { fmtHMS } from "./RelojVivo";
 import { ahoraDelServidor } from "@/lib/reloj-servidor";
@@ -236,6 +236,14 @@ export function MiFichaje({
   const desde = ab ? (inicioDelTramoContinuo(fichaje) ?? ab.inicio) : null;
   const totalSeg = desde ? (Date.parse(ahora) - Date.parse(desde)) / 1000 : 0;
   const totalMin = totalSeg / 60;
+  // Lo que SE VE en la píldora: lo que llevas en estas OF y este rol, contando
+  // lo de antes, para que al reanudar siga desde ahí y no vuelva a 0:00:00
+  // (Iván, 16/10/2026). `totalSeg` se queda para el aviso de «llevas N horas
+  // sin parar», que sí tiene que contar solo desde la última pausa.
+  const acumuladoSeg = ab
+    ? ab.ofIds.reduce((n, id) => n + previoSegundos(fichaje.intervalos, ab.operarioId, ab.rol, id), 0) +
+      Math.max(0, (Date.parse(ahora) - Date.parse(ab.inicio)) / 1000)
+    : 0;
 
   // QUÉ está corriendo, por su código de pedido. La píldora decía solo "5 OF",
   // y con eso no hay forma de saber si pausaste lo que querías, si falló, o si
@@ -462,7 +470,7 @@ export function MiFichaje({
                 <LiveDot rol={ab.rol} className="size-1.5" />
                 {/* tabular-nums: sin ancho fijo de cifra, el reloj tiembla
                     cada segundo y arrastra lo que tiene al lado. */}
-                {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
+                {ROL[ab.rol].label} · <span className="tabular-nums">{fmtHMS(acumuladoSeg)}</span>
               </span>
             ) : (
               // "Reloj parado", no "Parado" a secas: lo que está parado es el
@@ -598,7 +606,7 @@ export function MiFichaje({
           <>
             <LiveDot rol={ab.rol} className="size-2" />
             <span>
-              ⏱ {queCorre} · <span className="tabular-nums">{fmtHMS(totalSeg)}</span>
+              ⏱ {queCorre} · <span className="tabular-nums">{fmtHMS(acumuladoSeg)}</span>
             </span>
           </>
         ) : aviso ? (

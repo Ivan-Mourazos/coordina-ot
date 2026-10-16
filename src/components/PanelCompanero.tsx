@@ -75,8 +75,8 @@ export function PanelCompanero({
             className={`flex items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
           >
             <LiveDot rol={live.rol} className="size-1.5" />
-            {ROL[live.rol].label} {live.pedido.codigo}
-            <RelojVivo desde={live.desde} className="font-normal opacity-90" />
+            {ROL[live.rol].label} {live.pedidos.length > 1 ? `${live.pedidos.length} pedidos` : live.pedido.codigo}
+            <RelojVivo desde={live.desde} previoSeg={live.previoSeg} parte={live.parte} className="font-normal opacity-90" />
           </span>
         )}
 

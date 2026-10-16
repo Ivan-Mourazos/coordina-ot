@@ -71,6 +71,7 @@ import {
   esFichable,
   fichar,
   pausar,
+  previoSegundos,
   rolFichajeDe,
   type Fichaje,
 } from "@/lib/fichaje";
@@ -106,6 +107,15 @@ export interface LiveInfo {
   of: OF;
   /** ISO. Desde cuándo corre su reloj: el contador de la tarjeta. */
   desde: string;
+  /** Ver `FichandoAhora`: lo que ya llevaba, y la parte del tramo. Sumados
+   *  sobre TODAS las OF de su reloj, para que el contador sea el de todo lo
+   *  que está fichando y no el de la primera OF. */
+  previoSeg?: number;
+  parte?: number;
+  /** Todos los pedidos de su reloj. Con un compañero revisando tres a la vez,
+   *  la tarjeta decía solo el primero (Iván, 16/10/2026). `pedido` es el
+   *  primero de esta lista. */
+  pedidos: Pedido[];
 }
 
 /** Vista que pide la URL, si pide alguna.
@@ -448,7 +458,18 @@ export function Board({
     // (pueden ser de un tramo que ya pausé).
     const vivosDe = (of: OF) => {
       const otros = (of.fichandoAhora ?? []).filter((f) => f.operarioId !== miId);
-      const mio = ab && ab.ofIds.includes(of.id) ? [{ operarioId: ab.operarioId, rol: ab.rol, desde: ab.inicio }] : [];
+      const mio =
+        ab && ab.ofIds.includes(of.id)
+          ? [
+              {
+                operarioId: ab.operarioId,
+                rol: ab.rol,
+                desde: ab.inicio,
+                previoSeg: previoSegundos(fichaje.intervalos, ab.operarioId, ab.rol, of.id),
+                parte: 1 / ab.ofIds.length,
+              },
+            ]
+          : [];
       const todos = [...mio, ...otros];
       return todos.length ? todos : undefined;
     };
@@ -942,9 +963,21 @@ export function Board({
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
         for (const f of of.fichandoAhora ?? []) {
-          if (map.has(f.operarioId)) continue;
+          const ya = map.get(f.operarioId);
+          if (ya) {
+            // Otra OF del mismo reloj: suma a su contador y, si es de otro
+            // pedido, a la lista de pedidos.
+            ya.previoSeg = (ya.previoSeg ?? 0) + (f.previoSeg ?? 0);
+            ya.parte = (ya.parte ?? 0) + (f.parte ?? 0);
+            if (!ya.pedidos.includes(p)) ya.pedidos.push(p);
+            continue;
+          }
           const op = operarios.find((o) => o.id === f.operarioId);
-          if (op) map.set(f.operarioId, { operario: op, rol: f.rol, pedido: p, of, desde: f.desde });
+          if (op)
+            map.set(f.operarioId, {
+              operario: op, rol: f.rol, pedido: p, of, desde: f.desde,
+              previoSeg: f.previoSeg ?? 0, parte: f.parte ?? 1, pedidos: [p],
+            });
         }
       }
     }
@@ -3058,7 +3091,6 @@ export function Board({
         operarios={operarios}
         miId={miId}
         seccion={laSeccion}
-        dobleFichaje={dobleFichaje}
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}

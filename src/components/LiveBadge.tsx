@@ -1,4 +1,4 @@
-import type { FichandoAhora, Rol } from "@/lib/types";
+import type { FichandoAhora, Pedido, Rol } from "@/lib/types";
 import { RelojVivo } from "./RelojVivo";
 import { ROL } from "@/lib/estado";
 
@@ -27,28 +27,70 @@ export function LiveDot({ rol, className = "size-2" }: { rol: Rol; className?: s
 export function QuienFicha({
   vivos,
   nombre,
+  relojDe,
   className = "",
 }: {
   vivos: readonly FichandoAhora[];
   /** Nombre corto del operario (el de pila basta en una fila). */
   nombre: (operarioId: string) => string;
+  /** El reloj de la PERSONA, sumado sobre todo lo que ficha (ver
+   *  `relojesPorOperario`). Sin él, cuenta solo su parte en la primera OF:
+   *  revisando tres pedidos a la vez avanzaba un segundo de cada tres y
+   *  parecía atascado. */
+  relojDe?: (operarioId: string) => RelojPersona | undefined;
   className?: string;
 }) {
   const unicos = vivos.filter((v, i) => vivos.findIndex((w) => w.operarioId === v.operarioId) === i);
   if (!unicos.length) return null;
   return (
     <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>
-      {unicos.map((v) => (
-        <span
-          key={v.operarioId}
-          className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ${ROL[v.rol].texto}`}
-          title={`${nombre(v.operarioId)} ${v.rol === "revisar" ? "revisando" : "planteando"} ahora`}
-        >
-          <LiveDot rol={v.rol} className="size-1.5" />
-          {nombre(v.operarioId)}
-          <RelojVivo desde={v.desde} className="font-semibold" />
-        </span>
-      ))}
+      {unicos.map((v) => {
+        const r = relojDe?.(v.operarioId);
+        return (
+          <span
+            key={v.operarioId}
+            className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ${ROL[v.rol].texto}`}
+            title={`${nombre(v.operarioId)} ${v.rol === "revisar" ? "revisando" : "planteando"} ahora${
+              r && r.pedidos > 1 ? ` (${r.pedidos} pedidos a la vez; el reloj es el de todos)` : ""
+            }`}
+          >
+            <LiveDot rol={v.rol} className="size-1.5" />
+            {nombre(v.operarioId)}
+            <RelojVivo
+              desde={v.desde}
+              previoSeg={r?.previoSeg ?? v.previoSeg}
+              parte={r?.parte ?? v.parte}
+              className="font-semibold"
+            />
+          </span>
+        );
+      })}
     </span>
   );
+}
+
+/** El reloj de una persona sobre TODO lo que tiene en marcha. */
+export interface RelojPersona {
+  previoSeg: number;
+  parte: number;
+  pedidos: number;
+}
+
+/** Suma, por persona, lo de todas las OF de su reloj: lo que llevaba y la
+ *  parte del tramo de cada una (juntas hacen el tramo entero). */
+export function relojesPorOperario(pedidos: readonly Pedido[]): Map<string, RelojPersona> {
+  const m = new Map<string, RelojPersona & { vistos: Set<string> }>();
+  for (const p of pedidos)
+    for (const of of p.ofs)
+      for (const v of of.fichandoAhora ?? []) {
+        const r = m.get(v.operarioId) ?? { previoSeg: 0, parte: 0, pedidos: 0, vistos: new Set<string>() };
+        r.previoSeg += v.previoSeg ?? 0;
+        r.parte += v.parte ?? 1;
+        if (!r.vistos.has(p.id)) {
+          r.vistos.add(p.id);
+          r.pedidos++;
+        }
+        m.set(v.operarioId, r);
+      }
+  return m;
 }
