@@ -48,6 +48,7 @@ export function HistorialTareas({
       tipo="tareas"
       abiertoDeSalida={abrirAlMontar}
       className={className}
+      piezasHundidas
     >
       {/* Con color, como la consulta: el código de la OF y los tiempos se
           recorren con la vista sin leerlo todo. */}
@@ -151,15 +152,15 @@ function CentroTareas({
         <span className={`font-mono tabular-nums ${acento}`}>{fmtMin(centro.totalMin)}</span>
       </h4>
       {extraCentro?.(centro)}
-      {/* CADA OF EN SU TARJETA, y no un texto seguido sobre el fondo del
-          bloque: era todo el mismo gris y había que leerlo entero para ver
-          dónde acababa una OF (Iván, 16/10/2026). La tarjeta lleva a la
-          izquierda el color de su centro. */}
+      {/* CADA OF EN SU PIEZA HUNDIDA, como cada nota en «Notas», y no un
+          texto seguido sobre el fondo del bloque: era todo el mismo gris y
+          había que leerlo entero para ver dónde acababa una OF (Iván,
+          16/10/2026). Lleva a la izquierda el color de su centro. */}
       <div className="space-y-2">
         {centro.ofs.map((of) => (
           <div
             key={of.codigo}
-            className={`overflow-hidden rounded-lg border border-border border-l-[3px] bg-surface text-xs shadow-sm ${tono.raya}`}
+            className={`recuadro overflow-hidden rounded-lg border-l-[3px] text-xs ${tono.raya}`}
           >
             {/* TRES ESCALONES, y se distinguen por peso y tamaño, no por
                 sangría sola: el centro (14 px, negrita), la OF (12 px,
@@ -169,7 +170,7 @@ function CentroTareas({
                 es una matrícula que se compara con la vista, y la descripción
                 se lee. Mezclarlos en mono hacía la descripción más lenta de
                 leer. */}
-            <p className="flex items-baseline justify-between gap-3 border-b border-border bg-surface-2 px-2.5 py-1.5">
+            <p className="flex items-baseline justify-between gap-3 border-b border-border px-2.5 py-1.5">
               <span className="min-w-0 font-semibold leading-snug">
                 <span className={`font-mono ${acento}`}>{of.codigo}</span>
                 {" · "}
@@ -386,6 +387,7 @@ export function TareasDelPedido({
       titulo="Tareas y tiempos"
       tipo="tareas"
       className={className}
+      piezasHundidas
       onAbrir={() => { if (!ofs && estado !== "cargando") void cargar(); }}
     >
       {ofs && <TareasPorCentro ofs={ofs} seccion={seccion} conColor />}
