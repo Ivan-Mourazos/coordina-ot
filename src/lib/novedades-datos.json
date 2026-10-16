@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "05c0c9b",
+    "hasta": "347052e",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -19,6 +19,11 @@
         "tipo": "arreglado",
         "titulo": "Al revisar, la fila y el botón de pausar salían en verde, como si estuvieras planteando",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En las filas de pedidos de otros se veía un recuadro blanco a la derecha",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
