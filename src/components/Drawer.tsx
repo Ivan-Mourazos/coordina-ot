@@ -1210,6 +1210,7 @@ export function Drawer({
                 onAccion={onAccion}
                 onFichar={onFichar}
                 impedidoRevision={impedidoPorGuia}
+                causasGuia={fallosGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
                 onCoger={paraCoger.some((o) => o.id === of.id) ? () => onCoger?.([of.id]) : undefined}
@@ -1383,6 +1384,7 @@ function OFRow({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  causasGuia,
   plegable = false,
   abierta = true,
   onAlternar,
@@ -1400,6 +1402,7 @@ function OFRow({
   /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
    *  la guía sin mirar), o null si se puede. */
   impedidoRevision?: string | null;
+  causasGuia?: readonly number[];
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
@@ -1743,6 +1746,7 @@ function OFRow({
               onDesfichar={onDesfichar}
               fichandoYoEsta={fichandoYoEsta}
               impedidoRevision={impedidoRevision}
+              causasGuia={causasGuia}
               onCoger={onCoger}
             />
           )}
@@ -1775,6 +1779,7 @@ function AccionesOF({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  causasGuia,
   onCoger,
 }: {
   onCoger?: () => void;
@@ -1784,6 +1789,10 @@ function AccionesOF({
   /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
    *  dar por buena una OF sin haberla repasado entera es lo que se evita. */
   impedidoRevision?: string | null;
+  /** Las causas de lo que la guía marcó como fallo: llegan ya puestas al
+   *  devolver. Faltaban aquí, en el botón de cada OF —el que se usa casi
+   *  siempre—, y había que volver a elegirlas (Iván, 16/10/2026). */
+  causasGuia?: readonly number[];
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
    *  aprobar ni devolver: esas suben al bloque del pedido. */
   revisionPorPedido: boolean;
@@ -2024,8 +2033,13 @@ function AccionesOF({
           return (
             <DevolverInline
               key={a.id}
-              label={a.label}
+              label={
+                causasGuia?.length
+                  ? `Devolver con ${causasGuia.length} ${causasGuia.length === 1 ? "causa" : "causas"}`
+                  : a.label
+              }
               miId={miId}
+              causasSugeridas={causasGuia}
               impedido={impedidoRevision}
               familias={of.familia ? [of.familia] : undefined}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}
