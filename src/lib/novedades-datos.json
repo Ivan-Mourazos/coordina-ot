@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "58d9798",
+    "hasta": "f9e5031",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -46,6 +46,12 @@
         "titulo": "En la ficha, el tiempo fichado en la web salía a cero tras pausar",
         "detalle": "Al pausar, el tiempo pasa a RPS y la caja dejaba de contarlo; ahora sigue saliendo.",
         "tanda": 11
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Pendientes, el tiempo de un pedido que se está fichando salía repetido y sin cuadrar",
+        "detalle": "Ahora va una sola vez en cada sitio, en minutos, y lo de las OF suma el total del pedido.",
+        "tanda": 12
       },
       {
         "tipo": "mejor",
