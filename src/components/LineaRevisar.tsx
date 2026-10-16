@@ -118,7 +118,7 @@ export function LineaRevisar({
 
       <span
         className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${
-          fichandoYo.length > 0 ? "bg-inherit" : "group-hover:bg-inherit"
+          fichandoYo.length > 0 ? "[background:inherit]" : "group-hover:[background:inherit]"
         }`}
       >
         {soloLectura ? null : fichandoYo.length > 0 ? (

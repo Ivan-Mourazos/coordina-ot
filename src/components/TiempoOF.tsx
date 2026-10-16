@@ -105,7 +105,11 @@ export function TiempoOF({
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
 
   return (
-    <div className="recuadro mt-2 rounded-lg px-2 py-1.5">
+    // `detalle-hundido` y no `recuadro`: dentro de la tarjeta de la OF, el
+    // hundido de siempre (casi negro en oscuro) era un agujero y lo que más
+    // llamaba de la ficha, siendo un dato de consulta. Este es un escalón
+    // menos, el del interior de las filas desplegadas (Iván, 16/10/2026).
+    <div className="detalle-hundido mt-2 rounded-lg px-2 py-1.5">
       <div className="flex items-baseline gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
           Tiempo

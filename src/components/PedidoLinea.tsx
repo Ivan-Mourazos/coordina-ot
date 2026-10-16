@@ -383,7 +383,7 @@ export function PedidoLinea({
         // franja `bg-inherit`): así la cuenta de OF queda a la derecha del todo
         // en reposo, que es cuando se lee, y el botón solo aparece al pasar el
         // ratón — sobre el hueco que deja la fecha, que se esconde sola.
-        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center rounded-r-lg bg-inherit pl-4 [&>*]:pointer-events-auto">
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center rounded-r-lg pl-4 group-hover:[background:inherit] focus-within:[background:inherit] [&>*]:pointer-events-auto">
           {onCoger && !soloLectura ? (
             <button
               type="button"
@@ -437,7 +437,7 @@ export function PedidoLinea({
         // el reloj en marcha). Puesto siempre, la franja vacía velaba lo que
         // tenía debajo —el fondo de la fila es translúcido— y la fecha del final
         // se leía a medias: "05/1" y el "0" apagado.
-        <span className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${fichandoYo.length > 0 ? "bg-inherit" : "group-hover:bg-inherit"}`}>
+        <span className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${fichandoYo.length > 0 ? "[background:inherit]" : "group-hover:[background:inherit]"}`}>
         {/* Pausa: siempre visible mientras se ficha. */}
         {/* Fichar es el único camino para empezar: arranca el reloj y saca la
             OF de "sin empezar" (ver `arrancarFichaje` en Board).
