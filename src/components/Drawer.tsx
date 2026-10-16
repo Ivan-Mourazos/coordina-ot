@@ -1535,11 +1535,15 @@ function OFRow({
             </p>
           )}
 
+          {/* Como la línea de Producción: gris y sin caja. Con caja azul era la
+              única línea de dato con fondo, entre otras que no lo llevan, y
+              parecía un aviso. El fondo de color queda para lo que avisa
+              (compras que faltan, devolución) (Iván, 16/10/2026). */}
           {of.rotulacion && (
-            <p className="mt-1.5 flex items-start gap-1.5 rounded-md bg-sky-500/10 px-2.5 py-1 text-[11px] text-sky-700 dark:text-sky-300">
+            <p className="mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] text-text-muted">
               <IconoEtiqueta className="mt-px size-3.5" />
               <span>
-                Rotulación: <b>{of.rotulacion}</b>
+                Rotulación: <b className="font-semibold text-text">{of.rotulacion}</b>
               </span>
             </p>
           )}
