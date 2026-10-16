@@ -6,7 +6,7 @@ import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveBadge, LiveDot } from "./LiveBadge";
+import { LiveBadge, LiveDot, QuienFicha } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { DetalleVenta } from "./DetalleVenta";
@@ -1431,6 +1431,14 @@ function OFRow({
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
+        {/* Quién y desde cuándo, con el reloj corriendo: también el de un
+            compañero, que antes no salía. */}
+        {of.fichandoAhora && (
+          <QuienFicha
+            vivos={of.fichandoAhora}
+            nombre={(id) => operarios.find((o) => o.id === id)?.nombre ?? id}
+          />
+        )}
         {/* Detenida por Producción: no se puede fichar y no depende de OT
             resolverlo. Tiene que verse aquí, que es donde se decide qué coger:
             hasta ahora solo se enteraba uno al intentar fichar. */}

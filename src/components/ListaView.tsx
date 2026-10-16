@@ -19,7 +19,7 @@ import { estadoDePedido, type TramoEstado } from "@/lib/frase-estado";
 import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveDot } from "./LiveBadge";
+import { LiveDot, QuienFicha } from "./LiveBadge";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { useAcordeon } from "./Acordeon";
@@ -513,7 +513,7 @@ export function ListaView({
               tarjeta
               fichando={fichando}
               celdas={compacta ? (
-                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} onOpen={onOpen} />
+                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} nombre={nombrePorId} onOpen={onOpen} />
               ) : (
                 <>
                   {/* ─── La celda de identidad ───────────────────────────
@@ -541,12 +541,10 @@ export function ListaView({
                         · {p.ofs.length} OF
                       </span>
                       {fichando && (
-                        <span
-                          title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"}
-                          className="inline-flex"
-                        >
-                          <LiveDot rol={fichando} />
-                        </span>
+                        <QuienFicha
+                          vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
+                          nombre={(id) => nombrePorId(id).split(" ")[0]}
+                        />
                       )}
                       {familiasDe(p).map((f) => (
                         <FamiliaTag key={f} familia={f} />
@@ -634,6 +632,7 @@ function CeldasCompactas({
   tramos,
   fase,
   fichando,
+  nombre,
   onOpen,
 }: {
   p: Pedido;
@@ -641,6 +640,8 @@ function CeldasCompactas({
   tramos: TramoEstado[];
   fase: { texto: string; color: string; tinta: string } | null;
   fichando: "plantear" | "revisar" | null;
+  /** Nombre del operario, para decir quién está fichando. */
+  nombre?: (id: string) => string;
   onOpen?: (p: Pedido) => void;
 }) {
   const familias = familiasDe(p);
@@ -669,9 +670,10 @@ function CeldasCompactas({
           </span>
         )}
         {fichando && (
-          <span title={fichando === "revisar" ? "Revisando ahora" : "Planteando ahora"} className="inline-flex">
-            <LiveDot rol={fichando} />
-          </span>
+          <QuienFicha
+            vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
+            nombre={(id) => (nombre?.(id) ?? id).split(" ")[0]}
+          />
         )}
       </div>
       <span

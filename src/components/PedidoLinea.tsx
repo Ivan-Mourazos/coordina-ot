@@ -17,6 +17,7 @@ import { fmtMin } from "@/lib/estado";
 import { IconoCandado, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
 import { FamiliaTag } from "./FamiliaTag";
+import { QuienFicha } from "./LiveBadge";
 import { hoyISO } from "@/lib/types";
 import { useSoloLectura } from "./SoloLectura";
 
@@ -273,7 +274,11 @@ export function PedidoLinea({
           {fichandoAlguien && (
             <span
               title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
-              className="size-1.5 shrink-0 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"
+              className={`size-1.5 shrink-0 rounded-full ring-2 ${
+                fichandoAlguien.fichandoRol === "revisar"
+                  ? "bg-violet-500 ring-violet-500/30"
+                  : "bg-emerald-500 ring-emerald-500/30"
+              }`}
             />
           )}
           {detenidoDelTodo && (
@@ -317,6 +322,14 @@ export function PedidoLinea({
             {/* Columna 3: los avisos del pedido y el cliente. */}
             <span className="flex min-w-0 items-center gap-2">
               {avisos}
+              {/* Quién lo ficha y cuánto lleva, con el reloj corriendo. Delante
+                  del cliente, que es lo que cede si no hay sitio. */}
+              {fichandoAlguien && (
+                <QuienFicha
+                  vivos={ofs.flatMap((o) => o.fichandoAhora ?? [])}
+                  nombre={(id) => (operarios?.find((o) => o.id === id)?.nombre ?? id).split(" ")[0]}
+                />
+              )}
               <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
                 {pedido.cliente}
               </span>

@@ -251,6 +251,15 @@ export interface RitmoVivoOF {
   porOperario: FichajeWebOF[];
 }
 
+/** Alguien con el reloj en marcha en una OF: quién, en qué papel y desde
+ *  cuándo. Ver `OF.fichandoAhora`. */
+export interface FichandoAhora {
+  operarioId: string;
+  rol: Rol;
+  /** ISO. Inicio del tramo abierto: de aquí sale el contador que corre. */
+  desde: string;
+}
+
 /** Orden de Fabricación: una unidad del pedido (p.ej. cada remolque). */
 export interface OF {
   id: string;
@@ -420,6 +429,16 @@ export interface OF {
    *
    *  undefined = nadie la está fichando. */
   ritmoVivo?: RitmoVivoOF;
+  /** Quién la está fichando AHORA desde la web, sea quien sea: el servidor
+   *  lo saca de los tramos abiertos de todo el equipo. Hasta el 16/10/2026 el
+   *  navegador solo conocía el reloj propio y el de los compañeros no se veía
+   *  en ningún sitio (Iván: «que de verdad aparezcan los fichajes de los
+   *  demás»).
+   *
+   *  Va aparte de `ritmoVivo` porque aquél desaparece cuando el tiempo de RPS
+   *  manda sobre el de la web, y que alguien esté fichando no depende de eso.
+   *  undefined = nadie. */
+  fichandoAhora?: FichandoAhora[];
   /** El desglose de ESOS mismos minutos, persona a persona, según RPS.
    *
    *  `tiempoPlanteoMin` es su suma, así que las dos cifras no pueden

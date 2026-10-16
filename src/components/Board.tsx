@@ -54,7 +54,7 @@ import {
   avisaParteNuevo,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
-import { ahoraDelServidor, desfaseDeCabecera } from "@/lib/reloj-servidor";
+import { ahoraDelServidor, desfaseDeCabecera, fijarDesfaseServidor } from "@/lib/reloj-servidor";
 import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
@@ -104,6 +104,8 @@ export interface LiveInfo {
   rol: Rol;
   pedido: Pedido;
   of: OF;
+  /** ISO. Desde cuándo corre su reloj: el contador de la tarjeta. */
+  desde: string;
 }
 
 /** Vista que pide la URL, si pide alguna.
@@ -424,24 +426,54 @@ export function Board({
     const d = desfaseDeCabecera(cabecera, Date.now());
     // Se guarda siempre el último: si a alguien le cambian la hora del portátil
     // a media mañana, la siguiente respuesta lo recoloca sin recargar.
-    if (d !== null) setDesfaseServidor(d);
+    if (d !== null) {
+      setDesfaseServidor(d);
+      fijarDesfaseServidor(d);
+    }
   }, []);
 
   // fichandoRol de cada OF se DERIVA del intervalo abierto (denormalizado en
   // pedidos para que LiveBadge, chips y contadores existentes sigan
   // funcionando sin tocarlos).
+  //
+  // El MÍO manda (es el más fresco: el del servidor llega cada 30 s); si no,
+  // el de un compañero (`fichandoAhora`, del servidor). Antes solo contaba el
+  // mío y el de los demás se borraba aquí: sus fichajes no se veían en
+  // ninguna parte (Iván, 16/10/2026).
   useEffect(() => {
     const ab = abierto(fichaje);
+    // `fichandoAhora` también lleva el MÍO, sacado de mi reloj: el servidor lo
+    // trae con hasta 30 s de retraso, y así toda la página lee de un solo
+    // sitio quién ficha qué. Los míos que mande el servidor se descartan
+    // (pueden ser de un tramo que ya pausé).
+    const vivosDe = (of: OF) => {
+      const otros = (of.fichandoAhora ?? []).filter((f) => f.operarioId !== miId);
+      const mio = ab && ab.ofIds.includes(of.id) ? [{ operarioId: ab.operarioId, rol: ab.rol, desde: ab.inicio }] : [];
+      const todos = [...mio, ...otros];
+      return todos.length ? todos : undefined;
+    };
+    const igual = (of: OF) => {
+      const v = vivosDe(of);
+      return of.fichandoRol === (v?.[0]?.rol ?? null) && JSON.stringify(of.fichandoAhora) === JSON.stringify(v);
+    };
+    // Mismos objetos si nada cambia: este efecto depende de `pedidosBase` y lo
+    // reescribe, así que una copia nueva sin cambios lo volvería a disparar.
+    if (pedidosRef.current.every((p) => p.ofs.every(igual))) return;
     setPedidosSync((prev) =>
-      prev.map((p) => ({
-        ...p,
-        ofs: p.ofs.map((of) => {
-          const rol = ab && ab.ofIds.includes(of.id) ? ab.rol : null;
-          return of.fichandoRol === rol ? of : { ...of, fichandoRol: rol };
-        }),
-      })),
+      prev.map((p) =>
+        p.ofs.every(igual)
+          ? p
+          : {
+              ...p,
+              ofs: p.ofs.map((of) => {
+                if (igual(of)) return of;
+                const v = vivosDe(of);
+                return { ...of, fichandoRol: v?.[0]?.rol ?? null, fichandoAhora: v };
+              }),
+            },
+      ),
     );
-  }, [fichaje, setPedidosSync]);
+  }, [fichaje, setPedidosSync, pedidosBase, miId]);
 
   // OFs de MI intervalo abierto. `fichandoRol` de una OF dice que alguien la
   // ficha, no que la fiche yo: sin esto la fila ofreceria pausar el fichaje de
@@ -898,21 +930,26 @@ export function Board({
   // El operario es el del INTERVALO abierto (quien ficha de verdad), no el
   // autor/revisor de la OF: fichar en OFs de un compañero está permitido y
   // el tiempo debe verse a nombre de quien lo está echando.
+  //
+  // TODO EL EQUIPO, no solo yo: el mío sale de mi reloj (lo más fresco) y el
+  // de cada compañero de `fichandoAhora`, que manda el servidor. Hasta el
+  // 16/10/2026 aquí solo entraba el propio, y la tarjeta de un compañero no
+  // decía nunca que estuviera fichando.
+  // `fichandoAhora` ya lleva el mío y el de cada compañero (ver el efecto de
+  // arriba que lo completa con mi reloj).
   const liveByOp = useMemo(() => {
     const map = new Map<string, LiveInfo>();
-    const ab = abierto(fichaje);
-    if (!ab) return map;
-    const op = operarios.find((o) => o.id === ab.operarioId);
-    if (!op) return map;
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
-        if (of.fichandoRol && ab.ofIds.includes(of.id) && !map.has(op.id)) {
-          map.set(op.id, { operario: op, rol: ab.rol, pedido: p, of });
+        for (const f of of.fichandoAhora ?? []) {
+          if (map.has(f.operarioId)) continue;
+          const op = operarios.find((o) => o.id === f.operarioId);
+          if (op) map.set(f.operarioId, { operario: op, rol: f.rol, pedido: p, of, desde: f.desde });
         }
       }
     }
     return map;
-  }, [procesadosAll, operarios, fichaje]);
+  }, [procesadosAll, operarios]);
 
   // Los compañeros del bloque «Equipo»: con tarjeta quien lleva algo, y el
   // resto en la línea «Libres» (ver lib/equipo.ts). Llevar algo es tener OF

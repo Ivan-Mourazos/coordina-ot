@@ -9,6 +9,7 @@ import { PedidoLinea } from "./PedidoLinea";
 import { LineaRevisar } from "./LineaRevisar";
 import type { FacetRevision } from "@/lib/revision";
 import { LiveDot } from "./LiveBadge";
+import { RelojVivo } from "./RelojVivo";
 import { ROL } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
 
@@ -130,6 +131,7 @@ export function ZonaPersonal({
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}
+            <RelojVivo desde={live.desde} className="font-normal opacity-90" />
           </span>
         )}
       </div>

@@ -8,6 +8,7 @@ import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
 import { PedidoLinea } from "./PedidoLinea";
 import { LiveDot } from "./LiveBadge";
+import { RelojVivo } from "./RelojVivo";
 import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 import { tintaSobre } from "@/lib/tinta";
 
@@ -75,6 +76,7 @@ export function PanelCompanero({
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}
+            <RelojVivo desde={live.desde} className="font-normal opacity-90" />
           </span>
         )}
 
