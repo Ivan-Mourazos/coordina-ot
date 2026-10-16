@@ -1,8 +1,14 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "347052e",
+    "hasta": "835d226",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Ves quién del equipo está fichando y cuánto lleva, con el reloj corriendo",
+        "detalle": "En su tarjeta del Panel, en la fila del pedido y en la ficha: verde si plantea, violeta si revisa.",
+        "tanda": 5
+      },
       {
         "tipo": "arreglado",
         "titulo": "En Métricas salían muchas menos revisiones de las que se hacían",
