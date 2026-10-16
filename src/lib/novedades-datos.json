@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "835d226",
+    "hasta": "b4f6916",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -70,6 +70,12 @@
         "titulo": "El pedido que estás fichando se ve de un vistazo en Pendientes",
         "detalle": "La fila se pinta de verde si planteas y de violeta si revisas.",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tarjetas del equipo dicen quién está fichando y quién no",
+        "detalle": "Todas miden igual: quien no ficha sale como «Sin fichar ahora».",
+        "tanda": 6
       }
     ]
   },
