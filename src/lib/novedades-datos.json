@@ -1,13 +1,19 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "f9e5031",
+    "hasta": "adcdc1d",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Ves quién del equipo está fichando y cuánto lleva, con el reloj corriendo",
         "detalle": "En su tarjeta del Panel, en la fila del pedido y en la ficha: verde si plantea, violeta si revisa.",
         "tanda": 5
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En la ficha ves también las OF del pedido que no son de Oficina Técnica",
+        "detalle": "Salen plegadas, como las de taller, con su ruta; si les ponen una tarea de OT pasan solas a ser normales.",
+        "tanda": 13
       },
       {
         "tipo": "arreglado",
@@ -52,6 +58,11 @@
         "titulo": "En Pendientes, el tiempo de un pedido que se está fichando salía repetido y sin cuadrar",
         "detalle": "Ahora va una sola vez en cada sitio, en minutos, y lo de las OF suma el total del pedido.",
         "tanda": 12
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al abrir un pedido podía salir «ya se han mandado a revisión» de otro pedido",
+        "tanda": 13
       },
       {
         "tipo": "mejor",
