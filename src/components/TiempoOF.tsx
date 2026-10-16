@@ -2,7 +2,9 @@
 
 import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
-import { fmtMin } from "@/lib/estado";
+import { fmtMin, ROL } from "@/lib/estado";
+import { LiveDot } from "./LiveBadge";
+import { RelojVivo } from "./RelojVivo";
 
 /** En minutos enteros, como el reloj de una pared: "1m", "2m"… El tiempo de
  *  una OF que se está fichando corre (ver lib/tiempo-vivo.ts) y con segundos
@@ -73,6 +75,12 @@ function filas(of: OF, opById: (id: string | null) => Operario | null): Fila[] {
     const f = dame(w.operarioId, op?.nombre ?? "Nombre no disponible", op);
     f.webMin += w.planteoMin + w.revisionMin;
     if (w.revisionMin > 0 && w.planteoMin === 0) f.soloRevision = true;
+  }
+  // Quien acaba de pulsar Fichar aún no suma un minuto, pero ya está aquí.
+  for (const v of of.fichandoAhora ?? []) {
+    const op = opById(v.operarioId);
+    const f = dame(v.operarioId, op?.nombre ?? "Nombre no disponible", op);
+    if (v.rol === "revisar" && f.rpsMin === 0 && f.webMin === 0) f.soloRevision = true;
   }
   return [...m.values()].sort((a, b) => b.rpsMin + b.webMin - (a.rpsMin + a.webMin));
 }
@@ -168,6 +176,23 @@ export function TiempoOF({
                     </span>
                   )}
                 </span>
+                {/* Fichando AHORA: su reloj, al segundo y del color del rol. Va
+                    aquí, junto a su nombre, y no en la cabecera de la OF, donde
+                    no cabía (Iván, 16/10/2026). */}
+                {(() => {
+                  const vivo = of.fichandoAhora?.find((v) => v.operarioId === f.clave);
+                  return (
+                    vivo && (
+                      <span
+                        className={`flex shrink-0 items-center gap-1 font-semibold ${ROL[vivo.rol].texto}`}
+                        title={vivo.rol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+                      >
+                        <LiveDot rol={vivo.rol} className="size-1.5" />
+                        <RelojVivo desde={vivo.desde} />
+                      </span>
+                    )
+                  );
+                })()}
                 {dosColumnas ? (
                   <>
                     <span className="w-14 shrink-0 text-right tabular-nums text-text">
