@@ -1,17 +1,13 @@
 "use client";
 
 import type { FichandoAhora, OF, Operario } from "@/lib/types";
-import { fmtMin, ROL } from "@/lib/estado";
+import { fmtMin, fmtMinEnteros, ROL } from "@/lib/estado";
 import { LiveDot } from "./LiveBadge";
 import { RelojVivo } from "./RelojVivo";
 import { OpDot } from "./Select";
 
-/** En minutos enteros, como el reloj de una pared: "1m", "2m"… El tiempo de
- *  una OF que se está fichando corre (ver lib/tiempo-vivo.ts) y con segundos
- *  cambiaba cada pocos, "10s, 20s, 1m 10s", que se leía raro. Lo pidió Iván
- *  el 23/09/2026: que sume de minuto en minuto. Hacia abajo, para que no diga
- *  un minuto que todavía no se ha cumplido. */
-const enMinutos = (min: number) => fmtMin(Math.floor(min + 1e-9));
+// En minutos enteros (ver `fmtMinEnteros`): lo que corre al segundo es el reloj.
+const enMinutos = fmtMinEnteros;
 
 // ─── El tiempo de una OF, en la ficha de Pendientes ──────────────────────────
 // LO FICHADO EN LA WEB, Y PARTIDO EN PLANTEAR Y REVISIÓN (Iván, 16/10/2026).
