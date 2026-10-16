@@ -60,8 +60,18 @@ function Celda({ min, vivo }: { min: number; vivo: FichandoAhora | undefined }) 
     return (
       <span
         className={`flex w-[4.75rem] shrink-0 items-center justify-end gap-1 font-semibold ${ROL[vivo.rol].texto}`}
-        title={vivo.rol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+        title={`${vivo.rol === "revisar" ? "Revisando" : "Planteando"} ahora${
+          (vivo.parte ?? 1) < 1
+            ? ` ${Math.round(1 / (vivo.parte ?? 1))} OF a la vez: a esta le toca su parte, y su reloj va más despacio`
+            : ""
+        }`}
       >
+        {/* Con varias OF en el mismo reloj, esta OF suma solo su parte: sin
+            decirlo, su contador avanzando un segundo de cada tres parecía
+            atascado. */}
+        {(vivo.parte ?? 1) < 1 && (
+          <span className="font-normal text-text-muted">÷{Math.round(1 / (vivo.parte ?? 1))}</span>
+        )}
         <LiveDot rol={vivo.rol} className="size-1.5" />
         <RelojVivo desde={vivo.desde} previoSeg={vivo.previoSeg} parte={vivo.parte} />
       </span>

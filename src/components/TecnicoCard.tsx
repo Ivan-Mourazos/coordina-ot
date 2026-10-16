@@ -144,13 +144,22 @@ export const TecnicoCard = memo(function TecnicoCard({
         {live && (
           <div
             className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
-            title={`${live.pedido.codigo} · ${live.of.descripcion}`}
+            title={live.pedidos.map((p) => `${p.codigo} · ${p.cliente}`).join("\n")}
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             <span className="shrink-0">{live.rol === "revisar" ? "Revisando" : "Planteando"}</span>
-            <span className="min-w-0 truncate">
-              {live.pedido.codigo} <span className="font-normal text-text-muted">· {live.pedido.cliente}</span>
-            </span>
+            {/* Con VARIOS pedidos a la vez, cuántos y sus códigos (el cliente
+                ya no cabe; sale al pasar el ratón). Con uno, código y cliente. */}
+            {live.pedidos.length > 1 ? (
+              <span className="min-w-0 truncate">
+                {live.pedidos.length} pedidos{" "}
+                <span className="font-normal text-text-muted">· {live.pedidos.map((p) => p.codigo).join(" · ")}</span>
+              </span>
+            ) : (
+              <span className="min-w-0 truncate">
+                {live.pedido.codigo} <span className="font-normal text-text-muted">· {live.pedido.cliente}</span>
+              </span>
+            )}
             <RelojVivo desde={live.desde} previoSeg={live.previoSeg} parte={live.parte} className="ml-auto shrink-0 font-bold" />
           </div>
         )}

@@ -107,9 +107,15 @@ export interface LiveInfo {
   of: OF;
   /** ISO. Desde cuándo corre su reloj: el contador de la tarjeta. */
   desde: string;
-  /** Ver `FichandoAhora`: lo que ya llevaba en esa OF, y su parte del tramo. */
+  /** Ver `FichandoAhora`: lo que ya llevaba, y la parte del tramo. Sumados
+   *  sobre TODAS las OF de su reloj, para que el contador sea el de todo lo
+   *  que está fichando y no el de la primera OF. */
   previoSeg?: number;
   parte?: number;
+  /** Todos los pedidos de su reloj. Con un compañero revisando tres a la vez,
+   *  la tarjeta decía solo el primero (Iván, 16/10/2026). `pedido` es el
+   *  primero de esta lista. */
+  pedidos: Pedido[];
 }
 
 /** Vista que pide la URL, si pide alguna.
@@ -957,9 +963,21 @@ export function Board({
     for (const p of procesadosAll) {
       for (const of of p.ofs) {
         for (const f of of.fichandoAhora ?? []) {
-          if (map.has(f.operarioId)) continue;
+          const ya = map.get(f.operarioId);
+          if (ya) {
+            // Otra OF del mismo reloj: suma a su contador y, si es de otro
+            // pedido, a la lista de pedidos.
+            ya.previoSeg = (ya.previoSeg ?? 0) + (f.previoSeg ?? 0);
+            ya.parte = (ya.parte ?? 0) + (f.parte ?? 0);
+            if (!ya.pedidos.includes(p)) ya.pedidos.push(p);
+            continue;
+          }
           const op = operarios.find((o) => o.id === f.operarioId);
-          if (op) map.set(f.operarioId, { operario: op, rol: f.rol, pedido: p, of, desde: f.desde, previoSeg: f.previoSeg, parte: f.parte });
+          if (op)
+            map.set(f.operarioId, {
+              operario: op, rol: f.rol, pedido: p, of, desde: f.desde,
+              previoSeg: f.previoSeg ?? 0, parte: f.parte ?? 1, pedidos: [p],
+            });
         }
       }
     }

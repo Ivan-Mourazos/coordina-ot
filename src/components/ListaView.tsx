@@ -19,7 +19,7 @@ import { estadoDePedido, type TramoEstado } from "@/lib/frase-estado";
 import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveDot, QuienFicha } from "./LiveBadge";
+import { LiveDot, QuienFicha, relojesPorOperario, type RelojPersona } from "./LiveBadge";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { useAcordeon } from "./Acordeon";
@@ -441,6 +441,12 @@ export function ListaView({
     const m = new Map(operarios.map((o) => [o.id, o.nombre]));
     return (id: string) => m.get(id) ?? id;
   }, [operarios]);
+  // El reloj de cada persona sobre todo lo que ficha, para que en la fila
+  // corra entero aunque esté con varios pedidos a la vez (ver QuienFicha).
+  const relojDe = useMemo(() => {
+    const m = relojesPorOperario(pedidos);
+    return (id: string) => m.get(id);
+  }, [pedidos]);
 
   const ordenados = useMemo(() => {
     const nombres = new Map(operarios.map((o) => [o.id, o.nombre]));
@@ -513,7 +519,7 @@ export function ListaView({
               tarjeta
               fichando={fichando}
               celdas={compacta ? (
-                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} nombre={nombrePorId} onOpen={onOpen} />
+                <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} nombre={nombrePorId} relojDe={relojDe} onOpen={onOpen} />
               ) : (
                 <>
                   {/* ─── La celda de identidad ───────────────────────────
@@ -544,6 +550,7 @@ export function ListaView({
                         <QuienFicha
                           vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
                           nombre={(id) => nombrePorId(id).split(" ")[0]}
+                          relojDe={relojDe}
                         />
                       )}
                       {familiasDe(p).map((f) => (
@@ -633,6 +640,7 @@ function CeldasCompactas({
   fase,
   fichando,
   nombre,
+  relojDe,
   onOpen,
 }: {
   p: Pedido;
@@ -642,6 +650,7 @@ function CeldasCompactas({
   fichando: "plantear" | "revisar" | null;
   /** Nombre del operario, para decir quién está fichando. */
   nombre?: (id: string) => string;
+  relojDe?: (id: string) => RelojPersona | undefined;
   onOpen?: (p: Pedido) => void;
 }) {
   const familias = familiasDe(p);
@@ -673,6 +682,7 @@ function CeldasCompactas({
           <QuienFicha
             vivos={p.ofs.flatMap((o) => o.fichandoAhora ?? [])}
             nombre={(id) => (nombre?.(id) ?? id).split(" ")[0]}
+            relojDe={relojDe}
           />
         )}
       </div>
