@@ -83,6 +83,7 @@
      OF, tareas y tiempos, «Tiempo»). surface-2 (#f4f5f7) sobre blanco no se
      veía: hace falta un gris de verdad (Iván, 15/10/2026). */
   --recuadro: #dfe3e8;
+  --detalle: #eceff3;
   /* Franja de cada centro en las tareas, y cabecera del pedido abierto en las
      listas. En claro, la misma franja gris para todos; en oscuro cada centro
      lleva su tono (ver el bloque «Metal» al final del fichero). */
@@ -220,6 +221,7 @@
   --franja: #3a3d45;
   /* Hundido: por debajo del panel, casi negro, como fresado en la placa. */
   --recuadro: #141518;
+  --detalle: #26282d;
   /* Tonos oscuros de cada centro: OT el dorado de la casa, Diseño ciruela,
      Impresión petróleo, Taller acero. */
   --franja-ot: #3b2f15;
@@ -1351,6 +1353,21 @@ body {
 :root .detalle-hundido {
   background: var(--recuadro);
   box-shadow: var(--hundido-sombra);
+}
+
+/* El detalle de una fila abierta, UN ESCALÓN menos hundido que `.recuadro`:
+   los avisos de Producción y el comentario del comercial van hundidos dentro
+   de él, y con el mismo fondo no se distinguían (Iván, 16/10/2026). */
+:root .detalle-hundido {
+  background: var(--detalle);
+}
+
+/* Cabecera de la fila abierta: igual que cerrada (fondo de fila, veta y
+   relieve). El tinte dorado de oscuro no convencía; lo abierto ya lo marca la
+   raya dorada de la izquierda (Iván, 16/10/2026). */
+:root .cabecera-abierta {
+  background-color: var(--fila);
+  background-image: var(--veta), var(--relieve);
 }
 
 /* La tira de pestañas lleva `glass-chip` por herencia, pero es solo el hueco

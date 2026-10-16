@@ -105,12 +105,13 @@ export function FilaDesplegable({
       {/* Abierta: cabecera en el fondo de fila (blanco en claro), y debajo el
           detalle hundido en gris. El crema dorado translúcido se leía
           amarillento, y un gris en la cabecera hacía que el pedido abierto
-          pareciera apagado (Iván, 15/10/2026). La raya dorada de la izquierda
-          dice cuál está abierto. */}
+          pareciera apagado (Iván, 15/10/2026). Después fue dorado oscuro en
+          oscuro, y tampoco: ahora es la misma que cerrada (16/10/2026). La
+          raya dorada de la izquierda dice cuál está abierto. */}
       <div
         ref={cabecera}
         className={`relative ${columnas} px-3 py-1.5 ${
-          abierta ? "bg-[var(--fila-abierta)]" : "hover:bg-surface-2"
+          abierta ? "cabecera-abierta" : "hover:bg-surface-2"
         }`}
       >
         <button

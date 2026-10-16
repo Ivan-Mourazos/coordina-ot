@@ -453,9 +453,8 @@ const COLUMNAS_VISITA =
 export function VisitaCard({ visita }: { visita: VisitaCot }) {
   const [abierta, setAbierta] = useState(false);
   const [todasLasNotas, setTodasLasNotas] = useState(false);
-  // Qué campos de la fila salen cortados. El detalle enseña SOLO esos: antes
-  // repetía comercial, cliente, comentario y solución enteros aunque la fila
-  // ya los dijera, y al abrir se leía lo mismo dos veces (Iván, 16/10/2026).
+  // Qué campos de la fila salen cortados. Si no se corta nada y hay notas, la
+  // fila ya lo dice todo y no se ofrece desplegar.
   const [recortados, setRecortados] = useState<ReadonlySet<string>>(new Set());
   const resumenRef = useRef<HTMLDivElement>(null);
   const notas = (visita.notas ?? "").split(/\r?\n/).map((nota) => nota.trim()).filter(Boolean);
@@ -600,41 +599,39 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
       </div>
       <div id={idDetalle}>
         <Desplegable abierto={tieneDetalle && abierta}>
-        <div className="space-y-2 border-t border-(--fila-borde) px-3 py-2">
-          {recortados.has("responsable") && (
-            <p className="text-xs font-semibold text-text">{visita.responsable}</p>
+        {/* UNA FICHA CON RÓTULOS, cada dato con su nombre delante y siempre
+            en el mismo orden. Antes eran renglones sueltos sin rótulo —el
+            comercial, el cliente, el comentario— y no se sabía qué era cada
+            cosa (Iván, 16/10/2026: «que ocupe una línea o dos más, pero que
+            se entienda»). Las notas no van: ya se leen en la fila.
+            Se fueron el id de la orden y el código crudo del estado de RPS.
+            El primero no lo usa nadie para hablar de una visita; el segundo
+            es el mismo dato que la píldora "Hecha", escrito para RPS. */}
+        <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 border-t border-(--fila-borde) px-3 py-2.5 text-xs">
+          <DatoVisita rotulo="Comercial">{visita.responsable}</DatoVisita>
+          {visita.cliente && <DatoVisita rotulo="Cliente">{visita.cliente}</DatoVisita>}
+          <DatoVisita rotulo="Comentario">{visita.motivo || "Sin motivo escrito"}</DatoVisita>
+          {visita.solucion && <DatoVisita rotulo="Solución">{visita.solucion}</DatoVisita>}
+          {visita.incidencia && (
+            <DatoVisita rotulo="Incidencia" mono>{visita.incidencia}</DatoVisita>
           )}
-          {visita.cliente && recortados.has("cliente") && (
-            <p className="text-xs text-text">{visita.cliente}</p>
-          )}
-          {recortados.has("motivo") && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
-                Comentario del comercial
-              </p>
-              <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
-                {visita.motivo || "Sin motivo escrito"}
-              </p>
-            </div>
-          )}
-          {visita.solucion && recortados.has("solucion") && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
-                Solución
-              </p>
-              <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
-                {visita.solucion}
-              </p>
-            </div>
-          )}
-          {/* Se fueron el id de la orden y el código crudo del estado de RPS.
-              El primero no lo usa nadie para hablar de una visita; el segundo
-              es el mismo dato que la píldora "Hecha", escrito para RPS. */}
-          {notas.length === 0 && <p className="text-[11px] text-text-muted">{fechaAviso}</p>}
-        </div>
+          {visita.pedido && <DatoVisita rotulo="Pedido" mono>{visita.pedido}</DatoVisita>}
+          <DatoVisita rotulo="Aviso">{fechaAviso.replace(/^Avisado el /, "")}</DatoVisita>
+        </dl>
         </Desplegable>
       </div>
     </div>
+  );
+}
+
+function DatoVisita({ rotulo, mono = false, children }: { rotulo: string; mono?: boolean; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="pt-px text-[10px] font-semibold uppercase tracking-wider text-text-muted">{rotulo}</dt>
+      <dd className={`min-w-0 whitespace-pre-wrap break-words leading-5 text-text ${mono ? "font-mono" : ""}`}>
+        {children}
+      </dd>
+    </>
   );
 }
 
