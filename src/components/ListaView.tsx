@@ -965,7 +965,10 @@ function ComentarioComercial({ texto }: { texto: string }) {
   const [abierto, setAbierto] = useState(false);
   const largo = texto.length > 140 || texto.includes("\n");
   return (
-    <div className="rounded-lg bg-surface px-2.5 py-1.5 text-[11px] leading-5 text-text ring-1 ring-border">
+    // Hundido, como los avisos de Producción de encima: los dos son texto que
+    // se lee y no se pulsa. En blanco y con borde parecía una tarjeta más, al
+    // lado de las de las OF (Iván, 16/10/2026).
+    <div className="recuadro rounded-lg px-2.5 py-1.5 text-[11px] leading-5 text-text">
       <p className={abierto || !largo ? "whitespace-pre-line" : "line-clamp-1"}>
         <span className="font-semibold text-text-muted">Comercial: </span>
         {texto}

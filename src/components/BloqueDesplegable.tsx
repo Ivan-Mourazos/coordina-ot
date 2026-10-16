@@ -21,8 +21,13 @@ export function BloqueDesplegable({
   abiertoDeSalida = false,
   onAbrir,
   className = "mb-4 bajo:mb-2",
+  piezasHundidas = false,
   children,
 }: {
+  /** El cuerpo sin hundir: lo que va dentro trae sus propias piezas hundidas,
+   *  como las notas (cada OF de «Tareas y tiempos»). Hundido dentro de
+   *  hundido no se distinguía. */
+  piezasHundidas?: boolean;
   titulo: string;
   tipo?: TipoBloque;
   /** Un contador pegado al rótulo ("Documentos de RPS · 3"). */
@@ -77,7 +82,9 @@ export function BloqueDesplegable({
       </button>
       <div id={id}>
         <Desplegable abierto={abierto}>
-          <div className="recuadro rounded-b-xl px-3 py-3">{children}</div>
+          <div className={`${piezasHundidas ? "" : "recuadro"} rounded-b-xl px-3 ${piezasHundidas ? "pb-3 pt-1" : "py-3"}`}>
+            {children}
+          </div>
         </Desplegable>
       </div>
     </section>
