@@ -1,4 +1,4 @@
-import type { OF, Pedido } from "./types";
+import type { OF, OFFuera, Pedido } from "./types";
 import type { Seccion } from "./secciones";
 
 // ─── Las cuatro fases del tablero ────────────────────────────────────────────
@@ -466,4 +466,14 @@ export function gruposEnCurso(
   return orden
     .filter((f) => por.has(f))
     .map((f) => ({ id: f, titulo: titulos[f], color: FASES.find((x) => x.id === f)!.color, pedidos: por.get(f)! }));
+}
+
+/** Las OF del pedido sin tarea de la sección que se enseñan plegadas en la
+ *  ficha (ver `OFFuera`), sin las que ya son OF de verdad. Si a una le ponen
+ *  una tarea de la sección pasa a la vista de RPS y deja de venir como
+ *  «fuera»; mientras el dato no se refresca podría venir en los dos sitios, y
+ *  entonces manda la OF de verdad: no puede salir dos veces. */
+export function ofsFueraVisibles(p: Pick<Pedido, "ofs" | "ofsFuera">): OFFuera[] {
+  const normales = new Set(p.ofs.map((o) => o.codigo));
+  return (p.ofsFuera ?? []).filter((f) => !normales.has(f.codigo));
 }

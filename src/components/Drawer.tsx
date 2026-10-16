@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Operario, OF, Pedido, Rol } from "@/lib/types";
+import type { Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
@@ -36,7 +36,7 @@ import {
 import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
-import { ofDeTaller, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { ofDeTaller, ofsFueraVisibles, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { accionOcultaSinRevision, ofsParaImpreso } from "@/lib/impreso";
 import { MaterialChip } from "./MaterialChip";
 import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
@@ -144,6 +144,63 @@ const GRUPOS: readonly {
     ayuda: "Dadas por terminadas en RPS antes de pasar el pedido. Producción ya las ve terminadas.",
   },
 ];
+
+/** Las OF del pedido sin tarea de esta sección, plegadas como las de taller:
+ *  un botón «Ver 1 sin tarea de OT» y, al abrirlo, cada una con su ruta. Solo
+ *  para consultar: no se fichan ni cuentan en nada (ver `OFFuera`). Se ven por
+ *  las tareas-nota que llevan dentro, que si no se perdían: en AR.26.04890 la
+ *  de las solapas pedía una visita con OT (Iván, 16/10/2026). */
+function OFsFueraDeLaSeccion({ ofs, seccion }: { ofs: OFFuera[]; seccion: Seccion }) {
+  const [abierto, setAbierto] = useState(false);
+  if (ofs.length === 0) return null;
+  // Dos motivos distintos, y el rótulo no puede mentir: la mayoría SÍ tienen
+  // tarea de la sección, ya hecha. Con los dos mezclados, «más del pedido».
+  const sinTarea = ofs.filter((f) => f.motivo === "sinTarea").length;
+  const que =
+    sinTarea === ofs.length
+      ? `sin tarea de ${seccion.nombreCorto}`
+      : sinTarea === 0
+        ? ofs.length === 1
+          ? "ya hecha"
+          : "ya hechas"
+        : "más del pedido";
+  return (
+    <div className="mb-4">
+      <button
+        type="button"
+        onClick={() => setAbierto((a) => !a)}
+        aria-expanded={abierto}
+        title={`Están en el pedido pero no se trabajan aquí ahora: o no llevan ninguna tarea de ${seccion.nombre}, o la suya ya está hecha. Si les ponen una tarea nueva en RPS, pasan solas a ser OF normales.`}
+        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+          abierto ? "glass-chip-activo text-text" : "glass-chip text-text-muted hover:text-text"
+        }`}
+      >
+        {abierto ? "Ocultar" : "Ver"} {ofs.length} {que}
+      </button>
+      {abierto && (
+        <ul className="mt-2 space-y-1.5">
+          {ofs.map((f) => (
+            <li key={f.codigo} className="recuadro rounded-lg px-3 py-2 text-[11px]">
+              <p className="flex items-baseline gap-2">
+                <span className="font-mono font-semibold text-text">{f.codigo}</span>
+                <span className="min-w-0 flex-1 truncate text-text" title={f.descripcion}>
+                  {f.descripcion}
+                </span>
+                <span className="shrink-0 rounded bg-text-muted/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted">
+                  {f.motivo === "hecha" ? `${seccion.nombreCorto} ya hecha` : `Sin tarea de ${seccion.nombreCorto}`}
+                </span>
+                <span className="shrink-0 text-text-muted">{f.piezas} pz</span>
+              </p>
+              {f.tareas.length > 0 && (
+                <p className="mt-1 leading-snug text-text-muted">{f.tareas.join(" · ")}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /** "0230697 — La hace el taller". Para leer de un vistazo por qué se anuló cada
  *  una sin tener que abrir el cajón. Las anuladas de antes de que esto existiera
@@ -369,6 +426,10 @@ export function Drawer({
   // Lo que de verdad hay que plantear, y lo que no, cada cosa en su cajón.
   const todasLasOF = pedido.ofs;
   const ofsDeOT = todasLasOF.filter((o) => grupoOculto(o) === null);
+  // Las del pedido sin tarea de esta sección (ver `OFFuera`). Si una ya está
+  // entre las OF de verdad —le pusieron tarea y el servidor aún no se ha
+  // dado cuenta—, manda la de verdad: no puede salir en los dos sitios.
+  const ofsFuera = ofsFueraVisibles(pedido);
   const ocultas = GRUPOS.map((g) => ({
     grupo: g,
     ofs: todasLasOF.filter((o) => grupoOculto(o) === g.id),
@@ -824,9 +885,11 @@ export function Drawer({
             <AcentoBloque tipo="ofs" />
             <h3 className={TITULO_BLOQUE}>
               Órdenes de fabricación ({ofsDeOT.length})
-              {ofsDeOT.length !== pedido.ofs.length && (
+              {/* También las que no tienen tarea de esta sección: están en el
+                  pedido aunque no se trabajen aquí. */}
+              {ofsDeOT.length !== pedido.ofs.length + ofsFuera.length && (
                 <span className="ml-1.5 font-normal normal-case tracking-normal">
-                  · {pedido.ofs.length - ofsDeOT.length} más en el pedido
+                  · {pedido.ofs.length - ofsDeOT.length + ofsFuera.length} más en el pedido
                 </span>
               )}
             </h3>
@@ -1221,6 +1284,7 @@ export function Drawer({
             </div>
           )}
 
+          <OFsFueraDeLaSeccion key={pedido.id} ofs={ofsFuera} seccion={seccion} />
 
           {/* Comentario del pedido de venta (condiciones, avisos del comercial).
               DEBAJO de las OF y de las notas, y plegado: casi siempre es el

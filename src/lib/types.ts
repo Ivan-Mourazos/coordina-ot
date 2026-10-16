@@ -466,12 +466,32 @@ export interface OF {
   archivosRps?: string[];
 }
 
+/** Una OF del pedido SIN tarea de esta sección (no sale en su vista de RPS):
+ *  las solapas de un toldo que solo pasan por costura, por ejemplo. Solo para
+ *  ENSEÑARLA, plegada, en la ficha; no es una `OF` a propósito, para que no
+ *  cuente en nada —ni en el nº de OF, ni en las fases, ni en «listo para
+ *  pasar»— (Iván, 16/10/2026, AR.26.04890). */
+export interface OFFuera {
+  codigo: string;
+  descripcion: string;
+  piezas: number;
+  /** Su ruta en RPS, en orden: así se ve dónde va y las tareas-nota que lleva
+   *  («SOLICITA ALBERTO VISITA…»). */
+  tareas: string[];
+  /** Por qué no está entre las del pedido: `sinTarea`, no lleva ninguna de la
+   *  sección; `hecha`, la lleva pero ya no está pendiente. Medido el
+   *  16/10/2026: de 36 OF así en OT, la mayoría eran de las segundas. */
+  motivo: "sinTarea" | "hecha";
+}
+
 /** Pedido = lo que se escanea (un parte). Code "AR…". Contiene sus OF. */
 export interface Pedido {
   id: string;
   codigo: string; // p.ej. "AR.26.03376"
   cliente: string;
   situacion: Situacion;
+  /** Ver `OFFuera`. */
+  ofsFuera?: OFFuera[];
   /** Las OF que han devuelto este pedido al tablero después de pasarlo a
    *  Producción: trabajo de OT que apareció DESPUÉS de darlo por terminado.
    *
