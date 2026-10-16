@@ -62,3 +62,16 @@ export function ahoraDelServidor(desfaseMs: number | null, ahoraLocal = Date.now
   if (desfaseMs === null || Math.abs(desfaseMs) < DESFASE_MINIMO_MS) return ahoraLocal;
   return ahoraLocal + desfaseMs;
 }
+
+// El último desfase medido, para los contadores sueltos por la página (ver
+// `RelojVivo`): son muchos y pequeños, y pasarles el desfase prop a prop por
+// cinco niveles de componentes no aporta nada. Lo fija el tablero cada vez
+// que lo mide.
+let desfaseGuardado: number | null = null;
+export function fijarDesfaseServidor(desfaseMs: number | null): void {
+  desfaseGuardado = desfaseMs;
+}
+/** `ahoraDelServidor` con el último desfase que midió el tablero. */
+export function ahoraServidorGuardado(ahoraLocal = Date.now()): number {
+  return ahoraDelServidor(desfaseGuardado, ahoraLocal);
+}

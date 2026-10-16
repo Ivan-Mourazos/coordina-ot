@@ -1,7 +1,7 @@
 import type { Tablero } from "../data";
 import type { Intervalo } from "../fichaje";
 import { minutosOF, minutosPorOperarioOF, type Fichaje } from "../fichaje";
-import type { FichajeWebOF, RitmoVivoOF } from "../types";
+import type { FichajeWebOF, FichandoAhora, RitmoVivoOF } from "../types";
 
 // ─── Tiempo de fichaje agregado por OF ───────────────────────────────────────
 // Suma pura: trata TODOS los intervalos (de todos los operarios) como una sola
@@ -57,6 +57,21 @@ function ritmosVivos(intervalos: Intervalo[]): Map<string, RitmoVivoOF> {
   return porOF;
 }
 
+/** Quién tiene el reloj en marcha en cada OF, y desde cuándo. Ver
+ *  `OF.fichandoAhora`. */
+export function fichandoAhoraPorOF(intervalos: Intervalo[]): Map<string, FichandoAhora[]> {
+  const porOF = new Map<string, FichandoAhora[]>();
+  for (const iv of intervalos) {
+    if (iv.fin !== null) continue;
+    for (const id of iv.ofIds) {
+      const lista = porOF.get(id) ?? [];
+      lista.push({ operarioId: iv.operarioId, rol: iv.rol, desde: iv.inicio });
+      porOF.set(id, lista);
+    }
+  }
+  return porOF;
+}
+
 export function aplicarTiemposFichaje(
   tablero: Tablero,
   intervalos: Intervalo[],
@@ -66,11 +81,17 @@ export function aplicarTiemposFichaje(
   if (intervalos.length === 0) return tablero;
   const f: Fichaje = { intervalos };
   const ritmos = ritmosVivos(intervalos);
+  const vivos = fichandoAhoraPorOF(intervalos);
   return {
     operarios: tablero.operarios,
     pedidos: tablero.pedidos.map((p) => {
       let cambiado = false;
-      const ofs = p.ofs.map((of) => {
+      const ofs = p.ofs.map((ofSinVivos) => {
+        // Antes que los minutos: un tramo recién abierto aún no suma ni uno, y
+        // quien acaba de pulsar Fichar ya está fichando.
+        const fichandoAhora = vivos.get(ofSinVivos.id);
+        const of = fichandoAhora ? { ...ofSinVivos, fichandoAhora } : ofSinVivos;
+        if (fichandoAhora) cambiado = true;
         const planteoWeb = minutosOF(f, of.id, { rol: "plantear", ahora });
         const revisionWeb = minutosOF(f, of.id, { rol: "revisar", ahora });
         if (planteoWeb === 0 && revisionWeb === 0) return of;

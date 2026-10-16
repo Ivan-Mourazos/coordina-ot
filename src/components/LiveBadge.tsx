@@ -1,4 +1,5 @@
-import type { Rol } from "@/lib/types";
+import type { FichandoAhora, Rol } from "@/lib/types";
+import { RelojVivo } from "./RelojVivo";
 import { ROL } from "@/lib/estado";
 
 /** Punto pulsante con el color del rol (esmeralda = planteando,
@@ -29,6 +30,40 @@ export function LiveBadge({ rol, quien }: { rol: Rol; quien?: string }) {
       <LiveDot rol={rol} className="size-1.5" />
       {meta.label}
       {quien && <span className="font-extrabold">· {quien}</span>}
+    </span>
+  );
+}
+
+/** Quién está fichando, en qué papel y cuánto lleva, con el reloj corriendo:
+ *  "● Jaime · 0:12:30". Una entrada por persona; casi siempre es una.
+ *
+ *  Es lo que hace que el fichaje de un compañero se vea de verdad, y no solo
+ *  un punto que no dice de quién es ni desde cuándo (Iván, 16/10/2026). */
+export function QuienFicha({
+  vivos,
+  nombre,
+  className = "",
+}: {
+  vivos: readonly FichandoAhora[];
+  /** Nombre corto del operario (el de pila basta en una fila). */
+  nombre: (operarioId: string) => string;
+  className?: string;
+}) {
+  const unicos = vivos.filter((v, i) => vivos.findIndex((w) => w.operarioId === v.operarioId) === i);
+  if (!unicos.length) return null;
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>
+      {unicos.map((v) => (
+        <span
+          key={v.operarioId}
+          className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ${ROL[v.rol].texto}`}
+          title={`${nombre(v.operarioId)} ${v.rol === "revisar" ? "revisando" : "planteando"} ahora`}
+        >
+          <LiveDot rol={v.rol} className="size-1.5" />
+          {nombre(v.operarioId)}
+          <RelojVivo desde={v.desde} className="font-semibold" />
+        </span>
+      ))}
     </span>
   );
 }

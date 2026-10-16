@@ -215,3 +215,33 @@ describe("ritmoVivo", () => {
     expect(o.ritmoVivo).toBeUndefined();
   });
 });
+
+describe("quién ficha ahora", () => {
+  // Hasta el 16/10/2026 el navegador solo sabía de su propio reloj: el de un
+  // compañero no se veía en ningún sitio. El servidor lo dice en cada OF.
+  const abierto = (operarioId: string, rol: Intervalo["rol"], ofIds: string[]): Intervalo => ({
+    inicio: "2026-07-22T19:30:00.000Z", fin: null, ofIds, rol, operarioId,
+  });
+
+  test("cada OF con un tramo abierto dice quién, en qué papel y desde cuándo", () => {
+    const r = aplicarTiemposFichaje(
+      tablero([of("OF-1"), of("OF-2")]),
+      [abierto("jaime", "revisar", ["OF-1"]), iv(9, 10, ["OF-2"])],
+      AHORA,
+      ACTIVO,
+    );
+    const [o1, o2] = r.pedidos[0].ofs;
+    expect(o1.fichandoAhora).toEqual([{ operarioId: "jaime", rol: "revisar", desde: "2026-07-22T19:30:00.000Z" }]);
+    // Un tramo ya cerrado no es estar fichando.
+    expect(o2.fichandoAhora).toBeUndefined();
+  });
+
+  test("sale aunque el tiempo de RPS mande sobre el de la web", () => {
+    // Con RPS por encima, `ritmoVivo` se borra (no hay ritmo que adelantar);
+    // que alguien esté fichando no depende de eso.
+    const r = aplicarTiemposFichaje(tablero([of("OF-1", 600)]), [abierto("tamara", "plantear", ["OF-1"])], AHORA, PRUEBAS);
+    const o = r.pedidos[0].ofs[0];
+    expect(o.ritmoVivo).toBeUndefined();
+    expect(o.fichandoAhora?.[0]).toMatchObject({ operarioId: "tamara", rol: "plantear" });
+  });
+});

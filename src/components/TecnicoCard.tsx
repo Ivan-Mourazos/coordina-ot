@@ -6,6 +6,7 @@ import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
 import { PanelCompanero } from "./PanelCompanero";
 import { LiveDot } from "./LiveBadge";
+import { RelojVivo } from "./RelojVivo";
 import type { LiveInfo } from "./Board";
 import { agruparPorFase } from "@/lib/fases-tablero";
 import { bloquesDeCarga, type ItemCarga } from "@/lib/equipo";
@@ -95,7 +96,7 @@ export const TecnicoCard = memo(function TecnicoCard({
       <button
         onClick={onToggle}
         aria-expanded={expanded}
-        className={`glass-panel w-full rounded-xl px-3 py-2 text-left bajo:py-1.5 transition-colors ${expanded ? "ring-1 ring-brand-400" : ""}`}
+        className={`glass-panel w-full rounded-xl px-3 py-2 text-left bajo:py-1.5 transition-colors ${expanded ? "ring-1 ring-brand-400" : ""} ${live ? `fila-fichando-${live.rol}` : ""}`}
       >
         <div className="flex items-center gap-1.5">
           <span
@@ -106,19 +107,9 @@ export const TecnicoCard = memo(function TecnicoCard({
           </span>
           <span className="truncate text-xs font-semibold text-text">{operario.nombre}</span>
 
-          {live && (
-            <span
-              className={`ml-auto flex min-w-0 shrink items-center gap-1 text-[10px] font-bold ${ROL[live.rol].texto}`}
-              title={`${ROL[live.rol].label} ${live.pedido.codigo} · ${live.of.descripcion}`}
-            >
-              <LiveDot rol={live.rol} className="size-1.5" />
-              <span className="truncate">{live.pedido.codigo}</span>
-            </span>
-          )}
-
           {/* Cuánto lleva. En qué está cargado lo dice la barra de abajo, así
               que aquí no se repiten distintivos por fase. */}
-          <span className={`shrink-0 text-[10px] text-text-muted ${live ? "" : "ml-auto"}`}>
+          <span className="ml-auto shrink-0 text-[10px] text-text-muted">
             {facets.length} ped
             {revisiones.length > 0 && (
               <>
@@ -145,6 +136,24 @@ export const TecnicoCard = memo(function TecnicoCard({
             <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
+
+        {/* QUÉ ESTÁ FICHANDO AHORA, en su propia línea y con el reloj al
+            segundo: que se vea que de verdad está trabajando en ello. En la
+            línea del nombre no cabía y se quedaba en «Tamara Vi… AR.26.0…»
+            (Iván, 16/10/2026). */}
+        {live && (
+          <div
+            className={`mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-semibold ${ROL[live.rol].texto}`}
+            title={`${live.pedido.codigo} · ${live.of.descripcion}`}
+          >
+            <LiveDot rol={live.rol} className="size-1.5" />
+            <span className="shrink-0">{live.rol === "revisar" ? "Revisando" : "Planteando"}</span>
+            <span className="min-w-0 truncate">
+              {live.pedido.codigo} <span className="font-normal text-text-muted">· {live.pedido.cliente}</span>
+            </span>
+            <RelojVivo desde={live.desde} className="ml-auto shrink-0 font-bold" />
+          </div>
+        )}
 
         {/* Barra de carga: un bloque por pedido, del color de su columna y en
             el orden de la zona de arriba (ver bloquesDeCarga). Dice EN QUÉ

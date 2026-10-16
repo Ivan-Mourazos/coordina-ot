@@ -6,6 +6,7 @@ import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin } from "@/lib/estado";
 import { abierto, esFichable, inicioDelTramoContinuo, minutosOF, motivoNoFichable, rolFichajeDe, type Fichaje } from "@/lib/fichaje";
 import { LiveDot } from "./LiveBadge";
+import { fmtHMS } from "./RelojVivo";
 import { ahoraDelServidor } from "@/lib/reloj-servidor";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 
@@ -53,19 +54,6 @@ function leerModoGuardado(): ModoPanel {
   }
 }
 
-/** Reloj del fichaje que corre AHORA, en h:mm:ss (p.ej. "1:05:42").
- *
- *  Con segundos, no solo minutos: es la señal de que el fichaje está vivo. Un
- *  "0:03" quieto no distingue "va contando" de "se ha colgado", y el fichaje
- *  es justo lo que nadie quiere dar por hecho. Los tiempos por OF siguen en
- *  minutos (`fmtMin`, "1h 5m"): ahí lo que importa es el acumulado del día. */
-function fmtHMS(seg: number): string {
-  const total = Math.max(0, Math.floor(seg));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
 
 /** Cuándo se paró el reloj, en corto: la hora si fue hoy ("las 11:40") y con
  *  la fecha si fue otro día ("el 6/8 a las 18:20"). Sin la fecha, un "parado
