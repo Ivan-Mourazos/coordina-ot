@@ -453,7 +453,10 @@ const COLUMNAS_VISITA =
 export function VisitaCard({ visita }: { visita: VisitaCot }) {
   const [abierta, setAbierta] = useState(false);
   const [todasLasNotas, setTodasLasNotas] = useState(false);
-  const [hayTextoRecortado, setHayTextoRecortado] = useState(false);
+  // Qué campos de la fila salen cortados. El detalle enseña SOLO esos: antes
+  // repetía comercial, cliente, comentario y solución enteros aunque la fila
+  // ya los dijera, y al abrir se leía lo mismo dos veces (Iván, 16/10/2026).
+  const [recortados, setRecortados] = useState<ReadonlySet<string>>(new Set());
   const resumenRef = useRef<HTMLDivElement>(null);
   const notas = (visita.notas ?? "").split(/\r?\n/).map((nota) => nota.trim()).filter(Boolean);
   const notasVisibles = todasLasNotas ? notas : notas.slice(0, 3);
@@ -466,17 +469,20 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
   useEffect(() => {
     const resumen = resumenRef.current;
     if (!resumen) return;
-    const medir = () => setHayTextoRecortado(
-      Array.from(resumen.querySelectorAll("[data-resumen-visita]")).some(
-        (elemento) => elemento.scrollWidth > elemento.clientWidth || elemento.scrollHeight > elemento.clientHeight,
-      ),
-    );
+    const medir = () => {
+      const cortados = Array.from(resumen.querySelectorAll<HTMLElement>("[data-resumen-visita]"))
+        .filter((e) => e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight)
+        .map((e) => e.dataset.resumenVisita ?? "");
+      setRecortados((antes) =>
+        antes.size === cortados.length && cortados.every((c) => antes.has(c)) ? antes : new Set(cortados),
+      );
+    };
     medir();
     const observer = new ResizeObserver(medir);
     observer.observe(resumen);
     return () => observer.disconnect();
   }, [visita.responsable, visita.cliente, visita.motivo, visita.solucion]);
-  const tieneDetalle = notas.length === 0 || hayTextoRecortado;
+  const tieneDetalle = notas.length === 0 || recortados.size > 0;
   const pendiente = visita.estado === "pendiente";
   const color = colorDe(visita.responsable);
   // «Hecha» ya cuenta que la consulta se realizó. Conservamos lo que viene
@@ -532,18 +538,18 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
               {inicialesDe(visita.responsable)}
             </span>
             <span className="flex min-w-0 items-baseline gap-1.5">
-              <span data-resumen-visita className="min-w-0 shrink-0 max-w-36 truncate text-[12px] font-semibold text-text">
+              <span data-resumen-visita="responsable" className="min-w-0 shrink-0 max-w-36 truncate text-[12px] font-semibold text-text">
                 {visita.responsable}
               </span>
               {visita.cliente && (
-                <span data-resumen-visita className="min-w-0 truncate text-[11px] text-text-muted">{visita.cliente}</span>
+                <span data-resumen-visita="cliente" className="min-w-0 truncate text-[11px] text-text-muted">{visita.cliente}</span>
               )}
             </span>
           </span>
           {/* Dos líneas bastan para orientarse sin que un comentario largo
               estire toda la agenda. El detalle y el título lo guardan entero. */}
           <span className="pointer-events-none col-start-2 min-w-0 py-1 text-[13px] leading-snug text-text md:col-auto">
-            <span data-resumen-visita className="line-clamp-2 break-words">
+            <span data-resumen-visita="motivo" className="line-clamp-2 break-words">
               {visita.motivo || "Sin motivo escrito"}
             </span>
           </span>
@@ -554,7 +560,7 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
               </span>
             )}
             {visita.solucion && (
-              <span data-resumen-visita className="max-w-32 truncate text-[11px] font-semibold lowercase text-cyan-700 first-letter:uppercase dark:text-cyan-300">
+              <span data-resumen-visita="solucion" className="max-w-32 truncate text-[11px] font-semibold lowercase text-cyan-700 first-letter:uppercase dark:text-cyan-300">
                 {solucionResumen}
               </span>
             )}
@@ -595,19 +601,23 @@ export function VisitaCard({ visita }: { visita: VisitaCot }) {
       <div id={idDetalle}>
         <Desplegable abierto={tieneDetalle && abierta}>
         <div className="space-y-2 border-t border-(--fila-borde) px-3 py-2">
-          <p className="text-xs font-semibold text-text">{visita.responsable}</p>
-          {visita.cliente && (
+          {recortados.has("responsable") && (
+            <p className="text-xs font-semibold text-text">{visita.responsable}</p>
+          )}
+          {visita.cliente && recortados.has("cliente") && (
             <p className="text-xs text-text">{visita.cliente}</p>
           )}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
-              Comentario del comercial
-            </p>
-            <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
-              {visita.motivo || "Sin motivo escrito"}
-            </p>
-          </div>
-          {visita.solucion && (
+          {recortados.has("motivo") && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
+                Comentario del comercial
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-text">
+                {visita.motivo || "Sin motivo escrito"}
+              </p>
+            </div>
+          )}
+          {visita.solucion && recortados.has("solucion") && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-text-muted">
                 Solución
