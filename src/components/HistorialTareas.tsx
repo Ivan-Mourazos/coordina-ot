@@ -8,7 +8,7 @@ import { fmtMin, ROL } from "@/lib/estado";
 import { fmtFechaLarga, rangoDias } from "@/lib/fechas";
 import { hoyISO } from "@/lib/types";
 import { BloqueDesplegable } from "./BloqueDesplegable";
-import { agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
+import { CENTRO_TONO, agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
 
@@ -131,7 +131,10 @@ function CentroTareas({
   extraCentro?: (centro: HistorialCentro) => React.ReactNode;
   extraOF?: (of: HistorialOF, centro: HistorialCentro) => React.ReactNode;
 }) {
-  const acento = conColor ? "text-brand-800 dark:text-brand-300" : "";
+  // El color del centro, el mismo que en la ficha del Historial (CENTRO_TONO).
+  // Sin color (la consulta lo pide sin él), todo en el tono del texto.
+  const tono = CENTRO_TONO[centro.id];
+  const acento = conColor ? tono.texto : "";
   // Con una sola OF su tiempo ES el del centro, que está justo encima: no se
   // escribe dos veces. Con varias sí reparten, y entonces hace falta.
   const variasOF = centro.ofs.length > 1;
@@ -140,48 +143,59 @@ function CentroTareas({
     // dónde acababa uno.
     <section className="mb-5 last:mb-0">
       <h4
-        className="mb-2 flex items-baseline justify-between gap-3 text-sm font-semibold"
+        className="mb-2 flex items-center gap-2 px-0.5 text-sm font-semibold"
         title="Tiempo imputado en RPS"
       >
-        <span>{centro.nombre}</span>
+        <span className={`size-2.5 shrink-0 rounded-full ${tono.punto}`} aria-hidden="true" />
+        <span className="flex-1">{centro.nombre}</span>
         <span className={`font-mono tabular-nums ${acento}`}>{fmtMin(centro.totalMin)}</span>
       </h4>
       {extraCentro?.(centro)}
-      {centro.ofs.map((of) => (
-        <div key={of.codigo} className="mb-3 border-t border-border pt-2 text-xs last:mb-0">
-          {/* TRES ESCALONES, y se distinguen por peso y tamaño, no por sangría
-              sola: el centro (14 px, negrita), la OF (12 px, negrita, con su
-              código en mono) y las tareas (11 px, normales). Todo iba al mismo
-              tamaño y en negrita, y con siete OF seguidas no había forma de
-              ver dónde acababa una.
+      {/* CADA OF EN SU TARJETA, y no un texto seguido sobre el fondo del
+          bloque: era todo el mismo gris y había que leerlo entero para ver
+          dónde acababa una OF (Iván, 16/10/2026). La tarjeta lleva a la
+          izquierda el color de su centro. */}
+      <div className="space-y-2">
+        {centro.ofs.map((of) => (
+          <div
+            key={of.codigo}
+            className={`overflow-hidden rounded-lg border border-border border-l-[3px] bg-surface text-xs shadow-sm ${tono.raya}`}
+          >
+            {/* TRES ESCALONES, y se distinguen por peso y tamaño, no por
+                sangría sola: el centro (14 px, negrita), la OF (12 px,
+                negrita, con su código en mono) y las tareas (11 px, normales).
 
-              El código en mono y el resto en la tipografía normal: "0232035"
-              es una matrícula que se compara con la vista, y la descripción se
-              lee. Mezclarlos en mono hacía la descripción más lenta de leer. */}
-          <p className="mb-1 flex items-baseline justify-between gap-3">
-            <span className="min-w-0 font-semibold leading-snug">
-              <span className={conColor ? `font-mono ${acento}` : "font-mono"}>{of.codigo}</span>
-              {" · "}
-              {of.descripcion}
-            </span>
-            {variasOF && (
-              <span
-                className={`shrink-0 font-mono font-semibold tabular-nums ${acento}`}
-                title="Tiempo imputado en RPS"
-              >
-                {fmtMin(of.tiempoImputadoMin)}
+                El código en mono y el resto en la tipografía normal: "0232035"
+                es una matrícula que se compara con la vista, y la descripción
+                se lee. Mezclarlos en mono hacía la descripción más lenta de
+                leer. */}
+            <p className="flex items-baseline justify-between gap-3 border-b border-border bg-surface-2 px-2.5 py-1.5">
+              <span className="min-w-0 font-semibold leading-snug">
+                <span className={`font-mono ${acento}`}>{of.codigo}</span>
+                {" · "}
+                {of.descripcion}
               </span>
-            )}
-          </p>
-          {/* Las tareas, sangradas y con la línea de su OF al lado: dicen de
-              qué se compone lo de arriba, y sin el escalón se leían como si
-              fueran hermanas suyas. */}
-          <div className="ml-1 border-l border-border pl-2.5 text-[11px]">
-            <TareasDeOF of={of} conColor={conColor} />
+              {variasOF && (
+                <span
+                  className={`shrink-0 font-mono font-semibold tabular-nums ${acento}`}
+                  title="Tiempo imputado en RPS"
+                >
+                  {fmtMin(of.tiempoImputadoMin)}
+                </span>
+              )}
+            </p>
+            <div className="px-2.5 py-1 text-[11px]">
+              <TareasDeOF
+                of={of}
+                conColor={conColor}
+                claseTiempo={conColor ? tono.texto : undefined}
+                claseBarra={conColor ? tono.punto : "bg-text-muted"}
+              />
+            </div>
+            {extraOF && <div className="px-2.5 pb-2">{extraOF(of, centro)}</div>}
           </div>
-          {extraOF?.(of, centro)}
-        </div>
-      ))}
+        ))}
+      </div>
     </section>
   );
 }
@@ -202,9 +216,14 @@ export function TareasDeOF({
   conColor = false,
   rolDe,
   claseTiempo,
+  claseBarra,
 }: {
   of: HistorialOF;
   conColor?: boolean;
+  /** Con ella, las tareas van en filas separadas y cada una lleva una barra
+   *  con su parte del tiempo de la OF, del color que se pase (el del centro).
+   *  Las que no tienen tiempo, con una raya en vez de «0m». */
+  claseBarra?: string;
   /** Color de los tiempos: el de su centro en la ficha del Historial. Manda
    *  sobre `conColor`. */
   claseTiempo?: string;
@@ -216,8 +235,13 @@ export function TareasDeOF({
   if (!of.tareas?.length) {
     return <p className="text-text-muted">Esta OF no tiene tareas en RPS.</p>;
   }
+  // La barra de cada tarea mide su parte de la OF. Con una sola tarea con
+  // tiempo siempre llenaría entera: no dice nada y no se pinta.
+  const conTiempo = of.tareas.filter((t) => t.tiempoImputadoMin > 0);
+  const totalOF = conTiempo.reduce((n, t) => n + t.tiempoImputadoMin, 0);
+  const conBarra = claseBarra !== undefined && conTiempo.length > 1;
   return (
-    <>
+    <div className={claseBarra !== undefined ? "divide-y divide-border" : undefined}>
       {of.tareas.map((tarea) => {
         // Con papeles (la ficha del Historial), quien es autor o revisor sale
         // aunque su tiempo sea 0: RPS guarda minutos enteros y una revisión de
@@ -253,9 +277,17 @@ export function TareasDeOF({
                   vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
                 }`}
               >
-                {fmtMin(tarea.tiempoImputadoMin)}
+                {vacia && claseBarra !== undefined ? "—" : fmtMin(tarea.tiempoImputadoMin)}
               </span>
             </p>
+            {conBarra && !vacia && (
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-border" aria-hidden="true">
+                <div
+                  className={`h-full rounded-full ${claseBarra}`}
+                  style={{ width: `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%` }}
+                />
+              </div>
+            )}
             {personas.length > 0 && !rolDe && (
               <p className="mt-0.5 text-[11px] leading-snug text-text-muted">
                 {solaEllaEntera
@@ -308,7 +340,7 @@ export function TareasDeOF({
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
