@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "c64529b",
+    "hasta": "58d9798",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -40,6 +40,12 @@
         "tipo": "arreglado",
         "titulo": "En la ficha, la raya de color de Documentos y Tareas se salía de su recuadro",
         "tanda": 10
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En la ficha, el tiempo fichado en la web salía a cero tras pausar",
+        "detalle": "Al pausar, el tiempo pasa a RPS y la caja dejaba de contarlo; ahora sigue saliendo.",
+        "tanda": 11
       },
       {
         "tipo": "mejor",
