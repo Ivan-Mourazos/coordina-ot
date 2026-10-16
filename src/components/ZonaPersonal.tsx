@@ -131,7 +131,7 @@ export function ZonaPersonal({
           >
             <LiveDot rol={live.rol} className="size-1.5" />
             {ROL[live.rol].label} {live.pedido.codigo}
-            <RelojVivo desde={live.desde} className="font-normal opacity-90" />
+            <RelojVivo desde={live.desde} previoSeg={live.previoSeg} parte={live.parte} className="font-normal opacity-90" />
           </span>
         )}
       </div>

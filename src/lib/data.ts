@@ -49,17 +49,18 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
     const { aplicarOverlay } = await import("./server/overlay");
     const conFlujo = aplicarOverlay(base, leerOverlay(seccion));
 
-    const { leerTodosIntervalos } = await import("./server/fichaje-db");
+    const { leerTodosIntervalos, leerFichaje } = await import("./server/fichaje-db");
     const { aplicarTiemposFichaje } = await import("./server/tiempos");
     const { modoFichaje } = await import("./server/olanet-outbox");
     const dobleFichaje = modoFichaje() !== "activo";
     const calculadoAt = new Date().toISOString();
-    const conTiempos = aplicarTiemposFichaje(
-      conFlujo,
-      leerTodosIntervalos(),
-      calculadoAt,
-      { dobleFichaje },
-    );
+    const intervalos = leerTodosIntervalos();
+    // De quien tiene el reloj en marcha (unos pocos), TODOS sus tramos, también
+    // los traspasados: de ahí sale lo que ya llevaba en cada OF, para que su
+    // reloj siga desde ahí al reanudar (ver `OF.fichandoAhora`).
+    const fichando = [...new Set(intervalos.filter((iv) => iv.fin === null).map((iv) => iv.operarioId))];
+    const completos = fichando.flatMap((id) => leerFichaje(id).intervalos);
+    const conTiempos = aplicarTiemposFichaje(conFlujo, intervalos, calculadoAt, { dobleFichaje }, completos);
 
     // Partes re-escaneados. Aquí NO se toca el disco: solo se apunta qué
     // pedidos hay vivos —para que el vigilante sepa a quién mirar— y se lee lo

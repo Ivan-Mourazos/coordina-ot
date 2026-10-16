@@ -151,7 +151,7 @@ export const TecnicoCard = memo(function TecnicoCard({
             <span className="min-w-0 truncate">
               {live.pedido.codigo} <span className="font-normal text-text-muted">· {live.pedido.cliente}</span>
             </span>
-            <RelojVivo desde={live.desde} className="ml-auto shrink-0 font-bold" />
+            <RelojVivo desde={live.desde} previoSeg={live.previoSeg} parte={live.parte} className="ml-auto shrink-0 font-bold" />
           </div>
         )}
         {/* La línea va en TODAS, también sin reloj: si solo la llevaran las de

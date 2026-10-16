@@ -1,10 +1,10 @@
 "use client";
 
-import type { OF, Operario } from "@/lib/types";
-import { tiempoTotalOF } from "@/lib/types";
+import type { FichandoAhora, OF, Operario } from "@/lib/types";
 import { fmtMin, ROL } from "@/lib/estado";
 import { LiveDot } from "./LiveBadge";
 import { RelojVivo } from "./RelojVivo";
+import { OpDot } from "./Select";
 
 /** En minutos enteros, como el reloj de una pared: "1m", "2m"… El tiempo de
  *  una OF que se está fichando corre (ver lib/tiempo-vivo.ts) y con segundos
@@ -12,104 +12,78 @@ import { RelojVivo } from "./RelojVivo";
  *  el 23/09/2026: que sume de minuto en minuto. Hacia abajo, para que no diga
  *  un minuto que todavía no se ha cumplido. */
 const enMinutos = (min: number) => fmtMin(Math.floor(min + 1e-9));
-import { fmtFechaLarga } from "@/lib/fechas";
-import { nombreHistorial } from "@/lib/nombre-historial";
-import { OpDot } from "./Select";
 
-// ─── El tiempo de una OF, en UN solo sitio ───────────────────────────────────
-// Estaba dicho cuatro veces en la misma tarjeta, con los mismos números:
+// ─── El tiempo de una OF, en la ficha de Pendientes ──────────────────────────
+// LO FICHADO EN LA WEB, Y PARTIDO EN PLANTEAR Y REVISIÓN (Iván, 16/10/2026).
 //
-//   Autor    [Adrián]                    planteo 2h 05m   ← lo fichado en la web
-//   Revisor  [Tamara]                   revisión    30m   ← lo fichado en la web
-//   YA FICHADO EN RPS · Adrián 2h 10m                     ← lo del terminal
-//   Total 2h 40m / est. 3h                                ← la suma
-//   RPS 2h 10m · CoordinaOT 2h 35m — el mismo trabajo     ← las dos otra vez
+// Antes juntaba lo de la web con lo del terminal de RPS, en una o dos
+// columnas según el periodo de pruebas, y sin decir de qué rol era cada
+// minuto. Aquí, con la OF en marcha, lo que se pregunta es cuánto lleva el
+// planteo y cuánto la revisión de lo que se está haciendo ahora; lo de RPS ya
+// sale en el Historial y en «Tareas y tiempos».
 //
-// Las dos últimas líneas no añadían nada: repetían, sumadas, lo que ya estaba
-// en las tres de arriba. Y para saber si una persona había echado su rato aquí
-// o en la herramienta vieja había que emparejar de cabeza el nombre de la línea
-// de rol con el del bloque de RPS.
-//
-// Ahora es una tabla: una fila por PERSONA y una columna por HERRAMIENTA. Se lee
-// de un vistazo quién ha tocado la OF, cuánto y dónde lo apuntó, que son las
-// tres preguntas. Las líneas de Autor y Revisor se quedan arriba diciendo de
-// quién es la OF —que es otra cosa: el encargo, no el trabajo hecho— y ya sin
-// minutos.
+// Una fila por persona y una columna por rol. Quien está fichando lleva su
+// reloj, al segundo, en la columna de lo que está haciendo: al lado de sus
+// minutos salían «● 0:00:07  0m», dos cuentas que parecían distintas.
 
 interface Fila {
-  clave: string;
-  nombre: string;
-  /** Operario de OT, si lo es: para el punto de color. */
+  operarioId: string;
   op: Operario | null;
-  rpsMin: number;
-  webMin: number;
-  /** Día de su primera imputación en RPS, si RPS lo da. */
-  desde?: string;
-  /** Qué hizo en la web. RPS no distingue roles (no hay tarea de revisión en su
-   *  ruta), así que esto solo se sabe de lo fichado aquí. */
-  soloRevision: boolean;
+  planteoMin: number;
+  revisionMin: number;
+  vivo?: FichandoAhora;
 }
 
-/** Junta los dos registros por persona. La clave es el operario de OT cuando se
- *  le reconoce, y el empleado de RPS cuando no: así el mismo Adrián no sale dos
- *  veces por venir de dos sitios. */
 function filas(of: OF, opById: (id: string | null) => Operario | null): Fila[] {
   const m = new Map<string, Fila>();
-  const dame = (clave: string, nombre: string, op: Operario | null): Fila => {
-    let f = m.get(clave);
+  const dame = (id: string) => {
+    let f = m.get(id);
     if (!f) {
-      f = { clave, nombre, op, rpsMin: 0, webMin: 0, soloRevision: false };
-      m.set(clave, f);
+      f = { operarioId: id, op: opById(id), planteoMin: 0, revisionMin: 0 };
+      m.set(id, f);
     }
     return f;
   };
-
-  for (const i of of.imputaciones ?? []) {
-    const op = opById(i.operarioId);
-    const f = dame(i.operarioId ?? `rps:${i.empleado}`, op?.nombre ?? nombreHistorial(i.nombre), op);
-    f.rpsMin += i.minutos;
-    if (i.desde && (!f.desde || i.desde < f.desde)) f.desde = i.desde;
-  }
   for (const w of of.fichadoWeb ?? []) {
-    const op = opById(w.operarioId);
-    const f = dame(w.operarioId, op?.nombre ?? "Nombre no disponible", op);
-    f.webMin += w.planteoMin + w.revisionMin;
-    if (w.revisionMin > 0 && w.planteoMin === 0) f.soloRevision = true;
+    const f = dame(w.operarioId);
+    f.planteoMin += w.planteoMin;
+    f.revisionMin += w.revisionMin;
   }
   // Quien acaba de pulsar Fichar aún no suma un minuto, pero ya está aquí.
-  for (const v of of.fichandoAhora ?? []) {
-    const op = opById(v.operarioId);
-    const f = dame(v.operarioId, op?.nombre ?? "Nombre no disponible", op);
-    if (v.rol === "revisar" && f.rpsMin === 0 && f.webMin === 0) f.soloRevision = true;
-  }
-  return [...m.values()].sort((a, b) => b.rpsMin + b.webMin - (a.rpsMin + a.webMin));
+  for (const v of of.fichandoAhora ?? []) dame(v.operarioId).vivo = v;
+  return [...m.values()].sort((a, b) => b.planteoMin + b.revisionMin - (a.planteoMin + a.revisionMin));
+}
+
+/** Una celda: los minutos, o el reloj si esa persona está fichando ESE rol. */
+function Celda({ min, vivo }: { min: number; vivo: FichandoAhora | undefined }) {
+  if (vivo)
+    return (
+      <span
+        className={`flex w-[4.75rem] shrink-0 items-center justify-end gap-1 font-semibold ${ROL[vivo.rol].texto}`}
+        title={vivo.rol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
+      >
+        <LiveDot rol={vivo.rol} className="size-1.5" />
+        <RelojVivo desde={vivo.desde} previoSeg={vivo.previoSeg} parte={vivo.parte} />
+      </span>
+    );
+  return (
+    <span className={`w-[4.75rem] shrink-0 text-right tabular-nums ${min > 0 ? "text-text" : "text-text-muted"}`}>
+      {min > 0 ? enMinutos(min) : "—"}
+    </span>
+  );
 }
 
 export function TiempoOF({
   of,
   opById,
-  dobleFichaje,
 }: {
   of: OF;
   opById: (id: string | null) => Operario | null;
-  /** OT ficha también en la herramienta vieja: las dos columnas cuentan el
-   *  mismo rato y NO se suman (ver `aplicarTiemposFichaje`). */
-  dobleFichaje: boolean;
 }) {
   const gente = filas(of, opById);
-  const total = tiempoTotalOF(of);
-  const hayWeb = gente.some((f) => f.webMin > 0);
-  const hayRps = gente.some((f) => f.rpsMin > 0);
-  // Las dos columnas SOLO durante el doble fichaje, y solo si hay algo en las
-  // dos. Una columna de guiones no dice nada.
-  //
-  // Fuera del periodo de pruebas no se parten: ya no son dos herramientas
-  // contando lo mismo, sino dos momentos de la MISMA cuenta —lo que ya subió a
-  // RPS y lo que todavía no— y el worker de OLANET tarda un minuto en igualarlo.
-  // Enseñarlo partido invitaba a sumar dos números que son el mismo trabajo, y
-  // encima sin la frase que lo explicaba (esa ya iba atada a `dobleFichaje`, así
-  // que en activo desaparecía y las columnas se quedaban mudas).
-  const dosColumnas = dobleFichaje && hayWeb && hayRps;
+  const planteo = gente.reduce((n, f) => n + f.planteoMin, 0);
+  const revision = gente.reduce((n, f) => n + f.revisionMin, 0);
+  const total = planteo + revision;
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
 
   return (
@@ -119,8 +93,11 @@ export function TiempoOF({
     // menos, el del interior de las filas desplegadas (Iván, 16/10/2026).
     <div className="detalle-hundido mt-2 rounded-lg px-2 py-1.5">
       <div className="flex items-baseline gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-          Tiempo
+        <p
+          className="text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+          title="Lo fichado en Coordina. Lo del terminal de RPS está en el Historial y en «Tareas y tiempos»."
+        >
+          Tiempo en la web
         </p>
         <p className="ml-auto text-[11px]">
           <b className={`font-semibold ${pasado ? "text-amber-700 dark:text-amber-300" : "text-text"}`}>
@@ -135,91 +112,36 @@ export function TiempoOF({
       {gente.length === 0 ? (
         // Fuera en pantalla baja: el "0m / est." de arriba ya lo dice, y esta
         // línea era lo que dejaba el botón de fichar por debajo del borde.
-        <p className="mt-1 text-[11px] text-text-muted bajo:hidden">Todavía no se ha fichado nada en esta OF.</p>
+        <p className="mt-1 text-[11px] text-text-muted bajo:hidden">Todavía no se ha fichado nada en la web.</p>
       ) : (
         <>
-          {dosColumnas && (
-            <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              <span className="flex-1" />
-              <span className="w-14 text-right" title="Lo fichado en el terminal de siempre">
-                RPS
-              </span>
-              <span className="w-14 text-right" title="Lo fichado en Coordina">
-                Aquí
-              </span>
-            </div>
-          )}
+          <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            <span className="flex-1" />
+            <span className={`w-[4.75rem] text-right ${ROL.plantear.texto}`}>Plantear</span>
+            <span className={`w-[4.75rem] text-right ${ROL.revisar.texto}`}>Revisión</span>
+          </div>
           <ul className="mt-0.5 space-y-0.5">
             {gente.map((f) => (
-              <li key={f.clave} className="flex items-center gap-2 text-[11px]">
+              <li key={f.operarioId} className="flex items-center gap-2 text-[11px]">
                 {f.op ? (
                   <OpDot color={f.op.color} iniciales={f.op.iniciales} />
                 ) : (
-                  // Quien no está en el mapa de operarios de OT no tiene color
-                  // ni iniciales nuestras, pero el tiempo es suyo y tiene que
-                  // verse: un hueco del mismo tamaño para que no bailen las filas.
                   <span className="size-4.5 shrink-0 rounded-full ring-1 ring-inset ring-border" />
                 )}
-                <span className="min-w-0 flex-1 truncate text-text">
-                  {f.nombre}
-                  {f.soloRevision && (
-                    <span className="ml-1 text-text-muted" title="Solo ha fichado revisión">
-                      · revisión
-                    </span>
-                  )}
-                  {f.desde && (
-                    <span
-                      className="ml-1 text-text-muted"
-                      title="Primera vez que fichó en esta OF, según RPS"
-                    >
-                      desde {fmtFechaLarga(f.desde)}
-                    </span>
-                  )}
-                </span>
-                {/* Fichando AHORA: su reloj, al segundo y del color del rol. Va
-                    aquí, junto a su nombre, y no en la cabecera de la OF, donde
-                    no cabía (Iván, 16/10/2026). */}
-                {(() => {
-                  const vivo = of.fichandoAhora?.find((v) => v.operarioId === f.clave);
-                  return (
-                    vivo && (
-                      <span
-                        className={`flex shrink-0 items-center gap-1 font-semibold ${ROL[vivo.rol].texto}`}
-                        title={vivo.rol === "revisar" ? "Revisando ahora" : "Planteando ahora"}
-                      >
-                        <LiveDot rol={vivo.rol} className="size-1.5" />
-                        <RelojVivo desde={vivo.desde} />
-                      </span>
-                    )
-                  );
-                })()}
-                {dosColumnas ? (
-                  <>
-                    <span className="w-14 shrink-0 text-right tabular-nums text-text">
-                      {f.rpsMin > 0 ? enMinutos(f.rpsMin) : "—"}
-                    </span>
-                    <span className="w-14 shrink-0 text-right tabular-nums text-text">
-                      {f.webMin > 0 ? enMinutos(f.webMin) : "—"}
-                    </span>
-                  </>
-                ) : gente.length === 1 ? null : (
-                  // Con UNA sola persona su tiempo ES el total de arriba: salía
-                  // dos veces, casi en la misma fila.
-                  <span className="shrink-0 font-semibold tabular-nums text-text">
-                    {enMinutos(f.rpsMin + f.webMin)}
-                  </span>
-                )}
+                <span className="min-w-0 flex-1 truncate text-text">{f.op?.nombre ?? "Nombre no disponible"}</span>
+                <Celda min={f.planteoMin} vivo={f.vivo?.rol === "plantear" ? f.vivo : undefined} />
+                <Celda min={f.revisionMin} vivo={f.vivo?.rol === "revisar" ? f.vivo : undefined} />
               </li>
             ))}
           </ul>
-          {/* La única frase que hace falta, y solo cuando de verdad hay dos
-              cuentas del mismo rato. Sin ella, ver 2h 10m y 2h 05m en la misma
-              fila se lee como 4h 15m de trabajo. */}
-          {dosColumnas && (
-            <p className="mt-1 text-[10px] leading-snug text-text-muted">
-              Periodo de pruebas: lo mismo se ficha en los dos sitios, así que las dos
-              columnas hablan del mismo rato y no se suman. El total lleva la mayor.
-            </p>
+          {/* La suma de cada columna, solo con más de una persona: con una,
+              es su misma fila. */}
+          {gente.length > 1 && (
+            <div className="mt-1 flex items-center gap-2 border-t border-border pt-1 text-[11px] font-semibold text-text">
+              <span className="flex-1 text-text-muted">Total</span>
+              <span className="w-[4.75rem] text-right tabular-nums">{planteo > 0 ? enMinutos(planteo) : "—"}</span>
+              <span className="w-[4.75rem] text-right tabular-nums">{revision > 0 ? enMinutos(revision) : "—"}</span>
+            </div>
           )}
         </>
       )}

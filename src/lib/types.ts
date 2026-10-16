@@ -258,6 +258,12 @@ export interface FichandoAhora {
   rol: Rol;
   /** ISO. Inicio del tramo abierto: de aquí sale el contador que corre. */
   desde: string;
+  /** Segundos que ya llevaba en esta OF y este rol antes de este tramo: el
+   *  reloj sigue desde ahí al reanudar, no vuelve a cero. */
+  previoSeg?: number;
+  /** Qué parte del tramo le toca a esta OF (½ si se ficha con otra): el reloj
+   *  de la OF corre a ese ritmo, como sus minutos. */
+  parte?: number;
 }
 
 /** Orden de Fabricación: una unidad del pedido (p.ej. cada remolque). */

@@ -214,6 +214,25 @@ export function minutosOF(
   return total;
 }
 
+/** Segundos que una persona YA lleva en una OF y un rol, de sus tramos
+ *  cerrados (repartidos entre las OF de cada tramo, como `minutosOF`).
+ *
+ *  Es la base del reloj que corre: con ella, al reanudar sigue desde lo que
+ *  llevaba en vez de volver a 0:00:00 (Iván, 16/10/2026). */
+export function previoSegundos(
+  intervalos: readonly Intervalo[],
+  operarioId: string,
+  rol: Rol,
+  ofId: string,
+): number {
+  let total = 0;
+  for (const iv of intervalos) {
+    if (iv.fin === null || iv.operarioId !== operarioId || iv.rol !== rol || !iv.ofIds.includes(ofId)) continue;
+    total += (Date.parse(iv.fin) - Date.parse(iv.inicio)) / 1000 / iv.ofIds.length;
+  }
+  return Math.max(0, total);
+}
+
 export interface TiemposRolOF {
   planteoMin: number;
   revisionMin: number;

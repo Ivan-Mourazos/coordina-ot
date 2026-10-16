@@ -71,6 +71,7 @@ import {
   esFichable,
   fichar,
   pausar,
+  previoSegundos,
   rolFichajeDe,
   type Fichaje,
 } from "@/lib/fichaje";
@@ -106,6 +107,9 @@ export interface LiveInfo {
   of: OF;
   /** ISO. Desde cuándo corre su reloj: el contador de la tarjeta. */
   desde: string;
+  /** Ver `FichandoAhora`: lo que ya llevaba en esa OF, y su parte del tramo. */
+  previoSeg?: number;
+  parte?: number;
 }
 
 /** Vista que pide la URL, si pide alguna.
@@ -448,7 +452,18 @@ export function Board({
     // (pueden ser de un tramo que ya pausé).
     const vivosDe = (of: OF) => {
       const otros = (of.fichandoAhora ?? []).filter((f) => f.operarioId !== miId);
-      const mio = ab && ab.ofIds.includes(of.id) ? [{ operarioId: ab.operarioId, rol: ab.rol, desde: ab.inicio }] : [];
+      const mio =
+        ab && ab.ofIds.includes(of.id)
+          ? [
+              {
+                operarioId: ab.operarioId,
+                rol: ab.rol,
+                desde: ab.inicio,
+                previoSeg: previoSegundos(fichaje.intervalos, ab.operarioId, ab.rol, of.id),
+                parte: 1 / ab.ofIds.length,
+              },
+            ]
+          : [];
       const todos = [...mio, ...otros];
       return todos.length ? todos : undefined;
     };
@@ -944,7 +959,7 @@ export function Board({
         for (const f of of.fichandoAhora ?? []) {
           if (map.has(f.operarioId)) continue;
           const op = operarios.find((o) => o.id === f.operarioId);
-          if (op) map.set(f.operarioId, { operario: op, rol: f.rol, pedido: p, of, desde: f.desde });
+          if (op) map.set(f.operarioId, { operario: op, rol: f.rol, pedido: p, of, desde: f.desde, previoSeg: f.previoSeg, parte: f.parte });
         }
       }
     }
@@ -3058,7 +3073,6 @@ export function Board({
         operarios={operarios}
         miId={miId}
         seccion={laSeccion}
-        dobleFichaje={dobleFichaje}
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}

@@ -1,6 +1,6 @@
 import type { Tablero } from "../data";
 import type { Intervalo } from "../fichaje";
-import { minutosOF, minutosPorOperarioOF, type Fichaje } from "../fichaje";
+import { minutosOF, minutosPorOperarioOF, previoSegundos, type Fichaje } from "../fichaje";
 import type { FichajeWebOF, FichandoAhora, RitmoVivoOF } from "../types";
 
 // ─── Tiempo de fichaje agregado por OF ───────────────────────────────────────
@@ -59,13 +59,25 @@ function ritmosVivos(intervalos: Intervalo[]): Map<string, RitmoVivoOF> {
 
 /** Quién tiene el reloj en marcha en cada OF, y desde cuándo. Ver
  *  `OF.fichandoAhora`. */
-export function fichandoAhoraPorOF(intervalos: Intervalo[]): Map<string, FichandoAhora[]> {
+export function fichandoAhoraPorOF(
+  intervalos: Intervalo[],
+  /** Todos los tramos de quien está fichando, también los ya traspasados a
+   *  RPS: `intervalos` los deja fuera, y sin ellos lo que llevaba antes se
+   *  quedaría corto en cuanto OLANET se los llevara. */
+  completos: readonly Intervalo[] = intervalos,
+): Map<string, FichandoAhora[]> {
   const porOF = new Map<string, FichandoAhora[]>();
   for (const iv of intervalos) {
     if (iv.fin !== null) continue;
     for (const id of iv.ofIds) {
       const lista = porOF.get(id) ?? [];
-      lista.push({ operarioId: iv.operarioId, rol: iv.rol, desde: iv.inicio });
+      lista.push({
+        operarioId: iv.operarioId,
+        rol: iv.rol,
+        desde: iv.inicio,
+        previoSeg: previoSegundos(completos, iv.operarioId, iv.rol, id),
+        parte: 1 / iv.ofIds.length,
+      });
       porOF.set(id, lista);
     }
   }
@@ -77,11 +89,13 @@ export function aplicarTiemposFichaje(
   intervalos: Intervalo[],
   ahora: string,
   opciones: OpcionesTiempos = { dobleFichaje: true },
+  /** Ver `fichandoAhoraPorOF`. */
+  completos?: readonly Intervalo[],
 ): Tablero {
   if (intervalos.length === 0) return tablero;
   const f: Fichaje = { intervalos };
   const ritmos = ritmosVivos(intervalos);
-  const vivos = fichandoAhoraPorOF(intervalos);
+  const vivos = fichandoAhoraPorOF(intervalos, completos);
   return {
     operarios: tablero.operarios,
     pedidos: tablero.pedidos.map((p) => {

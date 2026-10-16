@@ -46,7 +46,7 @@ export function QuienFicha({
         >
           <LiveDot rol={v.rol} className="size-1.5" />
           {nombre(v.operarioId)}
-          <RelojVivo desde={v.desde} className="font-semibold" />
+          <RelojVivo desde={v.desde} previoSeg={v.previoSeg} parte={v.parte} className="font-semibold" />
         </span>
       ))}
     </span>

@@ -22,8 +22,22 @@ export function fmtHMS(seg: number): string {
  *
  *  `desde` lo sella el servidor, así que se resta a la hora DEL SERVIDOR (ver
  *  lib/reloj-servidor.ts): con la local, el de producción salía un minuto
- *  desplazado. */
-export function RelojVivo({ desde, className = "" }: { desde: string; className?: string }) {
+ *  desplazado.
+ *
+ *  `previoSeg` es lo que ya llevaba antes de este tramo: al reanudar, el reloj
+ *  SIGUE desde ahí en vez de volver a 0:00:00 (Iván, 16/10/2026). `parte`, la
+ *  porción del tramo que le toca a esta OF si se ficha con otras. */
+export function RelojVivo({
+  desde,
+  previoSeg = 0,
+  parte = 1,
+  className = "",
+}: {
+  desde: string;
+  previoSeg?: number;
+  parte?: number;
+  className?: string;
+}) {
   const inicio = Date.parse(desde);
   const [ahora, setAhora] = useState(() => ahoraServidorGuardado());
   useEffect(() => {
@@ -31,5 +45,6 @@ export function RelojVivo({ desde, className = "" }: { desde: string; className?
     return () => clearInterval(id);
   }, []);
   if (!Number.isFinite(inicio)) return null;
-  return <span className={`tabular-nums ${className}`}>{fmtHMS((ahora - inicio) / 1000)}</span>;
+  const tramo = Math.max(0, (ahora - inicio) / 1000) * parte;
+  return <span className={`tabular-nums ${className}`}>{fmtHMS(previoSeg + tramo)}</span>;
 }

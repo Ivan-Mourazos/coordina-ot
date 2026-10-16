@@ -189,7 +189,6 @@ export function Drawer({
   operarios,
   miId,
   seccion,
-  dobleFichaje = false,
   onClose,
   onAssignPedido,
   onCompletar,
@@ -218,9 +217,6 @@ export function Drawer({
   /** De qué sección es este pedido. De ella sale si las acciones de estado van
    *  por OF o por pedido (ver `revisionPorPedido` en lib/secciones.ts). */
   seccion: Seccion;
-  /** OT ficha también en la herramienta vieja: las dos cuentas de tiempo
-   *  hablan del mismo trabajo y hay que decirlo (ver aplicarTiemposFichaje). */
-  dobleFichaje?: boolean;
   onClose: () => void;
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
@@ -1136,7 +1132,6 @@ export function Drawer({
                 of={of}
                 operarios={operarios}
                 miId={miId}
-                dobleFichaje={dobleFichaje}
                 pedidoDeUnaOF={pedido.ofs.length === 1}
                 revisionPorPedido={porPedido}
                 seccion={seccion}
@@ -1310,7 +1305,6 @@ function OFRow({
   of,
   operarios,
   miId,
-  dobleFichaje,
   pedidoDeUnaOF,
   revisionPorPedido,
   seccion,
@@ -1342,7 +1336,6 @@ function OFRow({
   /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
    *  la guía sin mirar), o null si se puede. */
   impedidoRevision?: string | null;
-  dobleFichaje: boolean;
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
@@ -1652,7 +1645,7 @@ function OFRow({
               minutos en las líneas de rol, el desglose de RPS aparte, el total, y
               una línea que volvía a comparar los dos— diciendo los mismos números.
               Ver la cabecera de TiempoOF.tsx. */}
-          <TiempoOF of={of} opById={opById} dobleFichaje={dobleFichaje} />
+          <TiempoOF of={of} opById={opById} />
 
           {/* archivos subidos a RPS */}
           {of.archivosRps && of.archivosRps.length > 0 && (

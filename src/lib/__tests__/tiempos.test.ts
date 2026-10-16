@@ -231,7 +231,9 @@ describe("quién ficha ahora", () => {
       ACTIVO,
     );
     const [o1, o2] = r.pedidos[0].ofs;
-    expect(o1.fichandoAhora).toEqual([{ operarioId: "jaime", rol: "revisar", desde: "2026-07-22T19:30:00.000Z" }]);
+    expect(o1.fichandoAhora).toEqual([
+      { operarioId: "jaime", rol: "revisar", desde: "2026-07-22T19:30:00.000Z", previoSeg: 0, parte: 1 },
+    ]);
     // Un tramo ya cerrado no es estar fichando.
     expect(o2.fichandoAhora).toBeUndefined();
   });
@@ -243,5 +245,36 @@ describe("quién ficha ahora", () => {
     const o = r.pedidos[0].ofs[0];
     expect(o.ritmoVivo).toBeUndefined();
     expect(o.fichandoAhora?.[0]).toMatchObject({ operarioId: "tamara", rol: "plantear" });
+  });
+});
+
+describe("el reloj sigue desde lo que llevaba", () => {
+  // Al reanudar, el reloj volvía a 0:00:00. El servidor manda lo que esa
+  // persona ya llevaba en la OF y el rol, de sus tramos cerrados.
+  test("lo de antes en esa OF y ese rol, repartido como los minutos", () => {
+    const cerrado = (desdeH: number, hastaH: number, ofIds: string[], rol: Intervalo["rol"] = "plantear"): Intervalo => ({
+      ...iv(desdeH, hastaH, ofIds, rol), operarioId: "tamara",
+    });
+    const abiertoAhora: Intervalo = {
+      inicio: "2026-07-22T19:30:00.000Z", fin: null, ofIds: ["OF-1"], rol: "plantear", operarioId: "tamara",
+    };
+    const intervalos = [
+      cerrado(9, 10, ["OF-1"]), // 1 h entera
+      cerrado(11, 12, ["OF-1", "OF-2"]), // ½ h para OF-1
+      cerrado(13, 14, ["OF-1"], "revisar"), // otro rol: no cuenta
+      abiertoAhora,
+    ];
+    const r = aplicarTiemposFichaje(tablero([of("OF-1")]), intervalos, AHORA, ACTIVO);
+    expect(r.pedidos[0].ofs[0].fichandoAhora?.[0]).toMatchObject({ previoSeg: 5400, parte: 1 });
+  });
+
+  test("cuenta también lo ya traspasado a RPS si se le da la lista completa", () => {
+    const abiertoAhora: Intervalo = {
+      inicio: "2026-07-22T19:30:00.000Z", fin: null, ofIds: ["OF-1"], rol: "plantear", operarioId: "tamara",
+    };
+    const traspasado: Intervalo = { ...iv(9, 10, ["OF-1"]), operarioId: "tamara" };
+    // `intervalos` llega sin el traspasado (leerTodosIntervalos lo filtra).
+    const r = aplicarTiemposFichaje(tablero([of("OF-1")]), [abiertoAhora], AHORA, ACTIVO, [traspasado, abiertoAhora]);
+    expect(r.pedidos[0].ofs[0].fichandoAhora?.[0].previoSeg).toBe(3600);
   });
 });
