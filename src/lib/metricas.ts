@@ -307,12 +307,45 @@ export function ventanaDeDias(dias: number, hoy: string): Periodo {
   return { desde: sumarDias(hoy, -(dias - 1)), hasta: hoy };
 }
 
-/** El periodo de la MISMA longitud que acaba justo antes, para comparar.
+/** Último día del mes "2026-10" → "2026-10-31". */
+const finDeMes = (mes: string) => sumarDias(`${sumarDias(`${mes}-28`, 4).slice(0, 7)}-01`, -1);
+
+/** Un mes del calendario ("2026-10"), sin pasar de hoy: el mes en curso va
+ *  del día 1 a hoy. Las métricas se miran por mes porque así se habla de
+ *  ellas («en septiembre volvieron…»); los 30 y 90 días no coincidían con
+ *  nada (Iván, 16/10/2026). */
+export function periodoDeMes(mes: string, hoy: string): Periodo {
+  const fin = finDeMes(mes);
+  return { desde: `${mes}-01`, hasta: fin < hoy ? fin : hoy };
+}
+
+/** El mes de un periodo, si el periodo ES un mes (entero, o el en curso
+ *  hasta hoy). Null si es un tramo libre. */
+export function mesDePeriodo(desde: string, hasta: string, hoy: string): string | null {
+  if (!desde || !hasta || !desde.endsWith("-01")) return null;
+  const p = periodoDeMes(desde.slice(0, 7), hoy);
+  return p.hasta === hasta ? desde.slice(0, 7) : null;
+}
+
+/** El periodo con el que se compara.
+ *
+ *  Si es un MES, el mes anterior: entero si el mes ya acabó, y los mismos
+ *  días si está en curso — el 1-16 de octubre contra el 1-16 de septiembre,
+ *  no contra septiembre entero, que siempre parecería más.
+ *
+ *  Si no, el tramo de la MISMA longitud que acaba justo antes.
  *
  *  Null si no hay periodo cerrado: comparar "todo el histórico" con lo que
  *  había antes de existir la herramienta no es una comparación. */
 export function periodoAnterior(desde: string, hasta: string): Periodo | null {
   if (!desde || !hasta) return null;
+  if (desde.endsWith("-01") && hasta.slice(0, 7) === desde.slice(0, 7)) {
+    const mesAntes = sumarDias(desde, -1).slice(0, 7);
+    const finAntes = finDeMes(mesAntes);
+    if (hasta === finDeMes(desde.slice(0, 7))) return { desde: `${mesAntes}-01`, hasta: finAntes };
+    const mismoDia = `${mesAntes}-${hasta.slice(8, 10)}`;
+    return { desde: `${mesAntes}-01`, hasta: mismoDia < finAntes ? mismoDia : finAntes };
+  }
   const largo = diasEntre(desde, hasta);
   if (largo < 0) return null;
   const fin = sumarDias(desde, -1);

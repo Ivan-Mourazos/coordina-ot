@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ErrorCarga } from "./ErrorCarga";
 import { SelectorFecha } from "./SelectorFecha";
-import { periodoAnterior, proporcionDevueltas, sinActividad, ventanaDeDias, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
+import { mesDePeriodo, periodoAnterior, periodoDeMes, proporcionDevueltas, sinActividad, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
+import { sumarDias } from "@/lib/fechas";
 import type { CuadroMetricas, PuntoTendencia } from "@/lib/metricas-cuadro";
 import { hoyISO, type Operario } from "@/lib/types";
 import { CAUSAS } from "@/lib/anulacion";
@@ -12,7 +13,8 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 
 interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaDevolucion[] }
-const ATAJOS = [{ label: "30 días", dias: 30 }, { label: "90 días", dias: 90 }, { label: "Todo", dias: null }] as const;
+const nombreMes = (mes: string) =>
+  new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" }).replace(" de ", " ");
 const SERIES = [
   { clave: "planteos", label: "Planteos entregados", color: "var(--fase-planteando-relleno)" },
   { clave: "revisiones", label: "Revisiones", color: "var(--fase-revision-relleno)" },
@@ -22,7 +24,13 @@ const tiempo = (min: number | null | undefined) => min == null ? "—" : min < 6
 const porcentaje = (n: number | null) => n === null ? "—" : `${Math.round(n * 100)} %`;
 
 export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId; operarios: Operario[]; miId: string }) {
-  const [{ desde, hasta }, setPeriodo] = useState(() => ventanaDeDias(90, hoyISO()));
+  const hoy = hoyISO();
+  const mesHoy = hoy.slice(0, 7);
+  const [{ desde, hasta }, setPeriodo] = useState(() => periodoDeMes(mesHoy, hoy));
+  // El mes elegido, si el periodo es un mes; si es un tramo libre, las
+  // flechas parten del mes en que empieza (o del actual, con «Todo»).
+  const mes = mesDePeriodo(desde, hasta, hoy);
+  const mesBase = mes ?? (desde ? desde.slice(0, 7) : mesHoy);
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [previo, setPrevio] = useState<Respuesta | null>(null);
   const [error, setError] = useState(false);
@@ -70,12 +78,16 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold tracking-tight">Métricas <span className="font-medium text-text-muted">· {SECCIONES[seccion].nombre}</span></h2>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          <div className="tira-3d glass-chip flex gap-1 rounded-lg p-0.5" aria-label="Periodo">
-            {ATAJOS.map((a) => {
-              const p = a.dias === null ? { desde: "", hasta: "" } : ventanaDeDias(a.dias, hoyISO());
-              const activo = p.desde === desde && p.hasta === hasta;
-              return <button key={a.label} onClick={() => setPeriodo(p)} aria-pressed={activo} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${activo ? "pestana-activa text-text" : "text-text-muted"}`}>{a.label}</button>;
-            })}
+          {/* POR MES, con flechas para ir hacia atrás y hacia delante: así se
+              habla de estas cifras («en septiembre…»). Los 30 y 90 días no
+              coincidían con ningún mes (Iván, 16/10/2026). */}
+          <div className="tira-3d glass-chip flex items-center gap-1 rounded-lg p-0.5" aria-label="Periodo">
+            <button type="button" onClick={() => setPeriodo(periodoDeMes(sumarDias(`${mesBase}-01`, -1).slice(0, 7), hoy))} aria-label="Mes anterior" className="rounded-md px-2 py-1.5 text-xs font-semibold text-text-muted hover:text-text">◀</button>
+            <button type="button" onClick={() => setPeriodo(periodoDeMes(mesBase, hoy))} aria-pressed={mes !== null} className={`min-w-32 rounded-md px-3 py-1.5 text-xs font-semibold first-letter:uppercase ${mes !== null ? "pestana-activa text-text" : "text-text-muted"}`}>
+              {nombreMes(mesBase)}{mes === mesHoy ? " · en curso" : ""}
+            </button>
+            <button type="button" onClick={() => setPeriodo(periodoDeMes(sumarDias(`${mesBase}-28`, 4).slice(0, 7), hoy))} disabled={mesBase >= mesHoy} aria-label="Mes siguiente" className="rounded-md px-2 py-1.5 text-xs font-semibold text-text-muted hover:text-text disabled:opacity-30">▶</button>
+            <button type="button" onClick={() => setPeriodo({ desde: "", hasta: "" })} aria-pressed={!desde && !hasta} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${!desde && !hasta ? "pestana-activa text-text" : "text-text-muted"}`}>Todo</button>
           </div>
           <span className="sr-only">Entre fechas</span>
           <div className="[&_[role=dialog]]:right-0 [&_[role=dialog]]:left-auto">
@@ -94,7 +106,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
         </div>
         <div className="grid min-h-0 gap-3 lg:grid-cols-[1.35fr_1fr]">
           <Panel titulo="Mes a mes"><Meses meses={c.meses} /></Panel>
-          <Panel titulo="Dónde se para el trabajo"><Recorrido m={m} /></Panel>
+          <Panel titulo="Cuánto tarda cada paso de la revisión"><Recorrido m={m} /></Panel>
         </div>
         <div className="grid min-h-0 gap-3 lg:grid-cols-[1fr_1fr_1.4fr]">
           <Panel titulo="Por qué vuelven" extra={`${m.devoluciones} devoluciones`}><Ranking filas={m.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /></Panel>
@@ -114,7 +126,7 @@ function Delta({ ahora, antes, puntos, minutos }: { ahora: number | null; antes:
   if (ahora === null || antes === null || !Number.isFinite(antes)) return <span>Sin comparación</span>;
   const diferencia = ahora - antes;
   const valor = puntos ? `${Math.abs(diferencia).toFixed(1).replace(".", ",")} puntos` : minutos ? tiempo(Math.abs(diferencia)) : antes === 0 ? String(Math.abs(diferencia)) : `${Math.round(Math.abs(diferencia / antes) * 100)} %`;
-  return <span title={`Periodo anterior: ${minutos ? tiempo(antes) : puntos ? `${Math.round(antes)} %` : antes}. Periodos de igual duración.`}><strong className="font-semibold text-text">{diferencia === 0 ? "=" : diferencia > 0 ? "▲" : "▼"} {valor}</strong> <span>frente al anterior</span></span>;
+  return <span title={`Periodo anterior: ${minutos ? tiempo(antes) : puntos ? `${Math.round(antes)} %` : antes}. El mes anterior (los mismos días si el mes está en curso), o un tramo igual de largo.`}><strong className="font-semibold text-text">{diferencia === 0 ? "=" : diferencia > 0 ? "▲" : "▼"} {valor}</strong> <span>frente al anterior</span></span>;
 }
 function Kpi({ titulo, valor, detalle, delta, puntos, serie, color, pie }: { titulo: string; valor: string; detalle: string; delta: ReactNode; puntos: PuntoTendencia[]; serie: "terminadas" | "planteos" | "proporcion" | "aprobacion"; color: string; pie?: string }) {
   const valores = puntos.map((p) => serie === "aprobacion" ? p.aprobacion.medianaMin : p[serie]);
@@ -146,15 +158,19 @@ function Meses({ meses }: { meses: MesMetricas[] }) {
   </>;
 }
 function Recorrido({ m }: { m: Metricas }) {
-  const tramos: { nombre: string; tramo: Tramo; color: string }[] = [
-    { nombre: "Esperando", tramo: m.tiempos.esperaCola, color: "var(--text-muted)" },
-    { nombre: "Revisión", tramo: m.tiempos.repaso, color: SERIES[1].color },
-    { nombre: "Corrección", tramo: m.tiempos.correccion, color: "var(--fase-devuelta-relleno)" },
+  // Cada caja dice QUÉ mide en palabras de la mesa. Con «Esperando»,
+  // «Revisión» y «Corrección» a secas y dos números debajo no se entendía de
+  // dónde a dónde iba cada uno (Iván, 16/10/2026).
+  const tramos: { nombre: string; que: string; tramo: Tramo; color: string }[] = [
+    { nombre: "Esperando al revisor", que: "Desde que se pasa a revisión hasta que el revisor la abre", tramo: m.tiempos.esperaCola, color: "var(--text-muted)" },
+    { nombre: "Revisándose", que: "Desde que el revisor la abre hasta que la aprueba o la devuelve", tramo: m.tiempos.repaso, color: SERIES[1].color },
+    { nombre: "Corrigiéndose", que: "Desde que se devuelve hasta que el autor la vuelve a mandar", tramo: m.tiempos.correccion, color: "var(--fase-devuelta-relleno)" },
   ];
   const total = tramos.reduce((s, t) => s + (t.tramo.medianaMin ?? 0), 0);
   return <div className="flex flex-1 flex-col justify-center gap-3">
     {tramos.every((t) => !t.tramo.n) ? <Vacio>Sin tramos completos en este periodo.</Vacio> : <div className="recuadro flex h-10 shrink-0 gap-1 overflow-hidden rounded-lg p-1" role="img" aria-label={tramos.map((t) => `${t.nombre}: ${tiempo(t.tramo.medianaMin)}`).join("; ")} title="Longitud proporcional a la mediana de cada tramo; las medianas no se suman para calcular el tiempo hasta aprobarse.">{tramos.map((t) => <span key={t.nombre} className="rounded" style={{ width: `${total ? (t.tramo.medianaMin ?? 0) / total * 100 : 0}%`, background: t.color }} title={`${t.nombre}: ${t.tramo.medianaMin ?? "sin datos"} minutos · ${t.tramo.n} tramos`} />)}</div>}
-    <div className="grid grid-cols-3 gap-2">{tramos.map((t) => <div key={t.nombre} className="recuadro min-w-0 rounded-lg p-3 bajo:p-2" title={`${t.tramo.n} tramos completos · ${t.tramo.trabajo.n} con fichaje. Medianas independientes: el reloj incluye noches y fines de semana; sin fichaje no se cuenta como cero.`}><div className="flex items-center gap-1 text-[10px] text-text-muted"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: t.color }} />{t.nombre}</div><div className="mt-1 text-xl font-bold tabular-nums">{tiempo(t.tramo.medianaMin)}</div><div className="mt-1 text-[10px] text-text-muted">Trabajo fichado<strong className="mt-0.5 block font-semibold text-text">{tiempo(t.tramo.trabajo.medianaMin)}</strong></div></div>)}</div>
+    <div className="grid grid-cols-3 gap-2">{tramos.map((t) => <div key={t.nombre} className="recuadro min-w-0 rounded-lg p-3 bajo:p-2" title={`${t.tramo.n} tramos completos · ${t.tramo.trabajo.n} con fichaje. Medianas independientes: el reloj incluye noches y fines de semana; sin fichaje no se cuenta como cero.`}><div className="flex items-center gap-1 text-[11px] font-semibold text-text"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: t.color }} />{t.nombre}</div><div className="mt-0.5 text-[10px] leading-snug text-text-muted">{t.que}</div><div className="mt-2 text-xl font-bold tabular-nums">{tiempo(t.tramo.medianaMin)}</div><div className="text-[10px] text-text-muted">pasan, en una OF normal</div>{t.tramo !== m.tiempos.esperaCola && <div className="mt-1.5 text-[10px] text-text-muted">De eso, trabajando: <strong className="font-semibold text-text">{tiempo(t.tramo.trabajo.medianaMin)}</strong></div>}</div>)}</div>
+    <p className="text-[10px] text-text-muted">El tiempo que pasa cuenta noches y fines de semana; el trabajado es el fichado en la web. «Normal» es la OF del medio: ni la más rápida ni la que se quedó olvidada.</p>
   </div>;
 }
 function Ranking({ filas, color, vacio }: { filas: { etiqueta: string; n: number }[]; color: string; vacio: string }) {
