@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { operariosDeSeccion } from "@/lib/server/operarios";
-import { leerCausasDevolucion, leerMovimientosMetricas } from "@/lib/server/estado-db";
+import { leerCausasDevolucion, leerMovimientosMetricas, leerPasosRevision } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
 import { soloConSesion } from "@/lib/server/sesion";
@@ -61,7 +61,14 @@ export async function GET(req: Request) {
       desde: desde.slice(0, 10), hasta: limite(q.get("hasta"))?.slice(0, 10) ?? "",
     });
     return NextResponse.json(
-      { metricas: calcularMetricas(movs, intervalos), cuadro, causas: leerCausasDevolucion(true) },
+      {
+        metricas: calcularMetricas(movs, intervalos),
+        cuadro,
+        causas: leerCausasDevolucion(true),
+        // Para poner nombre al «qué paso falla». Con los retirados: una
+        // devolución de hace meses puede apuntar a uno que ya no se pide.
+        pasos: leerPasosRevision(true).map((p) => ({ id: p.id, texto: p.texto })),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

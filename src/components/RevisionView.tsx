@@ -7,7 +7,8 @@ import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
 import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
-import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
+import { fallosDeLaGuia, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
+import { leerDevolucion } from "@/lib/devolucion";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { DevolverInline } from "./DevolverInline";
@@ -404,14 +405,16 @@ function FilaRevision({
   // Lo comprobado va al servidor: de ello depende poder aprobar, y perderlo al
   // refrescar obligaría a repasar los ocho puntos otra vez (ver
   // useMarcasRevision).
-  const { marcas, marcar } = useMarcasRevision(ofIds, miId);
+  const { marcas, comentarios, marcar } = useMarcasRevision(ofIds, miId);
   const [guiaAbierta, setGuiaAbierta] = useState(true);
   // De qué es este trabajo: la guía y las causas se acotan a estas familias.
   // Un pedido puede traer varias (un toldo y su lona) y se repasan las de
   // todas, que es lo que hace el revisor.
   const familias = [...new Set(ofs.map((o) => o.familia).filter(Boolean) as string[])];
   const puntos = guiaDeFamilias(pasos, causas, familias);
-  const fallos = causasDeLoQueFalla(puntos, marcas);
+  const fallos = fallosDeLaGuia(puntos, marcas, comentarios);
+  // Segunda vuelta: lo que falló en la devolución anterior, primero.
+  const fallaronAntes = new Set(ofs.flatMap((o) => leerDevolucion(o.observacion).pasos ?? []));
   // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR. La guía deja de ser un
   // recordatorio y pasa a ser el paso previo: dar por buena una OF sin haberla
   // repasado entera es lo que esto viene a evitar, y devolverla a medias deja
@@ -596,6 +599,8 @@ function FilaRevision({
                     puntos={puntos}
                     marcas={marcas}
                     onMarcar={marcar}
+                    comentarios={comentarios}
+                    fallaronAntes={fallaronAntes}
                     abierta={guiaAbierta}
                     onAbrir={setGuiaAbierta}
                   />
@@ -612,11 +617,10 @@ function FilaRevision({
                   <DevolverInline
                     label={
                       fallos.length > 0
-                        ? `Devolver con ${fallos.length} ${fallos.length === 1 ? "causa" : "causas"}`
+                        ? `Devolver con ${fallos.length} ${fallos.length === 1 ? "fallo" : "fallos"}`
                         : ACCIONES.find((a) => a.id === "devolver")?.label
                     }
-                    miId={miId}
-                    causasSugeridas={fallos}
+                    fallos={fallos}
                     familias={familias}
                     impedido={impedido}
                     ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}

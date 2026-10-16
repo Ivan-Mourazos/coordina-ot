@@ -12,7 +12,8 @@ import { ParteEscaneado } from "./ParteEscaneado";
 import { DetalleVenta } from "./DetalleVenta";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
-import { causasDeLoQueFalla, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
+import { fallosDeLaGuia, guiaDeFamilias, sinMirar, type FalloGuia } from "@/lib/guia-revision";
+import { leerDevolucion } from "@/lib/devolucion";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
@@ -371,7 +372,7 @@ export function Drawer({
     .map((o) => o.id);
   // Lo comprobado se guarda en el servidor: de ello depende poder aprobar, y
   // perderlo al refrescar obligaría a repasar los puntos otra vez.
-  const { marcas: marcasGuia, marcar: marcarGuia } = useMarcasRevision(idsParaRevisar, miId);
+  const { marcas: marcasGuia, comentarios: comentariosGuia, marcar: marcarGuia } = useMarcasRevision(idsParaRevisar, miId);
   const [guiaAbierta, setGuiaAbierta] = useState(true);
 
   // ¿Está escaneado el parte? `null` = todavía sin comprobar, y ahí se pinta el
@@ -622,7 +623,15 @@ export function Drawer({
     ...new Set(ofsDeOT.map((o) => o.familia).filter(Boolean) as string[]),
   ];
   const puntosGuia = guiaDeFamilias(pasosRevision, causasRevision, familiasDelPedido);
-  const fallosGuia = causasDeLoQueFalla(puntosGuia, marcasGuia);
+  // Lo que falla, con su causa y lo que se escribió: llega relleno al devolver.
+  const fallosGuia = fallosDeLaGuia(puntosGuia, marcasGuia, comentariosGuia);
+  // Segunda vuelta: los pasos que fallaron en la devolución anterior de las OF
+  // que se están revisando (la nota se queda en la OF hasta la siguiente).
+  const fallaronAntes = new Set(
+    ofsDeOT
+      .filter((o) => idsParaRevisar.includes(o.id))
+      .flatMap((o) => leerDevolucion(o.observacion).pasos ?? []),
+  );
   // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR: la guía deja de ser un
   // recordatorio y pasa a ser el paso previo. Con la guía vacía —una familia
   // para la que nadie ha dictado puntos todavía— no se bloquea nada: no habría
@@ -1105,6 +1114,8 @@ export function Drawer({
                 puntos={puntosGuia}
                 marcas={marcasGuia}
                 onMarcar={marcarGuia}
+                comentarios={comentariosGuia}
+                fallaronAntes={fallaronAntes}
                 abierta={guiaAbierta}
                 onAbrir={setGuiaAbierta}
               />
@@ -1120,13 +1131,12 @@ export function Drawer({
               <DevolverInline
                 label={
                   fallosGuia.length > 0
-                    ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "causa" : "causas"}`
+                    ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "fallo" : "fallos"}`
                     : // La rama de causas ya concuerda bien; esta es la que faltaba:
                       // con una sola OF (lo normal en Diseño) el número sobra.
                       etiquetaCantidad("Devolver", paraDevolver.length)
                 }
-                miId={miId}
-                causasSugeridas={fallosGuia}
+                fallos={fallosGuia}
                 familias={familiasDelPedido}
                 // Aquí también se pueden descartar las que están bien, aunque
                 // cada fila siga teniendo su propio botón: quien abre este ya
@@ -1210,6 +1220,7 @@ export function Drawer({
                 onAccion={onAccion}
                 onFichar={onFichar}
                 impedidoRevision={impedidoPorGuia}
+                fallosGuia={fallosGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
                 onCoger={paraCoger.some((o) => o.id === of.id) ? () => onCoger?.([of.id]) : undefined}
@@ -1383,6 +1394,7 @@ function OFRow({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  fallosGuia,
   plegable = false,
   abierta = true,
   onAlternar,
@@ -1400,6 +1412,7 @@ function OFRow({
   /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
    *  la guía sin mirar), o null si se puede. */
   impedidoRevision?: string | null;
+  fallosGuia?: readonly FalloGuia[];
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
@@ -1743,6 +1756,7 @@ function OFRow({
               onDesfichar={onDesfichar}
               fichandoYoEsta={fichandoYoEsta}
               impedidoRevision={impedidoRevision}
+              fallosGuia={fallosGuia}
               onCoger={onCoger}
             />
           )}
@@ -1775,6 +1789,7 @@ function AccionesOF({
   onDesfichar,
   fichandoYoEsta,
   impedidoRevision,
+  fallosGuia,
   onCoger,
 }: {
   onCoger?: () => void;
@@ -1784,6 +1799,10 @@ function AccionesOF({
   /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
    *  dar por buena una OF sin haberla repasado entera es lo que se evita. */
   impedidoRevision?: string | null;
+  /** Las causas de lo que la guía marcó como fallo: llegan ya puestas al
+   *  devolver. Faltaban aquí, en el botón de cada OF —el que se usa casi
+   *  siempre—, y había que volver a elegirlas (Iván, 16/10/2026). */
+  fallosGuia?: readonly FalloGuia[];
   /** Con la revisión por pedido, esta fila no ofrece pasar a revisión,
    *  aprobar ni devolver: esas suben al bloque del pedido. */
   revisionPorPedido: boolean;
@@ -2024,8 +2043,12 @@ function AccionesOF({
           return (
             <DevolverInline
               key={a.id}
-              label={a.label}
-              miId={miId}
+              label={
+                fallosGuia?.length
+                  ? `Devolver con ${fallosGuia.length} ${fallosGuia.length === 1 ? "fallo" : "fallos"}`
+                  : a.label
+              }
+              fallos={fallosGuia}
               impedido={impedidoRevision}
               familias={of.familia ? [of.familia] : undefined}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}

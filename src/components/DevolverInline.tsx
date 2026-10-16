@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  causasParecidas,
-  codificarDevolucion,
-  devolucionCompleta,
-  etiquetaValida,
-  CAUSA_MAX,
-} from "@/lib/devolucion";
+import { useEffect, useState } from "react";
+import { codificarDevolucion, notaDeLaGuia } from "@/lib/devolucion";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
-import { crearCausa, leerCausas } from "@/lib/causas-cliente";
+import { leerCausas } from "@/lib/causas-cliente";
+import type { FalloGuia } from "@/lib/guia-revision";
 import { SelectorOFs, useElegidas } from "./SelectorOFs";
+
+// ─── Cómo se devuelve (16/10/2026, con Iván y un compañero) ──────────────────
+// · LLEGA RELLENO DESDE LA GUÍA: las causas de los pasos que fallan, ya
+//   puestas, y la nota escrita, una línea por paso con lo que se apuntó en él.
+//   Antes se marcaba el fallo en la guía, se volvía a elegir la causa aquí y se
+//   escribía la nota de memoria: tres veces lo mismo, y en producción ninguna
+//   de las 8 devoluciones desde el 11/10 llevaba causa.
+// · TODA DEVOLUCIÓN LLEVA CAUSA: una de la lista u «Otra cosa» con texto.
+// · LAS CAUSAS NO SE CREAN AQUÍ: se gestionan en «Pasos y causas». Desde aquí
+//   salían repetidas y mal escritas («Faltan anotaciones de material», «Faltan
+//   Anotacións»): de 15, 10 acabaron retiradas. Lo que no encaja va a «Otra
+//   cosa»; si se repite, se crea allí.
 
 /** Devolución con causas y motivo escrito ahí mismo (sustituye al window.prompt).
  *
@@ -30,9 +37,9 @@ import { SelectorOFs, useElegidas } from "./SelectorOFs";
  *  de no retorno. */
 export function DevolverInline({
   onDevolver,
-  miId,
   label = "Devolver con nota",
   causasSugeridas,
+  fallos = [],
   familias,
   ofs,
   impedido,
@@ -50,12 +57,13 @@ export function DevolverInline({
    *  mirar. Mandar una OF atrás sin haberla repasado entera deja al autor con
    *  media corrección, y a la vuelta aparecerá lo que no se llegó a mirar. */
   impedido?: string | null;
-  /** Quién crea la causa, si crea alguna. Solo para dejarlo apuntado. */
-  miId?: string | null;
   /** Causas ya marcadas al abrir. Vienen de la guía de revisión: lo que el
    *  revisor marcó como fallo mientras repasaba. Marcadas, no impuestas: se
    *  pueden quitar como cualquier otra. */
   causasSugeridas?: readonly number[];
+  /** Lo que la guía marcó como fallo, con su causa y lo que se escribió en
+   *  cada paso. Sus causas llegan puestas y la nota sale de aquí. */
+  fallos?: readonly FalloGuia[];
   /** De qué familias es el trabajo. Solo se ofrecen las causas genéricas y las
    *  de estas familias: el que devuelve una funda no tiene por qué elegir entre
    *  ocho causas sobre aumentos y simetría de lona. Sin familias, salen todas
@@ -72,10 +80,11 @@ export function DevolverInline({
   const [obs, setObs] = useState("");
   const [causas, setCausas] = useState<CausaDevolucion[]>([]);
   const [elegidas, setElegidas] = useState<number[]>([]);
-  // Creando una causa nueva: null = no se está creando.
-  const [nueva, setNueva] = useState<string | null>(null);
-  const [creando, setCreando] = useState(false);
-  const campoNueva = useRef<HTMLInputElement>(null);
+  // «Otra cosa»: lo que no encaja en ninguna causa. Pide texto.
+  const [otra, setOtra] = useState(false);
+  // Las causas de la guía, sumadas a las sugeridas a mano.
+  const deLaGuia = [...new Set([...(causasSugeridas ?? []), ...fallos.map((f) => f.causaId)])];
+  const claveGuia = deLaGuia.join(",");
   // A cuáles va. Empieza con TODAS marcadas: es lo que hacía antes este botón,
   // y lo normal sigue siendo que el pedido vuelva entero. Quitar las que están
   // bien es un gesto de más para el caso raro, no al revés.
@@ -96,14 +105,14 @@ export function DevolverInline({
       // Lo que la guía marcó como fallo llega ya elegido. Se añade a lo que
       // hubiera —no se pisa—: quien abrió, cerró y volvió a abrir no debería
       // perder lo que había marcado a mano.
-      if (causasSugeridas?.length) {
-        setElegidas((p) => [...new Set([...p, ...causasSugeridas])]);
+      if (claveGuia) {
+        setElegidas((p) => [...new Set([...p, ...claveGuia.split(",").map(Number)])]);
       }
     });
     return () => {
       vivo = false;
     };
-  }, [abierto, causasSugeridas]);
+  }, [abierto, claveGuia]);
 
   if (!abierto) {
     return (
@@ -121,10 +130,13 @@ export function DevolverInline({
     );
   }
 
-  const devolucion = { causas: elegidas, nota: obs };
+  // La nota: las líneas de la guía y, detrás, lo que se añada a mano.
+  const nota = notaDeLaGuia(fallos, obs);
+  const devolucion = { causas: elegidas, pasos: fallos.map((f) => f.pasoId), nota };
   // Sin OF que elegir se manda undefined, que es lo que ya entendían los que
   // llamaban a esto antes: "a todas las del grupo".
   const confirmar = () => {
+    if (!listo) return;
     onDevolver(codificarDevolucion(devolucion), ofs ? ofsElegidas : undefined);
     // El cuadro se queda abierto y limpio cuando quedan OF por decidir: es lo
     // que permite devolver dos con motivos distintos sin volver a abrirlo. La
@@ -133,12 +145,16 @@ export function DevolverInline({
     if (ofs && ofs.length > ofsElegidas.length) {
       setObs("");
       setElegidas([]);
+      setOtra(false);
     } else {
       setAbierto(false);
     }
   };
-  // Ni causas sin nota, ni una devolución que no vuelve a ninguna parte.
-  const listo = devolucionCompleta(devolucion) && (!ofs || ofsElegidas.length > 0);
+  // TODA DEVOLUCIÓN LLEVA CAUSA (una de la lista u «Otra cosa»), una nota que
+  // diga qué corregir —«Otra cosa» la pide escrita—, y alguna OF a la que ir.
+  const faltaCausa = elegidas.length === 0 && !otra;
+  const faltaNota = !nota.trim() || (otra && elegidas.length === 0 && !obs.trim());
+  const listo = !faltaCausa && !faltaNota && (!ofs || ofsElegidas.length > 0);
   const alternar = (id: number) =>
     setElegidas((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -154,26 +170,6 @@ export function DevolverInline({
       suyas.has(c.familia.toUpperCase()) ||
       elegidas.includes(c.id),
   );
-
-  // Las que ya existen y se parecen a lo que se está escribiendo. Es la única
-  // defensa real contra la lista deshilachada: si a quien escribe "falta cota"
-  // se le enseña "Error en cotas" AHORA, la pulsa. Sin esto, en dos meses hay
-  // cuatro causas para el mismo fallo y las métricas no dicen nada.
-  const parecidas = nueva ? causasParecidas(nueva, causas) : [];
-
-  async function guardarNueva() {
-    if (!nueva || !etiquetaValida(nueva) || creando) return;
-    setCreando(true);
-    const c = await crearCausa(nueva, miId ?? null);
-    setCreando(false);
-    if (!c) return; // el error ya se ve: el campo se queda como estaba
-    // Puede volver una que YA existía (otro se adelantó, o estaba retirada):
-    // se mete en la lista solo si falta, y se marca en cualquier caso — que es
-    // lo que quería quien la escribió.
-    setCausas((p) => (p.some((x) => x.id === c.id) ? p : [...p, c]));
-    setElegidas((p) => (p.includes(c.id) ? p : [...p, c.id]));
-    setNueva(null);
-  }
 
   return (
     <div className="w-full rounded-lg bg-red-500/10 p-2 ring-1 ring-red-500/30">
@@ -218,69 +214,42 @@ export function DevolverInline({
         })}
       </ul>
 
-      {nueva === null && (
-        <button
-          onClick={() => {
-            setNueva("");
-            // El foco al campo en cuanto exista, que si no hay que volver a
-            // pulsar para escribir.
-            setTimeout(() => campoNueva.current?.focus(), 0);
-          }}
-          className="mt-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-text-muted underline underline-offset-2 hover:text-text"
+      {/* «Otra cosa»: lo que no encaja en ninguna. Cuenta como devolución sin
+          causa de la lista, y pide escribirlo abajo. Si se repite, se crea
+          la causa en «Pasos y causas». */}
+      <button
+        onClick={() => setOtra((o) => !o)}
+        aria-pressed={otra}
+        className={`mt-px flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] leading-snug hover:bg-red-500/10 ${
+          otra ? "font-semibold text-text" : "text-text-muted"
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`grid size-3.5 shrink-0 place-items-center rounded text-[9px] font-bold ${
+            otra ? "bg-red-600 text-white" : "ring-1 ring-border"
+          }`}
         >
-          + Nueva causa
-        </button>
-      )}
+          {otra ? "✓" : ""}
+        </span>
+        Otra cosa (escríbela abajo)
+      </button>
 
-      {nueva !== null && (
-        <div className="mt-1.5">
-          <div className="flex gap-1.5">
-            <input
-              ref={campoNueva}
-              value={nueva}
-              maxLength={CAUSA_MAX}
-              onChange={(e) => setNueva(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void guardarNueva();
-                }
-                // Escape cierra el campo, no el cuadro entero: lo segundo
-                // perdería la nota ya escrita.
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  setNueva(null);
-                }
-              }}
-              placeholder="Cómo se llama esta causa…"
-              aria-label="Nombre de la causa nueva"
-              className="min-w-0 flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
-            />
-            <button
-              onClick={() => void guardarNueva()}
-              disabled={!etiquetaValida(nueva) || creando}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted ring-1 ring-border hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Crear
-            </button>
-          </div>
-          {parecidas.length > 0 && (
-            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-text-muted">
-              Ya existe:
-              {parecidas.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    if (!elegidas.includes(c.id)) alternar(c.id);
-                    setNueva(null);
-                  }}
-                  className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-text ring-1 ring-border hover:bg-[var(--glass-highlight)]"
-                >
-                  {c.etiqueta}
-                </button>
-              ))}
-            </p>
-          )}
+      {/* Lo que dirá la nota, sacado de la guía: una línea por paso que falla.
+          Es lo que el autor recibirá como lista de qué corregir. */}
+      {fallos.length > 0 && (
+        <div className="mt-1.5 rounded-md bg-surface px-2 py-1.5 text-[11px] ring-1 ring-border">
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            De la guía
+          </p>
+          <ul className="space-y-0.5">
+            {fallos.map((f) => (
+              <li key={f.pasoId} className="text-text">
+                <span className="font-bold text-error">✗</span> {f.mira}
+                {f.comentario ? <span className="text-text-muted"> — {f.comentario}</span> : null}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -298,7 +267,11 @@ export function DevolverInline({
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
             confirmar();
         }}
-        placeholder="Qué hay que corregir (la cota, la medida, el color…)"
+        placeholder={
+          fallos.length > 0
+            ? "Algo más que decirle (opcional)"
+            : "Qué hay que corregir (la cota, la medida, el color…)"
+        }
         rows={2}
         className="mt-1.5 w-full resize-none rounded-md bg-surface px-2 py-1.5 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
       />
@@ -319,9 +292,9 @@ export function DevolverInline({
         </button>
         {/* Se dice POR QUÉ está apagado el botón. Sin esto parece que la web se
             ha roto: las causas están puestas y no deja seguir. */}
-        {!devolucionCompleta(devolucion) && (
+        {(faltaCausa || faltaNota) && (
           <span className="text-[10px] text-text-muted">
-            Escribe qué hay que corregir
+            {faltaCausa ? "Marca una causa u «Otra cosa»" : "Escribe qué hay que corregir"}
           </span>
         )}
       </div>

@@ -290,6 +290,7 @@ function abrir(): Database.Database {
   prepararCierreRps(db);
   prepararCorreoHtml(db);
   prepararCorreoCopias(db);
+  prepararComentarioMarca(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -350,6 +351,15 @@ function prepararTraspasado(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(fichaje_intervalo)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "traspasado_at")) return;
   db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
+}
+
+/** Qué falla, en una línea, junto al ✗ de un paso de la guía (16/10/2026). De
+ *  ahí sale la nota de la devolución, para no escribirla otra vez al final.
+ *  Las marcas de antes quedan a NULL: un ✗ sin comentario, como eran. */
+function prepararComentarioMarca(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(marca_revision)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "comentario")) return;
+  db.exec("ALTER TABLE marca_revision ADD COLUMN comentario TEXT");
 }
 
 /** El correo del planteamiento en HTML (14/10/2026), junto al texto que ya se
@@ -1376,6 +1386,24 @@ export function leerMarcasRevision(
   return salida;
 }
 
+/** Los comentarios de los pasos que fallan («la cota del primer ollao»), con
+ *  la misma forma que `leerMarcasRevision`. Solo los que tienen texto. */
+export function leerComentariosRevision(
+  ofIds: readonly string[],
+): Record<string, Record<number, string>> {
+  if (ofIds.length === 0) return {};
+  const filas = abrir()
+    .prepare(
+      `SELECT of_id, punto_id, comentario FROM marca_revision
+        WHERE comentario IS NOT NULL AND comentario <> ''
+          AND of_id IN (${ofIds.map(() => "?").join(",")})`,
+    )
+    .all(...ofIds) as Array<{ of_id: string; punto_id: number; comentario: string }>;
+  const salida: Record<string, Record<number, string>> = {};
+  for (const f of filas) (salida[f.of_id] ??= {})[f.punto_id] = f.comentario;
+  return salida;
+}
+
 /** Marca (o desmarca, con `estado` null) un punto en varias OF a la vez.
  *
  *  VARIAS porque la guía es del PEDIDO: el revisor mira el trabajo entero y va
@@ -1386,6 +1414,9 @@ export function marcarPuntoRevision(
   puntoId: number,
   estado: string | null,
   operarioId: string | null,
+  /** Qué falla. `undefined` deja el que hubiera; solo cuenta en un ✗: al
+   *  pasar a ✓ se borra, que ya no hay fallo que contar. */
+  comentario?: string | null,
 ): void {
   if (ofIds.length === 0) return;
   const db = abrir();
@@ -1405,6 +1436,15 @@ export function marcarPuntoRevision(
          ON CONFLICT(of_id, punto_id) DO UPDATE SET
            estado = excluded.estado, operario_id = excluded.operario_id, at = excluded.at`,
       ).run(ofId, puntoId, estado, operarioId, ahora);
+      if (estado !== "falla") {
+        db.prepare("UPDATE marca_revision SET comentario = NULL WHERE of_id = ? AND punto_id = ?").run(ofId, puntoId);
+      } else if (comentario !== undefined) {
+        db.prepare("UPDATE marca_revision SET comentario = ? WHERE of_id = ? AND punto_id = ?").run(
+          comentario?.trim() || null,
+          ofId,
+          puntoId,
+        );
+      }
     }
   })();
 }

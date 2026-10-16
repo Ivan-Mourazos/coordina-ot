@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { leerMarcasRevision, marcarPuntoRevision } from "@/lib/server/estado-db";
+import { leerComentariosRevision, leerMarcasRevision, marcarPuntoRevision } from "@/lib/server/estado-db";
 import { exigir, identidad, loginActivo } from "@/lib/server/sesion";
 
 // ─── /api/revision/marcas ────────────────────────────────────────────────────
@@ -17,7 +17,11 @@ import { exigir, identidad, loginActivo } from "@/lib/server/sesion";
 
 export const dynamic = "force-dynamic";
 
-/** GET ?ofIds=a,b,c → { marcas: { ofId: { puntoId: "bien" | "falla" } } } */
+/** Tope del comentario de un paso: una línea de la nota. */
+const COMENTARIO_MAX = 200;
+
+/** GET ?ofIds=a,b,c → { marcas: { ofId: { puntoId: "bien" | "falla" } },
+ *  comentarios: { ofId: { puntoId: "qué falla" } } } */
 export async function GET(req: Request) {
   // Las lecturas se cierran solo con el login encendido: apagado no llega
   // identidad por ningún lado y exigirla dejaría la ficha en blanco.
@@ -31,7 +35,7 @@ export async function GET(req: Request) {
 
   try {
     return NextResponse.json(
-      { marcas: leerMarcasRevision(ofIds) },
+      { marcas: leerMarcasRevision(ofIds), comentarios: leerComentariosRevision(ofIds) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
@@ -57,6 +61,14 @@ export async function PUT(req: Request) {
   const estado =
     b.estado === null || b.estado === "bien" || b.estado === "falla" ? b.estado : undefined;
 
+  // Qué falla, en una línea. Ausente = no se toca el que hubiera.
+  const comentario =
+    b.comentario === undefined
+      ? undefined
+      : b.comentario === null || typeof b.comentario === "string"
+        ? (b.comentario as string | null)?.slice(0, COMENTARIO_MAX) ?? null
+        : undefined;
+
   if (ofIds.length === 0 || puntoId === null || estado === undefined)
     return NextResponse.json({ error: "Faltan datos o el estado no vale" }, { status: 400 });
 
@@ -65,7 +77,7 @@ export async function PUT(req: Request) {
   if (yo instanceof NextResponse) return yo;
 
   try {
-    marcarPuntoRevision(ofIds, puntoId, estado, yo.id);
+    marcarPuntoRevision(ofIds, puntoId, estado, yo.id, comentario);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[revision] no se pudo marcar:", (e as Error).message);
