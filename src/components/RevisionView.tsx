@@ -581,7 +581,7 @@ function FilaRevision({
                   <button
                     onClick={() => accionTodas("empezar_revision")}
                     title="Pasa a En revisión y arranca tu fichaje de revisor"
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
                   >
                     Empezar revisión
                   </button>

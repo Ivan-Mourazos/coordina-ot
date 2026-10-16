@@ -596,14 +596,14 @@ export function MiFichaje({
         // contra el de la página.
         // El `ring-border` se va con ellos: cada píldora lleva su propio borde
         // en el tono de su color, que si no el gris de fuera desentona.
-        className={`flex items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-bold shadow-lg transition-colors ${
+        className={`flex items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-bold transition-[transform,box-shadow] ${
           ab
             ? ab.rol === "revisar"
               ? "pildora-revisar"
               : "pildora-plantear"
             : aviso
               ? "pildora-aviso"
-              : "panel-solido text-text-muted"
+              : "panel-solido pildora-reposo text-text-muted"
         }`}
       >
         {ab ? (
@@ -693,14 +693,14 @@ function GrupoPedido({
           <button
             onClick={() => onDesficharVarias(paranDelRol.map((o) => o.id))}
             title={`Para el reloj en ${paranDelRol.length === 1 ? "la OF que corre" : `las ${paranDelRol.length} OF que corren`} de este pedido. Siguen como están: no se cierra nada.`}
-            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
+            className={`ml-auto shrink-0 boton-3d rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
           >
             ⏸ Pausar {paranDelRol.length > 1 ? `${verbo} (${paranDelRol.length})` : verbo}
           </button>
         ) : porArrancar.length > 0 ? (
           <button
             onClick={() => onFichar(porArrancar.map((o) => o.id), rolGrupo)}
-            className={`ml-auto shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
+            className={`ml-auto shrink-0 boton-3d rounded-lg px-2 py-1 text-[11px] font-semibold ${ROL[rolGrupo].solido}`}
           >
             {/* Con el reloj parado no se "empieza" nada: se retoma lo que ya
                 estaba empezado, y así se llama el botón. */}
@@ -814,7 +814,7 @@ function OFItem({
             title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
             // Del color de SU rol: el verde es el del planteo en toda la app, y
             // sobre una OF que se está revisando decía el rol equivocado.
-            className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[of.fichandoRol!].solido}`}
+            className={`boton-3d shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[of.fichandoRol!].solido}`}
           >
             ⏸ Pausar
           </button>
@@ -824,7 +824,7 @@ function OFItem({
             title={`${yaEmpezada ? "Vuelve a poner el reloj en marcha" : "Pone el reloj en marcha"} en ${
               rol === "revisar" ? "la revisión" : "el planteo"
             } de esta OF`}
-            className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[rol].solido}`}
+            className={`boton-3d shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold ${ROL[rol].solido}`}
           >
             {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
           </button>

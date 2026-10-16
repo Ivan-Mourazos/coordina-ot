@@ -2693,7 +2693,7 @@ export function Board({
               title={`Vuelve a poner el reloj en marcha en ${reanudables
                 .map((of) => of.codigo)
                 .join(", ")}. El tiempo que pasó con el reloj parado no se recupera: el tramo empieza ahora.`}
-              className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+              className={`boton-3d shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
                 ROL[rolFichajeDe(reanudables[0])].solido
               }`}
             >

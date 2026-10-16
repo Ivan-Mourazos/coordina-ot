@@ -1279,10 +1279,37 @@ body {
 :root .bloque-3d,
 :root .fila-sombra,
 :root .placa-of,
-:root .tira-3d > :not(.pestana-activa) {
+:root .tira-3d > :not(.pestana-activa),
+:root .panel-solido,
+:root .pildora-plantear,
+:root .pildora-revisar,
+:root .pildora-aviso,
+:root .boton-arriba {
   background-image: var(--veta), var(--relieve);
   border-top-color: var(--relieve-canto);
   box-shadow: var(--relieve-sombra);
+}
+
+/* Lo que flota abajo a la derecha (la píldora del fichaje y «Volver arriba")
+   lleva el mismo metal que el resto: eran planos y parecían de otra web
+   (Iván, 16/10/2026). Se pulsan como un botón más. */
+:root .pildora-plantear:hover,
+:root .pildora-revisar:hover,
+:root .pildora-aviso:hover,
+:root .pildora-reposo:hover,
+:root .boton-arriba:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--relieve-sombra-alto);
+}
+:root .pildora-plantear:active,
+:root .pildora-revisar:active,
+:root .pildora-aviso:active,
+:root .pildora-reposo:active,
+:root .boton-arriba:active {
+  background-image: var(--veta), var(--hundir);
+  border-top-color: transparent;
+  transform: translateY(1px);
+  box-shadow: var(--pulsado-sombra);
 }
 
 /* Los botones suben un poco al pasar por encima y se hunden al pulsarlos. */
@@ -1367,6 +1394,19 @@ body {
    raya dorada de la izquierda (Iván, 16/10/2026). */
 :root .cabecera-abierta {
   background-color: var(--fila);
+  background-image: var(--veta), var(--relieve);
+}
+
+/* Lo que se está fichando, teñido del color de su rol: verde planteando,
+   violeta revisando, los mismos que la píldora del fichaje. Va después de
+   `.cabecera-abierta` para que, abierta o cerrada, la fila se siga viendo
+   fichada. La veta y el relieve se quedan encima (Iván, 16/10/2026). */
+:root .fila-fichando-plantear {
+  background-color: color-mix(in srgb, var(--color-emerald-500) 14%, var(--fila));
+  background-image: var(--veta), var(--relieve);
+}
+:root .fila-fichando-revisar {
+  background-color: color-mix(in srgb, var(--color-violet-500) 16%, var(--fila));
   background-image: var(--veta), var(--relieve);
 }
 
