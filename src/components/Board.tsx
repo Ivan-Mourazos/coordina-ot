@@ -1694,11 +1694,17 @@ export function Board({
     },
     [openId, moverOFs, operarios],
   );
-  const [mensajeRevision, setMensajeRevision] = useState<{ error: boolean; texto: string } | null>(null);
+  // Con el PEDIDO al que se refiere: sin él, el aviso se quedaba puesto y salía
+  // en el siguiente pedido que abrías, aunque no lo hubieras ni empezado
+  // (Iván, 16/10/2026, AR.26.05035). Solo se enseña en la ficha de ese pedido.
+  const [mensajeRevisionDe, setMensajeRevisionDe] = useState<{ pedidoId: string | null; error: boolean; texto: string } | null>(null);
   const enviandoRevision = useRef(false);
   const pasarRevision = useCallback(async (ofIds: string[], revisorId: string) => {
     if (!miId || enviandoRevision.current) return false;
     enviandoRevision.current = true;
+    const pedidoId = pedidosRef.current.find((p) => p.ofs.some((o) => o.id === ofIds[0]))?.id ?? null;
+    const setMensajeRevision = (m: { error: boolean; texto: string } | null) =>
+      setMensajeRevisionDe(m && { ...m, pedidoId });
     setMensajeRevision({ error: false, texto: "Mandando las OF a revisión…" });
     try {
       // Foto síncrona, no la del último render. Si una sola ya no puede pasar,
@@ -3079,10 +3085,10 @@ export function Board({
 
       <Drawer
         pedido={openPedido}
-        avisoRevision={mensajeRevision && (
-          <div role={mensajeRevision.error ? "alert" : "status"} className="sticky top-0 z-10 mb-3 flex items-start gap-3 rounded-lg border border-[var(--glass-border)] bg-surface p-3 text-sm text-text shadow-lg">
-            <p className="flex-1">{mensajeRevision.texto}</p>
-            <button type="button" aria-label="Cerrar aviso de revisión" onClick={() => setMensajeRevision(null)} className="rounded px-2 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Cerrar</button>
+        avisoRevision={mensajeRevisionDe && mensajeRevisionDe.pedidoId === openId && (
+          <div role={mensajeRevisionDe.error ? "alert" : "status"} className="sticky top-0 z-10 mb-3 flex items-start gap-3 rounded-lg border border-[var(--glass-border)] bg-surface p-3 text-sm text-text shadow-lg">
+            <p className="flex-1">{mensajeRevisionDe.texto}</p>
+            <button type="button" aria-label="Cerrar aviso de revisión" onClick={() => setMensajeRevisionDe(null)} className="rounded px-2 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Cerrar</button>
           </div>
         )}
         onSinRevisor={(codigos) => {
