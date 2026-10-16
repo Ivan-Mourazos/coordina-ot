@@ -65,6 +65,15 @@ export function leerTodosIntervalos(): Intervalo[] {
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
 }
 
+/** TODOS los intervalos, traspasados incluidos. Solo para ENSEÑAR lo fichado
+ *  en la web (ver `OF.fichadoWebTodo`): para SUMAR minutos al tiempo de una
+ *  OF manda `leerTodosIntervalos`, que no cuenta dos veces lo que ya está en
+ *  RPS. */
+export function leerIntervalosCompletos(): Intervalo[] {
+  const filas = getDb().prepare(`${SELECT} ORDER BY inicio`).all() as Fila[];
+  return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
+}
+
 /** Los intervalos SIN traspasar de una sola OF, sin barrer `fichaje_intervalo`
  *  entera (ver `leerTodosIntervalos`, que es lo que hacía antes esta función
  *  para acabar tirando casi todo lo leído).

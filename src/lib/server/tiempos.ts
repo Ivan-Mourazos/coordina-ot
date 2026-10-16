@@ -92,10 +92,21 @@ export function aplicarTiemposFichaje(
   /** Ver `fichandoAhoraPorOF`. */
   completos?: readonly Intervalo[],
 ): Tablero {
-  if (intervalos.length === 0) return tablero;
+  if (intervalos.length === 0 && !completos?.length) return tablero;
   const f: Fichaje = { intervalos };
   const ritmos = ritmosVivos(intervalos);
   const vivos = fichandoAhoraPorOF(intervalos, completos);
+  // Los tramos de TODA la web por OF, también los traspasados, para
+  // `fichadoWebTodo`. Indexados una vez: son unos pocos miles y el tablero
+  // trae cientos de OF.
+  const todosPorOF = new Map<string, Intervalo[]>();
+  for (const iv of completos ?? []) {
+    for (const id of iv.ofIds) {
+      const l = todosPorOF.get(id) ?? [];
+      l.push(iv);
+      todosPorOF.set(id, l);
+    }
+  }
   return {
     operarios: tablero.operarios,
     pedidos: tablero.pedidos.map((p) => {
@@ -104,8 +115,13 @@ export function aplicarTiemposFichaje(
         // Antes que los minutos: un tramo recién abierto aún no suma ni uno, y
         // quien acaba de pulsar Fichar ya está fichando.
         const fichandoAhora = vivos.get(ofSinVivos.id);
-        const of = fichandoAhora ? { ...ofSinVivos, fichandoAhora } : ofSinVivos;
-        if (fichandoAhora) cambiado = true;
+        const tramosTodos = todosPorOF.get(ofSinVivos.id);
+        const fichadoWebTodo = tramosTodos
+          ? minutosPorOperarioOF({ intervalos: tramosTodos }, ofSinVivos.id, { ahora })
+          : undefined;
+        const of =
+          fichandoAhora || fichadoWebTodo ? { ...ofSinVivos, fichandoAhora, fichadoWebTodo } : ofSinVivos;
+        if (fichandoAhora || fichadoWebTodo) cambiado = true;
         const planteoWeb = minutosOF(f, of.id, { rol: "plantear", ahora });
         const revisionWeb = minutosOF(f, of.id, { rol: "revisar", ahora });
         if (planteoWeb === 0 && revisionWeb === 0) return of;

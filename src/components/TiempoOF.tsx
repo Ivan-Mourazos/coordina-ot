@@ -44,7 +44,9 @@ function filas(of: OF, opById: (id: string | null) => Operario | null): Fila[] {
     }
     return f;
   };
-  for (const w of of.fichadoWeb ?? []) {
+  // TODO lo fichado en la web, también lo ya traspasado a RPS (ver
+  // `OF.fichadoWebTodo`); `fichadoWeb` solo si el servidor aún no lo manda.
+  for (const w of of.fichadoWebTodo ?? of.fichadoWeb ?? []) {
     const f = dame(w.operarioId);
     f.planteoMin += w.planteoMin;
     f.revisionMin += w.revisionMin;

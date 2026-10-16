@@ -49,17 +49,17 @@ export async function getTablero(seccion: SeccionId = SECCION_POR_DEFECTO): Prom
     const { aplicarOverlay } = await import("./server/overlay");
     const conFlujo = aplicarOverlay(base, leerOverlay(seccion));
 
-    const { leerTodosIntervalos, leerFichaje } = await import("./server/fichaje-db");
+    const { leerTodosIntervalos, leerIntervalosCompletos } = await import("./server/fichaje-db");
     const { aplicarTiemposFichaje } = await import("./server/tiempos");
     const { modoFichaje } = await import("./server/olanet-outbox");
     const dobleFichaje = modoFichaje() !== "activo";
     const calculadoAt = new Date().toISOString();
     const intervalos = leerTodosIntervalos();
-    // De quien tiene el reloj en marcha (unos pocos), TODOS sus tramos, también
-    // los traspasados: de ahí sale lo que ya llevaba en cada OF, para que su
-    // reloj siga desde ahí al reanudar (ver `OF.fichandoAhora`).
-    const fichando = [...new Set(intervalos.filter((iv) => iv.fin === null).map((iv) => iv.operarioId))];
-    const completos = fichando.flatMap((id) => leerFichaje(id).intervalos);
+    // TODOS los tramos de la web, también los traspasados a RPS: de ahí sale lo
+    // que cada uno ya llevaba (su reloj sigue desde ahí al reanudar) y lo que
+    // enseña la caja de tiempo de la ficha (`OF.fichadoWebTodo`). Son unos
+    // miles de filas: leerlos tarda 4 ms (copia de producción, 16/10/2026).
+    const completos = leerIntervalosCompletos();
     const conTiempos = aplicarTiemposFichaje(conFlujo, intervalos, calculadoAt, { dobleFichaje }, completos);
 
     // Partes re-escaneados. Aquí NO se toca el disco: solo se apunta qué
