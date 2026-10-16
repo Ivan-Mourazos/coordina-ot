@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "ec7a756",
+    "hasta": "1895333",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -69,6 +69,11 @@
         "titulo": "Al devolver una OF, las causas que marcaste en la guía ya salen puestas",
         "detalle": "Antes, desde el botón de cada OF había que volver a elegirlas.",
         "tanda": 14
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al aprobar una OF corregida ya no se queda en rojo lo que había que corregir",
+        "tanda": 16
       },
       {
         "tipo": "mejor",
