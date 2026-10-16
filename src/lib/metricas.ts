@@ -78,10 +78,14 @@ export interface MesMetricas {
    *  Ver `calcularMetricas`: una revisión empezada el 31 de agosto y devuelta
    *  el 1 de septiembre cuenta en agosto por los dos lados. */
   devoluciones: number;
-  /** Planteos entregados a revisión. A diferencia de las devoluciones, va en
-   *  SU mes: no cuelga de nada anterior. */
+  /** OF DISTINTAS entregadas a revisión en el mes. A diferencia de las
+   *  devoluciones, va en SU mes: no cuelga de nada anterior.
+   *
+   *  Distintas, no entregas: contando cada entrega, agosto salía con 275
+   *  planteos y 161 OF terminadas, y no cuadraba — 90 eran la misma OF
+   *  mandada otra vez tras corregirla (Iván, 16/10/2026). */
   planteos: number;
-  /** OF dadas por buenas, de cualquiera de las tres formas. */
+  /** OF distintas dadas por buenas en el mes, de cualquiera de las tres formas. */
   terminadas: number;
 }
 
@@ -95,6 +99,8 @@ export interface Volumen {
    *  vueltas: corregir y volver a entregar es trabajo hecho otra vez, y sin
    *  contarlo un mes de correcciones parece un mes vacío. */
   planteos: number;
+  /** OF distintas entregadas. `planteos − ofEntregadas` son las reentregas. */
+  ofEntregadas: number;
   /** Veces que se cerró trabajo: aprobar, dar por corregida o dar por bueno
    *  sin revisión. Una OF reabierta y vuelta a aprobar suma DOS. */
   terminadas: number;
@@ -186,6 +192,16 @@ export function calcularMetricas(
   let planteos = 0;
   let terminadas = 0;
   const ofTerminadas = new Set<string>();
+  const ofEntregadas = new Set<string>();
+  // Por mes, las OF distintas (ver `MesMetricas.planteos`).
+  const entregadasMes = new Map<string, Set<string>>();
+  const terminadasMes = new Map<string, Set<string>>();
+  const anota = (cuales: Map<string, Set<string>>, at: string, ofId: string) => {
+    const k = mesDe(at);
+    if (!cuales.has(k)) cuales.set(k, new Set());
+    cuales.get(k)!.add(ofId);
+    mes(at);
+  };
   const porCausa = new Map<number | null, number>();
   const porCausaAnulacion = new Map<string | null, number>();
   const porMes = new Map<string, MesMetricas>();
@@ -220,7 +236,8 @@ export function calcularMetricas(
     }
     if (mov.motivo === "terminar_planteo") {
       planteos++;
-      mes(mov.at).planteos++;
+      ofEntregadas.add(mov.ofId);
+      anota(entregadasMes, mov.at, mov.ofId);
       continue;
     }
     if (mov.motivo === "empezar_revision") {
@@ -241,7 +258,7 @@ export function calcularMetricas(
       revisionAbierta.delete(mov.ofId);
       terminadas++;
       ofTerminadas.add(mov.ofId);
-      mes(mov.at).terminadas++;
+      anota(terminadasMes, mov.at, mov.ofId);
       continue;
     }
     if (mov.motivo !== "devolver") continue;
@@ -278,7 +295,7 @@ export function calcularMetricas(
     revisiones,
     devoluciones,
     anulaciones,
-    volumen: { planteos, terminadas, ofTerminadas: ofTerminadas.size },
+    volumen: { planteos, ofEntregadas: ofEntregadas.size, terminadas, ofTerminadas: ofTerminadas.size },
     porCausaAnulacion: [...porCausaAnulacion.entries()]
       .map(([causa, n]) => ({ causa, n }))
       .sort((a, b) => b.n - a.n || (a.causa === null ? 1 : b.causa === null ? -1 : 0)),
@@ -288,7 +305,9 @@ export function calcularMetricas(
       // A igualdad de cuenta, las que tienen causa antes que el cajón sin
       // causa: ese no dice nada y no debe encabezar la lista.
       .sort((a, b) => b.n - a.n || (a.id === null ? 1 : b.id === null ? -1 : a.id - b.id)),
-    porMes: [...porMes.values()].sort((a, b) => a.mes.localeCompare(b.mes)),
+    porMes: [...porMes.values()]
+      .map((m) => ({ ...m, planteos: entregadasMes.get(m.mes)?.size ?? 0, terminadas: terminadasMes.get(m.mes)?.size ?? 0 }))
+      .sort((a, b) => a.mes.localeCompare(b.mes)),
   };
 }
 
@@ -306,6 +325,11 @@ export interface Periodo {
 export function ventanaDeDias(dias: number, hoy: string): Periodo {
   return { desde: sumarDias(hoy, -(dias - 1)), hasta: hoy };
 }
+
+/** Desde cuándo cuentan las métricas. En julio la web aún no estaba en uso:
+ *  salían cuatro planteos sueltos de pruebas, y un mes así en la gráfica
+ *  parecía un mes sin trabajo (Iván, 16/10/2026). */
+export const INICIO_METRICAS = "2026-08-01";
 
 /** Último día del mes "2026-10" → "2026-10-31". */
 const finDeMes = (mes: string) => sumarDias(`${sumarDias(`${mes}-28`, 4).slice(0, 7)}-01`, -1);

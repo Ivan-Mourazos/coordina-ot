@@ -13,6 +13,23 @@ const mov = (
   observacion: string | null = null,
 ): MovimientoRegistrado => ({ at, motivo, ofId, observacion });
 
+describe("OF entregadas, no entregas", () => {
+  it("una OF devuelta y mandada otra vez es UNA OF y una reentrega", () => {
+    // Agosto salía con 275 «planteos» y 161 OF terminadas: 90 eran la misma
+    // OF mandada otra vez tras corregir. Contadas como OF, cuadra.
+    const m = calcularMetricas([
+      mov("2026-08-03T09:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"),
+      mov("2026-08-03T11:00:00.000Z", "devolver", "of1", "[1] la cota"),
+      mov("2026-08-04T09:00:00.000Z", "terminar_planteo", "of1"),
+      mov("2026-08-04T10:00:00.000Z", "aprobar_corregida", "of1"),
+      mov("2026-08-05T09:00:00.000Z", "terminar_planteo", "of2"),
+    ]);
+    expect(m.volumen).toMatchObject({ planteos: 3, ofEntregadas: 2, ofTerminadas: 1 });
+    expect(m.porMes[0]).toMatchObject({ mes: "2026-08", planteos: 2, terminadas: 1 });
+  });
+});
+
 describe("cuántas vuelven", () => {
   it("cuenta cada devolución, aunque sea la misma OF otra vez", () => {
     // El motivo de contar desde el REGISTRO y no desde el estado de la OF:

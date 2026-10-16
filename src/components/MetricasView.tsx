@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ErrorCarga } from "./ErrorCarga";
 import { SelectorFecha } from "./SelectorFecha";
-import { mesDePeriodo, periodoAnterior, periodoDeMes, proporcionDevueltas, sinActividad, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
+import { INICIO_METRICAS, mesDePeriodo, periodoAnterior, periodoDeMes, proporcionDevueltas, sinActividad, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
 import { sumarDias } from "@/lib/fechas";
 import type { CuadroMetricas, PuntoTendencia } from "@/lib/metricas-cuadro";
 import { hoyISO, type Operario } from "@/lib/types";
@@ -16,7 +16,7 @@ interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaD
 const nombreMes = (mes: string) =>
   new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" }).replace(" de ", " ");
 const SERIES = [
-  { clave: "planteos", label: "Planteos entregados", color: "var(--fase-planteando-relleno)" },
+  { clave: "planteos", label: "OF entregadas", color: "var(--fase-planteando-relleno)" },
   { clave: "revisiones", label: "Revisiones", color: "var(--fase-revision-relleno)" },
   { clave: "terminadas", label: "OF terminadas", color: "var(--fase-listo-relleno)" },
 ] as const;
@@ -82,7 +82,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
               habla de estas cifras («en septiembre…»). Los 30 y 90 días no
               coincidían con ningún mes (Iván, 16/10/2026). */}
           <div className="tira-3d glass-chip flex items-center gap-1 rounded-lg p-0.5" aria-label="Periodo">
-            <button type="button" onClick={() => setPeriodo(periodoDeMes(sumarDias(`${mesBase}-01`, -1).slice(0, 7), hoy))} aria-label="Mes anterior" className="rounded-md px-2 py-1.5 text-xs font-semibold text-text-muted hover:text-text">◀</button>
+            <button type="button" onClick={() => setPeriodo(periodoDeMes(sumarDias(`${mesBase}-01`, -1).slice(0, 7), hoy))} disabled={mesBase <= INICIO_METRICAS.slice(0, 7)} aria-label="Mes anterior" className="rounded-md px-2 py-1.5 text-xs font-semibold text-text-muted hover:text-text disabled:opacity-30">◀</button>
             <button type="button" onClick={() => setPeriodo(periodoDeMes(mesBase, hoy))} aria-pressed={mes !== null} className={`min-w-32 rounded-md px-3 py-1.5 text-xs font-semibold first-letter:uppercase ${mes !== null ? "pestana-activa text-text" : "text-text-muted"}`}>
               {nombreMes(mesBase)}{mes === mesHoy ? " · en curso" : ""}
             </button>
@@ -100,7 +100,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
       {m && c && <div className="grid min-h-0 flex-1 gap-3 lg:grid-rows-[auto_minmax(0,1fr)_minmax(0,1.1fr)] bajo:lg:grid-rows-[auto_auto_auto]">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi titulo="OF terminadas" valor={String(m.volumen.ofTerminadas)} detalle={`${m.volumen.terminadas} cierres · OF distintas en el periodo`} delta={<Delta ahora={m.volumen.ofTerminadas} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} />} puntos={c.tendencia} serie="terminadas" color={SERIES[2].color} />
-          <Kpi titulo="Planteos entregados" valor={String(m.volumen.planteos)} detalle="Cada entrega a revisión cuenta, incluidas las correcciones." delta={<Delta ahora={m.volumen.planteos} antes={comparable ? previo!.metricas.volumen.planteos : null} />} puntos={c.tendencia} serie="planteos" color={SERIES[0].color} />
+          <Kpi titulo="OF entregadas a revisión" valor={String(m.volumen.ofEntregadas)} detalle={`OF distintas en el periodo. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas: OF que volvieron y se mandaron otra vez corregidas.`} pie={`+ ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} />} puntos={c.tendencia} serie="planteos" color={SERIES[0].color} />
           <Kpi titulo="Vuelven al autor" valor={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones. Se incluyen revisiones deducidas de una devolución sin inicio registrado.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos />} puntos={c.tendencia} serie="proporcion" color={SERIES[1].color} pie={`${m.devoluciones} de ${m.revisiones} revisiones`} />
           <Kpi titulo="Tiempo típico hasta aprobarse" valor={tiempo(c.aprobacion.medianaMin)} detalle={`Mediana de ${c.aprobacion.n} ciclos completos: primera entrega a revisión → aprobación, incluidas las correcciones; el reloj incluye noches y fines de semana.`} delta={<Delta ahora={c.aprobacion.medianaMin} antes={comparable ? previo!.cuadro.aprobacion.medianaMin : null} minutos />} puntos={c.tendencia} serie="aprobacion" color="var(--text-muted)" />
         </div>
