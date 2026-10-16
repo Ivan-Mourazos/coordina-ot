@@ -6,7 +6,7 @@ import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveBadge, LiveDot, QuienFicha } from "./LiveBadge";
+import { LiveBadge, LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { DetalleVenta } from "./DetalleVenta";
@@ -545,6 +545,11 @@ export function Drawer({
   const avisoPausarPrimero = porPedido
     ? fichandoYo.length > 0 && paraRevisarBloque.length === 0 && paraRevisar.length > 0
     : fichandoYo.length > 0 && paraRevisar.length > 0;
+  // Las que salen en el botón del bloque. Con el reloj frenándolo, las que se
+  // mandarían al pausar: el botón se queda en su sitio, desactivado, en vez de
+  // desaparecer y mover la ficha.
+  const pasarBloque = avisoPausarPrimero ? paraRevisar : paraRevisarBloque;
+  const autoresDe = (ofs: OF[]) => new Set(ofs.map((o) => o.autorId)).size;
 
   // LO QUE YO TENGO QUE REVISAR en este pedido, haya empezado ya o no.
   //
@@ -852,7 +857,12 @@ export function Drawer({
                     Mismo par que la fila del tablero (PedidoLinea): antes solo
                     sabía fichar, así que tras fichar seguía ofreciendo fichar
                     otra vez lo que ya estaba corriendo. */}
-                {fichandoYo.length > 0 ? (
+                {/* Con UNA sola OF fichándose, la pausa está en su fila: aquí
+                    salía el mismo «Pausar» dos veces, y al fichar y pausar
+                    aparecía y desaparecía, moviendo la ficha. Mismo criterio
+                    que «Fichar las N», que solo sale con más de una
+                    (Iván, 16/10/2026). */}
+                {fichandoYo.length > 1 ? (
                   <button
                     onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
                     title={
@@ -991,10 +1001,14 @@ export function Drawer({
                     Impreso
                   </button>
                 )}
+                {/* CON EL RELOJ EN MARCHA, EL BOTÓN SE QUEDA, DESACTIVADO, y dice
+                    por qué al pasar el ratón. Antes se escondía y salía en su
+                    lugar una línea «Pausa el reloj para poder pasar a revisión»
+                    debajo: al fichar y pausar, la ficha cambiaba de altura
+                    (Iván, 16/10/2026). */}
                 {!onImpreso &&
-                  (porPedido || fichandoYo.length === 0) &&
-                  paraRevisarBloque.length >= minimoDelBloque &&
-                  (autoresParaRevisar.length === 1 || porPedido) &&
+                  pasarBloque.length >= minimoDelBloque &&
+                  (autoresDe(pasarBloque) === 1 || porPedido) &&
                   !pidiendoRevisorPedido && (
                   <button
                     onClick={() => {
@@ -1002,31 +1016,20 @@ export function Drawer({
                       // se busca al compañero. El servidor vuelve a validarlas.
                       setPidiendoRevisorPedido(paraRevisarBloque);
                     }}
-                    title={`Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`}
-                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
+                    disabled={avisoPausarPrimero}
+                    title={
+                      avisoPausarPrimero
+                        ? "Pausa el reloj para poder pasar a revisión"
+                        : `Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`
+                    }
+                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {/* Mismo motivo que en "Aprobar": con una sola OF (lo
                         normal en Diseño) el número sobra. */}
-                    {etiquetaCantidad("Pasar", paraRevisarBloque.length, "a revisión")}
+                    {etiquetaCantidad("Pasar", pasarBloque.length, "a revisión")}
                   </button>
                 )}
               </div>
-            )}
-            {/* Con el reloj corriendo no se manda nada a revisar: primero se
-                para. Mandar a revisión da por terminado el planteo, y hacerlo
-                con el reloj en marcha deja tiempo contando sobre un trabajo
-                que ya dijiste que estaba acabado.
-                Se dice POR QUÉ en vez de esconder el botón a secas: si no,
-                parece que la web se ha roto.
-                En su propia línea, debajo de los botones: metido entre ellos
-                ocupaba el sitio de uno y empujaba al siguiente a otra fila,
-                con lo que quedaban un botón arriba y otro abajo sin motivo. */}
-            {/* Sin "Pasar a revisión" (Impresión) el aviso no tiene a qué
-                referirse. */}
-            {!soloLectura && !onImpreso && avisoPausarPrimero && (
-              <p className="-mt-1 mb-2 text-right text-[11px] text-text-muted">
-                Pausa el reloj para poder pasar a revisión
-              </p>
             )}
 
           {/* LA GUÍA TAMBIÉN AQUÍ. Estaba solo en el panel de Revisiones, y
@@ -1389,7 +1392,7 @@ function OFRow({
             <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
-        <span className="font-mono text-xs font-semibold text-text">{of.codigo}</span>
+        <span className="shrink-0 font-mono text-xs font-semibold text-text">{of.codigo}</span>
         <FamiliaTag familia={of.familia} />
         {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
             Es el detalle que le falta a la familia, que en RPS es muy ancha, y
@@ -1397,7 +1400,7 @@ function OFRow({
             catálogo. Solo si dice algo que la familia no diga ya. */}
         {subfamiliaAparte(of.familia, of.subfamilia) && (
           <span
-            className="truncate text-[10px] uppercase tracking-wide text-text-muted"
+            className="min-w-0 truncate text-[10px] uppercase tracking-wide text-text-muted"
             title="Subfamilia en RPS"
           >
             {subfamiliaAparte(of.familia, of.subfamilia)}
@@ -1407,7 +1410,7 @@ function OFRow({
             Va en el propio distintivo y no en una línea aparte porque es lo
             que se busca al repasarlas, y así se lee sin abrir nada. */}
         <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
+          className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
           title={
             of.cerradaRps
               ? `Cerrada en RPS por ${opById(of.cerradaRps.por)?.nombre ?? of.cerradaRps.por}, ${fmtCierre(of.cerradaRps.at)}${
@@ -1430,15 +1433,10 @@ function OFRow({
               : meta.label}
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
+        {/* Solo el rol. Quién y cuánto lleva, con el reloj corriendo, van en
+            la caja de TIEMPO, junto a su nombre: aquí no cabían y partían
+            «EN REVISIÓN» y «2 pz» en dos líneas (Iván, 16/10/2026). */}
         {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
-        {/* Quién y desde cuándo, con el reloj corriendo: también el de un
-            compañero, que antes no salía. */}
-        {of.fichandoAhora && (
-          <QuienFicha
-            vivos={of.fichandoAhora}
-            nombre={(id) => operarios.find((o) => o.id === id)?.nombre ?? id}
-          />
-        )}
         {/* Detenida por Producción: no se puede fichar y no depende de OT
             resolverlo. Tiene que verse aquí, que es donde se decide qué coger:
             hasta ahora solo se enteraba uno al intentar fichar. */}
@@ -1474,7 +1472,7 @@ function OFRow({
             {autor.iniciales}
           </span>
         )}
-        <span className={`${plegable && !abierta && autor ? "" : "ml-auto "}text-[11px] text-text-muted`}>{of.piezas} pz</span>
+        <span className={`${plegable && !abierta && autor ? "" : "ml-auto "}shrink-0 whitespace-nowrap text-[11px] text-text-muted`}>{of.piezas} pz</span>
       </div>
 
       <p className={`mt-1 text-sm text-text ${plegable && !abierta ? "truncate" : ""}`}>{of.descripcion}</p>
@@ -1802,7 +1800,6 @@ function AccionesOF({
       a.id !== "empezar_planteo" &&
       a.id !== "retomar" &&
       !(relojALaVista && a.id === "empezar_revision") &&
-      !(fichandoYoEsta && a.id === "terminar_planteo") &&
       // La última OF que queda no se cierra suelta: eso es pasar el pedido.
       !(esLaUltima && a.id === "cerrar_en_rps") &&
       // Las de estado suben al pedido en las secciones que trabajan así. Se
@@ -1970,10 +1967,20 @@ function AccionesOF({
           return <AnularInline key={a.id} onAnular={(obs) => onAccion([of.id], a.id, obs)} />;
         // "Pasar a revisión" pide el revisor aquí mismo (flujo unificado con
         // el chip del tablero): sin revisor no se pasa.
+        // Con MI reloj corriendo en ella no se puede mandar (el planteo no
+        // está acabado si sigue contando), pero el botón se queda en su sitio
+        // y dice por qué: escondiéndolo, la fila cambiaba al fichar y pausar
+        // (Iván, 16/10/2026).
         if (a.id === "terminar_planteo")
           return (
             !pidiendoRevisor && (
-              <Btn key={a.id} tone={tono[a.tono]} onClick={() => setPidiendoRevisor(true)}>
+              <Btn
+                key={a.id}
+                tone={tono[a.tono]}
+                disabled={fichandoYoEsta}
+                title={fichandoYoEsta ? "Pausa el reloj para poder pasar a revisión" : undefined}
+                onClick={() => setPidiendoRevisor(true)}
+              >
                 {a.label}
               </Btn>
             )
