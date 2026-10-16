@@ -6,7 +6,7 @@ import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
 import { FamiliaTag } from "./FamiliaTag";
-import { LiveBadge, LiveDot } from "./LiveBadge";
+import { LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { DetalleVenta } from "./DetalleVenta";
@@ -1410,9 +1410,13 @@ function OFRow({
             Va en el propio distintivo y no en una línea aparte porque es lo
             que se busca al repasarlas, y así se lee sin abrir nada. */}
         <span
-          className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
+          className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
           title={
-            of.cerradaRps
+            of.fichandoRol
+              ? of.fichandoRol === "revisar"
+                ? "Alguien la está revisando ahora: su reloj, en la caja de tiempo"
+                : "Alguien la está planteando ahora: su reloj, en la caja de tiempo"
+              : of.cerradaRps
               ? `Cerrada en RPS por ${opById(of.cerradaRps.por)?.nombre ?? of.cerradaRps.por}, ${fmtCierre(of.cerradaRps.at)}${
                   of.cerradaRps.modo !== "activo" ? ` (modo ${of.cerradaRps.modo}: no se llegó a escribir en RPS)` : ""
                 }`
@@ -1424,6 +1428,18 @@ function OFRow({
               no pasó, y el histórico no puede decir que sí. Con la marca, lo
               que hay que leer es que ya está cerrada en RPS — y si fue en
               sombra/ensayo, que NO se llegó a escribir de verdad. */}
+          {/* Fichándose AHORA: el punto que late, dentro del propio estado.
+              Al lado iba otro distintivo, «● REVISANDO» junto a «EN REVISIÓN»,
+              que decía lo mismo dos veces (Iván, 16/10/2026). Quién y cuánto
+              lleva están en la caja de tiempo. */}
+          {/* Del color del texto del distintivo, no del rol: el estado ya va
+              en ese color, y un punto violeta sobre violeta no se veía. */}
+          {of.fichandoRol && (
+            <span className="relative inline-flex size-1.5 shrink-0" aria-hidden>
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-70 motion-reduce:animate-none" />
+              <span className="relative inline-flex size-full rounded-full bg-current" />
+            </span>
+          )}
           {of.cerradaRps
             ? of.cerradaRps.modo === "activo"
               ? "Cerrada en RPS"
@@ -1433,10 +1449,6 @@ function OFRow({
               : meta.label}
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
-        {/* Solo el rol. Quién y cuánto lleva, con el reloj corriendo, van en
-            la caja de TIEMPO, junto a su nombre: aquí no cabían y partían
-            «EN REVISIÓN» y «2 pz» en dos líneas (Iván, 16/10/2026). */}
-        {of.fichandoRol && <LiveBadge rol={of.fichandoRol} />}
         {/* Detenida por Producción: no se puede fichar y no depende de OT
             resolverlo. Tiene que verse aquí, que es donde se decide qué coger:
             hasta ahora solo se enteraba uno al intentar fichar. */}

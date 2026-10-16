@@ -19,21 +19,6 @@ export function LiveDot({ rol, className = "size-2" }: { rol: Rol; className?: s
   );
 }
 
-/** Badge "fichando ahora": dot pulsante + rol. `quien` añade las iniciales
- *  cuando el contexto no deja claro de quién es el tiempo. */
-export function LiveBadge({ rol, quien }: { rol: Rol; quien?: string }) {
-  const meta = ROL[rol];
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.chip}`}
-    >
-      <LiveDot rol={rol} className="size-1.5" />
-      {meta.label}
-      {quien && <span className="font-extrabold">· {quien}</span>}
-    </span>
-  );
-}
-
 /** Quién está fichando, en qué papel y cuánto lleva, con el reloj corriendo:
  *  "● Jaime · 0:12:30". Una entrada por persona; casi siempre es una.
  *
