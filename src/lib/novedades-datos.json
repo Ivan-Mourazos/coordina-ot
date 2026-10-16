@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "797cb32",
+    "hasta": "e745dee",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -93,6 +93,23 @@
         "titulo": "En la OF, el estado lleva un punto que late cuando alguien la está fichando",
         "detalle": "Antes salía «EN REVISIÓN» y al lado «REVISANDO», que decían lo mismo.",
         "tanda": 8
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El tiempo de cada OF en la ficha separa planteo y revisión",
+        "detalle": "Es lo fichado en la web; lo de RPS lo tienes en el Historial y en «Tareas y tiempos».",
+        "tanda": 9
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al reanudar, el reloj sigue desde lo que llevabas en vez de empezar de cero",
+        "tanda": 9
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Si alguien ficha varios pedidos a la vez, se ven todos y su reloj cuenta el total",
+        "detalle": "Su tarjeta dice, por ejemplo, «Revisando 3 pedidos»; antes salía solo el primero.",
+        "tanda": 9
       }
     ]
   },
