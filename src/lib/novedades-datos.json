@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "b4f6916",
+    "hasta": "cbeeedd",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -30,6 +30,11 @@
         "tipo": "arreglado",
         "titulo": "En las filas de pedidos de otros se veía un recuadro blanco a la derecha",
         "tanda": 4
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Revisando, la cabecera de la OF se partía en varias líneas",
+        "tanda": 7
       },
       {
         "tipo": "mejor",
@@ -76,6 +81,12 @@
         "titulo": "Las tarjetas del equipo dicen quién está fichando y quién no",
         "detalle": "Todas miden igual: quien no ficha sale como «Sin fichar ahora».",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha, los botones de fichar ya no se repiten ni mueven la ficha al fichar y pausar",
+        "detalle": "«Pasar a revisión» se queda en su sitio mientras fichas y te dice que pauses primero.",
+        "tanda": 7
       }
     ]
   },
