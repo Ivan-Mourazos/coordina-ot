@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
+import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
@@ -69,6 +69,11 @@ import { useSoloLectura } from "./SoloLectura";
  *  `aprobar_corregida` tiene además un botón de pedido ("Dar por corregidas
  *  las N") desde dos OF, pero se AÑADE al de cada fila, no lo sustituye: por
  *  eso no está aquí. */
+/** Estados en que la nota de la devolución ya está atendida. Solo la aprobada:
+ *  mientras vuelve a revisión, el revisor la quiere delante para comprobar
+ *  que se corrigió lo que pidió. */
+const NOTA_YA_CORREGIDA: ReadonlySet<EstadoOF> = new Set(["aprobada"]);
+
 const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
   "terminar_planteo",
   "aprobar",
@@ -1666,8 +1671,12 @@ function OFRow({
 
           {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
               motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
-              en rojo la haría parecer devuelta. */}
-          {of.observacion && !anulacion && (
+              en rojo la haría parecer devuelta.
+              Y se calla en cuanto se aprueba: en
+              una OF aprobada, «Qué corregir» en rojo decía que aún falla algo.
+              El dato no se borra —la segunda vuelta lo usa para poner delante lo
+              que falló—, solo deja de enseñarse aquí. */}
+          {of.observacion && !anulacion && !NOTA_YA_CORREGIDA.has(of.estado) && (
             <NotaDevolucion
               observacion={of.observacion}
               className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
