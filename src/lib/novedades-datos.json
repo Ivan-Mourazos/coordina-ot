@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "adcdc1d",
+    "hasta": "0d3d1ee",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -63,6 +63,12 @@
         "tipo": "arreglado",
         "titulo": "Al abrir un pedido podía salir «ya se han mandado a revisión» de otro pedido",
         "tanda": 13
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al devolver una OF, las causas que marcaste en la guía ya salen puestas",
+        "detalle": "Antes, desde el botón de cada OF había que volver a elegirlas.",
+        "tanda": 14
       },
       {
         "tipo": "mejor",
@@ -138,6 +144,27 @@
         "titulo": "Si alguien ficha varios pedidos a la vez, se ven todos y su reloj cuenta el total",
         "detalle": "Su tarjeta dice, por ejemplo, «Revisando 3 pedidos»; antes salía solo el primero.",
         "tanda": 9
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al devolver, la nota y las causas salen de la guía",
+        "detalle": "Junto a cada fallo de la guía escribes qué falla, y al devolver ya está todo puesto.",
+        "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Si te devuelven una OF, ves la lista de qué corregir",
+        "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al volver a revisar una OF, lo que falló la otra vez sale primero",
+        "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas puedes ver qué pasos de la guía fallan más",
+        "tanda": 14
       }
     ]
   },
