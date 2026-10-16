@@ -422,6 +422,12 @@ export interface OF {
    *  quién ha echado cada rato, y un total agregado obliga a atribuírselo a
    *  alguien a mano. Ordenado de más minutos a menos. */
   fichadoWeb?: FichajeWebOF[];
+  /** Lo mismo, pero con TODO lo fichado en la web, también lo ya traspasado a
+   *  RPS. Solo para ENSEÑARLO (la caja de tiempo de la ficha): `fichadoWeb`
+   *  deja fuera lo traspasado para no contarlo dos veces con RPS, y en modo
+   *  activo cada pausa lo traspasa, así que la caja se quedaba en «0m» y
+   *  «Todavía no se ha fichado nada» con horas fichadas (Iván, 16/10/2026). */
+  fichadoWebTodo?: FichajeWebOF[];
   /** A qué ritmo SUBEN ahora mismo esos minutos: cuántos gana la OF por cada
    *  minuto de reloj mientras alguien la está fichando (1 con una sola OF en el
    *  reloj, ½ si se reparte entre dos). Por rol y por persona, igual que los

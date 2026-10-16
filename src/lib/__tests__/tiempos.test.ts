@@ -278,3 +278,18 @@ describe("el reloj sigue desde lo que llevaba", () => {
     expect(r.pedidos[0].ofs[0].fichandoAhora?.[0].previoSeg).toBe(3600);
   });
 });
+
+describe("lo fichado en la web, para enseñarlo", () => {
+  // En modo activo cada pausa traspasa el tramo a RPS y deja de venir en
+  // `intervalos`: la caja de tiempo de la ficha se quedaba en «0m» con horas
+  // fichadas. `fichadoWebTodo` lo cuenta todo, solo para enseñarlo.
+  test("cuenta lo traspasado sin sumarlo al tiempo de la OF", () => {
+    const traspasado: Intervalo = { ...iv(9, 10, ["OF-1"]), operarioId: "ivan" };
+    const r = aplicarTiemposFichaje(tablero([of("OF-1", 60)]), [], AHORA, ACTIVO, [traspasado]);
+    const o = r.pedidos[0].ofs[0];
+    expect(o.fichadoWebTodo).toEqual([{ operarioId: "ivan", planteoMin: 60, revisionMin: 0 }]);
+    // El tiempo de la OF sigue siendo el de RPS: no se cuenta dos veces.
+    expect(o.tiempoPlanteoMin).toBe(60);
+    expect(o.fichadoWeb).toBeUndefined();
+  });
+});
