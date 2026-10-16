@@ -1366,6 +1366,18 @@ body {
   border-radius: 2px;
   background: var(--acento-bloque);
 }
+/* En los bloques plegables (Documentos, Tareas) la cabecera es el botón
+   entero, que toca el borde de la caja: el trazo quedaba pegado al canto,
+   fuera de donde va en Notas o Recorrido. Se mete lo mismo que allí: 12 px
+   hacia dentro, y a la altura del rótulo, no del botón (Iván, 16/10/2026). */
+.cabecera-bloque.cabecera-en-boton {
+  padding-left: 24px;
+}
+.cabecera-bloque.cabecera-en-boton::before {
+  left: 12px;
+  top: 11px;
+  bottom: 11px;
+}
 [data-bloque="documentos"] { --acento-bloque: var(--bloque-documentos); }
 [data-bloque="tareas"] { --acento-bloque: var(--bloque-tareas); }
 [data-bloque="notas"] { --acento-bloque: var(--bloque-notas); }
