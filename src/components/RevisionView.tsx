@@ -15,6 +15,7 @@ import { GuiaRevision } from "./GuiaRevision";
 import { AprobarInline } from "./AprobarInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { BotonesRevisor } from "./PedirRevisor";
+import { IconoAviso } from "./Iconos";
 import { BloqueLista } from "./BloqueLista";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
@@ -422,20 +423,64 @@ function FilaRevision({
 
   // También al cambiar de revisor se elige directamente. Se conservan las
   // exclusiones de todos los autores del grupo y el orden de los compañeros.
+  //
+  // CAMBIAR EL REVISOR ES COSA DEL AUTOR. A los demás no se les impide —a
+  // veces hace falta, si el autor no está—, pero se les para con un aviso:
+  // los botones están a la vista de todo el equipo y un clic de más dejaba el
+  // pedido de otro con un revisor que nadie había pedido (Iván, 16/10/2026).
+  const autoresDelGrupo = [...autores];
+  const esDeOtro = ofs.some((o) => o.autorId !== miId);
+  const [revisorPorConfirmar, setRevisorPorConfirmar] = useState<string | null>(null);
+  const cambiarRevisor = (v: string) => ofIds.forEach((id) => onCambiarRevisor(id, v));
+  const nombreDe = (id: string | null | undefined) => operarios.find((o) => o.id === id)?.nombre ?? "otro compañero";
   const selectorRevisor = (
-    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
-      Revisor:
-      <BotonesRevisor
-        operarios={operarios}
-        excluirIds={[...autores]}
-        valorActual={revisorComun}
-        miId={miId}
-        onElegir={(v) => ofIds.forEach((id) => onCambiarRevisor(id, v))}
-      />
+    <div className="flex w-full flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
+        Revisor:
+        <BotonesRevisor
+          operarios={operarios}
+          excluirIds={[...autores]}
+          valorActual={revisorPorConfirmar ?? revisorComun}
+          miId={miId}
+          onElegir={(v) => {
+            if (v === revisorComun) return setRevisorPorConfirmar(null);
+            if (esDeOtro) return setRevisorPorConfirmar(v);
+            cambiarRevisor(v);
+          }}
+        />
+      </div>
+      {revisorPorConfirmar && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-800 dark:text-amber-200"
+        >
+          <IconoAviso className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            Este pedido no es tuyo, es de{" "}
+            <strong>{autoresDelGrupo.map((id) => nombreDe(id)).join(" y ")}</strong>. ¿Seguro que quieres
+            poner a <strong>{nombreDe(revisorPorConfirmar)}</strong> de revisor?
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              cambiarRevisor(revisorPorConfirmar);
+              setRevisorPorConfirmar(null);
+            }}
+            className="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Cambiar igualmente
+          </button>
+          <button
+            type="button"
+            onClick={() => setRevisorPorConfirmar(null)}
+            className="rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text ring-1 ring-border hover:ring-border-strong"
+          >
+            Dejarlo como está
+          </button>
+        </div>
+      )}
     </div>
   );
-
-  const autoresDelGrupo = [...new Set(ofs.map((o) => o.autorId).filter(Boolean) as string[])];
 
   return (
     <FilaDesplegable
