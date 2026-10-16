@@ -1008,11 +1008,25 @@ export function leerMovimientosMetricas(
   // Los movimientos del ciclo que se miden. `recuperar_planteo` entra aunque no
   // se cuente: cancela la espera en la cola, y sin él una OF recuperada seguiria
   // sumando espera hasta que alguien la mirase meses despues.
+  // UNA REVISIÓN EMPIEZA AL PASAR DE «POR REVISAR» A «EN REVISIÓN», la apunte
+  // el botón que la apunte. Desde septiembre casi nadie pulsa «Empezar
+  // revisión»: el revisor pulsa Fichar y eso la arranca, y queda en el
+  // registro como `fichar`. Contando solo `empezar_revision` salían 64
+  // revisiones en septiembre de las 329 que hubo, y 10 de 166 en octubre
+  // (base del 15/10/2026) — y el % de devueltas, sobre ese denominador
+  // encogido, inflado (Iván, 16/10/2026).
+  //
+  // Mirando el estado de antes (`previos`) y no solo el de después: fichar
+  // en una OF que ya estaba en revisión es retomarla, no otra revisión.
+  const empiezaRevision = `(json_extract(c.value, '$.estado') = 'en_revision'
+      AND EXISTS (SELECT 1 FROM json_each(l.detalle, '$.previos') p
+                   WHERE json_extract(p.value, '$.ofId') = json_extract(c.value, '$.ofId')
+                     AND json_extract(p.value, '$.estado') = 'por_revisar'))`;
   const filtros = [
     // `aprobar_sin_revision` entra desde que las métricas cuentan volumen: es
     // una de las TRES formas de dar por buena una OF, y sin ella todo el
     // trabajo que no lleva revisión salía de los números como si no existiera.
-    "l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','aprobar_sin_revision','recuperar_planteo')",
+    `(l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','aprobar_sin_revision','recuperar_planteo') OR ${empiezaRevision})`,
   ];
   const args: string[] = [];
   if (seccion) {
@@ -1043,7 +1057,8 @@ export function leerMovimientosMetricas(
   const filas = abrir()
     .prepare(
       `SELECT l.ts AS at,
-              l.motivo AS motivo,
+              CASE WHEN l.motivo <> 'empezar_revision' AND ${empiezaRevision}
+                   THEN 'empezar_revision' ELSE l.motivo END AS motivo,
               l.operario_id AS operarioId,
               json_extract(c.value, '$.ofId') AS ofId,
               json_extract(c.value, '$.observacion') AS observacion
