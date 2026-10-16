@@ -1462,7 +1462,10 @@ function OFRow({
             <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
-        <span className="shrink-0 font-mono text-xs font-semibold text-text">{of.codigo}</span>
+        {/* El número de la OF, lo primero que se lee de la tarjeta: era más
+            pequeño que la descripción de debajo y costaba encontrarlo
+            (Iván y compañeros, 16/10/2026; elegido entre tres en captura). */}
+        <span className="shrink-0 font-mono text-[15px] font-bold tracking-[0.02em] text-text">{of.codigo}</span>
         <FamiliaTag familia={of.familia} />
         {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
             Es el detalle que le falta a la familia, que en RPS es muy ancha, y
