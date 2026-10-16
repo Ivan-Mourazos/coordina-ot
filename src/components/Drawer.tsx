@@ -860,7 +860,11 @@ export function Drawer({
                         ? "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
                         : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
                     }
-                    className="boton-3d rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800"
+                    // Del color del rol que corre: revisando salía verde,
+                    // como si se estuviera planteando (Iván, 16/10/2026).
+                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                      fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
+                    }`}
                   >
                     ⏸ Pausar{fichandoYo.length > 1 && ` las ${fichandoYo.length}`}
                   </button>

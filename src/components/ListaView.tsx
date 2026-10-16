@@ -511,6 +511,7 @@ export function ListaView({
               etiqueta={p.codigo}
               idDetalle={`detalle-${p.id}`}
               tarjeta
+              fichando={fichando}
               celdas={compacta ? (
                 <CeldasCompactas p={p} hoy={hoy} tramos={tramos} fase={fase?.(p) ?? null} fichando={fichando} onOpen={onOpen} />
               ) : (

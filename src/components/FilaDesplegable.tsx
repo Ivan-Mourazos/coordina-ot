@@ -41,7 +41,13 @@ export function FilaDesplegable({
   celdas,
   detalle,
   tarjeta = false,
+  fichando = null,
 }: {
+  /** Alguien está fichando este pedido, y en qué papel: la fila se tiñe del
+   *  color del rol (verde planteando, violeta revisando) y lleva su raya a la
+   *  izquierda. Con solo el puntito, el pedido que tienes entre manos no se
+   *  distinguía en la lista (Iván, 16/10/2026). */
+  fichando?: "plantear" | "revisar" | null;
   /** La rejilla de columnas, literal (Tailwind no compila las concatenadas). */
   columnas: string;
   abierta: boolean;
@@ -99,8 +105,13 @@ export function FilaDesplegable({
           : "relative border-b border-border last:border-b-0"
       }
     >
-      {abierta && (
-        <span aria-hidden="true" className="absolute inset-y-0 left-0 z-10 w-1 bg-brand-500" />
+      {(abierta || fichando) && (
+        <span
+          aria-hidden="true"
+          className={`absolute inset-y-0 left-0 z-10 w-1 ${
+            fichando === "plantear" ? "bg-emerald-500" : fichando === "revisar" ? "bg-violet-500" : "bg-brand-500"
+          }`}
+        />
       )}
       {/* Abierta: cabecera en el fondo de fila (blanco en claro), y debajo el
           detalle hundido en gris. El crema dorado translúcido se leía
@@ -112,7 +123,7 @@ export function FilaDesplegable({
         ref={cabecera}
         className={`relative ${columnas} px-3 py-1.5 ${
           abierta ? "cabecera-abierta" : "hover:bg-surface-2"
-        }`}
+        } ${fichando ? `fila-fichando-${fichando}` : ""}`}
       >
         <button
           type="button"

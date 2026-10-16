@@ -229,7 +229,9 @@ export function PedidoLinea({
       // aviso "N parados por Producción" de la zona personal.
       style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
       className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
-        fichandoAlguien ? "bg-[color-mix(in_srgb,var(--color-emerald-500)_10%,var(--fila))]" : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
+        // Del color del ROL, no siempre verde: revisando salía igual que
+        // planteando (Iván, 16/10/2026). Ver `.fila-fichando-*` en globals.css.
+        fichandoAlguien ? `fila-fichando-${fichandoAlguien.fichandoRol}` : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
       }`}
     >
       <button
