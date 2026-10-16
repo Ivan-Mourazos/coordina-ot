@@ -144,7 +144,9 @@ export function FilaOF({
         </span>
       )}
       <span
-        className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-text ring-1 ring-border"
+        // Sin caja: era la única cifra de la fila con fondo y borde, y se leía
+        // como un botón (Iván, 16/10/2026).
+        className="w-14 shrink-0 text-right font-semibold tabular-nums text-text"
         title={`Planteo ${fmtMin(of.tiempoPlanteoMin)} · Revisión ${fmtMin(of.tiempoRevisionMin)}`}
       >
         {total > 0 ? fmtMinEnteros(total) : "—"}
