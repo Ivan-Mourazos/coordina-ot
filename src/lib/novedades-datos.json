@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "0d3d1ee",
+    "hasta": "ec7a756",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -165,6 +165,11 @@
         "tipo": "mejor",
         "titulo": "En Métricas puedes ver qué pasos de la guía fallan más",
         "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El número de cada OF se lee mejor en la ficha y en las listas",
+        "tanda": 15
       }
     ]
   },
