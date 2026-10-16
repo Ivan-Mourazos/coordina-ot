@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-16",
-    "hasta": "cbeeedd",
+    "hasta": "797cb32",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -87,6 +87,12 @@
         "titulo": "En la ficha, los botones de fichar ya no se repiten ni mueven la ficha al fichar y pausar",
         "detalle": "«Pasar a revisión» se queda en su sitio mientras fichas y te dice que pauses primero.",
         "tanda": 7
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la OF, el estado lleva un punto que late cuando alguien la está fichando",
+        "detalle": "Antes salía «EN REVISIÓN» y al lado «REVISANDO», que decían lo mismo.",
+        "tanda": 8
       }
     ]
   },
