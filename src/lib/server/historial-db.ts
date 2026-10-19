@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import sql from "mssql";
 import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
 import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
@@ -904,7 +905,7 @@ export function aDocumentosDelCliente(
     // distinguen por el aviso que las trajo.
     clase: d.clase ?? claseDeDocumento(d.ruta),
     url: segmentosEnShare(d.ruta)
-      ? `/api/historial/${encodeURIComponent(pedido)}/documento/${i}`
+      ? `/api/historial/${encodeURIComponent(pedido)}/documento/${i}-${huellaDocumento(d.ruta)}`
       : null,
   }));
 }
@@ -935,11 +936,39 @@ export async function documentosDePedido(pedido: string): Promise<DocumentoRps[]
  *  que es de donde salen los path traversal. */
 export async function documentoDePedido(
   pedido: string,
-  indice: number,
+  clave: string,
 ): Promise<DocumentoRpsCrudo | null> {
-  if (!Number.isInteger(indice) || indice < 0) return null;
-  const docs = await leerDocumentosPedido(pedido);
-  return docs[indice] ?? null;
+  if (!CLAVE_DOCUMENTO_RE.test(clave)) return null;
+  return elegirDocumento(await leerDocumentosPedido(pedido), clave);
+}
+
+/** Huella corta de la ruta de un documento: va en su URL junto a la posición.
+ *
+ *  La posición sola no basta (19/10/2026): cuando RPS cuelga un documento
+ *  nuevo, la lista se corre y la misma URL pasa a ser otro fichero. En
+ *  AR.26.04748 la «version 1» del planteamiento entró delante del presupuesto,
+ *  y quien ya había abierto el presupuesto en ese sitio veía el presupuesto al
+ *  pinchar en el planteamiento. Con la huella, cada URL es de UN fichero. */
+export function huellaDocumento(ruta: string): string {
+  return createHash("sha1").update(ruta.toLowerCase()).digest("hex").slice(0, 10);
+}
+
+/** «3» (direcciones de antes) o «3-a1b2c3d4e5». Nada más: ni rutas ni nombres. */
+export const CLAVE_DOCUMENTO_RE = /^(\d{1,3})(?:-([0-9a-f]{10}))?$/;
+
+/** El documento que nombra la clave, o null.
+ *
+ *  Con huella manda la HUELLA: si en esa posición hay otro fichero (la lista se
+ *  ha corrido), se busca el suyo en el resto; si ya no está, null — mejor un
+ *  404 que servir otro documento. Sin huella, la posición, como antes. */
+export function elegirDocumento<D extends { ruta: string }>(docs: readonly D[], clave: string): D | null {
+  const m = CLAVE_DOCUMENTO_RE.exec(clave);
+  if (!m) return null;
+  const enSuSitio = docs[Number(m[1])] ?? null;
+  const huella = m[2];
+  if (!huella) return enSuSitio;
+  if (enSuSitio && huellaDocumento(enSuSitio.ruta) === huella) return enSuSitio;
+  return docs.find((d) => huellaDocumento(d.ruta) === huella) ?? null;
 }
 
 /** Deduce quién planteó y quién revisó en los pedidos ANTIGUOS, los cerrados

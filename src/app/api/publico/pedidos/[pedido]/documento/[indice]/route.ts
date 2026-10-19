@@ -8,7 +8,7 @@ import {
   esImagen,
   segmentosEnShare,
 } from "@/lib/historial";
-import { documentoDePedido } from "@/lib/server/historial-db";
+import { CLAVE_DOCUMENTO_RE, documentoDePedido } from "@/lib/server/historial-db";
 import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/server/miniaturas";
 
 // ─── GET /api/publico/pedidos/AR.26.03453/documento/0 ────────────────────────
@@ -29,7 +29,7 @@ import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/ser
  *  El pedido con más documentos que hay en RPS anda por los 60 y pico, así que
  *  con 999 sobra de largo. El límite es para que un `/documento/99999999…` no
  *  llegue siquiera a abrir la conexión con la BD. */
-const INDICE_RE = /^\d{1,3}$/;
+const INDICE_RE = CLAVE_DOCUMENTO_RE;
 
 /** Carpeta de caché de las miniaturas de documentos, dentro de la de Next.
  *  Aparte de la de los partes (`pedidos-thumbs`): allí la clave es el código
@@ -48,6 +48,9 @@ const RAIZ =
   process.platform === "win32"
     ? (process.env.RPS_DOCS_DIR_WIN ?? "\\\\192.168.0.128\\RPS")
     : (process.env.RPS_DOCS_DIR ?? "/mnt/rps");
+
+/** Privada (lleva datos del cliente) y revalidando siempre: ver la `firma`. */
+const CACHE_DOCUMENTO = "private, no-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +76,7 @@ export async function GET(
     // El índice se resuelve contra la lista de documentos DE ESE PEDIDO: si el
     // pedido no tiene tantos, no hay fichero, y no hay forma de nombrar uno de
     // otro pedido desde aquí.
-    doc = await documentoDePedido(pedido, Number(indice));
+    doc = await documentoDePedido(pedido, indice);
   } catch (e) {
     console.error("[publico] documento: RPS falló:", (e as Error).message);
     return new Response("No se pudo consultar el documento", { status: 500 });
@@ -103,7 +106,21 @@ export async function GET(
   const archivo = archivoDeRuta(doc.ruta);
   const { tipo, incrustable } = comoServir(archivo);
 
-  if (mini) return await miniatura(ruta, doc.ruta, archivo, tipo);
+  if (mini) return await miniatura(req, ruta, doc.ruta, archivo, tipo);
+
+  // El navegador PREGUNTA cada vez si ha cambiado (19/10/2026). Antes lo
+  // guardaba un día sin preguntar, y un planteamiento rehecho con el mismo
+  // nombre se seguía viendo viejo. Si no ha cambiado, un 304 sin cuerpo.
+  let firma: string;
+  try {
+    const st = await stat(ruta);
+    firma = `"${Math.round(st.mtimeMs)}-${st.size}"`;
+  } catch {
+    return new Response("Documento no encontrado", { status: 404 });
+  }
+  if (req.headers.get("if-none-match") === firma) {
+    return new Response(null, { status: 304, headers: { ETag: firma, "Cache-Control": CACHE_DOCUMENTO } });
+  }
 
   let contenido: Buffer;
   try {
@@ -124,9 +141,11 @@ export async function GET(
       // Con esto el navegador no adivina el tipo: si decimos octet-stream, no
       // se ejecuta como otra cosa aunque el contenido lo parezca.
       "X-Content-Type-Options": "nosniff",
-      // Un documento de un pedido cerrado no cambia. Privada porque lleva datos
-      // del cliente y no debe quedarse en ninguna caché compartida.
-      "Cache-Control": "private, max-age=86400",
+      // Privada porque lleva datos del cliente y no debe quedarse en ninguna
+      // caché compartida; y revalidando, que un planteamiento se rehace con el
+      // mismo nombre (ver `firma`).
+      ETag: firma,
+      "Cache-Control": CACHE_DOCUMENTO,
     },
   });
 }
@@ -143,6 +162,7 @@ export async function GET(
  *  cambia en cuanto RPS cuelga un documento más del pedido, y entonces la
  *  miniatura cacheada sería la del documento de al lado. */
 async function miniatura(
+  req: Request,
   ruta: string,
   rutaOriginal: string,
   archivo: string,
@@ -159,6 +179,10 @@ async function miniatura(
   } catch {
     return new Response("Documento no encontrado", { status: 404 });
   }
+  const firma = `"m-${Math.round(mtime)}"`;
+  if (req.headers.get("if-none-match") === firma) {
+    return new Response(null, { status: 304, headers: { ETag: firma, "Cache-Control": CACHE_DOCUMENTO } });
+  }
 
   const clave = createHash("sha1").update(rutaOriginal).digest("hex");
   try {
@@ -173,8 +197,9 @@ async function miniatura(
         "Content-Type": esPdf ? "image/png" : "image/jpeg",
         "X-Content-Type-Options": "nosniff",
         // Privada: lleva datos del cliente y no puede quedarse en ninguna
-        // caché compartida. Misma vida que el documento entero.
-        "Cache-Control": "private, max-age=86400",
+        // caché compartida. Revalida igual que el documento entero.
+        ETag: firma,
+        "Cache-Control": CACHE_DOCUMENTO,
       },
     });
   } catch (e) {
