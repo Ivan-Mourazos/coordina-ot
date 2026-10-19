@@ -14,6 +14,7 @@ import { ErrorCarga } from "./ErrorCarga";
 import { FamiliaTag } from "./FamiliaTag";
 import { FilaDesplegable } from "./FilaDesplegable";
 import { OFsDeLaFicha } from "./HistorialCentros";
+import { MarcaNotas, NotasPublicas } from "./NotasPublicas";
 
 // ─── Los pedidos de la casa, para quien solo mira ────────────────────────────
 // Una sola lista. Se entra buscando; sin buscar, las próximas entregas. Cada
@@ -256,7 +257,10 @@ function FilaConsulta({
       tarjeta
       celdas={
         <>
-          <span className="pointer-events-none font-mono text-sm font-semibold text-text">{pedido.codigo}</span>
+          <span className="pointer-events-none whitespace-nowrap font-mono text-sm font-semibold text-text">
+            {pedido.codigo}
+            {pedido.notas ? <MarcaNotas n={pedido.notas} /> : null}
+          </span>
           {/* El destino con el color de marca: es lo que se busca al repasar la
               lista después del cliente («¿cuál es el de Ourense?»). */}
           <span
@@ -342,6 +346,9 @@ function FichaConsulta({ codigo }: { codigo: string }) {
       {detalle.situacion === "salir" && (
         <p className="text-xs font-semibold text-text">Fabricado, esperando salir.</p>
       )}
+      {/* Lo que OT marcó «para todos»: delante de las OF, que es un recado
+          para quien abre la ficha. */}
+      <NotasPublicas notas={detalle.notas ?? []} />
       {/* Las OF como en la ficha del Historial del equipo: cada una con su
           autor y revisor, y al desplegarla sus tareas por centro, con su
           color, quién y cuánto y qué días. Que el mismo pedido se lea igual en

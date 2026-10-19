@@ -1,4 +1,5 @@
 import type { DocumentoRps, HistorialOF, HistorialPedidoDetalle } from "./historial";
+import type { NotaPublica } from "./nota-pedido";
 import type { SituacionPedido } from "./consulta";
 import type { DondeOF } from "./consulta-donde";
 import type { OF, Pedido } from "./types";
@@ -197,6 +198,9 @@ export interface PedidoConsultaDetalle {
   donde: DondeOF[];
   ofs: HistorialOF[];
   documentos: DocumentoRps[];
+  /** Las notas que OT marcó «para todos» (19/10/2026), con quién y cuándo.
+   *  Las de «solo OT» no salen nunca. */
+  notas: NotaPublica[];
 }
 
 function ofConsulta(of: HistorialOF): HistorialOF {
@@ -232,7 +236,12 @@ function ofConsulta(of: HistorialOF): HistorialOF {
 
 export function detalleConsulta(
   detalle: HistorialPedidoDetalle,
-  extra: { situacion: SituacionPedido | null; fechaEntregado: string | null; donde: DondeOF[] },
+  extra: {
+    situacion: SituacionPedido | null;
+    fechaEntregado: string | null;
+    donde: DondeOF[];
+    notas?: NotaPublica[];
+  },
 ): PedidoConsultaDetalle {
   return {
     codigo: detalle.codigo,
@@ -247,6 +256,7 @@ export function detalleConsulta(
     donde: extra.donde,
     ofs: detalle.ofs.map(ofConsulta),
     documentos: detalle.documentos.map(documentoPublico),
+    notas: extra.notas ?? [],
   };
 }
 

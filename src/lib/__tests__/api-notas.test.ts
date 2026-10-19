@@ -123,3 +123,19 @@ test("PATCH o DELETE con un id que no es número es 400", async () => {
   expect((await patch({ id: "ocho", operarioId: "jaime", texto: "x" })).status).toBe(400);
   expect((await del({ id: null, operarioId: "jaime" })).status).toBe(400);
 });
+
+test("POST sin decir para quién la deja solo para OT; con publica: true, para todos", async () => {
+  const a = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "interna" })).json()) as { nota: NotaPedido };
+  expect(a.nota.publica).toBe(false);
+  const b = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "fuera", publica: true })).json()) as { nota: NotaPedido };
+  expect(b.nota.publica).toBe(true);
+  // Algo que no es un sí claro no la abre.
+  const c = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", publica: "true" })).json()) as { nota: NotaPedido };
+  expect(c.nota.publica).toBe(false);
+});
+
+test("PATCH cambia para quién es la mía", async () => {
+  const n = notasDb.crearNota("AR.1", "jaime", "texto", "2026-10-19T09:00:00.000Z");
+  expect((await patch({ id: n.id, operarioId: "jaime", texto: "texto", publica: true })).status).toBe(200);
+  expect(notasDb.leerNotas("AR.1")[0].publica).toBe(true);
+});

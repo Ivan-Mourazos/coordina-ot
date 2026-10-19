@@ -85,7 +85,10 @@ export async function POST(req: Request) {
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);
-  return NextResponse.json({ nota: crearNota(pedido, yo.id, v.texto) });
+  // Solo un `true` de verdad la abre: cualquier otra cosa, solo OT.
+  return NextResponse.json({
+    nota: crearNota(pedido, yo.id, v.texto, undefined, { publica: b.publica === true }),
+  });
 }
 
 /** Id de una nota: entero, tal como lo devolvió el POST. */
@@ -105,7 +108,8 @@ export async function PATCH(req: Request) {
   if (!v.ok) return errorTexto(v.motivo);
   // 403 y no 404: desde fuera no se distingue "no era tuya" de "ya no está", y
   // decir cuál de las dos es sería contar algo de una nota que no es tuya.
-  return editarNota(id, yo.id, v.texto)
+  const publica = typeof b.publica === "boolean" ? b.publica : undefined;
+  return editarNota(id, yo.id, v.texto, undefined, publica)
     ? NextResponse.json({ ok: true })
     : NextResponse.json({ error: "Esa nota no es tuya" }, { status: 403 });
 }

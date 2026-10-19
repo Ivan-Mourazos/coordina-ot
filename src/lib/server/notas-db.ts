@@ -1,4 +1,5 @@
-import type { NotaPedido } from "../nota-pedido";
+import type { NotaPedido, NotaPublica } from "../nota-pedido";
+import { OPERARIO_SISTEMA } from "../pedido-scan";
 import { getDb } from "./estado-db";
 
 // ─── Notas de pedido (SQLite propio) ─────────────────────────────────────────
@@ -22,6 +23,7 @@ interface Fila {
   texto: string;
   creado_at: string;
   editado_at: string | null;
+  publica: number;
 }
 
 const aNota = (f: Fila): NotaPedido => ({
@@ -31,6 +33,7 @@ const aNota = (f: Fila): NotaPedido => ({
   texto: f.texto,
   creadoAt: f.creado_at,
   editadoAt: f.editado_at,
+  publica: f.publica === 1,
 });
 
 /** El hilo de un pedido, de la más vieja a la más nueva: se lee como una
@@ -40,7 +43,7 @@ export function leerNotas(pedido: string): NotaPedido[] {
   return (
     getDb()
       .prepare(
-        `SELECT id, pedido, operario_id, texto, creado_at, editado_at
+        `SELECT id, pedido, operario_id, texto, creado_at, editado_at, publica
            FROM nota_pedido
           WHERE pedido = ? AND borrado_at IS NULL
           ORDER BY creado_at, id`,
@@ -55,13 +58,14 @@ export function crearNota(
   operarioId: string,
   texto: string,
   ahora = new Date().toISOString(),
+  { publica = false }: { publica?: boolean } = {},
 ): NotaPedido {
   const r = getDb()
     .prepare(
-      `INSERT INTO nota_pedido (pedido, operario_id, texto, creado_at)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO nota_pedido (pedido, operario_id, texto, creado_at, publica)
+       VALUES (?, ?, ?, ?, ?)`,
     )
-    .run(pedido, operarioId, texto, ahora);
+    .run(pedido, operarioId, texto, ahora, publica ? 1 : 0);
   return {
     id: Number(r.lastInsertRowid),
     pedido,
@@ -69,6 +73,7 @@ export function crearNota(
     texto,
     creadoAt: ahora,
     editadoAt: null,
+    publica,
   };
 }
 
@@ -80,15 +85,58 @@ export function editarNota(
   operarioId: string,
   texto: string,
   ahora = new Date().toISOString(),
+  /** Para quién es. Sin decirlo, se queda como estaba. */
+  publica?: boolean,
 ): boolean {
   return (
     getDb()
       .prepare(
-        `UPDATE nota_pedido SET texto = ?, editado_at = ?
+        `UPDATE nota_pedido SET texto = ?, editado_at = ?, publica = COALESCE(?, publica)
           WHERE id = ? AND operario_id = ? AND borrado_at IS NULL`,
       )
-      .run(texto, ahora, id, operarioId).changes > 0
+      .run(texto, ahora, publica === undefined ? null : publica ? 1 : 0, id, operarioId).changes > 0
   );
+}
+
+/** Las notas «para todos» de un pedido, como las ve quien no tiene sesión.
+ *
+ *  El nombre sale de la tabla de personas SIN filtrar las bajas: la nota de
+ *  alguien que ya no está sigue valiendo, y su nombre también. */
+export function leerNotasPublicas(pedido: string): NotaPublica[] {
+  const filas = getDb()
+    .prepare(
+      `SELECT n.operario_id, n.texto, n.creado_at, n.editado_at, p.nombre
+         FROM nota_pedido n LEFT JOIN persona p ON p.id = n.operario_id
+        WHERE n.pedido = ? AND n.publica = 1 AND n.borrado_at IS NULL
+        ORDER BY n.creado_at, n.id`,
+    )
+    .all(pedido) as { operario_id: string; texto: string; creado_at: string; editado_at: string | null; nombre: string | null }[];
+  return filas.map((f) => ({
+    texto: f.texto,
+    autor: f.operario_id === OPERARIO_SISTEMA ? "Coordina" : (f.nombre ?? f.operario_id),
+    creadoAt: f.creado_at,
+    editadoAt: f.editado_at,
+  }));
+}
+
+/** Cuántas notas «para todos» tiene cada pedido de la lista. Solo salen los que
+ *  tienen alguna: es la marca de la lista de la consulta. */
+export function contarNotasPublicas(pedidos: readonly string[]): Map<string, number> {
+  const salida = new Map<string, number>();
+  if (pedidos.length === 0) return salida;
+  // En trozos: SQLite tiene tope de parámetros por sentencia.
+  for (let i = 0; i < pedidos.length; i += 500) {
+    const trozo = pedidos.slice(i, i + 500);
+    const filas = getDb()
+      .prepare(
+        `SELECT pedido, COUNT(*) AS n FROM nota_pedido
+          WHERE publica = 1 AND borrado_at IS NULL AND pedido IN (${trozo.map(() => "?").join(",")})
+          GROUP BY pedido`,
+      )
+      .all(...trozo) as { pedido: string; n: number }[];
+    for (const f of filas) salida.set(f.pedido, f.n);
+  }
+  return salida;
 }
 
 /** Quita una nota PROPIA del hilo. Ver arriba: blando, no DELETE. */
@@ -122,7 +170,7 @@ export function leerNotasRecientes(dias: number, ahora = new Date()): NotaPedido
   return (
     getDb()
       .prepare(
-        `SELECT id, pedido, operario_id, texto, creado_at, editado_at
+        `SELECT id, pedido, operario_id, texto, creado_at, editado_at, publica
            FROM nota_pedido
           WHERE creado_at >= ? AND borrado_at IS NULL
           ORDER BY creado_at DESC, id DESC`,

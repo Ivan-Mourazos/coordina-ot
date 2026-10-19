@@ -1,4 +1,5 @@
 import sql from "mssql";
+import { contarNotasPublicas, leerNotasPublicas } from "./notas-db";
 import { getPool } from "./db";
 import { asegurarIndice, indiceSiListo } from "./historial-indice";
 import { leerHistorialPedidoDetalle } from "./historial-db";
@@ -193,7 +194,10 @@ export async function leerDonde(pedidos: readonly string[]): Promise<Map<string,
  *  dónde está. */
 export async function leerPaginaConsulta(f: FiltrosConsulta): Promise<RespuestaConsulta> {
   const hoy = hoyEnOficina();
-  if (ES_MOCK) return paginaMockConsulta(f, hoy);
+  if (ES_MOCK) {
+    const r = paginaMockConsulta(f, hoy);
+    return { ...r, pedidos: conNotas(r.pedidos) };
+  }
 
   await asegurarIndice();
   const indice = indiceSiListo();
@@ -209,8 +213,24 @@ export async function leerPaginaConsulta(f: FiltrosConsulta): Promise<RespuestaC
   });
   return {
     ...resto,
-    pedidos: filas.map((b) => pedidoConsulta(b, indice.info.get(b.pedido), donde.get(b.pedido) ?? [], hoy)),
+    pedidos: conNotas(filas.map((b) => pedidoConsulta(b, indice.info.get(b.pedido), donde.get(b.pedido) ?? [], hoy))),
   };
+}
+
+/** Marca en cada fila cuántas notas «para todos» tiene. Si la base local
+ *  falla, la lista sale igual sin marcas: es un aviso, no el dato. */
+function conNotas(pedidos: PedidoConsulta[]): PedidoConsulta[] {
+  let cuenta: Map<string, number>;
+  try {
+    cuenta = contarNotasPublicas(pedidos.map((p) => p.codigo));
+  } catch (e) {
+    console.warn("[consulta] no se pudieron contar las notas:", (e as Error).message);
+    return pedidos;
+  }
+  return pedidos.map((p) => {
+    const n = cuenta.get(p.codigo);
+    return n ? { ...p, notas: n } : p;
+  });
 }
 
 /** La ficha del invitado. La situación sale del índice si ya está hecho; sin
@@ -218,7 +238,7 @@ export async function leerPaginaConsulta(f: FiltrosConsulta): Promise<RespuestaC
 export async function leerDetalleConsulta(pedido: string): Promise<PedidoConsultaDetalle> {
   if (ES_MOCK) {
     const detalle = await leerHistorialPedidoDetalle(pedido);
-    return detalleConsulta(detalle, { situacion: null, fechaEntregado: null, donde: [] });
+    return detalleConsulta(detalle, { situacion: null, fechaEntregado: null, donde: [], notas: leerNotasPublicas(pedido) });
   }
   const indice = indiceSiListo();
   const b = indice ? filaDelIndice(indice, pedido) : null;
@@ -233,6 +253,7 @@ export async function leerDetalleConsulta(pedido: string): Promise<PedidoConsult
     situacion,
     fechaEntregado: situacion === "entregado" && b ? diaIso(b.fechaEntregado) : null,
     donde: donde.get(pedido) ?? [],
+    notas: leerNotasPublicas(pedido),
   });
 }
 

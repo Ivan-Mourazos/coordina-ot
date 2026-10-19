@@ -43,8 +43,11 @@ export function NotasPedido({
   // botón "Reintentar"); uno de GUARDADO no, que recargar tiraría lo escrito.
   const [error, setError] = useState<{ texto: string; recargable: boolean } | null>(null);
   const [borrador, setBorrador] = useState("");
+  // Para quién es la nota nueva. Empieza siempre en «Solo OT»: si alguien no
+  // se fija, la nota no sale de la oficina (19/10/2026).
+  const [borradorPublica, setBorradorPublica] = useState(false);
   const [escribiendo, setEscribiendo] = useState(false);
-  const [editando, setEditando] = useState<{ id: number; texto: string } | null>(null);
+  const [editando, setEditando] = useState<{ id: number; texto: string; publica: boolean } | null>(null);
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
   const [guardando, setGuardando] = useState(false);
   const reqSeq = useRef(0);
@@ -88,6 +91,7 @@ export function NotasPedido({
       setEditando(null);
       setEscribiendo(false);
       setBorrador("");
+      setBorradorPublica(false);
       setBorrando(null);
       void cargar();
     }, 0);
@@ -197,12 +201,19 @@ export function NotasPedido({
               <li key={n.id}>
                 <Editor
                   valor={editando.texto}
+                  publica={editando.publica}
+                  onPublica={(publica) => setEditando({ ...editando, publica })}
                   guardando={guardando}
-                  onCambio={(texto) => setEditando({ id: n.id, texto })}
+                  onCambio={(texto) => setEditando({ ...editando, texto })}
                   onGuardar={async () => {
                     const ok = await mandar({
                       method: "PATCH",
-                      body: JSON.stringify({ id: n.id, operarioId: miId, texto: editando.texto }),
+                      body: JSON.stringify({
+                        id: n.id,
+                        operarioId: miId,
+                        texto: editando.texto,
+                        publica: editando.publica,
+                      }),
                     });
                     if (ok) setEditando(null);
                   }}
@@ -234,6 +245,15 @@ export function NotasPedido({
                     {delSistema ? "Coordina" : (op?.nombre ?? n.operarioId)}
                   </span>
                   <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
+                  {n.publica && (
+                    // Que en OT se sepa qué está leyendo Producción.
+                    <span
+                      title="La ve también quien entra sin iniciar sesión: Producción, comerciales…"
+                      className="rounded bg-sky-500/15 px-1.5 py-px text-[10px] font-semibold text-sky-800 dark:text-sky-300"
+                    >
+                      Visible para todos
+                    </span>
+                  )}
                   {n.editadoAt && (
                     <span
                       className="text-text-muted"
@@ -248,7 +268,7 @@ export function NotasPedido({
                     <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
                       <button
                         type="button"
-                        onClick={() => setEditando({ id: n.id, texto: n.texto })}
+                        onClick={() => setEditando({ id: n.id, texto: n.texto, publica: n.publica })}
                         className="text-[10px] font-semibold text-text-muted hover:text-text"
                       >
                         Editar
@@ -274,20 +294,24 @@ export function NotasPedido({
         <div className="mt-2">
           <Editor
             valor={borrador}
+            publica={borradorPublica}
+            onPublica={setBorradorPublica}
             guardando={guardando}
             onCambio={setBorrador}
             onGuardar={async () => {
               const ok = await mandar({
                 method: "POST",
-                body: JSON.stringify({ pedido, operarioId: miId, texto: borrador }),
+                body: JSON.stringify({ pedido, operarioId: miId, texto: borrador, publica: borradorPublica }),
               });
               if (ok) {
                 setBorrador("");
+                setBorradorPublica(false);
                 setEscribiendo(false);
               }
             }}
             onCancelar={() => {
               setBorrador("");
+              setBorradorPublica(false);
               setEscribiendo(false);
             }}
           />
@@ -338,12 +362,17 @@ export function NotasPedido({
 /** El cuadro de escribir, el mismo para una nota nueva y para editar una. */
 function Editor({
   valor,
+  publica,
+  onPublica,
   onCambio,
   onGuardar,
   onCancelar,
   guardando,
 }: {
   valor: string;
+  /** Para quién es: «Solo OT» (false) o «Para todos» (true). */
+  publica: boolean;
+  onPublica: (publica: boolean) => void;
   onCambio: (v: string) => void;
   onGuardar: () => void;
   onCancelar: () => void;
@@ -405,7 +434,40 @@ function Editor({
             {largo} de {NOTA_MAX} caracteres
           </span>
         )}
+        {/* Para quién: un interruptor a la vista y no una pregunta en una
+            ventana, que con el tiempo se acepta sin leer. */}
+        <div role="radiogroup" aria-label="Quién puede ver la nota" className="ml-auto flex rounded-lg ring-1 ring-border">
+          {([false, true] as const).map((valorPublica) => (
+            <button
+              key={String(valorPublica)}
+              type="button"
+              role="radio"
+              aria-checked={publica === valorPublica}
+              disabled={guardando}
+              onClick={() => onPublica(valorPublica)}
+              title={
+                valorPublica
+                  ? "La verá también quien entra sin iniciar sesión: Producción, comerciales… Cualquiera en la red de la empresa."
+                  : "Solo la ve Oficina Técnica"
+              }
+              className={`px-2 py-1 text-[11px] font-semibold first:rounded-l-lg last:rounded-r-lg disabled:opacity-50 ${
+                publica === valorPublica
+                  ? valorPublica
+                    ? "bg-sky-600 text-white"
+                    : "bg-surface-2 text-text"
+                  : "text-text-muted hover:text-text"
+              }`}
+            >
+              {valorPublica ? "Para todos" : "Solo OT"}
+            </button>
+          ))}
+        </div>
       </div>
+      {publica && (
+        <p className="mt-1 text-right text-[10px] text-sky-800 dark:text-sky-300">
+          La verá también quien entra sin iniciar sesión.
+        </p>
+      )}
     </div>
   );
 }

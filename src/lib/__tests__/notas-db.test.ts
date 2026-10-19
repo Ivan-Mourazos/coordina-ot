@@ -129,3 +129,40 @@ test("una nota borrada no vuelve por la campana", () => {
   db.borrarNota(n.id, "jaime", "2026-08-24T10:00:00.000Z");
   expect(db.leerNotasRecientes(30, new Date("2026-08-24T12:00:00.000Z"))).toEqual([]);
 });
+
+// ─── Notas para todos (19/10/2026) ───────────────────────────────────────────
+
+test("por defecto una nota es solo de OT", () => {
+  const n = db.crearNota("AR.1", "jaime", "interna", "2026-10-19T09:00:00.000Z");
+  expect(n.publica).toBe(false);
+  expect(db.leerNotas("AR.1")[0].publica).toBe(false);
+  expect(db.leerNotasPublicas("AR.1")).toEqual([]);
+});
+
+test("las de «para todos» salen en la consulta, con el nombre de quien la escribió", () => {
+  estado.getDb().prepare("INSERT OR IGNORE INTO persona (id, nombre, roles, activo) VALUES ('prueba-notas', 'Pepe Prueba', 'tecnico', 1)").run();
+  db.crearNota("AR.1", "jaime", "interna", "2026-10-19T09:00:00.000Z");
+  db.crearNota("AR.1", "prueba-notas", "sale el jueves", "2026-10-19T10:00:00.000Z", { publica: true });
+  db.crearNota("AR.2", "jaime", "otra", "2026-10-19T10:00:00.000Z", { publica: true });
+  expect(db.leerNotasPublicas("AR.1")).toEqual([
+    { texto: "sale el jueves", autor: "Pepe Prueba", creadoAt: "2026-10-19T10:00:00.000Z", editadoAt: null },
+  ]);
+});
+
+test("el autor puede cambiar para quién es; otro no", () => {
+  const n = db.crearNota("AR.1", "jaime", "texto", "2026-10-19T09:00:00.000Z");
+  expect(db.editarNota(n.id, "ivan", "texto", "2026-10-19T10:00:00.000Z", true)).toBe(false);
+  expect(db.editarNota(n.id, "jaime", "texto", "2026-10-19T10:00:00.000Z", true)).toBe(true);
+  expect(db.leerNotas("AR.1")[0].publica).toBe(true);
+  // Sin decir nada, se queda como estaba.
+  expect(db.editarNota(n.id, "jaime", "otro texto", "2026-10-19T11:00:00.000Z")).toBe(true);
+  expect(db.leerNotas("AR.1")[0].publica).toBe(true);
+});
+
+test("cuántas notas para todos tiene cada pedido, sin las borradas", () => {
+  db.crearNota("AR.1", "jaime", "a", "2026-10-19T09:00:00.000Z", { publica: true });
+  const b = db.crearNota("AR.1", "jaime", "b", "2026-10-19T09:00:00.000Z", { publica: true });
+  db.crearNota("AR.2", "jaime", "solo OT", "2026-10-19T09:00:00.000Z");
+  db.borrarNota(b.id, "jaime", "2026-10-19T10:00:00.000Z");
+  expect(db.contarNotasPublicas(["AR.1", "AR.2", "AR.3"])).toEqual(new Map([["AR.1", 1]]));
+});

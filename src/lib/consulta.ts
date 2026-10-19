@@ -330,6 +330,9 @@ export interface PedidoConsulta {
    *  recorrido en «Toda la casa» de Dirección. */
   fechaPedido?: string | null;
   nOf?: number;
+  /** Cuántas notas «para todos» tiene (19/10/2026). Solo si tiene alguna:
+   *  es la marca que dice que merece la pena abrirlo. */
+  notas?: number;
 }
 
 export interface RespuestaConsulta {
