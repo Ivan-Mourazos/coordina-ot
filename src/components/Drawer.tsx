@@ -46,7 +46,7 @@ import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
-import { enlacePlantear } from "@/lib/herramientas";
+import { botonPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -650,12 +650,9 @@ export function Drawer({
   // En solo lectura no: abre la herramienta donde se TRABAJA el planteo, y
   // Dirección no plantea (aunque no escriba en CoordinaOT, es un botón de
   // hacer, no de mirar).
-  const urlPlantear = soloLectura
-    ? null
-    : enlacePlantear(
-        pedido.codigo,
-        pedido.ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia),
-      );
+  // Mandado a revisión, el botón pasa a «Revisar» y abre el pedido en Pedidos
+  // de aquella web (ver `botonPlantear`).
+  const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs);
 
   return (
     <MarcoFicha
@@ -719,15 +716,19 @@ export function Drawer({
                   es un atajo nuevo y, escondido entre las acciones de cada OF,
                   no lo iba a encontrar nadie. No ficha ni cambia el estado:
                   solo abre la herramienta. */}
-              {urlPlantear && (
+              {plantear && (
                 <a
-                  href={urlPlantear}
+                  href={plantear.url}
                   target="_blank"
                   rel="noreferrer"
-                  title="Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña"
-                  className={`boton-3d ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${ROL.plantear.solido}`}
+                  title={
+                    plantear.modo === "revisar"
+                      ? "Abre Planteamientos TGM en Pedidos con este pedido abierto para revisarlo, en otra pestaña"
+                      : "Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña"
+                  }
+                  className={`boton-3d ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${plantear.modo === "revisar" ? ROL.revisar.solido : ROL.plantear.solido}`}
                 >
-                  Plantear
+                  {plantear.modo === "revisar" ? "Revisar" : "Plantear"}
                   <span aria-hidden="true">↗</span>
                 </a>
               )}
