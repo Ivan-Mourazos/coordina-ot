@@ -291,6 +291,7 @@ function abrir(): Database.Database {
   prepararCorreoHtml(db);
   prepararCorreoCopias(db);
   prepararComentarioMarca(db);
+  prepararNotaPublica(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -360,6 +361,15 @@ function prepararComentarioMarca(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(marca_revision)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "comentario")) return;
   db.exec("ALTER TABLE marca_revision ADD COLUMN comentario TEXT");
+}
+
+/** Para quién es una nota (19/10/2026): 0 = solo OT, 1 = para todos, y
+ *  entonces la ve también la consulta sin sesión. Las de antes quedan en 0:
+ *  nadie las escribió pensando que las leería alguien de fuera. */
+function prepararNotaPublica(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(nota_pedido)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "publica")) return;
+  db.exec("ALTER TABLE nota_pedido ADD COLUMN publica INTEGER NOT NULL DEFAULT 0");
 }
 
 /** El correo del planteamiento en HTML (14/10/2026), junto al texto que ya se

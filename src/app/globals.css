@@ -1290,6 +1290,18 @@ body {
   box-shadow: var(--relieve-sombra);
 }
 
+/* Fila de lista cerrada (FilaDesplegable con `tarjeta`): el relieve de
+ * siempre más una sombra debajo, para que se despegue del fondo de la página
+ * (Iván, 19/10/2026: «debería tener alguna sombra abajo»). Solo cerrada: al
+ * abrirse pasa a hundida. Aquí y no arriba: el bloque del metal pisa
+ * cualquier `box-shadow` de `.bloque-3d` anterior. */
+:root .bloque-3d.fila-levantada {
+  box-shadow: var(--relieve-sombra), 0 4px 8px -3px rgba(40, 50, 70, 0.28);
+}
+:root.dark .bloque-3d.fila-levantada {
+  box-shadow: var(--relieve-sombra), 0 4px 8px -3px rgba(0, 0, 0, 0.6);
+}
+
 /* Lo que flota abajo a la derecha (la píldora del fichaje y «Volver arriba")
    lleva el mismo metal que el resto: eran planos y parecían de otra web
    (Iván, 16/10/2026). Se pulsan como un botón más. */

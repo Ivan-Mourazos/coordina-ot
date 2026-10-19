@@ -1,10 +1,15 @@
 import { beforeAll, expect, test } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 // ─── Las rutas del invitado: sin sesión, con RPS apagado ─────────────────────
 // DATASOURCE se fija ANTES de importar las rutas: son ellas las que arrastran
 // la conexión a RPS (vía historial-db.ts / publico-db.ts), y si el mock no
 // está puesto desde el principio, el primer import intenta abrir un pool real.
 process.env.DATASOURCE = "mock";
+// Base local propia: las pruebas de notas «para todos» escriben en ella.
+process.env.COORDINA_DB_PATH = path.join(mkdtempSync(path.join(tmpdir(), "coordina-api-publico-")), "test.db");
 
 let pedidos: typeof import("../../app/api/publico/pedidos/route");
 let detalle: typeof import("../../app/api/publico/pedidos/[pedido]/route");
@@ -116,4 +121,21 @@ test("las visitas contestan sin sesión", async () => {
   const data = (await res.json()) as { visitas: unknown[]; hasMore: boolean };
   expect(Array.isArray(data.visitas)).toBe(true);
   expect(typeof data.hasMore).toBe("boolean");
+});
+
+// ─── Notas «para todos» (19/10/2026) ─────────────────────────────────────────
+
+test("la ficha y la lista enseñan las notas para todos, nunca las de solo OT", async () => {
+  const notasDb = await import("../server/notas-db");
+  notasDb.crearNota("AR.26.05501", "jaime", "INTERNA-NO-SALE", "2026-10-19T09:00:00.000Z");
+  notasDb.crearNota("AR.26.05501", "jaime", "Sale el jueves", "2026-10-19T10:00:00.000Z", { publica: true });
+
+  const data = (await (await getDetalle("AR.26.05501")).json()) as { notas: { texto: string; autor: string }[] };
+  expect(data.notas.map((n) => n.texto)).toEqual(["Sale el jueves"]);
+  expect(data.notas[0].autor).toBeTruthy();
+  expect(JSON.stringify(data)).not.toContain("INTERNA-NO-SALE");
+
+  const lista = (await (await getLista("q=AR.26.05501")).json()) as { pedidos: { codigo: string; notas?: number }[] };
+  expect(lista.pedidos.find((p) => p.codigo === "AR.26.05501")?.notas).toBe(1);
+  expect(JSON.stringify(lista)).not.toContain("INTERNA-NO-SALE");
 });

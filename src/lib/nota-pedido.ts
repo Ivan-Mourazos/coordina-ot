@@ -18,6 +18,20 @@ export interface NotaPedido {
   creadoAt: string;
   /** ISO, o null si nunca se editó. */
   editadoAt: string | null;
+  /** «Para todos»: la ve también la consulta sin sesión (Producción,
+   *  comerciales). Por defecto no: una nota interna que sale de OT es peor
+   *  que una para todos que se queda dentro. */
+  publica: boolean;
+}
+
+/** Lo que ve de una nota quien no tiene sesión: el texto, quién y cuándo.
+ *  Ni ids ni pedido: la pide ya dentro de su pedido. */
+export interface NotaPublica {
+  texto: string;
+  /** Nombre de quien la escribió; «Coordina» si la escribió la web. */
+  autor: string;
+  creadoAt: string;
+  editadoAt: string | null;
 }
 
 /** Tope de una nota. Es un recado, no un informe: con dos mil caracteres caben
