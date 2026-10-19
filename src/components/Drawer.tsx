@@ -1229,6 +1229,7 @@ export function Drawer({
                 fallosGuia={fallosGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
+                otrasEnMiReloj={ofIdsFichandoYo?.has(of.id) ? ofIdsFichandoYo.size - 1 : 0}
                 onCoger={paraCoger.some((o) => o.id === of.id) ? () => onCoger?.([of.id]) : undefined}
                 plegable={plegables}
                 abierta={ofAbierta(of)}
@@ -1399,6 +1400,7 @@ function OFRow({
   onFichar,
   onDesfichar,
   fichandoYoEsta,
+  otrasEnMiReloj,
   impedidoRevision,
   fallosGuia,
   plegable = false,
@@ -1438,6 +1440,10 @@ function OFRow({
   onDesfichar: (ofId: string) => void;
   /** ¿La estoy fichando YO? Ver el mismo campo en las props del Drawer. */
   fichandoYoEsta: boolean;
+  /** Cuántas OF más corren en mi reloj junto a esta. Con alguna, su «Pausar»
+   *  dice «solo esta»: Adrián (19/10/2026) fichó tres lonas juntas, pausó la
+   *  primera creyendo parar el pedido y las otras dos siguieron contando. */
+  otrasEnMiReloj: number;
 }) {
   const soloLectura = useSoloLectura();
   const meta = ESTADO[of.estado];
@@ -1768,6 +1774,7 @@ function OFRow({
               onFichar={onFichar}
               onDesfichar={onDesfichar}
               fichandoYoEsta={fichandoYoEsta}
+              otrasEnMiReloj={otrasEnMiReloj}
               impedidoRevision={impedidoRevision}
               fallosGuia={fallosGuia}
               onCoger={onCoger}
@@ -1801,6 +1808,7 @@ function AccionesOF({
   onFichar,
   onDesfichar,
   fichandoYoEsta,
+  otrasEnMiReloj,
   impedidoRevision,
   fallosGuia,
   onCoger,
@@ -1831,6 +1839,10 @@ function AccionesOF({
   onDesfichar: (ofId: string) => void;
   /** ¿La estoy fichando YO? Ver el mismo campo en las props del Drawer. */
   fichandoYoEsta: boolean;
+  /** Cuántas OF más corren en mi reloj junto a esta. Con alguna, su «Pausar»
+   *  dice «solo esta»: Adrián (19/10/2026) fichó tres lonas juntas, pausó la
+   *  primera creyendo parar el pedido y las otras dos siguieron contando. */
+  otrasEnMiReloj: number;
 }) {
   const { pedirConfirmacion, dialogo } = useConfirmacion((a) => onAccion([of.id], a.id));
   const [pidiendoRevisor, setPidiendoRevisor] = useState(false);
@@ -1963,10 +1975,14 @@ function AccionesOF({
       {fichandoYoEsta ? (
         <Btn
           tone={of.fichandoRol === "revisar" ? "revisar" : "reloj"}
-          title="Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
+          title={
+            otrasEnMiReloj > 0
+              ? `Para el reloj SOLO en esta OF. ${otrasEnMiReloj === 1 ? "La otra que fichas sigue" : `Las otras ${otrasEnMiReloj} que fichas siguen`} contando.`
+              : "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
+          }
           onClick={() => onDesfichar(of.id)}
         >
-          ⏸ Pausar
+          ⏸ {otrasEnMiReloj > 0 ? "Pausar solo esta" : "Pausar"}
         </Btn>
       ) : esFichable(of) && relojEsMio ? (
         autorAjeno && rolReloj !== "revisar" ? (
