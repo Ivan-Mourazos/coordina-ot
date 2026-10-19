@@ -1,13 +1,19 @@
 [
   {
     "id": "2026-10-19",
-    "hasta": "2435fa1",
+    "hasta": "52a5fc5",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Si el pedido ya está mandado a revisión, el botón Plantear pasa a Revisar",
         "detalle": "Abre Planteamientos TGM directamente en la revisión de ese pedido.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Si fichas varias OF a la vez, el botón de cada una dice «Pausar solo esta»",
+        "detalle": "Para parar todas, usa «Pausar las N» de encima de las OF.",
+        "tanda": 2
       }
     ]
   },
