@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-19",
+    "hasta": "2435fa1",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Si el pedido ya está mandado a revisión, el botón Plantear pasa a Revisar",
+        "detalle": "Abre Planteamientos TGM directamente en la revisión de ese pedido.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-16",
     "hasta": "1895333",
     "cambios": [
