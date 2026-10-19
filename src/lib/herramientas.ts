@@ -106,3 +106,33 @@ export function enlacePlantear(codigo: string, familias: readonly string[]): str
   if (!base) return null;
   return `${base}?pedido=${encodeURIComponent(codigo.replace(/[.\s]/g, ""))}`;
 }
+
+// ─── Plantear o Revisar (Iván, 19/10/2026) ───────────────────────────────────
+// Cuando el pedido ya se mandó a revisión, lo que toca en Planteamientos TGM ya
+// no es plantearlo sino revisarlo: el botón cambia de nombre y abre allí Pedidos
+// con ese pedido abierto (`?revisar=`).
+
+/** Estados en que la OF espera al revisor. */
+const EN_REVISION: ReadonlySet<string> = new Set(["por_revisar", "en_revision"]);
+/** Estados en que la OF ya no se planta ni se revisa. */
+const FUERA: ReadonlySet<string> = new Set(["aprobada", "anulada"]);
+
+/** El botón de la ficha del pedido: Plantear o Revisar, con su dirección.
+ *
+ *  Revisar solo cuando NO queda nada por plantear: si una OF sigue en curso o
+ *  devuelta, el autor aún tiene trabajo allí y el botón es suyo. Solo cuentan
+ *  las OF de toldo y remolque, que son las que aquella web plantea. */
+export function botonPlantear(
+  codigo: string,
+  ofs: readonly { familia: string; estado: string }[],
+): { modo: "plantear" | "revisar"; url: string } | null {
+  const url = enlacePlantear(codigo, ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia));
+  if (!url) return null;
+  const suyas = ofs.filter((o) => FAMILIAS_PLANTEABLES.has(o.familia) && o.estado !== "anulada");
+  const revisar =
+    suyas.some((o) => EN_REVISION.has(o.estado)) &&
+    suyas.every((o) => EN_REVISION.has(o.estado) || FUERA.has(o.estado));
+  return revisar
+    ? { modo: "revisar", url: url.replace("?pedido=", "?revisar=") }
+    : { modo: "plantear", url };
+}
