@@ -101,7 +101,7 @@ export function FilaDesplegable({
         tarjeta
           ? abierta
             ? "relative mb-1.5 overflow-hidden rounded-lg bloque-3d-hundido last:mb-0"
-            : "relative mb-1.5 overflow-hidden rounded-lg bloque-3d last:mb-0"
+            : "relative mb-1.5 overflow-hidden rounded-lg bloque-3d fila-levantada last:mb-0"
           : "relative border-b border-border last:border-b-0"
       }
     >
