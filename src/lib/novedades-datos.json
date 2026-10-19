@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-19",
-    "hasta": "52a5fc5",
+    "hasta": "848726e",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -10,10 +10,21 @@
         "tanda": 1
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Al escribir una nota eliges si es solo para OT o para todos",
+        "detalle": "Las de «Para todos» las ve también quien entra sin iniciar sesión (Producción, comerciales), con tu nombre y la fecha. Por defecto son solo de OT.",
+        "tanda": 3
+      },
+      {
         "tipo": "mejor",
         "titulo": "Si fichas varias OF a la vez, el botón de cada una dice «Pausar solo esta»",
         "detalle": "Para parar todas, usa «Pausar las N» de encima de las OF.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las filas de las listas se despegan mejor del fondo",
+        "tanda": 3
       }
     ]
   },
