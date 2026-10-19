@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-19",
-    "hasta": "848726e",
+    "hasta": "6f730a6",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -14,6 +14,12 @@
         "titulo": "Al escribir una nota eliges si es solo para OT o para todos",
         "detalle": "Las de «Para todos» las ve también quien entra sin iniciar sesión (Producción, comerciales), con tu nombre y la fecha. Por defecto son solo de OT.",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al pinchar en un documento a veces se abría otro, sobre todo tras subir una versión nueva del planteamiento",
+        "detalle": "Y un planteamiento rehecho se ve ya en su versión nueva, sin esperar al día siguiente.",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
