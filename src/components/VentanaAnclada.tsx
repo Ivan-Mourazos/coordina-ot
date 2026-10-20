@@ -23,6 +23,13 @@ import { useCapaEscape } from "@/lib/useCapaEscape";
 export const LISTA = "divide-y divide-border";
 export const LINEA = "py-1.5 first:pt-0 last:pb-0";
 
+/** Aire a cada lado de la ventana cuando ocupa el ancho del panel. */
+const MARGEN_PANEL = 12;
+/** Aire con el borde de la ventana del navegador. */
+const MARGEN_VENTANA = 8;
+/** Lo mínimo que tiene que quedar debajo del botón para abrir hacia abajo. */
+const MINIMO_ABAJO = 160;
+
 /** Clases del botón que la abre, las mismas en las dos fichas. */
 export const BOTON_DETALLE =
   "chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold";
@@ -50,7 +57,7 @@ export function VentanaAnclada({
   onCerrar,
   etiqueta,
   ancho = 288,
-  alto = 240,
+  alto = 400,
   children,
 }: {
   anclaje: Anclaje;
@@ -97,11 +104,34 @@ export function VentanaAnclada({
 
   const ventana = ventanaActual();
   if (typeof document === "undefined" || !ventana) return null;
-  const sitio = sitioDeMenu(anclaje.rect, {
-    ventana,
-    alto,
-    ancho: Math.min(ancho, ventana.ancho - 16),
-  });
+  // Dentro de la ficha, del ancho del panel lateral (Iván, 20/10/2026): con
+  // 288 px las descripciones de RPS se partían en tres renglones y la
+  // cantidad quedaba perdida entre ellos. Fuera de una ficha, el ancho de
+  // siempre.
+  //
+  // Y SIEMPRE colgando del botón, hacia abajo, con el alto que quepa y scroll
+  // dentro: con el techo fijo de alto, al no caber se volteaba hacia arriba y
+  // parecía salir de otro sitio. Solo sube si debajo no quedan ni
+  // `MINIMO_ABAJO` px. Ojo: un DOMRect no se copia con `...` (sus campos son
+  // del prototipo): hay que sacarlos a mano.
+  const { top, bottom, right, width } = anclaje.rect;
+  const panel = disparador.closest(".pedido-panel")?.getBoundingClientRect();
+  const sitio = panel
+    ? sitioDeMenu(
+        { top, bottom, left: panel.left + MARGEN_PANEL, right, width },
+        { ventana, alto, ancho: Math.min(panel.width - 2 * MARGEN_PANEL, ventana.ancho - 16) },
+      )
+    : sitioDeMenu(anclaje.rect, {
+        ventana,
+        alto,
+        ancho: Math.min(ancho, ventana.ancho - 16),
+      });
+  const abajo = ventana.alto - bottom - 4 - MARGEN_VENTANA;
+  const arriba = top - 4 - MARGEN_VENTANA;
+  const haciaAbajo = abajo >= Math.min(alto, MINIMO_ABAJO) || abajo >= arriba;
+  const vertical = haciaAbajo
+    ? { top: bottom + 4, bottom: undefined, maxHeight: Math.min(alto, abajo) }
+    : { top: undefined, bottom: ventana.alto - top + 4, maxHeight: Math.min(alto, arriba) };
 
   return createPortal(
     <div
@@ -112,7 +142,7 @@ export function VentanaAnclada({
       // tomen por un clic fuera y se cierren solos.
       data-en-portal=""
       className="ventana-3d scroll-thin fixed z-[70] overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
-      style={{ ...sitio, maxHeight: alto }}
+      style={{ ...sitio, ...vertical }}
     >
       {children}
     </div>,

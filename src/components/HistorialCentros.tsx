@@ -116,6 +116,25 @@ export function OFsDeLaFicha({
             sinMaterial={sinMaterial}
           />
         )}
+        // Con la OF plegada, los MISMOS botones que dentro (Asignado, Gastado,
+        // nota de Producción): el resumen «14 materiales» obligaba a desplegar
+        // para ver nada (Iván, 20/10/2026).
+        botonesPlegada={
+          sinMaterial
+            ? undefined
+            : (_codigo, centros) => {
+                const conMaterial = centros.find((of) => of.materiales?.length || of.notasProduccion) ?? centros[0];
+                return (
+                  <Materiales
+                    of={conMaterial}
+                    gastadoOF={gastado === null ? null : gastado?.[conMaterial.codigo]}
+                    onReintentarGastado={onReintentarGastado}
+                    conGastado={conGastado}
+                    className=""
+                  />
+                );
+              }
+        }
       />
     </>
   );
@@ -308,8 +327,10 @@ function Materiales({
   gastadoOF,
   onReintentarGastado,
   conGastado = true,
+  className = "mt-2",
 }: {
   of: HistorialOF;
+  className?: string;
   /** El botón de Gastado. La lista del Historial no lo lleva: el gastado es
    *  otra consulta a RPS por pedido, y se mira en la ficha. */
   conGastado?: boolean;
@@ -321,7 +342,7 @@ function Materiales({
   // El botón de Gastado sale SIEMPRE (ver MaterialGastado); el resto,
   // solo si dice algo.
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className={`${className} flex flex-wrap gap-1.5`}>
       {apartados.length + apuntados.length > 0 && (
         <MaterialHistorico of={of.codigo} reservados={apartados} resto={apuntados} />
       )}
@@ -373,12 +394,27 @@ function MaterialHistorico({
                 puede repetirse: una misma OF puede apuntar dos veces la misma
                 lona en cantidades distintas (la 0230706 lleva la misma "LONA
                 PLASTEL …" con 72,6 y con 2,4). */}
+            {/* La cantidad en su casilla a la derecha, como en Pendientes
+                (MaterialChip): pegada al final del texto se perdía. */}
             {[...reservados, ...resto].map((m, i) => (
-              <li key={`${i}-${m.texto}`} className={`${LINEA} text-text`}>
-                {m.texto}
-                {m.apartado && (
-                  <span className="block text-[10px] text-teal-700 dark:text-teal-300">
-                    sigue reservado
+              <li key={`${i}-${m.texto}`} className={`${LINEA} flex items-start justify-between gap-2`}>
+                <span className="min-w-0 text-text">
+                  {m.nombre ?? m.texto}
+                  {m.apartado && (
+                    <span className="block text-[10px] text-teal-700 dark:text-teal-300">
+                      sigue reservado
+                    </span>
+                  )}
+                </span>
+                {m.nombre && m.cantidad && (
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono font-semibold ring-1 ${
+                      m.apartado
+                        ? "bg-teal-600/12 text-teal-700 ring-teal-500/40 dark:text-teal-300"
+                        : "bg-surface-2 text-text ring-border"
+                    }`}
+                  >
+                    {m.cantidad}
                   </span>
                 )}
               </li>
@@ -454,15 +490,19 @@ function MaterialGastado({
           {!error && n > 0 && (
             <ul className={LISTA}>
               {lineas!.map((m, i) => (
-                <li key={`${i}-${m.material}`} className={`${LINEA} text-text`}>
-                  {m.material}
-                  <span className="font-mono tabular-nums"> {fmtCantidad(m.gastado)}</span>
-                  {m.gastado < 0 && (
-                    <span className="block text-[10px] text-amber-700 dark:text-amber-300">
-                      devuelto al almacén
-                    </span>
-                  )}
-                  {m.codigo && <span className="block text-[10px] text-text-muted">{m.codigo}</span>}
+                <li key={`${i}-${m.material}`} className={`${LINEA} flex items-start justify-between gap-2`}>
+                  <span className="min-w-0 text-text">
+                    {m.material}
+                    {m.gastado < 0 && (
+                      <span className="block text-[10px] text-amber-700 dark:text-amber-300">
+                        devuelto al almacén
+                      </span>
+                    )}
+                    {m.codigo && <span className="block text-[10px] text-text-muted">{m.codigo}</span>}
+                  </span>
+                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-mono font-semibold tabular-nums text-text ring-1 ring-border">
+                    {fmtCantidad(m.gastado)}
+                  </span>
                 </li>
               ))}
             </ul>

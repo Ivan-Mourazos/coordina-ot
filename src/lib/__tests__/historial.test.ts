@@ -232,6 +232,8 @@ test("sin reserva viva se enseña lo apuntado en la OF", () => {
     }),
   ).toEqual({
     texto: "LONA PLASTEL 8800 TE62 620 2L MATE :NEGRO :204 AN · 49",
+    nombre: "LONA PLASTEL 8800 TE62 620 2L MATE :NEGRO :204 AN",
+    cantidad: "49",
     apartado: false,
   });
 });
@@ -239,7 +241,12 @@ test("sin reserva viva se enseña lo apuntado en la OF", () => {
 test("con reserva viva manda la reserva y la línea queda marcada", () => {
   expect(
     aMaterialOF({ material: "MACARRON PVC :NEGRO :6MM", cantidad: 289, reservado: 289 }),
-  ).toEqual({ texto: "MACARRON PVC :NEGRO :6MM · 289", apartado: true });
+  ).toEqual({
+    texto: "MACARRON PVC :NEGRO :6MM · 289",
+    nombre: "MACARRON PVC :NEGRO :6MM",
+    cantidad: "289",
+    apartado: true,
+  });
 });
 
 test("si se apartó menos de lo que hacía falta se enseñan las dos cantidades", () => {
@@ -257,6 +264,14 @@ test("si se apartó menos de lo que hacía falta se enseñan las dos cantidades"
   ).toBe("LONA ACRILICA MASACRIL 300 · 4 de 3.25");
 });
 
+test("la cantidad va aparte y con coma, para su casilla", () => {
+  const m = aMaterialOF({ material: "LONA ACRILICA MASACRIL 300", cantidad: 3.25, reservado: 4 });
+  expect(m.nombre).toBe("LONA ACRILICA MASACRIL 300");
+  expect(m.cantidad).toBe("4 de 3,25");
+  expect(aMaterialOF({ material: "VARILLA", cantidad: 4.88, reservado: null }).cantidad).toBe("4,88");
+  expect(aMaterialOF({ material: "VARILLA", cantidad: null, reservado: null }).cantidad).toBeUndefined();
+});
+
 test("el redondeo de RPS al reservar no cuenta como cantidad distinta", () => {
   // OF 0231176: material 6,725484 → reserva 6,72. Es la misma cantidad.
   expect(
@@ -272,6 +287,8 @@ test("una reserva de cero es una reserva, no la ausencia de una", () => {
   // null y 0 no son lo mismo: con 0 la línea sigue estando apartada.
   expect(aMaterialOF({ material: "VELCRO", cantidad: 5, reservado: 0 })).toEqual({
     texto: "VELCRO · 0 de 5",
+    nombre: "VELCRO",
+    cantidad: "0 de 5",
     apartado: true,
   });
 });

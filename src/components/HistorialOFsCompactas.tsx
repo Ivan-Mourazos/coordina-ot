@@ -22,12 +22,15 @@ import { ROL } from "@/lib/estado";
  *
  *  NO lleva el tiempo por centro en la fila: el reparto por centro y tarea se
  *  ve al desplegar la OF. */
-export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida = false, sinMaterial = false }: {
+export function HistorialOFsCompactas({ ofs, seccion, detalle, botonesPlegada, abiertasDeSalida = false, sinMaterial = false }: {
   ofs: HistorialOF[];
   seccion: SeccionId;
   /** Lo que se ve al desplegar cada OF (la ficha: sus tareas y su material).
    *  Sin él, las filas no se despliegan (la lista). */
   detalle?: (codigo: string, centros: HistorialOF[]) => ReactNode;
+  /** Los botones de material de la OF, en la fila mientras está plegada. Sin
+   *  ellos, el resumen en texto («14 materiales»). */
+  botonesPlegada?: (codigo: string, centros: HistorialOF[]) => ReactNode;
   /** Todas desplegadas al montar (las pruebas). */
   abiertasDeSalida?: boolean;
   /** Sin el resumen de material (la consulta sin login). */
@@ -106,8 +109,9 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
         // Con la OF DESPLEGADA no salen: sus botones (Asignado, nota de
         // Producción) ya lo dicen justo debajo, con el detalle.
         const desplegada = !!detalle && abiertas.has(codigo);
-        const material = desplegada || sinMaterial ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
-        const notaProduccion = desplegada ? undefined : centros.find((c) => c.notasProduccion)?.notasProduccion;
+        const botones = !desplegada && botonesPlegada ? botonesPlegada(codigo, centros) : null;
+        const material = desplegada || sinMaterial || botones ? null : resumenMaterial(centros.find((c) => c.materiales?.length)?.materiales);
+        const notaProduccion = desplegada || botones ? undefined : centros.find((c) => c.notasProduccion)?.notasProduccion;
         // Desplegada, quién y cuánto lo dicen sus tareas: aquí solo queda quien
         // no sale en ninguna (un revisor registrado en la web que no imputó
         // nada en RPS), para que nadie se pierda y nadie salga dos veces.
@@ -241,6 +245,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, abiertasDeSalida 
                 )}
               </div>
             )}
+            {botones && <div className="mt-1.5">{botones}</div>}
             {detalle && abiertas.has(codigo) && detalle(codigo, centros)}
           </li>
         );
