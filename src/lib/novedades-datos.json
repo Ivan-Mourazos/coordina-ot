@@ -1,5 +1,23 @@
 [
   {
+    "id": "2026-10-20",
+    "hasta": "6942aeb",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "En la consulta sin iniciar sesión no se distinguían los pedidos urgentes",
+        "detalle": "Todos salían como prioridad normal. Ahora se ve la prioridad real, y los urgentes van delante.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los pedidos urgentes salen siempre los primeros",
+        "detalle": "Primero van los urgentes, luego los normales y luego los de poca prioridad; dentro de cada grupo, por fecha de planificación como antes. Vale para el tablero, la Lista y Sin asignar.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-19",
     "hasta": "6f730a6",
     "cambios": [
