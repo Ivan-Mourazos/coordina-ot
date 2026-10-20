@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-20",
-    "hasta": "6942aeb",
+    "hasta": "b6c0f71",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -14,6 +14,12 @@
         "titulo": "Los pedidos urgentes salen siempre los primeros",
         "detalle": "Primero van los urgentes, luego los normales y luego los de poca prioridad; dentro de cada grupo, por fecha de planificación como antes. Vale para el tablero, la Lista y Sin asignar.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial, los botones de material se ven sin desplegar la OF",
+        "detalle": "Asignado y Gastado salen en cada OF, y su lista se abre bajo el botón, a todo lo ancho del panel, con la cantidad en su casilla a la derecha.",
+        "tanda": 2
       }
     ]
   },
