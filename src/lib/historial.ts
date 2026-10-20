@@ -234,6 +234,12 @@ export interface MaterialOF {
   /** "LONA ACRÍLICA MASACRIL 300 :SEDA 2596 :120 AN · 12.8" — mismo formato que
    *  las reservas del tablero, para que las dos pantallas se lean igual. */
   texto: string;
+  /** Lo mismo partido en dos, para pintar la cantidad aparte, en su casilla
+   *  (Iván, 20/10/2026: pegada al final del texto no se veía). Opcionales: el
+   *  mock solo trae el texto ya hecho. */
+  nombre?: string;
+  /** "12,8", o "1 de 6" si se apartó otra cantidad. Sin cantidad, no está. */
+  cantidad?: string;
   /** Sigue habiendo reserva viva sobre este material. */
   apartado: boolean;
 }
@@ -276,6 +282,8 @@ export function aMaterialOF(fila: MaterialCrudo): MaterialOF {
   if (fila.reservado == null) {
     return {
       texto: `${nombre}${fila.cantidad != null ? ` · ${fila.cantidad}` : ""}`,
+      nombre,
+      ...(fila.cantidad != null ? { cantidad: fmtCantidad(fila.cantidad) } : {}),
       apartado: false,
     };
   }
@@ -284,6 +292,8 @@ export function aMaterialOF(fila: MaterialCrudo): MaterialOF {
     fila.cantidad != null && Math.abs(fila.reservado - fila.cantidad) >= MISMA_CANTIDAD;
   return {
     texto: `${nombre} · ${fila.reservado}${distinta ? ` de ${fila.cantidad}` : ""}`,
+    nombre,
+    cantidad: `${fmtCantidad(fila.reservado)}${distinta ? ` de ${fmtCantidad(fila.cantidad!)}` : ""}`,
     apartado: true,
   };
 }
