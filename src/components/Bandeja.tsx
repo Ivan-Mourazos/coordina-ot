@@ -140,13 +140,6 @@ function cmpPrioFecha(a: Facet, b: Facet) {
   return a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
 }
 
-/** Fecha asc, luego prioridad desc. */
-function cmpFechaPrio(a: Facet, b: Facet) {
-  const d = a.pedido.fechaPlanificacion.localeCompare(b.pedido.fechaPlanificacion);
-  if (d !== 0) return d;
-  return PRIORIDAD[b.pedido.prioridad].rank - PRIORIDAD[a.pedido.prioridad].rank;
-}
-
 /* ── scroll horizontal arrastrable ── */
 
 function useGrabScroll() {
@@ -277,10 +270,10 @@ export function Bandeja({
 
   /* ── sin agrupar ── */
   const flat = useMemo(
-    () => [...facets].sort(cmpFechaPrio),
+    () => [...facets].sort(cmpPrioFecha),
     [facets],
   );
-  const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpFechaPrio), [detenidos]);
+  const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpPrioFecha), [detenidos]);
   const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
 
 

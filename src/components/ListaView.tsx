@@ -376,6 +376,10 @@ function comparar(orden: OrdenLista, desc: boolean, nombres: Map<string, string>
         // urgente. Lo que tienen de particular se ve en la línea, que no pinta
         // hito de planificación, no colándose en la primera pantalla.
         //
+        // Antes que la fecha, la PRIORIDAD (20/10/2026): primero los urgentes
+        // y, dentro de cada prioridad, por fecha. Va fuera del signo: dar la
+        // vuelta a la fecha no manda los urgentes al final.
+        if (a.prioridad !== b.prioridad) return b.prioridad - a.prioridad;
         // ISO yyyy-mm-dd: comparar el texto ya es comparar la fecha.
         d = a.fechaPlanificacion.localeCompare(b.fechaPlanificacion);
         break;

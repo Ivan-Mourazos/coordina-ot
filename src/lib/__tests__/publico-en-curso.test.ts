@@ -49,7 +49,7 @@ const pedido = (extra: Partial<Pedido> = {}): Pedido => ({
   ...extra,
 });
 
-test("no viajan notas, avisos, comentario de venta, material ni prioridad", () => {
+test("no viajan notas, avisos, comentario de venta ni material", () => {
   const p = pedidoParaInvitado(pedido());
   const texto = JSON.stringify(p);
   for (const prohibido of ["Faltan las medidas", "AVISA LADINA", "Llamar antes", "LONA PVC 650"]) {
@@ -59,7 +59,11 @@ test("no viajan notas, avisos, comentario de venta, material ni prioridad", () =
   expect(p.ofs[0].reservasMaterial).toBeUndefined();
   expect(p.ofs[0].materialPendienteHasta).toBeUndefined();
   expect(p.scanUrl).toBeUndefined();
-  expect(p.prioridad).toBe(2);
+});
+
+test("la prioridad SÍ viaja: Producción y comerciales tienen que ver lo urgente", () => {
+  expect(pedidoParaInvitado(pedido()).prioridad).toBe(3);
+  expect(pedidoParaInvitado(pedido({ prioridad: 1 })).prioridad).toBe(1);
 });
 
 test("el texto de la línea de venta SÍ viaja: describe el producto, no es una nota", () => {
