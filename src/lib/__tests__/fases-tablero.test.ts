@@ -172,6 +172,27 @@ describe("agruparPorFase", () => {
     ]);
   });
 
+  it("los urgentes delante y, dentro de cada prioridad, por fecha", () => {
+    const item = (codigo: string, prioridad: number, fechaPlanificacion: string) => ({
+      pedido: { codigo, prioridad, fechaPlanificacion },
+      ofs: [of({ estado: "en_curso" })],
+    });
+    const g = agruparPorFase([
+      item("AR.26.00001", 2, "2026-10-01"),
+      item("AR.26.00002", 3, "2026-10-09"),
+      item("AR.26.00003", 1, "2026-09-20"),
+      item("AR.26.00004", 3, "2026-10-05"),
+      item("AR.26.00005", 2, "2026-09-28"),
+    ]);
+    expect(g.find((x) => x.id === "planteando")!.items.map((i) => i.pedido.codigo)).toEqual([
+      "AR.26.00004",
+      "AR.26.00002",
+      "AR.26.00005",
+      "AR.26.00001",
+      "AR.26.00003",
+    ]);
+  });
+
   it("sin fecha planificada, al final: no es urgente por no tenerla", () => {
     const item = (codigo: string, fechaPlanificacion: string) => ({
       pedido: { codigo, fechaPlanificacion },

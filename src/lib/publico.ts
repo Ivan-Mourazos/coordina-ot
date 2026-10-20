@@ -272,8 +272,12 @@ export function detalleConsulta(
 // Fuera: la nota de devolución y que una OF esté devuelta (sale como
 // «planteando»: se ve quién lleva el pedido, nunca a quién se lo devolvieron),
 // los avisos de Producción y el comentario de venta (son notas), el material
-// (el invitado no lo ve), la prioridad (interna) y el parte escaneado (lo
-// tiene en la pestaña de pedidos, con su enlace público).
+// (el invitado no lo ve) y el parte escaneado (lo tiene en la pestaña de
+// pedidos, con su enlace público).
+//
+// La prioridad SÍ sale desde el 20/10/2026: salía siempre «normal» y en la
+// consulta no se distinguían los urgentes, que es lo primero que busca quien
+// viene de Producción o de comercial.
 
 function ofParaInvitado(of: OF): OF {
   const salida: OF = {
@@ -315,7 +319,7 @@ export function pedidoParaInvitado(p: Pedido): Pedido {
     fechaSolicitud: p.fechaSolicitud,
     fechaPlanificacion: p.fechaPlanificacion,
     fechaEntrega: p.fechaEntrega,
-    prioridad: 2,
+    prioridad: p.prioridad,
     ofs: p.ofs.map(ofParaInvitado),
     accent: "ninguno",
     lineas: 0,

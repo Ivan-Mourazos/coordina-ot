@@ -298,11 +298,18 @@ function columnaEn(p: ConOFs, seccion?: Seccion): Fase {
   return seccion?.sinRevision && FASES_DE_REVISION.has(fase) ? "planteando" : fase;
 }
 
-/** Primero lo planificado para antes; los que no tienen fecha, al final (no
+/** Primero los urgentes (prioridad 3, luego 2, luego 1) y, dentro de cada
+ *  prioridad, lo planificado para antes; los que no tienen fecha, al final (no
  *  son urgentes por no tenerla). A igualdad de día, por código, que es fijo:
  *  sin desempate, dos pedidos del mismo día podían bailar de sitio entre un
- *  refresco y otro. */
+ *  refresco y otro.
+ *
+ *  La prioridad delante desde el 20/10/2026, en todas las vistas: un urgente
+ *  planificado para pasado mañana se coge antes que un normal de hoy. */
 function porPlanificada<T extends ConOFs>(a: T, b: T): number {
+  const pa = prioridadDe(a);
+  const pb = prioridadDe(b);
+  if (pa !== pb) return pb - pa;
   const fa = fechaDe(a);
   const fb = fechaDe(b);
   if (fa !== fb) return fa < fb ? -1 : 1;
@@ -315,6 +322,11 @@ function porPlanificada<T extends ConOFs>(a: T, b: T): number {
 function fechaDe(x: ConOFs): string {
   const p = (x as { pedido?: { fechaPlanificacion?: string | null } }).pedido;
   return p?.fechaPlanificacion || "9999-99-99";
+}
+
+/** La prioridad del pedido del facet; sin pedido, la más baja. */
+function prioridadDe(x: ConOFs): number {
+  return (x as { pedido?: { prioridad?: number } }).pedido?.prioridad ?? 0;
 }
 
 function codigoDe(x: ConOFs): string {
