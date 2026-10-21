@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "47228bd",
+    "hasta": "08a859f",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -14,6 +14,12 @@
         "titulo": "Las métricas enseñan los errores de planteamiento que apunta Producción",
         "detalle": "Cuántos hubo en el mes o en el año, de qué familias, y qué % son de las OF que se pasaron.",
         "tanda": 5
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Con varias fases en tu panel, los avisos ya no se montan sobre la fecha",
+        "detalle": "«Parte nuevo» y los demás avisos bajan a una segunda línea cuando la columna es estrecha, y la cuenta de OF ya no sale cortada.",
+        "tanda": 7
       },
       {
         "tipo": "mejor",
