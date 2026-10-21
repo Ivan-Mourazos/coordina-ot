@@ -77,28 +77,28 @@ const NOTA_YA_CORREGIDA: ReadonlySet<EstadoOF> = new Set(["aprobada"]);
 
 /** Rótulo, ayuda y color del botón de Planteamientos TGM según lo que toque
  *  (ver `botonPlantear`). El color va por quién trabaja: el autor (plantear y
- *  corregir) en el del autor, y el resto en el del revisor, que es por donde
- *  pasa el pedido una vez planteado. */
+ *  corregir) en el del autor y revisar en el del revisor. «Abrir» va NEUTRO
+ *  (Iván, 21/10/2026): no hay trabajo de nadie, solo consultar. */
 const BOTON_PLANTEAR: Record<ModoPlantear, { texto: string; ayuda: string; color: string }> = {
   plantear: {
     texto: "Plantear",
     ayuda: "Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña",
-    color: ROL.plantear.solido,
+    color: `boton-3d ${ROL.plantear.solido}`,
   },
   corregir: {
     texto: "Corregir",
     ayuda: "Abre Planteamientos TGM en Pedidos con este pedido abierto para corregir lo devuelto, en otra pestaña",
-    color: ROL.plantear.solido,
+    color: `boton-3d ${ROL.plantear.solido}`,
   },
   revisar: {
     texto: "Revisar",
     ayuda: "Abre Planteamientos TGM en Pedidos con este pedido abierto para revisarlo, en otra pestaña",
-    color: ROL.revisar.solido,
+    color: `boton-3d ${ROL.revisar.solido}`,
   },
   abrir: {
     texto: "Abrir",
     ayuda: "Abre Planteamientos TGM en Pedidos con este pedido a la vista, en otra pestaña",
-    color: ROL.revisar.solido,
+    color: "chip-3d text-text",
   },
 };
 
@@ -751,7 +751,7 @@ export function Drawer({
                   target="_blank"
                   rel="noreferrer"
                   title={BOTON_PLANTEAR[plantear.modo].ayuda}
-                  className={`boton-3d ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${BOTON_PLANTEAR[plantear.modo].color}`}
+                  className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${BOTON_PLANTEAR[plantear.modo].color}`}
                 >
                   {BOTON_PLANTEAR[plantear.modo].texto}
                   <span aria-hidden="true">↗</span>
