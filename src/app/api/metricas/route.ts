@@ -4,7 +4,7 @@ import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { calcularDetalleMetricas, contarEntregas } from "@/lib/metricas-personales";
 import { leerFamiliasMetricas, leerIncidenciasMetricas } from "@/lib/server/metricas-fuentes";
 import { operariosDeSeccion } from "@/lib/server/operarios";
-import { leerCausasDevolucion, leerMovimientosMetricas, leerPasosRevision } from "@/lib/server/estado-db";
+import { leerCausasDevolucion, leerMovimientosMetricas, leerPasesMetricas, leerPasosRevision } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
 import { loginActivo, quienEs, soloConSesion } from "@/lib/server/sesion";
@@ -62,8 +62,15 @@ export async function GET(req: Request) {
     // los totales de sección, que siguen filtrándose por quien firma.
     const historico = leerMovimientosMetricas(undefined, hasta);
     const periodo = { desde: desde.slice(0, 10), hasta: limite(q.get("hasta"))?.slice(0, 10) ?? hoyISO() };
-    const periodoGrafica = { desde: INICIO_METRICAS, hasta: periodo.hasta };
-    const movimientosGrafica = leerMovimientosMetricas(inicio, hasta, seccion);
+    // Las gráficas enseñan el AÑO del periodo elegido (Iván, 21/10/2026), sin
+    // pasar de hoy ni empezar antes de que hubiera registro.
+    const anio = periodo.desde.slice(0, 4);
+    const finAnio = `${anio}-12-31`;
+    const periodoGrafica = {
+      desde: `${anio}-01-01` > INICIO_METRICAS ? `${anio}-01-01` : INICIO_METRICAS,
+      hasta: finAnio < hoyISO() ? finAnio : hoyISO(),
+    };
+    const movimientosGrafica = leerMovimientosMetricas(limite(periodoGrafica.desde), limite(periodoGrafica.hasta, true), seccion);
     const equipo = operariosDeSeccion(seccion);
     const cuadroMes = calcularCuadroMetricas(movs, historico, equipo, periodo);
     const cuadroGrafica = calcularCuadroMetricas(movimientosGrafica, historico, equipo, periodoGrafica);
@@ -89,7 +96,11 @@ export async function GET(req: Request) {
     }
     return NextResponse.json(
       {
-        metricas: calcularMetricas(movs, intervalos),
+        // Los pases solo los usa el cronómetro («hasta Producción»).
+        metricas: calcularMetricas(
+          [...movs, ...leerPasesMetricas(desde, hasta, seccion)].sort((a, b) => a.at.localeCompare(b.at)),
+          intervalos,
+        ),
         // Cada técnico ve lo suyo (Iván, 21/10/2026): el reparto por técnico
         // no sale de aquí. Se sigue calculando para una vista del encargado.
         cuadro: { ...cuadro, porTecnico: [] },

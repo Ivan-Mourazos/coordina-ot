@@ -48,8 +48,10 @@ export async function leerFamiliasMetricas(movs: readonly MovimientoRegistrado[]
 }
 
 /** Misma fuente y atribución que el Excel facilitado por OT: el autor es
- * quien más tiempo tiene en TGM_FICHAJES_OT. Solo errores de planteamiento o
- * documentación; los errores de taller no se atribuyen a Oficina Técnica. */
+ * quien más tiempo tiene en TGM_FICHAJES_OT. TODOS los tipos de incidencia de
+ * las OF que planteaste, no solo los errores de planteamiento o documentación
+ * (Iván, 21/10/2026): un error de soldadura en tu OF también es tuyo de mirar.
+ * Cada incidencia lleva su tipo para poder separarlas. */
 export async function leerIncidenciasMetricas(periodo: Periodo, miId: string, seccion: SeccionId): Promise<IncidenciaMetricas[] | null> {
   if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return null;
   const empleado = codigoRpsDe(miId);
@@ -57,8 +59,9 @@ export async function leerIncidenciasMetricas(periodo: Periodo, miId: string, se
   const pool = await getPool();
   const req = pool.request().input("empleado", sql.VarChar(20), empleado)
     .input("desde", sql.Date, periodo.desde).input("hasta", sql.Date, periodo.hasta);
-  const r = await req.query<FilaFamilia & { fecha: Date }>(`
-    SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha
+  const r = await req.query<FilaFamilia & { fecha: Date; tipo: string | null }>(`
+    SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha,
+      LTRIM(RTRIM(SUBSTRING(unpr.Description, CHARINDEX('-', unpr.Description) + 1, 1000))) AS tipo
     FROM dbo.CPRImputationMO imp
     JOIN dbo.CPRMOTask task ON task.IDMOTask = imp.IDMOTask
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder AND mo.CodCompany = '001'
@@ -69,9 +72,7 @@ export async function leerIncidenciasMetricas(periodo: Periodo, miId: string, se
       ORDER BY tiempoTotal DESC, operario) ot
     WHERE imp.CodCompany = '001' AND imp.Unproductive = 1
       AND imp.ImputationDate >= @desde AND imp.ImputationDate < DATEADD(day, 1, @hasta)
-      AND LTRIM(RTRIM(SUBSTRING(unpr.Description, CHARINDEX('-', unpr.Description) + 1, 1000)))
-        IN ('ERROR EN PLANTEAMIENTO', 'ERROR AL DOCUMENTAR PEDIDO')
       AND ot.operario = (SELECT Description FROM dbo.GENEmployee WHERE CodCompany = '001' AND CodEmployee = @empleado)
   `);
-  return r.recordset.map((f) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f) }));
+  return r.recordset.map((f) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f), tipo: f.tipo?.trim() || undefined }));
 }

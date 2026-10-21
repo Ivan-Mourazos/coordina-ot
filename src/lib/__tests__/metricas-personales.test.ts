@@ -28,7 +28,7 @@ describe("mis métricas", () => {
     const p = calcular(movs).personal;
     expect(p.entregadas).toBe(1);
     expect(p.correcciones).toBe(1);
-    expect(p.meses).toEqual([{ mes: "2026-09", entregadas: 1, correcciones: 1, incidencias: 0 }, { mes: "2026-10", entregadas: 0, correcciones: 0, incidencias: 0 }]);
+    expect(p.meses).toEqual([{ mes: "2026-09", entregadas: 1, sinRevision: 0, correcciones: 1, incidencias: 0 }, { mes: "2026-10", entregadas: 0, sinRevision: 0, correcciones: 0, incidencias: 0 }]);
     expect(p.correccionesPorFamilia).toEqual([{ familia: "TOLDO", n: 1, porCausa: [{ id: null, n: 1 }] }]);
   });
   it("solo cuenta la OF devuelta de un pedido con otras OF aprobadas", () => {
@@ -60,7 +60,16 @@ describe("mis métricas", () => {
     const p = calcular([], [], [i("2026-09-01"), i("2026-09-02"), i("2026-10-01"), i("2026-08-31", "fuera"), i("2026-11-01", "fuera2")]).personal;
     expect(p.incidencias).toBe(1);
     expect(p.meses.map((m) => m.incidencias)).toEqual([1, 1]);
-    expect(p.incidenciasPorFamilia).toEqual([{ familia: "TOLDO", n: 1 }]);
+    expect(p.incidenciasPorFamilia).toEqual([{ familia: "TOLDO", n: 1, porTipo: [{ tipo: "Sin tipo", n: 1 }] }]);
+  });
+  it("cada familia lleva los tipos de incidencia, por OF distinta", () => {
+    const i = (orden: string, tipo: string): IncidenciaMetricas => ({ fecha: "2026-09-10", orden, familia: "TOLDO", tipo });
+    const p = calcular([], [], [i("1", "OTROS ERRORES DE SOLDADURA"), i("1", "OTROS ERRORES DE SOLDADURA"), i("2", "OTROS ERRORES DE SOLDADURA"), i("2", "ERROR EN PLANTEAMIENTO")]).personal;
+    expect(p.incidencias).toBe(2);
+    expect(p.incidenciasPorFamilia).toEqual([{ familia: "TOLDO", n: 2, porTipo: [
+      { tipo: "OTROS ERRORES DE SOLDADURA", n: 2 },
+      { tipo: "ERROR EN PLANTEAMIENTO", n: 1 },
+    ] }]);
   });
   it("distingue una fuente no disponible de cero incidencias", () => {
     expect(calcular([], [], null).personal.incidencias).toBeNull();
