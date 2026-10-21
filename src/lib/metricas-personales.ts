@@ -5,9 +5,11 @@ export interface IncidenciaMetricas {
   fecha: string;
   orden: string;
   familia: string;
+  /** El tipo de improductivo de RPS («OTROS ERRORES DE SOLDADURA»…). */
+  tipo?: string;
 }
 export interface CuentaFamilia { familia: string; n: number }
-export interface MesPersonal { mes: string; entregadas: number; correcciones: number; incidencias: number }
+export interface MesPersonal { mes: string; entregadas: number; sinRevision: number; correcciones: number; incidencias: number }
 export interface DetalleMetricas {
   porFamilia: { familia: string; devoluciones: number; porCausa: Metricas["porCausa"]; porPaso: Metricas["porPaso"] }[];
   personal: {
@@ -16,7 +18,8 @@ export interface DetalleMetricas {
     incidencias: number | null;
     meses: MesPersonal[];
     correccionesPorFamilia: (CuentaFamilia & { porCausa: Metricas["porCausa"] })[];
-    incidenciasPorFamilia: CuentaFamilia[];
+    /** Cada familia con los tipos de incidencia que hubo en ella. */
+    incidenciasPorFamilia: (CuentaFamilia & { porTipo: { tipo: string; n: number }[] })[];
   };
   familiasDisponibles: boolean;
 }
@@ -63,7 +66,7 @@ export function calcularDetalleMetricas(
   const entregadas = new Set<string>();
   const correcciones = new Set<string>();
   const correccionesPorFamilia = new Map<string, { ofs: Set<string>; causas: Map<number | null, Set<string>> }>();
-  const calendario = new Map(meses.map((mes) => [mes, { entregadas: new Set<string>(), correcciones: new Set<string>(), incidencias: new Set<string>() }]));
+  const calendario = new Map(meses.map((mes) => [mes, { entregadas: new Set<string>(), sinRevision: new Set<string>(), correcciones: new Set<string>(), incidencias: new Set<string>() }]));
   const todos = [...new Map([...historico, ...movimientos].map((m) => [clave(m), m])).values()].sort((a, b) => a.at.localeCompare(b.at));
   for (const m of todos) {
     if (m.motivo === "terminar_planteo") autores.set(m.ofId, m.operarioId ?? null);
@@ -73,6 +76,7 @@ export function calcularDetalleMetricas(
     if ((m.motivo === "terminar_planteo" || m.motivo === "aprobar_sin_revision") && m.operarioId === miId) {
       entregadas.add(m.ofId);
       mes?.entregadas.add(m.ofId);
+      if (m.motivo === "aprobar_sin_revision") mes?.sinRevision.add(m.ofId);
     }
     if (m.motivo === "devolver" && autores.get(m.ofId) === miId) {
       correcciones.add(m.ofId);
@@ -95,9 +99,14 @@ export function calcularDetalleMetricas(
     return [...cuenta].map(([familia, n]) => ({ familia, n })).sort((a, b) => b.n - a.n || a.familia.localeCompare(b.familia));
   };
   const ofsIncidencia = new Map<string, string>();
+  const tiposIncidencia = new Map<string, Map<string, Set<string>>>();
   for (const i of incidencias ?? []) {
     if ((periodo.desde && i.fecha < periodo.desde) || (periodo.hasta && i.fecha > periodo.hasta)) continue;
     ofsIncidencia.set(i.orden, i.familia);
+    const tipos = tiposIncidencia.get(i.familia) ?? new Map<string, Set<string>>();
+    tiposIncidencia.set(i.familia, tipos);
+    const tipo = i.tipo ?? "Sin tipo";
+    tipos.set(tipo, (tipos.get(tipo) ?? new Set()).add(i.orden));
     calendario.get(i.fecha.slice(0, 7))?.incidencias.add(i.orden);
   }
   return {
@@ -107,12 +116,16 @@ export function calcularDetalleMetricas(
       entregadas: entregadas.size,
       correcciones: correcciones.size,
       incidencias: incidencias === null ? null : ofsIncidencia.size,
-      meses: [...calendario].map(([mes, c]) => ({ mes, entregadas: c.entregadas.size, correcciones: c.correcciones.size, incidencias: c.incidencias.size })),
+      meses: [...calendario].map(([mes, c]) => ({ mes, entregadas: c.entregadas.size, sinRevision: c.sinRevision.size, correcciones: c.correcciones.size, incidencias: c.incidencias.size })),
       correccionesPorFamilia: [...correccionesPorFamilia].map(([familia, g]) => ({
         familia, n: g.ofs.size,
         porCausa: [...g.causas].map(([id, ofs]) => ({ id, n: ofs.size })).sort((a, b) => b.n - a.n || (a.id === null ? 1 : b.id === null ? -1 : a.id - b.id)),
       })).sort((a, b) => b.n - a.n || a.familia.localeCompare(b.familia)),
-      incidenciasPorFamilia: porFamiliaDe(ofsIncidencia.values()),
+      incidenciasPorFamilia: porFamiliaDe(ofsIncidencia.values()).map((f) => ({
+        ...f,
+        porTipo: [...(tiposIncidencia.get(f.familia) ?? [])].map(([tipo, ofs]) => ({ tipo, n: ofs.size }))
+          .sort((a, b) => b.n - a.n || a.tipo.localeCompare(b.tipo)),
+      })),
     },
   };
 }

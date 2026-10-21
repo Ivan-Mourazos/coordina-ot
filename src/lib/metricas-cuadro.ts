@@ -91,7 +91,7 @@ export function calcularCuadroMetricas(
     // es actividad cero, no una razón para quitar una columna del calendario.
     for (let d = `${desde.slice(0, 7)}-01`; d <= hasta;) {
       const mes = d.slice(0, 7);
-      meses.push(porMes.get(mes) ?? { mes, planteos: 0, terminadas: 0, revisiones: 0, devoluciones: 0 });
+      meses.push(porMes.get(mes) ?? { mes, planteos: 0, terminadas: 0, sinRevision: 0, revisiones: 0, devoluciones: 0 });
       d = sumarDias(`${mes}-28`, 4).slice(0, 7) + "-01";
     }
     // Siempre por meses del calendario, también en periodos cortos.

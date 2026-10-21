@@ -61,6 +61,9 @@ export interface MovimientoRegistrado {
    *  `null` en los movimientos sin autor conocido, que los hay en el
    *  histórico. */
   operarioId?: string | null;
+  /** Solo en `pasar_produccion`: las OF del pedido que se pasó. Ese
+   *  movimiento es del PEDIDO (`ofId` lleva su código), no de una OF. */
+  ofIds?: string[];
 }
 
 export interface CuentaCausa {
@@ -87,6 +90,8 @@ export interface MesMetricas {
   planteos: number;
   /** OF distintas dadas por buenas en el mes, de cualquiera de las tres formas. */
   terminadas: number;
+  /** De esas, las dadas por buenas SIN pasar por revisión (21/10/2026). */
+  sinRevision: number;
 }
 
 /** Cuánto trabajo sale, que es el contexto que le falta a todo lo demás.
@@ -135,14 +140,24 @@ export interface Tramo extends Medida {
   trabajo: Medida;
 }
 
+/** Los cinco tramos del ciclo, en el orden en que pasan (Iván, 21/10/2026:
+ *  antes eran tres, y «Corrección» juntaba lo que la OF esperaba a que el autor
+ *  se pusiera con ella y lo que tardaba en corregirla). */
 export interface Tiempos {
   /** De mandarla a revisar a que alguien la coja. Es la espera de verdad: la OF
    *  está lista y no avanza. */
   esperaCola: Tramo;
   /** De empezar la revisión a resolverla, apruebe o devuelva. */
   repaso: Tramo;
-  /** De devolverla a que el autor la dé por corregida o la vuelva a mandar. */
+  /** De devolverla a que el autor se pone a corregirla: la vuelve a «en
+   *  curso», fichando o con «Retomar». Una que se reenvía sin ponerse con
+   *  ella no mide este tramo ni el siguiente. */
+  esperaCorreccion: Tramo;
+  /** De ponerse a corregirla a volver a mandarla o darla por corregida. */
   correccion: Tramo;
+  /** De la última aprobación de las OF de un pedido a pasarlo a Producción.
+   *  Uno por PEDIDO, no por OF: es el pedido lo que se pasa. */
+  hastaProduccion: Tramo;
 }
 
 export interface Metricas {
@@ -200,6 +215,7 @@ export function calcularMetricas(
   // Por mes, las OF distintas (ver `MesMetricas.planteos`).
   const entregadasMes = new Map<string, Set<string>>();
   const terminadasMes = new Map<string, Set<string>>();
+  const sinRevisionMes = new Map<string, Set<string>>();
   const anota = (cuales: Map<string, Set<string>>, at: string, ofId: string) => {
     const k = mesDe(at);
     if (!cuales.has(k)) cuales.set(k, new Set());
@@ -224,6 +240,7 @@ export function calcularMetricas(
       devoluciones: 0,
       planteos: 0,
       terminadas: 0,
+      sinRevision: 0,
     };
     porMes.set(k, m);
     return m;
@@ -264,6 +281,7 @@ export function calcularMetricas(
       terminadas++;
       ofTerminadas.add(mov.ofId);
       anota(terminadasMes, mov.at, mov.ofId);
+      if (mov.motivo === "aprobar_sin_revision") anota(sinRevisionMes, mov.at, mov.ofId);
       continue;
     }
     if (mov.motivo !== "devolver") continue;
@@ -313,7 +331,12 @@ export function calcularMetricas(
       .sort((a, b) => b.n - a.n || (a.id === null ? 1 : b.id === null ? -1 : a.id - b.id)),
     porPaso: [...porPaso.entries()].map(([id, n]) => ({ id, n })).sort((a, b) => b.n - a.n || a.id - b.id),
     porMes: [...porMes.values()]
-      .map((m) => ({ ...m, planteos: entregadasMes.get(m.mes)?.size ?? 0, terminadas: terminadasMes.get(m.mes)?.size ?? 0 }))
+      .map((m) => ({
+        ...m,
+        planteos: entregadasMes.get(m.mes)?.size ?? 0,
+        terminadas: terminadasMes.get(m.mes)?.size ?? 0,
+        sinRevision: sinRevisionMes.get(m.mes)?.size ?? 0,
+      }))
       .sort((a, b) => a.mes.localeCompare(b.mes)),
   };
 }
@@ -377,6 +400,13 @@ export function periodoAnterior(desde: string, hasta: string): Periodo | null {
     const mismoDia = `${mesAntes}-${hasta.slice(8, 10)}`;
     return { desde: `${mesAntes}-01`, hasta: mismoDia < finAntes ? mismoDia : finAntes };
   }
+  // Un AÑO (entero, o el en curso hasta hoy): el anterior, hasta el mismo día.
+  if (desde.endsWith("-01-01") && hasta.slice(0, 4) === desde.slice(0, 4)) {
+    const anio = String(Number(desde.slice(0, 4)) - 1);
+    const mismoDia = `${anio}${hasta.slice(4)}`;
+    const finMes = finDeMes(mismoDia.slice(0, 7));
+    return { desde: `${anio}-01-01`, hasta: mismoDia < finMes ? mismoDia : finMes };
+  }
   const largo = diasEntre(desde, hasta);
   if (largo < 0) return null;
   const fin = sumarDias(desde, -1);
@@ -409,15 +439,22 @@ class Cronometro {
   private medidas: Record<keyof Tiempos, number[]> = {
     esperaCola: [],
     repaso: [],
+    esperaCorreccion: [],
     correccion: [],
+    hastaProduccion: [],
   };
   /** Los minutos fichados dentro de cada tramo, solo de los tramos en los que
    *  hubo alguno. Ver `Tramo.trabajo`. */
   private trabajado: Record<keyof Tiempos, number[]> = {
     esperaCola: [],
     repaso: [],
+    esperaCorreccion: [],
     correccion: [],
+    hastaProduccion: [],
   };
+  /** La última vez que se dio por buena cada OF: de ahí sale el tramo hasta
+   *  Producción, que se mide al pasar su pedido. */
+  private aprobada = new Map<string, string>();
   /** El fichaje indexado por OF: se recorre una vez y se consulta por tramo.
    *  Con la lista entera por cada cierre, un año de registro son millones de
    *  comparaciones para nada. */
@@ -462,43 +499,71 @@ class Cronometro {
   private static ABRE: Record<string, keyof Tiempos> = {
     terminar_planteo: "esperaCola",
     empezar_revision: "repaso",
-    devolver: "correccion",
+    devolver: "esperaCorreccion",
+    empezar_correccion: "correccion",
   };
-  private static CIERRA: Record<string, keyof Tiempos> = {
-    empezar_revision: "esperaCola",
-    aprobar: "repaso",
-    devolver: "repaso",
-    aprobar_corregida: "correccion",
-    terminar_planteo: "correccion",
+  private static CIERRA: Record<string, (keyof Tiempos)[]> = {
+    empezar_revision: ["esperaCola"],
+    aprobar: ["repaso"],
+    devolver: ["repaso"],
+    empezar_correccion: ["esperaCorreccion"],
+    aprobar_corregida: ["correccion"],
+    terminar_planteo: ["correccion"],
+  };
+  /** Lo que se deja de medir sin apuntar nada. Una devuelta que se reenvía o
+   *  se da por corregida sin que nadie se pusiera con ella no tiene «espera a
+   *  corregir» que contar, y dejarla abierta la cerraría la próxima vez que
+   *  alguien la tocara, quizá semanas después. */
+  private static CANCELA: Record<string, (keyof Tiempos)[]> = {
+    recuperar_planteo: ["esperaCola"],
+    aprobar_corregida: ["esperaCorreccion"],
+    terminar_planteo: ["esperaCorreccion"],
   };
 
   ve(mov: MovimientoRegistrado): void {
-    // Recuperarla de la cola cancela la espera: la OF salió de ahí sin que
-    // nadie la mirara, así que no hay espera que medir.
-    if (mov.motivo === "recuperar_planteo") {
-      this.abiertos.delete(this.clave("esperaCola", mov.ofId));
+    if (mov.motivo === "pasar_produccion") {
+      this.pasa(mov);
       return;
     }
+    if (mov.motivo === "aprobar" || mov.motivo === "aprobar_corregida" || mov.motivo === "aprobar_sin_revision")
+      this.aprobada.set(mov.ofId, mov.at);
 
-    const cierra = Cronometro.CIERRA[mov.motivo];
-    if (cierra) {
+    for (const cierra of Cronometro.CIERRA[mov.motivo] ?? []) {
       const k = this.clave(cierra, mov.ofId);
       const desde = this.abiertos.get(k);
       if (desde) {
-        const min = (Date.parse(mov.at) - Date.parse(desde)) / 60000;
-        // Negativo solo puede salir de un registro desordenado; se ignora en
-        // vez de restar tiempo al resto.
-        if (min >= 0) {
-          this.medidas[cierra].push(min);
-          const trabajo = this.trabajoEntre(mov.ofId, desde, mov.at);
-          if (trabajo > 0) this.trabajado[cierra].push(trabajo);
-        }
+        this.apunta(cierra, desde, mov.at, mov.ofId);
         this.abiertos.delete(k);
       }
     }
+    for (const t of Cronometro.CANCELA[mov.motivo] ?? []) this.abiertos.delete(this.clave(t, mov.ofId));
 
     const abre = Cronometro.ABRE[mov.motivo];
     if (abre) this.abiertos.set(this.clave(abre, mov.ofId), mov.at);
+  }
+
+  /** Pasar el pedido cierra «hasta Producción» desde la ÚLTIMA aprobación de
+   *  sus OF: hasta entonces no se podía pasar. Sin ninguna aprobada a la vista
+   *  (se aprobó antes del periodo, o fuera de CoordinaOT) no se mide. */
+  private pasa(mov: MovimientoRegistrado) {
+    const fechas = (mov.ofIds ?? []).flatMap((id) => {
+      const at = this.aprobada.get(id);
+      return at ? [at] : [];
+    });
+    for (const id of mov.ofIds ?? []) this.aprobada.delete(id);
+    if (fechas.length === 0) return;
+    this.apunta("hastaProduccion", fechas.sort().at(-1)!, mov.at);
+  }
+
+  private apunta(tramo: keyof Tiempos, desde: string, hasta: string, ofId?: string) {
+    const min = (Date.parse(hasta) - Date.parse(desde)) / 60000;
+    // Negativo solo puede salir de un registro desordenado; se ignora en vez
+    // de restar tiempo al resto.
+    if (!(min >= 0)) return;
+    this.medidas[tramo].push(min);
+    if (!ofId) return;
+    const trabajo = this.trabajoEntre(ofId, desde, hasta);
+    if (trabajo > 0) this.trabajado[tramo].push(trabajo);
   }
 
   resultado(): Tiempos {
@@ -509,7 +574,9 @@ class Cronometro {
     return {
       esperaCola: arma("esperaCola"),
       repaso: arma("repaso"),
+      esperaCorreccion: arma("esperaCorreccion"),
       correccion: arma("correccion"),
+      hastaProduccion: arma("hastaProduccion"),
     };
   }
 

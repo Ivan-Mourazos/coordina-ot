@@ -26,7 +26,7 @@ describe("OF entregadas, no entregas", () => {
       mov("2026-08-05T09:00:00.000Z", "terminar_planteo", "of2"),
     ]);
     expect(m.volumen).toMatchObject({ planteos: 3, ofEntregadas: 2, ofTerminadas: 1 });
-    expect(m.porMes[0]).toMatchObject({ mes: "2026-08", planteos: 2, terminadas: 1 });
+    expect(m.porMes[0]).toMatchObject({ mes: "2026-08", planteos: 2, terminadas: 1, sinRevision: 0 });
   });
 });
 
@@ -113,8 +113,8 @@ describe("si va a mejor", () => {
       mov("2026-08-10T10:00:00.000Z", "empezar_revision", "of2"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-08", revisiones: 2, devoluciones: 1, planteos: 0, terminadas: 0 },
-      { mes: "2026-09", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 0 },
+      { mes: "2026-08", revisiones: 2, devoluciones: 1, planteos: 0, terminadas: 0, sinRevision: 0 },
+      { mes: "2026-09", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 0, sinRevision: 0 },
     ]);
   });
 
@@ -129,7 +129,7 @@ describe("si va a mejor", () => {
       mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] la cota"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-08", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
+      { mes: "2026-08", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0, sinRevision: 0 },
     ]);
   });
 
@@ -155,7 +155,7 @@ describe("si va a mejor", () => {
     // alguien la revisó. Sumando solo la devolución, el mes pasaba del 100 %.
     const m = calcularMetricas([mov("2026-09-01T08:00:00.000Z", "devolver", "of1", "[1] x")]);
     expect(m.porMes).toEqual([
-      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
+      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0, sinRevision: 0 },
     ]);
     expect(m.revisiones).toBe(1);
   });
@@ -178,6 +178,7 @@ describe("si va a mejor", () => {
       devoluciones: 7,
       planteos: 0,
       terminadas: 0,
+      sinRevision: 0,
     });
     expect(septiembre.devoluciones).toBeLessThanOrEqual(septiembre.revisiones);
   });
@@ -192,10 +193,10 @@ describe("si va a mejor", () => {
       mov("2026-09-10T10:00:00.000Z", "devolver", "of1", "[1] otra cosa"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1 },
+      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1, sinRevision: 0 },
       // La de septiembre no se cuelga de la revisión de agosto: se cuenta en
       // septiembre, con su revisión implícita.
-      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0 },
+      { mes: "2026-09", revisiones: 1, devoluciones: 1, planteos: 0, terminadas: 0, sinRevision: 0 },
     ]);
   });
 
@@ -211,6 +212,7 @@ describe("si va a mejor", () => {
       devoluciones: 1,
       planteos: 0,
       terminadas: 0,
+      sinRevision: 0,
     });
   });
 });
@@ -247,16 +249,40 @@ describe("por qué se anulan", () => {
 });
 
 describe("dónde se para el trabajo", () => {
-  it("mide la espera en la cola, el repaso y la corrección", () => {
+  it("mide los cinco tramos: espera, revisión, espera a corregir, corrección y hasta Producción", () => {
+    const sinFichaje = { n: 0, medianaMin: null };
     const m = calcularMetricas([
       mov("2026-08-03T08:00:00.000Z", "terminar_planteo", "of1"),
       mov("2026-08-03T10:00:00.000Z", "empezar_revision", "of1"), // 120m de espera
       mov("2026-08-03T10:30:00.000Z", "devolver", "of1", "[1] x"), // 30m de repaso
-      mov("2026-08-03T12:30:00.000Z", "aprobar_corregida", "of1"), // 120m de corrección
+      mov("2026-08-03T11:30:00.000Z", "empezar_correccion", "of1"), // 60m hasta ponerse
+      mov("2026-08-03T12:30:00.000Z", "aprobar_corregida", "of1"), // 60m corrigiendo
+      mov("2026-08-03T09:00:00.000Z", "aprobar_sin_revision", "of2"),
+      { at: "2026-08-03T16:30:00.000Z", motivo: "pasar_produccion", ofId: "AR.26.1", observacion: null, ofIds: ["of1", "of2"] }, // 240m desde la ÚLTIMA aprobación
+    ].sort((a, b) => a.at.localeCompare(b.at)));
+    expect(m.tiempos.esperaCola).toEqual({ n: 1, medianaMin: 120, trabajo: sinFichaje });
+    expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30, trabajo: sinFichaje });
+    expect(m.tiempos.esperaCorreccion).toEqual({ n: 1, medianaMin: 60, trabajo: sinFichaje });
+    expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 60, trabajo: sinFichaje });
+    expect(m.tiempos.hastaProduccion).toEqual({ n: 1, medianaMin: 240, trabajo: sinFichaje });
+    // El pase no cuenta como trabajo terminado ni entregado.
+    expect(m.volumen.terminadas).toBe(2);
+  });
+
+  it("una devuelta reenviada sin ponerse con ella no mide la espera a corregir", () => {
+    const m = calcularMetricas([
+      mov("2026-08-03T10:30:00.000Z", "devolver", "of1", "[1] x"),
+      mov("2026-08-03T12:30:00.000Z", "terminar_planteo", "of1"),
+      // Si la espera siguiera abierta, este inicio de corrección días después
+      // la cerraría con dos días que no son espera de nada.
+      mov("2026-08-05T12:30:00.000Z", "empezar_correccion", "of1"),
     ]);
-    expect(m.tiempos.esperaCola).toEqual({ n: 1, medianaMin: 120, trabajo: { n: 0, medianaMin: null } });
-    expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30, trabajo: { n: 0, medianaMin: null } });
-    expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 120, trabajo: { n: 0, medianaMin: null } });
+    expect(m.tiempos.esperaCorreccion.n).toBe(0);
+  });
+
+  it("un pase sin ninguna aprobación a la vista no mide «hasta Producción»", () => {
+    const m = calcularMetricas([{ at: "2026-08-03T16:30:00.000Z", motivo: "pasar_produccion", ofId: "AR.26.1", observacion: null, ofIds: ["of9"] }]);
+    expect(m.tiempos.hastaProduccion.n).toBe(0);
   });
 
   it("una OF que da dos vueltas mide dos veces", () => {
@@ -355,8 +381,8 @@ describe("cuánto trabajo sale", () => {
       mov("2026-08-01T11:00:00.000Z", "aprobar", "of1"),
     ]);
     expect(m.porMes).toEqual([
-      { mes: "2026-07", revisiones: 0, devoluciones: 0, planteos: 1, terminadas: 0 },
-      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1 },
+      { mes: "2026-07", revisiones: 0, devoluciones: 0, planteos: 1, terminadas: 0, sinRevision: 0 },
+      { mes: "2026-08", revisiones: 1, devoluciones: 0, planteos: 0, terminadas: 1, sinRevision: 0 },
     ]);
   });
 });

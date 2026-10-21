@@ -1042,11 +1042,18 @@ export function leerMovimientosMetricas(
       AND EXISTS (SELECT 1 FROM json_each(l.detalle, '$.previos') p
                    WHERE json_extract(p.value, '$.ofId') = json_extract(c.value, '$.ofId')
                      AND json_extract(p.value, '$.estado') = 'por_revisar'))`;
+  // Igual con la corrección (21/10/2026): una devuelta que vuelve a «en
+  // curso» es que el autor se ha puesto con ella, fichando o con «Retomar».
+  // Abre el tramo de corrección y cierra el de espera a corregir.
+  const empiezaCorreccion = `(json_extract(c.value, '$.estado') = 'en_curso'
+      AND EXISTS (SELECT 1 FROM json_each(l.detalle, '$.previos') p
+                   WHERE json_extract(p.value, '$.ofId') = json_extract(c.value, '$.ofId')
+                     AND json_extract(p.value, '$.estado') = 'devuelta'))`;
   const filtros = [
     // `aprobar_sin_revision` entra desde que las métricas cuentan volumen: es
     // una de las TRES formas de dar por buena una OF, y sin ella todo el
     // trabajo que no lleva revisión salía de los números como si no existiera.
-    `(l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','aprobar_sin_revision','recuperar_planteo') OR ${empiezaRevision})`,
+    `(l.motivo IN ('devolver','empezar_revision','anular','terminar_planteo','aprobar','aprobar_corregida','aprobar_sin_revision','recuperar_planteo') OR ${empiezaRevision} OR ${empiezaCorreccion})`,
   ];
   const args: string[] = [];
   if (seccion) {
@@ -1078,7 +1085,9 @@ export function leerMovimientosMetricas(
     .prepare(
       `SELECT l.ts AS at,
               CASE WHEN l.motivo <> 'empezar_revision' AND ${empiezaRevision}
-                   THEN 'empezar_revision' ELSE l.motivo END AS motivo,
+                   THEN 'empezar_revision'
+                   WHEN ${empiezaCorreccion} THEN 'empezar_correccion'
+                   ELSE l.motivo END AS motivo,
               l.operario_id AS operarioId,
               json_extract(c.value, '$.ofId') AS ofId,
               json_extract(c.value, '$.observacion') AS observacion
@@ -1088,6 +1097,44 @@ export function leerMovimientosMetricas(
     )
     .all(...args) as MovimientoRegistrado[];
   return filas;
+}
+
+/** Los pases a Producción, para medir «hasta Producción» (21/10/2026). Uno por
+ *  pase, con las OF del pedido en `ofIds`: el pase no lleva `cambiosOF`, y por
+ *  eso no sale en `leerMovimientosMetricas`.
+ *
+ *  La sección va en el propio apunte; los antiguos no la llevan y cuentan como
+ *  de la sección de siempre, igual que los movimientos sin autor. «Devolver al
+ *  Historial» también marca pasado, pero no es un pase y se queda fuera. */
+export function leerPasesMetricas(desde?: string, hasta?: string, seccion?: SeccionId): MovimientoRegistrado[] {
+  const filtros = ["l.motivo = 'completar'", "json_extract(l.detalle, '$.completarPedidoId') IS NOT NULL"];
+  const args: string[] = [];
+  if (seccion) {
+    filtros.push(seccion === SECCION_POR_DEFECTO
+      ? "(json_extract(l.detalle, '$.seccion') = ? OR json_extract(l.detalle, '$.seccion') IS NULL)"
+      : "json_extract(l.detalle, '$.seccion') = ?");
+    args.push(seccion);
+  }
+  if (desde) { filtros.push("l.ts >= ?"); args.push(desde); }
+  if (hasta) { filtros.push("l.ts < ?"); args.push(hasta); }
+  const filas = abrir()
+    .prepare(
+      `SELECT l.ts AS at, l.operario_id AS operarioId,
+              json_extract(l.detalle, '$.completarPedidoId') AS pedido,
+              json_extract(l.detalle, '$.ofIdsPedido') AS ofIds
+         FROM acciones_log l
+        WHERE ${filtros.join(" AND ")}
+        ORDER BY l.ts`,
+    )
+    .all(...args) as Array<{ at: string; operarioId: string | null; pedido: string; ofIds: string | null }>;
+  return filas.map((f) => {
+    let ofIds: string[] = [];
+    try {
+      const v = JSON.parse(f.ofIds ?? "[]") as unknown;
+      if (Array.isArray(v)) ofIds = v.filter((x): x is string => typeof x === "string");
+    } catch { /* apunte raro: el pase cuenta, sin OF que medir */ }
+    return { at: f.at, motivo: "pasar_produccion", ofId: f.pedido, operarioId: f.operarioId, observacion: null, ofIds };
+  });
 }
 /** La fecha de salida de cada entrada del log, sellando las que no la tengan.
  *
