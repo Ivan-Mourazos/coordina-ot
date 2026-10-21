@@ -10,11 +10,11 @@ import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
-import type { DetalleMetricas } from "@/lib/metricas-personales";
+import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
-interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaDevolucion[]; pasos?: { id: number; texto: string }[]; detalle?: DetalleMetricas; detalleCargando?: boolean; entregas?: { revision: number; total: number } }
+interface Respuesta { metricas: Metricas; cuadro: CuadroMetricas; causas: CausaDevolucion[]; pasos?: { id: number; texto: string }[]; detalle?: DetalleMetricas; detalleCargando?: boolean; entregas?: { revision: number; total: number }; devueltas?: Devueltas }
 const nombreMes = (mes: string) =>
   new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" }).replace(" de ", " ");
 const nombreMesCorto = (mm: string) => {
@@ -30,6 +30,13 @@ const COLOR_DEVUELTA = "var(--fase-devuelta-relleno)";
 const COLOR_SIN_REVISION = "var(--fase-parado-relleno)";
 const tiempo = (min: number | null | undefined) => min == null ? "—" : min < 60 ? `${min} min` : min < 1440 ? fmtMin(min) : `${Math.floor(min / 1440)} d ${Math.floor(min % 1440 / 60)} h`;
 const porcentaje = (n: number | null) => n === null ? "—" : `${Math.round(n * 100)} %`;
+/** «n de base» como %, con un decimal por debajo de 10: las incidencias
+ *  rondan el 2 % y redondeadas saldrían todas iguales. */
+const sobre = (n: number, base: number) => {
+  if (!base) return "—";
+  const v = n / base * 100;
+  return `${v < 10 ? v.toFixed(1).replace(".", ",").replace(",0", "") : Math.round(v)} %`;
+};
 const MESES = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
 
 /** Los doce meses del año, con `null` en los que no hay dato (antes de que la
@@ -162,8 +169,8 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
           <Panel titulo="Cuánto tarda cada paso" extra="tiempo normal"><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-          <Panel titulo="Motivo de devolución" extra={`${m.devoluciones} devoluciones`}><PorQueVuelven m={m} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} /></Panel>
-          <Panel titulo="Motivos por familia"><DevolucionesFamilia detalle={datos?.detalle} causa={causa} cargando={datos?.detalleCargando} /></Panel>
+          <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} /></Panel>
+          {seccion === "ot" && <Panel titulo="Incidencias OT" extra={etiquetaPeriodo}><IncidenciasOT incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
           <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} /></Panel>
@@ -177,7 +184,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
 
 /** Por causa o por familia. «Por paso» de la guía se quitó (Iván,
  *  21/10/2026): sobraba aquí. */
-function PorQueVuelven({ m, causa, porFamilia, cargando }: { m: Metricas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean }) {
+function PorQueVuelven({ devueltas, causa, porFamilia, cargando }: { devueltas?: Devueltas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean }) {
   const [vista, setVista] = useState<"causa" | "tipo">("causa");
   return <div className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
     {/* La misma tira que el resto de la web (Revisión, Visitas): la bandeja
@@ -186,39 +193,41 @@ function PorQueVuelven({ m, causa, porFamilia, cargando }: { m: Metricas; causa:
       {([["causa", "Por causa"], ["tipo", "Por familia"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${vista === v ? "pestana-activa" : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"}`}>{l}</button>)}
     </div>
     {vista === "causa"
-      ? <Ranking filas={m.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." />
-      : porFamilia ? <Ranking filas={porFamilia.filter((f) => f.devoluciones > 0).map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.devoluciones }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /> : <Vacio>{cargando ? "Consultando familias…" : "No se pudieron consultar las familias. Prueba a recargar."}</Vacio>}
+      ? devueltas ? <Ranking filas={devueltas.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, devueltas.entregadas), titulo: `${causa(x.id)}: ${x.n} OF devueltas de ${devueltas.entregadas} entregadas a revisión` }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /> : <Vacio>Contando…</Vacio>
+      : porFamilia ? <div className="scroll-thin min-h-0 overflow-y-auto pr-1"><PorFamiliaAbrible color={SERIES[1].color} vacio="Sin devoluciones en este periodo."
+        familias={porFamilia.filter((f) => f.devueltas > 0).map((f) => ({ familia: f.familia, n: f.devueltas, pct: sobre(f.devueltas, f.entregadas), base: f.entregadas, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, f.entregadas) })) }))} /></div>
+        : <Vacio>{cargando ? "Consultando familias…" : "No se pudieron consultar las familias. Prueba a recargar."}</Vacio>}
   </div>;
 }
 const nombreFamilia = (familia: string) => familiaMeta(familia).label;
 
-function DevolucionesFamilia({ detalle, causa, cargando }: { detalle?: DetalleMetricas; causa: (id: number | null) => string; cargando?: boolean }) {
-  const [elegida, setElegida] = useState("");
-  const etiqueta = useId();
-  // Solo las familias con alguna devolución: «Assa Abloy · 0» en la lista no
-  // dice nada y alarga el desplegable.
-  const familias = (detalle?.porFamilia ?? []).filter((f) => f.devoluciones > 0);
-  const seleccion = familias.find((f) => f.familia === elegida) ?? familias[0];
-  return <div className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
-    {!detalle?.familiasDisponibles ? <Vacio>{cargando ? "Consultando familias…" : "No se pudieron consultar las familias. Prueba a recargar."}</Vacio> : !familias.length ? <Vacio>Sin devoluciones en este periodo.</Vacio> : <>
-      <span id={etiqueta} className="sr-only">Familia de producto</span>
-      <Select value={seleccion?.familia ?? null} onChange={(v) => { if (v) setElegida(v); }} options={familias.map((f) => ({ value: f.familia, label: `${nombreFamilia(f.familia)} · ${f.devoluciones}`, icon: <i className="size-2 shrink-0 rounded-full" style={{ background: familiaMeta(f.familia).color }} /> }))} placeholder={null} ariaLabelledBy={etiqueta} className="min-w-0 shrink-0" />
-      <Ranking filas={(seleccion?.porCausa ?? []).map((x) => ({ etiqueta: causa(x.id), n: x.n }))} color={SERIES[1].color} vacio="Sin devoluciones de esta familia en el periodo." />
-    </>}
+/** Los errores de planteamiento que apuntó Producción en RPS, de todo el
+ *  equipo, sobre las OF pasadas del periodo (Iván, 21/10/2026). */
+function IncidenciasOT({ incidencias, cargando }: { incidencias?: DetalleMetricas["incidenciasOT"]; cargando?: boolean }) {
+  if (!incidencias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
+  return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
+    <div className="flex items-baseline gap-2" title="OF con algún «error en planteamiento» apuntado en RPS (corte, confección o soldadura), sobre las OF pasadas en el periodo. Cada OF cuenta una vez.">
+      <strong className="text-2xl leading-none font-bold tabular-nums">{incidencias.total}</strong>
+      <span className="text-xs font-semibold tabular-nums text-text-muted">{sobre(incidencias.total, incidencias.base)}</span>
+      <span className="text-[10px] text-text-muted">de {incidencias.base} OF pasadas</span>
+    </div>
+    <Ranking filas={incidencias.porFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} OF pasadas` }))} color={COLOR_DEVUELTA} vacio="Sin errores de planteamiento en este periodo." />
   </div>;
 }
 
-/** Una familia que se abre para ver el desglose: mis correcciones (por causa)
- *  y mis incidencias (por tipo). */
-function PorFamiliaAbrible({ familias, color, vacio }: { familias: { familia: string; n: number; detalle: { etiqueta: string; n: number }[] }[]; color: string; vacio: string }) {
+/** Una familia que se abre para ver el desglose por causa: mis correcciones
+ *  y el motivo de devolución por familia. */
+function PorFamiliaAbrible({ familias, color, vacio }: { familias: { familia: string; n: number; pct?: string; base?: number; detalle: FilaRanking[] }[]; color: string; vacio: string }) {
   if (!familias.length) return <p className="py-2 text-[11px] text-text-muted">{vacio}</p>;
   const max = Math.max(...familias.map((f) => f.n));
+  const conPct = familias.some((f) => f.pct !== undefined);
   return <div className="space-y-1">
     {familias.map((f) => <details key={f.familia} className="group rounded-md border border-border open:border-border-strong">
-      <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto] items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 group-open:text-brand-800 dark:group-open:text-brand-300 [&::-webkit-details-marker]:hidden">
+      <summary className={`grid cursor-pointer list-none ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 group-open:text-brand-800 dark:group-open:text-brand-300 [&::-webkit-details-marker]:hidden`} title={f.base !== undefined ? `${nombreFamilia(f.familia)}: ${f.n} de ${f.base} OF` : undefined}>
         <span className="flex min-w-0 items-center gap-1"><span aria-hidden="true" className="inline-block text-[8px] text-text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span><span className="truncate">{nombreFamilia(f.familia)}</span></span>
         <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span>
         <strong className="min-w-4 text-right tabular-nums">{f.n}</strong>
+        {conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}
       </summary>
       <div className="mx-1.5 mb-1.5 border-l-2 border-border py-1 pl-2"><Ranking filas={f.detalle} color={color} vacio="Sin detalle." /></div>
     </details>)}
@@ -229,7 +238,7 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa }: { anio: strin
   if (!detalle) return <Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio>;
   const p = detalle.personal;
   const filas = delAnio(anio, p.meses);
-  const sumaAnio = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => p.meses.reduce((s, x) => s + x[k], 0);
+  const sumaAnio = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => p.meses.reduce((s, x) => s + (x[k] ?? 0), 0);
   const delPeriodo = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => mes ? p.meses.find((x) => x.mes === mes)?.[k] ?? 0 : sumaAnio(k);
   // UNA gráfica para todo lo mío (21/10/2026): las incidencias iban en otra
   // aparte y no cabía la pantalla.
@@ -245,8 +254,8 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa }: { anio: strin
     <div className="grid gap-3 border-t border-border pt-2.5 sm:grid-cols-2">
       <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title="OF distintas que te devolvieron, por familia. Abre una para ver las causas.">Mis correcciones · {p.correcciones}</h4>
         <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} /></div>
-      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title="Incidencias de RPS en las OF que planteaste tú (quien más tiempo de OT fichó en ellas), de cualquier tipo. Abre una familia para ver de qué tipo fueron.">Mis incidencias · {p.incidencias ?? "—"}</h4>
-        {p.incidencias === null ? <p className="py-2 text-[11px] text-text-muted">Datos de RPS no disponibles.</p> : <PorFamiliaAbrible color={COLOR_DEVUELTA} vacio={`Sin incidencias en tus OF este ${unidad}.`} familias={p.incidenciasPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porTipo.map((t) => ({ etiqueta: t.tipo.charAt(0) + t.tipo.slice(1).toLowerCase(), n: t.n })) }))} />}</div>
+      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title={`Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT), sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>Mis incidencias · {p.incidencias ?? "—"}{p.incidencias !== null && <span className="font-normal normal-case tracking-normal"> · {sobre(p.incidencias, p.entregadas)} de {p.entregadas}</span>}</h4>
+        {p.incidencias === null ? <p className="py-2 text-[11px] text-text-muted">Datos de RPS no disponibles.</p> : !p.incidenciasPorFamilia.length ? <p className="py-2 text-[11px] text-text-muted">{`Sin incidencias en tus OF este ${unidad}.`}</p> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}</div>
     </div>
   </div>;
 }
@@ -277,14 +286,14 @@ function Meses({ anio, meses, mes }: { anio: string; meses: MesMetricas[]; mes: 
   const filas = delAnio(anio, meses);
   // La cantidad de cada línea en la leyenda (Iván, 21/10/2026): la del mes
   // elegido, o la del año si se mira el año entero.
-  const cuenta = (k: "planteos" | "revisiones" | "devoluciones" | "sinRevision") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
+  // Sin «pasadas sin revisión» (Iván, 21/10/2026): ya sale en Mis datos.
+  const cuenta = (k: "planteos" | "revisiones" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
   return <MetricasGrafica titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
-    puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? [fila.planteos, fila.revisiones, fila.devoluciones, fila.sinRevision] : [null, null, null, null] }))}
+    puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? [fila.planteos, fila.revisiones, fila.devoluciones] : [null, null, null] }))}
     series={[
       { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") },
       { etiqueta: "Revisadas", color: SERIES[1].color, valor: cuenta("revisiones") },
       { etiqueta: "Devoluciones", color: COLOR_DEVUELTA, valor: cuenta("devoluciones") },
-      { etiqueta: "Pasadas sin revisión", color: COLOR_SIN_REVISION, valor: cuenta("sinRevision") },
     ]} />;
 }
 /** Los cinco tramos del ciclo (Iván, 21/10/2026), en el orden en que pasan,
@@ -314,8 +323,11 @@ function Recorrido({ m, aprobacion }: { m: Metricas; aprobacion: { n: number; me
     <p className="border-t border-border pt-1.5 text-[10px] text-text-muted" title="El reloj cuenta noches y fines de semana; «fichados» es el tiempo fichado en la web. «Normal» es la OF del medio: ni la más rápida ni la que se quedó olvidada.">Ciclo entero hasta aprobarse: <strong className="text-text">{tiempo(aprobacion.medianaMin)}</strong> · {aprobacion.n} ciclos</p>
   </div>;
 }
-function Ranking({ filas, color, vacio }: { filas: { etiqueta: string; n: number }[]; color: string; vacio: string }) {
+/** `pct` va en su propia columna para que los % queden alineados. */
+interface FilaRanking { etiqueta: string; n: number; pct?: string; titulo?: string }
+function Ranking({ filas, color, vacio }: { filas: FilaRanking[]; color: string; vacio: string }) {
   if (!filas.length) return <Vacio>{vacio}</Vacio>;
   const max = Math.max(...filas.map((f) => f.n));
-  return <div className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1" aria-label="Ordenado por frecuencia">{filas.map((f) => <div key={f.etiqueta} className="grid grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto] items-center gap-2 text-[11px]" title={`${f.etiqueta}: ${f.n}`}><span className="truncate">{f.etiqueta}</span><span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong></div>)}</div>;
+  const conPct = filas.some((f) => f.pct !== undefined);
+  return <div className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1" aria-label="Ordenado por frecuencia">{filas.map((f) => <div key={f.etiqueta} className={`grid ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 text-[11px]`} title={f.titulo ?? `${f.etiqueta}: ${f.n}`}><span className="truncate">{f.etiqueta}</span><span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong>{conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}</div>)}</div>;
 }

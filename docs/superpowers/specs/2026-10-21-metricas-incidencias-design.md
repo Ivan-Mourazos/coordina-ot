@@ -26,11 +26,13 @@ Fecha: 21/10/2026 · Pedido por Iván.
 - **Quién pasó una OF y cuándo.** Si la OF (número de orden) tiene registro en
   Coordina —entregada a revisión o dada por buena—, manda Coordina: autor =
   quien la entregó por última vez, fecha = la de la entrega. Si no lo tiene y
-  su tarea de OT se cerró en RPS **antes del 1 de agosto de 2026**
-  (`INICIO_METRICAS`), se usa RPS: fecha = cierre de la tarea de OT (fase
+  su tarea de OT se cerró en RPS **antes del 1 de septiembre de 2026**
+  (`COORDINA_EN_USO`), se usa RPS: fecha = cierre de la tarea de OT (fase
   cerrada en OLANET o `RealEndDate`), autor = quien más fichó de OT
   (`TGM_FICHAJES_OT`). Sin registro y cerrada después: no cuenta (de OT no
-  debería haber OF cerradas fuera de Coordina).
+  debería haber OF cerradas fuera de Coordina). Agosto entra en el rescate
+  porque Coordina aún iba a medias: 185 OF entregadas en Coordina frente a 363
+  cerradas en RPS; septiembre ya cuadra (363 frente a 392).
 - **De quién es una incidencia.** Del autor que diga Coordina para esa orden;
   si la orden no tiene registro, del de RPS. Sin autor, cuenta para el equipo
   y para nadie en particular.
