@@ -499,6 +499,10 @@ export interface Pedido {
    *  pedido ahora, y en cuanto esas OF se resuelvan el pedido vuelve solo a
    *  estar completado. undefined = no le ha pasado (el caso normal). */
   reabiertoPor?: string[];
+  /** Ha vuelto porque alguien lo recuperó desde el Historial ("Volver a
+   *  plantear el pedido"), y no por una OF nueva. Solo entonces se ofrece
+   *  "Devolver al Historial". Lo deduce `aplicarOverlay`. */
+  recuperado?: boolean;
   fechaSolicitud: string; // ISO yyyy-mm-dd
   /** Fecha ISO yyyy-mm-dd en la que se creó el pedido de venta en RPS
    *  (FACOrderSL.OrderDate). undefined = sin dato (mock, OF sin pedido). */

@@ -1531,7 +1531,37 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
     if (c) ofs.set(c.ofId, c);
   }
   const pasos = leerPedidosPasados(seccion);
-  return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos };
+  const recuperados = new Set(
+    (db
+      .prepare("SELECT DISTINCT pedido FROM of_retenida WHERE seccion = ? AND motivo = 'recuperada'")
+      .all(seccion) as Array<{ pedido: string }>).map((f) => f.pedido),
+  );
+  return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos, recuperados };
+}
+
+/** Cómo estaban las OF de un pedido recuperado JUSTO ANTES de recuperarlo,
+ *  por id. Sale del `previos` del último `recuperar_pedido` del log que tocó
+ *  todas esas OF. Una OF sin fila en el overlay antes de recuperar no sale
+ *  (no había nada guardado que devolverle). */
+export function previosDeRecuperacion(ofIds: readonly string[]): Map<string, CambioOF> {
+  const salida = new Map<string, CambioOF>();
+  if (ofIds.length === 0) return salida;
+  const filas = abrir()
+    .prepare("SELECT detalle FROM acciones_log WHERE motivo = 'recuperar_pedido' ORDER BY id DESC")
+    .all() as Array<{ detalle: string }>;
+  for (const f of filas) {
+    let d: { cambiosOF?: CambioOF[]; previos?: CambioOF[] } | null;
+    try {
+      d = JSON.parse(f.detalle) as { cambiosOF?: CambioOF[]; previos?: CambioOF[] } | null;
+    } catch {
+      continue;
+    }
+    const tocadas = new Set((d?.cambiosOF ?? []).map((c) => c.ofId));
+    if (!ofIds.every((id) => tocadas.has(id))) continue;
+    for (const p of d?.previos ?? []) if (ofIds.includes(p.ofId)) salida.set(p.ofId, p);
+    return salida;
+  }
+  return salida;
 }
 
 /** El overlay de solo estas OF, sin barrer `of_overlay` entera.
