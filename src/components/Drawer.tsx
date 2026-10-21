@@ -46,7 +46,7 @@ import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
-import { botonPlantear } from "@/lib/herramientas";
+import { botonPlantear, type ModoPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -74,6 +74,33 @@ import { DevolverAlHistorial } from "./DevolverAlHistorial";
  *  mientras vuelve a revisión, el revisor la quiere delante para comprobar
  *  que se corrigió lo que pidió. */
 const NOTA_YA_CORREGIDA: ReadonlySet<EstadoOF> = new Set(["aprobada"]);
+
+/** Rótulo, ayuda y color del botón de Planteamientos TGM según lo que toque
+ *  (ver `botonPlantear`). El color va por quién trabaja: el autor (plantear y
+ *  corregir) en el del autor y revisar en el del revisor. «Abrir» va NEUTRO
+ *  (Iván, 21/10/2026): no hay trabajo de nadie, solo consultar. */
+const BOTON_PLANTEAR: Record<ModoPlantear, { texto: string; ayuda: string; color: string }> = {
+  plantear: {
+    texto: "Plantear",
+    ayuda: "Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña",
+    color: `boton-3d ${ROL.plantear.solido}`,
+  },
+  corregir: {
+    texto: "Corregir",
+    ayuda: "Abre Planteamientos TGM en Pedidos con este pedido abierto para corregir lo devuelto, en otra pestaña",
+    color: `boton-3d ${ROL.plantear.solido}`,
+  },
+  revisar: {
+    texto: "Revisar",
+    ayuda: "Abre Planteamientos TGM en Pedidos con este pedido abierto para revisarlo, en otra pestaña",
+    color: `boton-3d ${ROL.revisar.solido}`,
+  },
+  abrir: {
+    texto: "Abrir",
+    ayuda: "Abre Planteamientos TGM en Pedidos con este pedido a la vista, en otra pestaña",
+    color: "chip-3d text-text",
+  },
+};
 
 const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
   "terminar_planteo",
@@ -651,9 +678,10 @@ export function Drawer({
   // En solo lectura no: abre la herramienta donde se TRABAJA el planteo, y
   // Dirección no plantea (aunque no escriba en CoordinaOT, es un botón de
   // hacer, no de mirar).
-  // Mandado a revisión, el botón pasa a «Revisar» y abre el pedido en Pedidos
-  // de aquella web (ver `botonPlantear`).
-  const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs);
+  // El rótulo dice lo que toca —Plantear, Corregir, Revisar o Abrir— y, salvo
+  // para plantear, abre el pedido en Pedidos de aquella web (ver
+  // `botonPlantear`). Con `miId`, «Corregir» solo le sale al autor.
+  const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs, miId);
 
   return (
     <MarcoFicha
@@ -722,14 +750,10 @@ export function Drawer({
                   href={plantear.url}
                   target="_blank"
                   rel="noreferrer"
-                  title={
-                    plantear.modo === "revisar"
-                      ? "Abre Planteamientos TGM en Pedidos con este pedido abierto para revisarlo, en otra pestaña"
-                      : "Abre Planteamientos TGM con este pedido ya cargado, en otra pestaña"
-                  }
-                  className={`boton-3d ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${plantear.modo === "revisar" ? ROL.revisar.solido : ROL.plantear.solido}`}
+                  title={BOTON_PLANTEAR[plantear.modo].ayuda}
+                  className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${BOTON_PLANTEAR[plantear.modo].color}`}
                 >
-                  {plantear.modo === "revisar" ? "Revisar" : "Plantear"}
+                  {BOTON_PLANTEAR[plantear.modo].texto}
                   <span aria-hidden="true">↗</span>
                 </a>
               )}

@@ -107,32 +107,56 @@ export function enlacePlantear(codigo: string, familias: readonly string[]): str
   return `${base}?pedido=${encodeURIComponent(codigo.replace(/[.\s]/g, ""))}`;
 }
 
-// ─── Plantear o Revisar (Iván, 19/10/2026) ───────────────────────────────────
-// Cuando el pedido ya se mandó a revisión, lo que toca en Planteamientos TGM ya
-// no es plantearlo sino revisarlo: el botón cambia de nombre y abre allí Pedidos
-// con ese pedido abierto (`?revisar=`).
+// ─── Plantear, Revisar, Corregir o Abrir (Iván, 19/10 y 21/10/2026) ──────────
+// Al principio el botón solo sabía Plantear o Revisar, y con un pedido
+// devuelto, aprobado o ya generado salía «Plantear»: invitaba a plantear otra
+// vez algo que ya estaba hecho. Ahora dice lo que toca. La dirección sigue la
+// misma regla: `?pedido=` solo para plantear —es lo que carga el formulario— y
+// `?revisar=` para todo lo demás, que en aquella web abre el pedido en su
+// bandeja de Pedidos, a la vista. Allí es la propia web la que decide quién
+// puede corregir (solo el autor, y solo si está devuelto o nadie lo ha
+// empezado a revisar).
+
+/** Qué hace el botón de la ficha del pedido en Planteamientos TGM. */
+export type ModoPlantear = "plantear" | "revisar" | "corregir" | "abrir";
 
 /** Estados en que la OF espera al revisor. */
 const EN_REVISION: ReadonlySet<string> = new Set(["por_revisar", "en_revision"]);
-/** Estados en que la OF ya no se planta ni se revisa. */
-const FUERA: ReadonlySet<string> = new Set(["aprobada", "anulada"]);
+/** Estados en que la OF ya entró en revisión: lo que NO queda por plantear. */
+const YA_EN_REVISION: ReadonlySet<string> = new Set([...EN_REVISION, "aprobada"]);
 
-/** El botón de la ficha del pedido: Plantear o Revisar, con su dirección.
+/** El botón de la ficha del pedido, con su dirección. Se decide en este orden:
  *
- *  Revisar solo cuando NO queda nada por plantear: si una OF sigue en curso o
- *  devuelta, el autor aún tiene trabajo allí y el botón es suyo. Solo cuentan
- *  las OF de toldo y remolque, que son las que aquella web plantea. */
+ *  1. Corregir: alguna OF devuelta. Es lo más urgente y lo que más confundía.
+ *  2. Plantear: alguna OF que aún no ha entrado en revisión (pendiente o en
+ *     curso). Mientras quede algo por plantear, el autor tiene trabajo allí.
+ *  3. Revisar: alguna por revisar o en revisión.
+ *  4. Abrir: todas aprobadas; ya solo queda consultarlo.
+ *
+ *  Solo cuentan las OF de toldo y remolque, que son las que aquella web
+ *  plantea, y nunca las anuladas, que no se hacen.
+ *
+ *  «Corregir» es cosa del autor: si se sabe quién mira (`miId`) y quién es el
+ *  autor de las OF devueltas, a los demás les sale «Abrir», con la misma
+ *  dirección. Si falta cualquiera de los dos datos se deja «Corregir»: mejor
+ *  un rótulo de más que esconderle al autor que tiene algo que corregir. */
 export function botonPlantear(
   codigo: string,
-  ofs: readonly { familia: string; estado: string }[],
-): { modo: "plantear" | "revisar"; url: string } | null {
+  ofs: readonly { familia: string; estado: string; autorId?: string | null }[],
+  miId?: string | null,
+): { modo: ModoPlantear; url: string } | null {
   const url = enlacePlantear(codigo, ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia));
   if (!url) return null;
+  const urlRevisar = url.replace("?pedido=", "?revisar=");
   const suyas = ofs.filter((o) => FAMILIAS_PLANTEABLES.has(o.familia) && o.estado !== "anulada");
-  const revisar =
-    suyas.some((o) => EN_REVISION.has(o.estado)) &&
-    suyas.every((o) => EN_REVISION.has(o.estado) || FUERA.has(o.estado));
-  return revisar
-    ? { modo: "revisar", url: url.replace("?pedido=", "?revisar=") }
-    : { modo: "plantear", url };
+
+  const devueltas = suyas.filter((o) => o.estado === "devuelta");
+  if (devueltas.length > 0) {
+    // Basta con que UNA devuelta sea de quien mira, o no se sepa de quién es.
+    const esSuya = devueltas.some((o) => !miId || !o.autorId || o.autorId === miId);
+    return { modo: esSuya ? "corregir" : "abrir", url: urlRevisar };
+  }
+  if (suyas.some((o) => !YA_EN_REVISION.has(o.estado))) return { modo: "plantear", url };
+  if (suyas.some((o) => EN_REVISION.has(o.estado))) return { modo: "revisar", url: urlRevisar };
+  return { modo: "abrir", url: urlRevisar };
 }
