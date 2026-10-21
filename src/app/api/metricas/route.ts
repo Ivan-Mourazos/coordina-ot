@@ -105,7 +105,10 @@ export async function GET(req: Request) {
       const meses: string[] = [];
       for (let mes = `${anio}-01`; mes <= periodoGrafica.hasta.slice(0, 7); mes = sumarDias(`${mes}-28`, 4).slice(0, 7)) meses.push(mes);
       detalle = calcularDetalleMetricas(movs, historico, porFamilia, rps, yo, periodoRps, meses, familias.status === "fulfilled");
-      detalle.personal.meses = calcularDetalleMetricas(movimientosGrafica, historico, porFamilia, rps, yo, periodoAnio, meses, familias.status === "fulfilled").personal.meses;
+      const delAnio = calcularDetalleMetricas(movimientosGrafica, historico, porFamilia, rps, yo, periodoAnio, meses, familias.status === "fulfilled");
+      detalle.personal.meses = delAnio.personal.meses;
+      // El total, del periodo pedido; los meses, del año entero de la gráfica.
+      detalle.equipoRps = { ofs: detalle.equipoRps.ofs, meses: delAnio.equipoRps.meses };
     }
     return NextResponse.json(
       {
