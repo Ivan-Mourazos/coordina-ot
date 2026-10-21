@@ -81,9 +81,13 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   const [fallo, setError] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
   const clave = JSON.stringify([desde, hasta, seccion, miId, intento]);
-  const datos = resultado?.clave === clave ? resultado.datos : null;
-  const previo = resultadoPrevio?.clave === clave ? resultadoPrevio.datos : null;
   const error = fallo === clave;
+  // Al cambiar de mes se sigue enseñando lo anterior, atenuado, hasta que
+  // llega lo nuevo (Iván, 21/10/2026): vaciar la pantalla la encogía y volvía
+  // a crecer, y despistaba.
+  const datos = error ? null : resultado?.datos ?? null;
+  const previo = resultadoPrevio?.datos ?? null;
+  const actualizando = !!datos && resultado?.clave !== clave;
   const etiquetaAnio = useId();
   const etiquetaMes = useId();
   const contenedor = useRef<HTMLDivElement>(null);
@@ -117,7 +121,9 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
     let detalleCargado = false;
     pedir({ desde, hasta }).then((d) => {
       if (!controlador.signal.aborted) {
-        setDatos((actual) => actual?.clave === clave && actual.datos.detalle ? actual : { clave, datos: { ...d, detalleCargando: !detalleTerminado } });
+        // El detalle del periodo anterior se queda, atenuado, mientras RPS
+        // contesta; si ya falló, fuera, para no hacerlo pasar por el nuevo.
+        setDatos((actual) => actual?.clave === clave && actual.datos.detalle ? actual : { clave, datos: { ...d, detalle: detalleTerminado ? undefined : actual?.datos.detalle, detalleCargando: !detalleTerminado } });
         setError(null);
       }
     }).catch(() => { if (!controlador.signal.aborted && !detalleCargado) setError(clave); });
@@ -127,7 +133,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
       if (!controlador.signal.aborted) { setDatos({ clave, datos: d }); setError(null); }
     }).catch(() => {
       detalleTerminado = true;
-      if (!controlador.signal.aborted) setDatos((actual) => actual?.clave === clave ? { clave, datos: { ...actual.datos, detalleCargando: false } } : actual);
+      if (!controlador.signal.aborted) setDatos((actual) => actual?.clave === clave ? { clave, datos: { ...actual.datos, detalle: undefined, detalleCargando: false } } : actual);
     });
     const antes = periodoAnterior(desde, hasta);
     (antes ? pedir(antes).catch(() => null) : Promise.resolve(null)).then((d) => { if (!controlador.signal.aborted) setPrevio({ clave, datos: d }); });
@@ -140,6 +146,9 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   const prop = m ? proporcionDevueltas(m) : null;
   const causa = (id: number | null) => id === null ? "Otra cosa o sin causa" : datos?.causas.find((c) => c.id === id)?.etiqueta ?? `Causa ${id}`;
   const frente = `frente al ${unidad} anterior`;
+  // Lo de RPS tarda más que los totales: sus paneles siguen atenuados con lo
+  // del periodo anterior hasta que llega lo suyo.
+  const detalleViejo = !actualizando && !!datos?.detalleCargando && !!datos.detalle;
 
   return (
     <div ref={contenedor} className="metricas-vista flex flex-col gap-2.5 text-text" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 100px)" } as CSSProperties}>
@@ -157,7 +166,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
       {error && <ErrorCarga mensaje="No se pudieron cargar las métricas." onReintentar={() => setIntento((v) => v + 1)} />}
       {!datos && !error && <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">Contando…</p>}
       {m && c && <>
-      <div className="metricas-cuadricula grid items-start gap-2.5 xl:grid-cols-[minmax(250px,.95fr)_minmax(290px,1.2fr)_minmax(400px,1.85fr)]">
+      <div aria-busy={actualizando} className={`metricas-cuadricula grid items-start gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-[minmax(250px,.95fr)_minmax(290px,1.2fr)_minmax(400px,1.85fr)] ${atenuado(actualizando)}`}>
         <div className="metricas-columna metricas-indicadores grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           <Panel titulo="Resumen" extra={etiquetaPeriodo}>
             <div className="grid gap-2">
@@ -169,12 +178,12 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
           <Panel titulo="Cuánto tarda cada paso" extra="tiempo normal"><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-          <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} /></Panel>
-          {seccion === "ot" && <Panel titulo="Incidencias OT" extra={etiquetaPeriodo}><IncidenciasOT incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
+          <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>
+          {seccion === "ot" && <Panel titulo="Incidencias OT" extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasOT incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
           <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} /></Panel>
-          <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} /></Panel>
+          <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} /></Panel>
         </div>
       </div>
       </>}
@@ -184,7 +193,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
 
 /** Por causa o por familia. «Por paso» de la guía se quitó (Iván,
  *  21/10/2026): sobraba aquí. */
-function PorQueVuelven({ devueltas, causa, porFamilia, cargando }: { devueltas?: Devueltas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean }) {
+function PorQueVuelven({ devueltas, causa, porFamilia, cargando, detalleViejo = false }: { devueltas?: Devueltas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean; detalleViejo?: boolean }) {
   const [vista, setVista] = useState<"causa" | "tipo">("causa");
   return <div className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
     {/* La misma tira que el resto de la web (Revisión, Visitas): la bandeja
@@ -194,7 +203,7 @@ function PorQueVuelven({ devueltas, causa, porFamilia, cargando }: { devueltas?:
     </div>
     {vista === "causa"
       ? devueltas ? <Ranking filas={devueltas.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, devueltas.entregadas), titulo: `${causa(x.id)}: ${x.n} OF devueltas de ${devueltas.entregadas} entregadas a revisión` }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /> : <Vacio>Contando…</Vacio>
-      : porFamilia ? <div className="scroll-thin min-h-0 overflow-y-auto pr-1"><PorFamiliaAbrible color={SERIES[1].color} vacio="Sin devoluciones en este periodo."
+      : porFamilia ? <div aria-busy={detalleViejo} className={`scroll-thin min-h-0 overflow-y-auto pr-1 transition-opacity duration-200 motion-reduce:transition-none ${atenuado(detalleViejo)}`}><PorFamiliaAbrible color={SERIES[1].color} vacio="Sin devoluciones en este periodo."
         familias={porFamilia.filter((f) => f.devueltas > 0).map((f) => ({ familia: f.familia, n: f.devueltas, pct: sobre(f.devueltas, f.entregadas), base: f.entregadas, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, f.entregadas) })) }))} /></div>
         : <Vacio>{cargando ? "Consultando familias…" : "No se pudieron consultar las familias. Prueba a recargar."}</Vacio>}
   </div>;
@@ -260,8 +269,11 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa }: { anio: strin
   </div>;
 }
 
-function Panel({ titulo, extra, children }: { titulo: string; extra?: string; children: ReactNode }) {
-  return <section className="metricas-panel glass-panel flex min-h-0 min-w-0 flex-col rounded-xl p-3"><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className="metricas-panel-contenido flex min-h-0 flex-1 flex-col">{children}</div></section>;
+/** Atenuado mientras se cambia de periodo. Con retraso al entrar: si los
+ *  datos llegan enseguida no se ve parpadeo ninguno; al salir, al momento. */
+const atenuado = (si: boolean) => si ? "opacity-55 delay-150" : "opacity-100 delay-0";
+function Panel({ titulo, extra, actualizando = false, children }: { titulo: string; extra?: string; actualizando?: boolean; children: ReactNode }) {
+  return <section aria-busy={actualizando} className="metricas-panel glass-panel flex min-h-0 min-w-0 flex-col rounded-xl p-3"><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`metricas-panel-contenido flex min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
 }
 function Vacio({ children }: { children: ReactNode }) { return <p className="flex flex-1 items-center justify-center py-4 text-center text-xs text-text-muted">{children}</p>; }
 function Delta({ ahora, antes, puntos, frente }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string }) {
