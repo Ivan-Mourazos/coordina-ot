@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto, leerEleccion, NOTA_MAX } from "../planteamiento";
+import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto, leerEleccion, leerNotaCorreo, NOTA_MAX } from "../planteamiento";
 
 describe("nombres del planteamiento", () => {
   it("parte el código de pedido", () => {
@@ -52,6 +52,16 @@ describe("qué planteamiento va adjunto al correo", () => {
     expect(vaAdjunto("AR2605023-1.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("AR2605023-9.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("otro.pdf", "AR.26.05023")).toBe(false);
+  });
+});
+
+describe("la nota suelta del correo", () => {
+  it("se recorta y se limita; vacía o rara, sin nota", () => {
+    expect(leerNotaCorreo("  Ojo con la medida  ")).toBe("Ojo con la medida");
+    expect(leerNotaCorreo("x".repeat(NOTA_MAX + 50))).toHaveLength(NOTA_MAX);
+    expect(leerNotaCorreo("   ")).toBeUndefined();
+    expect(leerNotaCorreo(42)).toBeUndefined();
+    expect(leerNotaCorreo(undefined)).toBeUndefined();
   });
 });
 

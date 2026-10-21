@@ -62,7 +62,7 @@ import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
-import type { EleccionPase } from "@/lib/planteamiento";
+import { NOTA_MAX, type EleccionPase } from "@/lib/planteamiento";
 import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
@@ -1482,6 +1482,8 @@ export function Board({
       mandarCorreo?: boolean;
       /** Lo elegido a mano en el aviso de pasar; ausente = la norma. */
       planteamiento?: EleccionPase;
+      /** Nota del correo sin cambiar nada más (ver `leerNotaCorreo`). */
+      notaCorreo?: string;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2340,6 +2342,10 @@ export function Board({
   const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
   // «Cambiar lo que se imprime y se manda»: null = la norma, sin tocar nada.
   const [eleccionPase, setEleccionPase] = useState<EleccionPase | null>(null);
+  // La nota del correo va aparte de la elección y siempre a la vista: estaba
+  // dentro de «Cambiar lo que se imprime y se manda» y nadie la encontraba
+  // (Iván, 21/10/2026). Si hay elección, viaja dentro de ella.
+  const [notaCorreo, setNotaCorreo] = useState("");
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
@@ -2348,6 +2354,7 @@ export function Board({
       setImprimirAlPasar(true);
       setMandarCorreoAlPasar(true);
       setEleccionPase(null);
+      setNotaCorreo("");
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -2365,7 +2372,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2396,6 +2403,7 @@ export function Board({
         imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
         mandarCorreo: opciones?.mandarCorreo,
         planteamiento: opciones?.planteamiento,
+        notaCorreo: opciones?.notaCorreo,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -3243,6 +3251,19 @@ export function Board({
                 )}
                 </>
                 )}
+                {mandarCorreoAlPasar && !!vistaPlanteamiento.datos.correo && vistaPlanteamiento.datos.correo.modo !== "off" && (
+                  <label className="mt-3 block">
+                    <span className="mb-1 block text-text-muted">Nota para el correo (opcional, sale arriba)</span>
+                    <textarea
+                      rows={2}
+                      maxLength={NOTA_MAX}
+                      value={notaCorreo}
+                      onChange={(e) => setNotaCorreo(e.target.value)}
+                      placeholder="Alguna indicación para Producción"
+                      className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
+                    />
+                  </label>
+                )}
                 {mandarCorreoAlPasar && textoCaducidadSecreto(vistaPlanteamiento.datos) && (
                   <p role="alert" className="mt-2 font-semibold text-amber-800 dark:text-amber-300">
                     {textoCaducidadSecreto(vistaPlanteamiento.datos)}
@@ -3272,7 +3293,7 @@ export function Board({
           completarPedidoAhora(id, undefined, undefined, {
             imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : imprimirAlPasar,
             mandarCorreo: mandarCorreoAlPasar,
-            ...(eleccion ? { planteamiento: eleccion } : {}),
+            ...(eleccion ? { planteamiento: { ...eleccion, nota: notaCorreo } } : { notaCorreo }),
           });
         }}
         onCancelar={() => setPasarPendiente(null)}
