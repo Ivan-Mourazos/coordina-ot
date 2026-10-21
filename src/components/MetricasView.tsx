@@ -306,7 +306,7 @@ function Recorrido({ m, aprobacion }: { m: Metricas; aprobacion: { n: number; me
     </div>
     <ol className="grid gap-1">
       {tramos.map((x, i) => <li key={x.nombre} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-1 py-0.5" title={`${x.que}. ${x.tramo.n} medidas${x.trabajo ? ` · ${x.tramo.trabajo.n} con fichaje` : ""}.`}>
-        <span className="grid size-4 place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: x.color }}>{i + 1}</span>
+        <span className="grid size-4 place-items-center rounded-full text-[9px] font-bold" style={{ background: x.color, color: "var(--surface)" }}>{i + 1}</span>
         <span className="min-w-0 leading-tight"><span className="block text-[11px] font-semibold">{x.nombre}</span><span className="block truncate text-[10px] text-text-muted">{x.que}</span></span>
         <span className="text-right leading-tight"><strong className="block text-sm tabular-nums">{tiempo(x.tramo.medianaMin)}</strong>{x.trabajo && <span className="block text-[9px] text-text-muted">{tiempo(x.tramo.trabajo.medianaMin)} fichados</span>}</span>
       </li>)}
