@@ -31,6 +31,8 @@ describe("detalle de métricas", () => {
     expect(datos.metricas.volumen.ofEntregadas).toBe(1);
     expect(datos.cuadro.meses.map((m: { mes: string }) => m.mes)).toEqual(["2026-08", "2026-09"]);
     expect(datos.cuadro.tendencia).toHaveLength(2);
+    // Cada uno ve lo suyo: el reparto por técnico no sale de la API.
+    expect(datos.cuadro.porTecnico).toEqual([]);
     expect(datos.detalle.personal.entregadas).toBe(1);
     expect(datos.detalle.personal.correcciones).toBe(2);
     expect(datos.detalle.personal.incidencias).toBe(1);
