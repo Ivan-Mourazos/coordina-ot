@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "08a859f",
+    "hasta": "c3e59ea",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -20,6 +20,12 @@
         "titulo": "Con varias fases en tu panel, los avisos ya no se montan sobre la fecha",
         "detalle": "«Parte nuevo» y los demás avisos bajan a una segunda línea cuando la columna es estrecha, y la cuenta de OF ya no sale cortada.",
         "tanda": 7
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las métricas del equipo cuentan el año entero, no solo desde agosto",
+        "detalle": "Las OF terminadas y las realizadas suman también las que se cerraron en RPS antes de usar la web. Lo de revisión indica que cuenta desde agosto.",
+        "tanda": 8
       },
       {
         "tipo": "mejor",
@@ -83,6 +89,11 @@
         "titulo": "En Métricas, cambiar de mes o de año ya no hace saltar la pantalla",
         "detalle": "Mientras llegan las cifras nuevas se siguen viendo las de antes, un poco más apagadas.",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las gráficas de métricas marcan números redondos en el eje",
+        "tanda": 8
       }
     ]
   },
