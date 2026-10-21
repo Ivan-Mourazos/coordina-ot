@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-21",
+    "hasta": "e14882e",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Un pedido recuperado del Historial se puede devolver allí sin pasarlo",
+        "detalle": "En su ficha sale «Devolver al Historial». Sirve sobre todo si después Producción lo detiene y ya no se puede pasar.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-20",
     "hasta": "b6c0f71",
     "cambios": [
