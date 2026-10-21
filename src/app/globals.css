@@ -1515,7 +1515,6 @@ body {
     scrollbar-width: thin;
   }
   .metricas-panel-contenido > .metricas-datos { flex-shrink: 0; }
-  .metricas-adicional { max-height: 35%; overflow-y: auto; }
 }
 @media (min-width: 1280px) and (max-height: 850px) {
   .metricas-vista, .metricas-columna { gap: 10px; }

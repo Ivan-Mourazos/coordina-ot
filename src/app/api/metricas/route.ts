@@ -90,7 +90,9 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         metricas: calcularMetricas(movs, intervalos),
-        cuadro,
+        // Cada técnico ve lo suyo (Iván, 21/10/2026): el reparto por técnico
+        // no sale de aquí. Se sigue calculando para una vista del encargado.
+        cuadro: { ...cuadro, porTecnico: [] },
         entregas: contarEntregas(movs),
         ...(detalle ? { detalle } : {}),
         causas: leerCausasDevolucion(true),

@@ -6,7 +6,6 @@ import { INICIO_METRICAS, periodoAnterior, periodoDeMes, proporcionDevueltas, si
 import { sumarDias } from "@/lib/fechas";
 import type { CuadroMetricas } from "@/lib/metricas-cuadro";
 import { hoyISO, type Operario } from "@/lib/types";
-import { CAUSAS } from "@/lib/anulacion";
 import { fmtMin } from "@/lib/estado";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
@@ -128,10 +127,6 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
           <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre}><MisDatos detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} /></Panel>
         </div>
       </div>
-      <details className="metricas-adicional glass-panel shrink-0 rounded-xl px-4 py-2.5"><summary className="cursor-pointer text-xs font-semibold text-text-muted">Más datos del equipo</summary><div className="mt-3 grid max-h-48 gap-3 overflow-y-auto md:grid-cols-2">
-          <Panel titulo="Por qué se anulan" extra={`${m.anulaciones} anulaciones`}><Ranking filas={m.porCausaAnulacion.map((x) => ({ etiqueta: x.causa === null ? "Sin causa apuntada" : CAUSAS.find((c) => c.id === x.causa)?.label ?? x.causa, n: x.n }))} color="var(--text-muted)" vacio="Sin anulaciones en este periodo." /></Panel>
-          <Panel titulo="Por técnico"><Tecnicos cuadro={c} operarios={operarios} miId={miId} /></Panel>
-      </div></details>
       </>}
     </div>
   );
@@ -249,18 +244,4 @@ function Ranking({ filas, color, vacio }: { filas: { etiqueta: string; n: number
   if (!filas.length) return <Vacio>{vacio}</Vacio>;
   const max = Math.max(...filas.map((f) => f.n));
   return <div className="scroll-thin grid min-h-0 content-start gap-2 overflow-y-auto pr-1" aria-label="Causas ordenadas por frecuencia">{filas.map((f) => <div key={f.etiqueta} className="grid grid-cols-[minmax(0,1.3fr)_minmax(35px,1fr)_auto] items-center gap-2 text-[11px]" title={`${f.etiqueta}: ${f.n}`}><span>{f.etiqueta}</span><span className="recuadro h-2.5 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong></div>)}</div>;
-}
-function Tecnicos({ cuadro, operarios, miId }: { cuadro: CuadroMetricas; operarios: Operario[]; miId: string }) {
-  if (!cuadro.porTecnico.length) return <Vacio>Sin actividad de técnicos en este periodo.</Vacio>;
-  // No se ofrece planteo fichado: un intervalo identifica persona y OF, pero
-  // el registro del ciclo no delimita de forma fiable cada planteo completo.
-  return <div className="scroll-thin min-h-0 overflow-auto"><table className="w-full text-[11px] tabular-nums"><caption className="sr-only">Actividad por técnico: planteos entregados y revisiones hechas.</caption><thead><tr className="text-right text-[9px] font-semibold text-text-muted"><th className="pb-2 text-left font-semibold">Técnico</th><th className="px-2 pb-2 font-semibold" title="Entregas a revisión firmadas por esta persona">Planteos<br />entregados</th><th className="pb-2 pl-2 font-semibold" title="Inicios de revisión firmados por esta persona">Revisiones<br />hechas</th></tr></thead><tbody>{cuadro.porTecnico.map((p) => {
-    const o = operarios.find((o) => o.id === p.operarioId);
-    return <tr key={p.operarioId} className={`border-t border-border text-right ${p.operarioId === miId ? "font-bold" : ""}`}>
-      <th scope="row" className={`py-1 text-left ${p.operarioId === miId ? "font-bold" : "font-normal"}`}>
-        <span className="flex items-center gap-1.5"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[8px] font-bold text-white" style={{ background: o?.color ?? "var(--text-muted)" }}>{o?.iniciales ?? "?"}</span><span>{o?.nombre ?? p.operarioId}{p.operarioId === miId && " (tú)"}</span></span>
-      </th>
-      <td className="px-2">{p.planteos}</td><td className="pl-2">{p.revisiones}</td>
-    </tr>;
-  })}</tbody></table></div>;
 }
