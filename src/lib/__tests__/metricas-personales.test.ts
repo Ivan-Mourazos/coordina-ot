@@ -120,6 +120,8 @@ describe("incidencias de planteamiento", () => {
     // por RPS; Q es de cuando todo pasaba ya por Coordina.
     expect(d.incidenciasOT?.base).toBe(3);
     expect(d.personal.entregadas).toBe(3);
+    // Para el equipo, las que suma RPS a las de Coordina: P y R, por mes.
+    expect(d.equipoRps).toEqual({ ofs: 2, meses: { "2026-07": 1, "2026-08": 1 } });
     expect(d.personal.meses).toEqual([
       { mes: "2026-07", entregadas: 1, sinRevision: null, correcciones: null, incidencias: 0 },
       { mes: "2026-08", entregadas: 2, sinRevision: 0, correcciones: 0, incidencias: 0 },

@@ -149,6 +149,11 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   // Lo de RPS tarda más que los totales: sus paneles siguen atenuados con lo
   // del periodo anterior hasta que llega lo suyo.
   const detalleViejo = !actualizando && !!datos?.detalleCargando && !!datos.detalle;
+  // Lo de revisar (entregas, devoluciones, tiempos) solo existe desde que se
+  // usa la web: en un periodo que empieza antes, se dice desde cuándo cuenta.
+  // Las OF terminadas sí van completas, con las que se cerraron en RPS.
+  const soloDesdeWeb = desde < INICIO_METRICAS ? `Desde ${nombreMes(INICIO_METRICAS.slice(0, 7))}` : null;
+  const ofsRps = datos?.detalle?.equipoRps.ofs ?? 0;
 
   return (
     <div ref={contenedor} className="metricas-vista flex flex-col gap-2.5 text-text" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 100px)" } as CSSProperties}>
@@ -170,19 +175,19 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
         <div className="metricas-columna metricas-indicadores grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           <Panel titulo="Resumen" extra={etiquetaPeriodo}>
             <div className="grid gap-2">
-              <Cifra titulo="OF terminadas" valor={String(m.volumen.ofTerminadas)} detalle={`${m.volumen.terminadas} cierres · OF distintas en el ${unidad}`} delta={<Delta ahora={m.volumen.ofTerminadas} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
-              <Cifra titulo="Entregadas a revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined} detalle={`OF distintas entregadas a revisión; el % es sobre el total de OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} />} />
-              <Cifra titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} />} />
+              <Cifra titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)} detalle={`OF distintas en el ${unidad}: ${m.volumen.ofTerminadas} cerradas en la web${ofsRps ? ` y ${ofsRps} que OT cerró en RPS antes de usarla` : ""}.`} delta={<Delta ahora={m.volumen.ofTerminadas + ofsRps} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
+              <Cifra titulo="Entregadas a revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined} detalle={`OF distintas entregadas a revisión; el % es sobre el total de OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />
+              <Cifra titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />
             </div>
           </Panel>
-          <Panel titulo="Cuánto tarda cada paso" extra="tiempo normal"><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>
+          <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>
           {seccion === "ot" && <Panel titulo="Incidencias OT" extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasOT incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
-          <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} /></Panel>
+          <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} /></Panel>
           <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} /></Panel>
         </div>
       </div>
@@ -276,8 +281,8 @@ function Panel({ titulo, extra, actualizando = false, children }: { titulo: stri
   return <section aria-busy={actualizando} className="metricas-panel glass-panel flex min-h-0 min-w-0 flex-col rounded-xl p-3"><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`metricas-panel-contenido flex min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
 }
 function Vacio({ children }: { children: ReactNode }) { return <p className="flex flex-1 items-center justify-center py-4 text-center text-xs text-text-muted">{children}</p>; }
-function Delta({ ahora, antes, puntos, frente }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string }) {
-  if (ahora === null || antes === null || !Number.isFinite(antes)) return <span>Sin comparación</span>;
+function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string; sinDato?: string | null }) {
+  if (ahora === null || antes === null || !Number.isFinite(antes)) return <span>{sinDato ?? "Sin comparación"}</span>;
   const diferencia = ahora - antes;
   const valor = puntos ? `${Math.abs(diferencia).toFixed(1).replace(".", ",")} puntos` : antes === 0 ? String(Math.abs(diferencia)) : `${Math.round(Math.abs(diferencia / antes) * 100)} %`;
   return <span title={`Antes: ${puntos ? `${Math.round(antes)} %` : antes}. Los mismos días si el periodo está en curso.`}><strong className="font-semibold text-text">{diferencia === 0 ? "=" : diferencia > 0 ? "▲" : "▼"} {valor}</strong> <span>{frente}</span></span>;
@@ -294,16 +299,22 @@ function Cifra({ titulo, valor, extra, detalle, delta }: { titulo: string; valor
     <div className="min-w-0 text-[10px] leading-tight text-text-muted"><div className="truncate font-semibold uppercase tracking-[.06em] text-text">{titulo}</div><div className="truncate">{delta}</div></div>
   </div>;
 }
-function Meses({ anio, meses, mes }: { anio: string; meses: MesMetricas[]; mes: string }) {
+/** «Realizadas» suma las OF que OT cerró en RPS antes de usar la web (`rps`,
+ *  llega con el detalle): sin ellas el año empezaba en agosto (Iván,
+ *  21/10/2026). Revisadas y devoluciones no existían antes: sin línea. */
+function Meses({ anio, meses, mes, rps }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number> }) {
   const filas = delAnio(anio, meses);
+  const realizadas = (m: string, fila: MesMetricas | null) =>
+    fila || rps?.[m] ? (fila?.planteos ?? 0) + (rps?.[m] ?? 0) : null;
   // La cantidad de cada línea en la leyenda (Iván, 21/10/2026): la del mes
   // elegido, o la del año si se mira el año entero.
   // Sin «pasadas sin revisión» (Iván, 21/10/2026): ya sale en Mis datos.
   const cuenta = (k: "planteos" | "revisiones" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
+  const deRps = mes ? rps?.[mes] ?? 0 : Object.entries(rps ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
   return <MetricasGrafica titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
-    puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? [fila.planteos, fila.revisiones, fila.devoluciones] : [null, null, null] }))}
+    puntos={filas.map(({ mes, fila }) => ({ mes, valores: [realizadas(mes, fila), fila?.revisiones ?? null, fila?.devoluciones ?? null] }))}
     series={[
-      { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") },
+      { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") + deRps },
       { etiqueta: "Revisadas", color: SERIES[1].color, valor: cuenta("revisiones") },
       { etiqueta: "Devoluciones", color: COLOR_DEVUELTA, valor: cuenta("devoluciones") },
     ]} />;

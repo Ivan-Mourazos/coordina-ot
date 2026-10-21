@@ -8,6 +8,14 @@ export interface SerieMetricas {
   valor?: number | string;
 }
 
+/** El paso de eje redondo (1, 2, 5, 10, 20, 25, 50…) que cubre `bruto`.
+ *  Siempre entero: son OF, no hay media OF. */
+export function pasoRedondo(bruto: number): number {
+  const magnitud = 10 ** Math.floor(Math.log10(Math.max(1, bruto)));
+  const opciones = magnitud >= 10 ? [1, 2, 2.5, 5, 10] : [1, 2, 5, 10];
+  return opciones.map((o) => o * magnitud).find((p) => p >= bruto) ?? 10 * magnitud;
+}
+
 /** Un eje compartido y valores reales, incluidos los meses sin actividad.
  *
  *  `null` es «no hay dato» —un mes que aún no ha llegado, o de antes de que la
@@ -35,7 +43,12 @@ export function MetricasGrafica({ puntos, series, titulo, resaltar }: {
     return () => observador.disconnect();
   }, [sinActividad]);
   const max = Math.max(1, ...puntos.flatMap((p) => p.valores.map((n) => n ?? 0)));
-  const techo = max <= 5 ? 6 : Math.ceil(max / 10) * 10;
+  // Marcas REDONDAS (0 · 100 · 200 · 300), unas cuatro. Antes el techo era el
+  // máximo redondeado a decenas y solo se marcaba la mitad: salían 165 y 330,
+  // que no se leen de un vistazo (Iván, 21/10/2026).
+  const paso = pasoRedondo(max / 4);
+  const techo = Math.ceil(max / paso) * paso;
+  const marcas = Array.from({ length: techo / paso + 1 }, (_, i) => i * paso);
   const derecha = ancho - 12;
   const x = (i: number) => puntos.length === 1 ? (34 + derecha) / 2 : 34 + i * (derecha - 34) / (puntos.length - 1);
   const y = (n: number) => alto - 22 - n / techo * (alto - 32);
@@ -60,7 +73,7 @@ export function MetricasGrafica({ puntos, series, titulo, resaltar }: {
     {sinActividad ? <p className="py-6 text-center text-xs text-text-muted">Sin actividad en este periodo.</p> :
       <div ref={contenedor} className="h-[var(--alto-grafica,144px)] w-full min-w-0 shrink-0"><svg viewBox={`0 0 ${ancho} ${alto}`} className="size-full overflow-visible" role="img" aria-label={`${titulo}. ${puntos.filter((p) => p.valores.some((v) => v !== null)).map((p) => `${p.mes}: ${series.map((s, i) => `${s.etiqueta} ${p.valores[i]}`).join(", ")}`).join("; ")}`}>
         {iResaltado >= 0 && <rect x={x(iResaltado) - medio} y={4} width={medio * 2} height={alto - 26} rx={4} fill="var(--surface-2)" opacity={0.7} />}
-        {[0, .5, 1].map((n) => <g key={n}><line x1="34" x2={derecha} y1={y(n * techo)} y2={y(n * techo)} stroke="var(--border)" strokeDasharray={n === 0 ? undefined : "3 5"} /><text x="26" y={y(n * techo) + 3} fill="var(--text-muted)" fontSize="9" textAnchor="end">{n * techo}</text></g>)}
+        {marcas.map((n) => <g key={n}><line x1="34" x2={derecha} y1={y(n)} y2={y(n)} stroke="var(--border)" strokeDasharray={n === 0 ? undefined : "3 5"} /><text x="26" y={y(n) + 3} fill="var(--text-muted)" fontSize="9" textAnchor="end">{n}</text></g>)}
         {series.map((s, j) => <g key={s.etiqueta}>
           {tramos(j).map((pts) => <polyline key={pts} points={pts} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
           {puntos.map((p, i) => p.valores[j] === null || p.valores[j] === undefined ? null : <circle key={p.mes} cx={x(i)} cy={y(p.valores[j]!)} r={i === iResaltado ? 3.5 : 2.5} fill={s.color}><title>{p.mes} · {s.etiqueta}: {p.valores[j]}</title></circle>)}

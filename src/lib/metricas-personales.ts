@@ -31,6 +31,11 @@ export interface DetalleMetricas {
     incidenciasPorFamilia: CuentaFamilia[];
   };
   familiasDisponibles: boolean;
+  /** Las OF que el EQUIPO cerró en RPS sin pasar por Coordina (antes de
+   *  COORDINA_EN_USO), para que «OF terminadas» y «Realizadas» del año no
+   *  empiecen en agosto. Solo volumen: antes de Coordina no hubo revisión
+   *  que contar. `meses` va por "2026-03". */
+  equipoRps: { ofs: number; meses: Record<string, number> };
 }
 
 /** Desde aquí toda OF de OT se pasa en Coordina. Agosto aún iba a medias:
@@ -152,9 +157,12 @@ export function calcularDetalleMetricas(
     }
   }
   const soyYo = (autorRps: string | null | undefined) => !!yo.codigoRps && autorRps === yo.codigoRps;
+  const equipoRps = { ofs: 0, meses: {} as Record<string, number> };
   for (const p of rps.pases) {
     if (p.fecha >= COORDINA_EN_USO || !enPeriodo(p.fecha, periodo) || autorCoordina.has(p.orden) || pasadas.has(p.orden)) continue;
     pasadas.set(p.orden, p.familia);
+    equipoRps.ofs++;
+    equipoRps.meses[p.fecha.slice(0, 7)] = (equipoRps.meses[p.fecha.slice(0, 7)] ?? 0) + 1;
     if (soyYo(p.autor)) {
       mias.add(p.orden);
       calendario.get(p.fecha.slice(0, 7))?.entregadas.add(p.orden);
@@ -185,6 +193,7 @@ export function calcularDetalleMetricas(
   return {
     porFamilia,
     familiasDisponibles,
+    equipoRps,
     incidenciasOT: rps.incidencias === null ? null : {
       total: delEquipo.size,
       base: pasadas.size,
