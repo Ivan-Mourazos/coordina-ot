@@ -56,6 +56,7 @@ import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
 import { subfamiliaAparte } from "@/lib/familia";
 import { Pista } from "./Pista";
 import { useSoloLectura } from "./SoloLectura";
+import { DevolverAlHistorial } from "./DevolverAlHistorial";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -739,7 +740,7 @@ export function Drawer({
       // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí
       // en todas las fichas, pasó al ⓘ junto al autor, en la cabecera.
       pie={
-        listoParaCompletar ? (
+        listoParaCompletar || (pedido.recuperado && !soloLectura) ? (
         <>
           {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
               botón está también en la fila del tablero y no puede preguntar
@@ -751,6 +752,11 @@ export function Drawer({
             >
               📦 Pasar a Producción
             </button>
+          )}
+          {/* Sobre todo para el recuperado que luego paran: así no se puede
+              pasar, y sin esto se quedaba en el panel (21/10/2026). */}
+          {!soloLectura && pedido.recuperado && (
+            <DevolverAlHistorial pedido={pedido.codigo} seccion={seccion.id} miId={miId} onDevuelto={onClose} />
           )}
         </>
         ) : undefined

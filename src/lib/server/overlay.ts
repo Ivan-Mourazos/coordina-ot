@@ -51,6 +51,9 @@ export interface Overlay {
   /** Ids de pedido marcados como completados (pasados a Producción). */
   pedidosCompletados: Set<string>;
   pasos?: ReadonlyMap<string, { at: string; ofIds?: readonly string[] }>;
+  /** Pedidos que se volvieron a plantear desde el Historial y siguen sin
+   *  pasarse otra vez (filas `recuperada` de `of_retenida`). */
+  recuperados?: ReadonlySet<string>;
 }
 
 export const ESTADOS_OF: ReadonlySet<string> = new Set([
@@ -149,11 +152,15 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
         ));
       }).map((of) => of.id) : [];
 
+      // Se puede devolver al Historial sin pasarlo (ver api/historial/
+      // [pedido]/devolver): sobre todo si Producción lo detuvo después.
+      const recuperado = reabiertoPor.length > 0 && overlay.recuperados?.has(p.id) === true;
       if (!completado && ofs.every((of, i) => of === p.ofs[i])) return p;
       return {
         ...p,
         situacion: situacionDe(p.situacion, completado, reabiertoPor.length > 0),
         ...(reabiertoPor.length > 0 ? { reabiertoPor } : {}),
+        ...(recuperado ? { recuperado } : {}),
         ofs,
       };
     }),
