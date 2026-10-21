@@ -1,12 +1,12 @@
 import sql from "mssql";
 import { getPool } from "./db";
 import { familiaDeTexto } from "./rps";
-import { codigoRpsDe } from "./operarios";
+import { sumarDias } from "../fechas";
 import { partirOfId } from "../bonos";
 import { PEDIDOS } from "../mock";
 import type { MovimientoRegistrado, Periodo } from "../metricas";
-import type { IncidenciaMetricas } from "../metricas-personales";
-import type { SeccionId } from "../secciones";
+import { COORDINA_EN_USO, type IncidenciaMetricas, type PaseRps } from "../metricas-personales";
+import { SECCIONES, recursosSql, type SeccionId } from "../secciones";
 
 interface FilaFamilia { orden: string; descripcion: string | null; grupo: string | null; subfamilia: string | null; cliente: string | null }
 const familiaDe = (f: FilaFamilia) => familiaDeTexto(f.descripcion, f.grupo, { subfamilia: f.subfamilia, cliente: f.cliente });
@@ -47,32 +47,85 @@ export async function leerFamiliasMetricas(movs: readonly MovimientoRegistrado[]
   return porId;
 }
 
-/** Misma fuente y atribución que el Excel facilitado por OT: el autor es
- * quien más tiempo tiene en TGM_FICHAJES_OT. TODOS los tipos de incidencia de
- * las OF que planteaste, no solo los errores de planteamiento o documentación
- * (Iván, 21/10/2026): un error de soldadura en tu OF también es tuyo de mirar.
- * Cada incidencia lleva su tipo para poder separarlas. */
-export async function leerIncidenciasMetricas(periodo: Periodo, miId: string, seccion: SeccionId): Promise<IncidenciaMetricas[] | null> {
+/** Quien más tiempo de OT fichó en la OF, como código de empleado. Es la
+ *  atribución del Excel de OT, y la única que hay para lo anterior a Coordina:
+ *  la vista apenas conoce las OF recientes (8 de 318 en octubre de 2026). */
+const autorRps = `
+  OUTER APPLY (SELECT TOP 1 e.CodEmployee AS autor FROM dbo.TGM_FICHAJES_OT f
+    JOIN dbo.GENEmployee e ON e.CodCompany = '001' AND e.Description = f.operario
+    WHERE f.IDManufacturingOrder = mo.IDManufacturingOrder
+    ORDER BY f.tiempoTotal DESC, f.operario) ot`;
+type FilaRps = FilaFamilia & { fecha: Date; autor: string | null };
+const deFila = (f: FilaRps) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f), autor: f.autor?.trim() || null });
+
+/** Las incidencias que son de OT: el tipo de RPS «… ERROR EN PLANTEAMIENTO»,
+ *  sea de corte, confección o soldadura (Iván, 21/10/2026). De TODO el equipo:
+ *  a quién toca cada una lo decide `calcularDetalleMetricas`, que sabe quién
+ *  la entregó en Coordina. Una fila por OF y día, aunque haya varios apuntes. */
+export async function leerIncidenciasMetricas(periodo: Periodo, seccion: SeccionId): Promise<IncidenciaMetricas[] | null> {
   if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return null;
-  const empleado = codigoRpsDe(miId);
-  if (!empleado) return null;
   const pool = await getPool();
-  const req = pool.request().input("empleado", sql.VarChar(20), empleado)
-    .input("desde", sql.Date, periodo.desde).input("hasta", sql.Date, periodo.hasta);
-  const r = await req.query<FilaFamilia & { fecha: Date; tipo: string | null }>(`
-    SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha,
-      LTRIM(RTRIM(SUBSTRING(unpr.Description, CHARINDEX('-', unpr.Description) + 1, 1000))) AS tipo
+  const req = pool.request().input("desde", sql.Date, periodo.desde).input("hasta", sql.Date, periodo.hasta);
+  const r = await req.query<FilaRps>(`
+    SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha, ot.autor
     FROM dbo.CPRImputationMO imp
     JOIN dbo.CPRMOTask task ON task.IDMOTask = imp.IDMOTask
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder AND mo.CodCompany = '001'
     JOIN dbo.CPRUnproductiveType unpr ON unpr.IDUnproductiveType = imp.IDUnproductiveType
     ${catalogo}
-    OUTER APPLY (SELECT TOP 1 operario FROM dbo.TGM_FICHAJES_OT
-      WHERE IDManufacturingOrder = mo.IDManufacturingOrder
-      ORDER BY tiempoTotal DESC, operario) ot
+    ${autorRps}
     WHERE imp.CodCompany = '001' AND imp.Unproductive = 1
+      AND unpr.Description LIKE '%ERROR EN PLANTEAMIENTO%'
       AND imp.ImputationDate >= @desde AND imp.ImputationDate < DATEADD(day, 1, @hasta)
-      AND ot.operario = (SELECT Description FROM dbo.GENEmployee WHERE CodCompany = '001' AND CodEmployee = @empleado)
   `);
-  return r.recordset.map((f) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f), tipo: f.tipo?.trim() || undefined }));
+  return r.recordset.map(deFila);
+}
+
+const pasesGuardados = new Map<string, { hasta: number; filas: Promise<PaseRps[]> }>();
+
+/** Las OF que OT cerró en RPS antes de que todo pasara por Coordina (ver
+ *  COORDINA_EN_USO): la base del % de incidencias para esos meses, para las
+ *  que Coordina no conoce. Cerrada = la última de sus tareas de OT
+ *  terminada en OLANET o con fin real en RPS, como en el Historial. Son meses
+ *  que ya no cambian, así que se guardan unas horas. */
+export async function leerPasesRps(periodo: Periodo, seccion: SeccionId): Promise<PaseRps[]> {
+  if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return [];
+  const hasta = periodo.hasta && periodo.hasta < COORDINA_EN_USO ? periodo.hasta : sumarDias(COORDINA_EN_USO, -1);
+  if (periodo.desde > hasta) return [];
+  const clave = `${periodo.desde}|${hasta}`;
+  const guardado = pasesGuardados.get(clave);
+  if (guardado && guardado.hasta > Date.now()) return guardado.filas;
+  const filas = consultarPases(periodo.desde, hasta);
+  pasesGuardados.set(clave, { hasta: Date.now() + 6 * 3_600_000, filas });
+  filas.catch(() => pasesGuardados.delete(clave));
+  return filas;
+}
+
+async function consultarPases(desde: string, hasta: string): Promise<PaseRps[]> {
+  const pool = await getPool();
+  const req = pool.request().input("desde", sql.Date, desde).input("hasta", sql.Date, hasta);
+  const r = await req.query<FilaRps>(`
+    WITH Recursos AS (
+      SELECT DISTINCT IDMOTask FROM dbo.CPRMOResourceMachine
+      WHERE CodMOResourceMachine IN (${recursosSql(SECCIONES.ot)})
+    ), FinFase AS (
+      SELECT orden, fase, MAX(fecha_cambio) AS fin
+      FROM dbo.tgm_estadosof_olanet WHERE idestadoof = 3 GROUP BY orden, fase
+    ), Cierres AS (
+      SELECT t.IDManufacturingOrder, MAX(COALESCE(e.fin, CASE WHEN t.RealEndDate > '2000-01-01' THEN t.RealEndDate END)) AS fin
+      FROM dbo.CPRMOTask t
+      JOIN Recursos r ON r.IDMOTask = t.IDMOTask
+      JOIN dbo.CPRManufacturingOrder m ON m.IDManufacturingOrder = t.IDManufacturingOrder AND m.CodCompany = '001'
+      LEFT JOIN FinFase e ON e.orden = m.CodManufacturingOrder AND e.fase = t.CodMOTask
+      WHERE COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
+      GROUP BY t.IDManufacturingOrder
+    )
+    SELECT ${columnas}, CONVERT(date, c.fin) AS fecha, ot.autor
+    FROM Cierres c
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = c.IDManufacturingOrder
+    ${catalogo}
+    ${autorRps}
+    WHERE c.fin >= @desde AND c.fin < DATEADD(day, 1, @hasta)
+  `);
+  return r.recordset.map(deFila);
 }

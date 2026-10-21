@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
-import { calcularDetalleMetricas, contarEntregas } from "@/lib/metricas-personales";
-import { leerFamiliasMetricas, leerIncidenciasMetricas } from "@/lib/server/metricas-fuentes";
-import { operariosDeSeccion } from "@/lib/server/operarios";
+import { calcularDetalleMetricas, contarDevueltas, contarEntregas } from "@/lib/metricas-personales";
+import { leerFamiliasMetricas, leerIncidenciasMetricas, leerPasesRps } from "@/lib/server/metricas-fuentes";
+import { codigoRpsDe, operariosDeSeccion } from "@/lib/server/operarios";
+import { sumarDias } from "@/lib/fechas";
 import { leerCausasDevolucion, leerMovimientosMetricas, leerPasesMetricas, leerPasosRevision } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
@@ -82,17 +83,29 @@ export async function GET(req: Request) {
       // Con login, la identidad viene de la sesión: el navegador no puede
       // pedir las correcciones o incidencias privadas de otro compañero.
       const miId = loginActivo() ? quienEs(req)?.id ?? "" : q.get("operario") ?? "";
-      const [familias, incidencias] = await Promise.allSettled([
+      // Lo de RPS no empieza en agosto: las incidencias y las OF pasadas
+      // antes de Coordina están ahí (Iván, 21/10/2026). Año entero, o el
+      // periodo pedido tal cual, sin el recorte de INICIO_METRICAS.
+      const periodoAnio = { desde: `${anio}-01-01`, hasta: periodoGrafica.hasta };
+      const periodoRps = { desde: pedido?.slice(0, 10) ?? periodoAnio.desde, hasta: periodo.hasta };
+      const [familias, incidencias, pases] = await Promise.allSettled([
         leerFamiliasMetricas(movimientosGrafica),
-        leerIncidenciasMetricas(periodoGrafica, miId, seccion),
+        leerIncidenciasMetricas(periodoAnio, seccion),
+        leerPasesRps(periodoAnio, seccion),
       ]);
       if (familias.status === "rejected") console.error("[metricas] familias no disponibles:", familias.reason?.message);
       if (incidencias.status === "rejected") console.error("[metricas] incidencias no disponibles:", incidencias.reason?.message);
+      if (pases.status === "rejected") console.error("[metricas] OF pasadas de RPS no disponibles:", pases.reason?.message);
       const porFamilia = familias.status === "fulfilled" ? familias.value : new Map();
-      const bonos = incidencias.status === "fulfilled" ? incidencias.value : null;
-      const meses = cuadro.meses.map((m) => m.mes);
-      detalle = calcularDetalleMetricas(movs, historico, porFamilia, bonos, miId, periodo, meses, familias.status === "fulfilled");
-      detalle.personal.meses = calcularDetalleMetricas(movimientosGrafica, historico, porFamilia, bonos, miId, periodoGrafica, meses, familias.status === "fulfilled").personal.meses;
+      // Sin las OF de antes de Coordina el % saldría inflado: mejor sin dato.
+      const rps = incidencias.status === "fulfilled" && pases.status === "fulfilled"
+        ? { incidencias: incidencias.value, pases: pases.value }
+        : { incidencias: null, pases: [] };
+      const yo = { id: miId, codigoRps: codigoRpsDe(miId) };
+      const meses: string[] = [];
+      for (let mes = `${anio}-01`; mes <= periodoGrafica.hasta.slice(0, 7); mes = sumarDias(`${mes}-28`, 4).slice(0, 7)) meses.push(mes);
+      detalle = calcularDetalleMetricas(movs, historico, porFamilia, rps, yo, periodoRps, meses, familias.status === "fulfilled");
+      detalle.personal.meses = calcularDetalleMetricas(movimientosGrafica, historico, porFamilia, rps, yo, periodoAnio, meses, familias.status === "fulfilled").personal.meses;
     }
     return NextResponse.json(
       {
@@ -105,6 +118,7 @@ export async function GET(req: Request) {
         // no sale de aquí. Se sigue calculando para una vista del encargado.
         cuadro: { ...cuadro, porTecnico: [] },
         entregas: contarEntregas(movs),
+        devueltas: contarDevueltas(movs),
         ...(detalle ? { detalle } : {}),
         causas: leerCausasDevolucion(true),
         // Para poner nombre al «qué paso falla». Con los retirados: una
