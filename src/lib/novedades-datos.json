@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "b40de15",
+    "hasta": "49d6d4e",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -20,6 +20,17 @@
         "titulo": "Métricas enseña la evolución mes a mes y el desglose por familia",
         "detalle": "También ves tus OF entregadas, tus correcciones y tus incidencias de cada mes.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas cabe entera en la pantalla y sus desplegables son como los del resto",
+        "detalle": "Cada bloque se desplaza por dentro, sin tener que bajar la página.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas ya no salen los datos de cada compañero: cada uno ve lo suyo",
+        "tanda": 3
       }
     ]
   },
