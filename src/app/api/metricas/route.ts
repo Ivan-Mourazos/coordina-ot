@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
+import { calcularDetalleMetricas, contarEntregas } from "@/lib/metricas-personales";
+import { leerFamiliasMetricas, leerIncidenciasMetricas } from "@/lib/server/metricas-fuentes";
 import { operariosDeSeccion } from "@/lib/server/operarios";
 import { leerCausasDevolucion, leerMovimientosMetricas, leerPasosRevision } from "@/lib/server/estado-db";
 import { leerIntervalosMetricas } from "@/lib/server/fichaje-db";
 import { SECCION_POR_DEFECTO, esSeccionId } from "@/lib/secciones";
-import { soloConSesion } from "@/lib/server/sesion";
+import { loginActivo, quienEs, soloConSesion } from "@/lib/server/sesion";
+import { hoyISO } from "@/lib/types";
 
 // ─── /api/metricas ───────────────────────────────────────────────────────────
-// Cuántas OF vuelven y por qué. Todo sale del registro de acciones y de la
-// tabla de causas, o sea de NUESTRA base: no toca RPS, así que responde rápido
-// y se puede recargar sin miedo (la vista de RPS tarda de 7 a 15 s).
+// Los totales y comparaciones salen del registro local. El detalle añade
+// familias e incidencias de RPS, con consultas independientes de la vista del
+// tablero. Un fallo de esas fuentes no oculta las métricas locales.
 //
 // Las causas viajan con la respuesta, no aparte: sin sus rótulos la lista de
 // ids no dice nada, y pedirlas en dos consultas para pintar una sola pantalla
@@ -57,13 +60,39 @@ export async function GET(req: Request) {
     const intervalos = leerIntervalosMetricas(desde, hasta, seccion);
     // El contexto solo atribuye autores y mide ciclos completos: no altera
     // los totales de sección, que siguen filtrándose por quien firma.
-    const cuadro = calcularCuadroMetricas(movs, leerMovimientosMetricas(undefined, hasta), operariosDeSeccion(seccion), {
-      desde: desde.slice(0, 10), hasta: limite(q.get("hasta"))?.slice(0, 10) ?? "",
-    });
+    const historico = leerMovimientosMetricas(undefined, hasta);
+    const periodo = { desde: desde.slice(0, 10), hasta: limite(q.get("hasta"))?.slice(0, 10) ?? hoyISO() };
+    const periodoGrafica = { desde: INICIO_METRICAS, hasta: periodo.hasta };
+    const movimientosGrafica = leerMovimientosMetricas(inicio, hasta, seccion);
+    const equipo = operariosDeSeccion(seccion);
+    const cuadroMes = calcularCuadroMetricas(movs, historico, equipo, periodo);
+    const cuadroGrafica = calcularCuadroMetricas(movimientosGrafica, historico, equipo, periodoGrafica);
+    // Las tarjetas y los desgloses son del mes seleccionado. Las gráficas
+    // comparan meses hasta ese mes, siempre con el mismo filtro de sección.
+    const cuadro = { ...cuadroMes, meses: cuadroGrafica.meses, tendencia: cuadroGrafica.tendencia };
+    let detalle;
+    if (q.get("detalle") === "1") {
+      // Con login, la identidad viene de la sesión: el navegador no puede
+      // pedir las correcciones o incidencias privadas de otro compañero.
+      const miId = loginActivo() ? quienEs(req)?.id ?? "" : q.get("operario") ?? "";
+      const [familias, incidencias] = await Promise.allSettled([
+        leerFamiliasMetricas(movimientosGrafica),
+        leerIncidenciasMetricas(periodoGrafica, miId, seccion),
+      ]);
+      if (familias.status === "rejected") console.error("[metricas] familias no disponibles:", familias.reason?.message);
+      if (incidencias.status === "rejected") console.error("[metricas] incidencias no disponibles:", incidencias.reason?.message);
+      const porFamilia = familias.status === "fulfilled" ? familias.value : new Map();
+      const bonos = incidencias.status === "fulfilled" ? incidencias.value : null;
+      const meses = cuadro.meses.map((m) => m.mes);
+      detalle = calcularDetalleMetricas(movs, historico, porFamilia, bonos, miId, periodo, meses, familias.status === "fulfilled");
+      detalle.personal.meses = calcularDetalleMetricas(movimientosGrafica, historico, porFamilia, bonos, miId, periodoGrafica, meses, familias.status === "fulfilled").personal.meses;
+    }
     return NextResponse.json(
       {
         metricas: calcularMetricas(movs, intervalos),
         cuadro,
+        entregas: contarEntregas(movs),
+        ...(detalle ? { detalle } : {}),
         causas: leerCausasDevolucion(true),
         // Para poner nombre al «qué paso falla». Con los retirados: una
         // devolución de hace meses puede apuntar a uno que ya no se pide.

@@ -1,5 +1,5 @@
 import { calcularMetricas, type Medida, type MesMetricas, type MovimientoRegistrado, type Periodo } from "./metricas";
-import { diasEntre, sumarDias } from "./fechas";
+import { sumarDias } from "./fechas";
 
 /** Solo VOLUMEN por persona, a propósito. Un «% que te devuelven» a la vista
  *  de todos cambia cómo se usa la herramienta: se devuelve menos para no
@@ -94,20 +94,19 @@ export function calcularCuadroMetricas(
       meses.push(porMes.get(mes) ?? { mes, planteos: 0, terminadas: 0, revisiones: 0, devoluciones: 0 });
       d = sumarDias(`${mes}-28`, 4).slice(0, 7) + "-01";
     }
-    const semanal = diasEntre(desde, hasta) <= 120;
-    // Los huecos también se pintan: omitir semanas vacías sugeriría continuidad.
-    for (let d = semanal ? desde : `${desde.slice(0, 7)}-01`; d <= hasta;) {
-      const siguiente = semanal ? sumarDias(d, 7) : sumarDias(`${d.slice(0, 7)}-28`, 4).slice(0, 7) + "-01";
+    // Siempre por meses del calendario, también en periodos cortos.
+    for (let d = `${desde.slice(0, 7)}-01`; d <= hasta;) {
+      const siguiente = sumarDias(`${d.slice(0, 7)}-28`, 4).slice(0, 7) + "-01";
+      const inicio = d < desde ? desde : d;
       const fin = siguiente > hasta ? hasta : sumarDias(siguiente, -1);
-      const filas = movimientos.filter((m) => m.at.slice(0, 10) >= d && m.at.slice(0, 10) <= fin);
+      const filas = movimientos.filter((m) => m.at.slice(0, 10) >= inicio && m.at.slice(0, 10) <= fin);
       const datos = calcularMetricas(filas);
-      tendencia.push({ desde: d, hasta: fin, terminadas: datos.volumen.ofTerminadas, planteos: datos.volumen.ofEntregadas,
+      tendencia.push({ desde: inicio, hasta: fin, terminadas: datos.volumen.ofTerminadas, planteos: datos.volumen.ofEntregadas,
         proporcion: datos.revisiones ? datos.devoluciones / datos.revisiones : null,
-        aprobacion: mediana(aprobaciones.filter((a) => a.at.slice(0, 10) >= d && a.at.slice(0, 10) <= fin).map((a) => a.minutos)) });
+        aprobacion: mediana(aprobaciones.filter((a) => a.at.slice(0, 10) >= inicio && a.at.slice(0, 10) <= fin).map((a) => a.minutos)) });
       d = siguiente;
     }
-    // Cada devolución conserva la semana de SU revisión, igual que el total
-    // conserva su mes. Cortar primero en semanas daría numeradores ajenos.
+    // Cada devolución conserva el mes de SU revisión.
     const cuentas = tendencia.map(() => ({ revisiones: 0, devoluciones: 0 }));
     const abiertas = new Map<string, number>();
     for (const m of [...movimientos].sort((a, b) => a.at.localeCompare(b.at))) {
