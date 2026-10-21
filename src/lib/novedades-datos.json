@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "c3e59ea",
+    "hasta": "655e892",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -94,6 +94,12 @@
         "tipo": "mejor",
         "titulo": "Las gráficas de métricas marcan números redondos en el eje",
         "tanda": 8
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El botón de Planteamientos de la ficha dice qué toca: plantear, revisar, corregir o abrir",
+        "detalle": "Con un pedido devuelto ya no sale «Plantear»: al autor le pone «Corregir», y con todo aprobado sale «Abrir».",
+        "tanda": 9
       }
     ]
   },
