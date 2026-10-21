@@ -169,6 +169,8 @@ export function PedidoLinea({
   // Los avisos del pedido, que van al principio de la columna del cliente:
   // un parte reescaneado, trabajo nuevo aparecido después de pasarlo y las OF
   // detenidas por Producción.
+  const hayAvisos =
+    pedido.scanCambiado || avisaDeOFNueva(pedido) || (detenidas > 0 && !detenidoDelTodo);
   const avisos = (
     <>
       {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
@@ -228,7 +230,12 @@ export function PedidoLinea({
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.
       style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
-      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      // `@container`: la fila mide SU ancho y las reglas `@max-[26rem]` de
+      // dentro se aplican según él. Sin contenedor no casaban nunca, y en las
+      // columnas estrechas de la zona personal (cinco fases repartiéndose el
+      // ancho) «Parte nuevo» se montaba sobre la fecha y la cuenta de OF
+      // salía cortada ("2 O").
+      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         // Del color del ROL, no siempre verde: revisando salía igual que
         // planteando (Iván, 16/10/2026). Ver `.fila-fichando-*` en globals.css.
         fichandoAlguien ? `fila-fichando-${fichandoAlguien.fichandoRol}` : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
@@ -265,7 +272,7 @@ export function PedidoLinea({
         className={`min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden text-left ${
           mostrandoFalta
             ? "flex shrink-0"
-            : "grid flex-1 justify-start grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] @max-[18rem]:grid-cols-[5.75rem_6.5rem_minmax(0,1fr)]"
+            : "grid flex-1 justify-start grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] @max-[26rem]:grid-cols-[5.75rem_minmax(0,1fr)_auto] @max-[26rem]:gap-y-1"
         }`}
       >
         {/* Columna 1: el punto de "lo están fichando" y el código. */}
@@ -295,22 +302,18 @@ export function PedidoLinea({
             solo el código: el hueco que suelta la descripción es el que
             necesita el selector o el aviso para no quedar apretados en
             filas estrechas (zona personal). */}
-        {/* En una columna estrecha (el panel de un compañero, con cuatro fases
-            repartiéndose el ancho) el cliente no llega a decir nada: se queda
-            en «TARRIO ALV…» y encima empuja la cuenta de OF fuera. Por debajo
-            de 15rem desaparece y la fila se queda con el código, que es lo que
-            identifica el pedido; el nombre completo sigue en el `title`.
-
-            Es `@max-`, no `@min-`: donde no hay contenedor que medir —la zona
-            personal, el desplegable— la consulta no casa y el cliente se ve,
-            que es lo de siempre. */}
+        {/* EN ESTRECHO (fila de menos de 26rem: la zona personal con varias
+            fases repartiéndose el ancho) no caben las cuatro columnas. Se va
+            el cliente, que ahí se quedaba en «TARRIO ALV…»; la cuenta de OF
+            pierde los minutos, y los avisos bajan a una SEGUNDA línea en vez
+            de montarse sobre la fecha. Solo la fila que tiene avisos crece. */}
         {!mostrandoFalta && (
           <>
             {/* Columna 2: la familia, en su propia columna y DELANTE del cliente:
                 detrás quedaba a una distancia distinta en cada fila, según lo
                 largo que fuera el nombre. Con varias, la primera y "+N": son
                 pocas y lo que hace falta aquí es saber de qué va el pedido. */}
-            <span className="flex min-w-0 items-center gap-1">
+            <span className="flex min-w-0 items-center gap-1 overflow-hidden">
               {familias[0] && <FamiliaTag familia={familias[0]} />}
               {familias.length > 1 && (
                 <span className="shrink-0 text-[10px] text-text-muted" title={familias.join(" · ")}>
@@ -319,9 +322,15 @@ export function PedidoLinea({
               )}
             </span>
             {/* Columna 3: los avisos del pedido y el cliente. */}
-            <span className="flex min-w-0 items-center gap-2">
+            {/* `overflow-hidden`: en ancho, si los avisos no caben se recortan
+                dentro de su columna, nunca encima de la fecha. */}
+            <span
+              className={`flex min-w-0 items-center gap-2 overflow-hidden ${
+                hayAvisos ? "@max-[26rem]:col-span-full @max-[26rem]:row-start-2" : "@max-[26rem]:hidden"
+              }`}
+            >
               {avisos}
-              <span className="min-w-0 flex-1 truncate text-text-muted @max-[22rem]:hidden">
+              <span className="min-w-0 flex-1 truncate text-text-muted @max-[26rem]:hidden">
                 {pedido.cliente}
               </span>
             </span>
@@ -341,7 +350,7 @@ export function PedidoLinea({
                 filas del panel (ver `agruparPorFase`): sin ella, el orden no
                 se explica solo. En rojo cuando ya pasó. */}
             <span
-              className={`flex shrink-0 items-center justify-end gap-2 text-[10px] @max-[18rem]:hidden ${
+              className={`flex shrink-0 items-center justify-end gap-2 text-[10px] ${
                 fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
               }`}
             >
@@ -359,12 +368,15 @@ export function PedidoLinea({
                 {fmtDiaMes(pedido.fechaPlanificacion)}
               </span>
             )}
-            <span className="w-[4.75rem] shrink-0 text-right text-text-muted">
+            <span className="w-[4.75rem] shrink-0 text-right text-text-muted @max-[26rem]:w-auto">
               {/* Redondeado a minutos: `fmtMin` sabe enseñar segundos y aquí
                   salía "14m 7s" al lado de "36m" y "42m". En una lista que se
                   recorre con la vista, los segundos son ruido; el detalle fino
                   está en «Tareas y tiempos». */}
-              {ofs.length} OF{minutos > 0 && ` · ${fmtMin(Math.round(minutos))}`}
+              {ofs.length} OF
+              {minutos > 0 && (
+                <span className="@max-[26rem]:hidden">{` · ${fmtMin(Math.round(minutos))}`}</span>
+              )}
             </span>
             </span>
           </>
