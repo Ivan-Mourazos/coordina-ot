@@ -1,12 +1,13 @@
 "use client";
 
-import { NOTA_MAX, type EleccionPase } from "@/lib/planteamiento";
+import type { EleccionPase } from "@/lib/planteamiento";
 
 // ─── «Cambiar lo que se imprime y se manda», en el aviso de pasar ───────────
 // Lo normal es la norma de la casa y un clic (Iván, 14/10/2026). Esto es para
 // cuando no: un PDF ya se imprimió, uno no tiene que ir adjunto, una OF no
-// pinta en el correo, o hay que avisar de algo. Las OF solo se pueden QUITAR
-// del correo y la nota se añade arriba: el resto lo sigue montando CoordinaOT.
+// pinta en el correo. Las OF solo se pueden QUITAR del correo: el resto lo
+// sigue montando CoordinaOT. La nota del correo ya no va aquí: está siempre a
+// la vista en el aviso de pasar (Board), haya elección o no.
 
 export interface FicheroPase {
   nombre: string;
@@ -115,16 +116,6 @@ export function CambiarPlanteamiento({
                   ))}
                 </fieldset>
               )}
-              <label className="block">
-                <span className="mb-1 block text-text-muted">Nota para el correo (opcional, sale arriba)</span>
-                <textarea
-                  rows={2}
-                  maxLength={NOTA_MAX}
-                  value={eleccion.nota}
-                  onChange={(e) => fijar({ nota: e.target.value })}
-                  className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
-                />
-              </label>
             </div>
           )}
         </div>

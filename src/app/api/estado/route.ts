@@ -16,7 +16,7 @@ import { planteamientosDe, type Planteamientos } from "@/lib/server/planteamient
 import { leerPersona } from "@/lib/server/personas-db";
 import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
-import { leerEleccion } from "@/lib/planteamiento";
+import { leerEleccion, leerNotaCorreo } from "@/lib/planteamiento";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -44,6 +44,9 @@ interface Body {
   /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
    *  `EleccionPase`). Ausente = la norma. */
   planteamiento?: unknown;
+  /** Nota que sale arriba del correo, sin haber cambiado nada más. Con
+   *  `planteamiento` manda la nota de dentro. */
+  notaCorreo?: unknown;
   /** Una intención, no dos instantáneas que puedan llegar en orden inverso. */
   pasarRevision?: { ofIds: string[]; revisorId: string };
 }
@@ -355,9 +358,10 @@ export async function POST(req: Request) {
       if (body.mandarCorreo !== false && modoCorreo() !== "off" && datosCorreo) {
         // Las OF y la nota también se pueden tocar a mano; las OF solo se
         // QUITAN: el servidor sigue siendo quien dice qué OF tiene el pedido.
+        const notaSuelta = leerNotaCorreo(body.notaCorreo);
         const datos = eleccion
           ? { ...datosCorreo, ofs: datosCorreo.ofs.filter((of) => eleccion.ofs.includes(of.codigo)), nota: eleccion.nota }
-          : datosCorreo;
+          : notaSuelta ? { ...datosCorreo, nota: notaSuelta } : datosCorreo;
         void prepararCorreo(datos, operarioId, undefined, buscar, {
           adjuntar: eleccion ? new Set(eleccion.adjuntar) : undefined,
           imprimir,

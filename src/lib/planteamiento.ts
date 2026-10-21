@@ -82,6 +82,14 @@ export interface EleccionPase {
 
 export const NOTA_MAX = 1000;
 
+/** La nota del correo cuando no se ha cambiado nada más: va suelta, sin
+ *  `EleccionPase`, para que escribirla no obligue a fijar a mano qué se
+ *  imprime y qué va adjunto. Vacía o con otra forma = sin nota. */
+export function leerNotaCorreo(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  return v.trim().slice(0, NOTA_MAX) || undefined;
+}
+
 const listaDeTextos = (v: unknown): string[] | null =>
   Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === "string" && x.length > 0 && x.length <= 200)
     ? (v as string[])

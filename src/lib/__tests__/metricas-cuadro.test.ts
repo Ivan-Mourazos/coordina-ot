@@ -57,13 +57,26 @@ describe("ciclos completos y tendencias", () => {
     const fin = mov("09-01T08:00", "aprobar");
     expect(calcular([fin], [entrega, fin]).aprobacion).toEqual({ n: 1, medianaMin: 1440 });
   });
-  it("mantiene las devoluciones en la semana de su revisión y rellena huecos", () => {
+  it("agrupa todo el mes en un solo punto, sin dividirlo en semanas", () => {
     const m = [mov("09-01T08:00", "empezar_revision"), mov("09-09T08:00", "devolver")];
     const c = calcularCuadroMetricas(m, m, ["alberto"], { desde: "2026-09-01", hasta: "2026-09-30" });
-    expect(c.tendencia).toHaveLength(5);
+    expect(c.tendencia).toHaveLength(1);
     expect(c.tendencia[0].proporcion).toBe(1);
-    expect(c.tendencia[1].proporcion).toBeNull();
-    expect(c.tendencia[4].planteos).toBe(0);
+    expect(c.tendencia[0].desde).toBe("2026-09-01");
+    expect(c.tendencia[0].hasta).toBe("2026-09-30");
+  });
+  it("mantiene la devolución en el mes de su revisión y rellena el mes siguiente", () => {
+    const m = [mov("08-31T08:00", "empezar_revision"), mov("09-01T08:00", "devolver")];
+    const c = calcularCuadroMetricas(m, m, ["alberto"], { desde: "2026-08-01", hasta: "2026-10-21" });
+    expect(c.tendencia.map((p) => [p.desde, p.hasta, p.proporcion])).toEqual([
+      ["2026-08-01", "2026-08-31", 1], ["2026-09-01", "2026-09-30", null], ["2026-10-01", "2026-10-21", null],
+    ]);
+  });
+  it("un mes en curso solo cuenta hasta el último día solicitado", () => {
+    const m = [mov("10-01T08:00", "terminar_planteo"), mov("10-10T08:00", "terminar_planteo", "alberto", "of2")];
+    const c = calcularCuadroMetricas(m, m, ["alberto"], { desde: "2026-10-01", hasta: "2026-10-09" });
+    expect(c.tendencia).toHaveLength(1);
+    expect(c.tendencia[0]).toMatchObject({ desde: "2026-10-01", hasta: "2026-10-09", planteos: 1 });
   });
   it("agrupa periodos largos por mes y deja vacíos sin inventar datos", () => {
     const c = calcularCuadroMetricas([], [], ["ivan"], { desde: "2026-01-01", hasta: "2026-08-31" });

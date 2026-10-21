@@ -636,6 +636,23 @@ test("si se desmarca todo lo de imprimir, no se imprime, pero el correo sale", a
   expect([...prepararCorreoMock.mock.calls[0][4]!.imprimir!]).toEqual([]);
 });
 
+test("la nota suelta llega al correo sin cambiar nada más: la norma sigue mandando", async () => {
+  expect((await pasarParaImprimir("P-nota-1", { notaCorreo: "  Montar con la lona al revés  " })).status).toBe(200);
+  const [datos, , , , eleccion] = prepararCorreoMock.mock.calls[0];
+  expect(datos.nota).toBe("Montar con la lona al revés");
+  expect(datos.ofs.length).toBeGreaterThan(0);
+  expect(eleccion).toEqual({ adjuntar: undefined, imprimir: undefined });
+  expect(prepararImpresionMock.mock.calls[0][4]).toBeUndefined();
+});
+
+test("con elección, la nota es la de dentro", async () => {
+  await pasarParaImprimir("P-nota-2", {
+    notaCorreo: "suelta",
+    planteamiento: { imprimir: [], adjuntar: [], ofs: [PEDIDOS[0].ofs[0].codigo], nota: "la de dentro" },
+  });
+  expect(prepararCorreoMock.mock.calls[0][0].nota).toBe("la de dentro");
+});
+
 test("una elección mal formada se ignora y vale la norma", async () => {
   expect((await pasarParaImprimir("P-elige-3", { planteamiento: { imprimir: "todo" } })).status).toBe(200);
   expect(prepararImpresionMock.mock.calls[0][4]).toBeUndefined();
