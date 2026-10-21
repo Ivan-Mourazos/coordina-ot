@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "49d6d4e",
+    "hasta": "469640d",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -31,6 +31,28 @@
         "tipo": "mejor",
         "titulo": "En Métricas ya no salen los datos de cada compañero: cada uno ve lo suyo",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas se mira por año o por mes, y las gráficas enseñan el año entero",
+        "detalle": "En Mes a mes salen las pasadas sin revisión y la cantidad de cada línea.",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Cuánto tarda cada paso» separa cinco tramos, del envío a revisión hasta Producción",
+        "detalle": "Ahora se ve aparte cuánto tarda alguien en ponerse a corregir y cuánto tarda en corregir.",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Mis datos salen todas las incidencias de tus OF, de cualquier tipo",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas cabe entera en la pantalla sin desplazar",
+        "tanda": 4
       }
     ]
   },
