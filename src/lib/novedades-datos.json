@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-21",
-    "hasta": "f832841",
+    "hasta": "47228bd",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -71,6 +71,12 @@
         "titulo": "El motivo de devolución dice qué % de las OF de cada familia vuelve, y por qué",
         "detalle": "Abre una familia para ver sus causas.",
         "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas, cambiar de mes o de año ya no hace saltar la pantalla",
+        "detalle": "Mientras llegan las cifras nuevas se siguen viendo las de antes, un poco más apagadas.",
+        "tanda": 6
       }
     ]
   },
