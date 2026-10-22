@@ -81,6 +81,15 @@ describe("las seis familias grandes", () => {
     expect(f("CERRAMIENTO TEXTIL CON LONA:ENROLLABLE CON MOTOR CORREDERA")).toBe("LONA");
   });
 
+  it("la rejilla confeccionada es lona, aunque RPS la tenga en Suministro · Confección", () => {
+    // AR.26.05155: artículo REJILLACONFNRECT, SUMINISTRO/CONFECCION en RPS.
+    const sub = { subfamilia: "CONFECCION" };
+    expect(familiaDeTexto("REJILLA CONFECCIONADA NO RECTANGULAR ", "1 - SUMINISTRO", sub)).toBe("LONA");
+    expect(familiaDeTexto("REJILLA CONFECCIONADA RECTANGULAR", "1 - SUMINISTRO", sub)).toBe("LONA");
+    // La de ventana de remolque sigue siendo de remolque.
+    expect(f("REJILLA PARA VENTANA REMOLQUE")).toBe("REMOLQUE");
+  });
+
   it("toldos: todos, incluidos los modelos que se venden por su nombre", () => {
     for (const d of [
       "TOLDO VERTICAL ELECTRA (ELIT DE LLAZA):SIN COFRE:CON GUIA",
