@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { codificarDevolucion, notaDeLaGuia } from "@/lib/devolucion";
+import { useEffect, useRef, useState } from "react";
+import { codificarDevolucion, lineasDe, notaDeLaGuia } from "@/lib/devolucion";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { leerCausas } from "@/lib/causas-cliente";
 import type { FalloGuia } from "@/lib/guia-revision";
@@ -77,7 +77,25 @@ export function DevolverInline({
   label?: string;
 }) {
   const [abierto, setAbierto] = useState(false);
-  const [obs, setObs] = useState("");
+  // LÍNEAS DE CORRECCIÓN, no un cuadro de texto (22/10/2026). Los revisores ya
+  // escribían una cosa por renglón con guiones a mano, y el autor las marca
+  // una a una al corregir (ver NotaDevolucion). Se guardan igual que antes:
+  // una por línea dentro de la nota.
+  const [lineas, setLineas] = useState<string[]>([""]);
+  const obs = lineas.map((l) => l.trim()).filter(Boolean).join("\n");
+  const campos = useRef<(HTMLInputElement | null)[]>([]);
+  // Tras pintar: la línea nueva aún no existe cuando se pide el foco.
+  const setEnfocar = (i: number) => requestAnimationFrame(() => campos.current[i]?.focus());
+  const cambiarLinea = (i: number, valor: string) =>
+    setLineas((ls) => ls.map((l, j) => (j === i ? valor : l)));
+  const insertarLineas = (i: number, nuevas: string[]) => {
+    setLineas((ls) => [...ls.slice(0, i + 1), ...nuevas, ...ls.slice(i + 1)]);
+    setEnfocar(i + nuevas.length);
+  };
+  const quitarLinea = (i: number) => {
+    setLineas((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : [""]));
+    setEnfocar(Math.max(0, i - 1));
+  };
   const [causas, setCausas] = useState<CausaDevolucion[]>([]);
   const [elegidas, setElegidas] = useState<number[]>([]);
   // «Otra cosa»: lo que no encaja en ninguna causa. Pide texto.
@@ -143,7 +161,7 @@ export function DevolverInline({
     // nota y las causas se borran a propósito — son de la que acaba de irse, y
     // heredarlas sería mandar el fallo de una a otra.
     if (ofs && ofs.length > ofsElegidas.length) {
-      setObs("");
+      setLineas([""]);
       setElegidas([]);
       setOtra(false);
     } else {
@@ -253,28 +271,76 @@ export function DevolverInline({
         </div>
       )}
 
-      <textarea
-        autoFocus
-        value={obs}
-        onChange={(e) => setObs(e.target.value)}
-        onKeyDown={(e) => {
-          // Escape pliega el cuadro y se queda aquí: sin cortarlo, llegaba a
-          // la ficha y la cerraba también.
-          if (e.key === "Escape") {
-            e.stopPropagation();
-            setAbierto(false);
-          }
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
-            confirmar();
-        }}
-        placeholder={
-          fallos.length > 0
-            ? "Algo más que decirle (opcional)"
-            : "Qué hay que corregir (la cota, la medida, el color…)"
-        }
-        rows={2}
-        className="mt-1.5 w-full resize-none rounded-md bg-surface px-2 py-1.5 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
-      />
+      {/* Una línea por cosa a corregir. Intro abre la siguiente y borrar una
+          vacía la quita, como en una lista de cualquier editor; pegar un texto
+          de varios renglones lo reparte en líneas. */}
+      <ol className="mt-1.5 space-y-1">
+        {lineas.map((l, i) => (
+          <li key={i} className="flex items-center gap-1">
+            <span aria-hidden="true" className="w-3 shrink-0 text-right text-[10px] tabular-nums text-text-muted">
+              {i + 1}
+            </span>
+            <input
+              ref={(el) => {
+                campos.current[i] = el;
+              }}
+              autoFocus={i === 0}
+              value={l}
+              aria-label={`Corrección ${i + 1}`}
+              onChange={(e) => cambiarLinea(i, e.target.value)}
+              onPaste={(e) => {
+                const partes = lineasDe(e.clipboardData.getData("text"));
+                if (partes.length < 2) return;
+                e.preventDefault();
+                cambiarLinea(i, `${l}${partes[0]}`);
+                insertarLineas(i, partes.slice(1));
+              }}
+              onKeyDown={(e) => {
+                // Escape pliega el cuadro y se queda aquí: sin cortarlo, llegaba a
+                // la ficha y la cerraba también.
+                if (e.key === "Escape") {
+                  e.stopPropagation();
+                  setAbierto(false);
+                } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  confirmar();
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (l.trim()) insertarLineas(i, [""]);
+                } else if (e.key === "Backspace" && !l && lineas.length > 1) {
+                  e.preventDefault();
+                  quitarLinea(i);
+                }
+              }}
+              placeholder={
+                i > 0
+                  ? "Otra cosa a corregir"
+                  : fallos.length > 0
+                    ? "Algo más que decirle (opcional)"
+                    : "Qué hay que corregir (la cota, la medida, el color…)"
+              }
+              className="min-w-0 flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
+            />
+            {lineas.length > 1 && (
+              <button
+                type="button"
+                onClick={() => quitarLinea(i)}
+                aria-label={`Quitar la corrección ${i + 1}`}
+                title="Quitar esta línea"
+                className="grid size-5 shrink-0 place-items-center rounded text-xs text-text-muted hover:bg-red-500/10 hover:text-text"
+              >
+                ×
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+      <button
+        type="button"
+        onClick={() => insertarLineas(lineas.length - 1, [""])}
+        className="mt-1 ml-4 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-text-muted hover:bg-red-500/10 hover:text-text"
+      >
+        + Añadir línea
+      </button>
 
       <div className="mt-1.5 flex items-center gap-1.5">
         <button
