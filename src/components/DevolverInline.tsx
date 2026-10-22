@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { codificarDevolucion, notaDeLaGuia } from "@/lib/devolucion";
+import { codificarDevolucion, lineasDe, notaDeLaGuia } from "@/lib/devolucion";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { leerCausas } from "@/lib/causas-cliente";
 import type { FalloGuia } from "@/lib/guia-revision";
@@ -289,7 +289,7 @@ export function DevolverInline({
               aria-label={`Corrección ${i + 1}`}
               onChange={(e) => cambiarLinea(i, e.target.value)}
               onPaste={(e) => {
-                const partes = e.clipboardData.getData("text").split(/\r?\n/).map((p) => p.trim()).filter(Boolean);
+                const partes = lineasDe(e.clipboardData.getData("text"));
                 if (partes.length < 2) return;
                 e.preventDefault();
                 cambiarLinea(i, `${l}${partes[0]}`);

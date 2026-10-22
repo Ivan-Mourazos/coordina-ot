@@ -96,6 +96,16 @@ export function partirNota(nota: string): { fallos: string[]; texto: string } {
   return { fallos, texto: resto.join("\n").trim() };
 }
 
+/** Las líneas con algo, sin la viñeta que se le ponga a mano («- », «• »,
+ *  «1.»): las notas de antes se escribían así, y al pegarlas en las líneas de
+ *  corrección o marcarlas como hechas el guion sobra. */
+export function lineasDe(texto: string): string[] {
+  return texto
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+}
+
 /** ¿Se puede devolver con esto? La nota es lo que manda al autor a hacer algo,
  *  así que sin ella no hay devolución — con causas o sin ellas. */
 export function devolucionCompleta(d: Devolucion): boolean {

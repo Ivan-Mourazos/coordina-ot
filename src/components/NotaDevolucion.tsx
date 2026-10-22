@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { leerDevolucion, partirNota } from "@/lib/devolucion";
+import { leerDevolucion, lineasDe, partirNota } from "@/lib/devolucion";
 import { leerCausas, type CausaDevolucion } from "@/lib/causas-cliente";
 
 /** La nota del revisor cuando devuelve, con sus causas delante.
@@ -139,14 +139,6 @@ function Causas({ causas }: { causas: CausaDevolucion[] }) {
       ))}
     </span>
   );
-}
-
-/** Las líneas con algo, sin la viñeta que se le ponga a mano. */
-export function lineasDe(texto: string): string[] {
-  return texto
-    .split(/\r?\n/)
-    .map((l) => l.replace(/^\s*(?:[-•*·]|\d+[.)])\s*/, "").trim())
-    .filter(Boolean);
 }
 
 /** Un resumen corto de la nota para la clave: otra nota, otra lista. */

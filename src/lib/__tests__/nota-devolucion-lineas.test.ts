@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineasDe } from "@/components/NotaDevolucion";
+import { lineasDe } from "../devolucion";
 
 describe("lineasDe", () => {
   it("una casilla por línea, sin la viñeta escrita a mano", () => {
