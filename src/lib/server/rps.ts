@@ -280,6 +280,11 @@ const FAMILIA_POR_TEXTO: [RegExp, Familia][] = [
   // lleva "lona" en medio (un toldo, una capota) ya se decidió arriba.
   [/^\s*LONAS?\b/, "LONA"],
   [/LONA CON OLLAO|SACO CONFECCIONADO EN LONA/, "LONA"],
+  // La rejilla confeccionada es una lona de malla, aunque no lo diga: «REJILLA
+  // CONFECCIONADA NO RECTANGULAR» (AR.26.05155) salía como Suministro ·
+  // Confección, que es su sitio en RPS (Iván, 22/10/2026). Solo la
+  // confeccionada: un tamiz o un paño de desagüe de piscina no son lonas.
+  [/REJILLA CONFECCIONADA/, "LONA"],
   // Las rotativas del campo son lonas aunque no lo digan: "ROTATIVA EN TIRA
   // EMBASTILLA" (AR.26.04702) salía como "Agrigana", su familia en RPS, cuando
   // la línea del pedido dice "confección de lona en tira".
