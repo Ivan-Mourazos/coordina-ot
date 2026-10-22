@@ -396,6 +396,10 @@ export interface OF {
    *  undefined = el artículo no tiene subfamilia puesta en RPS, que es normal
    *  (39 de las 136 OF pendientes el 11/08/2026). */
   subfamilia?: string;
+  /** Código del artículo en RPS (`PUERTAPLE`, `PUERTAENR`…). Más fino que la
+   *  familia: dentro de PUERTA, Planteamientos TGM hace las de lona y no las
+   *  seccionales ni los tramos (ver `ofPlanteable`). undefined = no llegó. */
+  codigoArticulo?: string;
   tiempoEstimadoMin: number;
   tiempoPlanteoMin: number; // acumulado por el/los autores
   /** Minutos de planteo y de revisión fichados EN COORDINAOT, aparte.
