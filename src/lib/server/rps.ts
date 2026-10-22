@@ -684,6 +684,8 @@ interface DatosOF {
   /** Subfamilia del artículo en RPS (CodProductSubFamily). Afina la familia
    *  donde el catálogo de RPS la deja corta; ver FAMILIA_POR_SUBFAMILIA. */
   subfamilia: string | undefined;
+  /** CodArticle del artículo de la OF (`PUERTAPLE`…), de la misma consulta. */
+  codigoArticulo: string | undefined;
   /** Lo que Compras ha pedido para la OF. */
   compras: CompraOF[];
 }
@@ -720,6 +722,7 @@ function aOF(fila: FilaVista, datos: DatosOF): OF {
     descripcion: descripcionDe(fila),
     familia: familiaDe(fila, datos.subfamilia, datos.detalleVenta),
     subfamilia: datos.subfamilia,
+    codigoArticulo: datos.codigoArticulo,
     piezas: Math.max(1, Math.round(fila.Cantidad ?? 1)),
     // Autor: quien ficha ahora la OF o, si nadie, quien más tiempo le ha
     // imputado (según RPS). La asignación manual del tablero puede moverlo.
@@ -1206,9 +1209,12 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     // multiplicaría las filas del tablero. Agrupando por OF no hay forma de que
     // eso pase. Medido: 380 ms para 17 283 OF de los últimos 18 meses, en
     // paralelo con las demás.
-    pool.request().query<{ orden: string | null; subfamilia: string | null }>(`
+    // Con el código del artículo, que dice qué puertas plantea Planteamientos
+    // TGM (ver `ofPlanteable`).
+    pool.request().query<{ orden: string | null; subfamilia: string | null; articulo: string | null }>(`
       SELECT mo.CodManufacturingOrder AS orden,
-             MAX(sf.CodProductSubFamily) AS subfamilia
+             MAX(sf.CodProductSubFamily) AS subfamilia,
+             MAX(art.CodArticle) AS articulo
       FROM dbo.CPRManufacturingOrder mo WITH (NOLOCK)
       JOIN dbo.FACOrderLineSL l WITH (NOLOCK)
         ON l.IDManufacturingOrder = mo.IDManufacturingOrder
@@ -1260,6 +1266,11 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     subfamilias.recordset
       .map((s) => [(s.orden ?? "").trim(), (s.subfamilia ?? "").trim()] as const)
       .filter(([, sub]) => sub !== ""),
+  );
+  const articuloPorOF = new Map(
+    subfamilias.recordset
+      .map((s) => [(s.orden ?? "").trim(), (s.articulo ?? "").trim()] as const)
+      .filter(([, art]) => art !== ""),
   );
 
   const ventaPorPedido = new Map(
@@ -1515,6 +1526,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
           // "cuánto llevas" hablan siempre del mismo trabajo.
           fichadaDesde: desdePorTarea.get(clave),
           subfamilia: subfamiliaPorOF.get(orden),
+          codigoArticulo: articuloPorOF.get(orden),
           detalleVenta: detallePorOF.get(orden),
           avisos,
           fechaLimitePlanteo,

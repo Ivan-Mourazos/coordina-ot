@@ -102,9 +102,40 @@ const FAMILIAS_PLANTEABLES: ReadonlySet<string> = new Set(["TOLDO", "TOLDO NUEVO
  *  lo decide ella al buscarlo. */
 export function enlacePlantear(codigo: string, familias: readonly string[]): string | null {
   if (!familias.some((f) => FAMILIAS_PLANTEABLES.has(f))) return null;
+  return urlPlanteamientos(codigo);
+}
+
+function urlPlanteamientos(codigo: string): string | null {
   const base = HERRAMIENTAS.flatMap((g) => g.items).find((h) => h.id === "planteamientos-tgm")?.url;
   if (!base) return null;
   return `${base}?pedido=${encodeURIComponent(codigo.replace(/[.\s]/g, ""))}`;
+}
+
+// ─── Puertas de lona (22/10/2026) ────────────────────────────────────────────
+// Planteamientos TGM plantea ya las puertas de lona: enrollable, plegable
+// (apilable) y autorreparable. Pero la familia PUERTA de aquí es más ancha —se
+// lleva también seccionales y muelles de carga (ver rps.ts)— y los TRAMOS de
+// plegable aquella web los avisa sin convertirlos. Por eso la puerta no entra
+// en FAMILIAS_PLANTEABLES: se mira OF a OF.
+
+/** Los artículos de RPS que aquella web plantea. Los tramos (PUERTAPLET,
+ *  PUERTAPLETRAM) y la PUERTARAPIDA, no. */
+const ARTICULOS_PUERTA_PLANTEABLES: ReadonlySet<string> = new Set(["PUERTAENR", "PUERTAPLE", "PUERTAUTO"]);
+
+/** ¿Planteamientos TGM sabe plantear esta OF? Toldo y remolque, siempre; una
+ *  puerta, solo si es de lona. Con el código de artículo manda él. Sin él, la
+ *  descripción: el tipo de puerta, y ni seccional, ni muelle, ni tramo. RPS
+ *  escribe «AUTOREPARABLE» con una sola R. */
+export function ofPlanteable(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
+  if (FAMILIAS_PLANTEABLES.has(of.familia)) return true;
+  if (of.familia !== "PUERTA") return false;
+  if (of.codigoArticulo) return ARTICULOS_PUERTA_PLANTEABLES.has(of.codigoArticulo.trim().toUpperCase());
+  const d = (of.descripcion ?? "").toUpperCase();
+  return (
+    /PUERTA/.test(d) &&
+    /APILABLE|ENROLLABLE|PLEGABLE|AUTO?R+EPARABLE/.test(d) &&
+    !/SECCIONAL|MUELLE|TRAMO/.test(d)
+  );
 }
 
 // ─── Plantear, Revisar, Corregir o Abrir (Iván, 19/10 y 21/10/2026) ──────────
@@ -133,8 +164,8 @@ const YA_EN_REVISION: ReadonlySet<string> = new Set([...EN_REVISION, "aprobada"]
  *  3. Revisar: alguna por revisar o en revisión.
  *  4. Abrir: todas aprobadas; ya solo queda consultarlo.
  *
- *  Solo cuentan las OF de toldo y remolque, que son las que aquella web
- *  plantea, y nunca las anuladas, que no se hacen.
+ *  Solo cuentan las OF que aquella web plantea (toldo, remolque y puertas de
+ *  lona, ver `ofPlanteable`), y nunca las anuladas, que no se hacen.
  *
  *  «Corregir» es cosa del autor: si se sabe quién mira (`miId`) y quién es el
  *  autor de las OF devueltas, a los demás les sale «Abrir», con la misma
@@ -142,13 +173,20 @@ const YA_EN_REVISION: ReadonlySet<string> = new Set([...EN_REVISION, "aprobada"]
  *  un rótulo de más que esconderle al autor que tiene algo que corregir. */
 export function botonPlantear(
   codigo: string,
-  ofs: readonly { familia: string; estado: string; autorId?: string | null }[],
+  ofs: readonly {
+    familia: string;
+    estado: string;
+    autorId?: string | null;
+    descripcion?: string;
+    codigoArticulo?: string;
+  }[],
   miId?: string | null,
 ): { modo: ModoPlantear; url: string } | null {
-  const url = enlacePlantear(codigo, ofs.filter((o) => o.estado !== "anulada").map((o) => o.familia));
+  const suyas = ofs.filter((o) => ofPlanteable(o) && o.estado !== "anulada");
+  if (suyas.length === 0) return null;
+  const url = urlPlanteamientos(codigo);
   if (!url) return null;
   const urlRevisar = url.replace("?pedido=", "?revisar=");
-  const suyas = ofs.filter((o) => FAMILIAS_PLANTEABLES.has(o.familia) && o.estado !== "anulada");
 
   const devueltas = suyas.filter((o) => o.estado === "devuelta");
   if (devueltas.length > 0) {

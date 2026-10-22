@@ -104,4 +104,47 @@ describe("botonPlantear", () => {
   it("sin toldo ni remolque, nada", () => {
     expect(botonPlantear("AR.26.04351", [of("LONA", "por_revisar")])).toBeNull();
   });
+
+  // ── Puertas de lona (22/10/2026) ──
+  const puerta = (estado: string, extra: { descripcion?: string; codigoArticulo?: string }) => ({
+    familia: "PUERTA",
+    estado,
+    autorId: null,
+    ...extra,
+  });
+
+  it("una puerta apilable pendiente es Plantear, con ?pedido=", () => {
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "PUERTAPLE" })])).toEqual({ modo: "plantear", url: PEDIDO });
+    // Sin código de artículo, por la descripción.
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { descripcion: "LONA PARA PUERTA APILABLE" })])?.modo).toBe("plantear");
+  });
+
+  it("una puerta en revisión es Revisar, con ?revisar=", () => {
+    expect(botonPlantear("AR.26.04351", [puerta("en_revision", { codigoArticulo: "PUERTAENR" })])).toEqual({ modo: "revisar", url: REVISAR });
+    // RPS escribe «AUTOREPARABLE» con una sola R.
+    expect(botonPlantear("AR.26.04351", [puerta("por_revisar", { descripcion: "LONA PARA PUERTA  AUTOREPARABLE" })])?.modo).toBe("revisar");
+  });
+
+  it("ni seccionales, ni muelles, ni tramos, ni puertas rápidas", () => {
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { descripcion: "PUERTA SECCIONAL INDUSTRIAL" })])).toBeNull();
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { descripcion: "LONA PARA MUELLE DE CARGA" })])).toBeNull();
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "PUERTAPLET", descripcion: "TRAMO PUERTA PLEGABLE" })])).toBeNull();
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "PUERTAPLETRAM" })])).toBeNull();
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { descripcion: "TRAMO PUERTA PLEGABLE" })])).toBeNull();
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "PUERTARAPIDA", descripcion: "PUERTA RAPIDA" })])).toBeNull();
+  });
+
+  it("con código de artículo manda el código, no la descripción", () => {
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "PUERTAENR", descripcion: "OTRA COSA" })])?.modo).toBe("plantear");
+    expect(botonPlantear("AR.26.04351", [puerta("pendiente", { codigoArticulo: "SECCIONAL1", descripcion: "PUERTA PLEGABLE" })])).toBeNull();
+  });
+
+  it("un pedido de toldo y puerta mira el estado de todas sus OF", () => {
+    const toldoAprobado = of("TOLDO", "aprobada");
+    expect(botonPlantear("AR.26.04351", [toldoAprobado, puerta("pendiente", { codigoArticulo: "PUERTAPLE" })])?.modo).toBe("plantear");
+    expect(botonPlantear("AR.26.04351", [toldoAprobado, puerta("en_revision", { codigoArticulo: "PUERTAPLE" })])?.modo).toBe("revisar");
+    expect(botonPlantear("AR.26.04351", [toldoAprobado, puerta("aprobada", { codigoArticulo: "PUERTAPLE" })])?.modo).toBe("abrir");
+    // La seccional no cuenta: con el toldo aprobado queda Abrir, no Plantear.
+    expect(botonPlantear("AR.26.04351", [toldoAprobado, puerta("pendiente", { descripcion: "PUERTA SECCIONAL" })])?.modo).toBe("abrir");
+  });
 });
