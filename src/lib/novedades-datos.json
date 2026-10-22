@@ -10,12 +10,6 @@
         "tanda": 1
       },
       {
-        "tipo": "nuevo",
-        "titulo": "Los pedidos de puertas de lona tienen botón para abrirlos en Planteamientos",
-        "detalle": "Enrollables, plegables y autorreparables. Las seccionales, los muelles y los tramos siguen sin él, porque allí no se plantean.",
-        "tanda": 2
-      },
-      {
         "tipo": "arreglado",
         "titulo": "Las rejillas confeccionadas salen como Lonas",
         "detalle": "Antes aparecían como Suministro · Confección.",

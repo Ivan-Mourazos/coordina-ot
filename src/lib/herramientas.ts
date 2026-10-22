@@ -122,12 +122,23 @@ function urlPlanteamientos(codigo: string): string | null {
  *  PUERTAPLETRAM) y la PUERTARAPIDA, no. */
 const ARTICULOS_PUERTA_PLANTEABLES: ReadonlySet<string> = new Set(["PUERTAENR", "PUERTAPLE", "PUERTAUTO"]);
 
+/** APAGADO por unos días (Iván, 22/10/2026): Planteamientos TGM aún tiene
+ *  errores con las puertas que hay que configurar allí. Mientras, las puertas
+ *  no llevan botón. Para volver a encenderlo, `true`: la regla de cuáles
+ *  cuentan (`esPuertaDeLona`) sigue aquí y probada. */
+export const PUERTAS_EN_PLANTEAMIENTOS = false;
+
 /** ¿Planteamientos TGM sabe plantear esta OF? Toldo y remolque, siempre; una
- *  puerta, solo si es de lona. Con el código de artículo manda él. Sin él, la
- *  descripción: el tipo de puerta, y ni seccional, ni muelle, ni tramo. RPS
- *  escribe «AUTOREPARABLE» con una sola R. */
+ *  puerta, si es de lona y el interruptor de arriba está encendido. */
 export function ofPlanteable(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
   if (FAMILIAS_PLANTEABLES.has(of.familia)) return true;
+  return PUERTAS_EN_PLANTEAMIENTOS && esPuertaDeLona(of);
+}
+
+/** Una puerta de las que plantea aquella web. Con el código de artículo manda
+ *  él. Sin él, la descripción: el tipo de puerta, y ni seccional, ni muelle, ni
+ *  tramo. RPS escribe «AUTOREPARABLE» con una sola R. */
+export function esPuertaDeLona(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
   if (of.familia !== "PUERTA") return false;
   if (of.codigoArticulo) return ARTICULOS_PUERTA_PLANTEABLES.has(of.codigoArticulo.trim().toUpperCase());
   const d = (of.descripcion ?? "").toUpperCase();
