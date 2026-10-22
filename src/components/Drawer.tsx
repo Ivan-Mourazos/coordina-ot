@@ -1716,6 +1716,9 @@ function OFRow({
           {of.observacion && !anulacion && !NOTA_YA_CORREGIDA.has(of.estado) && (
             <NotaDevolucion
               observacion={of.observacion}
+              // Las casillas, solo para el AUTOR: es quien corrige. A los demás
+              // la lista se les queda para leer.
+              marcarComo={miId && of.autorId === miId ? of.id : undefined}
               className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
             />
           )}
