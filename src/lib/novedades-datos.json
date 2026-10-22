@@ -1,5 +1,23 @@
 [
   {
+    "id": "2026-10-22",
+    "hasta": "37bdeb4",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al corregir una OF puedes ir marcando lo que ya hiciste",
+        "detalle": "Cada cosa que te pide el revisor sale con su casilla. Las marcas se quedan en tu ordenador y no avisan a nadie.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al devolver una OF escribes cada corrección en su línea",
+        "detalle": "Intro abre la siguiente y «+ Añadir línea» también. Ya no hace falta poner guiones.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-21",
     "hasta": "655e892",
     "cambios": [
