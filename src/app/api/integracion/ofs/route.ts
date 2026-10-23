@@ -7,7 +7,7 @@ import { leerOverlayPorOrdenes } from "@/lib/server/estado-db";
 // devuelta con su nota, en revisión…). Pide la cabecera X-Clave-Integracion
 // igual a INTEGRACION_CLAVE. Sin la variable configurada no responde nada:
 // una integración a medio montar no debe quedar abierta.
-// Solo sale `of`, `estado`, `nota`, `actualizado` y `revisor` (quién la aprobó,
+// Solo sale `of`, `estado`, `nota`, `actualizado`, `autor` (quién la lleva) y `revisor` (quién la aprobó,
 // solo si está aprobada, para el campo REVISOR de planteamientos): ni cliente,
 // ni más personas, ni notas internas.
 //

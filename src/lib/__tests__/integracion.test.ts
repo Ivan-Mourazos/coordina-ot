@@ -26,28 +26,28 @@ describe("leerOfsPedidas", () => {
 
 describe("resumirOf", () => {
   test("sin filas: sin_estado", () => {
-    expect(resumirOf("0230194", [])).toEqual({ of: "0230194", estado: "sin_estado", nota: "", actualizado: null, revisor: "" });
+    expect(resumirOf("0230194", [])).toEqual({ of: "0230194", estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "" });
   });
   test("una fila aprobada", () => {
     expect(resumirOf("0230194", [{ estado: "aprobada", observacion: "vieja", updatedAt: "2026-09-29T08:00:00Z", revisorId: "jaime" }]))
-      .toEqual({ of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" });
+      .toEqual({ of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime", autor: "" });
   });
   test("varias tareas: manda la menos avanzada y la nota solo si está devuelta", () => {
     const r = resumirOf("0230700", [
       { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
       { estado: "devuelta", observacion: "Falta el lado del brazo", updatedAt: "2026-09-29T09:00:00Z", revisorId: null },
     ]);
-    expect(r).toEqual({ of: "0230700", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" });
+    expect(r).toEqual({ of: "0230700", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "", autor: "" });
     expect(resumirOf("0230701", [
       { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
       { estado: "en_revision", observacion: "nota interna", updatedAt: "2026-09-29T07:00:00Z", revisorId: null },
-    ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "" });
+    ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "", autor: "" });
   });
   test("una tarea anulada no cuenta si hay otra: anulada + aprobada = aprobada, con el revisor de la aprobada", () => {
     expect(resumirOf("0230700", [
       { estado: "anulada", observacion: "duplicado", updatedAt: "2026-09-29T10:00:00Z", revisorId: "carron" },
       { estado: "aprobada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
-    ])).toEqual({ of: "0230700", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "angel" });
+    ])).toEqual({ of: "0230700", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "angel", autor: "" });
   });
   test("anulada sigue sin frenar a una devuelta: la menos avanzada de las no anuladas manda", () => {
     expect(resumirOf("0230701", [
@@ -55,11 +55,21 @@ describe("resumirOf", () => {
       { estado: "devuelta", observacion: "Falta cota", updatedAt: "2026-09-29T08:00:00Z", revisorId: null },
     ]).estado).toBe("devuelta");
   });
+  test("da el autor que la lleva ahora, también si un compañero la ha cogido", () => {
+    expect(resumirOf("0233015", [
+      { estado: "devuelta", observacion: "Falta la cota", updatedAt: "2026-10-23T08:00:00Z", revisorId: "angel", autorId: "luis" },
+    ]).autor).toBe("luis");
+    // La tarea que manda no tiene autor: vale el de otra tarea viva de OT.
+    expect(resumirOf("0233016", [
+      { estado: "por_revisar", observacion: null, updatedAt: "2026-10-23T08:00:00Z", revisorId: null, autorId: null },
+      { estado: "aprobada", observacion: null, updatedAt: "2026-10-23T07:00:00Z", revisorId: "angel", autorId: "ivan" },
+    ]).autor).toBe("ivan");
+  });
   test("solo tareas anuladas: anulada", () => {
     expect(resumirOf("0230702", [
       { estado: "anulada", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: "angel" },
       { estado: "anulada", observacion: null, updatedAt: "2026-09-29T09:00:00Z", revisorId: null },
-    ])).toEqual({ of: "0230702", estado: "anulada", nota: "", actualizado: "2026-09-29T09:00:00Z", revisor: "" });
+    ])).toEqual({ of: "0230702", estado: "anulada", nota: "", actualizado: "2026-09-29T09:00:00Z", revisor: "", autor: "" });
   });
   test("un estado desconocido se trata como pendiente", () => {
     expect(resumirOf("0230194", [{ estado: "rara", observacion: null, updatedAt: "2026-09-29T08:00:00Z", revisorId: null }]).estado).toBe("pendiente");

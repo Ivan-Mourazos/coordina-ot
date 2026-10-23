@@ -50,16 +50,16 @@ test("lista inválida: 400", async () => {
   expect((await pedir("0230194,abc")).status).toBe(400);
 });
 
-test("responde cada OF con solo sus cinco campos", async () => {
+test("responde cada OF con solo sus seis campos", async () => {
   const res = await pedir("0230194,0230195,0230700,0239999");
   expect(res.status).toBe(200);
   expect(res.headers.get("cache-control")).toBe("no-store");
   expect(await res.json()).toEqual({
     ofs: [
-      { of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
-      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" },
-      { of: "0230700", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "" },
-      { of: "0239999", estado: "sin_estado", nota: "", actualizado: null, revisor: "" },
+      { of: "0230194", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime", autor: "" },
+      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "", autor: "" },
+      { of: "0230700", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "", autor: "" },
+      { of: "0239999", estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "" },
     ],
   });
 });
@@ -87,12 +87,12 @@ test("una tarea de Diseño devuelta no bloquea la OF aprobada por OT", async () 
   const res = await pedir("0230800,0230801,0230802,0230803,0230195");
   expect(await res.json()).toEqual({
     ofs: [
-      { of: "0230800", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
-      { of: "0230801", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime" },
-      { of: "0230802", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "tamara" },
-      { of: "0230803", estado: "sin_estado", nota: "", actualizado: null, revisor: "" },
+      { of: "0230800", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime", autor: "ivan" },
+      { of: "0230801", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "jaime", autor: "" /* el «ivan» es de la tarea de Diseño, no cuenta */ },
+      { of: "0230802", estado: "aprobada", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "tamara", autor: "" },
+      { of: "0230803", estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "" },
       // Sin recurso ni personas (una OF antigua): sigue funcionando como antes.
-      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "" },
+      { of: "0230195", estado: "devuelta", nota: "Falta el lado del brazo", actualizado: "2026-09-29T09:00:00Z", revisor: "", autor: "" },
     ],
   });
 });

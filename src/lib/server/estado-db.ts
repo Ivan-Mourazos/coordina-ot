@@ -1661,10 +1661,10 @@ export function leerOverlayPorOrdenes(
         WHERE substr(o.of_id, 1, instr(o.of_id || ':', ':') - 1) IN (${ordenes.map(() => "?").join(",")})`,
     )
     .all(...ordenes) as Array<FilaOverlayOf & { orden: string; autorId: string | null; maquina: string | null }>;
-  for (const { orden, autorId, maquina, ...fila } of filas) {
+  for (const { orden, maquina, ...fila } of filas) {
     const seccion =
       seccionDeRecurso(maquina) ??
-      seccionConocidaDeOperario(autorId) ??
+      seccionConocidaDeOperario(fila.autorId ?? null) ??
       seccionConocidaDeOperario(fila.revisorId);
     const lista = porOrden.get(orden) ?? [];
     lista.push({ ...fila, seccion });

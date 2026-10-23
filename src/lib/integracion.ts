@@ -20,10 +20,13 @@ export interface EstadoOfIntegracion {
   estado: EstadoIntegracion;
   nota: string;
   actualizado: string | null;
-  // Quién la aprobó, solo si está aprobada. Es el único dato de personas que
-  // sale de CoordinaOT: la web de planteamientos lo pone en su campo REVISOR
-  // para que nadie tenga que escribirlo a mano.
+  // Quién la aprobó, solo si está aprobada. La web de planteamientos lo pone
+  // en su campo REVISOR para que nadie tenga que escribirlo a mano.
   revisor: string;
+  // Quién la lleva ahora: el autor de la tarea, también si un compañero la ha
+  // cogido con «Coger». Planteamientos deja corregir y generar a esa persona y
+  // pone los dos técnicos en el cajetín (Iván, 23/10/2026). Vacío si nadie.
+  autor: string;
 }
 
 export interface FilaOverlayOf {
@@ -31,6 +34,7 @@ export interface FilaOverlayOf {
   observacion: string | null;
   updatedAt: string;
   revisorId: string | null;
+  autorId?: string | null;
 }
 
 /** Una fila de `of_overlay` con la sección de su tarea, o null si no se sabe
@@ -85,7 +89,7 @@ export function filasDeOficinaTecnica<T extends FilaOverlayConSeccion>(filas: re
 }
 
 export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOfIntegracion {
-  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "" };
+  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "" };
   const todas = filas.map((f) => ({ ...f, normal: normalizar(f.estado) }));
   // Una tarea anulada no debe bloquear la OF para siempre: con `anulada` antes que
   // `aprobada` en AVANCE, un duplicado anulado junto a la tarea aprobada de OT dejaba la
@@ -108,5 +112,7 @@ export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOf
     nota: peor.normal === "devuelta" ? leerDevolucion(peor.observacion).nota.trim() : "",
     actualizado,
     revisor: ultimaAprobada?.revisorId ?? "",
+    // El de la tarea que manda; si no tiene, el de otra tarea viva de OT.
+    autor: peor.autorId ?? conEstado.find((f) => f.autorId)?.autorId ?? "",
   };
 }
