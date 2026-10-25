@@ -31,7 +31,7 @@ export function MenuAsignar({
   operarios,
   miId,
   onAsignar,
-  claseBoton = "rounded-md bg-brand-500 px-2 py-1 text-[10px] font-bold text-[#231903] shadow-sm hover:bg-brand-600",
+  claseBoton = "rounded-md bg-brand-500 px-2 py-1 text-[10px] font-bold text-brand-950 shadow-sm hover:bg-brand-600",
 }: {
   operarios: Operario[];
   miId: string | null;

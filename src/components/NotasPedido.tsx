@@ -227,7 +227,7 @@ export function NotasPedido({
               {delSistema ? (
                 <span
                   aria-hidden
-                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[9px] font-bold text-white dark:bg-amber-400 dark:text-stone-950"
+                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[9px] font-bold text-white dark:bg-amber-400 dark:text-brand-950"
                 >
                   !
                 </span>

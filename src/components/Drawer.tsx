@@ -813,7 +813,7 @@ export function Drawer({
           ) : (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="my-4 h-[calc(100%-2rem)] w-full bg-[#525659] p-4"
+              className="my-4 h-[calc(100%-2rem)] w-full p-4"
             >
               <PedidoScan pedido={pedido} conAviso />
             </div>

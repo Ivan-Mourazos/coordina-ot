@@ -146,7 +146,7 @@ export function CalendarioVisitas({
               // de días así y con la señal de prohibido parecía todo bloqueado.
               className={`relative grid aspect-square place-items-center rounded-lg text-xs tabular-nums transition-colors disabled:cursor-default ${
                 activo
-                  ? "bg-brand-400 font-bold text-[#231903]"
+                  ? "bg-brand-400 font-bold text-brand-950"
                   : tiene
                     ? "font-semibold text-text hover:bg-[var(--glass-highlight)]"
                     : "text-text-muted"

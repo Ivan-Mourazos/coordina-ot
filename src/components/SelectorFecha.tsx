@@ -194,7 +194,7 @@ export function SelectorFecha({
                     aria-pressed={esteMes}
                     className={`grid place-items-center rounded text-[11px] font-semibold capitalize transition-colors ${
                       esteMes
-                        ? "bg-brand-400 text-[#231903]"
+                        ? "bg-brand-400 text-brand-950"
                         : "text-text hover:bg-[var(--glass-highlight)]"
                     }`}
                   >
@@ -228,7 +228,7 @@ export function SelectorFecha({
                         // agosto, obligar a cambiar de mes es un paso de más.
                         className={`grid h-7 place-items-center rounded text-[11px] tabular-nums transition-colors ${
                           marcado
-                            ? "bg-brand-500 font-bold text-[#231903]"
+                            ? "bg-brand-500 font-bold text-brand-950"
                             : c.delMes
                               ? "text-text hover:bg-[var(--glass-highlight)]"
                               : "text-text-muted hover:bg-[var(--glass-highlight)]"

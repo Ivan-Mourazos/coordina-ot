@@ -186,7 +186,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                 compras.tarde > 0 ? "bg-red-500/95" : "bg-amber-400/95"
               }`}
             >
-              <IconoCaja className={`size-3 ${compras.tarde > 0 ? "text-white" : "text-[#1a1206]"}`} />
+              <IconoCaja className={`size-3 ${compras.tarde > 0 ? "text-white" : "text-brand-950"}`} />
             </span>
           )}
           {conRotulacion && (
@@ -199,7 +199,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                   dibujos de estilos distintos en 16 px. La tinta es fija y no
                   la del tema, porque el fondo de cada cuadro es de color fijo:
                   en oscuro, el texto claro se perdía sobre el blanco. */}
-              <IconoEtiqueta className="size-3 text-[#1a1206]" />
+              <IconoEtiqueta className="size-3 text-brand-950" />
             </span>
           )}
           {material && (
@@ -219,7 +219,7 @@ export const PedidoCardView = memo(function PedidoCardView({
                     : "bg-white/95"
               }`}
             >
-              <IconoMaterial className="size-3 text-[#1a1206]" />
+              <IconoMaterial className="size-3 text-brand-950" />
             </span>
           )}
         </span>
@@ -358,7 +358,7 @@ export const PedidoCard = memo(function PedidoCard({
               miId={miId}
               onAsignar={(op) => onAsignar(facet, op)}
               // Opaco: al 95 % el parte se transparentaba bajo el botón.
-              claseBoton="w-full bg-brand-500 px-2 py-1 text-[10px] font-bold text-[#231903] shadow-sm hover:bg-brand-600"
+              claseBoton="w-full bg-brand-500 px-2 py-1 text-[10px] font-bold text-brand-950 shadow-sm hover:bg-brand-600"
             />
           )
         }

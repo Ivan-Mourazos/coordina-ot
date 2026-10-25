@@ -63,7 +63,7 @@ export function LineaRevisar({
 
   return (
     <div
-      style={{ borderLeftColor: urgente ? "#dc2626" : ROL.revisar.color }}
+      style={{ borderLeftColor: urgente ? "var(--color-red-600)" : ROL.revisar.color }}
       className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         fichandoYo.length > 0 ? "bg-[color-mix(in_srgb,var(--color-violet-500)_10%,var(--fila))]" : "bg-[var(--fila)]"
       }`}

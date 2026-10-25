@@ -323,7 +323,7 @@ function TecladoPin({
             <button
               onClick={() => void entrar(porConfirmar, porConfirmar)}
               disabled={enviando}
-              className="rounded-xl bg-brand-400 px-5 py-3 text-sm font-bold text-[#231903] shadow hover:brightness-110 disabled:opacity-50"
+              className="rounded-xl bg-brand-400 px-5 py-3 text-sm font-bold text-brand-950 shadow hover:brightness-110 disabled:opacity-50"
             >
               Sí, soy yo
             </button>

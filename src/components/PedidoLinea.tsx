@@ -38,8 +38,8 @@ import { useSoloLectura } from "./SoloLectura";
  *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
  *  pintan en rojo: la prioridad tiene que verse sin leer. */
 /** El ámbar de "parado por Producción" (el mismo del aviso de la zona
- *  personal). Va como hex porque lo pide un `style` en línea. */
-const AMBAR_PARADO = "#d97706";
+ *  personal). Va como variable porque lo pide un `style` en línea. */
+const AMBAR_PARADO = "var(--color-amber-600)";
 
 export function PedidoLinea({
   facet,
@@ -85,7 +85,7 @@ export function PedidoLinea({
   // veces y el reloj seguía andando entre pulsación y pulsación.
   const fichandoYo = ofs.filter((o) => ofIdsFichandoYo?.has(o.id));
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
-  const color = urgente ? "#dc2626" : FASES.find((f) => f.id === fase)?.color;
+  const color = urgente ? "var(--color-red-600)" : FASES.find((f) => f.id === fase)?.color;
   const descripcion = ofs[0]?.descripcion ?? "";
   // Las familias del pedido, que es lo que dice DE QUÉ es sin leer: la
   // descripción de la primera OF ("LONA (TECHO, LATERAL,,,) PARA ESTRUCTURA
