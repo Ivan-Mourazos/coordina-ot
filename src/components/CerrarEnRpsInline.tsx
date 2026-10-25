@@ -219,7 +219,7 @@ export function CerrarEnRpsInline({
       )}
       {error && (
         <div className="w-full space-y-1">
-          <p className="text-[11px] text-red-600 dark:text-red-400" role="alert">
+          <p className="text-[11px] text-error" role="alert">
             {error}
           </p>
           {descartado && !avisoReintento && (

@@ -128,7 +128,7 @@ export function MenuAccionesOF({
                   onElegir(a);
                 }}
                 className={`block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold hover:bg-[var(--glass-highlight)] ${
-                  a.tono === "peligro" ? "text-red-600 dark:text-red-400" : "text-text"
+                  a.tono === "peligro" ? "text-error" : "text-text"
                 }`}
               >
                 {etiqueta(a)}

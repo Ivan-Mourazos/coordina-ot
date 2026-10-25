@@ -120,7 +120,7 @@ export const TecnicoCard = memo(function TecnicoCard({
             {tarde > 0 && (
               <>
                 {" · "}
-                <span className="font-semibold text-red-700 dark:text-red-400">{tarde} tarde</span>
+                <span className="font-semibold text-error">{tarde} tarde</span>
               </>
             )}
           </span>

@@ -430,7 +430,7 @@ function Editor({
           Cancelar
         </button>
         {pasado && (
-          <span className="text-[10px] text-red-600 dark:text-red-400">
+          <span className="text-[10px] text-error">
             {largo} de {NOTA_MAX} caracteres
           </span>
         )}

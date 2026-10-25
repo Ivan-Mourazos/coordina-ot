@@ -767,7 +767,7 @@ function Detalle({
           )}
           {compras.porLlegar > 0 && (
             <Dato label="Compras">
-              <span className={compras.tarde > 0 ? "font-semibold text-red-600 dark:text-red-400" : undefined}>
+              <span className={compras.tarde > 0 ? "font-semibold text-error" : undefined}>
                 {compras.porLlegar} por llegar
                 {compras.tarde > 0 && ` · ${compras.tarde} con la fecha pasada`}
               </span>
@@ -827,7 +827,7 @@ function MaterialFila({ p, hoy }: { p: Pedido; hoy: string }) {
       {material && <span className={MATERIAL[material].clase}>{MATERIAL[material].texto}</span>}
       {compras.porLlegar > 0 && (
         <span
-          className={compras.tarde > 0 ? "font-semibold text-red-700 dark:text-red-400" : "text-text-muted"}
+          className={compras.tarde > 0 ? "font-semibold text-error" : "text-text-muted"}
           title={compras.tarde > 0 ? `${compras.tarde} con la fecha de entrega pasada` : undefined}
         >
           {compras.porLlegar} en compras{compras.tarde > 0 ? " · tarde" : ""}

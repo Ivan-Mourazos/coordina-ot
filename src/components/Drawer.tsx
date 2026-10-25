@@ -1658,7 +1658,7 @@ function OFRow({
               // los iconos quedaban en escalera.
               className={`mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] ${
                 of.fechaLimitePlanteo < hoyISO()
-                  ? "font-semibold text-red-700 dark:text-red-400"
+                  ? "font-semibold text-error"
                   : "text-text-muted"
               }`}
               title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
@@ -1719,7 +1719,7 @@ function OFRow({
               // Las casillas, solo para el AUTOR: es quien corrige. A los demás
               // la lista se les queda para leer.
               marcarComo={miId && of.autorId === miId ? of.id : undefined}
-              className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-red-700 dark:text-red-400"
+              className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-error"
             />
           )}
 
@@ -2259,7 +2259,7 @@ function Btn({
     // pendiente parecía que anular fuese lo que tocaba hacer. El rojo sólido
     // se queda para el "Confirmar" del ConfirmDialog, que es donde la acción
     // se materializa de verdad.
-    rojo: "chip-3d text-red-700 dark:text-red-400",
+    rojo: "chip-3d text-error",
   }[tone];
   // Relieve: los de color macizo con `boton-3d`; los neutros ya lo traen de
   // `chip-3d` en su clase.

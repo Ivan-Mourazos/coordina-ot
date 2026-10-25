@@ -41,7 +41,7 @@ export function AnularInline({
     return (
       <button
         onClick={() => setAbiertoPropio(true)}
-        className="ml-auto rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 dark:text-red-400"
+        className="ml-auto rounded-lg px-2.5 py-1 text-xs font-semibold text-error ring-1 ring-red-500/35 hover:bg-red-500/10"
       >
         Anular OF
       </button>

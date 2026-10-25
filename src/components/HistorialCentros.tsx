@@ -471,7 +471,7 @@ function MaterialGastado({
             nota={ultimaSalida ? `Última salida ${fmtDiaMesAno(ultimaSalida)}` : undefined}
           />
           {error && (
-            <p className="text-[11px] text-red-600 dark:text-red-400">
+            <p className="text-[11px] text-error">
               No se pudo consultar el material gastado.{" "}
               <button type="button" onClick={onReintentar} className="underline">
                 Reintentar

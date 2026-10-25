@@ -120,7 +120,7 @@ export function RecuperarPedido({
         {cargando ? "Consultando…" : "Volver a plantear el pedido"}
       </button>
       {error && !abierto && (
-        <p className="mt-1.5 text-[11px] text-red-600 dark:text-red-400" role="alert">
+        <p className="mt-1.5 text-[11px] text-error" role="alert">
           {error}
         </p>
       )}
@@ -171,7 +171,7 @@ export function RecuperarPedido({
                 hasta que se vuelva a pasar el pedido.
               </p>
               {error && (
-                <p className="text-red-600 dark:text-red-400" role="alert">
+                <p className="text-error" role="alert">
                   {error}
                 </p>
               )}

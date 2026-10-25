@@ -139,7 +139,7 @@ export function DevolverInline({
           onClick={() => setAbierto(true)}
           disabled={!!impedido}
           title={impedido ?? undefined}
-          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-red-600 ring-1 ring-red-500/35 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
+          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-error ring-1 ring-red-500/35 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {label}
         </button>

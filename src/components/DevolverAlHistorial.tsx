@@ -78,7 +78,7 @@ export function DevolverAlHistorial({
               En RPS y OLANET no se toca nada.
             </p>
             {error && (
-              <p className="text-red-600 dark:text-red-400" role="alert">
+              <p className="text-error" role="alert">
                 {error}
               </p>
             )}

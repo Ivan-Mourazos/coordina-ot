@@ -246,7 +246,7 @@ function EstadoCasa({ p }: { p: PedidoConsulta }) {
   return (
     <div className="pointer-events-none min-w-0 text-[11px] leading-4">
       <p className={`font-semibold ${tono}`}>{texto}</p>
-      {p.fueraDePlazo && <p className="font-semibold text-red-700 dark:text-red-400">Fuera de plazo</p>}
+      {p.fueraDePlazo && <p className="font-semibold text-error">Fuera de plazo</p>}
     </div>
   );
 }

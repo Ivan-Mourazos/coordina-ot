@@ -361,7 +361,7 @@ export function PedidoLinea({
                   // retraso no es de quien lo lleva, y en rojo pedía una
                   // reacción que nadie de OT puede tener.
                   pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length && !detenidoDelTodo
-                    ? "font-semibold text-red-700 dark:text-red-400"
+                    ? "font-semibold text-error"
                     : "text-text-muted"
                 }`}
               >

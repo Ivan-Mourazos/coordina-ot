@@ -80,7 +80,7 @@ export function ReintentarGemelaInline({
         {enviando ? "Reintentando…" : `Reintentar la ${gemela}`}
       </button>
       {error && (
-        <p className="w-full text-[11px] text-red-600 dark:text-red-400" role="alert">
+        <p className="w-full text-[11px] text-error" role="alert">
           {error}
         </p>
       )}
