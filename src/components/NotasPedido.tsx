@@ -410,7 +410,7 @@ function Editor({
         // Bloqueado mientras se guarda: el camino de éxito limpia el borrador,
         // así que lo que se teclease en esa ventana se iría sin avisar.
         disabled={guardando}
-        className="recuadro w-full rounded-lg border border-border-strong px-3 py-2 text-[13px] leading-relaxed text-text disabled:opacity-60"
+        className="recuadro w-full rounded-lg border border-borde-campo px-3 py-2 text-[13px] leading-relaxed text-text disabled:opacity-60"
       />
       <div className="mt-1 flex items-center gap-2">
         <button

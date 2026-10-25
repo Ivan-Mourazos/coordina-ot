@@ -56,7 +56,7 @@ const porOrden = <T extends { orden: number; id: number }>(a: T, b: T) => a.orde
 const mismaFamilia = (f: string | null, g: Grupo) => (f?.toUpperCase() ?? null) === (g?.toUpperCase() ?? null);
 
 const INPUT =
-  "min-w-0 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-focus";
+  "min-w-0 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none border border-borde-campo placeholder:text-text-muted";
 const BOTON_SUAVE =
   "rounded-lg px-2 py-0.5 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text disabled:opacity-30 disabled:hover:bg-transparent";
 

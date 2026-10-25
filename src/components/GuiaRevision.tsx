@@ -209,7 +209,7 @@ function ComentarioFallo({ inicial, onGuardar }: { inicial: string; onGuardar: (
         }}
         placeholder="¿Qué falla? (opcional: «la cota del primer ollao»)"
         aria-label="Qué falla en este paso"
-        className="w-full rounded-md bg-surface px-2 py-1 text-[11px] text-text outline-none ring-1 ring-red-500/30 placeholder:text-text-muted focus:ring-red-400"
+        className="w-full rounded-md bg-surface px-2 py-1 text-[11px] text-text outline-none border border-red-500 placeholder:text-text-muted"
       />
     </div>
   );

@@ -3260,7 +3260,7 @@ export function Board({
                       value={notaCorreo}
                       onChange={(e) => setNotaCorreo(e.target.value)}
                       placeholder="Alguna indicación para Producción"
-                      className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1 text-xs text-text"
+                      className="w-full resize-y rounded-md border border-borde-campo bg-surface px-2 py-1 text-xs text-text"
                     />
                   </label>
                 )}

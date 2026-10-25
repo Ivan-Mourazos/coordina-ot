@@ -99,7 +99,7 @@ export function DireccionCasa({ onAbrirPedido }: { onAbrirPedido: (codigo: strin
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Pedido, cliente, obra u OF…"
-            className="glass-chip h-9 w-full rounded-lg px-3 text-sm text-text outline-none placeholder:text-text-muted focus:border-focus"
+            className="campo-hundido h-9 w-full rounded-lg px-3 text-sm text-text outline-none placeholder:text-text-muted"
           />
         </label>
         <div className="flex items-center gap-2">

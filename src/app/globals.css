@@ -20,6 +20,8 @@
   --color-brand-700: #9e6512;
   --color-brand-800: #764a12;
   --color-brand-900: #4e300e;
+  /* Tinta sobre el dorado (botones principales, el día elegido): 9,2:1 sobre brand-400. */
+  --color-brand-950: #231903;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -63,6 +65,9 @@
      gana cuerpo sin competir con --text. Se usa opaco: añadir /50 o /60
      vuelve a perder el contraste que necesitan esos datos. */
   --text-muted: #4a5a76;
+  /* El borde de un campo de escribir tiene que verse (3:1): --border-strong da 2,4:1 sobre blanco. Este, de la
+     misma paleta, da 4,1:1 sobre blanco y 3,1:1 sobre --bg. */
+  --borde-campo: #6e7f9d;
   /* Los separadores siguen suaves; un segmento o hito sí comunica un dato
      y necesita distinguirse de la pista, incluso cuando aún no ha empezado. */
   --progress-pending: #6f7784;
@@ -215,6 +220,7 @@
      #c4cad3 les da margen también ahí, manteniéndolos por debajo del texto
      principal #eef0f2. No se atenúan después con alfa. */
   --text-muted: #c4cad3;
+  --borde-campo: #70747e; /* 3,4:1 sobre --surface, 3,9:1 sobre --recuadro */
   --progress-pending: #8b95a5;
   /* En oscuro la fila se aclara sobre el panel (#23252b), no se oscurece. */
   --fila: #33363d;
@@ -292,6 +298,7 @@
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
+  --color-borde-campo: var(--borde-campo);
   --color-progress-pending: var(--progress-pending);
   --color-focus: var(--focus);
   --color-error: var(--error);
@@ -331,17 +338,21 @@ body {
 
 /* Al pinchar en un campo de escribir no sale el recuadro dorado (Iván, 26/10/2026): el campo se marca con un
    borde y un anillo suaves del gris azulado de la paleta. Los botones conservan el dorado, que solo sale con el
-   teclado. Va sin capa: gana a los focus:border-brand y focus-visible:ring de Tailwind. */
-:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
+   teclado. Va sin capa: gana a los focus:border-brand y focus-visible:ring de Tailwind. Con :where y no con :is,
+   para que puntúe poco (solo el :focus) y el campo hundido pueda quitarse el anillo: con :is puntuaba (0,4,1),
+   ganaba a `.campo-hundido input` y el buscador de la cabecera sacaba un anillo dentro del hueco. */
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
   border-color: var(--text-muted);
 }
-:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus-visible {
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus-visible {
   outline: 2px solid color-mix(in srgb, var(--text-muted) 40%, transparent);
   outline-offset: 0;
   --tw-ring-color: transparent;
 }
-/* Un campo sin borde dentro de su caja (el buscador): la marca va en la caja. */
-.campo-hundido :is(input, textarea):focus-visible {
+/* Un campo hundido (el buscador de la cabecera, los de filtrar): la marca es el borde de la caja, sin anillo. La
+   clase va en la caja que envuelve el campo, o en el propio campo si va suelto. */
+.campo-hundido :is(input, textarea):focus-visible,
+:is(input, textarea).campo-hundido:focus-visible {
   outline: none;
 }
 

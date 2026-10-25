@@ -87,7 +87,7 @@ export function AnularInline({
           }}
           placeholder="¿Cuál es el motivo?"
           rows={2}
-          className="mt-1.5 w-full resize-none rounded-md bg-surface px-2 py-1.5 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
+          className="mt-1.5 w-full resize-none rounded-md bg-surface px-2 py-1.5 text-xs text-text outline-none border border-borde-campo placeholder:text-text-muted"
         />
       )}
 

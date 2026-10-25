@@ -251,7 +251,7 @@ export function HistorialView({
             onChange={(e) => setQ(e.target.value)}
             aria-label="Buscar en el Historial"
             placeholder="Pedido, OF, cliente o descripción…"
-            className="glass-chip w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted focus:border-focus"
+            className="campo-hundido w-full rounded-lg py-1.5 pl-8 pr-7 text-xs text-text outline-none placeholder:text-text-muted"
           />
           {q && (
             <button type="button" aria-label="Vaciar la búsqueda del Historial" onClick={() => setQ("")}

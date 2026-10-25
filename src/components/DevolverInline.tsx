@@ -318,7 +318,7 @@ export function DevolverInline({
                     ? "Algo más que decirle (opcional)"
                     : "Qué hay que corregir (la cota, la medida, el color…)"
               }
-              className="min-w-0 flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none ring-1 ring-border placeholder:text-text-muted focus:ring-red-400"
+              className="min-w-0 flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none border border-borde-campo placeholder:text-text-muted"
             />
             {lineas.length > 1 && (
               <button
