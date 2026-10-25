@@ -234,13 +234,13 @@
   --fila-abierta: #33291a;
   /* Vetas de metal cepillado: ruido estirado en horizontal, blanco al 9 %. */
   --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  /* Fondo de la página: el negro azulado de la foto que eligió Iván (25/10/2026), con luz
+  /* Fondo de la página: grafito neutro, sin azul, que eligió Iván (26/10/2026), con luz
      arriba a la izquierda, esquinas más oscuras y grano fino sin estirar. Los paneles
      siguen en el gris carbón de siempre. */
-  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.75 0 0 0 0 0.82 0 0 0 0 0.95 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.85 0 0 0 0 0.85 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   --fondo-metal:
-    radial-gradient(ellipse 50% 45% at 0% 0%, rgb(122 143 170 / 0.28), transparent 72%),
-    radial-gradient(ellipse 120% 95% at 40% 30%, #172133 0%, #0e1422 55%, #070d19 100%);
+    radial-gradient(ellipse 50% 45% at 0% 0%, rgb(160 160 165 / 0.16), transparent 72%),
+    radial-gradient(ellipse 120% 95% at 40% 30%, #1a1b1f 0%, #111214 55%, #0a0a0c 100%);
   --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.14));
   --relieve-canto: #4a4d55;
   --relieve-sombra: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 0 rgba(0, 0, 0, 0.55), 0 8px 16px -8px rgba(0, 0, 0, 0.8);
