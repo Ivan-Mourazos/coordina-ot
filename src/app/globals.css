@@ -329,6 +329,22 @@ body {
   outline-offset: 1px;
 }
 
+/* Al pinchar en un campo de escribir no sale el recuadro dorado (Iván, 26/10/2026): el campo se marca con un
+   borde y un anillo suaves del gris azulado de la paleta. Los botones conservan el dorado, que solo sale con el
+   teclado. Va sin capa: gana a los focus:border-brand y focus-visible:ring de Tailwind. */
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
+  border-color: var(--text-muted);
+}
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-muted) 40%, transparent);
+  outline-offset: 0;
+  --tw-ring-color: transparent;
+}
+/* Un campo sin borde dentro de su caja (el buscador): la marca va en la caja. */
+.campo-hundido :is(input, textarea):focus-visible {
+  outline: none;
+}
+
 /* ── La mano del ratón en lo que se puede pulsar ──
    Faltaba en casi toda la app: 85 de los 90 botones salían con la flecha de
    siempre, y solo cinco la tenían porque alguien la puso a mano.
@@ -1368,6 +1384,20 @@ body {
 }
 :root .bloque-3d-hundido {
   transform: none;
+}
+
+/* Campo hundido en el metal: el buscador de la cabecera (Iván, 26/10/2026, «quedaría mejor con otro diseño»).
+   Un hueco donde se escribe, no una tecla: fondo de lo hundido, sombra hacia dentro y, al escribir, un filo
+   gris azulado en vez del recuadro dorado. */
+:root .campo-hundido {
+  background-color: var(--recuadro);
+  background-image: var(--veta), var(--hundir);
+  border: 1px solid transparent;
+  box-shadow: var(--hundido-sombra);
+  transition: border-color 120ms ease;
+}
+:root .campo-hundido:focus-within {
+  border-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
 }
 
 /* Un acento por tipo, sin teñir el fondo ni convertir el rótulo en color. */

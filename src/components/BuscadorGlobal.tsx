@@ -152,7 +152,7 @@ export function BuscadorGlobal({
       {/* h-9 = los 36 px de las pestañas (ViewSwitcher) y de los botones de la
           derecha (size-9). Con el padding suelto se quedaba en 28 y la cabecera
           tenía tres alturas distintas en fila. */}
-      <div className="glass-chip flex h-9 items-center gap-2 rounded-lg px-2.5">
+      <div className="campo-hundido flex h-9 items-center gap-2 rounded-lg px-3">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 shrink-0 text-text-muted"
           fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="11" cy="11" r="7" />
