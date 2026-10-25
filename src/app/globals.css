@@ -97,8 +97,8 @@
   --fila-abierta: #ffffff;
   /* Aluminio (claro). Ver el bloque «Metal y aluminio» al final del fichero.
      Vetas de cepillado: ruido estirado en horizontal, gris azulado. */
-  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   --fondo-metal: linear-gradient(180deg, #e3e9f3, #d2dae7);
   --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(220, 227, 239, 0.35));
   --relieve-canto: #ffffff;
@@ -233,7 +233,7 @@
   --franja-taller: #232c3a;
   --fila-abierta: #33291a;
   /* Vetas de metal cepillado: ruido estirado en horizontal, blanco al 9 %. */
-  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   /* Fondo de la página: el negro azulado de la foto que eligió Iván (25/10/2026), con luz
      arriba a la izquierda, esquinas más oscuras y grano fino sin estirar. Los paneles
      siguen en el gris carbón de siempre. */
