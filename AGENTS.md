@@ -48,3 +48,10 @@ Antes de desplegar, `pnpm novedades` recoge las líneas de todos los commits
 desde la última entrada publicada y escribe la entrada nueva en
 `src/lib/novedades-datos.json`. Con `--ver` enseña lo que haría sin tocar nada.
 La FECHA no se pone a mano: la sella el servidor al estrenar la versión.
+
+# Estilo: paleta y metal (octubre 2026)
+
+Antes de tocar colores, paneles, botones o campos, lee `docs/ESTILO-PALETA-METAL.md`: qué eligió Iván (claro
+con su paleta azul, oscuro en grafito neutro, grano y no vetas, sin recuadro dorado al pinchar en un campo), las
+reglas (solo tokens, relieve y hundido con las clases del metal) y la lista de pantallas que faltan por ajustar.
+Planteamientos (`toldos-testar`) copia este estilo: un cambio de colores va en las dos webs a la vez.
