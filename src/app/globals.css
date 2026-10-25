@@ -39,14 +39,16 @@
   /* Gris con cuerpo: los paneles blancos flotan encima. Bajó de #dfe3e9: con
      aquel, blanco contra fondo daba 1,29:1 y las tarjetas no se despegaban;
      con este, 1,39:1. La cabecera va de este mismo color (ver .glass-header). */
-  --bg: #d6dbe2;
-  --bg-glow: #e2e6eb; /* foco de luz ambiental del fondo */
+  /* Teñido con la paleta azul de Iván (25/10/2026: #111522 #1e263b #303d59 #536684
+     #98a9c4 #dce3ef). */
+  --bg: #dce3ef;
+  --bg-glow: #e6ebf4; /* foco de luz ambiental del fondo */
   --surface: #ffffff;
-  --surface-2: #f4f5f7;
-  --zone: #f7f8fa;
-  --border: #e2e4e9;
-  --border-strong: #c8ccd4;
-  --text: #17181c;
+  --surface-2: #eef2f8;
+  --zone: #f3f6fa;
+  --border: #d3dbe8;
+  --border-strong: #98a9c4;
+  --text: #111522;
   /* Acentos opacos por apartado: la semántica de OT, documentos/listo y
      revisión se conserva sin teñir de crema las placas de aluminio. */
   --bloque-documentos: #0e7490;
@@ -56,10 +58,11 @@
   --bloque-comentario: #b45309;
   --bloque-ofs: #047857;
   /* Fechas, recuentos y rótulos pequeños viven sobre vidrio y también sobre
-     el fondo plata. #4b505a da ~5,8:1 sobre --bg y ~8:1 sobre blanco:
+     el fondo. #4a5a76 (gris azulado, entre #303d59 y #536684 de la paleta de Iván,
+     25/10/2026) da ~5,4:1 sobre --bg, ~5,1:1 sobre --recuadro y ~7:1 sobre blanco:
      gana cuerpo sin competir con --text. Se usa opaco: añadir /50 o /60
      vuelve a perder el contraste que necesitan esos datos. */
-  --text-muted: #4b505a;
+  --text-muted: #4a5a76;
   /* Los separadores siguen suaves; un segmento o hito sí comunica un dato
      y necesita distinguirse de la pista, incluso cuando aún no ha empezado. */
   --progress-pending: #6f7784;
@@ -69,51 +72,51 @@
      empezaba cada pedido. Blanco opaco y un filo gris la despegan sin
      oscurecer el panel (Iván, 15/10/2026). */
   --fila: #ffffff;
-  --fila-borde: #d5d9e0;
+  --fila-borde: #d3dbe8;
   /* Las filas de pedido van con un filo más marcado y una sombra ligera: con
      el filo de los bloques (#d5d9e0) seguían leyéndose pegadas al panel en
      pantalla (Iván lo eligió con capturas, 15/10/2026). */
-  --fila-filo: #aeb4be;
+  --fila-filo: #98a9c4;
   --fila-sombra: 0 1px 3px rgba(15, 23, 42, 0.12);
   /* Franja de resalte OPACA (fila abierta de una lista, cabecera de un
      centro en las tareas). Iván pidió contraste y no crema translúcido
      (15/10/2026): el dorado al 10 % sobre blanco salía amarillento y flojo. */
-  --franja: #e1e4e9;
+  --franja: #e3e8f1;
   /* Recuadro de lo desplegado dentro de un bloque blanco (descripción de la
      OF, tareas y tiempos, «Tiempo»). surface-2 (#f4f5f7) sobre blanco no se
      veía: hace falta un gris de verdad (Iván, 15/10/2026). */
-  --recuadro: #dfe3e8;
-  --detalle: #eceff3;
+  --recuadro: #d5ddea;
+  --detalle: #e8edf5;
   /* Franja de cada centro en las tareas, y cabecera del pedido abierto en las
      listas. En claro, la misma franja gris para todos; en oscuro cada centro
      lleva su tono (ver el bloque «Metal» al final del fichero). */
-  --franja-ot: #e1e4e9;
-  --franja-diseno: #e1e4e9;
-  --franja-impresion: #e1e4e9;
-  --franja-taller: #e1e4e9;
+  --franja-ot: #e3e8f1;
+  --franja-diseno: #e3e8f1;
+  --franja-impresion: #e3e8f1;
+  --franja-taller: #e3e8f1;
   --fila-abierta: #ffffff;
   /* Aluminio (claro). Ver el bloque «Metal y aluminio» al final del fichero.
      Vetas de cepillado: ruido estirado en horizontal, gris azulado. */
-  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.33 0 0 0 0 0.4 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.24 0 0 0 0 0.3 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --fondo-metal: linear-gradient(180deg, #dde1e7, #cfd4dc);
-  --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(226, 230, 236, 0.35));
+  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --fondo-metal: linear-gradient(180deg, #e3e9f3, #d2dae7);
+  --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(220, 227, 239, 0.35));
   --relieve-canto: #ffffff;
   --relieve-sombra:
     inset 0 1px 0 #ffffff,
-    0 1px 0 rgba(120, 128, 140, 0.35),
-    0 2px 0 -1px rgba(150, 158, 170, 0.5),
-    0 8px 16px -10px rgba(40, 50, 70, 0.35);
+    0 1px 0 rgba(83, 102, 132, 0.35),
+    0 2px 0 -1px rgba(152, 169, 196, 0.5),
+    0 8px 16px -10px rgba(30, 38, 59, 0.35);
   --relieve-sombra-alto:
     inset 0 1px 0 #ffffff,
-    0 2px 0 rgba(120, 128, 140, 0.35),
-    0 3px 0 -1px rgba(150, 158, 170, 0.5),
-    0 12px 20px -10px rgba(40, 50, 70, 0.4);
+    0 2px 0 rgba(83, 102, 132, 0.35),
+    0 3px 0 -1px rgba(152, 169, 196, 0.5),
+    0 12px 20px -10px rgba(30, 38, 59, 0.4);
   /* Pulsado: el hueco recibe menos luz arriba (degradado invertido) y la
      sombra interior es honda, como una tecla de aluminio apretada. */
-  --hundir: linear-gradient(180deg, rgba(40, 50, 70, 0.12), rgba(255, 255, 255, 0.3));
-  --pulsado-sombra: inset 0 3px 6px rgba(40, 50, 70, 0.35), inset 0 1px 2px rgba(40, 50, 70, 0.35), 0 1px 0 #ffffff;
-  --hundido-sombra: inset 0 2px 4px rgba(40, 50, 70, 0.22), inset 0 -1px 0 #ffffff;
+  --hundir: linear-gradient(180deg, rgba(30, 38, 59, 0.12), rgba(255, 255, 255, 0.3));
+  --pulsado-sombra: inset 0 3px 6px rgba(30, 38, 59, 0.35), inset 0 1px 2px rgba(30, 38, 59, 0.35), 0 1px 0 #ffffff;
+  --hundido-sombra: inset 0 2px 4px rgba(30, 38, 59, 0.22), inset 0 -1px 0 #ffffff;
   /* El dorado del logo apenas contrasta sobre blanco. El foco tiene tinta
      propia, más oscura en claro, sin cambiar el acento de marca. */
   --focus: #9e6512;
@@ -231,8 +234,13 @@
   --fila-abierta: #33291a;
   /* Vetas de metal cepillado: ruido estirado en horizontal, blanco al 9 %. */
   --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --veta-fondo: var(--veta);
-  --fondo-metal: linear-gradient(180deg, #1d1e22, #16171a);
+  /* Fondo de la página: el negro azulado de la foto que eligió Iván (25/10/2026), con luz
+     arriba a la izquierda, esquinas más oscuras y grano fino sin estirar. Los paneles
+     siguen en el gris carbón de siempre. */
+  --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.75 0 0 0 0 0.82 0 0 0 0 0.95 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --fondo-metal:
+    radial-gradient(ellipse 50% 45% at 0% 0%, rgb(122 143 170 / 0.28), transparent 72%),
+    radial-gradient(ellipse 120% 95% at 40% 30%, #172133 0%, #0e1422 55%, #070d19 100%);
   --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.14));
   --relieve-canto: #4a4d55;
   --relieve-sombra: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 0 rgba(0, 0, 0, 0.55), 0 8px 16px -8px rgba(0, 0, 0, 0.8);
