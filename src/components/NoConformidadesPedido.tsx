@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { esCausaNuestra, resumenNc, textoProcesos, type CausaNc, type NoConformidad } from "@/lib/no-conformidad";
+import { esCausaNuestra, repartoNc, resumenNc, textoProcesos, type CausaNc, type NoConformidad } from "@/lib/no-conformidad";
 
 // ─── Las no conformidades del pedido, EN LA FICHA ────────────────────────────
 // Si Calidad abrió una NC por este pedido, quien lo mira tiene que saberlo, y
@@ -21,7 +21,17 @@ import { esCausaNuestra, resumenNc, textoProcesos, type CausaNc, type NoConformi
  *  de cada una, al pasar el ratón. */
 function CausasNc({ causas }: { causas: CausaNc[] }) {
   if (!causas.length) return <span className="mt-1 block text-[11px] text-text-muted">Sin causas todavía: pendiente de investigar.</span>;
+  // La parte nuestra de la NC, pesada como en Métricas (ver `repartoNc`), y si
+  // es la causa que más pesa frente a cada tipo de causa ajeno.
+  const r = repartoNc({ causas, tareasDe: [] });
+  const mayor = r.nuestro > 0 && Object.values(r.otros).every((v) => r.nuestro >= v - 1e-9);
   return (
+    <>
+    {r.nuestro > 0 && (
+      <span className="mt-1 block text-[11px] font-semibold text-text">
+        Planteamiento o diseño gráfico: {Math.round(r.nuestro * 100)} % de la NC · {mayor ? "causa mayor" : "causa menor"}
+      </span>
+    )}
     <ul className="mt-1 space-y-0.5">
       {causas.map((c, i) => (
         <li key={i} className={`text-[11px] leading-snug ${esCausaNuestra(c) ? "text-text" : "text-text-muted"}`} title={c.texto || undefined}>
@@ -31,6 +41,7 @@ function CausasNc({ causas }: { causas: CausaNc[] }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
 

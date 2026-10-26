@@ -84,6 +84,35 @@ En 2026 (hasta el 26/10): 54 causas de ese tipo, 49 con un nombre nuestro. NC co
 rectificados, el 17 % de los 274 de la empresa). Por sección: OT 45 (40 rectificados), Diseño 4 (4), Impresión
 5 (5). 22 NC aún sin investigar.
 
+### Cuánto pesa lo nuestro, y si es la causa mayor
+
+Contar la NC entera por tener una causa nuestra infla lo nuestro: en NC010178 Tamara tiene un 10 % de un
+defecto y Documentación un 80 %. Así que cada NC se **reparte** (`repartoNc` en `src/lib/no-conformidad.ts`):
+
+1. **El % de cada causa lo pone Calidad**, a mano, en `APQNCCause.Contribution`. Va **por defecto**: las causas
+   de un defecto suman 100 (343 de 432 defectos en 2026). Casi todos los demás son de una sola causa con el % a
+   0, y entonces esa causa se lleva el defecto entero; si un defecto tiene varias a 0, a partes iguales.
+2. **Cada defecto vale lo mismo** dentro de la NC. Así la NC suma 1.
+3. Lo nuestro se suma por **sección y persona**; lo ajeno, por **tipo de causa** («documentar mal»,
+   «instalar»…). Dos personas en la misma causa se la reparten.
+
+Ejemplo, NC010178: dos defectos, cada uno vale la mitad. Tamara tiene el 10 % del primero → **5 % de la NC**.
+Documentar mal, 40 %; instalar, 30 %; producir, 25 %.
+
+**Causa mayor**: la sección es la causa mayor si su peso no es menor que el de ningún otro (cada tipo de causa
+ajeno y cada otra sección); un empate cuenta como mayor. En NC010178, OT es causa menor.
+
+En Métricas se ven las dos lecturas:
+
+- **«Con alguna causa nuestra»**: cuenta la NC entera. Dice a cuántas tocamos.
+- **«Lo nuestro pesa» / «Equivale a»**: suma solo nuestra parte. Es la justa.
+
+En 2026 (hasta el 26/10): de 274 rectificados, 46 tienen alguna causa nuestra (17 %), pero lo nuestro pesa
+28,7 (10,5 %). Somos la causa mayor en 40 de las 51 NC con causa nuestra. Por sección: OT 45 NC, mayor en 34,
+equivale a 28,3 · Diseño 4, mayor en 2, equivale a 1,6 · Impresión 5, mayor en 5, equivale a 3,8.
+
+El % de la empresa (sobre todos los rectificados) es el único porcentaje; por sección van números.
+
 ### Pendientes de investigar
 
 Una NC recién abierta no tiene causas: Calidad la investiga después (las de octubre estaban casi todas así:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deLaSeccion, esMia, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
+import { causaMayor, deLaSeccion, esMia, repartoNc, soyCausaMayor, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
 
 const nc = (proceso1: string | null, proceso2: string | null) => ({ proceso1, proceso2 });
 
@@ -57,9 +57,9 @@ const ncCon = (p: Partial<NoConformidad>): NoConformidad => ({
   proceso1: null, proceso2: null, origen: null, descripcion: "", comentarios: "", cerrada: false,
   causas: [], tareasDe: [], ...p,
 });
-const causa = (tipo: string, linea: string, contribucion: number | null = null): CausaNc => {
+const causa = (tipo: string, linea: string, contribucion: number | null = null, defecto = 1): CausaNc => {
   const { responsable, texto } = partirCausa(`${linea}\n\nlo que pasó`);
-  return { tipo, responsable, quien: quienesEn(responsable), contribucion, texto };
+  return { tipo, responsable, quien: quienesEn(responsable), contribucion, defecto, texto };
 };
 const PLANTEO = "ERROR EN PLANTEAMIENDO O DISEÑO GRAFICO";
 
@@ -144,8 +144,67 @@ describe("totalesNc", () => {
       total: 4, rectificadas: 3, nuestras: 2, nuestrasRectificadas: 2, sinInvestigar: 1,
       disenoPrincipal: 1, disenoSecundario: 1,
     });
-    expect(t.porSeccion.ot).toEqual({ n: 2, rectificadas: 2 });
-    expect(t.porSeccion.diseno).toEqual({ n: 1, rectificadas: 1 });
-    expect(t.porSeccion.impresion).toEqual({ n: 0, rectificadas: 0 });
+    expect(t.porSeccion.ot).toMatchObject({ n: 2, rectificadas: 2 });
+    expect(t.porSeccion.diseno).toMatchObject({ n: 1, rectificadas: 1 });
+    expect(t.porSeccion.impresion).toMatchObject({ n: 0, rectificadas: 0 });
+  });
+});
+
+describe("repartoNc: cuánto de la NC es de quién", () => {
+  // NC010178 tal cual: defecto 1 (medidas) y defecto 2 (polea), cada uno 100 %.
+  const nc010178 = ncCon({
+    tareasDe: ["ot"],
+    causas: [
+      causa("DOCUMENTAR MAL", "OSCAR", 80, 1),
+      causa(PLANTEO, "TAMARA", 10, 1),
+      causa("ERROR O DEFECTO AL INSTALAR O ENTREGAR", "LOIS", 10, 1),
+      causa("ERROR AL CONFECCIONAR O PRODUCIR", "Las poleas", 50, 2),
+      causa("ERROR O DEFECTO AL INSTALAR O ENTREGAR", "LOIS", 50, 2),
+    ],
+  });
+
+  it("cada defecto vale la mitad, y dentro manda el % de Calidad: Tamara se queda en un 5 %", () => {
+    const r = repartoNc(nc010178);
+    expect(r.nuestro).toBeCloseTo(0.05);
+    expect(r.secciones.ot).toBeCloseTo(0.05);
+    expect(r.personas.tamara).toBeCloseTo(0.05);
+    expect(r.otros["DOCUMENTAR MAL"]).toBeCloseTo(0.4);
+    expect(r.otros["ERROR O DEFECTO AL INSTALAR O ENTREGAR"]).toBeCloseTo(0.3);
+  });
+
+  it("y por eso OT no es la causa mayor de NC010178, ni Tamara", () => {
+    expect(causaMayor(nc010178, "ot")).toBe("menor");
+    expect(soyCausaMayor(nc010178, "tamara")).toBe(false);
+  });
+
+  it("una sola causa con el % a 0 se lleva todo su defecto", () => {
+    const r = repartoNc(ncCon({ causas: [causa(PLANTEO, "ADRIAN", 0)] }));
+    expect(r.nuestro).toBeCloseTo(1);
+    expect(causaMayor(ncCon({ causas: [causa(PLANTEO, "ADRIAN", 0)] }), "ot")).toBe("mayor");
+  });
+
+  it("dos personas en la misma causa se la reparten, cada una en su sección", () => {
+    const r = repartoNc(ncCon({ causas: [causa(PLANTEO, "Manuel Gómez y Ángel", 100)] }));
+    expect(r.secciones.impresion).toBeCloseTo(0.5);
+    expect(r.secciones.ot).toBeCloseTo(0.5);
+  });
+
+  it("un empate con otra causa cuenta como causa mayor", () => {
+    const nc = ncCon({ causas: [causa(PLANTEO, "JAIME", 50), causa("DOCUMENTAR MAL", "JESUS", 50)] });
+    expect(causaMayor(nc, "ot")).toBe("mayor");
+  });
+
+  it("sin parte de la sección, ni mayor ni menor", () => {
+    expect(causaMayor(nc010178, "diseno")).toBe(null);
+  });
+
+  it("los totales pesan: NC010178 suma 0,05 a OT y no es causa mayor", () => {
+    const t = totalesNc([{ ...nc010178, rectificativo: "AR.26.05101" }]);
+    expect(t.nuestras).toBe(1);
+    expect(t.nuestrasPeso).toBeCloseTo(0.05);
+    expect(t.nuestrasRectificadasPeso).toBeCloseTo(0.05);
+    expect(t.nuestrasMayor).toBe(0);
+    expect(t.porSeccion.ot).toMatchObject({ n: 1, mayor: 0 });
+    expect(t.porSeccion.ot.peso).toBeCloseTo(0.05);
   });
 });

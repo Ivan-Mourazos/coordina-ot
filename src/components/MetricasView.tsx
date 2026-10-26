@@ -11,7 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
-import { deLaSeccion, esMia, resumenNc, type NoConformidad } from "@/lib/no-conformidad";
+import { causaMayor, deLaSeccion, esMia, repartoNc, resumenNc, soyCausaMayor, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -254,60 +254,86 @@ const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  *  causas, a alguien de la sección con «error en planteamiento o diseño
  *  gráfico»; y aparte, lo que aún no ha investigado en pedidos con tareas
  *  suyas (ver `deLaSeccion`). Nombres de compañeros, ninguno: en Métricas cada
- *  uno ve lo suyo (Iván, 21/10/2026). Lo mío se marca. */
+ *  uno ve lo suyo (Iván, 21/10/2026). Lo mío se marca.
+ *
+ *  Una NC no pesa entera por tener una causa nuestra: se cuenta cuánta parte
+ *  es nuestra y si somos la causa MAYOR (ver `repartoNc` y `causaMayor`). */
 function NoConformidades({ nc, totales, cargando, seccion, miId }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; cargando?: boolean; seccion: SeccionId; miId: string }) {
   if (!nc) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
-  const con = (tipo: "causa" | "pendiente") => nc.filter((x) => deLaSeccion(x, seccion) === tipo);
-  const filas = [
-    { clave: "causa", nombre: `Causa de planteamiento de ${SECCIONES[seccion].nombreCorto}`, de: con("causa") },
-    { clave: "pendiente", nombre: "Pendientes de investigar", de: con("pendiente") },
-  ];
+  const nombreCorto = SECCIONES[seccion].nombreCorto;
+  const deSeccion = nc.filter((x) => deLaSeccion(x, seccion) === "causa");
+  const pendientes = nc.filter((x) => deLaSeccion(x, seccion) === "pendiente");
+  const mayores = deSeccion.filter((x) => causaMayor(x, seccion) === "mayor");
+  const peso = (lista: NoConformidad[]) => lista.reduce((s, x) => s + (repartoNc(x).secciones[seccion] ?? 0), 0);
+  const rect = (lista: NoConformidad[]) => lista.filter((x) => x.rectificativo);
   const mias = nc.filter((x) => esMia(x, miId));
+  const pesoMio = mias.reduce((s, x) => s + (repartoNc(x).personas[miId] ?? 0), 0);
   return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
-    <div className="flex flex-wrap items-baseline gap-x-2" title="No conformidades de RPS que Calidad achaca, en sus causas, a alguien de esta sección con «error en planteamiento o diseño gráfico»; y las que aún no ha investigado en pedidos con tareas de la sección.">
-      <strong className="text-2xl leading-none font-bold tabular-nums">{filas[0].de.length}</strong>
-      <span className="text-[10px] text-text-muted">de la sección · {filas[0].de.filter((x) => x.rectificativo).length} con pedido rectificativo{mias.length > 0 && ` · ${mias.length} tuyas`}</span>
+    <div className="flex flex-wrap items-baseline gap-x-2" title={`No conformidades que Calidad achaca, en sus causas, a alguien de ${nombreCorto} con «error en planteamiento o diseño gráfico». «Equivale a» suma solo la parte de ${nombreCorto}: cada defecto de la NC reparte su 100 % entre sus causas según el % de Calidad.`}>
+      <strong className="text-2xl leading-none font-bold tabular-nums">{deSeccion.length}</strong>
+      <span className="text-[10px] text-text-muted">con causa de {nombreCorto} · causa mayor en <strong className="font-semibold text-text">{mayores.length}</strong> · equivale a <strong className="font-semibold text-text">{decimal(peso(deSeccion))}</strong> NC</span>
     </div>
     <table className="w-full text-[11px]">
-      <thead><tr className="text-[10px] text-text-muted"><th className="text-left font-normal" /><th className="text-right font-normal">NC</th><th className="text-right font-normal">Rectificados</th></tr></thead>
-      <tbody>{filas.map((f) => <tr key={f.clave} className={f.clave === "pendiente" ? "text-text-muted" : ""}>
-        <td>{f.nombre}</td>
-        <td className="text-right font-semibold tabular-nums">{f.de.length}</td>
-        <td className="text-right font-semibold tabular-nums">{f.de.filter((x) => x.rectificativo).length}</td>
-      </tr>)}</tbody>
+      <thead><tr className="text-[10px] text-text-muted">
+        <th className="text-left font-normal" />
+        <th className="text-right font-normal" title="Cuántas NC">NC</th>
+        <th className="text-right font-normal" title="En cuántas es la causa que más pesa">Mayor</th>
+        <th className="text-right font-normal" title="Con pedido rectificativo">Rectif.</th>
+        <th className="text-right font-normal" title="Solo la parte de la sección: cuántas NC enteras suma">Equivale</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Causa de {nombreCorto}</td><td className="text-right font-semibold tabular-nums">{deSeccion.length}</td><td className="text-right font-semibold tabular-nums">{mayores.length}</td><td className="text-right font-semibold tabular-nums">{rect(deSeccion).length}</td><td className="text-right font-semibold tabular-nums">{decimal(peso(deSeccion))}</td></tr>
+        <tr className="text-text-muted"><td>Pendientes de investigar</td><td className="text-right font-semibold tabular-nums">{pendientes.length}</td><td className="text-right">—</td><td className="text-right font-semibold tabular-nums">{rect(pendientes).length}</td><td className="text-right">—</td></tr>
+        {mias.length > 0 && <tr><td>Tuyas</td><td className="text-right font-semibold tabular-nums">{mias.length}</td><td className="text-right font-semibold tabular-nums">{mias.filter((x) => soyCausaMayor(x, miId)).length}</td><td className="text-right font-semibold tabular-nums">{rect(mias).length}</td><td className="text-right font-semibold tabular-nums">{decimal(pesoMio)}</td></tr>}
+      </tbody>
     </table>
-    {/* La empresa entera. El % es sobre todos los rectificados de la casa.
-        Por sección, en números: una NC con causas de dos secciones cuenta en
-        las dos. Y el proceso afectado, que es otra lectura (Iván,
-        26/10/2026): DISEÑO como principal o como secundario. */}
-    {totales && <div className="border-t border-border pt-2 text-[10px] leading-snug text-text-muted" title="Todas las no conformidades que abrió Calidad en el periodo. «Nuestras» son las que tienen alguna causa de «error en planteamiento o diseño gráfico»; la sección la da la persona nombrada en la causa.">
+    {/* La empresa entera, en dos lecturas: «tienen alguna causa nuestra»
+        (cuenta la NC entera) y «lo que pesa lo nuestro» (solo nuestra parte).
+        La segunda es la justa; la primera dice a cuántas tocamos. */}
+    {totales && <div className="border-t border-border pt-2 text-[10px] leading-snug text-text-muted" title="Todas las no conformidades que abrió Calidad en el periodo. «Con alguna causa nuestra» cuenta la NC entera si tiene alguna causa de planteamiento o diseño gráfico; «pesa» suma solo esa parte. La sección la da la persona nombrada en la causa.">
       <p>
         En toda la empresa: <strong className="font-semibold text-text tabular-nums">{totales.rectificadas}</strong> rectificados ({totales.total} NC).
-        {" "}Con causa de planteamiento o diseño gráfico: <strong className="font-semibold text-text tabular-nums">{totales.nuestrasRectificadas}</strong> ({sobre(totales.nuestrasRectificadas, totales.rectificadas)}).
+        {" "}Con alguna causa nuestra, <strong className="font-semibold text-text tabular-nums">{totales.nuestrasRectificadas}</strong> ({sobre(totales.nuestrasRectificadas, totales.rectificadas)});
+        {" "}lo nuestro pesa <strong className="font-semibold text-text tabular-nums">{decimal(totales.nuestrasRectificadasPeso)}</strong> ({sobre(totales.nuestrasRectificadasPeso, totales.rectificadas)}).
+        {" "}Somos la causa mayor en <strong className="font-semibold text-text tabular-nums">{totales.nuestrasMayor}</strong> de {totales.nuestras} NC.
         {totales.sinInvestigar > 0 && ` ${totales.sinInvestigar} NC aún sin investigar.`}
       </p>
       <table className="mt-1.5 w-full">
-        <thead><tr><th className="text-left font-normal">Por sección</th><th className="text-right font-normal">NC</th><th className="text-right font-normal">Rectificados</th></tr></thead>
-        <tbody>{Object.values(SECCIONES).map((s) => <tr key={s.id} className="text-text">
-          <td>{s.nombre}</td>
-          <td className="text-right font-semibold tabular-nums">{totales.porSeccion[s.id].n}</td>
-          <td className="text-right font-semibold tabular-nums">{totales.porSeccion[s.id].rectificadas}</td>
-        </tr>)}</tbody>
+        <thead><tr><th className="text-left font-normal">Por sección</th><th className="text-right font-normal">NC</th><th className="text-right font-normal">Mayor</th><th className="text-right font-normal">Rectif.</th><th className="text-right font-normal">Equivale</th></tr></thead>
+        <tbody>{Object.values(SECCIONES).map((s) => {
+          const f = totales.porSeccion[s.id];
+          return <tr key={s.id} className="text-text">
+            <td>{s.nombre}</td>
+            <td className="text-right font-semibold tabular-nums">{f.n}</td>
+            <td className="text-right font-semibold tabular-nums">{f.mayor}</td>
+            <td className="text-right font-semibold tabular-nums">{f.rectificadas}</td>
+            <td className="text-right font-semibold tabular-nums">{decimal(f.peso)}</td>
+          </tr>;
+        })}</tbody>
       </table>
       <p className="mt-1.5">Proceso afectado DISEÑO: {totales.disenoPrincipal} como principal, {totales.disenoSecundario} como secundario.</p>
     </div>}
     {!nc.length ? <Vacio>Sin no conformidades en este periodo.</Vacio> : (
       <ul className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-x-hidden overflow-y-auto pr-1">
-        {nc.map((x) => <li key={x.codigo} className="min-w-0 text-[11px] leading-snug" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
-          <span className="font-semibold tabular-nums">{x.pedido ?? "—"}</span>
-          {x.rectificativo && <span className="text-text-muted"> → <span className="font-semibold text-text tabular-nums">{x.rectificativo}</span></span>}
-          <span className="text-text-muted"> · {fechaCorta(x.fecha)} · {x.codigo} · {deLaSeccion(x, seccion) === "pendiente" ? "sin investigar" : esMia(x, miId) ? "tuya" : "de la sección"}</span>
-          {x.descripcion && <span className="block truncate text-text-muted">{resumenNc(x.descripcion, 90)}</span>}
-        </li>)}
+        {nc.map((x) => {
+          const parte = repartoNc(x).secciones[seccion] ?? 0;
+          const que = deLaSeccion(x, seccion) === "pendiente"
+            ? "sin investigar"
+            : `${causaMayor(x, seccion) === "mayor" ? "causa mayor" : "causa menor"} · ${Math.round(parte * 100)} %${esMia(x, miId) ? " · tuya" : ""}`;
+          return <li key={x.codigo} className="min-w-0 text-[11px] leading-snug" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
+            <span className="font-semibold tabular-nums">{x.pedido ?? "—"}</span>
+            {x.rectificativo && <span className="text-text-muted"> → <span className="font-semibold text-text tabular-nums">{x.rectificativo}</span></span>}
+            <span className="text-text-muted"> · {fechaCorta(x.fecha)} · {x.codigo} · {que}</span>
+            {x.descripcion && <span className="block truncate text-text-muted">{resumenNc(x.descripcion, 90)}</span>}
+          </li>;
+        })}
       </ul>
     )}
   </div>;
 }
+
+/** Un decimal, con coma: «3,2». Sin decimales si es entero. */
+const decimal = (n: number) => (Math.round(n * 10) / 10).toLocaleString("es-ES", { maximumFractionDigits: 1 });
 
 /** Una familia que se abre para ver el desglose por causa: mis correcciones
  *  y el motivo de devolución por familia. */

@@ -65,9 +65,9 @@ async function causasDe(ids: readonly string[]): Promise<Map<string, CausaNc[]>>
   for (let i = 0; i < ids.length; i += 500) {
     const req = pool.request();
     const marcas = ids.slice(i, i + 500).map((id, j) => { req.input(`n${j}`, sql.UniqueIdentifier, id); return `@n${j}`; });
-    const r = await req.query<{ nc: string; tipo: string | null; texto: string | null; contribucion: number | null }>(`
+    const r = await req.query<{ nc: string; tipo: string | null; texto: string | null; contribucion: number | null; defecto: number }>(`
       SELECT CONVERT(varchar(36), d.IDNonConformity) AS nc, gc.Description AS tipo,
-             CONVERT(nvarchar(2000), ca.Description) AS texto, ca.Contribution AS contribucion
+             CONVERT(nvarchar(2000), ca.Description) AS texto, ca.Contribution AS contribucion, d.DefectNumber AS defecto
         FROM dbo.APQNCCause ca
         JOIN dbo.APQNCDefect d ON d.IDNCDefect = ca.IDNCDefect
         LEFT JOIN dbo.APQNCGenericCause gc ON gc.IDNCGenericCause = ca.IDNCGenericCause
@@ -76,7 +76,7 @@ async function causasDe(ids: readonly string[]): Promise<Map<string, CausaNc[]>>
     for (const f of r.recordset) {
       const { responsable, texto } = partirCausa(f.texto ?? "");
       const lista = porNc.get(f.nc.toLowerCase()) ?? [];
-      lista.push({ tipo: f.tipo?.trim() || null, responsable, quien: quienesEn(responsable), contribucion: f.contribucion, texto });
+      lista.push({ tipo: f.tipo?.trim() || null, responsable, quien: quienesEn(responsable), contribucion: f.contribucion, defecto: f.defecto, texto });
       porNc.set(f.nc.toLowerCase(), lista);
     }
   }
