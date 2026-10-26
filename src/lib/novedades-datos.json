@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "a08c110",
+    "hasta": "0e68c4f",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -79,6 +79,24 @@
         "titulo": "Las no conformidades cuentan solo la parte que es nuestra, y si somos la causa mayor",
         "detalle": "Calidad reparte cada fallo entre sus causas con un porcentaje. Métricas suma solo nuestra parte («equivale a») y dice en cuántas somos la causa que más pesa; la ficha lo enseña en cada no conformidad.",
         "tanda": 8
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Coordina se ve como Planteamientos, con tarjetas más limpias y pestañas que se deslizan",
+        "detalle": "Fondos lisos, botones redondos y campos más claros en los dos temas.",
+        "tanda": 10
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La web estrena un aspecto más limpio y más fácil de leer",
+        "detalle": "Fondos lisos, filas y paneles blancos sin bordes, botones redondeados y las pestañas con una píldora que se desliza. El modo oscuro pasa a gris carbón y en la ficha de un pedido cada bloque se distingue mejor.",
+        "tanda": 10
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas enseña los rectificados en las gráficas mes a mes, y en un solo panel más claro",
+        "detalle": "Una línea «Rectificados» en la actividad del equipo y «Con rectificado» en tus datos. El panel deja solo los pedidos que hubo que rehacer, por familia de producto.",
+        "tanda": 10
       }
     ]
   },
