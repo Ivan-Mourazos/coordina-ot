@@ -69,9 +69,8 @@ test("el material gastado no entra en la ficha del invitado, ni en la OF ni en e
   expect(crudo).not.toContain("17.7");
 });
 
-test("y el material asignado sí, que es el que ya se enseñaba", () => {
-  // Para que el test de arriba no pase por accidente: la ficha del invitado
-  // sigue trayendo lo suyo.
+test("el material asignado tampoco sale: la ficha pública ya lo oculta", () => {
   const d = detalleConsulta(detalle(), { situacion: "fabrica", fechaEntregado: null, donde: [] });
-  expect(d.ofs[0].materiales).toEqual([{ texto: "LONA ACRÍLICA · 5", apartado: true }]);
+  expect(d.ofs[0]).not.toHaveProperty("materiales");
+  expect(JSON.stringify(d)).not.toContain("LONA ACRÍLICA");
 });

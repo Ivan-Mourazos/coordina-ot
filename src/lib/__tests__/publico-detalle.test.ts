@@ -71,7 +71,7 @@ test("vuelven los nombres, los tiempos y quién planteó y revisó: la ficha del
   expect(of.autorRegistrado).toBe("Juan Pérez");
   expect(of.revisorRegistrado).toBe("Jaime López");
   expect(of.rol?.planteoMin).toBe(100);
-  expect(of.materiales).toHaveLength(1);
+  expect(of).not.toHaveProperty("materiales");
 });
 
 test("el texto de la línea de venta sí sale: describe el producto", () => {
@@ -86,6 +86,14 @@ test("las notas de producción y lo que no está en la lista blanca, no", () => 
   const crudo = JSON.stringify(d);
   expect(crudo).not.toContain("devolvió");
   expect(crudo).not.toContain("cliente pesado");
+});
+
+test("el material asignado no sale en el JSON público aunque el detalle del equipo lo tenga", () => {
+  const interno = detalle();
+  const publico = detalleConsulta(interno, extra);
+  expect(publico.ofs[0]).not.toHaveProperty("materiales");
+  expect(JSON.stringify(publico)).not.toContain("LONA ACRÍLICA · 5");
+  expect(interno.ofs[0].materiales).toHaveLength(1);
 });
 
 test("los documentos apuntan a la ruta pública; sin fichero se queda en null", () => {

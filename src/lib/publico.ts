@@ -226,7 +226,8 @@ function ofConsulta(of: HistorialOF): HistorialOF {
   if (of.revisorRegistrado !== undefined) salida.revisorRegistrado = of.revisorRegistrado;
   if (of.rol) salida.rol = of.rol;
   if (of.rolDeducido) salida.rolDeducido = of.rolDeducido;
-  if (of.materiales) salida.materiales = of.materiales;
+  // El material asignado tampoco es público: sinMaterial lo oculta en la
+  // ficha, y debe quedar fuera de la respuesta, no solo de la pantalla.
   // notasProduccion NO: es una nota, y las notas no salen de casa. El texto
   // de venta SÍ: lo escribe el comercial y describe el producto (Iván,
   // 13/10/2026); es el mismo que trae el parte escaneado, que ya es público.
