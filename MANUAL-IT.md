@@ -88,7 +88,11 @@ ln -sf "$(which node)" /usr/local/bin/node
 
 La copia va a DOS sitios: `data/backups/` (local, para recuperar rápido) y el
 share de Oficina Técnica (//192.168.4.113, para cuando el problema sea el
-disco de esta máquina).
+disco de esta máquina). Mientras ese equipo esté caído (desde el 26/10/2026)
+la copia de fuera no llega; la local se hace igual, porque va primero. Si el
+share se queda desmontado, `/mnt/oftecnica` es una carpeta normal del disco y la
+"copia de fuera" acabaría ahí sin avisar: comprobar con `mountpoint
+/mnt/oftecnica`.
 
 **NO se copia con `cp`.** La base va en modo WAL: lo escrito últimamente vive
 en `coordina.db-wal` hasta que SQLite lo integra, y ese fichero llega a ser
@@ -190,8 +194,8 @@ desaparece del camino).
 
 | Qué | Para qué | Estado |
 |---|---|---|
-| Usuario SQL de **escritura** acotado (o procedimiento) sobre `tgm_estadosof` / `fichajes_olanet` en RPSNext y `SCH_RPS_BONOs` / `SCG_FASES` en `stinkor\sqlexpress:54325` | Volcar los fichajes de tiempo de OT a RPS (hoy solo se miden en la app) | Por definir con David (spec de fichaje) |
-| Acceso de red del servidor de la app a `stinkor\sqlexpress:54325` | Lo mismo | Junto con lo anterior |
+| ~~Usuario SQL de escritura sobre las tablas del fichaje en OLANET~~ | Volcar los fichajes de tiempo de OT a RPS | Hecho: usuario `coordina` en `OLANET_TGM_DATOS` |
+| ~~Acceso de red del servidor de la app a OLANET~~ | Lo mismo | Hecho. Desde el 26/10/2026 es `192.168.0.124:1433` (ver sección 5) |
 | Aviso de altas/bajas en Oficina Técnica | El mapa empleado RPS ↔ técnico del tablero es configuración de la app | Continuo |
 
 ## 5. `.env.local` (credenciales — no está en el repo)
@@ -209,6 +213,18 @@ RPS_DB_ENCRYPT=false
 RPS_DB_TRUST_SERVER_CERTIFICATE=true
 RPS_DB_REQUEST_TIMEOUT=60000
 RPS_PEDIDOS_PDF_DIR=/mnt/rps-pedidos
+
+# Fichaje → OLANET. Desde el 26/10/2026, el servidor principal (misma máquina
+# que RPS, otra BD). Antes era 192.168.4.113 puerto 54325 (SQLExpress), que se
+# cayó ese día. Sin OLANET_DB_INSTANCE: el .124 no tiene instancia con nombre.
+FICHAJE_OLANET=activo
+OLANET_DB_HOST=192.168.0.124
+OLANET_DB_PORT=1433
+OLANET_DB_DATABASE=OLANET_TGM_DATOS
+OLANET_DB_USER=coordina
+OLANET_DB_PASSWORD=***
+OLANET_DB_ENCRYPT=false
+OLANET_DB_TRUST_SERVER_CERTIFICATE=true
 # Opcional: ruta del SQLite (por defecto ./data/coordina.db)
 # COORDINA_DB_PATH=/webs/coordina-ot/data/coordina.db
 ```

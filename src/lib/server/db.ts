@@ -29,7 +29,7 @@ function config(prefijo: string): sql.config {
   // Instancia con nombre (SQLExpress y compañía). Dos formas de llegar, y hay
   // que elegir UNA:
   //
-  //  · Por PUERTO fijo (lo que usa OLANET: 54325). Es lo preferible: va directo
+  //  · Por PUERTO fijo (lo que usaba OLANET en el .113: 54325). Es lo preferible: va directo
   //    y no depende de ningún servicio más.
   //  · Por NOMBRE de instancia, que obliga a preguntarle al SQL Server Browser
   //    por UDP 1434 para que diga en qué puerto escucha. Si ese servicio está

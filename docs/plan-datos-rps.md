@@ -108,6 +108,9 @@ El PDF vive en `\\192.168.0.128\RPS\VENTAS\PEDIDOS\{año}\{CodOrder}.pdf`
 
 ## Fase 7 — Escritura de fichaje  (BLOQUEADA por David)
 
+> Hecha y en `activo`. Desde el 26/10/2026 OLANET es `192.168.0.124:1433`
+> (el .113 se cayó); ver `.env.example`. Lo de abajo es el plan original.
+
 Especificada en memoria (fichaje-escritura-rps): pool a `stinkor\sqlexpress`
 (192.168.4.113:54325, SQL 2008 R2 — probar TLS/tedious), `SCG_FASES.idestadoof`
 2/3 + `SCH_RPS_BONOs` + borrar/insertar `tgm_estadosof_olanet` + job ~1 min a
