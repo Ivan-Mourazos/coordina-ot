@@ -211,7 +211,7 @@ function Grupo({
     // píldora (radio de 999 px) todo lo que la lleva, que es lo que quiere un
     // botón, y esta es una CAJA. Con la clase, el grupo salía en óvalo y
     // recortaba la miniatura (26/10/2026).
-    <div className="overflow-hidden rounded-lg bg-[var(--glass-chip)]">
+    <div className="overflow-hidden rounded-md bg-[var(--glass-chip)]">
       {/* Botón a ancho completo: la fila se pulsa en cualquier punto, no solo
           sobre el rótulo. Sin redondeo propio: HeroUI redondea todo botón, y
           esta fila es la cabecera de la caja. */}
@@ -219,7 +219,7 @@ function Grupo({
         type="button"
         onClick={onAlternar}
         aria-expanded={abierto}
-        className="flex w-full items-center gap-1.5 rounded-none px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
+        className="flex w-full items-center gap-1.5 rounded-none! px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
       >
         <span aria-hidden="true" className="text-[9px]">
           {abierto ? "▾" : "▸"}
@@ -234,7 +234,7 @@ function Grupo({
         {/* Las miniaturas en un hueco HUNDIDO y cada una como una placa que
             sube al pasar y se hunde al pulsar: el mismo lenguaje que el resto
             de la ficha (Iván, 16/10/2026). */}
-        <ul className="recuadro m-1.5 mt-0 grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-2 rounded-md p-2">
+        <ul className="recuadro m-1.5 mt-0 grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-2 rounded p-2">
           {/* La clave lleva el índice porque el nombre no sirve solo: dos
               documentos pueden llamarse igual. */}
           {documentos.map((d, i) => (
@@ -271,9 +271,9 @@ function Tarjeta({
       onClick={() => onAbrir(doc)}
       title={`${titulo} — abrir`}
       // Sin `chip-3d` por lo mismo que la caja del grupo: con ella, HeroUI
-      // hacía de la miniatura una píldora. Su `rounded-lg` gana al redondeo
-      // genérico de los botones.
-      className="block w-full overflow-hidden rounded-lg bg-[var(--glass-chip)] text-left ring-1 ring-border hover:ring-border-strong focus-visible:border-focus"
+      // hacía de la miniatura una píldora. Y el redondeo con `!`: el genérico de
+      // los botones de HeroUI pesa más que una clase de Tailwind.
+      className="block w-full overflow-hidden rounded! bg-[var(--glass-chip)] text-left ring-1 ring-border hover:ring-border-strong focus-visible:border-focus"
     >
       {dibujable && !sinMiniatura ? (
         // `img` a pelo y no `next/image`: son ficheros de un share interno
