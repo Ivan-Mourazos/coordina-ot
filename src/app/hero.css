@@ -32,6 +32,8 @@ html[data-estilo="hero"] {
   --hero-sombra-campo: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.05);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.04);
   --hero-anillo: var(--color-brand-500);
+  /* Fondo de lo que agrupa bloques blancos (la ficha del pedido): gris por debajo del blanco para que se distingan. */
+  --hero-zona: #ececef;
   /* Compatibilidad de los nombres anteriores: nunca vuelven a generar metal. */
   --glass-bg: var(--surface);
   --glass-bg-strong: var(--surface);
@@ -50,19 +52,21 @@ html[data-estilo="hero"] {
   --hundido-sombra: none;
 }
 html[data-estilo="hero"].dark {
-  --bg: #000;
-  --surface: #18181b;
-  --surface-2: #2a2a2e;
-  --zone: #18181b;
+  /* Carbón y no negro puro (Iván, 26/10/2026: «el modo oscuro se me hace demasiado negro el fondo»). */
+  --bg: #161618;
+  --surface: #202024;
+  --surface-2: #29292e;
+  --zone: #202024;
   --border: #34343a;
   --border-strong: #71717a;
   --text: #fafafa;
   --text-muted: #a1a1aa;
-  --hero-relleno: #2a2a2e;
-  --hero-relleno-encima: #34343a;
-  --hero-relleno-pulsado: #3f3f46;
-  --hero-carril: #222225;
-  --hero-pildora: #52525b;
+  --hero-relleno: #303036;
+  --hero-relleno-encima: #3a3a41;
+  --hero-relleno-pulsado: #44444c;
+  --hero-carril: #2b2b30;
+  --hero-pildora: #5a5a63;
+  --hero-zona: #1a1a1d;
   --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
   --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
@@ -80,7 +84,8 @@ html[data-estilo="hero"]:root :is(.glass-panel, .glass-panel-strong, .panel-soli
   background-image: none;
   backdrop-filter: none;
   border: 0;
-  border-radius: 24px;
+  /* Menos redondeo en filas y paneles (Iván, 26/10/2026: «en las filas es demasiado»). */
+  border-radius: 14px;
   box-shadow: var(--hero-sombra-panel);
   transform: none;
 }
@@ -215,7 +220,7 @@ html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type=
   .campo-hundido, button:where([aria-haspopup="listbox"]).glass-chip) {
   background: var(--surface);
   border: 0;
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: var(--hero-sombra-campo);
   transform: none;
   transition: box-shadow 150ms ease;
@@ -252,4 +257,10 @@ html[data-estilo="hero"]:root :is(button, a, summary, [role="button"], [tabindex
   html[data-estilo="hero"]:root :is(button, a[role="button"], .tira-3d > *):active:not(:disabled) {
     scale: 1;
   }
+}
+
+/* La ficha del pedido (Iván, 26/10/2026: «en claro, los apartados en los paneles no se distinguen bien»): el panel
+   lleva el gris de zona y sus bloques (recorrido, notas, documentos, tareas, OF) quedan en blanco encima. */
+html[data-estilo="hero"]:root .pedido-panel {
+  background-color: var(--hero-zona);
 }
