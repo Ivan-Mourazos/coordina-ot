@@ -78,8 +78,8 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
   ya las protege Veeam, esta no. Hasta el 26/10/2026 la copia de fuera iba al
   share de Oficina Técnica (`/mnt/oftecnica`, en el 192.168.0.128); David
   prefiere un NAS a un servidor, y desde ese día va a
-  `\\192.168.0.248\backups_bd\Coordina`. Las copias viejas siguen en
-  `/mnt/oftecnica/coordina-backups` y ya no se rotan.
+  `\\192.168.0.248\backups_bd\Coordina`. Las copias viejas de
+  `/mnt/oftecnica/coordina-backups` se borraron ese mismo día.
 
   Así quedó montado en el servidor (26/10/2026):
 
