@@ -207,14 +207,19 @@ function Grupo({
 }) {
 
   return (
-    <div className="glass-chip overflow-hidden rounded-lg">
+    // El fondo del token y no la clase `glass-chip`: el estilo HeroUI hace
+    // píldora (radio de 999 px) todo lo que la lleva, que es lo que quiere un
+    // botón, y esta es una CAJA. Con la clase, el grupo salía en óvalo y
+    // recortaba la miniatura (26/10/2026).
+    <div className="overflow-hidden rounded-lg bg-[var(--glass-chip)]">
       {/* Botón a ancho completo: la fila se pulsa en cualquier punto, no solo
-          sobre el rótulo. */}
+          sobre el rótulo. Sin redondeo propio: HeroUI redondea todo botón, y
+          esta fila es la cabecera de la caja. */}
       <button
         type="button"
         onClick={onAlternar}
         aria-expanded={abierto}
-        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
+        className="flex w-full items-center gap-1.5 rounded-none px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
       >
         <span aria-hidden="true" className="text-[9px]">
           {abierto ? "▾" : "▸"}
@@ -265,7 +270,10 @@ function Tarjeta({
       type="button"
       onClick={() => onAbrir(doc)}
       title={`${titulo} — abrir`}
-      className="chip-3d block w-full overflow-hidden rounded-lg text-left focus-visible:border-focus"
+      // Sin `chip-3d` por lo mismo que la caja del grupo: con ella, HeroUI
+      // hacía de la miniatura una píldora. Su `rounded-lg` gana al redondeo
+      // genérico de los botones.
+      className="block w-full overflow-hidden rounded-lg bg-[var(--glass-chip)] text-left ring-1 ring-border hover:ring-border-strong focus-visible:border-focus"
     >
       {dibujable && !sinMiniatura ? (
         // `img` a pelo y no `next/image`: son ficheros de un share interno
