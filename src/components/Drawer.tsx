@@ -498,6 +498,11 @@ export function Drawer({
   // se está fichando, así que sin esto el botón de arriba seguía diciendo
   // "Fichar las N" con el reloj ya en marcha: no cambiaba nunca a "Pausar".
   const fichandoYo = ofsDeOT.filter((o) => ofIdsFichandoYo?.has(o.id));
+  // Lo que puedo hacer con cada OF EN ESTA SECCIÓN: donde nadie revisa, sin
+  // nada de revisión (ver `accionOcultaSinRevision`). Los botones del bloque
+  // salen todos de aquí, igual que los de la fila.
+  const accionesDe = (o: OF) =>
+    accionesDisponibles(o, miId).filter((a) => !accionOcultaSinRevision(seccion, a.id));
 
   // ── Las OF del pedido que YO puedo mandar a revisar ahora mismo ──────────
   // El planteo se termina pedido a pedido, no OF a OF: quien plantea un parte
@@ -507,7 +512,7 @@ export function Drawer({
   // y se manda sola desde su fila—; lo que cambia es que hay un camino para el
   // caso normal.
   const paraRevisar = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "terminar_planteo"),
+    accionesDe(o).some((a) => a.id === "terminar_planteo"),
   );
 
   // ── Y lo mismo por el otro lado: lo que YO, de revisor, puedo hacer de una
@@ -524,13 +529,13 @@ export function Drawer({
   // las N" del planteo: fichar una OF "por revisar" siendo su revisor ya la
   // pasa a `en_revision` (ver el ligado en Board.ficharOFs). Un botón, no dos.
   const paraEmpezarRevision = ofsDeOT.filter(
-    (o) => esFichable(o) && rolFichajeDe(o) === "revisar" && o.revisorId === miId,
+    (o) => !seccion.sinRevision && esFichable(o) && rolFichajeDe(o) === "revisar" && o.revisorId === miId,
   );
   const paraAprobar = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "aprobar"),
+    accionesDe(o).some((a) => a.id === "aprobar"),
   );
   const paraDevolver = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "devolver"),
+    accionesDe(o).some((a) => a.id === "devolver"),
   );
   // Aprobar de golpe pide confirmación, como la de una sola: es el final del
   // camino y multiplicado por ocho, más.
@@ -540,7 +545,7 @@ export function Drawer({
   // abriendo el "⋯" de cada una; ahora sale también de una tacada, con su
   // confirmación en plural.
   const paraCorregir = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "aprobar_corregida"),
+    accionesDe(o).some((a) => a.id === "aprobar_corregida"),
   );
   // Las que mandé a revisar y quiero volver a tocar. Mandar el pedido entero a
   // revisión es UN gesto, y deshacerlo eran tantos como OF: abrir el "⋯" de
@@ -552,7 +557,7 @@ export function Drawer({
     (o) => !!onCoger && !!miId && o.autorId !== null && o.autorId !== miId && puedeTraspasarAutor(o),
   );
   const paraRecuperar = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "recuperar_planteo"),
+    accionesDe(o).some((a) => a.id === "recuperar_planteo"),
   );
   // «Dar por terminada en RPS» no se ofrece en la ÚLTIMA OF que queda: si al
   // aprobar esta el pedido quedara listo para pasar, lo que toca es «Pasar a
@@ -576,7 +581,7 @@ export function Drawer({
   // corregidas", pero para la primera vuelta: un parte entero de trabajo sin
   // revisión había que cerrarlo OF por OF desde el "⋯" de cada una.
   const paraSinRevision = ofsDeOT.filter((o) =>
-    accionesDisponibles(o, miId).some((a) => a.id === "aprobar_sin_revision"),
+    accionesDe(o).some((a) => a.id === "aprobar_sin_revision"),
   );
   const defSinRevision = {
     ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
@@ -654,7 +659,7 @@ export function Drawer({
   // revisor que abre la ficha nada más asignársela —o antes de fichar— no le
   // salía ningún punto. Justo cuando más sirven: son los que va a mirar ahora.
   const miasParaRevisar = ofsDeOT.filter(
-    (o) => o.revisorId === miId && (o.estado === "por_revisar" || o.estado === "en_revision"),
+    (o) => !seccion.sinRevision && o.revisorId === miId && (o.estado === "por_revisar" || o.estado === "en_revision"),
   );
 
   const familiasDelPedido = [
@@ -1801,7 +1806,7 @@ function OFRow({
               minutos en las líneas de rol, el desglose de RPS aparte, el total, y
               una línea que volvía a comparar los dos— diciendo los mismos números.
               Ver la cabecera de TiempoOF.tsx. */}
-          <TiempoOF of={of} opById={opById} />
+          <TiempoOF of={of} opById={opById} sinRevision={seccion.sinRevision === true} />
 
           {/* archivos subidos a RPS */}
           {of.archivosRps && of.archivosRps.length > 0 && (
@@ -1970,6 +1975,8 @@ function AccionesOF({
   // única forma de empezar la revisión.
   // En Diseño, "Dar por bueno sin revisión" ES «Finalizar»: el final de cada
   // OF, a la vista y en el color de lo principal (ver `Seccion.finalizar`).
+  // Y su vuelta atrás, «Recuperar para corregir», se queda en «Recuperar»: sin
+  // revisión no hay nada que corregir, solo una OF que se cerró antes de tiempo.
   const finalizarOF = seccion.finalizar?.of;
   const acciones = accionesDisponibles(of, miId).map((a) =>
     finalizarOF && a.id === "aprobar_sin_revision"
@@ -1979,7 +1986,13 @@ function AccionesOF({
           tono: "primaria" as const,
           confirmar: "La OF queda terminada y deja de contar tiempo. Cuando lo estén todas, el pedido podrá pasar a Producción.",
         }
-      : a,
+      : finalizarOF && a.id === "recuperar_aprobada"
+        ? {
+            ...a,
+            label: "Recuperar",
+            confirmar: "La OF deja de estar finalizada y vuelve a Planteando. El tiempo fichado se conserva.",
+          }
+        : a,
   ).filter(
     (a) =>
       a.id !== "empezar_planteo" &&
@@ -1987,6 +2000,10 @@ function AccionesOF({
       !(relojALaVista && a.id === "empezar_revision") &&
       // La última OF que queda no se cierra suelta: eso es pasar el pedido.
       !(esLaUltima && a.id === "cerrar_en_rps") &&
+      // En Diseño, nunca: cerrar en RPS lo hace «Finalizar todo» al pasar el
+      // pedido, y una OF suelta cerrada allí no la pedía nadie (Iván,
+      // 26/10/2026: fuera lo que no se usa del "⋯").
+      !(finalizarOF && a.id === "cerrar_en_rps") &&
       // Las de estado suben al pedido en las secciones que trabajan así. Se
       // quedan fichar —que no pasa por aquí, tiene su propio botón— y anular,
       // que es la única que de verdad es de una OF suelta.
@@ -2012,8 +2029,13 @@ function AccionesOF({
   const enCajon = acciones.filter((a) => !esDeLaVista(a.id));
   // Un cajón para UNA sola opción es peor que la opción: un clic de más para
   // esconder algo que cabía. Con una, se saca fuera.
-  const menu = enCajon.length > 1 ? enCajon : [];
-  const sueltas = enCajon.length > 1 ? aLaVista : acciones;
+  //
+  // Salvo en Diseño: allí la fila es fichar y «Finalizar», y lo demás
+  // —«Recuperar» una finalizada, anular— va en "⋯" aunque sea solo (Iván,
+  // 26/10/2026). Suelto, «Recuperar» parecía lo siguiente que tocaba hacer.
+  const cajonSiempre = !!finalizarOF && enCajon.length > 0;
+  const menu = enCajon.length > 1 || cajonSiempre ? enCajon : [];
+  const sueltas = enCajon.length > 1 || cajonSiempre ? aLaVista : acciones;
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
 
   // La OF es de otra persona: los dos botones que se le ofrecen ("Coger" y
@@ -2057,6 +2079,12 @@ function AccionesOF({
         >
           ⏸ {otrasEnMiReloj > 0 ? "Pausar solo esta" : "Pausar"}
         </Btn>
+      ) : finalizarOF && of.estado === "aprobada" ? (
+        // Finalizada en Diseño: nada de «Reanudar». Volver a ella es
+        // «Recuperar», en "⋯", y no un clic de reloj por despiste.
+        <span className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted">
+          ✔ Finalizada
+        </span>
       ) : esFichable(of) && relojEsMio ? (
         autorAjeno && rolReloj !== "revisar" ? (
           // En la OF de otra persona, fichar es ECHARLE UNA MANO: tu reloj en
@@ -2206,7 +2234,9 @@ function AccionesOF({
         return (
           <Btn
             key={a.id}
-            tone={tono[a.tono]}
+            // «Finalizar», del color de «Finalizar todo» y de «Pasar a
+            // Producción»: con el verde del reloj se confundía con «Reanudar».
+            tone={finalizarOF && a.id === "aprobar_sin_revision" ? "finalizar" : tono[a.tono]}
             // Lo peligroso, al otro extremo de la fila: no se pulsa por
             // inercia después de la acción que sí se usa a diario.
             className={a.tono === "peligro" ? "ml-auto" : ""}
@@ -2278,7 +2308,7 @@ function Btn({
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  tone: "amber" | "teal" | "reloj" | "revisar" | "ghost" | "rojo";
+  tone: "amber" | "teal" | "finalizar" | "reloj" | "revisar" | "ghost" | "rojo";
   className?: string;
   title?: string;
   /** Apagado y sin poder pulsarse. El motivo va en `title`: un botón apagado
@@ -2288,6 +2318,8 @@ function Btn({
   const cls = {
     amber: "bg-amber-700 text-white hover:bg-amber-800",
     teal: "bg-teal-700 text-white hover:bg-teal-800",
+    // El de «Pasar a Producción»: dar algo por terminado (Diseño).
+    finalizar: "bg-cyan-700 text-white hover:bg-cyan-800",
     // El reloj lleva el color de SU rol, el mismo de todo el tablero: verde
     // planteo, violeta revision. Fichar se reconoce por el color sin leer el
     // boton, y sobre una OF en revision el verde decia el rol equivocado.

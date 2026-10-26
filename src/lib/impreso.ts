@@ -39,17 +39,25 @@ export function marcarComoImpreso(of: OF, miId: string): OF {
   return { ...of, estado: "aprobada", autorId: of.autorId ?? miId, fichandoRol: null };
 }
 
-/** ¿Esconde la ficha esta acción de fila porque en la sección no revisa nadie?
+/** Las acciones que solo tienen sentido si alguien revisa: mandar a revisión,
+ *  revisarla, aprobar, devolver, y sus marchas atrás. */
+const DE_REVISION: ReadonlySet<AccionOF> = new Set<AccionOF>([
+  "terminar_planteo", "empezar_revision", "aprobar", "aprobar_corregida",
+  "devolver", "soltar_revision", "recuperar_planteo", "reabrir",
+]);
+
+/** ¿Esconde la ficha esta acción porque en la sección no revisa nadie?
  *
- *  "Pasar a revisión" (`terminar_planteo`) no sale: llevaría la OF a una
- *  revisión que nadie hace. "Dar por bueno sin revisión" tampoco, salvo donde
- *  cada OF se finaliza en su tarjeta (`finalizar.of`, Diseño): allí ES ese
- *  botón, con otro nombre. En las secciones con revisión no esconde nada. */
+ *  Ninguna de revisión sale (Iván, 26/10/2026: «lo de revisión, elimínalo
+ *  todo»): con cualquiera de ellas a mano, la OF podía acabar en una revisión
+ *  que nadie hace. "Dar por bueno sin revisión" tampoco, salvo donde cada OF
+ *  se finaliza en su tarjeta (`finalizar.of`, Diseño): allí ES ese botón, con
+ *  otro nombre. En las secciones con revisión no esconde nada. */
 export function accionOcultaSinRevision(
   seccion: Pick<Seccion, "sinRevision" | "finalizar">,
   accion: AccionOF,
 ): boolean {
   if (!seccion.sinRevision) return false;
-  if (accion === "terminar_planteo") return true;
+  if (DE_REVISION.has(accion)) return true;
   return accion === "aprobar_sin_revision" && !seccion.finalizar?.of;
 }

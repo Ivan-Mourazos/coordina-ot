@@ -84,15 +84,20 @@ function Celda({ min, vivo }: { min: number; vivo: FichandoAhora | undefined }) 
 export function TiempoOF({
   of,
   opById,
+  sinRevision = false,
 }: {
   of: OF;
   opById: (id: string | null) => Operario | null;
+  /** La sección no revisa (Diseño, Impresión): sin columna de revisión,
+   *  salvo que la OF traiga tiempo de revisión de antes, que no se esconde. */
+  sinRevision?: boolean;
 }) {
   const gente = filas(of, opById);
   const planteo = gente.reduce((n, f) => n + f.planteoMin, 0);
   const revision = gente.reduce((n, f) => n + f.revisionMin, 0);
   const total = planteo + revision;
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
+  const conRevision = !sinRevision || revision > 0;
 
   return (
     // `detalle-hundido` y no `recuadro`: dentro de la tarjeta de la OF, el
@@ -126,7 +131,7 @@ export function TiempoOF({
           <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             <span className="flex-1" />
             <span className={`w-[4.75rem] text-right ${ROL.plantear.texto}`}>Plantear</span>
-            <span className={`w-[4.75rem] text-right ${ROL.revisar.texto}`}>Revisión</span>
+            {conRevision && <span className={`w-[4.75rem] text-right ${ROL.revisar.texto}`}>Revisión</span>}
           </div>
           <ul className="mt-0.5 space-y-0.5">
             {gente.map((f) => (
@@ -138,7 +143,7 @@ export function TiempoOF({
                 )}
                 <span className="min-w-0 flex-1 truncate text-text">{f.op?.nombre ?? "Nombre no disponible"}</span>
                 <Celda min={f.planteoMin} vivo={f.vivo?.rol === "plantear" ? f.vivo : undefined} />
-                <Celda min={f.revisionMin} vivo={f.vivo?.rol === "revisar" ? f.vivo : undefined} />
+                {conRevision && <Celda min={f.revisionMin} vivo={f.vivo?.rol === "revisar" ? f.vivo : undefined} />}
               </li>
             ))}
           </ul>
@@ -148,7 +153,7 @@ export function TiempoOF({
             <div className="mt-1 flex items-center gap-2 border-t border-border pt-1 text-[11px] font-semibold text-text">
               <span className="flex-1 text-text-muted">Total</span>
               <span className="w-[4.75rem] text-right tabular-nums">{planteo > 0 ? enMinutos(planteo) : "—"}</span>
-              <span className="w-[4.75rem] text-right tabular-nums">{revision > 0 ? enMinutos(revision) : "—"}</span>
+              {conRevision && <span className="w-[4.75rem] text-right tabular-nums">{revision > 0 ? enMinutos(revision) : "—"}</span>}
             </div>
           )}
         </>

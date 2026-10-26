@@ -2878,7 +2878,9 @@ export function Board({
                     key={op.id}
                     operario={op}
                     facets={facetsDe(op.id)}
-                    revisiones={equipo.revisiones.get(op.id) ?? []}
+                    // Donde no se revisa, ni el «N rev»: las OF que quedaron
+                    // con revisor de antes se cierran con «Finalizar todo».
+                    revisiones={laSeccion.sinRevision ? [] : (equipo.revisiones.get(op.id) ?? [])}
                     seccion={laSeccion}
                     live={liveByOp.get(op.id) ?? null}
                     expanded={expandedId === op.id}

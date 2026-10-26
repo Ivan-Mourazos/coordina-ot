@@ -99,14 +99,25 @@ describe("qué acciones de fila no salen donde nadie revisa", () => {
     "retomar", "anular", "restaurar", "cerrar_en_rps", "volver_a_plantear",
   ];
 
-  it("en Impresión se esconden las dos que llevan a revisión o la saltan", () => {
+  const deRevision = [
+    "aprobar", "aprobar_corregida", "devolver", "empezar_revision",
+    "reabrir", "recuperar_planteo", "soltar_revision", "terminar_planteo",
+  ];
+
+  it("en Impresión no sale nada de revisión, ni «Dar por bueno sin revisión»", () => {
     const fuera = todas.filter((a) => accionOcultaSinRevision(SECCIONES.impresion, a));
-    expect(fuera.sort()).toEqual(["aprobar_sin_revision", "terminar_planteo"]);
+    expect(fuera.sort()).toEqual([...deRevision, "aprobar_sin_revision"].sort());
   });
 
-  it("en Diseño solo se esconde pasar a revisión: «Finalizar» es aprobar sin revisión", () => {
+  it("en Diseño no sale nada de revisión; «Finalizar» (aprobar sin revisión) se queda", () => {
     const fuera = todas.filter((a) => accionOcultaSinRevision(SECCIONES.diseno, a));
-    expect(fuera).toEqual(["terminar_planteo"]);
+    expect(fuera.sort()).toEqual(deRevision);
+  });
+
+  it("lo que no es de revisión se queda: fichar, recuperar una finalizada, anular, RPS", () => {
+    for (const a of ["empezar_planteo", "retomar", "recuperar_aprobada", "anular", "restaurar", "cerrar_en_rps", "volver_a_plantear"] as AccionOF[]) {
+      expect(accionOcultaSinRevision(SECCIONES.diseno, a)).toBe(false);
+    }
   });
 
   it("en OT no se esconde nada por esto", () => {
