@@ -76,33 +76,24 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
 
   Es la base PROPIA de Coordina (este SQLite), no las de RPS ni OLANET: esas
   ya las protege Veeam, esta no. Hasta el 26/10/2026 la copia de fuera iba al
-  share de Oficina Técnica del 192.168.4.113; ese equipo dejó de usarse y
-  David indicó el NAS: `\\192.168.0.248\backups_bd\Coordina`.
+  share de Oficina Técnica (`/mnt/oftecnica`, en el 192.168.0.128); David
+  prefiere un NAS a un servidor, y desde ese día va a
+  `\\192.168.0.248\backups_bd\Coordina`. Las copias viejas siguen en
+  `/mnt/oftecnica/coordina-backups` y ya no se rotan.
+
+  Así quedó montado en el servidor (26/10/2026):
 
 ```bash
-# 1. Montar el NAS (una vez). Usuario con escritura en backups_bd\Coordina,
-#    en un fichero que solo lee root:
-apt-get install -y cifs-utils
-mkdir -p /mnt/backups-bd
-cat > /root/.cred-backups-bd <<'EOF2'
-username=<usuario>
-password=<contraseña>
-domain=<dominio, si lo lleva>
-EOF2
-chmod 600 /root/.cred-backups-bd
-# /etc/fstab
-//192.168.0.248/backups_bd/Coordina  /mnt/backups-bd  cifs  credentials=/root/.cred-backups-bd,uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,nofail  0  0
-mount /mnt/backups-bd && mountpoint /mnt/backups-bd
+# /etc/fstab — con el usuario de /etc/cifs-oftecnica.cred, que tiene escritura
+# en el NAS. `vers=2.0` es obligatorio: el NAS no habla el SMB por defecto de
+# Linux y sin él da `mount error(95): Operation not supported` (en dmesg:
+# "Dialect not supported by server"). No bajar a vers=1.0: SMB1 es inseguro.
+//192.168.0.248/backups_bd/Coordina /mnt/backups-bd cifs vers=2.0,credentials=/etc/cifs-oftecnica.cred,iocharset=utf8,uid=0,gid=0,file_mode=0600,dir_mode=0700,soft,nounix,serverino,_netdev,nofail 0 0
 
-# 2. Node vive bajo nvm (/root/.nvm/versions/node/vXX/bin/node) y cron no
-#    hereda el PATH: sin esto, la línea de abajo no encuentra `node` y la copia
-#    no se hace, en silencio. El enlace deja un único sitio que tocar el día
-#    que se actualice Node.
-ln -sf "$(which node)" /usr/local/bin/node
-
-# 3. /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días). Sustituye a
-#    la línea vieja que apuntaba a /mnt/oftecnica.
-0 21 * * * root cd /webs/coordina-ot && /usr/local/bin/node scripts/backup-db.mjs $(mountpoint -q /mnt/backups-bd && echo /mnt/backups-bd) >> logs/backup.log 2>&1
+# /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días). Node va con su
+# ruta de nvm entera porque cron no hereda el PATH: al actualizar Node, cambiar
+# aquí la versión o la copia deja de hacerse en silencio.
+0 21 * * * root cd /webs/coordina-ot && /root/.nvm/versions/node/v24.14.0/bin/node --env-file=.env scripts/backup-db.mjs $(mountpoint -q /mnt/backups-bd && echo /mnt/backups-bd) >> /webs/coordina-ot/logs/backup.log 2>&1
 ```
 
 La copia va a DOS sitios: `data/backups/` (local, para recuperar rápido) y el
