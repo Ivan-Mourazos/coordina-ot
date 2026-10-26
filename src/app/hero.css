@@ -261,6 +261,10 @@ html[data-estilo="hero"]:root :is(button, a, summary, [role="button"], [tabindex
 
 /* La ficha del pedido (Iván, 26/10/2026: «en claro, los apartados en los paneles no se distinguen bien»): el panel
    lleva el gris de zona y sus bloques (recorrido, notas, documentos, tareas, OF) quedan en blanco encima. */
-html[data-estilo="hero"]:root .pedido-panel {
+html[data-estilo="hero"]:root .pedido-panel.glass-panel-strong {
   background-color: var(--hero-zona);
+}
+/* Los botones grises que van directamente sobre el gris de la ficha, un punto más oscuros para que se vean. */
+html[data-estilo="hero"]:root .pedido-panel.glass-panel-strong :is(.glass-chip, .chip-3d):not(.boton-3d):not(.pestana-activa):not(.glass-chip-activo) {
+  background-color: var(--hero-relleno-encima);
 }
