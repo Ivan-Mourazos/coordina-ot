@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "abff019",
+    "hasta": "0712d16",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -54,6 +54,11 @@
         "tipo": "arreglado",
         "titulo": "Lo que se despliega de un pedido en Pendientes e Historial ya no se confunde con el fondo",
         "tanda": 13
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las fotos y documentos de la ficha ya no salen recortados en óvalo",
+        "tanda": 14
       },
       {
         "tipo": "mejor",
