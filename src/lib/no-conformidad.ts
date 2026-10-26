@@ -40,6 +40,14 @@ export interface CausaNc {
   texto: string;
 }
 
+/** Un defecto de la NC (APQNCDefect): qué estaba mal. */
+export interface DefectoNc {
+  numero: number;
+  /** El tipo genérico de defecto, si Calidad lo puso. */
+  tipo: string | null;
+  descripcion: string;
+}
+
 /** Una NC, tal como se enseña en la ficha del pedido y en Métricas. */
 export interface NoConformidad {
   codigo: string;
@@ -65,6 +73,13 @@ export interface NoConformidad {
   cerrada: boolean;
   /** Las causas que apuntó Calidad al investigarla. Vacío si aún no. */
   causas: CausaNc[];
+  /** Los defectos que apuntó Calidad: qué estaba mal. Las causas cuelgan de
+   *  ellos por `numero` (`CausaNc.defecto`). */
+  defectos: DefectoNc[];
+  /** Las familias de producto de las OF del pedido que falló, cada una con
+   *  las secciones que tienen tareas en esa OF. Solo en Métricas (ver
+   *  `rectificadosPorFamilia`); en la ficha va vacío. */
+  familias: { familia: string; secciones: SeccionId[] }[];
   /** Las secciones con tareas en el pedido que falló. Solo hace falta para
    *  las pendientes de investigar (ver `deLaSeccion`); en la ficha va vacío. */
   tareasDe: SeccionId[];
@@ -251,6 +266,48 @@ export function totalesNc(todas: readonly NoConformidad[]): TotalesNc {
     }
   }
   return t;
+}
+
+/** Los rectificados de la sección por familia de producto (Iván, 26/10/2026:
+ *  «en qué familias tenemos más rectificados y el porcentaje medio de nuestra
+ *  culpa»).
+ *
+ *  · Entran los RECTIFICADOS (NC con pedido rectificativo) cuyo pedido lleva
+ *    tareas de la sección; cada uno en las familias de las OF donde la sección
+ *    tiene tareas (si no se sabe en cuál, en todas las del pedido).
+ *  · `conCausa`: los que Calidad achaca, en algo, a la sección.
+ *  · `culpaMedia`: la parte media de la sección (ver `repartoNc`), SOLO entre
+ *    los ya investigados: uno sin causas daría un 0 que no es verdad.
+ *    null si no hay ninguno investigado. */
+export interface FilaFamiliaNc {
+  familia: string;
+  rectificados: number;
+  conCausa: number;
+  investigados: number;
+  culpaMedia: number | null;
+}
+export function rectificadosPorFamilia(todas: readonly NoConformidad[], seccion: SeccionId): FilaFamiliaNc[] {
+  const filas = new Map<string, { rectificados: number; conCausa: number; investigados: number; culpa: number }>();
+  for (const nc of todas) {
+    if (!nc.rectificativo || !nc.tareasDe.includes(seccion)) continue;
+    const suyas = nc.familias.filter((f) => f.secciones.includes(seccion));
+    const familias = [...new Set((suyas.length ? suyas : nc.familias).map((f) => f.familia))];
+    if (!familias.length) familias.push("Sin familia conocida");
+    const parte = repartoNc(nc).secciones[seccion] ?? 0;
+    for (const familia of familias) {
+      const f = filas.get(familia) ?? { rectificados: 0, conCausa: 0, investigados: 0, culpa: 0 };
+      f.rectificados++;
+      if (parte > 0) f.conCausa++;
+      if (nc.causas.length) { f.investigados++; f.culpa += parte; }
+      filas.set(familia, f);
+    }
+  }
+  return [...filas]
+    .map(([familia, f]) => ({
+      familia, rectificados: f.rectificados, conCausa: f.conCausa, investigados: f.investigados,
+      culpaMedia: f.investigados ? f.culpa / f.investigados : null,
+    }))
+    .sort((a, b) => b.rectificados - a.rectificados || a.familia.localeCompare(b.familia));
 }
 
 /** Calidad todavía no le ha puesto proceso. */

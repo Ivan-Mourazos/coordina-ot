@@ -4,7 +4,7 @@ import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { calcularDetalleMetricas, contarDevueltas, contarEntregas } from "@/lib/metricas-personales";
 import { leerFamiliasMetricas, leerIncidenciasMetricas, leerPasesRps } from "@/lib/server/metricas-fuentes";
 import { leerNcPeriodo } from "@/lib/server/nc-db";
-import { deLaSeccion, totalesNc } from "@/lib/no-conformidad";
+import { deLaSeccion, rectificadosPorFamilia, totalesNc } from "@/lib/no-conformidad";
 import { codigoRpsDe, operariosDeSeccion } from "@/lib/server/operarios";
 import { sumarDias } from "@/lib/fechas";
 import { leerCausasDevolucion, leerMovimientosMetricas, leerPasesMetricas, leerPasosRevision } from "@/lib/server/estado-db";
@@ -119,6 +119,7 @@ export async function GET(req: Request) {
       const todasNc = nc.status === "fulfilled" ? nc.value : null;
       detalle.nc = todasNc && todasNc.filter((x) => deLaSeccion(x, seccion) !== null);
       detalle.ncTotales = todasNc && totalesNc(todasNc);
+      detalle.ncFamilias = todasNc && rectificadosPorFamilia(todasNc, seccion);
     }
     return NextResponse.json(
       {

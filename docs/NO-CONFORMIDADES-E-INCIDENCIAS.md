@@ -113,6 +113,22 @@ equivale a 28,3 · Diseño 4, mayor en 2, equivale a 1,6 · Impresión 5, mayor 
 
 El % de la empresa (sobre todos los rectificados) es el único porcentaje; por sección van números.
 
+### Rectificados por familia de producto
+
+Para ver en qué familias tiene cada sección más rectificados y cuánta culpa media lleva en ellos
+(`rectificadosPorFamilia` en `src/lib/no-conformidad.ts`):
+
+- Entran los **rectificados** (NC con pedido rectificativo) cuyo pedido lleva tareas de la sección.
+- Cada uno cuenta en la familia de las OF donde la sección tiene tareas (si no se sabe en cuál, en todas las del
+  pedido). La familia es la misma regla que el resto de Métricas (`familiaDe` en `metricas-fuentes.ts`).
+- **Con causa**: los que Calidad achaca en algo a la sección.
+- **Culpa media**: la parte media de la sección (ver arriba) **solo entre los ya investigados**; uno sin causas
+  daría un 0 que no es verdad.
+
+En 2026 (hasta el 26/10), OT: Toldo 128 rectificados, 17 con causa de OT, culpa media 6 % · Lona 43, 13, 17 %
+· Funda 12, 4, 27 % · Remolque 12, 4, 27 %. Diseño: Toldo 53, 3, 3 % · En vinilo 12, 0, 0 %. Un pedido con
+OF de dos familias cuenta en las dos.
+
 ### Pendientes de investigar
 
 Una NC recién abierta no tiene causas: Calidad la investiga después (las de octubre estaban casi todas así:
@@ -155,10 +171,14 @@ la ficha, plegados.
 ## 4. Qué enseña Coordina
 
 - **Ficha del pedido** (tablero e Historial, todas las secciones), solo si hay algo: la NC del pedido con su
-  fecha, procesos con su papel («COMERCIAL (principal) · DISEÑO (secundario)»), sus causas (persona, tipo y %), origen, si está abierta, el texto y los comentarios de Calidad, y «rectificado en …» con
+  fecha, procesos con su papel («COMERCIAL (principal) · DISEÑO (secundario)»), la parte de cada sección nuestra («OT 5 % (causa menor)»), origen, si está abierta, y «rectificado en …» con
   enlace al parte del rectificativo (donde viene la hoja). Si el pedido es un rectificativo: «Este pedido
-  rectifica el …», con enlace al parte del original.
+  rectifica el …», con enlace al parte del original. En «Ver detalles», plegado: el reparto de la culpa en barras
+  (cada sección nuestra y cada tipo de causa ajeno), los defectos con sus causas (persona, tipo, % y texto), lo que
+  escribió Calidad y sus comentarios.
 - **Métricas de OT y Diseño**: incidencias de la sección.
+- **Métricas de las tres secciones**: rectificados por familia de producto, con cuántos tienen causa de la
+  sección y la culpa media.
 - **Métricas de las tres secciones**: panel de no conformidades. Las de la sección por causa de planteamiento de
   alguien de la sección y las pendientes de investigar, en NC y rectificados, con «tuyas» para quien mira (sin
   nombres de compañeros: cada uno ve lo suyo). La empresa entera: % de rectificados con causa nuestra, reparto

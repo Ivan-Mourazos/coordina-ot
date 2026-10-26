@@ -8,9 +8,11 @@ import type { MovimientoRegistrado, Periodo } from "../metricas";
 import { COORDINA_EN_USO, type IncidenciaMetricas, type PaseRps } from "../metricas-personales";
 import { SECCIONES, recursosDeTrabajoSql, recursosSql, type SeccionId } from "../secciones";
 
-interface FilaFamilia { orden: string; descripcion: string | null; grupo: string | null; subfamilia: string | null; cliente: string | null }
-const familiaDe = (f: FilaFamilia) => familiaDeTexto(f.descripcion, f.grupo, { subfamilia: f.subfamilia, cliente: f.cliente });
-const catalogo = `
+/** La familia de producto de una OF, como en el resto de Métricas. Exportado
+ *  para las NC (ver nc-db.ts): la misma regla, no una copia. */
+export interface FilaFamilia { orden: string; descripcion: string | null; grupo: string | null; subfamilia: string | null; cliente: string | null }
+export const familiaDe = (f: FilaFamilia) => familiaDeTexto(f.descripcion, f.grupo, { subfamilia: f.subfamilia, cliente: f.cliente });
+export const catalogo = `
   LEFT JOIN dbo.STKArticle a ON a.IDArticle = mo.IDArticle
   LEFT JOIN dbo.GENProductFamily pf ON pf.IDProductFamily = a.IDProductFamily
   LEFT JOIN dbo.GENProductSubFamily sf ON sf.IDProductSubFamily = a.IDProductSubFamily
@@ -20,7 +22,7 @@ const catalogo = `
     LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
     WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder
     ORDER BY o.CodOrder) venta`;
-const columnas = `mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
+export const columnas = `mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
   pf.CodProductFamily AS grupo, sf.CodProductSubFamily AS subfamilia, venta.cliente`;
 
 export async function leerFamiliasMetricas(movs: readonly MovimientoRegistrado[]): Promise<Map<string, string>> {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { causaMayor, deLaSeccion, esMia, repartoNc, soyCausaMayor, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
+import { causaMayor, deLaSeccion, esMia, rectificadosPorFamilia, repartoNc, soyCausaMayor, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
+import type { SeccionId } from "../secciones";
 
 const nc = (proceso1: string | null, proceso2: string | null) => ({ proceso1, proceso2 });
 
@@ -55,7 +56,7 @@ describe("resumenNc", () => {
 const ncCon = (p: Partial<NoConformidad>): NoConformidad => ({
   codigo: "NC000001", fecha: "2026-10-01", pedido: "AR.26.00001", rectificativo: null,
   proceso1: null, proceso2: null, origen: null, descripcion: "", comentarios: "", cerrada: false,
-  causas: [], tareasDe: [], ...p,
+  causas: [], defectos: [], tareasDe: [], familias: [], ...p,
 });
 const causa = (tipo: string, linea: string, contribucion: number | null = null, defecto = 1): CausaNc => {
   const { responsable, texto } = partirCausa(`${linea}\n\nlo que pasó`);
@@ -206,5 +207,40 @@ describe("repartoNc: cuánto de la NC es de quién", () => {
     expect(t.nuestrasMayor).toBe(0);
     expect(t.porSeccion.ot).toMatchObject({ n: 1, mayor: 0 });
     expect(t.porSeccion.ot.peso).toBeCloseTo(0.05);
+  });
+});
+
+describe("rectificadosPorFamilia", () => {
+  const toldo = { familia: "TOLDO", secciones: ["ot"] as SeccionId[] };
+  const lona = { familia: "LONA", secciones: ["ot"] as SeccionId[] };
+  const rotulo = { familia: "ROTULO", secciones: ["diseno"] as SeccionId[] };
+
+  it("cuenta rectificados por familia y la culpa media solo entre los investigados", () => {
+    const filas = rectificadosPorFamilia([
+      ncCon({ rectificativo: "R1", tareasDe: ["ot"], familias: [toldo], causas: [causa(PLANTEO, "TAMARA", 100)] }),
+      ncCon({ rectificativo: "R2", tareasDe: ["ot"], familias: [toldo], causas: [causa(PLANTEO, "JAIME", 50), causa("DOCUMENTAR MAL", "JESUS", 50)] }),
+      // Sin investigar: suma al rectificado, no a la culpa media.
+      ncCon({ rectificativo: "R3", tareasDe: ["ot"], familias: [toldo] }),
+      ncCon({ rectificativo: "R4", tareasDe: ["ot"], familias: [lona], causas: [causa("ERROR AL CONFECCIONAR O PRODUCIR", "JOSE", 100)] }),
+    ], "ot");
+    expect(filas.map((f) => f.familia)).toEqual(["TOLDO", "LONA"]);
+    expect(filas[0]).toMatchObject({ rectificados: 3, conCausa: 2, investigados: 2 });
+    expect(filas[0].culpaMedia).toBeCloseTo(0.75);
+    expect(filas[1]).toMatchObject({ rectificados: 1, conCausa: 0, investigados: 1, culpaMedia: 0 });
+  });
+
+  it("sin rectificativo no entra, ni pedidos sin tareas de la sección", () => {
+    expect(rectificadosPorFamilia([
+      ncCon({ tareasDe: ["ot"], familias: [toldo] }),
+      ncCon({ rectificativo: "R1", tareasDe: ["diseno"], familias: [rotulo] }),
+    ], "ot")).toEqual([]);
+  });
+
+  it("solo las familias de las OF donde la sección tiene tareas", () => {
+    const filas = rectificadosPorFamilia([
+      ncCon({ rectificativo: "R1", tareasDe: ["ot", "diseno"], familias: [toldo, rotulo] }),
+    ], "diseno");
+    expect(filas.map((f) => f.familia)).toEqual(["ROTULO"]);
+    expect(filas[0].culpaMedia).toBeNull();
   });
 });

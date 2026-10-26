@@ -11,7 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
-import { causaMayor, deLaSeccion, esMia, repartoNc, resumenNc, soyCausaMayor, type NoConformidad } from "@/lib/no-conformidad";
+import { causaMayor, deLaSeccion, esMia, repartoNc, resumenNc, soyCausaMayor, type FilaFamiliaNc, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -190,6 +190,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
             </div>
           </Panel>
           {!sinRevision && <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>}
+          <Panel titulo="Rectificados por familia" extra={etiquetaPeriodo} actualizando={detalleViejo}><RectificadosFamilia filas={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} /></Panel>
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
@@ -334,6 +335,37 @@ function NoConformidades({ nc, totales, cargando, seccion, miId }: { nc?: NoConf
 
 /** Un decimal, con coma: «3,2». Sin decimales si es entero. */
 const decimal = (n: number) => (Math.round(n * 10) / 10).toLocaleString("es-ES", { maximumFractionDigits: 1 });
+
+/** En qué familias de producto tiene la sección más rectificados, y la parte
+ *  media que se le achaca en ellos (Iván, 26/10/2026). Ver
+ *  `rectificadosPorFamilia`: la culpa media es solo de los ya investigados. */
+function RectificadosFamilia({ filas, cargando, seccion }: { filas?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId }) {
+  if (!filas) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
+  if (!filas.length) return <Vacio>Sin rectificados en este periodo.</Vacio>;
+  const nombreCorto = SECCIONES[seccion].nombreCorto;
+  const max = Math.max(...filas.map((f) => f.rectificados));
+  return <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+    <p className="text-[10px] leading-snug text-text-muted">Rectificados de pedidos con tareas de {nombreCorto}, por familia. «Culpa media»: la parte media de {nombreCorto} en los que Calidad ya investigó.</p>
+    <div className="scroll-thin min-h-0 overflow-y-auto pr-1">
+      <table className="w-full text-[11px]">
+        <thead><tr className="text-[10px] text-text-muted">
+          <th className="text-left font-normal">Familia</th>
+          <th className="font-normal" />
+          <th className="text-right font-normal" title="Rectificados con tareas de la sección en esa familia">Rectif.</th>
+          <th className="text-right font-normal" title="De ellos, los que Calidad achaca en algo a la sección">Con causa</th>
+          <th className="text-right font-normal" title="La parte media de la sección en los rectificados ya investigados de esa familia">Culpa media</th>
+        </tr></thead>
+        <tbody>{filas.map((f) => <tr key={f.familia} title={`${nombreFamilia(f.familia)}: ${f.rectificados} rectificados; ${f.conCausa} con causa de ${nombreCorto}; ${f.investigados} investigados`}>
+          <td className="truncate pr-2">{nombreFamilia(f.familia)}</td>
+          <td className="w-1/3 pr-2"><span className="recuadro block h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.rectificados / max * 100}%`, background: COLOR_DEVUELTA }} /></span></td>
+          <td className="text-right font-semibold tabular-nums">{f.rectificados}</td>
+          <td className="text-right font-semibold tabular-nums">{f.conCausa}</td>
+          <td className="text-right font-semibold tabular-nums">{f.culpaMedia === null ? "—" : `${Math.round(f.culpaMedia * 100)} %`}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+  </div>;
+}
 
 /** Una familia que se abre para ver el desglose por causa: mis correcciones
  *  y el motivo de devolución por familia. */
