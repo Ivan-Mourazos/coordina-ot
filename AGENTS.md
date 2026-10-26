@@ -51,6 +51,10 @@ La FECHA no se pone a mano: la sella el servidor al estrenar la versión.
 
 # Estilo: paleta y metal (octubre 2026)
 
+**Sustituido por HeroUI (26/10/2026): lee `docs/ESTILO-HEROUI.md`.** La referencia aprobada es
+Planteamientos con `data-estilo="hero"`: fondos lisos, tarjetas sin borde y píldora deslizante.
+La guía de metal de abajo queda únicamente como historial; no se aplica a cambios nuevos.
+
 Antes de tocar colores, paneles, botones o campos, lee `docs/ESTILO-PALETA-METAL.md`: qué eligió Iván (claro
 con su paleta azul, oscuro en grafito neutro, grano y no vetas, sin recuadro dorado al pinchar en un campo), las
 reglas (solo tokens, relieve y hundido con las clases del metal) y la lista de pantallas que faltan por ajustar.

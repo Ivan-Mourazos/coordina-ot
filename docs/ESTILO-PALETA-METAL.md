@@ -1,5 +1,9 @@
 # Estilo «paleta y metal» (octubre 2026): guía para ajustar toda la web
 
+> **SUSTITUIDO el 26/10/2026 por [ESTILO-HEROUI.md](ESTILO-HEROUI.md).**
+> Iván eligió el acabado HeroUI para CoordinaOT y Planteamientos. Este documento
+> conserva decisiones históricas; sus instrucciones sobre metal, grano y hundidos ya no rigen.
+
 Encargo de Iván (26/10/2026): «deja las indicaciones necesarias para el agente de coordina para que ajuste todas las
 partes de la web». La base ya está en `src/app/globals.css`; falta revisar **pantalla a pantalla** que todo la use y
 que nada se quede con colores sueltos o con el estilo anterior. Planteamientos (`toldos-testar`) copia este mismo
