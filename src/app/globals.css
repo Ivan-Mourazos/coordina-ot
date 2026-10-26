@@ -101,8 +101,8 @@
   --franja-taller: #e3e8f1;
   --fila-abierta: #ffffff;
   /* Aluminio (claro). Ver el bloque «Metal y aluminio» al final del fichero.
-     Vetas de cepillado: ruido estirado en horizontal, gris azulado. */
-  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+     Grano solo en el fondo de la página (--veta-fondo): en paneles, filas y botones ensuciaba el texto
+     pequeño y se quitó (Iván, 26/10/2026). */
   --veta-fondo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.19 0 0 0 0 0.24 0 0 0 0 0.35 0 0 0 0.1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   --fondo-metal: linear-gradient(180deg, #e3e9f3, #d2dae7);
   --relieve: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(220, 227, 239, 0.35));
@@ -238,8 +238,8 @@
   --franja-impresion: #12343a;
   --franja-taller: #232c3a;
   --fila-abierta: #33291a;
-  /* Vetas de metal cepillado: ruido estirado en horizontal, blanco al 9 %. */
-  --veta: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  /* Sin grano en paneles, filas y botones (Iván, 26/10/2026): detrás del texto pequeño lo ensuciaba. Solo
+     lleva grano el fondo de la página (--veta-fondo). */
   /* Fondo de la página: grafito neutro, sin azul, que eligió Iván (26/10/2026), con luz
      arriba a la izquierda, esquinas más oscuras y grano fino sin estirar. Los paneles
      siguen en el gris carbón de siempre. */
@@ -1293,7 +1293,7 @@ html::-webkit-scrollbar-track {
 /* ── Metal y aluminio: resaltos y hundidos ──
    Iván lo eligió con capturas (15/10/2026): en oscuro, metal cepillado sobre el
    carbón mate; en claro, aluminio. Las MISMAS reglas para los dos temas; lo que
-   cambia son las variables (`--veta`, `--relieve`… arriba, en :root y .dark).
+   cambia son las variables (`--relieve`, `--hundir`… arriba, en :root y .dark).
    - En resalto, lo que está encima: paneles, bloques, filas, botones, menús.
      La capa de resalto es TRANSLÚCIDA sobre el color que ya tiene cada cosa,
      así una fila que se está fichando conserva su tinte verde o violeta.
@@ -1320,7 +1320,7 @@ body {
 :root .pildora-revisar,
 :root .pildora-aviso,
 :root .boton-arriba {
-  background-image: var(--veta), var(--relieve);
+  background-image: var(--relieve);
   border-top-color: var(--relieve-canto);
   box-shadow: var(--relieve-sombra);
 }
@@ -1353,7 +1353,7 @@ body {
 :root .pildora-aviso:active,
 :root .pildora-reposo:active,
 :root .boton-arriba:active {
-  background-image: var(--veta), var(--hundir);
+  background-image: var(--hundir);
   border-top-color: transparent;
   transform: translateY(1px);
   box-shadow: var(--pulsado-sombra);
@@ -1369,7 +1369,7 @@ body {
 :root .glass-chip:active:not(:disabled),
 :root .chip-3d:active:not(:disabled),
 :root .tira-3d > :not(.pestana-activa):active {
-  background-image: var(--veta), var(--hundir);
+  background-image: var(--hundir);
   border-top-color: transparent;
   transform: translateY(1px);
   box-shadow: var(--pulsado-sombra);
@@ -1388,7 +1388,7 @@ body {
 :root .pestana-activa,
 :root .pestana-activa:hover,
 :root .bloque-3d-hundido {
-  background-image: var(--veta), var(--hundir);
+  background-image: var(--hundir);
   border-top-color: transparent;
   transform: translateY(1px);
   box-shadow: var(--pulsado-sombra);
@@ -1402,7 +1402,7 @@ body {
    gris azulado en vez del recuadro dorado. */
 :root .campo-hundido {
   background-color: var(--recuadro);
-  background-image: var(--veta), var(--hundir);
+  background-image: var(--hundir);
   border: 1px solid transparent;
   box-shadow: var(--hundido-sombra);
   transition: border-color 120ms ease;
@@ -1462,25 +1462,25 @@ body {
   background: var(--detalle);
 }
 
-/* Cabecera de la fila abierta: igual que cerrada (fondo de fila, veta y
+/* Cabecera de la fila abierta: igual que cerrada (fondo de fila y
    relieve). El tinte dorado de oscuro no convencía; lo abierto ya lo marca la
    raya dorada de la izquierda (Iván, 16/10/2026). */
 :root .cabecera-abierta {
   background-color: var(--fila);
-  background-image: var(--veta), var(--relieve);
+  background-image: var(--relieve);
 }
 
 /* Lo que se está fichando, teñido del color de su rol: verde planteando,
    violeta revisando, los mismos que la píldora del fichaje. Va después de
    `.cabecera-abierta` para que, abierta o cerrada, la fila se siga viendo
-   fichada. La veta y el relieve se quedan encima (Iván, 16/10/2026). */
+   fichada. El relieve se queda encima (Iván, 16/10/2026). */
 :root .fila-fichando-plantear {
   background-color: color-mix(in srgb, var(--color-emerald-500) 14%, var(--fila));
-  background-image: var(--veta), var(--relieve);
+  background-image: var(--relieve);
 }
 :root .fila-fichando-revisar {
   background-color: color-mix(in srgb, var(--color-violet-500) 16%, var(--fila));
-  background-image: var(--veta), var(--relieve);
+  background-image: var(--relieve);
 }
 
 /* La tira de pestañas lleva `glass-chip` por herencia, pero es solo el hueco

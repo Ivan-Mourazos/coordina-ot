@@ -9,13 +9,16 @@ estilo en `src/client/coordina/tokens.css` y `metal.css`: **cualquier cambio de 
 
 | Tema | Fondo de la página | Paneles, botones, filas | Textura |
 |---|---|---|---|
-| **Claro** | aluminio teñido con su paleta azul: `#e3e9f3 → #d2dae7`, `--bg #dce3ef` | blancos en relieve; bordes `#98a9c4`, texto `#111522`, secundario `#4a5a76` | grano fino gris azulado |
-| **Oscuro** | **grafito neutro, sin azul**: `#111214` con luz arriba a la izquierda y esquinas más oscuras | **gris carbón de siempre** (`#212225`, `#2a2c31`…) | grano fino neutro |
+| **Claro** | aluminio teñido con su paleta azul: `#e3e9f3 → #d2dae7`, `--bg #dce3ef` | blancos en relieve; bordes `#98a9c4`, texto `#111522`, secundario `#4a5a76` | grano fino gris azulado, **solo en el fondo de la página** |
+| **Oscuro** | **grafito neutro, sin azul**: `#111214` con luz arriba a la izquierda y esquinas más oscuras | **gris carbón de siempre** (`#212225`, `#2a2c31`…) | grano fino neutro, **solo en el fondo de la página** |
 
 - La paleta de Iván: `#111522 #1E263B #303D59 #536684 #98A9C4 #DCE3EF`. Se usa **solo en claro**. En oscuro la descartó
   dos veces: «demasiado azul», y el gris con un fondo negro azulado chocaba (eligió la opción «todo neutro»).
-- **Grano, no vetas.** El metal cepillado (rayas horizontales) se cambió por grano fino sin estirar en `--veta` y
-  `--veta-fondo`. Si aparece una textura rayada en algún sitio, es un resto: cámbiala.
+- **Grano, no vetas, y solo en el fondo.** El metal cepillado (rayas horizontales) se cambió por grano fino sin
+  estirar. Y el 26/10/2026 Iván eligió con capturas quitarlo de paneles, filas, botones y campos: detrás del texto
+  pequeño lo ensuciaba (en oscuro metía más del doble de ruido justo donde se lee). Solo lo lleva el fondo de la
+  página y la cabecera (`--veta-fondo`); el token `--veta` ya no existe. El relieve y el hundido salen de las
+  sombras y degradados (`--relieve`, `--hundir`), no del grano. Si aparece textura detrás de un texto, es un resto.
 - **Sin recuadro dorado al pinchar en un campo.** Los campos de escribir se marcan con borde y anillo suaves del gris
   secundario (regla sin capa tras `:focus-visible` en `globals.css`). El dorado de foco queda para botones y enlaces,
   y solo sale con el teclado.
@@ -58,6 +61,7 @@ estilo en `src/client/coordina/tokens.css` y `metal.css`: **cualquier cambio de 
 | `--borde-campo` (`border-borde-campo`) | `#6e7f9d` | `#70747e` | Borde de un campo de escribir con borde: 4,1:1 sobre blanco y 3,1:1 sobre `--bg` en claro; 3,4:1 sobre `--surface` en oscuro. `--border-strong` daba 2,4:1. |
 | `--color-brand-950` (`text-brand-950`) | `#231903` | igual | Tinta sobre el dorado (botones principales, el día elegido). 9,2:1 sobre `brand-400`. Antes iba escrita en hexadecimal en 9 sitios. |
 | `text-error` en vez de `text-red-600/700 dark:text-red-400` | `red-700` | `red-300` | Atrasado, fuera de plazo, errores, «peligro» en los menús. El `red-400` daba 4,2:1 sobre la fila oscura. |
+| Sin `--veta` (fuera el token y sus 8 usos) | — | — | Paneles, filas, botones, pestañas, píldoras, campos hundidos y `.recuadro` sin grano: `background-image: var(--relieve)` o `var(--hundir)` a secas. `--veta-fondo` se queda en `body` y en `.glass-header`. |
 
 - **La regla global del foco de los campos va con `:where(...)`**, no con `:is(...)`. Con `:is` puntuaba (0,4,1),
   ganaba a `.campo-hundido input` y el buscador de la cabecera sacaba un anillo dentro del hueco.
