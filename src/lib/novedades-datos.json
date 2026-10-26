@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "6b39157",
+    "hasta": "a08c110",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -25,6 +25,18 @@
         "titulo": "Diseño ve sus incidencias en Métricas, y ya no le salen datos de revisión",
         "detalle": "Cuentan los errores de rotulación y de archivo apuntados en RPS en OF con tarea de Diseño, desde el 8 de septiembre.",
         "tanda": 4
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En la ficha, «Ver detalles» enseña cada no conformidad entera: reparto de la culpa, defectos y causas",
+        "detalle": "Ves en barras qué parte es de cada sección y de cada tipo de causa, y qué defectos apuntó Calidad con quién los causó y en qué porcentaje.",
+        "tanda": 9
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Métricas enseña en qué familias de producto hay más rectificados y la culpa media de tu sección",
+        "detalle": "Por familia: cuántos rectificados, cuántos con causa de tu sección y qué parte media se os achaca en los que Calidad ya investigó.",
+        "tanda": 9
       },
       {
         "tipo": "arreglado",
