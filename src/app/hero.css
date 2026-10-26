@@ -1,0 +1,255 @@
+/* Estilo elegido por Iván, 26/10/2026. Mismos tokens que Planteamientos.
+   Las clases históricas se conservan para no cambiar las pantallas. Esta hoja
+   entra después de globals.css y sustituye su acabado, sin !important.
+   El ámbito explícito gana a las antiguas reglas :root .clase y .dark .clase. */
+html[data-estilo="hero"] {
+  --bg: #f4f4f5;
+  --bg-glow: var(--bg);
+  --surface: #fff;
+  --surface-2: #e9e9ec;
+  --zone: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #a1a1aa;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --fila: var(--surface);
+  --fila-abierta: var(--surface);
+  --fila-borde: transparent;
+  --fila-filo: transparent;
+  --franja: var(--surface-2);
+  --recuadro: var(--bg);
+  --detalle: var(--bg);
+  --franja-ot: var(--surface-2);
+  --franja-diseno: var(--surface-2);
+  --franja-impresion: var(--surface-2);
+  --franja-taller: var(--surface-2);
+  --hero-relleno: #e9e9ec;
+  --hero-relleno-encima: #dedee3;
+  --hero-relleno-pulsado: #d4d4da;
+  --hero-carril: #e9e9ec;
+  --hero-pildora: #fff;
+  --hero-sombra-panel: 0 1px 2px rgba(0,0,0,.04), 0 10px 30px -14px rgba(0,0,0,.12);
+  --hero-sombra-campo: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.05);
+  --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.04);
+  --hero-anillo: var(--color-brand-500);
+  /* Compatibilidad de los nombres anteriores: nunca vuelven a generar metal. */
+  --glass-bg: var(--surface);
+  --glass-bg-strong: var(--surface);
+  --glass-bg-pop: var(--surface);
+  --glass-chip: var(--hero-relleno);
+  --glass-border: transparent;
+  --veta-fondo: none;
+  --fondo-metal: none;
+  --relieve: none;
+  --hundir: none;
+  --relieve-canto: transparent;
+  --relieve-sombra: var(--hero-sombra-panel);
+  --relieve-sombra-alto: var(--hero-sombra-panel);
+  --fila-sombra: var(--hero-sombra-panel);
+  --pulsado-sombra: none;
+  --hundido-sombra: none;
+}
+html[data-estilo="hero"].dark {
+  --bg: #000;
+  --surface: #18181b;
+  --surface-2: #2a2a2e;
+  --zone: #18181b;
+  --border: #34343a;
+  --border-strong: #71717a;
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --hero-relleno: #2a2a2e;
+  --hero-relleno-encima: #34343a;
+  --hero-relleno-pulsado: #3f3f46;
+  --hero-carril: #222225;
+  --hero-pildora: #52525b;
+  --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
+  --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
+  --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
+}
+
+html[data-estilo="hero"]:root :is(body, .glass-header) {
+  background: var(--bg);
+  background-image: none;
+  backdrop-filter: none;
+}
+html[data-estilo="hero"]:root :is(.glass-panel, .glass-panel-strong, .panel-solido,
+  .bloque-3d, .bloque-3d-hundido, .bloque-3d.fila-levantada, .fila-sombra,
+  .placa-of, .glass-pop, .ventana-3d, .tarjeta-of) {
+  background-color: var(--surface);
+  background-image: none;
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 24px;
+  box-shadow: var(--hero-sombra-panel);
+  transform: none;
+}
+/* Los tintes de fichaje son información, no acabado de aluminio. */
+html[data-estilo="hero"]:root .fila-fichando-plantear {
+  background-color: color-mix(in srgb, var(--color-emerald-500) 14%, var(--surface));
+}
+html[data-estilo="hero"]:root .fila-fichando-revisar {
+  background-color: color-mix(in srgb, var(--color-violet-500) 16%, var(--surface));
+}
+html[data-estilo="hero"]:root :is(.recuadro, .detalle-hundido) {
+  background: var(--bg);
+  box-shadow: none;
+}
+html[data-estilo="hero"]:root .cabecera-abierta {
+  background-color: var(--fila);
+  background-image: none;
+}
+
+html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,
+  .pildora-plantear, .pildora-revisar, .pildora-aviso, .pildora-reposo,
+  .boton-arriba, .tira-3d > *) {
+  background-image: none;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  transform: none;
+  transition: scale 150ms ease, background-color 120ms ease, color 120ms ease;
+}
+html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d) {
+  background-color: var(--hero-relleno);
+  color: var(--text);
+}
+html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d):hover:not(:disabled) {
+  background-color: var(--hero-relleno-encima);
+  box-shadow: none;
+  transform: none;
+}
+html[data-estilo="hero"]:root :is(.boton-3d, .pildora-plantear, .pildora-revisar,
+  .pildora-aviso, .pildora-reposo, .boton-arriba):hover:not(:disabled) {
+  background-image: none;
+  box-shadow: none;
+  transform: none;
+}
+html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,
+  .pildora-plantear, .pildora-revisar, .pildora-aviso, .pildora-reposo,
+  .boton-arriba, .tira-3d > *):active:not(:disabled) {
+  background-image: none;
+  box-shadow: none;
+  transform: none;
+  scale: .97;
+}
+html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d):active:not(:disabled) {
+  background-color: var(--hero-relleno-pulsado);
+}
+/* scale es independiente de transform: conserva el centrado de botones
+   absolutos, de los menús y del calendario. */
+html[data-estilo="hero"] :where(button, a[role="button"]) {
+  border-radius: 999px;
+  border-width: 0;
+  background-image: none;
+  transition: scale 150ms ease, background-color 120ms ease, color 120ms ease;
+}
+html[data-estilo="hero"]:root button.glass-panel:hover {
+  scale: 1;
+}
+html[data-estilo="hero"] :where(button, a[role="button"]):active:not(:disabled) {
+  scale: .97;
+}
+/* Los macizos conservan el relleno de marca o de rol que trae cada acción.
+   .boton-3d solo define su forma: también la usan fichaje, revisión y avisos. */
+
+html[data-estilo="hero"]:root :is(.tira-3d, .tira-3d.glass-chip,
+  .tira-3d.glass-chip:hover:not(:disabled), .tira-3d.glass-chip:active:not(:disabled)) {
+  background: var(--hero-carril);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  transform: none;
+  scale: 1;
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+  padding: 4px;
+  position: relative;
+  isolation: isolate;
+}
+html[data-estilo="hero"]:root .tira-3d > :not(.pestana-activa),
+html[data-estilo="hero"]:root .tira-3d > :not(.pestana-activa):hover {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  transform: none;
+}
+html[data-estilo="hero"]:root .tira-3d > :not(.pestana-activa):hover {
+  color: var(--text);
+}
+html[data-estilo="hero"]:root :is(.pestana-activa, .glass-chip-activo),
+html[data-estilo="hero"]:root :is(.pestana-activa, .glass-chip-activo):hover:not(:disabled) {
+  background: var(--hero-pildora);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: var(--hero-sombra-pildora);
+  color: var(--text);
+  font-weight: 600;
+  transform: none;
+}
+html[data-estilo="hero"]:root .tira-3d[data-pildora]::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  left: 0;
+  top: 0;
+  width: var(--pw);
+  height: var(--ph);
+  transform: translate(var(--px), var(--py));
+  border-radius: 999px;
+  background: var(--hero-pildora);
+  box-shadow: var(--hero-sombra-pildora);
+}
+html[data-estilo="hero"]:root .tira-3d[data-pildora="lista"]::before {
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1), width 200ms ease, height 200ms ease;
+}
+html[data-estilo="hero"]:root .tira-3d[data-pildora] > :is(.pestana-activa, .glass-chip-activo),
+html[data-estilo="hero"]:root .tira-3d[data-pildora] > :is(.pestana-activa, .glass-chip-activo):hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea, select,
+  .campo-hundido, button:where([aria-haspopup="listbox"]).glass-chip) {
+  background: var(--surface);
+  border: 0;
+  border-radius: 14px;
+  box-shadow: var(--hero-sombra-campo);
+  transform: none;
+  transition: box-shadow 150ms ease;
+}
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), textarea, select):focus,
+html[data-estilo="hero"]:root .campo-hundido:focus-within,
+html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--hero-anillo);
+}
+html[data-estilo="hero"]:root .campo-hundido :is(input, textarea),
+html[data-estilo="hero"]:root .campo-hundido :is(input, textarea):focus {
+  background: transparent;
+  border-radius: inherit;
+  box-shadow: none;
+  outline: none;
+}
+/* La forma sigue siendo la del campo aunque tenga un filtro aplicado. */
+html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo {
+  background: var(--hero-pildora);
+  box-shadow: var(--hero-sombra-pildora);
+}
+html[data-estilo="hero"]:root :is(button, a, summary, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-estilo="hero"]:root :is(button, a[role="button"], button.glass-chip,
+    .chip-3d, .boton-3d, .tira-3d, .tira-3d > *, .campo-hundido, input, textarea, select),
+  html[data-estilo="hero"]:root .tira-3d[data-pildora]::before {
+    transition: none;
+  }
+  html[data-estilo="hero"]:root :is(button, a[role="button"], .tira-3d > *):active:not(:disabled) {
+    scale: 1;
+  }
+}

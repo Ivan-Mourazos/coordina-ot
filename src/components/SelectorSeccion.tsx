@@ -35,7 +35,7 @@ export function SelectorSeccion({
       role="group"
       aria-label="Qué lista de trabajo se mira"
       /* h-9: los mismos 36 px que el resto de la cabecera. */
-      className="glass-chip flex h-9 items-center gap-0.5 rounded-lg p-0.5"
+      className="tira-3d glass-chip flex h-9 items-center gap-0.5 rounded-lg p-0.5"
     >
       {todas.map((s) => {
         const activa = s.id === seccion;
@@ -54,7 +54,7 @@ export function SelectorSeccion({
             }
             className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
               activa
-                ? "bg-brand-400 text-brand-950"
+                ? "pestana-activa"
                 : "text-text-muted hover:text-text"
             }`}
           >

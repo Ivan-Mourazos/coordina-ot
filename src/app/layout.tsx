@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./hero.css";
 import { PistasGlobales } from "@/components/Pista";
+import { PildorasDeslizantes } from "@/components/PildorasDeslizantes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      data-estilo="hero"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -47,6 +50,7 @@ export default function RootLayout({
         {/* Todos los `title` de la web salen como la pista de la casa, al
             momento y con el teclado, en vez del recuadro gris del sistema. */}
         <PistasGlobales />
+        <PildorasDeslizantes />
       </body>
     </html>
   );
