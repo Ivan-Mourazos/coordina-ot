@@ -285,6 +285,7 @@ export function Drawer({
   onAssignPedido,
   onCompletar,
   onImpreso,
+  onAbrirPedidoPorCodigo,
   onPasarRevision,
   avisoRevision,
   onSinRevisor,
@@ -316,6 +317,9 @@ export function Drawer({
    *  Solo lo da el Board en las secciones sin revisión; sin él, el botón no
    *  existe y el bloque sigue como siempre. */
   onImpreso?: (pedidoId: string) => void;
+  /** Abre OTRO pedido por su código: el de una no conformidad (el original o
+   *  el rectificativo). Lo resuelve el Board: en el tablero o en el Historial. */
+  onAbrirPedidoPorCodigo?: (codigo: string) => void;
   onPasarRevision: (ofIds: string[], revisorId: string) => Promise<boolean>;
   /** Dentro del modal para que su botón de cierre también se alcance con Tab. */
   avisoRevision?: React.ReactNode;
@@ -896,7 +900,7 @@ export function Drawer({
               las carreras DENTRO de un mismo pedido. */}
           {/* Si Calidad abrió una NC por este pedido, o este pedido es la
               rectificación de otro. Solo sale si hay algo (ver el componente). */}
-          <NoConformidadesPedido key={`nc:${pedido.codigo}`} pedido={pedido.codigo} />
+          <NoConformidadesPedido key={`nc:${pedido.codigo}`} pedido={pedido.codigo} onAbrirPedido={onAbrirPedidoPorCodigo} />
           <NotasPedido
             key={`notas:${pedido.codigo}`}
             pedido={pedido.codigo}

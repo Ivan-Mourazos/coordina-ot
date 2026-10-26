@@ -43,9 +43,12 @@ export function HistorialDrawer({
   operarios = [],
   miId = null,
   seccion = SECCION_POR_DEFECTO,
+  onAbrirPedidoPorCodigo,
 }: {
   pedido: string | null;
   onClose: () => void;
+  /** Abre OTRO pedido por su código (el de una no conformidad). */
+  onAbrirPedidoPorCodigo?: (codigo: string) => void;
   /** Solo para el hilo de notas: sin ellos cada nota saldría con el id crudo
    *  ("jaime") en vez del nombre de la persona y su color. */
   operarios?: readonly Operario[];
@@ -304,7 +307,7 @@ export function HistorialDrawer({
 
               {/* Lo mismo que en la ficha del tablero: la NC del pedido y en
                   qué pedido se rectificó, o de cuál es rectificación. */}
-              <NoConformidadesPedido key={`nc:${pedido}`} pedido={pedido} />
+              <NoConformidadesPedido key={`nc:${pedido}`} pedido={pedido} onAbrirPedido={onAbrirPedidoPorCodigo} />
               <NotasPedido key={pedido} pedido={pedido} miId={miId} operarios={operarios} />
 
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los

@@ -2489,6 +2489,20 @@ export function Board({
   // abre el buscador global: un resultado del historial no se puede enseñar en
   // el Drawer normal, que espera un pedido vivo del tablero.
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
+  // Abrir OTRO pedido desde una no conformidad (el original o el que lo
+  // rectifica), en Coordina y no en su PDF (Iván, 26/10/2026). Como el
+  // buscador: si está en el tablero, su ficha con todas las acciones; si no,
+  // el panel de solo lectura del Historial. Cierra la ficha de la que viene.
+  const abrirPedidoPorCodigo = (codigo: string) => {
+    const enTablero = pedidosRef.current.find((p) => p.codigo === codigo);
+    if (enTablero) {
+      setHistorialAbierto(null);
+      abrirPedido(enTablero.id);
+    } else {
+      setOpenId(null);
+      setHistorialAbierto(codigo);
+    }
+  };
   if (!mounted) {
     return (
       <div className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
@@ -3115,6 +3129,7 @@ export function Board({
         // allí: en el cambio de lista, un pedido de Diseño no puede ganar un
         // botón que cierra fases en OLANET.
         onImpreso={laSeccion.sinRevision ? (id) => marcarImpreso(id, laSeccion.id) : undefined}
+        onAbrirPedidoPorCodigo={abrirPedidoPorCodigo}
         onPasarRevision={pasarRevision}
         onTraspasarAutor={traspasarAutorOF}
         onCoger={pedirCogerOFs}
@@ -3133,6 +3148,7 @@ export function Board({
         operarios={operarios}
         miId={miId}
         onClose={() => setHistorialAbierto(null)}
+        onAbrirPedidoPorCodigo={abrirPedidoPorCodigo}
       />
 
       {!espectador && (

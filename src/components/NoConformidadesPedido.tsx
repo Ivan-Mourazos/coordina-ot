@@ -25,21 +25,27 @@ const pct = (n: number) => `${Math.round(n * 100)} %`;
 const fmt = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : "");
 const NUESTRAS = Object.keys(SECCIONES) as SeccionId[];
 
-/** El código del otro pedido, que abre su parte escaneado. La hoja en papel
- *  de la NC («No conformidad en pedido de cliente») no está adjunta a la NC en
- *  RPS: viene escaneada con el PEDIDO RECTIFICATIVO, así que desde el original
- *  se llega a ella por aquí. Lo sirve la ruta de siempre del PDF del pedido. */
-function EnlaceParte({ pedido, titulo }: { pedido: string; titulo: string }) {
+/** El código del otro pedido. Pulsarlo abre ESE pedido en Coordina (Iván,
+ *  26/10/2026: «que no abra el pedido en PDF, que abra ese pedido en
+ *  Coordina»); lo resuelve el Board con `onAbrir`. Al lado, «parte» sigue
+ *  abriendo el PDF: la hoja en papel de la NC no está adjunta a la NC en RPS,
+ *  viene escaneada con el PEDIDO RECTIFICATIVO, y por aquí se llega a ella.
+ *  Sin `onAbrir` (donde nadie sabe abrir un pedido), solo el PDF. */
+function EnlacePedido({ pedido, titulo, onAbrir }: { pedido: string; titulo: string; onAbrir?: (codigo: string) => void }) {
+  const pdf = `/api/pedidos/${encodeURIComponent(pedido)}.pdf`;
+  const enlace = "underline decoration-dotted underline-offset-2 hover:decoration-solid";
+  if (!onAbrir) {
+    return <a href={pdf} target="_blank" rel="noreferrer" title={titulo} className={enlace}>{pedido}</a>;
+  }
   return (
-    <a
-      href={`/api/pedidos/${encodeURIComponent(pedido)}.pdf`}
-      target="_blank"
-      rel="noreferrer"
-      title={titulo}
-      className="underline decoration-dotted underline-offset-2 hover:decoration-solid"
-    >
-      {pedido}
-    </a>
+    <>
+      <button type="button" onClick={() => onAbrir(pedido)} title={`Abre el pedido ${pedido} en Coordina`} className={`rounded-none font-semibold ${enlace}`}>
+        {pedido}
+      </button>
+      <a href={pdf} target="_blank" rel="noreferrer" title={titulo} className={`ml-1 text-[10px] font-normal text-text-muted ${enlace}`}>
+        parte
+      </a>
+    </>
   );
 }
 
@@ -155,7 +161,7 @@ function Detalles({ nc }: { nc: NoConformidad }) {
 
 /** Con `key={\`nc:${pedido}\`}` en quien lo pinta, como los documentos: al
  *  cambiar de pedido se monta de cero y no asoma un instante lo del anterior. */
-export function NoConformidadesPedido({ pedido }: { pedido: string }) {
+export function NoConformidadesPedido({ pedido, onAbrirPedido }: { pedido: string; onAbrirPedido?: (codigo: string) => void }) {
   const [nc, setNc] = useState<NoConformidad[] | null>(null);
 
   useEffect(() => {
@@ -192,7 +198,7 @@ export function NoConformidadesPedido({ pedido }: { pedido: string }) {
             </span>
             {x.rectificativo && (
               <span className="font-semibold text-text">
-                {" "}· rectificado en <EnlaceParte pedido={x.rectificativo} titulo="Abre el parte del pedido rectificativo: la hoja de la no conformidad viene escaneada con él" />
+                {" "}· rectificado en <EnlacePedido pedido={x.rectificativo} onAbrir={onAbrirPedido} titulo="Abre el parte del pedido rectificativo: la hoja de la no conformidad viene escaneada con él" />
               </span>
             )}
             {x.descripcion && <span className="block text-text-muted">{resumenNc(x.descripcion)}</span>}
@@ -203,7 +209,7 @@ export function NoConformidadesPedido({ pedido }: { pedido: string }) {
         {rectifica.map((x) => (
           <li key={`r:${x.codigo}`} className="text-[11px] leading-snug">
             <span className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
-              Este pedido rectifica el {x.pedido ? <EnlaceParte pedido={x.pedido} titulo="Abre el parte del pedido original" /> : "pedido original"}
+              Este pedido rectifica el {x.pedido ? <EnlacePedido pedido={x.pedido} onAbrir={onAbrirPedido} titulo="Abre el parte del pedido original" /> : "pedido original"}
             </span>
             <span className="text-text-muted"> · {x.codigo} · {fmt(x.fecha)} · {textoProcesos(x)}</span>
             {x.descripcion && <span className="block text-text-muted">{resumenNc(x.descripcion)}</span>}
