@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "12a8656",
+    "hasta": "6b39157",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -61,6 +61,12 @@
         "titulo": "Las no conformidades se asignan por la persona a la que Calidad achaca el fallo",
         "detalle": "En la ficha ves las causas de cada no conformidad, con a quién se le atribuye y en qué porcentaje. En Métricas cuentan como de tu sección las de planteamiento de alguien de tu sección, y ves cuáles son tuyas.",
         "tanda": 7
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las no conformidades cuentan solo la parte que es nuestra, y si somos la causa mayor",
+        "detalle": "Calidad reparte cada fallo entre sus causas con un porcentaje. Métricas suma solo nuestra parte («equivale a») y dice en cuántas somos la causa que más pesa; la ficha lo enseña en cada no conformidad.",
+        "tanda": 8
       }
     ]
   },
