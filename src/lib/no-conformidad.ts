@@ -27,11 +27,21 @@ export interface NoConformidad {
   origen: string | null;
   /** Lo que escribió Calidad. Puede ser largo: se recorta al pintarlo. */
   descripcion: string;
+  /** El seguimiento de Calidad: qué se investigó, a quién se avisó… Suele
+   *  traer justo lo que OT necesita saber («un Electra con guías no puede
+   *  llevar perfil universal 280»). Vacío si no hay. */
+  comentarios: string;
   cerrada: boolean;
 }
 
 /** El proceso de RPS que es el de Oficina Técnica y Diseño Gráfico. */
 export const PROCESO_DISENO = "DISEÑO";
+
+/** Calidad todavía no ha dicho de quién fue: la NC está recién abierta y sin
+ *  procesos. Las de octubre de 2026 están casi todas así (NC010176, NC010188).
+ *  Se cuentan igual en la sección, aparte, para que no se pierdan mientras
+ *  Calidad las completa (Iván, 26/10/2026). */
+export const sinClasificar = (nc: Pick<NoConformidad, "procesos">) => nc.procesos.length === 0;
 
 /** El texto de Calidad en una línea, para la ficha: sin saltos y recortado. */
 export function resumenNc(descripcion: string, max = 140): string {

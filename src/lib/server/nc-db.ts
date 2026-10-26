@@ -18,6 +18,7 @@ interface Fila {
   proceso2: string | null;
   origen: string | null;
   descripcion: string | null;
+  comentarios: string | null;
   cerrada: number;
 }
 
@@ -25,6 +26,7 @@ const SELECT_NC = `
   SELECT n.CodNonConformity AS codigo, n.DoneDate AS fecha, n.CodOrder AS pedido,
          c.CodPedidoRectificado AS rectificativo, p1.Descripcion AS proceso1, p2.Descripcion AS proceso2,
          src.Description AS origen, CONVERT(nvarchar(1000), n.Description) AS descripcion,
+         CONVERT(nvarchar(2000), n.Comments) AS comentarios,
          CASE WHEN n.ClosedDate IS NULL THEN 0 ELSE 1 END AS cerrada
     FROM dbo.APQNonConformity n
     LEFT JOIN dbo._APQNonConformity_Custom c ON c.IDNonConformity = n.IDNonConformity
@@ -40,6 +42,7 @@ const deFila = (f: Fila): NoConformidad => ({
   procesos: [...new Set([f.proceso1, f.proceso2].map((p) => p?.trim()).filter((p): p is string => !!p))],
   origen: f.origen?.trim() || null,
   descripcion: (f.descripcion ?? "").trim(),
+  comentarios: (f.comentarios ?? "").trim(),
   cerrada: f.cerrada === 1,
 });
 
@@ -57,9 +60,30 @@ export async function ncDePedido(pedido: string): Promise<NoConformidad[]> {
   return r.recordset.map(deFila);
 }
 
-/** Las NC de una sección en el periodo: apuntadas al proceso DISEÑO y en un
- *  pedido con tareas de esa sección (ver `esDeLaSeccion`). Solo OT y Diseño
- *  Gráfico: Impresión no tiene proceso propio en las NC. */
+/** Cuántas NC abrió Calidad en el periodo en TODA la empresa, y cuántas con
+ *  pedido rectificativo. Es la referencia junto a las de la sección: un % de
+ *  «rectificados nuestros» no se puede dar, porque de quién fue lo decide
+ *  Calidad a mano y muchas están sin clasificar (Iván, 26/10/2026). */
+export async function leerTotalesNc(periodo: Periodo): Promise<{ total: number; rectificadas: number } | null> {
+  if (process.env.DATASOURCE !== "rps") return null;
+  const pool = await getPool();
+  const r = await pool.request()
+    .input("desde", sql.Date, periodo.desde)
+    .input("hasta", sql.Date, periodo.hasta)
+    .query<{ total: number; rectificadas: number }>(`
+    SELECT COUNT(*) AS total, SUM(CASE WHEN c.CodPedidoRectificado IS NOT NULL THEN 1 ELSE 0 END) AS rectificadas
+      FROM dbo.APQNonConformity n
+      LEFT JOIN dbo._APQNonConformity_Custom c ON c.IDNonConformity = n.IDNonConformity
+     WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)`);
+  const f = r.recordset[0];
+  return { total: f?.total ?? 0, rectificadas: f?.rectificadas ?? 0 };
+}
+
+/** Las NC de una sección en el periodo: en un pedido con tareas de esa
+ *  sección, y apuntadas al proceso DISEÑO o todavía sin ningún proceso (ver
+ *  `sinClasificar`: Calidad aún no ha dicho de quién fue, y sin ellas casi no
+ *  salía ninguna de las recientes). Solo OT y Diseño Gráfico: Impresión no
+ *  tiene proceso propio en las NC. */
 export async function leerNcMetricas(periodo: Periodo, seccion: SeccionId): Promise<NoConformidad[] | null> {
   if (process.env.DATASOURCE !== "rps" || seccion === "impresion") return null;
   const pool = await getPool();
@@ -70,7 +94,8 @@ export async function leerNcMetricas(periodo: Periodo, seccion: SeccionId): Prom
     .query<Fila>(`
     ${SELECT_NC}
     WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)
-      AND @proceso IN (p1.Descripcion, p2.Descripcion)
+      AND (@proceso IN (p1.Descripcion, p2.Descripcion)
+        OR (c.IDProcesoAfectado1 IS NULL AND c.IDProcesoAfectado2 IS NULL))
       AND EXISTS (
         SELECT 1 FROM dbo.FACOrderSL o
           JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder

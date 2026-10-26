@@ -41,6 +41,9 @@ export interface DetalleMetricas {
    *  `leerNcMetricas`). null si RPS no contestó o la sección no tiene; sin
    *  definir hasta que la ruta las pone. */
   nc?: NoConformidad[] | null;
+  /** Las NC de toda la empresa en el periodo, como referencia (ver
+   *  `leerTotalesNc`). */
+  ncTotales?: { total: number; rectificadas: number } | null;
 }
 
 /** Desde aquí toda OF de OT se pasa en Coordina. Agosto aún iba a medias:
