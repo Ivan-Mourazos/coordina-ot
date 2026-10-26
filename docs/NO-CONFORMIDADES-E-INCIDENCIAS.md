@@ -3,7 +3,13 @@
 De dónde salen en RPS, cómo se reparten entre Oficina Técnica y Diseño Gráfico, qué enseña Coordina y qué
 **no** se puede saber. Medido contra RPS el 26/10/2026.
 
-## 1. Dos cosas distintas
+## 1. Tres cosas distintas
+
+**NC y rectificado no son lo mismo.** La NC es la ficha que abre Calidad cuando pasa algo con un pedido (una
+incidencia, una reclamación… o una felicitación: 15 en 2026). El rectificado es el pedido NUEVO que se abre para
+arreglarlo. Toda NC con rectificado es un fallo que costó rehacer algo; en 2026, 274 de 392 NC.
+
+### Incidencia frente a NC
 
 | | Incidencia | No conformidad (NC) |
 |---|---|---|
@@ -179,10 +185,11 @@ la ficha, plegados.
 - **Métricas de OT y Diseño**: incidencias de la sección.
 - **Métricas de las tres secciones**: rectificados por familia de producto, con cuántos tienen causa de la
   sección y la culpa media.
-- **Métricas de las tres secciones**: panel de no conformidades. Las de la sección por causa de planteamiento de
-  alguien de la sección y las pendientes de investigar, en NC y rectificados, con «tuyas» para quien mira (sin
-  nombres de compañeros: cada uno ve lo suyo). La empresa entera: % de rectificados con causa nuestra, reparto
-  por sección y el proceso DISEÑO como principal o secundario.
+- **Métricas de las tres secciones** (26/10/2026, tras ver la primera versión): solo **rectificados** — las NC sin
+  pedido rectificativo no entran, siguen en la ficha. Un panel «Rectificados»: una línea (con culpa de la sección,
+  equivale a, causa mayor, tuyos y el peso en toda la empresa), la tabla por familia y los pedidos plegados. Y una
+  línea **«Rectificados»** en «Mes a mes» (con culpa de la sección) y **«Con rectificado»** en «Mis datos» (los
+  tuyos), por el mes en que Calidad abrió la NC. Las NC del año se guardan 10 min en el servidor (unos 6 s).
 - **Métricas de Diseño e Impresión**: sin nada de revisión (no revisan).
 
 Código: `src/lib/server/nc-db.ts`, `src/lib/no-conformidad.ts`, `src/components/NoConformidadesPedido.tsx`,

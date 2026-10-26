@@ -46,6 +46,9 @@ export interface DetalleMetricas {
   ncTotales?: TotalesNc | null;
   /** Los rectificados de la sección por familia (ver `rectificadosPorFamilia`). */
   ncFamilias?: FilaFamiliaNc[] | null;
+  /** Rectificados con causa de la sección y míos, por mes del año (ver
+   *  `rectificadosPorMes`), para las gráficas. */
+  rectificadosMeses?: Record<string, { equipo: number; mios: number }> | null;
 }
 
 /** Desde aquí toda OF de OT se pasa en Coordina. Agosto aún iba a medias:

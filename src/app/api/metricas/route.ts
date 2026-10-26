@@ -4,7 +4,7 @@ import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { calcularDetalleMetricas, contarDevueltas, contarEntregas } from "@/lib/metricas-personales";
 import { leerFamiliasMetricas, leerIncidenciasMetricas, leerPasesRps } from "@/lib/server/metricas-fuentes";
 import { leerNcPeriodo } from "@/lib/server/nc-db";
-import { deLaSeccion, rectificadosPorFamilia, totalesNc } from "@/lib/no-conformidad";
+import { deLaSeccion, rectificadosPorFamilia, rectificadosPorMes, totalesNc } from "@/lib/no-conformidad";
 import { codigoRpsDe, operariosDeSeccion } from "@/lib/server/operarios";
 import { sumarDias } from "@/lib/fechas";
 import { leerCausasDevolucion, leerMovimientosMetricas, leerPasesMetricas, leerPasosRevision } from "@/lib/server/estado-db";
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
         // Las NC del periodo pedido, como las incidencias: de RPS y sin el
         // recorte de INICIO_METRICAS. Todas las de la empresa: de ellas salen
         // las de la sección y los totales (ver lib/no-conformidad.ts).
-        leerNcPeriodo(periodoRps),
+        leerNcPeriodo(periodoAnio),
       ]);
       if (nc.status === "rejected") console.error("[metricas] no conformidades no disponibles:", nc.reason?.message);
       if (familias.status === "rejected") console.error("[metricas] familias no disponibles:", familias.reason?.message);
@@ -116,10 +116,14 @@ export async function GET(req: Request) {
       detalle.personal.meses = delAnio.personal.meses;
       // El total, del periodo pedido; los meses, del año entero de la gráfica.
       detalle.equipoRps = { ofs: detalle.equipoRps.ofs, meses: delAnio.equipoRps.meses };
-      const todasNc = nc.status === "fulfilled" ? nc.value : null;
+      // El año entero, para las líneas de las gráficas; la tabla y el resumen,
+      // solo el periodo elegido.
+      const ncDelAnio = nc.status === "fulfilled" ? nc.value : null;
+      const todasNc = ncDelAnio && ncDelAnio.filter((x) => x.fecha >= periodoRps.desde && x.fecha <= periodoRps.hasta);
       detalle.nc = todasNc && todasNc.filter((x) => deLaSeccion(x, seccion) !== null);
       detalle.ncTotales = todasNc && totalesNc(todasNc);
       detalle.ncFamilias = todasNc && rectificadosPorFamilia(todasNc, seccion);
+      detalle.rectificadosMeses = ncDelAnio && rectificadosPorMes(ncDelAnio, seccion, miId);
     }
     return NextResponse.json(
       {

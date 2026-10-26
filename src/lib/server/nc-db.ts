@@ -122,12 +122,28 @@ export async function ncDePedido(pedido: string): Promise<NoConformidad[]> {
   return r.recordset.map((f) => deFila(f, detalle.get(f.id.toLowerCase()), [], []));
 }
 
+const ncGuardadas = new Map<string, { hasta: number; filas: Promise<NoConformidad[]> }>();
+
 /** Todas las NC de la empresa en el periodo, con sus defectos y causas, las
  *  secciones que tienen tareas en el pedido que falló y las familias de sus
  *  OF. Unas decenas al mes: el reparto se hace después, en `deLaSeccion`,
- *  `totalesNc` y `rectificadosPorFamilia`. */
+ *  `totalesNc`, `rectificadosPorFamilia` y `rectificadosPorMes`.
+ *
+ *  Se guarda 10 minutos por periodo: las gráficas piden el año entero aunque
+ *  se mire un mes, y el año son unos 6 s contra RPS (medido el 26/10/2026).
+ *  Calidad no abre NC cada minuto, y diez de retraso no cambian nada. */
 export async function leerNcPeriodo(periodo: Periodo): Promise<NoConformidad[] | null> {
   if (process.env.DATASOURCE !== "rps") return null;
+  const clave = `${periodo.desde}|${periodo.hasta}`;
+  const guardada = ncGuardadas.get(clave);
+  if (guardada && guardada.hasta > Date.now()) return guardada.filas;
+  const filas = consultarNcPeriodo(periodo);
+  ncGuardadas.set(clave, { hasta: Date.now() + 10 * 60_000, filas });
+  filas.catch(() => ncGuardadas.delete(clave));
+  return filas;
+}
+
+async function consultarNcPeriodo(periodo: Periodo): Promise<NoConformidad[]> {
   const pool = await getPool();
   const secciones = Object.keys(SECCIONES) as SeccionId[];
   const periodoEn = () => pool.request().input("desde", sql.Date, periodo.desde).input("hasta", sql.Date, periodo.hasta);

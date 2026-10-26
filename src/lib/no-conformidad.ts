@@ -310,6 +310,28 @@ export function rectificadosPorFamilia(todas: readonly NoConformidad[], seccion:
     .sort((a, b) => b.rectificados - a.rectificados || a.familia.localeCompare(b.familia));
 }
 
+/** Los rectificados de cada mes, para las gráficas de Métricas (Iván,
+ *  26/10/2026: «incluir en las gráficas los rectificados, como las
+ *  incidencias»). Cuenta los que tienen causa de la sección —aunque sea en
+ *  parte— y, aparte, los que me nombran a mí. Por el mes en que Calidad abrió
+ *  la NC ("2026-03"). Número entero, no el peso: en una línea se lee mejor
+ *  «3 en marzo»; el peso va en la tabla. */
+export function rectificadosPorMes(
+  todas: readonly NoConformidad[],
+  seccion: SeccionId,
+  miId: string,
+): Record<string, { equipo: number; mios: number }> {
+  const meses: Record<string, { equipo: number; mios: number }> = {};
+  for (const nc of todas) {
+    if (!nc.rectificativo || !nc.fecha) continue;
+    const mes = nc.fecha.slice(0, 7);
+    const fila = (meses[mes] ??= { equipo: 0, mios: 0 });
+    if (deLaSeccion(nc, seccion) === "causa") fila.equipo++;
+    if (esMia(nc, miId)) fila.mios++;
+  }
+  return meses;
+}
+
 /** Calidad todavía no le ha puesto proceso. */
 export const sinClasificar = (nc: Pick<NoConformidad, "proceso1" | "proceso2">) => !nc.proceso1 && !nc.proceso2;
 

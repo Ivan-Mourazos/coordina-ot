@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { causaMayor, deLaSeccion, esMia, rectificadosPorFamilia, repartoNc, soyCausaMayor, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
+import { causaMayor, deLaSeccion, esMia, rectificadosPorFamilia, rectificadosPorMes, repartoNc, soyCausaMayor, papelDiseno, partirCausa, quienesEn, resumenNc, seccionesDe, sinClasificar, textoProcesos, totalesNc, type CausaNc, type NoConformidad } from "../no-conformidad";
 import type { SeccionId } from "../secciones";
 
 const nc = (proceso1: string | null, proceso2: string | null) => ({ proceso1, proceso2 });
@@ -242,5 +242,19 @@ describe("rectificadosPorFamilia", () => {
     ], "diseno");
     expect(filas.map((f) => f.familia)).toEqual(["ROTULO"]);
     expect(filas[0].culpaMedia).toBeNull();
+  });
+});
+
+describe("rectificadosPorMes", () => {
+  it("cuenta por mes los rectificados con causa de la sección y, aparte, los míos", () => {
+    const meses = rectificadosPorMes([
+      ncCon({ fecha: "2026-03-04", rectificativo: "R1", causas: [causa(PLANTEO, "TAMARA")] }),
+      ncCon({ fecha: "2026-03-20", rectificativo: "R2", causas: [causa(PLANTEO, "ADRIAN", 10), causa("DOCUMENTAR MAL", "OSCAR", 90)] }),
+      // Sin rectificativo, o sin causa nuestra: fuera.
+      ncCon({ fecha: "2026-03-21", causas: [causa(PLANTEO, "TAMARA")] }),
+      ncCon({ fecha: "2026-04-02", rectificativo: "R3", causas: [causa("ERROR AL CONFECCIONAR O PRODUCIR", "JOSE")] }),
+    ], "ot", "adrian");
+    expect(meses["2026-03"]).toEqual({ equipo: 2, mios: 1 });
+    expect(meses["2026-04"]).toEqual({ equipo: 0, mios: 0 });
   });
 });
