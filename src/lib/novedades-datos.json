@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-26",
+    "hasta": "1fdbcfc",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "En Diseño ya no vuelven a salir pedidos que estaban terminados",
+        "detalle": "Tras el cambio de servidor de hoy aparecieron de golpe en Planteando y en Esperando revisión trabajos ya cerrados. Ya no salen.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-22",
     "hasta": "1548e7d",
     "cambios": [
