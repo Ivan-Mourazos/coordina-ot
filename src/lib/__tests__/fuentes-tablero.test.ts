@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claveFase, filasQueFaltan, paresRetenidosDe, unirRetenidas } from "../server/rps";
+import { claveFase, filasQueFaltan, paresRetenidosDe, sinTerminadas, unirRetenidas } from "../server/rps";
 
 // Cruce de las dos fuentes del tablero: las fases vivas de OLANET y la vista de
 // RPS. Medido contra la BD el 2026-09-02 (ver la spec de Diseño Gráfico).
@@ -88,6 +88,24 @@ describe("unirRetenidas", () => {
   it("sin retenidas, devuelve los pares tal cual", () => {
     const pendiente = [{ of: "0230700", fase: "3" }];
     expect(unirRetenidas(pendiente, [])).toEqual(pendiente);
+  });
+});
+
+describe("sinTerminadas", () => {
+  it("quita lo que RPS ya da por terminado y deja lo demás", () => {
+    const abiertas = [{ of: "0230700", fase: "3" }, { of: "0232086", fase: "5" }];
+    const terminadas = new Set([claveFase("0230700", "3")]);
+    expect(sinTerminadas(abiertas, terminadas)).toEqual([{ of: "0232086", fase: "5" }]);
+  });
+
+  it("cruza por claveFase: el \"05\" de RPS tapa el \"5\" de OLANET", () => {
+    const terminadas = new Set([claveFase("0232086", "05")]);
+    expect(sinTerminadas([{ of: "0232086", fase: "5" }], terminadas)).toEqual([]);
+  });
+
+  it("sin terminadas, devuelve las fases tal cual", () => {
+    const abiertas = [{ of: "0230700", fase: "3" }];
+    expect(sinTerminadas(abiertas, new Set())).toEqual(abiertas);
   });
 });
 

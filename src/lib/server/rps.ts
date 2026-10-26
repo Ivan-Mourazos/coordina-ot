@@ -519,6 +519,14 @@ export function unirRetenidas(
   return salida;
 }
 
+/** Quita las fases que RPS ya da por terminadas (ver `clavesTerminadasEnRps`). */
+export function sinTerminadas<T extends { of: string; fase: string }>(
+  fases: readonly T[],
+  terminadas: ReadonlySet<string>,
+): T[] {
+  return fases.filter((f) => !terminadas.has(claveFase(f.of, f.fase)));
+}
+
 /** Las OF retenidas de una sección, como pares (of, fase) listos para
  *  `filasPorFase`. El id de OF es "orden:tarea" (ver `aOF` más abajo): se
  *  parte con `partirOfId`, la misma función que ya usa el fichaje para lo
@@ -939,15 +947,72 @@ async function filasDeLaSeccion(
   // Sin vista (Impresión Digital): OLANET es toda la lista. Ver `Seccion.vista`.
   if (!seccion.vista) {
     const fases = await fasesPendientesDe(seccion);
-    return filasPorFase(pool, seccion, unirRetenidas(fases, retenidas));
+    const terminadas = await clavesTerminadasEnRps(pool, fases);
+    return filasPorFase(pool, seccion, unirRetenidas(sinTerminadas(fases, terminadas), retenidas));
   }
   // OLANET manda, y la vista solo completa lo recién lanzado que OLANET aún no
-  // tenga. Las dos consultas van en paralelo: son servidores distintos.
+  // tenga. Las dos consultas van en paralelo: son bases distintas.
   const [fases, claves] = await Promise.all([
     fasesPendientesDe(seccion),
     clavesDeLaVista(pool, seccion),
   ]);
-  return filasPorFase(pool, seccion, unirRetenidas([...fases, ...paresDe(filasQueFaltan(claves, fases))], retenidas));
+  const terminadas = await clavesTerminadasEnRps(pool, fases);
+  // `filasQueFaltan` recibe las fases SIN filtrar: lo que decide es qué tiene
+  // OLANET abierto, no qué enseñamos. Con las filtradas, la vista volvería a
+  // meter las terminadas que aún figuran en ella.
+  return filasPorFase(
+    pool,
+    seccion,
+    unirRetenidas([...sinTerminadas(fases, terminadas), ...paresDe(filasQueFaltan(claves, fases))], retenidas),
+  );
+}
+
+/** Las fases que RPS ya da por terminadas, de entre las que OLANET tiene abiertas.
+ *
+ *  OLANET no es UNO: el del polígono (192.168.4.113) y el principal
+ *  (192.168.0.124) llevan cada uno su copia de `scg_Fases` y no se sincronizan.
+ *  El 26/10/2026 el del polígono se cayó y el fichaje pasó al principal, donde
+ *  las fases de Diseño nunca se habían cerrado: 236 que ya estaban hechas
+ *  volvieron al tablero, alguna de 2020. Lo que sí quedó fue lo que el del
+ *  polígono subió a RPS, y de esas 236 lo cuenta para 235:
+ *
+ *   · `tgm_estadosof_olanet` con un 3 (229): la copia en RPS de los cierres de
+ *     fase. Es un registro de movimientos, así que vale el ÚLTIMO: un 3 seguido
+ *     de un estado vivo más reciente es una fase reabierta, y esa se queda.
+ *   · `RealEndDate` u OF FINALIZADA: las mismas señales que el Historial (ver
+ *     `ctesFinalizacionHistorial`), por lo que Producción cierra a mano en RPS
+ *     y no vuelve a OLANET.
+ *
+ *  Las de la propia web no se tocan: las retenidas se unen DESPUÉS. */
+async function clavesTerminadasEnRps(
+  pool: import("mssql").ConnectionPool,
+  fases: readonly { of: string }[],
+): Promise<Set<string>> {
+  const ordenes = [...new Set(fases.map((f) => f.of).filter((o) => /^[\w.-]+$/.test(o)))];
+  if (ordenes.length === 0) return new Set();
+  const enOrdenes = ordenes.map((o) => `'${o}'`).join(",");
+  // La fase de `tgm_estadosof_olanet` se devuelve tal cual y se cruza con
+  // `claveFase`: OLANET escribe "5" donde RPS tiene "05".
+  const r = await pool.request().query<{ orden: string | null; fase: string | null }>(`
+    SELECT d.CodManufacturingOrder AS orden, t.CodMOTask AS fase
+      FROM dbo.CPRMOTask AS t
+      INNER JOIN dbo.CPRManufacturingOrder AS d WITH (NOLOCK)
+        ON t.IDManufacturingOrder = d.IDManufacturingOrder
+      LEFT OUTER JOIN dbo.CPRManufacturingOrderSituation AS sit WITH (NOLOCK)
+        ON d.IDMOSituation = sit.IDManufacturingOrderSituation
+     WHERE d.CodCompany = '001' AND d.CodManufacturingOrder IN (${enOrdenes})
+       AND (sit.CodSituation = '6'
+         OR (t.RealEndDate > '2000-01-01' AND t.RealEndDate < DATEADD(day, 1, GETDATE())))
+    UNION ALL
+    SELECT e3.orden, e3.fase
+      FROM dbo.tgm_estadosof_olanet AS e3
+     WHERE e3.orden IN (${enOrdenes}) AND e3.idestadoof = 3
+       AND NOT EXISTS (
+         SELECT 1 FROM dbo.tgm_estadosof_olanet AS e
+          WHERE e.orden = e3.orden AND e.fase = e3.fase AND e.idestadoof < 3
+            AND e.fecha_cambio > e3.fecha_cambio)
+  `);
+  return new Set(r.recordset.map((f) => claveFase(f.orden, f.fase)));
 }
 
 interface FilaFuera {
