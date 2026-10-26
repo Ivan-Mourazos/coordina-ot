@@ -1,7 +1,7 @@
 import { INICIO_METRICAS, type Metricas, type MovimientoRegistrado, type Periodo } from "./metricas";
 import { leerDevolucion } from "./devolucion";
 import { partirOfId } from "./bonos";
-import type { NoConformidad } from "./no-conformidad";
+import type { NoConformidad, TotalesNc } from "./no-conformidad";
 
 /** Un error de planteamiento apuntado en RPS sobre una OF. */
 export interface IncidenciaMetricas {
@@ -43,7 +43,7 @@ export interface DetalleMetricas {
   nc?: NoConformidad[] | null;
   /** Las NC de toda la empresa en el periodo, como referencia (ver
    *  `leerTotalesNc`). */
-  ncTotales?: { total: number; rectificadas: number } | null;
+  ncTotales?: TotalesNc | null;
 }
 
 /** Desde aquí toda OF de OT se pasa en Coordina. Agosto aún iba a medias:

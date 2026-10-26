@@ -59,11 +59,32 @@ calidad, migrada a RPS en 2020:
 de fabricarlo: medidas, planteamiento), que es lo que hace OT; Diseño Gráfico tampoco tiene proceso propio. Por
 eso las NC de OT vienen como «DISEÑO».
 
-### Cómo se reparten entre OT y Diseño
+### Los nuestros: DISEÑO, principal o secundario
 
-Por las **tareas del pedido que falló**: es de OT si tiene tareas en `a-otec`/`otec-a`, de Diseño si las tiene
-en `a-dgra`/`dgra-a`, de las dos si tiene de ambas. En 2026, de 53 NC de DISEÑO: 34 solo OT, 2 solo Diseño, 16
-de las dos, 1 de ninguna. Una NC de Comercial o Compras en un pedido con tareas de OT **no** es de OT.
+Los rectificados «nuestros» son los que llevan el proceso **DISEÑO** (Iván, 26/10/2026). El orden de los dos
+procesos cuenta: el **1 es el principal** (a quien Calidad achaca el fallo) y el **2 el secundario** (también
+tuvo parte). Se cuentan por separado; si DISEÑO está en los dos, cuenta como principal (`papelDiseno` en
+`src/lib/no-conformidad.ts`).
+
+En 2026 (hasta el 26/10), en toda la empresa: 392 NC, 274 rectificados. De DISEÑO: 38 NC como principal (33
+rectificados) y 16 como secundario (14 rectificados). 20 sin clasificar todavía.
+
+### Por nombre: OT, Diseño o Impresión
+
+Ninguna de las tres secciones tiene proceso propio en RPS: todas caen en DISEÑO. Se reparten por las **tareas
+del pedido que falló**, con los recursos de cada sección (OT `a-otec`/`otec-a`, Diseño `a-dgra`/`dgra-a`,
+Impresión `imdi-a`, `u-p-imdi`, `p-hpla`, `p-iduv`, `p-jeti`). Un pedido con tareas de dos secciones cuenta en
+las dos, así que la suma por sección puede pasar del total. Una NC de Comercial o Compras en un pedido con
+tareas de OT **no** es de OT.
+
+En 2026 (hasta el 26/10), NC de DISEÑO por sección:
+
+| Sección | Principal | Secundario | Rectificados |
+|---|---|---|---|
+| Oficina Técnica | 35 | 16 | 44 |
+| Diseño Gráfico | 13 | 5 | 16 |
+| Impresión Digital | 8 | 3 | 9 |
+| Sin tareas de ninguna | 1 | 0 | 1 |
 
 Entran las de proceso DISEÑO **y las que aún no tienen ningún proceso**: Calidad las abre y las clasifica
 después, y las de octubre estaban casi todas sin clasificar (NC010176, NC010188). Salen marcadas «sin
@@ -78,9 +99,9 @@ No hay una lista aparte: el pedido rectificativo vive en la NC (`_APQNonConformi
 En 2026, 274 de 392 NC lo tienen. Por año: 2021: 736 NC (548 con rectificativo) · 2022: 504 (356) · 2023: 542
 (386) · 2024: 540 (345) · 2025: 483 (342).
 
-**No se da un % de «rectificados nuestros»**: de quién fue lo decide Calidad a mano y muchas siguen sin
-clasificar, así que el número no sería verdad. Sí se dan los totales: los de la sección y, como referencia, los
-de toda la empresa en el periodo.
+**El % solo para la empresa entera**: «de todos los rectificados, cuántos llevan DISEÑO como principal y cuántos
+como secundario» lo dice RPS tal cual. Por sección se dan números sin %, porque el reparto entre OT, Diseño e
+Impresión es una deducción por las tareas del pedido.
 
 ### La hoja en papel
 
@@ -101,11 +122,13 @@ la ficha, plegados.
 ## 4. Qué enseña Coordina
 
 - **Ficha del pedido** (tablero e Historial, todas las secciones), solo si hay algo: la NC del pedido con su
-  fecha, procesos, origen, si está abierta, el texto y los comentarios de Calidad, y «rectificado en …» con
+  fecha, procesos con su papel («COMERCIAL (principal) · DISEÑO (secundario)»), origen, si está abierta, el texto y los comentarios de Calidad, y «rectificado en …» con
   enlace al parte del rectificativo (donde viene la hoja). Si el pedido es un rectificativo: «Este pedido
   rectifica el …», con enlace al parte del original.
-- **Métricas de OT y Diseño**: incidencias de la sección y panel de no conformidades (las de la sección, cuántas
-  con rectificativo, cuántas sin clasificar, y el total de la empresa).
+- **Métricas de OT y Diseño**: incidencias de la sección.
+- **Métricas de las tres secciones**: panel de no conformidades. Las de la sección, en NC y rectificados, como
+  DISEÑO principal, secundario o sin clasificar; y la empresa entera, con el % de rectificados de DISEÑO
+  (principal y secundario) y el reparto por nombre de sección.
 - **Métricas de Diseño e Impresión**: sin nada de revisión (no revisan).
 
 Código: `src/lib/server/nc-db.ts`, `src/lib/no-conformidad.ts`, `src/components/NoConformidadesPedido.tsx`,

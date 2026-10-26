@@ -1,6 +1,6 @@
 import sql from "mssql";
 import { getPool } from "./db";
-import { PROCESO_DISENO, type NoConformidad } from "../no-conformidad";
+import { PROCESO_DISENO, papelDiseno, type NoConformidad, type TotalesNc } from "../no-conformidad";
 import { SECCIONES, recursosDeTrabajoSql, type SeccionId } from "../secciones";
 import type { Periodo } from "../metricas";
 
@@ -39,7 +39,8 @@ const deFila = (f: Fila): NoConformidad => ({
   fecha: f.fecha ? f.fecha.toISOString().slice(0, 10) : "",
   pedido: f.pedido?.trim() || null,
   rectificativo: f.rectificativo?.trim() || null,
-  procesos: [...new Set([f.proceso1, f.proceso2].map((p) => p?.trim()).filter((p): p is string => !!p))],
+  proceso1: f.proceso1?.trim() || null,
+  proceso2: f.proceso2?.trim() || null,
   origen: f.origen?.trim() || null,
   descripcion: (f.descripcion ?? "").trim(),
   comentarios: (f.comentarios ?? "").trim(),
@@ -60,32 +61,71 @@ export async function ncDePedido(pedido: string): Promise<NoConformidad[]> {
   return r.recordset.map(deFila);
 }
 
-/** Cuántas NC abrió Calidad en el periodo en TODA la empresa, y cuántas con
- *  pedido rectificativo. Es la referencia junto a las de la sección: un % de
- *  «rectificados nuestros» no se puede dar, porque de quién fue lo decide
- *  Calidad a mano y muchas están sin clasificar (Iván, 26/10/2026). */
-export async function leerTotalesNc(periodo: Periodo): Promise<{ total: number; rectificadas: number } | null> {
+/** Ver `TotalesNc`. */
+export async function leerTotalesNc(periodo: Periodo): Promise<TotalesNc | null> {
   if (process.env.DATASOURCE !== "rps") return null;
   const pool = await getPool();
+  const secciones = Object.keys(SECCIONES) as SeccionId[];
+  // Una fila por NC con su papel de DISEÑO y de qué secciones tiene tareas el
+  // pedido que falló; se suma aquí abajo. Son unas decenas al mes.
   const r = await pool.request()
     .input("desde", sql.Date, periodo.desde)
     .input("hasta", sql.Date, periodo.hasta)
-    .query<{ total: number; rectificadas: number }>(`
-    SELECT COUNT(*) AS total, SUM(CASE WHEN c.CodPedidoRectificado IS NOT NULL THEN 1 ELSE 0 END) AS rectificadas
+    .query<{ rect: number; proceso1: string | null; proceso2: string | null } & Record<string, number | string | null>>(`
+    SELECT CASE WHEN c.CodPedidoRectificado IS NOT NULL THEN 1 ELSE 0 END AS rect,
+           p1.Descripcion AS proceso1, p2.Descripcion AS proceso2,
+           ${secciones.map((s) => `CASE WHEN EXISTS (${tareasDeSeccionEnPedido(s)}) THEN 1 ELSE 0 END AS [en_${s}]`).join(",\n           ")}
       FROM dbo.APQNonConformity n
       LEFT JOIN dbo._APQNonConformity_Custom c ON c.IDNonConformity = n.IDNonConformity
+      LEFT JOIN dbo._Proceso p1 ON p1.IDProceso = c.IDProcesoAfectado1
+      LEFT JOIN dbo._Proceso p2 ON p2.IDProceso = c.IDProcesoAfectado2
      WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)`);
-  const f = r.recordset[0];
-  return { total: f?.total ?? 0, rectificadas: f?.rectificadas ?? 0 };
+
+  const vacio = () => ({ principal: 0, secundario: 0, rectificadas: 0 });
+  const t: TotalesNc = {
+    total: 0, rectificadas: 0, disenoPrincipal: 0, disenoPrincipalRectificadas: 0,
+    disenoSecundario: 0, disenoSecundarioRectificadas: 0, sinClasificar: 0,
+    porSeccion: { ot: vacio(), diseno: vacio(), impresion: vacio(), ninguna: vacio() },
+  };
+  for (const f of r.recordset) {
+    const rect = f.rect === 1 ? 1 : 0;
+    t.total++;
+    t.rectificadas += rect;
+    const papel = papelDiseno({ proceso1: f.proceso1?.trim() || null, proceso2: f.proceso2?.trim() || null });
+    if (papel === "sinClasificar") t.sinClasificar++;
+    if (papel !== "principal" && papel !== "secundario") continue;
+    if (papel === "principal") { t.disenoPrincipal++; t.disenoPrincipalRectificadas += rect; }
+    else { t.disenoSecundario++; t.disenoSecundarioRectificadas += rect; }
+    // De quién, por nombre: la sección cuyas tareas lleva el pedido. Con
+    // tareas de varias, cuenta en cada una; sin ninguna, en «ninguna».
+    const suyas = secciones.filter((s) => f[`en_${s}`] === 1);
+    for (const s of suyas.length ? suyas : (["ninguna"] as const)) {
+      const fila = t.porSeccion[s];
+      fila[papel]++;
+      fila.rectificadas += rect;
+    }
+  }
+  return t;
+}
+
+/** ¿Tiene el pedido de la NC (`n.CodOrder`) tareas de la sección? Es lo que
+ *  decide de quién es una NC de DISEÑO: RPS no separa OT, Diseño e Impresión. */
+function tareasDeSeccionEnPedido(seccion: SeccionId): string {
+  return `SELECT 1 FROM dbo.FACOrderSL o
+      JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
+      JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = l.IDManufacturingOrder
+      JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
+     WHERE o.CodCompany = '001' AND o.CodOrder = n.CodOrder
+       AND rm.CodMOResourceMachine IN (${recursosDeTrabajoSql(SECCIONES[seccion])})`;
 }
 
 /** Las NC de una sección en el periodo: en un pedido con tareas de esa
  *  sección, y apuntadas al proceso DISEÑO o todavía sin ningún proceso (ver
  *  `sinClasificar`: Calidad aún no ha dicho de quién fue, y sin ellas casi no
- *  salía ninguna de las recientes). Solo OT y Diseño Gráfico: Impresión no
- *  tiene proceso propio en las NC. */
+ *  salía ninguna de las recientes). Las tres secciones: ninguna tiene proceso
+ *  propio en RPS, todas caen en DISEÑO (Iván, 26/10/2026). */
 export async function leerNcMetricas(periodo: Periodo, seccion: SeccionId): Promise<NoConformidad[] | null> {
-  if (process.env.DATASOURCE !== "rps" || seccion === "impresion") return null;
+  if (process.env.DATASOURCE !== "rps") return null;
   const pool = await getPool();
   const r = await pool.request()
     .input("desde", sql.Date, periodo.desde)
@@ -96,13 +136,7 @@ export async function leerNcMetricas(periodo: Periodo, seccion: SeccionId): Prom
     WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)
       AND (@proceso IN (p1.Descripcion, p2.Descripcion)
         OR (c.IDProcesoAfectado1 IS NULL AND c.IDProcesoAfectado2 IS NULL))
-      AND EXISTS (
-        SELECT 1 FROM dbo.FACOrderSL o
-          JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
-          JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = l.IDManufacturingOrder
-          JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
-         WHERE o.CodCompany = '001' AND o.CodOrder = n.CodOrder
-           AND rm.CodMOResourceMachine IN (${recursosDeTrabajoSql(SECCIONES[seccion])}))
+      AND EXISTS (${tareasDeSeccionEnPedido(seccion)})
     ORDER BY n.DoneDate DESC`);
   return r.recordset.map(deFila);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { resumenNc, type NoConformidad } from "@/lib/no-conformidad";
+import { resumenNc, textoProcesos, type NoConformidad } from "@/lib/no-conformidad";
 
 // ─── Las no conformidades del pedido, EN LA FICHA ────────────────────────────
 // Si Calidad abrió una NC por este pedido, quien lo mira tiene que saberlo, y
@@ -79,7 +79,7 @@ export function NoConformidadesPedido({ pedido }: { pedido: string }) {
       {rectifica.map((x) => (
         <p key={`r:${x.codigo}`} className="text-[13px] font-semibold text-amber-800 dark:text-amber-300" title={x.descripcion}>
           Este pedido rectifica el {x.pedido ? <EnlaceParte pedido={x.pedido} titulo="Abre el parte del pedido original" /> : "pedido original"}
-          <span className="font-normal text-text-muted"> · {x.codigo} · {fmt(x.fecha)}{x.procesos.length ? ` · ${x.procesos.join(", ")}` : ""}</span>
+          <span className="font-normal text-text-muted"> · {x.codigo} · {fmt(x.fecha)} · {textoProcesos(x)}</span>
         </p>
       ))}
       {propias.length > 0 && (
@@ -93,7 +93,7 @@ export function NoConformidadesPedido({ pedido }: { pedido: string }) {
             <span className="font-semibold text-text">{x.codigo}</span>
             <span className="text-text-muted">
               {" "}· {fmt(x.fecha)}
-              {x.procesos.length > 0 ? ` · ${x.procesos.join(", ")}` : " · sin proceso todavía"}
+              {` · ${textoProcesos(x)}`}
               {x.origen && ` · ${x.origen.toLowerCase()}`}
               {!x.cerrada && " · abierta"}
             </span>
