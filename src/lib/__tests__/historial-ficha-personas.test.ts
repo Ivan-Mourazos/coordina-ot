@@ -2,31 +2,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { OFsDeLaFicha } from "../../components/HistorialCentros";
-import { centrosConDesglose } from "../historial-centros";
 import type { HistorialOF } from "../historial";
 
-// En la ficha, un desglose solo sale si dice algo que el de arriba no dice.
-// En AR.26.04488 (1 OF) "Adrián Quinteiro 10m · Jaime Vázquez 2m" salía en el
-// centro y otra vez dentro de la OF: los mismos nombres y minutos dos veces.
-//
-// Desde el 09/10/2026 la ficha no tiene bloque «Tareas y tiempos»: cada OF se
-// despliega con sus tareas y arriba queda un resumen por centro, solo con
-// varias OF. La regla de no repetir sigue siendo la misma.
-
-const of = (codigo: string, centro: HistorialOF["centro"], personas: { nombre: string; min: number }[]): HistorialOF => ({
-  codigo,
-  descripcion: `OF ${codigo}`,
-  centro,
-  tiempoImputadoMin: personas.reduce((n, p) => n + p.min, 0),
-  quien: personas.map((p) => p.nombre),
-  personas,
-});
-
 const veces = (html: string, texto: string) => html.split(texto).length - 1;
-// `abiertasDeSalida`: con varias OF nacen plegadas, y lo que estas pruebas
-// miran es QUIÉN sale dentro de cada una, no si está abierta.
-const pinta = (ofs: HistorialOF[]) =>
-  renderToStaticMarkup(createElement(OFsDeLaFicha, { ofs, seccion: "ot", abiertasDeSalida: true }));
+const pinta = (ofs: HistorialOF[], sinMaterial = false) =>
+  renderToStaticMarkup(createElement(OFsDeLaFicha, { ofs, seccion: "ot", sinMaterial }));
 
 /** Una OF con el desglose de tareas que trae el detalle del Historial. */
 const conTareas = (
@@ -50,146 +30,67 @@ const conTareas = (
   };
 };
 
-describe("personas en la ficha del Historial", () => {
-  it("con una sola OF, las personas salen una vez: en la OF, sin resumen encima", () => {
-    const html = pinta([of("0232070", "ot", [{ nombre: "Adrián Quinteiro", min: 10 }, { nombre: "Jaime Vázquez", min: 2 }])]);
-    expect(html).not.toContain("Tiempos por persona de Oficina Técnica");
-    expect(veces(html, "Adrián Quinteiro")).toBe(1);
-  });
 
-  it("con varias OF en el centro, cada OF dice además quién la hizo", () => {
+describe("las fichas comparten el desglose por centro de Pendientes", () => {
+  it("agrupa primero por centro, con sus OF y los tiempos por persona", () => {
     const html = pinta([
-      of("0000001", "ot", [{ nombre: "Adrián Quinteiro", min: 10 }]),
-      of("0000002", "ot", [{ nombre: "Jaime Vázquez", min: 6 }]),
+      conTareas("1", "taller", [{ codigo: "7", descripcion: "CORTAR", personas: [{ nombre: "María", min: 38 }, { nombre: "Teresa", min: 38 }] }]),
+      conTareas("2", "taller", [{ codigo: "8", descripcion: "SOLDAR", personas: [{ nombre: "Teresa", min: 60 }] }]),
     ]);
-    // Una vez en el resumen del centro y otra en su OF.
-    expect(html).toContain("Tiempos por persona de Oficina Técnica");
-    expect(veces(html, "Adrián Quinteiro")).toBe(2);
-    expect(veces(html, "Jaime Vázquez")).toBe(2);
+    expect(veces(html, ">Taller<")).toBe(1);
+    expect(html.indexOf(">Taller<")).toBeLessThan(html.indexOf("OF 1"));
+    expect(html.indexOf("OF 1")).toBeLessThan(html.indexOf("OF 2"));
+    expect(html).toContain("2h 16m");
+    expect(html).toContain("María 38m · Teresa 38m");
+    expect(html).toContain("Teresa 1h");
+    expect(html).not.toContain("Abrir todas");
   });
 
-  it("un pedido Solo Taller visto desde OT enseña a la gente de Taller, igual que la fila", () => {
-    const html = pinta([of("0202576", "taller", [{ nombre: "Luis Santos", min: 275 }, { nombre: "Hugo Millán", min: 92 }])]);
-    expect(html).toContain("Luis Santos");
-    expect(html.indexOf("Luis Santos")).toBeLessThan(html.indexOf("Hugo Millán"));
+  it("mantiene las barras proporcionales y la raya de las tareas sin tiempo", () => {
+    const html = pinta([conTareas("1", "taller", [
+      { codigo: "7", descripcion: "CORTAR", personas: [{ nombre: "María", min: 30 }] },
+      { codigo: "8", descripcion: "SOLDAR", personas: [{ nombre: "Teresa", min: 10 }] },
+      { codigo: "9", descripcion: "EMBALAR", personas: [] },
+    ])]);
+    expect(html).toContain('width:75%');
+    expect(html).toContain('width:25%');
+    expect(html).toContain("EMBALAR");
+    expect(html).toContain("—");
+    expect(html).not.toContain(">0m<");
   });
 
-  it("con trabajo de la sección, el Taller solo da el total", () => {
+  it("enseña también quién trabajó en Taller aunque tenga tareas de OT", () => {
     const html = pinta([
-      of("0232070", "ot", [{ nombre: "Adrián Quinteiro", min: 10 }]),
-      of("0232070", "taller", [{ nombre: "Luis Santos", min: 40 }]),
+      conTareas("1", "ot", [{ codigo: "1", descripcion: "PLANTEAR", personas: [{ nombre: "Iván", min: 20 }] }]),
+      conTareas("1", "taller", [{ codigo: "7", descripcion: "CORTAR", personas: [{ nombre: "María", min: 30 }] }]),
     ]);
-    expect(html).not.toContain("Luis Santos");
-    expect(html).not.toContain("Tiempos por persona de Taller");
-  });
-});
-
-describe("centrosConDesglose", () => {
-  it("con tareas de la sección, solo la sección", () => {
-    expect([...centrosConDesglose([of("1", "ot", []), of("1", "taller", [])], "ot")]).toEqual(["ot"]);
-  });
-  it("sin tareas de la sección, los centros que tienen trabajo", () => {
-    expect([...centrosConDesglose([of("1", "taller", [])], "ot")]).toEqual(["taller"]);
-  });
-});
-
-// El mismo principio, un paso más: cuando el desglose no reparte nada, su
-// número es el del centro escrito otra vez. En AR.26.04474 salía «Taller 47m»,
-// «Esteban Mosteiro 47m» y «0232080 … 47m»: el mismo minuto tres veces, uno
-// debajo de otro.
-//
-// Manda el del CENTRO y no el más pequeño: es el único que se sigue viendo con
-// la sección plegada, y el que deja comparar OT, Diseño y Taller de un vistazo.
-describe("el tiempo no se repite por los tres niveles", () => {
-  it("con una persona y una OF, el tiempo sale una sola vez: en la OF", () => {
-    const html = pinta([of("0232080", "taller", [{ nombre: "Esteban Mosteiro", min: 47 }])]);
-    expect(veces(html, "47m")).toBe(1);
-    // El nombre y el código se quedan: eso el total no lo dice.
-    expect(html).toContain("Esteban Mosteiro");
-    expect(html).toContain("0232080");
+    expect(html).toContain("Iván 20m");
+    expect(html).toContain("María 30m");
+    expect(veces(html, "María")).toBe(1);
   });
 
-  it("con dos personas, cada una lleva el suyo: ahí sí reparten", () => {
-    const html = pinta([
-      of("0232080", "taller", [
-        { nombre: "Esteban Mosteiro", min: 30 },
-        { nombre: "Silvia López", min: 17 },
-      ]),
-    ]);
-    // Sin resumen (una sola OF): cada uno con el suyo, y el total no se
-    // escribe encima repitiendo la suma.
-    expect(veces(html, "47m")).toBe(0);
-    expect(html).toContain("30m");
-    expect(html).toContain("17m");
+  it("conserva las personas de las OF antiguas sin tareas", () => {
+    const html = pinta([{ codigo: "1", descripcion: "OF antigua", centro: "ot", tiempoImputadoMin: 20, quien: ["Iván"], personas: [{ nombre: "Iván", min: 20 }] }]);
+    expect(html).toContain("Esta OF no tiene tareas en RPS");
+    expect(html).toContain("Iván");
+    expect(html).toContain("20m");
   });
 
-  it("con dos OF, cada una lleva el suyo", () => {
-    const html = pinta([
-      of("0232080", "taller", [{ nombre: "Esteban Mosteiro", min: 30 }]),
-      of("0232081", "taller", [{ nombre: "Esteban Mosteiro", min: 17 }]),
-    ]);
-    expect(html).toContain("30m");
-    expect(html).toContain("17m");
-  });
-});
-
-// Las tareas estaban DOS veces: plegadas en el lateral de la ficha (centro,
-// personas, OF) y otra vez enteras en la ventana «Tareas y tiempos», que se
-// abría encima tapando lo que ya se estaba mirando. Ahora el lateral las lleva
-// dentro de su OF y la ventana desaparece de la ficha.
-describe("las tareas van en la ficha, no en una ventana aparte", () => {
-  it("cada OF enseña sus tareas con quién las echó, dentro de la propia ficha", () => {
-    const html = pinta([
-      conTareas("0231973", "ot", [
-        {
-          codigo: "5",
-          descripcion: "PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE",
-          personas: [
-            { nombre: "Iván Sánchez", min: 17 },
-            { nombre: "Jaime Vázquez", min: 2 },
-          ],
-        },
-      ]),
-    ]);
-    expect(html).toContain("PLANTEAR Y PREPARAR ARCHIVO MAQ. DE CORTE");
-    // La tarea dice quién la echó y cuánto (Iván pidió los nombres también
-    // aquí, 09/10/2026). Esta OF no trae reparto propio, solo el de su tarea.
-    expect(veces(html, "Iván Sánchez")).toBe(1);
-    expect(veces(html, "Jaime Vázquez")).toBe(1);
-    expect(html).toContain("17m");
-    // Lo que esto vigila es que NO haya una ventana encima con la misma
-    // información: el desglose vive dentro de la ficha. Que además vaya en un
-    // bloque plegable titulado «Tareas y tiempos» —el mismo de Pendientes, y
-    // por eso este render lo pide abierto— no lo contradice: se abre en su
-    // sitio, sin tapar nada.
-    expect(html).not.toContain("popover");
-    // Y ya no hay un bloque aparte: las tareas van dentro de su OF.
-    expect(html).not.toContain("Tareas y tiempos");
+  it("la ficha pública no pinta material ni notas de Producción", () => {
+    const entrada = { ...conTareas("1", "taller", [{ codigo: "7", descripcion: "CORTAR", personas: [{ nombre: "María", min: 30 }] }]), materiales: [{ texto: "MATERIAL PRIVADO", apartado: true }], notasProduccion: "NOTA PRIVADA" };
+    const html = pinta([entrada], true);
+    expect(html).toContain("María 30m");
+    expect(html).not.toContain("MATERIAL PRIVADO");
+    expect(html).not.toContain("NOTA PRIVADA");
+    expect(html).not.toContain("Gastado");
   });
 
-  it("una tarea sin un minuto se enseña igual: es trabajo que falta por hacer", () => {
-    const html = pinta([
-      conTareas("0231973", "taller", [
-        { codigo: "15", descripcion: "CORTAR", personas: [{ nombre: "Rocío Castro", min: 42 }] },
-        { codigo: "20", descripcion: "SOLDAR", personas: [] },
-      ]),
-    ]);
-    expect(html).toContain("SOLDAR");
-    expect(html).toContain("0m");
-  });
-
-  it("quién echó cada tarea sale también en Taller, que es lo que se venía a ver", () => {
-    // La regla del resumen por persona no cambia (con trabajo de OT, Taller da
-    // solo el total); el DETALLE de la tarea sí lleva su gente, en todos los
-    // centros. Era lo único que justificaba abrir la ventana.
-    const html = pinta([
-      of("0231973", "ot", [{ nombre: "Iván Sánchez", min: 19 }]),
-      conTareas("0231973", "taller", [
-        { codigo: "10", descripcion: "CORTAR ROTULACION", personas: [{ nombre: "José Luis Carrón", min: 2 }] },
-      ]),
-    ]);
-    expect(html).toContain("José Luis Carrón");
-    expect(html).not.toContain("Tiempos por persona de Taller");
+  it("conserva un revisor deducido sin minutos ni tareas, sin inventarle tiempo", () => {
+    const html = pinta([{ codigo: "1", descripcion: "OF antigua", centro: "ot", tiempoImputadoMin: 20, quien: [], personas: [{ nombre: "Iván", min: 20 }], rolDeducido: { quienPlanteo: ["Iván"], quienReviso: ["Jaime"] } }]);
+    expect(veces(html, "Jaime")).toBe(1);
+    expect(html).toContain("Revisor");
+    expect(html).toContain("Deducido de las horas de RPS");
+    expect(html).toContain("&lt;1m");
   });
 });
 

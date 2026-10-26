@@ -47,10 +47,10 @@ test("los tiempos van todos a la derecha y con cifras de ancho fijo", () => {
   expect(html).not.toContain("grid-cols-");
 });
 
-test("con una sola persona su nombre basta: su tiempo es el de la tarea", () => {
+test("cada persona lleva su tiempo, también si es la única de la tarea", () => {
   const html = renderToStaticMarkup(createElement(TareasDeOF, { of: OF }));
   expect(html).toContain("Jaime Vázquez");
-  expect(html).not.toContain("Jaime Vázquez 4m");
+  expect(html).toContain("Jaime Vázquez 4m");
   // Con dos sí hace falta el de cada uno, que es lo que el total no dice.
   expect(html).toContain("Iván Sánchez 7m");
 });

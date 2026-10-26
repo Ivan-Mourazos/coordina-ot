@@ -321,14 +321,8 @@ export function HistorialDrawer({
 
 
 
-              {/* LAS OF, Y DENTRO DE CADA UNA SUS TAREAS. Antes iban dos
-                  veces: esta lista y, más arriba, «Tareas y tiempos» con las
-                  mismas OF por centro. En el Historial la OF es la historia
-                  del trabajo, así que cada una se despliega con sus tareas,
-                  quién y cuánto, y su material. Encima, lo único que es del
-                  pedido entero: el tiempo de cada centro y quién lo echó.
-                  (En Pendientes sigue el bloque aparte: allí la OF es donde se
-                  trabaja.) */}
+              {/* El desglose por centro, OF y tarea es el de Pendientes.
+                  La ficha añade el material sin repetir las tareas. */}
               <section className="mb-4" aria-label="Órdenes de fabricación">
                 <h3 data-bloque="ofs" className={`cabecera-bloque mb-1.5 flex items-center gap-2 ${TITULO_BLOQUE}`}>
                   <AcentoBloque tipo="ofs" />

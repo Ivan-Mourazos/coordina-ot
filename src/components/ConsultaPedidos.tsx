@@ -358,7 +358,7 @@ function FichaConsulta({ codigo }: { codigo: string }) {
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Órdenes de fabricación ({new Set(detalle.ofs.map((o) => o.codigo)).size})
         </p>
-        <OFsDeLaFicha ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} sinMaterial enColumnas />
+        <OFsDeLaFicha ofs={detalle.ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} sinMaterial />
       </div>
       {/* Lo que RPS tiene colgado del pedido, con el parte escaneado el
           primero: es el documento que todo el mundo busca aquí. Misma tarjeta

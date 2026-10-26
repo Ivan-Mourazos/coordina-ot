@@ -78,13 +78,10 @@ test("los centros sin tiempo van plegados en una línea, y la sección consultad
   expect(diseno.indexOf("Diseño Gráfico")).toBeLessThan(diseno.indexOf("Oficina Técnica"));
 });
 
-test("con una sola persona en la tarea, el nombre no repite el tiempo", () => {
-  // Era "Jaime Vázquez 12m ... 12m": el mismo número dos veces en la misma
-  // línea, porque si solo hay uno su tiempo ES el de la tarea. Con varios sí
-  // hace falta el de cada uno, que es lo que el total no dice.
+test("una sola persona también lleva su tiempo debajo de la tarea", () => {
   const html = pinta([{ ...tarea, empleado: "Jaime Vázquez", minutos: 12 }]);
   expect(html).toContain("Jaime Vázquez");
-  expect(html).not.toContain("Jaime Vázquez 12m");
+  expect(html).toContain("Jaime Vázquez 12m");
   expect(html).toContain("12m");
 });
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { HistorialOF } from "@/lib/historial";
-import { porMinutos } from "@/lib/historial";
+import { porMinutos, repartoDe } from "@/lib/historial";
 import type { SeccionId } from "@/lib/secciones";
 import { fmtMin, ROL } from "@/lib/estado";
 import { fmtFechaLarga, rangoDias } from "@/lib/fechas";
@@ -136,9 +136,6 @@ function CentroTareas({
   // Sin color (la consulta lo pide sin él), todo en el tono del texto.
   const tono = CENTRO_TONO[centro.id];
   const acento = conColor ? tono.texto : "";
-  // Con una sola OF su tiempo ES el del centro, que está justo encima: no se
-  // escribe dos veces. Con varias sí reparten, y entonces hace falta.
-  const variasOF = centro.ofs.length > 1;
   return (
     // Aire entre centro y centro. Iban pegados, y con tres o cuatro no se veía
     // dónde acababa uno.
@@ -157,7 +154,9 @@ function CentroTareas({
           había que leerlo entero para ver dónde acababa una OF (Iván,
           16/10/2026). Lleva a la izquierda el color de su centro. */}
       <div className="space-y-2">
-        {centro.ofs.map((of) => (
+        {centro.ofs.map((of) => {
+          const extra = extraOF?.(of, centro);
+          return (
           <div
             key={of.codigo}
             className={`recuadro overflow-hidden rounded-lg border-l-[3px] text-xs ${tono.raya}`}
@@ -176,14 +175,12 @@ function CentroTareas({
                 {" · "}
                 {of.descripcion}
               </span>
-              {variasOF && (
                 <span
                   className={`shrink-0 font-mono font-semibold tabular-nums ${acento}`}
                   title="Tiempo imputado en RPS"
                 >
                   {fmtMin(of.tiempoImputadoMin)}
                 </span>
-              )}
             </p>
             <div className="px-2.5 py-1 text-[11px]">
               <TareasDeOF
@@ -193,9 +190,10 @@ function CentroTareas({
                 claseBarra={conColor ? tono.punto : "bg-text-muted"}
               />
             </div>
-            {extraOF && <div className="px-2.5 pb-2">{extraOF(of, centro)}</div>}
+            {extra && <div className="px-2.5 pb-2">{extra}</div>}
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -215,7 +213,7 @@ function CentroTareas({
 export function TareasDeOF({
   of,
   conColor = false,
-  rolDe,
+  rolDe: rolRecibido,
   claseTiempo,
   claseBarra,
 }: {
@@ -236,11 +234,21 @@ export function TareasDeOF({
   if (!of.tareas?.length) {
     return <p className="text-text-muted">Esta OF no tiene tareas en RPS.</p>;
   }
-  // La barra de cada tarea mide su parte de la OF. Con una sola tarea con
-  // tiempo siempre llenaría entera: no dice nada y no se pinta.
+  // El papel pertenece a esta entrada de centro, tanto en Pendientes como en
+  // Historial. Conserva también a quien revisó en menos de un minuto.
+  const reparto = repartoDe([of]);
+  const deducido = of.rolDeducido;
+  const rolDe = rolRecibido ?? (reparto.consta || deducido ? (nombre: string) => {
+    const autores = reparto.consta ? reparto.autores : deducido?.quienPlanteo;
+    const revisores = reparto.consta ? reparto.revisores : deducido?.quienReviso;
+    if (autores?.includes(nombre)) return { rol: "plantear" as const, deducido: !reparto.consta };
+    if (revisores?.includes(nombre)) return { rol: "revisar" as const, deducido: !reparto.consta };
+    return undefined;
+  } : undefined);
+  // La barra mide la parte de la OF, también cuando una tarea ocupa todo.
   const conTiempo = of.tareas.filter((t) => t.tiempoImputadoMin > 0);
   const totalOF = conTiempo.reduce((n, t) => n + t.tiempoImputadoMin, 0);
-  const conBarra = claseBarra !== undefined && conTiempo.length > 1;
+  const conBarra = claseBarra !== undefined;
   return (
     <div className={claseBarra !== undefined ? "divide-y divide-border" : undefined}>
       {of.tareas.map((tarea) => {
@@ -251,11 +259,6 @@ export function TareasDeOF({
           .filter((p) => p.min > 0 || (rolDe && rolDe(p.nombre)))
           .sort(porMinutos);
         const vacia = tarea.tiempoImputadoMin <= 0;
-        // Con UNA sola persona su tiempo es el de la tarea, que está al final
-        // de la misma línea: ponerlo detrás del nombre era escribir dos veces
-        // el mismo número. Con varias sí hace falta el de cada uno.
-        const solaEllaEntera =
-          personas.length === 1 && personas[0].min === tarea.tiempoImputadoMin;
         return (
           // DOS RENGLONES, no tres columnas. Eran
           // `grid-cols-[minmax(0,1fr)_auto_56px]`, y esa columna `auto` del
@@ -291,9 +294,7 @@ export function TareasDeOF({
             )}
             {personas.length > 0 && !rolDe && (
               <p className="mt-0.5 text-[11px] leading-snug text-text-muted">
-                {solaEllaEntera
-                  ? personas[0].nombre
-                  : personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
+                {personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
               </p>
             )}
             {personas.length > 0 && rolDe && (

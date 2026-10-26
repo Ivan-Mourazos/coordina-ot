@@ -223,7 +223,7 @@ function FilaCasa({ p, hoy, onAbrirPedido }: { p: PedidoConsulta; hoy: string; o
         <div className="py-1">
           {error && <p className="text-xs text-error">No se pudo cargar el pedido.</p>}
           {!error && !ofs && <p className="text-xs text-text-muted">Cargando OF…</p>}
-          {ofs && <OFsDeLaFicha ofs={ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} enColumnas />}
+          {ofs && <OFsDeLaFicha ofs={ofs} seccion={SECCION_POR_DEFECTO} conGastado={false} />}
         </div>
       }
     />

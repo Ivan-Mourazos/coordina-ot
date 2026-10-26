@@ -569,16 +569,11 @@ function FilaHistorial({
         <>
           {cargando && <p className="py-1 text-xs text-text-muted">Cargando OF…</p>}
           {error && <p className="py-1 text-xs text-error">No se pudieron cargar las OF.</p>}
-          {/* LAS OF COMO EN LA FICHA, con sus tareas y tiempos al
-              desplegarlas: para mirar un pedido sin abrirlo (Iván, 09/10/2026).
-              Las tareas ya estuvieron aquí dos veces y no funcionaron —una
-              ventana que tapaba la lista, y un bloque metido en la columna de
-              64 px de su botón—. Esto es otra cosa: las mismas tarjetas de la
-              ficha, a lo ancho del desplegable, y cada OF se abre en su sitio.
-              Sin el botón de Gastado, que es otra consulta por pedido. */}
+          {/* El mismo desglose por centro de la ficha y de Pendientes.
+              Sin Gastado, que necesita otra consulta por pedido. */}
           {ofs && (
             <div className="py-1">
-              <OFsDeLaFicha ofs={ofs} seccion={seccion} conGastado={false} enColumnas />
+              <OFsDeLaFicha ofs={ofs} seccion={seccion} conGastado={false} />
             </div>
           )}
         </>
