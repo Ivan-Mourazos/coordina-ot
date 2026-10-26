@@ -51,7 +51,7 @@ export function FaseFlyout({
     <PanelFlotante titulo={grupo.label} onCerrar={onClose}>
       <div className="mb-2 flex items-center gap-2">
         <span className="size-2 rounded-full" style={{ background: grupo.color }} />
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-text-muted">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide" style={{ color: grupo.tinta }}>
           {grupo.label} · {grupo.items.length}
         </h3>
         {/* Del contexto y no del `onClose` de arriba: ese desmonta el panel en

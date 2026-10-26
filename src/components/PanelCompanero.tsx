@@ -1,7 +1,7 @@
 "use client";
 
 import type { Operario, Rol } from "@/lib/types";
-import { agruparPorFase } from "@/lib/fases-tablero";
+import { agruparPorFase, fondoGrupo } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
 import { ROL } from "@/lib/estado";
 import type { Facet } from "./PedidoCard";
@@ -95,8 +95,10 @@ export function PanelCompanero({
         // largo caben todas, y el panel ya tiene su propio scroll.
         <div className="flex flex-col gap-2.5">
           {conItems.map((g) => (
-            <section key={g.id} className="bloque-3d rounded-xl p-2.5">
-              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
+            // Caja tintada del color de la fase y cabecera en su tinta: las
+            // filas destacan sobre ella (ver `fondoGrupo`).
+            <section key={g.id} className="bloque-3d rounded-xl p-2.5" style={{ background: fondoGrupo(g.relleno) }}>
+              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: g.tinta }}>
                 <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                 {g.label} · {g.items.length}
               </h3>

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Operario, Pedido, Rol } from "@/lib/types";
-import { agruparPorFase, conTope, pedidoParado } from "@/lib/fases-tablero";
+import { agruparPorFase, conTope, fondoGrupo, pedidoParado } from "@/lib/fases-tablero";
 import type { Seccion } from "@/lib/secciones";
 import type { Facet } from "./PedidoCard";
 import type { LiveInfo } from "./Board";
@@ -144,8 +144,8 @@ export function ZonaPersonal({
               donde hay un compañero esperándote. Como las demás, sin nada que
               revisar no ocupa sitio. */}
           {revisiones.length > 0 && (
-            <div className="min-w-[220px] flex-1">
-              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
+            <div className="min-w-[220px] flex-1 rounded-xl p-2" style={{ background: fondoGrupo(ROL.revisar.relleno) }}>
+              <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--fase-revision-texto)" }}>
                 <span className="size-1.5 rounded-full" style={{ background: ROL.revisar.color }} />
                 Te toca revisar · {revisiones.length}
               </h3>
@@ -178,8 +178,10 @@ export function ZonaPersonal({
           {conItems.map((g) => {
             const { visibles, resto } = conTope(g.items, TOPE);
             return (
-              <div key={g.id} className="min-w-[220px] flex-1">
-                <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">
+              // Caja tintada del color de la fase, como en el panel de un
+              // compañero: las filas destacan sobre ella (ver `fondoGrupo`).
+              <div key={g.id} className="min-w-[220px] flex-1 rounded-xl p-2" style={{ background: fondoGrupo(g.relleno) }}>
+                <h3 className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: g.tinta }}>
                   <span className="size-1.5 rounded-full" style={{ background: g.color }} />
                   {g.label} · {g.items.length}
                 </h3>
