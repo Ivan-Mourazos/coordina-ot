@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "fa7846d",
+    "hasta": "12a8656",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -55,6 +55,12 @@
         "titulo": "Las no conformidades dicen si el fallo fue principalmente nuestro o solo en parte",
         "detalle": "En la ficha y en Métricas se separa DISEÑO como proceso principal o secundario, y en Métricas ves cuántas son de OT, de Diseño y de Impresión.",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las no conformidades se asignan por la persona a la que Calidad achaca el fallo",
+        "detalle": "En la ficha ves las causas de cada no conformidad, con a quién se le atribuye y en qué porcentaje. En Métricas cuentan como de tu sección las de planteamiento de alguien de tu sección, y ves cuáles son tuyas.",
+        "tanda": 7
       }
     ]
   },
