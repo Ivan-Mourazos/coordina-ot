@@ -1,13 +1,30 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "dc60bf1",
+    "hasta": "e26cea8",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "En Diseño ya no se manda a revisar: cada OF se finaliza en su tarjeta",
         "detalle": "Fichas como siempre y pulsas «Finalizar» en cada OF, o «Finalizar todo» abajo para cerrar el pedido entero y pasarlo a Producción de una vez. Lo que estaba esperando revisión sale en Planteando y se cierra igual.",
         "tanda": 2
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La ficha del pedido avisa si tuvo una no conformidad y en qué pedido se rectificó",
+        "detalle": "Y si el pedido que miras es la rectificación de otro, te dice de cuál viene. Sale en el tablero y en el Historial.",
+        "tanda": 4
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En Métricas salen las no conformidades de tu sección, con su pedido rectificativo",
+        "tanda": 4
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Diseño ve sus incidencias en Métricas, y ya no le salen datos de revisión",
+        "detalle": "Cuentan los errores de rotulación y de archivo apuntados en RPS en OF con tarea de Diseño, desde el 8 de septiembre.",
+        "tanda": 4
       },
       {
         "tipo": "arreglado",
