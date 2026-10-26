@@ -347,7 +347,7 @@ export function HistorialView({
       {error && resultadosVigentes && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">
           No se pudo cargar el historial.
-          <button onClick={() => cargar(0, true)} className="rounded-lg bg-surface px-2 py-1 text-xs font-semibold ring-1 ring-border hover:bg-surface-2">
+          <button onClick={() => cargar(0, true)} className="chip-3d rounded-lg px-2 py-1 text-xs font-semibold">
             Reintentar
           </button>
         </div>

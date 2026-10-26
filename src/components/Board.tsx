@@ -2798,7 +2798,7 @@ export function Board({
                 }).catch(() => {});
               }
             }}
-            className="shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+            className="chip-3d shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:text-text"
           >
             Vale
           </button>
@@ -3094,7 +3094,7 @@ export function Board({
       <Drawer
         pedido={openPedido}
         avisoRevision={mensajeRevisionDe && mensajeRevisionDe.pedidoId === openId && (
-          <div role={mensajeRevisionDe.error ? "alert" : "status"} className="sticky top-0 z-10 mb-3 flex items-start gap-3 rounded-lg border border-[var(--glass-border)] bg-surface p-3 text-sm text-text shadow-lg">
+          <div role={mensajeRevisionDe.error ? "alert" : "status"} className="panel-solido sticky top-0 z-10 mb-3 flex items-start gap-3 rounded-lg p-3 text-sm text-text">
             <p className="flex-1">{mensajeRevisionDe.texto}</p>
             <button type="button" aria-label="Cerrar aviso de revisión" onClick={() => setMensajeRevisionDe(null)} className="rounded px-2 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Cerrar</button>
           </div>
@@ -3161,7 +3161,7 @@ export function Board({
             </p>
             {vistaPlanteamiento?.pedidoId === pasarPendiente &&
               (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (
-              <div className="mt-3 rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
+              <div className="recuadro mt-3 rounded-lg p-2.5 text-xs">
                 {/* La primera vez solo informa: la norma es imprimir siempre y
                     mandar siempre el correo (Iván, 14/10/2026). Si el pedido ya
                     se pasó antes (se recuperó para volver a plantearlo), se

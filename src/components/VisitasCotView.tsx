@@ -276,7 +276,7 @@ export function VisitasCotView({
           <button
             type="button"
             onClick={() => void cargar()}
-            className="ml-auto rounded-lg bg-surface px-3 py-1.5 text-xs font-semibold ring-1 ring-border hover:bg-surface-2"
+            className="chip-3d ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold"
           >
             Reintentar
           </button>

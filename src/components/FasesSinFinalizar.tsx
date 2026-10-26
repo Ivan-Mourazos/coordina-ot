@@ -141,7 +141,7 @@ export function FasesSinFinalizar({
     return (
       <p
         role="status"
-        className="mb-3 rounded-xl border border-border bg-surface-2 px-3 py-2 text-[11px] leading-snug text-text-muted"
+        className="recuadro mb-3 rounded-xl px-3 py-2 text-[11px] leading-snug text-text-muted"
       >
         <span className="font-semibold text-text">{error}</span> Si en {seccion.nombre} quedó alguna
         operación sin finalizar, ahora no se puede saber: vuelve a abrir el pedido en un rato.

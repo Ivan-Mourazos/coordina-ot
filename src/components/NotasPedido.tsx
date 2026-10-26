@@ -330,7 +330,7 @@ export function NotasPedido({
             <button
               type="button"
               onClick={() => void cargar()}
-              className="rounded-lg bg-surface px-2 py-0.5 text-[10px] font-semibold ring-1 ring-border hover:bg-surface-2"
+              className="chip-3d rounded-lg px-2 py-0.5 text-[10px] font-semibold"
             >
               Reintentar
             </button>

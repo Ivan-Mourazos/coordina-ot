@@ -224,7 +224,7 @@ export function HistorialDrawer({
           {error && (
             <div className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-text">
               No se pudo cargar el pedido.
-              <button onClick={() => cargar(pedido)} className="rounded-lg bg-surface px-2 py-1 text-xs font-semibold ring-1 ring-border hover:bg-surface-2">
+              <button onClick={() => cargar(pedido)} className="chip-3d rounded-lg px-2 py-1 text-xs font-semibold">
                 Reintentar
               </button>
             </div>

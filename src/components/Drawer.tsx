@@ -837,7 +837,7 @@ export function Drawer({
               <button
                 type="button"
                 onClick={() => setAvisosCierreRps(null)}
-                className="shrink-0 rounded-lg border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:border-border-strong hover:text-text"
+                className="chip-3d shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:text-text"
               >
                 Vale
               </button>

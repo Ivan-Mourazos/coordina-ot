@@ -476,7 +476,7 @@ function FilaRevision({
           <button
             type="button"
             onClick={() => setRevisorPorConfirmar(null)}
-            className="rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text ring-1 ring-border hover:ring-border-strong"
+            className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
           >
             Dejarlo como está
           </button>
