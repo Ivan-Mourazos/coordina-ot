@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "4056638",
+    "hasta": "b0d55d1",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -109,6 +109,18 @@
         "titulo": "El Historial muestra las tareas y tiempos como Pendientes",
         "detalle": "Ves cada centro y sus OF con el total, las barras de tiempo y quién hizo cada tarea. La consulta de pedidos muestra el mismo desglose.",
         "tanda": 11
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el panel se distinguen mejor las filas, y cada grupo lleva el color de su fase",
+        "detalle": "«A corregir» en rojo, «Planteando» en verde, «Listo para pasar» en azul…, con su caja tintada y los pedidos destacando encima.",
+        "tanda": 12
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Desde una no conformidad, el pedido original o el rectificado se abre en Coordina",
+        "detalle": "Pulsa el número de pedido para ir a su ficha; «parte», al lado, sigue abriendo el PDF escaneado.",
+        "tanda": 12
       }
     ]
   },
