@@ -11,6 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
+import { resumenNc, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -154,6 +155,14 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
   // Las OF terminadas sí van completas, con las que se cerraron en RPS.
   const soloDesdeWeb = desde < INICIO_METRICAS ? `Desde ${nombreMes(INICIO_METRICAS.slice(0, 7))}` : null;
   const ofsRps = datos?.detalle?.equipoRps.ofs ?? 0;
+  // Donde nadie revisa (Diseño, Impresión) no se enseña nada de revisión:
+  // entregas a revisión, devoluciones, sus motivos, sus tiempos ni mis
+  // correcciones. Diseño pidió quitar «lo que no es de ellos» (26/10/2026), y
+  // eran ceros que solo despistaban.
+  const sinRevision = SECCIONES[seccion].sinRevision === true;
+  // Impresión no tiene incidencias ni NC propias en RPS (ver
+  // `leerIncidenciasMetricas` y `leerNcMetricas`).
+  const conRps = seccion !== "impresion";
 
   return (
     <div ref={contenedor} className="metricas-vista flex flex-col gap-2.5 text-text" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 100px)" } as CSSProperties}>
@@ -176,19 +185,20 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
           <Panel titulo="Resumen" extra={etiquetaPeriodo}>
             <div className="grid gap-2">
               <Cifra titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)} detalle={`OF distintas en el ${unidad}: ${m.volumen.ofTerminadas} cerradas en la web${ofsRps ? ` y ${ofsRps} que OT cerró en RPS antes de usarla` : ""}.`} delta={<Delta ahora={m.volumen.ofTerminadas + ofsRps} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
-              <Cifra titulo="Entregadas a revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined} detalle={`OF distintas entregadas a revisión; el % es sobre el total de OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />
-              <Cifra titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />
+              {!sinRevision && <Cifra titulo="Entregadas a revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined} detalle={`OF distintas entregadas a revisión; el % es sobre el total de OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />}
+              {!sinRevision && <Cifra titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />}
             </div>
           </Panel>
-          <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>
+          {!sinRevision && <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>}
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-          <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>
-          {seccion === "ot" && <Panel titulo="Incidencias OT" extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasOT incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
+          {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
+          {conRps && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas}`} extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasSeccion seccion={seccion} incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
+          {conRps && <Panel titulo="No conformidades" extra={etiquetaPeriodo} actualizando={detalleViejo}><NoConformidades nc={datos?.detalle?.nc} cargando={datos?.detalleCargando} /></Panel>}
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
-          <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} /></Panel>
-          <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} /></Panel>
+          <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} sinRevision={sinRevision} /></Panel>
+          <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} /></Panel>
         </div>
       </div>
       </>}
@@ -215,17 +225,51 @@ function PorQueVuelven({ devueltas, causa, porFamilia, cargando, detalleViejo = 
 }
 const nombreFamilia = (familia: string) => familiaMeta(familia).label;
 
-/** Los errores de planteamiento que apuntó Producción en RPS, de todo el
- *  equipo, sobre las OF pasadas del periodo (Iván, 21/10/2026). */
-function IncidenciasOT({ incidencias, cargando }: { incidencias?: DetalleMetricas["incidenciasOT"]; cargando?: boolean }) {
+/** Qué cuenta como incidencia en cada sección, para el globo de ayuda (la
+ *  regla vive en `leerIncidenciasMetricas`). */
+const QUE_ES_INCIDENCIA: Partial<Record<SeccionId, { explica: string; vacio: string }>> = {
+  ot: { explica: "OF con algún «error en planteamiento» apuntado en RPS (corte, confección o soldadura)", vacio: "Sin errores de planteamiento en este periodo." },
+  diseno: { explica: "OF con tarea de Diseño y algún error de rotulación o de archivo de impresión apuntado en RPS (desde el 8 de septiembre)", vacio: "Sin incidencias de rotulación en este periodo." },
+};
+
+/** Las incidencias que apuntó Producción en RPS, de todo el equipo, sobre las
+ *  OF pasadas del periodo (Iván, 21/10/2026; Diseño desde el 26/10/2026). */
+function IncidenciasSeccion({ seccion, incidencias, cargando }: { seccion: SeccionId; incidencias?: DetalleMetricas["incidenciasOT"]; cargando?: boolean }) {
   if (!incidencias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
+  const que = QUE_ES_INCIDENCIA[seccion];
   return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
-    <div className="flex items-baseline gap-2" title="OF con algún «error en planteamiento» apuntado en RPS (corte, confección o soldadura), sobre las OF pasadas en el periodo. Cada OF cuenta una vez.">
+    <div className="flex items-baseline gap-2" title={`${que?.explica ?? "OF con incidencia apuntada en RPS"}, sobre las OF pasadas en el periodo. Cada OF cuenta una vez.`}>
       <strong className="text-2xl leading-none font-bold tabular-nums">{incidencias.total}</strong>
       <span className="text-xs font-semibold tabular-nums text-text-muted">{sobre(incidencias.total, incidencias.base)}</span>
       <span className="text-[10px] text-text-muted">de {incidencias.base} OF pasadas</span>
     </div>
-    <Ranking filas={incidencias.porFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} OF pasadas` }))} color={COLOR_DEVUELTA} vacio="Sin errores de planteamiento en este periodo." />
+    <Ranking filas={incidencias.porFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} OF pasadas` }))} color={COLOR_DEVUELTA} vacio={que?.vacio ?? "Sin incidencias en este periodo."} />
+  </div>;
+}
+
+const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+/** Las no conformidades de la sección (proceso DISEÑO en un pedido con tareas
+ *  suyas, ver `leerNcMetricas`), con el pedido que falló y en cuál se
+ *  rectificó (26/10/2026). */
+function NoConformidades({ nc, cargando }: { nc?: NoConformidad[] | null; cargando?: boolean }) {
+  if (!nc) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
+  const rectificadas = nc.filter((x) => x.rectificativo).length;
+  return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
+    <div className="flex items-baseline gap-2" title="No conformidades de RPS con el proceso DISEÑO afectado, en pedidos con tareas de esta sección. Una NC de un pedido con tareas de OT y de Diseño sale en las dos.">
+      <strong className="text-2xl leading-none font-bold tabular-nums">{nc.length}</strong>
+      <span className="text-[10px] text-text-muted">{rectificadas} con pedido rectificativo</span>
+    </div>
+    {!nc.length ? <Vacio>Sin no conformidades en este periodo.</Vacio> : (
+      <ul className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1">
+        {nc.map((x) => <li key={x.codigo} className="text-[11px] leading-snug" title={x.descripcion}>
+          <span className="font-semibold tabular-nums">{x.pedido ?? "—"}</span>
+          {x.rectificativo && <span className="text-text-muted"> → <span className="font-semibold text-text tabular-nums">{x.rectificativo}</span></span>}
+          <span className="text-text-muted"> · {fechaCorta(x.fecha)} · {x.codigo}</span>
+          {x.descripcion && <span className="block truncate text-text-muted">{resumenNc(x.descripcion, 90)}</span>}
+        </li>)}
+      </ul>
+    )}
   </div>;
 }
 
@@ -248,27 +292,40 @@ function PorFamiliaAbrible({ familias, color, vacio }: { familias: { familia: st
   </div>;
 }
 
-function MisDatos({ anio, mes, unidad, detalle, cargando, causa }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string }) {
+function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string; seccion: SeccionId }) {
   if (!detalle) return <Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio>;
   const p = detalle.personal;
+  const sinRevision = SECCIONES[seccion].sinRevision === true;
   const filas = delAnio(anio, p.meses);
   const sumaAnio = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => p.meses.reduce((s, x) => s + (x[k] ?? 0), 0);
   const delPeriodo = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => mes ? p.meses.find((x) => x.mes === mes)?.[k] ?? 0 : sumaAnio(k);
   // UNA gráfica para todo lo mío (21/10/2026): las incidencias iban en otra
-  // aparte y no cabía la pantalla.
+  // aparte y no cabía la pantalla. Donde no se revisa, sin «Sin revisión» ni
+  // «Devueltas»: todo sería una cosa y nada la otra.
+  const conIncidencias = p.incidencias !== null;
   const series = [
     { etiqueta: "Pasadas", color: SERIES[0].color, valor: p.entregadas },
-    { etiqueta: "Sin revisión", color: COLOR_SIN_REVISION, valor: delPeriodo("sinRevision") },
-    { etiqueta: "Devueltas", color: SERIES[1].color, valor: p.correcciones },
-    ...(p.incidencias === null ? [] : [{ etiqueta: "Con incidencia", color: COLOR_DEVUELTA, valor: p.incidencias }]),
+    ...(sinRevision ? [] : [
+      { etiqueta: "Sin revisión", color: COLOR_SIN_REVISION, valor: delPeriodo("sinRevision") },
+      { etiqueta: "Devueltas", color: SERIES[1].color, valor: p.correcciones },
+    ]),
+    ...(conIncidencias ? [{ etiqueta: "Con incidencia", color: COLOR_DEVUELTA, valor: p.incidencias ?? 0 }] : []),
   ];
+  const valoresDe = (fila: (typeof p.meses)[number]) => [
+    fila.entregadas,
+    ...(sinRevision ? [] : [fila.sinRevision, fila.correcciones]),
+    ...(conIncidencias ? [fila.incidencias] : []),
+  ];
+  const queIncidencia = seccion === "diseno"
+    ? "Errores de rotulación o de archivo apuntados en RPS en OF que pasaste tú"
+    : "Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT)";
   return <div className="metricas-datos flex flex-col gap-3">
     <MetricasGrafica titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
-      puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? [fila.entregadas, fila.sinRevision, fila.correcciones, ...(p.incidencias === null ? [] : [fila.incidencias])] : series.map(() => null) }))} />
-    <div className="grid gap-3 border-t border-border pt-2.5 sm:grid-cols-2">
-      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title="OF distintas que te devolvieron, por familia. Abre una para ver las causas.">Mis correcciones · {p.correcciones}</h4>
-        <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} /></div>
-      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title={`Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT), sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>Mis incidencias · {p.incidencias ?? "—"}{p.incidencias !== null && <span className="font-normal normal-case tracking-normal"> · {sobre(p.incidencias, p.entregadas)} de {p.entregadas}</span>}</h4>
+      puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
+    <div className={`grid gap-3 border-t border-border pt-2.5 ${sinRevision ? "" : "sm:grid-cols-2"}`}>
+      {!sinRevision && <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title="OF distintas que te devolvieron, por familia. Abre una para ver las causas.">Mis correcciones · {p.correcciones}</h4>
+        <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} /></div>}
+      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>Mis incidencias · {p.incidencias ?? "—"}{p.incidencias !== null && <span className="font-normal normal-case tracking-normal"> · {sobre(p.incidencias, p.entregadas)} de {p.entregadas}</span>}</h4>
         {p.incidencias === null ? <p className="py-2 text-[11px] text-text-muted">Datos de RPS no disponibles.</p> : !p.incidenciasPorFamilia.length ? <p className="py-2 text-[11px] text-text-muted">{`Sin incidencias en tus OF este ${unidad}.`}</p> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}</div>
     </div>
   </div>;
@@ -302,7 +359,7 @@ function Cifra({ titulo, valor, extra, detalle, delta }: { titulo: string; valor
 /** «Realizadas» suma las OF que OT cerró en RPS antes de usar la web (`rps`,
  *  llega con el detalle): sin ellas el año empezaba en agosto (Iván,
  *  21/10/2026). Revisadas y devoluciones no existían antes: sin línea. */
-function Meses({ anio, meses, mes, rps }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number> }) {
+function Meses({ anio, meses, mes, rps, sinRevision = false }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number>; sinRevision?: boolean }) {
   const filas = delAnio(anio, meses);
   const realizadas = (m: string, fila: MesMetricas | null) =>
     fila || rps?.[m] ? (fila?.planteos ?? 0) + (rps?.[m] ?? 0) : null;
@@ -311,12 +368,16 @@ function Meses({ anio, meses, mes, rps }: { anio: string; meses: MesMetricas[]; 
   // Sin «pasadas sin revisión» (Iván, 21/10/2026): ya sale en Mis datos.
   const cuenta = (k: "planteos" | "revisiones" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
   const deRps = mes ? rps?.[mes] ?? 0 : Object.entries(rps ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
+  // Donde no se revisa, solo «Realizadas»: revisadas y devoluciones serían
+  // dos líneas pegadas al cero.
   return <MetricasGrafica titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
-    puntos={filas.map(({ mes, fila }) => ({ mes, valores: [realizadas(mes, fila), fila?.revisiones ?? null, fila?.devoluciones ?? null] }))}
+    puntos={filas.map(({ mes, fila }) => ({ mes, valores: sinRevision ? [realizadas(mes, fila)] : [realizadas(mes, fila), fila?.revisiones ?? null, fila?.devoluciones ?? null] }))}
     series={[
       { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") + deRps },
-      { etiqueta: "Revisadas", color: SERIES[1].color, valor: cuenta("revisiones") },
-      { etiqueta: "Devoluciones", color: COLOR_DEVUELTA, valor: cuenta("devoluciones") },
+      ...(sinRevision ? [] : [
+        { etiqueta: "Revisadas", color: SERIES[1].color, valor: cuenta("revisiones") },
+        { etiqueta: "Devoluciones", color: COLOR_DEVUELTA, valor: cuenta("devoluciones") },
+      ]),
     ]} />;
 }
 /** Los cinco tramos del ciclo (Iván, 21/10/2026), en el orden en que pasan,

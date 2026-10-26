@@ -3,6 +3,7 @@ import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { calcularDetalleMetricas, contarDevueltas, contarEntregas } from "@/lib/metricas-personales";
 import { leerFamiliasMetricas, leerIncidenciasMetricas, leerPasesRps } from "@/lib/server/metricas-fuentes";
+import { leerNcMetricas } from "@/lib/server/nc-db";
 import { codigoRpsDe, operariosDeSeccion } from "@/lib/server/operarios";
 import { sumarDias } from "@/lib/fechas";
 import { leerCausasDevolucion, leerMovimientosMetricas, leerPasesMetricas, leerPasosRevision } from "@/lib/server/estado-db";
@@ -88,11 +89,15 @@ export async function GET(req: Request) {
       // periodo pedido tal cual, sin el recorte de INICIO_METRICAS.
       const periodoAnio = { desde: `${anio}-01-01`, hasta: periodoGrafica.hasta };
       const periodoRps = { desde: pedido?.slice(0, 10) ?? periodoAnio.desde, hasta: periodo.hasta };
-      const [familias, incidencias, pases] = await Promise.allSettled([
+      const [familias, incidencias, pases, nc] = await Promise.allSettled([
         leerFamiliasMetricas(movimientosGrafica),
         leerIncidenciasMetricas(periodoAnio, seccion),
         leerPasesRps(periodoAnio, seccion),
+        // Las NC del periodo pedido, como las incidencias: de RPS y sin el
+        // recorte de INICIO_METRICAS.
+        leerNcMetricas(periodoRps, seccion),
       ]);
+      if (nc.status === "rejected") console.error("[metricas] no conformidades no disponibles:", nc.reason?.message);
       if (familias.status === "rejected") console.error("[metricas] familias no disponibles:", familias.reason?.message);
       if (incidencias.status === "rejected") console.error("[metricas] incidencias no disponibles:", incidencias.reason?.message);
       if (pases.status === "rejected") console.error("[metricas] OF pasadas de RPS no disponibles:", pases.reason?.message);
@@ -109,6 +114,7 @@ export async function GET(req: Request) {
       detalle.personal.meses = delAnio.personal.meses;
       // El total, del periodo pedido; los meses, del año entero de la gráfica.
       detalle.equipoRps = { ofs: detalle.equipoRps.ofs, meses: delAnio.equipoRps.meses };
+      detalle.nc = nc.status === "fulfilled" ? nc.value : null;
     }
     return NextResponse.json(
       {

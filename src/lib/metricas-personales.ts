@@ -1,6 +1,7 @@
 import { INICIO_METRICAS, type Metricas, type MovimientoRegistrado, type Periodo } from "./metricas";
 import { leerDevolucion } from "./devolucion";
 import { partirOfId } from "./bonos";
+import type { NoConformidad } from "./no-conformidad";
 
 /** Un error de planteamiento apuntado en RPS sobre una OF. */
 export interface IncidenciaMetricas {
@@ -36,6 +37,10 @@ export interface DetalleMetricas {
    *  empiecen en agosto. Solo volumen: antes de Coordina no hubo revisión
    *  que contar. `meses` va por "2026-03". */
   equipoRps: { ofs: number; meses: Record<string, number> };
+  /** Las no conformidades de la sección en el periodo (ver
+   *  `leerNcMetricas`). null si RPS no contestó o la sección no tiene; sin
+   *  definir hasta que la ruta las pone. */
+  nc?: NoConformidad[] | null;
 }
 
 /** Desde aquí toda OF de OT se pasa en Coordina. Agosto aún iba a medias:

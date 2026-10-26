@@ -6,7 +6,7 @@ import { partirOfId } from "../bonos";
 import { PEDIDOS } from "../mock";
 import type { MovimientoRegistrado, Periodo } from "../metricas";
 import { COORDINA_EN_USO, type IncidenciaMetricas, type PaseRps } from "../metricas-personales";
-import { SECCIONES, recursosSql, type SeccionId } from "../secciones";
+import { SECCIONES, recursosDeTrabajoSql, recursosSql, type SeccionId } from "../secciones";
 
 interface FilaFamilia { orden: string; descripcion: string | null; grupo: string | null; subfamilia: string | null; cliente: string | null }
 const familiaDe = (f: FilaFamilia) => familiaDeTexto(f.descripcion, f.grupo, { subfamilia: f.subfamilia, cliente: f.cliente });
@@ -58,14 +58,38 @@ const autorRps = `
 type FilaRps = FilaFamilia & { fecha: Date; autor: string | null };
 const deFila = (f: FilaRps) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f), autor: f.autor?.trim() || null });
 
-/** Las incidencias que son de OT: el tipo de RPS «… ERROR EN PLANTEAMIENTO»,
- *  sea de corte, confección o soldadura (Iván, 21/10/2026). De TODO el equipo:
- *  a quién toca cada una lo decide `calcularDetalleMetricas`, que sabe quién
- *  la entregó en Coordina. Una fila por OF y día, aunque haya varios apuntes. */
+/** Qué improductivo de RPS es una incidencia de cada sección.
+ *
+ *  · OT: «… ERROR EN PLANTEAMIENTO», sea de corte, confección o soldadura
+ *    (Iván, 21/10/2026).
+ *  · Diseño: no hay un «error de diseño» en RPS; los que eligió Iván el
+ *    26/10/2026 son los de rotulación y el del archivo de impresión. Y solo en
+ *    OF con tarea de Diseño: un error de rotulación en una OF que Diseño no
+ *    tocó es del taller. Desde el 08/09/2026, que es cuando Diseño empezó a
+ *    pasar pedidos en Coordina: antes no hay OF pasadas sobre las que sacar el
+ *    %, y salía inflado.
+ *
+ *  Impresión no tiene: no lleva línea. */
+const INCIDENCIAS: Partial<Record<SeccionId, { tipos: string; desde?: string; soloConTareaPropia?: boolean }>> = {
+  ot: { tipos: "unpr.Description LIKE '%ERROR EN PLANTEAMIENTO%'" },
+  diseno: {
+    tipos: `unpr.Description IN ('ROTULACION-OTROS ERRORES ROTULACION', 'ROTULACION-ERROR AL DOCUMENTAR PEDIDO',
+      'ROTULACION-ERROR EN CORTE DE MASCARA O VINILO', 'IMPRESION DIGITAL-ERROR EN ARCHIVO')`,
+    desde: "2026-09-08",
+    soloConTareaPropia: true,
+  },
+};
+
+/** Las incidencias de la sección (ver `INCIDENCIAS`). De TODO el equipo: a
+ *  quién toca cada una lo decide `calcularDetalleMetricas`, que sabe quién la
+ *  entregó en Coordina. Una fila por OF y día, aunque haya varios apuntes. */
 export async function leerIncidenciasMetricas(periodo: Periodo, seccion: SeccionId): Promise<IncidenciaMetricas[] | null> {
-  if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return null;
+  const regla = INCIDENCIAS[seccion];
+  if (process.env.DATASOURCE !== "rps" || !regla) return null;
+  const desde = regla.desde && regla.desde > periodo.desde ? regla.desde : periodo.desde;
+  if (periodo.hasta && desde > periodo.hasta) return [];
   const pool = await getPool();
-  const req = pool.request().input("desde", sql.Date, periodo.desde).input("hasta", sql.Date, periodo.hasta);
+  const req = pool.request().input("desde", sql.Date, desde).input("hasta", sql.Date, periodo.hasta);
   const r = await req.query<FilaRps>(`
     SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha, ot.autor
     FROM dbo.CPRImputationMO imp
@@ -75,7 +99,11 @@ export async function leerIncidenciasMetricas(periodo: Periodo, seccion: Seccion
     ${catalogo}
     ${autorRps}
     WHERE imp.CodCompany = '001' AND imp.Unproductive = 1
-      AND unpr.Description LIKE '%ERROR EN PLANTEAMIENTO%'
+      AND ${regla.tipos}
+      ${regla.soloConTareaPropia ? `AND EXISTS (SELECT 1 FROM dbo.CPRMOTask t2
+        JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t2.IDMOTask
+        WHERE t2.IDManufacturingOrder = mo.IDManufacturingOrder
+          AND rm.CodMOResourceMachine IN (${recursosDeTrabajoSql(SECCIONES[seccion])}))` : ""}
       AND imp.ImputationDate >= @desde AND imp.ImputationDate < DATEADD(day, 1, @hasta)
   `);
   return r.recordset.map(deFila);

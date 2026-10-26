@@ -22,6 +22,7 @@ import { ReintentarGemelaInline } from "./ReintentarGemelaInline";
 import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
+import { NoConformidadesPedido } from "./NoConformidadesPedido";
 import { TareasDelPedido } from "./HistorialTareas";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
@@ -893,6 +894,9 @@ export function Drawer({
               vuelve a montar, así no queda ni un frame con el hilo del anterior.
               NO sustituye a los guards de dentro del componente: esos cubren
               las carreras DENTRO de un mismo pedido. */}
+          {/* Si Calidad abrió una NC por este pedido, o este pedido es la
+              rectificación de otro. Solo sale si hay algo (ver el componente). */}
+          <NoConformidadesPedido key={`nc:${pedido.codigo}`} pedido={pedido.codigo} />
           <NotasPedido
             key={`notas:${pedido.codigo}`}
             pedido={pedido.codigo}

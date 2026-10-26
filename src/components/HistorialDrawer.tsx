@@ -17,6 +17,7 @@ import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
+import { NoConformidadesPedido } from "./NoConformidadesPedido";
 import { PlanteamientoPedido } from "./PlanteamientoPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -301,6 +302,9 @@ export function HistorialDrawer({
                   La nota va por CÓDIGO de pedido, así que la escrita aquí es la
                   misma que se ve en el tablero. */}
 
+              {/* Lo mismo que en la ficha del tablero: la NC del pedido y en
+                  qué pedido se rectificó, o de cuál es rectificación. */}
+              <NoConformidadesPedido key={`nc:${pedido}`} pedido={pedido} />
               <NotasPedido key={pedido} pedido={pedido} miId={miId} operarios={operarios} />
 
               {/* Se cuentan los que se pueden ABRIR y no los que RPS trae: los
