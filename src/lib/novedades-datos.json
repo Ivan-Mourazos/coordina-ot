@@ -1,52 +1,7 @@
 [
   {
-    "id": "2026-10-26",
-    "hasta": "1548e7d",
-    "cambios": [
-      {
-        "tipo": "arreglado",
-        "titulo": "Al pinchar en el buscador de arriba ya no sale un recuadro dentro",
-        "tanda": 1
-      },
-      {
-        "tipo": "arreglado",
-        "titulo": "En oscuro, las fechas atrasadas y los avisos en rojo se leen mejor",
-        "tanda": 1
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Los buscadores de cada pestaña ahora son un hueco donde escribir, como el de arriba",
-        "detalle": "Y los cuadros de texto (notas, devolver, anular) tienen un borde que se distingue del fondo.",
-        "tanda": 1
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Los botones que se habían quedado planos ya tienen el mismo relieve que el resto",
-        "tanda": 1
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Nuevo aspecto: aluminio azulado en claro y grafito con grano en oscuro",
-        "detalle": "Paneles y botones en relieve con grano fino; en oscuro el fondo es grafito con una luz suave arriba a la izquierda.",
-        "tanda": 1
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Al pinchar en un campo ya no sale el recuadro dorado",
-        "detalle": "El campo donde escribes se marca con un borde suave; el buscador de arriba es ahora un hueco donde escribir.",
-        "tanda": 1
-      },
-      {
-        "tipo": "mejor",
-        "titulo": "Los textos pequeños se leen más limpios, sobre todo en oscuro",
-        "detalle": "El grano del metal queda solo en el fondo de la página; paneles, filas y botones van lisos.",
-        "tanda": 1
-      }
-    ]
-  },
-  {
     "id": "2026-10-22",
-    "hasta": "fdae741",
+    "hasta": "1548e7d",
     "cambios": [
       {
         "tipo": "nuevo",
