@@ -155,6 +155,14 @@ export interface Seccion {
    *  este flujo nunca se llega a ellas— y la ficha del pedido ofrece «Impreso»,
    *  que aprueba sus OF y lo pasa a Producción de una vez. */
   sinRevision?: boolean;
+  /** Cómo se dice «está hecho» donde nadie revisa (`sinRevision`).
+   *
+   *  `pedido` es el botón que aprueba lo que queda y pasa el pedido a
+   *  Producción de una vez («Impreso» en Impresión). Con `of`, cada OF lleva
+   *  además el suyo, y el del pedido baja al pie de la ficha, donde está
+   *  «Pasar a Producción»: así lo pidió Diseño (Iván, 26/10/2026). Sin esta
+   *  propiedad, «Impreso» en el bloque del pedido, como hasta ahora. */
+  finalizar?: { pedido: string; of?: string; confirmar: string };
   /** Cómo se llaman las columnas en esta sección, si no es como en OT. Es de
    *  PRESENTACIÓN, como `ordenFases`: la fase en que cae un pedido no cambia. */
   etiquetasFase?: Partial<Record<Fase, string>>;
@@ -225,6 +233,18 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     revisionPorPedido: true,
     barraSimple: true,
     internosComoTrabajo: true,
+    // Sin revisión desde el 26/10/2026 (Iván): en Diseño no revisa nadie. Se
+    // ficha como siempre y cada OF se finaliza en su tarjeta, o el pedido
+    // entero con «Finalizar todo», que lo pasa a Producción. Las columnas de
+    // revisión desaparecen (ver `fasesEnOrden`) y lo que quedara en ellas
+    // cae en «Planteando», desde donde se finaliza.
+    sinRevision: true,
+    finalizar: {
+      pedido: "Finalizar todo",
+      of: "Finalizar",
+      confirmar:
+        "El pedido queda terminado y pasa a Producción: sale del tablero y sus fases se cierran en OLANET. Si falta algo por hacer, no lo pulses.",
+    },
   },
   impresion: {
     id: "impresion",
@@ -262,6 +282,11 @@ export const SECCIONES: Readonly<Record<SeccionId, Seccion>> = {
     barraSimple: true,
     internosComoTrabajo: true,
     sinRevision: true,
+    finalizar: {
+      pedido: "Impreso",
+      confirmar:
+        "El pedido queda impreso y pasa a Producción: sale del tablero y sus fases se cierran en OLANET. Si falta algo por imprimir, no lo pulses.",
+    },
   },
 };
 

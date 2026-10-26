@@ -591,13 +591,18 @@ export function Drawer({
   // `useConfirmacion` habla en `AccionDef`; de la acción solo se usan el
   // título, el tono y el texto, así que se parte de la más parecida —aprobar
   // sin revisión, que es lo que hace la primera mitad— y se cambia lo que se lee.
+  //
+  // El nombre y el aviso, de la sección: «Impreso» en Impresión, «Finalizar
+  // todo» en Diseño. Y en Diseño va al pie, no al bloque (ver `finalizarAbajo`).
   const defImpreso = {
     ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
-    label: "Impreso",
+    label: seccion.finalizar?.pedido ?? "Impreso",
     tono: "primaria" as const,
     confirmar:
+      seccion.finalizar?.confirmar ??
       "El pedido queda impreso y pasa a Producción: sale del tablero y sus fases se cierran en OLANET. Si falta algo por imprimir, no lo pulses.",
   };
+  const finalizarAbajo = !!seccion.finalizar?.of;
 
   // Con la revisión por pedido, el bloque del pedido es el ÚNICO sitio donde
   // están estas acciones, así que tiene que salir también con una sola OF.
@@ -764,8 +769,25 @@ export function Drawer({
       // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí
       // en todas las fichas, pasó al ⓘ junto al autor, en la cabecera.
       pie={
-        listoParaCompletar || (pedido.recuperado && !soloLectura) ? (
+        listoParaCompletar || (pedido.recuperado && !soloLectura) ||
+        (finalizarAbajo && paraImpreso.length > 0 && !soloLectura) ? (
         <>
+          {/* «Finalizar todo» (Diseño): donde y como «Pasar a Producción»,
+              porque hace eso mismo y además da por hechas las OF que quedan.
+              Cuando ya están todas finalizadas no sale (`paraImpreso` vacío) y
+              queda solo el de pasar. */}
+          {!soloLectura && finalizarAbajo && paraImpreso.length > 0 && (
+            <button
+              onClick={() => {
+                pedidoAImprimir.current = pedido.id;
+                confirmacionImpreso.pedirConfirmacion(defImpreso);
+              }}
+              title="Da por terminadas las OF que quedan y pasa el pedido a Producción"
+              className="boton-3d mb-2 w-full rounded-lg bg-cyan-700 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-800"
+            >
+              ✔ {defImpreso.label}
+            </button>
+          )}
           {/* La confirmación la pone el Board, que es quien ejecuta: este mismo
               botón está también en la fila del tablero y no puede preguntar
               cada uno lo suyo (ver `pasarAProduccionPendiente`). */}
@@ -1093,7 +1115,7 @@ export function Drawer({
                 {/* «Impreso» va justo antes que "Pasar a revisión", que es el
                     sitio del botón principal del bloque; donde existe, aquel
                     no sale (ver `paraImpreso`). */}
-                {paraImpreso.length > 0 && (
+                {paraImpreso.length > 0 && !finalizarAbajo && (
                   <button
                     onClick={() => {
                       pedidoAImprimir.current = pedido.id;
@@ -1102,7 +1124,7 @@ export function Drawer({
                     title="Da el pedido por impreso y lo pasa a Producción"
                     className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
                   >
-                    Impreso
+                    {defImpreso.label}
                   </button>
                 )}
                 {/* CON EL RELOJ EN MARCHA, EL BOTÓN SE QUEDA, DESACTIVADO, y dice
@@ -1560,7 +1582,8 @@ function OFRow({
               ? "Cerrada en RPS"
               : "Cerrada · sin escribir en RPS"
             : aprobadaSinRevision(of)
-              ? "Aprobada sin revisión"
+              // Donde no se revisa, «sin revisión» no dice nada: es lo normal.
+              ? seccion.sinRevision ? "Finalizada" : "Aprobada sin revisión"
               : meta.label}
           {anulacion && ` · ${textoAnulacion(anulacion)}`}
         </span>
@@ -1761,12 +1784,16 @@ function OFRow({
                 ) : null
               }
             />
-            <LineaRol
-              rol="revisar"
-              rotulo="Revisor"
-              op={revisor}
-              live={of.fichandoRol === "revisar"}
-            />
+            {/* Donde no se revisa, el revisor solo sale si la OF trae uno de
+                antes (Diseño revisaba hasta el 26/10/2026). */}
+            {(!seccion.sinRevision || revisor) && (
+              <LineaRol
+                rol="revisar"
+                rotulo="Revisor"
+                op={revisor}
+                live={of.fichandoRol === "revisar"}
+              />
+            )}
           </div>
 
           {/* Todo el tiempo de la OF, en UN sitio: quién, cuánto y dónde lo apuntó.
@@ -1941,7 +1968,19 @@ function AccionesOF({
   // Se quita solo cuando el reloj se ofrece de verdad: en una OF detenida o
   // que RPS no deja imputar no hay botón de reloj, y ahí esta acción es la
   // única forma de empezar la revisión.
-  const acciones = accionesDisponibles(of, miId).filter(
+  // En Diseño, "Dar por bueno sin revisión" ES «Finalizar»: el final de cada
+  // OF, a la vista y en el color de lo principal (ver `Seccion.finalizar`).
+  const finalizarOF = seccion.finalizar?.of;
+  const acciones = accionesDisponibles(of, miId).map((a) =>
+    finalizarOF && a.id === "aprobar_sin_revision"
+      ? {
+          ...a,
+          label: finalizarOF,
+          tono: "primaria" as const,
+          confirmar: "La OF queda terminada y deja de contar tiempo. Cuando lo estén todas, el pedido podrá pasar a Producción.",
+        }
+      : a,
+  ).filter(
     (a) =>
       a.id !== "empezar_planteo" &&
       a.id !== "retomar" &&
@@ -1952,10 +1991,10 @@ function AccionesOF({
       // quedan fichar —que no pasa por aquí, tiene su propio botón— y anular,
       // que es la única que de verdad es de una OF suelta.
       !(revisionPorPedido && ACCIONES_DEL_PEDIDO.has(a.id)) &&
-      // Donde no revisa nadie (Impresión) no hay "Pasar a revisión" ni "Dar
-      // por bueno sin revisión": el único final es «Impreso», en el bloque
-      // del pedido (ver lib/impreso.ts). Con los dos aquí, la OF podía
-      // acabar en revisión en una sección que no tiene quién la mire.
+      // Donde no revisa nadie no hay "Pasar a revisión", y en Impresión
+      // tampoco "Dar por bueno sin revisión": su único final es «Impreso»,
+      // en el bloque del pedido (ver lib/impreso.ts). En Diseño esa acción
+      // se queda, renombrada «Finalizar» (arriba).
       !accionOcultaSinRevision(seccion, a.id),
   );
   // Lo de todos los días queda a la vista; el resto, en el cajón de "⋯".
@@ -1968,8 +2007,9 @@ function AccionesOF({
   // `devolver` se queda FUERA aunque sea "peligro": para el revisor es tan
   // diario como aprobar, y esconderlo sería castigar el caso de que algo esté
   // mal. Lo que se va al cajón es lo de higos a brevas.
-  const aLaVista = acciones.filter((a) => A_LA_VISTA.has(a.id));
-  const enCajon = acciones.filter((a) => !A_LA_VISTA.has(a.id));
+  const esDeLaVista = (a: AccionOF) => A_LA_VISTA.has(a) || (!!finalizarOF && a === "aprobar_sin_revision");
+  const aLaVista = acciones.filter((a) => esDeLaVista(a.id));
+  const enCajon = acciones.filter((a) => !esDeLaVista(a.id));
   // Un cajón para UNA sola opción es peor que la opción: un clic de más para
   // esconder algo que cabía. Con una, se saca fuera.
   const menu = enCajon.length > 1 ? enCajon : [];

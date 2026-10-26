@@ -2457,7 +2457,7 @@ export function Board({
       if (!ok) {
         // Sin guardar: se deshace lo optimista para que el botón siga ahí.
         setPedidosSync((prev) => prev.map((p) => (p.id === pedidoId ? pedido : p)));
-        setPasarError("No se ha guardado. Vuelve a pulsar «Impreso».");
+        setPasarError(`No se ha guardado. Vuelve a pulsar «${SECCIONES[seccion].finalizar?.pedido ?? "Impreso"}».`);
         return;
       }
       // Ya aprobadas en el servidor: mi fichaje local no debe seguir

@@ -45,12 +45,21 @@ describe("Impreso", () => {
     expect(ofsParaImpreso(p, "manuel")).toEqual([]);
   });
 
-  it("no sale si hay una OF en revisión", () => {
+  it("recoge lo que se quedó a medio revisar: en estas secciones no revisa nadie", () => {
+    // Diseño trabajó con revisión hasta el 26/10/2026. Sin esto, sus pedidos
+    // con OF esperando revisión no tenían botón que los sacara del tablero.
     const p = pedido([
-      of({ id: "a", estado: "en_curso", autorId: "manuel" }),
-      of({ id: "b", estado: "por_revisar", autorId: "manuel", revisorId: "carron" }),
+      of({ id: "a", estado: "en_curso", autorId: "carron" }),
+      of({ id: "b", estado: "por_revisar", autorId: "carron", revisorId: "smith" }),
+      of({ id: "c", estado: "en_revision", autorId: "carron", revisorId: "smith" }),
+      of({ id: "d", estado: "devuelta", autorId: "carron", revisorId: "smith" }),
     ]);
-    expect(ofsParaImpreso(p, "manuel")).toEqual([]);
+    expect(ofsParaImpreso(p, "carron").map((o) => o.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("lo que está en revisión sigue siendo de su autor", () => {
+    const p = pedido([of({ id: "b", estado: "por_revisar", autorId: "carron", revisorId: "smith" })]);
+    expect(ofsParaImpreso(p, "smith")).toEqual([]);
   });
 
   it("sin identidad no sale nada", () => {
@@ -95,9 +104,29 @@ describe("qué acciones de fila no salen donde nadie revisa", () => {
     expect(fuera.sort()).toEqual(["aprobar_sin_revision", "terminar_planteo"]);
   });
 
-  it("en OT y Diseño no se esconde nada por esto", () => {
-    for (const s of [SECCIONES.ot, SECCIONES.diseno]) {
-      expect(todas.filter((a) => accionOcultaSinRevision(s, a))).toEqual([]);
-    }
+  it("en Diseño solo se esconde pasar a revisión: «Finalizar» es aprobar sin revisión", () => {
+    const fuera = todas.filter((a) => accionOcultaSinRevision(SECCIONES.diseno, a));
+    expect(fuera).toEqual(["terminar_planteo"]);
+  });
+
+  it("en OT no se esconde nada por esto", () => {
+    expect(todas.filter((a) => accionOcultaSinRevision(SECCIONES.ot, a))).toEqual([]);
+  });
+});
+
+describe("cómo se finaliza en cada sección", () => {
+  it("Diseño: sin revisión, «Finalizar» en cada OF y «Finalizar todo» para el pedido", () => {
+    expect(SECCIONES.diseno.sinRevision).toBe(true);
+    expect(SECCIONES.diseno.finalizar).toMatchObject({ pedido: "Finalizar todo", of: "Finalizar" });
+  });
+
+  it("Impresión: solo «Impreso», sin botón por OF", () => {
+    expect(SECCIONES.impresion.finalizar?.pedido).toBe("Impreso");
+    expect(SECCIONES.impresion.finalizar?.of).toBeUndefined();
+  });
+
+  it("OT revisa: ni sinRevision ni botón de finalizar", () => {
+    expect(SECCIONES.ot.sinRevision).toBeFalsy();
+    expect(SECCIONES.ot.finalizar).toBeUndefined();
   });
 });

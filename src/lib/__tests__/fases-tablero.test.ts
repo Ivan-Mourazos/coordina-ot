@@ -210,11 +210,9 @@ describe("agruparPorFase", () => {
     expect(g.map((x) => x.id)).toEqual(FASES.map((f) => f.id));
   });
 
-  it("Diseño pone 'listo para pasar' ANTES que 'esperando revisión'", () => {
-    // Lo que pueden cerrar hoy delante; lo que depende de otro, al final.
+  it("Diseño, sin revisión desde el 26/10/2026, enseña sus cuatro columnas en su orden", () => {
     const g = agruparPorFase([{ ofs: [of({ estado: "en_curso" })] }], SECCIONES.diseno);
-    const ids = g.map((x) => x.id);
-    expect(ids.indexOf("listoParaPasar")).toBeLessThan(ids.indexOf("esperandoRevision"));
+    expect(g.map((x) => x.id)).toEqual(["sinEmpezar", "planteando", "listoParaPasar", "parado"]);
   });
 
   it("el orden de una sección trae TODAS las fases, ni una de menos", () => {
@@ -261,7 +259,8 @@ describe("agruparPorFase", () => {
     const pedidos = [{ ofs: [of({ estado: "en_curso" })] }];
     const ot = agruparPorFase(pedidos, SECCIONES.ot);
     const dis = agruparPorFase(pedidos, SECCIONES.diseno);
-    for (const f of FASES) {
+    // Las de revisión no existen en Diseño (ver «sección sin revisión»).
+    for (const f of FASES.filter((x) => !FASES_DE_REVISION.has(x.id))) {
       expect(dis.find((g) => g.id === f.id)!.items).toEqual(
         ot.find((g) => g.id === f.id)!.items,
       );
@@ -649,6 +648,9 @@ describe("sección sin revisión (Impresión Digital)", () => {
     // Filas viejas del overlay (de cuando Manuel trabajaba en Diseño) o las
     // acciones genéricas del Drawer pueden dejar OF en revisión: sin columna
     // propia, el pedido desaparecería del tablero.
+    // Lo mismo en Diseño, que revisaba hasta el 26/10/2026: lo que se quedó a
+    // medio revisar sale en «Planteando», donde «Finalizar todo» lo cierra.
+    // En OT, que sí revisa, cada estado sigue en su columna.
     for (const [estado, fase] of [
       ["por_revisar", "esperandoRevision"],
       ["en_revision", "esperandoRevision"],
@@ -657,13 +659,14 @@ describe("sección sin revisión (Impresión Digital)", () => {
       const p = { ofs: [of({ estado })] };
       const en = (s: typeof imp) => agruparPorFase([p], s).filter((g) => g.items.length > 0).map((g) => g.id);
       expect(en(imp)).toEqual(["planteando"]);
-      expect(en(SECCIONES.diseno)).toEqual([fase]);
+      expect(en(SECCIONES.diseno)).toEqual(["planteando"]);
+      expect(en(SECCIONES.ot)).toEqual([fase]);
     }
   });
 
-  it("Diseño y OT no cambian", () => {
+  it("OT no cambia, y Diseño pierde las columnas de revisión", () => {
     expect(agruparPorFase([], SECCIONES.diseno).map((g) => g.id)).toEqual([
-      "devuelta", "sinEmpezar", "planteando", "listoParaPasar", "esperandoRevision", "parado",
+      "sinEmpezar", "planteando", "listoParaPasar", "parado",
     ]);
     expect(agruparPorFase([], SECCIONES.ot).map((g) => g.label)).toContain("Planteando");
     expect(etiquetaFase("planteando")).toBe("Planteando");
