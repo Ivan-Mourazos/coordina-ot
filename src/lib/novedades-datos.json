@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "5b762e2",
+    "hasta": "fa7846d",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -49,6 +49,12 @@
         "titulo": "Métricas cuenta también las no conformidades que Calidad aún no ha clasificado",
         "detalle": "Salen marcadas aparte, junto al total de toda la empresa en el periodo.",
         "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las no conformidades dicen si el fallo fue principalmente nuestro o solo en parte",
+        "detalle": "En la ficha y en Métricas se separa DISEÑO como proceso principal o secundario, y en Métricas ves cuántas son de OT, de Diseño y de Impresión.",
+        "tanda": 6
       }
     ]
   },
