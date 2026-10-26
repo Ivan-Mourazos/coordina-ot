@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "a0c5785",
+    "hasta": "4056638",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -43,6 +43,12 @@
         "titulo": "En Diseño ya no vuelven a salir pedidos que estaban terminados",
         "detalle": "Tras el cambio de servidor de hoy aparecieron de golpe en Planteando y en Esperando revisión trabajos ya cerrados. Ya no salen.",
         "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los documentos de RPS de la ficha ya no salen recortados en óvalo",
+        "detalle": "Con el estilo nuevo, cada grupo de documentos y sus miniaturas se veían como una píldora que cortaba el papel.",
+        "tanda": 11
       },
       {
         "tipo": "mejor",
@@ -97,6 +103,12 @@
         "titulo": "Métricas enseña los rectificados en las gráficas mes a mes, y en un solo panel más claro",
         "detalle": "Una línea «Rectificados» en la actividad del equipo y «Con rectificado» en tus datos. El panel deja solo los pedidos que hubo que rehacer, por familia de producto.",
         "tanda": 10
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El Historial muestra las tareas y tiempos como Pendientes",
+        "detalle": "Ves cada centro y sus OF con el total, las barras de tiempo y quién hizo cada tarea. La consulta de pedidos muestra el mismo desglose.",
+        "tanda": 11
       }
     ]
   },
