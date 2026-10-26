@@ -94,5 +94,5 @@ Lo que se deja con color propio porque tiene significado: avisos de Producción 
   Mira cada captura entera: fondo, cabecera, paneles, campos con el foco puesto y menús abiertos.
 - `pnpm lint`, `pnpm test` y `pnpm build` antes de cada commit.
 - **Commits pequeños por zona**, con la línea `Novedad:` cuando el cambio se note (ver `AGENTS.md`), por ejemplo:
-  `Novedad: mejora | El Historial con el mismo metal y colores que el resto`.
+  `Novedad: mejor | El Historial con el mismo metal y colores que el resto`.
 - No se fusiona en `main` ni se despliega sin el visto bueno de Iván.
