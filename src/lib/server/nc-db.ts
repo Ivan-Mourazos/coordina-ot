@@ -1,15 +1,20 @@
 import sql from "mssql";
 import { getPool } from "./db";
-import { PROCESO_DISENO, papelDiseno, type NoConformidad, type TotalesNc } from "../no-conformidad";
+import { partirCausa, quienesEn, type CausaNc, type NoConformidad } from "../no-conformidad";
 import { SECCIONES, recursosDeTrabajoSql, type SeccionId } from "../secciones";
 import type { Periodo } from "../metricas";
 
 // ─── Las no conformidades de RPS (ver lib/no-conformidad.ts) ─────────────────
 // APQNonConformity es la NC; su tabla custom trae los dos procesos afectados y
-// el pedido rectificativo. Los procesos son ids de `_Proceso` ("001-03" =
-// DISEÑO). Solo lectura.
+// el pedido rectificativo (los procesos son ids de `_Proceso`, "001-03" =
+// DISEÑO). Las causas cuelgan de los defectos: APQNCDefect → APQNCCause, con
+// su tipo en APQNCGenericCause. Solo lectura.
+//
+// Aquí solo se LEE. Qué NC es de qué sección y las cuentas son funciones
+// puras de lib/no-conformidad.ts, con sus tests.
 
 interface Fila {
+  id: string;
   codigo: string;
   fecha: Date | null;
   pedido: string | null;
@@ -23,18 +28,20 @@ interface Fila {
 }
 
 const SELECT_NC = `
-  SELECT n.CodNonConformity AS codigo, n.DoneDate AS fecha, n.CodOrder AS pedido,
-         c.CodPedidoRectificado AS rectificativo, p1.Descripcion AS proceso1, p2.Descripcion AS proceso2,
+  SELECT CONVERT(varchar(36), n.IDNonConformity) AS id, n.CodNonConformity AS codigo, n.DoneDate AS fecha,
+         n.CodOrder AS pedido, c.CodPedidoRectificado AS rectificativo,
+         p1.Descripcion AS proceso1, p2.Descripcion AS proceso2,
          src.Description AS origen, CONVERT(nvarchar(1000), n.Description) AS descripcion,
          CONVERT(nvarchar(2000), n.Comments) AS comentarios,
-         CASE WHEN n.ClosedDate IS NULL THEN 0 ELSE 1 END AS cerrada
+         CASE WHEN n.ClosedDate IS NULL THEN 0 ELSE 1 END AS cerrada`;
+const FROM_NC = `
     FROM dbo.APQNonConformity n
     LEFT JOIN dbo._APQNonConformity_Custom c ON c.IDNonConformity = n.IDNonConformity
     LEFT JOIN dbo._Proceso p1 ON p1.IDProceso = c.IDProcesoAfectado1
     LEFT JOIN dbo._Proceso p2 ON p2.IDProceso = c.IDProcesoAfectado2
     LEFT JOIN dbo.APQNCSource src ON src.IDNCSource = n.IDNCSource`;
 
-const deFila = (f: Fila): NoConformidad => ({
+const deFila = (f: Fila, causas: CausaNc[], tareasDe: SeccionId[]): NoConformidad => ({
   codigo: f.codigo.trim(),
   fecha: f.fecha ? f.fecha.toISOString().slice(0, 10) : "",
   pedido: f.pedido?.trim() || null,
@@ -45,7 +52,36 @@ const deFila = (f: Fila): NoConformidad => ({
   descripcion: (f.descripcion ?? "").trim(),
   comentarios: (f.comentarios ?? "").trim(),
   cerrada: f.cerrada === 1,
+  causas,
+  tareasDe,
 });
+
+/** Las causas de unas NC, por id de NC. En trozos, por el tope de
+ *  parámetros de SQL Server. */
+async function causasDe(ids: readonly string[]): Promise<Map<string, CausaNc[]>> {
+  const porNc = new Map<string, CausaNc[]>();
+  if (!ids.length) return porNc;
+  const pool = await getPool();
+  for (let i = 0; i < ids.length; i += 500) {
+    const req = pool.request();
+    const marcas = ids.slice(i, i + 500).map((id, j) => { req.input(`n${j}`, sql.UniqueIdentifier, id); return `@n${j}`; });
+    const r = await req.query<{ nc: string; tipo: string | null; texto: string | null; contribucion: number | null }>(`
+      SELECT CONVERT(varchar(36), d.IDNonConformity) AS nc, gc.Description AS tipo,
+             CONVERT(nvarchar(2000), ca.Description) AS texto, ca.Contribution AS contribucion
+        FROM dbo.APQNCCause ca
+        JOIN dbo.APQNCDefect d ON d.IDNCDefect = ca.IDNCDefect
+        LEFT JOIN dbo.APQNCGenericCause gc ON gc.IDNCGenericCause = ca.IDNCGenericCause
+       WHERE d.IDNonConformity IN (${marcas.join(",")})
+       ORDER BY d.DefectNumber, ca.CauseNumber`);
+    for (const f of r.recordset) {
+      const { responsable, texto } = partirCausa(f.texto ?? "");
+      const lista = porNc.get(f.nc.toLowerCase()) ?? [];
+      lista.push({ tipo: f.tipo?.trim() || null, responsable, quien: quienesEn(responsable), contribucion: f.contribucion, texto });
+      porNc.set(f.nc.toLowerCase(), lista);
+    }
+  }
+  return porNc;
+}
 
 /** Las NC de un pedido: las que se abrieron por él y las que él rectifica.
  *  Una ficha las enseña las dos, porque las dos cuentan su historia: «este
@@ -55,61 +91,37 @@ export async function ncDePedido(pedido: string): Promise<NoConformidad[]> {
   const pool = await getPool();
   // Tipado VarChar: sin él viaja como nvarchar y SQL Server tira el índice.
   const r = await pool.request().input("pedido", sql.VarChar(25), pedido).query<Fila>(`
-    ${SELECT_NC}
+    ${SELECT_NC} ${FROM_NC}
     WHERE n.CodCompany = '001' AND (n.CodOrder = @pedido OR c.CodPedidoRectificado = @pedido)
     ORDER BY n.DoneDate DESC`);
-  return r.recordset.map(deFila);
+  const causas = await causasDe(r.recordset.map((f) => f.id));
+  return r.recordset.map((f) => deFila(f, causas.get(f.id.toLowerCase()) ?? [], []));
 }
 
-/** Ver `TotalesNc`. */
-export async function leerTotalesNc(periodo: Periodo): Promise<TotalesNc | null> {
+/** Todas las NC de la empresa en el periodo, con sus causas y las secciones
+ *  que tienen tareas en el pedido que falló. Unas decenas al mes: el reparto
+ *  se hace después, en `deLaSeccion` y `totalesNc`. */
+export async function leerNcPeriodo(periodo: Periodo): Promise<NoConformidad[] | null> {
   if (process.env.DATASOURCE !== "rps") return null;
   const pool = await getPool();
   const secciones = Object.keys(SECCIONES) as SeccionId[];
-  // Una fila por NC con su papel de DISEÑO y de qué secciones tiene tareas el
-  // pedido que falló; se suma aquí abajo. Son unas decenas al mes.
   const r = await pool.request()
     .input("desde", sql.Date, periodo.desde)
     .input("hasta", sql.Date, periodo.hasta)
-    .query<{ rect: number; proceso1: string | null; proceso2: string | null } & Record<string, number | string | null>>(`
-    SELECT CASE WHEN c.CodPedidoRectificado IS NOT NULL THEN 1 ELSE 0 END AS rect,
-           p1.Descripcion AS proceso1, p2.Descripcion AS proceso2,
+    .query<Fila & Record<string, unknown>>(`
+    ${SELECT_NC},
            ${secciones.map((s) => `CASE WHEN EXISTS (${tareasDeSeccionEnPedido(s)}) THEN 1 ELSE 0 END AS [en_${s}]`).join(",\n           ")}
-      FROM dbo.APQNonConformity n
-      LEFT JOIN dbo._APQNonConformity_Custom c ON c.IDNonConformity = n.IDNonConformity
-      LEFT JOIN dbo._Proceso p1 ON p1.IDProceso = c.IDProcesoAfectado1
-      LEFT JOIN dbo._Proceso p2 ON p2.IDProceso = c.IDProcesoAfectado2
-     WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)`);
-
-  const vacio = () => ({ principal: 0, secundario: 0, rectificadas: 0 });
-  const t: TotalesNc = {
-    total: 0, rectificadas: 0, disenoPrincipal: 0, disenoPrincipalRectificadas: 0,
-    disenoSecundario: 0, disenoSecundarioRectificadas: 0, sinClasificar: 0,
-    porSeccion: { ot: vacio(), diseno: vacio(), impresion: vacio(), ninguna: vacio() },
-  };
-  for (const f of r.recordset) {
-    const rect = f.rect === 1 ? 1 : 0;
-    t.total++;
-    t.rectificadas += rect;
-    const papel = papelDiseno({ proceso1: f.proceso1?.trim() || null, proceso2: f.proceso2?.trim() || null });
-    if (papel === "sinClasificar") t.sinClasificar++;
-    if (papel !== "principal" && papel !== "secundario") continue;
-    if (papel === "principal") { t.disenoPrincipal++; t.disenoPrincipalRectificadas += rect; }
-    else { t.disenoSecundario++; t.disenoSecundarioRectificadas += rect; }
-    // De quién, por nombre: la sección cuyas tareas lleva el pedido. Con
-    // tareas de varias, cuenta en cada una; sin ninguna, en «ninguna».
-    const suyas = secciones.filter((s) => f[`en_${s}`] === 1);
-    for (const s of suyas.length ? suyas : (["ninguna"] as const)) {
-      const fila = t.porSeccion[s];
-      fila[papel]++;
-      fila.rectificadas += rect;
-    }
-  }
-  return t;
+    ${FROM_NC}
+    WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)
+    ORDER BY n.DoneDate DESC`);
+  const causas = await causasDe(r.recordset.map((f) => f.id));
+  return r.recordset.map((f) =>
+    deFila(f, causas.get(f.id.toLowerCase()) ?? [], secciones.filter((s) => f[`en_${s}`] === 1)),
+  );
 }
 
-/** ¿Tiene el pedido de la NC (`n.CodOrder`) tareas de la sección? Es lo que
- *  decide de quién es una NC de DISEÑO: RPS no separa OT, Diseño e Impresión. */
+/** ¿Tiene el pedido de la NC (`n.CodOrder`) tareas de la sección? Solo hace
+ *  falta para las NC que Calidad aún no ha investigado (sin causas). */
 function tareasDeSeccionEnPedido(seccion: SeccionId): string {
   return `SELECT 1 FROM dbo.FACOrderSL o
       JOIN dbo.FACOrderLineSL l ON l.IDOrder = o.IDOrder
@@ -117,26 +129,4 @@ function tareasDeSeccionEnPedido(seccion: SeccionId): string {
       JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
      WHERE o.CodCompany = '001' AND o.CodOrder = n.CodOrder
        AND rm.CodMOResourceMachine IN (${recursosDeTrabajoSql(SECCIONES[seccion])})`;
-}
-
-/** Las NC de una sección en el periodo: en un pedido con tareas de esa
- *  sección, y apuntadas al proceso DISEÑO o todavía sin ningún proceso (ver
- *  `sinClasificar`: Calidad aún no ha dicho de quién fue, y sin ellas casi no
- *  salía ninguna de las recientes). Las tres secciones: ninguna tiene proceso
- *  propio en RPS, todas caen en DISEÑO (Iván, 26/10/2026). */
-export async function leerNcMetricas(periodo: Periodo, seccion: SeccionId): Promise<NoConformidad[] | null> {
-  if (process.env.DATASOURCE !== "rps") return null;
-  const pool = await getPool();
-  const r = await pool.request()
-    .input("desde", sql.Date, periodo.desde)
-    .input("hasta", sql.Date, periodo.hasta)
-    .input("proceso", sql.VarChar(50), PROCESO_DISENO)
-    .query<Fila>(`
-    ${SELECT_NC}
-    WHERE n.CodCompany = '001' AND n.DoneDate >= @desde AND n.DoneDate < DATEADD(day, 1, @hasta)
-      AND (@proceso IN (p1.Descripcion, p2.Descripcion)
-        OR (c.IDProcesoAfectado1 IS NULL AND c.IDProcesoAfectado2 IS NULL))
-      AND EXISTS (${tareasDeSeccionEnPedido(seccion)})
-    ORDER BY n.DoneDate DESC`);
-  return r.recordset.map(deFila);
 }

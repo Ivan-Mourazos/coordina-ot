@@ -59,39 +59,44 @@ calidad, migrada a RPS en 2020:
 de fabricarlo: medidas, planteamiento), que es lo que hace OT; Diseño Gráfico tampoco tiene proceso propio. Por
 eso las NC de OT vienen como «DISEÑO».
 
-### Los nuestros: DISEÑO, principal o secundario
+### De quién fue: las causas
 
-Los rectificados «nuestros» son los que llevan el proceso **DISEÑO** (Iván, 26/10/2026). El orden de los dos
-procesos cuenta: el **1 es el principal** (a quien Calidad achaca el fallo) y el **2 el secundario** (también
-tuvo parte). Se cuentan por separado; si DISEÑO está en los dos, cuenta como principal (`papelDiseno` en
-`src/lib/no-conformidad.ts`).
+El proceso afectado no basta: RPS no separa OT, Diseño e Impresión. Lo que sí lo dice son las **causas** que
+Calidad apunta al investigar la NC (`APQNCCause`, colgadas de cada defecto en `APQNCDefect`, con su tipo en
+`APQNCGenericCause`). Cada causa lleva:
 
-En 2026 (hasta el 26/10), en toda la empresa: 392 NC, 274 rectificados. De DISEÑO: 38 NC como principal (33
-rectificados) y 16 como secundario (14 rectificados). 20 sin clasificar todavía.
+- un **tipo**: «ERROR EN PLANTEAMIENDO O DISEÑO GRAFICO» (así, con la errata de RPS), «DOCUMENTAR MAL», «ERROR
+  AL CONFECCIONAR O PRODUCIR», «ERROR O DEFECTO AL INSTALAR O ENTREGAR»…;
+- el **% con que contribuyó** al fallo;
+- en la **primera línea del texto, la persona**: «TAMARA», «ADRIAN- Falta de formación.», «Juan Castro y
+  Adrián Quinteiro Vaamonde,».
 
-### Por nombre: OT, Diseño o Impresión
+Ejemplo, NC010178 (AR.26.02293 → AR.26.05101): OSCAR · documentar mal · 80 %; TAMARA · error en planteamiento
+o diseño gráfico · 10 %; LOIS · error al instalar · 10 %…
 
-Ninguna de las tres secciones tiene proceso propio en RPS: todas caen en DISEÑO. Se reparten por las **tareas
-del pedido que falló**, con los recursos de cada sección (OT `a-otec`/`otec-a`, Diseño `a-dgra`/`dgra-a`,
-Impresión `imdi-a`, `u-p-imdi`, `p-hpla`, `p-iduv`, `p-jeti`). Un pedido con tareas de dos secciones cuenta en
-las dos, así que la suma por sección puede pasar del total. Una NC de Comercial o Compras en un pedido con
-tareas de OT **no** es de OT.
+**Son nuestras las causas de tipo «error en planteamiento o diseño gráfico»** (Iván, 26/10/2026), y la persona
+dice la sección. Una causa de otro tipo que nombra a alguien nuestro no cuenta (hay un Iván de fábrica, un
+Manuel Rivadulla…). Lucía Guillín ya no está en el equipo, pero sus causas son de OT. La lista de nombres y
+secciones es `RESPONSABLES` en `src/lib/no-conformidad.ts`; una causa nuestra sin nadie reconocido se lleva a la
+sección cuyas tareas lleva el pedido.
 
-En 2026 (hasta el 26/10), NC de DISEÑO por sección:
+En 2026 (hasta el 26/10): 54 causas de ese tipo, 49 con un nombre nuestro. NC con alguna causa nuestra: 51 (46
+rectificados, el 17 % de los 274 de la empresa). Por sección: OT 45 (40 rectificados), Diseño 4 (4), Impresión
+5 (5). 22 NC aún sin investigar.
 
-| Sección | Principal | Secundario | Rectificados |
-|---|---|---|---|
-| Oficina Técnica | 35 | 16 | 44 |
-| Diseño Gráfico | 13 | 5 | 16 |
-| Impresión Digital | 8 | 3 | 9 |
-| Sin tareas de ninguna | 1 | 0 | 1 |
+### Pendientes de investigar
 
-Entran las de proceso DISEÑO **y las que aún no tienen ningún proceso**: Calidad las abre y las clasifica
-después, y las de octubre estaban casi todas sin clasificar (NC010176, NC010188). Salen marcadas «sin
-clasificar».
+Una NC recién abierta no tiene causas: Calidad la investiga después (las de octubre estaban casi todas así:
+NC010176, NC010188). Se enseñan aparte, «pendientes de investigar», en la sección cuyas tareas lleva el pedido
+que falló (OT `a-otec`/`otec-a`, Diseño `a-dgra`/`dgra-a`, Impresión `imdi-a`, `u-p-imdi`, `p-hpla`,
+`p-iduv`, `p-jeti`), salvo que el proceso afectado ya la descarte (Comercial, Compras…). Pueden acabar no
+siendo nuestras.
 
-Si se quiere que RPS las distinga en origen, la forma limpia es que Calidad tenga dos procesos («Oficina
-Técnica» y «Diseño Gráfico») en lugar de uno. Lo decide quien gestiona Calidad en RPS.
+### El proceso afectado, principal o secundario
+
+También se enseña, porque dice otra cosa (Iván, 26/10/2026): el **proceso 1 es el principal** y el **2 el
+secundario**. En 2026: DISEÑO como principal en 38 NC y como secundario en 16. Si se quiere que RPS distinga
+las secciones en origen, la forma limpia es que Calidad tenga un proceso por sección en lugar de uno.
 
 ### Rectificados
 
@@ -99,9 +104,8 @@ No hay una lista aparte: el pedido rectificativo vive en la NC (`_APQNonConformi
 En 2026, 274 de 392 NC lo tienen. Por año: 2021: 736 NC (548 con rectificativo) · 2022: 504 (356) · 2023: 542
 (386) · 2024: 540 (345) · 2025: 483 (342).
 
-**El % solo para la empresa entera**: «de todos los rectificados, cuántos llevan DISEÑO como principal y cuántos
-como secundario» lo dice RPS tal cual. Por sección se dan números sin %, porque el reparto entre OT, Diseño e
-Impresión es una deducción por las tareas del pedido.
+**El % solo para la empresa entera** (rectificados con causa nuestra sobre todos los rectificados). Por sección,
+números: una NC con causas de dos secciones cuenta en las dos.
 
 ### La hoja en papel
 
@@ -122,13 +126,14 @@ la ficha, plegados.
 ## 4. Qué enseña Coordina
 
 - **Ficha del pedido** (tablero e Historial, todas las secciones), solo si hay algo: la NC del pedido con su
-  fecha, procesos con su papel («COMERCIAL (principal) · DISEÑO (secundario)»), origen, si está abierta, el texto y los comentarios de Calidad, y «rectificado en …» con
+  fecha, procesos con su papel («COMERCIAL (principal) · DISEÑO (secundario)»), sus causas (persona, tipo y %), origen, si está abierta, el texto y los comentarios de Calidad, y «rectificado en …» con
   enlace al parte del rectificativo (donde viene la hoja). Si el pedido es un rectificativo: «Este pedido
   rectifica el …», con enlace al parte del original.
 - **Métricas de OT y Diseño**: incidencias de la sección.
-- **Métricas de las tres secciones**: panel de no conformidades. Las de la sección, en NC y rectificados, como
-  DISEÑO principal, secundario o sin clasificar; y la empresa entera, con el % de rectificados de DISEÑO
-  (principal y secundario) y el reparto por nombre de sección.
+- **Métricas de las tres secciones**: panel de no conformidades. Las de la sección por causa de planteamiento de
+  alguien de la sección y las pendientes de investigar, en NC y rectificados, con «tuyas» para quien mira (sin
+  nombres de compañeros: cada uno ve lo suyo). La empresa entera: % de rectificados con causa nuestra, reparto
+  por sección y el proceso DISEÑO como principal o secundario.
 - **Métricas de Diseño e Impresión**: sin nada de revisión (no revisan).
 
 Código: `src/lib/server/nc-db.ts`, `src/lib/no-conformidad.ts`, `src/components/NoConformidadesPedido.tsx`,

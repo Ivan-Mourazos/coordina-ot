@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { resumenNc, textoProcesos, type NoConformidad } from "@/lib/no-conformidad";
+import { esCausaNuestra, resumenNc, textoProcesos, type CausaNc, type NoConformidad } from "@/lib/no-conformidad";
 
 // ─── Las no conformidades del pedido, EN LA FICHA ────────────────────────────
 // Si Calidad abrió una NC por este pedido, quien lo mira tiene que saberlo, y
@@ -14,6 +14,25 @@ import { resumenNc, textoProcesos, type NoConformidad } from "@/lib/no-conformid
 //
 // Lo usan el tablero y el Historial, de todas las secciones: la NC es del
 // pedido, no de quien lo trabaja.
+
+/** Las causas que apuntó Calidad: de qué tipo, a quién se le achaca y con qué
+ *  peso. Las de planteamiento o diseño gráfico —las nuestras— van marcadas. Si
+ *  aún no hay ninguna, lo dice: la NC está pendiente de investigar. El texto
+ *  de cada una, al pasar el ratón. */
+function CausasNc({ causas }: { causas: CausaNc[] }) {
+  if (!causas.length) return <span className="mt-1 block text-[11px] text-text-muted">Sin causas todavía: pendiente de investigar.</span>;
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {causas.map((c, i) => (
+        <li key={i} className={`text-[11px] leading-snug ${esCausaNuestra(c) ? "text-text" : "text-text-muted"}`} title={c.texto || undefined}>
+          <span className={esCausaNuestra(c) ? "font-semibold" : ""}>{c.responsable || "Sin nombre"}</span>
+          {c.tipo && ` · ${c.tipo.toLowerCase()}`}
+          {c.contribucion != null && ` · ${c.contribucion} %`}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** El seguimiento de Calidad, plegado: suele ser largo (correos pegados
  *  enteros) y no todo el mundo lo necesita, pero cuando trae un aviso para OT
@@ -103,6 +122,7 @@ export function NoConformidadesPedido({ pedido }: { pedido: string }) {
               </span>
             )}
             {x.descripcion && <span className="block text-text-muted">{resumenNc(x.descripcion)}</span>}
+            <CausasNc causas={x.causas} />
             <ComentariosCalidad texto={x.comentarios} />
           </li>
         ))}

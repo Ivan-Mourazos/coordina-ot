@@ -11,7 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
-import { papelDiseno, resumenNc, type NoConformidad } from "@/lib/no-conformidad";
+import { deLaSeccion, esMia, resumenNc, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -194,7 +194,7 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
           {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas}`} extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasSeccion seccion={seccion} incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
-          <Panel titulo="No conformidades" extra={etiquetaPeriodo} actualizando={detalleViejo}><NoConformidades nc={datos?.detalle?.nc} totales={datos?.detalle?.ncTotales} cargando={datos?.detalleCargando} /></Panel>
+          <Panel titulo="No conformidades" extra={etiquetaPeriodo} actualizando={detalleViejo}><NoConformidades nc={datos?.detalle?.nc} totales={datos?.detalle?.ncTotales} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} /></Panel>
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
           <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} sinRevision={sinRevision} /></Panel>
@@ -249,64 +249,59 @@ function IncidenciasSeccion({ seccion, incidencias, cargando }: { seccion: Secci
 
 const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
-/** Las no conformidades de la sección (proceso DISEÑO en un pedido con tareas
- *  suyas, ver `leerNcMetricas`), con el pedido que falló y en cuál se
- *  rectificó (26/10/2026). */
-function NoConformidades({ nc, totales, cargando }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; cargando?: boolean }) {
+/** Las no conformidades de la sección, con el pedido que falló y en cuál se
+ *  rectificó (26/10/2026). De la sección es lo que Calidad achaca, en sus
+ *  causas, a alguien de la sección con «error en planteamiento o diseño
+ *  gráfico»; y aparte, lo que aún no ha investigado en pedidos con tareas
+ *  suyas (ver `deLaSeccion`). Nombres de compañeros, ninguno: en Métricas cada
+ *  uno ve lo suyo (Iván, 21/10/2026). Lo mío se marca. */
+function NoConformidades({ nc, totales, cargando, seccion, miId }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; cargando?: boolean; seccion: SeccionId; miId: string }) {
   if (!nc) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
-  // Lo nuestro es DISEÑO, y no pesa igual de principal que de secundario
-  // (Iván, 26/10/2026): se cuenta cada papel por separado, en NC y en
-  // rectificados. Las sin clasificar, aparte: aún no son de nadie.
-  const filas = (["principal", "secundario", "sinClasificar"] as const).map((papel) => {
-    const de = nc.filter((x) => papelDiseno(x) === papel);
-    return { papel, n: de.length, rect: de.filter((x) => x.rectificativo).length };
-  });
-  // «DISEÑO» en mayúsculas: es el PROCESO de RPS, que abarca las tres
-  // secciones; no la sección Diseño Gráfico.
-  const nombre = { principal: "DISEÑO como principal", secundario: "DISEÑO como secundario", sinClasificar: "Sin clasificar todavía" };
+  const con = (tipo: "causa" | "pendiente") => nc.filter((x) => deLaSeccion(x, seccion) === tipo);
+  const filas = [
+    { clave: "causa", nombre: `Causa de planteamiento de ${SECCIONES[seccion].nombreCorto}`, de: con("causa") },
+    { clave: "pendiente", nombre: "Pendientes de investigar", de: con("pendiente") },
+  ];
+  const mias = nc.filter((x) => esMia(x, miId));
   return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
-    <div className="flex flex-wrap items-baseline gap-x-2" title="No conformidades de RPS en pedidos con tareas de esta sección: las que Calidad apuntó al proceso DISEÑO, como principal o secundario, y las que aún no tienen proceso. Una NC de un pedido con tareas de OT y de Diseño sale en las dos.">
-      <strong className="text-2xl leading-none font-bold tabular-nums">{nc.length}</strong>
-      <span className="text-[10px] text-text-muted">{nc.filter((x) => x.rectificativo).length} con pedido rectificativo</span>
+    <div className="flex flex-wrap items-baseline gap-x-2" title="No conformidades de RPS que Calidad achaca, en sus causas, a alguien de esta sección con «error en planteamiento o diseño gráfico»; y las que aún no ha investigado en pedidos con tareas de la sección.">
+      <strong className="text-2xl leading-none font-bold tabular-nums">{filas[0].de.length}</strong>
+      <span className="text-[10px] text-text-muted">de la sección · {filas[0].de.filter((x) => x.rectificativo).length} con pedido rectificativo{mias.length > 0 && ` · ${mias.length} tuyas`}</span>
     </div>
     <table className="w-full text-[11px]">
       <thead><tr className="text-[10px] text-text-muted"><th className="text-left font-normal" /><th className="text-right font-normal">NC</th><th className="text-right font-normal">Rectificados</th></tr></thead>
-      <tbody>{filas.map((f) => <tr key={f.papel} className={f.papel === "sinClasificar" ? "text-text-muted" : ""}>
-        <td>{nombre[f.papel]}</td>
-        <td className="text-right font-semibold tabular-nums">{f.n}</td>
-        <td className="text-right font-semibold tabular-nums">{f.rect}</td>
+      <tbody>{filas.map((f) => <tr key={f.clave} className={f.clave === "pendiente" ? "text-text-muted" : ""}>
+        <td>{f.nombre}</td>
+        <td className="text-right font-semibold tabular-nums">{f.de.length}</td>
+        <td className="text-right font-semibold tabular-nums">{f.de.filter((x) => x.rectificativo).length}</td>
       </tr>)}</tbody>
     </table>
-    {/* El % solo de la casa entera: «de todos los rectificados, cuántos son
-        de DISEÑO» lo dice RPS tal cual. El reparto por nombre (OT, Diseño,
-        Impresión) va en números, sin %: sale de las tareas del pedido, y un
-        pedido con tareas de dos secciones cuenta en las dos. */}
-    {totales && <div className="border-t border-border pt-2 text-[10px] leading-snug text-text-muted" title="Todas las no conformidades que abrió Calidad en el periodo, de cualquier proceso y sección. El proceso DISEÑO abarca OT, Diseño Gráfico e Impresión: RPS no los separa, y el reparto por sección sale de las tareas del pedido que falló.">
+    {/* La empresa entera. El % es sobre todos los rectificados de la casa.
+        Por sección, en números: una NC con causas de dos secciones cuenta en
+        las dos. Y el proceso afectado, que es otra lectura (Iván,
+        26/10/2026): DISEÑO como principal o como secundario. */}
+    {totales && <div className="border-t border-border pt-2 text-[10px] leading-snug text-text-muted" title="Todas las no conformidades que abrió Calidad en el periodo. «Nuestras» son las que tienen alguna causa de «error en planteamiento o diseño gráfico»; la sección la da la persona nombrada en la causa.">
       <p>
         En toda la empresa: <strong className="font-semibold text-text tabular-nums">{totales.rectificadas}</strong> rectificados ({totales.total} NC).
-        {" "}De DISEÑO: <strong className="font-semibold text-text tabular-nums">{totales.disenoPrincipalRectificadas}</strong> como principal ({sobre(totales.disenoPrincipalRectificadas, totales.rectificadas)})
-        {" "}y <strong className="font-semibold text-text tabular-nums">{totales.disenoSecundarioRectificadas}</strong> como secundario ({sobre(totales.disenoSecundarioRectificadas, totales.rectificadas)}).
-        {totales.sinClasificar > 0 && ` ${totales.sinClasificar} NC sin clasificar todavía.`}
+        {" "}Con causa de planteamiento o diseño gráfico: <strong className="font-semibold text-text tabular-nums">{totales.nuestrasRectificadas}</strong> ({sobre(totales.nuestrasRectificadas, totales.rectificadas)}).
+        {totales.sinInvestigar > 0 && ` ${totales.sinInvestigar} NC aún sin investigar.`}
       </p>
       <table className="mt-1.5 w-full">
-        <thead><tr><th className="text-left font-normal">DISEÑO por sección</th><th className="text-right font-normal">Principal</th><th className="text-right font-normal">Secundario</th><th className="text-right font-normal">Rectificados</th></tr></thead>
-        <tbody>{([...Object.values(SECCIONES).map((s) => [s.id, s.nombre] as const), ["ninguna", "Sin tareas de ninguna"] as const]).map(([id, nombreSeccion]) => {
-          const f = totales.porSeccion[id];
-          return <tr key={id} className={id === "ninguna" ? "" : "text-text"}>
-            <td>{nombreSeccion}</td>
-            <td className="text-right font-semibold tabular-nums">{f.principal}</td>
-            <td className="text-right font-semibold tabular-nums">{f.secundario}</td>
-            <td className="text-right font-semibold tabular-nums">{f.rectificadas}</td>
-          </tr>;
-        })}</tbody>
+        <thead><tr><th className="text-left font-normal">Por sección</th><th className="text-right font-normal">NC</th><th className="text-right font-normal">Rectificados</th></tr></thead>
+        <tbody>{Object.values(SECCIONES).map((s) => <tr key={s.id} className="text-text">
+          <td>{s.nombre}</td>
+          <td className="text-right font-semibold tabular-nums">{totales.porSeccion[s.id].n}</td>
+          <td className="text-right font-semibold tabular-nums">{totales.porSeccion[s.id].rectificadas}</td>
+        </tr>)}</tbody>
       </table>
+      <p className="mt-1.5">Proceso afectado DISEÑO: {totales.disenoPrincipal} como principal, {totales.disenoSecundario} como secundario.</p>
     </div>}
     {!nc.length ? <Vacio>Sin no conformidades en este periodo.</Vacio> : (
       <ul className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-x-hidden overflow-y-auto pr-1">
         {nc.map((x) => <li key={x.codigo} className="min-w-0 text-[11px] leading-snug" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
           <span className="font-semibold tabular-nums">{x.pedido ?? "—"}</span>
           {x.rectificativo && <span className="text-text-muted"> → <span className="font-semibold text-text tabular-nums">{x.rectificativo}</span></span>}
-          <span className="text-text-muted"> · {fechaCorta(x.fecha)} · {x.codigo} · {papelDiseno(x) === "principal" ? "principal" : papelDiseno(x) === "secundario" ? "secundario" : "sin clasificar"}</span>
+          <span className="text-text-muted"> · {fechaCorta(x.fecha)} · {x.codigo} · {deLaSeccion(x, seccion) === "pendiente" ? "sin investigar" : esMia(x, miId) ? "tuya" : "de la sección"}</span>
           {x.descripcion && <span className="block truncate text-text-muted">{resumenNc(x.descripcion, 90)}</span>}
         </li>)}
       </ul>
