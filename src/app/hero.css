@@ -89,6 +89,18 @@ html[data-estilo="hero"]:root :is(.glass-panel, .glass-panel-strong, .panel-soli
   box-shadow: var(--hero-sombra-panel);
   transform: none;
 }
+/* Las FILAS de pedido tienen que verse sobre su caja (Iván, 26/10/2026: «lo
+   importante es que las filas se vean»). Con la regla de arriba la fila y la
+   caja eran el mismo --surface. En claro, blanca con un contorno fino sobre
+   la caja gris de zona; en oscuro, un escalón más clara que la caja y con
+   contorno. Antes de los tintes de fichaje, que siguen mandando. */
+html[data-estilo="hero"]:root .fila-sombra {
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0,0,0,.05);
+}
+html[data-estilo="hero"].dark:root .fila-sombra {
+  background-color: var(--hero-relleno);
+  box-shadow: 0 0 0 1px var(--border);
+}
 /* Los tintes de fichaje son información, no acabado de aluminio. */
 html[data-estilo="hero"]:root .fila-fichando-plantear {
   background-color: color-mix(in srgb, var(--color-emerald-500) 14%, var(--surface));

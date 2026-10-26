@@ -25,13 +25,15 @@ export interface FaseMeta {
   relleno: string;
 }
 
-/** El fondo de la caja que agrupa las filas de una fase: el gris de zona con
- *  un 12 % del color de la fase. Con HeroUI la caja y las filas tenían el
- *  mismo fondo (`--surface`) y las filas no se distinguían (Iván,
- *  26/10/2026); así la caja queda por debajo de las filas y dice de un vistazo
- *  en qué fase está cada grupo. Para `style`, como `tinta` y `relleno`. */
+/** El fondo de la caja que agrupa las filas de una fase: el fondo de la
+ *  página con un 9 % del color de la fase. Con HeroUI la caja y las filas
+ *  tenían el mismo fondo (`--surface`) y las filas no se distinguían (Iván,
+ *  26/10/2026: «lo importante es que las filas se vean»). Sobre `--bg`, que es
+ *  lo más hundido de la página, y con poco tinte: con el 12 % sobre el gris de
+ *  zona, en oscuro la caja acababa del mismo tono que la fila. Para `style`,
+ *  como `tinta` y `relleno`. */
 export const fondoGrupo = (relleno: string) =>
-  `color-mix(in srgb, ${relleno} 12%, var(--hero-zona, var(--bg)))`;
+  `color-mix(in srgb, ${relleno} 9%, var(--bg))`;
 
 export const FASES: readonly FaseMeta[] = [
   // Primera, y no en su sitio del recorrido, a propósito: una devolución es la
