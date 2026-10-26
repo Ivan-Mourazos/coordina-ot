@@ -18,7 +18,8 @@ html[data-estilo="hero"] {
   --fila-filo: transparent;
   --franja: var(--surface-2);
   --recuadro: var(--bg);
-  --detalle: var(--bg);
+  /* El desplegado de una fila: ni el blanco de la fila ni el gris de la página. */
+  --detalle: #fafafa;
   --franja-ot: var(--surface-2);
   --franja-diseno: var(--surface-2);
   --franja-impresion: var(--surface-2);
@@ -67,6 +68,8 @@ html[data-estilo="hero"].dark {
   --hero-carril: #2b2b30;
   --hero-pildora: #5a5a63;
   --hero-zona: #1a1a1d;
+  /* Más claro que la fila (#202024) y que la página (#161618). */
+  --detalle: #26262b;
   --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
   --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
@@ -108,8 +111,15 @@ html[data-estilo="hero"]:root .fila-fichando-plantear {
 html[data-estilo="hero"]:root .fila-fichando-revisar {
   background-color: color-mix(in srgb, var(--color-violet-500) 16%, var(--surface));
 }
-html[data-estilo="hero"]:root :is(.recuadro, .detalle-hundido) {
+html[data-estilo="hero"]:root .recuadro {
   background: var(--bg);
+  box-shadow: none;
+}
+/* Lo que se despliega dentro de una fila (Pendientes, Historial, Revisiones…)
+   iba en --bg, el mismo fondo que la página: parecía un agujero (Iván,
+   26/10/2026). Va en su propio tono, --detalle, entre la fila y la página. */
+html[data-estilo="hero"]:root .detalle-hundido {
+  background: var(--detalle);
   box-shadow: none;
 }
 html[data-estilo="hero"]:root .cabecera-abierta {
