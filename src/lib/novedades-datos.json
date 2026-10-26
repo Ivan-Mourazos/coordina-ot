@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "6ef3c40",
+    "hasta": "dc60bf1",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -14,6 +14,12 @@
         "titulo": "En Diseño ya no vuelven a salir pedidos que estaban terminados",
         "detalle": "Tras el cambio de servidor de hoy aparecieron de golpe en Planteando y en Esperando revisión trabajos ya cerrados. Ya no salen.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Diseño desaparece todo lo de revisión y una OF finalizada ya no se reanuda por error",
+        "detalle": "«Finalizar» va en azul para no confundirlo con «Reanudar». Si finalizaste una OF antes de tiempo, la recuperas desde los tres puntos de su tarjeta.",
+        "tanda": 3
       }
     ]
   },
