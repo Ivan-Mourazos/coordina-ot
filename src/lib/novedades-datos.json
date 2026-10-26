@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "e26cea8",
+    "hasta": "5b762e2",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -37,6 +37,18 @@
         "titulo": "En Diseño desaparece todo lo de revisión y una OF finalizada ya no se reanuda por error",
         "detalle": "«Finalizar» va en azul para no confundirlo con «Reanudar». Si finalizaste una OF antes de tiempo, la recuperas desde los tres puntos de su tarjeta.",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha ves los comentarios de Calidad de cada no conformidad",
+        "detalle": "Y el pedido rectificativo abre su parte, que es donde viene escaneada la hoja de la no conformidad.",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas cuenta también las no conformidades que Calidad aún no ha clasificado",
+        "detalle": "Salen marcadas aparte, junto al total de toda la empresa en el periodo.",
+        "tanda": 5
       }
     ]
   },
