@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-26",
-    "hasta": "b0d55d1",
+    "hasta": "abff019",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -49,6 +49,11 @@
         "titulo": "Los documentos de RPS de la ficha ya no salen recortados en óvalo",
         "detalle": "Con el estilo nuevo, cada grupo de documentos y sus miniaturas se veían como una píldora que cortaba el papel.",
         "tanda": 11
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Lo que se despliega de un pedido en Pendientes e Historial ya no se confunde con el fondo",
+        "tanda": 13
       },
       {
         "tipo": "mejor",
