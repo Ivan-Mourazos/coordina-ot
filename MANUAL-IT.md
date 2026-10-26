@@ -72,27 +72,45 @@ proceso y en cluster se multiplicarían las consultas contra RPS.
 - Guarda SOLO el flujo de OT: asignaciones OF→técnico, revisor, estado del
   ciclo (planteando/por revisar/en revisión/aprobada…), pedidos completados
   y un log de acciones. Nada de esto existe en RPS.
-- **Backup**: `pnpm backup`. Cron sugerido (diario, al share de Oficina
-  Técnica):
+- **Backup**: `pnpm backup`. Diario, al NAS de copias de IT.
+
+  Es la base PROPIA de Coordina (este SQLite), no las de RPS ni OLANET: esas
+  ya las protege Veeam, esta no. Hasta el 26/10/2026 la copia de fuera iba al
+  share de Oficina Técnica del 192.168.4.113; ese equipo dejó de usarse y
+  David indicó el NAS: `\\192.168.0.248\backups_bd\Coordina`.
 
 ```bash
-# Node vive bajo nvm (/root/.nvm/versions/node/vXX/bin/node) y cron no hereda
-# el PATH: sin esto, la línea de abajo no encuentra `node` y la copia no se
-# hace, en silencio. El enlace deja un único sitio que tocar el día que se
-# actualice Node.
+# 1. Montar el NAS (una vez). Usuario con escritura en backups_bd\Coordina,
+#    en un fichero que solo lee root:
+apt-get install -y cifs-utils
+mkdir -p /mnt/backups-bd
+cat > /root/.cred-backups-bd <<'EOF2'
+username=<usuario>
+password=<contraseña>
+domain=<dominio, si lo lleva>
+EOF2
+chmod 600 /root/.cred-backups-bd
+# /etc/fstab
+//192.168.0.248/backups_bd/Coordina  /mnt/backups-bd  cifs  credentials=/root/.cred-backups-bd,uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,nofail  0  0
+mount /mnt/backups-bd && mountpoint /mnt/backups-bd
+
+# 2. Node vive bajo nvm (/root/.nvm/versions/node/vXX/bin/node) y cron no
+#    hereda el PATH: sin esto, la línea de abajo no encuentra `node` y la copia
+#    no se hace, en silencio. El enlace deja un único sitio que tocar el día
+#    que se actualice Node.
 ln -sf "$(which node)" /usr/local/bin/node
 
-# /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días)
-0 21 * * * root cd /webs/coordina-ot && /usr/local/bin/node scripts/backup-db.mjs /mnt/oftecnica/coordina-backups >> logs/backup.log 2>&1
+# 3. /etc/cron.d/coordina-backup  (a las 21:00, guarda 30 días). Sustituye a
+#    la línea vieja que apuntaba a /mnt/oftecnica.
+0 21 * * * root cd /webs/coordina-ot && /usr/local/bin/node scripts/backup-db.mjs $(mountpoint -q /mnt/backups-bd && echo /mnt/backups-bd) >> logs/backup.log 2>&1
 ```
 
 La copia va a DOS sitios: `data/backups/` (local, para recuperar rápido) y el
-share de Oficina Técnica (//192.168.4.113, para cuando el problema sea el
-disco de esta máquina). Mientras ese equipo esté caído (desde el 26/10/2026)
-la copia de fuera no llega; la local se hace igual, porque va primero. Si el
-share se queda desmontado, `/mnt/oftecnica` es una carpeta normal del disco y la
-"copia de fuera" acabaría ahí sin avisar: comprobar con `mountpoint
-/mnt/oftecnica`.
+NAS (para cuando el problema sea el disco de esta máquina). El
+`$(mountpoint …)` de la línea de cron está a propósito: si el NAS no está
+montado, `/mnt/backups-bd` es una carpeta normal del disco y la "copia de
+fuera" acabaría ahí sin avisar. Así, sin NAS, solo se hace la local, y en
+`logs/backup.log` falta la línea `Fuera:`; con NAS salen las dos.
 
 **NO se copia con `cp`.** La base va en modo WAL: lo escrito últimamente vive
 en `coordina.db-wal` hasta que SQLite lo integra, y ese fichero llega a ser
