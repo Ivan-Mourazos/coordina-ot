@@ -19,13 +19,18 @@
 
 export function VersionNueva({ onRecargar }: { onRecargar?: () => void }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[95] flex justify-center p-3">
-      <div className="glass-pop flex items-center gap-3 rounded-xl px-3 py-2 shadow-lg">
-        <span className="text-sm text-text">
-          <span className="font-semibold">Hay una versión nueva de la web.</span>{" "}
-          <span className="text-text-muted">
-            Actualiza cuando puedas; no pierdes nada de lo que estés haciendo.
-          </span>
+    // Abajo en el centro, como los avisos de Planteamientos: tarjeta sin borde,
+    // icono y título en el color del aviso y la explicación en gris. El estilo
+    // HeroUI lo remata en hero.css (`.aviso-version`).
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[95] flex justify-center p-3">
+      <div role="status" className="aviso-version glass-pop pointer-events-auto flex items-center gap-3 rounded-xl px-3 py-2 shadow-lg">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="aviso-version-icono size-5 shrink-0 text-brand-700 dark:text-brand-300" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <path d="M21 3v6h-6" />
+        </svg>
+        <span className="flex min-w-0 flex-col text-sm">
+          <span className="font-semibold text-brand-700 dark:text-brand-300">Hay una versión nueva de la web</span>
+          <span className="text-text-muted">Actualiza cuando puedas; no pierdes nada de lo que estés haciendo.</span>
         </span>
         <button
           onClick={() => (onRecargar ? onRecargar() : window.location.reload())}
