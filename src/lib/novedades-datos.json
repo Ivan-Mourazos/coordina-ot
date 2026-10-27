@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-27",
+    "hasta": "e1d33f3",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Cambiar de pestaña ya no da un salto: lo de antes se funde y lo nuevo entra suave",
+        "detalle": "También las ventanas de confirmar aparecen con el estilo nuevo.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-26",
     "hasta": "0712d16",
     "cambios": [
