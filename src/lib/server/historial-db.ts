@@ -1117,7 +1117,10 @@ function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>, nomb
     const overlay = leerOverlay();
     for (const [ofId, cambio] of overlay.ofs) {
       const partes = partirOfId(ofId);
-      if (!partes) continue;
+      // Solo las tareas de ESTE centro, como el reloj de arriba: sin el filtro,
+      // el autor de Diseño salía en el bloque de OT de la misma OF y el revisor
+      // de OT en el de Diseño (Iván, 27/10/2026, AR.26.05157).
+      if (!partes || !tareas.has(claveTareaHistorial(partes.of, partes.numope))) continue;
       if (cambio.autorId && !registrado.autor.has(partes.of))
         registrado.autor.set(partes.of, nombre(cambio.autorId));
       // Solo si se revisó de verdad, no si solo tenía revisor asignado.

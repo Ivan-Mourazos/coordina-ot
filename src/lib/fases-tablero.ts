@@ -31,9 +31,12 @@ export interface FaseMeta {
  *  26/10/2026: «lo importante es que las filas se vean»). Sobre `--bg`, que es
  *  lo más hundido de la página, y con poco tinte: con el 12 % sobre el gris de
  *  zona, en oscuro la caja acababa del mismo tono que la fila. Para `style`,
- *  como `tinta` y `relleno`. */
+ *  como `tinta` y `relleno`.
+ *
+ *  El porcentaje sale de `--tinte-grupo` (hero.css): 9 % en claro y más en
+ *  oscuro, donde el 9 % sobre el carbón apenas se veía (Iván, 27/10/2026). */
 export const fondoGrupo = (relleno: string) =>
-  `color-mix(in srgb, ${relleno} 9%, var(--bg))`;
+  `color-mix(in srgb, ${relleno} var(--tinte-grupo, 9%), var(--bg))`;
 
 export const FASES: readonly FaseMeta[] = [
   // Primera, y no en su sitio del recorrido, a propósito: una devolución es la

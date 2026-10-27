@@ -366,3 +366,9 @@ html[data-estilo="hero"]:root .metricas-cifra {
   border: 0;
   border-radius: 12px;
 }
+
+/* Cuánto color de la fase lleva la caja de cada grupo (fondoGrupo en fases-tablero.ts). En claro, el 9 % sobre gris ya
+   se ve; en oscuro, sobre el carbón, apenas (Iván, 27/10/2026: «los colores de detrás se ven muy poco en modo oscuro»).
+   Las filas (--hero-relleno) siguen más claras que la caja. */
+html[data-estilo="hero"]:root { --tinte-grupo: 9%; }
+html[data-estilo="hero"].dark:root { --tinte-grupo: 20%; }

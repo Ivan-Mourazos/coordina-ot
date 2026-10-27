@@ -15,14 +15,16 @@ export function DetalleVenta({
 }: {
   texto: string;
   /** Al lado del material, en la misma fila (la ficha del Historial): sin
-   *  sangría propia, y al abrirse ocupa la fila entera para que el texto no
-   *  se lea en una columna estrecha. */
+   *  sangría propia. El botón NO se mueve al abrir (Iván, 27/10/2026: «según
+   *  abra la descripción está en un sitio u otro»): el contenedor no hace caja
+   *  (`contents`), así el botón es un elemento más de la fila y el texto, al
+   *  abrirse, baja a una línea propia de ancho entero. */
   enFila?: boolean;
 }) {
   const id = useId();
   const { abierto, alternar } = useElementoAcordeon("descripciones");
   return (
-    <div className={enFila ? (abierto ? "basis-full" : "") : "mt-1 px-2.5"}>
+    <div className={enFila ? "contents" : "mt-1 px-2.5"}>
       <button
         type="button"
         onClick={alternar}
@@ -42,7 +44,7 @@ export function DetalleVenta({
         </svg>
         {abierto ? "Ocultar descripción" : "Descripción"}
       </button>
-      <div id={id}>
+      <div id={id} className={enFila ? (abierto ? "basis-full" : "hidden") : undefined}>
         <Desplegable abierto={abierto}>
           <p className="mt-1 whitespace-pre-line recuadro rounded-lg px-2 py-1.5 text-[11px] leading-5 text-text">
             {texto}

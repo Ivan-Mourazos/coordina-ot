@@ -313,13 +313,26 @@ export function TareasDeOF({
             >
               {vacia && claseBarra !== undefined ? "—" : fmtMin(tarea.tiempoImputadoMin)}
             </span>
-            {conBarra && !vacia && (
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-0 left-0 h-0.5 rounded-full opacity-70 ${claseBarra}`}
-                style={{ width: `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%` }}
-              />
-            )}
+            {conBarra && !vacia && (() => {
+              const ancho = `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%`;
+              // Con papeles (OT), la raya se parte en planteo (verde) y
+              // revisión (violeta), los colores de Autor y Revisor (Iván,
+              // 27/10/2026): «Plantear y preparar» lleva las dos cosas dentro y
+              // la raya entera solo decía el total. Sin papeles, del centro.
+              const revision = rolDe
+                ? tarea.personas.filter((p) => rolDe(p.nombre)?.rol === "revisar").reduce((n, p) => n + p.min, 0)
+                : 0;
+              const parteRevision = rolDe && tarea.tiempoImputadoMin > 0 ? Math.min(1, revision / tarea.tiempoImputadoMin) : 0;
+              if (!rolDe) {
+                return <span aria-hidden="true" className={`absolute bottom-0 left-0 h-0.5 rounded-full opacity-70 ${claseBarra}`} style={{ width: ancho }} />;
+              }
+              return (
+                <span aria-hidden="true" className="absolute bottom-0 left-0 flex h-0.5 overflow-hidden rounded-full opacity-80" style={{ width: ancho }}>
+                  <span className="h-full" style={{ width: `${(1 - parteRevision) * 100}%`, background: ROL.plantear.color }} />
+                  {parteRevision > 0 && <span className="h-full" style={{ width: `${parteRevision * 100}%`, background: ROL.revisar.color }} />}
+                </span>
+              );
+            })()}
             {personas.length > 0 && !rolDe && (
               <p
                 className="col-span-2 truncate text-[11px] leading-snug text-text-muted @[22rem]:col-span-1 @[22rem]:col-start-2 @[22rem]:row-start-1 @[22rem]:max-w-[16rem] @[22rem]:text-right @[44rem]:max-w-none @[44rem]:whitespace-normal @[44rem]:text-left"

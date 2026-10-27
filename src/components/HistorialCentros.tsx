@@ -6,6 +6,7 @@ import { ROL } from "@/lib/estado";
 import { fmtDiaMesAno } from "@/lib/fechas";
 import type { SeccionId } from "@/lib/secciones";
 import { TareasPorCentro } from "./HistorialTareas";
+import { rangoCentro } from "@/lib/historial-centros";
 import { DetalleVenta } from "./DetalleVenta";
 import {
   BOTON_DETALLE,
@@ -35,9 +36,13 @@ export function OFsDeLaFicha({
   gastado?: Record<string, MaterialGastadoOF[]> | null;
   onReintentarGastado?: () => void;
 }) {
-  // El material y el texto de venta pertenecen a la OF, no al centro.
+  // El material y el texto de venta pertenecen a la OF, no al centro: van en
+  // la primera entrada DE LAS QUE SE PINTAN, en el orden de los centros
+  // (`rangoCentro`). En el orden en que llegan, la «Descripción» salía en el
+  // bloque de Diseño y no en el de OT, que va primero (Iván, 27/10/2026).
   const porCodigo = new Map<string, HistorialOF[]>();
-  for (const of of ofs) {
+  const enOrden = [...ofs].sort((a, b) => rangoCentro(a.centro ?? "ot", seccion) - rangoCentro(b.centro ?? "ot", seccion));
+  for (const of of enOrden) {
     const entradas = porCodigo.get(of.codigo) ?? [];
     entradas.push(of);
     porCodigo.set(of.codigo, entradas);
