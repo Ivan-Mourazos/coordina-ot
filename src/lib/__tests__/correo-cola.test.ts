@@ -137,7 +137,7 @@ describe("el trabajador", () => {
     expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
     expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO");
     // Sale en HTML (negritas y tamaños); el texto queda de respaldo.
-    expect(enviados[0].html).toContain("<b>OF 0232968</b> · TOLDO PUNTO RECTO");
+    expect(enviados[0].html).toContain("0232968</b>&nbsp; TOLDO PUNTO RECTO");
     expect(enviados[0].html).toContain("PLANTEAMIENTO");
     expect(enviados[0].adjuntos[0].nombre).toBe("AR2605016-10.pdf");
     expect(enviados[0].adjuntos[0].bytes.length).toBeGreaterThan(0);
@@ -165,9 +165,9 @@ describe("el trabajador", () => {
       expect(enviados[0].asunto).toBe("Impreso AR.26.05016 · Bar Central");
       expect(enviados[0].texto).toContain("Impreso en Producción: AR2605016-1.pdf");
       expect(enviados[0].texto).not.toContain("Adjunto");
-      // Lleva lo mismo que el de PVC: pedido, cada OF con sus tiempos y quién lo pasó.
+      // Lleva lo mismo que el de PVC: pedido, cada OF con su autor y revisor y quién lo pasó.
       expect(enviados[0].texto).toContain("Pedido AR.26.05016 · Bar Central");
-      expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO\n   Planteo 30 min (Tamara) · Sin revisión");
+      expect(enviados[0].texto).toContain("OF 0232968 · TOLDO PUNTO RECTO\n   Autor: Tamara · Sin revisión");
       expect(enviados[0].texto).toContain("Pasado a Producción por: Iván Sánchez");
     } finally {
       delete process.env.IMPRESION_PRODUCCION;
@@ -255,7 +255,7 @@ describe("reenviar", () => {
     await cola.reenviarUltimo("AR.26.05016", "ivan", T0, async () => planteamientos(["AR2605016-10.pdf", EXISTE, true]));
     const enviados: Correo[] = [];
     await worker.vueltaCorreo(T0, vi.fn(async (c: Correo) => { enviados.push(c); }));
-    expect(enviados[0].html).toContain("<b>OF 0232968</b>");
+    expect(enviados[0].html).toContain("0232968</b>");
   });
 
   it("sin correo previo no hay nada que reenviar", async () => {
