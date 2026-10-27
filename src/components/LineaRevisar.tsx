@@ -105,7 +105,7 @@ export function LineaRevisar({
         {/* Se esconde cuando aparece el botón encima, igual que en PedidoLinea:
             el fondo de la fila es translúcido y el texto se vería a través. */}
         <span
-          className={`flex shrink-0 items-center justify-end gap-2 text-[10px] ${
+          className={`flex shrink-0 items-center justify-end gap-2 whitespace-nowrap text-[10px] ${
             fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
           }`}
         >
