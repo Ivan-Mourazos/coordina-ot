@@ -1,13 +1,18 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "e1d33f3",
+    "hasta": "280173d",
     "cambios": [
       {
         "tipo": "mejor",
         "titulo": "Cambiar de pestaña ya no da un salto: lo de antes se funde y lo nuevo entra suave",
         "detalle": "También las ventanas de confirmar aparecen con el estilo nuevo.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El aviso de que hay una versión nueva de la web se ve con el estilo nuevo",
+        "tanda": 2
       }
     ]
   },
