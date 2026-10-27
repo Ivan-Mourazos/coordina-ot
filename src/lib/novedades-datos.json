@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "2caa0e6",
+    "hasta": "cb05219",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -45,6 +45,11 @@
         "tipo": "arreglado",
         "titulo": "En «Te toca revisar», «Por empezar» partía cada pedido en dos renglones; ya va en una línea",
         "tanda": 13
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En el Historial, el autor o revisor de Diseño ya no aparece en Oficina Técnica, ni al revés",
+        "tanda": 14
       },
       {
         "tipo": "mejor",
@@ -93,6 +98,21 @@
         "tipo": "mejor",
         "titulo": "El correo que sale al pasar un pedido a Producción tiene el estilo nuevo y dice solo quién planteó y quién revisó, sin tiempos",
         "tanda": 12
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La raya de cada tarea de Oficina Técnica distingue lo que fue planteo (verde) y revisión (violeta)",
+        "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La descripción de la OF sale una sola vez y su botón no se mueve al abrirla",
+        "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En modo oscuro se distingue mejor el color de cada fase en el panel",
+        "tanda": 14
       }
     ]
   },
