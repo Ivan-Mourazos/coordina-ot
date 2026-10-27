@@ -54,6 +54,7 @@ import {
   avisaParteNuevo,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
+import { useContenidoFluido } from "@/lib/useContenidoFluido";
 import { ahoraDelServidor, desfaseDeCabecera, fijarDesfaseServidor } from "@/lib/reloj-servidor";
 import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
@@ -613,6 +614,8 @@ export function Board({
   const closeExpanded = useCallback(() => setExpandedId(null), []);
 
   const [vista, setVista] = useState<Vista>(() => vistaDeUrl() ?? "asignar");
+  // Al cambiar de pestaña, lo de debajo de la cabecera entra con un fundido.
+  const zonaFluida = useContenidoFluido(vista);
   // Cambiar de sección, y si la nueva no tiene revisión (Impresión Digital),
   // salir de «Revisiones», que ahí no existe: al Panel.
   const irASeccion = (sec: SeccionId) => {
@@ -2607,7 +2610,7 @@ export function Board({
           gana nada con más ancho, se quedaba pegada a la izquierda con media
           pantalla vacía. Centrando el conjunto y no cada pestaña por su cuenta,
           nada salta de sitio al pasar de una a otra. Hasta 1.800 px no cambia. */}
-      <div className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
+      <div ref={zonaFluida} data-fluido className="mx-auto flex min-h-full w-full max-w-[1800px] flex-col">
         {/* topbar */}
         {/* Tres zonas y no una fila que se reparte como puede: identidad y
             navegación a la izquierda, el buscador CENTRADO, y a la derecha los

@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./hero.css";
+import "./transiciones.css";
 import { PistasGlobales } from "@/components/Pista";
 import { PildorasDeslizantes } from "@/components/PildorasDeslizantes";
+import { PestanasFluidas } from "@/components/PestanasFluidas";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +53,7 @@ export default function RootLayout({
             momento y con el teclado, en vez del recuadro gris del sistema. */}
         <PistasGlobales />
         <PildorasDeslizantes />
+        <PestanasFluidas />
       </body>
     </html>
   );

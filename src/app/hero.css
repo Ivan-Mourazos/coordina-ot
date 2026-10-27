@@ -290,3 +290,23 @@ html[data-estilo="hero"]:root .pedido-panel.glass-panel-strong {
 html[data-estilo="hero"]:root .pedido-panel.glass-panel-strong :is(.glass-chip, .chip-3d):not(.boton-3d):not(.pestana-activa):not(.glass-chip-activo) {
   background-color: var(--hero-relleno-encima);
 }
+
+/* Diálogo de confirmar como los de HeroUI, igual que en Planteamientos (Iván, 26/10/2026): tarjeta muy redondeada sin
+   borde, sombra suave, entra subiendo un poco sobre un telón oscurecido y desenfocado; Cancelar en gris de píldora.
+   La entrada anima `transform` y no `translate`: el centrado del cuadro va en `translate` y no se toca. */
+html[data-estilo="hero"]:root .dialogo-telon { backdrop-filter: blur(6px); background: rgba(9, 9, 11, 0.38); }
+html[data-estilo="hero"]:root .dialogo-confirmar.glass-panel-strong {
+  animation: dialogo-hero-entra 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  border-radius: 24px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 30px 80px -24px rgba(0, 0, 0, 0.45);
+  padding: 22px 22px 18px;
+}
+html[data-estilo="hero"].dark:root .dialogo-confirmar.glass-panel-strong {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 80px -24px rgba(0, 0, 0, 0.8);
+}
+html[data-estilo="hero"]:root .dialogo-confirmar .dialogo-cancelar { background: var(--hero-relleno); border: 0; color: var(--text); }
+html[data-estilo="hero"]:root .dialogo-confirmar .dialogo-cancelar:hover { background: var(--hero-relleno-encima); }
+@keyframes dialogo-hero-entra { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-estilo="hero"]:root .dialogo-confirmar.glass-panel-strong { animation: none; }
+}

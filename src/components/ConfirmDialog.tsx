@@ -110,7 +110,7 @@ export function ConfirmDialog({
       aria-labelledby={idTitulo}
       aria-describedby={idMensaje}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
+      <div className="dialogo-telon absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancelar} />
       {/* Con techo (`max-h`) y en columna, y el que scrollea es el MENSAJE.
           Antes el cuadro crecía sin freno desde `top-1/3`: al fichar muchas OF
           el mensaje las enumera una por línea, así que a partir de unas cuantas
@@ -119,7 +119,7 @@ export function ConfirmDialog({
           telón es `fixed inset-0` y no scrollea. Dejando fuera del scroll el
           título y los botones, esos dos siempre se ven, y la lista larga se
           recorre por dentro. */}
-      <div className="glass-panel-strong absolute left-1/2 top-1/3 flex max-h-[60vh] w-full max-w-sm -translate-x-1/2 flex-col rounded-2xl p-4">
+      <div className="dialogo-confirmar glass-panel-strong absolute left-1/2 top-1/3 flex max-h-[60vh] w-full max-w-sm -translate-x-1/2 flex-col rounded-2xl p-4">
         <h3 id={idTitulo} className="shrink-0 text-sm font-bold text-text">
           {titulo}
         </h3>
@@ -140,7 +140,7 @@ export function ConfirmDialog({
         <div className="mt-4 flex shrink-0 justify-end gap-2">
           <button
             onClick={onCancelar}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-text"
+            className="dialogo-cancelar rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-text"
           >
             Cancelar
           </button>
