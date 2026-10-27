@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "cb05219",
+    "hasta": "d736d14",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -50,6 +50,11 @@
         "tipo": "arreglado",
         "titulo": "En el Historial, el autor o revisor de Diseño ya no aparece en Oficina Técnica, ni al revés",
         "tanda": 14
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Diseño ya no sale «Revisor» en las tareas: allí no se revisa, y lo ponía a quien cortaba el vinilo",
+        "tanda": 15
       },
       {
         "tipo": "mejor",
@@ -113,6 +118,11 @@
         "tipo": "mejor",
         "titulo": "En modo oscuro se distingue mejor el color de cada fase en el panel",
         "tanda": 14
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas de un pedido van sin rayas, y en las de autor y revisor ya no se repite el tiempo total",
+        "tanda": 15
       }
     ]
   },
