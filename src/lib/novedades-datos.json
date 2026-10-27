@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "e49595a",
+    "hasta": "7d50973",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -30,6 +30,11 @@
         "tipo": "arreglado",
         "titulo": "El botón de Plantear o Revisar de la ficha se veía metido hacia dentro; ya va alineado a la derecha",
         "tanda": 9
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El selector de mes de Métricas cambiaba de forma al pasar el ratón o al pulsarlo",
+        "tanda": 10
       },
       {
         "tipo": "mejor",
@@ -62,6 +67,12 @@
         "tipo": "mejor",
         "titulo": "En el Historial, Oficina Técnica, Diseño, Impresión y Taller de un pedido salen uno al lado del otro",
         "tanda": 8
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Métricas los paneles ya no dejan huecos vacíos y los pedidos rectificados se ven sin desplegar ni hacer scroll",
+        "detalle": "Pulsa un pedido rectificado para abrir su ficha con la no conformidad; al pasar el ratón solo sale un resumen.",
+        "tanda": 10
       }
     ]
   },
