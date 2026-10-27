@@ -251,9 +251,9 @@ export function TareasDeOF({
     if (revisores?.includes(nombre)) return { rol: "revisar" as const, deducido: !reparto.consta };
     return undefined;
   } : undefined);
-  // La barra mide la parte de la OF, también cuando una tarea ocupa todo.
-  const conTiempo = of.tareas.filter((t) => t.tiempoImputadoMin > 0);
-  const totalOF = conTiempo.reduce((n, t) => n + t.tiempoImputadoMin, 0);
+  // Sin rayas (Iván, 27/10/2026: «si las rayas lían, las quitamos»): el
+  // tiempo de cada tarea ya va en cifras. `claseBarra` sigue diciendo si es la
+  // vista de detalle (la que pinta «—» y junta las tareas sin tiempo).
   const conBarra = claseBarra !== undefined;
   // Las tareas sin un minuto y sin nadie, juntas en UNA línea al final: en
   // Taller una OF lleva cinco o seis, y cada una gastaba un renglón entero
@@ -274,6 +274,10 @@ export function TareasDeOF({
           .filter((p) => p.min > 0 || (rolDe && rolDe(p.nombre)))
           .sort(porMinutos);
         const vacia = tarea.tiempoImputadoMin <= 0;
+        // Con autor y revisor, cada uno lleva SUS minutos en su etiqueta, y el
+        // total de la OF sale arriba: el de la tarea sobraba (Iván,
+        // 27/10/2026), y su columna se la queda el nombre de la tarea.
+        const sinTotal = Boolean(rolDe) && personas.length > 0;
         return (
           // DOS RENGLONES, no tres columnas. Eran
           // `grid-cols-[minmax(0,1fr)_auto_56px]`, y esa columna `auto` del
@@ -300,39 +304,23 @@ export function TareasDeOF({
           // nombre recortado.
           <div
             key={tarea.codigo}
-            className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 py-1 ${rolDe ? "" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} @[44rem]:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_3.5rem] ${vacia ? "text-text-muted" : ""}`}
+            className={`grid items-baseline gap-x-3 py-1 ${
+              sinTotal
+                ? "grid-cols-[minmax(0,1fr)] @[44rem]:grid-cols-[minmax(0,1fr)_auto]"
+                : `grid-cols-[minmax(0,1fr)_auto] ${rolDe ? "" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} @[44rem]:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_3.5rem]`
+            } ${vacia ? "text-text-muted" : ""}`}
           >
             <span className="min-w-0 truncate leading-snug" title={`${tarea.codigo} ${tarea.descripcion}`}>
               <span className="font-mono text-[10px] text-text-muted">{tarea.codigo}</span>{" "}
               {tarea.descripcion}
             </span>
-            <span
+            {!sinTotal && <span
               className={`shrink-0 text-right font-mono tabular-nums ${rolDe ? "" : "@[22rem]:col-start-3 @[22rem]:row-start-1"} @[44rem]:col-start-3 @[44rem]:row-start-1 ${vacia ? "" : "font-semibold"} ${
                 vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
               }`}
             >
               {vacia && claseBarra !== undefined ? "—" : fmtMin(tarea.tiempoImputadoMin)}
-            </span>
-            {conBarra && !vacia && (() => {
-              const ancho = `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%`;
-              // Con papeles (OT), la raya se parte en planteo (verde) y
-              // revisión (violeta), los colores de Autor y Revisor (Iván,
-              // 27/10/2026): «Plantear y preparar» lleva las dos cosas dentro y
-              // la raya entera solo decía el total. Sin papeles, del centro.
-              const revision = rolDe
-                ? tarea.personas.filter((p) => rolDe(p.nombre)?.rol === "revisar").reduce((n, p) => n + p.min, 0)
-                : 0;
-              const parteRevision = rolDe && tarea.tiempoImputadoMin > 0 ? Math.min(1, revision / tarea.tiempoImputadoMin) : 0;
-              if (!rolDe) {
-                return <span aria-hidden="true" className={`absolute bottom-0 left-0 h-0.5 rounded-full opacity-70 ${claseBarra}`} style={{ width: ancho }} />;
-              }
-              return (
-                <span aria-hidden="true" className="absolute bottom-0 left-0 flex h-0.5 overflow-hidden rounded-full opacity-80" style={{ width: ancho }}>
-                  <span className="h-full" style={{ width: `${(1 - parteRevision) * 100}%`, background: ROL.plantear.color }} />
-                  {parteRevision > 0 && <span className="h-full" style={{ width: `${parteRevision * 100}%`, background: ROL.revisar.color }} />}
-                </span>
-              );
-            })()}
+            </span>}
             {personas.length > 0 && !rolDe && (
               <p
                 className="col-span-2 truncate text-[11px] leading-snug text-text-muted @[22rem]:col-span-1 @[22rem]:col-start-2 @[22rem]:row-start-1 @[22rem]:max-w-[16rem] @[22rem]:text-right @[44rem]:max-w-none @[44rem]:whitespace-normal @[44rem]:text-left"
@@ -342,7 +330,7 @@ export function TareasDeOF({
               </p>
             )}
             {personas.length > 0 && rolDe && (
-              <p className="col-span-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[44rem]:col-span-1 @[44rem]:col-start-2 @[44rem]:row-start-1">
+              <p className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[44rem]:col-start-2 @[44rem]:row-start-1 @[44rem]:justify-end">
                 {/* Sin «·» entre personas: al partirse la línea se quedaba al
                     principio del renglón siguiente. El hueco las separa. */}
                 {personas.map((p) => {

@@ -46,14 +46,13 @@ describe("las fichas comparten el desglose por centro de Pendientes", () => {
     expect(html).not.toContain("Abrir todas");
   });
 
-  it("mantiene las barras proporcionales y la raya de las tareas sin tiempo", () => {
+  it("sin rayas (27/10/2026): cada tarea con su tiempo, y «—» en la que no tiene", () => {
     const html = pinta([conTareas("1", "taller", [
       { codigo: "7", descripcion: "CORTAR", personas: [{ nombre: "María", min: 30 }] },
       { codigo: "8", descripcion: "SOLDAR", personas: [{ nombre: "Teresa", min: 10 }] },
       { codigo: "9", descripcion: "EMBALAR", personas: [] },
     ])]);
-    expect(html).toContain('width:75%');
-    expect(html).toContain('width:25%');
+    expect(html).not.toContain("absolute bottom-0");
     expect(html).toContain("EMBALAR");
     expect(html).toContain("—");
     expect(html).not.toContain(">0m<");
