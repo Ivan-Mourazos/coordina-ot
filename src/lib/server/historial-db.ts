@@ -755,7 +755,13 @@ export async function leerHistorialPedido(pedido: string): Promise<HistorialOF[]
     const conRoles = anadirDesgloseRol(ofs.filter((of) => of.centro === centro), tareas, nombres);
     for (const of of conRoles) {
       const index = ofs.findIndex((o) => o.centro === centro && o.codigo === of.codigo);
-      ofs[index] = deducirRoles(of, new Map(of.personas?.map((p) => [p.nombre, p.min])));
+      // Donde nadie revisa (Diseño, Impresión) no se deducen papeles: con las
+      // horas de RPS, quien echó menos tiempo salía de «Revisor», y en Diseño
+      // era quien cortó el vinilo (Iván, 27/10/2026, AR.26.05157). Allí cada
+      // tarea dice solo quién y cuánto; el autor registrado en Coordina sigue.
+      ofs[index] = SECCIONES[centro].sinRevision
+        ? of
+        : deducirRoles(of, new Map(of.personas?.map((p) => [p.nombre, p.min])));
     }
   }
   for (const of of ofs) {
