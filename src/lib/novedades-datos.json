@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "f05a188",
+    "hasta": "2a2b83d",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -30,6 +30,12 @@
         "tipo": "mejor",
         "titulo": "El aviso de que hay una versión nueva de la web se ve con el estilo nuevo",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las tareas y tiempos de un pedido, sus no conformidades y la lista de rectificados ocupan mucho menos",
+        "detalle": "Cada tarea va en una línea con quién y cuánto, las tareas sin tiempo se juntan en una, y lo que escribió Calidad se lee en «Ver detalles» o al pasar el ratón.",
+        "tanda": 6
       }
     ]
   },
