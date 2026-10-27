@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "d736d14",
+    "hasta": "8cbfca4",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -55,6 +55,11 @@
         "tipo": "arreglado",
         "titulo": "En Diseño ya no sale «Revisor» en las tareas: allí no se revisa, y lo ponía a quien cortaba el vinilo",
         "tanda": 15
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La ficha avisaba de operaciones de Oficina Técnica «sin finalizar» que ya estaban cerradas antes del cambio de servidor de OLANET",
+        "tanda": 16
       },
       {
         "tipo": "mejor",
