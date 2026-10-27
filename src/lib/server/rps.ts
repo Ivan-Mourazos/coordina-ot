@@ -1744,3 +1744,15 @@ export function precalentarTablero(): void {
   // No mantener vivo el proceso solo por el timer.
   globalThis.__coordinaPrecalentado.unref?.();
 }
+
+/** Las fases que RPS ya da por terminadas, de entre estas. Lo usa el aviso de
+ *  «operaciones sin finalizar» de la ficha: desde el cambio de servidor de
+ *  OLANET (26/10/2026), su `scg_Fases` del 0.124 no tiene los cierres hechos en
+ *  el 4.113, y la ficha avisaba de operaciones que Producción ya había seguido
+ *  (OF 0233185-87: cerradas el 22/10 y en OLANET «cargadas», 28/10/2026). La
+ *  regla es la misma que la del tablero de Diseño (`clavesTerminadasEnRps`). */
+export async function fasesTerminadasEnRps(fases: readonly { of: string; fase: string }[]): Promise<Set<string>> {
+  if (fases.length === 0) return new Set();
+  const { getPool } = await import("./db");
+  return clavesTerminadasEnRps(await getPool(), fases);
+}

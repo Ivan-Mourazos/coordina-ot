@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { exigir, identidad, loginActivo } from "@/lib/server/sesion";
+import { ESTADO_OF } from "@/lib/fase-pendiente";
 
 // ─── /api/fases ──────────────────────────────────────────────────────────────
 // GET: en qué estado tiene OLANET las fases de estas OF.
@@ -39,8 +40,22 @@ export async function GET(req: Request) {
 
   try {
     const { fasesDeOFs } = await import("@/lib/server/olanet");
+    const fases = await fasesDeOFs(ofs);
+    // Lo que RPS ya da por terminado no se avisa como «sin finalizar»: el
+    // OLANET del 0.124 no tiene los cierres hechos antes del cambio de
+    // servidor (26/10/2026). Si RPS no contesta, se enseña lo de OLANET tal
+    // cual: mejor un aviso de más que esconder uno de verdad.
+    let terminadas = new Set<string>();
+    try {
+      const { fasesTerminadasEnRps, claveFase } = await import("@/lib/server/rps");
+      const vivas = fases.filter((f) => f.estado !== ESTADO_OF.finalizada && f.estado !== ESTADO_OF.eliminada);
+      const enRps = await fasesTerminadasEnRps(vivas);
+      terminadas = new Set(vivas.filter((f) => enRps.has(claveFase(f.of, f.fase))).map((f) => f.idBoletin));
+    } catch (e) {
+      console.warn("[coordina] no se pudo contrastar las fases con RPS:", (e as Error).message);
+    }
     return NextResponse.json(
-      { fases: await fasesDeOFs(ofs) },
+      { fases: fases.map((f) => (terminadas.has(f.idBoletin) ? { ...f, estado: ESTADO_OF.finalizada } : f)) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
