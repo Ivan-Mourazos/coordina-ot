@@ -1,8 +1,14 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "f2fa695",
+    "hasta": "e49595a",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Las puertas de lona y las lonas de System Dock llevan botón «Plantear» en la ficha",
+        "detalle": "Abre Planteamientos con el pedido ya cargado, como con los toldos y los remolques.",
+        "tanda": 9
+      },
       {
         "tipo": "arreglado",
         "titulo": "En el panel, los pedidos con «Parte nuevo» o «Detenida» ya no salen cortados por los lados",
@@ -19,6 +25,11 @@
         "titulo": "El Historial y el buscador se quedaban cargando y no salía nada; ya cargan",
         "detalle": "Justo después de actualizar la web pueden tardar un par de minutos en ir rápidos.",
         "tanda": 5
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El botón de Plantear o Revisar de la ficha se veía metido hacia dentro; ya va alineado a la derecha",
+        "tanda": 9
       },
       {
         "tipo": "mejor",
