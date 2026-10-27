@@ -697,14 +697,18 @@ export function Board({
         // apunta la primera que llega y a partir de ahí solo se compara. Si
         // cambia es que se ha desplegado: esta pestaña se ha quedado con el
         // código viejo y hay que decírselo a quien la tiene delante (ver
-        // `VersionNueva`). En desarrollo la cabecera vale "dev" y no cambia.
-        const version = r.headers.get("X-Coordina-Version");
+        // `VersionNueva`). En desarrollo vale "dev" y no cambia.
+        //
+        // Se lee del JSON antes que de la cabecera: en producción la cabecera
+        // no llegaba al navegador (nginx se la quedaba por el camino) y el
+        // aviso no salía nunca (Iván, 27/10/2026).
+        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string; version?: string };
+        const version = t.version ?? r.headers.get("X-Coordina-Version");
         if (version && version !== "dev") {
           if (!versionCargada.current) versionCargada.current = version;
           else if (versionCargada.current !== version) setHayVersionNueva(true);
         }
 
-        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string };
         // Un sondeo arrancado antes del pase no puede reponer la foto vieja
         // después de que el servidor haya confirmado el envío.
         if (revisionAlPedir !== revisionGuardadaSeq.current) return;

@@ -38,19 +38,24 @@ export async function GET(req: Request) {
       ? seccionDeOperario(operarioId)
       : undefined;
   const tablero = await getTablero(seccion);
-  return NextResponse.json(tablero, {
+  // QUÉ VERSIÓN ESTÁ SIRVIENDO ESTE SERVIDOR. El Board ya pregunta aquí cada
+  // 30 s: comparándola con la que tenía al cargar se entera de un despliegue
+  // sin una sola petición más.
+  //
+  // Hace falta porque una pestaña abierta desde antes se queda con el código
+  // viejo, y con Next eso además se rompe: los trozos de JavaScript de la
+  // versión anterior ya no existen en el servidor y al navegar dan 404. Ver
+  // `VersionNueva`.
+  //
+  // DENTRO DEL JSON, no solo en cabecera: en producción la cabecera no llegaba
+  // al navegador —el nginx de delante se la quedaba— y el aviso no salía
+  // nunca (Iván, 27/10/2026). El cuerpo no lo toca ningún intermediario. La
+  // cabecera se queda para las pestañas abiertas con el código de antes.
+  const version = versionDelServidor();
+  return NextResponse.json({ ...tablero, version }, {
     headers: {
       "Cache-Control": "no-store",
-      // QUÉ VERSIÓN ESTÁ SIRVIENDO ESTE SERVIDOR. Va como cabecera y no dentro
-      // del JSON para no tocar el tipo del tablero por algo que no es del
-      // tablero. El Board ya pregunta aquí cada 30 s: comparándola con la que
-      // tenía al cargar se entera de un despliegue sin una sola petición más.
-      //
-      // Hace falta porque una pestaña abierta desde antes se queda con el
-      // código viejo, y con Next eso además se rompe: los trozos de JavaScript
-      // de la versión anterior ya no existen en el servidor y al navegar dan
-      // 404. Ver `VersionNueva`.
-      "X-Coordina-Version": versionDelServidor(),
+      "X-Coordina-Version": version,
     },
   });
 }
