@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "b8c71e9",
+    "hasta": "2caa0e6",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -40,6 +40,11 @@
         "tipo": "arreglado",
         "titulo": "El botón «Asignar» de las miniaturas de la bandeja salía como una cápsula; vuelve a ser una barra al pie",
         "tanda": 11
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En «Te toca revisar», «Por empezar» partía cada pedido en dos renglones; ya va en una línea",
+        "tanda": 13
       },
       {
         "tipo": "mejor",
