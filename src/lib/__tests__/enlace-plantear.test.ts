@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, enlacePlantear, esPuertaDeLona } from "../herramientas";
+import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, enlacePlantear, esLonaSystemDock, esPuertaDeLona } from "../herramientas";
 
 describe("enlacePlantear", () => {
   it("abre Planteamientos TGM con el pedido, sin puntos", () => {
@@ -171,5 +171,35 @@ describe.runIf(PUERTAS_EN_PLANTEAMIENTOS)("botonPlantear con puertas", () => {
     expect(botonPlantear("AR.26.04351", [toldo("aprobada"), puerta("aprobada", { codigoArticulo: "PUERTAPLE" })])?.modo).toBe("abrir");
     // La seccional no cuenta: con el toldo aprobado queda Abrir, no Plantear.
     expect(botonPlantear("AR.26.04351", [toldo("aprobada"), puerta("pendiente", { descripcion: "PUERTA SECCIONAL" })])?.modo).toBe("abrir");
+  });
+});
+
+// ── Lonas de System Dock (27/10/2026) ──
+const lonaSd = (estado: string) => ({
+  familia: "LONA",
+  estado,
+  autorId: null,
+  descripcion: "LONA PERIMETRAL 10400X550 (ESTANDAR)",
+  codigoArticulo: "A110210400550-4",
+});
+
+describe("esLonaSystemDock", () => {
+  it("la lona perimetral de System Dock, sea cual sea su familia aquí", () => {
+    expect(esLonaSystemDock({ descripcion: "LONA PERIMETRAL 10400X550 (ESTANDAR)" })).toBe(true);
+    expect(esLonaSystemDock({ descripcion: "LONA PERIMETRAL 12700X550" })).toBe(true);
+  });
+  it("otras lonas no", () => {
+    expect(esLonaSystemDock({ descripcion: "LONA PARA PUERTA ENROLLABLE" })).toBe(false);
+    expect(esLonaSystemDock({ descripcion: "LONA CUBRE PISCINAS BICOLOR" })).toBe(false);
+    expect(esLonaSystemDock({})).toBe(false);
+  });
+});
+
+describe.runIf(PUERTAS_EN_PLANTEAMIENTOS)("botonPlantear con System Dock", () => {
+  it("una lona perimetral pendiente es Plantear, con ?pedido=", () => {
+    expect(botonPlantear("AR.26.04351", [lonaSd("pendiente")])).toEqual({ modo: "plantear", url: PEDIDO });
+  });
+  it("los portes del pedido no cuentan", () => {
+    expect(botonPlantear("AR.26.04351", [lonaSd("aprobada"), { familia: "OTRO", estado: "pendiente", autorId: null, descripcion: "PORTES" }])?.modo).toBe("abrir");
   });
 });

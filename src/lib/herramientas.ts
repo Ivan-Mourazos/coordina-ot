@@ -122,17 +122,28 @@ function urlPlanteamientos(codigo: string): string | null {
  *  PUERTAPLETRAM) y la PUERTARAPIDA, no. */
 const ARTICULOS_PUERTA_PLANTEABLES: ReadonlySet<string> = new Set(["PUERTAENR", "PUERTAPLE", "PUERTAUTO"]);
 
-/** APAGADO por unos días (Iván, 22/10/2026): Planteamientos TGM aún tiene
- *  errores con las puertas que hay que configurar allí. Mientras, las puertas
- *  no llevan botón. Para volver a encenderlo, `true`: la regla de cuáles
- *  cuentan (`esPuertaDeLona`) sigue aquí y probada. */
-export const PUERTAS_EN_PLANTEAMIENTOS = false;
+/** ENCENDIDO de nuevo el 27/10/2026 (Iván: «volvemos a habilitar el botón de
+ *  plantear en las puertas y System Dock»). Estuvo apagado desde el 22/10
+ *  mientras se configuraban las puertas en Planteamientos TGM. Con `false`, las
+ *  puertas y las lonas de System Dock vuelven a quedarse sin botón. */
+export const PUERTAS_EN_PLANTEAMIENTOS = true;
 
 /** ¿Planteamientos TGM sabe plantear esta OF? Toldo y remolque, siempre; una
- *  puerta, si es de lona y el interruptor de arriba está encendido. */
+ *  puerta de lona o una lona de System Dock, si el interruptor de arriba está
+ *  encendido. */
 export function ofPlanteable(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
   if (FAMILIAS_PLANTEABLES.has(of.familia)) return true;
-  return PUERTAS_EN_PLANTEAMIENTOS && esPuertaDeLona(of);
+  return PUERTAS_EN_PLANTEAMIENTOS && (esPuertaDeLona(of) || esLonaSystemDock(of));
+}
+
+/** Una lona perimetral de abrigo de muelle de SYSTEM DOCK, S.L., que aquella
+ *  web plantea como modelo de Puertas. Se reconoce por la descripción de la OF,
+ *  «LONA PERIMETRAL 10400X550 (ESTANDAR)»: desde 2025 son 61 líneas y todas de
+ *  ese cliente (RPS, 27/10/2026), y aquí la familia sale «LONA» aunque RPS la
+ *  tenga en la subfamilia PUERTAS. Planteamientos la reconoce igual
+ *  (src/puertas/rps.ts allí). */
+export function esLonaSystemDock(of: { descripcion?: string }): boolean {
+  return /LONA\s+PERIMETRAL/i.test(of.descripcion ?? "");
 }
 
 /** Una puerta de las que plantea aquella web. Con el código de artículo manda
