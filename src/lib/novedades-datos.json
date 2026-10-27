@@ -1,12 +1,18 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "81ffe89",
+    "hasta": "dea3a77",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "En el panel, los pedidos con «Parte nuevo» o «Detenida» ya no salen cortados por los lados",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El aviso de que hay una versión nueva de la web no salía nunca; ya sale",
+        "detalle": "Si tienes Coordina abierta cuando se actualiza, abajo te sale el aviso para recargar.",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
