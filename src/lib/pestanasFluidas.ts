@@ -14,8 +14,11 @@ import { flushSync } from "react-dom";
 // Fuera quedan los Sí/No de un formulario (`form`) y cualquier tira marcada con
 // `data-sin-transicion`: ahí se elige un valor, no se cambia de pantalla.
 
+// Además de las tiras, cualquier botón marcado con `data-cambio-fluido`: los que
+// cambian de vista sin ser pestañas (Planteamientos e29d33e, 27/10/2026).
 const PESTANA =
-  ':is(.tira-3d, [role="tablist"]):not(form *, [data-sin-transicion]) > button:not(.pestana-activa, .glass-chip-activo, [aria-selected="true"], [aria-pressed="true"], :disabled)';
+  ':is(:is(.tira-3d, [role="tablist"]):not(form *, [data-sin-transicion]) > button, button[data-cambio-fluido])' +
+  ':not(.pestana-activa, .glass-chip-activo, .is-active, [aria-selected="true"], [aria-pressed="true"], [aria-current="true"], :disabled)';
 
 let repitiendo = false;
 let actual: ViewTransition | undefined;
@@ -27,7 +30,8 @@ function alPulsar(evento: MouseEvent) {
   evento.stopPropagation();
   evento.preventDefault();
   actual?.skipTransition();
-  const tira = boton.parentElement as HTMLElement;
+  // Con `data-cambio-fluido` no hay tira: lo que va en vivo es su contenedor.
+  const tira = (boton.closest('.tira-3d, [role="tablist"]') ?? boton.parentElement) as HTMLElement;
   tira.style.setProperty("view-transition-name", "tira-pulsada");
   // Se funde la zona más cercana que cambia con la pestaña (useContenidoFluido
   // la marca con data-fluido). Si esa zona lleva la cabecera, la cabecera se

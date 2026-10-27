@@ -166,6 +166,8 @@ export function ZonaPersonal({
                 {revisar.resto > 0 && (
                   <button
                     onClick={onVerRevisiones}
+                    // Cambia de pestaña sin serlo: con el mismo fundido.
+                    data-cambio-fluido
                     title="Abre la pestaña Revisiones, con todas"
                     className="rounded-md border border-dashed border-[var(--glass-border)] py-0.5 text-[10px] font-semibold text-text-muted hover:border-brand-400 hover:text-text"
                   >

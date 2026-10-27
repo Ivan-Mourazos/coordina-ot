@@ -1,5 +1,6 @@
 /* Cambio de pestaña (lib/pestanasFluidas.ts), como las Tabs de HeroUI y igual que en Planteamientos: la cabecera se
-   queda quieta, el contenido viejo se apaga rápido y el nuevo entra con un pequeño ascenso. La tira pulsada va en vivo
+   queda quieta, lo viejo se apaga en 200 ms y lo nuevo entra en 350 ms subiendo 5 px (Iván, 27/10/2026: «a veces noto
+   cortes», «incluso puede ser un fundido más lento»). La tira pulsada va en vivo
    para que su píldora se deslice. */
 @keyframes pestana-entra {
   from { opacity: 0; transform: translateY(5px); }
@@ -8,9 +9,9 @@
 @keyframes pestana-sale { to { opacity: 0; } }
 html[data-transicion-pestana]::view-transition-old(root),
 html[data-transicion-pestana]::view-transition-new(root) { animation: none; }
-html[data-transicion-pestana]::view-transition-group(contenido-pestana) { animation-duration: 220ms; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
-html[data-transicion-pestana]::view-transition-old(contenido-pestana) { animation: 120ms ease-out both pestana-sale; }
-html[data-transicion-pestana]::view-transition-new(contenido-pestana) { animation: 220ms cubic-bezier(.2, .8, .2, 1) 40ms both pestana-entra; }
+html[data-transicion-pestana]::view-transition-group(contenido-pestana) { animation-duration: 350ms; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+html[data-transicion-pestana]::view-transition-old(contenido-pestana) { animation: 200ms ease-out both pestana-sale; }
+html[data-transicion-pestana]::view-transition-new(contenido-pestana) { animation: 350ms cubic-bezier(.2, .8, .2, 1) 60ms both pestana-entra; }
 html[data-transicion-pestana]::view-transition-group(tira-pulsada) { animation: none; }
 html[data-transicion-pestana]::view-transition-old(tira-pulsada) { display: none; }
 html[data-transicion-pestana]::view-transition-new(tira-pulsada) { animation: none; }

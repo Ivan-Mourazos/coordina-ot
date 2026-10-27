@@ -217,7 +217,7 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
  *  21/10/2026): sobraba aquí. */
 function PorQueVuelven({ devueltas, causa, porFamilia, cargando, detalleViejo = false }: { devueltas?: Devueltas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean; detalleViejo?: boolean }) {
   const [vista, setVista] = useState<"causa" | "tipo">("causa");
-  return <div className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
+  return <div data-fluido className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
     {/* La misma tira que el resto de la web (Revisión, Visitas): la bandeja
         gris que llevaba aquí no casaba con nada (21/10/2026). */}
     <div className="tira-3d glass-chip inline-flex shrink-0 self-start rounded-lg p-1" role="group" aria-label="Contar por">
@@ -435,7 +435,7 @@ function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null
 function Cifra({ titulo, valor, extra, detalle, delta }: { titulo: string; valor: string; extra?: string; detalle: string; delta: ReactNode }) {
   // Tres columnas fijas (cifra, porcentaje, texto): con el ancho de cada
   // número, «229» y «176 (76 %)» dejaban los rótulos cada uno a una altura.
-  return <div className="grid min-w-0 grid-cols-[3.25rem_3rem_minmax(0,1fr)] items-center gap-x-2 rounded-lg border border-border px-2.5 py-1.5" title={detalle}>
+  return <div className="grid min-w-0 grid-cols-[3.25rem_3rem_minmax(0,1fr)] items-center gap-x-2 metricas-cifra rounded-lg border border-border px-2.5 py-1.5" title={detalle}>
     <div className="text-right text-2xl leading-none font-bold tracking-tight tabular-nums">{valor}</div>
     <div className="text-xs font-semibold tabular-nums text-text-muted">{extra ?? ""}</div>
     <div className="min-w-0 text-[10px] leading-tight text-text-muted"><div className="truncate font-semibold uppercase tracking-[.06em] text-text">{titulo}</div><div className="truncate">{delta}</div></div>

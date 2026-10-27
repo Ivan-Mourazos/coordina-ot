@@ -358,7 +358,10 @@ export const PedidoCard = memo(function PedidoCard({
               miId={miId}
               onAsignar={(op) => onAsignar(facet, op)}
               // Opaco: al 95 % el parte se transparentaba bajo el botón.
-              claseBoton="w-full bg-brand-500 px-2 py-1 text-[10px] font-bold text-brand-950 shadow-sm hover:bg-brand-600"
+              // `rounded-none!`: es una barra que recorta la miniatura; el
+              // redondeo de botón de HeroUI la volvía una cápsula flotando
+              // sobre el parte (Iván, 27/10/2026).
+              claseBoton="w-full rounded-none! bg-brand-500 px-2 py-1 text-[10px] font-bold text-brand-950 shadow-sm hover:bg-brand-600"
             />
           )
         }
