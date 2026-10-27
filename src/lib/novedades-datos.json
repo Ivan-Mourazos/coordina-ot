@@ -106,11 +106,6 @@
       },
       {
         "tipo": "mejor",
-        "titulo": "La raya de cada tarea de Oficina Técnica distingue lo que fue planteo (verde) y revisión (violeta)",
-        "tanda": 14
-      },
-      {
-        "tipo": "mejor",
         "titulo": "La descripción de la OF sale una sola vez y su botón no se mueve al abrirla",
         "tanda": 14
       },
