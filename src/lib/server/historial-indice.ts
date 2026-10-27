@@ -1,4 +1,4 @@
-import type { Request } from "mssql";
+import type { ConnectionPool, Request } from "mssql";
 import { getPool } from "./db";
 import { ctesFinalizacionHistorial } from "./historial-finalizacion-sql";
 import { familiaDeTexto } from "./rps";
@@ -27,6 +27,20 @@ import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial, type InfoP
 //  · se refresca cada 30 min y no cada 10.
 
 const VIDA_MS = 30 * 60_000;
+
+// Tope propio para las consultas que llenan la lista. Van por detrás, sin nadie
+// esperando, y cada una lee RPS entero: el 27/10/2026 tardaban 27-49 s y la
+// lista entera 152 s. Con el tope general de 60 s, en cuanto RPS iba un poco
+// más cargado (desde el 26/10 también sirve OLANET) una se pasaba, la lista no
+// se llenaba nunca y el Historial y el buscador caían a la consulta lenta, que
+// no llega antes de que corte el proxy.
+const PETICION_LARGA = { requestTimeout: 300_000 };
+
+/** `pool.request(conf)` existe en mssql (connection-pool.js) aunque sus tipos
+ *  no lo declaren. */
+function peticionLarga(pool: ConnectionPool): Request {
+  return (pool.request as (conf: typeof PETICION_LARGA) => Request).call(pool, PETICION_LARGA);
+}
 
 // La lista vive en `globalThis` y no en variables del módulo: el arranque
 // (instrumentation.ts) y la ruta del Historial se empaquetan por separado, y
@@ -107,7 +121,7 @@ function compartidor() {
 
 async function baseDe(seccion: SeccionId): Promise<BaseHistorial[]> {
   const pool = await getPool();
-  const req = pool.request();
+  const req = peticionLarga(pool);
   // Sin pendientes: la lista vale para cualquiera. Lo que sigue vivo en
   // CoordinaOT se quita al consultar, con el tablero de ese momento.
   req.input("pendientes", "<pedidos></pedidos>");
@@ -146,7 +160,7 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
   // línea de venta), lo que decide la familia (familiaDeTexto con cliente y
   // subfamilia) y la ciudad de entrega (o.CityDelivery, la MISMA columna que
   // lee `cabeceraADetalle` en historial-db.ts para el detalle del equipo).
-  await porFilas<FilaTexto>(pool.request(), `
+  await porFilas<FilaTexto>(peticionLarga(pool), `
     SELECT o.CodOrder AS pedido, cli.Description AS cliente, d.Description AS negocio,
       o.CityDelivery AS ciudad,
       mo.CodManufacturingOrder AS orden, mo.Description AS descripcion, l.Description AS linea,
@@ -202,7 +216,7 @@ async function textosDe(pedidos: ReadonlySet<string>): Promise<Map<string, InfoP
 
 async function personasDe(): Promise<Map<string, Set<string>>> {
   const pool = await getPool();
-  const req = pool.request();
+  const req = peticionLarga(pool);
   const comparte = compartidor();
   // Solo el equipo (los que se pueden elegir en el filtro): 58 000 relaciones
   // en vez de las 861 000 filas del minutaje completo.
