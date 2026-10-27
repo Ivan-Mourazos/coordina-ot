@@ -267,6 +267,23 @@ html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo 
   background: var(--hero-pildora);
   box-shadow: var(--hero-sombra-pildora);
 }
+/* Y la conserva al pasar el ratón y al pulsar (Iván, 27/10/2026: «que el
+   selector de mes y año no cambie de forma al pulsar»). Con un filtro puesto,
+   la regla de la píldora elegida (:hover) lo volvía píldora de 999 px, y la de
+   los botones lo encogía al 97 %: un campo no es un botón. */
+html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
+  border-radius: 10px;
+  transform: none;
+}
+/* En regla aparte y con OTRO selector (`[type="button"]`): junto a un
+   `transform`, o con el mismo selector, el compilador de CSS funde las reglas y
+   el `scale` desaparece (comprobado en la hoja servida, 27/10/2026). */
+html[data-estilo="hero"]:root button[type="button"][aria-haspopup="listbox"].glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
+  scale: none;
+}
+html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo:is(:hover, :active):not(:disabled) {
+  background: var(--hero-pildora);
+}
 html[data-estilo="hero"]:root :is(button, a, summary, [role="button"], [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

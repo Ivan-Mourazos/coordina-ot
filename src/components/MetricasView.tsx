@@ -11,7 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
-import { causaMayor, deLaSeccion, esMia, repartoNc, type FilaFamiliaNc, type NoConformidad } from "@/lib/no-conformidad";
+import { causaMayor, deLaSeccion, esMia, repartoNc, resumenNc, type FilaFamiliaNc, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -50,7 +50,7 @@ function delAnio<T extends { mes: string }>(anio: string, filas: readonly T[]): 
   return MESES.map((mm) => ({ mes: `${anio}-${mm}`, fila: porMes.get(`${anio}-${mm}`) ?? null }));
 }
 
-export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId; operarios: Operario[]; miId: string }) {
+export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { seccion: SeccionId; operarios: Operario[]; miId: string; /** Abre un pedido en Coordina (la ficha del tablero o la del Historial). */ onAbrirPedido?: (codigo: string) => void }) {
   const hoy = hoyISO();
   const mesHoy = hoy.slice(0, 7);
   const anioInicio = Number(INICIO_METRICAS.slice(0, 4));
@@ -192,11 +192,16 @@ export function MetricasView({ seccion, operarios, miId }: { seccion: SeccionId;
             </div>
           </Panel>
           {!sinRevision && <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>}
+          {/* Incidencias aquí y no en la columna del medio (Iván, 27/10/2026):
+              bajo «Cuánto tarda» quedaban 330 px vacíos, y en el medio, con
+              tres paneles a partes iguales, Rectificados no dejaba ver sus
+              pedidos. Cada panel mide lo suyo y el último de cada columna se
+              queda lo que sobra (globals.css, «Métricas»). */}
+          {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas}`} extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasSeccion seccion={seccion} incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
         </div>
         <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
           {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
-          {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas}`} extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasSeccion seccion={seccion} incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
-          <Panel titulo="Rectificados" extra={etiquetaPeriodo} actualizando={detalleViejo}><Rectificados nc={datos?.detalle?.nc} totales={datos?.detalle?.ncTotales} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} /></Panel>
+          <Panel titulo="Rectificados" extra={etiquetaPeriodo} actualizando={detalleViejo}><Rectificados nc={datos?.detalle?.nc} totales={datos?.detalle?.ncTotales} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
         </div>
         <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
           <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
@@ -260,7 +265,7 @@ const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  *  Sin nombres de compañeros: en Métricas cada uno ve lo suyo (21/10/2026).
  *  Una NC no pesa entera por tener una causa nuestra: «equivale a» suma solo
  *  nuestra parte (ver `repartoNc`). */
-function Rectificados({ nc, totales, familias, cargando, seccion, miId }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; familias?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId; miId: string }) {
+function Rectificados({ nc, totales, familias, cargando, seccion, miId, onAbrirPedido }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; familias?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId; miId: string; onAbrirPedido?: (codigo: string) => void }) {
   if (!nc || !familias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
   const nombreCorto = SECCIONES[seccion].nombreCorto;
   const rectificados = nc.filter((x) => x.rectificativo);
@@ -279,8 +284,12 @@ function Rectificados({ nc, totales, familias, cargando, seccion, miId }: { nc?:
       En toda la empresa, {totales.rectificadas} rectificados; lo de planteamiento o diseño gráfico pesa {decimal(totales.nuestrasRectificadasPeso)} ({sobre(totales.nuestrasRectificadasPeso, totales.rectificadas)}).
       {pendientes.length > 0 && ` ${pendientes.length} de pedidos con tareas de ${nombreCorto} aún sin investigar.`}
     </p>}
+    {/* SIN SCROLL PROPIO, ni la tabla ni los pedidos (Iván, 27/10/2026: «lo
+        ideal es no tener scrolls»): el panel se queda el alto que sobra en su
+        columna, y si aun así no cabe, el que desplaza es el panel entero. Los
+        pedidos ya no van plegados en «Ver los pedidos»: no se veían. */}
     {!familias.length ? <Vacio>Sin rectificados en este periodo.</Vacio> : (
-      <div className="scroll-thin min-h-0 overflow-y-auto pr-1">
+      <div>
         <table className="w-full text-[11px]">
           <thead><tr className="text-[10px] text-text-muted">
             <th className="text-left font-normal">Por familia</th>
@@ -299,23 +308,26 @@ function Rectificados({ nc, totales, familias, cargando, seccion, miId }: { nc?:
         </table>
       </div>
     )}
-    {conCausa.length + pendientes.length > 0 && <details className="group">
-      <summary className="cursor-pointer list-none text-[11px] font-semibold text-text-muted hover:text-text [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="mr-1 inline-block text-[8px] transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span>
-        Ver los pedidos
-      </summary>
+    {conCausa.length + pendientes.length > 0 && <div>
+      <p className="text-[10px] text-text-muted">Pedidos</p>
       {/* UNA FILA POR PEDIDO, en columnas (Iván, 27/10/2026: «no tener la
           lista de pedidos así a lo bruto»): qué pedido, en cuál se rectificó,
           cuándo y cuánto nos toca, en píldora. Lo que escribió Calidad, al
           pasar el ratón; entero, en la ficha del pedido. */}
-      <ul className="scroll-thin mt-1.5 max-h-56 overflow-x-hidden overflow-y-auto pr-1">
+      <ul className="mt-0.5">
         {[...conCausa, ...pendientes].map((x) => {
           const pendiente = deLaSeccion(x, seccion) === "pendiente";
           const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
           const que = pendiente
             ? "sin investigar"
             : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} % · ${mayor ? "mayor" : "menor"}`;
-          return <li key={x.codigo} className="grid grid-cols-[minmax(0,1fr)_3.25rem_auto] items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
+          // Al pasar el ratón, UNA línea; el texto entero de Calidad, en la
+          // ficha del pedido, que se abre al pulsar (Iván, 27/10/2026: «estos
+          // textos son un agobio»). Allí sale ordenado en «Ver detalles».
+          const abrible = onAbrirPedido && x.pedido;
+          const pista = [x.descripcion && resumenNc(x.descripcion, 110), abrible ? "Pulsa para ver el pedido y su no conformidad" : null].filter(Boolean).join("\n");
+          const fila = "grid w-full grid-cols-[minmax(0,1fr)_3.25rem_auto] items-center gap-2 rounded-md! px-1.5 py-1 text-left text-[11px] hover:bg-surface-2";
+          const contenido = <>
             <span className="min-w-0 truncate tabular-nums">
               <span className="font-semibold">{x.pedido ?? "—"}</span>
               <span className="text-text-muted"> → </span>
@@ -326,10 +338,15 @@ function Rectificados({ nc, totales, familias, cargando, seccion, miId }: { nc?:
             <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
               pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
             }`}>{que}</span>
+          </>;
+          return <li key={x.codigo}>
+            {abrible
+              ? <button type="button" onClick={() => onAbrirPedido(x.pedido!)} title={pista} className={fila}>{contenido}</button>
+              : <div title={pista} className={fila}>{contenido}</div>}
           </li>;
         })}
       </ul>
-    </details>}
+    </div>}
   </div>;
 }
 

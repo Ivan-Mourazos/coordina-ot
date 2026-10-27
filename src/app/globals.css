@@ -1554,9 +1554,17 @@ body {
     overflow-y: auto;
     scrollbar-width: thin;
   }
+  /* Cada panel, el alto de lo suyo; el ÚLTIMO de la columna se queda lo que
+     sobra (Iván, 27/10/2026: «no tener un bloque con espacio perdido y otro
+     donde no se ven los pedidos»). Antes los de la columna del medio iban a
+     partes iguales: el de incidencias con medio panel vacío y el de
+     rectificados recortado. */
   .metricas-indicadores > .metricas-panel:first-child { flex-shrink: 0; }
-  .metricas-indicadores > .metricas-panel:last-child { flex: 1; }
-  .metricas-motivos > .metricas-panel { flex: 1; }
+  .metricas-indicadores > .metricas-panel:last-child { flex: 1 1 auto; }
+  .metricas-motivos > .metricas-panel { flex: 0 1 auto; }
+  .metricas-motivos > .metricas-panel:last-child { flex: 1 1 auto; }
+  /* Solo (Impresión: sin incidencias ni revisión), el Resumen no se estira. */
+  .metricas-indicadores > .metricas-panel:only-child { flex: 0 0 auto; }
   .metricas-personal > .metricas-panel:first-child { flex-shrink: 0; }
   .metricas-personal > .metricas-panel:last-child { flex: 1; }
   .metricas-panel-contenido {
