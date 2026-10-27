@@ -76,13 +76,17 @@ export const CENTRO_TONO: Record<
   CentroHistorialId,
   { punto: string; texto: string; franja: string; raya: string }
 > = {
+  // AZUL y no el dorado de la marca (Iván, 27/10/2026: «la rayita amarilla
+  // ya es de los pedidos de la web, no la quiero también para OT»): con el
+  // dorado, dentro de un pedido desplegado no se distinguía el centro OT del
+  // propio pedido.
   ot: {
-    punto: "bg-brand-500",
-    texto: "text-brand-800 dark:text-brand-300",
-    // Franja gris en claro: el crema dorado sobre blanco se leía amarillento
-    // (Iván, 15/10/2026). El punto sigue siendo el dorado de OT.
+    punto: "bg-blue-500",
+    texto: "text-blue-700 dark:text-blue-300",
+    // Franja gris en claro: el crema sobre blanco se leía amarillento
+    // (Iván, 15/10/2026).
     franja: "bg-[var(--franja-ot)]",
-    raya: "border-brand-400/60",
+    raya: "border-blue-400/60",
   },
   diseno: {
     punto: "bg-fuchsia-500",

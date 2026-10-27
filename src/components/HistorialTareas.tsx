@@ -286,16 +286,22 @@ export function TareasDeOF({
           // con Autor/Revisor y fechas, solo en la fila desplegada del
           // Historial, y en la ficha baja a un segundo renglón. La barra ya no
           // gasta renglón: es una raya fina pegada al pie de la tarea.
+          //
+          // En la fila ancha del Historial, COLUMNAS DE VERDAD (Iván,
+          // 27/10/2026: «¿dónde están las columnas?»): la tarea con ancho
+          // fijo, quién justo al lado y entero, y el tiempo al final. Con quién
+          // pegado a la derecha quedaba media pantalla vacía en medio y el
+          // nombre recortado.
           <div
             key={tarea.codigo}
-            className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 py-1 ${rolDe ? "@[36rem]:grid-cols-[minmax(0,1fr)_auto_3.5rem]" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} ${vacia ? "text-text-muted" : ""}`}
+            className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 py-1 ${rolDe ? "" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} @[44rem]:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_3.5rem] ${vacia ? "text-text-muted" : ""}`}
           >
             <span className="min-w-0 truncate leading-snug" title={`${tarea.codigo} ${tarea.descripcion}`}>
               <span className="font-mono text-[10px] text-text-muted">{tarea.codigo}</span>{" "}
               {tarea.descripcion}
             </span>
             <span
-              className={`shrink-0 text-right font-mono tabular-nums ${rolDe ? "@[36rem]:col-start-3 @[36rem]:row-start-1" : "@[22rem]:col-start-3 @[22rem]:row-start-1"} ${vacia ? "" : "font-semibold"} ${
+              className={`shrink-0 text-right font-mono tabular-nums ${rolDe ? "" : "@[22rem]:col-start-3 @[22rem]:row-start-1"} @[44rem]:col-start-3 @[44rem]:row-start-1 ${vacia ? "" : "font-semibold"} ${
                 vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
               }`}
             >
@@ -310,14 +316,14 @@ export function TareasDeOF({
             )}
             {personas.length > 0 && !rolDe && (
               <p
-                className="col-span-2 truncate text-[11px] leading-snug text-text-muted @[22rem]:col-span-1 @[22rem]:col-start-2 @[22rem]:row-start-1 @[22rem]:max-w-[16rem] @[22rem]:text-right"
+                className="col-span-2 truncate text-[11px] leading-snug text-text-muted @[22rem]:col-span-1 @[22rem]:col-start-2 @[22rem]:row-start-1 @[22rem]:max-w-[16rem] @[22rem]:text-right @[44rem]:max-w-none @[44rem]:whitespace-normal @[44rem]:text-left"
                 title={personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
               >
                 {personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
               </p>
             )}
             {personas.length > 0 && rolDe && (
-              <p className="col-span-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[36rem]:col-span-1 @[36rem]:col-start-2 @[36rem]:row-start-1 @[36rem]:justify-end">
+              <p className="col-span-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[44rem]:col-span-1 @[44rem]:col-start-2 @[44rem]:row-start-1">
                 {/* Sin «·» entre personas: al partirse la línea se quedaba al
                     principio del renglón siguiente. El hueco las separa. */}
                 {personas.map((p) => {
