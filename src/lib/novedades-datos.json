@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "2a2b83d",
+    "hasta": "2cc5a20",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -36,6 +36,16 @@
         "titulo": "Las tareas y tiempos de un pedido, sus no conformidades y la lista de rectificados ocupan mucho menos",
         "detalle": "Cada tarea va en una línea con quién y cuánto, las tareas sin tiempo se juntan en una, y lo que escribió Calidad se lee en «Ver detalles» o al pasar el ratón.",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En el Historial, las tareas de un pedido se leen en columnas: tarea, quién y tiempo",
+        "tanda": 7
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Oficina Técnica sale en azul dentro de un pedido, para no confundirse con el dorado del propio pedido",
+        "tanda": 7
       }
     ]
   },
