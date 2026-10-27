@@ -10,6 +10,8 @@ import { hoyISO } from "@/lib/types";
 import { BloqueDesplegable } from "./BloqueDesplegable";
 import { CENTRO_TONO, agruparCentros, rangoCentro, type HistorialCentro } from "@/lib/historial-centros";
 
+const COLUMNAS = "grid items-start gap-x-4 gap-y-3 [grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr))]";
+
 const tareasDe = (centro: HistorialCentro) => centro.ofs.reduce((n, of) => n + (of.tareas?.length ?? 0), 0);
 
 /** «Tareas y tiempos»: qué tareas lleva el pedido en RPS y cuánto se ha echado
@@ -100,7 +102,11 @@ export function TareasPorCentro({
   );
   return (
     <>
-      {conTiempo.map(pinta)}
+      {/* LOS CENTROS LADO A LADO, tantos como quepan (Iván, 27/10/2026: «sigue
+          en filas»): en la fila desplegada del Historial sobraba media
+          pantalla a la derecha de cada centro. En la ficha, estrecha, cabe uno
+          y quedan uno debajo de otro, como antes. */}
+      <div className={COLUMNAS}>{conTiempo.map(pinta)}</div>
       {sinTiempo.length > 0 && (
         <details className={`text-xs ${conTiempo.length ? "mt-2.5 border-t border-border pt-1.5" : ""}`}>
           <summary className="cursor-pointer text-text-muted hover:text-text">
@@ -109,7 +115,7 @@ export function TareasPorCentro({
               return n ? `${centro.nombre} (${n} ${n === 1 ? "tarea" : "tareas"})` : centro.nombre;
             }).join(" · ")}
           </summary>
-          <div className="mt-3">{sinTiempo.map(pinta)}</div>
+          <div className={`mt-3 ${COLUMNAS}`}>{sinTiempo.map(pinta)}</div>
         </details>
       )}
     </>
@@ -139,7 +145,7 @@ function CentroTareas({
   return (
     // Aire entre centro y centro. Iban pegados, y con tres o cuatro no se veía
     // dónde acababa uno.
-    <section className="mb-3 last:mb-0">
+    <section className="min-w-0">
       <h4
         className="mb-1.5 flex items-center gap-2 px-0.5 text-[13px] font-semibold"
         title="Tiempo imputado en RPS"
