@@ -87,14 +87,19 @@ export function MarcoFicha({
       <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-[512px] flex-col rounded-xl bajo:max-w-[560px]">
         {/* Sin raya entre cabecera, cuerpo y pie: igual que en el tablero, lo
             que separa son los bloques con relieve, no líneas de 1 px. */}
-        <header className="flex items-start gap-3 p-4 pb-2 bajo:px-3 bajo:pt-2 bajo:pb-1">
+        {/* La X va en su esquina, FUERA de la fila: como columna propia, todo
+            lo de la cabecera acababa 44 px antes que los bloques de abajo, y el
+            botón de Plantear o Revisar se veía metido hacia dentro (Iván,
+            27/10/2026). Solo el código y el cliente le dejan sitio (pr-10 en
+            CabeceraFicha). */}
+        <header className="relative flex items-start gap-3 p-4 pb-2 bajo:px-3 bajo:pt-2 bajo:pb-1">
           {cabecera}
           <button
             onClick={onCerrar}
             data-foco-inicial
             aria-label="Cerrar"
             title="Cerrar · Esc"
-            className="ml-auto grid size-8 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
+            className="absolute top-4 right-4 grid size-8 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text bajo:top-2 bajo:right-3"
           >
             ✕
           </button>
@@ -150,7 +155,7 @@ export function CabeceraFicha({
 }) {
   return (
     <div className="min-w-0 flex-1">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pr-10">
         <h2 className="font-mono text-lg font-bold text-text bajo:text-base">{codigo}</h2>
         {/* Solo la urgente, como en la bandeja: la normal salía en todos los
             pedidos y dejaba de destacar justo cuando corría prisa. */}
@@ -168,7 +173,7 @@ export function CabeceraFicha({
           135 px de los 611 del monitor de Diseño. Los datos no pasan del 60 %
           y se recortan: con varias familias pedían más ancho del que había y
           se salían del panel por encima del botón de cerrar. */}
-      <div className="min-w-0 bajo:flex bajo:items-baseline bajo:gap-2">
+      <div className="min-w-0 pr-10 bajo:flex bajo:items-baseline bajo:gap-2">
       <p className="truncate text-sm text-text-muted bajo:min-w-0 bajo:shrink">
         {cliente || "—"}
         {negocioAparte(cliente, negocio) && (
