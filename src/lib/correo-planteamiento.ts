@@ -3,7 +3,7 @@
 // (Iván, 14/10/2026): siempre se imprime arriba y siempre se manda el correo;
 // los de PVC (-10 en adelante) van ADJUNTOS, y los de toldos y acrílico solo se
 // imprimen, así que el correo avisa de que se imprimieron. Lleva además una
-// línea por OF con su descripción, tiempos, autor y revisor, para que nadie
+// línea por OF con su descripción, autor y revisor (sin tiempos), para que nadie
 // tenga que abrir nada. Texto plano: se lee igual en cualquier cliente y en el
 // móvil.
 
@@ -66,15 +66,16 @@ export function minutosATexto(min: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-const quien = (nombre: string | null) => (nombre ? ` (${nombre})` : "");
-
-function lineaTiempos(of: OfCorreo): string {
-  const planteo = of.planteoMin > 0 ? `Planteo ${minutosATexto(of.planteoMin)}${quien(of.autor)}` : of.autor ? `Planteo sin fichar${quien(of.autor)}` : "Planteo sin fichar";
-  // Sin revisor ni tiempo de revisión, no la hubo: se dice, no se calla.
-  const revision = of.revisor || of.revisionMin > 0
-    ? `Revisión${of.revisionMin > 0 ? ` ${minutosATexto(of.revisionMin)}` : ""}${quien(of.revisor)}`
-    : "Sin revisión";
-  return `   ${planteo} · ${revision}`;
+/** Quién hizo cada OF, SIN TIEMPOS (Iván, 27/10/2026: «algunos correos ponen
+ *  el tiempo de revisión y otros no; mejor solo el autor y el revisor»). El
+ *  minuto de revisión solo salía si el revisor había fichado, y el correo
+ *  parecía decir cosas distintas de pedidos iguales. Producción necesita saber
+ *  a quién preguntar, no cuánto se tardó. */
+function lineaQuien(of: OfCorreo): string {
+  const autor = of.autor ? `Autor: ${of.autor}` : "Sin autor";
+  // Sin revisor nombrado, no hubo revisión: se dice, no se calla.
+  const revisor = of.revisor ? `Revisor: ${of.revisor}` : "Sin revisión";
+  return `   ${autor} · ${revisor}`;
 }
 
 const enumerar = (titulo: string, plural: string, nombres: string[]) =>
@@ -90,7 +91,7 @@ export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
   ];
   if (d.nota?.trim()) lineas.push(d.nota.trim(), "");
   for (const of of d.ofs) {
-    lineas.push(`OF ${of.codigo}${of.descripcion.trim() ? ` · ${of.descripcion.trim()}` : ""}`, lineaTiempos(of));
+    lineas.push(`OF ${of.codigo}${of.descripcion.trim() ? ` · ${of.descripcion.trim()}` : ""}`, lineaQuien(of));
   }
   if (d.ofs.length) lineas.push("");
   if (f.impresos.length) {
@@ -103,50 +104,95 @@ export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
 }
 
 // ─── La misma información, en HTML ──────────────────────────────────────────
-// Outlook lo pinta con negrita y color (Iván, 14/10/2026). Hecho a la antigua
-// a propósito —tablas y estilos en línea, sin hojas de estilo ni imágenes—,
-// que es lo único que los clientes de correo respetan todos. TODO lo que viene
-// de RPS (cliente, descripciones, nombres) pasa por `esc`: un «<» en un
-// nombre de cliente no puede romper el correo.
+// Estilo HeroUI, como la web (Iván, 27/10/2026: «dale algo de diseño al correo,
+// estilo HeroUI»; aprobado con capturas): fondo gris, tarjeta blanca
+// redondeada sin borde, el tipo en una etiqueta arriba, el pedido grande, cada
+// OF en su bloque gris y quién en etiquetas, autor en verde y revisor en
+// violeta, los colores de planteando y revisar de Coordina. Sin tiempos.
+//
+// Hecho a la antigua a propósito —tablas y estilos en línea, sin hojas de
+// estilo ni imágenes—, que es lo único que respetan todos los clientes de
+// correo. Outlook de escritorio no redondea esquinas: allí sale todo recto, con
+// los mismos colores. TODO lo que viene de RPS (cliente, descripciones,
+// nombres) pasa por `esc`: un «<» en un nombre de cliente no puede romper el
+// correo.
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Verde para lo impreso (toldos), azul para el planteamiento con adjunto (PVC). */
+/** Colores fijos (un correo no tiene tokens): los de HeroUI en claro. */
+const C = {
+  fondo: "#f4f4f5",
+  tarjeta: "#ffffff",
+  zona: "#f4f4f5",
+  texto: "#18181b",
+  suave: "#52525b",
+  apagado: "#71717a",
+  codigo: "#9e6512",
+  azul: ["#e6f1fe", "#005bc4"],
+  verde: ["#e8faf0", "#0e793c"],
+  violeta: ["#f2eafa", "#6020a0"],
+  gris: ["#e4e4e7", "#52525b"],
+  nota: ["#fefce8", "#713f12"],
+} as const;
+
+const etiqueta = (texto: string, [fondo, tinta]: readonly [string, string]) =>
+  `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${fondo};color:${tinta};font-size:11px;font-weight:700;letter-spacing:.6px;line-height:18px">${texto}</span>`;
+
+const persona = (rol: string, nombre: string, [fondo, tinta]: readonly [string, string]) =>
+  `<span style="display:inline-block;margin:0 6px 4px 0;padding:3px 10px;border-radius:999px;background:${fondo};font-size:12px;line-height:18px;color:#3f3f46"><b style="color:${tinta};font-weight:600">${rol}</b>&nbsp; ${esc(nombre)}</span>`;
+
+const sinNadie = (texto: string) =>
+  `<span style="display:inline-block;margin:0 6px 4px 0;padding:3px 10px;border-radius:999px;background:${C.gris[0]};font-size:12px;font-weight:600;line-height:18px;color:${C.gris[1]}">${texto}</span>`;
 
 export function cuerpoCorreoHtml(d: DatosCorreo, f: FicherosCorreo): string {
-  // Sobrio a propósito: sin bloques de color (a Iván le chocaban, 14/10), solo
-  // tamaños y negritas para que se lea de un vistazo.
-  const titulo = esDePlanteamiento(f) ? "PLANTEAMIENTO" : "IMPRESO";
+  const planteamiento = esDePlanteamiento(f);
   const nota = d.nota?.trim();
   const cliente = d.cliente.trim();
 
   const filasOf = d.ofs
     .map((of) => {
       const desc = of.descripcion.trim();
+      const quien = [
+        of.autor ? persona("Autor", of.autor, C.verde) : sinNadie("Sin autor"),
+        of.revisor ? persona("Revisor", of.revisor, C.violeta) : sinNadie("Sin revisión"),
+      ].join("");
       return `
-  <p style="margin:0 0 10px 0"><b>OF ${esc(of.codigo)}</b>${desc ? ` · ${esc(desc)}` : ""}<br>
-  <span style="font-size:13px;color:#555555">${esc(lineaTiempos(of).trim())}</span></p>`;
+      <tr><td style="padding:0 0 8px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.zona};border-radius:12px"><tr><td style="padding:12px 14px 8px 14px">
+          <div style="font-size:14px;color:${C.texto}"><b style="font-family:Consolas,Menlo,monospace;color:${C.codigo}">${esc(of.codigo)}</b>${desc ? `&nbsp; ${esc(desc)}` : ""}</div>
+          <div style="margin-top:8px">${quien}</div>
+        </td></tr></table>
+      </td></tr>`;
     })
     .join("");
 
-  const pie: string[] = [];
-  if (f.impresos.length) {
-    pie.push(f.dondeImprime
-      ? `<b>Impreso en ${esc(f.dondeImprime)}:</b> ${esc(f.impresos.join(", "))}`
-      : `<b>Para imprimir:</b> ${esc(f.impresos.join(", "))}`);
-  }
-  if (f.aMano.length) pie.push(`<b>Para imprimir a mano (no es todo A4):</b> ${esc(f.aMano.join(", "))}`);
-  if (f.adjuntos.length) {
-    pie.push(`<b>${f.adjuntos.length === 1 ? "Adjunto" : "Adjuntos"}:</b> ${esc(f.adjuntos.join(", "))}`);
-  }
-  pie.push(`<b>Pasado a Producción por:</b> ${esc(d.pasadoPor)}`);
+  const pie: [string, string][] = [];
+  if (f.adjuntos.length) pie.push([f.adjuntos.length === 1 ? "Adjunto" : "Adjuntos", f.adjuntos.join(", ")]);
+  if (f.impresos.length) pie.push([f.dondeImprime ? `Impreso en ${f.dondeImprime}` : "Para imprimir", f.impresos.join(", ")]);
+  if (f.aMano.length) pie.push(["Para imprimir a mano (no es todo A4)", f.aMano.join(", ")]);
+  pie.push(["Pasado a Producción por", d.pasadoPor]);
+  const filasPie = pie
+    .map(([k, v]) => `<tr><td style="padding:3px 14px 3px 0;color:${C.apagado};font-size:13px;vertical-align:top">${esc(k)}</td><td style="padding:3px 0;font-size:13px;color:${C.texto}">${esc(v)}</td></tr>`)
+    .join("");
 
-  return `<!doctype html><html><body style="margin:0;padding:12px;font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#222222">
-  <p style="margin:0;font-size:13px;font-weight:bold;letter-spacing:1px">${titulo}</p>
-  <p style="margin:2px 0 16px 0"><b style="font-size:20px">${esc(d.pedido)}</b>${cliente ? `<span style="font-size:16px"> · ${esc(cliente)}</span>` : ""}</p>${nota ? `
-  <p style="margin:0 0 16px 0">${esc(nota).replace(/\r?\n/g, "<br>")}</p>` : ""}${filasOf}
-  <p style="margin:16px 0 0 0;line-height:1.6">${pie.join("<br>")}</p>
-  <p style="margin:16px 0 0 0;font-size:11px;color:#999999">Enviado automáticamente por Coordina.</p>
+  return `<!doctype html><html><body style="margin:0;padding:24px 12px;background:${C.fondo};font-family:'Segoe UI',Inter,Arial,sans-serif;color:${C.texto}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.fondo}"><tr><td align="center">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${C.tarjeta};border-radius:20px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 10px 30px -14px rgba(0,0,0,.12)">
+    <tr><td style="padding:24px 24px 8px 24px">
+      ${etiqueta(planteamiento ? "PLANTEAMIENTO" : "IMPRESO", planteamiento ? C.azul : C.verde)}
+      <div style="margin-top:12px;font-size:24px;font-weight:700;letter-spacing:-.3px;color:${C.texto}">${esc(d.pedido)}</div>${cliente ? `
+      <div style="margin-top:2px;font-size:15px;color:${C.suave}">${esc(cliente)}</div>` : ""}
+    </td></tr>${nota ? `
+    <tr><td style="padding:8px 24px 4px 24px"><div style="padding:12px 14px;border-radius:12px;background:${C.nota[0]};color:${C.nota[1]};font-size:14px">${esc(nota).replace(/\r?\n/g, "<br>")}</div></td></tr>` : ""}${d.ofs.length ? `
+    <tr><td style="padding:12px 24px 4px 24px">
+      <div style="margin-bottom:8px;font-size:11px;font-weight:600;letter-spacing:.8px;color:${C.apagado}">ÓRDENES DE FABRICACIÓN · ${d.ofs.length}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${filasOf}
+      </table>
+    </td></tr>` : ""}
+    <tr><td style="padding:8px 24px 20px 24px"><table role="presentation" cellpadding="0" cellspacing="0">${filasPie}</table></td></tr>
+  </table>
+  <div style="margin-top:14px;font-size:11px;color:#a1a1aa">Enviado automáticamente por Coordina</div>
+  </td></tr></table>
 </body></html>`;
 }

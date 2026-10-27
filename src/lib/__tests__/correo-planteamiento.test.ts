@@ -18,7 +18,7 @@ describe("correo del planteamiento", () => {
     expect(asuntoCorreo({ ...D, cliente: "" }, true)).toBe("Planteamiento AR.26.05023");
   });
 
-  it("una línea por OF con su descripción, tiempos, autor y revisor; lo impreso y lo adjunto", () => {
+  it("una línea por OF con su descripción, autor y revisor (sin tiempos); lo impreso y lo adjunto", () => {
     expect(
       cuerpoCorreo(D, { adjuntos: ["AR2605023-10.pdf"], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" }),
     ).toBe(
@@ -28,9 +28,9 @@ describe("correo del planteamiento", () => {
         "Pedido AR.26.05023 · Bar Central",
         "",
         "OF 0232963 · TOLDO PUNTO RECTO",
-        "   Planteo 1 h 10 min (Tamara) · Revisión 10 min (Ángel)",
+        "   Autor: Tamara · Revisor: Ángel",
         "OF 0232964 · LONA FRONTAL PVC",
-        "   Planteo 40 min (Tamara) · Sin revisión",
+        "   Autor: Tamara · Sin revisión",
         "",
         "Impreso en Producción: AR2605023-1.pdf",
         "Adjunto: AR2605023-10.pdf",
@@ -66,12 +66,13 @@ describe("correo del planteamiento", () => {
     expect(c).not.toContain("Impreso");
   });
 
-  it("OF sin tiempo ni autor, y revisión con tiempo pero sin revisor nombrado", () => {
+  it("sin autor ni revisor nombrados lo dice, y los minutos ya no salen (27/10/2026)", () => {
     const c = cuerpoCorreo(
       { ...D, ofs: [{ codigo: "1", descripcion: "X", planteoMin: 0, autor: null, revisionMin: 5, revisor: null }] },
       { adjuntos: ["A-10.pdf"], impresos: [], aMano: [], dondeImprime: "Producción" },
     );
-    expect(c).toContain("   Planteo sin fichar · Revisión 5 min");
+    expect(c).toContain("   Sin autor · Sin revisión");
+    expect(c).not.toMatch(/bminb/);
   });
 
   it("minutos a texto", () => {
@@ -84,14 +85,17 @@ describe("correo del planteamiento", () => {
 describe("versión HTML del correo", () => {
   const F = { adjuntos: ["AR2605023-10.pdf"], impresos: ["AR2605023-1.pdf"], aMano: [], dondeImprime: "Producción" };
 
-  it("lleva lo mismo que el texto: título, pedido, cada OF con tiempos y quién lo pasó", () => {
+  it("lleva lo mismo que el texto: título, pedido, cada OF con autor y revisor, y quién lo pasó", () => {
     const h = cuerpoCorreoHtml(D, F);
     expect(h).toContain("PLANTEAMIENTO");
     expect(h).toContain("AR.26.05023");
     expect(h).toContain("Bar Central");
     expect(h).toContain("0232963");
     expect(h).toContain("TOLDO PUNTO RECTO");
-    expect(h).toContain("Planteo 1 h 10 min (Tamara) · Revisión 10 min (Ángel)");
+    expect(h).toContain("Autor</b>&nbsp; Tamara");
+    expect(h).toContain("Revisor</b>&nbsp; Ángel");
+    expect(h).toContain("Sin revisión");
+    expect(h).not.toContain("10 min");
     expect(h).toContain("AR2605023-1.pdf");
     expect(h).toContain("Iván Sánchez");
   });
