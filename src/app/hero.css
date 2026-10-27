@@ -215,6 +215,8 @@ html[data-estilo="hero"]:root :is(.pestana-activa, .glass-chip-activo):hover:not
   font-weight: 600;
   transform: none;
 }
+/* La tira es la referencia de su píldora: sin posición propia, el ::before se colocaría contra otro ancestro. */
+html[data-estilo="hero"]:root .tira-3d[data-pildora] { isolation: isolate; position: relative; }
 html[data-estilo="hero"]:root .tira-3d[data-pildora]::before {
   content: "";
   position: absolute;

@@ -25,12 +25,23 @@ export function PildorasDeslizantes() {
         const elegida = carril.querySelector<HTMLElement>(ELEGIDA);
         presentes.add(carril);
         if (elegida) presentes.add(elegida);
-        if (!elegida || elegida.offsetParent !== carril || !elegida.offsetWidth) {
+        if (!elegida || !elegida.offsetWidth) {
           delete carril.dataset.pildora;
           return;
         }
-        carril.style.setProperty("--px", `${elegida.offsetLeft}px`);
-        carril.style.setProperty("--py", `${elegida.offsetTop}px`);
+        // Una tira sin posición propia aún no es el offsetParent de sus botones
+        // la primera vez: entonces se mide con los rectángulos, y desde ahí el
+        // CSS ya la deja en position: relative (Planteamientos, 1709784).
+        let x = elegida.offsetLeft;
+        let y = elegida.offsetTop;
+        if (elegida.offsetParent !== carril) {
+          const a = elegida.getBoundingClientRect();
+          const c = carril.getBoundingClientRect();
+          x = a.left - c.left - carril.clientLeft;
+          y = a.top - c.top - carril.clientTop;
+        }
+        carril.style.setProperty("--px", `${x}px`);
+        carril.style.setProperty("--py", `${y}px`);
         carril.style.setProperty("--pw", `${elegida.offsetWidth}px`);
         carril.style.setProperty("--ph", `${elegida.offsetHeight}px`);
         if (!carril.dataset.pildora) {
