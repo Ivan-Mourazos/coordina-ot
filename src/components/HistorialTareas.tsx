@@ -102,7 +102,7 @@ export function TareasPorCentro({
     <>
       {conTiempo.map(pinta)}
       {sinTiempo.length > 0 && (
-        <details className={`text-xs ${conTiempo.length ? "mt-4 border-t border-border pt-2" : ""}`}>
+        <details className={`text-xs ${conTiempo.length ? "mt-2.5 border-t border-border pt-1.5" : ""}`}>
           <summary className="cursor-pointer text-text-muted hover:text-text">
             Sin tiempo echado: {sinTiempo.map((centro) => {
               const n = tareasDe(centro);
@@ -139,9 +139,9 @@ function CentroTareas({
   return (
     // Aire entre centro y centro. Iban pegados, y con tres o cuatro no se veía
     // dónde acababa uno.
-    <section className="mb-5 last:mb-0">
+    <section className="mb-3 last:mb-0">
       <h4
-        className="mb-2 flex items-center gap-2 px-0.5 text-sm font-semibold"
+        className="mb-1.5 flex items-center gap-2 px-0.5 text-[13px] font-semibold"
         title="Tiempo imputado en RPS"
       >
         <span className={`size-2.5 shrink-0 rounded-full ${tono.punto}`} aria-hidden="true" />
@@ -153,7 +153,7 @@ function CentroTareas({
           texto seguido sobre el fondo del bloque: era todo el mismo gris y
           había que leerlo entero para ver dónde acababa una OF (Iván,
           16/10/2026). Lleva a la izquierda el color de su centro. */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {centro.ofs.map((of) => {
           const extra = extraOF?.(of, centro);
           return (
@@ -169,8 +169,8 @@ function CentroTareas({
                 es una matrícula que se compara con la vista, y la descripción
                 se lee. Mezclarlos en mono hacía la descripción más lenta de
                 leer. */}
-            <p className="flex items-baseline justify-between gap-3 border-b border-border px-2.5 py-1.5">
-              <span className="min-w-0 font-semibold leading-snug">
+            <p className="flex items-baseline justify-between gap-3 px-2.5 pt-1.5 pb-0.5">
+              <span className="min-w-0 truncate font-semibold leading-snug" title={`${of.codigo} · ${of.descripcion}`}>
                 <span className={`font-mono ${acento}`}>{of.codigo}</span>
                 {" · "}
                 {of.descripcion}
@@ -182,7 +182,7 @@ function CentroTareas({
                   {fmtMin(of.tiempoImputadoMin)}
                 </span>
             </p>
-            <div className="px-2.5 py-1 text-[11px]">
+            <div className="px-2.5 pb-1 text-[11px]">
               <TareasDeOF
                 of={of}
                 conColor={conColor}
@@ -190,7 +190,7 @@ function CentroTareas({
                 claseBarra={conColor ? tono.punto : "bg-text-muted"}
               />
             </div>
-            {extra && <div className="px-2.5 pb-2">{extra}</div>}
+            {extra && <div className="px-2.5 pb-1.5">{extra}</div>}
           </div>
           );
         })}
@@ -249,9 +249,18 @@ export function TareasDeOF({
   const conTiempo = of.tareas.filter((t) => t.tiempoImputadoMin > 0);
   const totalOF = conTiempo.reduce((n, t) => n + t.tiempoImputadoMin, 0);
   const conBarra = claseBarra !== undefined;
+  // Las tareas sin un minuto y sin nadie, juntas en UNA línea al final: en
+  // Taller una OF lleva cinco o seis, y cada una gastaba un renglón entero
+  // para decir «—» (Iván, 27/10/2026: «se debería compactar»). Con una sola
+  // no se agrupa: ocupa lo mismo.
+  const sinNadie = (t: (typeof of.tareas)[number]) =>
+    t.tiempoImputadoMin <= 0 && !t.personas.some((p) => p.min > 0 || (rolDe && rolDe(p.nombre)));
+  const vacias = conBarra ? of.tareas.filter(sinNadie) : [];
+  const juntas = vacias.length >= 2;
+  const visibles = juntas ? of.tareas.filter((t) => !vacias.includes(t)) : of.tareas;
   return (
-    <div className={claseBarra !== undefined ? "divide-y divide-border" : undefined}>
-      {of.tareas.map((tarea) => {
+    <div className={`@container ${claseBarra !== undefined ? "divide-y divide-border" : ""}`}>
+      {visibles.map((tarea) => {
         // Con papeles (la ficha del Historial), quien es autor o revisor sale
         // aunque su tiempo sea 0: RPS guarda minutos enteros y una revisión de
         // menos de uno queda a cero (AR.26.04928).
@@ -270,35 +279,45 @@ export function TareasDeOF({
           // vista; debajo y más apagado, QUIÉN — que solo se mira cuando algo
           // llama la atención. Así la descripción dispone del ancho entero y
           // da igual lo estrecho que sea el hueco.
-          <div key={tarea.codigo} className={`py-1 ${vacia ? "text-text-muted" : ""}`}>
-            <p className="flex items-baseline gap-3">
-              <span className="min-w-0 flex-1 leading-snug">
-                <span className="font-mono text-[10px] text-text-muted">{tarea.codigo}</span>{" "}
-                {tarea.descripcion}
-              </span>
-              <span
-                className={`shrink-0 font-mono tabular-nums ${vacia ? "" : "font-semibold"} ${
-                  vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
-                }`}
-              >
-                {vacia && claseBarra !== undefined ? "—" : fmtMin(tarea.tiempoImputadoMin)}
-              </span>
-            </p>
+          //
+          // COMPACTO (Iván, 27/10/2026: «se debería compactar»): qué, quién y
+          // cuánto en UNA línea en cuanto hay sitio. Quién sin papeles (Taller,
+          // Diseño) cabe ya en la ficha, recortado y entero al pasar el ratón;
+          // con Autor/Revisor y fechas, solo en la fila desplegada del
+          // Historial, y en la ficha baja a un segundo renglón. La barra ya no
+          // gasta renglón: es una raya fina pegada al pie de la tarea.
+          <div
+            key={tarea.codigo}
+            className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 py-1 ${rolDe ? "@[36rem]:grid-cols-[minmax(0,1fr)_auto_3.5rem]" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} ${vacia ? "text-text-muted" : ""}`}
+          >
+            <span className="min-w-0 truncate leading-snug" title={`${tarea.codigo} ${tarea.descripcion}`}>
+              <span className="font-mono text-[10px] text-text-muted">{tarea.codigo}</span>{" "}
+              {tarea.descripcion}
+            </span>
+            <span
+              className={`shrink-0 text-right font-mono tabular-nums ${rolDe ? "@[36rem]:col-start-3 @[36rem]:row-start-1" : "@[22rem]:col-start-3 @[22rem]:row-start-1"} ${vacia ? "" : "font-semibold"} ${
+                vacia ? "" : (claseTiempo ?? (conColor ? "text-brand-800 dark:text-brand-300" : ""))
+              }`}
+            >
+              {vacia && claseBarra !== undefined ? "—" : fmtMin(tarea.tiempoImputadoMin)}
+            </span>
             {conBarra && !vacia && (
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-border" aria-hidden="true">
-                <div
-                  className={`h-full rounded-full ${claseBarra}`}
-                  style={{ width: `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%` }}
-                />
-              </div>
+              <span
+                aria-hidden="true"
+                className={`absolute bottom-0 left-0 h-0.5 rounded-full opacity-70 ${claseBarra}`}
+                style={{ width: `${Math.max(2, Math.round((tarea.tiempoImputadoMin / totalOF) * 100))}%` }}
+              />
             )}
             {personas.length > 0 && !rolDe && (
-              <p className="mt-0.5 text-[11px] leading-snug text-text-muted">
+              <p
+                className="col-span-2 truncate text-[11px] leading-snug text-text-muted @[22rem]:col-span-1 @[22rem]:col-start-2 @[22rem]:row-start-1 @[22rem]:max-w-[16rem] @[22rem]:text-right"
+                title={personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
+              >
                 {personas.map((p) => `${p.nombre} ${fmtMin(p.min)}`).join(" · ")}
               </p>
             )}
             {personas.length > 0 && rolDe && (
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted">
+              <p className="col-span-2 flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[36rem]:col-span-1 @[36rem]:col-start-2 @[36rem]:row-start-1 @[36rem]:justify-end">
                 {/* Sin «·» entre personas: al partirse la línea se quedaba al
                     principio del renglón siguiente. El hueco las separa. */}
                 {personas.map((p) => {
@@ -342,6 +361,12 @@ export function TareasDeOF({
           </div>
         );
       })}
+      {juntas && (
+        <p className="truncate py-1 text-text-muted" title={vacias.map((t) => `${t.codigo} ${t.descripcion}`).join("\n")}>
+          <span className="font-semibold">Sin tiempo:</span>{" "}
+          {vacias.map((t) => t.descripcion.trim() || t.codigo).join(" · ")}
+        </p>
+      )}
     </div>
   );
 }

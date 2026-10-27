@@ -11,7 +11,7 @@ import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
 import type { DetalleMetricas, Devueltas } from "@/lib/metricas-personales";
-import { causaMayor, deLaSeccion, esMia, repartoNc, resumenNc, type FilaFamiliaNc, type NoConformidad } from "@/lib/no-conformidad";
+import { causaMayor, deLaSeccion, esMia, repartoNc, type FilaFamiliaNc, type NoConformidad } from "@/lib/no-conformidad";
 import { MetricasGrafica } from "./MetricasGrafica";
 import { Select } from "./Select";
 
@@ -304,15 +304,28 @@ function Rectificados({ nc, totales, familias, cargando, seccion, miId }: { nc?:
         <span aria-hidden="true" className="mr-1 inline-block text-[8px] transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span>
         Ver los pedidos
       </summary>
-      <ul className="scroll-thin mt-1.5 grid max-h-64 content-start gap-1.5 overflow-x-hidden overflow-y-auto pr-1">
+      {/* UNA FILA POR PEDIDO, en columnas (Iván, 27/10/2026: «no tener la
+          lista de pedidos así a lo bruto»): qué pedido, en cuál se rectificó,
+          cuándo y cuánto nos toca, en píldora. Lo que escribió Calidad, al
+          pasar el ratón; entero, en la ficha del pedido. */}
+      <ul className="scroll-thin mt-1.5 max-h-56 overflow-x-hidden overflow-y-auto pr-1">
         {[...conCausa, ...pendientes].map((x) => {
-          const que = deLaSeccion(x, seccion) === "pendiente"
+          const pendiente = deLaSeccion(x, seccion) === "pendiente";
+          const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
+          const que = pendiente
             ? "sin investigar"
-            : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} % · ${causaMayor(x, seccion) === "mayor" ? "causa mayor" : "causa menor"}${esMia(x, miId) ? " · tuyo" : ""}`;
-          return <li key={x.codigo} className="min-w-0 text-[11px] leading-snug" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
-            <span className="font-semibold tabular-nums">{x.pedido ?? "—"}</span>
-            <span className="text-text-muted"> → <span className="font-semibold text-text tabular-nums">{x.rectificativo}</span> · {fechaCorta(x.fecha)} · {que}</span>
-            {x.descripcion && <span className="block truncate text-text-muted">{resumenNc(x.descripcion, 90)}</span>}
+            : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} % · ${mayor ? "mayor" : "menor"}`;
+          return <li key={x.codigo} className="grid grid-cols-[minmax(0,1fr)_3.25rem_auto] items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2" title={[x.descripcion, x.comentarios && `Comentarios de Calidad:\n${x.comentarios}`].filter(Boolean).join("\n\n")}>
+            <span className="min-w-0 truncate tabular-nums">
+              <span className="font-semibold">{x.pedido ?? "—"}</span>
+              <span className="text-text-muted"> → </span>
+              <span className="font-semibold">{x.rectificativo}</span>
+              {esMia(x, miId) && <span className="ml-1.5 text-[10px] font-semibold text-brand-800 dark:text-brand-300">tuyo</span>}
+            </span>
+            <span className="text-right tabular-nums text-text-muted">{fechaCorta(x.fecha)}</span>
+            <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
+              pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
+            }`}>{que}</span>
           </li>;
         })}
       </ul>

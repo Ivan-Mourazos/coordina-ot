@@ -9,17 +9,26 @@ import { Desplegable } from "./Desplegable";
  *  No usa `BloqueDesplegable` —el bloque con caja de la ficha— a propósito:
  *  esto vive DENTRO de la tarjeta de una OF, y una caja dentro de otra caja
  *  añade un marco por cada OF. Aquí basta una línea que se abre. */
-export function DetalleVenta({ texto }: { texto: string }) {
+export function DetalleVenta({
+  texto,
+  enFila = false,
+}: {
+  texto: string;
+  /** Al lado del material, en la misma fila (la ficha del Historial): sin
+   *  sangría propia, y al abrirse ocupa la fila entera para que el texto no
+   *  se lea en una columna estrecha. */
+  enFila?: boolean;
+}) {
   const id = useId();
   const { abierto, alternar } = useElementoAcordeon("descripciones");
   return (
-    <div className="mt-1 px-2.5">
+    <div className={enFila ? (abierto ? "basis-full" : "") : "mt-1 px-2.5"}>
       <button
         type="button"
         onClick={alternar}
         aria-expanded={abierto}
         aria-controls={id}
-        className="flex w-full items-center gap-1.5 text-left text-[11px] font-medium text-text-muted hover:text-text"
+        className={`flex items-center gap-1.5 text-left ${enFila ? "" : "w-full"} text-[11px] font-medium text-text-muted hover:text-text`}
       >
         <svg
           viewBox="0 0 24 24"

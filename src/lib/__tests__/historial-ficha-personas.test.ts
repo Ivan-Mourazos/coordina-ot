@@ -66,7 +66,8 @@ describe("las fichas comparten el desglose por centro de Pendientes", () => {
     ]);
     expect(html).toContain("Iván 20m");
     expect(html).toContain("María 30m");
-    expect(veces(html, "María")).toBe(1);
+    // Lo que se ve, sin la pista al pasar el ratón (`title`), que la repite.
+    expect(veces(html.replace(/ title="[^"]*"/g, ""), "María")).toBe(1);
   });
 
   it("conserva las personas de las OF antiguas sin tareas", () => {

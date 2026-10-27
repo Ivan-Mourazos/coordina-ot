@@ -52,19 +52,21 @@ function EnlacePedido({ pedido, titulo, onAbrir }: { pedido: string; titulo: str
 /** La parte de cada sección nuestra, en una línea: «OT 5 % · causa menor».
  *  Pesada como en Métricas (ver `repartoNc`). */
 function ParteNuestra({ nc }: { nc: NoConformidad }) {
-  if (!nc.causas.length) return <span className="mt-1 block text-[11px] text-text-muted">Sin causas todavía: pendiente de investigar.</span>;
+  const gris = "rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium text-text-muted";
+  if (!nc.causas.length) return <span className={gris}>Pendiente de investigar</span>;
   const r = repartoNc(nc);
   const nuestras = NUESTRAS.filter((s) => (r.secciones[s] ?? 0) > 0);
-  if (!nuestras.length) return <span className="mt-1 block text-[11px] text-text-muted">Sin causas de planteamiento ni de diseño gráfico.</span>;
+  if (!nuestras.length) return <span className={gris}>Sin causas de planteamiento ni diseño</span>;
+  // En píldora: es el dato que se busca de un vistazo (Iván, 27/10/2026:
+  // «se debe compactar»).
   return (
-    <span className="mt-1 block text-[11px] font-semibold text-text">
-      {nuestras.map((s, i) => (
-        <span key={s}>
-          {i > 0 && " · "}
-          {SECCIONES[s].nombreCorto} {pct(r.secciones[s] ?? 0)} ({causaMayor(nc, s) === "mayor" ? "causa mayor" : "causa menor"})
+    <>
+      {nuestras.map((s) => (
+        <span key={s} className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+          {SECCIONES[s].nombreCorto} {pct(r.secciones[s] ?? 0)} · {causaMayor(nc, s) === "mayor" ? "causa mayor" : "causa menor"}
         </span>
       ))}
-    </span>
+    </>
   );
 }
 
@@ -135,9 +137,14 @@ function Defectos({ nc }: { nc: NoConformidad }) {
 function Detalles({ nc }: { nc: NoConformidad }) {
   return (
     <details className="group mt-1">
-      <summary className="cursor-pointer list-none text-[11px] font-semibold text-amber-800 hover:underline dark:text-amber-300 [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="mr-1 inline-block text-[8px] transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span>
-        Ver detalles
+      {/* La parte nuestra y «Ver detalles» en UNA línea: antes eran dos, más
+          la descripción de Calidad entera, que ya está aquí dentro. */}
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-[11px] [&::-webkit-details-marker]:hidden">
+        <ParteNuestra nc={nc} />
+        <span className="font-semibold text-amber-800 hover:underline dark:text-amber-300">
+          <span aria-hidden="true" className="mr-1 inline-block text-[8px] transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span>
+          Ver detalles
+        </span>
       </summary>
       <div className="detalle-hundido mt-1 max-h-[28rem] space-y-3 overflow-y-auto rounded-md px-2.5 py-2">
         {nc.causas.length > 0 && <Reparto nc={nc} />}
@@ -180,20 +187,27 @@ export function NoConformidadesPedido({ pedido, onAbrirPedido }: { pedido: strin
   const rectifica = nc.filter((x) => x.pedido !== pedido && x.rectificativo === pedido);
 
   return (
-    <section aria-label="No conformidades" className="bloque-3d relative mb-3 overflow-hidden rounded-xl p-3 pl-4">
+    <section aria-label="No conformidades" className="bloque-3d relative mb-3 overflow-hidden rounded-xl py-2.5 pr-3 pl-4">
       <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-amber-600 dark:bg-amber-400" />
       {propias.length > 0 && (
         <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
           {propias.length === 1 ? "Tiene una no conformidad" : `Tiene ${propias.length} no conformidades`}
         </p>
       )}
-      <ul className="mt-1 space-y-2.5">
+      <ul className="mt-1 space-y-2">
         {propias.map((x) => (
           <li key={x.codigo} className="text-[11px] leading-snug">
-            <span className="font-semibold text-text">{x.codigo}</span>
+            {/* Procesos, origen y lo que escribió Calidad, al pasar el ratón
+                (y entero en «Ver detalles»): a la vista, cuál, cuándo y dónde
+                se rectificó. */}
+            <span
+              className="font-semibold text-text"
+              title={[textoProcesos(x), x.origen?.toLowerCase(), x.descripcion && resumenNc(x.descripcion)].filter(Boolean).join(" · ")}
+            >
+              {x.codigo}
+            </span>
             <span className="text-text-muted">
-              {" "}· {fmt(x.fecha)} · {textoProcesos(x)}
-              {x.origen && ` · ${x.origen.toLowerCase()}`}
+              {" "}· {fmt(x.fecha)}
               {!x.cerrada && " · abierta"}
             </span>
             {x.rectificativo && (
@@ -201,8 +215,6 @@ export function NoConformidadesPedido({ pedido, onAbrirPedido }: { pedido: strin
                 {" "}· rectificado en <EnlacePedido pedido={x.rectificativo} onAbrir={onAbrirPedido} titulo="Abre el parte del pedido rectificativo: la hoja de la no conformidad viene escaneada con él" />
               </span>
             )}
-            {x.descripcion && <span className="block text-text-muted">{resumenNc(x.descripcion)}</span>}
-            <ParteNuestra nc={x} />
             <Detalles nc={x} />
           </li>
         ))}
@@ -211,9 +223,12 @@ export function NoConformidadesPedido({ pedido, onAbrirPedido }: { pedido: strin
             <span className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
               Este pedido rectifica el {x.pedido ? <EnlacePedido pedido={x.pedido} onAbrir={onAbrirPedido} titulo="Abre el parte del pedido original" /> : "pedido original"}
             </span>
-            <span className="text-text-muted"> · {x.codigo} · {fmt(x.fecha)} · {textoProcesos(x)}</span>
-            {x.descripcion && <span className="block text-text-muted">{resumenNc(x.descripcion)}</span>}
-            <ParteNuestra nc={x} />
+            <span
+              className="text-text-muted"
+              title={[textoProcesos(x), x.descripcion && resumenNc(x.descripcion)].filter(Boolean).join(" · ")}
+            >
+              {" "}· {x.codigo} · {fmt(x.fecha)}
+            </span>
             <Detalles nc={x} />
           </li>
         ))}

@@ -86,14 +86,22 @@ export function OFsDeLaFicha({
                 })}
               </p>
             )}
-            {venta && <DetalleVenta texto={venta} />}
-            {primera && !sinMaterial && (
-              <Materiales
-                of={conMaterial}
-                gastadoOF={gastado === null ? null : gastado?.[of.codigo]}
-                onReintentarGastado={onReintentarGastado}
-                conGastado={conGastado}
-              />
+            {/* El material y la descripción de venta en UNA fila: iban cada
+                uno en su renglón y, con varias OF, era la mitad del alto. La
+                descripción, al abrirse, ocupa la fila entera (ver DetalleVenta). */}
+            {((primera && !sinMaterial) || venta) && (
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {primera && !sinMaterial && (
+                  <Materiales
+                    of={conMaterial}
+                    gastadoOF={gastado === null ? null : gastado?.[of.codigo]}
+                    onReintentarGastado={onReintentarGastado}
+                    conGastado={conGastado}
+                    className=""
+                  />
+                )}
+                {venta && <DetalleVenta texto={venta} enFila />}
+              </div>
             )}
           </>
         );
@@ -123,7 +131,7 @@ function Materiales({
   gastadoOF,
   onReintentarGastado,
   conGastado = true,
-  className = "mt-2",
+  className = "mt-1",
 }: {
   of: HistorialOF;
   className?: string;

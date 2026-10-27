@@ -40,11 +40,15 @@ test("los tiempos van todos a la derecha y con cifras de ancho fijo", () => {
   // Un tiempo por tarea, en mono y con cifras de ancho fijo, para que se
   // recorran con la vista aunque midan "7m" y "1h 20m".
   expect(html.match(/tabular-nums/g)).toHaveLength(3);
-  // La descripción NO comparte línea con el nombre de quien la echó: esa era
-  // la rejilla de tres columnas de antes, y la columna del medio se quedaba
-  // con lo que pedía su contenido. En la ficha del Historial, que es
-  // estrecha, la descripción salía a una palabra por línea.
-  expect(html).not.toContain("grid-cols-");
+  // En columnas solo con sitio (27/10/2026), y sin repetir el fallo de la
+  // rejilla de antes: la columna del medio se quedaba con lo que pedía su
+  // contenido y en la ficha, estrecha, la descripción salía a una palabra por
+  // línea. Ahora la descripción se queda el hueco principal (1fr) y se
+  // recorta, y quién lleva tope de ancho.
+  expect(html).toContain("grid-cols-[minmax(0,1fr)_auto]");
+  expect(html).toContain("min-w-0 truncate");
+  expect(html).toContain("@[22rem]:max-w-[16rem]");
+  expect(html).not.toContain("grid-cols-[minmax(0,1fr)_auto_56px]");
 });
 
 test("cada persona lleva su tiempo, también si es la única de la tarea", () => {
