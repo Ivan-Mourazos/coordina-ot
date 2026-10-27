@@ -70,7 +70,7 @@ export function LineaRevisar({
     >
       <button
         onClick={() => onOpen(pedido)}
-        className="grid min-w-0 flex-1 cursor-pointer grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] items-center justify-start gap-1.5 overflow-hidden text-left"
+        className="grid min-w-0 flex-1 cursor-pointer grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] items-center justify-start gap-1.5 overflow-hidden rounded-none! text-left"
       >
         <span className="flex min-w-0 items-center gap-1.5">
           {fichandoYo.length > 0 && (

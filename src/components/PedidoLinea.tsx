@@ -269,7 +269,12 @@ export function PedidoLinea({
         // Pidiendo revisor o avisando de quién falta, la fila se queda en el
         // código y el resto del ancho es para ese aviso: ahí no hay columnas
         // que alinear.
-        className={`min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden text-left ${
+        //
+        // `rounded-none!`: el estilo HeroUI hace píldora todo botón, y con el
+        // `overflow-hidden` una fila de dos líneas («1 detenida», «Parte
+        // nuevo») se comía el código por la izquierda y la cuenta de OF por la
+        // derecha ("2 O"). La forma la da la fila, no este botón.
+        className={`min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-none! text-left ${
           mostrandoFalta
             ? "flex shrink-0"
             : "grid flex-1 justify-start grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] @max-[26rem]:grid-cols-[5.75rem_minmax(0,1fr)_auto] @max-[26rem]:gap-y-1"
