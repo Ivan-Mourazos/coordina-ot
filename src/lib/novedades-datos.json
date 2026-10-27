@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-27",
-    "hasta": "dea3a77",
+    "hasta": "f05a188",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -13,6 +13,12 @@
         "titulo": "El aviso de que hay una versión nueva de la web no salía nunca; ya sale",
         "detalle": "Si tienes Coordina abierta cuando se actualiza, abajo te sale el aviso para recargar.",
         "tanda": 4
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El Historial y el buscador se quedaban cargando y no salía nada; ya cargan",
+        "detalle": "Justo después de actualizar la web pueden tardar un par de minutos en ir rápidos.",
+        "tanda": 5
       },
       {
         "tipo": "mejor",
