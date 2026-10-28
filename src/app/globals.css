@@ -1192,6 +1192,11 @@ body {
 html {
   scrollbar-color: var(--border-strong) transparent;
   scrollbar-width: thin;
+  /* El hueco de la barra, SIEMPRE reservado (Iván, 28/10/2026: «al darle a
+     Pendientes la web se mueve un poco a la izquierda», «al cargar el
+     Historial también»). El Panel cabe y no tiene barra; Pendientes y el
+     Historial ya cargado sí, y al aparecer empujaba todo 12 px. */
+  scrollbar-gutter: stable;
 }
 html::-webkit-scrollbar {
   width: 12px;
