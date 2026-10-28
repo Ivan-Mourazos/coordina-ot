@@ -1,12 +1,18 @@
 [
   {
     "id": "2026-10-28",
-    "hasta": "65f2491",
+    "hasta": "6b65612",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "Un pedido interno no salía en tu panel ni en el del revisor aunque lo estuvierais haciendo; ahora sale en cuanto alguien lo coge",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La ficha del pedido es más ancha en pantallas grandes, y en las tareas de Oficina Técnica autor y revisor caben en la misma línea",
+        "detalle": "Los días en que cada uno echó su tiempo salen al pasar el ratón por su nombre.",
+        "tanda": 2
       }
     ]
   },
