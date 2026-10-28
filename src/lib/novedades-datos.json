@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-10-28",
-    "hasta": "6b65612",
+    "hasta": "0961b9b",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "Un pedido interno no salía en tu panel ni en el del revisor aunque lo estuvierais haciendo; ahora sale en cuanto alguien lo coge",
         "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al cambiar a Pendientes o al cargar el Historial la web se desplazaba un poco a la izquierda; ya no se mueve",
+        "tanda": 3
       },
       {
         "tipo": "mejor",
