@@ -76,7 +76,7 @@ export function MarcoFicha({
         // que el panel de la derecha), así la hoja arranca y acaba a la misma
         // altura que el panel. Con el de aquí más el del visor, la hoja quedaba
         // 24 px más baja arriba y 64 px más corta abajo.
-        className="overlay-in absolute inset-y-0 left-0 right-[calc(512px+1rem)] flex flex-col px-4 bajo:right-[calc(560px+1rem)]"
+        className="overlay-in absolute inset-y-0 left-0 right-[calc(clamp(512px,34vw,680px)+1rem)] flex flex-col px-4 bajo:right-[calc(560px+1rem)]"
         onClick={onCerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
@@ -84,7 +84,11 @@ export function MarcoFicha({
         </div>
       </div>
 
-      <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-[512px] flex-col rounded-xl bajo:max-w-[560px]">
+      {/* Un tercio de la pantalla, entre 512 y 680 px (Iván, 28/10/2026): en
+          1920 son ~650 y caben Autor y Revisor en la línea de cada tarea. El
+          parte de la izquierda no pierde tamaño, lo limita la altura. En
+          pantalla baja, 560 fijos como antes. */}
+      <aside className="pedido-panel glass-panel-strong drawer-in absolute inset-y-4 right-4 flex w-full max-w-[clamp(512px,34vw,680px)] flex-col rounded-xl bajo:max-w-[560px]">
         {/* Sin raya entre cabecera, cuerpo y pie: igual que en el tablero, lo
             que separa son los bloques con relieve, no líneas de 1 px. */}
         {/* La X va en su esquina, FUERA de la fila: como columna propia, todo

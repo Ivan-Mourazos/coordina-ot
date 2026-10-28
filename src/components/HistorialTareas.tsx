@@ -306,7 +306,7 @@ export function TareasDeOF({
             key={tarea.codigo}
             className={`grid items-baseline gap-x-3 py-1 ${
               sinTotal
-                ? "grid-cols-[minmax(0,1fr)] @[44rem]:grid-cols-[minmax(0,1fr)_auto]"
+                ? "grid-cols-[minmax(0,1fr)] @[36rem]:grid-cols-[minmax(0,1fr)_auto]"
                 : `grid-cols-[minmax(0,1fr)_auto] ${rolDe ? "" : "@[22rem]:grid-cols-[minmax(0,1fr)_minmax(0,auto)_3.5rem]"} @[44rem]:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_3.5rem]`
             } ${vacia ? "text-text-muted" : ""}`}
           >
@@ -330,13 +330,21 @@ export function TareasDeOF({
               </p>
             )}
             {personas.length > 0 && rolDe && (
-              <p className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[44rem]:col-start-2 @[44rem]:row-start-1 @[44rem]:justify-end">
+              <p className="flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[11px] leading-snug text-text-muted @[36rem]:col-start-2 @[36rem]:row-start-1 @[36rem]:justify-end">
                 {/* Sin «·» entre personas: al partirse la línea se quedaba al
                     principio del renglón siguiente. El hueco las separa. */}
                 {personas.map((p) => {
                   const papel = rolDe?.(p.nombre);
+                  // QUÉ DÍAS lo echó (se ve si la revisión llegó días después
+                  // del planteo, o si un trabajo se partió): al pasar el ratón,
+                  // no a la vista. Con «· 05–14/10» detrás de cada nombre, en la
+                  // ficha no cabían autor y revisor junto a la tarea sin cortar
+                  // su nombre (Iván, 28/10/2026).
+                  const dias = p.desde && p.hasta
+                    ? `${p.desde === p.hasta ? `Imputado el ${fmtFechaLarga(p.desde)}` : `Imputado del ${fmtFechaLarga(p.desde)} al ${fmtFechaLarga(p.hasta)}`} (${rangoDias(p.desde, p.hasta, hoyISO())})`
+                    : undefined;
                   return (
-                    <span key={p.nombre} className="flex items-center gap-1">
+                    <span key={p.nombre} className="flex items-center gap-1" title={dias}>
                       {papel && (
                         <span
                           className={`rounded px-1 text-[9px] font-bold uppercase ${
@@ -352,20 +360,6 @@ export function TareasDeOF({
                           de autor y revisor de la OF se retira al desplegar y
                           es aquí donde se lee quién echó cuánto. */}
                       <span>{p.min > 0 ? fmtMin(p.min) : "<1m"}</span>
-                      {/* QUÉ DÍAS lo echó: se ve si la revisión llegó días
-                          después del planteo, o si un trabajo se partió. */}
-                      {p.desde && p.hasta && (
-                        <span
-                          className="text-text-muted"
-                          title={
-                            p.desde === p.hasta
-                              ? `Imputado el ${fmtFechaLarga(p.desde)}`
-                              : `Imputado del ${fmtFechaLarga(p.desde)} al ${fmtFechaLarga(p.hasta)}`
-                          }
-                        >
-                          · {rangoDias(p.desde, p.hasta, hoyISO())}
-                        </span>
-                      )}
                     </span>
                   );
                 })}
