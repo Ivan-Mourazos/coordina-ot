@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-10-28",
-    "hasta": "0961b9b",
+    "hasta": "dffa95e",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -12,6 +12,11 @@
         "tipo": "arreglado",
         "titulo": "Al cambiar a Pendientes o al cargar el Historial la web se desplazaba un poco a la izquierda; ya no se mueve",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Las familias de nombre largo, como «Acabados · Confección», ya no se montan encima del cliente en el panel",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
