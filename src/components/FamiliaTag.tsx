@@ -47,11 +47,17 @@ export function FamiliaTag({
     <span
       // `whitespace-nowrap`: "Assa Abloy" se partía en dos líneas dentro de su
       // chip y engordaba la fila del panel entera.
-      className="familia-tag inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
+      //
+      // `min-w-0 max-w-full` y el nombre con «…»: en las columnas de ancho
+      // fijo de las filas del panel, «Acabados · Confección» se salía de la
+      // suya y pisaba el avatar y el cliente (Iván, 28/10/2026). Ahora se
+      // corta dentro de su hueco; entero, al pasar el ratón.
+      className="familia-tag inline-flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
       style={{ "--fam": meta.color } as React.CSSProperties}
+      title={meta.label}
     >
-      <FamiliaIcon familia={familia} className="size-3" />
-      {meta.label}
+      <FamiliaIcon familia={familia} className="size-3 shrink-0" />
+      <span className="truncate">{meta.label}</span>
     </span>
   );
 }
