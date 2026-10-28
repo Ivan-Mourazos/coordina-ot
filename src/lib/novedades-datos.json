@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-28",
+    "hasta": "65f2491",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido interno no salía en tu panel ni en el del revisor aunque lo estuvierais haciendo; ahora sale en cuanto alguien lo coge",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-27",
     "hasta": "8cbfca4",
     "cambios": [
