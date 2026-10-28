@@ -35,6 +35,12 @@ vi.mock("@/lib/server/olanet", async () => {
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", jaime: "120", sinCodigo: undefined },
 }));
+// El contraste con RPS (28/10/2026) no sale a la red en los tests: aquí RPS
+// no da nada por terminado, y lo que se prueba es lo que dice OLANET.
+vi.mock("@/lib/server/rps", () => ({
+  fasesTerminadasEnRps: async () => new Set<string>(),
+  claveFase: (of: string | null, fase: string | null) => `${of ?? ""}:${(fase ?? "").replace(/^0+(?=\d)/, "")}`,
+}));
 
 let ruta: typeof import("../../app/api/fases/route");
 
