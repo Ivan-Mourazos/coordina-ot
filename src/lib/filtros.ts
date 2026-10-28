@@ -170,8 +170,24 @@ export function contarCategorias(pedidos: Pedido[], opts?: OpcionesCategoria): R
 /** Si la sección trata lo interno como trabajo, deja de ser «interno» para
  *  filtrar: sale en «Tu trabajo» con todo lo demás. La marca del pedido no se
  *  toca — la Lista sigue enseñando su etiqueta. */
-const esInterno = (p: Pedido, opts?: OpcionesCategoria) =>
-  p.interno === true && !opts?.internosComoTrabajo;
+const esInterno = (p: Pedido, opts?: OpcionesCategoria) => internoApartado(p, opts);
+
+/** ¿Se aparta este pedido interno del trabajo normal?
+ *
+ *  Solo MIENTRAS NADIE LO HAYA COGIDO (Iván, 28/10/2026: «al fichar no me sale
+ *  en mi panel, ni sale para revisar al revisor; en el momento en que alguien
+ *  lo coge sí se debería ver»). Sin tocar, un interno (mantenimiento, sin
+ *  pedido de venta) llenaría la bandeja de OT; pero en cuanto tiene autor o
+ *  revisor, o alguien empezó a plantearlo, es trabajo de alguien y sale en su
+ *  zona, en Revisiones y en «Tu trabajo» como cualquier otro. Donde lo interno
+ *  ya es trabajo (Diseño, Impresión), nunca se aparta. */
+export function internoApartado(p: Pedido, opts?: OpcionesCategoria): boolean {
+  if (p.interno !== true || opts?.internosComoTrabajo) return false;
+  const cogido = p.ofs.some(
+    (of) => Boolean(of.autorId) || Boolean(of.revisorId) || (of.estado !== "pendiente" && of.estado !== "anulada"),
+  );
+  return !cogido;
+}
 
 /** Lo mismo, pero contando lo que se vería DE VERDAD al elegir cada categoría:
  *  con el resto de la barra puesta. Un contador que no cuadra con lo que sale

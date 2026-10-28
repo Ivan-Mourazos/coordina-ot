@@ -9,6 +9,7 @@ import {
   opcionesDisponibles,
   filtrosAParams,
   hayFiltrosActivos,
+  internoApartado,
   ofEnCategoria,
   paramsAFiltros,
   type Filtros,
@@ -340,5 +341,29 @@ describe("detenidosSinAsignar", () => {
   it("solo con «Tu trabajo» puesto: otra categoría enseña la suya y nada más", () => {
     const p = pedido({ ofs: [det()] });
     expect(detenidosSinAsignar([p], { ...FILTROS_INICIALES, categoria: "anuladas" }, HOY)).toEqual([]);
+  });
+});
+
+describe("pedidos internos: fuera solo mientras nadie los coja (28/10/2026)", () => {
+  const interno = (o: Partial<OF> = {}) => pedido({ interno: true, ofs: [of(o)] });
+
+  it("sin tocar, se aparta del trabajo normal de OT", () => {
+    expect(internoApartado(interno())).toBe(true);
+    expect(aplicarFiltros([interno()], con({ categoria: "normal" }), HOY)).toHaveLength(0);
+  });
+
+  it("con autor, revisor o ya empezado, sale como cualquier pedido", () => {
+    for (const p of [interno({ autorId: "ivan" }), interno({ revisorId: "jaime" }), interno({ estado: "en_curso" }), interno({ estado: "por_revisar" })]) {
+      expect(internoApartado(p)).toBe(false);
+      expect(aplicarFiltros([p], con({ categoria: "normal" }), HOY)).toHaveLength(1);
+    }
+  });
+
+  it("donde lo interno ya es trabajo (Diseño), nunca se aparta", () => {
+    expect(internoApartado(interno(), { internosComoTrabajo: true })).toBe(false);
+  });
+
+  it("un pedido normal nunca se aparta", () => {
+    expect(internoApartado(pedido())).toBe(false);
   });
 });

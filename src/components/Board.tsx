@@ -90,6 +90,7 @@ import {
   CLAVES_URL_FILTROS,
   filtrosAParams,
   hayFiltrosActivos,
+  internoApartado,
   opcionesDisponibles,
   paramsAFiltros,
   type Filtros,
@@ -887,10 +888,11 @@ export function Board({
   const facetsByLoc = useMemo(() => {
     const map = new Map<string | null, Facet[]>();
     for (const p of procesados) {
-      // Proyectos internos (OFs sin pedido): en OT no son trabajo de pedidos —
-      // se fichan desde Mi fichaje y se consultan en la Lista—. En Diseño
-      // Gráfico sí lo son, y allí se reparten como cualquier otro.
-      if (p.interno && !opcionesCategoria.internosComoTrabajo) continue;
+      // Proyectos internos (OFs sin pedido): en OT no son trabajo de pedidos
+      // MIENTRAS NADIE LOS COJA; en cuanto tienen autor o revisor salen en su
+      // zona como cualquier otro (ver `internoApartado`). En Diseño Gráfico
+      // siempre son trabajo, y allí se reparten como cualquier otro.
+      if (internoApartado(p, opcionesCategoria)) continue;
       const atrasado = estaAtrasado(p, hoy);
       const porLoc = new Map<string | null, OF[]>();
       for (const of of p.ofs) {
