@@ -16,6 +16,7 @@ import { motivoNoFichable } from "@/lib/fichaje";
 import { fmtMin } from "@/lib/estado";
 import { IconoCandado, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
+import { ChipComprometida } from "./ChipComprometida";
 import { FamiliaTag } from "./FamiliaTag";
 import { hoyISO } from "@/lib/types";
 import { useSoloLectura } from "./SoloLectura";
@@ -173,6 +174,9 @@ export function PedidoLinea({
     pedido.scanCambiado || avisaDeOFNueva(pedido) || (detenidas > 0 && !detenidoDelTodo);
   const avisos = (
     <>
+      {/* En estrecho va junto a la planificada, solo la fecha: aquí bajaría a
+          una segunda línea y desplazaría las filas de debajo. */}
+      <ChipComprometida pedido={pedido} className="shrink-0 @max-[26rem]:hidden" />
       {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
           la FILA y no solo dentro del pedido: la gracia es no ponerse a
           trabajar con la versión vieja, y para eso hay que verlo ANTES de
@@ -359,6 +363,7 @@ export function PedidoLinea({
                 fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
               }`}
             >
+            <ChipComprometida pedido={pedido} soloFecha className="hidden shrink-0 tabular-nums @max-[26rem]:inline" />
             {pedido.fechaPlanificacion && (
               <span
                 className={`w-[2.6rem] shrink-0 text-right tabular-nums ${

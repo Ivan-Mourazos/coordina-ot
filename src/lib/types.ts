@@ -533,6 +533,9 @@ export interface Pedido {
    *  pedido, y por eso la línea de tiempo salía al revés; la de entrada es
    *  `fechaCreacion`. */
   fechaEntrega: string; // ISO yyyy-mm-dd
+  /** La fecha que Producción ha comprometido con el cliente, ISO yyyy-mm-dd.
+   *  La mayoría de pedidos no la tienen. Ver lib/comprometida.ts. */
+  fechaComprometida?: string;
   prioridad: Prioridad;
   ofs: OF[];
 

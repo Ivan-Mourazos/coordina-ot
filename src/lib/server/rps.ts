@@ -19,6 +19,7 @@ import { esCodigoPedido, hoyISO } from "../types";
 import { OPERARIOS } from "../mock";
 import { operarioDeEmpleado } from "./operarios";
 import { partirOfId } from "../bonos";
+import { ultimaComprometida } from "../comprometida";
 
 // ─── Adaptador RPS → contrato de la UI ───────────────────────────────────────
 // Lee la vista RPSNext.dbo.TGM_PENDIENTE_OT (1 fila = 1 OF pendiente de OT,
@@ -1106,7 +1107,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     ? codigosPedido.map((c) => `'${c}'`).join(",")
     : "''";
 
-  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, maquinasTarea, tareas, subfamilias, fuera] =
+  const [fichajes, reservas, compras, imputaciones, ventas, detallesVenta, maquinasTarea, tareas, subfamilias, fuera, comprometidas] =
     await Promise.all([
     pool.request().query<FilaFichaje>(`
       SELECT orden, fase, tiempo, codoperario FROM dbo.tgm_fichajes_olanet
@@ -1314,7 +1315,25 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
       WHERE o.CodCompany = '001' AND o.CodOrder IN (${listaPedidosIn})
         AND mo.CodManufacturingOrder NOT IN (${listaIn})
     `),
+    // La fecha comprometida con el cliente (ver lib/comprometida.ts). El filtro
+    // de fecha descarta los formularios abandonados en blanco. Medido el
+    // 30/10/2026: 120 ms para 49 pedidos. Si falla, el tablero sigue sin ella:
+    // es un dato de más, no puede dejar al equipo sin trabajo.
+    pool.request().query<{ pedido: string | null; fecha: Date | null; grabada: Date }>(`
+      SELECT p.EntityCodeValue AS pedido, f.DateValue AS fecha, f.CreationTimestamp AS grabada
+      FROM dbo.BPMDataFormField p WITH (NOLOCK)
+      JOIN dbo.BPMDataFormField f WITH (NOLOCK)
+        ON f.IDDataFormTask = p.IDDataFormTask AND f.Caption = 'Fecha comprometida'
+      WHERE p.Caption = 'Pedido' AND p.EntityCodeValue IN (${listaPedidosIn})
+        AND f.DateValue > '2000-01-01'
+    `).catch((e) => {
+      console.error("[rps] no se pudo leer la fecha comprometida:", e);
+      return { recordset: [] };
+    }),
   ]);
+  const comprometidaPorPedido = ultimaComprometida(
+    comprometidas.recordset.map((c) => ({ ...c, fecha: fechaISO(c.fecha) })),
+  );
   const fueraPorPedido = ofsFueraPorPedido(fuera.recordset, seccion.recursos);
 
   // La máquina de cada tarea, con la clave "orden:tarea" que usa toda la web
@@ -1564,6 +1583,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
       planificacionEstimada: planificada === undefined || undefined,
       fechaFabricacion: fabricacion,
       fechaEntrega: entrega,
+      fechaComprometida: comprometidaPorPedido.get(grupo.codigo),
       prioridad,
       scanUrl,
       comentarioVenta: (venta?.comentario ?? "").trim() || undefined,

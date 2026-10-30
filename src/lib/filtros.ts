@@ -98,6 +98,8 @@ export interface Filtros {
    *  seguir trabajando—, pero saber cuáles esperan algo cambia el orden del
    *  día, así que es una consulta, no un aviso. */
   soloMaterialPendiente: boolean;
+  /** Solo los pedidos con fecha comprometida con el cliente. */
+  soloComprometidos: boolean;
   categoria: Categoria;
   /** Por qué se ordena la Lista, y en qué sentido. Solo lo usa esa vista; las
    *  otras dos tienen su propio reparto (por zonas, por estado de revisión) y
@@ -119,6 +121,7 @@ export const FILTROS_VACIOS: Filtros = {
   hasta: "",
   soloAtrasados: false,
   soloMaterialPendiente: false,
+  soloComprometidos: false,
   categoria: "normal",
   // La planificada ascendente, que es como ha vivido siempre esta lista: la
   // fecha por la que Producción reparte el trabajo, así que de arriba abajo se
@@ -274,6 +277,7 @@ function pasaPedido(p: Pedido, f: Filtros, hoy: string): boolean {
   if (f.desde && p.fechaPlanificacion < f.desde) return false;
   if (f.hasta && p.fechaPlanificacion > f.hasta) return false;
   if (f.soloAtrasados && !estaAtrasado(p, hoy)) return false;
+  if (f.soloComprometidos && !p.fechaComprometida) return false;
   return true;
 }
 
@@ -347,6 +351,7 @@ export function filtrosActivos(f: Filtros): string[] {
   if (f.desde || f.hasta) chips.push("fechas");
   if (f.soloAtrasados) chips.push("solo atrasados");
   if (f.soloMaterialPendiente) chips.push("esperando material");
+  if (f.soloComprometidos) chips.push("con fecha comprometida");
   // "normal" no cuenta: es el estado de reposo de la barra, no un recorte que
   // alguien haya pedido. Pero sí cuenta para explicar una lista vacía, y por
   // eso `hayRecorte` lo mira aparte.
@@ -383,6 +388,7 @@ export const CLAVES_URL_FILTROS: readonly string[] = [
   ...CLAVES.map(([, corta]) => corta),
   "atr",
   "mat",
+  "com",
   "desc",
 ];
 
@@ -395,6 +401,7 @@ export function filtrosAParams(f: Filtros): URLSearchParams {
   }
   if (f.soloAtrasados) sp.set("atr", "1");
   if (f.soloMaterialPendiente) sp.set("mat", "1");
+  if (f.soloComprometidos) sp.set("com", "1");
   if (f.ordenDesc) sp.set("desc", "1");
   return sp;
 }
@@ -418,6 +425,7 @@ export function paramsAFiltros(sp: URLSearchParams): Filtros {
   if ((CATEGORIAS as readonly string[]).includes(ver)) f.categoria = ver as Categoria;
   f.soloAtrasados = sp.get("atr") === "1";
   f.soloMaterialPendiente = sp.get("mat") === "1";
+  f.soloComprometidos = sp.get("com") === "1";
   const ord = texto("ord");
   if ((ORDENES as readonly string[]).includes(ord)) f.orden = ord as OrdenLista;
   f.ordenDesc = sp.get("desc") === "1";

@@ -319,8 +319,8 @@ export function seccionDeRecurso(recurso: string | null | undefined): SeccionId 
  *  encuentra y los indicadores por máquina no cuadran (David, IT, 30/10/2026).
  *  Los grupos están en la vista `_vEQUIV_GRUPOS_MAQUINAS`.
  *
- *  IMDI-A no está: es un grupo, pero agrupa cuatro impresoras y ninguna es
- *  "la suya". Hay que elegir con IT. */
+ *  IMDI-A no está: es un grupo, pero de máquinas físicas, y nunca se ficha en
+ *  Coordina (David, 30/10/2026). */
 const MAQUINA_DE_GRUPO: Readonly<Record<string, string>> = {
   "otec-a": "A-OTEC",
   "dgra-a": "A-DGRA",

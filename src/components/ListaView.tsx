@@ -25,6 +25,7 @@ import { FilaDesplegable } from "./FilaDesplegable";
 import { useAcordeon } from "./Acordeon";
 import { FilaOF } from "./FilaOF";
 import { negocioAparte } from "@/lib/negocio";
+import { ChipComprometida } from "./ChipComprometida";
 import { IconoAviso } from "./Iconos";
 
 // ─── Vista Lista ─────────────────────────────────────────────────────────────
@@ -566,6 +567,7 @@ export function ListaView({
                           <span className="text-text-muted"> · {negocioAparte(p.cliente, p.negocio)}</span>
                         )}
                       </span>
+                      <ChipComprometida pedido={p} className="shrink-0" />
                       {p.interno && (
                         <span
                           className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border"
@@ -676,6 +678,7 @@ function CeldasCompactas({
             <span className="text-text-muted"> · {negocioAparte(p.cliente, p.negocio)}</span>
           )}
         </span>
+        <ChipComprometida pedido={p} className="shrink-0" />
         {p.situacion === "pendiente" && (
           <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold uppercase text-text-muted ring-1 ring-border" title="Producción todavía no lo ha pasado a Oficina Técnica">
             Sin procesar

@@ -70,26 +70,28 @@ interface Controles {
   categoria: boolean;
   atrasados: boolean;
   material: boolean;
+  comprometidos: boolean;
 }
 
 const CONTROLES: Record<VistaFiltrable, Controles> = {
   // Asignar reparte trabajo sin empezar: el estado no discrimina (casi todo es
   // "pendiente") y filtrar por autor no tiene sentido en un panel que es, por
   // definición, lo que no tiene autor.
-  asignar: { familia: true, prioridad: true, estado: false, roles: false, fechas: false, categoria: true, atrasados: true, material: false },
-  lista: { familia: true, prioridad: true, estado: true, roles: false, fechas: true, categoria: true, atrasados: false, material: true },
+  asignar: { familia: true, prioridad: true, estado: false, roles: false, fechas: false, categoria: true, atrasados: true, material: false, comprometidos: true },
+  lista: { familia: true, prioridad: true, estado: true, roles: false, fechas: true, categoria: true, atrasados: false, material: true, comprometidos: true },
   // Revisión ya está partida por estado de revisión y no enseña trabajo
   // terminado: el estado y las fechas sobran.
-  revision: { familia: true, prioridad: true, estado: false, roles: true, fechas: false, categoria: false, atrasados: false, material: false },
+  revision: { familia: true, prioridad: true, estado: false, roles: true, fechas: false, categoria: false, atrasados: false, material: false, comprometidos: false },
 };
 
 /** La barra de las secciones que no reparten trabajo entre varios: buscador y
- *  «Solo atrasados», nada más (ver `Seccion.barraSimple`). Buscar un pedido y
- *  ver lo que va tarde es lo que se usa; el resto de controles ocupaban la fila
- *  sin que nadie los tocara. */
+ *  «Solo atrasados» (ver `Seccion.barraSimple`), más «Con fecha comprometida»,
+ *  que le toca a todas las secciones por igual. Buscar un pedido y ver lo que
+ *  va tarde es lo que se usa; el resto de controles ocupaban la fila sin que
+ *  nadie los tocara. */
 const BARRA_SIMPLE: Controles = {
   familia: false, prioridad: false, estado: false, roles: false,
-  fechas: false, categoria: false, atrasados: true, material: false,
+  fechas: false, categoria: false, atrasados: true, material: false, comprometidos: true,
 };
 
 /** División entre grupos de controles. */
@@ -193,7 +195,7 @@ export function FilterBar({
   // estaba.
   const hayVer =
     ver.familia || ver.prioridad || ver.estado || ver.fechas ||
-    ver.categoria || ver.material || ver.atrasados;
+    ver.categoria || ver.material || ver.atrasados || ver.comprometidos;
 
   const opcionesPersona = [
     { value: SIN_ASIGNAR, label: "Sin asignar" },
@@ -364,6 +366,16 @@ export function FilterBar({
             title="Enseña SOLO los pedidos cuya fecha de planificación ya pasó y siguen sin terminar."
           >
             Solo atrasados
+          </Toggle>
+        )}
+
+        {ver.comprometidos && (
+          <Toggle
+            activo={filtros.soloComprometidos}
+            onClick={() => setFiltros({ soloComprometidos: !filtros.soloComprometidos })}
+            title="Enseña SOLO los pedidos con una fecha comprometida con el cliente."
+          >
+            Con fecha comprometida
           </Toggle>
         )}
       </Grupo>

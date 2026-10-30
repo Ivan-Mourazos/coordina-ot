@@ -5,6 +5,7 @@ import { hoyISO } from "@/lib/types";
 import { TRAMO, lineaTiempo, urgenciaRecorrido } from "@/lib/linea-tiempo";
 import { fmtDiaMes, relativoA } from "@/lib/fechas";
 import { AcentoBloque } from "./AcentoBloque";
+import { ChipComprometida } from "./ChipComprometida";
 
 /** Las fechas del pedido puestas a escala, con hoy encima.
  *
@@ -141,6 +142,11 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
           </div>
         ))}
       </div>
+      {pedido.fechaComprometida && (
+        <p className="mt-2 bajo:mt-1">
+          <ChipComprometida pedido={pedido} largo />
+        </p>
+      )}
     </div>
   );
 }

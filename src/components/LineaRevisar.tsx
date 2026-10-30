@@ -6,6 +6,7 @@ import { accionesDisponibles } from "@/lib/acciones";
 import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { ROL } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
+import { ChipComprometida } from "./ChipComprometida";
 import { FamiliaTag } from "./FamiliaTag";
 import { useSoloLectura } from "./SoloLectura";
 
@@ -64,13 +65,17 @@ export function LineaRevisar({
   return (
     <div
       style={{ borderLeftColor: urgente ? "var(--color-red-600)" : ROL.revisar.color }}
-      className={`group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         fichandoYo.length > 0 ? "bg-[color-mix(in_srgb,var(--color-violet-500)_10%,var(--fila))]" : "bg-[var(--fila)]"
       }`}
     >
       <button
         onClick={() => onOpen(pedido)}
-        className="grid min-w-0 flex-1 cursor-pointer grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] items-center justify-start gap-1.5 overflow-hidden rounded-none! text-left"
+        // En estrecho, una fila con fecha comprometida pierde el cliente y los
+        // avatares (ya no cabían) y aprieta la familia: la fila no crece.
+        className={`grid min-w-0 flex-1 cursor-pointer grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] items-center justify-start gap-1.5 overflow-hidden rounded-none! text-left ${
+          pedido.fechaComprometida ? "@max-[26rem]:grid-cols-[5.75rem_5.5rem_auto]" : ""
+        }`}
       >
         <span className="flex min-w-0 items-center gap-1.5">
           {fichandoYo.length > 0 && (
@@ -89,7 +94,7 @@ export function LineaRevisar({
             </span>
           )}
         </span>
-        <span className="flex min-w-0 items-center gap-1.5">
+        <span className={`flex min-w-0 items-center gap-1.5 ${pedido.fechaComprometida ? "@max-[26rem]:hidden" : ""}`}>
           {autores.slice(0, 2).map((op) => (
             <span
               key={op.id}
@@ -100,6 +105,8 @@ export function LineaRevisar({
               {op.iniciales}
             </span>
           ))}
+          {/* Como en `PedidoLinea`: en estrecho, solo la fecha y junto al estado. */}
+          <ChipComprometida pedido={pedido} className="shrink-0 @max-[26rem]:hidden" />
           <span className="min-w-0 flex-1 truncate text-text-muted">{pedido.cliente}</span>
         </span>
         {/* Se esconde cuando aparece el botón encima, igual que en PedidoLinea:
@@ -109,10 +116,19 @@ export function LineaRevisar({
             fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
           }`}
         >
+          <ChipComprometida pedido={pedido} soloFecha className="hidden shrink-0 tabular-nums @max-[26rem]:inline" />
           <span className={revisando ? `font-semibold ${ROL.revisar.texto}` : "text-text-muted"}>
             {revisando ? "Revisando" : "Por empezar"}
           </span>
-          <span className="w-[2.25rem] shrink-0 text-right text-text-muted">{ofs.length} OF</span>
+          {/* En estrecho, la fecha comprometida ocupa el sitio de la cuenta: con
+              las dos no caben y se cortaba el estado. */}
+          <span
+            className={`w-[2.25rem] shrink-0 text-right text-text-muted ${
+              pedido.fechaComprometida ? "@max-[26rem]:hidden" : ""
+            }`}
+          >
+            {ofs.length} OF
+          </span>
         </span>
       </button>
 

@@ -232,6 +232,14 @@ export const PEDIDOS: Pedido[] = SPECS.map((s, i) => {
     fechaSolicitud: alCalendario(s.solicitud),
     fechaPlanificacion: alCalendario(s.plan ?? addDays(s.solicitud, 12)),
     fechaEntrega: alCalendario(s.entrega),
+    // Uno ya pasado y dos por venir, para ver la etiqueta en la zona personal,
+    // en la bandeja y en sus dos colores.
+    fechaComprometida:
+      s.codigo === "AR.26.05544"
+        ? alCalendario(s.solicitud)
+        : s.codigo === "AR.26.05525" || s.codigo === "AR.26.05555"
+          ? alCalendario(s.entrega)
+          : undefined,
     prioridad: s.prioridad,
     accent: s.accent,
     lineas: 4 + (i % 5),

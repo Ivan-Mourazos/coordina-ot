@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import type { OF, Operario, Pedido } from "@/lib/types";
 import { comprasPendientes, estadoMaterialDe, hoyISO } from "@/lib/types";
+import { ChipComprometida } from "./ChipComprometida";
 import { PedidoScan } from "./PedidoScan";
 import { MenuAsignar } from "./MenuAsignar";
 import { QuickLook } from "./QuickLook";
@@ -223,6 +224,15 @@ export const PedidoCardView = memo(function PedidoCardView({
             </span>
           )}
         </span>
+
+        {/* Sobre el parte y no en el pie: una línea más en el pie descuadraría
+            las tarjetas de la bandeja. `bottom-7` deja libres el aviso de
+            fichando y la barra de asignar. */}
+        <ChipComprometida
+          pedido={pedido}
+          sobreParte
+          className="absolute bottom-7 left-1 whitespace-nowrap px-0.5! text-[9px]! shadow-sm"
+        />
 
         {/* fichando ahora, con el color del rol */}
         {fichando?.fichandoRol && (
