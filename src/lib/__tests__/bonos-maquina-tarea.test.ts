@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { bonosDe, MAQUINA_OT } from "../bonos";
 import type { Intervalo } from "../fichaje";
+import { maquinaDeFichaje, nombresDeMaquinaEnBonos } from "../secciones";
 
 // ─── La máquina de un bono es la del CENTRO donde se hizo el trabajo ─────────
 // No la del departamento de quien lo hizo. Comprobado en `sch_RPS_bonos` el
@@ -46,6 +47,31 @@ test("sin máquina conocida se queda la de la persona: un bono sin máquina pier
   // Escribirlas como se escribían siempre es peor que no escribirlas.
   const bonos = bonosDe([tramo(["0232035:5"])], CODIGOS, POR_PERSONA, new Map());
   expect(bonos[0].maquina).toBe("A-DGRA");
+});
+
+test("un GRUPO de RPS no sirve de máquina: el bono sale con la máquina real", () => {
+  // David (IT), 30/10/2026: la tarea puede asignarse a un grupo (OTEC-A), pero
+  // el fichaje va siempre a una máquina, y con el grupo falla la exportación.
+  const bonos = bonosDe([tramo(["0232346:2", "0232347:3"], "ivan")], CODIGOS, POR_PERSONA,
+    new Map([["0232346:2", "OTEC-A"], ["0232347:3", "DGRA-A"]]));
+  expect(bonos.map((b) => b.maquina)).toEqual(["A-OTEC", "A-DGRA"]);
+});
+
+test("el grupo se reconoce con las mayúsculas que traiga RPS", () => {
+  expect(maquinaDeFichaje("otec-a")).toBe("A-OTEC");
+  expect(maquinaDeFichaje(" DGRA-A ")).toBe("A-DGRA");
+});
+
+test("una máquina de verdad no se toca", () => {
+  expect(maquinaDeFichaje("P-PCUS")).toBe("P-PCUS");
+  expect(maquinaDeFichaje("A-OTEC")).toBe("A-OTEC");
+});
+
+test("los bonos ya escritos con el grupo se siguen encontrando", () => {
+  // Sin esto, un tramo de antes del arreglo no se sellaría nunca y su tiempo
+  // se contaría dos veces, aquí y en RPS.
+  expect(nombresDeMaquinaEnBonos("A-OTEC")).toEqual(["A-OTEC", "OTEC-A"]);
+  expect(nombresDeMaquinaEnBonos("P-PCUS")).toEqual(["P-PCUS"]);
 });
 
 test("y sin ninguna de las dos, la de Oficina Técnica, como antes de que hubiera secciones", () => {

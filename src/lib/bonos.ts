@@ -1,4 +1,5 @@
 import type { Intervalo } from "./fichaje";
+import { maquinaDeFichaje } from "./secciones";
 
 // ─── Traducción de intervalos a filas de sch_RPS_bonos ───────────────────────
 // Funciones puras: convierten el fichaje de CoordinaOT al formato que espera
@@ -253,7 +254,7 @@ export function bonosDe(
           ofs[i].numope,
           operario,
           // La de la TAREA manda; la de la persona es el respaldo de siempre.
-          maquinasPorOf.get(ofs[i].ofId) ?? maquinasRps[iv.operarioId] ?? MAQUINA_OT,
+          maquinaDeFichaje(maquinasPorOf.get(ofs[i].ofId) ?? maquinasRps[iv.operarioId] ?? MAQUINA_OT),
         ),
       );
     }

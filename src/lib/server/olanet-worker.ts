@@ -1,6 +1,6 @@
 import { MAQUINA_OT, TRASPASADO_NO_PROCESAR, partirOfId } from "../bonos";
 import { ESTADO_FASE } from "../fases";
-import { SECCIONES } from "../secciones";
+import { SECCIONES, maquinaDeFichaje, nombresDeMaquinaEnBonos } from "../secciones";
 import { agregarPorRol } from "../fichaje";
 import { diasYOperariosDe, intervaloYaEnRps } from "../traspaso-fichaje";
 import { leerTodosIntervalos, marcarTraspasados } from "./fichaje-db";
@@ -242,7 +242,9 @@ export async function confirmarTraspasos(): Promise<number> {
       iv.ofIds.some((ofId) => maquinaDeTarea(ofId, iv.operarioId, porTarea) === maquina),
     );
     const { dias, operarios } = diasYOperariosDe(suyos, COD_RPS_POR_OPERARIO);
-    for (const clave of await bonosTraspasados(dias, operarios, maquina)) yaEnRps.add(clave);
+    for (const nombre of nombresDeMaquinaEnBonos(maquina)) {
+      for (const clave of await bonosTraspasados(dias, operarios, nombre)) yaEnRps.add(clave);
+    }
   }
   if (yaEnRps.size === 0) return 0;
 
@@ -295,15 +297,15 @@ let maquinasPublicadas: ReadonlySet<string> = new Set();
 /** Qué máquinas sincronizar en esta vuelta.
  *
  *  NO basta con las de cada sección (A-OTEC, A-DGRA): la fila lleva la máquina
- *  de su TAREA, y una tarea de OT puede ir a OTEC-A. Recorriendo solo las de
- *  sección, esa fila se descartaba en silencio y quien la fichaba no aparecía
+ *  de su TAREA, y una tarea de Diseño puede ir al plóter. Recorriendo solo las
+ *  de sección, esa fila se descartaba en silencio y quien la fichaba no aparecía
  *  como fichando en ninguna parte —ni en la web ni en la herramienta vieja—,
  *  aunque su tiempo sí se guardaba y se mandaba bien al parar.
  *
  *  Y tampoco TODAS las máquinas posibles: la sincronización empieza borrando
  *  las filas de la máquina, y esta tabla la comparte el mini-olanet. Barrer
- *  cada minuto una máquina que usa otra gente (el plóter, OTEC-A desde el
- *  taller) le borraría su fichaje en curso. Así que solo: las de sección, las
+ *  cada minuto una máquina que usa otra gente (el plóter desde el taller) le
+ *  borraría su fichaje en curso. Así que solo: las de sección, las
  *  que tienen ahora a alguien de la web y las que tenían en la vuelta anterior
  *  (para limpiar al parar). */
 export function maquinasAPublicar(
@@ -330,7 +332,7 @@ function maquinaDeTarea(
   operarioId: string,
   porTarea: ReadonlyMap<string, string>,
 ): string {
-  return porTarea.get(ofId) ?? MAQUINA_POR_OPERARIO[operarioId] ?? MAQUINA_OT;
+  return maquinaDeFichaje(porTarea.get(ofId) ?? MAQUINA_POR_OPERARIO[operarioId] ?? MAQUINA_OT);
 }
 
 /** Las máquinas que tocan estos intervalos, sin repetir.

@@ -312,6 +312,36 @@ export function seccionDeRecurso(recurso: string | null | undefined): SeccionId 
   return Object.values(SECCIONES).find((s) => s.recursos.includes(r))?.id ?? null;
 }
 
+/** Los recursos de RPS que son GRUPOS, con la máquina en la que se ficha.
+ *
+ *  Una tarea puede planificarse contra un grupo (OTEC-A), pero el fichaje va
+ *  siempre a una máquina: con el grupo en el bono, la exportación a RPS no lo
+ *  encuentra y los indicadores por máquina no cuadran (David, IT, 30/10/2026).
+ *  Los grupos están en la vista `_vEQUIV_GRUPOS_MAQUINAS`.
+ *
+ *  IMDI-A no está: es un grupo, pero agrupa cuatro impresoras y ninguna es
+ *  "la suya". Hay que elegir con IT. */
+const MAQUINA_DE_GRUPO: Readonly<Record<string, string>> = {
+  "otec-a": "A-OTEC",
+  "dgra-a": "A-DGRA",
+};
+
+/** La máquina que va en el bono para el recurso de una tarea. Los recursos en
+ *  crudo siguen en `tarea_maquina`, que es la que decide la sección. */
+export function maquinaDeFichaje(recurso: string): string {
+  return MAQUINA_DE_GRUPO[recurso.trim().toLowerCase()] ?? recurso.trim();
+}
+
+/** Con qué nombres puede estar en `sch_RPS_bonos` lo fichado en una máquina.
+ *  Del 17/09 al 30/10/2026 se escribió el grupo: esos bonos hay que seguir
+ *  reconociéndolos, o su tiempo se contaría dos veces, aquí y en RPS. */
+export function nombresDeMaquinaEnBonos(maquina: string): string[] {
+  const grupos = Object.keys(MAQUINA_DE_GRUPO)
+    .filter((g) => MAQUINA_DE_GRUPO[g] === maquina)
+    .map((g) => g.toUpperCase());
+  return [maquina, ...grupos];
+}
+
 /** La sección pedida, o la de siempre si no es ninguna conocida.
  *
  *  Nunca lanza: esto llega de la URL y de la BD, y un valor raro no puede

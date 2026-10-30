@@ -1,7 +1,7 @@
 import sql from "mssql";
 import { claveBonoRps, type FilaBono } from "../bonos";
 import type { EstadoFase } from "../fases";
-import { condicionMaquinaSql, esFaseDe, type Seccion } from "../secciones";
+import { condicionMaquinaSql, esFaseDe, maquinaDeFichaje, type Seccion } from "../secciones";
 import {
   finalizarFaseCon,
   type OpcionesFinalizarFase,
@@ -160,7 +160,8 @@ export async function insertarBono(
     .input("numbono", sql.BigInt, Number(fila.numbono))
     .input("numsec", sql.BigInt, Number(fila.numsec))
     .input("operario", sql.VarChar(50), fila.operario)
-    .input("maquina", sql.VarChar(50), fila.maquina)
+    // También aquí: en la cola puede quedar algún bono guardado con el grupo.
+    .input("maquina", sql.VarChar(50), maquinaDeFichaje(fila.maquina))
     .input("ini", sql.DateTime, new Date(`${fila.ini}T00:00:00Z`))
     .input("horaini", sql.BigInt, fila.horaini)
     .input("tipo", sql.VarChar(50), fila.tipo)
