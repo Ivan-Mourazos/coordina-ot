@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-30",
+    "hasta": "dd8ac2a",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Los pedidos con fecha comprometida con el cliente ya se ven en el panel",
+        "detalle": "La etiqueta sale azul, y roja si la fecha ya pasó sin pasar el pedido a Producción. Puedes filtrarlos con «Con fecha comprometida».",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-28",
     "hasta": "dffa95e",
     "cambios": [
