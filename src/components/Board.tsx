@@ -19,6 +19,8 @@ import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
 import { RectificadosView } from "./RectificadosView";
+import { SolicitudesView } from "./SolicitudesView";
+import { seccionConSolicitudes, sinCoger, type Solicitud } from "@/lib/solicitudes";
 import { pendientesDe, seccionConRectificados, type Rectificado } from "@/lib/rectificados";
 import { HistorialView, FILTROS_HISTORIAL_INICIALES, type FiltrosHistorial } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
@@ -624,7 +626,7 @@ export function Board({
   const irASeccion = (sec: SeccionId) => {
     cambiarSeccion(sec);
     if (SECCIONES[sec].sinRevision) setVista((v) => (v === "revision" ? "asignar" : v));
-    if (!seccionConRectificados(sec)) setVista((v) => (v === "rectificados" ? "asignar" : v));
+    if (!seccionConRectificados(sec)) setVista((v) => (v === "rectificados" || v === "solicitudes" ? "asignar" : v));
   };
   // Dirección entra en PENDIENTES, no en el Panel: el Panel es para repartir
   // trabajo y ellos no reparten; Pendientes es el resumen de cómo va todo
@@ -1044,6 +1046,27 @@ export function Board({
         .then((r) => (r.ok ? (r.json() as Promise<{ rectificados: Rectificado[] }>) : null))
         .then((d) => {
           if (vivo && d) setRectificadosPendientes(pendientesDe(d.rectificados));
+        })
+        .catch(() => {});
+    };
+    pedir();
+    const id = setInterval(pedir, 5 * 60_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [seccionActual]);
+
+  // ── El contador de «Solicitudes» ──
+  const [solicitudesSinCoger, setSolicitudesSinCoger] = useState(0);
+  useEffect(() => {
+    if (!seccionConSolicitudes(seccionActual)) return;
+    let vivo = true;
+    const pedir = () => {
+      fetch(`/api/solicitudes?seccion=${seccionActual}`, { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ solicitudes: Solicitud[] }>) : null))
+        .then((d) => {
+          if (vivo && d) setSolicitudesSinCoger(sinCoger(d.solicitudes));
         })
         .catch(() => {});
     };
@@ -2674,7 +2697,7 @@ export function Board({
               <ViewSwitcher
                 vista={vista}
                 onChange={setVista}
-                badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0 }}
+                badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0, solicitudes: seccionConSolicitudes(seccionActual) ? solicitudesSinCoger : 0 }}
                 conCasa={espectador}
                 sinRevision={SECCIONES[seccionActual].sinRevision === true}
                 conRectificados={seccionConRectificados(seccionActual)}
@@ -3143,6 +3166,12 @@ export function Board({
         {vista === "rectificados" && seccionConRectificados(seccionActual) && (
           <div className="p-5 pb-24">
             <RectificadosView seccion={seccionActual} miId={miId} onAbrirPedido={abrirPedidoPorCodigo} onPendientes={setRectificadosPendientes} />
+          </div>
+        )}
+
+        {vista === "solicitudes" && seccionConSolicitudes(seccionActual) && (
+          <div className="p-5 pb-24">
+            <SolicitudesView seccion={seccionActual} onSinCoger={setSolicitudesSinCoger} />
           </div>
         )}
       </div>
