@@ -127,6 +127,10 @@ describe("esPuertaDeLona", () => {
     expect(esPuertaDeLona(puerta("pendiente", { descripcion: "LONA PARA PUERTA  AUTOREPARABLE" }))).toBe(true);
   });
 
+  it("un tramo no se plantea aunque el artículo sea de puerta", () => {
+    expect(esPuertaDeLona(puerta("pendiente", { codigoArticulo: "PUERTAPLE", descripcion: "TRAMO PUERTA PLEGABLE" }))).toBe(false);
+  });
+
   it("ni seccionales, ni muelles, ni tramos, ni puertas rápidas", () => {
     expect(esPuertaDeLona(puerta("pendiente", { descripcion: "PUERTA SECCIONAL INDUSTRIAL" }))).toBe(false);
     expect(esPuertaDeLona(puerta("pendiente", { descripcion: "LONA PARA MUELLE DE CARGA" }))).toBe(false);

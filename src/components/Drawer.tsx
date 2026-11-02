@@ -47,6 +47,7 @@ import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
+import { abrirEnPlanteamientos } from "@/lib/abrir-planteamientos";
 import { botonPlantear, type ModoPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
@@ -765,6 +766,12 @@ export function Drawer({
                   href={plantear.url}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={(e) => {
+                    // Con Ctrl o Mayús se deja al navegador: es pedir otra pestaña a propósito.
+                    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+                    e.preventDefault();
+                    abrirEnPlanteamientos(plantear.url);
+                  }}
                   title={BOTON_PLANTEAR[plantear.modo].ayuda}
                   className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${BOTON_PLANTEAR[plantear.modo].color}`}
                 >

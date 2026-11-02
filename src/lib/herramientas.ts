@@ -151,6 +151,10 @@ export function esLonaSystemDock(of: { descripcion?: string }): boolean {
  *  tramo. RPS escribe «AUTOREPARABLE» con una sola R. */
 export function esPuertaDeLona(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
   if (of.familia !== "PUERTA") return false;
+  // Un tramo nunca, venga con el artículo que venga (Iván, 02/11/2026): en
+  // Planteamientos no hay nada que plantear y la pantalla de puertas se queda
+  // en blanco.
+  if (/TRAMO/i.test(of.descripcion ?? "")) return false;
   if (of.codigoArticulo) return ARTICULOS_PUERTA_PLANTEABLES.has(of.codigoArticulo.trim().toUpperCase());
   const d = (of.descripcion ?? "").toUpperCase();
   return (
