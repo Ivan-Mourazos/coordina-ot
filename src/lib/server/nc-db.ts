@@ -122,6 +122,32 @@ export async function ncDePedido(pedido: string): Promise<NoConformidad[]> {
   return r.recordset.map((f) => deFila(f, detalle.get(f.id.toLowerCase()), [], []));
 }
 
+/** El cliente de cada pedido, para las listas: la NC no lo trae. */
+export async function clientesDePedidos(pedidos: readonly string[]): Promise<Map<string, string>> {
+  const clientes = new Map<string, string>();
+  const unicos = [...new Set(pedidos)];
+  if (!unicos.length || process.env.DATASOURCE !== "rps") return clientes;
+  const pool = await getPool();
+  for (let i = 0; i < unicos.length; i += 500) {
+    const req = pool.request();
+    const marcas = unicos.slice(i, i + 500).map((p, j) => {
+      // Tipado VarChar: sin él viaja como nvarchar y SQL Server tira el índice.
+      req.input(`p${j}`, sql.VarChar(25), p);
+      return `@p${j}`;
+    });
+    const r = await req.query<{ pedido: string; cliente: string | null }>(`
+      SELECT o.CodOrder AS pedido, cli.Description AS cliente
+        FROM dbo.FACOrderSL o
+        LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = o.IDCustomer
+       WHERE o.CodCompany = '001' AND o.CodOrder IN (${marcas.join(",")})`);
+    for (const f of r.recordset) {
+      const cliente = f.cliente?.trim();
+      if (cliente) clientes.set(f.pedido.trim(), cliente);
+    }
+  }
+  return clientes;
+}
+
 const ncGuardadas = new Map<string, { hasta: number; filas: Promise<NoConformidad[]> }>();
 
 /** Todas las NC de la empresa en el periodo, con sus defectos y causas, las

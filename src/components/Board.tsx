@@ -18,6 +18,8 @@ import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
+import { RectificadosView } from "./RectificadosView";
+import { pendientesDe, seccionConRectificados, type Rectificado } from "@/lib/rectificados";
 import { HistorialView, FILTROS_HISTORIAL_INICIALES, type FiltrosHistorial } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
@@ -622,6 +624,7 @@ export function Board({
   const irASeccion = (sec: SeccionId) => {
     cambiarSeccion(sec);
     if (SECCIONES[sec].sinRevision) setVista((v) => (v === "revision" ? "asignar" : v));
+    if (!seccionConRectificados(sec)) setVista((v) => (v === "rectificados" ? "asignar" : v));
   };
   // Dirección entra en PENDIENTES, no en el Panel: el Panel es para repartir
   // trabajo y ellos no reparten; Pendientes es el resumen de cómo va todo
@@ -1028,6 +1031,29 @@ export function Board({
     seccionVista ??
     TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
     SECCION_POR_DEFECTO;
+
+  // ── El contador de «Rectificados» ──
+  // Se pide aparte del tablero: sale de las NC de RPS y va con su propio
+  // refresco. Si falla, la pestaña sigue ahí, sin número.
+  const [rectificadosPendientes, setRectificadosPendientes] = useState(0);
+  useEffect(() => {
+    if (!seccionConRectificados(seccionActual)) return;
+    let vivo = true;
+    const pedir = () => {
+      fetch(`/api/rectificados?seccion=${seccionActual}`, { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ rectificados: Rectificado[] }>) : null))
+        .then((d) => {
+          if (vivo && d) setRectificadosPendientes(pendientesDe(d.rectificados));
+        })
+        .catch(() => {});
+    };
+    pedir();
+    const id = setInterval(pedir, 5 * 60_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [seccionActual]);
 
   // ── La campana de quien está en dos secciones ──
   // Manuel entra en Impresión, pero Carrón y Smith le pasan trabajo en Diseño.
@@ -2648,9 +2674,10 @@ export function Board({
               <ViewSwitcher
                 vista={vista}
                 onChange={setVista}
-                badge={{ revision: misPorRevisar, asignar: misDevueltas }}
+                badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0 }}
                 conCasa={espectador}
                 sinRevision={SECCIONES[seccionActual].sinRevision === true}
+                conRectificados={seccionConRectificados(seccionActual)}
               />
             </div>
           </div>
@@ -3110,6 +3137,12 @@ export function Board({
         {vista === "visitas" && (
           <div className="p-5 pb-24">
             <VisitasCotView />
+          </div>
+        )}
+
+        {vista === "rectificados" && seccionConRectificados(seccionActual) && (
+          <div className="p-5 pb-24">
+            <RectificadosView seccion={seccionActual} miId={miId} onAbrirPedido={abrirPedidoPorCodigo} onPendientes={setRectificadosPendientes} />
           </div>
         )}
       </div>

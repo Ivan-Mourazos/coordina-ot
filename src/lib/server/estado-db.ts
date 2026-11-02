@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
 import { claveDeCausa } from "../devolucion";
+import type { MarcaRectificado } from "../rectificados";
 import type { FilaOverlayConSeccion, FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
 import { SECCION_POR_DEFECTO, seccionDeRecurso, type SeccionId } from "../secciones";
@@ -216,6 +217,18 @@ function abrir(): Database.Database {
       clave       TEXT NOT NULL,
       visto_at    TEXT NOT NULL,
       PRIMARY KEY (operario_id, clave)
+    );
+    -- Rectificados ya revisados (ver lib/rectificados.ts). Por sección: OT y
+    -- Diseño corrigen cosas distintas del mismo pedido, y cada una cierra lo
+    -- suyo. El nombre se guarda porque es lo que enseña la fila.
+    CREATE TABLE IF NOT EXISTS rectificado_marca (
+      nc         TEXT NOT NULL,
+      seccion    TEXT NOT NULL,
+      resultado  TEXT NOT NULL,
+      quien      TEXT NOT NULL,
+      nombre     TEXT NOT NULL,
+      en         TEXT NOT NULL,
+      PRIMARY KEY (nc, seccion)
     );
     -- OF que la web sigue enseñando en el tablero aunque RPS ya no las
     -- traiga: TGM_PENDIENTE_OT solo trae tareas por debajo del 100 %, y en OT
@@ -1940,6 +1953,30 @@ export function marcarAvisosVistos(operarioId: string, claves: string[]): void {
   db.transaction(() => {
     for (const clave of claves) ins.run(operarioId, clave, ahora);
   })();
+}
+
+/** Cómo se revisó cada rectificado de la sección, por código de NC. */
+export function leerMarcasRectificado(seccion: SeccionId): Map<string, MarcaRectificado> {
+  const filas = abrir()
+    .prepare("SELECT nc, resultado, quien, nombre, en FROM rectificado_marca WHERE seccion = ?")
+    .all(seccion) as Array<MarcaRectificado & { nc: string }>;
+  return new Map(filas.map(({ nc, ...marca }) => [nc, marca]));
+}
+
+/** Marcar otra vez corrige la marca: gana la última. */
+export function guardarMarcaRectificado(nc: string, seccion: SeccionId, marca: MarcaRectificado): void {
+  abrir()
+    .prepare(
+      `INSERT INTO rectificado_marca (nc, seccion, resultado, quien, nombre, en) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (nc, seccion) DO UPDATE SET
+         resultado = excluded.resultado, quien = excluded.quien, nombre = excluded.nombre, en = excluded.en`,
+    )
+    .run(nc, seccion, marca.resultado, marca.quien, marca.nombre, marca.en);
+}
+
+/** Deshacer: el rectificado vuelve a estar por revisar. */
+export function borrarMarcaRectificado(nc: string, seccion: SeccionId): void {
+  abrir().prepare("DELETE FROM rectificado_marca WHERE nc = ? AND seccion = ?").run(nc, seccion);
 }
 
 export function leerAvisosVistos(operarioId: string): Set<string> {

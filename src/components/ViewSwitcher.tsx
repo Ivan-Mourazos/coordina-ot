@@ -5,6 +5,7 @@ export type Vista =
   | "lista"
   | "revision"
   | "visitas"
+  | "rectificados"
   | "historial"
   | "metricas"
   | "casa";
@@ -20,6 +21,8 @@ const OPCIONES: { id: Vista; label: string }[] = [
   { id: "lista", label: "Pendientes" },
   { id: "revision", label: "Revisiones" },
   { id: "visitas", label: "Visitas" },
+  // Solo donde hay planteamiento o archivo que corregir (ver `conRectificados`).
+  { id: "rectificados", label: "Rectificados" },
   { id: "historial", label: "Historial" },
   // Mirar hacia atrás, no trabajo que tengas delante: por eso va la última y
   // no dentro de Historial, donde quedaría escondida.
@@ -43,10 +46,13 @@ export function ViewSwitcher({
   badge,
   conCasa = false,
   sinRevision = false,
+  conRectificados = false,
 }: {
   /** La sección no tiene revisión (Impresión Digital): sin «Revisiones»,
    *  que saldría siempre vacía. */
   sinRevision?: boolean;
+  /** La sección revisa rectificados (OT y Diseño). */
+  conRectificados?: boolean;
   vista: Vista;
   onChange: (v: Vista) => void;
   badge?: Partial<Record<Vista, number>>;
@@ -62,7 +68,7 @@ export function ViewSwitcher({
   // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
   return (
     <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
-      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "revision" || !sinRevision)).map((o) => {
+      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "revision" || !sinRevision) && (o.id !== "rectificados" || conRectificados)).map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
         return (
