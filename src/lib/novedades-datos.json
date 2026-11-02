@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-02",
+    "hasta": "b139a06",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Los pedidos rectificados en fábrica salen en una pestaña para revisar el planteamiento",
+        "detalle": "Mira qué dice Calidad y marca si lo has corregido, si ya estaba o si no hace falta.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-10-30",
     "hasta": "dd8ac2a",
     "cambios": [
