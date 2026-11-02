@@ -1,13 +1,19 @@
 [
   {
     "id": "2026-11-02",
-    "hasta": "b139a06",
+    "hasta": "7ef29a6",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "Los pedidos rectificados en fábrica salen en una pestaña para revisar el planteamiento",
         "detalle": "Mira qué dice Calidad y marca si lo has corregido, si ya estaba o si no hace falta.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las solicitudes de los comerciales salen en una pestaña, cada una con todos sus pasos",
+        "detalle": "Ves quién la pidió, qué pide, sus adjuntos y quién la tiene. Para cogerla, sigue siendo en RPS.",
+        "tanda": 2
       }
     ]
   },
