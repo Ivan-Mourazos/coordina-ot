@@ -8,6 +8,7 @@ import {
   type Solicitud,
 } from "@/lib/solicitudes";
 import type { SeccionId } from "@/lib/secciones";
+import { VisorDocumento, type DocumentoAbrible } from "./VisorDocumento";
 
 // ─── Solicitudes de comerciales ──────────────────────────────────────────────
 // Una tarjeta por solicitud, aunque en RPS sean varias tareas seguidas (ver
@@ -15,6 +16,16 @@ import type { SeccionId } from "@/lib/secciones";
 
 const REFRESCO_MS = 60_000;
 const APARTADOS = Object.entries(ESTADOS_SOLICITUD) as [EstadoSolicitud, string][];
+/** Los adjuntos de una solicitud, en la forma que entiende el visor de la web. */
+function documentosDe(s: Solicitud): DocumentoAbrible[] {
+  return s.adjuntos.map((a) => ({
+    descripcion: a.archivo,
+    archivo: a.archivo,
+    clase: "Adjunto del comercial",
+    url: `/api/solicitudes/adjunto/${a.tarea}/${a.numero}`,
+  }));
+}
+
 const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
 const TONO: Record<EstadoSolicitud, string> = {
@@ -30,6 +41,9 @@ function etiquetaEstado(s: { estado: EstadoSolicitud; tecnico: string | null }):
 }
 
 function Tarjeta({ s }: { s: Solicitud }) {
+  // El visor va dentro de la tarjeta: sus flechas pasean por sus adjuntos.
+  const [enVisor, setEnVisor] = useState<number | null>(null);
+  const documentos = documentosDe(s);
   return (
     <li id={`solicitud-${s.id}`} className="tarjeta-rectificado scroll-mt-20 p-5">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
@@ -68,16 +82,16 @@ function Tarjeta({ s }: { s: Solicitud }) {
 
       {s.adjuntos.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {s.adjuntos.map((a) => (
-            <a
-              key={a.numero}
-              href={`/api/solicitudes/adjunto/${a.tarea}/${a.numero}`}
-              target="_blank"
-              rel="noreferrer"
+          {documentos.map((d, i) => (
+            <button
+              key={d.url}
+              type="button"
+              onClick={() => setEnVisor(i)}
+              title={`Abre ${d.archivo}`}
               className="chip-3d max-w-full truncate px-3.5 py-1.5 text-xs font-semibold text-text"
             >
-              {a.archivo}
-            </a>
+              {d.archivo}
+            </button>
           ))}
         </div>
       )}
@@ -107,6 +121,10 @@ function Tarjeta({ s }: { s: Solicitud }) {
           ))}
         </ol>
       </details>
+
+      {enVisor !== null && (
+        <VisorDocumento documentos={documentos} indice={enVisor} onIr={setEnVisor} onCerrar={() => setEnVisor(null)} />
+      )}
     </li>
   );
 }

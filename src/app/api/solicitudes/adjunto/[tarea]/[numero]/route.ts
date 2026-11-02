@@ -1,7 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { archivoDeRuta, comoServir, segmentosEnShare } from "@/lib/historial";
+import { archivoDeRuta, comoServir, esImagen, segmentosEnShare } from "@/lib/historial";
 import { comoDocumentoRps } from "@/lib/solicitudes";
+import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/server/miniaturas";
 import { rutaAdjunto } from "@/lib/server/solicitudes-db";
 import { soloConSesion } from "@/lib/server/sesion";
 
@@ -16,6 +18,9 @@ const RAIZ =
   process.platform === "win32"
     ? (process.env.RPS_DOCS_DIR_WIN ?? "\\\\192.168.0.128\\RPS")
     : (process.env.RPS_DOCS_DIR ?? "/mnt/rps");
+
+/** Las miniaturas, aparte de las de los documentos del pedido. */
+const CACHE_MINIATURAS = path.join(process.cwd(), ".next", "cache", "solicitudes-thumbs");
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +53,14 @@ export async function GET(
     return new Response("Adjunto no encontrado", { status: 404 });
   }
 
+  const archivo = archivoDeRuta(guardada);
+  const { tipo, incrustable } = comoServir(archivo);
+
+  // ?mini=1 → la imagen que el visor enseña mientras carga el PDF.
+  if (new URL(req.url).searchParams.get("mini") === "1") {
+    return await miniatura(ruta, guardada, archivo, tipo);
+  }
+
   let contenido: Buffer;
   try {
     contenido = await readFile(ruta);
@@ -55,8 +68,6 @@ export async function GET(
     return new Response("Adjunto no encontrado", { status: 404 });
   }
 
-  const archivo = archivoDeRuta(guardada);
-  const { tipo, incrustable } = comoServir(archivo);
   const nombre = archivo.replace(/[^\w.\- ]/g, "_");
   return new Response(new Uint8Array(contenido), {
     headers: {
@@ -66,4 +77,26 @@ export async function GET(
       "Cache-Control": "private, no-cache",
     },
   });
+}
+
+async function miniatura(ruta: string, original: string, archivo: string, tipo: string): Promise<Response> {
+  const esPdf = tipo === "application/pdf";
+  if (!esPdf && !esImagen(archivo)) return new Response("Ese adjunto no tiene miniatura", { status: 415 });
+  try {
+    const { mtimeMs } = await stat(ruta);
+    const clave = createHash("sha1").update(original).digest("hex");
+    const bytes = await miniaturaCacheada(CACHE_MINIATURAS, `${clave}.${esPdf ? "png" : "jpg"}`, mtimeMs, () =>
+      esPdf ? renderizarPdf(ruta) : redimensionarImagen(ruta),
+    );
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        "Content-Type": esPdf ? "image/png" : "image/jpeg",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-cache",
+      },
+    });
+  } catch (e) {
+    console.error("[solicitudes] miniatura fallida:", archivo, (e as Error).message);
+    return new Response("No se pudo generar la miniatura", { status: 415 });
+  }
 }
