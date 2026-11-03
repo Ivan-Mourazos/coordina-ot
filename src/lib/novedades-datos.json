@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-03",
+    "hasta": "e4696fd",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Cada solicitud enseña la respuesta del técnico y el documento que subió",
+        "detalle": "El documento se abre en el visor de la web, con el botón verde «Resultado».",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-02",
     "hasta": "3d2525a",
     "cambios": [
