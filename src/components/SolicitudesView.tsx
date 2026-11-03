@@ -18,12 +18,22 @@ const REFRESCO_MS = 60_000;
 const APARTADOS = Object.entries(ESTADOS_SOLICITUD) as [EstadoSolicitud, string][];
 /** Los adjuntos de una solicitud, en la forma que entiende el visor de la web. */
 function documentosDe(s: Solicitud): DocumentoAbrible[] {
-  return s.adjuntos.map((a) => ({
+  const delComercial = s.adjuntos.map((a) => ({
     descripcion: a.archivo,
     archivo: a.archivo,
     clase: "Adjunto del comercial",
     url: `/api/solicitudes/adjunto/${a.tarea}/${a.numero}`,
   }));
+  // Lo que subió el técnico, el primero: es el resultado de la solicitud.
+  const delTecnico = s.documentoTecnico
+    ? [{
+        descripcion: s.documentoTecnico.archivo,
+        archivo: s.documentoTecnico.archivo,
+        clase: "Resultado del técnico",
+        url: `/api/solicitudes/documento/${s.id}`,
+      }]
+    : [];
+  return [...delTecnico, ...delComercial];
 }
 
 const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
@@ -73,24 +83,28 @@ function Tarjeta({ s }: { s: Solicitud }) {
 
       {s.respuesta && (
         <div className="mt-2 rounded-2xl bg-[var(--hero-relleno)] px-4 py-3">
-          <p className="text-[11px] font-semibold text-text-muted">Respuesta del técnico</p>
+          <p className="text-[11px] font-semibold text-text-muted">
+            Respuesta del técnico{s.fechaRealizacion && <> · {fmt(s.fechaRealizacion)}</>}
+          </p>
           <p className="mt-0.5 whitespace-pre-line text-sm text-text">{s.respuesta}</p>
         </div>
       )}
 
       {s.avisoPendiente && <p className="mt-2 text-xs text-text-muted">El comercial aún no ha leído el aviso.</p>}
 
-      {s.adjuntos.length > 0 && (
+      {documentos.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {documentos.map((d, i) => (
             <button
               key={d.url}
               type="button"
               onClick={() => setEnVisor(i)}
-              title={`Abre ${d.archivo}`}
-              className="chip-3d max-w-full truncate px-3.5 py-1.5 text-xs font-semibold text-text"
+              title={`${d.clase}: ${d.archivo}`}
+              className={`max-w-full truncate px-3.5 py-1.5 text-xs font-semibold ${
+                d.clase === "Resultado del técnico" ? "boton-3d bg-teal-600 text-white hover:bg-teal-700" : "chip-3d text-text"
+              }`}
             >
-              {d.archivo}
+              {d.clase === "Resultado del técnico" ? `Resultado · ${d.archivo}` : d.archivo}
             </button>
           ))}
         </div>

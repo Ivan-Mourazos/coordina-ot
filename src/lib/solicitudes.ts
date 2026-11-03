@@ -83,6 +83,24 @@ export interface SolicitudRelacionada {
   tecnico: string | null;
 }
 
+/** Una fila de la vista TGM_WF_COORDINA (David, 03/11/2026): la actividad del
+ *  comercial y la del técnico de cada ejecución, con lo que contestó y subió. */
+export interface FilaVista {
+  instancia: string;
+  actividadComercial: string | null;
+  actividadTecnico: string | null;
+  tecnico: string | null;
+  comentarioTecnico: string | null;
+  fechaRealizacion: string | null;
+  documentoTecnico: string | null;
+}
+
+/** El documento que subió el técnico. En RPS su ruta no suele llevar extensión:
+ *  `archivo` ya trae la que le corresponde por su contenido. */
+export interface DocumentoTecnico {
+  archivo: string;
+}
+
 export interface Solicitud {
   id: string;
   rol: string;
@@ -104,6 +122,45 @@ export interface Solicitud {
   pasos: PasoSolicitud[];
   /** Otras solicitudes de la misma oportunidad. */
   relacionadas: SolicitudRelacionada[];
+  /** Lo que añade la vista de RPS, si la hay. */
+  actividad?: string | null;
+  fechaRealizacion?: string | null;
+  documentoTecnico?: DocumentoTecnico | null;
+}
+
+/** Añade a cada solicitud lo que trae la vista: la respuesta del técnico, cuándo
+ *  la terminó y su documento. La vista manda en la respuesta, que es la que
+ *  queda en la actividad; el formulario del workflow es la copia. `archivoDe`
+ *  da el nombre con extensión de un documento ya comprobado, o null. */
+export function enriquecer(
+  solicitudes: readonly Solicitud[],
+  filas: readonly FilaVista[],
+  archivoDe: (instancia: string) => string | null,
+): Solicitud[] {
+  const porInstancia = new Map(filas.map((f) => [f.instancia.toLowerCase(), f]));
+  return solicitudes.map((s) => {
+    const f = porInstancia.get(s.id.toLowerCase());
+    if (!f) return s;
+    const archivo = f.documentoTecnico ? archivoDe(f.instancia) : null;
+    return {
+      ...s,
+      actividad: f.actividadComercial,
+      respuesta: f.comentarioTecnico?.trim() || s.respuesta,
+      tecnico: s.tecnico ?? nombreUsuario(f.tecnico),
+      fechaRealizacion: f.fechaRealizacion,
+      documentoTecnico: archivo ? { archivo } : null,
+    };
+  });
+}
+
+/** La extensión por las primeras bytes del fichero: los documentos del técnico
+ *  se guardan sin ella, y sin extensión el visor no sabe qué es. */
+export function extensionPorContenido(inicio: Uint8Array): string | null {
+  const es = (...b: number[]) => b.every((x, i) => inicio[i] === x);
+  if (es(0x25, 0x50, 0x44, 0x46)) return "pdf";
+  if (es(0x89, 0x50, 0x4e, 0x47)) return "png";
+  if (es(0xff, 0xd8, 0xff)) return "jpg";
+  return null;
 }
 
 /** Los códigos de usuario de RPS, para leer: `IVAN.SANCHEZ` → «Ivan Sanchez». */

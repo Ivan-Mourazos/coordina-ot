@@ -3,6 +3,8 @@ import { segmentosEnShare } from "../historial";
 import {
   TOPE_TERMINADAS,
   comoDocumentoRps,
+  enriquecer,
+  extensionPorContenido,
   componerSolicitudes,
   leerEtiqueta,
   nombreUsuario,
@@ -133,4 +135,26 @@ test("la ruta de un adjunto entra por la misma puerta que los documentos", () =>
   expect(segmentosEnShare(comoDocumentoRps(ruta))).toEqual(["VENTAS", "OPORTUNIDADES", "ACTIVIDADES", "carruajes.pdf"]);
   expect(segmentosEnShare(comoDocumentoRps("C:\\Windows\\win.ini"))).toBeNull();
   expect(segmentosEnShare(comoDocumentoRps("\\\\192.168.0.128\\rps\\..\\secreto.txt"))).toBeNull();
+});
+
+test("la vista añade la respuesta, la fecha y el documento del técnico", () => {
+  const [s] = componerSolicitudes([tarea({ usuario: "IVAN.SANCHEZ" })], [], "OT");
+  const vista = {
+    instancia: "I1",
+    actividadComercial: "129216",
+    actividadTecnico: "129311",
+    tecnico: "IVAN.SANCHEZ",
+    comentarioTecnico: "Hablado por correo.",
+    fechaRealizacion: "2026-11-02T00:00:00.000Z",
+    documentoTecnico: "ruta-en-rps",
+  };
+  const [r] = enriquecer([s], [vista], () => "x.pdf");
+  expect(r).toMatchObject({ actividad: "129216", respuesta: "Hablado por correo.", documentoTecnico: { archivo: "x.pdf" } });
+  expect(enriquecer([s], [], () => null)[0]).toBe(s);
+});
+
+test("la extensión de un documento sin ella sale de su contenido", () => {
+  expect(extensionPorContenido(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]))).toBe("pdf");
+  expect(extensionPorContenido(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("jpg");
+  expect(extensionPorContenido(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBeNull();
 });
