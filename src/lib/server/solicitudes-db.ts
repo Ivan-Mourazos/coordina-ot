@@ -93,10 +93,28 @@ function datos(): Promise<Datos> {
 
 const CACHE_VISTA_MS = 10 * 60_000;
 let vistaGuardada: { hasta: number; filas: Promise<FilaVista[]> } | null = null;
+/** La última lectura buena. Sin el filtro de 180 días (David, 04/11/2026) la
+ *  vista tarda ~15 s: al caducar se sirve esta mientras se refresca por detrás,
+ *  y solo espera el primero tras arrancar. */
+let vistaBuena: FilaVista[] | null = null;
 
 function vista(): Promise<FilaVista[]> {
   if (vistaGuardada && vistaGuardada.hasta > Date.now()) return vistaGuardada.filas;
-  const filas = getPool()
+  const filas = leerVista();
+  vistaGuardada = { hasta: Date.now() + CACHE_VISTA_MS, filas };
+  filas.then(
+    (f) => {
+      vistaBuena = f;
+    },
+    () => {
+      vistaGuardada = null;
+    },
+  );
+  return vistaBuena ? Promise.resolve(vistaBuena) : filas;
+}
+
+function leerVista(): Promise<FilaVista[]> {
+  return getPool()
     .then((pool) =>
       pool.request().query<{
         instancia: string;
@@ -120,11 +138,6 @@ function vista(): Promise<FilaVista[]> {
         fechaRealizacion: f.fechaRealizacion ? f.fechaRealizacion.toISOString() : null,
       })),
     );
-  vistaGuardada = { hasta: Date.now() + CACHE_VISTA_MS, filas };
-  filas.catch(() => {
-    vistaGuardada = null;
-  });
-  return filas;
 }
 
 const RAIZ_DOCS =
