@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ESTADOS_SOLICITUD,
+  encaja,
   sinCoger,
   type EstadoSolicitud,
   type Solicitud,
@@ -15,6 +16,8 @@ import { VisorDocumento, type DocumentoAbrible } from "./VisorDocumento";
 // lib/solicitudes.ts). Solo lectura: se coge en RPS y aquí se ve al refrescar.
 
 const REFRESCO_MS = 60_000;
+/** Las que se pintan de golpe: el histórico son cientos, y el resto llega con «Ver más». */
+const POR_TANDA = 50;
 const APARTADOS = Object.entries(ESTADOS_SOLICITUD) as [EstadoSolicitud, string][];
 /** Los adjuntos de una solicitud, en la forma que entiende el visor de la web. */
 function documentosDe(s: Solicitud): DocumentoAbrible[] {
@@ -154,6 +157,9 @@ export function SolicitudesView({
   const [filas, setFilas] = useState<Solicitud[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apartado, setApartado] = useState<EstadoSolicitud>("sin_coger");
+  const [busqueda, setBusqueda] = useState("");
+  const [tecnico, setTecnico] = useState("");
+  const [cuantas, setCuantas] = useState(POR_TANDA);
 
   useEffect(() => {
     let vivo = true;
@@ -181,7 +187,19 @@ export function SolicitudesView({
     };
   }, [seccion, onSinCoger]);
 
-  const visibles = filas?.filter((s) => s.estado === apartado) ?? [];
+  const tecnicos = useMemo(
+    () => [...new Set((filas ?? []).map((s) => s.tecnico).filter((t): t is string => Boolean(t)))].sort((a, b) => a.localeCompare(b, "es")),
+    [filas],
+  );
+  // El buscador y el técnico valen para los tres apartados: el número de cada uno
+  // dice cuántas encajan.
+  const filtradas = useMemo(
+    () => (filas ?? []).filter((s) => (!tecnico || s.tecnico === tecnico) && encaja(s, busqueda)),
+    [filas, tecnico, busqueda],
+  );
+  const delApartado = filtradas.filter((s) => s.estado === apartado);
+  const visibles = delApartado.slice(0, cuantas);
+  const filtrando = Boolean(busqueda.trim() || tecnico);
 
   return (
     <section className="mx-auto max-w-4xl">
@@ -198,15 +216,51 @@ export function SolicitudesView({
               key={id}
               type="button"
               aria-pressed={apartado === id}
-              onClick={() => setApartado(id)}
+              onClick={() => {
+                setApartado(id);
+                setCuantas(POR_TANDA);
+              }}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold ${apartado === id ? "pestana-activa" : ""}`}
             >
               {texto}
-              <span className="ml-1.5 font-normal tabular-nums">{filas?.filter((s) => s.estado === id).length ?? 0}</span>
+              <span className="ml-1.5 font-normal tabular-nums">{filtradas.filter((s) => s.estado === id).length}</span>
             </button>
           ))}
         </div>
       </header>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <label className="min-w-56 flex-1">
+          <span className="sr-only">Buscar solicitudes</span>
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              setCuantas(POR_TANDA);
+            }}
+            placeholder="Buscar por cliente, obra, presupuesto, comercial…"
+            className="campo-hundido w-full rounded-lg px-3 py-2 text-sm text-text outline-none placeholder:text-text-muted"
+          />
+        </label>
+        <label>
+          <span className="sr-only">Técnico</span>
+          <select
+            value={tecnico}
+            onChange={(e) => {
+              setTecnico(e.target.value);
+              setCuantas(POR_TANDA);
+            }}
+            className="rounded-lg px-3 py-2 text-sm text-text"
+          >
+            <option value="">Todos los técnicos</option>
+            {tecnicos.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {error && <p role="alert" className="mb-4 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-text">{error}</p>}
       {!filas && !error && (
         <div aria-label="Cargando" className="flex flex-col gap-3">
@@ -217,10 +271,17 @@ export function SolicitudesView({
       )}
       {filas && visibles.length === 0 && (
         <div className="tarjeta-rectificado grid min-h-56 place-items-center px-6 text-center">
-          <p className="text-sm font-semibold text-text">No hay solicitudes aquí</p>
+          <p className="text-sm font-semibold text-text">{filtrando ? "Ninguna encaja con la búsqueda" : "No hay solicitudes aquí"}</p>
         </div>
       )}
       {visibles.length > 0 && <ul className="flex flex-col gap-3">{visibles.map((s) => <Tarjeta key={s.id} s={s} />)}</ul>}
+      {delApartado.length > visibles.length && (
+        <div className="mt-4 flex justify-center">
+          <button type="button" onClick={() => setCuantas((n) => n + POR_TANDA)} className="chip-3d px-4 py-2 text-xs font-semibold text-text">
+            Ver más ({delApartado.length - visibles.length} más)
+          </button>
+        </div>
+      )}
     </section>
   );
 }

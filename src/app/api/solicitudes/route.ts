@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { seccionConSolicitudes } from "@/lib/solicitudes";
+import { seccionConSolicitudes, sinCoger } from "@/lib/solicitudes";
 import { leerSolicitudes } from "@/lib/server/solicitudes-db";
 import { soloConSesion } from "@/lib/server/sesion";
 
@@ -18,8 +18,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Sección no válida" }, { status: 400 });
   }
   try {
+    const solicitudes = await leerSolicitudes(seccion);
+    // El número de la pestaña: con el histórico entero, mandar todo para contar
+    // las de arriba era pesado.
+    if (new URL(req.url).searchParams.get("contador") === "1") {
+      return NextResponse.json({ sinCoger: sinCoger(solicitudes) }, { headers: { "Cache-Control": "no-store" } });
+    }
     return NextResponse.json(
-      { solicitudes: await leerSolicitudes(seccion) },
+      { solicitudes },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

@@ -36,8 +36,6 @@ export const ESTADOS_SOLICITUD: Record<EstadoSolicitud, string> = {
   terminada: "Terminadas",
 };
 
-/** Las terminadas que se enseñan: lo abierto es lo que se viene a mirar. */
-export const TOPE_TERMINADAS = 40;
 
 /** Una fila de `BPMTask` con lo que hace falta de su ejecución. */
 export interface FilaTarea {
@@ -304,9 +302,24 @@ export function componerSolicitudes(
       .map((o) => ({ id: o.id, tipo: o.tipo, fecha: o.fecha, estado: o.estado, tecnico: o.tecnico }));
   }
 
-  const delRol = todas.filter((s) => s.rol === rol).sort((a, b) => b.fecha.localeCompare(a.fecha));
-  let terminadas = 0;
-  return delRol.filter((s) => s.estado !== "terminada" || ++terminadas <= TOPE_TERMINADAS);
+  return todas.filter((s) => s.rol === rol).sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+/** Sin tildes ni mayúsculas, para buscar como se escribe. */
+const llano = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** ¿Encaja con lo buscado? Todas las palabras tienen que estar, en cualquier
+ *  campo: cliente y obra vienen en el texto del comercial, el presupuesto (PT…)
+ *  en la etiqueta y en la respuesta del técnico. */
+export function encaja(s: Solicitud, busqueda: string): boolean {
+  const palabras = llano(busqueda).split(/\s+/).filter(Boolean);
+  if (palabras.length === 0) return true;
+  const texto = llano(
+    [s.descripcion, s.comentario, s.respuesta, s.comercial, s.tecnico, s.tipo, s.oportunidad, s.presupuesto, s.actividad, s.documentoTecnico?.archivo]
+      .filter(Boolean)
+      .join(" "),
+  );
+  return palabras.every((p) => texto.includes(p));
 }
 
 export const sinCoger = (solicitudes: readonly Solicitud[]): number =>

@@ -21,7 +21,6 @@ import type { SeccionId } from "../secciones";
 // Solo lectura. La lógica y qué es cada cosa, en lib/solicitudes.ts. Cuando
 // llegue la vista que prepara David, se cambia esto y nada más.
 
-const DIAS = 180;
 const CACHE_MS = 60_000;
 
 const ROLES = Object.values(ROL_RPS).map((r) => `'${r}'`).join(",");
@@ -37,7 +36,6 @@ const EJECUCIONES = `
      WHERE w.Description = @workflow
        AND t.CodCompany = '001'
        AND t.Description LIKE 'Formulario asignar trabajo%'
-       AND t.CreationDate >= DATEADD(day, -${DIAS}, GETDATE())
        AND a.CodRole IN (${ROLES})
   )`;
 
@@ -54,14 +52,14 @@ async function consultar(): Promise<Datos> {
            t.AssignedUser AS usuario, t.RowCreatedBy AS creadaPor, t.CompletedBy AS cerradaPor,
            t.CreationTimestamp AS creada, t.EndDate AS cerrada
       FROM ejecucion e
-      JOIN dbo.BPMTask t WITH (NOLOCK) ON t.WorkflowInstanceID = e.instancia
+      JOIN dbo.BPMTask t WITH (NOLOCK) ON t.CodCompany = '001' AND t.WorkflowInstanceID = e.instancia
       LEFT JOIN dbo.BPMWorkflowTracking tr ON tr.WorkflowInstanceID = e.instancia`);
   const campos = await peticion().query<FilaCampo>(`
     ${EJECUCIONES}
     SELECT CONVERT(varchar(36), d.IDTask) AS tarea, f.Caption AS campo,
            COALESCE(CONVERT(nvarchar(2000), f.TextValue), f.StringValue) AS valor
       FROM ejecucion e
-      JOIN dbo.BPMTask t WITH (NOLOCK) ON t.WorkflowInstanceID = e.instancia
+      JOIN dbo.BPMTask t WITH (NOLOCK) ON t.CodCompany = '001' AND t.WorkflowInstanceID = e.instancia
       JOIN dbo.BPMDataFormTask d ON d.IDTask = t.IDTask
       JOIN dbo.BPMDataFormField f ON f.IDDataFormTask = d.IDDataFormTask
      WHERE f.Caption IN ('Descripcion oportunidad', 'Comentario comercial', 'Comentarios',
@@ -187,11 +185,13 @@ export async function leerSolicitudes(seccion: SeccionId): Promise<Solicitud[]> 
   // Solo se miran los documentos de las solicitudes que se enseñan.
   const ids = new Set(solicitudes.map((s) => s.id.toLowerCase()));
   const nombres = new Map<string, string | null>();
-  await Promise.all(
-    filas
-      .filter((f) => f.documentoTecnico && ids.has(f.instancia))
-      .map(async (f) => nombres.set(f.instancia, await nombreDocumento(f.documentoTecnico!))),
-  );
+  // De ocho en ocho: la primera vez son cientos de ficheros en el share.
+  const pendientes = filas.filter((f) => f.documentoTecnico && ids.has(f.instancia));
+  for (let i = 0; i < pendientes.length; i += 8) {
+    await Promise.all(
+      pendientes.slice(i, i + 8).map(async (f) => nombres.set(f.instancia, await nombreDocumento(f.documentoTecnico!))),
+    );
+  }
   return enriquecer(solicitudes, filas, (instancia) => nombres.get(instancia.toLowerCase()) ?? null);
 }
 

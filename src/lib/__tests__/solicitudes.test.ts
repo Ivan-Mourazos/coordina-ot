@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { segmentosEnShare } from "../historial";
 import {
-  TOPE_TERMINADAS,
   comoDocumentoRps,
+  encaja,
   enriquecer,
   extensionPorContenido,
   componerSolicitudes,
@@ -121,13 +121,20 @@ test("cada sección ve su rol, pero enlaza con lo de la otra", () => {
   expect(lista[0].relacionadas.map((r) => r.id)).toEqual(["dg"]);
 });
 
-test("lo abierto no se recorta; lo terminado, sí", () => {
-  const terminadas = Array.from({ length: TOPE_TERMINADAS + 5 }, (_, i) =>
+test("sin tope: el histórico entero llega a la pantalla", () => {
+  const terminadas = Array.from({ length: 60 }, (_, i) =>
     tarea({ instancia: `f${i}`, tarea: `f${i}`, estadoEjecucion: "Completed", cerrada: "2026-10-01T00:00:00.000Z" }),
   );
-  const lista = componerSolicitudes([...terminadas, tarea({ instancia: "abierta", tarea: "x" })], [], "OT");
-  expect(lista.filter((s) => s.estado === "terminada")).toHaveLength(TOPE_TERMINADAS);
-  expect(lista.some((s) => s.id === "abierta")).toBe(true);
+  expect(componerSolicitudes(terminadas, [], "OT")).toHaveLength(60);
+});
+
+test("el buscador pide todas las palabras, sin tildes ni mayúsculas", () => {
+  const [s] = componerSolicitudes([tarea({})], [{ tarea: "t1", campo: "Comentario comercial", valor: "Lona para el CARRUAJE de Pamilakan" }], "OT");
+  expect(encaja(s, "carruaje pamilakan")).toBe(true);
+  expect(encaja(s, "PT26003761")).toBe(true);
+  expect(encaja(s, "jacobo")).toBe(true);
+  expect(encaja(s, "carruaje toldo")).toBe(false);
+  expect(encaja(s, "  ")).toBe(true);
 });
 
 test("la ruta de un adjunto entra por la misma puerta que los documentos", () => {

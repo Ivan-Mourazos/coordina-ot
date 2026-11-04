@@ -20,7 +20,7 @@ import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
 import { RectificadosView } from "./RectificadosView";
 import { SolicitudesView } from "./SolicitudesView";
-import { seccionConSolicitudes, sinCoger, type Solicitud } from "@/lib/solicitudes";
+import { seccionConSolicitudes } from "@/lib/solicitudes";
 import { pendientesDe, seccionConRectificados, type Rectificado } from "@/lib/rectificados";
 import { HistorialView, FILTROS_HISTORIAL_INICIALES, type FiltrosHistorial } from "./HistorialView";
 import { MetricasView } from "./MetricasView";
@@ -1063,10 +1063,10 @@ export function Board({
     if (!seccionConSolicitudes(seccionActual)) return;
     let vivo = true;
     const pedir = () => {
-      fetch(`/api/solicitudes?seccion=${seccionActual}`, { cache: "no-store" })
-        .then((r) => (r.ok ? (r.json() as Promise<{ solicitudes: Solicitud[] }>) : null))
+      fetch(`/api/solicitudes?seccion=${seccionActual}&contador=1`, { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ sinCoger: number }>) : null))
         .then((d) => {
-          if (vivo && d) setSolicitudesSinCoger(sinCoger(d.solicitudes));
+          if (vivo && d) setSolicitudesSinCoger(d.sinCoger);
         })
         .catch(() => {});
     };
