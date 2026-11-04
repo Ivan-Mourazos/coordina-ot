@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
 import { ErrorCarga } from "./ErrorCarga";
 import { INICIO_METRICAS, periodoAnterior, periodoDeMes, proporcionDevueltas, sinActividad, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
 import { sumarDias } from "@/lib/fechas";
@@ -61,7 +61,6 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
   const mes = mesSel ? `${anio}-${mesSel}` : "";
   const finAnio = `${anio}-12-31`;
   const { desde, hasta } = mes ? periodoDeMes(mes, hoy) : { desde: `${anio}-01-01`, hasta: finAnio < hoy ? finAnio : hoy };
-  const etiquetaPeriodo = mes ? nombreMes(mes) : `Año ${anio}`;
   const unidad = mes ? "mes" : "año";
   const anios: string[] = [];
   for (let a = Number(mesHoy.slice(0, 4)); a >= anioInicio; a--) anios.push(String(a));
@@ -93,19 +92,6 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
   const actualizando = !!datos && resultado?.clave !== clave;
   const etiquetaAnio = useId();
   const etiquetaMes = useId();
-  const contenedor = useRef<HTMLDivElement>(null);
-  const [alto, setAlto] = useState<number>();
-  useEffect(() => {
-    const elemento = contenedor.current;
-    if (!elemento) return;
-    const medir = () => setAlto(Math.max(280, window.innerHeight - elemento.getBoundingClientRect().top - 14));
-    const observador = new ResizeObserver(medir);
-    if (elemento.parentElement) observador.observe(elemento.parentElement);
-    medir();
-    window.addEventListener("resize", medir);
-    return () => { observador.disconnect(); window.removeEventListener("resize", medir); };
-  }, []);
-
   useEffect(() => {
     const controlador = new AbortController();
     const pedir = async (p: { desde: string; hasta: string }, detalle = false): Promise<Respuesta> => {
@@ -166,8 +152,25 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
   // `leerIncidenciasMetricas`); NC sí tienen las tres (ver `leerNcMetricas`).
   const conIncidencias = seccion !== "impresion";
 
+  // Rectificados con culpa de la sección: la cifra de arriba y su panel.
+  const nc = datos?.detalle?.nc;
+  const rectConCausa = nc ? nc.filter((x) => x.rectificativo && deLaSeccion(x, seccion) === "causa") : null;
+  const rectPeso = rectConCausa ? rectConCausa.reduce((s, x) => s + (repartoNc(x).secciones[seccion] ?? 0), 0) : 0;
+  const totalesNc = datos?.detalle?.ncTotales;
+  const incid = datos?.detalle?.incidenciasOT;
+  const nombreCorto = SECCIONES[seccion].nombreCorto;
+  const queIncid = QUE_ES_INCIDENCIA[seccion];
+  const nCifras = 2 + (sinRevision ? 0 : 3) + (conIncidencias ? 1 : 0);
+  const nPorQue = 1 + (sinRevision ? 0 : 1) + (conIncidencias ? 1 : 0);
+  const anchoPorQue = ANCHO[nPorQue];
+
+  // ─── Cuadro de mando (Iván, 04/11/2026) ─────────────────────────────────────
+  // De arriba abajo: cuánto (las cifras), cómo evoluciona, por qué, y lo mío.
+  // Sin textos explicativos a la vista: la explicación de cada cifra, al pasar
+  // el ratón. Los tres «por qué» con el mismo alto, para que ninguno se quede
+  // diminuto cuando otro tiene mucho (lo que pasaba con los rectificados).
   return (
-    <div ref={contenedor} className="metricas-vista flex flex-col gap-2.5 text-text" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 100px)" } as CSSProperties}>
+    <div className="flex flex-col gap-2.5 text-text">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold tracking-tight">Métricas <span className="font-medium text-text-muted">· {SECCIONES[seccion].nombre}</span></h2>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5" role="group" aria-label="Periodo de las métricas">
@@ -181,34 +184,47 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
       </div>
       {error && <ErrorCarga mensaje="No se pudieron cargar las métricas." onReintentar={() => setIntento((v) => v + 1)} />}
       {!datos && !error && <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">Contando…</p>}
-      {m && c && <>
-      <div aria-busy={actualizando} className={`metricas-cuadricula grid items-start gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-[minmax(250px,.95fr)_minmax(290px,1.2fr)_minmax(400px,1.85fr)] ${atenuado(actualizando)}`}>
-        <div className="metricas-columna metricas-indicadores grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-          <Panel titulo="Resumen" extra={etiquetaPeriodo}>
-            <div className="grid gap-2">
-              <Cifra titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)} detalle={`OF distintas en el ${unidad}: ${m.volumen.ofTerminadas} cerradas en la web${ofsRps ? ` y ${ofsRps} que OT cerró en RPS antes de usarla` : ""}.`} delta={<Delta ahora={m.volumen.ofTerminadas + ofsRps} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
-              {!sinRevision && <Cifra titulo="Entregadas a revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined} detalle={`OF distintas entregadas a revisión; el % es sobre el total de OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`} delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />}
-              {!sinRevision && <Cifra titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} detalle={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`} delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />}
-            </div>
-          </Panel>
-          {!sinRevision && <Panel titulo="Cuánto tarda cada paso" extra={soloDesdeWeb ? `tiempo normal · ${soloDesdeWeb.toLowerCase()}` : "tiempo normal"}><Recorrido m={m} aprobacion={c.aprobacion} /></Panel>}
-          {/* Incidencias aquí y no en la columna del medio (Iván, 27/10/2026):
-              bajo «Cuánto tarda» quedaban 330 px vacíos, y en el medio, con
-              tres paneles a partes iguales, Rectificados no dejaba ver sus
-              pedidos. Cada panel mide lo suyo y el último de cada columna se
-              queda lo que sobra (globals.css, «Métricas»). */}
-          {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas}`} extra={etiquetaPeriodo} actualizando={detalleViejo}><IncidenciasSeccion seccion={seccion} incidencias={datos?.detalle?.incidenciasOT} cargando={datos?.detalleCargando} /></Panel>}
+      {m && c && (
+        // UNA rejilla de 6 columnas para todo (Iván, 04/11/2026: «que los
+        // paneles queden simétricos»): los bordes de cada fila caen en el mismo
+        // sitio. Las cifras, una columna cada una (o a partes iguales si hay
+        // menos); los paneles, a partes iguales de su fila.
+        <div aria-busy={actualizando} className={`grid grid-cols-2 gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-6 ${atenuado(actualizando)}`}>
+          {/* 1 · Las cifras del periodo */}
+          <div className="contents [&>*]:xl:col-[span_var(--ancho-cifra)]" style={{ "--ancho-cifra": String(6 / nCifras) } as CSSProperties}>
+            <Tile titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)}
+              ayuda={`OF distintas en el ${unidad}: ${m.volumen.ofTerminadas} cerradas en la web${ofsRps ? ` y ${ofsRps} que OT cerró en RPS antes de usarla` : ""}.`}
+              delta={<Delta ahora={m.volumen.ofTerminadas + ofsRps} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
+            {!sinRevision && <Tile titulo="A revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined}
+              ayuda={`OF distintas entregadas a revisión; el % es sobre todas las OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`}
+              delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />}
+            {!sinRevision && <Tile titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} malo
+              ayuda={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`}
+              delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />}
+            {conIncidencias && <Tile titulo="Incidencias" valor={incid ? String(incid.total) : "—"} extra={incid ? sobre(incid.total, incid.base) : undefined} malo
+              ayuda={`${queIncid?.explica ?? "OF con incidencia apuntada en RPS"}${incid ? `: ${incid.total} de ${incid.base} OF pasadas` : ""}. Cada OF cuenta una vez.`}
+              delta={<span>{incid ? `de ${incid.base} OF pasadas` : datos?.detalleCargando ? "Consultando RPS…" : "Sin datos de RPS"}</span>} />}
+            <Tile titulo="Rectificados" valor={rectConCausa ? String(rectConCausa.length) : "—"} extra={rectConCausa ? `≈ ${decimal(rectPeso)}` : undefined} malo
+              ayuda={`Pedidos rectificados que Calidad achaca, en algo, a ${nombreCorto}. «≈» suma solo la parte de ${nombreCorto} (cada defecto reparte su 100 % entre sus causas).${totalesNc ? ` En toda la empresa: ${totalesNc.rectificadas} rectificados.` : ""}`}
+              delta={<span>{rectConCausa ? `con culpa de ${nombreCorto}` : datos?.detalleCargando ? "Consultando RPS…" : "Sin datos de RPS"}</span>} />
+            {!sinRevision && <Tile titulo="Hasta aprobarse" valor={tiempo(c.aprobacion.medianaMin)}
+              ayuda={`Lo normal desde que se entrega una OF hasta que se aprueba, contando noches y fines de semana. ${c.aprobacion.n} ciclos.`}
+              delta={<span>{soloDesdeWeb ?? "lo normal"}</span>} />}
+          </div>
+
+          {/* 2 · Cómo evoluciona: 4 + 2 columnas */}
+            <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
+            {!sinRevision && <Panel titulo="Cuánto tarda" extra={soloDesdeWeb ?? "lo normal"} className="col-span-2"><Recorrido m={m} /></Panel>}
+
+          {/* 3 · Por qué: a partes iguales y con el mismo alto */}
+            {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones}`} alto className={anchoPorQue}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
+            {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas} por familia`} extra={incid ? `${incid.total} de ${incid.base} OF` : undefined} actualizando={detalleViejo} alto className={anchoPorQue}><IncidenciasSeccion seccion={seccion} incidencias={incid} cargando={datos?.detalleCargando} /></Panel>}
+            <Panel titulo="Rectificados" extra={rectConCausa ? `${rectConCausa.length} con culpa` : undefined} actualizando={detalleViejo} alto className={anchoPorQue}><Rectificados nc={nc} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
+
+          {/* 4 · Lo mío: tres paneles alineados con los de arriba */}
+          <MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} nombre={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo} />
         </div>
-        <div className="metricas-columna metricas-motivos grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
-          {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones} devoluciones`}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
-          <Panel titulo="Rectificados" extra={etiquetaPeriodo} actualizando={detalleViejo}><Rectificados nc={datos?.detalle?.nc} totales={datos?.detalle?.ncTotales} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
-        </div>
-        <div className="metricas-columna metricas-personal grid min-w-0 gap-2.5">
-          <Panel titulo="Mes a mes" extra={`Año ${anio}`}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
-          <Panel titulo="Mis datos" extra={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo}><MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} /></Panel>
-        </div>
-      </div>
-      </>}
+      )}
     </div>
   );
 }
@@ -240,113 +256,79 @@ const QUE_ES_INCIDENCIA: Partial<Record<SeccionId, { explica: string; vacio: str
 };
 
 /** Las incidencias que apuntó Producción en RPS, de todo el equipo, sobre las
- *  OF pasadas del periodo (Iván, 21/10/2026; Diseño desde el 26/10/2026). */
+ *  OF pasadas del periodo, por familia. El total va en las cifras de arriba. */
 function IncidenciasSeccion({ seccion, incidencias, cargando }: { seccion: SeccionId; incidencias?: DetalleMetricas["incidenciasOT"]; cargando?: boolean }) {
   if (!incidencias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
   const que = QUE_ES_INCIDENCIA[seccion];
-  return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
-    <div className="flex items-baseline gap-2" title={`${que?.explica ?? "OF con incidencia apuntada en RPS"}, sobre las OF pasadas en el periodo. Cada OF cuenta una vez.`}>
-      <strong className="text-2xl leading-none font-bold tabular-nums">{incidencias.total}</strong>
-      <span className="text-xs font-semibold tabular-nums text-text-muted">{sobre(incidencias.total, incidencias.base)}</span>
-      <span className="text-[10px] text-text-muted">de {incidencias.base} OF pasadas</span>
-    </div>
-    <Ranking filas={incidencias.porFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} OF pasadas` }))} color={COLOR_DEVUELTA} vacio={que?.vacio ?? "Sin incidencias en este periodo."} />
-  </div>;
+  return <Ranking filas={incidencias.porFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} OF pasadas` }))} color={COLOR_DEVUELTA} vacio={que?.vacio ?? "Sin incidencias en este periodo."} />;
 }
 
 const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+/** Clases de ancho para repartir una fila de la rejilla de 6 a partes iguales. */
+const ANCHO: Record<number, string> = { 1: "col-span-2 xl:col-span-6", 2: "col-span-2 xl:col-span-3", 3: "col-span-2 xl:col-span-2" };
+/** Cuántos pedidos rectificados se ven antes de «Ver todos». */
+const PEDIDOS_A_LA_VISTA = 5;
+/** Cuántas familias se ven antes de «Ver todas». */
+const FAMILIAS_A_LA_VISTA = 5;
 
 /** Los rectificados de la sección: los pedidos que hubo que rehacer y que
- *  Calidad achaca, en sus causas, a alguien de la sección (Iván, 26/10/2026:
- *  «la tabla, y los rectificados en las gráficas»). Una NC sin pedido
- *  rectificativo no entra: no se rehízo nada; sigue en la ficha del pedido.
- *
- *  Arriba, una línea; debajo, la tabla por familia; los pedidos, plegados.
- *  Sin nombres de compañeros: en Métricas cada uno ve lo suyo (21/10/2026).
- *  Una NC no pesa entera por tener una causa nuestra: «equivale a» suma solo
- *  nuestra parte (ver `repartoNc`). */
-function Rectificados({ nc, totales, familias, cargando, seccion, miId, onAbrirPedido }: { nc?: NoConformidad[] | null; totales?: DetalleMetricas["ncTotales"]; familias?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId; miId: string; onAbrirPedido?: (codigo: string) => void }) {
+ *  Calidad achaca, en sus causas, a alguien de la sección. Arriba, por familia;
+ *  debajo, los últimos pedidos. Era una lista sin fin que dejaba diminuto el
+ *  panel de causas (Iván, 04/11/2026): ahora cinco de cada, y «Ver todos». El
+ *  total y lo que pesa van en las cifras de arriba. Sin nombres de compañeros:
+ *  en Métricas cada uno ve lo suyo (21/10/2026). */
+function Rectificados({ nc, familias, cargando, seccion, miId, onAbrirPedido }: { nc?: NoConformidad[] | null; familias?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId; miId: string; onAbrirPedido?: (codigo: string) => void }) {
+  const [todos, setTodos] = useState(false);
   if (!nc || !familias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
   const nombreCorto = SECCIONES[seccion].nombreCorto;
   const rectificados = nc.filter((x) => x.rectificativo);
-  const conCausa = rectificados.filter((x) => deLaSeccion(x, seccion) === "causa");
-  const pendientes = rectificados.filter((x) => deLaSeccion(x, seccion) === "pendiente");
-  const mayores = conCausa.filter((x) => causaMayor(x, seccion) === "mayor").length;
-  const peso = conCausa.reduce((s, x) => s + (repartoNc(x).secciones[seccion] ?? 0), 0);
-  const mios = conCausa.filter((x) => esMia(x, miId)).length;
+  const lista = [
+    ...rectificados.filter((x) => deLaSeccion(x, seccion) === "causa"),
+    ...rectificados.filter((x) => deLaSeccion(x, seccion) === "pendiente"),
+  ].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!familias.length && !lista.length) return <Vacio>Sin rectificados en este periodo.</Vacio>;
   const max = Math.max(1, ...familias.map((f) => f.rectificados));
-  return <div className="flex min-h-32 flex-1 flex-col gap-2.5 xl:min-h-0">
-    <div className="flex flex-wrap items-baseline gap-x-2" title={`Pedidos rectificados que Calidad achaca, en sus causas, a alguien de ${nombreCorto} con «error en planteamiento o diseño gráfico». «Equivale a» suma solo la parte de ${nombreCorto}: cada defecto reparte su 100 % entre sus causas según el % de Calidad. «Causa mayor»: donde lo de ${nombreCorto} pesa más que cualquier otra causa.`}>
-      <strong className="text-2xl leading-none font-bold tabular-nums">{conCausa.length}</strong>
-      <span className="text-[11px] text-text-muted">con culpa de {nombreCorto} · equivale a <strong className="font-semibold text-text tabular-nums">{decimal(peso)}</strong> · causa mayor en <strong className="font-semibold text-text tabular-nums">{mayores}</strong>{mios > 0 && <> · <strong className="font-semibold text-text tabular-nums">{mios}</strong> tuyos</>}</span>
-    </div>
-    {totales && <p className="text-[10px] leading-snug text-text-muted" title="Todos los pedidos rectificados de la empresa en el periodo, y lo que pesa en ellos el planteamiento o el diseño gráfico (OT, Diseño e Impresión juntos).">
-      En toda la empresa, {totales.rectificadas} rectificados; lo de planteamiento o diseño gráfico pesa {decimal(totales.nuestrasRectificadasPeso)} ({sobre(totales.nuestrasRectificadasPeso, totales.rectificadas)}).
-      {pendientes.length > 0 && ` ${pendientes.length} de pedidos con tareas de ${nombreCorto} aún sin investigar.`}
-    </p>}
-    {/* SIN SCROLL PROPIO, ni la tabla ni los pedidos (Iván, 27/10/2026: «lo
-        ideal es no tener scrolls»): el panel se queda el alto que sobra en su
-        columna, y si aun así no cabe, el que desplaza es el panel entero. Los
-        pedidos ya no van plegados en «Ver los pedidos»: no se veían. */}
-    {!familias.length ? <Vacio>Sin rectificados en este periodo.</Vacio> : (
-      <div>
-        <table className="w-full text-[11px]">
-          <thead><tr className="text-[10px] text-text-muted">
-            <th className="text-left font-normal">Por familia</th>
-            <th className="font-normal" />
-            <th className="text-right font-normal" title="Rectificados de pedidos con tareas de la sección en esa familia">Rectif.</th>
-            <th className="text-right font-normal" title="De ellos, los que Calidad achaca en algo a la sección">Con culpa</th>
-            <th className="text-right font-normal" title="La parte media de la sección en los rectificados ya investigados de esa familia">Culpa media</th>
-          </tr></thead>
-          <tbody>{familias.map((f) => <tr key={f.familia} title={`${nombreFamilia(f.familia)}: ${f.rectificados} rectificados; ${f.conCausa} con culpa de ${nombreCorto}; ${f.investigados} investigados`}>
-            <td className="truncate pr-2">{nombreFamilia(f.familia)}</td>
-            <td className="w-1/3 pr-2"><span className="recuadro block h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.rectificados / max * 100}%`, background: COLOR_RECTIFICADO }} /></span></td>
-            <td className="text-right font-semibold tabular-nums">{f.rectificados}</td>
-            <td className="text-right font-semibold tabular-nums">{f.conCausa}</td>
-            <td className="text-right font-semibold tabular-nums">{f.culpaMedia === null ? "—" : `${Math.round(f.culpaMedia * 100)} %`}</td>
-          </tr>)}</tbody>
-        </table>
-      </div>
-    )}
-    {conCausa.length + pendientes.length > 0 && <div>
-      <p className="text-[10px] text-text-muted">Pedidos</p>
-      {/* UNA FILA POR PEDIDO, en columnas (Iván, 27/10/2026: «no tener la
-          lista de pedidos así a lo bruto»): qué pedido, en cuál se rectificó,
-          cuándo y cuánto nos toca, en píldora. Lo que escribió Calidad, al
-          pasar el ratón; entero, en la ficha del pedido. */}
-      <ul className="mt-0.5">
-        {[...conCausa, ...pendientes].map((x) => {
-          const pendiente = deLaSeccion(x, seccion) === "pendiente";
-          const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
-          const que = pendiente
-            ? "sin investigar"
-            : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} % · ${mayor ? "mayor" : "menor"}`;
-          // Al pasar el ratón, UNA línea; el texto entero de Calidad, en la
-          // ficha del pedido, que se abre al pulsar (Iván, 27/10/2026: «estos
-          // textos son un agobio»). Allí sale ordenado en «Ver detalles».
-          const abrible = onAbrirPedido && x.pedido;
-          const pista = [x.descripcion && resumenNc(x.descripcion, 110), abrible ? "Pulsa para ver el pedido y su no conformidad" : null].filter(Boolean).join("\n");
-          const fila = "grid w-full grid-cols-[minmax(0,1fr)_3.25rem_auto] items-center gap-2 rounded-md! px-1.5 py-1 text-left text-[11px] hover:bg-surface-2";
-          const contenido = <>
-            <span className="min-w-0 truncate tabular-nums">
-              <span className="font-semibold">{x.pedido ?? "—"}</span>
-              <span className="text-text-muted"> → </span>
-              <span className="font-semibold">{x.rectificativo}</span>
-              {esMia(x, miId) && <span className="ml-1.5 text-[10px] font-semibold text-brand-800 dark:text-brand-300">tuyo</span>}
-            </span>
-            <span className="text-right tabular-nums text-text-muted">{fechaCorta(x.fecha)}</span>
-            <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
-              pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
-            }`}>{que}</span>
-          </>;
-          return <li key={x.codigo}>
-            {abrible
-              ? <button type="button" onClick={() => onAbrirPedido(x.pedido!)} title={pista} className={fila}>{contenido}</button>
-              : <div title={pista} className={fila}>{contenido}</div>}
-          </li>;
-        })}
-      </ul>
+  const familiasVistas = todos ? familias : familias.slice(0, FAMILIAS_A_LA_VISTA);
+  const pedidosVistos = todos ? lista : lista.slice(0, PEDIDOS_A_LA_VISTA);
+  const hayMas = familias.length > FAMILIAS_A_LA_VISTA || lista.length > PEDIDOS_A_LA_VISTA;
+  return <div className="flex flex-col gap-3">
+    {familias.length > 0 && <div className="grid gap-1.5">
+      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_2rem_3rem] gap-2 text-[10px] text-text-muted"><span>Familia</span><span /><span className="text-right" title="Rectificados de pedidos con tareas de la sección">Total</span><span className="text-right" title={`De ellos, los que Calidad achaca en algo a ${nombreCorto}`}>Culpa</span></div>
+      {familiasVistas.map((f) => <div key={f.familia} className="grid grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_2rem_3rem] items-center gap-2 text-[11px]" title={`${nombreFamilia(f.familia)}: ${f.rectificados} rectificados; ${f.conCausa} con culpa de ${nombreCorto}; culpa media ${f.culpaMedia === null ? "—" : `${Math.round(f.culpaMedia * 100)} %`}`}>
+        <span className="truncate">{nombreFamilia(f.familia)}</span>
+        <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.rectificados / max * 100}%`, background: COLOR_RECTIFICADO }} /></span>
+        <strong className="text-right tabular-nums">{f.rectificados}</strong>
+        <strong className="text-right tabular-nums">{f.conCausa}</strong>
+      </div>)}
     </div>}
+    {pedidosVistos.length > 0 && <ul className="grid gap-0.5 border-t border-border pt-2">
+      {pedidosVistos.map((x) => {
+        const pendiente = deLaSeccion(x, seccion) === "pendiente";
+        const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
+        const que = pendiente ? "sin investigar" : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} %`;
+        const abrible = onAbrirPedido && x.pedido;
+        const pista = [x.descripcion && resumenNc(x.descripcion, 110), abrible ? "Pulsa para ver el pedido y su no conformidad" : null].filter(Boolean).join("\n");
+        const fila = "grid w-full grid-cols-[minmax(0,1fr)_2.75rem_auto] items-center gap-2 rounded-md! px-1.5 py-1 text-left text-[11px] hover:bg-surface-2";
+        const contenido = <>
+          <span className="min-w-0 truncate tabular-nums">
+            <span className="font-semibold">{x.pedido ?? "—"}</span>
+            {esMia(x, miId) && <span className="ml-1.5 text-[10px] font-semibold text-brand-800 dark:text-brand-300">tuyo</span>}
+          </span>
+          <span className="text-right tabular-nums text-text-muted">{fechaCorta(x.fecha)}</span>
+          <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
+            pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
+          }`} title={pendiente ? "Calidad aún no lo ha investigado" : `La parte de ${nombreCorto} en este rectificado${mayor ? "; es la causa que más pesa" : ""}`}>{que}</span>
+        </>;
+        return <li key={x.codigo}>
+          {abrible
+            ? <button type="button" onClick={() => onAbrirPedido(x.pedido!)} title={pista} className={fila}>{contenido}</button>
+            : <div title={pista} className={fila}>{contenido}</div>}
+        </li>;
+      })}
+    </ul>}
+    {hayMas && <button type="button" onClick={() => setTodos((v) => !v)} className="chip-3d self-start px-3 py-1 text-[11px] font-semibold text-text">
+      {todos ? "Ver menos" : `Ver todos (${lista.length} pedidos)`}
+    </button>}
   </div>;
 }
 
@@ -355,11 +337,13 @@ const decimal = (n: number) => (Math.round(n * 10) / 10).toLocaleString("es-ES",
 
 /** Una familia que se abre para ver el desglose por causa: mis correcciones
  *  y el motivo de devolución por familia. */
-function PorFamiliaAbrible({ familias, color, vacio }: { familias: { familia: string; n: number; pct?: string; base?: number; detalle: FilaRanking[] }[]; color: string; vacio: string }) {
-  if (!familias.length) return <p className="py-2 text-[11px] text-text-muted">{vacio}</p>;
+function PorFamiliaAbrible({ familias: todasLasFamilias, color, vacio }: { familias: { familia: string; n: number; pct?: string; base?: number; detalle: FilaRanking[] }[]; color: string; vacio: string }) {
+  const [todas, setTodas] = useState(false);
+  if (!todasLasFamilias.length) return <p className="py-2 text-[11px] text-text-muted">{vacio}</p>;
+  const familias = todas ? todasLasFamilias : todasLasFamilias.slice(0, FILAS_A_LA_VISTA);
   const max = Math.max(...familias.map((f) => f.n));
   const conPct = familias.some((f) => f.pct !== undefined);
-  return <div className="space-y-1">
+  return <div className="grid gap-1">
     {familias.map((f) => <details key={f.familia} className="group rounded-md border border-border open:border-border-strong">
       <summary className={`grid cursor-pointer list-none ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 group-open:text-brand-800 dark:group-open:text-brand-300 [&::-webkit-details-marker]:hidden`} title={f.base !== undefined ? `${nombreFamilia(f.familia)}: ${f.n} de ${f.base} OF` : undefined}>
         <span className="flex min-w-0 items-center gap-1"><span aria-hidden="true" className="inline-block text-[8px] text-text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span><span className="truncate">{nombreFamilia(f.familia)}</span></span>
@@ -369,11 +353,12 @@ function PorFamiliaAbrible({ familias, color, vacio }: { familias: { familia: st
       </summary>
       <div className="mx-1.5 mb-1.5 border-l-2 border-border py-1 pl-2"><Ranking filas={f.detalle} color={color} vacio="Sin detalle." /></div>
     </details>)}
+    <VerTodas total={todasLasFamilias.length} todas={todas} onCambiar={setTodas} />
   </div>;
 }
 
-function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string; seccion: SeccionId }) {
-  if (!detalle) return <Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio>;
+function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre, actualizando }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string; seccion: SeccionId; nombre?: string; actualizando: boolean }) {
+  if (!detalle) return <Panel titulo="Mis datos" extra={nombre} className="col-span-2 xl:col-span-6"><Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio></Panel>;
   const p = detalle.personal;
   const sinRevision = SECCIONES[seccion].sinRevision === true;
   const filas = delAnio(anio, p.meses);
@@ -404,41 +389,47 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion }: { an
   const queIncidencia = seccion === "diseno"
     ? "Errores de rotulación o de archivo apuntados en RPS en OF que pasaste tú"
     : "Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT)";
-  return <div className="metricas-datos flex flex-col gap-3">
-    <MetricasGrafica titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
-      puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
-    <div className={`grid gap-3 border-t border-border pt-2.5 ${sinRevision ? "" : "sm:grid-cols-2"}`}>
-      {!sinRevision && <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title="OF distintas que te devolvieron, por familia. Abre una para ver las causas.">Mis correcciones · {p.correcciones}</h4>
-        <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} /></div>}
-      <div className="min-w-0"><h4 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted" title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>Mis incidencias · {p.incidencias ?? "—"}{p.incidencias !== null && <span className="font-normal normal-case tracking-normal"> · {sobre(p.incidencias, p.entregadas)} de {p.entregadas}</span>}</h4>
-        {p.incidencias === null ? <p className="py-2 text-[11px] text-text-muted">Datos de RPS no disponibles.</p> : !p.incidenciasPorFamilia.length ? <p className="py-2 text-[11px] text-text-muted">{`Sin incidencias en tus OF este ${unidad}.`}</p> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}</div>
-    </div>
-  </div>;
+  const ancho = ANCHO[sinRevision ? 2 : 3];
+  return <>
+    <Panel titulo="Mis OF por mes" extra={nombre} actualizando={actualizando} className={ancho}>
+      <MetricasGrafica titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
+        puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
+    </Panel>
+    {!sinRevision && <Panel titulo="Mis correcciones" extra={String(p.correcciones)} actualizando={actualizando} className={ancho}>
+      <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} />
+    </Panel>}
+    <Panel titulo="Mis incidencias" extra={p.incidencias === null ? undefined : `${p.incidencias} · ${sobre(p.incidencias, p.entregadas)} de ${p.entregadas}`} actualizando={actualizando} className={ancho}>
+      <div title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>
+        {p.incidencias === null ? <Vacio>Datos de RPS no disponibles.</Vacio> : !p.incidenciasPorFamilia.length ? <Vacio>{`Sin incidencias en tus OF este ${unidad}.`}</Vacio> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}
+      </div>
+    </Panel>
+  </>;
 }
 
 /** Atenuado mientras se cambia de periodo. Con retraso al entrar: si los
  *  datos llegan enseguida no se ve parpadeo ninguno; al salir, al momento. */
 const atenuado = (si: boolean) => si ? "opacity-55 delay-150" : "opacity-100 delay-0";
-function Panel({ titulo, extra, actualizando = false, children }: { titulo: string; extra?: string; actualizando?: boolean; children: ReactNode }) {
-  return <section aria-busy={actualizando} className="metricas-panel glass-panel flex min-h-0 min-w-0 flex-col rounded-xl p-3"><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`metricas-panel-contenido flex min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
+function Panel({ titulo, extra, actualizando = false, alto = false, className = "col-span-2", children }: { titulo: string; extra?: string; actualizando?: boolean; /** Los tres «por qué»: el mismo alto mínimo, para que ninguno se quede diminuto. */ alto?: boolean; /** Cuántas columnas de la rejilla ocupa. */ className?: string; children: ReactNode }) {
+  return <section aria-busy={actualizando} className={`metricas-panel glass-panel flex min-w-0 flex-col rounded-xl p-3 ${alto ? "min-h-64" : ""} ${className}`}><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`flex flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
 }
 function Vacio({ children }: { children: ReactNode }) { return <p className="flex flex-1 items-center justify-center py-4 text-center text-xs text-text-muted">{children}</p>; }
 function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string; sinDato?: string | null }) {
-  if (ahora === null || antes === null || !Number.isFinite(antes)) return <span>{sinDato ?? "Sin comparación"}</span>;
+  if (ahora === null || antes === null || !Number.isFinite(antes)) return <span>{sinDato ?? "sin comparación"}</span>;
   const diferencia = ahora - antes;
-  const valor = puntos ? `${Math.abs(diferencia).toFixed(1).replace(".", ",")} puntos` : antes === 0 ? String(Math.abs(diferencia)) : `${Math.round(Math.abs(diferencia / antes) * 100)} %`;
-  return <span title={`Antes: ${puntos ? `${Math.round(antes)} %` : antes}. Los mismos días si el periodo está en curso.`}><strong className="font-semibold text-text">{diferencia === 0 ? "=" : diferencia > 0 ? "▲" : "▼"} {valor}</strong> <span>{frente}</span></span>;
+  const valor = puntos ? `${Math.abs(diferencia).toFixed(1).replace(".", ",")} ptos` : antes === 0 ? String(Math.abs(diferencia)) : `${Math.round(Math.abs(diferencia / antes) * 100)} %`;
+  return <span title={`${frente}. Antes: ${puntos ? `${Math.round(antes)} %` : antes}. Los mismos días si el periodo está en curso.`}><strong className="font-semibold text-text">{diferencia === 0 ? "=" : diferencia > 0 ? "▲" : "▼"} {valor}</strong></span>;
 }
-/** Una cifra del resumen en una línea: el número grande a la izquierda, y el
- *  nombre y la comparación a su lado. Eran tres tarjetas altas y se comían la
- *  columna (21/10/2026). */
-function Cifra({ titulo, valor, extra, detalle, delta }: { titulo: string; valor: string; extra?: string; detalle: string; delta: ReactNode }) {
-  // Tres columnas fijas (cifra, porcentaje, texto): con el ancho de cada
-  // número, «229» y «176 (76 %)» dejaban los rótulos cada uno a una altura.
-  return <div className="grid min-w-0 grid-cols-[3.25rem_3rem_minmax(0,1fr)] items-center gap-x-2 metricas-cifra rounded-lg border border-border px-2.5 py-1.5" title={detalle}>
-    <div className="text-right text-2xl leading-none font-bold tracking-tight tabular-nums">{valor}</div>
-    <div className="text-xs font-semibold tabular-nums text-text-muted">{extra ?? ""}</div>
-    <div className="min-w-0 text-[10px] leading-tight text-text-muted"><div className="truncate font-semibold uppercase tracking-[.06em] text-text">{titulo}</div><div className="truncate">{delta}</div></div>
+/** Una cifra del cuadro: el nombre, el número grande y, debajo, la
+ *  comparación. Lo que explica cómo se cuenta, al pasar el ratón (Iván,
+ *  04/11/2026: «sin textos explicativos»). `malo`: que suba es peor. */
+function Tile({ titulo, valor, extra, ayuda, delta, malo = false }: { titulo: string; valor: string; extra?: string; ayuda: string; delta: ReactNode; malo?: boolean }) {
+  return <div className="glass-panel min-w-0 rounded-xl px-3 py-2.5" title={ayuda} data-malo={malo || undefined}>
+    <div className="truncate text-[10px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}</div>
+    <div className="mt-1 flex items-baseline gap-1.5">
+      <span className="text-2xl leading-none font-bold tracking-tight tabular-nums">{valor}</span>
+      {extra && <span className="text-xs font-semibold tabular-nums text-text-muted">{extra}</span>}
+    </div>
+    <div className="mt-1 truncate text-[10px] text-text-muted">{delta}</div>
   </div>;
 }
 /** «Realizadas» suma las OF que OT cerró en RPS antes de usar la web (`rps`,
@@ -475,38 +466,43 @@ function Meses({ anio, meses, mes, rps, rectificados, sinRevision = false }: { a
       ...(rectificados ? [{ etiqueta: "Rectificados", color: COLOR_RECTIFICADO, valor: rectValor }] : []),
     ]} />;
 }
-/** Los cinco tramos del ciclo (Iván, 21/10/2026), en el orden en que pasan,
- *  cada uno con una frase de DÓNDE a DÓNDE va. */
-function Recorrido({ m, aprobacion }: { m: Metricas; aprobacion: { n: number; medianaMin: number | null } }) {
+/** Cuánto tarda, en simple (Iván, 04/11/2026): los tramos que de verdad se
+ *  miran, un número cada uno. Lo de cómo se cuenta, al pasar el ratón. */
+function Recorrido({ m }: { m: Metricas }) {
   const t = m.tiempos;
-  const tramos: { nombre: string; que: string; tramo: Tramo; color: string; trabajo?: boolean }[] = [
-    { nombre: "Espera a revisión", que: "De pasarla a revisar a que el revisor la abre", tramo: t.esperaCola, color: "var(--text-muted)" },
-    { nombre: "Revisión", que: "De abrirla el revisor a aprobarla o devolverla", tramo: t.repaso, color: SERIES[1].color, trabajo: true },
-    { nombre: "Espera a corregir", que: "De devolvértela a ponerte a corregirla", tramo: t.esperaCorreccion, color: COLOR_SIN_REVISION },
-    { nombre: "Corrección", que: "De ponerte a corregirla a mandarla o entregarla", tramo: t.correccion, color: COLOR_DEVUELTA, trabajo: true },
-    { nombre: "Hasta Producción", que: "De aprobarse (o darse por corregida) a pasar el pedido", tramo: t.hastaProduccion, color: "var(--fase-listo-relleno)" },
+  const tramos: { nombre: string; tramo: Tramo; ayuda: string }[] = [
+    { nombre: "Espera a revisión", tramo: t.esperaCola, ayuda: "De pasarla a revisar a que el revisor la abre" },
+    { nombre: "Revisión", tramo: t.repaso, ayuda: "De abrirla el revisor a aprobarla o devolverla" },
+    { nombre: "Corrección", tramo: t.correccion, ayuda: "De ponerse a corregirla a volver a entregarla" },
+    { nombre: "Hasta Producción", tramo: t.hastaProduccion, ayuda: "De aprobarse a pasar el pedido" },
   ];
-  const total = tramos.reduce((s, x) => s + (x.tramo.medianaMin ?? 0), 0);
-  if (tramos.every((x) => !x.tramo.n)) return <Vacio>Sin tramos completos en este periodo.</Vacio>;
-  return <div className="flex flex-1 flex-col gap-2">
-    <div className="recuadro flex h-3 shrink-0 gap-0.5 overflow-hidden rounded-md p-0.5" role="img" aria-label={tramos.map((x) => `${x.nombre}: ${tiempo(x.tramo.medianaMin)}`).join("; ")}>
-      {tramos.map((x) => x.tramo.medianaMin ? <span key={x.nombre} className="rounded-sm" style={{ width: `${x.tramo.medianaMin / total * 100}%`, minWidth: 3, background: x.color }} title={`${x.nombre}: ${tiempo(x.tramo.medianaMin)}`} /> : null)}
-    </div>
-    <ol className="grid gap-1">
-      {tramos.map((x, i) => <li key={x.nombre} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-1 py-0.5" title={`${x.que}. ${x.tramo.n} medidas${x.trabajo ? ` · ${x.tramo.trabajo.n} con fichaje` : ""}.`}>
-        <span className="grid size-4 place-items-center rounded-full text-[9px] font-bold" style={{ background: x.color, color: "var(--surface)" }}>{i + 1}</span>
-        <span className="min-w-0 leading-tight"><span className="block text-[11px] font-semibold">{x.nombre}</span><span className="block truncate text-[10px] text-text-muted">{x.que}</span></span>
-        <span className="text-right leading-tight"><strong className="block text-sm tabular-nums">{tiempo(x.tramo.medianaMin)}</strong>{x.trabajo && <span className="block text-[9px] text-text-muted">{tiempo(x.tramo.trabajo.medianaMin)} fichados</span>}</span>
-      </li>)}
-    </ol>
-    <p className="border-t border-border pt-1.5 text-[10px] text-text-muted" title="El reloj cuenta noches y fines de semana; «fichados» es el tiempo fichado en la web. «Normal» es la OF del medio: ni la más rápida ni la que se quedó olvidada.">Ciclo entero hasta aprobarse: <strong className="text-text">{tiempo(aprobacion.medianaMin)}</strong> · {aprobacion.n} ciclos</p>
-  </div>;
+  if (tramos.every((x) => !x.tramo.n)) return <Vacio>Sin datos en este periodo.</Vacio>;
+  return <dl className="grid grid-cols-2 gap-2">
+    {tramos.map((x) => <div key={x.nombre} className="metricas-cifra rounded-lg px-2.5 py-2" title={`${x.ayuda}. Lo normal, contando noches y fines de semana; ${x.tramo.n} medidas.`}>
+      <dt className="truncate text-[10px] text-text-muted">{x.nombre}</dt>
+      <dd className="text-lg leading-tight font-bold tabular-nums">{tiempo(x.tramo.medianaMin)}</dd>
+    </div>)}
+  </dl>;
 }
 /** `pct` va en su propia columna para que los % queden alineados. */
 interface FilaRanking { etiqueta: string; n: number; pct?: string; titulo?: string }
 function Ranking({ filas, color, vacio }: { filas: FilaRanking[]; color: string; vacio: string }) {
+  const [todas, setTodas] = useState(false);
   if (!filas.length) return <Vacio>{vacio}</Vacio>;
   const max = Math.max(...filas.map((f) => f.n));
   const conPct = filas.some((f) => f.pct !== undefined);
-  return <div className="scroll-thin grid min-h-0 content-start gap-1.5 overflow-y-auto pr-1" aria-label="Ordenado por frecuencia">{filas.map((f) => <div key={f.etiqueta} className={`grid ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 text-[11px]`} title={f.titulo ?? `${f.etiqueta}: ${f.n}`}><span className="truncate">{f.etiqueta}</span><span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong>{conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}</div>)}</div>;
+  const vistas = todas ? filas : filas.slice(0, FILAS_A_LA_VISTA);
+  return <div className="grid content-start gap-1.5" aria-label="Ordenado por frecuencia">
+    {vistas.map((f) => <div key={f.etiqueta} className={`grid ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 text-[11px]`} title={f.titulo ?? `${f.etiqueta}: ${f.n}`}><span className="truncate">{f.etiqueta}</span><span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong>{conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}</div>)}
+    <VerTodas total={filas.length} todas={todas} onCambiar={setTodas} />
+  </div>;
+}
+/** Cuántas filas se ven en cada lista antes de «Ver todas» (Iván, 04/11/2026:
+ *  con muchas, un panel se comía la pantalla y dejaba diminuto al de al lado). */
+const FILAS_A_LA_VISTA = 8;
+function VerTodas({ total, todas, onCambiar }: { total: number; todas: boolean; onCambiar: (v: boolean) => void }) {
+  if (total <= FILAS_A_LA_VISTA) return null;
+  return <button type="button" onClick={() => onCambiar(!todas)} className="chip-3d mt-1 self-start justify-self-start px-3 py-1 text-[11px] font-semibold text-text">
+    {todas ? "Ver menos" : `Ver todas (${total})`}
+  </button>;
 }
