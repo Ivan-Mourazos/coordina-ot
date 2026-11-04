@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-04",
-    "hasta": "8a0d047",
+    "hasta": "ca8549d",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -36,6 +36,18 @@
         "tipo": "mejor",
         "titulo": "El aviso de pasar a Producción es más ancho y enseña de un vistazo qué se imprime y qué se manda",
         "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los proyectos internos salen en el Panel, en su tira debajo de los detenidos",
+        "detalle": "Sin tener que cambiar el filtro: la despliegas cuando la quieras ver.",
+        "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas, más clara: las cifras arriba y los paneles alineados",
+        "detalle": "Las listas largas enseñan las primeras y «Ver todas»; lo que explica cada cifra sale al pasar el ratón.",
+        "tanda": 5
       }
     ]
   },
