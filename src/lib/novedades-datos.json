@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-04",
-    "hasta": "15e11eb",
+    "hasta": "8a0d047",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -16,6 +16,12 @@
         "tanda": 3
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Al pasar un pedido eliges qué páginas salen en cada impresora",
+        "detalle": "Con «Elegir páginas…» marcas cada página en Producción o en la de OT, vertical u horizontal; un A5 en Producción sale en A4.",
+        "tanda": 4
+      },
+      {
         "tipo": "mejor",
         "titulo": "Solicitudes enseña todo el histórico, con buscador y filtro por técnico",
         "detalle": "Busca por cliente, obra, presupuesto o comercial.",
@@ -25,6 +31,11 @@
         "tipo": "mejor",
         "titulo": "Las solicitudes ya enseñan todo el histórico, también la respuesta del técnico de las antiguas",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El aviso de pasar a Producción es más ancho y enseña de un vistazo qué se imprime y qué se manda",
+        "tanda": 4
       }
     ]
   },
