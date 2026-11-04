@@ -338,6 +338,29 @@ export function detenidosSinAsignar(
   return salida;
 }
 
+/** Los proyectos internos que nadie ha cogido: su tira debajo de los
+ *  detenidos en el Panel (Iván, 04/11/2026), plegada como ella. Antes solo se
+ *  veían eligiendo «Proyectos internos» en la barra, y se perdía lo demás.
+ *
+ *  Mismas reglas que los detenidos: respeta el resto de la barra y solo sale
+ *  con «Tu trabajo» puesto. Sin anuladas, lo de taller ni lo cerrado en RPS. */
+export function internosSinCoger(
+  pedidos: Pedido[],
+  f: Filtros,
+  hoy: string,
+  opts?: OpcionesCategoria,
+): Pedido[] {
+  if (f.categoria !== "normal") return [];
+  const salida: Pedido[] = [];
+  for (const p of aplicarFiltros(pedidos, { ...f, categoria: "internos" }, hoy, opts)) {
+    const ofs = p.ofs.filter(
+      (o) => o.estado !== "anulada" && !ofOcultaDeOT(o) && o.cerradaRps === undefined,
+    );
+    if (ofs.length > 0) salida.push({ ...p, ofs });
+  }
+  return salida;
+}
+
 /** Etiquetas de lo que está recortando ahora mismo, para el botón de limpiar y
  *  para poder decirle a la vista vacía que la culpa es de los filtros. */
 export function filtrosActivos(f: Filtros): string[] {

@@ -93,6 +93,7 @@ import {
   aplicarFiltros,
   contarCategoriasVisibles,
   detenidosSinAsignar,
+  internosSinCoger,
   CLAVES_URL_FILTROS,
   filtrosAParams,
   hayFiltrosActivos,
@@ -966,6 +967,14 @@ export function Board({
   const facetsDetenidos = useMemo(
     () =>
       detenidosSinAsignar(procesados, filtrosPorVista.asignar, hoy, opcionesCategoria).map(
+        (p): Facet => ({ pedido: p, locationId: null, ofs: p.ofs, atrasado: estaAtrasado(p, hoy) }),
+      ),
+    [procesados, filtrosPorVista.asignar, hoy, opcionesCategoria],
+  );
+  // Los proyectos internos sin coger: otra tira debajo de los detenidos.
+  const facetsInternos = useMemo(
+    () =>
+      internosSinCoger(procesados, filtrosPorVista.asignar, hoy, opcionesCategoria).map(
         (p): Facet => ({ pedido: p, locationId: null, ofs: p.ofs, atrasado: estaAtrasado(p, hoy) }),
       ),
     [procesados, filtrosPorVista.asignar, hoy, opcionesCategoria],
@@ -3029,6 +3038,7 @@ export function Board({
                 <Bandeja
                   facets={facetsBandeja}
                   detenidos={facetsDetenidos}
+                  internos={facetsInternos}
                   operarios={operarios}
                   onOpen={openFacet}
                   onAsignar={(f, op) => moverOFs(new Set(f.ofs.map((o) => o.id)), op)}

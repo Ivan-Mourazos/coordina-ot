@@ -10,6 +10,7 @@ import {
   filtrosAParams,
   hayFiltrosActivos,
   internoApartado,
+  internosSinCoger,
   ofEnCategoria,
   paramsAFiltros,
   type Filtros,
@@ -302,6 +303,34 @@ describe("ida y vuelta a la URL", () => {
 
 // El bloque «Detenidos por Producción» del Panel: lo parado y sin dueño, a la
 // vista sin tener que cambiar de categoría.
+describe("internosSinCoger", () => {
+  it("saca los internos que nadie ha cogido, sin anuladas ni cerradas en RPS", () => {
+    const p = pedido({
+      interno: true,
+      ofs: [of({ id: "a" }), of({ id: "b", estado: "anulada" }), of({ id: "c", cerradaRps: { at: "2026-08-01T10:00:00.000Z", por: "ana", modo: "activo" } })],
+    });
+    const salida = internosSinCoger([p], FILTROS_INICIALES, HOY);
+    expect(salida).toHaveLength(1);
+    expect(salida[0].ofs.map((o) => o.id)).toEqual(["a"]);
+  });
+
+  it("en cuanto alguien lo coge, sale de la tira", () => {
+    expect(internosSinCoger([pedido({ interno: true, ofs: [of({ autorId: "ana" })] })], FILTROS_INICIALES, HOY)).toEqual([]);
+  });
+
+  it("los pedidos normales no entran, ni en la sección que trata lo interno como trabajo", () => {
+    expect(internosSinCoger([pedido()], FILTROS_INICIALES, HOY)).toEqual([]);
+    expect(internosSinCoger([pedido({ interno: true })], FILTROS_INICIALES, HOY, { internosComoTrabajo: true })).toEqual([]);
+  });
+
+  it("solo con «Tu trabajo» y respetando el resto de la barra", () => {
+    const p = pedido({ interno: true, ofs: [of({ familia: "LONA" })] });
+    expect(internosSinCoger([p], { ...FILTROS_INICIALES, categoria: "internos" }, HOY)).toEqual([]);
+    expect(internosSinCoger([p], { ...FILTROS_INICIALES, familia: "TOLDO" }, HOY)).toEqual([]);
+    expect(internosSinCoger([p], { ...FILTROS_INICIALES, familia: "LONA" }, HOY)).toHaveLength(1);
+  });
+});
+
 describe("detenidosSinAsignar", () => {
   const det = (extra: Partial<OF> = {}) => of({ detenida: true, ...extra });
 

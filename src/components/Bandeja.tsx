@@ -245,6 +245,7 @@ function ScrollRow({
 export function Bandeja({
   facets,
   detenidos = [],
+  internos = [],
   operarios,
   onOpen,
   onAsignar,
@@ -257,6 +258,9 @@ export function Bandeja({
    *  puede trabajar, pero hay que poder verlo sin cambiar el filtro. Siempre
    *  seguido y por fecha, se agrupe como se agrupe lo de arriba. */
   detenidos?: Facet[];
+  /** Los proyectos internos que nadie ha cogido (sin pedido de venta). Otra
+   *  tira debajo de los detenidos, plegada igual (Iván, 04/11/2026). */
+  internos?: Facet[];
   operarios: Operario[];
   onOpen: (f: Facet) => void;
   onAsignar?: (f: Facet, operarioId: string) => void;
@@ -275,6 +279,8 @@ export function Bandeja({
   );
   const detenidosPorFecha = useMemo(() => [...detenidos].sort(cmpPrioFecha), [detenidos]);
   const nOFsDetenidas = detenidos.reduce((n, f) => n + f.ofs.length, 0);
+  const internosPorFecha = useMemo(() => [...internos].sort(cmpPrioFecha), [internos]);
+  const nOFsInternas = internos.reduce((n, f) => n + f.ofs.length, 0);
 
 
   /* ── agrupado por familia ── */
@@ -474,6 +480,49 @@ export function Bandeja({
             style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
           >
             {detenidosPorFecha.map((f) => (
+              <div key={f.pedido.id} className="min-w-0">
+                <PedidoCard
+                  facet={f}
+                  operarios={operarios}
+                  onOpen={onOpen}
+                  onAsignar={onAsignar}
+                  miId={miId}
+                  mostrarPrioridad
+                  mostrarFecha
+                />
+              </div>
+            ))}
+          </div>
+        </BloquePlegable>
+      )}
+
+      {/* ── PROYECTOS INTERNOS ── Lo de la casa que nadie ha cogido: debajo de
+          los detenidos, con su raya y plegado de salida como ellos. En cuanto
+          alguien coge uno, sale de aquí y va a su zona (ver `internoApartado`). */}
+      {internosPorFecha.length > 0 && (
+        <BloquePlegable
+          clave="coordina-internos-plegado"
+          abiertoDeSalida={false}
+          bajarAlAbrir
+          className="mt-5 border-t border-border-strong pt-3"
+          cabecera={
+            <>
+              <span className="size-2 rounded-full bg-violet-500" />
+              <h2 className="text-base font-bold text-text">Proyectos internos</h2>
+              <span
+                className="rounded-full bg-violet-500/12 px-2.5 py-0.5 text-[11px] font-bold text-violet-800 ring-1 ring-violet-600/25 dark:text-violet-300"
+                title="Trabajo de la casa, sin pedido de venta. En cuanto alguien coge uno, pasa a su zona."
+              >
+                {internosPorFecha.length} ped · {nOFsInternas} OF
+              </span>
+            </>
+          }
+        >
+          <div
+            className="grid gap-x-2 gap-y-3"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${ANCHO_TARJETA}px, 1fr))` }}
+          >
+            {internosPorFecha.map((f) => (
               <div key={f.pedido.id} className="min-w-0">
                 <PedidoCard
                   facet={f}
