@@ -45,6 +45,7 @@ export function ConfirmDialog({
   mensaje,
   tono = "primaria",
   textoConfirmar = "Confirmar",
+  ancho = false,
   onConfirmar,
   onCancelar,
 }: {
@@ -63,6 +64,9 @@ export function ConfirmDialog({
    *  propio verbo (p.ej. "Dar por terminada"): así el botón dice lo mismo que
    *  se acaba de pedir, en vez de un genérico que no dice qué va a pasar. */
   textoConfirmar?: string;
+  /** Para los avisos con apartados (pasar a Producción): más ancho y más alto,
+   *  que en el estrecho había que hacer scroll para ver qué se imprime. */
+  ancho?: boolean;
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
@@ -119,8 +123,12 @@ export function ConfirmDialog({
           telón es `fixed inset-0` y no scrollea. Dejando fuera del scroll el
           título y los botones, esos dos siempre se ven, y la lista larga se
           recorre por dentro. */}
-      <div className="dialogo-confirmar glass-panel-strong absolute left-1/2 top-1/3 flex max-h-[60vh] w-full max-w-sm -translate-x-1/2 flex-col rounded-2xl p-4">
-        <h3 id={idTitulo} className="shrink-0 text-sm font-bold text-text">
+      <div
+        className={`dialogo-confirmar glass-panel-strong absolute left-1/2 flex w-full -translate-x-1/2 flex-col rounded-2xl p-4 ${
+          ancho ? "top-[8vh] max-h-[84vh] max-w-[min(48rem,calc(100vw-2rem))]" : "top-1/3 max-h-[60vh] max-w-sm"
+        }`}
+      >
+        <h3 id={idTitulo} className={`shrink-0 font-bold text-text ${ancho ? "text-base" : "text-sm"}`}>
           {titulo}
         </h3>
         {/* El texto corriente sigue yendo en un `<p>` con `whitespace-pre-line`,

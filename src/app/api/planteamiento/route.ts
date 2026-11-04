@@ -54,6 +54,8 @@ export async function GET(req: Request) {
       // cada parte (ver `partesDe`).
       ficheros: ficheros.map(({ nombre, paginas, todoA4, tamanos }) => ({
         nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido), partes: tamanos?.length ? partesDe(tamanos) : undefined,
+        // El tamaño de cada página, para «Elegir páginas…» del aviso de pasar.
+        tamanos: tamanos?.length ? tamanos : undefined,
       })),
       // Sin código de departamento la de OT no imprime nada que le llegue
       // solo: entonces los A5 y A3 se imprimen a mano, como antes.

@@ -4,7 +4,8 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
 import { planteamientosDe } from "@/lib/server/planteamiento-pdf";
-import { extraerPaginas } from "@/lib/server/parte-pdf";
+import { componerTrabajo } from "@/lib/server/parte-pdf";
+import type { Papel } from "@/lib/planteamiento";
 import { miniaturaCacheada, renderizarPdf } from "@/lib/server/miniaturas";
 import { soloConSesion } from "@/lib/server/sesion";
 
@@ -14,7 +15,8 @@ import { soloConSesion } from "@/lib/server/sesion";
 // pedir otro fichero del disco.
 //
 //   &paginas=2,4   solo esas páginas (una parte del reparto por tamaño)
-//   &girar=1       giradas un cuarto de vuelta, como se imprimirán
+//   &girar=0,1     cuáles van giradas un cuarto de vuelta («1» = todas)
+//   &papel=A4      el papel de la impresora: las de otro tamaño se ajustan
 //   &mini=1        la miniatura de la primera de esas páginas, en PNG
 
 export const dynamic = "force-dynamic";
@@ -36,7 +38,9 @@ export async function GET(req: Request) {
   if (!esCodigoPedido(pedido)) return NextResponse.json({ error: "Pedido no válido" }, { status: 400 });
   const paginas = leerPaginas(q.get("paginas"));
   if (q.get("paginas") && !paginas) return NextResponse.json({ error: "Páginas no válidas" }, { status: 400 });
-  const girar = q.get("girar") === "1";
+  const giros = (q.get("girar") ?? "").split(",");
+  const papelQ = q.get("papel");
+  const papel: Papel | null = papelQ === "A3" || papelQ === "A4" || papelQ === "A5" ? papelQ : null;
   const f = (await planteamientosDe(pedido)).ficheros.find((x) => x.nombre === nombre);
   if (!f) return NextResponse.json({ error: "No existe" }, { status: 404 });
 
@@ -58,7 +62,20 @@ export async function GET(req: Request) {
   let datos: Uint8Array;
   try {
     const original = new Uint8Array(await readFile(f.ruta));
-    datos = paginas || girar ? await extraerPaginas(original, paginas ?? Array.from({ length: f.paginas }, (_, i) => i + 1), girar) : original;
+    const lista = paginas ?? Array.from({ length: f.paginas }, (_, i) => i + 1);
+    const girada = (i: number) => giros[i] === "1" || (giros.length === 1 && giros[0] === "1");
+    const cambia = paginas || papel || giros.includes("1");
+    datos = cambia
+      ? await componerTrabajo(
+          original,
+          lista.map((pagina, i) => ({
+            pagina,
+            girar: girada(i),
+            ajustar: papel !== null && (f.tamanos?.[pagina - 1]?.papel ?? null) !== papel,
+          })),
+          papel ?? "A4",
+        )
+      : original;
   } catch {
     // Estaba en la lista y ya no se puede leer (carpeta caída, fichero movido).
     return NextResponse.json({ error: "No se puede leer el fichero" }, { status: 404 });

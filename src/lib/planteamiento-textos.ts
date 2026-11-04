@@ -2,7 +2,7 @@
 // no puede arrastrar código de servidor (SQLite, fs) al bundle.
 import type { FilaImpresion, ModoImpresion } from "./server/impresion-cola";
 import type { FilaCorreo, ModoCorreo } from "./server/correo-cola";
-import type { ParteImpresion } from "./planteamiento";
+import type { PaginaPdf, ParteImpresion } from "./planteamiento";
 
 // ─── Lo que la pantalla dice del planteamiento ───────────────────────────────
 // Funciones puras para que el diálogo de pasar y la ficha del Historial digan
@@ -14,7 +14,7 @@ export interface VistaPlanteamiento {
    *  avisa. Opcional: un servidor de antes no lo manda. */
   /** `partes`: el reparto por tamaño de página (04/11/2026). Opcional: un
    *  servidor de antes no lo manda, y entonces se lee `todoA4` como siempre. */
-  ficheros: { nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean; partes?: ParteImpresion[] }[];
+  ficheros: { nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean; partes?: ParteImpresion[]; tamanos?: PaginaPdf[] }[];
   /** Si la impresora de OT imprime sola (tiene código de departamento). */
   puedeOt?: boolean;
   aviso: string | null;
@@ -39,11 +39,9 @@ export function textoAntesDePasar(d: VistaPlanteamiento): string | null {
   if (d.ficheros.length === 0) {
     return `${d.aviso ?? "No encuentro el planteamiento en Planteamientos"}: se pasará sin imprimir`;
   }
-  // Con reparto por tamaño, el detalle de cada parte lo enseña el aviso de
-  // pasar (RepartoImpresion); aquí, de qué va.
-  if (d.ficheros.some((f) => (f.partes?.length ?? 0) > 1 || f.partes?.some((p) => p.papel !== "A4"))) {
-    return "El planteamiento lleva páginas de distintos tamaños: cada una sale en la impresora que tiene ese papel";
-  }
+  // Con las medidas de cada página, qué sale en cada impresora lo enseña el
+  // resumen de debajo (RepartoImpresion); aquí, solo el encabezado.
+  if (d.ficheros.some((f) => (f.tamanos?.length ?? 0) > 0)) return "Al pasar se imprime así:";
   const manual = d.ficheros.find((f) => !f.todoA4);
   if (manual) return `${manual.nombre} lleva una página que no es A4: al pasar se abrirá el cuadro de imprimir`;
   const donde = d.modo === "ensayo" ? "la impresora de OT (ensayo)" : "Producción";

@@ -157,9 +157,9 @@ describe("reparto por tamaño", () => {
     expect(textoImpresion({ ...base, estado: "manual", destino: "ot", papel: "A5", paginasSel: "2" }))
       .toBe("Para imprimir a mano: AR2605333-10.pdf (A5, pág. 2)");
   });
-  it("el aviso de pasar avisa del reparto", () => {
-    expect(textoAntesDePasar({ modo: "activo", aviso: null, impresiones: [], ficheros: [{ nombre: "A-10.pdf", paginas: 3, todoA4: false,
-      partes: [{ papel: "A4", paginas: [1, 3], destino: "produccion", horizontal: false }, { papel: "A5", paginas: [2], destino: "ot", horizontal: true }] }] }))
-      .toBe("El planteamiento lleva páginas de distintos tamaños: cada una sale en la impresora que tiene ese papel");
+  it("con las medidas de cada página, el detalle va en el resumen de debajo", () => {
+    expect(textoAntesDePasar({ modo: "activo", aviso: null, impresiones: [], ficheros: [{ nombre: "A-10.pdf", paginas: 2, todoA4: false,
+      tamanos: [{ papel: "A4", horizontal: false }, { papel: "A5", horizontal: true }] }] }))
+      .toBe("Al pasar se imprime así:");
   });
 });

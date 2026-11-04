@@ -114,11 +114,11 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
     };
   }, [vuelta]);
 
-  // Una parte del reparto (A5, A3…) se reimprime sola: repetir el A5 no tiene
-  // por qué volver a sacar los A4. Las filas de antes, el planteamiento entero.
+  // Un envío del reparto se repite tal cual (mismas páginas, giro e impresora):
+  // repetir el A5 no tiene por qué volver a sacar los A4. Los de antes, entero.
   const reimprimir = async (e: Envio) => {
     const pedido = e.pedidoId;
-    const parte = e.paginasSel && e.fichero ? { fichero: e.fichero, papel: e.papel ?? null } : {};
+    const parte = e.repetible ? { id: e.id } : {};
     setOcupado(e.id);
     setMensaje(null);
     try {
@@ -176,7 +176,7 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
                         type="button"
                         disabled={ocupado !== null}
                         onClick={() => void reimprimir(e)}
-                        title={e.paginasSel ? "Vuelve a mandar solo esta parte a la cola" : "Vuelve a buscar el planteamiento de este pedido y lo manda a la cola"}
+                        title={e.repetible ? "Vuelve a mandar justo esto, a la misma impresora" : "Vuelve a buscar el planteamiento de este pedido y lo manda a la cola"}
                         className="chip-3d shrink-0 px-2.5 py-0.5 text-[11px] font-semibold text-text disabled:opacity-55"
                       >
                         {ocupado === e.id ? "Mandando…" : "Reimprimir"}

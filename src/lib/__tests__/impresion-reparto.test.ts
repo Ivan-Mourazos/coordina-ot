@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { PDFDocument } from "pdf-lib";
-import { claveParte } from "../planteamiento";
+import { claveTrabajo } from "../planteamiento";
 import type { Planteamientos } from "../server/planteamiento-pdf";
 
 let dir: string;
@@ -22,9 +22,9 @@ beforeAll(async () => {
   process.env.COORDINA_PLANTEAMIENTOS_COPIAS = path.join(dir, "copias");
   // Un planteamiento como los de verdad: A4, un A5 apaisado y otro A4.
   const doc = await PDFDocument.create();
-  doc.addPage(A4);
-  doc.addPage(A5_HORIZONTAL);
-  doc.addPage(A4);
+  doc.addPage(A4).drawText("A4", { x: 50, y: 50 });
+  doc.addPage(A5_HORIZONTAL).drawText("A5", { x: 50, y: 50 });
+  doc.addPage(A4).drawText("A4", { x: 50, y: 50 });
   rutaPdf = path.join(dir, "AR2605333-10.pdf");
   writeFileSync(rutaPdf, await doc.save());
   ({ getDb } = await import("../server/estado-db"));
@@ -75,21 +75,50 @@ test("el A4 va a Producción y el A5 a OT, cada uno con sus páginas", async () 
   expect(await paginasDe(copiaDe(filas[1].id))).toEqual([{ width: 595.28, height: 419.53, giro: 0 }]);
 });
 
-test("el A5 se gira si se pide vertical, y se puede dejar a mano", async () => {
+test("el A5 también en Producción: sale en A4, sin quitarlo de la de OT; y se puede dejar a mano", async () => {
+  const A5 = { pagina: 2, orientacion: "horizontal" as const };
   await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, {
-    orientaciones: { [claveParte("AR2605333-10.pdf", "A5")]: "vertical" },
+    paginas: {
+      "AR2605333-10.pdf": {
+        produccion: [{ pagina: 1, orientacion: "vertical" }, { pagina: 2, orientacion: "vertical" }],
+        ot: [A5],
+      },
+    },
     aMano: [],
   });
-  const a5 = cola.leerImpresionesDe("AR.26.05333").find((f) => f.papel === "A5")!;
-  expect((await paginasDe(copiaDe(a5.id)))[0].giro).toBe(90);
+  const filas = cola.leerImpresionesDe("AR.26.05333").reverse();
+  expect(filas.map((f) => [f.destino, f.papel, f.paginasSel, f.repetible])).toEqual([
+    ["produccion", "A4", "1, 2", true],
+    ["ot", "A5", "2", true],
+  ]);
+  // El A5 apaisado, pedido vertical en Producción: una hoja A4 en vertical.
+  const prod = await paginasDe(copiaDe(filas[0].id));
+  expect(prod.map((p) => [Math.round(p.width), Math.round(p.height), p.giro])).toEqual([[595, 842, 0], [595, 842, 0]]);
+  // Y si se pide horizontal, la hoja A4 apaisada.
+  getDb().exec("DELETE FROM planteamiento_impresion");
+  await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, {
+    paginas: { "AR2605333-10.pdf": { produccion: [A5], ot: [] } },
+    aMano: [],
+  });
+  const solo = cola.leerImpresionesDe("AR.26.05333")[0];
+  expect((await paginasDe(copiaDe(solo.id))).map((p) => [Math.round(p.width), Math.round(p.height)])).toEqual([[842, 595]]);
 
   getDb().exec("DELETE FROM planteamiento_impresion");
   const r = await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, {
-    orientaciones: {},
-    aMano: [claveParte("AR2605333-10.pdf", "A5")],
+    paginas: {},
+    aMano: [claveTrabajo("AR2605333-10.pdf", "ot")],
   });
   expect(r.encolados).toBe(1);
   expect(cola.leerImpresionesDe("AR.26.05333").find((f) => f.papel === "A5")?.estado).toBe("manual");
+});
+
+test("el A5 en vertical en la de OT va girado un cuarto de vuelta", async () => {
+  await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, {
+    paginas: { "AR2605333-10.pdf": { produccion: [], ot: [{ pagina: 2, orientacion: "vertical" }] } },
+    aMano: [],
+  });
+  const a5 = cola.leerImpresionesDe("AR.26.05333")[0];
+  expect((await paginasDe(copiaDe(a5.id)))[0].giro).toBe(90);
 });
 
 test("sin código de departamento, el A5 no se manda solo: queda a mano como antes", async () => {
@@ -98,10 +127,14 @@ test("sin código de departamento, el A5 no se manda solo: queda a mano como ant
   expect(r).toMatchObject({ encolados: 1, manuales: ["AR2605333-10.pdf"] });
 });
 
-test("reimprimir una sola parte", async () => {
-  const r = await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, undefined, { fichero: "AR2605333-10.pdf", papel: "A5" });
+test("reimprimir repite justo ese envío", async () => {
+  await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar);
+  const a5 = cola.leerImpresionesDe("AR.26.05333").find((f) => f.papel === "A5")!;
+  const guardado = cola.trabajoDeFila(a5.id)!;
+  getDb().exec("DELETE FROM planteamiento_impresion");
+  const r = await cola.prepararImpresion("AR.26.05333", "ivan", T0, buscar, undefined, undefined, { fichero: guardado.fichero, trabajo: guardado.trabajo });
   expect(r.encolados).toBe(1);
-  expect(cola.leerImpresionesDe("AR.26.05333").map((f) => f.papel)).toEqual(["A5"]);
+  expect(cola.leerImpresionesDe("AR.26.05333").map((f) => [f.destino, f.papel, f.paginasSel])).toEqual([["ot", "A5", "2"]]);
 });
 
 test("el trabajador manda cada parte a su impresora con su papel, y el A5 con el código de OT", async () => {

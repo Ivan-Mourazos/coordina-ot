@@ -586,6 +586,7 @@ const MIGRACIONES: ReadonlyArray<{
   // El planteamiento se parte por tamaño de página y cada parte va a su
   // impresora (04/11/2026): cada fila dice a cuál, en qué papel y qué páginas.
   { version: 14, nombre: "reparto_impresion", aplicar: repartoImpresion },
+  { version: 15, nombre: "trabajo_impresion", aplicar: trabajoImpresion },
 ];
 
 /** Manuel pasa de Diseño Gráfico a Impresión Digital (13/10/2026).
@@ -609,6 +610,15 @@ function repartoImpresion(db: Database.Database): void {
   for (const c of ["destino", "papel", "paginas_sel"]) {
     if (!columnas.has(c)) db.exec(`ALTER TABLE planteamiento_impresion ADD COLUMN ${c} TEXT`);
   }
+}
+
+/** Qué páginas lleva cada trabajo y con qué giro (JSON de `TrabajoPlan`), para
+ *  que «Reimprimir» repita lo mismo que se eligió al pasar (04/11/2026). */
+function trabajoImpresion(db: Database.Database): void {
+  const columnas = new Set(
+    (db.prepare("PRAGMA table_info(planteamiento_impresion)").all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!columnas.has("trabajo")) db.exec("ALTER TABLE planteamiento_impresion ADD COLUMN trabajo TEXT");
 }
 
 /** Añade las columnas de huella a `pedido_scan`.

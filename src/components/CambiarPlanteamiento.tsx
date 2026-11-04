@@ -121,7 +121,7 @@ export function CambiarPlanteamiento({
         </div>
       )}
 
-      <button type="button" onClick={onDeshacer} className="text-text-muted underline underline-offset-2 hover:text-text">
+      <button type="button" onClick={onDeshacer} className="chip-3d px-3 py-1 text-[11px] font-semibold text-text">
         Dejarlo como estaba
       </button>
     </div>

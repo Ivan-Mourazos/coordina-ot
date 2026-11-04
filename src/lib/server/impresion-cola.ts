@@ -3,8 +3,11 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "no
 import path from "node:path";
 import { getDb } from "./estado-db";
 import { planteamientosDe } from "./planteamiento-pdf";
-import { extraerPaginas } from "./parte-pdf";
-import { claveParte, hayQueGirar, partesDe, type AjustesImpresion, type DestinoParte, type Papel } from "../planteamiento";
+import { componerTrabajo } from "./parte-pdf";
+import {
+  claveTrabajo, paginasSinImpresora, seleccionDeSerie, trabajosDe,
+  type AjustesImpresion, type DestinoParte, type Papel, type TrabajoPlan,
+} from "../planteamiento";
 
 // ─── Cola de impresión de planteamientos ─────────────────────────────────────
 // Al pasar un pedido de OT a Producción, su planteamiento de CAD sale solo en
@@ -53,6 +56,8 @@ export interface FilaImpresion {
   papel?: Papel | null;
   /** Las páginas de esta parte, «2, 4». null = todas. */
   paginasSel?: string | null;
+  /** Guarda qué páginas y con qué giro: «Reimprimir» puede repetir justo eso. */
+  repetible?: boolean;
 }
 
 export function dirCopias(): string {
@@ -73,72 +78,95 @@ export async function prepararImpresion(
   buscar: typeof planteamientosDe = planteamientosDe,
   /** Solo estos PDF, si se eligieron a mano al pasar (ver `EleccionPase`). */
   solo?: ReadonlySet<string>,
-  /** Orientación de cada parte y las que se imprimen a mano (ver `AjustesImpresion`). */
+  /** Qué páginas a cada impresora y cuáles a mano (ver `AjustesImpresion`). */
   ajustes?: AjustesImpresion,
-  /** Solo esta parte: «Reimprimir» desde el panel de las impresoras. */
-  soloParte?: { fichero: string; papel: Papel | null },
+  /** Solo este trabajo: «Reimprimir» desde el panel de las impresoras repite
+   *  justo lo que salió (mismas páginas, mismo giro, misma impresora). */
+  soloTrabajo?: { fichero: string; trabajo: TrabajoPlan },
 ): Promise<{ encolados: number; manuales: string[]; aviso: string | null }> {
   const encontrados = await buscar(codigo);
   const { aviso } = encontrados;
   const ficheros = encontrados.ficheros.filter(
-    (f) => (!solo || solo.has(f.nombre)) && (!soloParte || soloParte.fichero === f.nombre),
+    (f) => (!solo || solo.has(f.nombre)) && (!soloTrabajo || soloTrabajo.fichero === f.nombre),
   );
   // Había planteamiento pero se quitó todo a mano: no es «sin planteamiento».
-  if ((solo || soloParte) && ficheros.length === 0 && encontrados.ficheros.length > 0) return { encolados: 0, manuales: [], aviso };
+  if ((solo || soloTrabajo) && ficheros.length === 0 && encontrados.ficheros.length > 0) return { encolados: 0, manuales: [], aviso };
   const db = getDb();
   const ts = ahora.toISOString();
   const insertar = db.prepare(
     `INSERT INTO planteamiento_impresion
-       (pedido_id, fichero, copia, paginas, estado, error, pasado_por, creado_at, proximo_at, destino, papel, paginas_sel)
-     VALUES (@pedido, @fichero, @copia, @paginas, @estado, @error, @por, @ts, @proximo, @destino, @papel, @sel)`,
+       (pedido_id, fichero, copia, paginas, estado, error, pasado_por, creado_at, proximo_at, destino, papel, paginas_sel, trabajo)
+     VALUES (@pedido, @fichero, @copia, @paginas, @estado, @error, @por, @ts, @proximo, @destino, @papel, @sel, @trabajo)`,
   );
   const fila = (o: {
     fichero?: string | null; copia?: string | null; paginas?: number | null; estado: EstadoImpresion; error?: string | null;
-    proximo?: string | null; destino?: DestinoParte | null; papel?: Papel | null; sel?: string | null;
+    proximo?: string | null; destino?: DestinoParte | null; papel?: Papel | null; sel?: string | null; trabajo?: TrabajoPlan | null;
   }) =>
     insertar.run({
       pedido: codigo, fichero: o.fichero ?? null, copia: o.copia ?? null, paginas: o.paginas ?? null, estado: o.estado,
       error: o.error ?? null, por: operarioId, ts, proximo: o.proximo ?? null,
       destino: o.destino ?? null, papel: o.papel ?? null, sel: o.sel ?? null,
+      trabajo: o.trabajo ? JSON.stringify(o.trabajo) : null,
     });
   if (ficheros.length === 0) {
     fila({ estado: "sin_planteamiento", error: aviso });
     return { encolados: 0, manuales: [], aviso };
   }
   const manuales: string[] = [];
+  const aMano = (fichero: string) => {
+    if (!manuales.includes(fichero)) manuales.push(fichero);
+  };
   let encolados = 0;
   mkdirSync(dirCopias(), { recursive: true });
   for (const f of ficheros) {
     // Sin las medidas de cada página (ficheros de antes) se reparte como antes:
-    // todo A4 de una pieza, o entero a mano.
-    const partes = f.tamanos?.length
-      ? partesDe(f.tamanos)
-      : [{
-          papel: f.todoA4 ? ("A4" as const) : null,
-          paginas: Array.from({ length: f.paginas }, (_, i) => i + 1),
-          destino: f.todoA4 ? ("produccion" as const) : ("manual" as const),
-          horizontal: false,
-        }];
-    const elegidas = soloParte ? partes.filter((p) => p.papel === soloParte.papel) : partes;
-    // De una pieza: el PDF entero sin tocar, como siempre. Un planteamiento
-    // todo A4 sale idéntico a como salía antes del reparto.
-    const deUnaPieza = partes.length === 1;
-    for (const parte of elegidas) {
-      const clave = claveParte(f.nombre, parte.papel);
+    // todo A4 a Producción de una pieza, o entero a mano.
+    if (!f.tamanos?.length) {
+      const base = { fichero: f.nombre, paginas: f.paginas };
+      if (!f.todoA4) {
+        fila({ ...base, estado: "manual", destino: "manual" });
+        aMano(f.nombre);
+        continue;
+      }
+      const copia = path.join(dirCopias(), `${randomUUID()}-${f.nombre}`);
+      try {
+        copyFileSync(f.ruta, copia);
+      } catch (e) {
+        fila({ ...base, estado: "descartado", error: `No he podido copiar el PDF: ${(e as Error).message}`.slice(0, 500) });
+        continue;
+      }
+      fila({ ...base, copia, estado: "pendiente", proximo: ts, destino: "produccion", papel: "A4" });
+      encolados += 1;
+      continue;
+    }
+    const deSerie = !ajustes?.paginas[f.nombre];
+    const sel = ajustes?.paginas[f.nombre] ?? seleccionDeSerie(f.tamanos);
+    const trabajos = soloTrabajo ? [soloTrabajo.trabajo] : trabajosDe(f.tamanos, sel);
+    // Las de un tamaño que no tiene ninguna impresora, a mano como siempre.
+    const sueltas = soloTrabajo ? [] : paginasSinImpresora(f.tamanos, sel, deSerie);
+    if (sueltas.length > 0) {
+      fila({ fichero: f.nombre, paginas: sueltas.length, estado: "manual", destino: "manual", sel: sueltas.join(", ") });
+      aMano(f.nombre);
+    }
+    for (const t of trabajos) {
+      // Un trabajo con todas las páginas en su orden, sin girar ni escalar: el
+      // PDF tal cual. Un planteamiento todo A4 sale idéntico a como salía.
+      const entero =
+        t.paginas.length === f.paginas && t.paginas.every((p, i) => p.pagina === i + 1 && !p.girar && !p.ajustar);
       const base = {
         fichero: f.nombre,
-        paginas: parte.paginas.length,
-        destino: parte.destino,
-        papel: parte.papel,
-        sel: deUnaPieza ? null : parte.paginas.join(", "),
+        paginas: t.paginas.length,
+        destino: t.impresora,
+        papel: t.papel,
+        sel: entero ? null : t.paginas.map((p) => p.pagina).join(", "),
+        trabajo: t,
       };
-      const aMano =
-        parte.destino === "manual" ||
-        (ajustes?.aMano.includes(clave) ?? false) ||
-        (parte.destino === "ot" && !puedeImprimirEnOt());
-      if (aMano) {
+      if (
+        (!soloTrabajo && ajustes?.aMano.includes(claveTrabajo(f.nombre, t.impresora))) ||
+        (t.impresora === "ot" && !puedeImprimirEnOt())
+      ) {
         fila({ ...base, estado: "manual" });
-        if (!manuales.includes(f.nombre)) manuales.push(f.nombre);
+        aMano(f.nombre);
         continue;
       }
       // Se copia ANTES de insertar: si RPS ya movió el fichero o la red falla,
@@ -146,10 +174,9 @@ export async function prepararImpresion(
       // siempre, ni el fallo de un fichero cortar los demás. La copia lleva un
       // prefijo único en vez del id de la fila (que aún no existe).
       const copia = path.join(dirCopias(), `${randomUUID()}-${f.nombre}`);
-      const girar = hayQueGirar(parte, ajustes?.orientaciones[clave]);
       try {
-        if (deUnaPieza && !girar) copyFileSync(f.ruta, copia);
-        else writeFileSync(copia, await extraerPaginas(new Uint8Array(readFileSync(f.ruta)), parte.paginas, girar));
+        if (entero) copyFileSync(f.ruta, copia);
+        else writeFileSync(copia, await componerTrabajo(new Uint8Array(readFileSync(f.ruta)), t.paginas, t.papel));
       } catch (e) {
         fila({ ...base, estado: "descartado", error: `No he podido copiar el PDF: ${(e as Error).message}`.slice(0, 500) });
         continue;
@@ -161,11 +188,26 @@ export async function prepararImpresion(
   return { encolados, manuales, aviso };
 }
 
+/** El trabajo guardado de una fila, para «Reimprimir» exactamente eso. */
+export function trabajoDeFila(id: number): { pedido: string; fichero: string; trabajo: TrabajoPlan } | null {
+  const r = getDb()
+    .prepare("SELECT pedido_id, fichero, trabajo FROM planteamiento_impresion WHERE id = ?")
+    .get(id) as { pedido_id: string; fichero: string | null; trabajo: string | null } | undefined;
+  if (!r?.fichero || !r.trabajo) return null;
+  try {
+    const t = JSON.parse(r.trabajo) as TrabajoPlan;
+    if ((t.impresora !== "produccion" && t.impresora !== "ot") || !Array.isArray(t.paginas)) return null;
+    return { pedido: r.pedido_id, fichero: r.fichero, trabajo: t };
+  } catch {
+    return null;
+  }
+}
+
 interface FilaDb {
   id: number; pedido_id: string; fichero: string | null; copia: string | null; paginas: number | null;
   estado: EstadoImpresion; intentos: number; error: string | null; impresora: string | null;
   modo: ModoImpresion | null; pasado_por: string | null; creado_at: string; enviado_at: string | null;
-  destino?: DestinoParte | null; papel?: Papel | null; paginas_sel?: string | null;
+  destino?: DestinoParte | null; papel?: Papel | null; paginas_sel?: string | null; trabajo?: string | null;
 }
 
 const aFila = (r: FilaDb): FilaImpresion => ({
@@ -173,6 +215,7 @@ const aFila = (r: FilaDb): FilaImpresion => ({
   intentos: r.intentos, error: r.error, impresora: r.impresora, modo: r.modo, pasadoPor: r.pasado_por,
   creadoAt: r.creado_at, enviadoAt: r.enviado_at,
   destino: r.destino ?? null, papel: r.papel ?? null, paginasSel: r.paginas_sel ?? null,
+  repetible: Boolean(r.trabajo),
 });
 
 export function leerImpresionesDe(pedidoId: string): FilaImpresion[] {

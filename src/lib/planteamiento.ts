@@ -119,7 +119,7 @@ export type DestinoParte = "produccion" | "ot" | "manual";
 export type Orientacion = "vertical" | "horizontal";
 
 /** Lado corto y largo de cada papel, en puntos PDF. */
-const PAPELES: Record<Papel, [number, number]> = {
+export const PAPELES: Record<Papel, [number, number]> = {
   A5: [419.53, 595.28],
   A4: [595.28, 841.89],
   A3: [841.89, 1190.55],
@@ -163,32 +163,126 @@ export function partesDe(paginas: readonly PaginaPdf[]): ParteImpresion[] {
   return [...partes.values()];
 }
 
-/** La clave de una parte en lo que manda el navegador: fichero y papel. */
-export const claveParte = (fichero: string, papel: Papel | null) => `${fichero}|${papel ?? "otro"}`;
 
-/** Lo que se elige en el aviso de pasar para cada parte: cómo va (vertical u
- *  horizontal) y si se imprime a mano con «Ajustes de la impresora…». */
+// ─── Qué páginas salen en cada impresora (Iván, 04/11/2026) ──────────────────
+// De serie, cada página va a la impresora que tiene su papel (`DESTINO_DE_PAPEL`).
+// En el aviso de pasar, «Elegir páginas…» deja marcar cada página en cada
+// impresora por separado: el A5 en Producción (sale ampliado a A4) sin quitarlo
+// de la de OT, un A4 también en la de OT… Cada impresora con su orientación.
+
+export type ImpresoraId = "produccion" | "ot";
+export const IMPRESORAS: readonly ImpresoraId[] = ["produccion", "ot"];
+
+export interface PaginaElegida {
+  /** Desde 1. */
+  pagina: number;
+  orientacion: Orientacion;
+}
+
+/** Las páginas marcadas en cada impresora, de un PDF. */
+export type SeleccionPaginas = Record<ImpresoraId, PaginaElegida[]>;
+
+const natural = (p: PaginaPdf): Orientacion => (p.horizontal ? "horizontal" : "vertical");
+
+export function seleccionDeSerie(paginas: readonly PaginaPdf[]): SeleccionPaginas {
+  const sel: SeleccionPaginas = { produccion: [], ot: [] };
+  paginas.forEach((p, i) => {
+    if (p.papel) sel[DESTINO_DE_PAPEL[p.papel] as ImpresoraId].push({ pagina: i + 1, orientacion: natural(p) });
+  });
+  return sel;
+}
+
+/** Un trabajo para una impresora: un PDF con esas páginas en un papel. */
+export interface TrabajoPlan {
+  impresora: ImpresoraId;
+  /** El papel en que sale: Producción solo tiene A4. */
+  papel: Papel;
+  /** `girar`: un cuarto de vuelta, porque se eligió la orientación contraria
+   *  a como viene. `ajustar`: la página no es de este papel y se escala. */
+  paginas: { pagina: number; girar: boolean; ajustar: boolean }[];
+}
+
+/** Los papeles de cada impresora (04/11/2026). */
+const PAPELES_DE: Record<ImpresoraId, readonly Papel[]> = { produccion: ["A4"], ot: ["A3", "A4", "A5"] };
+
+/** Lo marcado, convertido en trabajos: uno para Producción (todo en A4) y en la
+ *  de OT uno por papel, porque cada uno sale de su bandeja. */
+export function trabajosDe(paginas: readonly PaginaPdf[], sel: SeleccionPaginas): TrabajoPlan[] {
+  const trabajos: TrabajoPlan[] = [];
+  for (const impresora of IMPRESORAS) {
+    const porPapel = new Map<Papel, TrabajoPlan>();
+    const vistas = new Set<number>();
+    for (const e of [...sel[impresora]].sort((a, b) => a.pagina - b.pagina)) {
+      const p = paginas[e.pagina - 1];
+      if (!p || vistas.has(e.pagina)) continue;
+      vistas.add(e.pagina);
+      const tiene = p.papel !== null && PAPELES_DE[impresora].includes(p.papel);
+      const papel = tiene ? p.papel! : "A4";
+      let t = porPapel.get(papel);
+      if (!t) porPapel.set(papel, (t = { impresora, papel, paginas: [] }));
+      t.paginas.push({ pagina: e.pagina, girar: e.orientacion !== natural(p), ajustar: !tiene });
+    }
+    trabajos.push(...porPapel.values());
+  }
+  return trabajos;
+}
+
+/** Las páginas que no van a ninguna impresora y que, de serie, se imprimían a
+ *  mano (las de un tamaño raro). Si se elige a mano, las demás no se imprimen. */
+export function paginasSinImpresora(paginas: readonly PaginaPdf[], sel: SeleccionPaginas, deSerie: boolean): number[] {
+  if (!deSerie) return [];
+  const marcadas = new Set(IMPRESORAS.flatMap((i) => sel[i].map((e) => e.pagina)));
+  return paginas.flatMap((p, i) => (p.papel === null && !marcadas.has(i + 1) ? [i + 1] : []));
+}
+
+/** Clave de una impresora de un PDF en «Ajustes de la impresora…». */
+export const claveTrabajo = (fichero: string, impresora: ImpresoraId) => `${fichero}|${impresora}`;
+
+/** Lo que se elige en el aviso de pasar. `paginas`: solo los PDF en que se
+ *  entró a elegir; los demás, de serie. `aMano`: impresoras de un PDF que se
+ *  imprimen desde el cuadro de imprimir (`claveTrabajo`). */
 export interface AjustesImpresion {
-  orientaciones: Record<string, Orientacion>;
+  paginas: Record<string, SeleccionPaginas>;
   aMano: string[];
 }
 
-const CLAVE_PARTE_RE = /^[^|]{1,200}\|(A3|A4|A5|otro)$/;
+export const AJUSTES_DE_SERIE: AjustesImpresion = { paginas: {}, aMano: [] };
+
+const CLAVE_TRABAJO_RE = /^[^|]{1,200}\|(produccion|ot)$/;
+
+function leerElegidas(v: unknown): PaginaElegida[] | null {
+  if (!Array.isArray(v)) return null;
+  const r: PaginaElegida[] = [];
+  for (const e of v.slice(0, 500)) {
+    const x = e as Record<string, unknown> | null;
+    if (!x || !Number.isInteger(x.pagina) || (x.pagina as number) < 1 || (x.pagina as number) > 999) return null;
+    if (x.orientacion !== "vertical" && x.orientacion !== "horizontal") return null;
+    r.push({ pagina: x.pagina as number, orientacion: x.orientacion });
+  }
+  return r;
+}
 
 export function leerAjustesImpresion(v: unknown): AjustesImpresion | null {
   if (typeof v !== "object" || v === null) return null;
   const x = v as Record<string, unknown>;
-  const orientaciones: Record<string, Orientacion> = {};
-  if (typeof x.orientaciones === "object" && x.orientaciones !== null) {
-    for (const [k, o] of Object.entries(x.orientaciones as Record<string, unknown>).slice(0, 50)) {
-      if (CLAVE_PARTE_RE.test(k) && (o === "vertical" || o === "horizontal")) orientaciones[k] = o;
+  const paginas: Record<string, SeleccionPaginas> = {};
+  if (typeof x.paginas === "object" && x.paginas !== null) {
+    for (const [fichero, s] of Object.entries(x.paginas as Record<string, unknown>).slice(0, 20)) {
+      if (fichero.length > 200 || typeof s !== "object" || s === null) continue;
+      const produccion = leerElegidas((s as Record<string, unknown>).produccion);
+      const ot = leerElegidas((s as Record<string, unknown>).ot);
+      if (produccion && ot) paginas[fichero] = { produccion, ot };
     }
   }
-  const aMano = Array.isArray(x.aMano) ? x.aMano.filter((k): k is string => typeof k === "string" && CLAVE_PARTE_RE.test(k)).slice(0, 50) : [];
-  return { orientaciones, aMano };
+  const aMano = Array.isArray(x.aMano) ? x.aMano.filter((k): k is string => typeof k === "string" && CLAVE_TRABAJO_RE.test(k)).slice(0, 50) : [];
+  return { paginas, aMano };
 }
 
-/** ¿Hay que girar la parte para que quede como se eligió? */
-export function hayQueGirar(parte: Pick<ParteImpresion, "horizontal">, elegida: Orientacion | undefined): boolean {
-  return elegida !== undefined && (elegida === "horizontal") !== parte.horizontal;
+/** Las páginas de un trabajo para la dirección del PDF: «1,3», «0,1», «A4». */
+export function consultaTrabajo(t: Pick<TrabajoPlan, "papel" | "paginas">): { paginas: string; girar: string; papel: string } {
+  return {
+    paginas: t.paginas.map((p) => p.pagina).join(","),
+    girar: t.paginas.map((p) => (p.girar ? "1" : "0")).join(","),
+    papel: t.paginas.some((p) => p.ajustar) ? t.papel : "",
+  };
 }

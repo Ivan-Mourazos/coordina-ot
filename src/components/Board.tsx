@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
 import { estaAtrasado, hoyISO } from "@/lib/types";
@@ -68,8 +68,8 @@ import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
-import { NOTA_MAX, type AjustesImpresion, type EleccionPase } from "@/lib/planteamiento";
-import { RepartoImpresion, hayReparto, partesAMano, urlParte } from "./RepartoImpresion";
+import { AJUSTES_DE_SERIE, NOTA_MAX, type AjustesImpresion, type EleccionPase } from "@/lib/planteamiento";
+import { RepartoImpresion, hayReparto, urlsAMano } from "./RepartoImpresion";
 import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
@@ -261,6 +261,17 @@ function leerDescartes(operarioId: string | null): string[] {
   } catch {
     return [];
   }
+}
+
+/** Un apartado del aviso de pasar (Impresión, Correo): gris de zona sobre el
+ *  blanco del cuadro, como los bloques de la ficha en el estilo Hero. */
+function ApartadoPase({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-[var(--recuadro)] p-3">
+      <h4 className="mb-1 text-[11px] font-semibold text-text-muted">{titulo}</h4>
+      {children}
+    </section>
+  );
 }
 
 export function Board({
@@ -2411,7 +2422,7 @@ export function Board({
   const [notaCorreo, setNotaCorreo] = useState("");
   // El reparto por tamaño: orientación de cada parte y las que se imprimen a
   // mano. Vacío al abrir el diálogo: todo como viene y todo solo.
-  const [ajustesImpresion, setAjustesImpresion] = useState<AjustesImpresion>({ orientaciones: {}, aMano: [] });
+  const [ajustesImpresion, setAjustesImpresion] = useState<AjustesImpresion>(AJUSTES_DE_SERIE);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
@@ -2421,7 +2432,7 @@ export function Board({
       setMandarCorreoAlPasar(true);
       setEleccionPase(null);
       setNotaCorreo("");
-      setAjustesImpresion({ orientaciones: {}, aMano: [] });
+      setAjustesImpresion(AJUSTES_DE_SERIE);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -3252,143 +3263,144 @@ export function Board({
       <ConfirmDialog
         abierto={pedidoAPasar !== null}
         titulo={`Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
+        ancho
+        textoConfirmar="Pasar a Producción"
         mensaje={
           <>
-            <p className="whitespace-pre-line">
-              {`Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido sale ` +
-                `del tablero: deja de estar en Pendientes y pasa al Historial.\n\n` +
-                `Es el final del trabajo de Oficina Técnica. Si después hubiera que retocar algo, habría ` +
-                `que hablarlo con Producción.`}
+            <p className="text-sm text-text">
+              {`Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido pasa al Historial.`}
+            </p>
+            <p className="mt-1 text-xs text-text-muted">
+              Es el final del trabajo de Oficina Técnica: si después hubiera que retocar algo, habría que hablarlo con Producción.
             </p>
             {vistaPlanteamiento?.pedidoId === pasarPendiente &&
-              (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (
-              <div className="recuadro mt-3 rounded-lg p-2.5 text-xs">
-                {/* La primera vez solo informa: la norma es imprimir siempre y
-                    mandar siempre el correo (Iván, 14/10/2026). Si el pedido ya
-                    se pasó antes (se recuperó para volver a plantearlo), se
-                    PREGUNTA, con las dos casillas marcadas: lo normal es que el
-                    planteamiento haya cambiado y haya que mandarlo de nuevo. */}
-                {eleccionPase ? (
-                  <>
-                  {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
-                    <p className="mb-2 text-text-muted">
-                      Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
-                    </p>
-                  )}
-                  <CambiarPlanteamiento
-                    ficheros={vistaPlanteamiento.datos.ficheros}
-                    ofs={ofsDelCorreo}
-                    eleccion={eleccionPase}
-                    onCambiar={setEleccionPase}
-                    conImpresion={vistaPlanteamiento.datos.modo !== "off"}
-                    conCorreo={!!vistaPlanteamiento.datos.correo && vistaPlanteamiento.datos.correo.modo !== "off"}
-                    mandarCorreo={mandarCorreoAlPasar}
-                    onMandarCorreo={setMandarCorreoAlPasar}
-                    onDeshacer={() => {
-                      setEleccionPase(null);
-                      setImprimirAlPasar(true);
-                      setMandarCorreoAlPasar(true);
-                    }}
+              (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (() => {
+              const datos = vistaPlanteamiento.datos;
+              const conCorreo = !!datos.correo && datos.correo.modo !== "off";
+              // Solo los PDF que se van a imprimir: con «No se imprimirá otra
+              // vez» o quitados en «Cambiar…» no hay nada que repartir.
+              const seImprimen = datos.ficheros.filter((f) =>
+                eleccionPase ? eleccionPase.imprimir.includes(f.nombre) : imprimirAlPasar,
+              );
+              const reparto = datos.modo !== "off" && pedidoAPasar?.codigo && hayReparto(seImprimen) ? (
+                <RepartoImpresion
+                  pedido={pedidoAPasar.codigo}
+                  ficheros={seImprimen}
+                  modo={datos.modo}
+                  puedeOt={datos.puedeOt ?? false}
+                  ajustes={ajustesImpresion}
+                  onCambiar={setAjustesImpresion}
+                />
+              ) : null;
+              const yaImpreso = datos.impresiones.find((f) => f.estado === "enviado");
+              const yaMandado = datos.correo?.envios.find((f) => f.estado === "enviado");
+              const nota = mandarCorreoAlPasar && conCorreo && (
+                <label className="mt-2.5 block">
+                  <span className="mb-1 block text-text-muted">Nota para el correo (opcional, sale arriba)</span>
+                  <textarea
+                    rows={2}
+                    maxLength={NOTA_MAX}
+                    value={notaCorreo}
+                    onChange={(e) => setNotaCorreo(e.target.value)}
+                    placeholder="Alguna indicación para Producción"
+                    className="w-full resize-y rounded-md border border-borde-campo bg-surface px-2.5 py-1.5 text-xs text-text"
                   />
-                  </>
-                ) : (
-                <>
-                {textoAntesDePasar(vistaPlanteamiento.datos) && (
-                  <>
-                    <p className="text-text">
-                      {yaSePasoAntes(vistaPlanteamiento.datos) && !imprimirAlPasar && vistaPlanteamiento.datos.ficheros.length > 0
-                        ? "No se imprimirá otra vez."
-                        : textoAntesDePasar(vistaPlanteamiento.datos)}
-                    </p>
-                    {vistaPlanteamiento.datos.impresiones.some((f) => f.estado === "enviado") && (
-                      <p className="mt-1 text-text-muted">
-                        Ya se imprimió antes: {textoImpresion(vistaPlanteamiento.datos.impresiones.find((f) => f.estado === "enviado")!)}
+                </label>
+              );
+              const caducidad = mandarCorreoAlPasar && textoCaducidadSecreto(datos) && (
+                <p role="alert" className="mt-2 font-semibold text-amber-800 dark:text-amber-300">
+                  {textoCaducidadSecreto(datos)}
+                </p>
+              );
+              // La primera vez solo informa: la norma es imprimir siempre y
+              // mandar siempre el correo (Iván, 14/10/2026). Si el pedido ya
+              // se pasó antes (se recuperó para volver a plantearlo), se
+              // PREGUNTA, con las dos casillas marcadas: lo normal es que el
+              // planteamiento haya cambiado y haya que mandarlo de nuevo.
+              if (eleccionPase) {
+                return (
+                  <div className="mt-4 flex flex-col gap-2.5 text-xs">
+                    <ApartadoPase titulo="Qué se imprime y qué se manda">
+                      {yaImpreso && <p className="mb-2 text-text-muted">Ya se imprimió antes: {textoImpresion(yaImpreso)}</p>}
+                      <CambiarPlanteamiento
+                        ficheros={datos.ficheros}
+                        ofs={ofsDelCorreo}
+                        eleccion={eleccionPase}
+                        onCambiar={setEleccionPase}
+                        conImpresion={datos.modo !== "off"}
+                        conCorreo={conCorreo}
+                        mandarCorreo={mandarCorreoAlPasar}
+                        onMandarCorreo={setMandarCorreoAlPasar}
+                        onDeshacer={() => {
+                          setEleccionPase(null);
+                          setImprimirAlPasar(true);
+                          setMandarCorreoAlPasar(true);
+                        }}
+                      />
+                      {reparto}
+                      {nota}
+                      {caducidad}
+                    </ApartadoPase>
+                  </div>
+                );
+              }
+              return (
+                <div className="mt-4 flex flex-col gap-2.5 text-xs">
+                  {textoAntesDePasar(datos) && (
+                    <ApartadoPase titulo="Impresión">
+                      <p className="text-text">
+                        {yaSePasoAntes(datos) && !imprimirAlPasar && datos.ficheros.length > 0
+                          ? "No se imprimirá otra vez."
+                          : textoAntesDePasar(datos)}
                       </p>
-                    )}
-                    {yaSePasoAntes(vistaPlanteamiento.datos) && vistaPlanteamiento.datos.ficheros.length > 0 && (
-                      <label className="mt-2 flex items-center gap-2 text-text">
-                        <input type="checkbox" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
-                        Imprimir otra vez en Producción
-                      </label>
-                    )}
-                  </>
-                )}
-                {textoCorreoAntesDePasar(vistaPlanteamiento.datos) && (
-                  <>
-                    <p className="mt-2 text-text">
-                      {yaSePasoAntes(vistaPlanteamiento.datos) && !mandarCorreoAlPasar
-                        ? "No se mandará el correo otra vez."
-                        : textoCorreoAntesDePasar(vistaPlanteamiento.datos)}
-                    </p>
-                    {vistaPlanteamiento.datos.correo?.envios.some((f) => f.estado === "enviado") && (
-                      <p className="mt-1 text-text-muted">
-                        Ya se mandó antes: {textoCorreo(vistaPlanteamiento.datos.correo.envios.find((f) => f.estado === "enviado")!)}
+                      {yaImpreso && <p className="mt-1 text-text-muted">Ya se imprimió antes: {textoImpresion(yaImpreso)}</p>}
+                      {yaSePasoAntes(datos) && datos.ficheros.length > 0 && (
+                        <label className="mt-2 flex items-center gap-2 text-text">
+                          <input type="checkbox" className="size-4 accent-brand-500" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
+                          Imprimir otra vez en Producción
+                        </label>
+                      )}
+                      {reparto}
+                    </ApartadoPase>
+                  )}
+                  {textoCorreoAntesDePasar(datos) && (
+                    <ApartadoPase titulo="Correo">
+                      <p className="text-text">
+                        {yaSePasoAntes(datos) && !mandarCorreoAlPasar
+                          ? "No se mandará el correo otra vez."
+                          : textoCorreoAntesDePasar(datos)}
                       </p>
-                    )}
-                    {yaSePasoAntes(vistaPlanteamiento.datos) && (
-                      <label className="mt-2 flex items-center gap-2 text-text">
-                        <input type="checkbox" checked={mandarCorreoAlPasar} onChange={(e) => setMandarCorreoAlPasar(e.target.checked)} />
-                        Mandar el correo otra vez
-                      </label>
-                    )}
-                  </>
-                )}
-                {vistaPlanteamiento.datos.ficheros.length > 0 && (
-                  <button
-                    type="button"
-                    className="mt-2 text-text-muted underline underline-offset-2 hover:text-text"
-                    onClick={() => {
-                      const f = vistaPlanteamiento.datos.ficheros;
-                      setEleccionPase({
-                        imprimir: imprimirAlPasar ? f.map((x) => x.nombre) : [],
-                        adjuntar: f.filter((x) => x.adjunto).map((x) => x.nombre),
-                        ofs: ofsDelCorreo.map((o) => o.codigo),
-                        nota: "",
-                      });
-                    }}
-                  >
-                    Cambiar lo que se imprime y se manda
-                  </button>
-                )}
-                </>
-                )}
-                {vistaPlanteamiento.datos.modo !== "off" && pedidoAPasar?.codigo && (() => {
-                  // Solo los PDF que se van a imprimir: con «No se imprimirá otra
-                  // vez» o quitados en «Cambiar…» no hay nada que repartir.
-                  const seImprimen = vistaPlanteamiento.datos.ficheros.filter((f) =>
-                    eleccionPase ? eleccionPase.imprimir.includes(f.nombre) : imprimirAlPasar,
-                  );
-                  return hayReparto(seImprimen) ? (
-                    <RepartoImpresion
-                      pedido={pedidoAPasar.codigo}
-                      ficheros={seImprimen}
-                      modo={vistaPlanteamiento.datos.modo}
-                      puedeOt={vistaPlanteamiento.datos.puedeOt ?? false}
-                      ajustes={ajustesImpresion}
-                      onCambiar={setAjustesImpresion}
-                    />
-                  ) : null;
-                })()}
-                {mandarCorreoAlPasar && !!vistaPlanteamiento.datos.correo && vistaPlanteamiento.datos.correo.modo !== "off" && (
-                  <label className="mt-3 block">
-                    <span className="mb-1 block text-text-muted">Nota para el correo (opcional, sale arriba)</span>
-                    <textarea
-                      rows={2}
-                      maxLength={NOTA_MAX}
-                      value={notaCorreo}
-                      onChange={(e) => setNotaCorreo(e.target.value)}
-                      placeholder="Alguna indicación para Producción"
-                      className="w-full resize-y rounded-md border border-borde-campo bg-surface px-2 py-1 text-xs text-text"
-                    />
-                  </label>
-                )}
-                {mandarCorreoAlPasar && textoCaducidadSecreto(vistaPlanteamiento.datos) && (
-                  <p role="alert" className="mt-2 font-semibold text-amber-800 dark:text-amber-300">
-                    {textoCaducidadSecreto(vistaPlanteamiento.datos)}
-                  </p>
-                )}
-              </div>
-            )}
+                      {yaMandado && <p className="mt-1 text-text-muted">Ya se mandó antes: {textoCorreo(yaMandado)}</p>}
+                      {yaSePasoAntes(datos) && (
+                        <label className="mt-2 flex items-center gap-2 text-text">
+                          <input type="checkbox" className="size-4 accent-brand-500" checked={mandarCorreoAlPasar} onChange={(e) => setMandarCorreoAlPasar(e.target.checked)} />
+                          Mandar el correo otra vez
+                        </label>
+                      )}
+                      {nota}
+                      {caducidad}
+                    </ApartadoPase>
+                  )}
+                  {datos.ficheros.length > 0 && (
+                    <button
+                      type="button"
+                      className="chip-3d self-start px-3 py-1 text-[11px] font-semibold text-text"
+                      onClick={() => {
+                        const f = datos.ficheros;
+                        setEleccionPase({
+                          imprimir: imprimirAlPasar ? f.map((x) => x.nombre) : [],
+                          adjuntar: f.filter((x) => x.adjunto).map((x) => x.nombre),
+                          ofs: ofsDelCorreo.map((o) => o.codigo),
+                          nota: "",
+                        });
+                      }}
+                    >
+                      Cambiar lo que se imprime y se manda
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </>
         }
         onConfirmar={() => {
@@ -3405,12 +3417,11 @@ export function Board({
           const seImprime = (nombre: string) => (eleccion ? eleccion.imprimir.includes(nombre) : imprimirAlPasar);
           if (vista && vista.modo !== "off" && pedido?.codigo) {
             const seImprimen = vista.ficheros.filter((x) => seImprime(x.nombre));
-            // Con reparto, solo las partes que no salen solas, y cada una sola.
-            for (const { fichero, parte, girar } of partesAMano(seImprimen, vista.puedeOt ?? false, ajustesImpresion)) {
-              abrirParaImprimir(urlParte(pedido.codigo, fichero, parte, girar));
-            }
+            // Con las medidas de cada página, solo lo que no sale solo: lo de la
+            // de OT sin código de departamento y los tamaños que no tiene ninguna.
+            for (const url of urlsAMano(pedido.codigo, seImprimen, vista.puedeOt ?? false, ajustesImpresion)) abrirParaImprimir(url);
             // Un servidor de antes (sin partes): el PDF entero, como siempre.
-            for (const f of seImprimen.filter((x) => !x.todoA4 && !x.partes)) {
+            for (const f of seImprimen.filter((x) => !x.todoA4 && !x.tamanos)) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
           }
