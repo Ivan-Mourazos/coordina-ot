@@ -21,12 +21,14 @@ export function pasoRedondo(bruto: number): number {
  *  `null` es «no hay dato» —un mes que aún no ha llegado, o de antes de que la
  *  web registrara nada— y no se pinta: dibujarlo a cero diría que ese mes no
  *  se trabajó. Un 0 de verdad sí se pinta. */
-export function MetricasGrafica({ puntos, series, titulo, resaltar }: {
+export function MetricasGrafica({ puntos, series, titulo, resaltar, llenar = false }: {
   puntos: { mes: string; valores: (number | null)[] }[];
   series: readonly SerieMetricas[];
   titulo: string;
   /** El mes elegido arriba ("2026-10"), con una franja detrás. */
   resaltar?: string;
+  /** Ocupa todo el alto de su panel (Métricas sin scroll, 04/11/2026). */
+  llenar?: boolean;
 }) {
   const sinActividad = !puntos.some((p) => p.valores.some((n) => (n ?? 0) > 0));
   const contenedor = useRef<HTMLDivElement>(null);
@@ -68,10 +70,10 @@ export function MetricasGrafica({ puntos, series, titulo, resaltar }: {
   };
   const iResaltado = resaltar ? puntos.findIndex((p) => p.mes === resaltar) : -1;
   const medio = puntos.length > 1 ? (derecha - 34) / (puntos.length - 1) / 2 : 20;
-  return <div className="metricas-grafica flex min-h-0 shrink-0 flex-col gap-1.5">
+  return <div className={`metricas-grafica flex min-h-0 flex-col gap-1.5 ${llenar ? "flex-1" : "shrink-0"}`}>
     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted">{series.map((s) => <span key={s.etiqueta} className="flex items-center gap-1.5"><i className="h-1.5 w-3 rounded-full" style={{ background: s.color }} />{s.etiqueta}{s.valor !== undefined && <strong className="font-bold tabular-nums text-text">{s.valor}</strong>}</span>)}</div>
     {sinActividad ? <p className="py-6 text-center text-xs text-text-muted">Sin actividad en este periodo.</p> :
-      <div ref={contenedor} className="h-[var(--alto-grafica,144px)] w-full min-w-0 shrink-0"><svg viewBox={`0 0 ${ancho} ${alto}`} className="size-full overflow-visible" role="img" aria-label={`${titulo}. ${puntos.filter((p) => p.valores.some((v) => v !== null)).map((p) => `${p.mes}: ${series.map((s, i) => `${s.etiqueta} ${p.valores[i]}`).join(", ")}`).join("; ")}`}>
+      <div ref={contenedor} className={`w-full min-w-0 ${llenar ? "min-h-[70px] flex-1" : "h-[var(--alto-grafica,144px)] shrink-0"}`}><svg viewBox={`0 0 ${ancho} ${alto}`} className="size-full overflow-visible" role="img" aria-label={`${titulo}. ${puntos.filter((p) => p.valores.some((v) => v !== null)).map((p) => `${p.mes}: ${series.map((s, i) => `${s.etiqueta} ${p.valores[i]}`).join(", ")}`).join("; ")}`}>
         {iResaltado >= 0 && <rect x={x(iResaltado) - medio} y={4} width={medio * 2} height={alto - 26} rx={4} fill="var(--surface-2)" opacity={0.7} />}
         {marcas.map((n) => <g key={n}><line x1="34" x2={derecha} y1={y(n)} y2={y(n)} stroke="var(--border)" strokeDasharray={n === 0 ? undefined : "3 5"} /><text x="26" y={y(n) + 3} fill="var(--text-muted)" fontSize="9" textAnchor="end">{n}</text></g>)}
         {series.map((s, j) => <g key={s.etiqueta}>

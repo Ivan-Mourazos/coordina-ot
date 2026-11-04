@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ErrorCarga } from "./ErrorCarga";
 import { INICIO_METRICAS, periodoAnterior, periodoDeMes, proporcionDevueltas, sinActividad, type MesMetricas, type Metricas, type Tramo } from "@/lib/metricas";
 import { sumarDias } from "@/lib/fechas";
@@ -92,6 +92,17 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
   const actualizando = !!datos && resultado?.clave !== clave;
   const etiquetaAnio = useId();
   const etiquetaMes = useId();
+  // La página mide lo que queda de pantalla bajo la cabecera, y no baja.
+  const contenedor = useRef<HTMLDivElement>(null);
+  const [alto, setAlto] = useState<number>();
+  useEffect(() => {
+    const elemento = contenedor.current;
+    if (!elemento) return;
+    const medir = () => setAlto(Math.max(560, window.innerHeight - elemento.getBoundingClientRect().top - 14));
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
   useEffect(() => {
     const controlador = new AbortController();
     const pedir = async (p: { desde: string; hasta: string }, detalle = false): Promise<Respuesta> => {
@@ -160,19 +171,21 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
   const incid = datos?.detalle?.incidenciasOT;
   const nombreCorto = SECCIONES[seccion].nombreCorto;
   const queIncid = QUE_ES_INCIDENCIA[seccion];
-  const nCifras = 2 + (sinRevision ? 0 : 3) + (conIncidencias ? 1 : 0);
   const nPorQue = 1 + (sinRevision ? 0 : 1) + (conIncidencias ? 1 : 0);
   const anchoPorQue = ANCHO[nPorQue];
 
-  // ─── Cuadro de mando (Iván, 04/11/2026) ─────────────────────────────────────
-  // De arriba abajo: cuánto (las cifras), cómo evoluciona, por qué, y lo mío.
-  // Sin textos explicativos a la vista: la explicación de cada cifra, al pasar
-  // el ratón. Los tres «por qué» con el mismo alto, para que ninguno se quede
-  // diminuto cuando otro tiene mucho (lo que pasaba con los rectificados).
+  // ─── Cuadro de mando sin scroll (Iván, 04/11/2026) ──────────────────────────
+  // La página mide lo que la pantalla y nunca baja, con lo del equipo y lo
+  // tuyo a la vez (no en dos vistas: «lo quiero todo junto»). Dentro de los paneles,
+  // nada se despliega: se entra en una familia y se sale con «← Volver», y lo
+  // que no cabe va en páginas ‹ 1/3 ›. Las explicaciones, al pasar el ratón.
+  const nombreYo = operarios.find((o) => o.id === miId)?.nombre;
   return (
-    <div className="flex flex-col gap-2.5 text-text">
+    <div ref={contenedor} className="flex flex-col gap-2.5 text-text xl:h-[var(--alto-metricas)]" style={{ "--alto-metricas": alto ? `${alto}px` : "calc(100dvh - 100px)" } as CSSProperties}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold tracking-tight">Métricas <span className="font-medium text-text-muted">· {SECCIONES[seccion].nombre}</span></h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-bold tracking-tight">Métricas <span className="font-medium text-text-muted">· {SECCIONES[seccion].nombre}</span></h2>
+        </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5" role="group" aria-label="Periodo de las métricas">
           <span id={etiquetaAnio} className="sr-only">Año</span>
           <span id={etiquetaMes} className="sr-only">Mes</span>
@@ -185,69 +198,70 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
       {error && <ErrorCarga mensaje="No se pudieron cargar las métricas." onReintentar={() => setIntento((v) => v + 1)} />}
       {!datos && !error && <p className="glass-panel rounded-xl p-4 text-xs text-text-muted">Contando…</p>}
       {m && c && (
-        // UNA rejilla de 6 columnas para todo (Iván, 04/11/2026: «que los
-        // paneles queden simétricos»): los bordes de cada fila caen en el mismo
-        // sitio. Las cifras, una columna cada una (o a partes iguales si hay
-        // menos); los paneles, a partes iguales de su fila.
-        <div aria-busy={actualizando} className={`grid grid-cols-2 gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-6 ${atenuado(actualizando)}`}>
-          {/* Lo del equipo y lo mío, separados (Iván, 04/11/2026: «si no, no
-              son legibles»): un encabezado para cada parte, y lo mío con su tinte. */}
-          <Encabezado titulo="Equipo" detalle={SECCIONES[seccion].nombre} />
-          {/* 1 · Las cifras del periodo */}
-          <div className="contents [&>*]:xl:col-[span_var(--ancho-cifra)]" style={{ "--ancho-cifra": String(6 / nCifras) } as CSSProperties}>
+        // UNA rejilla de 6 columnas (Iván, 04/11/2026: «paneles simétricos»):
+        // las cifras, la evolución y los tres «por qué», cada fila a su alto.
+        <div aria-busy={actualizando} className={`grid min-h-0 flex-1 grid-cols-2 gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-6 xl:grid-rows-[auto_minmax(0,.8fr)_minmax(0,1fr)_auto_minmax(0,1fr)] ${atenuado(actualizando)}`}>
+          <Cifras>
             <Tile titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)}
               ayuda={`OF distintas en el ${unidad}: ${m.volumen.ofTerminadas} cerradas en la web${ofsRps ? ` y ${ofsRps} que OT cerró en RPS antes de usarla` : ""}.`}
               delta={<Delta ahora={m.volumen.ofTerminadas + ofsRps} antes={comparable ? previo!.metricas.volumen.ofTerminadas : null} frente={frente} />} />
             {!sinRevision && <Tile titulo="A revisión" valor={String(m.volumen.ofEntregadas)} extra={datos?.entregas ? porcentaje(datos.entregas.total ? datos.entregas.revision / datos.entregas.total : null) : undefined}
               ayuda={`OF distintas entregadas a revisión; el % es sobre todas las OF entregadas, incluidas las dadas por buenas sin revisión. Además, ${m.volumen.planteos - m.volumen.ofEntregadas} reentregas tras corregir.`}
               delta={<Delta ahora={m.volumen.ofEntregadas} antes={comparable ? previo!.metricas.volumen.ofEntregadas : null} frente={frente} sinDato={soloDesdeWeb} />} />}
-            {!sinRevision && <Tile titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)} malo
+            {!sinRevision && <Tile titulo="Vuelven al autor" valor={String(m.devoluciones)} extra={porcentaje(prop)}
               ayuda={`${m.devoluciones} devoluciones de ${m.revisiones} revisiones en el ${unidad}.`}
               delta={<Delta ahora={prop === null ? null : prop * 100} antes={comparable ? (proporcionDevueltas(previo!.metricas) ?? NaN) * 100 : null} puntos frente={frente} sinDato={soloDesdeWeb} />} />}
-            {conIncidencias && <Tile titulo="Incidencias" valor={incid ? String(incid.total) : "—"} extra={incid ? sobre(incid.total, incid.base) : undefined} malo
+            {conIncidencias && <Tile titulo="Incidencias" valor={incid ? String(incid.total) : "—"} extra={incid ? sobre(incid.total, incid.base) : undefined}
               ayuda={`${queIncid?.explica ?? "OF con incidencia apuntada en RPS"}${incid ? `: ${incid.total} de ${incid.base} OF pasadas` : ""}. Cada OF cuenta una vez.`}
               delta={<span>{incid ? `de ${incid.base} OF pasadas` : datos?.detalleCargando ? "Consultando RPS…" : "Sin datos de RPS"}</span>} />}
-            <Tile titulo="Rectificados" valor={rectConCausa ? String(rectConCausa.length) : "—"} extra={rectConCausa ? `≈ ${decimal(rectPeso)}` : undefined} malo
+            <Tile titulo="Rectificados" valor={rectConCausa ? String(rectConCausa.length) : "—"} extra={rectConCausa ? `≈ ${decimal(rectPeso)}` : undefined}
               ayuda={`Pedidos rectificados que Calidad achaca, en algo, a ${nombreCorto}. «≈» suma solo la parte de ${nombreCorto} (cada defecto reparte su 100 % entre sus causas).${totalesNc ? ` En toda la empresa: ${totalesNc.rectificadas} rectificados.` : ""}`}
               delta={<span>{rectConCausa ? `con culpa de ${nombreCorto}` : datos?.detalleCargando ? "Consultando RPS…" : "Sin datos de RPS"}</span>} />
             {!sinRevision && <Tile titulo="Hasta aprobarse" valor={tiempo(c.aprobacion.medianaMin)}
               ayuda={`Lo normal desde que se entrega una OF hasta que se aprueba, contando noches y fines de semana. ${c.aprobacion.n} ciclos.`}
               delta={<span>{soloDesdeWeb ?? "lo normal"}</span>} />}
-          </div>
-
-          {/* 2 · Cómo evoluciona: 4 + 2 columnas */}
-            <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
-            {!sinRevision && <Panel titulo="Cuánto tarda" extra={soloDesdeWeb ?? "lo normal"} className="col-span-2"><Recorrido m={m} /></Panel>}
-
-          {/* 3 · Por qué: a partes iguales y con el mismo alto */}
-            {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones}`} alto className={anchoPorQue}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
-            {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas} por familia`} extra={incid ? `${incid.total} de ${incid.base} OF` : undefined} actualizando={detalleViejo} alto className={anchoPorQue}><IncidenciasSeccion seccion={seccion} incidencias={incid} cargando={datos?.detalleCargando} /></Panel>}
-            <Panel titulo="Rectificados" extra={rectConCausa ? `${rectConCausa.length} con culpa` : undefined} actualizando={detalleViejo} alto className={anchoPorQue}><Rectificados nc={nc} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
-
-          {/* 4 · Lo mío: tres paneles alineados con los de arriba */}
-          <Encabezado titulo="Tus datos" detalle={operarios.find((o) => o.id === miId)?.nombre} mio separado />
-          <MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} nombre={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo} />
+          </Cifras>
+          <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
+          {!sinRevision && <Panel titulo="Cuánto tarda" extra={soloDesdeWeb ?? "lo normal"}><Recorrido m={m} /></Panel>}
+          {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones}`} className={anchoPorQue}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
+          {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas} por familia`} extra={incid ? `${incid.total} de ${incid.base} OF` : undefined} actualizando={detalleViejo} className={anchoPorQue}><IncidenciasSeccion seccion={seccion} incidencias={incid} cargando={datos?.detalleCargando} /></Panel>}
+          <Panel titulo="Rectificados" extra={rectConCausa ? `${rectConCausa.length} con culpa` : undefined} actualizando={detalleViejo} className={anchoPorQue}><Rectificados nc={nc} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
+          {/* Lo tuyo, separado de lo del equipo (Iván, 04/11/2026): su rótulo y la raya dorada. */}
+          <h3 className="col-span-full flex items-baseline gap-2 border-t border-border-strong pt-2.5">
+            <span aria-hidden className="size-2 self-center rounded-full bg-brand-500" />
+            <span className="text-sm font-bold text-text">Tus datos</span>
+            {nombreYo && <span className="text-xs text-text-muted">{nombreYo}</span>}
+          </h3>
+          <MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} nombre={nombreYo} actualizando={detalleViejo} />
         </div>
       )}
     </div>
   );
 }
 
-/** Por causa o por familia. «Por paso» de la guía se quitó (Iván,
- *  21/10/2026): sobraba aquí. */
+/** La fila de cifras de arriba: a lo ancho, todas iguales. Con el mismo hueco
+ *  que la rejilla de abajo, cada borde cae en su sitio. */
+function Cifras({ children }: { children: ReactNode }) {
+  return <div className="col-span-2 grid grid-cols-2 gap-2.5 xl:col-span-6 xl:auto-cols-fr xl:grid-flow-col xl:grid-cols-none">{children}</div>;
+}
+
+/** Por causa o por familia. Por familia, se entra en una para ver sus causas. */
 function PorQueVuelven({ devueltas, causa, porFamilia, cargando, detalleViejo = false }: { devueltas?: Devueltas; causa: (id: number | null) => string; porFamilia?: DetalleMetricas["porFamilia"]; cargando?: boolean; detalleViejo?: boolean }) {
   const [vista, setVista] = useState<"causa" | "tipo">("causa");
-  return <div data-fluido className="flex min-h-32 flex-1 flex-col gap-3 xl:min-h-0">
-    {/* La misma tira que el resto de la web (Revisión, Visitas): la bandeja
-        gris que llevaba aquí no casaba con nada (21/10/2026). */}
-    <div className="tira-3d glass-chip inline-flex shrink-0 self-start rounded-lg p-1" role="group" aria-label="Contar por">
-      {([["causa", "Por causa"], ["tipo", "Por familia"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={vista === v} onClick={() => setVista(v)} className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${vista === v ? "pestana-activa" : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"}`}>{l}</button>)}
-    </div>
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <Tira opciones={[["causa", "Por causa"], ["tipo", "Por familia"]]} valor={vista} onCambiar={setVista} etiqueta="Contar por" />
     {vista === "causa"
       ? devueltas ? <Ranking filas={devueltas.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, devueltas.entregadas), titulo: `${causa(x.id)}: ${x.n} OF devueltas de ${devueltas.entregadas} entregadas a revisión` }))} color={SERIES[1].color} vacio="Sin devoluciones en este periodo." /> : <Vacio>Contando…</Vacio>
-      : porFamilia ? <div aria-busy={detalleViejo} className={`scroll-thin min-h-0 overflow-y-auto pr-1 transition-opacity duration-200 motion-reduce:transition-none ${atenuado(detalleViejo)}`}><PorFamiliaAbrible color={SERIES[1].color} vacio="Sin devoluciones en este periodo."
+      : porFamilia ? <div aria-busy={detalleViejo} className={`flex min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(detalleViejo)}`}><PorFamiliaEntrar color={SERIES[1].color} vacio="Sin devoluciones en este periodo."
         familias={porFamilia.filter((f) => f.devueltas > 0).map((f) => ({ familia: f.familia, n: f.devueltas, pct: sobre(f.devueltas, f.entregadas), base: f.entregadas, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n, pct: sobre(x.n, f.entregadas) })) }))} /></div>
         : <Vacio>{cargando ? "Consultando familias…" : "No se pudieron consultar las familias. Prueba a recargar."}</Vacio>}
+  </div>;
+}
+
+/** La tira de opciones de dentro de un panel (la misma que el resto de la web). */
+function Tira<T extends string>({ opciones, valor, onCambiar, etiqueta }: { opciones: readonly (readonly [T, string])[]; valor: T; onCambiar: (v: T) => void; etiqueta: string }) {
+  return <div className="tira-3d glass-chip inline-flex shrink-0 self-start rounded-lg p-1" role="group" aria-label={etiqueta}>
+    {opciones.map(([v, l]) => <button key={v} type="button" aria-pressed={valor === v} onClick={() => onCambiar(v)} className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${valor === v ? "pestana-activa" : "text-text-muted hover:text-text"}`}>{l}</button>)}
   </div>;
 }
 const nombreFamilia = (familia: string) => familiaMeta(familia).label;
@@ -270,19 +284,14 @@ function IncidenciasSeccion({ seccion, incidencias, cargando }: { seccion: Secci
 const fechaCorta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 /** Clases de ancho para repartir una fila de la rejilla de 6 a partes iguales. */
 const ANCHO: Record<number, string> = { 1: "col-span-2 xl:col-span-6", 2: "col-span-2 xl:col-span-3", 3: "col-span-2 xl:col-span-2" };
-/** Cuántos pedidos rectificados se ven antes de «Ver todos». */
-const PEDIDOS_A_LA_VISTA = 5;
-/** Cuántas familias se ven antes de «Ver todas». */
-const FAMILIAS_A_LA_VISTA = 5;
 
 /** Los rectificados de la sección: los pedidos que hubo que rehacer y que
- *  Calidad achaca, en sus causas, a alguien de la sección. Arriba, por familia;
- *  debajo, los últimos pedidos. Era una lista sin fin que dejaba diminuto el
- *  panel de causas (Iván, 04/11/2026): ahora cinco de cada, y «Ver todos». El
- *  total y lo que pesa van en las cifras de arriba. Sin nombres de compañeros:
- *  en Métricas cada uno ve lo suyo (21/10/2026). */
+ *  Calidad achaca, en sus causas, a alguien de la sección. Por familia o los
+ *  pedidos, uno u otro (Iván, 04/11/2026: sin scroll); los pedidos, en páginas.
+ *  El total y lo que pesa van en las cifras de arriba. Sin nombres de
+ *  compañeros: en Métricas cada uno ve lo suyo (21/10/2026). */
 function Rectificados({ nc, familias, cargando, seccion, miId, onAbrirPedido }: { nc?: NoConformidad[] | null; familias?: FilaFamiliaNc[] | null; cargando?: boolean; seccion: SeccionId; miId: string; onAbrirPedido?: (codigo: string) => void }) {
-  const [todos, setTodos] = useState(false);
+  const [vista, setVista] = useState<"familias" | "pedidos">("familias");
   if (!nc || !familias) return <Vacio>{cargando ? "Consultando RPS…" : "Datos de RPS no disponibles. Prueba a recargar."}</Vacio>;
   const nombreCorto = SECCIONES[seccion].nombreCorto;
   const rectificados = nc.filter((x) => x.rectificativo);
@@ -292,85 +301,83 @@ function Rectificados({ nc, familias, cargando, seccion, miId, onAbrirPedido }: 
   ].sort((a, b) => b.fecha.localeCompare(a.fecha));
   if (!familias.length && !lista.length) return <Vacio>Sin rectificados en este periodo.</Vacio>;
   const max = Math.max(1, ...familias.map((f) => f.rectificados));
-  const familiasVistas = todos ? familias : familias.slice(0, FAMILIAS_A_LA_VISTA);
-  const pedidosVistos = todos ? lista : lista.slice(0, PEDIDOS_A_LA_VISTA);
-  const hayMas = familias.length > FAMILIAS_A_LA_VISTA || lista.length > PEDIDOS_A_LA_VISTA;
-  return <div className="flex flex-col gap-3">
-    {familias.length > 0 && <div className="grid gap-1.5">
-      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_2rem_3rem] gap-2 text-[10px] text-text-muted"><span>Familia</span><span /><span className="text-right" title="Rectificados de pedidos con tareas de la sección">Total</span><span className="text-right" title={`De ellos, los que Calidad achaca en algo a ${nombreCorto}`}>Culpa</span></div>
-      {familiasVistas.map((f) => <div key={f.familia} className="grid grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_2rem_3rem] items-center gap-2 text-[11px]" title={`${nombreFamilia(f.familia)}: ${f.rectificados} rectificados; ${f.conCausa} con culpa de ${nombreCorto}; culpa media ${f.culpaMedia === null ? "—" : `${Math.round(f.culpaMedia * 100)} %`}`}>
-        <span className="truncate">{nombreFamilia(f.familia)}</span>
-        <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.rectificados / max * 100}%`, background: COLOR_RECTIFICADO }} /></span>
-        <strong className="text-right tabular-nums">{f.rectificados}</strong>
-        <strong className="text-right tabular-nums">{f.conCausa}</strong>
-      </div>)}
-    </div>}
-    {pedidosVistos.length > 0 && <ul className="grid gap-0.5 border-t border-border pt-2">
-      {pedidosVistos.map((x) => {
-        const pendiente = deLaSeccion(x, seccion) === "pendiente";
-        const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
-        const que = pendiente ? "sin investigar" : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} %`;
-        const abrible = onAbrirPedido && x.pedido;
-        const pista = [x.descripcion && resumenNc(x.descripcion, 110), abrible ? "Pulsa para ver el pedido y su no conformidad" : null].filter(Boolean).join("\n");
-        const fila = "grid w-full grid-cols-[minmax(0,1fr)_2.75rem_auto] items-center gap-2 rounded-md! px-1.5 py-1 text-left text-[11px] hover:bg-surface-2";
-        const contenido = <>
-          <span className="min-w-0 truncate tabular-nums">
-            <span className="font-semibold">{x.pedido ?? "—"}</span>
-            {esMia(x, miId) && <span className="ml-1.5 text-[10px] font-semibold text-brand-800 dark:text-brand-300">tuyo</span>}
-          </span>
-          <span className="text-right tabular-nums text-text-muted">{fechaCorta(x.fecha)}</span>
-          <span className={`justify-self-end rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
-            pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
-          }`} title={pendiente ? "Calidad aún no lo ha investigado" : `La parte de ${nombreCorto} en este rectificado${mayor ? "; es la causa que más pesa" : ""}`}>{que}</span>
-        </>;
-        return <li key={x.codigo}>
-          {abrible
-            ? <button type="button" onClick={() => onAbrirPedido(x.pedido!)} title={pista} className={fila}>{contenido}</button>
-            : <div title={pista} className={fila}>{contenido}</div>}
-        </li>;
-      })}
-    </ul>}
-    {hayMas && <button type="button" onClick={() => setTodos((v) => !v)} className="chip-3d self-start px-3 py-1 text-[11px] font-semibold text-text">
-      {todos ? "Ver menos" : `Ver todos (${lista.length} pedidos)`}
-    </button>}
+  const columnas = "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_2rem_3rem]";
+  return <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <Tira opciones={[["familias", "Por familia"], ["pedidos", `Pedidos · ${lista.length}`]]} valor={vista} onCambiar={setVista} etiqueta="Ver" />
+    {vista === "familias" ? <>
+      <div className={`grid ${columnas} gap-2 text-[10px] text-text-muted`}><span>Familia</span><span /><span className="text-right" title="Rectificados de pedidos con tareas de la sección">Total</span><span className="text-right" title={`De ellos, los que Calidad achaca en algo a ${nombreCorto}`}>Culpa</span></div>
+      <ListaPaginada items={familias} clave={(f) => f.familia} vacio="Sin rectificados en este periodo." render={(f) =>
+        <div className={`grid h-full ${columnas} items-center gap-2 text-[11px]`} title={`${nombreFamilia(f.familia)}: ${f.rectificados} rectificados; ${f.conCausa} con culpa de ${nombreCorto}; culpa media ${f.culpaMedia === null ? "—" : `${Math.round(f.culpaMedia * 100)} %`}`}>
+          <span className="truncate">{nombreFamilia(f.familia)}</span>
+          <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.rectificados / max * 100}%`, background: COLOR_RECTIFICADO }} /></span>
+          <strong className="text-right tabular-nums">{f.rectificados}</strong>
+          <strong className="text-right tabular-nums">{f.conCausa}</strong>
+        </div>} />
+    </> : <ListaPaginada items={lista} clave={(x) => x.codigo} altoFila={24} vacio="Sin pedidos rectificados." render={(x) => {
+      const pendiente = deLaSeccion(x, seccion) === "pendiente";
+      const mayor = !pendiente && causaMayor(x, seccion) === "mayor";
+      const que = pendiente ? "sin investigar" : `${Math.round((repartoNc(x).secciones[seccion] ?? 0) * 100)} %`;
+      const abrible = onAbrirPedido && x.pedido;
+      const pista = [x.descripcion && resumenNc(x.descripcion, 110), abrible ? "Pulsa para ver el pedido y su no conformidad" : null].filter(Boolean).join("\n");
+      const fila = "grid h-full w-full grid-cols-[minmax(0,1fr)_2.75rem_auto] items-center gap-2 rounded-md! px-1.5 text-left text-[11px] hover:bg-surface-2";
+      const contenido = <>
+        <span className="min-w-0 truncate tabular-nums">
+          <span className="font-semibold">{x.pedido ?? "—"}</span>
+          {esMia(x, miId) && <span className="ml-1.5 text-[10px] font-semibold text-brand-800 dark:text-brand-300">tuyo</span>}
+        </span>
+        <span className="text-right tabular-nums text-text-muted">{fechaCorta(x.fecha)}</span>
+        <span className={`justify-self-end rounded-full px-2 py-px text-[10px] font-semibold tabular-nums ${
+          pendiente ? "bg-surface-2 font-medium text-text-muted" : mayor ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-surface-2 text-text"
+        }`} title={pendiente ? "Calidad aún no lo ha investigado" : `La parte de ${nombreCorto} en este rectificado${mayor ? "; es la causa que más pesa" : ""}`}>{que}</span>
+      </>;
+      return abrible
+        ? <button type="button" onClick={() => onAbrirPedido(x.pedido!)} title={pista} className={fila}>{contenido}</button>
+        : <div title={pista} className={fila}>{contenido}</div>;
+    }} />}
   </div>;
 }
 
 /** Un decimal, con coma: «3,2». Sin decimales si es entero. */
 const decimal = (n: number) => (Math.round(n * 10) / 10).toLocaleString("es-ES", { maximumFractionDigits: 1 });
 
-/** Una familia que se abre para ver el desglose por causa: mis correcciones
- *  y el motivo de devolución por familia. */
-function PorFamiliaAbrible({ familias: todasLasFamilias, color, vacio }: { familias: { familia: string; n: number; pct?: string; base?: number; detalle: FilaRanking[] }[]; color: string; vacio: string }) {
-  const [todas, setTodas] = useState(false);
-  if (!todasLasFamilias.length) return <p className="py-2 text-[11px] text-text-muted">{vacio}</p>;
-  const familias = todas ? todasLasFamilias : todasLasFamilias.slice(0, FILAS_A_LA_VISTA);
-  const max = Math.max(...familias.map((f) => f.n));
-  const conPct = familias.some((f) => f.pct !== undefined);
-  return <div className="grid gap-1">
-    {familias.map((f) => <details key={f.familia} className="group rounded-md border border-border open:border-border-strong">
-      <summary className={`grid cursor-pointer list-none ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 rounded-md px-1.5 py-1 text-[11px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 group-open:text-brand-800 dark:group-open:text-brand-300 [&::-webkit-details-marker]:hidden`} title={f.base !== undefined ? `${nombreFamilia(f.familia)}: ${f.n} de ${f.base} OF` : undefined}>
-        <span className="flex min-w-0 items-center gap-1"><span aria-hidden="true" className="inline-block text-[8px] text-text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">▶</span><span className="truncate">{nombreFamilia(f.familia)}</span></span>
-        <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span>
-        <strong className="min-w-4 text-right tabular-nums">{f.n}</strong>
-        {conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}
-      </summary>
-      <div className="mx-1.5 mb-1.5 border-l-2 border-border py-1 pl-2"><Ranking filas={f.detalle} color={color} vacio="Sin detalle." /></div>
-    </details>)}
-    <VerTodas total={todasLasFamilias.length} todas={todas} onCambiar={setTodas} />
+/** Las familias, y se ENTRA en una para ver sus causas, con «← Volver» para
+ *  salir (Iván, 04/11/2026: «mini menús de entrar y salir»). Antes se
+ *  desplegaban y el panel crecía sin fin. Mis correcciones y el motivo de
+ *  devolución por familia. */
+function PorFamiliaEntrar({ familias, color, vacio }: { familias: { familia: string; n: number; pct?: string; base?: number; detalle: FilaRanking[] }[]; color: string; vacio: string }) {
+  const [dentro, setDentro] = useState<string | null>(null);
+  const f = dentro ? familias.find((x) => x.familia === dentro) : undefined;
+  if (f) return <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+    <div className="flex items-center gap-2 border-b border-border pb-1.5 text-[11px]">
+      <button type="button" onClick={() => setDentro(null)} className="chip-3d shrink-0 px-2.5 py-0.5 text-[11px] font-semibold text-text">← Volver</button>
+      <strong className="truncate">{nombreFamilia(f.familia)}</strong>
+      <span className="ml-auto shrink-0 tabular-nums text-text-muted">{f.n}{f.pct ? ` · ${f.pct}` : ""}</span>
+    </div>
+    <Ranking filas={f.detalle} color={color} vacio="Sin detalle." />
   </div>;
+  if (!familias.length) return <Vacio>{vacio}</Vacio>;
+  const max = Math.max(...familias.map((x) => x.n));
+  const conPct = familias.some((x) => x.pct !== undefined);
+  return <ListaPaginada items={familias} clave={(x) => x.familia} render={(x) =>
+    <button type="button" onClick={() => setDentro(x.familia)} title={`${x.base !== undefined ? `${nombreFamilia(x.familia)}: ${x.n} de ${x.base} OF. ` : ""}Pulsa para ver las causas`}
+      className={`grid h-full w-full ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem_.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_.75rem]"} items-center gap-2 rounded-md! px-1 text-left text-[11px] hover:bg-surface-2`}>
+      <span className="truncate">{nombreFamilia(x.familia)}</span>
+      <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${x.n / max * 100}%`, background: color }} /></span>
+      <strong className="min-w-4 text-right tabular-nums">{x.n}</strong>
+      {conPct && <span className="text-right tabular-nums text-text-muted">{x.pct}</span>}
+      <span aria-hidden className="text-text-muted">›</span>
+    </button>} />;
 }
 
+/** «Tus datos»: tu gráfica, tus correcciones y tus incidencias, en una fila
+ *  alineada con las de arriba. Con la raya dorada de lo tuyo. */
 function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre, actualizando }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string; seccion: SeccionId; nombre?: string; actualizando: boolean }) {
-  if (!detalle) return <Panel titulo="Mis datos" extra={nombre} className="col-span-2 xl:col-span-6" mio><Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio></Panel>;
+  if (!detalle) return <Panel titulo="Tus datos" extra={nombre} className="col-span-2 xl:col-span-6" mio><Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio></Panel>;
   const p = detalle.personal;
   const sinRevision = SECCIONES[seccion].sinRevision === true;
   const filas = delAnio(anio, p.meses);
   const sumaAnio = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => p.meses.reduce((s, x) => s + (x[k] ?? 0), 0);
   const delPeriodo = (k: "entregadas" | "sinRevision" | "correcciones" | "incidencias") => mes ? p.meses.find((x) => x.mes === mes)?.[k] ?? 0 : sumaAnio(k);
-  // UNA gráfica para todo lo mío (21/10/2026): las incidencias iban en otra
-  // aparte y no cabía la pantalla. Donde no se revisa, sin «Sin revisión» ni
-  // «Devueltas»: todo sería una cosa y nada la otra.
   const conIncidencias = p.incidencias !== null;
   // Mis rectificados: los que Calidad me achaca a mí, por mes (26/10/2026).
   const rect = detalle.rectificadosMeses;
@@ -395,16 +402,16 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre
     : "Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT)";
   const ancho = ANCHO[sinRevision ? 2 : 3];
   return <>
-    <Panel titulo="Mis OF por mes" actualizando={actualizando} className={ancho} mio>
-      <MetricasGrafica titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
+    <Panel titulo="Mis OF por mes" extra={`Año ${anio}`} actualizando={actualizando} className={ancho} mio>
+      <MetricasGrafica llenar titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
         puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
     </Panel>
     {!sinRevision && <Panel titulo="Mis correcciones" extra={String(p.correcciones)} actualizando={actualizando} className={ancho} mio>
-      <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} />
+      <PorFamiliaEntrar color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} />
     </Panel>}
     <Panel titulo="Mis incidencias" extra={p.incidencias === null ? undefined : `${p.incidencias} · ${sobre(p.incidencias, p.entregadas)} de ${p.entregadas}`} actualizando={actualizando} className={ancho} mio>
-      <div title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>
-        {p.incidencias === null ? <Vacio>Datos de RPS no disponibles.</Vacio> : !p.incidenciasPorFamilia.length ? <Vacio>{`Sin incidencias en tus OF este ${unidad}.`}</Vacio> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}
+      <div className="flex min-h-0 flex-1 flex-col" title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas.`}>
+      {p.incidencias === null ? <Vacio>Datos de RPS no disponibles.</Vacio> : <Ranking color={COLOR_DEVUELTA} vacio={`Sin incidencias en tus OF este ${unidad}.`} filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}
       </div>
     </Panel>
   </>;
@@ -413,17 +420,9 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre
 /** Atenuado mientras se cambia de periodo. Con retraso al entrar: si los
  *  datos llegan enseguida no se ve parpadeo ninguno; al salir, al momento. */
 const atenuado = (si: boolean) => si ? "opacity-55 delay-150" : "opacity-100 delay-0";
-/** El rótulo de cada parte de Métricas: lo del equipo y lo mío. A todo el
- *  ancho de la rejilla; el de lo mío, con raya encima y el punto de la marca. */
-function Encabezado({ titulo, detalle, mio = false, separado = false }: { titulo: string; detalle?: string; mio?: boolean; separado?: boolean }) {
-  return <h3 className={`col-span-full flex items-baseline gap-2 ${separado ? "mt-3 border-t border-border-strong pt-4" : ""}`}>
-    <span aria-hidden className={`size-2 self-center rounded-full ${mio ? "bg-brand-500" : "bg-text-muted"}`} />
-    <span className="text-sm font-bold text-text">{titulo}</span>
-    {detalle && <span className="text-xs text-text-muted">{detalle}</span>}
-  </h3>;
-}
-function Panel({ titulo, extra, actualizando = false, alto = false, mio = false, className = "col-span-2", children }: { titulo: string; extra?: string; actualizando?: boolean; /** Los tres «por qué»: el mismo alto mínimo, para que ninguno se quede diminuto. */ alto?: boolean; /** Lo mío: con el tinte de la marca, para no confundirlo con lo del equipo. */ mio?: boolean; /** Cuántas columnas de la rejilla ocupa. */ className?: string; children: ReactNode }) {
-  return <section aria-busy={actualizando} className={`metricas-panel glass-panel flex min-w-0 flex-col rounded-xl p-3 ${alto ? "min-h-64" : ""} ${mio ? "metricas-mio" : ""} ${className}`}><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`flex flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
+function Panel({ titulo, extra, actualizando = false, mio = false, className = "col-span-2", children }: { titulo: string; extra?: string; actualizando?: boolean; /** Lo mío: con la raya dorada, para no confundirlo con lo del equipo. */ mio?: boolean; /** Cuántas columnas de la rejilla ocupa. */ className?: string; children: ReactNode }) {
+  // Alto fijo en pantallas pequeñas; en las grandes, el de su fila de la rejilla.
+  return <section aria-busy={actualizando} className={`metricas-panel glass-panel flex h-72 min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-3 xl:h-auto ${mio ? "metricas-mio" : ""} ${className}`}><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`flex min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
 }
 function Vacio({ children }: { children: ReactNode }) { return <p className="flex flex-1 items-center justify-center py-4 text-center text-xs text-text-muted">{children}</p>; }
 function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string; sinDato?: string | null }) {
@@ -435,8 +434,8 @@ function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null
 /** Una cifra del cuadro: el nombre, el número grande y, debajo, la
  *  comparación. Lo que explica cómo se cuenta, al pasar el ratón (Iván,
  *  04/11/2026: «sin textos explicativos»). `malo`: que suba es peor. */
-function Tile({ titulo, valor, extra, ayuda, delta, malo = false }: { titulo: string; valor: string; extra?: string; ayuda: string; delta: ReactNode; malo?: boolean }) {
-  return <div className="glass-panel min-w-0 rounded-xl px-3 py-2.5" title={ayuda} data-malo={malo || undefined}>
+function Tile({ titulo, valor, extra, ayuda, delta, mio = false }: { titulo: string; valor: string; extra?: string; ayuda: string; delta: ReactNode; mio?: boolean }) {
+  return <div className={`glass-panel min-w-0 rounded-xl px-3 py-2.5 ${mio ? "metricas-panel metricas-mio" : ""}`} title={ayuda}>
     <div className="truncate text-[10px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}</div>
     <div className="mt-1 flex items-baseline gap-1.5">
       <span className="text-2xl leading-none font-bold tracking-tight tabular-nums">{valor}</span>
@@ -464,7 +463,7 @@ function Meses({ anio, meses, mes, rps, rectificados, sinRevision = false }: { a
   const deRps = mes ? rps?.[mes] ?? 0 : Object.entries(rps ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
   // Donde no se revisa, solo «Realizadas»: revisadas y devoluciones serían
   // dos líneas pegadas al cero.
-  return <MetricasGrafica titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
+  return <MetricasGrafica llenar titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
     puntos={filas.map(({ mes, fila }) => ({ mes, valores: [
       realizadas(mes, fila),
       ...(sinRevision ? [] : [fila?.revisiones ?? null, fila?.devoluciones ?? null]),
@@ -500,22 +499,51 @@ function Recorrido({ m }: { m: Metricas }) {
 /** `pct` va en su propia columna para que los % queden alineados. */
 interface FilaRanking { etiqueta: string; n: number; pct?: string; titulo?: string }
 function Ranking({ filas, color, vacio }: { filas: FilaRanking[]; color: string; vacio: string }) {
-  const [todas, setTodas] = useState(false);
   if (!filas.length) return <Vacio>{vacio}</Vacio>;
   const max = Math.max(...filas.map((f) => f.n));
   const conPct = filas.some((f) => f.pct !== undefined);
-  const vistas = todas ? filas : filas.slice(0, FILAS_A_LA_VISTA);
-  return <div className="grid content-start gap-1.5" aria-label="Ordenado por frecuencia">
-    {vistas.map((f) => <div key={f.etiqueta} className={`grid ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 text-[11px]`} title={f.titulo ?? `${f.etiqueta}: ${f.n}`}><span className="truncate">{f.etiqueta}</span><span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span><strong className="min-w-4 text-right tabular-nums">{f.n}</strong>{conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}</div>)}
-    <VerTodas total={filas.length} todas={todas} onCambiar={setTodas} />
-  </div>;
+  return <ListaPaginada items={filas} clave={(f) => f.etiqueta} render={(f) =>
+    <div className={`grid h-full ${conPct ? "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto_2.75rem]" : "grid-cols-[minmax(0,1.3fr)_minmax(30px,1fr)_auto]"} items-center gap-2 text-[11px]`} title={f.titulo ?? `${f.etiqueta}: ${f.n}`}>
+      <span className="truncate">{f.etiqueta}</span>
+      <span className="recuadro h-2 overflow-hidden rounded"><span className="block h-full rounded-r" style={{ width: `${f.n / max * 100}%`, background: color }} /></span>
+      <strong className="min-w-4 text-right tabular-nums">{f.n}</strong>
+      {conPct && <span className="text-right tabular-nums text-text-muted">{f.pct}</span>}
+    </div>} />;
 }
-/** Cuántas filas se ven en cada lista antes de «Ver todas» (Iván, 04/11/2026:
- *  con muchas, un panel se comía la pantalla y dejaba diminuto al de al lado). */
-const FILAS_A_LA_VISTA = 8;
-function VerTodas({ total, todas, onCambiar }: { total: number; todas: boolean; onCambiar: (v: boolean) => void }) {
-  if (total <= FILAS_A_LA_VISTA) return null;
-  return <button type="button" onClick={() => onCambiar(!todas)} className="chip-3d mt-1 self-start justify-self-start px-3 py-1 text-[11px] font-semibold text-text">
-    {todas ? "Ver menos" : `Ver todas (${total})`}
-  </button>;
+
+/** Una lista que nunca desborda su panel (Iván, 04/11/2026: «que no haya
+ *  scroll nunca»): mide el alto que tiene, enseña las filas que caben y, si
+ *  hay más, pasa de página con ‹ 1/3 ›. Cambiar de periodo vuelve a la 1. */
+function ListaPaginada<T>({ items, render, clave, altoFila = 20, vacio = "Nada en este periodo." }: { items: readonly T[]; render: (item: T) => ReactNode; clave: (item: T) => string; altoFila?: number; vacio?: string }) {
+  const [alto, setAlto] = useState(0);
+  const [pagina, setPagina] = useState(0);
+  // Se mide en cuanto aparece la caja (con una referencia que observa), no en
+  // un efecto de montaje: si la lista llegaba vacía y luego se llenaba, el
+  // efecto ya había pasado sin caja y la lista se quedaba sin medir.
+  const observador = useRef<ResizeObserver | null>(null);
+  const caja = useCallback((el: HTMLDivElement | null) => {
+    observador.current?.disconnect();
+    observador.current = null;
+    if (!el) return;
+    setAlto(Math.floor(el.getBoundingClientRect().height));
+    const o = new ResizeObserver(([e]) => setAlto(Math.floor(e.contentRect.height)));
+    o.observe(el);
+    observador.current = o;
+  }, []);
+  if (!items.length) return <Vacio>{vacio}</Vacio>;
+  const PIE = 26;
+  const caben = Math.max(1, Math.floor(alto / altoFila));
+  const porPagina = items.length > caben ? Math.max(1, Math.floor((alto - PIE) / altoFila)) : caben;
+  const paginas = Math.max(1, Math.ceil(items.length / porPagina));
+  const actual = Math.min(pagina, paginas - 1);
+  const vistos = alto ? items.slice(actual * porPagina, actual * porPagina + porPagina) : [];
+  const flecha = "chip-3d grid size-6 place-items-center text-[11px] font-bold text-text disabled:opacity-35";
+  return <div ref={caja} className="flex min-h-24 flex-1 flex-col overflow-hidden xl:min-h-0">
+    <div className="flex flex-col">{vistos.map((it) => <div key={clave(it)} style={{ height: altoFila }}>{render(it)}</div>)}</div>
+    {paginas > 1 && <div className="mt-auto flex shrink-0 items-center justify-end gap-1.5 pt-1 text-[11px] tabular-nums text-text-muted" style={{ height: PIE }}>
+      <button type="button" onClick={() => setPagina(actual - 1)} disabled={actual === 0} aria-label="Página anterior" className={flecha}>‹</button>
+      <span>{actual + 1} / {paginas}</span>
+      <button type="button" onClick={() => setPagina(actual + 1)} disabled={actual >= paginas - 1} aria-label="Página siguiente" className={flecha}>›</button>
+    </div>}
+  </div>;
 }
