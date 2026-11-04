@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-04",
-    "hasta": "09c4f05",
+    "hasta": "15e11eb",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -10,10 +10,21 @@
         "tanda": 2
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Si el planteamiento lleva un A5 o un A3, cada parte sale sola en la impresora que tiene ese papel",
+        "detalle": "Al pasar el pedido ves cada parte con su miniatura y eliges si el A5 o el A3 sale vertical u horizontal.",
+        "tanda": 3
+      },
+      {
         "tipo": "mejor",
         "titulo": "Solicitudes enseña todo el histórico, con buscador y filtro por técnico",
         "detalle": "Busca por cliente, obra, presupuesto o comercial.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las solicitudes ya enseñan todo el histórico, también la respuesta del técnico de las antiguas",
+        "tanda": 3
       }
     ]
   },
