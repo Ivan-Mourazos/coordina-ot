@@ -16,7 +16,7 @@ import { planteamientosDe, type Planteamientos } from "@/lib/server/planteamient
 import { leerPersona } from "@/lib/server/personas-db";
 import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
-import { leerEleccion, leerNotaCorreo } from "@/lib/planteamiento";
+import { leerAjustesImpresion, leerEleccion, leerNotaCorreo } from "@/lib/planteamiento";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -44,6 +44,9 @@ interface Body {
   /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
    *  `EleccionPase`). Ausente = la norma. */
   planteamiento?: unknown;
+  /** Orientación de cada parte del planteamiento y las que se imprimen a mano
+   *  (ver `AjustesImpresion`). Ausente = como vienen, y todo solo. */
+  impresion?: unknown;
   /** Nota que sale arriba del correo, sin haber cambiado nada más. Con
    *  `planteamiento` manda la nota de dentro. */
   notaCorreo?: unknown;
@@ -351,7 +354,7 @@ export async function POST(req: Request) {
       // el pedido no tiene por qué esperarlos. La copia se hace igual en el
       // momento: RPS tarda minutos en moverlo.
       if ((!imprimir || imprimir.size > 0) && modoImpresion() !== "off") {
-        void prepararImpresion(codigo, operarioId, undefined, buscar, imprimir).catch((e) =>
+        void prepararImpresion(codigo, operarioId, undefined, buscar, imprimir, leerAjustesImpresion(body.impresion) ?? undefined).catch((e) =>
           console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
         );
       }

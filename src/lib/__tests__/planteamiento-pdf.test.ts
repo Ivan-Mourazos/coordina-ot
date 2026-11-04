@@ -42,7 +42,7 @@ afterAll(() => rmSync(raiz, { recursive: true, force: true }));
 
 describe("leer un PDF", () => {
   it("cuenta páginas y mira si todas son A4", async () => {
-    expect(await leerPdf(await pdf([A4, A4]))).toEqual({ paginas: 2, todoA4: true });
+    expect(await leerPdf(await pdf([A4, A4]))).toMatchObject({ paginas: 2, todoA4: true });
     expect((await leerPdf(await pdf([A4, A5]))).todoA4).toBe(false);
   });
 });

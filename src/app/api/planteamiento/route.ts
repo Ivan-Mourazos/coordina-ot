@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
-import { vaAdjunto } from "@/lib/planteamiento";
+import { partesDe, vaAdjunto } from "@/lib/planteamiento";
 import { planteamientosDe } from "@/lib/server/planteamiento-pdf";
-import { leerImpresionesDe, modoImpresion } from "@/lib/server/impresion-cola";
+import { leerImpresionesDe, modoImpresion, puedeImprimirEnOt } from "@/lib/server/impresion-cola";
 import { copiasCorreo, leerCorreosDe, modoCorreo } from "@/lib/server/correo-cola";
 import { getTablero } from "@/lib/data";
 import { soloConSesion } from "@/lib/server/sesion";
@@ -50,7 +50,14 @@ export async function GET(req: Request) {
     {
       modo: modoImpresion(),
       // `adjunto`: si va en el correo (PVC, -10 en adelante) o solo se imprime.
-      ficheros: ficheros.map(({ nombre, paginas, todoA4 }) => ({ nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido) })),
+      // `partes`: cómo se reparte por tamaño de página y a qué impresora va
+      // cada parte (ver `partesDe`).
+      ficheros: ficheros.map(({ nombre, paginas, todoA4, tamanos }) => ({
+        nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido), partes: tamanos?.length ? partesDe(tamanos) : undefined,
+      })),
+      // Sin código de departamento la de OT no imprime nada que le llegue
+      // solo: entonces los A5 y A3 se imprimen a mano, como antes.
+      puedeOt: puedeImprimirEnOt(),
       aviso,
       impresiones: leerImpresionesDe(pedido),
       correo: await correoDe(pedido),

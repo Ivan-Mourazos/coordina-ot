@@ -14,6 +14,7 @@ vi.mock("../server/impresion-cola", () => ({
   modoImpresion: modoMock,
   prepararImpresion: prepararMock,
   leerImpresionesDe: () => [],
+  puedeImprimirEnOt: () => false,
 }));
 // Y el correo: nada habla con Microsoft.
 const { modoCorreoMock, reenviarMock } = vi.hoisted(() => ({
@@ -93,7 +94,7 @@ test("reimprimir encola y devuelve el resultado", async () => {
   const r = await reimprimir.POST(new Request("http://x", { method: "POST", body: JSON.stringify({ pedido: "AR.26.05016", operarioId: "ivan" }) }));
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ encolados: 1, manuales: [], aviso: null });
-  expect(prepararMock).toHaveBeenCalledWith("AR.26.05016", "ivan");
+  expect(prepararMock).toHaveBeenCalledWith("AR.26.05016", "ivan", undefined, undefined, undefined, undefined, undefined);
 });
 
 const post = (b: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(b) });

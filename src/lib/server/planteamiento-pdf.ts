@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { anioPedido, conAnio, esA4, nombreArchivoRps, sufijoDe } from "../planteamiento";
+import { anioPedido, conAnio, esA4, nombreArchivoRps, papelDe, sufijoDe, type PaginaPdf } from "../planteamiento";
 import { cargarPdfjs } from "./pdfjs";
 
 // ─── Dónde está el planteamiento de un pedido, y cómo es ─────────────────────
@@ -15,6 +15,8 @@ import { cargarPdfjs } from "./pdfjs";
 export interface InfoPdf {
   paginas: number;
   todoA4: boolean;
+  /** El papel y la orientación de cada página, para repartirlas. */
+  tamanos: PaginaPdf[];
 }
 
 export async function leerPdf(bytes: Uint8Array): Promise<InfoPdf> {
@@ -27,11 +29,14 @@ export async function leerPdf(bytes: Uint8Array): Promise<InfoPdf> {
   try {
     const doc = await tarea.promise;
     let todoA4 = true;
+    const tamanos: PaginaPdf[] = [];
     for (let n = 1; n <= doc.numPages; n++) {
-      const [x0, y0, x1, y1] = (await doc.getPage(n)).view;
-      if (!esA4(x1 - x0, y1 - y0)) todoA4 = false;
+      // El viewport ya lleva el giro de la página: es como se ve, y como sale.
+      const { width, height } = (await doc.getPage(n)).getViewport({ scale: 1 });
+      if (!esA4(width, height)) todoA4 = false;
+      tamanos.push({ papel: papelDe(width, height), horizontal: width > height });
     }
-    return { paginas: doc.numPages, todoA4 };
+    return { paginas: doc.numPages, todoA4, tamanos };
   } finally {
     await tarea.destroy();
   }
@@ -63,6 +68,8 @@ export interface FicheroPlanteamiento {
   origen: "planteamientos" | "archivo";
   paginas: number;
   todoA4: boolean;
+  /** Ausente en ficheros de prueba de antes: entonces se reparte por `todoA4`. */
+  tamanos?: PaginaPdf[];
 }
 
 export interface Planteamientos {
@@ -109,7 +116,7 @@ export async function planteamientosDe(
   for (const [, f] of [...porSufijo].sort(([a], [b]) => Number(a.slice(1)) - Number(b.slice(1)))) {
     try {
       const info = await leerPdf(new Uint8Array(await readFile(f.ruta)));
-      ficheros.push({ ...f, paginas: info.paginas, todoA4: info.todoA4 });
+      ficheros.push({ ...f, paginas: info.paginas, todoA4: info.todoA4, tamanos: info.tamanos });
     } catch (e) {
       // Un PDF roto no se imprime ni tumba la lista: se anota y se sigue.
       console.warn(`[planteamiento] no se pudo leer ${f.ruta}:`, (e as Error).message);

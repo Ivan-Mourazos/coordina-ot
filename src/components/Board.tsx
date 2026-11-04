@@ -68,7 +68,8 @@ import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
-import { NOTA_MAX, type EleccionPase } from "@/lib/planteamiento";
+import { NOTA_MAX, type AjustesImpresion, type EleccionPase } from "@/lib/planteamiento";
+import { RepartoImpresion, hayReparto, partesAMano, urlParte } from "./RepartoImpresion";
 import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 import {
@@ -1544,6 +1545,8 @@ export function Board({
       planteamiento?: EleccionPase;
       /** Nota del correo sin cambiar nada más (ver `leerNotaCorreo`). */
       notaCorreo?: string;
+      /** Orientación y partes a mano del reparto por tamaño (ver `AjustesImpresion`). */
+      impresion?: AjustesImpresion;
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2406,6 +2409,9 @@ export function Board({
   // dentro de «Cambiar lo que se imprime y se manda» y nadie la encontraba
   // (Iván, 21/10/2026). Si hay elección, viaja dentro de ella.
   const [notaCorreo, setNotaCorreo] = useState("");
+  // El reparto por tamaño: orientación de cada parte y las que se imprimen a
+  // mano. Vacío al abrir el diálogo: todo como viene y todo solo.
+  const [ajustesImpresion, setAjustesImpresion] = useState<AjustesImpresion>({ orientaciones: {}, aMano: [] });
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
@@ -2415,6 +2421,7 @@ export function Board({
       setMandarCorreoAlPasar(true);
       setEleccionPase(null);
       setNotaCorreo("");
+      setAjustesImpresion({ orientaciones: {}, aMano: [] });
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -2432,7 +2439,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2464,6 +2471,7 @@ export function Board({
         mandarCorreo: opciones?.mandarCorreo,
         planteamiento: opciones?.planteamiento,
         notaCorreo: opciones?.notaCorreo,
+        impresion: opciones?.impresion,
       });
       if (!guardado) {
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
@@ -3344,6 +3352,23 @@ export function Board({
                 )}
                 </>
                 )}
+                {vistaPlanteamiento.datos.modo !== "off" && pedidoAPasar?.codigo && (() => {
+                  // Solo los PDF que se van a imprimir: con «No se imprimirá otra
+                  // vez» o quitados en «Cambiar…» no hay nada que repartir.
+                  const seImprimen = vistaPlanteamiento.datos.ficheros.filter((f) =>
+                    eleccionPase ? eleccionPase.imprimir.includes(f.nombre) : imprimirAlPasar,
+                  );
+                  return hayReparto(seImprimen) ? (
+                    <RepartoImpresion
+                      pedido={pedidoAPasar.codigo}
+                      ficheros={seImprimen}
+                      modo={vistaPlanteamiento.datos.modo}
+                      puedeOt={vistaPlanteamiento.datos.puedeOt ?? false}
+                      ajustes={ajustesImpresion}
+                      onCambiar={setAjustesImpresion}
+                    />
+                  ) : null;
+                })()}
                 {mandarCorreoAlPasar && !!vistaPlanteamiento.datos.correo && vistaPlanteamiento.datos.correo.modo !== "off" && (
                   <label className="mt-3 block">
                     <span className="mb-1 block text-text-muted">Nota para el correo (opcional, sale arriba)</span>
@@ -3379,13 +3404,20 @@ export function Board({
           const eleccion = eleccionPase;
           const seImprime = (nombre: string) => (eleccion ? eleccion.imprimir.includes(nombre) : imprimirAlPasar);
           if (vista && vista.modo !== "off" && pedido?.codigo) {
-            for (const f of vista.ficheros.filter((x) => !x.todoA4 && seImprime(x.nombre))) {
+            const seImprimen = vista.ficheros.filter((x) => seImprime(x.nombre));
+            // Con reparto, solo las partes que no salen solas, y cada una sola.
+            for (const { fichero, parte, girar } of partesAMano(seImprimen, vista.puedeOt ?? false, ajustesImpresion)) {
+              abrirParaImprimir(urlParte(pedido.codigo, fichero, parte, girar));
+            }
+            // Un servidor de antes (sin partes): el PDF entero, como siempre.
+            for (const f of seImprimen.filter((x) => !x.todoA4 && !x.partes)) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
           }
           completarPedidoAhora(id, undefined, undefined, {
             imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : imprimirAlPasar,
             mandarCorreo: mandarCorreoAlPasar,
+            impresion: ajustesImpresion,
             ...(eleccion ? { planteamiento: { ...eleccion, nota: notaCorreo } } : { notaCorreo }),
           });
         }}

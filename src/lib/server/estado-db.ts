@@ -583,6 +583,9 @@ const MIGRACIONES: ReadonlyArray<{
   { version: 12, nombre: "pasos_de_revision", aplicar: pasosDeRevision },
   // Impresión Digital abre con tablero propio y Manuel es quien imprime.
   { version: 13, nombre: "manuel_a_impresion", aplicar: manuelAImpresion },
+  // El planteamiento se parte por tamaño de página y cada parte va a su
+  // impresora (04/11/2026): cada fila dice a cuál, en qué papel y qué páginas.
+  { version: 14, nombre: "reparto_impresion", aplicar: repartoImpresion },
 ];
 
 /** Manuel pasa de Diseño Gráfico a Impresión Digital (13/10/2026).
@@ -593,6 +596,19 @@ const MIGRACIONES: ReadonlyArray<{
  *  operarios.ts): la columna `seccion` es solo la principal. */
 function manuelAImpresion(db: Database.Database): void {
   db.prepare("UPDATE persona SET seccion = 'impresion' WHERE id = 'manuel' AND seccion = 'diseno'").run();
+}
+
+/** Columnas del reparto por tamaño de página: a qué impresora va cada parte,
+ *  en qué papel y qué páginas lleva. Las filas de antes quedan con null y se
+ *  leen como siempre: el PDF entero, a la impresora del modo. Con guarda, como
+ *  `huellaDelParte`: la tabla puede venir ya con ellas. */
+function repartoImpresion(db: Database.Database): void {
+  const columnas = new Set(
+    (db.prepare("PRAGMA table_info(planteamiento_impresion)").all() as { name: string }[]).map((c) => c.name),
+  );
+  for (const c of ["destino", "papel", "paginas_sel"]) {
+    if (!columnas.has(c)) db.exec(`ALTER TABLE planteamiento_impresion ADD COLUMN ${c} TEXT`);
+  }
 }
 
 /** Añade las columnas de huella a `pedido_scan`.

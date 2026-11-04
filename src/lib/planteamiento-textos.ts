@@ -2,6 +2,7 @@
 // no puede arrastrar código de servidor (SQLite, fs) al bundle.
 import type { FilaImpresion, ModoImpresion } from "./server/impresion-cola";
 import type { FilaCorreo, ModoCorreo } from "./server/correo-cola";
+import type { ParteImpresion } from "./planteamiento";
 
 // ─── Lo que la pantalla dice del planteamiento ───────────────────────────────
 // Funciones puras para que el diálogo de pasar y la ficha del Historial digan
@@ -11,7 +12,11 @@ export interface VistaPlanteamiento {
   modo: ModoImpresion;
   /** `adjunto`: va en el correo (PVC); si no, solo se imprime y el correo
    *  avisa. Opcional: un servidor de antes no lo manda. */
-  ficheros: { nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean }[];
+  /** `partes`: el reparto por tamaño de página (04/11/2026). Opcional: un
+   *  servidor de antes no lo manda, y entonces se lee `todoA4` como siempre. */
+  ficheros: { nombre: string; paginas: number; todoA4: boolean; adjunto?: boolean; partes?: ParteImpresion[] }[];
+  /** Si la impresora de OT imprime sola (tiene código de departamento). */
+  puedeOt?: boolean;
   aviso: string | null;
   impresiones: FilaImpresion[];
   /** El correo del planteamiento (spec 2026-10-14). Opcional: un servidor de
@@ -34,6 +39,11 @@ export function textoAntesDePasar(d: VistaPlanteamiento): string | null {
   if (d.ficheros.length === 0) {
     return `${d.aviso ?? "No encuentro el planteamiento en Planteamientos"}: se pasará sin imprimir`;
   }
+  // Con reparto por tamaño, el detalle de cada parte lo enseña el aviso de
+  // pasar (RepartoImpresion); aquí, de qué va.
+  if (d.ficheros.some((f) => (f.partes?.length ?? 0) > 1 || f.partes?.some((p) => p.papel !== "A4"))) {
+    return "El planteamiento lleva páginas de distintos tamaños: cada una sale en la impresora que tiene ese papel";
+  }
   const manual = d.ficheros.find((f) => !f.todoA4);
   if (manual) return `${manual.nombre} lleva una página que no es A4: al pasar se abrirá el cuadro de imprimir`;
   const donde = d.modo === "ensayo" ? "la impresora de OT (ensayo)" : "Producción";
@@ -48,20 +58,31 @@ function cuando(iso: string): string {
   return `${dia} a las ${hora}`;
 }
 
+/** « (A5, pág. 2)»: qué parte del PDF es, si es una parte. */
+function detalleParte(f: FilaImpresion): string {
+  if (!f.paginasSel && (!f.papel || f.papel === "A4")) return "";
+  const papel = f.papel ?? "otro tamaño";
+  if (!f.paginasSel) return ` (${papel})`;
+  return ` (${papel}, ${f.paginasSel.includes(",") ? "págs." : "pág."} ${f.paginasSel})`;
+}
+
 export function textoImpresion(f: FilaImpresion): string {
   switch (f.estado) {
     case "enviado": {
-      // Se decide por el modo con el que salió, guardado en la cola: deducirlo
-      // de la IP se rompería en cuanto cambiase la impresora de ensayo.
-      const donde = f.modo === "ensayo" ? "la impresora de OT (ensayo)" : "Producción";
-      return `Impreso en ${donde} el ${cuando(f.enviadoAt ?? f.creadoAt)} · ${f.fichero}`;
+      // Se decide por el modo con el que salió y el destino de la parte,
+      // guardados en la cola: deducirlo de la IP se rompería en cuanto
+      // cambiase la impresora de ensayo.
+      const donde = f.modo === "ensayo" ? "la impresora de OT (ensayo)" : f.destino === "ot" ? "la impresora de OT" : "Producción";
+      return `Impreso en ${donde} el ${cuando(f.enviadoAt ?? f.creadoAt)} · ${f.fichero}${detalleParte(f)}`;
     }
     case "pendiente":
       return f.error
         ? `Pendiente de imprimir: ${f.error} (${f.intentos} ${f.intentos === 1 ? "intento" : "intentos"})`
         : "Pendiente de imprimir";
     case "manual":
-      return `Impresión a mano: ${f.fichero} lleva páginas que no son A4`;
+      return f.papel !== undefined && f.paginasSel !== undefined && (f.papel || f.paginasSel)
+        ? `Para imprimir a mano: ${f.fichero}${detalleParte(f)}`
+        : `Impresión a mano: ${f.fichero} lleva páginas que no son A4`;
     case "sin_planteamiento":
       return "Se pasó sin planteamiento en Planteamientos";
     case "descartado":

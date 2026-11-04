@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
 import { modoImpresion, prepararImpresion } from "@/lib/server/impresion-cola";
+import type { Papel } from "@/lib/planteamiento";
 import { identidad } from "@/lib/server/sesion";
 
 // ─── POST /api/planteamiento/reimprimir ──────────────────────────────────────
@@ -20,7 +21,10 @@ export async function POST(req: Request) {
   if (yo instanceof NextResponse) return yo;
   if (modoImpresion() === "off") return NextResponse.json({ error: "La impresión está apagada" }, { status: 409 });
   try {
-    return NextResponse.json(await prepararImpresion(pedido, yo.id));
+    // Con fichero y papel, solo esa parte: «Reimprimir» el A5 sin repetir los A4.
+    const papel: Papel | null | undefined = b.papel === "A4" || b.papel === "A5" || b.papel === "A3" ? b.papel : b.papel === null ? null : undefined;
+    const soloParte = typeof b.fichero === "string" && b.fichero && papel !== undefined ? { fichero: b.fichero, papel } : undefined;
+    return NextResponse.json(await prepararImpresion(pedido, yo.id, undefined, undefined, undefined, undefined, soloParte));
   } catch (e) {
     // prepararImpresion no lanza por una copia que falla, pero sí por la BD.
     console.error(`[impresion] no se pudo reimprimir ${pedido}:`, (e as Error).message);

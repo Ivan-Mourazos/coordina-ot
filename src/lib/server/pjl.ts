@@ -23,6 +23,8 @@ export interface TrabajoPjl {
   nombre: string;
   usuario: string;
   departamento: Departamento;
+  /** El papel que se pide; A4 si no se dice. */
+  papel?: "A4" | "A5" | "A3";
 }
 
 const UEL = "\x1B%-12345X";
@@ -42,7 +44,7 @@ export function trabajoPjl(pdf: Uint8Array, t: TrabajoPjl): Uint8Array {
     // Lo decidido para el planteamiento: 1 copia, una cara, A4.
     "@PJL SET QTY = 1",
     "@PJL SET DUPLEX = OFF",
-    "@PJL SET PAPER = A4",
+    `@PJL SET PAPER = ${t.papel ?? "A4"}`,
     "@PJL ENTER LANGUAGE = PDF",
     "",
   ].join("\r\n");

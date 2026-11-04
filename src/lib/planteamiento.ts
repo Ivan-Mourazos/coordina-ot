@@ -106,3 +106,89 @@ export function leerEleccion(v: unknown): EleccionPase | null {
   if (!imprimir || !adjuntar || !ofs || typeof x.nota !== "string") return null;
   return { imprimir, adjuntar, ofs, nota: x.nota.trim().slice(0, NOTA_MAX) };
 }
+
+// ─── Reparto por tamaño de página (Iván, 04/11/2026) ─────────────────────────
+// Un planteamiento con un A5 dentro se imprimía entero a mano: se mandaban los
+// A4 a Producción desde el cuadro de imprimir y luego había que buscar el plano
+// para sacar el A5 en OT. Ahora el PDF se parte por tamaño y cada parte va sola
+// a la impresora que tiene ese papel: A4 a Producción, A5 y A3 a la de OT (es la
+// única con esos papeles cargados, 04/11/2026). Lo de otros tamaños, a mano.
+
+export type Papel = "A4" | "A5" | "A3";
+export type DestinoParte = "produccion" | "ot" | "manual";
+export type Orientacion = "vertical" | "horizontal";
+
+/** Lado corto y largo de cada papel, en puntos PDF. */
+const PAPELES: Record<Papel, [number, number]> = {
+  A5: [419.53, 595.28],
+  A4: [595.28, 841.89],
+  A3: [841.89, 1190.55],
+};
+
+export function papelDe(ancho: number, alto: number): Papel | null {
+  const [corto, largo] = ancho <= alto ? [ancho, alto] : [alto, ancho];
+  for (const [papel, [c, l]] of Object.entries(PAPELES) as [Papel, [number, number]][]) {
+    if (Math.abs(corto - c) <= MARGEN && Math.abs(largo - l) <= MARGEN) return papel;
+  }
+  return null;
+}
+
+/** Cada página tal como se ve (con su giro ya aplicado). */
+export interface PaginaPdf {
+  papel: Papel | null;
+  horizontal: boolean;
+}
+
+export interface ParteImpresion {
+  /** null = un tamaño que no es A3, A4 ni A5. */
+  papel: Papel | null;
+  /** Números de página, desde 1, en su orden. */
+  paginas: number[];
+  destino: DestinoParte;
+  /** Cómo viene la primera página de la parte. */
+  horizontal: boolean;
+}
+
+export const DESTINO_DE_PAPEL: Record<Papel, DestinoParte> = { A4: "produccion", A5: "ot", A3: "ot" };
+
+/** Las páginas, agrupadas por papel en el orden en que aparece cada uno. */
+export function partesDe(paginas: readonly PaginaPdf[]): ParteImpresion[] {
+  const partes = new Map<string, ParteImpresion>();
+  paginas.forEach((p, i) => {
+    const clave = p.papel ?? "otro";
+    const parte = partes.get(clave);
+    if (parte) parte.paginas.push(i + 1);
+    else partes.set(clave, { papel: p.papel, paginas: [i + 1], destino: p.papel ? DESTINO_DE_PAPEL[p.papel] : "manual", horizontal: p.horizontal });
+  });
+  return [...partes.values()];
+}
+
+/** La clave de una parte en lo que manda el navegador: fichero y papel. */
+export const claveParte = (fichero: string, papel: Papel | null) => `${fichero}|${papel ?? "otro"}`;
+
+/** Lo que se elige en el aviso de pasar para cada parte: cómo va (vertical u
+ *  horizontal) y si se imprime a mano con «Ajustes de la impresora…». */
+export interface AjustesImpresion {
+  orientaciones: Record<string, Orientacion>;
+  aMano: string[];
+}
+
+const CLAVE_PARTE_RE = /^[^|]{1,200}\|(A3|A4|A5|otro)$/;
+
+export function leerAjustesImpresion(v: unknown): AjustesImpresion | null {
+  if (typeof v !== "object" || v === null) return null;
+  const x = v as Record<string, unknown>;
+  const orientaciones: Record<string, Orientacion> = {};
+  if (typeof x.orientaciones === "object" && x.orientaciones !== null) {
+    for (const [k, o] of Object.entries(x.orientaciones as Record<string, unknown>).slice(0, 50)) {
+      if (CLAVE_PARTE_RE.test(k) && (o === "vertical" || o === "horizontal")) orientaciones[k] = o;
+    }
+  }
+  const aMano = Array.isArray(x.aMano) ? x.aMano.filter((k): k is string => typeof k === "string" && CLAVE_PARTE_RE.test(k)).slice(0, 50) : [];
+  return { orientaciones, aMano };
+}
+
+/** ¿Hay que girar la parte para que quede como se eligió? */
+export function hayQueGirar(parte: Pick<ParteImpresion, "horizontal">, elegida: Orientacion | undefined): boolean {
+  return elegida !== undefined && (elegida === "horizontal") !== parte.horizontal;
+}

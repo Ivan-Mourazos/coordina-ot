@@ -71,8 +71,9 @@ async function conTurnoDeRender<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-/** Renderiza la 1ª página del PDF a PNG de ANCHO_MINIATURA px de ancho. */
-export async function renderizarPdf(rutaPdf: string): Promise<Buffer> {
+/** Renderiza una página del PDF (la 1ª si no se dice) a PNG de ANCHO_MINIATURA
+ *  px de ancho. */
+export async function renderizarPdf(rutaPdf: string, numPagina = 1): Promise<Buffer> {
   const { pdfjs, canvas, pdfjsDir } = await cargarMotor();
   const data = new Uint8Array(await readFile(rutaPdf));
 
@@ -88,7 +89,7 @@ export async function renderizarPdf(rutaPdf: string): Promise<Buffer> {
   });
   try {
     const documento = await tarea.promise;
-    const pagina = await documento.getPage(1);
+    const pagina = await documento.getPage(Math.min(Math.max(1, numPagina), documento.numPages));
     const escala = ANCHO_MINIATURA / pagina.getViewport({ scale: 1 }).width;
     const viewport = pagina.getViewport({ scale: escala });
     const lienzo = canvas.createCanvas(

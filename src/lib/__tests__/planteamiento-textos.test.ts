@@ -145,3 +145,21 @@ describe("aviso de que caduca el permiso de mandar correos", () => {
     expect(textoCaducidadSecreto(vista({ fecha: "2027-10-13", dias: 3 }, "off"))).toBeNull();
   });
 });
+
+describe("reparto por tamaño", () => {
+  const base = { id: 1, pedidoId: "AR.26.05333", fichero: "AR2605333-10.pdf", paginas: 1, intentos: 0, error: null,
+    impresora: "ipp://192.168.4.249/ipp", modo: "activo" as const, pasadoPor: "ivan", creadoAt: "2026-11-14T08:05:00Z", enviadoAt: "2026-11-14T08:05:00Z" };
+  it("dice en qué impresora salió cada parte y qué páginas", () => {
+    expect(textoImpresion({ ...base, estado: "enviado", destino: "ot", papel: "A5", paginasSel: "2" }))
+      .toBe("Impreso en la impresora de OT el 14/11 a las 09:05 · AR2605333-10.pdf (A5, pág. 2)");
+    expect(textoImpresion({ ...base, estado: "enviado", destino: "produccion", papel: "A4", paginasSel: "1, 3" }))
+      .toBe("Impreso en Producción el 14/11 a las 09:05 · AR2605333-10.pdf (A4, págs. 1, 3)");
+    expect(textoImpresion({ ...base, estado: "manual", destino: "ot", papel: "A5", paginasSel: "2" }))
+      .toBe("Para imprimir a mano: AR2605333-10.pdf (A5, pág. 2)");
+  });
+  it("el aviso de pasar avisa del reparto", () => {
+    expect(textoAntesDePasar({ modo: "activo", aviso: null, impresiones: [], ficheros: [{ nombre: "A-10.pdf", paginas: 3, todoA4: false,
+      partes: [{ papel: "A4", paginas: [1, 3], destino: "produccion", horizontal: false }, { papel: "A5", paginas: [2], destino: "ot", horizontal: true }] }] }))
+      .toBe("El planteamiento lleva páginas de distintos tamaños: cada una sale en la impresora que tiene ese papel");
+  });
+});

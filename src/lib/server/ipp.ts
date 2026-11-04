@@ -10,7 +10,12 @@
 export interface TrabajoIpp {
   nombre: string;
   usuario: string;
+  /** El papel que se pide; A4 si no se dice. */
+  papel?: "A4" | "A5" | "A3";
 }
+
+/** El nombre IPP de cada papel (el que dan las Konica en media-supported). */
+export const MEDIA_IPP = { A4: "iso_a4_210x297mm", A5: "iso_a5_148x210mm", A3: "iso_a3_297x420mm" } as const;
 
 // OJO: las Konica de la casa abortan lo que llega sin código de departamento,
 // y por IPP no se puede mandar (ver pjl.ts). Con código, se imprime por PJL;
@@ -38,7 +43,7 @@ export function peticionPrintJob(uri: string, pdf: Uint8Array, t: TrabajoIpp, id
   b.push(0x02); // job-attributes
   atributo(b, 0x21, "copies", entero(1));
   atributo(b, 0x44, "sides", texto("one-sided"));
-  atributo(b, 0x44, "media", texto("iso_a4_210x297mm"));
+  atributo(b, 0x44, "media", texto(MEDIA_IPP[t.papel ?? "A4"]));
   b.push(0x03);
   const salida = new Uint8Array(b.length + pdf.length);
   salida.set(b, 0);

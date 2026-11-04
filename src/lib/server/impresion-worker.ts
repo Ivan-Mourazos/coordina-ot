@@ -28,12 +28,15 @@ export interface TrabajoImpresion extends TrabajoIpp {
  *  por IPP sin más. El código va en `IMPRESORA_ENSAYO_DEPARTAMENTO` y su clave,
  *  tal como la cifra el driver de Windows, en
  *  `IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE` (ver pjl.ts). */
-function trabajoDe(nombre: string, modo: string): TrabajoImpresion {
-  const codigo = modo === "ensayo" ? process.env.IMPRESORA_ENSAYO_DEPARTAMENTO?.trim() : undefined;
+function trabajoDe(nombre: string, uri: string, papel?: TrabajoImpresion["papel"]): TrabajoImpresion {
+  // El código va con todo lo que vaya a la de OT: en ensayo (todo) y, desde el
+  // reparto por tamaño (04/11/2026), también con los A5 y A3 en activo.
+  const codigo = uri === impresoraDestino("ensayo") ? process.env.IMPRESORA_ENSAYO_DEPARTAMENTO?.trim() : undefined;
   const claveCifrada = process.env.IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE?.trim();
   return {
     nombre,
     usuario: process.env.IMPRESORA_USUARIO ?? "Coordina",
+    ...(papel ? { papel } : {}),
     ...(codigo && claveCifrada ? { departamento: { codigo, claveCifrada } } : {}),
   };
 }
@@ -41,7 +44,7 @@ function trabajoDe(nombre: string, modo: string): TrabajoImpresion {
 /** Con departamento, por el 9100 como el driver; sin él, por IPP. */
 export function imprimirPlanteamiento(uri: string, pdf: Uint8Array, t: TrabajoImpresion): Promise<{ trabajo: number | null }> {
   return t.departamento
-    ? imprimirPorPuerto(uri, pdf, { nombre: t.nombre, usuario: t.usuario, departamento: t.departamento })
+    ? imprimirPorPuerto(uri, pdf, { nombre: t.nombre, usuario: t.usuario, departamento: t.departamento, papel: t.papel })
     : imprimirPdf(uri, pdf, t);
 }
 
@@ -69,8 +72,15 @@ export async function vueltaImpresion(
   if (!destino || corriendo) return 0;
   corriendo = true;
   let enviados = 0;
+  // Una impresora que no responde no frena a la otra: se salta lo suyo y se
+  // sigue con lo de la otra hasta la siguiente vuelta.
+  const caidas = new Set<string>();
   try {
     for (const p of pendientesParaEnviar(ahora)) {
+      // A5 y A3 van a la de OT, que es la que tiene ese papel; lo demás, a la
+      // del modo (en ensayo es la misma).
+      const uri = p.destino === "ot" ? impresoraDestino("ensayo")! : destino;
+      if (caidas.has(uri)) continue;
       // Sin copia legible no hay nada que reintentar: se descarta esa fila y se
       // sigue con las demás (la impresora no tiene la culpa).
       if (!p.copia) {
@@ -86,21 +96,22 @@ export async function vueltaImpresion(
         continue;
       }
       try {
-        const t = trabajoDe(`Planteamiento ${p.pedidoId}`, modo);
-        const { trabajo } = await imprimir(destino, pdf, t);
-        const estado = comprobar && trabajo !== null ? await comprobar(destino, trabajo, t) : null;
+        const papel = p.papel ?? undefined;
+        const t = trabajoDe(`Planteamiento ${p.pedidoId}${papel && papel !== "A4" ? ` (${papel})` : ""}`, uri, papel);
+        const { trabajo } = await imprimir(uri, pdf, t);
+        const estado = comprobar && trabajo !== null ? await comprobar(uri, trabajo, t) : null;
         if (estado !== null && NO_SALIO.has(estado)) {
           // «Reimprimir» lo vuelve a buscar y mandar cuando se arregle.
           descartar(p.id, `La impresora aceptó el trabajo pero lo ${estado === 7 ? "canceló" : "abortó"} sin imprimir: ¿pide código de departamento? (IMPRESORA_ENSAYO_DEPARTAMENTO / IMPRESORA_ENSAYO_DEPARTAMENTO_CLAVE)`);
           console.warn(`[impresion] ${p.pedidoId} ${p.fichero}: la impresora abortó el trabajo ${trabajo}`);
           continue;
         }
-        marcarImpreso(p.id, trabajo, destino, modo, ahora, p.copia);
+        marcarImpreso(p.id, trabajo, uri, modo, ahora, p.copia);
         enviados += 1;
       } catch (e) {
         marcarFallo(p.id, p.intentos, (e as Error).message, ahora);
         console.warn(`[impresion] ${p.pedidoId} ${p.fichero}:`, (e as Error).message);
-        break;
+        caidas.add(uri);
       }
     }
   } finally {

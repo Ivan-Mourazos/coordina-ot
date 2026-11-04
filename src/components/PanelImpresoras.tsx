@@ -92,7 +92,7 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
   const [datos, setDatos] = useState<Datos | null>(null);
   const [error, setError] = useState(false);
   const [vuelta, setVuelta] = useState(0);
-  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState<number | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,14 +114,18 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
     };
   }, [vuelta]);
 
-  const reimprimir = async (pedido: string) => {
-    setOcupado(pedido);
+  // Una parte del reparto (A5, A3…) se reimprime sola: repetir el A5 no tiene
+  // por qué volver a sacar los A4. Las filas de antes, el planteamiento entero.
+  const reimprimir = async (e: Envio) => {
+    const pedido = e.pedidoId;
+    const parte = e.paginasSel && e.fichero ? { fichero: e.fichero, papel: e.papel ?? null } : {};
+    setOcupado(e.id);
     setMensaje(null);
     try {
       const r = await fetch("/api/planteamiento/reimprimir", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedido, operarioId: miId }),
+        body: JSON.stringify({ pedido, operarioId: miId, ...parte }),
       });
       setMensaje(r.ok ? `${pedido}: enviado otra vez a la cola` : `${pedido}: no se ha podido reimprimir`);
       setVuelta((v) => v + 1);
@@ -163,6 +167,7 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
                     <span className="w-28 shrink-0 font-semibold text-text">{e.pedidoId}</span>
                     <span className="min-w-0 flex-1 truncate text-text-muted" title={e.fichero ?? ""}>
                       {e.fichero}
+                      {e.paginasSel && <> ({e.papel ?? "otro tamaño"}, pág. {e.paginasSel})</>}
                       {e.impresoraId && <> · {NOMBRES_IMPRESORA[e.impresoraId]}</>}
                     </span>
                     <span className={`shrink-0 font-semibold ${s.mal ? "text-red-700 dark:text-red-300" : "text-text"}`}>{s.texto}</span>
@@ -170,11 +175,11 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
                       <button
                         type="button"
                         disabled={ocupado !== null}
-                        onClick={() => void reimprimir(e.pedidoId)}
-                        title="Vuelve a buscar el planteamiento de este pedido y lo manda a la cola"
+                        onClick={() => void reimprimir(e)}
+                        title={e.paginasSel ? "Vuelve a mandar solo esta parte a la cola" : "Vuelve a buscar el planteamiento de este pedido y lo manda a la cola"}
                         className="chip-3d shrink-0 px-2.5 py-0.5 text-[11px] font-semibold text-text disabled:opacity-55"
                       >
-                        {ocupado === e.pedidoId ? "Mandando…" : "Reimprimir"}
+                        {ocupado === e.id ? "Mandando…" : "Reimprimir"}
                       </button>
                     )}
                   </li>

@@ -54,7 +54,7 @@ beforeAll(async () => {
 test("Manuel, que seguía en Diseño, pasa a Impresión; Carrón no se toca", () => {
   expect(seccion("manuel")).toBe("impresion");
   expect(seccion("carron")).toBe("diseno");
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(13);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(14);
 });
 
 test("si alguien le puso otra sección a mano, esa decisión manda", async () => {
