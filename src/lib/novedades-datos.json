@@ -1,8 +1,14 @@
 [
   {
     "id": "2026-11-04",
-    "hasta": "14c787c",
+    "hasta": "09c4f05",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Un panel enseña cómo están las impresoras y qué ha mandado la web a cada una",
+        "detalle": "Está en el menú de tu nombre, en «Impresoras». Desde ahí puedes reimprimir.",
+        "tanda": 2
+      },
       {
         "tipo": "mejor",
         "titulo": "Solicitudes enseña todo el histórico, con buscador y filtro por técnico",
