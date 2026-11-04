@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-04",
-    "hasta": "7c2e440",
+    "hasta": "a8157cc",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -54,6 +54,12 @@
         "titulo": "En Métricas se distingue lo del equipo de lo tuyo",
         "detalle": "Lo tuyo va abajo, con su título y la raya dorada en cada panel.",
         "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Métricas cabe en una pantalla, sin bajar",
+        "detalle": "Pincha una familia y la tarjeta te enseña sus causas; «← Volver» para salir. Lo que no cabe, en páginas.",
+        "tanda": 7
       }
     ]
   },
