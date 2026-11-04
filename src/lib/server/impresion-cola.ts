@@ -121,6 +121,14 @@ export function leerImpresionesDe(pedidoId: string): FilaImpresion[] {
     .all(pedidoId) as FilaDb[]).map(aFila);
 }
 
+/** Lo último que mandó la web, de todos los pedidos, para el panel de las
+ *  impresoras. Con el número de trabajo, para cruzarlo con lo que dice ella. */
+export function leerImpresionesRecientes(limite = 40): Array<FilaImpresion & { trabajo: number | null }> {
+  return (getDb()
+    .prepare("SELECT * FROM planteamiento_impresion WHERE estado <> 'sin_planteamiento' ORDER BY id DESC LIMIT ?")
+    .all(limite) as Array<FilaDb & { trabajo_ipp: number | null }>).map((r) => ({ ...aFila(r), trabajo: r.trabajo_ipp }));
+}
+
 export function pendientesParaEnviar(ahora: Date): Array<FilaImpresion & { copia: string | null }> {
   return (getDb()
     .prepare("SELECT * FROM planteamiento_impresion WHERE estado = 'pendiente' AND proximo_at <= ? ORDER BY id LIMIT 20")

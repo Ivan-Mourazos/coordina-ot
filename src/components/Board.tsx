@@ -26,6 +26,7 @@ import { HistorialView, FILTROS_HISTORIAL_INICIALES, type FiltrosHistorial } fro
 import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
+import { PanelImpresoras } from "./PanelImpresoras";
 import { VersionNueva } from "./VersionNueva";
 import { MARCA_ULTIMA, ULTIMA, cambiosSinLeer, cuantasNuevas } from "@/lib/novedades";
 import { Drawer } from "./Drawer";
@@ -1263,6 +1264,7 @@ export function Board({
   // La guía de revisión, abierta desde el menú para leerla en frío. La de
   // trabajar está en la propia tarjeta de "Revisando"; esta es la de consulta.
   const [guiaAbierta, setGuiaAbierta] = useState(false);
+  const [impresorasAbiertas, setImpresorasAbiertas] = useState(false);
 
   // Cuándo salió cada entrada del log. Lo sella el servidor la primera vez que
   // arranca con ella dentro, así que no cambia mientras la pestaña esté
@@ -2751,6 +2753,7 @@ export function Board({
               fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
               onVerNovedades={() => setNovedadesAbiertas(true)}
               onVerGuiaRevision={() => setGuiaAbierta(true)}
+              onVerImpresoras={() => setImpresorasAbiertas(true)}
               seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
               onCambiarSeccion={irASeccion}
               yo={yo}
@@ -3102,6 +3105,7 @@ export function Board({
         )}
 
         {guiaAbierta && <PanelGuiaRevision onCerrar={() => setGuiaAbierta(false)} />}
+        {impresorasAbiertas && <PanelImpresoras miId={miId} onCerrar={() => setImpresorasAbiertas(false)} />}
 
         {/* Se ha desplegado mientras esta pestaña estaba abierta. No se recarga
             sola: se llevaría por delante la nota a medio escribir. */}

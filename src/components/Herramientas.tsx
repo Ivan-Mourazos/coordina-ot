@@ -35,6 +35,7 @@ export function Herramientas({
   fechaUltimaNovedad,
   onVerNovedades,
   onVerGuiaRevision,
+  onVerImpresoras,
   seccion,
   onCambiarSeccion,
   yo,
@@ -49,6 +50,8 @@ export function Herramientas({
   fechaUltimaNovedad?: string;
   onVerNovedades: () => void;
   onVerGuiaRevision: () => void;
+  /** El panel de las impresoras: su estado, su cola y lo que mandó la web. */
+  onVerImpresoras: () => void;
   /** Qué lista de trabajo se está mirando. */
   seccion: SeccionId;
   onCambiarSeccion: (s: SeccionId) => void;
@@ -329,6 +332,17 @@ export function Herramientas({
               className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-surface-2"
             >
               Pasos y causas de revisión
+            </button>
+
+            <button
+              onClick={() => {
+                onVerImpresoras();
+                setOpen(false);
+              }}
+              title="Cómo están las impresoras de Producción y OT, y qué ha mandado la web."
+              className="block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-text hover:bg-surface-2"
+            >
+              Impresoras
             </button>
 
             {ULTIMA && (
