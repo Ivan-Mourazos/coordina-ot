@@ -379,3 +379,10 @@ html[data-estilo="hero"]:root .tarjeta-rectificado {
   border-radius: 24px;
   box-shadow: var(--hero-sombra-panel);
 }
+
+/* Métricas: lo mío, con la raya dorada arriba, para no confundirlo con lo del
+   equipo (Iván, 04/11/2026). Sin tinte de fondo: ni crema en claro ni nada sobre
+   el carbón en oscuro (ver preferencias de color); la raya es la marca de la casa. */
+html[data-estilo="hero"]:root .metricas-panel.metricas-mio {
+  box-shadow: inset 0 3px 0 var(--color-brand-500), var(--hero-sombra-panel);
+}

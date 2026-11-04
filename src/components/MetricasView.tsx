@@ -190,6 +190,9 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
         // sitio. Las cifras, una columna cada una (o a partes iguales si hay
         // menos); los paneles, a partes iguales de su fila.
         <div aria-busy={actualizando} className={`grid grid-cols-2 gap-2.5 transition-opacity duration-200 motion-reduce:transition-none xl:grid-cols-6 ${atenuado(actualizando)}`}>
+          {/* Lo del equipo y lo mío, separados (Iván, 04/11/2026: «si no, no
+              son legibles»): un encabezado para cada parte, y lo mío con su tinte. */}
+          <Encabezado titulo="Equipo" detalle={SECCIONES[seccion].nombre} />
           {/* 1 · Las cifras del periodo */}
           <div className="contents [&>*]:xl:col-[span_var(--ancho-cifra)]" style={{ "--ancho-cifra": String(6 / nCifras) } as CSSProperties}>
             <Tile titulo="OF terminadas" valor={String(m.volumen.ofTerminadas + ofsRps)}
@@ -222,6 +225,7 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
             <Panel titulo="Rectificados" extra={rectConCausa ? `${rectConCausa.length} con culpa` : undefined} actualizando={detalleViejo} alto className={anchoPorQue}><Rectificados nc={nc} familias={datos?.detalle?.ncFamilias} cargando={datos?.detalleCargando} seccion={seccion} miId={miId} onAbrirPedido={onAbrirPedido} /></Panel>
 
           {/* 4 · Lo mío: tres paneles alineados con los de arriba */}
+          <Encabezado titulo="Tus datos" detalle={operarios.find((o) => o.id === miId)?.nombre} mio separado />
           <MisDatos anio={anio} mes={mes} unidad={unidad} detalle={datos?.detalle} cargando={datos?.detalleCargando} causa={causa} seccion={seccion} nombre={operarios.find((o) => o.id === miId)?.nombre} actualizando={detalleViejo} />
         </div>
       )}
@@ -358,7 +362,7 @@ function PorFamiliaAbrible({ familias: todasLasFamilias, color, vacio }: { famil
 }
 
 function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre, actualizando }: { anio: string; mes: string; unidad: string; detalle?: DetalleMetricas; cargando?: boolean; causa: (id: number | null) => string; seccion: SeccionId; nombre?: string; actualizando: boolean }) {
-  if (!detalle) return <Panel titulo="Mis datos" extra={nombre} className="col-span-2 xl:col-span-6"><Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio></Panel>;
+  if (!detalle) return <Panel titulo="Mis datos" extra={nombre} className="col-span-2 xl:col-span-6" mio><Vacio>{cargando ? "Consultando tus datos…" : "No se pudieron consultar tus datos. Prueba a recargar."}</Vacio></Panel>;
   const p = detalle.personal;
   const sinRevision = SECCIONES[seccion].sinRevision === true;
   const filas = delAnio(anio, p.meses);
@@ -391,14 +395,14 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre
     : "Errores de planteamiento apuntados en RPS en OF que pasaste tú (según Coordina; las de antes de agosto, quien más fichó de OT)";
   const ancho = ANCHO[sinRevision ? 2 : 3];
   return <>
-    <Panel titulo="Mis OF por mes" extra={nombre} actualizando={actualizando} className={ancho}>
+    <Panel titulo="Mis OF por mes" actualizando={actualizando} className={ancho} mio>
       <MetricasGrafica titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
         puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
     </Panel>
-    {!sinRevision && <Panel titulo="Mis correcciones" extra={String(p.correcciones)} actualizando={actualizando} className={ancho}>
+    {!sinRevision && <Panel titulo="Mis correcciones" extra={String(p.correcciones)} actualizando={actualizando} className={ancho} mio>
       <PorFamiliaAbrible color={SERIES[1].color} vacio={`No te han devuelto OF este ${unidad}.`} familias={p.correccionesPorFamilia.map((f) => ({ familia: f.familia, n: f.n, detalle: f.porCausa.map((x) => ({ etiqueta: causa(x.id), n: x.n })) }))} />
     </Panel>}
-    <Panel titulo="Mis incidencias" extra={p.incidencias === null ? undefined : `${p.incidencias} · ${sobre(p.incidencias, p.entregadas)} de ${p.entregadas}`} actualizando={actualizando} className={ancho}>
+    <Panel titulo="Mis incidencias" extra={p.incidencias === null ? undefined : `${p.incidencias} · ${sobre(p.incidencias, p.entregadas)} de ${p.entregadas}`} actualizando={actualizando} className={ancho} mio>
       <div title={`${queIncidencia}, sobre tus ${p.entregadas} OF pasadas. Por familia, sobre las que pasaste de esa familia.`}>
         {p.incidencias === null ? <Vacio>Datos de RPS no disponibles.</Vacio> : !p.incidenciasPorFamilia.length ? <Vacio>{`Sin incidencias en tus OF este ${unidad}.`}</Vacio> : <Ranking color={COLOR_DEVUELTA} vacio="" filas={p.incidenciasPorFamilia.map((f) => ({ etiqueta: nombreFamilia(f.familia), n: f.n, pct: sobre(f.n, f.base), titulo: `${nombreFamilia(f.familia)}: ${f.n} con incidencia de ${f.base} que pasaste` }))} />}
       </div>
@@ -409,8 +413,17 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre
 /** Atenuado mientras se cambia de periodo. Con retraso al entrar: si los
  *  datos llegan enseguida no se ve parpadeo ninguno; al salir, al momento. */
 const atenuado = (si: boolean) => si ? "opacity-55 delay-150" : "opacity-100 delay-0";
-function Panel({ titulo, extra, actualizando = false, alto = false, className = "col-span-2", children }: { titulo: string; extra?: string; actualizando?: boolean; /** Los tres «por qué»: el mismo alto mínimo, para que ninguno se quede diminuto. */ alto?: boolean; /** Cuántas columnas de la rejilla ocupa. */ className?: string; children: ReactNode }) {
-  return <section aria-busy={actualizando} className={`metricas-panel glass-panel flex min-w-0 flex-col rounded-xl p-3 ${alto ? "min-h-64" : ""} ${className}`}><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`flex flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
+/** El rótulo de cada parte de Métricas: lo del equipo y lo mío. A todo el
+ *  ancho de la rejilla; el de lo mío, con raya encima y el punto de la marca. */
+function Encabezado({ titulo, detalle, mio = false, separado = false }: { titulo: string; detalle?: string; mio?: boolean; separado?: boolean }) {
+  return <h3 className={`col-span-full flex items-baseline gap-2 ${separado ? "mt-3 border-t border-border-strong pt-4" : ""}`}>
+    <span aria-hidden className={`size-2 self-center rounded-full ${mio ? "bg-brand-500" : "bg-text-muted"}`} />
+    <span className="text-sm font-bold text-text">{titulo}</span>
+    {detalle && <span className="text-xs text-text-muted">{detalle}</span>}
+  </h3>;
+}
+function Panel({ titulo, extra, actualizando = false, alto = false, mio = false, className = "col-span-2", children }: { titulo: string; extra?: string; actualizando?: boolean; /** Los tres «por qué»: el mismo alto mínimo, para que ninguno se quede diminuto. */ alto?: boolean; /** Lo mío: con el tinte de la marca, para no confundirlo con lo del equipo. */ mio?: boolean; /** Cuántas columnas de la rejilla ocupa. */ className?: string; children: ReactNode }) {
+  return <section aria-busy={actualizando} className={`metricas-panel glass-panel flex min-w-0 flex-col rounded-xl p-3 ${alto ? "min-h-64" : ""} ${mio ? "metricas-mio" : ""} ${className}`}><h3 className="mb-2 flex shrink-0 flex-wrap items-baseline justify-between gap-1 text-[11px] font-semibold uppercase tracking-[.08em] text-text-muted">{titulo}{extra && <span className="text-[10px] font-normal normal-case tracking-normal first-letter:uppercase">{extra}</span>}</h3><div className={`flex flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none ${atenuado(actualizando)}`}>{children}</div></section>;
 }
 function Vacio({ children }: { children: ReactNode }) { return <p className="flex flex-1 items-center justify-center py-4 text-center text-xs text-text-muted">{children}</p>; }
 function Delta({ ahora, antes, puntos, frente, sinDato }: { ahora: number | null; antes: number | null; puntos?: boolean; frente: string; sinDato?: string | null }) {
