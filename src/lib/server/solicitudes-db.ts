@@ -92,6 +92,7 @@ function datos(): Promise<Datos> {
 // minutos de caché. Si falla, la pestaña sigue igual, sin esos datos.
 
 const CACHE_VISTA_MS = 10 * 60_000;
+const ESPERA_TRAS_FALLO_MS = 5 * 60_000;
 let vistaGuardada: { hasta: number; filas: Promise<FilaVista[]> } | null = null;
 /** La última lectura buena. Sin el filtro de 180 días (David, 04/11/2026) la
  *  vista tarda ~15 s: al caducar se sirve esta mientras se refresca por detrás,
@@ -106,8 +107,18 @@ function vista(): Promise<FilaVista[]> {
     (f) => {
       vistaBuena = f;
     },
-    () => {
-      vistaGuardada = null;
+    (e: Error) => {
+      console.error("[solicitudes] la vista TGM_WF_COORDINA falló (se reintenta en 5 min):", e.message);
+      // Un fallo de la vista no se arregla insistiendo en cada petición (04/11/2026:
+      // un técnico con dos documentos la rompía entera): se espera cinco minutos,
+      // sirviendo mientras la última lectura buena o nada.
+      const espera = Date.now() + ESPERA_TRAS_FALLO_MS;
+      const reserva = vistaBuena;
+      vistaGuardada = {
+        hasta: espera,
+        filas: reserva ? Promise.resolve(reserva) : Promise.reject(new Error("La vista falló hace poco; se reintenta en unos minutos")),
+      };
+      vistaGuardada.filas.catch(() => {});
     },
   );
   return vistaBuena ? Promise.resolve(vistaBuena) : filas;
@@ -191,8 +202,8 @@ export async function leerSolicitudes(seccion: SeccionId): Promise<Solicitud[]> 
   let filas: FilaVista[];
   try {
     filas = await vista();
-  } catch (e) {
-    console.error("[solicitudes] la vista TGM_WF_COORDINA falló:", (e as Error).message);
+  } catch {
+    // Ya lo dijo `vista()` una vez; aquí solo se sigue sin esos datos.
     return solicitudes;
   }
   // Solo se miran los documentos de las solicitudes que se enseñan.
