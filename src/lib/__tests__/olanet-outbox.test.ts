@@ -169,6 +169,20 @@ describe("sinLlegarAOlanet", () => {
     });
   });
 
+  it("un movimiento descartado deja de contar si después entró otro de la misma fase", () => {
+    // OF 0233696 (05/11/2026): el 1 se descartó porque OLANET aún no tenía
+    // la fase cargada; los movimientos de después ya entraron.
+    outbox.encolarTramosDeOF("0241300:5", [
+      iv("2026-09-16T08:00:00Z", "2026-09-16T08:30:00Z", ["0241300:5"]),
+    ]);
+    const suyos = outbox.leerPendientes().filter((p) => p.datos.of === "0241300").sort((a, b) => a.id - b.id);
+    const [primera, ...resto] = suyos.filter((p) => p.tipo === "fase");
+    outbox.descartar(primera.id, "OLANET no tiene la fase 0241300/5");
+    expect(outbox.sinLlegarAOlanet("0241300", "5").fasesDescartadas).toBe(1);
+    outbox.marcarEnviados([...resto, ...suyos.filter((p) => p.tipo === "bono")].map((p) => p.id));
+    expect(outbox.sinLlegarAOlanet("0241300", "5")).toEqual({ pendientes: 0, descartados: 0, fasesDescartadas: 0 });
+  });
+
   it("lo que sigue en la cola cuenta como pendiente, sea tiempo o movimiento", () => {
     outbox.encolarTramosDeOF("0241200:9", [
       iv("2026-09-16T10:00:00Z", "2026-09-16T10:30:00Z", ["0241200:9"]),

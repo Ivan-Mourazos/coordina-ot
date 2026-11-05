@@ -271,12 +271,22 @@ export function sinLlegarAOlanet(
       `SELECT
          COALESCE(SUM(CASE WHEN enviado_at IS NULL THEN 1 ELSE 0 END), 0) AS pendientes,
          COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL AND tipo = 'bono' THEN 1 ELSE 0 END), 0) AS descartados,
-         COALESCE(SUM(CASE WHEN enviado_at IS NOT NULL AND tipo = 'fase' THEN 1 ELSE 0 END), 0) AS fasesDescartadas
-       FROM olanet_pendiente
-       WHERE json_extract(datos, '$.of') = ?
-         AND ltrim(json_extract(datos, '$.numope'), '0') = ltrim(?, '0')
-         AND (enviado_at IS NULL
-              OR (error LIKE 'DESCARTADO:%' AND error NOT LIKE 'DESCARTADO: ensayo:%'))`,
+         -- Un movimiento de fase descartado deja de contar si DESPUÉS entró
+         -- bien otro de la misma fase (Iván, 05/11/2026, OF 0233696): se
+         -- descartó porque OLANET aún no había cargado la fase, y al rato ya
+         -- estaba y los siguientes entraron. Bloqueaba el cierre para siempre.
+         COALESCE(SUM(CASE WHEN o.enviado_at IS NOT NULL AND o.tipo = 'fase' AND NOT EXISTS (
+           SELECT 1 FROM olanet_pendiente AS d
+            WHERE d.tipo = 'fase' AND d.id > o.id
+              AND d.enviado_at IS NOT NULL AND d.error IS NULL
+              AND json_extract(d.datos, '$.of') = json_extract(o.datos, '$.of')
+              AND ltrim(json_extract(d.datos, '$.numope'), '0') = ltrim(json_extract(o.datos, '$.numope'), '0')
+         ) THEN 1 ELSE 0 END), 0) AS fasesDescartadas
+       FROM olanet_pendiente AS o
+       WHERE json_extract(o.datos, '$.of') = ?
+         AND ltrim(json_extract(o.datos, '$.numope'), '0') = ltrim(?, '0')
+         AND (o.enviado_at IS NULL
+              OR (o.error LIKE 'DESCARTADO:%' AND o.error NOT LIKE 'DESCARTADO: ensayo:%'))`,
     )
     .get(orden, numope) as { pendientes: number; descartados: number; fasesDescartadas: number };
   return {
