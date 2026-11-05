@@ -1,5 +1,22 @@
 [
   {
+    "id": "2026-11-05",
+    "hasta": "0e25764",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al dar por terminada una OF suelta puedes imprimir su planteamiento y mandar el correo, como al pasar el pedido",
+        "detalle": "Al pasar luego el resto, te dice qué PDF ya se imprimieron, cuándo y quién, y eliges si repetirlos.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Algunas OF no se podían dar por terminadas en RPS aunque todo estaba bien",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-04",
     "hasta": "a8157cc",
     "cambios": [
