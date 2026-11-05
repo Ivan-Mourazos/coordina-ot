@@ -25,6 +25,11 @@ vi.mock("@/lib/server/olanet", () => ({
   buscarIdBoletin: async () => "900",
   estadoDeFase: async () => 2,
 }));
+// Imprimir y mandar el planteamiento: solo se mira SI se lanza y con qué.
+const lanzarPlanteamiento = vi.fn();
+vi.mock("@/lib/server/mandar-planteamiento", () => ({
+  lanzarPlanteamiento: (...a: unknown[]) => lanzarPlanteamiento(...a),
+}));
 vi.mock("@/lib/server/operarios", () => ({
   COD_RPS_POR_OPERARIO: { ivan: "195", tamara: "180" },
   // Lo usa `encolarFichaje` al derivar las líneas de tiempo; sin él, el corte
@@ -168,6 +173,28 @@ test("escribe el 3, marca la OF y la retiene, en modo activo", async () => {
   expect(estadoDb.leerOfsRetenidas("ot")).toEqual([
     expect.objectContaining({ ofId: "0232086:9", pedido: "AR.26.04351", motivo: "cerrada", por: "ivan" }),
   ]);
+});
+
+test("dar una OF por terminada la pasa: con el planteamiento pedido, se imprime y se manda solo con ESA OF", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  const opciones = { conPlanteamiento: true, mandarCorreo: true, planteamiento: { imprimir: ["AR2604351-1.pdf"], adjuntar: [], ofs: ["0232086"], nota: "" } };
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", ...opciones });
+  expect(res.status).toBe(200);
+  expect(lanzarPlanteamiento).toHaveBeenCalledTimes(1);
+  const [codigo, por, datos] = lanzarPlanteamiento.mock.calls[0];
+  expect([codigo, por]).toEqual(["AR.26.04351", "ivan"]);
+  expect(datos.ofs.map((o: { codigo: string }) => o.codigo)).toEqual(["0232086"]);
+});
+
+test("sin pedirlo, o si el cierre falla, no se imprime ni se manda nada", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  await post({ ofId: "0232086:9", operarioId: "ivan" });
+  expect(lanzarPlanteamiento).not.toHaveBeenCalled();
+  fasesDeOFs.mockResolvedValue([{ idBoletin: "900", of: "0232086", fase: "9", descripcion: "FINALIZAR", maquina: "A-OTEC", estado: 4 }]);
+  estadoDb.getDb().exec("DELETE FROM of_overlay; DELETE FROM of_retenida;");
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", conPlanteamiento: true });
+  expect(res.status).toBe(409);
+  expect(lanzarPlanteamiento).not.toHaveBeenCalled();
 });
 
 test("con la operación ya en 3 (finalizables no la trae), contesta yaEstaba y marca igual", async () => {

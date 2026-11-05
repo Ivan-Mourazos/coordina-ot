@@ -264,6 +264,30 @@ function leerDescartes(operarioId: string | null): string[] {
   }
 }
 
+/** Los PDF que ya se imprimieron, con su última impresión (las filas llegan
+ *  de la más nueva a la más vieja). */
+function impresosAntes(d: VistaPlanteamiento): Map<string, VistaPlanteamiento["impresiones"][number]> {
+  const m = new Map<string, VistaPlanteamiento["impresiones"][number]>();
+  for (const f of d.impresiones) if (f.estado === "enviado" && f.fichero && !m.has(f.fichero)) m.set(f.fichero, f);
+  return m;
+}
+
+/** Qué PDF se imprimen al pasar. Si alguno ya salió (una OF pasada suelta),
+ *  de serie solo los que faltan; si no, todos o ninguno, como siempre. */
+function seleccionImpresion(d: VistaPlanteamiento, elegidos: string[] | null, todos: boolean): string[] {
+  const nombres = d.ficheros.map((f) => f.nombre);
+  const impresos = impresosAntes(d);
+  if (impresos.size === 0) return todos ? nombres : [];
+  return elegidos ?? nombres.filter((n) => !impresos.has(n));
+}
+
+/** «05/11 a las 10:30», en hora de Madrid. */
+function fechaHora(iso: string): string {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", timeZone: "Europe/Madrid" });
+  const hora = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+  return `${dia} a las ${hora}`;
+}
 /** Un apartado del aviso de pasar (Impresión, Correo): gris de zona sobre el
  *  blanco del cuadro, como los bloques de la ficha en el estilo Hero. */
 function ApartadoPase({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -1567,6 +1591,8 @@ export function Board({
       notaCorreo?: string;
       /** Orientación y partes a mano del reparto por tamaño (ver `AjustesImpresion`). */
       impresion?: AjustesImpresion;
+      /** Qué PDF se imprimen cuando alguno ya salió antes (OF pasada suelta). */
+      imprimirSolo?: string[];
     }) => {
       // Cortar el reloj por AQUI cuenta igual que un POST de fichaje, y hay que
       // decirlo: el sondeo de /api/fichaje solo descarta su respuesta si
@@ -2422,6 +2448,9 @@ export function Board({
   // Solo se pueden desmarcar al volver a pasar un pedido que ya se pasó (ver
   // `yaSePasoAntes`). Se marcan de nuevo cada vez que se abre el diálogo.
   const [imprimirAlPasar, setImprimirAlPasar] = useState(true);
+  // Cuando algún PDF ya se imprimió (una OF pasada suelta, Iván 05/11/2026):
+  // cuáles se imprimen ahora. null = lo de serie: los que aún no salieron.
+  const [reimprimir, setReimprimir] = useState<string[] | null>(null);
   const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
   // «Cambiar lo que se imprime y se manda»: null = la norma, sin tocar nada.
   const [eleccionPase, setEleccionPase] = useState<EleccionPase | null>(null);
@@ -2438,6 +2467,7 @@ export function Board({
       pedidoDelDialogo.current = pedidoId;
       setPasarPendiente(pedidoId);
       setImprimirAlPasar(true);
+      setReimprimir(null);
       setMandarCorreoAlPasar(true);
       setEleccionPase(null);
       setNotaCorreo("");
@@ -2459,7 +2489,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion; imprimirSolo?: string[] },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -3289,8 +3319,10 @@ export function Board({
               const conCorreo = !!datos.correo && datos.correo.modo !== "off";
               // Solo los PDF que se van a imprimir: con «No se imprimirá otra
               // vez» o quitados en «Cambiar…» no hay nada que repartir.
+              const impresos = impresosAntes(datos);
+              const seleccion = seleccionImpresion(datos, reimprimir, imprimirAlPasar);
               const seImprimen = datos.ficheros.filter((f) =>
-                eleccionPase ? eleccionPase.imprimir.includes(f.nombre) : imprimirAlPasar,
+                eleccionPase ? eleccionPase.imprimir.includes(f.nombre) : seleccion.includes(f.nombre),
               );
               const reparto = datos.modo !== "off" && pedidoAPasar?.codigo && hayReparto(seImprimen) ? (
                 <RepartoImpresion
@@ -3358,13 +3390,47 @@ export function Board({
                 <div className="mt-4 flex flex-col gap-2.5 text-xs">
                   {textoAntesDePasar(datos) && (
                     <ApartadoPase titulo="Impresión">
+                      {impresos.size > 0 ? (
+                        // Una línea por PDF: lo que ya salió, cuándo y quién, y su
+                        // casilla para volver a imprimirlo (de serie, desmarcada).
+                        <div className="flex flex-col gap-1">
+                          {datos.ficheros.map((f) => {
+                            const antes = impresos.get(f.nombre);
+                            return (
+                              <label key={f.nombre} className="flex items-start gap-2 text-text">
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 size-4 shrink-0 accent-brand-500"
+                                  checked={seleccion.includes(f.nombre)}
+                                  onChange={(e) => setReimprimir(e.target.checked ? [...seleccion, f.nombre] : seleccion.filter((n) => n !== f.nombre))}
+                                />
+                                <span>
+                                  <b className="font-semibold">{f.nombre}</b>
+                                  {antes ? (
+                                    <span className="block text-amber-800 dark:text-amber-300">
+                                      Ya impreso el {fechaHora(antes.enviadoAt ?? antes.creadoAt)}
+                                      {antes.pasadoPor && ` por ${operarios.find((o) => o.id === antes.pasadoPor)?.nombre ?? antes.pasadoPor}`}
+                                      {" · márcalo para imprimirlo otra vez"}
+                                    </span>
+                                  ) : (
+                                    <span className="block text-text-muted">Sin imprimir todavía</span>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                      <>
                       <p className="text-text">
                         {yaSePasoAntes(datos) && !imprimirAlPasar && datos.ficheros.length > 0
                           ? "No se imprimirá otra vez."
                           : textoAntesDePasar(datos)}
                       </p>
                       {yaImpreso && <p className="mt-1 text-text-muted">Ya se imprimió antes: {textoImpresion(yaImpreso)}</p>}
-                      {yaSePasoAntes(datos) && datos.ficheros.length > 0 && (
+                      </>
+                      )}
+                      {impresos.size === 0 && yaSePasoAntes(datos) && datos.ficheros.length > 0 && (
                         <label className="mt-2 flex items-center gap-2 text-text">
                           <input type="checkbox" className="size-4 accent-brand-500" checked={imprimirAlPasar} onChange={(e) => setImprimirAlPasar(e.target.checked)} />
                           Imprimir otra vez en Producción
@@ -3398,7 +3464,7 @@ export function Board({
                       onClick={() => {
                         const f = datos.ficheros;
                         setEleccionPase({
-                          imprimir: imprimirAlPasar ? f.map((x) => x.nombre) : [],
+                          imprimir: seleccion,
                           adjuntar: f.filter((x) => x.adjunto).map((x) => x.nombre),
                           ofs: ofsDelCorreo.map((o) => o.codigo),
                           nota: "",
@@ -3424,7 +3490,9 @@ export function Board({
           // Las casillas solo existen si el pedido ya se pasó antes; la primera
           // vez valen siempre «sí» (marcadas al abrir el diálogo).
           const eleccion = eleccionPase;
-          const seImprime = (nombre: string) => (eleccion ? eleccion.imprimir.includes(nombre) : imprimirAlPasar);
+          const conImpresos = !!vista && impresosAntes(vista).size > 0;
+          const seleccion = vista ? seleccionImpresion(vista, reimprimir, imprimirAlPasar) : [];
+          const seImprime = (nombre: string) => (eleccion ? eleccion.imprimir.includes(nombre) : seleccion.includes(nombre));
           if (vista && vista.modo !== "off" && pedido?.codigo) {
             const seImprimen = vista.ficheros.filter((x) => seImprime(x.nombre));
             // Con las medidas de cada página, solo lo que no sale solo: lo de la
@@ -3436,7 +3504,8 @@ export function Board({
             }
           }
           completarPedidoAhora(id, undefined, undefined, {
-            imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : imprimirAlPasar,
+            imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : seleccion.length > 0,
+            ...(conImpresos && !eleccion ? { imprimirSolo: seleccion } : {}),
             mandarCorreo: mandarCorreoAlPasar,
             impresion: ajustesImpresion,
             ...(eleccion ? { planteamiento: { ...eleccion, nota: notaCorreo } } : { notaCorreo }),

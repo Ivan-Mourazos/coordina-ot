@@ -1281,6 +1281,7 @@ export function Drawer({
               <OFRow
                 key={of.id}
                 of={of}
+                pedidoCodigo={pedido.codigo}
                 operarios={operarios}
                 miId={miId}
                 pedidoDeUnaOF={pedido.ofs.length === 1}
@@ -1457,6 +1458,7 @@ const PLEGAR_DESDE = 3;
 
 function OFRow({
   of,
+  pedidoCodigo,
   operarios,
   miId,
   pedidoDeUnaOF,
@@ -1487,6 +1489,8 @@ function OFRow({
   abierta?: boolean;
   onAlternar?: () => void;
   of: OF;
+  /** Para imprimir y mandar el planteamiento al dar la OF por terminada. */
+  pedidoCodigo?: string;
   operarios: Operario[];
   miId: string | null;
   /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
@@ -1842,6 +1846,7 @@ function OFRow({
           {!soloLectura && (
             <AccionesOF
               of={of}
+              pedidoCodigo={pedidoCodigo}
               operarios={operarios}
               miId={miId}
               revisionPorPedido={revisionPorPedido}
@@ -1876,6 +1881,7 @@ function OFRow({
  *  dicen lo que hacen: "Pausar", "Reanudar", "Dejar sin empezar". */
 function AccionesOF({
   of,
+  pedidoCodigo,
   operarios,
   miId,
   revisionPorPedido,
@@ -1895,6 +1901,7 @@ function AccionesOF({
 }: {
   onCoger?: () => void;
   of: OF;
+  pedidoCodigo?: string;
   operarios: Operario[];
   miId: string | null;
   /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
@@ -2232,6 +2239,7 @@ function AccionesOF({
             <CerrarEnRpsInline
               key={a.id}
               of={of}
+              pedidoCodigo={pedidoCodigo}
               seccion={seccion}
               miId={miId}
               onCerrado={onCerradoEnRps}
@@ -2278,6 +2286,7 @@ function AccionesOF({
       {menu.some((a) => a.id === "cerrar_en_rps") && miId && (
         <CerrarEnRpsInline
           of={of}
+          pedidoCodigo={pedidoCodigo}
           seccion={seccion}
           miId={miId}
           onCerrado={onCerradoEnRps}

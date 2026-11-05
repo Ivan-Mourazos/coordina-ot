@@ -10,13 +10,10 @@ import { getTablero } from "@/lib/data";
 import { pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { esSeccionId } from "@/lib/secciones";
 import { seccionDeOperario } from "@/lib/server/operarios";
-import { modoImpresion, prepararImpresion } from "@/lib/server/impresion-cola";
-import { modoCorreo, prepararCorreo } from "@/lib/server/correo-cola";
-import { planteamientosDe, type Planteamientos } from "@/lib/server/planteamiento-pdf";
+import { lanzarPlanteamiento } from "@/lib/server/mandar-planteamiento";
 import { leerPersona } from "@/lib/server/personas-db";
 import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
-import { leerAjustesImpresion, leerEleccion, leerNotaCorreo } from "@/lib/planteamiento";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -339,39 +336,7 @@ export async function POST(req: Request) {
     // PDF en vez de fiarse de lo que vio el navegador. Nunca tumba el pase:
     // imprimir y mandar el correo son lo de después, el pedido ya está pasado.
     if (seccion === "ot" && codigoPedido && esCodigoPedido(codigoPedido)) {
-      const codigo = codigoPedido;
-      const eleccion = leerEleccion(body.planteamiento);
-      // Qué se imprime: lo elegido, nada si se desmarcó «Imprimir otra vez», o
-      // (undefined) todo, por la norma.
-      const imprimir = eleccion
-        ? new Set(eleccion.imprimir)
-        : body.imprimirPlanteamiento === false ? new Set<string>() : undefined;
-      // Una sola búsqueda para las dos cosas: es contra una carpeta de red y no
-      // hace falta recorrerla dos veces.
-      let busqueda: Promise<Planteamientos> | null = null;
-      const buscar = (c: string) => (busqueda ??= planteamientosDe(c));
-      // Sin esperar: buscar y leer los PDF puede tardar segundos, y quien pasa
-      // el pedido no tiene por qué esperarlos. La copia se hace igual en el
-      // momento: RPS tarda minutos en moverlo.
-      if ((!imprimir || imprimir.size > 0) && modoImpresion() !== "off") {
-        void prepararImpresion(codigo, operarioId, undefined, buscar, imprimir, leerAjustesImpresion(body.impresion) ?? undefined).catch((e) =>
-          console.error(`[impresion] no se pudo preparar ${codigo}:`, (e as Error).message),
-        );
-      }
-      if (body.mandarCorreo !== false && modoCorreo() !== "off" && datosCorreo) {
-        // Las OF y la nota también se pueden tocar a mano; las OF solo se
-        // QUITAN: el servidor sigue siendo quien dice qué OF tiene el pedido.
-        const notaSuelta = leerNotaCorreo(body.notaCorreo);
-        const datos = eleccion
-          ? { ...datosCorreo, ofs: datosCorreo.ofs.filter((of) => eleccion.ofs.includes(of.codigo)), nota: eleccion.nota }
-          : notaSuelta ? { ...datosCorreo, nota: notaSuelta } : datosCorreo;
-        void prepararCorreo(datos, operarioId, undefined, buscar, {
-          adjuntar: eleccion ? new Set(eleccion.adjuntar) : undefined,
-          imprimir,
-        }).catch((e) =>
-          console.error(`[correo] no se pudo preparar ${codigo}:`, (e as Error).message),
-        );
-      }
+      lanzarPlanteamiento(codigoPedido, operarioId, datosCorreo, body);
     }
   }
   return NextResponse.json(body.pasarRevision

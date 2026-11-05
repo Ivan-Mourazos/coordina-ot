@@ -6,6 +6,11 @@ import { finalizables, situacionDe, type FaseDeOF } from "@/lib/fase-pendiente";
 import type { OF } from "@/lib/types";
 import { avisosTrasCerrarEnRps, type RespuestaCierreRps } from "@/lib/cerrar-of-avisos";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { PlanteamientoAlCerrar, type EleccionAlCerrar } from "./PlanteamientoAlCerrar";
+import { urlsAMano } from "./RepartoImpresion";
+import { AJUSTES_DE_SERIE } from "@/lib/planteamiento";
+import type { VistaPlanteamiento } from "@/lib/planteamiento-textos";
+import { abrirParaImprimir } from "@/lib/imprimir-pdf";
 
 interface FaseConBoletin extends FaseDeOF {
   idBoletin: string;
@@ -29,6 +34,7 @@ const RETIRADA = "RPS ya retiró esta operación; no hay nada que cerrar.";
  *  la fila); con `abierto`/`onAbrirCambio`, la dispara el menú de "⋯". */
 export function CerrarEnRpsInline({
   of,
+  pedidoCodigo,
   seccion,
   miId,
   onCerrado,
@@ -36,6 +42,8 @@ export function CerrarEnRpsInline({
   onAbrirCambio,
 }: {
   of: OF;
+  /** El pedido de la OF: para imprimir y mandar su planteamiento al cerrarla. */
+  pedidoCodigo?: string;
   seccion: Seccion;
   miId: string;
   /** La OF ya se cerró en el servidor: el Board actualiza su estado local.
@@ -67,10 +75,23 @@ export function CerrarEnRpsInline({
   const [descartado, setDescartado] = useState(false);
   const [reintentandoEnvio, setReintentandoEnvio] = useState(false);
   const [avisoReintento, setAvisoReintento] = useState<string | null>(null);
+  // Dar la OF por terminada es pasarla (Iván, 05/11/2026): en OT se ofrece
+  // imprimir y mandar su planteamiento, como al pasar el pedido entero.
+  const [vista, setVista] = useState<VistaPlanteamiento | null>(null);
+  const [eleccion, setEleccion] = useState<EleccionAlCerrar>({ imprimir: [], mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
+  const conPlanteamiento = !!vista && (vista.modo !== "off" || (!!vista.correo && vista.correo.modo !== "off"));
 
   async function cargarYConfirmar() {
     setError(null);
     setCargando(true);
+    setVista(null);
+    // El planteamiento se pide a la vez que las operaciones; si falla, el
+    // cierre sigue igual, sin imprimir ni correo.
+    const planteamiento = seccion.id === "ot" && pedidoCodigo
+      ? fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedidoCodigo)}`, { cache: "no-store" })
+          .then((r) => (r.ok ? (r.json() as Promise<VistaPlanteamiento>) : null))
+          .catch(() => null)
+      : Promise.resolve(null);
     try {
       const r = await fetch(`/api/fases?ofs=${encodeURIComponent(of.codigo)}`, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
@@ -87,6 +108,9 @@ export function CerrarEnRpsInline({
         return;
       }
       setPendientes(abiertas);
+      const v = await planteamiento;
+      setVista(v);
+      setEleccion({ imprimir: v ? v.ficheros.map((f) => f.nombre) : [], mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
       setConfirmar(true);
     } catch {
       setError(SIN_RPS);
@@ -110,6 +134,12 @@ export function CerrarEnRpsInline({
   }, [controlado, abiertoFuera]);
 
   async function confirmarCierre() {
+    // Lo que se imprime a mano se abre AQUÍ, dentro del clic (fuera de él el
+    // navegador lo bloquea), igual que al pasar el pedido.
+    if (conPlanteamiento && vista && vista.modo !== "off" && pedidoCodigo) {
+      const seImprimen = vista.ficheros.filter((f) => eleccion.imprimir.includes(f.nombre));
+      for (const url of urlsAMano(pedidoCodigo, seImprimen, vista.puedeOt ?? false, eleccion.ajustes)) abrirParaImprimir(url);
+    }
     setConfirmar(false);
     setEnviando(true);
     setError(null);
@@ -119,7 +149,22 @@ export function CerrarEnRpsInline({
       const r = await fetch("/api/fases/cerrar-of", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ofId: of.id, seccion: seccion.id, operarioId: miId }),
+        body: JSON.stringify({
+          ofId: of.id,
+          seccion: seccion.id,
+          operarioId: miId,
+          ...(conPlanteamiento && vista ? {
+            conPlanteamiento: true,
+            planteamiento: {
+              imprimir: eleccion.imprimir,
+              adjuntar: vista.ficheros.filter((f) => f.adjunto && eleccion.imprimir.includes(f.nombre)).map((f) => f.nombre),
+              ofs: [of.codigo],
+              nota: eleccion.nota,
+            },
+            mandarCorreo: eleccion.mandarCorreo,
+            impresion: eleccion.ajustes,
+          } : {}),
+        }),
       });
       const d = (await r.json().catch(() => null)) as
         | ({ ok: true; modo: "sombra" | "ensayo" | "activo"; at?: string } & RespuestaCierreRps)
@@ -239,7 +284,13 @@ export function CerrarEnRpsInline({
         <ConfirmDialog
           abierto={confirmar}
           titulo="Dar por terminada en RPS"
-          mensaje={mensaje}
+          ancho={conPlanteamiento}
+          mensaje={conPlanteamiento && vista && pedidoCodigo ? (
+            <>
+              <p className="whitespace-pre-line">{mensaje}</p>
+              <PlanteamientoAlCerrar pedido={pedidoCodigo} codigoOF={of.codigo} vista={vista} eleccion={eleccion} onCambiar={setEleccion} />
+            </>
+          ) : mensaje}
           tono="neutra"
           textoConfirmar="Dar por terminada"
           onConfirmar={() => void confirmarCierre()}

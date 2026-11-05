@@ -11,6 +11,9 @@ import { finalizables, situacionDe } from "@/lib/fase-pendiente";
 import { pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { cortarFichajeDeOFConAviso, leerTodosIntervalos, reencolarTramosDeOF } from "@/lib/server/fichaje-db";
 import { empezarCierreOF, terminarCierreOF } from "@/lib/server/cierre-of-en-curso";
+import { lanzarPlanteamiento } from "@/lib/server/mandar-planteamiento";
+import { leerPersona } from "@/lib/server/personas-db";
+import { esCodigoPedido } from "@/lib/types";
 
 // ─── POST /api/fases/cerrar-of ───────────────────────────────────────────────
 // «Dar por terminada en RPS» sobre una OF suelta, antes de pasar el pedido
@@ -95,11 +98,35 @@ export async function POST(req: Request) {
   //    el 3. Se suelta pase lo que pase.
   if (!empezarCierreOF(ofId))
     return NextResponse.json({ error: "Esta OF ya se está dando por terminada en RPS; espera a que acabe." }, { status: 409 });
+  let respuesta: NextResponse;
   try {
-    return await cerrar({ ofId, operarioId, operarioRps, seccionId, of: laOF, pedido });
+    respuesta = await cerrar({ ofId, operarioId, operarioRps, seccionId, of: laOF, pedido });
   } finally {
     terminarCierreOF(ofId);
   }
+  // Dar una OF suelta por terminada es pasarla a Producción (Iván, 05/11/2026,
+  // «que se dé por pasado»): si el aviso lo pidió y se cerró bien, sale su
+  // planteamiento por las impresoras y el correo, como al pasar el pedido,
+  // pero el correo solo con ESTA OF. Si el cierre falló, nada.
+  if (respuesta.ok && seccionId === "ot" && b.conPlanteamiento === true && esCodigoPedido(pedido.codigo)) {
+    const nombreDe = (id: string | null) => (id ? leerPersona(id)?.nombre ?? id : null);
+    lanzarPlanteamiento(pedido.codigo, operarioId, {
+      pedido: pedido.codigo,
+      cliente: pedido.cliente,
+      autoresPedido: laOF.autorId ? [laOF.autorId] : [],
+      ofs: [{
+        codigo: laOF.codigo,
+        descripcion: laOF.descripcion,
+        planteoMin: laOF.tiempoPlanteoMin,
+        autor: nombreDe(laOF.autorId),
+        autorId: laOF.autorId,
+        revisionMin: laOF.tiempoRevisionMin,
+        revisor: nombreDe(laOF.revisorId),
+      }],
+      pasadoPor: nombreDe(operarioId) ?? operarioId,
+    }, b);
+  }
+  return respuesta;
 }
 
 async function cerrar({
