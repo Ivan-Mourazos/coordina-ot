@@ -488,16 +488,24 @@ export function claveFase(of: string | null, fase: string | null): string {
  *  día, máximo 3—, y sin esto el trabajo lanzado esta mañana no aparecería
  *  hasta mañana.
  *
- *  Solo entra lo FICHABLE. Lo que no admite imputaciones no está en OLANET
- *  precisamente por eso, y traerlo de la vista devolvería al tablero las
- *  DETENIDAS y CREADAS: tarjetas con el reloj muerto, 10 de las 43 filas que
- *  Diseño Gráfico veía ese día. */
+ *  Entra lo FICHABLE y lo DETENIDO. Lo que no admite imputaciones no está en
+ *  OLANET precisamente por eso. Las CREADAS se quedan fuera: serían tarjetas
+ *  con el reloj muerto (10 de las 43 filas que Diseño Gráfico veía el
+ *  02/09/2026, entre creadas y detenidas). Las DETENIDAS sí entran desde el
+ *  05/11/2026 (Iván, AR.26.05405: «no sale en Diseño Gráfico aunque tiene
+ *  tareas suyas»): ya no van a las columnas de trabajo como si tocara
+ *  hacerlas, sino que se quedan en la suya marcadas como «Detenido» y cuentan
+ *  en «parados por Producción» (ver `pedidoParado`), como en OT. */
 export function filasQueFaltan<T extends FilaCruzable>(
   vista: readonly T[],
   enOlanet: readonly { of: string; fase: string }[],
 ): T[] {
   const ya = new Set(enOlanet.map((f) => claveFase(f.of, f.fase)));
-  return vista.filter((f) => !ya.has(claveFase(f.OF, f.CodTarea)) && permiteImputaciones(f));
+  return vista.filter((f) => !ya.has(claveFase(f.OF, f.CodTarea)) && (permiteImputaciones(f) || esDetenida(f)));
+}
+
+function esDetenida(fila: FilaCruzable): boolean {
+  return (fila.SitOF ?? "").trim().toUpperCase() === "DETENIDA";
 }
 
 /** Une los pares "pendientes según la fuente" con los que la web retiene

@@ -50,18 +50,25 @@ describe("filasQueFaltan", () => {
     expect(filasQueFaltan([nueva], [])).toEqual([nueva]);
   });
 
-  it("no añade lo que no se puede fichar", () => {
-    // Las DETENIDAS y CREADAS no están en OLANET precisamente porque no admiten
-    // imputaciones. Traerlas de la vista devolvería al tablero tarjetas con el
-    // reloj muerto: 10 de las 43 filas que Diseño veía el 02/09.
-    const parada = fila("0229289", "20", { SitOF: "DETENIDA", PermiteImputaciones: false });
-    expect(filasQueFaltan([parada], [])).toEqual([]);
+  it("no añade las CREADAS, que no se pueden fichar", () => {
+    // No están en OLANET precisamente porque no admiten imputaciones: serían
+    // tarjetas con el reloj muerto.
+    const creada = fila("0229289", "20", { SitOF: "CREADA", PermiteImputaciones: false });
+    expect(filasQueFaltan([creada], [])).toEqual([]);
+  });
+
+  it("añade las DETENIDAS, que salen como paradas por Producción", () => {
+    // Iván, 05/11/2026: AR.26.05405 (OF 0233738, PREPARAR ROTULACION) no salía
+    // en Diseño Gráfico por estar detenida. Ahora se ve, marcada como «Detenido».
+    const parada = fila("0233738", "4", { SitOF: "DETENIDA", PermiteImputaciones: false });
+    expect(filasQueFaltan([parada], [])).toEqual([parada]);
   });
 
   it("sin el bit de la vista, decide la situación", () => {
-    const parada = fila("0229289", "20", { SitOF: "DETENIDA", PermiteImputaciones: null });
+    const creada = fila("0229289", "20", { SitOF: "CREADA", PermiteImputaciones: null });
+    const parada = fila("0233738", "4", { SitOF: "DETENIDA", PermiteImputaciones: null });
     const viva = fila("0231780", "6", { SitOF: "LANZADA", PermiteImputaciones: null });
-    expect(filasQueFaltan([parada, viva], [])).toEqual([viva]);
+    expect(filasQueFaltan([creada, parada, viva], [])).toEqual([parada, viva]);
   });
 
   it("empareja aunque los ceros no coincidan entre los dos sistemas", () => {
