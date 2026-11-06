@@ -109,6 +109,55 @@ export function avisosDe(motivos: readonly string[]): string[] {
   return [...salida];
 }
 
+/** Qué papel hay en cada bandeja, de `media-col-ready` tal como llega (la
+ *  colección aplanada: «media-source», «tray-2», …, «x-dimension», 14800,
+ *  «y-dimension», 21000). Las medidas, en centésimas de milímetro. */
+export function bandejasDe(valores: readonly unknown[]): Map<number, string> {
+  const papeles: Record<string, string> = { "14800x21000": "A5", "21000x29700": "A4", "29700x42000": "A3" };
+  const salida = new Map<number, string>();
+  let bandeja: number | null = null;
+  let x: number | null = null;
+  for (let i = 0; i < valores.length; i++) {
+    const v = valores[i];
+    if (v === "media-source") {
+      const m = String(valores[i + 1] ?? "").match(/tray-(\d+)/);
+      bandeja = m ? Number(m[1]) : null;
+    } else if (v === "x-dimension") x = Number(valores[i + 1]);
+    else if (v === "y-dimension" && bandeja !== null && x !== null) {
+      const y = Number(valores[i + 1]);
+      const [a, b] = x <= y ? [x, y] : [y, x];
+      salida.set(bandeja, papeles[`${a}x${b}`] ?? `${Math.round(a / 100)}×${Math.round(b / 100)} mm`);
+      bandeja = null;
+      x = null;
+    }
+  }
+  return salida;
+}
+
+const lista = (n: number[]) => (n.length === 1 ? `la bandeja ${n[0]}` : `las bandejas ${n.slice(0, -1).join(", ")} y ${n.at(-1)}`);
+
+/** El papel por bandeja, de los avisos de la propia Konica
+ *  (`printer-alert-description`: «No Paper Tray1», «Low Paper Tray2»). Antes
+ *  salía «Sin papel» a secas y se miraba la bandeja del A4, que estaba llena
+ *  (Iván, 06/11/2026): lo vacío era otra. Vacío si la impresora no los da. */
+export function avisosDeBandejas(alertas: readonly string[], bandejas: ReadonlyMap<number, string>): string[] {
+  const sin: number[] = [];
+  const poco: number[] = [];
+  for (const a of alertas) {
+    const m = a.match(/^(No|Low) Paper Tray\s*(\d+)/i);
+    if (!m) continue;
+    (m[1].toLowerCase() === "no" ? sin : poco).push(Number(m[2]));
+  }
+  const conPapel = (n: number[]) => {
+    const papeles = [...new Set(n.map((b) => bandejas.get(b)).filter((p): p is string => !!p))];
+    return papeles.length ? ` (${papeles.join(", ")})` : "";
+  };
+  const salida: string[] = [];
+  if (sin.length) salida.push(`Sin papel en ${lista(sin.sort((a, b) => a - b))}`);
+  if (poco.length) salida.push(`Poco papel en ${lista(poco.sort((a, b) => a - b))}${conPapel(poco)}`);
+  return salida;
+}
+
 const COLORES: Record<string, string> = { K: "Negro", C: "Cian", M: "Magenta", Y: "Amarillo" };
 
 /** Los tóneres por debajo del umbral, con su color: «Negro 12 %». */

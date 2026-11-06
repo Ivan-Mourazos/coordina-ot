@@ -7,8 +7,7 @@ import {
   papelLegible,
   type IdImpresora,
   type TrabajoEnImpresora,
-  type VistaImpresora,
-} from "../impresoras";
+  type VistaImpresora, avisosDeBandejas, bandejasDe } from "../impresoras";
 import { impresoraDestino } from "./impresion-cola";
 import { urlHttp } from "./ipp";
 
@@ -125,7 +124,7 @@ async function leerImpresora(id: IdImpresora, uri: string): Promise<VistaImpreso
   };
   try {
     const atr = await preguntar(uri, peticion(0x0b, uri, (a) => {
-      ["printer-state", "printer-state-reasons", "printer-make-and-model", "media-ready", "marker-names", "marker-levels", "marker-types"].forEach((n, i) =>
+      ["printer-state", "printer-state-reasons", "printer-make-and-model", "media-ready", "media-col-ready", "printer-alert-description", "marker-names", "marker-levels", "marker-types"].forEach((n, i) =>
         a(0x44, i ? "" : "requested-attributes", enc.encode(n)),
       );
     }));
@@ -145,7 +144,16 @@ async function leerImpresora(id: IdImpresora, uri: string): Promise<VistaImpreso
       ...base,
       modelo: texto1(p, "printer-make-and-model"),
       estado: estadoImpresora(numero1(p, "printer-state")),
-      avisos: avisosDe((p.atributos["printer-state-reasons"] ?? []).map(String)),
+      // Con los avisos de la Konica por bandeja, el «Sin papel» genérico sobra:
+      // dice cuál está vacía y qué papel lleva (ver `avisosDeBandejas`).
+      avisos: (() => {
+        const porBandeja = avisosDeBandejas(
+          (p.atributos["printer-alert-description"] ?? []).map(String),
+          bandejasDe(p.atributos["media-col-ready"] ?? []),
+        );
+        const generales = avisosDe((p.atributos["printer-state-reasons"] ?? []).map(String));
+        return porBandeja.length ? [...porBandeja, ...generales.filter((a) => a !== "Sin papel" && a !== "Queda poco papel")] : generales;
+      })(),
       tonerBajo: tonerBajo(
         (p.atributos["marker-names"] ?? []).map(String),
         (p.atributos["marker-levels"] ?? []).map(Number),

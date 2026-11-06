@@ -1,5 +1,5 @@
-import { expect, test } from "vitest";
-import { avisosDe, estadoImpresora, estadoTrabajo, papelLegible, tonerBajo } from "../impresoras";
+import { describe, expect, it, test } from "vitest";
+import { avisosDe, avisosDeBandejas, bandejasDe, estadoImpresora, estadoTrabajo, papelLegible, tonerBajo } from "../impresoras";
 import { leerGrupos, trabajosDe } from "../server/impresoras";
 
 /** Una respuesta de IPP de mentira: grupos de atributos [tag, nombre, valor]. */
@@ -56,4 +56,23 @@ test("traduce estados, avisos y papeles", () => {
   expect(tonerBajo(["Toner Cartridge (C)", "Toner Cartridge (K)", "Waste Toner Box"], [51, 12, 0], ["toner", "toner", "waste-toner"])).toEqual(["Negro 12 %"]);
   expect(papelLegible("iso_a5_148x210mm")).toBe("A5");
   expect(papelLegible("na_letter_8.5x11in")).toBe("na_letter_8.5x11in");
+});
+
+describe("papel por bandeja", () => {
+  // Lo que contestó la de OT el 06/11/2026: decía «Sin papel» y se miró la
+  // bandeja del A4, que estaba llena; las vacías eran otras.
+  const colReady = [
+    "media-bottom-margin", 500, "media-source", "tray-2", "media-type", "stationery", "media-size", "x-dimension", 14800, "y-dimension", 21000,
+    "media-bottom-margin", 500, "media-source", "tray-4", "media-type", "stationery", "media-size", "x-dimension", 21000, "y-dimension", 29700,
+  ];
+  it("sabe qué papel hay en cada bandeja", () => {
+    expect([...bandejasDe(colReady)]).toEqual([[2, "A5"], [4, "A4"]]);
+  });
+  it("dice qué bandejas están vacías y cuáles con poco papel", () => {
+    expect(avisosDeBandejas(["No Paper Tray1", "No Paper Tray3", "Toner Near Empty Black", "Low Paper Tray2", "Sleep"], bandejasDe(colReady)))
+      .toEqual(["Sin papel en las bandejas 1 y 3", "Poco papel en la bandeja 2 (A5)"]);
+  });
+  it("sin avisos de bandeja, nada", () => {
+    expect(avisosDeBandejas(["Sleep"], new Map())).toEqual([]);
+  });
 });
