@@ -171,8 +171,10 @@ export function impresorasDeLaCasa(): { id: IdImpresora; uri: string }[] {
 
 let guardado: { hasta: number; datos: Promise<VistaImpresora[]> } | null = null;
 
-export function leerImpresoras(): Promise<VistaImpresora[]> {
-  if (guardado && guardado.hasta > Date.now()) return guardado.datos;
+/** `fresco`: «Actualizar» en el panel; pregunta otra vez aunque haga menos de
+ *  diez segundos de la última vez. */
+export function leerImpresoras(fresco = false): Promise<VistaImpresora[]> {
+  if (!fresco && guardado && guardado.hasta > Date.now()) return guardado.datos;
   const datos = Promise.all(impresorasDeLaCasa().map((i) => leerImpresora(i.id, i.uri)));
   guardado = { hasta: Date.now() + CACHE_MS, datos };
   return datos;

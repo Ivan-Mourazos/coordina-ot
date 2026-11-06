@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const corte = soloConSesion(req);
   if (corte) return corte;
 
-  const impresoras = await leerImpresoras();
+  const impresoras = await leerImpresoras(new URL(req.url).searchParams.get("fresco") === "1");
   const idDe = new Map(impresorasDeLaCasa().map((i) => [i.uri, i.id]));
   const envios = leerImpresionesRecientes(40).map(({ trabajo, ...f }) => {
     const id: IdImpresora | null = f.impresora ? (idDe.get(f.impresora) ?? null) : null;

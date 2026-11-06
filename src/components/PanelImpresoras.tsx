@@ -9,7 +9,7 @@ import {
   type VistaImpresora,
 } from "@/lib/impresoras";
 import type { FilaImpresion } from "@/lib/server/impresion-cola";
-import { PanelFlotante } from "./PanelFlotante";
+import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 import { useSoloLectura } from "./SoloLectura";
 
 // ─── Las impresoras, de un vistazo ───────────────────────────────────────────
@@ -95,6 +95,18 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
   const [ocupado, setOcupado] = useState<number | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
+  // «Actualizar»: pregunta otra vez a las impresoras ya, sin esperar a la
+  // vuelta automática ni a la caché del servidor.
+  const [actualizando, setActualizando] = useState(false);
+  const actualizar = () => {
+    setActualizando(true);
+    fetch("/api/impresoras?fresco=1", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<Datos>) : Promise.reject(new Error())))
+      .then((d) => { setDatos(d); setError(false); })
+      .catch(() => setError(true))
+      .finally(() => setActualizando(false));
+  };
+
   useEffect(() => {
     let vivo = true;
     const pedir = () =>
@@ -138,10 +150,20 @@ export function PanelImpresoras({ miId, onCerrar }: { miId: string | null; onCer
 
   return (
     <PanelFlotante titulo="Impresoras" onCerrar={onCerrar}>
-      <div className="mb-3 flex items-baseline gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-bold text-text">Impresoras</h3>
         {datos?.modo === "ensayo" && <span className="text-[11px] text-text-muted">· en ensayo: todo sale en la de OT</span>}
         {datos?.modo === "off" && <span className="text-[11px] text-text-muted">· la impresión al pasar está apagada</span>}
+        <button
+          type="button"
+          onClick={actualizar}
+          disabled={actualizando}
+          title="Vuelve a preguntar a las impresoras cómo están"
+          className="chip-3d ml-auto px-3 py-1 text-[11px] font-semibold text-text disabled:opacity-55"
+        >
+          {actualizando ? "Actualizando…" : "↻ Actualizar"}
+        </button>
+        <BotonCerrarPanel />
       </div>
       {error && <p className="mb-2 text-xs text-text">No se pudo preguntar a las impresoras. Se reintenta solo.</p>}
       {!datos && !error && <p className="text-xs text-text-muted">Preguntando a las impresoras…</p>}
