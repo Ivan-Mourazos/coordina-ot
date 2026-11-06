@@ -1,5 +1,22 @@
 [
   {
+    "id": "2026-11-06",
+    "hasta": "3ddeba1",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Los pedidos detenidos por Producción ya salen en Diseño Gráfico",
+        "detalle": "Se quedan en su columna marcados como «Detenido» y no se pueden fichar hasta que Producción los libere.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El panel de Impresoras tiene «Actualizar» y un botón para cerrarlo",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-05",
     "hasta": "0e25764",
     "cambios": [
