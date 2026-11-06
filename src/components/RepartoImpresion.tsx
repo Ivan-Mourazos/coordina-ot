@@ -131,9 +131,14 @@ export function RepartoImpresion({
         return (
           <div
             key={f.nombre}
-            className={`flex flex-col gap-2 ${conMedidas.length > 1 ? "rounded-xl bg-surface p-2.5 shadow-[var(--hero-sombra-campo)]" : ""}`}
+            className="flex flex-col gap-2 rounded-xl bg-surface p-2.5 shadow-[var(--hero-sombra-campo)]"
           >
-            {conMedidas.length > 1 && <p className="font-semibold text-text">{f.nombre}</p>}
+            {/* Siempre el nombre, también con un solo PDF: qué archivo ha encontrado
+                y se va a imprimir (Iván, 06/11/2026). */}
+            <p className="flex items-baseline gap-1.5 font-semibold text-text">
+              <span aria-hidden>📄</span>{f.nombre}
+              <span className="font-normal text-text-muted">· {f.paginas} {f.paginas === 1 ? "pág." : "págs."}</span>
+            </p>
             {/* El resumen: qué sale en cada sitio. */}
             <ul className="flex flex-col gap-1">
               {IMPRESORAS.map((imp) => {

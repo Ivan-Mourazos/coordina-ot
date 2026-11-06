@@ -41,7 +41,7 @@ export function textoAntesDePasar(d: VistaPlanteamiento): string | null {
   }
   // Con las medidas de cada página, qué sale en cada impresora lo enseña el
   // resumen de debajo (RepartoImpresion); aquí, solo el encabezado.
-  if (d.ficheros.some((f) => (f.tamanos?.length ?? 0) > 0)) return "Al pasar se imprime así:";
+  if (d.ficheros.some((f) => (f.tamanos?.length ?? 0) > 0)) return `Planteamiento encontrado: ${d.ficheros.length === 1 ? "1 PDF" : `${d.ficheros.length} PDF`}. Se imprime así:`;
   const manual = d.ficheros.find((f) => !f.todoA4);
   if (manual) return `${manual.nombre} lleva una página que no es A4: al pasar se abrirá el cuadro de imprimir`;
   const donde = d.modo === "ensayo" ? "la impresora de OT (ensayo)" : "Producción";

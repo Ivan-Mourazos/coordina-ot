@@ -160,6 +160,6 @@ describe("reparto por tamaño", () => {
   it("con las medidas de cada página, el detalle va en el resumen de debajo", () => {
     expect(textoAntesDePasar({ modo: "activo", aviso: null, impresiones: [], ficheros: [{ nombre: "A-10.pdf", paginas: 2, todoA4: false,
       tamanos: [{ papel: "A4", horizontal: false }, { papel: "A5", horizontal: true }] }] }))
-      .toBe("Al pasar se imprime así:");
+      .toBe("Planteamiento encontrado: 1 PDF. Se imprime así:");
   });
 });
