@@ -59,6 +59,7 @@ import { subfamiliaAparte } from "@/lib/familia";
 import { Pista } from "./Pista";
 import { useSoloLectura } from "./SoloLectura";
 import { DevolverAlHistorial } from "./DevolverAlHistorial";
+import { AbrirCad } from "./AbrirCad";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -779,6 +780,7 @@ export function Drawer({
                   <span aria-hidden="true">↗</span>
                 </a>
               )}
+              <AbrirCad key={`cad:${pedido.codigo}`} pedido={pedido.codigo} />
             </div>
           }
         />
