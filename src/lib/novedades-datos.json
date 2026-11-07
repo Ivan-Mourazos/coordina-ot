@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-07",
+    "hasta": "3ce564d",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "En la ficha, «Abrir CAD» sale siempre a la derecha y el botón de Planteamientos lleva su logo",
+        "detalle": "«Corregir» va en rojo, como «A corregir» en tu zona.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-06",
     "hasta": "4d5436d",
     "cambios": [
