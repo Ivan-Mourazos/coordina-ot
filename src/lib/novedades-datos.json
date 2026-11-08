@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-11-08",
+    "hasta": "21d4179",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Los botones de Planteamientos y del CAD también en el Historial, junto a la ✕, y la cabecera de la ficha ocupa una línea menos",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-07",
     "hasta": "3ce564d",
     "cambios": [
