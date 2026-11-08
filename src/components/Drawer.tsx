@@ -725,6 +725,9 @@ export function Drawer({
                       etiquetaVaciar="Quitar autor · vuelve a Sin asignar"
                       options={opcionesOperario(operarios, miId)}
                       plano
+                      // El selector va a la derecha del panel (08/11/2026):
+                      // anclado por la izquierda, el menú se salía por el borde.
+                      alignRight
                     />
                   </div>
                 </>
