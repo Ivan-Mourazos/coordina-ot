@@ -7,7 +7,6 @@ import { esCodigoPedido } from "@/lib/types";
 import {
   CabeceraFicha,
   ComentarioPedido,
-  DatosEnLinea,
   MarcoFicha,
   TITULO_BLOQUE,
 } from "./MarcoFicha";
@@ -23,6 +22,8 @@ import { ParteEscaneado } from "./ParteEscaneado";
 import { useFocoModal } from "@/lib/useFocoModal";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { OFsDeLaFicha } from "./HistorialCentros";
+import { AtajosPedido } from "./AtajosPedido";
+import { botonPlantearHistorial } from "@/lib/herramientas";
 import { SECCION_POR_DEFECTO, SECCIONES, type SeccionId } from "@/lib/secciones";
 
 function fmtFecha(iso: string | null) {
@@ -189,6 +190,30 @@ export function HistorialDrawer({
           prioridad={detalle?.prioridad}
           cliente={detalle?.cliente}
           negocio={detalle?.negocio}
+          // En la cabecera, como en la ficha del tablero (Iván, 08/11/2026):
+          // en el cuerpo gastaban una línea más y quedaban despegados.
+          datos={detalle ? [
+            // Las dos fechas son UN dato ("del … al …"): separadas por un
+            // punto quedaba "24/09/2026 · → 11/09/2026", con el punto y la
+            // flecha peleándose por decir lo mismo.
+            // CON su nombre delante. "24/09/2026 → 18/09/2026" no decía qué
+            // era cada fecha, y la segunda —cuándo se terminó— suele ser
+            // ANTERIOR a la primera, que es la que pidió el cliente: la
+            // flecha hacía pensar en un orden que no es.
+            { k: "Fecha solicitada", v: `Solicitada ${fmtFecha(detalle.fechaSolicitud)}` },
+            ...(detalle.estadoActual
+              ? []
+              : [{ k: "Fecha de finalización", v: `Terminada ${fmtFecha(detalle.fechaFinalizacion)}` }]),
+            ...(detalle.estadoActual ? [{ k: "Estado actual", v: detalle.estadoActual }] : []),
+            { k: "Piezas", v: `${detalle.piezas} ${detalle.piezas === 1 ? "pieza" : "piezas"}` },
+            ...(detalle.ciudadEntrega ? [{ k: "Entrega en", v: detalle.ciudadEntrega }] : []),
+          ] : []}
+          familias={detalle?.familias}
+          // Los mismos atajos que la ficha del tablero (Iván, 08/11/2026): el
+          // pedido ya está pasado, así que Planteamientos va en «Abrir».
+          acciones={esPedidoDeVenta ? (
+            <AtajosPedido codigo={pedido} plantear={detalle ? botonPlantearHistorial(pedido, detalle.familias) : null} />
+          ) : undefined}
         />
       }
       // PDF mediano a la izquierda.
@@ -236,29 +261,6 @@ export function HistorialDrawer({
 
           {detalle && !cargando && (
             <>
-              {/* En una línea y no en rejilla: son cuatro valores cortos que se
-                  leen de corrido ("24/09/26 → 11/09/26 · 2 piezas · VIGO"), y
-                  la rejilla gastaba seis líneas en lo alto de la ficha. */}
-              <DatosEnLinea
-                datos={[
-                  // Las dos fechas son UN dato ("del … al …"): separadas por un
-                  // punto quedaba "24/09/2026 · → 11/09/2026", con el punto y la
-                  // flecha peleándose por decir lo mismo.
-                  // CON su nombre delante. "24/09/2026 → 18/09/2026" no decía qué
-                  // era cada fecha, y la segunda —cuándo se terminó— suele ser
-                  // ANTERIOR a la primera, que es la que pidió el cliente: la
-                  // flecha hacía pensar en un orden que no es.
-                  { k: "Fecha solicitada", v: `Solicitada ${fmtFecha(detalle.fechaSolicitud)}` },
-                  ...(detalle.estadoActual
-                    ? []
-                    : [{ k: "Fecha de finalización", v: `Terminada ${fmtFecha(detalle.fechaFinalizacion)}` }]),
-                  ...(detalle.estadoActual ? [{ k: "Estado actual", v: detalle.estadoActual }] : []),
-                  { k: "Piezas", v: `${detalle.piezas} ${detalle.piezas === 1 ? "pieza" : "piezas"}` },
-                  ...(detalle.ciudadEntrega ? [{ k: "Entrega en", v: detalle.ciudadEntrega }] : []),
-                ]}
-                familias={detalle.familias}
-              />
-
               {/* AQUÍ ESTABAN "Lo vendido" y "Montaje y envío", y se han ido.
                   Los dos dicen lo mismo que el parte escaneado que se está
                   viendo a la izquierda a tamaño completo —la descripción de lo

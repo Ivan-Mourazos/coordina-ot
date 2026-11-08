@@ -47,8 +47,7 @@ import { LineaTiempoPedido } from "./LineaTiempoPedido";
 import { NotasPedido } from "./NotasPedido";
 import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
-import { abrirEnPlanteamientos } from "@/lib/abrir-planteamientos";
-import { botonPlantear, type ModoPlantear } from "@/lib/herramientas";
+import { botonPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { useCapaEscape } from "@/lib/useCapaEscape";
 import { useFocoModal } from "@/lib/useFocoModal";
@@ -59,7 +58,7 @@ import { subfamiliaAparte } from "@/lib/familia";
 import { Pista } from "./Pista";
 import { useSoloLectura } from "./SoloLectura";
 import { DevolverAlHistorial } from "./DevolverAlHistorial";
-import { AbrirCad } from "./AbrirCad";
+import { AtajosPedido } from "./AtajosPedido";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -78,34 +77,6 @@ import { AbrirCad } from "./AbrirCad";
  *  que se corrigió lo que pidió. */
 const NOTA_YA_CORREGIDA: ReadonlySet<EstadoOF> = new Set(["aprobada"]);
 
-/** Rótulo, ayuda y color del botón de Planteamientos TGM según lo que toque
- *  (ver `botonPlantear`). El verbo dice qué vas a hacer y el logo de
- *  Planteamientos, adónde vas (Iván, 07/11/2026: «Corregir en Planteamientos»
- *  era largo). Plantear en el color del autor, corregir en el rojo de «A
- *  corregir» y revisar en el del revisor. «Abrir» va NEUTRO
- *  (Iván, 21/10/2026): no hay trabajo de nadie, solo consultar. */
-const BOTON_PLANTEAR: Record<ModoPlantear, { texto: string; ayuda: string; color: string }> = {
-  plantear: {
-    texto: "Plantear",
-    ayuda: "Abre Planteamientos con este pedido cargado, en otra pestaña",
-    color: `boton-3d ${ROL.plantear.solido}`,
-  },
-  corregir: {
-    texto: "Corregir",
-    ayuda: "Abre Planteamientos para corregir lo devuelto, en otra pestaña",
-    color: "boton-3d bg-red-600 text-white hover:bg-red-700",
-  },
-  revisar: {
-    texto: "Revisar",
-    ayuda: "Abre Planteamientos para revisarlo, en otra pestaña",
-    color: `boton-3d ${ROL.revisar.solido}`,
-  },
-  abrir: {
-    texto: "Abrir",
-    ayuda: "Abre este pedido en Planteamientos, en otra pestaña",
-    color: "chip-3d text-text",
-  },
-};
 
 const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
   "terminar_planteo",
@@ -758,41 +729,13 @@ export function Drawer({
                   </div>
                 </>
               )}
-              {/* Abre Planteamientos TGM con ESTE pedido ya buscado, en otra
-                  pestaña. Solo en toldos y remolques, que es lo que aquella
-                  web plantea. En la cabecera y de color sólido, a propósito:
-                  es un atajo nuevo y, escondido entre las acciones de cada OF,
-                  no lo iba a encontrar nadie. No ficha ni cambia el estado:
-                  solo abre la herramienta. */}
-              {/* Los atajos a otras herramientas, juntos y siempre a la derecha:
-                  Planteamientos solo sale en toldos y remolques, y sin él «Abrir
-                  CAD» se quedaba a la izquierda (Iván, 07/11/2026). */}
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              {plantear && (
-                <a
-                  href={plantear.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    // Con Ctrl o Mayús se deja al navegador: es pedir otra pestaña a propósito.
-                    if (e.ctrlKey || e.metaKey || e.shiftKey) return;
-                    e.preventDefault();
-                    abrirEnPlanteamientos(plantear.url);
-                  }}
-                  title={BOTON_PLANTEAR[plantear.modo].ayuda}
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${BOTON_PLANTEAR[plantear.modo].color}`}
-                >
-                  {/* El logo de Planteamientos, en blanco sobre el color del botón. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/planteamientos-logo.png" alt="" aria-hidden="true" className={`size-4 shrink-0 ${plantear.modo === "abrir" ? "" : "brightness-0 invert"}`} />
-                  {BOTON_PLANTEAR[plantear.modo].texto}
-                  <span aria-hidden="true">↗</span>
-                </a>
-              )}
-              <AbrirCad key={`cad:${pedido.codigo}`} pedido={pedido.codigo} />
-              </div>
             </div>
           }
+          // Abre Planteamientos TGM con ESTE pedido ya buscado, en otra
+          // pestaña, y su CAD. En la fila del código, junto a la ✕, igual que
+          // en el Historial (Iván, 08/11/2026). De color sólido, a propósito:
+          // escondido entre las acciones de cada OF no lo encontraba nadie.
+          acciones={<AtajosPedido codigo={pedido.codigo} plantear={plantear} />}
         />
       }
       // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí

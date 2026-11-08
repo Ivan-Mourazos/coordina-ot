@@ -197,6 +197,15 @@ const YA_EN_REVISION: ReadonlySet<string> = new Set([...EN_REVISION, "aprobada"]
  *  autor de las OF devueltas, a los demás les sale «Abrir», con la misma
  *  dirección. Si falta cualquiera de los dos datos se deja «Corregir»: mejor
  *  un rótulo de más que esconderle al autor que tiene algo que corregir. */
+/** El botón de Planteamientos en la ficha del Historial (Iván, 08/11/2026):
+ *  el pedido ya está pasado, así que es «Abrir» y solo si lleva alguna familia
+ *  que aquella web plantea. Del Historial solo se saben las familias. */
+export function botonPlantearHistorial(codigo: string, familias: readonly string[]): { modo: ModoPlantear; url: string } | null {
+  if (!familias.some((familia) => ofPlanteable({ familia }))) return null;
+  const url = urlPlanteamientos(codigo);
+  return url ? { modo: "abrir", url: url.replace("?pedido=", "?revisar=") } : null;
+}
+
 export function botonPlantear(
   codigo: string,
   ofs: readonly {

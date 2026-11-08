@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, enlacePlantear, esLonaSystemDock, esPuertaDeLona } from "../herramientas";
+import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, botonPlantearHistorial, enlacePlantear, esLonaSystemDock, esPuertaDeLona } from "../herramientas";
 
 describe("enlacePlantear", () => {
   it("abre Planteamientos TGM con el pedido, sin puntos", () => {
@@ -205,5 +205,18 @@ describe.runIf(PUERTAS_EN_PLANTEAMIENTOS)("botonPlantear con System Dock", () =>
   });
   it("los portes del pedido no cuentan", () => {
     expect(botonPlantear("AR.26.04351", [lonaSd("aprobada"), { familia: "OTRO", estado: "pendiente", autorId: null, descripcion: "PORTES" }])?.modo).toBe("abrir");
+  });
+});
+
+describe("botonPlantearHistorial", () => {
+  // En el Historial el pedido ya está pasado: el botón es «Abrir», y solo si
+  // lleva algo que Planteamientos plantea (08/11/2026).
+  it("con toldo o remolque, «Abrir» en Planteamientos", () => {
+    const b = botonPlantearHistorial("AR.26.05333", ["LONA", "TOLDO"]);
+    expect(b?.modo).toBe("abrir");
+    expect(b?.url).toContain("revisar=AR2605333");
+  });
+  it("sin nada planteable, sin botón", () => {
+    expect(botonPlantearHistorial("AR.26.05333", ["LONA", "CARPA"])).toBeNull();
   });
 });

@@ -144,18 +144,23 @@ export function CabeceraFicha({
   datos = [],
   familias = [],
   extra,
+  acciones,
 }: {
   codigo: string;
   prioridad?: Prioridad;
   cliente?: string | null;
   negocio?: string | null;
-  /** Ya escritos ("4 piezas", "Madrid"): quien los pinta sabe pluralizar. */
-  datos?: readonly string[];
+  /** Ya escritos ("4 piezas", "Madrid"): quien los pinta sabe pluralizar.
+   *  Con `k`, el nombre del dato sale al pasar el ratón y en el lector. */
+  datos?: readonly (string | { k: string; v: string })[];
   familias?: readonly string[];
-  /** Debajo de los datos: en Pendientes, el autor del pedido. Vivía en el
+  /** A la derecha de los datos: en Pendientes, el autor del pedido. Vivía en el
    *  cuerpo, entre las notas y las OF; aquí está siempre a la vista, que es
    *  donde se busca "de quién es esto". */
   extra?: ReactNode;
+  /** En la fila del código, a la izquierda de la ✕: los atajos del Historial,
+   *  que no tienen autor que enseñar y así no gastan una línea (08/11/2026). */
+  acciones?: ReactNode;
 }) {
   return (
     <div className="min-w-0 flex-1">
@@ -172,42 +177,50 @@ export function CabeceraFicha({
             P{prioridad} {PRIORIDAD[prioridad].label}
           </span>
         )}
+        {acciones && <div className="ml-auto">{acciones}</div>}
       </div>
-      {/* En pantalla baja, cliente y datos en UNA línea: la cabecera se comía
-          135 px de los 611 del monitor de Diseño. Los datos no pasan del 60 %
-          y se recortan: con varias familias pedían más ancho del que había y
-          se salían del panel por encima del botón de cerrar. */}
-      <div className="min-w-0 pr-10 bajo:flex bajo:items-baseline bajo:gap-2">
-      <p className="truncate text-sm text-text-muted bajo:min-w-0 bajo:shrink">
+      {/* Tres líneas y no cuatro (Iván, 08/11/2026): el código con los
+          atajos y la ✕; el cliente; y los datos con, a su derecha, lo de
+          `extra` (el autor en el tablero). Antes el autor tenía línea propia y
+          en el Historial los datos iban en el cuerpo, separados de la
+          cabecera. Con el panel en su mínimo (512 px) el autor baja solo a la
+          línea siguiente si no cabe: `flex-wrap`. */}
+      <p className="truncate pr-10 text-sm text-text-muted">
         {cliente || "—"}
         {negocioAparte(cliente, negocio) && (
           <span className="font-semibold text-text"> · {negocioAparte(cliente, negocio)}</span>
         )}
       </p>
-      {(datos.length > 0 || familias.length > 0) && (
-        <div className="mt-1 overflow-hidden text-xs bajo:mt-0 bajo:max-w-[60%] bajo:shrink-0">
-          <div className={FILA_CON_PUNTOS}>
-            {datos.map((d, i) => (
-              // Por índice y no por `d`: son textos ya formateados ("4 piezas",
-              // "Madrid") y dos podrían coincidir, lo que React vería como una
-              // key duplicada. El orden es fijo (viene de quien llama), así que
-              // el índice es una key estable.
-              <span key={i} className={`flex items-center font-medium text-text ${PUNTO}`}>
-                {d}
-              </span>
-            ))}
-            {familias.length > 0 && (
-              <span className={`flex items-center ${PUNTO}`}>
-                <span className="flex flex-wrap gap-1">
-                  {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
-                </span>
-              </span>
-            )}
-          </div>
+      {(datos.length > 0 || familias.length > 0 || extra) && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {(datos.length > 0 || familias.length > 0) && (
+            <div className="min-w-0 overflow-hidden">
+              <dl className={FILA_CON_PUNTOS}>
+                {datos.map((d, i) => {
+                  // Por índice y no por el texto: dos datos ya formateados
+                  // podrían coincidir. El orden lo fija quien llama.
+                  const { k, v } = typeof d === "string" ? { k: null, v: d } : d;
+                  return (
+                    <div key={i} className={`flex items-center ${PUNTO}`}>
+                      {k && <dt className="sr-only">{k}</dt>}
+                      <dd className="font-medium text-text" title={k ?? undefined}>{v}</dd>
+                    </div>
+                  );
+                })}
+                {familias.length > 0 && (
+                  <div className={`flex items-center ${PUNTO}`}>
+                    <dt className="sr-only">Familias</dt>
+                    <dd className="flex flex-wrap gap-1">
+                      {familias.map((f) => <FamiliaTag key={f} familia={f} />)}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+          {extra && <div className="ml-auto">{extra}</div>}
         </div>
       )}
-      </div>
-      {extra && <div className="mt-2 bajo:mt-1">{extra}</div>}
     </div>
   );
 }
@@ -220,44 +233,6 @@ export function CabeceraFicha({
  *  al principio de la siguiente ("· Toldos · Otro"). */
 const FILA_CON_PUNTOS = "-ml-3 flex flex-wrap items-center gap-y-1";
 const PUNTO = "before:w-3 before:shrink-0 before:text-center before:text-text-muted before:content-['·']";
-
-/** Los mismos datos, en UNA línea: el rótulo de cada uno al pasar el ratón.
- *
- *  La rejilla de dos por dos gastaba seis líneas para cuatro valores, y en una
- *  ficha de 720 px de alto eso es la diferencia entre ver un centro de trabajo
- *  o verlos los tres. Los rótulos no se pierden: van en el `title` y en el
- *  lector de pantalla, que es donde hacen falta cuando el dato no se explica
- *  solo. Las familias entran aquí como un dato más. */
-export function DatosEnLinea({
-  datos,
-  familias = [],
-}: {
-  datos: readonly { k: string; v: string }[];
-  familias?: readonly string[];
-}) {
-  return (
-    <div className="mb-3 overflow-hidden text-xs">
-      <dl className={FILA_CON_PUNTOS}>
-        {datos.map(({ k, v }) => (
-          <div key={k} className={`flex items-center ${PUNTO}`}>
-            <dt className="sr-only">{k}</dt>
-            <dd className="font-medium text-text" title={k}>{v}</dd>
-          </div>
-        ))}
-        {familias.length > 0 && (
-          <div className={`flex items-center ${PUNTO}`}>
-            <dt className="sr-only">Familias</dt>
-            <dd className="flex flex-wrap gap-1">
-              {familias.map((f) => (
-                <FamiliaTag key={f} familia={f} />
-              ))}
-            </dd>
-          </div>
-        )}
-      </dl>
-    </div>
-  );
-}
 
 /** Caja con rótulo del cuerpo de la ficha (el comentario del pedido). Mismo
  *  borde y fondo que documentos, notas y el resto de bloques. */
