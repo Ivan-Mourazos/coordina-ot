@@ -1,12 +1,17 @@
 [
   {
     "id": "2026-11-09",
-    "hasta": "333e2ba",
+    "hasta": "aaa056d",
     "cambios": [
       {
         "tipo": "arreglado",
         "titulo": "En el Historial salen fotos de visitas que antes faltaban: las de visitas enlazadas a la oportunidad y no al pedido",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El buscador de arriba encuentra el pedido al momento: vale 26.05448, 2605448, ar2605448 o el número de OF",
+        "tanda": 2
       }
     ]
   },
