@@ -7,6 +7,7 @@ import {
   unaFilaPorTarea,
   type AvisoOF,
   type FilaTiempo,
+  type MaterialPedido,
   type OFBelen,
   type PedidoBelen,
   type TiemposPedido,
@@ -64,6 +65,8 @@ interface FilaOF {
   descripcion: string | null;
   situacion: string | null;
   notas: string | null;
+  detalleLinea: string | null;
+  comentarioVenta: string | null;
   fSol: Date | null;
   formaEntrega: string | null;
   rotulacion: string | null;
@@ -100,6 +103,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              mo.Priority AS prioridad, mo.Quantity AS cantidad,
              CAST(mo.Description AS varchar(300)) AS descripcion, sit.Description AS situacion,
              CAST(mo.Notes AS varchar(1000)) AS notas, lin.ReceptionDemandDate AS fSol,
+             CAST(lin.Comment AS varchar(4000)) AS detalleLinea, CAST(p.Comment AS varchar(4000)) AS comentarioVenta,
              fe.DescripcionFormaEntregaPedido AS formaEntrega, lc.TextoRotulacion AS rotulacion,
              (SELECT SUM(Quantity) FROM dbo.CPRImputationEntryProduct
                WHERE CodCompany = '001' AND IDManufacturingOrder = o.id) AS subidas,
@@ -185,6 +189,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       formaEntrega: texto(f.formaEntrega),
       rotulacion: texto(f.rotulacion),
       notas: texto(f.notas),
+      detalleLinea: texto(f.detalleLinea),
       // Operaciones: las tareas con máquina. Las visitas (TP/COT) no llevan
       // máquina y van aparte, como avisos.
       operaciones: suyas
@@ -225,7 +230,101 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     };
   });
 
-  return { codigo: pedido, cliente: resultado[0].cliente, ofs: resultado };
+  return {
+    codigo: pedido,
+    cliente: resultado[0].cliente,
+    comentarioVenta: texto(ofs.recordset[0].comentarioVenta),
+    ofs: resultado,
+  };
+}
+
+// ─── Material: asignado, reservado y comprado ────────────────────────────────
+// Las mismas consultas que el tablero de OT (server/rps.ts): se parte del
+// MATERIAL asignado y la reserva se suma por fuera (STKStockReserve con
+// ItemType = 5 apunta a CPRMOMaterial); las compras van aparte, TODAS, también
+// las ya recibidas, para ver qué se pidió y cuándo llegó.
+export async function leerMaterialBelen(codigo: string): Promise<MaterialPedido | null> {
+  const pedido = codigo.trim().toUpperCase();
+  if (!ES_RPS()) return materialDeEjemplo();
+  const pool = await getPool();
+  const consulta = <T>(q: string) =>
+    pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${OFS_DEL_PEDIDO} ${q}`);
+  const [ofs, materiales, compras] = await Promise.all([
+    consulta<{ cod: string; descripcion: string | null }>(`
+      SELECT o.cod, CAST(mo.Description AS varchar(300)) AS descripcion
+      FROM ofs o JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id`),
+    consulta<{ cod: string; material: string | null; cantidad: number; reservada: number }>(`
+      SELECT o.cod, CAST(m.Description AS varchar(300)) AS material, m.Quantity AS cantidad,
+             ISNULL(res.reservada, 0) AS reservada
+      FROM ofs o
+      JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
+      JOIN dbo.CPRMOMaterial m ON m.IDMOTask = t.IDMOTask
+      OUTER APPLY (
+        SELECT SUM(r.Quantity) AS reservada FROM dbo.STKStockReserve r
+        WHERE r.ItemType = 5 AND r.IDItem = m.IDMOMaterial
+      ) res`),
+    consulta<{
+      cod: string;
+      articulo: string | null;
+      pedida: number;
+      recibida: number;
+      fechaPedido: Date | null;
+      estimada: Date | null;
+      proveedor: string | null;
+    }>(`
+      SELECT o.cod, CAST(l.Description AS varchar(300)) AS articulo, l.Quantity AS pedida,
+             l.ReceivedQuantity AS recibida, po.OrderDate AS fechaPedido, l.ReceptionDate AS estimada,
+             prov.Description AS proveedor
+      FROM ofs o
+      JOIN dbo.PUROrderLine l ON l.IDManufacturingOrder = o.id AND l.CodCompany = '001'
+      JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
+      LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
+      ORDER BY po.OrderDate`),
+  ]);
+  if (!ofs.recordset.length) return null;
+  return {
+    ofs: ofs.recordset
+      .map((o) => ({
+        of: o.cod.trim(),
+        descripcion: (o.descripcion ?? "").trim(),
+        materiales: materiales.recordset
+          .filter((m) => m.cod === o.cod)
+          .map((m) => ({
+            descripcion: (m.material ?? "").trim(),
+            cantidad: Number(m.cantidad) || 0,
+            reservada: Number(m.reservada) || 0,
+          })),
+        compras: compras.recordset
+          .filter((c) => c.cod === o.cod)
+          .map((c) => ({
+            articulo: (c.articulo ?? "").trim(),
+            pedida: Number(c.pedida) || 0,
+            recibida: Number(c.recibida) || 0,
+            fechaPedido: iso(c.fechaPedido) ?? undefined,
+            estimada: iso(c.estimada) ?? undefined,
+            proveedor: texto(c.proveedor) ?? undefined,
+          })),
+      }))
+      .sort((a, b) => a.of.localeCompare(b.of)),
+  };
+}
+
+function materialDeEjemplo(): MaterialPedido {
+  return {
+    ofs: [
+      {
+        of: "0232470",
+        descripcion: "FALDON LATERAL O FRONTAL NUEVO PARA TOLDO FACHADA",
+        materiales: [
+          { descripcion: "LONA ROJA 3,20 M", cantidad: 6.4, reservada: 0 },
+          { descripcion: "TUBO ALUMINIO 40 MM", cantidad: 3, reservada: 3 },
+        ],
+        compras: [
+          { articulo: "LONA ROJA", pedida: 12, recibida: 0, fechaPedido: "2026-11-04", estimada: "2026-11-12", proveedor: "PROVEEDOR DE EJEMPLO" },
+        ],
+      },
+    ],
+  };
 }
 
 // ─── Tareas y tiempos: cada fichaje ──────────────────────────────────────────

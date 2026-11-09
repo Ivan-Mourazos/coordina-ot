@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { NOTA_MAX, validarTexto } from "@/lib/nota-pedido";
 import { borrarNota, crearNota, editarNota, leerNotas } from "@/lib/server/notas-db";
-import { identidad, soloConSesion } from "@/lib/server/sesion";
+import { puedeEscribirNotas, veNotasInternas } from "@/lib/personas";
+import { identidad, loginActivo, quienEs, soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/notas ──────────────────────────────────────────────────────────────
 // El hilo de notas de un pedido. Cuatro verbos en un fichero, como hace
@@ -17,6 +18,10 @@ import { identidad, soloConSesion } from "@/lib/server/sesion";
 // borrar comprueban ADEMÁS la propiedad en la sentencia SQL: eso para el
 // accidente aunque la identidad venga bien firmada (editar la nota de otro
 // sigue sin ser cosa de la ruta).
+//
+// Producción (Belén, 10/11/2026) también escribe: es como se comunica con OT.
+// Pero LEE solo las notas «para todos» y las suyas, no las internas de OT.
+// Eso lo decide el servidor, no la pantalla.
 
 export const dynamic = "force-dynamic";
 
@@ -68,8 +73,10 @@ export async function GET(req: Request) {
 
   const pedido = clave(new URL(req.url).searchParams.get("pedido"));
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
+  const yo = loginActivo() ? quienEs(req) : null;
+  const soloPara = yo && !veNotasInternas(yo.roles) ? yo.id : undefined;
   return NextResponse.json(
-    { notas: leerNotas(pedido) },
+    { notas: leerNotas(pedido, { soloPara }) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
   const pedido = clave(b.pedido);
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
 
-  const yo = identidad(req, b.operarioId, "tecnico");
+  const yo = escritor(req, b.operarioId);
   if (yo instanceof NextResponse) return yo;
 
   const v = validarTexto(b.texto);
@@ -89,6 +96,16 @@ export async function POST(req: Request) {
   return NextResponse.json({
     nota: crearNota(pedido, yo.id, v.texto, undefined, { publica: b.publica === true }),
   });
+}
+
+/** Quién escribe, si puede escribir notas: técnicos y Producción. Dirección
+ *  y supervisores puros siguen en solo lectura. */
+function escritor(req: Request, operarioId: unknown) {
+  const yo = identidad(req, operarioId);
+  if (yo instanceof NextResponse) return yo;
+  if (!puedeEscribirNotas(yo.roles))
+    return NextResponse.json({ error: "Esta cuenta es de solo lectura" }, { status: 403 });
+  return yo;
 }
 
 /** Id de una nota: entero, tal como lo devolvió el POST. */
@@ -101,7 +118,7 @@ export async function PATCH(req: Request) {
   const id = idDe(b.id);
   if (id === null) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
-  const yo = identidad(req, b.operarioId, "tecnico");
+  const yo = escritor(req, b.operarioId);
   if (yo instanceof NextResponse) return yo;
 
   const v = validarTexto(b.texto);
@@ -120,7 +137,7 @@ export async function DELETE(req: Request) {
   const id = idDe(b.id);
   if (id === null) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
-  const yo = identidad(req, b.operarioId, "tecnico");
+  const yo = escritor(req, b.operarioId);
   if (yo instanceof NextResponse) return yo;
 
   return borrarNota(id, yo.id)

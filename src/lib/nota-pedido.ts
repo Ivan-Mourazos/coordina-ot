@@ -22,6 +22,10 @@ export interface NotaPedido {
    *  comerciales). Por defecto no: una nota interna que sale de OT es peor
    *  que una para todos que se queda dentro. */
   publica: boolean;
+  /** Nombre de quien la escribió, de la tabla de personas. Para las cuentas
+   *  que no son del tablero (Belén, de Producción): sin él, el hilo del
+   *  equipo enseñaría su id en vez de su nombre. */
+  autor?: string | null;
 }
 
 /** Lo que ve de una nota quien no tiene sesión: el texto, quién y cuándo.

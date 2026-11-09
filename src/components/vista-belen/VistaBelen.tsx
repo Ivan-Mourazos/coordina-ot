@@ -46,7 +46,7 @@ async function pedirJson<T>(url: string, senal: AbortSignal): Promise<T> {
   return json;
 }
 
-export function VistaBelen({ nombre }: { nombre: string }) {
+export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: string | null }) {
   const [pestana, setPestana] = useState<Pestana>("pedido");
   const [lista, setLista] = useState<IdLista>(LISTAS_BELEN[0].id);
   const [cuentas, setCuentas] = useState<Partial<Record<IdLista, number>>>({});
@@ -223,6 +223,7 @@ export function VistaBelen({ nombre }: { nombre: string }) {
           </form>
           <ResultadoBusqueda
             estado={estado}
+            miId={miId}
             onElegir={(codigo) => {
               setQ(codigo);
               void abrirPedido(codigo);
@@ -264,7 +265,15 @@ export function VistaBelen({ nombre }: { nombre: string }) {
   );
 }
 
-function ResultadoBusqueda({ estado, onElegir }: { estado: Estado; onElegir: (codigo: string) => void }) {
+function ResultadoBusqueda({
+  estado,
+  onElegir,
+  miId,
+}: {
+  estado: Estado;
+  onElegir: (codigo: string) => void;
+  miId: string | null;
+}) {
   switch (estado.tipo) {
     case "vacio":
       return (
@@ -307,6 +316,8 @@ function ResultadoBusqueda({ estado, onElegir }: { estado: Estado; onElegir: (co
         </ul>
       );
     case "pedido":
-      return <PedidoBelenView key={estado.pedido.codigo} pedido={estado.pedido} ofResaltada={estado.ofResaltada} />;
+      return (
+        <PedidoBelenView key={estado.pedido.codigo} pedido={estado.pedido} ofResaltada={estado.ofResaltada} miId={miId} />
+      );
   }
 }

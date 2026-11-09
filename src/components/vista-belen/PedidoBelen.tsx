@@ -3,8 +3,18 @@
 import { useEffect, useState } from "react";
 import type { DocumentoRps } from "@/lib/historial";
 import { fmtMinEnteros } from "@/lib/estado";
-import { enFrase, fechaCorta, resumenPedido, type PedidoBelen, type TiemposPedido } from "@/lib/vista-belen";
+import {
+  enFrase,
+  fechaCorta,
+  resumenPedido,
+  type MaterialPedido,
+  type PedidoBelen,
+  type TiemposPedido,
+} from "@/lib/vista-belen";
+import { estadoMaterialDe } from "@/lib/types";
 import { DocumentosRps } from "../DocumentosRps";
+import { NotasPedido } from "../NotasPedido";
+import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { TiemposBelen } from "./TiemposBelen";
 
@@ -19,7 +29,7 @@ import { TiemposBelen } from "./TiemposBelen";
 // en un monitor pequeño sin un scroll eterno. Documentos y tiempos se piden al
 // abrir el pedido, en paralelo, para que cambiar de pestaña sea instantáneo.
 
-type Seccion = "resumen" | "documentos" | "tiempos";
+type Seccion = "resumen" | "documentos" | "tiempos" | "material" | "notas";
 type Carga<T> = { tipo: "cargando" } | { tipo: "listo"; datos: T } | { tipo: "error" };
 
 function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
@@ -62,7 +72,16 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactN
   );
 }
 
-export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; ofResaltada: string | null }) {
+export function PedidoBelenView({
+  pedido,
+  ofResaltada,
+  miId,
+}: {
+  pedido: PedidoBelen;
+  ofResaltada: string | null;
+  /** Quién escribe las notas: la sesión. null = sin sesión, notas solo de lectura. */
+  miId: string | null;
+}) {
   const r = resumenPedido(pedido);
   const fin = (s: string) => s.trim().toUpperCase() === "FINALIZADA";
   const porOF = (a: { of: string }, b: { of: string }) => a.of.localeCompare(b.of);
@@ -81,6 +100,12 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
   const tiempos = useCarga(`/api/vista-belen?tiempos=${encodeURIComponent(pedido.codigo)}`, (j) =>
     (j as { tiempos: TiemposPedido | null }).tiempos,
   );
+  const material = useCarga(`/api/vista-belen?material=${encodeURIComponent(pedido.codigo)}`, (j) =>
+    (j as { material: MaterialPedido | null }).material,
+  );
+  // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
+  const estadoMat =
+    material.tipo === "listo" && material.datos ? estadoMaterialDe(material.datos.ofs) : null;
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
@@ -89,6 +114,12 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
       label: "Tareas y tiempos",
       extra: tiempos.tipo === "listo" && tiempos.datos ? fmtMinEnteros(tiempos.datos.minutos) : undefined,
     },
+    {
+      id: "material",
+      label: "Material",
+      extra: estadoMat === "sinReservar" ? "sin reservar" : estadoMat === "aMedias" ? "a medias" : estadoMat === "reservado" ? "reservado" : undefined,
+    },
+    { id: "notas", label: "Notas" },
   ];
 
   return (
@@ -133,6 +164,12 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
             )}
           </Dato>
         </dl>
+        {pedido.comentarioVenta && (
+          <div className="mt-2.5 border-t border-border pt-2">
+            <div className="text-[11px] text-text-muted">Comentario del pedido</div>
+            <p className="whitespace-pre-line text-[13px]">{pedido.comentarioVenta}</p>
+          </div>
+        )}
       </header>
 
       <div role="tablist" aria-label="Detalle del pedido" className="flex flex-wrap gap-1.5 px-1 pt-1">
@@ -178,6 +215,33 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
             ) : (
               <p className="text-sm text-text-muted">Este pedido no tiene documentos en RPS.</p>
             ))}
+        </div>
+      )}
+
+      {seccion === "material" && (
+        <div role="tabpanel" id="panel-detalle-material" aria-labelledby="detalle-material">
+          {material.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando material…</p>}
+          {material.tipo === "error" && (
+            <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
+              No se pudo leer el material de RPS. Prueba otra vez en un momento.
+            </p>
+          )}
+          {material.tipo === "listo" && material.datos && <MaterialBelen material={material.datos} />}
+        </div>
+      )}
+
+      {seccion === "notas" && (
+        <div
+          role="tabpanel"
+          id="panel-detalle-notas"
+          aria-labelledby="detalle-notas"
+          className="tarjeta-of rounded-3xl bg-surface px-5 py-3"
+        >
+          <p className="mb-2 text-[12.5px] text-text-muted">
+            Aquí ves las notas que Oficina Técnica pone «para todos» y las tuyas. Lo que escribas «para todos» lo lee
+            todo el equipo.
+          </p>
+          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} publicaPorDefecto />
         </div>
       )}
 

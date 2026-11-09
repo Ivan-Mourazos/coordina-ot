@@ -28,6 +28,18 @@ export function esRolAcceso(v: unknown): v is RolAcceso {
   return v === "tecnico" || v === "supervisor" || v === "direccion" || v === "produccion";
 }
 
+/** Notas del pedido: las escriben los técnicos y, para hablar con OT,
+ *  Producción (Belén, 10/11/2026). Dirección solo mira. */
+export function puedeEscribirNotas(roles: readonly RolAcceso[]): boolean {
+  return roles.includes("tecnico") || roles.includes("produccion");
+}
+
+/** ¿Ve también las notas «solo OT»? El equipo y Dirección, sí; Producción
+ *  solo las «para todos» y las suyas. */
+export function veNotasInternas(roles: readonly RolAcceso[]): boolean {
+  return roles.includes("tecnico") || roles.includes("direccion") || roles.includes("supervisor");
+}
+
 /** Pantallas hechas a medida de una persona de Producción. Son POR PERSONA y
  *  no por rol (Iván, 09/11/2026): cada compañero de Producción tendrá la suya,
  *  distinta de la de Belén. El rol `produccion` solo dice que entra por aquí. */

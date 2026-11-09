@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   enFrase,
   fechaCorta,
@@ -72,6 +74,29 @@ function Fecha({ etiqueta, valor, clase = "" }: { etiqueta: string; valor: strin
   );
 }
 
+/** El texto de la línea del pedido (medidas, acabados): a veces es una línea
+ *  y a veces veinte. Se ven dos y el resto al pedirlo. */
+function DetalleLinea({ texto }: { texto: string }) {
+  const [entero, setEntero] = useState(false);
+  const largo = texto.length > 160 || texto.split(/\r?\n/).length > 2;
+  return (
+    <div className="mt-1 rounded-xl bg-[var(--detalle)] px-3 py-1.5 text-[12.5px]">
+      <span className="text-[11px] text-text-muted">Detalle del pedido · </span>
+      <span className={`whitespace-pre-line ${entero || !largo ? "" : "line-clamp-2"}`}>{texto}</span>
+      {largo && (
+        <button
+          type="button"
+          aria-expanded={entero}
+          onClick={() => setEntero((v) => !v)}
+          className="mt-0.5 block text-[12px] font-semibold text-text-muted underline-offset-2 hover:text-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {entero ? "Ver menos" : "Ver todo"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ChipAviso({ of, tipo }: { of: OFBelen; tipo: TipoAviso }) {
   const r = resumenAvisos(of.avisos, tipo);
   if (!r) return null;
@@ -140,6 +165,7 @@ export function FilaOFBelen({
             )}
           </div>
           <p className="mt-0.5 text-[13.5px] text-text-muted">{enFrase(of.descripcion)}</p>
+          {of.detalleLinea && <DetalleLinea texto={of.detalleLinea} />}
           {/* Solo lo que difiere del resto del pedido. */}
           {(otraEntrega || otraRotulacion) && (
             <p className="mt-0.5 text-[12.5px]">

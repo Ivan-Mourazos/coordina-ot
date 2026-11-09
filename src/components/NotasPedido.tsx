@@ -26,6 +26,7 @@ export function NotasPedido({
   miId,
   operarios,
   soloLectura: soloLecturaProp = false,
+  publicaPorDefecto = false,
 }: {
   /** CÓDIGO del pedido ("AR.26.03914"), no su id interno: es lo que sobrevive
    *  al paso al Historial, donde el id cambia. */
@@ -34,6 +35,10 @@ export function NotasPedido({
   operarios: readonly Operario[];
   /** El Historial no escribe: el pedido ya está cerrado para OT. */
   soloLectura?: boolean;
+  /** Con qué sale marcada una nota nueva. En OT, «Solo OT»; en la pantalla
+   *  de Belén, «Para todos»: escribe para hablar con OT y tiene que poder
+   *  leer lo que le contesten. */
+  publicaPorDefecto?: boolean;
 }) {
   // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo.
   const soloLecturaCuenta = useSoloLectura();
@@ -45,7 +50,7 @@ export function NotasPedido({
   const [borrador, setBorrador] = useState("");
   // Para quién es la nota nueva. Empieza siempre en «Solo OT»: si alguien no
   // se fija, la nota no sale de la oficina (19/10/2026).
-  const [borradorPublica, setBorradorPublica] = useState(false);
+  const [borradorPublica, setBorradorPublica] = useState(publicaPorDefecto);
   const [escribiendo, setEscribiendo] = useState(false);
   const [editando, setEditando] = useState<{ id: number; texto: string; publica: boolean } | null>(null);
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
@@ -91,12 +96,12 @@ export function NotasPedido({
       setEditando(null);
       setEscribiendo(false);
       setBorrador("");
-      setBorradorPublica(false);
+      setBorradorPublica(publicaPorDefecto);
       setBorrando(null);
       void cargar();
     }, 0);
     return () => clearTimeout(id);
-  }, [cargar]);
+  }, [cargar, publicaPorDefecto]);
 
   /** Manda el cambio y recarga el hilo. Devuelve si salió bien, para que quien
    *  llama sepa si puede cerrar su editor. */
@@ -242,7 +247,7 @@ export function NotasPedido({
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
                   <span className="font-semibold text-text">
-                    {delSistema ? "Coordina" : (op?.nombre ?? n.operarioId)}
+                    {delSistema ? "Coordina" : (op?.nombre ?? n.autor ?? n.operarioId)}
                   </span>
                   <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
                   {n.publica && (
@@ -305,13 +310,13 @@ export function NotasPedido({
               });
               if (ok) {
                 setBorrador("");
-                setBorradorPublica(false);
+                setBorradorPublica(publicaPorDefecto);
                 setEscribiendo(false);
               }
             }}
             onCancelar={() => {
               setBorrador("");
-              setBorradorPublica(false);
+              setBorradorPublica(publicaPorDefecto);
               setEscribiendo(false);
             }}
           />

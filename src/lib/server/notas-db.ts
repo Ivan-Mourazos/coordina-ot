@@ -24,6 +24,7 @@ interface Fila {
   creado_at: string;
   editado_at: string | null;
   publica: number;
+  nombre?: string | null;
 }
 
 const aNota = (f: Fila): NotaPedido => ({
@@ -34,21 +35,26 @@ const aNota = (f: Fila): NotaPedido => ({
   creadoAt: f.creado_at,
   editadoAt: f.editado_at,
   publica: f.publica === 1,
+  autor: f.nombre ?? null,
 });
 
 /** El hilo de un pedido, de la más vieja a la más nueva: se lee como una
  *  conversación y lo último que pasó queda abajo del todo. Las borradas no
  *  salen. */
-export function leerNotas(pedido: string): NotaPedido[] {
+export function leerNotas(pedido: string, { soloPara }: { soloPara?: string } = {}): NotaPedido[] {
+  // `soloPara`: el hilo tal como lo ve alguien de fuera de OT (Belén, de
+  // Producción): las notas «para todos» y las suyas, nunca las internas.
+  const filtro = soloPara ? "AND (n.publica = 1 OR n.operario_id = ?)" : "";
+  const args = soloPara ? [pedido, soloPara] : [pedido];
   return (
     getDb()
       .prepare(
-        `SELECT id, pedido, operario_id, texto, creado_at, editado_at, publica
-           FROM nota_pedido
-          WHERE pedido = ? AND borrado_at IS NULL
-          ORDER BY creado_at, id`,
+        `SELECT n.id, n.pedido, n.operario_id, n.texto, n.creado_at, n.editado_at, n.publica, p.nombre
+           FROM nota_pedido n LEFT JOIN persona p ON p.id = n.operario_id
+          WHERE n.pedido = ? AND n.borrado_at IS NULL ${filtro}
+          ORDER BY n.creado_at, n.id`,
       )
-      .all(pedido) as Fila[]
+      .all(...args) as Fila[]
   ).map(aNota);
 }
 

@@ -62,8 +62,44 @@ test("fichar: 403", async () => {
   expect(res.status).toBe(403);
 });
 
-test("escribir una nota: 403", async () => {
-  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00001", texto: "hola" }));
+// ─── Notas: Belén habla con OT (10/11/2026) ──────────────────────────────────
+const ivan = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("ivan")}` });
+const carlos = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("carlos")}` });
+
+test("Belén escribe una nota y sale con su nombre", async () => {
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "¿Cuándo sale?", publica: true }));
+  expect(res.status).toBe(200);
+  const { nota } = (await res.json()) as { nota: { operarioId: string } };
+  expect(nota.operarioId).toBe("belen");
+});
+
+test("lee las «para todos» y las suyas, nunca las internas de OT", async () => {
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "interna de OT" }, ivan()));
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "sale el jueves", publica: true }, ivan()));
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "privada de Belén" }));
+
+  const suya = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET"));
+  const textos = ((await suya.json()) as { notas: { texto: string; autor?: string }[] }).notas.map((n) => n.texto);
+  expect(textos).toEqual(["¿Cuándo sale?", "sale el jueves", "privada de Belén"]);
+
+  // OT lo ve todo, y la de Belén con su nombre.
+  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan()));
+  const todas = ((await deOT.json()) as { notas: { texto: string; autor?: string }[] }).notas;
+  expect(todas.map((n) => n.texto)).toContain("interna de OT");
+  expect(todas.find((n) => n.texto === "¿Cuándo sale?")?.autor).toBe("Belén");
+});
+
+test("no puede editar ni borrar las notas de otro", async () => {
+  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan()));
+  const ajena = ((await deOT.json()) as { notas: { id: number; texto: string }[] }).notas.find((n) => n.texto === "sale el jueves")!;
+  const editar = await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: ajena.id, texto: "cambiada" }));
+  expect(editar.status).toBe(403);
+  const borrar = await notas.DELETE(peticion("http://x/api/notas", "DELETE", { id: ajena.id }));
+  expect(borrar.status).toBe(403);
+});
+
+test("Dirección sigue sin escribir notas", async () => {
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "hola" }, carlos()));
   expect(res.status).toBe(403);
 });
 

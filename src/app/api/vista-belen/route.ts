@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
-import { leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
+import { leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
@@ -12,6 +12,7 @@ import { esIdLista } from "@/lib/vista-belen-listas";
 //   ?q=texto        pedidos que encajan con lo escrito (el buscador de siempre)
 //   ?pedido=AR.…    el pedido con una fila por OF
 //   ?tiempos=AR.…   todas sus tareas y cada fichaje de cada persona
+//   ?material=AR.… lo asignado, reservado y comprado de cada OF
 //   ?lista=…        una de las pestañas (lib/vista-belen-listas.ts, LISTAS_BELEN)
 //
 // Con el login encendido pide sesión, como el resto de lo que no es para toda
@@ -35,6 +36,11 @@ export async function GET(req: Request) {
     const tiempos = params.get("tiempos");
     if (tiempos !== null) {
       return NextResponse.json({ tiempos: await leerTiemposBelen(tiempos) }, { headers: SIN_CACHE });
+    }
+
+    const material = params.get("material");
+    if (material !== null) {
+      return NextResponse.json({ material: await leerMaterialBelen(material) }, { headers: SIN_CACHE });
     }
 
     const lista = params.get("lista");

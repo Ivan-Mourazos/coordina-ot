@@ -37,7 +37,7 @@ export default async function Home() {
     const soloProduccion =
       yo.roles.includes("produccion") && !yo.roles.includes("tecnico") && !yo.roles.includes("direccion");
     if (soloProduccion) {
-      return vistaAMedida(yo) === "belen" ? <VistaBelen nombre={yo.nombre} /> : <Consulta />;
+      return vistaAMedida(yo) === "belen" ? <VistaBelen nombre={yo.nombre} miId={yo.id} /> : <Consulta />;
     }
   }
 

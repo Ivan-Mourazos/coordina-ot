@@ -1,3 +1,5 @@
+import type { CompraOF, MaterialAsignado } from "./types";
+
 // ─── Vista de Belén Alamancos: contrato y lógica pura ────────────────────
 // Client-safe: ni mssql ni RPS. De dónde sale cada dato está en
 // server/vista-belen-db.ts; aquí solo QUÉ significa.
@@ -70,6 +72,9 @@ export interface OFBelen {
   formaEntrega: string | null;
   rotulacion: string | null;
   notas: string | null;
+  /** El texto de la línea del pedido: medidas y acabados, lo que lee OT para
+   *  plantear (FACOrderLineSL.Comment). */
+  detalleLinea?: string | null;
   operaciones: OperacionOF[];
   avisos: AvisoOF[];
   paquetes: PaqueteOF[];
@@ -81,7 +86,25 @@ export interface OFBelen {
 export interface PedidoBelen {
   codigo: string;
   cliente: string | null;
+  /** Lo que apuntó el comercial en el pedido (FACOrderSL.Comment). */
+  comentarioVenta?: string | null;
   ofs: OFBelen[];
+}
+
+// ─── Material del pedido ─────────────────────────────────────────────────────
+// Las tres manos del material (ver la memoria del flujo y types.ts): lo que OT
+// ASIGNÓ a la OF, lo que Almacén RESERVÓ de eso, y lo que Compras PIDIÓ. Lo
+// pedido no encadena con lo asignado en RPS (casi siempre es otra cosa: tubo,
+// lacado, portes), por eso va en su propia lista.
+export interface MaterialOF {
+  of: string;
+  descripcion: string;
+  materiales: MaterialAsignado[];
+  compras: CompraOF[];
+}
+
+export interface MaterialPedido {
+  ofs: MaterialOF[];
 }
 
 export function puntoBultos(cantidad: number, subidas: number): PuntoBultos {

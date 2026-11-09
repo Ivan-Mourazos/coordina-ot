@@ -32,7 +32,8 @@ test("una nota se guarda y se lee", () => {
   expect(creada.operarioId).toBe("jaime");
   expect(creada.texto).toBe("falta el color");
   expect(creada.editadoAt).toBeNull();
-  expect(db.leerNotas("AR.26.03914")).toEqual([creada]);
+  // Al leer, la nota trae además el nombre de quien la escribió (de persona).
+  expect(db.leerNotas("AR.26.03914")).toEqual([{ ...creada, autor: "Jaime" }]);
 });
 
 test("el hilo sale de la más vieja a la más nueva: se lee como una conversación", () => {
