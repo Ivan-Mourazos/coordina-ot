@@ -46,7 +46,7 @@ export function veNotasInternas(roles: readonly RolAcceso[]): boolean {
 export type VistaAMedida = "belen";
 
 const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {
-  belen: "belen",
+  "belen-alamancos": "belen",
 };
 
 /** La pantalla a medida en la que aterriza esta persona, o null si va a lo de
@@ -88,4 +88,8 @@ export interface PersonaPublica {
   /** Todavía no ha elegido PIN (recién dada de alta, o se lo resetearon). La
    *  pantalla lo pide DOS veces en ese caso, en vez de una. */
   sinPin: boolean;
+  /** Nombre y primer apellido, para la pantalla de entrar: con nombres de
+   *  pila solos, dos personas iguales (hay dos Belén en Producción) no se
+   *  distinguen. Solo se enseña ahí; el resto de la web usa `nombre`. */
+  nombreCompleto: string;
 }

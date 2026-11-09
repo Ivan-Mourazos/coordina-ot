@@ -2,6 +2,7 @@
 
 import { estadoMaterial, type EstadoMaterial } from "@/lib/types";
 import { enFrase, fechaCorta, type MaterialPedido } from "@/lib/vista-belen";
+import { SIGNIFICA } from "./AyudaBelen";
 
 // ─── Material del pedido, en la pantalla de Belén ────────────────────────────
 // Por OF, las tres manos del material: lo que OT ASIGNÓ (y cuánto ha
@@ -25,8 +26,12 @@ function estadoCompra(c: { pedida: number; recibida: number; estimada?: string }
   return { texto: "Pendiente", clase: "text-amber-700 dark:text-amber-300" };
 }
 
-const Th = ({ children, derecha = false }: { children: React.ReactNode; derecha?: boolean }) => (
-  <th scope="col" className={`py-1 pr-3 font-semibold ${derecha ? "text-right" : "text-left"}`}>
+const Th = ({ children, derecha = false, ayuda }: { children: React.ReactNode; derecha?: boolean; ayuda?: string }) => (
+  <th
+    scope="col"
+    title={ayuda}
+    className={`py-1 pr-3 font-semibold ${derecha ? "text-right" : "text-left"} ${ayuda ? "cursor-help" : ""}`}
+  >
     {children}
   </th>
 );
@@ -58,8 +63,8 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
               <thead className="text-[11px] text-text-muted">
                 <tr className="border-b border-border">
                   <Th>Material</Th>
-                  <Th derecha>Asignado</Th>
-                  <Th derecha>Reservado</Th>
+                  <Th derecha ayuda={SIGNIFICA.asignado}>Asignado</Th>
+                  <Th derecha ayuda={SIGNIFICA.reservado}>Reservado</Th>
                   <Th>Estado</Th>
                 </tr>
               </thead>

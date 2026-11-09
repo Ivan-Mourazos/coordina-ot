@@ -597,18 +597,18 @@ const MIGRACIONES: ReadonlyArray<{
  *  Se puede repetir sin estropear nada: si la fila ya existe (alguien la creó
  *  a mano) solo se le AÑADE el rol si le falta, sin tocar el PIN ni lo demás. */
 function cuentaDeProduccion(db: Database.Database): void {
-  const fila = db.prepare("SELECT roles FROM persona WHERE id = 'belen'").get() as { roles: string } | undefined;
+  const fila = db.prepare("SELECT roles FROM persona WHERE id = 'belen-alamancos'").get() as { roles: string } | undefined;
   if (!fila) {
     db.prepare(
       `INSERT INTO persona (id, nombre, pin_hash, roles, seccion, activo)
-       VALUES ('belen', 'Belén', NULL, 'produccion', NULL, 1)`,
+       VALUES ('belen-alamancos', 'Belén Alamancos', NULL, 'produccion', NULL, 1)`,
     ).run();
     return;
   }
   const roles = fila.roles.split(",").map((r) => r.trim()).filter(Boolean);
   if (!roles.includes("produccion")) {
     roles.push("produccion");
-    db.prepare("UPDATE persona SET roles = ? WHERE id = 'belen'").run(roles.join(","));
+    db.prepare("UPDATE persona SET roles = ? WHERE id = 'belen-alamancos'").run(roles.join(","));
   }
 }
 

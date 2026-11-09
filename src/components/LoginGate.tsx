@@ -162,7 +162,9 @@ function Cara({
       >
         {cara.iniciales}
       </span>
-      <span className="truncate text-sm font-semibold text-text">{p.nombre}</span>
+      <span className="text-sm font-semibold leading-tight text-text">
+        {p.nombreCompleto}
+      </span>
     </button>
   );
 }

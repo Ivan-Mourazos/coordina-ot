@@ -36,12 +36,12 @@ afterAll(() => {
   }
 });
 
-const belen = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("belen")}` });
+const belen = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("belen-alamancos")}` });
 const peticion = (url: string, method: string, body?: unknown, cabeceras = belen()) =>
   new Request(url, { method, headers: cabeceras, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 
 test("la migración da de alta a Belén, activa, sin PIN y solo con produccion", () => {
-  const fila = db.getDb().prepare("SELECT roles, activo, pin_hash FROM persona WHERE id = 'belen'").get();
+  const fila = db.getDb().prepare("SELECT roles, activo, pin_hash FROM persona WHERE id = 'belen-alamancos'").get();
   expect(fila).toEqual({ roles: "produccion", activo: 1, pin_hash: null });
   const yo = s.quienEs(new Request("http://x/", { headers: belen() }));
   expect(yo?.roles).toEqual(["produccion"]);
@@ -70,7 +70,7 @@ test("Belén escribe una nota y sale con su nombre", async () => {
   const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "¿Cuándo sale?", publica: true }));
   expect(res.status).toBe(200);
   const { nota } = (await res.json()) as { nota: { operarioId: string } };
-  expect(nota.operarioId).toBe("belen");
+  expect(nota.operarioId).toBe("belen-alamancos");
 });
 
 test("lee las «para todos» y las suyas, nunca las internas de OT", async () => {
@@ -86,7 +86,7 @@ test("lee las «para todos» y las suyas, nunca las internas de OT", async () =>
   const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan()));
   const todas = ((await deOT.json()) as { notas: { texto: string; autor?: string }[] }).notas;
   expect(todas.map((n) => n.texto)).toContain("interna de OT");
-  expect(todas.find((n) => n.texto === "¿Cuándo sale?")?.autor).toBe("Belén");
+  expect(todas.find((n) => n.texto === "¿Cuándo sale?")?.autor).toBe("Belén Alamancos");
 });
 
 test("no puede editar ni borrar las notas de otro", async () => {

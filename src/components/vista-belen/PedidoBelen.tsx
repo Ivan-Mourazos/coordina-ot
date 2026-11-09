@@ -15,6 +15,7 @@ import { estadoMaterialDe } from "@/lib/types";
 import { DocumentosRps } from "../DocumentosRps";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
+import { AyudaBelen } from "./AyudaBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { TiemposBelen } from "./TiemposBelen";
 
@@ -199,9 +200,13 @@ export function PedidoBelenView({
           </button>
         ))}
       </div>
+      <AyudaBelen />
 
       {seccion === "documentos" && (
         <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-4 py-3">
+          <p className="mb-2 text-[12.5px] text-text-muted">
+            Todo lo que RPS tiene colgado de este pedido. Pincha uno para verlo en grande; las flechas pasan al siguiente.
+          </p>
           {docs.tipo === "cargando" && <p className="text-sm text-text-muted">Cargando documentos…</p>}
           {docs.tipo === "error" && (
             <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
@@ -220,6 +225,7 @@ export function PedidoBelenView({
 
       {seccion === "material" && (
         <div role="tabpanel" id="panel-detalle-material" aria-labelledby="detalle-material">
+          <p className="mb-2 px-1 text-[12.5px] text-text-muted">Por OF: lo que Oficina Técnica asignó, lo que Almacén ha reservado de eso y lo que Compras pidió al proveedor.</p>
           {material.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando material…</p>}
           {material.tipo === "error" && (
             <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
@@ -247,6 +253,7 @@ export function PedidoBelenView({
 
       {seccion === "tiempos" && (
         <div role="tabpanel" id="panel-detalle-tiempos" aria-labelledby="detalle-tiempos">
+          <p className="mb-2 px-1 text-[12.5px] text-text-muted">Cada vez que alguien fichó en una tarea de este pedido, sacado de RPS: el día, la hora en que se registró y los minutos. Pincha una tarea o una persona para ver sus fichajes.</p>
           {tiempos.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando tareas y tiempos…</p>}
           {tiempos.tipo === "error" && (
             <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">

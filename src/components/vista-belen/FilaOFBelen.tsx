@@ -14,6 +14,7 @@ import {
   type TipoAviso,
   difiereDelPedido,
 } from "@/lib/vista-belen";
+import { SIGNIFICA } from "./AyudaBelen";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
 // Tres franjas, de lo que se mira de un vistazo a lo que se lee con calma:
@@ -30,9 +31,9 @@ import {
 // 900 px la franja 2 se apila.
 
 const PUNTO: Record<PuntoBultos, { clase: string; texto: string }> = {
-  verde: { clase: "bg-emerald-600 dark:bg-emerald-400", texto: "Bultos subidos" },
-  granate: { clase: "bg-rose-900 dark:bg-rose-300", texto: "Bultos subidos, pero las unidades no coinciden" },
-  rojo: { clase: "bg-red-600 dark:bg-red-400", texto: "Bultos sin subir" },
+  verde: { clase: "bg-emerald-600 dark:bg-emerald-400", texto: SIGNIFICA.puntoVerde },
+  granate: { clase: "bg-rose-900 dark:bg-rose-300", texto: SIGNIFICA.puntoGranate },
+  rojo: { clase: "bg-red-600 dark:bg-red-400", texto: SIGNIFICA.puntoRojo },
 };
 
 const OPERACION: Record<EstadoOperacion, { texto: string; clase: string; barra: string }> = {
@@ -64,11 +65,23 @@ function persona(nombre: string | null): string {
   return propio ? `${capital(propio)} ${capital(apellidos)}` : capital(apellidos);
 }
 
-function Fecha({ etiqueta, valor, clase = "" }: { etiqueta: string; valor: string | null; clase?: string }) {
+function Fecha({
+  etiqueta,
+  valor,
+  clase = "",
+  ayuda,
+}: {
+  etiqueta: string;
+  valor: string | null;
+  clase?: string;
+  ayuda: string;
+}) {
   if (!valor) return null;
   return (
     <div className="text-right">
-      <dt className="text-[11px] leading-tight text-text-muted">{etiqueta}</dt>
+      <dt className="cursor-help text-[11px] leading-tight text-text-muted" title={ayuda}>
+        {etiqueta}
+      </dt>
       <dd className={`text-[14px] font-semibold tabular-nums leading-tight ${clase}`}>{fechaCorta(valor)}</dd>
     </div>
   );
@@ -147,7 +160,7 @@ export function FilaOFBelen({
       <div className="flex items-start gap-3 px-5 pb-2 pt-3">
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
           <span className={`size-3 rounded-full ${punto.clase}`} title={textoPunto} role="img" aria-label={textoPunto} />
-          <span className="w-5 text-center text-[22px] font-bold leading-none tabular-nums" title="Prioridad">
+          <span className="w-5 text-center text-[22px] font-bold leading-none tabular-nums" title={SIGNIFICA.prioridad}>
             {of.prioridad ?? "—"}
           </span>
         </div>
@@ -176,9 +189,19 @@ export function FilaOFBelen({
           )}
         </div>
         <dl className="flex shrink-0 gap-4">
-          {difiereDelPedido(of, resumen, "fechaSolicitada") && <Fecha etiqueta="Solicitada" valor={of.fechaSolicitada} />}
-          <Fecha etiqueta="Comprometida" valor={of.fechaComprometida} clase="text-teal-700 dark:text-teal-300" />
-          <Fecha etiqueta="Llega material" valor={of.fechaCompras} clase="text-amber-700 dark:text-amber-300" />
+          {difiereDelPedido(of, resumen, "fechaSolicitada") && <Fecha etiqueta="Solicitada" valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}
+          <Fecha
+            etiqueta="Comprometida"
+            valor={of.fechaComprometida}
+            clase="text-teal-700 dark:text-teal-300"
+            ayuda={SIGNIFICA.comprometida}
+          />
+          <Fecha
+            etiqueta="Llega material"
+            valor={of.fechaCompras}
+            clase="text-amber-700 dark:text-amber-300"
+            ayuda={SIGNIFICA.llegaMaterial}
+          />
         </dl>
       </div>
 
@@ -209,7 +232,12 @@ export function FilaOFBelen({
                       >
                         {enFrase(op.descripcion)}
                       </span>
-                      <span className={`shrink-0 text-[11.5px] font-semibold ${e.clase}`}>{e.texto}</span>
+                      <span
+                        className={`shrink-0 cursor-help text-[11.5px] font-semibold ${e.clase}`}
+                        title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
+                      >
+                        {e.texto}
+                      </span>
                     </li>
                   );
                 })}
@@ -222,7 +250,9 @@ export function FilaOFBelen({
 
         <div className="flex min-w-0 flex-col gap-2 rounded-2xl bg-[var(--detalle)] px-3.5 py-2.5 text-[12.5px]">
           <div>
-            <div className="text-[11px] text-text-muted">Paquete</div>
+            <div className="cursor-help text-[11px] text-text-muted" title={SIGNIFICA.paquete}>
+              Paquete
+            </div>
             {of.paquetes.length > 0 ? (
               of.paquetes.map((p, i) => (
                 <div key={i} className="flex justify-between gap-2">
@@ -236,7 +266,9 @@ export function FilaOFBelen({
           </div>
           {of.logistica && (
             <div>
-              <div className="text-[11px] text-text-muted">Previsión de logística</div>
+              <div className="cursor-help text-[11px] text-text-muted" title={SIGNIFICA.logistica}>
+                Previsión de logística
+              </div>
               <div className="flex justify-between gap-2">
                 <span className="truncate font-semibold">{persona(of.logistica.responsable) || "—"}</span>
                 <span className="shrink-0 font-semibold tabular-nums text-purple-700 dark:text-purple-300">

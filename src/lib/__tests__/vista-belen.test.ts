@@ -83,11 +83,11 @@ test("una fila por tarea aunque tenga varias máquinas", () => {
 
 describe("pantalla a medida", () => {
   test("Belén, solo con produccion, va a la suya", () =>
-    expect(vistaAMedida({ id: "belen", roles: ["produccion"] })).toBe("belen"));
+    expect(vistaAMedida({ id: "belen-alamancos", roles: ["produccion"] })).toBe("belen"));
   test("otra persona de Producción no hereda la de Belén", () =>
     expect(vistaAMedida({ id: "otra", roles: ["produccion"] })).toBeNull());
   test("con tecnico sigue en el tablero", () =>
-    expect(vistaAMedida({ id: "belen", roles: ["produccion", "tecnico"] })).toBeNull());
+    expect(vistaAMedida({ id: "belen-alamancos", roles: ["produccion", "tecnico"] })).toBeNull());
 });
 
 describe("resumen del pedido", () => {

@@ -2,6 +2,18 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { esRolAcceso, type PersonaPublica, type RolAcceso } from "../personas";
 import type { SeccionId } from "../secciones";
 import { getDb } from "./estado-db";
+import { OPERARIOS } from "../mock";
+
+/** Nombre y primer apellido de quien NO está en el catálogo del equipo
+ *  (OPERARIOS, que ya lo trae). Dirección entra por la rejilla igual que
+ *  todos. Si falta alguien, sale su nombre de pila. */
+const NOMBRE_COMPLETO_FUERA_DEL_EQUIPO: Readonly<Record<string, string>> = {
+  esteban: "Esteban Raposo",
+};
+
+function nombreCompleto(id: string, nombre: string): string {
+  return OPERARIOS.find((o) => o.id === id)?.nombre ?? NOMBRE_COMPLETO_FUERA_DEL_EQUIPO[id] ?? nombre;
+}
 
 // ─── Quién puede entrar, y con qué PIN ───────────────────────────────────────
 // SOLO servidor. Es el único sitio que sabe cómo se guarda un PIN; el resto de
@@ -68,6 +80,7 @@ function aPublica(f: Fila): PersonaPublica {
     roles: f.roles.split(",").map((r) => r.trim()).filter(esRolAcceso),
     seccion: (f.seccion as SeccionId | null) ?? null,
     sinPin: f.pin_hash === null,
+    nombreCompleto: nombreCompleto(f.id, f.nombre),
   };
 }
 
