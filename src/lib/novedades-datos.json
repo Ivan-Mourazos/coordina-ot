@@ -1,8 +1,37 @@
 [
   {
     "id": "2026-11-09",
-    "hasta": "aaa056d",
+    "hasta": "e4930de",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Producción tiene su propia pantalla para buscar pedidos",
+        "detalle": "Belén entra directa a ella: cada OF con sus bultos, operaciones, paquetes, fechas, TP/COT y material pendiente, y seis listas de comprobación.",
+        "tanda": 3
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En la pantalla de Belén, el pedido enseña sus documentos y quién fichó en cada tarea",
+        "detalle": "Planteamientos, rotulación, fotos y pedido escaneado a un clic, y cada fichaje con su día, hora y minutos, por tarea o por persona.",
+        "tanda": 3
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Belén puede escribiros notas en los pedidos",
+        "detalle": "Las ve todo el equipo con su nombre. Ella lee las que pongáis «para todos»; las de «solo OT» siguen siendo solo vuestras.",
+        "tanda": 3
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En la pantalla de Belén, el pedido enseña su material: asignado, reservado y pedido a proveedor",
+        "tanda": 3
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En la pantalla de Belén, cada dato dice qué es al pasar el ratón",
+        "detalle": "Las etiquetas con subrayado de puntos (fechas, paquete, material) explican de dónde sale el dato.",
+        "tanda": 3
+      },
       {
         "tipo": "arreglado",
         "titulo": "En el Historial salen fotos de visitas que antes faltaban: las de visitas enlazadas a la oportunidad y no al pedido",
@@ -12,6 +41,17 @@
         "tipo": "mejor",
         "titulo": "El buscador de arriba encuentra el pedido al momento: vale 26.05448, 2605448, ar2605448 o el número de OF",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al entrar, todo el equipo cabe en la pantalla",
+        "detalle": "Cada sección en su columna: ya no hay que bajar para encontrarte.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al entrar sale el nombre con el primer apellido",
+        "tanda": 3
       }
     ]
   },
