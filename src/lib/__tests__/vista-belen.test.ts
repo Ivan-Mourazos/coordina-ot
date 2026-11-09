@@ -10,6 +10,8 @@ import {
   enFrase,
   type AvisoOF,
   type OFBelen,
+  agruparTiempos,
+  type FilaTiempo,
 } from "../vista-belen";
 import { vistaAMedida } from "../personas";
 
@@ -131,4 +133,39 @@ test("en frase", () => {
   expect(enFrase("FALDON LATERAL O FRONTAL NUEVO")).toBe("Faldon lateral o frontal nuevo");
   expect(enFrase("  plantear archivos PVC  ")).toBe("Plantear archivos PVC");
   expect(enFrase(null)).toBe("");
+});
+
+describe("tareas y tiempos", () => {
+  const fila = (o: Partial<FilaTiempo>): FilaTiempo => ({
+    of: "0232470", ofDescripcion: "FALDON", tarea: "5", descripcion: "CORTAR", maquina: "A-COAC",
+    estado: "finalizado", persona: null, dia: null, hora: null, minutos: 0, ...o,
+  });
+  const t = agruparTiempos([
+    fila({ tarea: "10", descripcion: "EMPATAR", persona: "Teresa Vázquez", dia: "2026-11-03", hora: "10:38", minutos: 0 }),
+    fila({ persona: "Pilar Santos", dia: "2026-11-03", hora: "10:00", minutos: 14 }),
+    fila({ persona: "Teresa Vázquez", dia: "2026-11-04", hora: "09:00", minutos: 20 }),
+    fila({ persona: "Teresa Vázquez", dia: "2026-11-03", hora: "10:00", minutos: 14 }),
+    fila({ tarea: "31", descripcion: "TUBO", estado: "sin_empezar" }),
+    fila({ of: "0232466", tarea: "02", descripcion: "PLANTEAR", persona: "Pilar Santos", dia: "2026-10-01", hora: "08:00", minutos: 30 }),
+  ]);
+
+  test("suma por pedido, OF y tarea", () => {
+    expect(t.minutos).toBe(78);
+    expect(t.ofs.map((o) => [o.of, o.minutos])).toEqual([["0232466", 30], ["0232470", 48]]);
+  });
+  test("salen también las tareas sin fichajes, en orden numérico", () => {
+    expect(t.ofs[1].tareas.map((x) => x.codigo)).toEqual(["5", "10", "31"]);
+    expect(t.ofs[1].tareas[2]).toMatchObject({ minutos: 0, personas: [] });
+  });
+  test("en la tarea, personas de más a menos y fichajes por fecha", () => {
+    const corte = t.ofs[1].tareas[0];
+    expect(corte.personas.map((p) => [p.persona, p.minutos])).toEqual([["Teresa Vázquez", 34], ["Pilar Santos", 14]]);
+    expect(corte.personas[0].fichajes.map((f) => f.dia)).toEqual(["2026-11-03", "2026-11-04"]);
+  });
+  test("por persona: total, días y rango, con el fichaje de 0 minutos contado", () => {
+    const teresa = t.personas.find((p) => p.persona === "Teresa Vázquez")!;
+    expect(teresa).toMatchObject({ minutos: 34, dias: 2, primerDia: "2026-11-03", ultimoDia: "2026-11-04" });
+    expect(teresa.fichajes).toHaveLength(3);
+    expect(t.personas[0].persona).toBe("Pilar Santos");
+  });
 });

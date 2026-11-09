@@ -1,14 +1,43 @@
 "use client";
 
-import { useState } from "react";
-import { enFrase, fechaCorta, resumenPedido, type PedidoBelen } from "@/lib/vista-belen";
+import { useEffect, useState } from "react";
+import type { DocumentoRps } from "@/lib/historial";
+import { fmtMinEnteros } from "@/lib/estado";
+import { enFrase, fechaCorta, resumenPedido, type PedidoBelen, type TiemposPedido } from "@/lib/vista-belen";
+import { DocumentosRps } from "../DocumentosRps";
 import { FilaOFBelen } from "./FilaOFBelen";
+import { TiemposBelen } from "./TiemposBelen";
 
 // ─── Un pedido en la pantalla de Belén ───────────────────────────────────────
 // Arriba, una cabecera con lo que es del PEDIDO: cliente, lo que comparten
 // todas sus OF (entrega, rotulación, fecha solicitada) y una línea con lo que
 // falta, para saber de un vistazo si hay que mirar algo. Debajo, una ficha por
 // OF; las finalizadas, plegadas al final.
+//
+// Es el detalle del pedido (Iván, 09/11/2026: «una pantalla de detalle de
+// pedido elaborada»): debajo de la cabecera, tres subpestañas para que quepa
+// en un monitor pequeño sin un scroll eterno. Documentos y tiempos se piden al
+// abrir el pedido, en paralelo, para que cambiar de pestaña sea instantáneo.
+
+type Seccion = "resumen" | "documentos" | "tiempos";
+type Carga<T> = { tipo: "cargando" } | { tipo: "listo"; datos: T } | { tipo: "error" };
+
+function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
+  const [carga, setCarga] = useState<Carga<T>>({ tipo: "cargando" });
+  useEffect(() => {
+    const ctl = new AbortController();
+    fetch(url, { signal: ctl.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((json) => setCarga({ tipo: "listo", datos: sacar(json) }))
+      .catch(() => {
+        if (!ctl.signal.aborted) setCarga({ tipo: "error" });
+      });
+    return () => ctl.abort();
+    // sacar es una función pura escrita en el sitio: no cambia lo que se pide.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+  return carga;
+}
 
 type Tono = "rojo" | "granate" | "verde" | "ambar" | "neutro";
 
@@ -45,6 +74,22 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
   );
 
   const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
+  const [seccion, setSeccion] = useState<Seccion>("resumen");
+  const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos`, (j) =>
+    (j as { documentos?: DocumentoRps[] }).documentos ?? [],
+  );
+  const tiempos = useCarga(`/api/vista-belen?tiempos=${encodeURIComponent(pedido.codigo)}`, (j) =>
+    (j as { tiempos: TiemposPedido | null }).tiempos,
+  );
+  const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
+    { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
+    { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
+    {
+      id: "tiempos",
+      label: "Tareas y tiempos",
+      extra: tiempos.tipo === "listo" && tiempos.datos ? fmtMinEnteros(tiempos.datos.minutos) : undefined,
+    },
+  ];
 
   return (
     <section aria-label={`Pedido ${pedido.codigo}`} className="flex flex-col gap-2">
@@ -90,6 +135,71 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
         </dl>
       </header>
 
+      <div role="tablist" aria-label="Detalle del pedido" className="flex flex-wrap gap-1.5 px-1 pt-1">
+        {SECCIONES.map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            id={`detalle-${x.id}`}
+            aria-selected={seccion === x.id}
+            aria-controls={`panel-detalle-${x.id}`}
+            onClick={() => setSeccion(x.id)}
+            className={`flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+              seccion === x.id
+                ? "bg-text text-bg"
+                : "bg-[var(--hero-relleno)] text-text-muted hover:bg-[var(--hero-relleno-encima)] hover:text-text"
+            }`}
+          >
+            {x.label}
+            {x.extra && (
+              <span
+                className={`rounded-full px-1.5 text-[11px] tabular-nums ${seccion === x.id ? "bg-bg/20" : "bg-[var(--hero-relleno-encima)]"}`}
+              >
+                {x.extra}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {seccion === "documentos" && (
+        <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-4 py-3">
+          {docs.tipo === "cargando" && <p className="text-sm text-text-muted">Cargando documentos…</p>}
+          {docs.tipo === "error" && (
+            <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
+              No se pudieron leer los documentos de RPS. Prueba otra vez en un momento.
+            </p>
+          )}
+          {docs.tipo === "listo" &&
+            (docs.datos.length ? (
+              // Los planteamientos primero: es lo que más busca (Belén, 09/11/2026).
+              <DocumentosRps documentos={docs.datos} clasePrimero="Planteamiento" abrirPrimera />
+            ) : (
+              <p className="text-sm text-text-muted">Este pedido no tiene documentos en RPS.</p>
+            ))}
+        </div>
+      )}
+
+      {seccion === "tiempos" && (
+        <div role="tabpanel" id="panel-detalle-tiempos" aria-labelledby="detalle-tiempos">
+          {tiempos.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando tareas y tiempos…</p>}
+          {tiempos.tipo === "error" && (
+            <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
+              No se pudieron leer los tiempos de RPS. Prueba otra vez en un momento.
+            </p>
+          )}
+          {tiempos.tipo === "listo" &&
+            (tiempos.datos ? (
+              <TiemposBelen tiempos={tiempos.datos} />
+            ) : (
+              <p className="px-1 text-sm text-text-muted">Este pedido no tiene tareas en RPS.</p>
+            ))}
+        </div>
+      )}
+
+      {seccion === "resumen" && (
+      <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
       {abiertas.map((o) => (
         <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
       ))}
@@ -105,6 +215,8 @@ export function PedidoBelenView({ pedido, ofResaltada }: { pedido: PedidoBelen; 
       )}
       {verFinalizadas &&
         finalizadas.map((o) => <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />)}
+      </div>
+      )}
     </section>
   );
 }

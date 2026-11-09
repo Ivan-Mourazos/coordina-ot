@@ -1,13 +1,18 @@
 import sql from "mssql";
 import { getPool } from "./db";
 import {
+  agruparTiempos,
   estadoOperacion,
   fechaDeTexto,
   unaFilaPorTarea,
   type AvisoOF,
+  type FilaTiempo,
   type OFBelen,
   type PedidoBelen,
+  type TiemposPedido,
 } from "../vista-belen";
+import { nombreHistorial } from "../nombre-historial";
+import { nombresHistorial } from "./nombres-historial";
 
 // ─── Vista de Belén Alamancos: lectura de RPS ────────────────────────────
 // Solo lectura, con el usuario de lectura. Cada dato sale de donde lo sacaban
@@ -221,6 +226,81 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
   });
 
   return { codigo: pedido, cliente: resultado[0].cliente, ofs: resultado };
+}
+
+// ─── Tareas y tiempos: cada fichaje ──────────────────────────────────────────
+// Todas las tareas de todas las OF del pedido y, por cada una, cada fichaje de
+// persona (ResourceType = 1, la regla del Historial) con su día, la hora en
+// que se registró (EntryDate) y los minutos (ExecutionTime). Las tareas sin
+// fichajes salen igual, con una fila sin persona. Medido el 09/11/2026 contra
+// RPS: AR.26.04716 (5 OF, 23 tareas) en unos 60 ms.
+export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | null> {
+  const pedido = codigo.trim().toUpperCase();
+  if (!ES_RPS()) return agruparTiempos(tiemposDeEjemplo());
+  const pool = await getPool();
+  // Los nombres, como en el Historial: el del equipo en Coordina si es de los
+  // nuestros («José Luis Carrón»), el de RPS recortado si no.
+  const nombres = await nombresHistorial();
+  const r = await pool.request().input("pedido", sql.VarChar(25), pedido).query<{
+    codEmpleado: string | null;
+    of: string;
+    ofDescripcion: string | null;
+    tarea: string;
+    descripcion: string | null;
+    maquina: string | null;
+    pct: number | null;
+    olanet: number | null;
+    imps: number;
+    persona: string | null;
+    dia: Date | null;
+    registro: Date | null;
+    minutos: number | null;
+  }>(`${OFS_DEL_PEDIDO}
+    SELECT o.cod AS [of], CAST(mo.Description AS varchar(300)) AS ofDescripcion,
+           t.CodMOTask AS tarea, CAST(t.Description AS varchar(300)) AS descripcion,
+           (SELECT TOP (1) rm.CodMOResourceMachine FROM dbo.CPRMOResourceMachine rm
+             WHERE rm.IDMOTask = t.IDMOTask ORDER BY rm.CodMOResourceMachine) AS maquina,
+           t.PercentProgress AS pct,
+           (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
+             WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
+           (SELECT COUNT(*) FROM dbo.CPRImputationMO x WHERE x.IDMOTask = t.IDMOTask) AS imps,
+           e.CodEmployee AS codEmpleado, e.Description AS persona, i.ImputationDate AS dia, i.EntryDate AS registro,
+           i.ExecutionTime AS minutos
+    FROM ofs o
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id
+    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
+    LEFT JOIN dbo.CPRImputationMO i
+      ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = o.id AND i.ResourceType = 1
+    LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool`);
+  if (!r.recordset.length) return null;
+
+  const filas: FilaTiempo[] = r.recordset.map((f) => ({
+    of: f.of.trim(),
+    ofDescripcion: (f.ofDescripcion ?? "").trim(),
+    tarea: f.tarea.trim(),
+    descripcion: (f.descripcion ?? "").trim(),
+    maquina: texto(f.maquina),
+    estado: estadoOperacion({ olanet: f.olanet, porcentaje: f.pct, imputaciones: f.imps }),
+    // Un fichaje sin empleado (máquina o dato perdido) no es de nadie: se
+    // queda la tarea, sin persona.
+    persona: f.persona && f.dia ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.persona) : null,
+    dia: iso(f.dia),
+    // RPS guarda la hora sin zona y el driver la trae como UTC: la hora del
+    // ISO es la del reloj de la nave.
+    hora: f.registro && f.registro.getUTCFullYear() > 1900 ? f.registro.toISOString().slice(11, 16) : null,
+    minutos: Number(f.minutos) || 0,
+  }));
+  return agruparTiempos(filas);
+}
+
+function tiemposDeEjemplo(): FilaTiempo[] {
+  const base = { of: "0232470", ofDescripcion: "FALDON LATERAL O FRONTAL NUEVO PARA TOLDO FACHADA", maquina: "A-COAC" };
+  return [
+    { ...base, tarea: "5", descripcion: "CORTAR FALDON", estado: "finalizado", persona: "Teresa Vázquez", dia: "2026-11-03", hora: "10:00", minutos: 14 },
+    { ...base, tarea: "5", descripcion: "CORTAR FALDON", estado: "finalizado", persona: "Pilar Santos", dia: "2026-11-03", hora: "10:00", minutos: 14 },
+    { ...base, tarea: "19", descripcion: "CONFECCIONAR FALDON", maquina: "A-CONF", estado: "interrumpido", persona: "José Manuel Santos", dia: "2026-11-03", hora: "12:30", minutos: 13 },
+    { ...base, tarea: "31", descripcion: "CORTAR Y MONTAR TUBO FALDON", maquina: "A-CALD", estado: "sin_empezar", persona: null, dia: null, hora: null, minutos: 0 },
+  ];
 }
 
 // ─── Sin RPS (desarrollo) ────────────────────────────────────────────────────

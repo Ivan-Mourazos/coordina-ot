@@ -246,3 +246,151 @@ export function difiereDelPedido(
   const comun = resumen.igual[k] ? resumen.comunes[k] : undefined;
   return comun === undefined ? (of[k] ?? null) !== null : (of[k] ?? null) !== comun;
 }
+
+// ─── Tareas y tiempos del pedido ─────────────────────────────────────────────
+// Belén (09/11/2026) quiere ver TODAS las tareas y el tiempo de cada persona,
+// con las fechas en que fichó. RPS guarda cada fichaje con el día, la hora en
+// que se registró y los minutos (CPRImputationMO, ResourceType = 1 = persona;
+// la misma regla que el Historial).
+
+export interface FichajeBelen {
+  persona: string;
+  /** yyyy-mm-dd */
+  dia: string;
+  /** «HH:MM» en que se registró en RPS; null si no se sabe. */
+  hora: string | null;
+  minutos: number;
+}
+
+/** Una fila tal como llega de RPS: una por fichaje, o una sola sin fichaje
+ *  (persona null) para que salgan también las tareas que nadie ha tocado. */
+export interface FilaTiempo {
+  of: string;
+  ofDescripcion: string;
+  tarea: string;
+  descripcion: string;
+  maquina: string | null;
+  estado: EstadoOperacion;
+  persona: string | null;
+  dia: string | null;
+  hora: string | null;
+  minutos: number;
+}
+
+export interface PersonaEnTarea {
+  persona: string;
+  minutos: number;
+  fichajes: FichajeBelen[];
+}
+
+export interface TareaTiempos {
+  of: string;
+  codigo: string;
+  descripcion: string;
+  maquina: string | null;
+  estado: EstadoOperacion;
+  minutos: number;
+  personas: PersonaEnTarea[];
+}
+
+export interface OFTiempos {
+  of: string;
+  descripcion: string;
+  minutos: number;
+  tareas: TareaTiempos[];
+}
+
+export interface PersonaTiempos {
+  persona: string;
+  minutos: number;
+  /** Días distintos en que fichó. */
+  dias: number;
+  primerDia: string | null;
+  ultimoDia: string | null;
+  fichajes: Array<FichajeBelen & { of: string; tarea: string; descripcion: string }>;
+}
+
+export interface TiemposPedido {
+  minutos: number;
+  ofs: OFTiempos[];
+  personas: PersonaTiempos[];
+}
+
+const porFecha = (a: { dia: string; hora: string | null }, b: { dia: string; hora: string | null }) =>
+  a.dia.localeCompare(b.dia) || (a.hora ?? "").localeCompare(b.hora ?? "");
+
+/** Del detalle de RPS (una fila por fichaje) a las dos maneras de mirarlo: por
+ *  OF y tarea, y por persona. Las tareas van en el orden de su código como
+ *  número («2» antes que «10»); las personas, de más a menos tiempo. Los
+ *  fichajes de 0 minutos se cuentan (dicen que alguien estuvo) pero no suman. */
+export function agruparTiempos(filas: readonly FilaTiempo[]): TiemposPedido {
+  const ofs = new Map<string, OFTiempos>();
+  const tareas = new Map<string, TareaTiempos>();
+  const personas = new Map<string, PersonaTiempos>();
+
+  for (const f of filas) {
+    let of = ofs.get(f.of);
+    if (!of) {
+      of = { of: f.of, descripcion: f.ofDescripcion, minutos: 0, tareas: [] };
+      ofs.set(f.of, of);
+    }
+    const claveTarea = `${f.of}|${f.tarea}`;
+    let tarea = tareas.get(claveTarea);
+    if (!tarea) {
+      tarea = {
+        of: f.of,
+        codigo: f.tarea,
+        descripcion: f.descripcion,
+        maquina: f.maquina,
+        estado: f.estado,
+        minutos: 0,
+        personas: [],
+      };
+      tareas.set(claveTarea, tarea);
+      of.tareas.push(tarea);
+    }
+    if (!f.persona || !f.dia) continue;
+
+    const fichaje: FichajeBelen = { persona: f.persona, dia: f.dia, hora: f.hora, minutos: f.minutos };
+    tarea.minutos += f.minutos;
+    of.minutos += f.minutos;
+    let enTarea = tarea.personas.find((p) => p.persona === f.persona);
+    if (!enTarea) {
+      enTarea = { persona: f.persona, minutos: 0, fichajes: [] };
+      tarea.personas.push(enTarea);
+    }
+    enTarea.minutos += f.minutos;
+    enTarea.fichajes.push(fichaje);
+
+    let p = personas.get(f.persona);
+    if (!p) {
+      p = { persona: f.persona, minutos: 0, dias: 0, primerDia: null, ultimoDia: null, fichajes: [] };
+      personas.set(f.persona, p);
+    }
+    p.minutos += f.minutos;
+    p.fichajes.push({ ...fichaje, of: f.of, tarea: f.tarea, descripcion: f.descripcion });
+  }
+
+  const numero = (c: string) => (/^\d+$/.test(c) ? Number(c) : Number.MAX_SAFE_INTEGER);
+  for (const of of ofs.values()) {
+    of.tareas.sort((a, b) => numero(a.codigo) - numero(b.codigo) || a.codigo.localeCompare(b.codigo));
+    for (const t of of.tareas) {
+      t.personas.sort((a, b) => b.minutos - a.minutos);
+      for (const p of t.personas) p.fichajes.sort(porFecha);
+    }
+  }
+  for (const p of personas.values()) {
+    p.fichajes.sort(porFecha);
+    const dias = [...new Set(p.fichajes.map((f) => f.dia))].sort();
+    p.dias = dias.length;
+    p.primerDia = dias[0] ?? null;
+    p.ultimoDia = dias[dias.length - 1] ?? null;
+  }
+
+  const listaOfs = [...ofs.values()].sort((a, b) => a.of.localeCompare(b.of));
+  return {
+    minutos: listaOfs.reduce((s, o) => s + o.minutos, 0),
+    ofs: listaOfs,
+    personas: [...personas.values()].sort((a, b) => b.minutos - a.minutos),
+  };
+}

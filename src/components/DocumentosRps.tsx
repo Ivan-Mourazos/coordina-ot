@@ -40,6 +40,7 @@ const ORDEN_CLASES = [
 export function DocumentosRps({
   documentos,
   clasePrimero,
+  abrirPrimera = false,
 }: {
   documentos: DocumentoRps[];
   /** Pone esta clase delante de todas las demás (el resto conserva su orden
@@ -49,6 +50,10 @@ export function DocumentosRps({
    *  botón aparte, ver publico.ts— y no puede quedar el tercero de la lista.
    *  Si el pedido no tiene esa clase, no pasa nada: el resto sale igual. */
   clasePrimero?: string;
+  /** Sale con la primera carpeta abierta. Para cuando los documentos ocupan
+   *  una pestaña entera (la pantalla de Belén) y no un bloque más de la ficha:
+   *  ahí abrirla es lo único que se va a hacer. */
+  abrirPrimera?: boolean;
 }) {
   // Los abribles, en el orden en que se ven: es la lista por la que pasean las
   // flechas del visor, y por eso se calcula UNA vez aquí y no por grupo.
@@ -59,7 +64,7 @@ export function DocumentosRps({
   const [enVisor, setEnVisor] = useState<number | null>(null);
   // Una carpeta abierta a la vez: abrir el pedido escaneado cierra las fotos,
   // como al desplegar pedidos en las listas (Iván, 14/10/2026).
-  const [abierta, setAbierta] = useState<string | null>(null);
+  const [abierta, setAbierta] = useState<string | null>(() => (abrirPrimera ? (grupos[0]?.[0] ?? null) : null));
 
   if (documentos.length === 0) {
     return <p className="text-[11px] text-text-muted">RPS no tiene nada colgado de este pedido.</p>;
