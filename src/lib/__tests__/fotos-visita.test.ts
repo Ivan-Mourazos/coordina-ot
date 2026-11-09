@@ -20,7 +20,8 @@ test("solo consulta el pedido abierto, comparte la carga y renueva sus fotos a l
   expect(a).toEqual(b);
   expect(a[0]).toMatchObject({ clase: "Fotos de la instalación", descripcion: "Foto 1 de la instalación OM1" });
   expect(query).toHaveBeenCalledTimes(1);
-  expect(input).toHaveBeenCalledWith("pedido", "AR.26.00001");
+  // Tipado como varchar: sin tipo iría como nvarchar y anularía el índice.
+  expect(input).toHaveBeenCalledWith("pedido", expect.anything(), "AR.26.00001");
   query.mockResolvedValue({ recordset: [{ asistencia: "OM2", tipo: "VT", foto: "http://foto/2.jpg", n: 1 }] });
   const otro = await fotosDeVisita("AR.26.00002");
   expect(otro[0].clase).toBe("Fotos de la visita");
