@@ -52,9 +52,11 @@ export function LoginGate({ onEntrado }: { onEntrado: (yo: Yo) => void }) {
 
   return (
     <div className="grid min-h-full place-items-center p-6">
-      <div className="w-full max-w-xl text-center">
-        <div className="mb-6 flex justify-center">
-          <Logo height={110} />
+      {/* La rejilla, ancha (todas las secciones a la vista); el teclado del
+          PIN, estrecho como siempre. */}
+      <div className={`w-full text-center ${quien ? "max-w-xl" : "max-w-5xl"}`}>
+        <div className={`flex justify-center ${quien ? "mb-6" : "mb-4"}`}>
+          <Logo height={quien ? 110 : 80} />
         </div>
         {quien ? (
           <TecladoPin
@@ -103,49 +105,36 @@ function Rejilla({
   const produccion = personas.filter(
     (p) => p.roles.includes("produccion") && !p.roles.includes("tecnico") && !p.roles.includes("direccion"),
   );
+  // Cada sección en su tarjeta y las tarjetas en columnas: con todo el equipo
+  // en una pantalla pequeña ya no hay que bajar (Iván, 10/11/2026). Una fila
+  // por persona —cara pequeña y nombre— en vez de una tarjeta grande: se
+  // sigue entrando con UN clic, sin desplegar nada.
+  const grupos: Array<{ titulo: string; personas: PersonaPublica[] }> = [
+    ...agrupar(tecnicos).map(([seccion, suyos]) => ({ titulo: SECCIONES[seccion].nombre, personas: suyos })),
+    { titulo: "Dirección", personas: direccion },
+    { titulo: "Producción", personas: produccion },
+  ].filter((g) => g.personas.length > 0);
   return (
     <>
       <h1 className="mb-1 text-lg font-semibold text-text">¿Quién eres?</h1>
-      <p className="mb-6 text-sm text-text-muted">
+      <p className="mb-4 text-sm text-text-muted">
         Elige tu nombre y teclea tu PIN.
       </p>
-      <div className="flex flex-col gap-5">
-        {agrupar(tecnicos).map(([seccion, suyos]) => (
-          <section key={seccion}>
-            <h2 className="mb-2 border-b border-border pb-1 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              {SECCIONES[seccion].nombre}
+      <div className="grid items-start gap-3 text-left [grid-template-columns:repeat(auto-fit,minmax(11.5rem,1fr))]">
+        {grupos.map((g) => (
+          <section key={g.titulo} aria-label={g.titulo} className="glass-panel rounded-3xl px-2 pb-2 pt-3">
+            <h2 className="mb-1 px-2 text-[11px] font-bold uppercase tracking-wide text-text-muted">
+              {g.titulo}
             </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {suyos.map((p) => (
-                <Cara key={p.id} p={p} onElegir={onElegir} />
+            <ul className="flex flex-col">
+              {g.personas.map((p) => (
+                <li key={p.id}>
+                  <Cara p={p} onElegir={onElegir} />
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         ))}
-        {direccion.length > 0 && (
-          <section>
-            <h2 className="mb-2 border-b border-border pb-1 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              Dirección
-            </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {direccion.map((p) => (
-                <Cara key={p.id} p={p} onElegir={onElegir} />
-              ))}
-            </div>
-          </section>
-        )}
-        {produccion.length > 0 && (
-          <section>
-            <h2 className="mb-2 border-b border-border pb-1 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              Producción
-            </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {produccion.map((p) => (
-                <Cara key={p.id} p={p} onElegir={onElegir} />
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </>
   );
@@ -163,16 +152,17 @@ function Cara({
   const cara = pinta(p);
   return (
     <button
+      type="button"
       onClick={() => onElegir(p)}
-      className="glass-panel flex flex-col items-center gap-2 rounded-2xl p-4 transition-all hover:scale-[1.03] hover:border-brand-400"
+      className="flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition-colors hover:bg-[var(--hero-relleno)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
     >
       <span
-        className="grid size-14 place-items-center rounded-full text-lg font-bold text-white shadow"
+        className="grid size-9 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white shadow-sm"
         style={{ background: cara.color, color: tintaSobre(cara.color) }}
       >
         {cara.iniciales}
       </span>
-      <span className="text-sm font-semibold text-text">{p.nombre}</span>
+      <span className="truncate text-sm font-semibold text-text">{p.nombre}</span>
     </button>
   );
 }
