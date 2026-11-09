@@ -2,7 +2,7 @@
 
 import { estadoMaterial, type EstadoMaterial } from "@/lib/types";
 import { enFrase, fechaCorta, type MaterialPedido } from "@/lib/vista-belen";
-import { SIGNIFICA } from "./AyudaBelen";
+import { SIGNIFICA } from "./significados";
 
 // ─── Material del pedido, en la pantalla de Belén ────────────────────────────
 // Por OF, las tres manos del material: lo que OT ASIGNÓ (y cuánto ha
@@ -30,7 +30,7 @@ const Th = ({ children, derecha = false, ayuda }: { children: React.ReactNode; d
   <th
     scope="col"
     title={ayuda}
-    className={`py-1 pr-3 font-semibold ${derecha ? "text-right" : "text-left"} ${ayuda ? "cursor-help" : ""}`}
+    className={`py-1 pr-3 font-semibold ${derecha ? "text-right" : "text-left"} ${ayuda ? "cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2" : ""}`}
   >
     {children}
   </th>

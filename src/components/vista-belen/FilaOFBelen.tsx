@@ -14,7 +14,7 @@ import {
   type TipoAviso,
   difiereDelPedido,
 } from "@/lib/vista-belen";
-import { SIGNIFICA } from "./AyudaBelen";
+import { SIGNIFICA } from "./significados";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
 // Tres franjas, de lo que se mira de un vistazo a lo que se lee con calma:
@@ -79,7 +79,7 @@ function Fecha({
   if (!valor) return null;
   return (
     <div className="text-right">
-      <dt className="cursor-help text-[11px] leading-tight text-text-muted" title={ayuda}>
+      <dt className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] leading-tight text-text-muted" title={ayuda}>
         {etiqueta}
       </dt>
       <dd className={`text-[14px] font-semibold tabular-nums leading-tight ${clase}`}>{fechaCorta(valor)}</dd>
@@ -250,7 +250,7 @@ export function FilaOFBelen({
 
         <div className="flex min-w-0 flex-col gap-2 rounded-2xl bg-[var(--detalle)] px-3.5 py-2.5 text-[12.5px]">
           <div>
-            <div className="cursor-help text-[11px] text-text-muted" title={SIGNIFICA.paquete}>
+            <div className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] text-text-muted" title={SIGNIFICA.paquete}>
               Paquete
             </div>
             {of.paquetes.length > 0 ? (
@@ -266,7 +266,7 @@ export function FilaOFBelen({
           </div>
           {of.logistica && (
             <div>
-              <div className="cursor-help text-[11px] text-text-muted" title={SIGNIFICA.logistica}>
+              <div className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] text-text-muted" title={SIGNIFICA.logistica}>
                 Previsión de logística
               </div>
               <div className="flex justify-between gap-2">

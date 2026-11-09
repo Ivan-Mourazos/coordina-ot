@@ -15,7 +15,6 @@ import { estadoMaterialDe } from "@/lib/types";
 import { DocumentosRps } from "../DocumentosRps";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
-import { AyudaBelen } from "./AyudaBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { TiemposBelen } from "./TiemposBelen";
 
@@ -200,7 +199,6 @@ export function PedidoBelenView({
           </button>
         ))}
       </div>
-      <AyudaBelen />
 
       {seccion === "documentos" && (
         <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-4 py-3">
