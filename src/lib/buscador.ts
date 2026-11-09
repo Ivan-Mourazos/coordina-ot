@@ -50,6 +50,8 @@ export interface PedidoEncontrado {
   negocio: string | null;
   /** Fecha del pedido de venta (ISO), para poder decir de cuándo es. */
   fecha: string | null;
+  /** La consulta, cuando RPS acertó por algo que no viaja aquí (la OF). */
+  busqueda?: string;
 }
 
 /** Dónde vive el resultado. Solo para el color del distintivo; el texto va en
@@ -288,7 +290,8 @@ export function buscar(consulta: string, f: FuentesBusqueda): Resultado[] {
     // Los que ya salieron por el tablero o el Historial mandan: de esos se sabe
     // dónde están y se pueden abrir con todo su detalle.
     if (yaEstan.has(p.codigo)) continue;
-    const puntos = puntua(indice(p.codigo, [], p.cliente ?? "", ""), q, busca);
+    const puntos = puntua(indice(p.codigo, [], p.cliente ?? "", ""), q, busca)
+      ?? (p.busqueda === consulta.trim() ? 200 : null);
     if (puntos === null) continue;
     yaEstan.add(p.codigo);
     salida.push({
