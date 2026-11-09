@@ -587,7 +587,30 @@ const MIGRACIONES: ReadonlyArray<{
   // impresora (04/11/2026): cada fila dice a cuál, en qué papel y qué páginas.
   { version: 14, nombre: "reparto_impresion", aplicar: repartoImpresion },
   { version: 15, nombre: "trabajo_impresion", aplicar: trabajoImpresion },
+  // Belén Alamancos (Producción) entra a su propia pantalla (09/11/2026). Sin
+  // PIN: lo elige ella la primera vez, como todos.
+  { version: 16, nombre: "cuenta_de_produccion", aplicar: cuentaDeProduccion },
 ];
+
+/** Da de alta a Belén con el rol `produccion` (ver lib/personas.ts).
+ *
+ *  Se puede repetir sin estropear nada: si la fila ya existe (alguien la creó
+ *  a mano) solo se le AÑADE el rol si le falta, sin tocar el PIN ni lo demás. */
+function cuentaDeProduccion(db: Database.Database): void {
+  const fila = db.prepare("SELECT roles FROM persona WHERE id = 'belen'").get() as { roles: string } | undefined;
+  if (!fila) {
+    db.prepare(
+      `INSERT INTO persona (id, nombre, pin_hash, roles, seccion, activo)
+       VALUES ('belen', 'Belén', NULL, 'produccion', NULL, 1)`,
+    ).run();
+    return;
+  }
+  const roles = fila.roles.split(",").map((r) => r.trim()).filter(Boolean);
+  if (!roles.includes("produccion")) {
+    roles.push("produccion");
+    db.prepare("UPDATE persona SET roles = ? WHERE id = 'belen'").run(roles.join(","));
+  }
+}
 
 /** Manuel pasa de Diseño Gráfico a Impresión Digital (13/10/2026).
  *

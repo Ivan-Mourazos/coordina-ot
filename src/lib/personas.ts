@@ -16,13 +16,34 @@ import type { SeccionId } from "./secciones";
  *  · `supervisor`: resetea el PIN de otro. Nada más.
  *  · `direccion`: entra y lo ve todo, sin escribir. Separado de `supervisor`
  *    a propósito: mirar todo no es arreglar cuentas, y un PIN reseteado por
- *    error deja a un técnico fuera. */
-export type RolAcceso = "tecnico" | "supervisor" | "direccion";
+ *    error deja a un técnico fuera.
+ *  · `produccion`: la oficina de Producción (Belén, 09/11/2026). Entra a SU
+ *    pantalla —buscar pedidos y ver cómo van en fábrica— y no al tablero de
+ *    OT. Sin `tecnico`, el servidor ya le niega cualquier escritura. */
+export type RolAcceso = "tecnico" | "supervisor" | "direccion" | "produccion";
 
-export const ROLES_ACCESO: readonly RolAcceso[] = ["tecnico", "supervisor", "direccion"];
+export const ROLES_ACCESO: readonly RolAcceso[] = ["tecnico", "supervisor", "direccion", "produccion"];
 
 export function esRolAcceso(v: unknown): v is RolAcceso {
-  return v === "tecnico" || v === "supervisor" || v === "direccion";
+  return v === "tecnico" || v === "supervisor" || v === "direccion" || v === "produccion";
+}
+
+/** Pantallas hechas a medida de una persona de Producción. Son POR PERSONA y
+ *  no por rol (Iván, 09/11/2026): cada compañero de Producción tendrá la suya,
+ *  distinta de la de Belén. El rol `produccion` solo dice que entra por aquí. */
+export type VistaAMedida = "belen";
+
+const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {
+  belen: "belen",
+};
+
+/** La pantalla a medida en la que aterriza esta persona, o null si va a lo de
+ *  siempre. Quien tenga `tecnico` o `direccion` sigue entrando a lo suyo
+ *  aunque lleve `produccion`. Alguien de Producción sin pantalla propia todavía
+ *  ve la consulta de solo lectura, como quien no ha entrado. */
+export function vistaAMedida(p: { id: string; roles: readonly RolAcceso[] }): VistaAMedida | null {
+  if (!p.roles.includes("produccion") || p.roles.includes("tecnico") || p.roles.includes("direccion")) return null;
+  return VISTAS_A_MEDIDA[p.id] ?? null;
 }
 
 /** ¿Se pinta la web sin controles de escribir? Sin `tecnico`, siempre: el

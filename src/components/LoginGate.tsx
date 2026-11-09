@@ -99,6 +99,10 @@ function Rejilla({
   // su sección, aunque también tenga `direccion` (Iván).
   const tecnicos = personas.filter((p) => p.roles.includes("tecnico"));
   const direccion = personas.filter((p) => p.roles.includes("direccion") && !p.roles.includes("tecnico"));
+  // Producción (Belén), igual que Dirección: su grupo, debajo.
+  const produccion = personas.filter(
+    (p) => p.roles.includes("produccion") && !p.roles.includes("tecnico") && !p.roles.includes("direccion"),
+  );
   return (
     <>
       <h1 className="mb-1 text-lg font-semibold text-text">¿Quién eres?</h1>
@@ -125,6 +129,18 @@ function Rejilla({
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {direccion.map((p) => (
+                <Cara key={p.id} p={p} onElegir={onElegir} />
+              ))}
+            </div>
+          </section>
+        )}
+        {produccion.length > 0 && (
+          <section>
+            <h2 className="mb-2 border-b border-border pb-1 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted">
+              Producción
+            </h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {produccion.map((p) => (
                 <Cara key={p.id} p={p} onElegir={onElegir} />
               ))}
             </div>
