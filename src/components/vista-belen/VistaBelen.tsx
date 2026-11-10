@@ -9,6 +9,7 @@ import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
+import { apuntarReciente, InicioBelen, leerRecientes, type PedidoReciente } from "./InicioBelen";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -76,6 +77,7 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
   const [puedeVolver, setPuedeVolver] = useState(false);
+  const [recientes, setRecientes] = useState<PedidoReciente[]>([]);
   const caja = useRef<HTMLInputElement>(null);
   const enCurso = useRef<AbortController | null>(null);
   // La última dirección de la pestaña Pedidos, para volver a ella al cambiar
@@ -99,7 +101,10 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
 
   useEffect(() => {
     // Fuera del cuerpo del efecto: cargarLista pinta «Cargando» al momento.
-    void Promise.resolve().then(() => LISTAS_BELEN.forEach((l) => void cargarLista(l.id)));
+    void Promise.resolve().then(() => {
+      LISTAS_BELEN.forEach((l) => void cargarLista(l.id));
+      setRecientes(leerRecientes());
+    });
   }, [cargarLista]);
 
   // ── Pedidos ────────────────────────────────────────────────────────────────
@@ -116,7 +121,10 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
       if (ctl.signal.aborted) return;
       setEstado(pedido ? { tipo: "pedido", pedido, ofResaltada } : { tipo: "nada", q: codigo });
       // En la caja queda el código entero: escribió «4716» y ve AR.26.04716.
-      if (pedido) setQ(pedido.codigo);
+      if (pedido) {
+        setQ(pedido.codigo);
+        setRecientes(apuntarReciente({ codigo: pedido.codigo, cliente: pedido.cliente }));
+      }
     } catch (e) {
       if (!ctl.signal.aborted) setEstado({ tipo: "error", mensaje: (e as Error).message });
     }
@@ -325,6 +333,14 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
             </form>
           </div>
           <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} />
+          {estado.tipo === "vacio" && (
+            <InicioBelen
+              recientes={recientes}
+              listas={listas}
+              onAbrirPedido={(codigo, of) => navegar(of ? { pedido: codigo, of } : { pedido: codigo })}
+              onAbrirLista={(id) => navegar({ vista: "comprobaciones", lista: id })}
+            />
+          )}
         </main>
       ) : (
         <main role="tabpanel" id="panel-comprobaciones" aria-labelledby="pestana-comprobaciones" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
