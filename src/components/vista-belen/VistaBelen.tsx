@@ -293,12 +293,12 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
           {/* En el inicio el buscador es lo principal (Iván, 10/11/2026): grande,
-              centrado y con su tarjeta. Con un pedido abierto vuelve a ser una
+              centrado, sin tarjeta, solo sobre el fondo. Con un pedido abierto vuelve a ser una
               barra compacta, para no quitarle sitio a la ficha. */}
           <div
             className={
               grande
-                ? "tarjeta-of relative mb-4 flex flex-col items-center rounded-3xl bg-surface px-6 pb-5 pt-6"
+                ? "relative mb-6 flex flex-col items-center px-6 pt-6"
                 : "mb-3 flex flex-wrap items-center gap-2"
             }
           >
