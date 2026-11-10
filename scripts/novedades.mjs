@@ -113,8 +113,8 @@ if (previa) {
   console.log(
     "\n· Se suman a la entrada de hoy, que ya tenía " +
       `${previa.cambios.length}. Si el servidor ya la había publicado, quien la\n` +
-      "  hubiera leído vuelve a recibir el aviso: la campana mira cuántos cambios\n" +
-      "  trae, no solo cuál es la última entrada.",
+      "  hubiera leído vuelve a recibir el aviso solo si los cambios nuevos le\n" +
+      "  afectan: la campana cuenta lo suyo y lo general.",
   );
 }
 

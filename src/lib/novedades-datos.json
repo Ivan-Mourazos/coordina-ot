@@ -1,13 +1,20 @@
 [
   {
     "id": "2026-11-10",
-    "hasta": "89d57c1",
+    "hasta": "00d8fa3",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "La pantalla de Belén abre con sus pedidos recientes, lo que hay que mirar y las fechas comprometidas de la semana",
         "apartado": "produccion",
         "tanda": 3
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Producción tiene su campana de novedades en la cabecera",
+        "apartado": "produccion",
+        "detalle": "Puedes abrirla cuando quieras; avisa de los cambios de Producción y de los que son para todos.",
+        "tanda": 4
       },
       {
         "tipo": "arreglado",
@@ -60,6 +67,12 @@
         "titulo": "En la pantalla de Belén, el logo lleva al inicio",
         "apartado": "produccion",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En Novedades lees lo de tu apartado y lo de los demás queda plegado",
+        "detalle": "La campana solo avisa de cambios que te afectan. Dirección ve todo desplegado.",
+        "tanda": 4
       }
     ]
   },
