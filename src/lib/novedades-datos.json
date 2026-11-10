@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-10",
-    "hasta": "900e8c1",
+    "hasta": "104ea8d",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -28,6 +28,27 @@
         "titulo": "La campana te avisa de las notas nuevas que te dejamos en tus pedidos",
         "apartado": "produccion",
         "tanda": 5
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Pinchando en una OF ves debajo todas sus tareas",
+        "apartado": "produccion",
+        "detalle": "Máquina, tiempo fichado, último día que se fichó y estado de cada tarea, y al final los TP y COT.",
+        "tanda": 6
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las OF con el TP o la COT ya hechos salen en amarillo",
+        "apartado": "produccion",
+        "detalle": "Un tinte suave en toda la tarjeta de la OF, para verlas de un vistazo.",
+        "tanda": 6
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes imprimir la OF y la reserva de material desde Coordina",
+        "apartado": "produccion",
+        "detalle": "Igual que «Imprimir Documentación» de RPS, con los mismos códigos de barras. Hay un botón en cada OF y otro en el pedido para imprimir todas las abiertas.",
+        "tanda": 6
       },
       {
         "tipo": "arreglado",
@@ -97,6 +118,48 @@
         "titulo": "Las herramientas del inicio se pueden poner en el orden que quieras",
         "apartado": "produccion",
         "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las fechas de cada OF salen en tu orden y con tus colores",
+        "apartado": "produccion",
+        "detalle": "Solicitada en rojo, comprometida en verde, logística en malva y compras en azul. El comentario de la OF va justo debajo, en rojo.",
+        "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Cuando las unidades subidas no cuadran, el punto es azul",
+        "apartado": "produccion",
+        "detalle": "Antes era marrón. Verde y rojo siguen igual.",
+        "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las dos listas de tareas pendientes ahora son una: «Bultos subidos, tareas pendientes»",
+        "apartado": "produccion",
+        "detalle": "Salen las OF con los bultos subidos a las que les queda una o más tareas sin fichar o interrumpidas.",
+        "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En «Desfase de unidades» salen también las delegaciones",
+        "apartado": "produccion",
+        "detalle": "Además de los pedidos AR, los de SA y BE.",
+        "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Fechas comprometidas» enseña solo lo pendiente de hacer",
+        "apartado": "produccion",
+        "detalle": "Ya no salen los pedidos entregados o cumplimentados ni las OF con los bultos subidos. Van ordenadas por fecha.",
+        "tanda": 6
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Pedidos por día de entrega» empieza por hoy, y lo atrasado va aparte y plegado",
+        "apartado": "produccion",
+        "detalle": "Grupos de hoy, mañana, el resto de la semana y más adelante. Lo atrasado se abre con un clic, del más reciente al más antiguo.",
+        "tanda": 6
       }
     ]
   },
