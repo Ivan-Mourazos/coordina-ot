@@ -1,13 +1,24 @@
 [
   {
     "id": "2026-11-10",
-    "hasta": "143cb14",
+    "hasta": "89d57c1",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "La pantalla de Belén abre con sus pedidos recientes, lo que hay que mirar y las fechas comprometidas de la semana",
+        "tanda": 3
+      },
       {
         "tipo": "arreglado",
         "titulo": "En la pantalla de Belén, el punto de unidades que no cuadran se confundía con el rojo",
         "detalle": "Ahora es marrón.",
         "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Belén podía marcar una nota como «Solo OT»",
+        "detalle": "Sus notas son siempre para todos: no es de Oficina Técnica.",
+        "tanda": 3
       },
       {
         "tipo": "mejor",
@@ -25,6 +36,21 @@
         "titulo": "La pantalla de Belén, rediseñada: cifras grandes, colores y todo más compacto",
         "detalle": "Cada pedido abre con sus cifras clave arriba y cada pestaña se lee de un vistazo, también en monitores pequeños.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la pantalla de Belén, los fichajes se leen por día y solo queda una tarea abierta",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la pantalla de Belén, el buscador es lo primero que se ve",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En la pantalla de Belén, el logo lleva al inicio",
+        "tanda": 3
       }
     ]
   },
