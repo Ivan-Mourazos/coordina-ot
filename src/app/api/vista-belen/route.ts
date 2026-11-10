@@ -46,7 +46,8 @@ export async function GET(req: Request) {
     const lista = params.get("lista");
     if (lista !== null) {
       if (!esIdLista(lista)) return NextResponse.json({ error: "Lista desconocida" }, { status: 400 });
-      return NextResponse.json({ filas: await leerListaBelen(lista) }, { headers: SIN_CACHE });
+      const { filas, calculadaAt } = await leerListaBelen(lista);
+      return NextResponse.json({ filas, calculadaAt }, { headers: SIN_CACHE });
     }
 
     const q = params.get("q") ?? "";

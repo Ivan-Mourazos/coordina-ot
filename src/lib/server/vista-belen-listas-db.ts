@@ -296,18 +296,59 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
 };
 
-/** Las listas cuestan medio segundo o más y no cambian de un minuto a otro:
- *  se guardan un rato para que cambiar de lista sea instantáneo. */
-const CACHE_LISTA_MS = 2 * 60_000;
-const cache = new Map<IdLista, { hasta: number; filas: Promise<FilaLista[]> }>();
+/** Las listas cuestan de medio segundo a cuatro («pendientes con bultos
+ *  subidos»; reescribirla agrupando por OF tardaba aún más, 12-17 s). Para que
+ *  Belén no espere, se sirve lo último que se calculó y, si tiene más de
+ *  FRESCA_MS, se recalcula POR DETRÁS para la siguiente vez (Iván, 10/11/2026:
+ *  «las cargas de las listas deberíamos mejorarlas»). Pasado CADUCA_MS ya no
+ *  se enseña algo tan viejo: se espera a la consulta. */
+const FRESCA_MS = 2 * 60_000;
+const CADUCA_MS = 30 * 60_000;
 
-export function leerListaBelen(id: IdLista): Promise<FilaLista[]> {
+interface Guardada {
+  /** Cuándo se calcularon las filas que hay. */
+  at: number;
+  filas: FilaLista[] | null;
+  /** La consulta en marcha, si la hay: dos peticiones a la vez esperan a la misma. */
+  enCurso: Promise<FilaLista[]> | null;
+}
+const cache = new Map<IdLista, Guardada>();
+
+/** Solo para los tests: que uno no herede lo guardado por otro. */
+export function olvidarListasBelen(): void {
+  cache.clear();
+}
+
+function recalcular(id: IdLista, g: Guardada): Promise<FilaLista[]> {
+  if (g.enCurso) return g.enCurso;
+  const p = (ES_RPS() ? getPool().then((pool) => CONSULTAS[id](pool)) : Promise.resolve([]))
+    .then((filas) => {
+      g.filas = filas;
+      g.at = Date.now();
+      return filas;
+    })
+    .finally(() => {
+      g.enCurso = null;
+    });
+  g.enCurso = p;
+  return p;
+}
+
+/** Las filas y su edad, para que la pantalla pueda decir «actualizado hace…». */
+export async function leerListaBelen(id: IdLista): Promise<{ filas: FilaLista[]; calculadaAt: string }> {
   const ahora = Date.now();
-  const guardada = cache.get(id);
-  if (guardada && guardada.hasta > ahora) return guardada.filas;
-  const filas = ES_RPS() ? getPool().then((pool) => CONSULTAS[id](pool)) : Promise.resolve([]);
-  cache.set(id, { hasta: ahora + CACHE_LISTA_MS, filas });
-  // Si falla no se queda guardado el error: la próxima vez se vuelve a pedir.
-  filas.catch(() => cache.delete(id));
-  return filas;
+  let g = cache.get(id);
+  if (!g) {
+    g = { at: 0, filas: null, enCurso: null };
+    cache.set(id, g);
+  }
+  const edad = ahora - g.at;
+  if (g.filas && edad < CADUCA_MS) {
+    // Lo que hay, ya; y si está pasada, se renueva para la próxima. El error
+    // de esa renovación no le llega a nadie: se reintenta en la siguiente.
+    if (edad >= FRESCA_MS) recalcular(id, g).catch(() => {});
+    return { filas: g.filas, calculadaAt: new Date(g.at).toISOString() };
+  }
+  const filas = await recalcular(id, g);
+  return { filas, calculadaAt: new Date(g.at).toISOString() };
 }

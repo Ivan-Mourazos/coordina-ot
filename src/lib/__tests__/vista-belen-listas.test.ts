@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import type sql from "mssql";
 import { esIdLista, LISTAS_BELEN, type IdLista } from "../vista-belen-listas";
-import { CONSULTAS, leerListaBelen } from "../server/vista-belen-listas-db";
+import { CONSULTAS, leerListaBelen, olvidarListasBelen } from "../server/vista-belen-listas-db";
 import { getPool } from "../server/db";
 
 vi.mock("../server/db", () => ({ getPool: vi.fn() }));
@@ -23,6 +23,49 @@ function poolCon(filas: Record<string, unknown>[]) {
   const query = vi.fn().mockResolvedValue({ recordset: filas });
   return { pool: { request: () => ({ query }) } as unknown as sql.ConnectionPool, query };
 }
+
+describe("caché de las listas: lo último al momento y se renueva por detrás", () => {
+  const fila = (clave: string) => ({ clave, of: "0000001", pedido: "AR.26.00001" });
+
+  test("guardada y reciente, al momento; pasada, la misma y se renueva; muy vieja, se espera", async () => {
+    vi.stubEnv("DATASOURCE", "rps");
+    vi.mocked(getPool).mockResolvedValue({} as sql.ConnectionPool);
+    const consulta = vi
+      .spyOn(CONSULTAS, "varias-maquinas")
+      .mockResolvedValueOnce([fila("primera")])
+      .mockResolvedValueOnce([fila("segunda")])
+      .mockResolvedValueOnce([fila("tercera")]);
+    const t0 = new Date("2026-11-10T08:00:00Z").getTime();
+    vi.useFakeTimers({ now: t0, toFake: ["Date"] });
+    try {
+      expect((await leerListaBelen("varias-maquinas")).filas[0].clave).toBe("primera");
+      expect(consulta).toHaveBeenCalledTimes(1);
+
+      // Al minuto: la guardada, sin preguntar a RPS.
+      vi.setSystemTime(t0 + 60_000);
+      expect((await leerListaBelen("varias-maquinas")).filas[0].clave).toBe("primera");
+      expect(consulta).toHaveBeenCalledTimes(1);
+
+      // A los 5 minutos: la guardada AL MOMENTO, y se renueva por detrás.
+      vi.setSystemTime(t0 + 5 * 60_000);
+      expect((await leerListaBelen("varias-maquinas")).filas[0].clave).toBe("primera");
+      expect(consulta).toHaveBeenCalledTimes(2);
+      // La renovación va por detrás: se espera a que termine.
+      await new Promise((r) => setTimeout(r, 0));
+      expect((await leerListaBelen("varias-maquinas")).filas[0].clave).toBe("segunda");
+
+      // Una hora después ya no se enseña lo viejo: se espera a la nueva.
+      vi.setSystemTime(t0 + 65 * 60_000);
+      expect((await leerListaBelen("varias-maquinas")).filas[0].clave).toBe("tercera");
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllEnvs();
+      consulta.mockRestore();
+      olvidarListasBelen();
+      vi.mocked(getPool).mockReset();
+    }
+  });
+});
 
 describe("registro de listas de Belén", () => {
   test("cada IdLista tiene definición y consulta, sin ids repetidos", () => {
@@ -57,7 +100,7 @@ describe("registro de listas de Belén", () => {
     vi.stubEnv("DATASOURCE", "mock");
     try {
       for (const id of Object.keys(IDS) as IdLista[]) {
-        await expect(leerListaBelen(id)).resolves.toEqual([]);
+        await expect(leerListaBelen(id)).resolves.toMatchObject({ filas: [] });
       }
       expect(getPool).not.toHaveBeenCalled();
     } finally {

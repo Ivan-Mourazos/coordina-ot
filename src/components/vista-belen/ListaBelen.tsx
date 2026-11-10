@@ -1,14 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { fechaCorta } from "@/lib/vista-belen";
 import { LISTAS_BELEN, type ColumnaLista, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
 
 // ─── Una lista de comprobación de la pantalla de Belén ───────────────────────
 // Genérica: pinta las columnas que declara su entrada en lib/vista-belen-listas
 // y, al pinchar una fila con pedido, lo abre. Compacta para monitores pequeños.
+//
+// No pide nada: las listas las carga la pantalla al entrar, todas a la vez, y
+// aquí llega lo que haya. Así cambiar de lista es instantáneo y los números de
+// los botones están desde el principio (Iván, 10/11/2026).
 
-type Estado = { tipo: "cargando" } | { tipo: "listo"; filas: FilaLista[] } | { tipo: "error"; mensaje: string };
+export type CargaLista =
+  | { tipo: "cargando" }
+  | { tipo: "listo"; filas: FilaLista[]; calculadaAt: string; actualizando?: boolean }
+  | { tipo: "error"; mensaje: string };
+
+/** «hace 3 min»: las listas se calculan cada pocos minutos y conviene saber
+ *  de cuándo es lo que se mira. */
+function haceCuanto(iso: string): string {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (min < 1) return "ahora mismo";
+  if (min < 60) return `hace ${min} min`;
+  return `a las ${new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+}
 
 function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | null | undefined }) {
   if (valor === null || valor === undefined || valor === "") return <span className="text-text-muted">—</span>;
@@ -26,56 +41,62 @@ function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | nul
   }
 }
 
+/** Esqueleto mientras llega la primera vez: la tabla ocupa su sitio y no salta. */
+function Esqueleto() {
+  return (
+    <div className="rounded-3xl bg-surface p-4 shadow-[var(--hero-sombra-panel)]" aria-hidden>
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="mb-2.5 h-4 animate-pulse rounded bg-[var(--hero-relleno)] motion-reduce:animate-none" />
+      ))}
+    </div>
+  );
+}
+
 export function TablaListaBelen({
   lista,
+  carga,
   onAbrir,
-  onCuenta,
+  onActualizar,
 }: {
   lista: IdLista;
+  carga: CargaLista;
   onAbrir: (pedido: string, of: string | null) => void;
-  /** Para poner el número de filas en el selector de listas. */
-  onCuenta?: (lista: IdLista, n: number) => void;
+  onActualizar: () => void;
 }) {
-  const [estado, setEstado] = useState<Estado>({ tipo: "cargando" });
   const def = LISTAS_BELEN.find((l) => l.id === lista)!;
 
-  useEffect(() => {
-    const ctl = new AbortController();
-    fetch(`/api/vista-belen?lista=${lista}`, { signal: ctl.signal, cache: "no-store" })
-      .then(async (r) => {
-        if (r.status === 401) {
-          window.location.href = "/entrar";
-          return;
-        }
-        const json = (await r.json().catch(() => ({}))) as { filas?: FilaLista[]; error?: string };
-        if (!r.ok || !json.filas) throw new Error(json.error ?? "No se pudo leer RPS");
-        setEstado({ tipo: "listo", filas: json.filas });
-        onCuenta?.(lista, json.filas.length);
-      })
-      .catch((e: Error) => {
-        if (!ctl.signal.aborted) setEstado({ tipo: "error", mensaje: e.message });
-      });
-    return () => ctl.abort();
-  }, [lista, onCuenta]);
-
   return (
-    <section aria-label={def.label}>
-      <p className="mb-2 px-1 text-[13px] text-text-muted">
-        {def.explica} Solo pedidos AR.
-        {estado.tipo === "listo" && estado.filas.length > 0 && " Pincha una fila para abrir su pedido."}
-      </p>
-      {estado.tipo === "cargando" && (
-        <p className="px-1 text-sm text-text-muted" aria-live="polite">
-          Cargando…
+    <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 px-1 text-[13px] text-text-muted">
+        <p>
+          {def.explica} Solo pedidos AR.
+          {carga.tipo === "listo" && carga.filas.length > 0 && " Pincha una fila para abrir su pedido."}
         </p>
-      )}
-      {estado.tipo === "error" && (
+        {carga.tipo === "listo" && (
+          <p className="flex items-center gap-2">
+            <span>{carga.actualizando ? "Actualizando…" : `Actualizada ${haceCuanto(carga.calculadaAt)}`}</span>
+            <button
+              type="button"
+              onClick={onActualizar}
+              disabled={carga.actualizando}
+              className="rounded-full bg-[var(--hero-relleno)] px-2.5 py-0.5 text-[12px] font-semibold text-text hover:bg-[var(--hero-relleno-encima)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              Actualizar
+            </button>
+          </p>
+        )}
+      </div>
+      {carga.tipo === "cargando" && <Esqueleto />}
+      {carga.tipo === "error" && (
         <p className="px-1 text-sm font-semibold text-red-700 dark:text-red-300" role="alert">
-          {estado.mensaje}
+          {carga.mensaje}{" "}
+          <button type="button" onClick={onActualizar} className="underline">
+            Reintentar
+          </button>
         </p>
       )}
-      {estado.tipo === "listo" &&
-        (estado.filas.length === 0 ? (
+      {carga.tipo === "listo" &&
+        (carga.filas.length === 0 ? (
           <p className="px-1 text-sm text-text-muted">No hay ninguna ahora mismo.</p>
         ) : (
           <div className="overflow-x-auto rounded-3xl bg-surface shadow-[var(--hero-sombra-panel)]">
@@ -94,7 +115,7 @@ export function TablaListaBelen({
                 </tr>
               </thead>
               <tbody>
-                {estado.filas.map((f) => {
+                {carga.filas.map((f) => {
                   const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : undefined;
                   return (
                     <tr
@@ -110,8 +131,8 @@ export function TablaListaBelen({
                           }`}
                           title={c.ancho && f[c.clave] !== null ? String(f[c.clave]) : undefined}
                         >
-                          {/* La primera columna con pedido es la que se alcanza con
-                              el teclado; la fila entera responde al ratón. */}
+                          {/* La primera columna es la que se alcanza con el
+                              teclado; la fila entera responde al ratón. */}
                           {i === 0 && abrir ? (
                             <button
                               type="button"
