@@ -6,11 +6,11 @@
 // Añadir una lista = una entrada en LISTAS_BELEN (aquí) + su consulta en
 // server/vista-belen-listas-db.ts. Nada más.
 //
-// Solo pedidos AR (Belén, 09/11/2026: «de SA y BE no los reviso»); el buscador
-// de pedidos, en cambio, encuentra cualquier serie.
+// Solo pedidos AR (Belén, 09/11/2026: «de SA y BE no los reviso»), salvo el
+// desfase de unidades, que desde el 10/11/2026 trae también las delegaciones
+// (SA y BE). El buscador de pedidos encuentra cualquier serie.
 
 export type IdLista =
-  | "una-tarea"
   | "bultos-subidos"
   | "desfase"
   | "fechas-comprometidas"
@@ -36,6 +36,8 @@ export interface DefLista {
   label: string;
   /** Una frase: qué sale en la lista. */
   explica: string;
+  /** De qué pedidos sale. Sin esto, «Solo pedidos AR.». */
+  alcance?: string;
   columnas: ColumnaLista[];
 }
 
@@ -59,22 +61,20 @@ const COLUMNAS_TAREA: ColumnaLista[] = [
 ];
 
 export const LISTAS_BELEN: readonly DefLista[] = [
-  {
-    id: "una-tarea",
-    label: "1 tarea sin finalizar",
-    explica: "OF a las que solo les queda una operación por acabar.",
-    columnas: COLUMNAS_TAREA,
-  },
+  // Belén (10/11/2026): antes eran dos listas, «1 tarea sin finalizar» y
+  // «Pendientes con bultos subidos». Las dos eran lo mismo —bultos subidos y
+  // algo sin acabar— y solo cambiaba cuántas tareas quedaban.
   {
     id: "bultos-subidos",
-    label: "Pendientes con bultos subidos",
-    explica: "Operaciones sin acabar en OF que ya tienen todas sus unidades subidas.",
+    label: "Bultos subidos, tareas pendientes",
+    explica: "OF con todas sus unidades subidas y alguna operación sin fichar o interrumpida.",
     columnas: COLUMNAS_TAREA,
   },
   {
     id: "desfase",
     label: "Desfase de unidades",
     explica: "OF con unidades subidas que no coinciden con las que hay que fabricar.",
+    alcance: "Pedidos AR y delegaciones (SA y BE).",
     columnas: [
       { clave: "of", titulo: "OF", tipo: "of" },
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
@@ -91,16 +91,16 @@ export const LISTAS_BELEN: readonly DefLista[] = [
   {
     id: "fechas-comprometidas",
     label: "Fechas comprometidas",
-    explica: "OF con fecha dada por Producción y unidades todavía sin facturar.",
+    explica: "OF con fecha dada por Producción, sin bultos subidos y con el pedido sin entregar ni cumplimentar. Por fecha.",
     columnas: [
-      { clave: "bultosSubidos", titulo: "Bultos subidos", tipo: "estado" },
+      { clave: "fechaComprometida", titulo: "F. comprometida", tipo: "fecha" },
       { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
       { clave: "of", titulo: "OF", tipo: "of" },
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
       { clave: "cliente", titulo: "Cliente", ancho: "max-w-[15rem]" },
       { clave: "articulo", titulo: "Artículo", ancho: "max-w-[22rem]" },
       { clave: "formaEntrega", titulo: "Forma de entrega" },
-      { clave: "fechaComprometida", titulo: "F. comprometida", tipo: "fecha" },
+      { clave: "situacion", titulo: "Situación", tipo: "estado" },
     ],
   },
   {

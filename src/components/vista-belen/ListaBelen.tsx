@@ -85,7 +85,7 @@ export function TablaListaBelen({
     <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 px-1 text-[13px] text-text-muted">
         <p>
-          {def.explica} Solo pedidos AR.
+          {def.explica} {def.alcance ?? "Solo pedidos AR."}
           {carga.tipo === "listo" && carga.filas.length > 0 && " Pincha una fila para abrir su pedido."}
         </p>
         {carga.tipo === "listo" && (

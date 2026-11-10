@@ -9,7 +9,6 @@ vi.mock("../server/db", () => ({ getPool: vi.fn() }));
 // Record obliga a actualizar esta lista si se amplía la unión IdLista: no
 // basta con que definición y consulta olviden por accidente la misma clave.
 const IDS = {
-  "una-tarea": true,
   "bultos-subidos": true,
   "desfase": true,
   "fechas-comprometidas": true,

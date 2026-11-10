@@ -5,8 +5,8 @@ import type { FilaLista, IdLista } from "../vista-belen-listas";
 
 // ─── Vista de Belén: las consultas de las listas ─────────────────────────────
 // Solo lectura, contra RPS. Cada lista sale de una hoja de sus Excels (leídos
-// el 09/11/2026) con dos cambios comunes: solo pedidos AR, y siempre con la OF
-// y el pedido para poder abrirlo al pinchar.
+// el 09/11/2026) con dos cambios comunes: solo pedidos AR (el desfase, también
+// SA y BE), y siempre con la OF y el pedido para poder abrirlo al pinchar.
 //
 // Para añadir una: una función `(pool) => Promise<FilaLista[]>` en CONSULTAS,
 // con la misma clave que su entrada en lib/vista-belen-listas.ts.
@@ -18,37 +18,11 @@ const iso = (d: Date | null | undefined): string | null =>
 const texto = (s: string | null | undefined): string | null => (s ?? "").trim() || null;
 
 // ─── Tareas pendientes (hoja «comprobaciones_planificador») ──────────────────
-// Un CTE opcional con las OF que entran y una condición más por tarea. Medido
-// contra RPS el 09/11/2026.
-const TAREAS: Record<"una-tarea" | "bultos-subidos", { cte: string; donde: string }> = {
-  // «OF con 1 tarea sin finalizar»: la tarea sin acabar es la ÚNICA de su OF.
-  // Su Excel lo preguntaba tarea a tarea con una subconsulta (24 s); contando
-  // primero por OF, las mismas 65 filas salen en 0,4-0,7 s.
-  "una-tarea": {
-    cte: `
-      WITH abiertas AS (
-        SELECT mo.IDManufacturingOrder AS id FROM dbo.CPRManufacturingOrder mo
-        JOIN dbo.CPRManufacturingOrderSituation s ON s.IDManufacturingOrderSituation = mo.IDMOSituation
-        WHERE mo.CodCompany = '001' AND s.CodSituation < 6),
-      elegidas AS (
-        SELECT t.IDManufacturingOrder AS id FROM dbo.CPRMOTask t
-        JOIN abiertas a ON a.id = t.IDManufacturingOrder
-        WHERE t.CodCompany = '001' AND t.PercentProgress <> 100
-        GROUP BY t.IDManufacturingOrder HAVING COUNT(*) = 1)`,
-    donde: "AND mo.IDManufacturingOrder IN (SELECT id FROM elegidas)",
-  },
-  // «Tareas pendientes bultos subidos»: OF con todas sus unidades subidas y
-  // alguna tarea todavía sin acabar. Tal cual su Excel (1,6 s): agrupando
-  // antes por OF tardaba más, 4,5 s.
-  "bultos-subidos": {
-    cte: "",
-    donde: `
-      AND ISNULL((SELECT SUM(Quantity) FROM dbo.CPRImputationEntryProduct
-                   WHERE CodCompany = '001' AND IDManufacturingOrder = mo.IDManufacturingOrder), 0) >= mo.Quantity`,
-  },
-};
-
-async function tareasPendientes(pool: sql.ConnectionPool, cual: keyof typeof TAREAS): Promise<FilaLista[]> {
+// «Bultos subidos, tareas pendientes»: OF con todas sus unidades subidas y
+// alguna tarea todavía sin acabar, sea una o sean varias (Belén, 10/11/2026:
+// antes eran dos listas y las quiso en una). Tal cual su Excel (1,6 s):
+// agrupando antes por OF tardaba más, 4,5 s.
+async function tareasPendientes(pool: sql.ConnectionPool): Promise<FilaLista[]> {
   const r = await pool.request().query<{
     idTarea: string;
     of: string;
@@ -60,7 +34,7 @@ async function tareasPendientes(pool: sql.ConnectionPool, cual: keyof typeof TAR
     maquina: string | null;
     situacion: string | null;
     fSol: Date | null;
-  }>(`${TAREAS[cual].cte}
+  }>(`
     SELECT task.IDMOTask AS idTarea, mo.CodManufacturingOrder AS [of], ped.CodOrder AS pedido,
            cli.Description AS cliente, mo.Priority AS prioridad, task.CodMOTask AS tarea,
            CAST(task.Description AS varchar(300)) AS descripcion, maq.CodMachine AS maquina,
@@ -76,14 +50,15 @@ async function tareasPendientes(pool: sql.ConnectionPool, cual: keyof typeof TAR
     LEFT JOIN dbo.FACCustomer cli ON ped.IDCustomer = cli.IDCustomer
     WHERE mo.CodCompany = '001' AND mo_sit.CodSituation < 6 AND task.PercentProgress < 100
       AND art.CodArticle <> 'diseño' AND ped.CodOrder LIKE 'AR.%'
-      ${TAREAS[cual].donde}
+      AND ISNULL((SELECT SUM(Quantity) FROM dbo.CPRImputationEntryProduct
+                   WHERE CodCompany = '001' AND IDManufacturingOrder = mo.IDManufacturingOrder), 0) >= mo.Quantity
     ORDER BY mo.Priority, lin.ReceptionDemandDate, mo.CodManufacturingOrder, task.CodMOTask
   `);
   // Una fila por tarea aunque tenga varias máquinas, y con el mismo criterio
   // de «acabada» que la ficha del pedido: lo que OLANET ya dio por finalizado
   // no sale como pendiente aunque RPS siga sin el 100 %. Se mira después y
-  // solo para estas filas: metido en la consulta grande, «una tarea» pasaba
-  // de medio segundo a seis (09/11/2026).
+  // solo para estas filas: metido en la consulta grande tardaba diez veces
+  // más (09/11/2026).
   const filas = unaFilaPorTarea(r.recordset.map((f) => ({ ...f, maq: f.maquina })));
   const acabadas = await finalizadasEnOlanet(pool, filas.map((f) => ({ of: f.of.trim(), tarea: f.tarea.trim() })));
   return filas
@@ -122,11 +97,12 @@ async function finalizadasEnOlanet(
 
 // ─── Comprobaciones por OF ───────────────────────────────────────────────────
 // Una OF puede estar enlazada a varias líneas. Para no repetirla elegimos la
-// primera línea AR por pedido/número de línea (y por ID en caso de empate).
-// En fechas comprometidas solo se elige entre las líneas aún sin facturar.
+// primera línea de las series pedidas (AR si no se dice otra) por pedido y
+// número de línea (y por ID en caso de empate).
+// En fechas comprometidas solo se elige entre las líneas pendientes de entregar.
 // Los datos auxiliares son opcionales: que falte la forma de entrega o el
 // cliente no debe esconder un desfase o una descripción sin rellenar.
-const pedidoAR = (sinFacturar = false) => `
+const pedidoDe = (soloPendientes = false, series: readonly string[] = ["AR"]) => `
     CROSS APPLY (
       SELECT TOP (1) ped.CodOrder AS pedido, cli.Description AS cliente,
              lin.IDArticle, lin.ReceptionDemandDate AS fechaExigida,
@@ -137,8 +113,9 @@ const pedidoAR = (sinFacturar = false) => `
       LEFT JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = lin.IDOrderLine
       LEFT JOIN dbo._FormaEntregaPedido entre ON entre.IDFormaEntregaPedido = lc.IDFormaEntrega
       WHERE lin.IDManufacturingOrder = mo.IDManufacturingOrder
-        AND lin.CodCompany = '001' AND ped.CodCompany = '001' AND ped.CodOrder LIKE 'AR.%'
-        ${sinFacturar ? "AND lin.Quantity > lin.InvoicedQuantity" : ""}
+        AND lin.CodCompany = '001' AND ped.CodCompany = '001'
+        AND (${series.map((s) => `ped.CodOrder LIKE '${s}.%'`).join(" OR ")})
+        ${soloPendientes ? "AND lin.PendingDelivery = 1" : ""}
       ORDER BY ped.CodOrder, lin.NumLine, lin.IDOrderLine
     ) pedido`;
 
@@ -153,6 +130,7 @@ const SUBIDAS = `
 
 // RPS, 09/11/2026: 1 fila, 860 ms (primera ejecución: 1.923 ms).
 // El Excel AR devuelve 2 filas por sus tareas; aquí la OF sale una sola vez.
+// Belén, 10/11/2026: «que aparezcan también las delegaciones» = SA y BE.
 const SQL_DESFASE = `
     WITH ${SUBIDAS}
     SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of],
@@ -165,7 +143,7 @@ const SQL_DESFASE = `
       AND sit.CodCompany = mo.CodCompany
     JOIN subidas ON subidas.IDManufacturingOrder = mo.IDManufacturingOrder
     JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
-    ${pedidoAR()}
+    ${pedidoDe(false, ["AR", "SA", "BE"])}
     WHERE mo.CodCompany = '001' AND sit.CodSituation IN (1, 2, 3, 7)
       AND subidas.cantidad <> 0 AND subidas.cantidad <> mo.Quantity
       AND EXISTS (
@@ -181,6 +159,12 @@ const SQL_DESFASE = `
 // mostramos el compromiso válido más temprano, para no ocultar el más urgente.
 // RPS, 09/11/2026: 122 filas, 207 ms. Contraste de conjuntos: las mismas 122
 // OF que las 466 filas del Excel AR; ninguna OF añadida ni perdida.
+// Belén, 10/11/2026: «solo los pendientes de hacer». Fuera las que ya tienen
+// los bultos subidos (100 de 126 ese día) y las líneas que ya no están
+// pendientes de entregar (otras 13): las albaranadas (Delivered = 1) y las
+// CUMPLIMENTADAS, que es como llama Producción a cerrar una línea sin albarán
+// (Delivered = 0 y PendingDelivery = 0; así lo calcula TGM_ETL_BI32). Una OF
+// finalizada no basta para darla por hecha: manda la entrega.
 const SQL_FECHAS_COMPROMETIDAS = `
     WITH compromisos AS (
       SELECT IDManufacturingOrder,
@@ -193,13 +177,15 @@ const SQL_FECHAS_COMPROMETIDAS = `
     SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of],
            pedido.pedido, pedido.cliente, mo.Priority AS prioridad,
            art.CodArticle AS articulo, pedido.formaEntrega, compromisos.fechaComprometida,
-           CASE WHEN mo.Quantity > ISNULL(subidas.cantidad, 0) THEN 'NO' ELSE 'SI' END AS bultosSubidos
+           sit.Description AS situacion
     FROM compromisos
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = compromisos.IDManufacturingOrder
-    ${pedidoAR(true)}
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    ${pedidoDe(true)}
     JOIN dbo.STKArticle art ON art.IDArticle = pedido.IDArticle
     LEFT JOIN subidas ON subidas.IDManufacturingOrder = mo.IDManufacturingOrder
-    WHERE mo.CodCompany = '001'
+    WHERE mo.CodCompany = '001' AND mo.Quantity > ISNULL(subidas.cantidad, 0)
     ORDER BY compromisos.fechaComprometida, mo.CodManufacturingOrder`;
 
 // El recuento se hace antes de unir pedidos; varias líneas del pedido no
@@ -230,7 +216,7 @@ const SQL_VARIAS_MAQUINAS = `
     JOIN dbo.CPRManufacturingOrder mo WITH (NOLOCK) ON mo.IDManufacturingOrder = op.IDManufacturingOrder
     JOIN dbo.CPRManufacturingOrderSituation sit WITH (NOLOCK)
       ON sit.IDManufacturingOrderSituation = mo.IDMOSituation AND sit.CodCompany = mo.CodCompany
-    ${pedidoAR()}
+    ${pedidoDe()}
     CROSS APPLY (
       SELECT STUFF((
         SELECT ', ' + maquinas.codigo
@@ -257,7 +243,7 @@ const SQL_SIN_DESCRIPCION = `
     FROM dbo.CPRManufacturingOrder mo WITH (NOLOCK)
     JOIN dbo.CPRManufacturingOrderSituation sit WITH (NOLOCK)
       ON sit.IDManufacturingOrderSituation = mo.IDMOSituation AND sit.CodCompany = mo.CodCompany
-    ${pedidoAR()}
+    ${pedidoDe()}
     WHERE mo.CodCompany = '001' AND sit.AllowImputations = 1
       AND NULLIF(LTRIM(RTRIM(CAST(mo.Description AS varchar(max)))), '') IS NULL
     ORDER BY mo.CodManufacturingOrder`;
@@ -288,16 +274,15 @@ async function comprobacion(pool: sql.ConnectionPool, consulta: string): Promise
 // ─── El registro ─────────────────────────────────────────────────────────────
 
 export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<FilaLista[]>> = {
-  "una-tarea": (pool) => tareasPendientes(pool, "una-tarea"),
-  "bultos-subidos": (pool) => tareasPendientes(pool, "bultos-subidos"),
+  "bultos-subidos": (pool) => tareasPendientes(pool),
   "desfase": (pool) => comprobacion(pool, SQL_DESFASE),
   "fechas-comprometidas": (pool) => comprobacion(pool, SQL_FECHAS_COMPROMETIDAS),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
 };
 
-/** Las listas cuestan de medio segundo a cuatro («pendientes con bultos
- *  subidos»; reescribirla agrupando por OF tardaba aún más, 12-17 s). Para que
+/** Las listas cuestan de medio segundo a cuatro («bultos subidos, tareas
+ *  pendientes»; reescribirla agrupando por OF tardaba aún más, 12-17 s). Para que
  *  Belén no espere, se sirve lo último que se calculó y, si tiene más de
  *  FRESCA_MS, se recalcula POR DETRÁS para la siguiente vez (Iván, 10/11/2026:
  *  «las cargas de las listas deberíamos mejorarlas»). Pasado CADUCA_MS ya no
