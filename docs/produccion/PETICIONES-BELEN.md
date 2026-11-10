@@ -23,6 +23,37 @@ Captura: `2026-11-10-imprimir-of-y-reserva.png`
 - Candidato: botón «Imprimir OF y reserva» en la ficha del pedido (por OF o
   por todas).
 
+### Investigado (10/11/2026, solo lectura)
+
+- Los dos informes son **Stimulsoft**, guardados en la tabla `CUSTReport` de
+  RPS: `CPRROADMAP` («Hoja ruta OF») y `CPRTICKETMAT` («Materiales OF»). Cada
+  fila trae el diseño (`ReportDefinition`, XML) y su consulta (`Query`), escrita
+  contra el modelo de entidades de RPS, no contra tablas.
+- Generarlos tal cual desde Coordina no es viable: haría falta el motor de
+  Stimulsoft (licencia) y el modelo de entidades de RPS.
+- Rehacerlos sí: cada entidad de la consulta es una tabla que ya leemos
+  (`CPRManufacturingOrder`, `CPRMOTask`, `CPRMOResourceMachine`,
+  `FACOrderLineSL` + `_FACOrderLineSL_Custom`, `FACOrderSL`, `FACCustomer`,
+  `GENWarehouse`, `STKArticle`, `CPRMOMaterial`, `STKStockReserve`, `STKStock`,
+  `GENMeasureUnit`). Probado con la OF 0233881 de la captura: mismos datos,
+  menos de 100 ms.
+- **Códigos de barras:** todos Code128 (automático) con texto simple:
+  - Hoja de ruta, cabecera: el número de OF (`0233881`).
+  - Hoja de ruta, una por operación: `OF-tarea` con el código de tarea tal
+    cual (`0233881-02`; ojo, «2» y «02» son tareas distintas).
+  - Vale de material: la serie del stock reservado o, si no tiene, el código
+    del artículo.
+  Reproducirlos igual es seguro: valen para fichar mientras el texto sea el
+  mismo.
+- Campos de la hoja de ruta: O.F., artículo, cantidad, F. entrega
+  (`ManualEndDate`), fecha de hoy, pedido/línea, almacén, cliente, ref.
+  cliente, descripción (comentario de la línea), rotulación, observaciones
+  (notas de la OF), operaciones (nº, descripción, centro de trabajo, código de
+  barras) y las tablas en blanco para apuntar a mano materia prima y tiempos.
+- Vale de material: por material reservado, descripción, cantidad y unidad,
+  código, serie y su código de barras; debajo, la tabla en blanco de
+  imputación de materia prima.
+
 ## 2. Comprobar la fecha solicitada (nueva lista)
 Captura: `2026-11-10-fechas-listas-y-orden.png` (Excel
 `comprobaciones_planificad…`)
