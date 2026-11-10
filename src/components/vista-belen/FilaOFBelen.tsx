@@ -22,19 +22,20 @@ import { SIGNIFICA } from "./significados";
 // Tres franjas, de lo que se mira de un vistazo a lo que se lee con calma:
 //
 //   1. Identidad: punto de bultos, prioridad, OF, descripción, situación y, a la
-//      derecha, las fechas que importan.
+//      derecha, las fechas (solicitada, comprometida, logística y compras).
+//      Debajo, el comentario de la OF.
 //   2. Trabajo: las operaciones con su estado y una barra de avance; al lado,
 //      el paquete (quién y cuándo) y la logística.
-//   3. Avisos, solo si hay: comentario de la OF, material que falta, TP/COT.
+//   3. Avisos, solo si hay: material que falta, TP/COT.
 //
-// Lo que es igual en todas las OF del pedido (entrega, rotulación, fecha
-// solicitada) ya va en la cabecera y aquí solo sale si esta OF es distinta.
+// Lo que es igual en todas las OF del pedido (entrega, rotulación) ya va en
+// la cabecera y aquí solo sale si esta OF es distinta.
 // Monitores pequeños: a 1280 px todo cabe en dos columnas; por debajo de
 // 900 px la franja 2 se apila.
 
 const PUNTO: Record<PuntoBultos, { clase: string; texto: string }> = {
   verde: { clase: "bg-emerald-600 dark:bg-emerald-400", texto: SIGNIFICA.puntoVerde },
-  marron: { clase: "bg-amber-700 dark:bg-amber-500", texto: SIGNIFICA.puntoMarron },
+  azul: { clase: "bg-blue-600 dark:bg-blue-400", texto: SIGNIFICA.puntoAzul },
   rojo: { clase: "bg-red-600 dark:bg-red-400", texto: SIGNIFICA.puntoRojo },
 };
 
@@ -156,16 +157,22 @@ export function FilaOFBelen({
   const hechas = ops.filter((o) => o.estado === "finalizado").length;
   const otraEntrega = difiereDelPedido(of, resumen, "formaEntrega");
   const otraRotulacion = difiereDelPedido(of, resumen, "rotulacion");
-  const hayAvisos = of.notas || of.compras.length > 0 || of.avisos.length > 0;
+  const hayAvisos = of.compras.length > 0 || of.avisos.length > 0;
+  // El orden y los colores los pidió Belén (10/11/2026), como en su pantalla
+  // de antes: solicitada en rojo, comprometida en verde, logística en malva y
+  // compras en azul. Justo debajo, el comentario de la OF, también en rojo.
   const fechas = [
-    difiereDelPedido(of, resumen, "fechaSolicitada") && of.fechaSolicitada
-      ? { etiqueta: "Solicitada", valor: of.fechaSolicitada, clase: "text-text", ayuda: SIGNIFICA.solicitada }
+    of.fechaSolicitada
+      ? { etiqueta: "Solicitada", valor: of.fechaSolicitada, clase: "text-red-700 dark:text-red-300", ayuda: SIGNIFICA.solicitada }
       : null,
     of.fechaComprometida
-      ? { etiqueta: "Comprometida", valor: of.fechaComprometida, clase: "text-teal-700 dark:text-teal-300", ayuda: SIGNIFICA.comprometida }
+      ? { etiqueta: "Comprometida", valor: of.fechaComprometida, clase: "text-emerald-700 dark:text-emerald-300", ayuda: SIGNIFICA.comprometida }
+      : null,
+    of.logistica?.fecha
+      ? { etiqueta: "Logística", valor: of.logistica.fecha, clase: "text-purple-700 dark:text-purple-300", ayuda: SIGNIFICA.logistica }
       : null,
     of.fechaCompras
-      ? { etiqueta: "Llega material", valor: of.fechaCompras, clase: "text-amber-700 dark:text-amber-300", ayuda: SIGNIFICA.llegaMaterial }
+      ? { etiqueta: "Compras", valor: of.fechaCompras, clase: "text-blue-700 dark:text-blue-300", ayuda: SIGNIFICA.compras }
       : null,
   ].filter((f): f is NonNullable<typeof f> => f !== null);
 
@@ -199,7 +206,7 @@ export function FilaOFBelen({
             </span>
             {of.linea !== null && <span className="text-[12px] text-text-muted">línea {of.linea}</span>}
             {of.subidas > 0 && of.subidas !== of.cantidad && (
-              <span className="rounded-full bg-amber-700 px-2.5 py-0.5 text-[11.5px] font-bold text-white dark:bg-amber-500 dark:text-black">
+              <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-[11.5px] font-bold text-white dark:bg-blue-400 dark:text-black">
                 {of.subidas} de {of.cantidad} uds. subidas
               </span>
             )}
@@ -215,7 +222,7 @@ export function FilaOFBelen({
           )}
         </div>
         {fechas.length > 0 && (
-          <dl className="flex shrink-0 gap-1.5">
+          <dl className="flex max-w-[55%] shrink-0 flex-wrap justify-end gap-1.5">
             {fechas.map((f) => (
               <div key={f.etiqueta} className="rounded-xl bg-[var(--detalle)] px-3 py-1.5 text-right">
                 <dt
@@ -230,6 +237,15 @@ export function FilaOFBelen({
           </dl>
         )}
       </div>
+
+      {of.notas && (
+        <div className="px-6 pb-3">
+          <p className="flex items-start gap-2 rounded-xl bg-red-500/8 px-3 py-2 text-[13px] font-semibold text-red-800 dark:text-red-200">
+            <AcentoBloque tipo="comentario" />
+            <span>{of.notas}</span>
+          </p>
+        </div>
+      )}
 
       {of.detalleLinea && (
         <div className="px-6 pb-3">
@@ -312,9 +328,6 @@ export function FilaOFBelen({
               <div className="flex items-center gap-2">
                 <CaraPersona nombre={persona(of.logistica.responsable) || "?"} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{persona(of.logistica.responsable) || "—"}</span>
-                <span className="shrink-0 rounded-lg bg-purple-500/12 px-2 py-0.5 font-bold tabular-nums text-purple-700 dark:text-purple-300">
-                  {fechaCorta(of.logistica.fecha)}
-                </span>
               </div>
             </div>
           )}
@@ -329,12 +342,6 @@ export function FilaOFBelen({
               <ChipAviso of={of} tipo="TP" />
               <ChipAviso of={of} tipo="COT" />
             </div>
-          )}
-          {of.notas && (
-            <p className="flex items-start gap-2 rounded-xl bg-red-500/8 px-3 py-2 text-[13px] font-semibold text-red-800 dark:text-red-200">
-              <AcentoBloque tipo="comentario" />
-              <span>{of.notas}</span>
-            </p>
           )}
           {of.compras.map((c, i) => (
             <p

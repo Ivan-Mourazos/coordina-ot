@@ -12,9 +12,9 @@ import type { CompraOF, MaterialAsignado } from "./types";
 // las pestañas, solo los AR (Belén: «de SA y BE no los reviso»).
 
 /** Verde: subidas tantas unidades como lleva la OF (trabajo acabado).
- *  Marrón: hay unidades subidas, pero no cuadran con la OF.
+ *  Azul: hay unidades subidas, pero no cuadran con la OF.
  *  Rojo: no se ha subido nada (trabajo sin acabar). */
-export type PuntoBultos = "verde" | "marron" | "rojo";
+export type PuntoBultos = "verde" | "azul" | "rojo";
 
 export type EstadoOperacion = "finalizado" | "interrumpido" | "sin_empezar";
 
@@ -109,7 +109,7 @@ export interface MaterialPedido {
 
 export function puntoBultos(cantidad: number, subidas: number): PuntoBultos {
   if (!subidas) return "rojo";
-  return subidas === cantidad ? "verde" : "marron";
+  return subidas === cantidad ? "verde" : "azul";
 }
 
 /** Una operación está acabada si OLANET la dio por finalizada (3) o RPS la
@@ -227,7 +227,7 @@ export function resumenPedido(pedido: PedidoBelen): ResumenPedido {
     rotulacion: todasIgual("rotulacion"),
     fechaSolicitada: todasIgual("fechaSolicitada"),
   };
-  const bultos: Record<PuntoBultos, number> = { verde: 0, marron: 0, rojo: 0 };
+  const bultos: Record<PuntoBultos, number> = { verde: 0, azul: 0, rojo: 0 };
   for (const o of ofs) bultos[puntoBultos(o.cantidad, o.subidas)]++;
   return {
     comunes: {

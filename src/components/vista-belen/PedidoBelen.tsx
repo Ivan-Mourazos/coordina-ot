@@ -53,14 +53,14 @@ function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
 
 // ─── Recuadros de la cabecera ────────────────────────────────────────────────
 // Las cifras que se miran primero, grandes y con color por significado (rojo
-// falta, marrón no cuadra, verde bien, ámbar en espera). Cada recuadro lleva a
+// falta, azul no cuadra, verde bien, ámbar en espera). Cada recuadro lleva a
 // su pestaña: es por donde se entra al detalle.
 
-type Tono = "rojo" | "marron" | "verde" | "ambar" | "teal" | "neutro";
+type Tono = "rojo" | "azul" | "verde" | "ambar" | "teal" | "neutro";
 
 const TINTA: Record<Tono, string> = {
   rojo: "text-red-700 dark:text-red-300",
-  marron: "text-amber-800 dark:text-amber-300",
+  azul: "text-blue-700 dark:text-blue-300",
   verde: "text-emerald-700 dark:text-emerald-300",
   ambar: "text-amber-700 dark:text-amber-300",
   teal: "text-teal-700 dark:text-teal-300",
@@ -68,7 +68,7 @@ const TINTA: Record<Tono, string> = {
 };
 const PUNTO: Record<Tono, string> = {
   rojo: "bg-red-500",
-  marron: "bg-amber-700 dark:bg-amber-500",
+  azul: "bg-blue-600 dark:bg-blue-400",
   verde: "bg-emerald-500",
   ambar: "bg-amber-400",
   teal: "bg-teal-500",
@@ -224,17 +224,17 @@ export function PedidoBelenView({
           <Cifra
             etiqueta="Bultos subidos"
             valor={`${r.bultos.verde} de ${r.ofs}`}
-            tono={r.bultos.rojo > 0 ? "rojo" : r.bultos.marron > 0 ? "marron" : "verde"}
+            tono={r.bultos.rojo > 0 ? "rojo" : r.bultos.azul > 0 ? "azul" : "verde"}
             sub={
               r.bultos.verde === r.ofs ? (
                 "Todas las OF subidas"
               ) : (
                 <>
                   {r.bultos.rojo > 0 && `${n(r.bultos.rojo, "OF", "OF")} sin subir`}
-                  {r.bultos.rojo > 0 && r.bultos.marron > 0 && " · "}
-                  {r.bultos.marron > 0 && (
-                    <span className="font-semibold text-amber-800 dark:text-amber-300">
-                      {n(r.bultos.marron, "no cuadra", "no cuadran")}
+                  {r.bultos.rojo > 0 && r.bultos.azul > 0 && " · "}
+                  {r.bultos.azul > 0 && (
+                    <span className="font-semibold text-blue-700 dark:text-blue-300">
+                      {n(r.bultos.azul, "no cuadra", "no cuadran")}
                     </span>
                   )}
                 </>
@@ -245,7 +245,7 @@ export function PedidoBelenView({
           <Cifra
             etiqueta="Fecha comprometida"
             valor={r.comprometida ? fechaCorta(r.comprometida) : "Sin dar"}
-            tono={r.comprometida ? "teal" : "neutro"}
+            tono={r.comprometida ? "verde" : "neutro"}
             sub={`Solicitada ${r.igual.fechaSolicitada ? fechaCorta(r.comunes.fechaSolicitada) || "—" : "distinta por OF"}`}
           />
           <Cifra
