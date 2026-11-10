@@ -75,6 +75,23 @@ describe("al pasar el pedido", () => {
     });
   });
 
+  it("un pedido de PVC adjunta también el -1 y el -2 (toldo de PVC sin -10)", async () => {
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () =>
+      planteamientos(["AR2605016-1.pdf", EXISTE, false], ["AR2605016-2.pdf", EXISTE, true]), {}, async () => true);
+    expect(cola.leerCorreosDe("AR.26.05016")[0]).toMatchObject({
+      ficheros: ["AR2605016-1.pdf", "AR2605016-2.pdf"],
+      asunto: "Planteamiento AR.26.05016 · Bar Central",
+    });
+  });
+
+  it("lo elegido a mano en el aviso manda sobre el PVC", async () => {
+    const pvc = vi.fn(async () => true);
+    await cola.prepararCorreo(DATOS, "ivan", T0, async () =>
+      planteamientos(["AR2605016-1.pdf", EXISTE, true]), { adjuntar: new Set<string>() }, pvc);
+    expect(pvc).not.toHaveBeenCalled();
+    expect(cola.leerCorreosDe("AR.26.05016")[0].ficheros).toEqual([]);
+  });
+
   it("sin planteamiento no hay correo: se anota con el motivo", async () => {
     const r = await cola.prepararCorreo(DATOS, "ivan", T0, async () => ({ ficheros: [], aviso: "No puedo leer la carpeta Planteamientos" }));
     expect(r.encolado).toBe(false);

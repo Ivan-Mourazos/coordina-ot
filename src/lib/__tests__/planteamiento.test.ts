@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anioPedido, conAnio, esA4, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, vaAdjunto, leerEleccion, leerNotaCorreo, NOTA_MAX } from "../planteamiento";
+import { anioPedido, conAnio, esA4, esPedidoDePvc, nombreArchivoRps, nombreCompacto, partesPedido, sufijoDe, textoDicePvc, vaAdjunto, leerEleccion, leerNotaCorreo, NOTA_MAX } from "../planteamiento";
 
 describe("nombres del planteamiento", () => {
   it("parte el código de pedido", () => {
@@ -52,6 +52,10 @@ describe("qué planteamiento va adjunto al correo", () => {
     expect(vaAdjunto("AR2605023-1.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("AR2605023-9.pdf", "AR.26.05023")).toBe(false);
     expect(vaAdjunto("otro.pdf", "AR.26.05023")).toBe(false);
+    // Pedido de PVC: el -1 y el -2 también van (AR.26.05080, toldo de PVC con -1 y -2).
+    expect(vaAdjunto("AR2605023-1.pdf", "AR.26.05023", true)).toBe(true);
+    expect(vaAdjunto("AR2605023-2.pdf", "AR.26.05023", true)).toBe(true);
+    expect(vaAdjunto("otro.pdf", "AR.26.05023", true)).toBe(false);
   });
 });
 
@@ -77,5 +81,28 @@ describe("lo elegido a mano al pasar", () => {
     expect(leerEleccion({ imprimir: "todo", adjuntar: [], ofs: [], nota: "" })).toBeNull();
     expect(leerEleccion({ imprimir: [1], adjuntar: [], ofs: [], nota: "" })).toBeNull();
     expect(leerEleccion({ imprimir: [], adjuntar: [], ofs: [] })).toBeNull();
+  });
+});
+
+describe("¿pedido de PVC?", () => {
+  it("lo dice la ruta: SOLDAR PVC, CORTAR PAÑOS - PVC", () => {
+    expect(esPedidoDePvc([{ tareas: ["PLANTEAR", "SOLDAR PVC"], linea: null }])).toBe(true);
+    expect(esPedidoDePvc([{ tareas: ["CORTAR PAÑOS - PVC"], linea: "" }])).toBe(true);
+  });
+  it("lo dice la línea del pedido, aunque la ruta no", () => {
+    expect(textoDicePvc("CONFECCIONADO EN LONA POLIESTER RECUBIERTA DE PVC 580 GR/M², COLOR MARFIL.")).toBe(true);
+    expect(textoDicePvc("CONFECCIONADO EN PVC 580 MARRON 204.")).toBe(true);
+  });
+  it("una ventana en PVC no hace PVC al toldo acrílico", () => {
+    expect(textoDicePvc("TEJIDO ACRILICO TINTADO MASA, COLOR BEIGE, CON VENTANA EN PVC TRANSPARENTE.")).toBe(false);
+    expect(esPedidoDePvc([{ tareas: ["CORTAR PAÑOS Y VENTANA", "CONFECCIONAR"], linea: "ACRILICO CON VENTANA EN PVC TRANSPARENTE" }])).toBe(false);
+  });
+  it("acrílico, o sin datos: no", () => {
+    expect(esPedidoDePvc([{ tareas: ["PLANTEAR", "CORTAR PAÑOS"], linea: "LONA ACRILICA MASACRIL" }])).toBe(false);
+    expect(esPedidoDePvc([])).toBe(false);
+    expect(textoDicePvc(null)).toBe(false);
+  });
+  it("basta una OF de PVC en el pedido", () => {
+    expect(esPedidoDePvc([{ tareas: ["CORTAR PAÑOS"], linea: "ACRILICO" }, { tareas: [], linea: "FUNDA EN LONA PVC 580" }])).toBe(true);
   });
 });

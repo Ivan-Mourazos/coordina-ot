@@ -6,6 +6,7 @@ import { getDb } from "./estado-db";
 import { dirCopias, esperaTras, modoImpresion } from "./impresion-cola";
 import { vaAdjunto } from "../planteamiento";
 import { planteamientosDe } from "./planteamiento-pdf";
+import { pedidoEsDePvc } from "./pvc-db";
 import { correoDeOperario } from "./operarios";
 
 // ─── Cola del correo del planteamiento ───────────────────────────────────────
@@ -153,6 +154,7 @@ export async function prepararCorreo(
    *  venga, por la norma. `imprimir` vacío = no se imprime nada (y entonces el
    *  correo no puede decir «impreso»). */
   eleccion: { adjuntar?: ReadonlySet<string>; imprimir?: ReadonlySet<string> } = {},
+  esDePvc: (pedido: string) => Promise<boolean> = pedidoEsDePvc,
 ): Promise<{ encolado: boolean; aviso: string | null }> {
   const modo = modoCorreo();
   const ts = ahora.toISOString();
@@ -164,7 +166,9 @@ export async function prepararCorreo(
     insertar(datos.pedido, [], para, cc, autores, null, null, null, "sin_planteamiento", aviso, modo, operarioId, ts);
     return { encolado: false, aviso };
   }
-  const adjunta = (n: string) => (eleccion.adjuntar ? eleccion.adjuntar.has(n) : vaAdjunto(n, datos.pedido));
+  // Un pedido de PVC adjunta todo, se llame como se llame el PDF (esPedidoDePvc).
+  const pvc = eleccion.adjuntar ? false : await esDePvc(datos.pedido);
+  const adjunta = (n: string) => (eleccion.adjuntar ? eleccion.adjuntar.has(n) : vaAdjunto(n, datos.pedido, pvc));
   const imprime = (n: string) => (eleccion.imprimir ? eleccion.imprimir.has(n) : true);
   const paraAdjuntar = ficheros.filter((f) => adjunta(f.nombre));
   // Los adjuntos también se imprimen, pero el correo los cuenta como adjuntos.
@@ -264,6 +268,7 @@ export async function reenviarUltimo(
   operarioId: string,
   ahora = new Date(),
   buscar: typeof planteamientosDe = planteamientosDe,
+  esDePvc: (pedido: string) => Promise<boolean> = pedidoEsDePvc,
 ): Promise<boolean> {
   const fila = getDb()
     .prepare("SELECT * FROM planteamiento_correo WHERE pedido_id = ? AND asunto IS NOT NULL ORDER BY id DESC LIMIT 1")
@@ -277,10 +282,11 @@ export async function reenviarUltimo(
     const vivas = antes.filter((f) => existsSync(f.copia)).map((f) => ({ nombre: f.nombre, ruta: f.copia }));
     // Si las copias ya se borraron al enviarse, se vuelven a buscar los PDF, y
     // solo los que van adjuntos (PVC).
+    const pvc = vivas.length === antes.length ? false : await esDePvc(pedidoId);
     const origen = vivas.length === antes.length
       ? vivas
       : (await buscar(pedidoId)).ficheros
-        .filter((f) => vaAdjunto(f.nombre, pedidoId))
+        .filter((f) => vaAdjunto(f.nombre, pedidoId, pvc))
         .map((f) => ({ nombre: f.nombre, ruta: f.ruta }));
     if (origen.length === 0) return false;
     ({ copiados, fallos } = copiar(origen));

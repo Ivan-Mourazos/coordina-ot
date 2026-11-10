@@ -59,9 +59,33 @@ export function esA4(ancho: number, alto: number): boolean {
  *  (-10 en adelante: -10, -11, -12…) se mandan adjuntos; los de toldos y
  *  acrílico (-1 a -9) solo se imprimen arriba, y el correo avisa de que se
  *  imprimieron, sin el PDF. Un nombre que no es de este pedido, nunca. */
-export function vaAdjunto(fichero: string, codigo: string): boolean {
+export function vaAdjunto(fichero: string, codigo: string, pedidoDePvc = false): boolean {
   const s = sufijoDe(fichero, codigo);
-  return s !== null && Number(s.slice(1)) >= 10;
+  return s !== null && (pedidoDePvc || Number(s.slice(1)) >= 10);
+}
+
+/** ¿El texto dice que la pieza ES de PVC? «Ventana en PVC transparente» no:
+ *  es un toldo acrílico con una ventana, y se imprime como los acrílicos. */
+export function textoDicePvc(texto: string | null | undefined): boolean {
+  const t = (texto ?? "").toUpperCase().replace(/VENTANA[^.,;]*?PVC/g, "");
+  return /\bPVC\b/.test(t);
+}
+
+/** ¿El pedido es de PVC? Así se decide que su planteamiento va ADJUNTO al
+ *  correo (Iván, 10/11/2026: «vale para todo», toldos, fundas, solapas, lonas).
+ *
+ *  El sufijo -10 no basta: lo ponen solos remolques y puertas, y un toldo de
+ *  PVC sale de Planteamientos o de ZWCAD como -1 o -2 (AR.26.05080). Ni el
+ *  programa que hizo el PDF lo distingue: ZWCAD y la impresora PDF sirven
+ *  igual para PVC que para acrílico. Lo que sí lo dice es RPS, medido en las
+ *  OF de toldo de 2026:
+ *   - la RUTA: «SOLDAR PVC», «CORTAR PAÑOS - PVC»… (115 OF; en acrílico, 1);
+ *   - la LÍNEA del pedido: «lona poliéster recubierta de PVC 580…», que cubre
+ *     las que no llevan tarea de PVC (fundas, ELIT, verticales…).
+ *  Basta una OF: en un pedido mixto va adjunto todo, mejor de más que un PVC
+ *  sin su PDF. En el aviso de pasar se puede cambiar a mano. */
+export function esPedidoDePvc(ofs: readonly { tareas: readonly string[]; linea: string | null }[]): boolean {
+  return ofs.some((of) => of.tareas.some((t) => /\bPVC\b/i.test(t)) || textoDicePvc(of.linea));
 }
 
 /** Lo que se eligió a mano en el aviso de pasar, con «Cambiar lo que se

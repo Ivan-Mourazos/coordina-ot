@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
 import { partesDe, vaAdjunto } from "@/lib/planteamiento";
 import { planteamientosDe } from "@/lib/server/planteamiento-pdf";
+import { pedidoEsDePvc } from "@/lib/server/pvc-db";
 import { leerImpresionesDe, modoImpresion, puedeImprimirEnOt } from "@/lib/server/impresion-cola";
 import { copiasCorreo, leerCorreosDe, modoCorreo } from "@/lib/server/correo-cola";
 import { getTablero } from "@/lib/data";
@@ -45,15 +46,15 @@ export async function GET(req: Request) {
   if (corte) return corte;
   const pedido = new URL(req.url).searchParams.get("pedido") ?? "";
   if (!esCodigoPedido(pedido)) return NextResponse.json({ error: "Pedido no válido" }, { status: 400 });
-  const { ficheros, aviso } = await planteamientosDe(pedido);
+  const [{ ficheros, aviso }, pvc] = await Promise.all([planteamientosDe(pedido), pedidoEsDePvc(pedido)]);
   return NextResponse.json(
     {
       modo: modoImpresion(),
-      // `adjunto`: si va en el correo (PVC, -10 en adelante) o solo se imprime.
+      // `adjunto`: si va en el correo (pedido de PVC, o -10 en adelante) o solo se imprime.
       // `partes`: cómo se reparte por tamaño de página y a qué impresora va
       // cada parte (ver `partesDe`).
       ficheros: ficheros.map(({ nombre, paginas, todoA4, tamanos }) => ({
-        nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido), partes: tamanos?.length ? partesDe(tamanos) : undefined,
+        nombre, paginas, todoA4, adjunto: vaAdjunto(nombre, pedido, pvc), partes: tamanos?.length ? partesDe(tamanos) : undefined,
         // El tamaño de cada página, para «Elegir páginas…» del aviso de pasar.
         tamanos: tamanos?.length ? tamanos : undefined,
       })),
