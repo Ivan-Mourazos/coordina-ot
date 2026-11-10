@@ -207,7 +207,11 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
 
   const buscar = (escrito: string) => {
     const term = escrito.trim();
-    if (!term) return;
+    // Buscar sin nada escrito lleva al inicio, como pinchar en el logo.
+    if (!term) {
+      irAlInicio();
+      return;
+    }
     const que = interpretarBusqueda(term, new Date().getFullYear());
     // Un código entero va directo al pedido, sin pasar por la lista: es el
     // caso de casi siempre y así se ahorra un viaje a RPS.
@@ -219,6 +223,13 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   };
 
   const grande = pestana === "pedido" && estado.tipo === "vacio";
+
+  /** La página de inicio (buscador grande, recientes, comprobaciones). Si ya
+   *  está ahí no apunta otro paso en el historial. */
+  const irAlInicio = () => {
+    if (pestana === "pedido" && estado.tipo === "vacio") return caja.current?.focus();
+    navegar({});
+  };
 
   const volver = () => {
     if (pasoActual() > 0) history.back();
@@ -239,7 +250,16 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   return (
     <div className="min-h-full">
       <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-        <Logo height={38} />
+        {/* El logo lleva al inicio, como en cualquier web. */}
+        <button
+          type="button"
+          onClick={irAlInicio}
+          aria-label="Ir al inicio"
+          title="Ir al inicio"
+          className="rounded-lg transition-transform active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
+        >
+          <Logo height={38} />
+        </button>
         <div
           role="tablist"
           aria-label="Secciones"
