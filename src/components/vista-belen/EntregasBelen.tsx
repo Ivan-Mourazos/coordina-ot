@@ -1,25 +1,195 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { filtrarEntregas, type FiltrosEntregasBelen, type PedidoEntregaBelen } from "@/lib/entregas-belen";
+import {
+  agruparEntregas,
+  diaConNombre,
+  filtrarEntregas,
+  type FiltrosEntregasBelen,
+  type GrupoEntregas,
+  type PedidoEntregaBelen,
+} from "@/lib/entregas-belen";
 import { fechaCorta } from "@/lib/vista-belen";
 
-const INICIAL: FiltrosEntregasBelen = { texto: "", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
-const COLUMNAS: { clave: FiltrosEntregasBelen["orden"]; titulo: string }[] = [
-  { clave: "fechaEntrega", titulo: "Fecha de entrega" }, { clave: "codigo", titulo: "Pedido" },
-  { clave: "cliente", titulo: "Cliente" }, { clave: "ciudad", titulo: "Localidad" },
-  { clave: "situacion", titulo: "Situación" }, { clave: "ofs", titulo: "OF" },
-];
-const CAMPO = "campo-hundido h-10 rounded-[14px] px-3 text-sm text-text";
-const BOTON = "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold hover:bg-[var(--hero-relleno-encima)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
-const PAGINA = 100;
+// ─── Pedidos por día de entrega ──────────────────────────────────────────────
+// La fecha es la solicitada del pedido (la misma que usa Coordina para todos).
+// Ordenada por fecha, la lista va en grupos: Atrasados (plegado), Hoy, Mañana,
+// Resto de la semana, Más adelante y Sin fecha. La fecha se dice una vez: en el
+// título del grupo o en el separador del día, nunca también en la fila.
+// Ordenada por otra columna, es una tabla sola con la fecha en su columna.
 
-export function EntregasBelen({ activa, onAbrir, onVolver }: { activa: boolean; onAbrir: (codigo: string) => void; onVolver: () => void }) {
+const INICIAL: FiltrosEntregasBelen = { texto: "", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
+type Orden = FiltrosEntregasBelen["orden"];
+const COLUMNAS: { clave: Orden; titulo: string; ancho: string; derecha?: boolean }[] = [
+  { clave: "codigo", titulo: "Pedido", ancho: "w-[9.5rem]" },
+  { clave: "cliente", titulo: "Cliente", ancho: "" },
+  { clave: "ciudad", titulo: "Localidad", ancho: "w-[13rem]" },
+  { clave: "situacion", titulo: "Situación", ancho: "w-[10rem]" },
+  { clave: "ofs", titulo: "OF", ancho: "w-[4rem]", derecha: true },
+];
+const COLUMNA_FECHA = { clave: "fechaEntrega" as const, titulo: "Fecha de entrega", ancho: "w-[8.5rem]" };
+const CAMPO = "campo-hundido h-10 rounded-[14px] px-3 text-sm text-text";
+const BOTON =
+  "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
+
+/** Hoy en Galicia, como yyyy-mm-dd (no en UTC: a las 00:30 ya es mañana). */
+function hoyIso(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+}
+
+function Situacion({ valor }: { valor: PedidoEntregaBelen["situacion"] }) {
+  return valor === "fabrica" ? (
+    <span className="whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-[11.5px] font-semibold text-amber-900 dark:text-amber-200">
+      En fábrica
+    </span>
+  ) : (
+    <span className="whitespace-nowrap rounded-full bg-emerald-500/12 px-2 py-0.5 text-[11.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+      Esperando salir
+    </span>
+  );
+}
+
+function Cabecera({
+  filtros,
+  conFecha,
+  onOrdenar,
+}: {
+  filtros: FiltrosEntregasBelen;
+  conFecha: boolean;
+  onOrdenar: (clave: Orden) => void;
+}) {
+  const columnas = conFecha ? [COLUMNA_FECHA, ...COLUMNAS] : COLUMNAS;
+  return (
+    <thead>
+      <tr className="text-left text-[10.5px] uppercase tracking-wide text-text-muted">
+        {columnas.map((c) => (
+          <th
+            key={c.clave}
+            scope="col"
+            aria-sort={filtros.orden === c.clave ? (filtros.descendente ? "descending" : "ascending") : "none"}
+            className={`${c.ancho} px-2.5 py-1.5 first:pl-4 last:pr-4 ${"derecha" in c && c.derecha ? "text-right" : ""}`}
+          >
+            <button
+              type="button"
+              onClick={() => onOrdenar(c.clave)}
+              title={`Ordenar por ${c.titulo.toLowerCase()}`}
+              className="whitespace-nowrap rounded font-semibold uppercase hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {c.titulo}
+              {filtros.orden === c.clave && <span aria-hidden> {filtros.descendente ? "↓" : "↑"}</span>}
+            </button>
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+function Fila({ p, conFecha, onAbrir }: { p: PedidoEntregaBelen; conFecha: boolean; onAbrir: (c: string) => void }) {
+  return (
+    <tr
+      onClick={() => onAbrir(p.codigo)}
+      className="cursor-pointer border-t border-border transition-colors hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)]"
+    >
+      {conFecha && <td className="whitespace-nowrap px-2.5 py-1.5 pl-4 tabular-nums">{fechaCorta(p.fechaEntrega) || "—"}</td>}
+      <td className="px-2.5 py-1.5 first:pl-4">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAbrir(p.codigo);
+          }}
+          className="whitespace-nowrap rounded font-semibold tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {p.codigo}
+        </button>
+      </td>
+      <td className="max-w-0 truncate px-2.5 py-1.5" title={p.cliente ?? undefined}>{p.cliente ?? "—"}</td>
+      <td className="max-w-0 truncate px-2.5 py-1.5" title={p.ciudad ?? undefined}>{p.ciudad ?? "—"}</td>
+      <td className="px-2.5 py-1.5"><Situacion valor={p.situacion} /></td>
+      <td className="px-2.5 py-1.5 pr-4 text-right tabular-nums">{p.ofs}</td>
+    </tr>
+  );
+}
+
+/** Las filas de un grupo. Si el grupo abarca varios días, un separador
+ *  discreto por día; Hoy y Mañana ya lo dicen en su título. */
+function FilasGrupo({ grupo, onAbrir }: { grupo: GrupoEntregas; onAbrir: (c: string) => void }) {
+  const variosDias = grupo.id === "atrasados" || grupo.id === "semana" || grupo.id === "despues";
+  return (
+    <tbody>
+      {grupo.pedidos.map((p, i) => (
+        <Fragment key={p.codigo}>
+          {variosDias && p.fechaEntrega && (i === 0 || p.fechaEntrega !== grupo.pedidos[i - 1].fechaEntrega) && (
+            <tr>
+              <th colSpan={5} scope="rowgroup" className="px-4 pb-1 pt-3 text-left text-[12px] font-semibold first-letter:uppercase text-text-muted">
+                {diaConNombre(p.fechaEntrega)}
+              </th>
+            </tr>
+          )}
+          <Fila p={p} conFecha={false} onAbrir={onAbrir} />
+        </Fragment>
+      ))}
+    </tbody>
+  );
+}
+
+function TarjetaGrupo({
+  grupo,
+  hoy,
+  filtros,
+  onOrdenar,
+  onAbrir,
+}: {
+  grupo: GrupoEntregas;
+  hoy: string;
+  filtros: FiltrosEntregasBelen;
+  onOrdenar: (c: Orden) => void;
+  onAbrir: (c: string) => void;
+}) {
+  const n = grupo.pedidos.length;
+  const cuantos = `${n} ${n === 1 ? "pedido" : "pedidos"}`;
+  const dia = grupo.id === "hoy" ? diaConNombre(hoy) : grupo.id === "manana" ? diaConNombre(grupo.pedidos[0].fechaEntrega!) : null;
+  const tabla = (
+    <table className="w-full table-fixed border-collapse text-[13px]">
+      <Cabecera filtros={filtros} conFecha={false} onOrdenar={onOrdenar} />
+      <FilasGrupo grupo={grupo} onAbrir={onAbrir} />
+    </table>
+  );
+  const titulo = (
+    <span className="flex items-baseline gap-2.5">
+      <span className={`text-[16px] font-bold ${grupo.id === "atrasados" ? "text-red-700 dark:text-red-300" : ""}`}>{grupo.titulo}</span>
+      {dia && <span className="text-[13px] text-text-muted">{dia}</span>}
+      <span className="text-[13px] font-semibold tabular-nums text-text-muted">{cuantos}</span>
+    </span>
+  );
+
+  if (grupo.id === "atrasados") {
+    // Plegado: hay pedidos de hace años sin entregar y no deben tapar lo de hoy.
+    return (
+      <details className="tarjeta-of group rounded-3xl bg-surface">
+        <summary className="flex cursor-pointer list-none items-center gap-2 rounded-3xl px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus [&::-webkit-details-marker]:hidden">
+          <span aria-hidden className="text-text-muted transition-transform group-open:rotate-90 motion-reduce:transition-none">▸</span>
+          {titulo}
+          <span className="ml-auto text-[12px] text-text-muted">Del más reciente al más antiguo</span>
+        </summary>
+        <div className="pb-2">{tabla}</div>
+      </details>
+    );
+  }
+  return (
+    <section aria-label={grupo.titulo} className="tarjeta-of rounded-3xl bg-surface pb-2">
+      <h2 className="px-4 pb-1 pt-3">{titulo}</h2>
+      {tabla}
+    </section>
+  );
+}
+
+export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (codigo: string) => void }) {
   const [pedidos, setPedidos] = useState<PedidoEntregaBelen[] | null>(null);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [filtros, setFiltros] = useState(INICIAL);
-  const [pagina, setPagina] = useState(0);
   const [intento, setIntento] = useState(0);
 
   useEffect(() => {
@@ -41,21 +211,33 @@ export function EntregasBelen({ activa, onAbrir, onVolver }: { activa: boolean; 
     return () => ctl.abort();
   }, [activa, intento]);
 
+  const hoy = hoyIso();
   const filas = useMemo(() => filtrarEntregas(pedidos ?? [], filtros), [pedidos, filtros]);
-  const ultima = Math.max(0, Math.ceil(filas.length / PAGINA) - 1);
-  const actual = Math.min(pagina, ultima);
-  const visibles = filas.slice(actual * PAGINA, (actual + 1) * PAGINA);
-  const cambiar = useCallback((cambios: Partial<FiltrosEntregasBelen>) => { setFiltros((f) => ({ ...f, ...cambios })); setPagina(0); }, []);
+  const enGrupos = filtros.orden === "fechaEntrega" && !filtros.descendente;
+  const grupos = useMemo(() => {
+    if (!enGrupos) return [];
+    return agruparEntregas(filas, hoy).map((g) =>
+      g.id === "atrasados" ? { ...g, pedidos: [...g.pedidos].reverse() } : g,
+    );
+  }, [enGrupos, filas, hoy]);
+  const cambiar = useCallback((cambios: Partial<FiltrosEntregasBelen>) => setFiltros((f) => ({ ...f, ...cambios })), []);
+  const ordenar = useCallback(
+    (clave: Orden) => setFiltros((f) => ({ ...f, orden: clave, descendente: f.orden === clave ? !f.descendente : false })),
+    [],
+  );
 
   return (
     <main hidden={!activa} role="tabpanel" id="panel-entregas" aria-labelledby="pestana-entregas" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={onVolver} className={BOTON}>← Volver</button>
+      <div className="mb-1 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-bold">Pedidos por día de entrega</h1>
-        <button type="button" disabled={cargando} onClick={() => setIntento((n) => n + 1)} className={`ml-auto ${BOTON}`}>{cargando ? "Actualizando…" : "Actualizar"}</button>
+        <button type="button" disabled={cargando} onClick={() => setIntento((n) => n + 1)} className={`ml-auto ${BOTON}`}>
+          {cargando ? "Actualizando…" : "Actualizar"}
+        </button>
       </div>
-      <p className="mb-4 text-[13px] text-text-muted">Pedidos AR pendientes de entregar. La misma fecha de entrega que en Coordina para todos.</p>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
+      <p className="mb-3 text-[13px] text-text-muted">
+        Pedidos AR pendientes de entregar, por la fecha que pidió el cliente. Pincha uno para abrirlo.
+      </p>
+      <div className="mb-3 flex flex-wrap items-end gap-2.5">
         <label className="flex min-w-52 flex-1 flex-col gap-1 text-xs text-text-muted">Buscar en la lista
           <input type="search" value={filtros.texto} onChange={(e) => cambiar({ texto: e.target.value })} placeholder="Pedido, cliente o localidad" className={CAMPO} />
         </label>
@@ -70,43 +252,36 @@ export function EntregasBelen({ activa, onAbrir, onVolver }: { activa: boolean; 
             <option value="">Todas</option><option value="fabrica">En fábrica</option><option value="salir">Esperando salir</option>
           </select>
         </label>
-        <button type="button" onClick={() => { setFiltros(INICIAL); setPagina(0); }} className={BOTON}>Limpiar filtros</button>
+        {filtros !== INICIAL && <button type="button" onClick={() => setFiltros(INICIAL)} className={BOTON}>Limpiar</button>}
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-error">{error} <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}
-      <p role="status" className="mb-2 text-[13px] text-text-muted">{pedidos === null ? cargando ? "Cargando pedidos…" : "" : `${filas.length} de ${pedidos.length} pedidos`}</p>
-      {pedidos !== null && filas.length === 0 && <p className="text-sm text-text-muted">No hay pedidos que coincidan con los filtros.</p>}
-      {filas.length > 0 && (
-        <div className="tarjeta-of overflow-x-auto rounded-3xl bg-surface" aria-busy={cargando}>
-          <table className="w-full border-collapse text-[13px]">
-            <thead><tr className="text-left text-[11px] text-text-muted">{COLUMNAS.map((c) => (
-              <th key={c.clave} scope="col" aria-sort={filtros.orden === c.clave ? filtros.descendente ? "descending" : "ascending" : "none"} className="px-3 py-3 first:pl-4">
-                <button type="button" onClick={() => cambiar({ orden: c.clave, descendente: filtros.orden === c.clave ? !filtros.descendente : false })} className="whitespace-nowrap rounded p-1 font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-                  {c.titulo} <span aria-hidden>{filtros.orden === c.clave ? filtros.descendente ? "↓" : "↑" : "↕"}</span>
-                </button>
-              </th>
-            ))}</tr></thead>
-            <tbody>{visibles.map((p, i) => (
-              <Fragment key={p.codigo}>
-                {filtros.orden === "fechaEntrega" && (i === 0 || p.fechaEntrega !== visibles[i - 1].fechaEntrega) && (
-                  <tr><th colSpan={6} scope="rowgroup" className="bg-[var(--hero-relleno)] px-4 py-2 text-left font-semibold">{fechaCorta(p.fechaEntrega) || "Sin fecha de entrega"}</th></tr>
-                )}
-                <tr className="border-t border-border hover:bg-[var(--hero-relleno)]">
-                  <td className="whitespace-nowrap px-4 py-2 tabular-nums">{fechaCorta(p.fechaEntrega) || "—"}</td>
-                  <td className="px-3 py-2"><button type="button" onClick={() => onAbrir(p.codigo)} className="whitespace-nowrap rounded font-semibold tabular-nums hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">{p.codigo}</button></td>
-                  <td className="px-3 py-2">{p.cliente ?? "—"}</td><td className="px-3 py-2">{p.ciudad ?? "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{p.situacion === "fabrica" ? "En fábrica" : "Esperando salir"}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{p.ofs}</td>
-                </tr>
-              </Fragment>
-            ))}</tbody>
+      <p role="status" className="mb-2 px-1 text-[13px] text-text-muted">
+        {pedidos === null ? (cargando ? "Cargando pedidos…" : "") : `${filas.length} de ${pedidos.length} pedidos`}
+        {!enGrupos && pedidos !== null && (
+          <>
+            {" · "}
+            <button type="button" onClick={() => cambiar({ orden: "fechaEntrega", descendente: false })} className="font-semibold underline-offset-2 hover:text-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              Volver a agrupar por día
+            </button>
+          </>
+        )}
+      </p>
+      {pedidos !== null && filas.length === 0 && <p className="px-1 text-sm text-text-muted">No hay pedidos que coincidan con los filtros.</p>}
+      {filas.length > 0 && enGrupos && (
+        <div className="flex flex-col gap-2.5" aria-busy={cargando}>
+          {grupos.map((g) => (
+            <TarjetaGrupo key={g.id} grupo={g} hoy={hoy} filtros={filtros} onOrdenar={ordenar} onAbrir={onAbrir} />
+          ))}
+        </div>
+      )}
+      {filas.length > 0 && !enGrupos && (
+        <div className="tarjeta-of rounded-3xl bg-surface py-2" aria-busy={cargando}>
+          <table className="w-full table-fixed border-collapse text-[13px]">
+            <Cabecera filtros={filtros} conFecha onOrdenar={ordenar} />
+            <tbody>{filas.map((p) => <Fila key={p.codigo} p={p} conFecha onAbrir={onAbrir} />)}</tbody>
           </table>
         </div>
       )}
-      {ultima > 0 && <nav aria-label="Páginas de pedidos" className="mt-3 flex items-center justify-end gap-3 text-sm">
-        <button type="button" disabled={actual === 0} onClick={() => setPagina(actual - 1)} className={BOTON}>Anterior</button>
-        <span>Página {actual + 1} de {ultima + 1}</span>
-        <button type="button" disabled={actual === ultima} onClick={() => setPagina(actual + 1)} className={BOTON}>Siguiente</button>
-      </nav>}
     </main>
   );
 }

@@ -1,7 +1,7 @@
 import { LISTAS_BELEN } from "./vista-belen-listas";
 
 export const HERRAMIENTAS_BELEN = [
-  { id: "entregas", label: "Pedidos por día de entrega", explica: "Pedidos pendientes, ordenados por la fecha de entrega de Coordina." },
+  { id: "entregas", label: "Pedidos por día de entrega", explica: "Lo atrasado, lo de hoy, mañana y la semana, por la fecha que pidió el cliente." },
   ...LISTAS_BELEN,
 ];
 

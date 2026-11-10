@@ -85,7 +85,6 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
-  const [puedeVolver, setPuedeVolver] = useState(false);
   const caja = useRef<HTMLInputElement>(null);
   const enCurso = useRef<AbortController | null>(null);
 
@@ -137,7 +136,6 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
    *  (después de apuntar el paso), el «atrás» y el recargar la página. */
   const aplicarUrl = useCallback(async () => {
     const p = new URLSearchParams(window.location.search);
-    setPuedeVolver(pasoActual() > 0);
     if (p.get("vista") === "entregas") {
       enCurso.current?.abort();
       setPestana("entregas");
@@ -336,7 +334,8 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
                 : "mb-3 flex flex-wrap items-center gap-2"
             }
           >
-            {(puedeVolver || !grande) && (
+            {/* En la portada no hay a dónde volver: se sale con las pestañas. */}
+            {!grande && (
               <button
                 type="button"
                 onClick={volver}
@@ -445,7 +444,7 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
           />
         </main>
       ) : null}
-      <EntregasBelen activa={pestana === "entregas"} onVolver={volver} onAbrir={(pedido) => navegar({ pedido })} />
+      <EntregasBelen activa={pestana === "entregas"} onAbrir={(pedido) => navegar({ pedido })} />
     </div>
   );
 }
