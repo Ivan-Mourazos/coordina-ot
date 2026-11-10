@@ -1,0 +1,7927 @@
+{
+ "codigo": "CPRROADMAP",
+ "nombre": "Report",
+ "copiado": "2026-11-10",
+ "unidad": "Centimeters",
+ "pagina": {
+  "ancho": 21,
+  "alto": 29.7,
+  "margenes": [
+   1,
+   1,
+   1,
+   1
+  ]
+ },
+ "bandas": [
+  {
+   "tipo": "cabeceraGrupo",
+   "nombre": "GroupHeaderBand1",
+   "alto": 6.7,
+   "agruparPor": "{Result.ManufacturingOrder_CodManufacturingOrder}",
+   "piezas": [
+    {
+     "nombre": "Text1",
+     "x": 6.1,
+     "y": 1,
+     "ancho": 5.7,
+     "alto": 1.2,
+     "tipo": "texto",
+     "texto": "HOJA RUTA",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 16,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text2",
+     "x": 13.5,
+     "y": 0,
+     "ancho": 1.4,
+     "alto": 1.7,
+     "tipo": "texto",
+     "texto": "O. F.",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 14,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text3",
+     "x": 6.7,
+     "y": 2.8,
+     "ancho": 4.3,
+     "alto": 0.8,
+     "tipo": "texto",
+     "texto": "ARTICULO",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text5",
+     "x": 14.9,
+     "y": 0,
+     "ancho": 4.1,
+     "alto": 1.7,
+     "tipo": "texto",
+     "texto": "{Result.ManufacturingOrder_CodManufacturingOrder}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 14,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text7",
+     "x": 11,
+     "y": 2.8,
+     "ancho": 8,
+     "alto": 0.8,
+     "tipo": "texto",
+     "texto": "{Result.Article_CodArticle}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text8",
+     "x": 0,
+     "y": 3.6,
+     "ancho": 2.6,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "CANTIDAD",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text9",
+     "x": 0,
+     "y": 4.2,
+     "ancho": 2.6,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "F.ENTREGA",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text11",
+     "x": 2.6,
+     "y": 3.6,
+     "ancho": 4.1,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{IIF(Result.OrderLineSL_QuantitySecondUnit==0,Result.ManufacturingOrder_Quantity+\" \"+Result.MeasureUnit_CodMeasureUnit ,\r\nResult.ManufacturingOrder_Quantity+\" \"+Result.MeasureUnit_CodMeasureUnit+\" (\"+Result.OrderLineSL_QuantitySecondUnit+\" \"+Result.MeasureUnit2_CodMeasureUnit+\")\")}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "horizontal": "right",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "izquierda",
+       "abajo"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "formato": "NumberFormat"
+    },
+    {
+     "nombre": "Text12",
+     "x": 2.6,
+     "y": 4.2,
+     "ancho": 4.1,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{Result.ManufacturingOrder_ManualEndDate}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "formato": "DateFormat",
+     "formatoFecha": "D"
+    },
+    {
+     "nombre": "BarCode1",
+     "x": 6.8,
+     "y": 0.2,
+     "ancho": 4.2,
+     "alto": 0.6,
+     "tipo": "barras",
+     "codigo": "{Result.ManufacturingOrder_CodManufacturingOrder}",
+     "simbologia": "StiCode128AutoBarCodeType",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 8,
+      "negrita": true,
+      "pixel": true
+     },
+     "verTexto": true
+    },
+    {
+     "nombre": "Image1",
+     "x": 0.6,
+     "y": 0.1,
+     "ancho": 4,
+     "alto": 2.5,
+     "tipo": "imagen",
+     "datos": "iVBORw0KGgoAAAANSUhEUgAAAMgAAACeCAYAAAB3j0V0AAAABGdBTUEAALGOfPtRkwAAACBjSFJN\r\nAACHDwAAjA8AAP1SAACBQAAAfXkAAOmLAAA85QAAGcxzPIV3AAAKNWlDQ1BzUkdCIElFQzYxOTY2\r\nLTIuMQAASMedlndUVNcWh8+9d3qhzTDSGXqTLjCA9C4gHQRRGGYGGMoAwwxNbIioQEQREQFFkKCA\r\nAaOhSKyIYiEoqGAPSBBQYjCKqKhkRtZKfHl57+Xl98e939pn73P32XuftS4AJE8fLi8FlgIgmSfg\r\nB3o401eFR9Cx/QAGeIABpgAwWempvkHuwUAkLzcXerrICfyL3gwBSPy+ZejpT6eD/0/SrFS+AADI\r\nX8TmbE46S8T5Ik7KFKSK7TMipsYkihlGiZkvSlDEcmKOW+Sln30W2VHM7GQeW8TinFPZyWwx94h4\r\ne4aQI2LER8QFGVxOpohvi1gzSZjMFfFbcWwyh5kOAIoktgs4rHgRm4iYxA8OdBHxcgBwpLgvOOYL\r\nFnCyBOJDuaSkZvO5cfECui5Lj25qbc2ge3IykzgCgaE/k5XI5LPpLinJqUxeNgCLZ/4sGXFt6aIi\r\nW5paW1oamhmZflGo/7r4NyXu7SK9CvjcM4jW94ftr/xS6gBgzIpqs+sPW8x+ADq2AiB3/w+b5iEA\r\nJEV9a7/xxXlo4nmJFwhSbYyNMzMzjbgclpG4oL/rfzr8DX3xPSPxdr+Xh+7KiWUKkwR0cd1YKUkp\r\nQj49PZXJ4tAN/zzE/zjwr/NYGsiJ5fA5PFFEqGjKuLw4Ubt5bK6Am8Kjc3n/qYn/MOxPWpxrkSj1\r\nnwA1yghI3aAC5Oc+gKIQARJ5UNz13/vmgw8F4psXpjqxOPefBf37rnCJ+JHOjfsc5xIYTGcJ+RmL\r\na+JrCdCAACQBFcgDFaABdIEhMANWwBY4AjewAviBYBAO1gIWiAfJgA8yQS7YDApAEdgF9oJKUAPq\r\nQSNoASdABzgNLoDL4Dq4Ce6AB2AEjIPnYAa8AfMQBGEhMkSB5CFVSAsygMwgBmQPuUE+UCAUDkVD\r\ncRAPEkK50BaoCCqFKqFaqBH6FjoFXYCuQgPQPWgUmoJ+hd7DCEyCqbAyrA0bwwzYCfaGg+E1cByc\r\nBufA+fBOuAKug4/B7fAF+Dp8Bx6Bn8OzCECICA1RQwwRBuKC+CERSCzCRzYghUg5Uoe0IF1IL3IL\r\nGUGmkXcoDIqCoqMMUbYoT1QIioVKQ21AFaMqUUdR7age1C3UKGoG9QlNRiuhDdA2aC/0KnQcOhNd\r\ngC5HN6Db0JfQd9Dj6DcYDIaG0cFYYTwx4ZgEzDpMMeYAphVzHjOAGcPMYrFYeawB1g7rh2ViBdgC\r\n7H7sMew57CB2HPsWR8Sp4sxw7rgIHA+XhyvHNeHO4gZxE7h5vBReC2+D98Oz8dn4Enw9vgt/Az+O\r\nnydIE3QIdoRgQgJhM6GC0EK4RHhIeEUkEtWJ1sQAIpe4iVhBPE68QhwlviPJkPRJLqRIkpC0k3SE\r\ndJ50j/SKTCZrkx3JEWQBeSe5kXyR/Jj8VoIiYSThJcGW2ChRJdEuMSjxQhIvqSXpJLlWMkeyXPKk\r\n5A3JaSm8lLaUixRTaoNUldQpqWGpWWmKtKm0n3SydLF0k/RV6UkZrIy2jJsMWyZf5rDMRZkxCkLR\r\noLhQWJQtlHrKJco4FUPVoXpRE6hF1G+o/dQZWRnZZbKhslmyVbJnZEdoCE2b5kVLopXQTtCGaO+X\r\nKC9xWsJZsmNJy5LBJXNyinKOchy5QrlWuTty7+Xp8m7yifK75TvkHymgFPQVAhQyFQ4qXFKYVqQq\r\n2iqyFAsVTyjeV4KV9JUCldYpHVbqU5pVVlH2UE5V3q98UXlahabiqJKgUqZyVmVKlaJqr8pVLVM9\r\np/qMLkt3oifRK+g99Bk1JTVPNaFarVq/2ry6jnqIep56q/ojDYIGQyNWo0yjW2NGU1XTVzNXs1nz\r\nvhZei6EVr7VPq1drTltHO0x7m3aH9qSOnI6XTo5Os85DXbKug26abp3ubT2MHkMvUe+A3k19WN9C\r\nP16/Sv+GAWxgacA1OGAwsBS91Hopb2nd0mFDkqGTYYZhs+GoEc3IxyjPqMPohbGmcYTxbuNe408m\r\nFiZJJvUmD0xlTFeY5pl2mf5qpm/GMqsyu21ONnc332jeaf5ymcEyzrKDy+5aUCx8LbZZdFt8tLSy\r\n5Fu2WE5ZaVpFW1VbDTOoDH9GMeOKNdra2Xqj9WnrdzaWNgKbEza/2BraJto22U4u11nOWV6/fMxO\r\n3Y5pV2s3Yk+3j7Y/ZD/ioObAdKhzeOKo4ch2bHCccNJzSnA65vTC2cSZ79zmPOdi47Le5bwr4urh\r\nWuja7ybjFuJW6fbYXd09zr3ZfcbDwmOdx3lPtKe3527PYS9lL5ZXo9fMCqsV61f0eJO8g7wrvZ/4\r\n6Pvwfbp8Yd8Vvnt8H67UWslb2eEH/Lz89vg98tfxT/P/PgAT4B9QFfA00DQwN7A3iBIUFdQU9CbY\r\nObgk+EGIbogwpDtUMjQytDF0Lsw1rDRsZJXxqvWrrocrhHPDOyOwEaERDRGzq91W7109HmkRWRA5\r\ntEZnTdaaq2sV1iatPRMlGcWMOhmNjg6Lbor+wPRj1jFnY7xiqmNmWC6sfaznbEd2GXuKY8cp5UzE\r\n2sWWxk7G2cXtiZuKd4gvj5/munAruS8TPBNqEuYS/RKPJC4khSW1JuOSo5NP8WR4ibyeFJWUrJSB\r\nVIPUgtSRNJu0vWkzfG9+QzqUvia9U0AV/Uz1CXWFW4WjGfYZVRlvM0MzT2ZJZ/Gy+rL1s3dkT+S4\r\n53y9DrWOta47Vy13c+7oeqf1tRugDTEbujdqbMzfOL7JY9PRzYTNiZt/yDPJK817vSVsS1e+cv6m\r\n/LGtHlubCyQK+AXD22y31WxHbedu799hvmP/jk+F7MJrRSZF5UUfilnF174y/ariq4WdsTv7SyxL\r\nDu7C7OLtGtrtsPtoqXRpTunYHt897WX0ssKy13uj9l4tX1Zes4+wT7hvpMKnonO/5v5d+z9Uxlfe\r\nqXKuaq1Wqt5RPXeAfWDwoOPBlhrlmqKa94e4h+7WetS212nXlR/GHM44/LQ+tL73a8bXjQ0KDUUN\r\nH4/wjowcDTza02jV2Nik1FTSDDcLm6eORR67+Y3rN50thi21rbTWouPguPD4s2+jvx064X2i+yTj\r\nZMt3Wt9Vt1HaCtuh9uz2mY74jpHO8M6BUytOdXfZdrV9b/T9kdNqp6vOyJ4pOUs4m3924VzOudnz\r\nqeenL8RdGOuO6n5wcdXF2z0BPf2XvC9duex++WKvU++5K3ZXTl+1uXrqGuNax3XL6+19Fn1tP1j8\r\n0NZv2d9+w+pG503rm10DywfODjoMXrjleuvyba/b1++svDMwFDJ0dzhyeOQu++7kvaR7L+9n3J9/\r\nsOkh+mHhI6lH5Y+VHtf9qPdj64jlyJlR19G+J0FPHoyxxp7/lP7Th/H8p+Sn5ROqE42TZpOnp9yn\r\nbj5b/Wz8eerz+emCn6V/rn6h++K7Xxx/6ZtZNTP+kv9y4dfiV/Kvjrxe9rp71n/28ZvkN/NzhW/l\r\n3x59x3jX+z7s/cR85gfsh4qPeh+7Pnl/eriQvLDwG/eE8/s6uL5TAAAACXBIWXMAAAevAAAHrwHr\r\nWD2yAAAdpklEQVR4Xu2dd7w0VZGGlxwlRz+iBAGJkrMfSA6Sw0qQsEsQSZKXKEgUhCVIEEkSVlYR\r\nkaDIAitJghIURYkCggEFBMWI73vpHmpq3g6ne+7c7rnnj+d3e+rUqe45t2r65PNv7777biRSyG9u\r\nmOmjQjYp2NvLhwkpjEQsCILJwK/B2k5+CrjdyoYNKYxELAiCtcC74GUwRyLbAfwT3O31hwkpjIwf\r\n4OCLgn3B1eAnYE2hcwZggJDvghXA28nn+73+MCGFkfEBnHsG8Ezi6Ck3Cr2fOZ0/m+tHvP4wIYWR\r\n4QTO/DFwK/gWmCKR8W3wDkgd/h9gEZOHb5g0TfFEqjuMSGFkuIATLwv+zzg1uRZMmqSzikXZX8FR\r\nYLJEPi24HNh8nqfsvYYNKYwMB3De6cCZ4O+JM3suApMkumeBVUzeieBpoPJZnkvzDCNSGBkO4LzT\r\ngG8aZ1ac6vJMDk4DrGopfc9fwDbWxjAhhZF2A4dd0lxzDONioJybMC2tas0J7krkITCYDkjvOUxI\r\nYaS90FEThz0HpG2JScCJwDo1xzCOMPmWAs8naVXZP7U3LEhhpJ3AQQ90Dsvq1XQmfR/A9sjfwM5G\r\nvg54A9i8VWBgbpfaHQakMNI+4Jg7Ab4VvNM+BOYyeluDLcznLYHt5q3Ln8Byqf22I4WRdgGHXAnY\r\nwTvPc2AJkW8bwK5dlacOHHycwd+vjUhhpD3AET+QOKRyVMvvwEwmH98crGop3X7wFfucbUUKI+0B\r\njrgpYFerctIUVr12M3nY5uhntSqL9e2zthEpjLQLOCJ7oB4xjuk5zuguA940aaMJBxqnss/aNqQw\r\n0g7gfOuZ6ynAscC/TThLNx0tnwu8kMgHxaHpM7YRKYw0HzjeRokDMgBs24Jvk4eTNP6dJpFPBR5I\r\n5IPkNTBj+nxtQwojzQdOd4dxwhfBx00a3yZHgAWN7HxgHXeQtPYtIoWRZgOHWxz4MQ9+5uj5yBvD\r\n6XP1n9UtCwf+9gMccFRjLGX5JZjcP1cbkMJIs4Gzfd44n+dJsJDRnR9UHSU/z9hZErA6lzUzuIgd\r\nUlttQgojzQbOljcNnWkj00vwl7uO3JnIQ/kV+IC4NxdQcS1J2dm+KQ96W21ACiPNBY72Yed4HtsW\r\n8XOzQviUva8H6ewuvs3ol6F1U1CkMNJc4GQzA3bncocR74BfN3rzgbdMWgiPgZEp8EVAb2PAap2y\r\n4zlJ2WgyUhhpPnA29lRtB+5OnI9zqhY26Tck8ipsZe9VBPS5yOpgkNfWYbAurvI3GSmMNBc42axg\r\nYTAy+JfIlgadKhGuNwHKScvwU9CxHQLyzQ2uAqrHa1eVp+lIYaS5wNE+lTjcb8DN4HiwIZg6Seev\r\nOZ3cO2hZ9vH3DAU21gW/MDYvV3ptQAojzQXOdrJxvBSOM6QBspeRh8JqUF+mqcPO1IDd0WzPdBZt\r\ntQ0pjDQXONulwDv2yK8+/nIXE3bP+vSyXOXvVxfYbOUAYYoURpoLHI57VZ0AuHKPTv0SGJkxi7+H\r\nJrKqbO7vN96RwkjzgTNzhPx6cGDymVWaOm8PBtxINS3yPlIYaQ9w6nQqe522B7nN247EABkK4Nzz\r\ngjLLbvM4Stke70hhpB3AqdkoZ3skPYqgDp3FV5H3kcJIs4EzcyM4bvPDdSDK2aswQd1rvCOFkeYC\r\nR14Z3G8cux+8ru4ViQHSGuDE84CsaRx1+Ym6ZxHIxy7nCYBTX5ZIWAjMAUpNdmw6UhhpDnA0OiGn\r\nk1SdmVuGOzPuPSXgPK9/B58DVwCuL+Eevnkb1ZFWzr3ySGFk7IGDsZ1Bx+Q0EuWA/eTm5J58G/Ce\r\n5wJuWVpn76yh2MhaCiNjC5yLx6LdY5xttHkFPOVkdTlMfbe2IYWRsQFOxX2rONcqdDlrE+kcrdBm\r\npDAyWOBMrOsfBvpxBEFT+Kz6rm1DCiODA460Ofi5caw28QMhS9lbfd+2IYWR0QcOxL2tvmMcqk1w\r\nYuP+YBYj82yrvnfbkMLI6AHHmRHw5NnROJdjEPwQjJw1gr88JFTpkDX9d28jUhjpP3AY7lG1J/h1\r\n4kBtgxvGcYXglOY7TZ+kKeax37+tSGGkv8BZVgXphtJt5FnQ80aAbDajY+HxCpU2fmgaUhjpD3AS\r\ndtteBkZjesig4PPLdeqQf8ToWe5R+m1ECsuAQpgIWHgRDedNtbnblke2ba3+9ylI5+4lKu+ZQpe7\r\nsahyGgQT/fOURQrLgJvuDVThRNoPtxT9oPq/W6DDY6VV/s2Ebp2tiOpSuctZCsvAm7qHiLSftPu2\r\nVPsBel9O8lk4ibFr02t8Zpe21xskMUAitWEnwmLqf50F9NUu8539gY0eVz16vUESAyRSmbT7dgr1\r\nf84C+pwGr+xt4/TYvc1z2pXuoBiTAOEX5zaXg4Rzlri9zTDD9R8cXxgUPSdSlQH5/ht4R+QYT8/W\r\nQZCp/+Ugqbx4SwojEQ+czA4Qct1IunGd5XibZxiQwkiEwOFnBzzW4MfgP438RuCDgzurzGnzDwNS\r\nGBnfwNG5tvzrwM4XuzJJ49JbGxgpJ3s7w4AUNgkUvKpTjgWTqeerA2zKdpzSDQV2uJECj4Iuy9wm\r\n7/LABwDXoV/iZCk8iqFntB0yzj1T91Js6fM3ASlsCig0/pPVP2QsuEY9YxHIxyDgVj2HgP8BXOtN\r\nh8ra9IDy2kECG0cam2XonAuCa66HD1kLv7O9d2JjN6dTRCPbL1LYFFBooYU8mgQdLAP9BcDpgLuv\r\nK3tZ9OU0WNi5xdktomv8Ap/Pc+lZ3GLzJXk5Ryt0t8d1vZ0mIIVNAYXGeTSqMMeCJdUzeqDH/au4\r\nrrzqeeIXKrshwMZk4HVjswx/AJ1qJK7XN2lZcDf5roY5PrObmo16pZ8F2zqNPGRHCpsCCi3vPPBB\r\nwol7udMvkE6n5LHLdfev2kvZDwE2lnM2y7KyscExp7wgo1Ovbe+b5Kvyo/aAt9MUpLAJoNA+6Apx\r\nLLlRPWMK0vmsdxn9Oqyo7hECbHA+lbJdxNHOzrUu3bKb1U30d3U6ZTnD22oKUtgEUGjbu0IcSw5R\r\nz0iQthro1yrBv4Hah9jABg/WUfaLuNvZ2dGlpxxu9RJdTkis+vZs7MlWUtgEUGhlG4mDYKWMZ+Qh\r\n+kVbcIbwmLpPKLDzqrNblr+A6Y0drp+3YyFc+NWz3xVkVdodKdwDbBZvsylIYRNAofF0VFWgg4a/\r\nij0T+SDjgrE6W3Mqah+XDBuLOpuhbOLs3Z7IGTy72zSjow4WLcsTymZTkMKxBoU2M2jK7oK3i+fj\r\n+Ax7fZR+HWrvZwsbeziboXzR2dsPsLdqNSs36TsDZacs5yu7TUEKxxoU2qauEMeSY92zTQG49Y3S\r\nrUvtrXJg43JnM5QfO3vcmGE2KzNpbHf8ESg7ZdlB2W4KUjjWoNAWY8GVhLuRh+wxxe37lZ0s5nXP\r\ndjRQdotglfFUwMHP1DafnSdF7QIo3zb5XIbl7XOZ56t7ViHbGWWW23JPrMeTPHVo9PZAUtgmUMBZ\r\nC3ey+LSyUwbk5TTv0BFibpmzqbJngQ7HUUJ+jXsWAUHGQUqlG8ou3rYHOlnzskJ4RtluElLYJlDI\r\nn3aFXsTSyk4ZkPcCZ6sIzruS1RMP9JY1+crwUWEjq1s2lKu8bQvS+eZT+UKp3Skx2khhm0AhX+cK\r\nPY/fg0qry5CPayPUIqEsfgs6M2SLgO6+Jm8RfA7VsxYawFmwUS5nDkD+YVC33ZGyh7pHk5DCNoFC\r\nftkVeh43KRtlQF4uHFI2s9hX2ckC+l91+fO4N8PGE06vDksJ+2x3PGp06rKov0fTkMK2gALmgZGq\r\n4LOofOoR8oaMy8i12XlAn20VZUvR1RWb5OdO6/3sGj9I3OMip1OHV739JiKFbQGFzN36VOFnsaqy\r\nUwTyLeXsFHGWspMF9Od2+YvYUdjgOSNKtypd09jxuV/tm5Trrf2mIoVtAYUcMoLL3qegrW1SkO8o\r\nY6cMcmpKFtDfxuUvYiFh4wynUxfOIJgqsb0I4IbUSq8qrTjkUwrbAgo55GSmO5SNMiDvfc5WHi+C\r\noJ3NoX+WyV8EG/899iF7wOj0i48BbkU0GgOjy/nv0ESksA2ggLlzuir4LCot6US+mUDI4qeLlZ08\r\nkCfvKDOPWsE3HQgZLC0LN5TrV8+YhetM+r7GfzSQwjaAAuaosyr8LCot6US+0Lp9186CRUCfM2FD\r\nnPs4YSNrl/W6vCZk/aAnyJuKFLYBFLLa2S8LOmClJZ3I90Vjp4jgqdvQZzVG2cpiI2HjeKfTdI70\r\n36GpSGEbQCH/yBV6HpWXdCLvI85WHj9SNvJAnpC5XZwn1TMyD9kdRqcNrO6/Q1ORwqaDAma7IKTP\r\nv9KSTuSbAYS0P3rGJ4pAHp7FoWwpnhb5Obs4dH7YWMJZACO9Y21ACpsOCngTU+BlqLSkE/k2dHaK\r\n2ErZyQL6dO6Q7tOeOVKQreJ0iuD8MCWvygsgZMnxXf47NBkpbDooZE4bV4WvYLVkVmWnCORjL46y\r\nmcVcyk4W0Od6dmUni87+uMbGYU6niDVAv0bc+eZaD4ScwXii/w5NRgqbDgr5XlfoeVRe0om8/+9s\r\n5dFT/SkCeY5xNoroOeAGspucTh4vJnnucfIqMCi4pmULIyvD+v47NBkpbDIoYE6Y4/poVfiKC5Sd\r\nIpCP1Z+Q2bvBW5Miz/edjTxeAV0DhPjMbU05Q1npK0aeEX8PcPIqnJrYOtPJ8+CuLV3HszUdKWwy\r\nKODQbtGeeUtlQL4VnZ0iDlZ2soA+OxroMMqW4lphI3Sx2Mj2qfjLhVV1qlk3g5GBPvx90MiLeMg+\r\nfxuQwiaDQg6tllRa0ol8IeszyDrKThbQD933S23UFrpYrLN9Kq6rVrN+BmZKbPCEqpAgD5rE2QSk\r\nsMmgkL/rCj2PZ5WNMiDvhc5WEaEN9LxdCxUThI2QxWJd26fiuko1i1NEOu0gXLOBrvSyaOQRB3lI\r\nYVNBAfP8jJDVbFcoO2VA3pCOgLeVjSygz1/ekO/xVIadkMViXdun4nNoNYu6XWvr8TnrMB0FG/Wz\r\n2/xtQAqbCgo4tF2wp7JTBuTlslNlUxH0poL+7i5/EV8SNkIXi/VsnwpZSDWrZ3oIZCH7ET/p87cB\r\nKWwqKOTQZa+VlnQiH3uwQn5dS3fxQpe7l4Ru07mdsBO6WKxnjQpkZatZrMr5HjTu/h7Sy3eRzd8W\r\npLCpoJBvcIWeR+Ulncg7p7NVROnpE9ALrfuzajKHsBOyWCxr+9Qy1SyuBZlW5F3d6JRhJ2+jDUhh\r\nE0EB81gwLhZSha+ovKQTeavsL/VJZcsCHe4YGTKGQx7PsBWyWKxn+9QUpHEn+J9mwOCYPyMfzxVU\r\n98pC2mk6UthEUMA8eVUVfBaVl3Qi76zOVhnYS5S1Czwb5SeDKqdOnSPshS4W69o+tR/AJsdC1L0U\r\nzysbbUAKmwgKeS9X6EVUXtKJvHxbVTnWgOtOrgZsH/BtwY2deYwDD+1U+mXYQjxf6GKxid5GHWCP\r\nI/ghm3fnbkTXZKSwiaCQQ/aNqr2kE/kfNvbGCr5xZhbPFrJYjFW6njZEHWAvdBfInkmWbUEKmwgK\r\nmdOqVeErai/phA2eUKtsD5KHM54tZPO2+5SNOsDmZ9w9ilhc2WkDUtg0UMA8UlkVfBa1l3TCBvfC\r\nCpnGPRr0LPSCLHSx2GneRl1g82vuHnmwehm0y0uTkMKmgQIOPaRlDWUnFNj5prM7aDYTzxS6WKxw\r\nZ/lQYJMzi9W9FN9QNtqCFDYNFPLFrtDzYOO6L0s6YWc+EHreeL/gW6JnAwjIQhaL0UZPG6YOsMdN\r\n5NS9sujZwrRNSGHTQCGzT14VvqLrpNa6wN4GIGTGar/IGv8ImSP2qLJRB9gMPeJtBWWnLUhhk0AB\r\nzwFC2gInKTt1gE12q4YO8NXlPPEcoYvFzvU26gKbIUe8cb395MpOW5DCJoEC3soUeBk2UHbqArtc\r\nP/68uc9os714htDFYj1zuOoCmyFHvH1H2WgTUtgkUMghG7eN6pJO2OYWn8cBjpqr+/eTnnMCIePZ\r\nhPcHUPoAnzLAHnvQ1H2yaO34R4oUNgkU8vKA2++UYW1lo9/gPlOBT4BzAffVZcD4aiCrFzxThCPr\r\noSPpv1D3jQweKYyEA6fmNHZuNMdf2SmNnG+d0PbLpdZ2ZOyQwkj/gLNv7Zy/DH1vO0SqIYWR/gFn\r\nD9lbi7wDRjZFiIw9UhjpD3D00BkA5DplKzI2SGGkGzjtYuBAlZYF9Lnirsqm0n2ZJhPpD1IYeR84\r\n7GbgjcR5zwe554wgnY117qlVJTgqHxMXGR2kMDLi6Fw0xbM7/MxZdtmeDTiAuQz4EOBqx43ASeBp\r\nYPXLwrUfrTi3bzwhheMdOCq7ZrlWWznyaPEF9SyRsUUKxzNwVL4RHjeOOwi4erE1h8qMJ6RwvAIn\r\n/TgYxDQSC3dHnFc9T2TskcLxCJz0QDDoae3cxmhZ9TyRZiCF4wk4KA/KvzJx2EHyIujsth5pJlI4\r\nnoCTLg5CzgnsB/eBvs60jYwOUjjegLPyIH5uz6mcuZ9w0iK7jlu9iGg8IYXjETgtp9U/C5Rj14VT\r\n4bkBxCLq3pHmIoXjFTgwtwg9BYSc3ZEHR9OvALEh3lKkcLwDh+aaDm51yhNkQ4OFG9xdBT4JZlD2\r\nI+1BCiPvAyfnPrQcPOR+VDz4hueSHw+4GfUJ4FCwC5gI5lQ2Iu1FCiORyHtIYSQSeQ8pjEQi7yGF\r\nkUjkPaQwEom8hxRGIikTJsy5M9jb8AmlN6xIYSRCEAxzgX+Cdw2bK91hRQojEYJg4NvDBse1Sm+Y\r\nkcJIhCAgrjTB8Rswu9IbZqQwEkEwTAJ+lQQH2VHpDTtSGIkgINj+uCnhLKUzHpDCSCTyHvyl2KYi\r\n6ymDBGn89dkeHAqOAHuCZZSuBTprAX+f0mfsQXcRl9ezOVgeTK3y54E8tL0LODxhJ7CA0s0C+jOB\r\nzcAB4ChwMNgRLKb0Q4GdeRJ7h4G03JcDQafMQn96sDE4EPA59wNrg9yFXkhfAvgyL1wDA51VXR7S\r\n1d7B55VcelkmTfLP7eSlYMa0jhnKE/YLJA8xL/ga+Hui43kcbOjzpSDte0Y3ZUWlq4AuHc7nV/wJ\r\nXAU+pOxYoLMiuAcoO+wCvR3kri1HOv85l4O/AGWHPAX2ACP/0BCQZ2HAqpDvkk35BdhZ5bVAZ1pw\r\nGvgjUHZeBfsD+YyQH5foWXLPaUf6rOBNo58y0eld49LLMkWSnz9MKj0XZpQJJegKEHxeBfzOpGfB\r\nf+IxNq+xMagASaEjZB7ZhjS+MfKcOoUBt2WGjSUBHUvlU9wGple2FNBdF7yR5C3iy0C+TSDnW//R\r\nRK+IG0HPWxgyFSBkI6+bgrRTnW7K8AQIrucDZYLDsnua39gZdIAQBslHhC06XtabUPEOWMnZ4C/y\r\nM0l6Wa4Gk1k7WUBvcaB+ffM4UtiZAjxodMpwmbCTFSC03ROYkM0B3kp0PEMVIF91aSl/A/x1VWm/\r\nB13nCeLzWAQIud3ZYRfnT026hYGQ9Va539lh3V3p8bv/DPwS/CORkdLBQaD7bZPXwnLPqib9GXRt\r\nVIfPnEKidPm2z7JDVnV2sgKE9IzAQ/YFp2NpQoC8xox8tVrYGPWKLwGvN1ty4w8AOo3Pczpg2qRg\r\nE6CqAV31YnwejQDhc/B52Q5ge+J/gdehIyxo7Kxm0lLodLsB/tpOBT4DVJ1/CWOH1SWf/l+gEwS4\r\nnh2w3n8tKL3bCXT5fWxwWfvTJDorgGcTueV4Z+sHLp3cCiYk6UuBnyRyy8XOTl6A/BB03iK45v/k\r\n7SRNUSZAPgmsT/Zg8vN/JnUAg0f9L3fpPIAxNKNTIi94vRSkTXS6hL++Xa9UfP6cSU+50OmMRoAc\r\n63QmA4+Z9JTOQBiu2fvm06+2dhK9W5wO2dOks+Ft0/gjEdSjlAXsbGnspjwg9NgblamH66mBr0oy\r\n8DrOleitZ9JTfux08gKEbGV0z3ZpnjIBsonVqQJs8AdP+cMtTFcZQgPEz9chXxF6Gzgd8m2nM+oB\r\nkuipV/tBJv0cl0b2tTYSPf5ae73OrzOun3Bp/JVax9qoCuzwDWZtk54BPcj4g7Cso9PmwvUCwNv5\r\nubWR6E3ndMjrTqcoQOiIrFFMAKzqKZ2UQQXIMc4mYbtuPqarDKEB8lmnSz4v9JZ2OuRBpzOoAOE4\r\nhtc70aSzuuPTe3qpINvd6ZALTPo3XRphkLC6wfbGCWAHML+1WwbkORF424cq3TyQZ2Vng9ydoauq\r\nyZ1d6XFdFCBkO3C+kynKBMjXwRkZ7G3zK6DDcRvVPNgn1VGZQgOEA1Je/2iht6jTIT9yOoMKEA6A\r\neb1OUONatVN6uioh46Cc17vEpLPN4tOz+D5YxdrPA7qqe3Q/k872z/0Z3Gn01gDeznfSdAvkqru6\r\n09GC6zIBwl69Ml3ndRvpne+oQDrfZPcZ/ZS7QWecR2UMDRCOtHr9w4WeepU/5nQGFSCqemID5Bsu\r\njaxrbSR6HG31ep3qJa6nBA+YtCLoOKWqDdBj54PPv5dJ/61Ls7xl9Dh7wafflKZbIH/R6ZEZTXqZ\r\nACnLaAcIZzP4POxx7Rr578pEoBAaIEc6XaL62hdyOuRRpzOoAOFosNezAcJXt09f39pI9Fhd8HqX\r\nOh1OL7keqF4SBX+lC6fCQIc9Xz5vp2qA67IBsqZLIyMNVA/kLzs90tkcD9cqQB4RMgt/FHxbjYxa\r\ngCBtQaDGX3qqqF0fCJRCA0TV548Teos5HfJDpzOoAFF6NkDo0D6955cdMs7H8npdXZ9Gl/Xdo8EN\r\ngF2meY3UjZUNC3ROcXnIASY9L0DeNHqruzTyvTTdArmy2TnUFNcqQFjWqhs55Uyg2mplAoQ/Js9l\r\nIBd3Qc4xLk4P8rY4mNkzBtX1gUApNED2cbrkbKHHCWle7y6nM6gAUf/ITrsJ15e6NLKTtZHoqapa\r\nqbMGocc68DJAOc9RKo8FOurN3flhwvW2gAFMfJ3/VaPHMQ6bRh5O040en/evRodwbKhTX8e1KteD\r\nAMeV1BuUi7D4hq0aIMG9WMij2oUsn6WUfo8AiqEBovrju7pvEz3VHdwV5fg8qABRI/+2/n6SSyNd\r\ng2uJnuoOPsTr5QF99mJ5G6crXQt01D/6SqE3C/DO2ekcwfVsLo1wpL9rQiI+s1ri9V5yOjJAkjTV\r\nMzjS04S/AwkQ6HNwld/N2+n536b0CKAcGiCcD+T1uxo7uJ4csHfA6/kR3VEPEHzm6LKa/tIZn8C1\r\nCmbOiO1MIsQ1Z6HaFXcpm6Y6id784Euga+DNpB8PvI2eoPZAR72RXwN+mrgK9k4g4ZpVDv6Se52u\r\nFYT4rNo8XVUxfM4LEM7Xs+XOMZGRKg3+DipAVNuS7Z8plT7pEUA5NEBYwHQen4f11ZMB1yZkTYRb\r\n3tlSAcIvRQfLojPpEdcqQB4C1LsIcEq46vfmRMtOwxjXnP6huiI5f4qDg8cCNYWD85ZsEDE4WB9m\r\nGtscnL5Bh2W1g+XC7mQ1XSRzhnEKdPij84rJk8LnoqNyfIqzbn062c7ZusylE37/CwHtqG5v0mnz\r\nJHYyAyRJZ5CwLUpGpiol8qoBwpkM3h88aRBuDXx+chdQ+UboPIB5kKAAIUgP6e9PuVXYUQFSxDUm\r\nvwqQMhxmnyOxdZ7TKcNJJj+dQQVREQzCUhMWocdAUzbyeBJ0zfnCZ9YCfPuiCL49/WTT3ADJAjpV\r\nA6QM6WRFrv9R6bl0PWhiqEqA8C1id8Ao4nnQc0YfZGMRIJwR2+OQkHFqxcOJThn4S2RHlbPWOeTB\r\nrseuKfN5QJfTSJRzZfEHIFd2Qr4XKNsVzbfh2sJGDJAsoMN/FgevVJXBci+YJ8PGIAOEz8nXaOYB\r\n/khjWahBQw8Lf1qXlz8aHG95Hag8Hq627KpylgF5OBjJt12Rc/8c5C57Rjp7vIoWX3GK/hoZ+cdF\r\ngHA9Mhsulq71EnlAl12XrLvyH8J6LGeKsr/6W4ADa5lLSpF2CfD3LuI0k39Xl+bhHCjWW/mPXNTe\r\nOw/org+uA3QOdm2yOsK3IAt9LZUnBensxuR6CwYay4QT4RicbK9wti/nZG0Fah3sifxca8/yY3uQ\r\n5c7nZDWI7Z7/AJk/BBbocfo353mxrPhG47PyzcOpMJyik7naEWns8vdlXmapL3sDfb6uzhl8ZieB\r\n1ynDSLniL8eNVHoOcz7xL1CsEcgnECa9AAAAAElFTkSuQmCC",
+     "estirar": true
+    },
+    {
+     "nombre": "Text26",
+     "x": 13.5,
+     "y": 1.7,
+     "ancho": 1.6,
+     "alto": 1.1,
+     "tipo": "texto",
+     "texto": "FECHA:",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(255,255,255)",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text27",
+     "x": 15.1,
+     "y": 1.7,
+     "ancho": 3.9,
+     "alto": 1.1,
+     "tipo": "texto",
+     "texto": "{Today}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(255,255,255)",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "formato": "DateFormat"
+    },
+    {
+     "nombre": "Text4",
+     "x": 0,
+     "y": 5,
+     "ancho": 7.5,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "OPERACIONES",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text6",
+     "x": 0,
+     "y": 5.6,
+     "ancho": 1,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "NºOP",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "right",
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text10",
+     "x": 1.1,
+     "y": 5.6,
+     "ancho": 8.6,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "DESCRIPCIÓN",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text14",
+     "x": 9.9,
+     "y": 5.6,
+     "ancho": 2,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "C.TRABAJO",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text22",
+     "x": 0,
+     "y": 2.8,
+     "ancho": 2.6,
+     "alto": 0.8,
+     "tipo": "texto",
+     "texto": "PEDIDO",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text23",
+     "x": 2.6,
+     "y": 2.8,
+     "ancho": 4.1,
+     "alto": 0.8,
+     "tipo": "texto",
+     "texto": "{Result.OrderSL_CodOrder}/{Result.OrderLineSL_NumLine}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text24",
+     "x": 6.7,
+     "y": 3.6,
+     "ancho": 4.3,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "ALMACEN",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text25",
+     "x": 6.7,
+     "y": 4.2,
+     "ancho": 4.3,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "CLIENTE",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text222",
+     "x": 11,
+     "y": 4.2,
+     "ancho": 8,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{Result.Customer_Description}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text224",
+     "x": 12.2,
+     "y": 5.6,
+     "ancho": 4,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "CÓDIGO DE BARRAS",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "StartPointPrimitive1",
+     "x": 0,
+     "y": 0,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "9de2c0b5d50c495b98e8ab8880c90651"
+    },
+    {
+     "nombre": "HorizontalLinePrimitive1",
+     "x": 0,
+     "y": 2.8,
+     "ancho": 19.1,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    },
+    {
+     "nombre": "StartPointPrimitive2",
+     "x": 13.5,
+     "y": 0.1,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "5406ccdc6aa541dcbd0e996db0bd41ed"
+    },
+    {
+     "nombre": "EndPointPrimitive2",
+     "x": 13.5,
+     "y": 2.9,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "5406ccdc6aa541dcbd0e996db0bd41ed"
+    },
+    {
+     "nombre": "StartPointPrimitive3",
+     "x": 6.7,
+     "y": 2.8,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "80e7765d9ab34e799015705aafb41b1f"
+    },
+    {
+     "nombre": "EndPointPrimitive3",
+     "x": 6.7,
+     "y": 4.8,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "80e7765d9ab34e799015705aafb41b1f"
+    },
+    {
+     "nombre": "HorizontalLinePrimitive3",
+     "x": 0,
+     "y": 5.6,
+     "ancho": 19,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    },
+    {
+     "nombre": "StartPointPrimitive4",
+     "x": 1,
+     "y": 5.8,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "5c26c416c5404c28b38b591e2d58b955"
+    },
+    {
+     "nombre": "StartPointPrimitive5",
+     "x": 9.9,
+     "y": 5.8,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "293bc7047e504418a2bfc70108a51d96"
+    },
+    {
+     "nombre": "StartPointPrimitive6",
+     "x": 11.9,
+     "y": 5.9,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "inicio",
+     "referencia": "3d502716b01f4e64a2765da1490b18dc"
+    }
+   ]
+  },
+  {
+   "tipo": "datos",
+   "nombre": "DataBand1",
+   "alto": 1.5,
+   "ordenarPor": {
+    "campo": "MOTask_Order",
+    "descendente": false
+   },
+   "condiciones": [
+    {
+     "campo": "MOTask_CodMOTask",
+     "operador": "EqualTo",
+     "valor": "0",
+     "tinta": "rgb(255,0,0)",
+     "fondo": "transparent",
+     "ocultar": true
+    }
+   ],
+   "piezas": [
+    {
+     "nombre": "Text16",
+     "x": 0,
+     "y": 0,
+     "ancho": 1,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "{Result.MOTask_CodMOTask}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "right",
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text18",
+     "x": 1.1,
+     "y": 0,
+     "ancho": 8.7,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "{Result.MOTask_Description}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "ajustar": true,
+     "crecer": true,
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text13",
+     "x": 9.9,
+     "y": 0,
+     "ancho": 2,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "{Result.MOResourceMachine_CodMOResourceMachine}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "BarCode2",
+     "x": 12.2,
+     "y": 0,
+     "ancho": 5.2,
+     "alto": 0.7,
+     "tipo": "barras",
+     "codigo": "{Result.ManufacturingOrder_CodManufacturingOrder}-{Result.MOTask_CodMOTask}",
+     "simbologia": "StiCode128AutoBarCodeType",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 8,
+      "negrita": true,
+      "pixel": true
+     },
+     "verTexto": true
+    },
+    {
+     "nombre": "Text223",
+     "x": 17.8,
+     "y": 0.1,
+     "ancho": 0.8,
+     "alto": 0.8,
+     "tipo": "texto",
+     "texto": "F",
+     "fuente": {
+      "familia": "Webdings",
+      "tamano": 24
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "condiciones": [
+      {
+       "campo": "MOTask_ProductEntry",
+       "operador": "EqualTo",
+       "valor": "false",
+       "tinta": "rgb(255,0,0)",
+       "fondo": "transparent",
+       "ocultar": true
+      }
+     ]
+    },
+    {
+     "nombre": "Text228",
+     "x": 17.9,
+     "y": 0.2,
+     "ancho": 0.6,
+     "alto": 0.7,
+     "tipo": "texto",
+     "texto": "G",
+     "fuente": {
+      "familia": "Wingdings",
+      "tamano": 24
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "condiciones": [
+      {
+       "campo": "MOTask_PrintLabels",
+       "operador": "EqualTo",
+       "valor": "false",
+       "tinta": "rgb(255,0,0)",
+       "fondo": "transparent",
+       "ocultar": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "pieGrupo",
+   "nombre": "GroupFooterBand1",
+   "alto": 4.7,
+   "nuevaPaginaDespues": true,
+   "imprimirAbajo": true,
+   "piezas": [
+    {
+     "nombre": "Text17",
+     "x": 0,
+     "y": 0.7,
+     "ancho": 19,
+     "alto": 1.5,
+     "tipo": "texto",
+     "texto": "{Result.OrderLineSL_Comment}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "ajustar": true,
+     "crecer": true,
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text19",
+     "x": 0,
+     "y": 0.2,
+     "ancho": 8.5,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "DESCRIPCION",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text20",
+     "x": 0,
+     "y": 2.2,
+     "ancho": 2.8,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "ROTULACION",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text21",
+     "x": 3.4,
+     "y": 2.2,
+     "ancho": 15.5,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{Result.OrderLineSL_TextoRotulacion}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text225",
+     "x": 0,
+     "y": 3.9,
+     "ancho": 3.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "OBSERVACIONES",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text226",
+     "x": 3.4,
+     "y": 3.9,
+     "ancho": 15.6,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{Result.ManufacturingOrder_Notes}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "ajustar": true,
+     "crecer": true,
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text15",
+     "x": 0,
+     "y": 3,
+     "ancho": 3.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "REF.CLIENTE",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text227",
+     "x": 3.5,
+     "y": 3,
+     "ancho": 15.5,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "{Result.OrderSL_OrderNumberCustomer}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "black",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "EndPointPrimitive1",
+     "x": 19,
+     "y": 4.6,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "9de2c0b5d50c495b98e8ab8880c90651"
+    },
+    {
+     "nombre": "EndPointPrimitive4",
+     "x": 1,
+     "y": 0.1,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "5c26c416c5404c28b38b591e2d58b955"
+    },
+    {
+     "nombre": "EndPointPrimitive5",
+     "x": 9.9,
+     "y": 0.2,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "293bc7047e504418a2bfc70108a51d96"
+    },
+    {
+     "nombre": "EndPointPrimitive6",
+     "x": 11.9,
+     "y": 0.2,
+     "ancho": 0,
+     "alto": 0,
+     "tipo": "fin",
+     "referencia": "3d502716b01f4e64a2765da1490b18dc"
+    },
+    {
+     "nombre": "HorizontalLinePrimitive5",
+     "x": 0.1,
+     "y": 2.9,
+     "ancho": 18.9,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    },
+    {
+     "nombre": "HorizontalLinePrimitive2",
+     "x": 0,
+     "y": 0.2,
+     "ancho": 19,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    },
+    {
+     "nombre": "HorizontalLinePrimitive4",
+     "x": 0,
+     "y": 2.2,
+     "ancho": 18.8,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    },
+    {
+     "nombre": "HorizontalLinePrimitive6",
+     "x": 0.1,
+     "y": 3.7,
+     "ancho": 18.9,
+     "alto": 0.0254,
+     "tipo": "lineaH",
+     "color": "black",
+     "grosor": 1
+    }
+   ]
+  },
+  {
+   "tipo": "resumen",
+   "nombre": "ReportSummaryBand1",
+   "alto": 26.7,
+   "nuevaPaginaDespues": true,
+   "piezas": [
+    {
+     "nombre": "Text28",
+     "x": 0,
+     "y": 0,
+     "ancho": 3.9,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "{Result.ManufacturingOrder_CodManufacturingOrder}",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text29",
+     "x": 3.9,
+     "y": 0,
+     "ancho": 15.1,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "IMPUTACIÓN DE MATERIA PRIMA A ORDEN DE FABRICACIÓN",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text30",
+     "x": 0,
+     "y": 0.7,
+     "ancho": 1.8,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text31",
+     "x": 1.8,
+     "y": 0.7,
+     "ancho": 4.7,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Descripción",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text32",
+     "x": 6.5,
+     "y": 0.7,
+     "ancho": 1.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Cant.",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text33",
+     "x": 7.7,
+     "y": 0.7,
+     "ancho": 1.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Ud.M",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text34",
+     "x": 8.9,
+     "y": 0.7,
+     "ancho": 1.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Alm.",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text35",
+     "x": 10.1,
+     "y": 0.7,
+     "ancho": 3.5,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text36",
+     "x": 13.5,
+     "y": 0.7,
+     "ancho": 1.3,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Oper.",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text37",
+     "x": 14.8,
+     "y": 0.7,
+     "ancho": 4.2,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Observaciones",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text134",
+     "x": 0,
+     "y": 1.3,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text135",
+     "x": 1.8,
+     "y": 1.3,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text136",
+     "x": 6.5,
+     "y": 1.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text137",
+     "x": 7.7,
+     "y": 1.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text138",
+     "x": 8.9,
+     "y": 1.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text139",
+     "x": 10.1,
+     "y": 1.3,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text140",
+     "x": 13.5,
+     "y": 1.3,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text141",
+     "x": 14.8,
+     "y": 1.3,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text142",
+     "x": 0,
+     "y": 14,
+     "ancho": 19,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "IMPUTACIÓN DE TIEMPOS A ORDEN DE FABRICACIÓN",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text143",
+     "x": 0.1,
+     "y": 14.6,
+     "ancho": 18.8,
+     "alto": 0.6,
+     "tipo": "texto",
+     "texto": "Para anotar SOLO tiempos no anotados en el ordenador",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "subrayado": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text144",
+     "x": 11.5,
+     "y": 15.3,
+     "ancho": 2.1,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text145",
+     "x": 13.6,
+     "y": 15.3,
+     "ancho": 2.6,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "H. Inicio",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text146",
+     "x": 16.2,
+     "y": 15.3,
+     "ancho": 2.8,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "H. Fin",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text147",
+     "x": 8.4,
+     "y": 15.3,
+     "ancho": 3.1,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "Máquina",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text148",
+     "x": 2.8,
+     "y": 15.3,
+     "ancho": 5.6,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "Operación",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text149",
+     "x": 0,
+     "y": 15.3,
+     "ancho": 2.8,
+     "alto": 0.5,
+     "tipo": "texto",
+     "texto": "Operario",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "black",
+      "grosor": 2,
+      "estilo": "solid"
+     },
+     "fondo": "rgb(0,0,0)",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text150",
+     "x": 0,
+     "y": 15.8,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text151",
+     "x": 2.8,
+     "y": 15.8,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text152",
+     "x": 8.4,
+     "y": 15.8,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text153",
+     "x": 11.5,
+     "y": 15.8,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text154",
+     "x": 13.6,
+     "y": 15.8,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text155",
+     "x": 16.2,
+     "y": 15.8,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text38",
+     "x": 0,
+     "y": 2.2,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text39",
+     "x": 1.8,
+     "y": 2.2,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text40",
+     "x": 6.5,
+     "y": 2.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text41",
+     "x": 7.7,
+     "y": 2.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text42",
+     "x": 8.9,
+     "y": 2.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text43",
+     "x": 10.1,
+     "y": 2.2,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text44",
+     "x": 13.5,
+     "y": 2.2,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text45",
+     "x": 14.8,
+     "y": 2.2,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text46",
+     "x": 0,
+     "y": 3.1,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text47",
+     "x": 1.8,
+     "y": 3.1,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text48",
+     "x": 6.5,
+     "y": 3.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text49",
+     "x": 7.7,
+     "y": 3.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text50",
+     "x": 8.9,
+     "y": 3.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text51",
+     "x": 10.1,
+     "y": 3.1,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text52",
+     "x": 13.5,
+     "y": 3.1,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text53",
+     "x": 14.8,
+     "y": 3.1,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text54",
+     "x": 0,
+     "y": 4,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text55",
+     "x": 1.8,
+     "y": 4,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text56",
+     "x": 6.5,
+     "y": 4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text57",
+     "x": 7.7,
+     "y": 4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text58",
+     "x": 8.9,
+     "y": 4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text59",
+     "x": 10.1,
+     "y": 4,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text60",
+     "x": 13.5,
+     "y": 4,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text61",
+     "x": 14.8,
+     "y": 4,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text62",
+     "x": 0,
+     "y": 4.9,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text63",
+     "x": 1.8,
+     "y": 4.9,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text64",
+     "x": 6.5,
+     "y": 4.9,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text65",
+     "x": 7.7,
+     "y": 4.9,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text66",
+     "x": 8.9,
+     "y": 4.9,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text67",
+     "x": 10.1,
+     "y": 4.9,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text68",
+     "x": 13.5,
+     "y": 4.9,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text69",
+     "x": 14.8,
+     "y": 4.9,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text70",
+     "x": 0,
+     "y": 5.8,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text71",
+     "x": 1.8,
+     "y": 5.8,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text72",
+     "x": 6.5,
+     "y": 5.8,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text73",
+     "x": 7.7,
+     "y": 5.8,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text74",
+     "x": 8.9,
+     "y": 5.8,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text75",
+     "x": 10.1,
+     "y": 5.8,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text76",
+     "x": 13.5,
+     "y": 5.8,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text77",
+     "x": 14.8,
+     "y": 5.8,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text78",
+     "x": 0,
+     "y": 6.7,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text79",
+     "x": 1.8,
+     "y": 6.7,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text80",
+     "x": 6.5,
+     "y": 6.7,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text81",
+     "x": 7.7,
+     "y": 6.7,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text82",
+     "x": 8.9,
+     "y": 6.7,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text83",
+     "x": 10.1,
+     "y": 6.7,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text84",
+     "x": 13.5,
+     "y": 6.7,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text85",
+     "x": 14.8,
+     "y": 6.7,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text86",
+     "x": 0,
+     "y": 7.6,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text87",
+     "x": 1.8,
+     "y": 7.6,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text88",
+     "x": 6.5,
+     "y": 7.6,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text89",
+     "x": 7.7,
+     "y": 7.6,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text90",
+     "x": 8.9,
+     "y": 7.6,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text91",
+     "x": 10.1,
+     "y": 7.6,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text92",
+     "x": 13.5,
+     "y": 7.6,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text93",
+     "x": 14.8,
+     "y": 7.6,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text94",
+     "x": 0,
+     "y": 8.5,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text95",
+     "x": 1.8,
+     "y": 8.5,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text96",
+     "x": 6.5,
+     "y": 8.5,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text97",
+     "x": 7.7,
+     "y": 8.5,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text98",
+     "x": 8.9,
+     "y": 8.5,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text99",
+     "x": 10.1,
+     "y": 8.5,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text100",
+     "x": 13.5,
+     "y": 8.5,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text101",
+     "x": 14.8,
+     "y": 8.5,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text102",
+     "x": 0,
+     "y": 9.4,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text103",
+     "x": 1.8,
+     "y": 9.4,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text104",
+     "x": 6.5,
+     "y": 9.4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text105",
+     "x": 7.7,
+     "y": 9.4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text106",
+     "x": 8.9,
+     "y": 9.4,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text107",
+     "x": 10.1,
+     "y": 9.4,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text108",
+     "x": 13.5,
+     "y": 9.4,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text109",
+     "x": 14.8,
+     "y": 9.4,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text110",
+     "x": 0,
+     "y": 10.3,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text111",
+     "x": 1.8,
+     "y": 10.3,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text112",
+     "x": 6.5,
+     "y": 10.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text113",
+     "x": 7.7,
+     "y": 10.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text114",
+     "x": 8.9,
+     "y": 10.3,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text115",
+     "x": 10.1,
+     "y": 10.3,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text116",
+     "x": 13.5,
+     "y": 10.3,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text117",
+     "x": 14.8,
+     "y": 10.3,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text118",
+     "x": 0,
+     "y": 11.2,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text119",
+     "x": 1.8,
+     "y": 11.2,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text120",
+     "x": 6.5,
+     "y": 11.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text121",
+     "x": 7.7,
+     "y": 11.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text122",
+     "x": 8.9,
+     "y": 11.2,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text123",
+     "x": 10.1,
+     "y": 11.2,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text124",
+     "x": 13.5,
+     "y": 11.2,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text125",
+     "x": 14.8,
+     "y": 11.2,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text126",
+     "x": 0,
+     "y": 12.1,
+     "ancho": 1.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text127",
+     "x": 1.8,
+     "y": 12.1,
+     "ancho": 4.7,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text128",
+     "x": 6.5,
+     "y": 12.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text129",
+     "x": 7.7,
+     "y": 12.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text130",
+     "x": 8.9,
+     "y": 12.1,
+     "ancho": 1.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Fecha",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text131",
+     "x": 10.1,
+     "y": 12.1,
+     "ancho": 3.4,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "Serie / Lote",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(255,255,255)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text132",
+     "x": 13.5,
+     "y": 12.1,
+     "ancho": 1.3,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text133",
+     "x": 14.8,
+     "y": 12.1,
+     "ancho": 4.2,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text156",
+     "x": 0,
+     "y": 16.7,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text157",
+     "x": 2.8,
+     "y": 16.7,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text158",
+     "x": 8.4,
+     "y": 16.7,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text159",
+     "x": 11.5,
+     "y": 16.7,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text160",
+     "x": 13.6,
+     "y": 16.7,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text161",
+     "x": 16.2,
+     "y": 16.7,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text162",
+     "x": 0,
+     "y": 17.6,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text163",
+     "x": 2.8,
+     "y": 17.6,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text164",
+     "x": 8.4,
+     "y": 17.6,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text165",
+     "x": 11.5,
+     "y": 17.6,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text166",
+     "x": 13.6,
+     "y": 17.6,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text167",
+     "x": 16.2,
+     "y": 17.6,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text168",
+     "x": 0,
+     "y": 18.5,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text169",
+     "x": 2.8,
+     "y": 18.5,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text170",
+     "x": 8.4,
+     "y": 18.5,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text171",
+     "x": 11.5,
+     "y": 18.5,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text172",
+     "x": 13.6,
+     "y": 18.5,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text173",
+     "x": 16.2,
+     "y": 18.5,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text174",
+     "x": 0,
+     "y": 19.4,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text175",
+     "x": 2.8,
+     "y": 19.4,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text176",
+     "x": 8.4,
+     "y": 19.4,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text177",
+     "x": 11.5,
+     "y": 19.4,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text178",
+     "x": 13.6,
+     "y": 19.4,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text179",
+     "x": 16.2,
+     "y": 19.4,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text180",
+     "x": 0,
+     "y": 20.3,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text181",
+     "x": 2.8,
+     "y": 20.3,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text182",
+     "x": 8.4,
+     "y": 20.3,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text183",
+     "x": 11.5,
+     "y": 20.3,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text184",
+     "x": 13.6,
+     "y": 20.3,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text185",
+     "x": 16.2,
+     "y": 20.3,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text186",
+     "x": 0,
+     "y": 21.2,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text187",
+     "x": 2.8,
+     "y": 21.2,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text188",
+     "x": 8.4,
+     "y": 21.2,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text189",
+     "x": 11.5,
+     "y": 21.2,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text190",
+     "x": 13.6,
+     "y": 21.2,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text191",
+     "x": 16.2,
+     "y": 21.2,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text192",
+     "x": 0,
+     "y": 22.1,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text193",
+     "x": 2.8,
+     "y": 22.1,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text194",
+     "x": 8.4,
+     "y": 22.1,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text195",
+     "x": 11.5,
+     "y": 22.1,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text196",
+     "x": 13.6,
+     "y": 22.1,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text197",
+     "x": 16.2,
+     "y": 22.1,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text198",
+     "x": 0,
+     "y": 23,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text199",
+     "x": 2.8,
+     "y": 23,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text200",
+     "x": 8.4,
+     "y": 23,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text201",
+     "x": 11.5,
+     "y": 23,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text202",
+     "x": 13.6,
+     "y": 23,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text203",
+     "x": 16.2,
+     "y": 23,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text204",
+     "x": 0,
+     "y": 23.9,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text205",
+     "x": 2.8,
+     "y": 23.9,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text206",
+     "x": 8.4,
+     "y": 23.9,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text207",
+     "x": 11.5,
+     "y": 23.9,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text208",
+     "x": 13.6,
+     "y": 23.9,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text209",
+     "x": 16.2,
+     "y": 23.9,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text210",
+     "x": 0,
+     "y": 24.8,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text211",
+     "x": 2.8,
+     "y": 24.8,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text212",
+     "x": 8.4,
+     "y": 24.8,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text213",
+     "x": 11.5,
+     "y": 24.8,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text214",
+     "x": 13.6,
+     "y": 24.8,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text215",
+     "x": 16.2,
+     "y": 24.8,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text216",
+     "x": 0,
+     "y": 25.7,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text217",
+     "x": 2.8,
+     "y": 25.7,
+     "ancho": 5.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text218",
+     "x": 8.4,
+     "y": 25.7,
+     "ancho": 3.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text219",
+     "x": 11.5,
+     "y": 25.7,
+     "ancho": 2.1,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text220",
+     "x": 13.6,
+     "y": 25.7,
+     "ancho": 2.6,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "nombre": "Text221",
+     "x": 16.2,
+     "y": 25.7,
+     "ancho": 2.8,
+     "alto": 0.9,
+     "tipo": "texto",
+     "texto": "",
+     "fuente": {
+      "familia": "Arial",
+      "tamano": 10,
+      "negrita": true
+     },
+     "horizontal": "center",
+     "vertical": "center",
+     "borde": {
+      "lados": [
+       "arriba",
+       "derecha",
+       "abajo",
+       "izquierda"
+      ],
+      "color": "rgb(0,0,0)",
+      "grosor": 1,
+      "estilo": "solid"
+     },
+     "fondo": "transparent",
+     "tinta": "rgb(0,0,0)",
+     "margenes": [
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ],
+ "sueltas": [
+  {
+   "nombre": "RectanglePrimitive1",
+   "x": 0,
+   "y": 0.4,
+   "ancho": 19,
+   "alto": 14.4,
+   "tipo": "rectangulo",
+   "guid": "9de2c0b5d50c495b98e8ab8880c90651",
+   "color": "black",
+   "grosor": 1
+  },
+  {
+   "nombre": "VerticalLinePrimitive1",
+   "x": 13.5,
+   "y": 0.5,
+   "ancho": 0.0254,
+   "alto": 2.8,
+   "tipo": "lineaV",
+   "guid": "5406ccdc6aa541dcbd0e996db0bd41ed",
+   "color": "black",
+   "grosor": 1
+  },
+  {
+   "nombre": "VerticalLinePrimitive2",
+   "x": 6.7,
+   "y": 3.2,
+   "ancho": 0.0254,
+   "alto": 2,
+   "tipo": "lineaV",
+   "guid": "80e7765d9ab34e799015705aafb41b1f",
+   "color": "black",
+   "grosor": 2
+  },
+  {
+   "nombre": "VerticalLinePrimitive3",
+   "x": 1,
+   "y": 6.2,
+   "ancho": 0.0254,
+   "alto": 4.1,
+   "tipo": "lineaV",
+   "guid": "5c26c416c5404c28b38b591e2d58b955",
+   "color": "black",
+   "grosor": 1
+  },
+  {
+   "nombre": "VerticalLinePrimitive4",
+   "x": 9.9,
+   "y": 6.2,
+   "ancho": 0.0254,
+   "alto": 4.2,
+   "tipo": "lineaV",
+   "guid": "293bc7047e504418a2bfc70108a51d96",
+   "color": "black",
+   "grosor": 1
+  },
+  {
+   "nombre": "VerticalLinePrimitive5",
+   "x": 11.9,
+   "y": 6.3,
+   "ancho": 0.0254,
+   "alto": 4.1,
+   "tipo": "lineaV",
+   "guid": "3d502716b01f4e64a2765da1490b18dc",
+   "color": "black",
+   "grosor": 1
+  }
+ ]
+}

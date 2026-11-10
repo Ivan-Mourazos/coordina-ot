@@ -213,7 +213,16 @@ export function PedidoBelenView({
               COT pendiente
             </span>
           )}
-          <span className="ml-auto text-[12.5px] text-text-muted">
+          <a
+            href={`/vista-belen/imprimir?ofs=${encodeURIComponent((abiertas.length ? abiertas : pedido.ofs).map((o) => o.of).join(","))}`}
+            target="_blank"
+            rel="noopener"
+            title={`Hoja de ruta y vale de material de ${abiertas.length ? "las OF abiertas" : "todas las OF"} del pedido`}
+            className="ml-auto rounded-full bg-[var(--hero-relleno)] px-3 py-1 text-[12.5px] font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
+          >
+            Imprimir OF y reserva{abiertas.length > 1 ? ` (${abiertas.length})` : ""}
+          </a>
+          <span className="text-[12.5px] text-text-muted">
             Entrega{" "}
             <b className="font-semibold text-text">
               {r.igual.formaEntrega ? enFrase(r.comunes.formaEntrega) || "—" : "distinta por OF"}

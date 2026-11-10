@@ -451,19 +451,34 @@ export function FilaOFBelen({
         </div>
       )}
 
-      {/* 4. Las tareas, hacia abajo. */}
+      {/* 4. Las tareas, hacia abajo; y a la derecha, imprimir la OF. */}
+      <div className="flex items-stretch border-t border-border">
       <button
         type="button"
         aria-expanded={abierta}
         aria-controls={idDetalle}
         onClick={() => setAbierta((v) => !v)}
-        className="flex w-full items-center gap-2 border-t border-border px-6 py-2 text-left text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-[var(--hero-relleno)] hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+        className="flex flex-1 items-center gap-2 px-6 py-2 text-left text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-[var(--hero-relleno)] hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
       >
         <span aria-hidden className={`inline-block transition-transform duration-200 motion-reduce:transition-none ${abierta ? "rotate-90" : ""}`}>▸</span>
         {abierta
           ? "Ocultar las tareas"
           : `Ver las tareas${tareas?.tareas.length ? ` (${tareas.tareas.length})` : ""}${tareas?.minutos ? ` · ${fmtMinEnteros(tareas.minutos)} fichados` : ""}`}
       </button>
+      <a
+        href={`/vista-belen/imprimir?ofs=${encodeURIComponent(of.of)}`}
+        target="_blank"
+        rel="noopener"
+        title="La hoja de ruta y el vale de material, como en RPS, con sus códigos de barras"
+        className="flex items-center gap-1.5 px-6 py-2 text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-[var(--hero-relleno)] hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+      >
+        <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <path d="M6 14h12v7H6z" />
+        </svg>
+        Imprimir OF y reserva
+      </a>
+      </div>
       <div id={idDetalle}>
         <Desplegable abierto={abierta}>
           <DetalleTareas of={of} tareas={tareas} />
