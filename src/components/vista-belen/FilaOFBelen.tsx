@@ -233,6 +233,10 @@ export function FilaOFBelen({
   const otraEntrega = difiereDelPedido(of, resumen, "formaEntrega");
   const otraRotulacion = difiereDelPedido(of, resumen, "rotulacion");
   const hayAvisos = of.compras.length > 0 || of.avisos.length > 0;
+  // Belén (10/11/2026): con el TP o la COT ya hechos, la OF en amarillo, como
+  // en su pantalla de antes. Tinte suave sobre la superficie, no la fila
+  // chillona: en HeroUI el color va por significado y sin gritar.
+  const avisosHechos = of.avisos.length > 0 && of.avisos.every((a) => a.cerrado);
   // El orden y los colores los pidió Belén (10/11/2026), como en su pantalla
   // de antes: solicitada en rojo, comprometida en verde, logística en malva y
   // compras en azul. Justo debajo, el comentario de la OF, también en rojo.
@@ -254,7 +258,14 @@ export function FilaOFBelen({
   return (
     <article
       aria-label={`OF ${of.of}`}
-      className={`tarjeta-of relative overflow-hidden rounded-3xl bg-surface ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
+      data-avisos-hechos={avisosHechos || undefined}
+      className={`tarjeta-of relative overflow-hidden rounded-3xl ${
+        // HeroUI pinta .tarjeta-of con var(--surface): se tiñe la variable.
+        // Base = el --surface de hero.css (#fff claro, #18181b oscuro).
+        avisosHechos
+          ? "bg-surface [--surface:color-mix(in_oklab,#fff,#facc15_16%)] dark:[--surface:color-mix(in_oklab,#18181b,#facc15_10%)]"
+          : "bg-surface"
+      } ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
     >
       {/* 1. Identidad */}
       <div className="flex items-start gap-3 px-6 pb-3 pt-4">
