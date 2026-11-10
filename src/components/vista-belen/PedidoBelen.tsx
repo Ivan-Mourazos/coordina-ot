@@ -12,6 +12,8 @@ import {
   type TiemposPedido,
 } from "@/lib/vista-belen";
 import { estadoMaterialDe } from "@/lib/types";
+import { AcentoBloque } from "../AcentoBloque";
+import { Desplegable } from "../Desplegable";
 import { DocumentosRps } from "../DocumentosRps";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
@@ -49,25 +51,91 @@ function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
   return carga;
 }
 
-type Tono = "rojo" | "marron" | "verde" | "ambar" | "neutro";
+// ─── Recuadros de la cabecera ────────────────────────────────────────────────
+// Las cifras que se miran primero, grandes y con color por significado (rojo
+// falta, marrón no cuadra, verde bien, ámbar en espera). Cada recuadro lleva a
+// su pestaña: es por donde se entra al detalle.
 
-const TONO: Record<Tono, string> = {
-  rojo: "bg-red-500/12 text-red-800 dark:text-red-300",
-  marron: "bg-amber-700 text-white dark:bg-amber-500 dark:text-black",
-  verde: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
-  ambar: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
-  neutro: "bg-[var(--hero-relleno)] text-text",
+type Tono = "rojo" | "marron" | "verde" | "ambar" | "teal" | "neutro";
+
+const TINTA: Record<Tono, string> = {
+  rojo: "text-red-700 dark:text-red-300",
+  marron: "text-amber-800 dark:text-amber-300",
+  verde: "text-emerald-700 dark:text-emerald-300",
+  ambar: "text-amber-700 dark:text-amber-300",
+  teal: "text-teal-700 dark:text-teal-300",
+  neutro: "text-text",
+};
+const PUNTO: Record<Tono, string> = {
+  rojo: "bg-red-500",
+  marron: "bg-amber-700 dark:bg-amber-500",
+  verde: "bg-emerald-500",
+  ambar: "bg-amber-400",
+  teal: "bg-teal-500",
+  neutro: "bg-[var(--border-strong)]",
 };
 
-function Chip({ tono, children }: { tono: Tono; children: React.ReactNode }) {
-  return <li className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${TONO[tono]}`}>{children}</li>;
+function Cifra({
+  etiqueta,
+  valor,
+  sub,
+  tono = "neutro",
+  onClick,
+}: {
+  etiqueta: string;
+  valor: React.ReactNode;
+  sub?: React.ReactNode;
+  tono?: Tono;
+  onClick?: () => void;
+}) {
+  const cuerpo = (
+    <>
+      <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-muted">
+        <span className={`size-2 rounded-full ${PUNTO[tono]}`} aria-hidden />
+        {etiqueta}
+      </span>
+      <span className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
+        <span className={`shrink-0 text-[17px] font-bold leading-tight tabular-nums ${TINTA[tono]}`}>{valor}</span>
+        {sub && <span className="min-w-0 truncate text-[11.5px] text-text-muted">{sub}</span>}
+      </span>
+    </>
+  );
+  const clase =
+    "min-w-0 rounded-2xl bg-[var(--detalle)] px-3 py-2 text-left transition-[transform,background-color] duration-150";
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${clase} hover:bg-[var(--hero-relleno)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none`}
+    >
+      {cuerpo}
+    </button>
+  ) : (
+    <div className={clase}>{cuerpo}</div>
+  );
 }
 
-function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+/** El comentario del comercial en UNA línea (monitor pequeño); entero al
+ *  pedirlo. */
+function ComentarioPedido({ texto }: { texto: string }) {
+  const [entero, setEntero] = useState(false);
   return (
-    <div className="min-w-0">
-      <dt className="text-[11px] text-text-muted">{etiqueta}</dt>
-      <dd className="truncate text-[13px] font-semibold">{children}</dd>
+    <div className="mt-2 flex items-start gap-2 rounded-xl bg-[var(--detalle)] px-3 py-1.5 text-[13px]">
+      <span className="mt-0.5 flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-text-muted">
+        <AcentoBloque tipo="comentario" />
+        Comentario
+      </span>
+      <p className={`min-w-0 flex-1 ${entero ? "whitespace-pre-line" : "truncate"}`} title={entero ? undefined : texto}>
+        {texto}
+      </p>
+      <button
+        type="button"
+        aria-expanded={entero}
+        onClick={() => setEntero((v) => !v)}
+        className="shrink-0 text-[12px] font-semibold text-text-muted transition-transform hover:text-text active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
+      >
+        {entero ? "Ver menos" : "Ver todo"}
+      </button>
     </div>
   );
 }
@@ -124,55 +192,122 @@ export function PedidoBelenView({
 
   return (
     <section aria-label={`Pedido ${pedido.codigo}`} className="flex flex-col gap-2">
-      <header className="tarjeta-of rounded-3xl bg-surface px-5 py-3.5">
+      <header className="tarjeta-of rounded-3xl bg-surface px-5 pb-3 pt-3">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-lg font-bold tabular-nums">{pedido.codigo}</h1>
+          <h1 className="text-[20px] font-bold leading-tight tabular-nums">{pedido.codigo}</h1>
           <span className="text-[15px] font-semibold">{pedido.cliente}</span>
-          <span className="text-[13px] text-text-muted">{n(r.ofs, "OF", "OF")}</span>
+          {r.tpPendiente > 0 && (
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+              TP pendiente
+            </span>
+          )}
+          {r.cotPendiente > 0 && (
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+              COT pendiente
+            </span>
+          )}
+          <span className="ml-auto text-[12.5px] text-text-muted">
+            Entrega{" "}
+            <b className="font-semibold text-text">
+              {r.igual.formaEntrega ? enFrase(r.comunes.formaEntrega) || "—" : "distinta por OF"}
+            </b>
+            {" · "}Rotulación{" "}
+            <b className="font-semibold text-text">
+              {r.igual.rotulacion ? r.comunes.rotulacion ?? "sin rotular" : "distinta por OF"}
+            </b>
+          </span>
         </div>
 
-        {/* Lo que falta, de un vistazo. Si no hay nada pendiente, lo dice. */}
-        <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Resumen del pedido">
-          {r.bultos.rojo > 0 && <Chip tono="rojo">{n(r.bultos.rojo, "OF sin bultos", "OF sin bultos")}</Chip>}
-          {r.bultos.marron > 0 && (
-            <Chip tono="marron">{n(r.bultos.marron, "OF con unidades que no cuadran", "OF con unidades que no cuadran")}</Chip>
-          )}
-          {r.tpPendiente > 0 && <Chip tono="ambar">TP pendiente</Chip>}
-          {r.cotPendiente > 0 && <Chip tono="ambar">COT pendiente</Chip>}
-          {r.conMaterialPendiente > 0 && (
-            <Chip tono="ambar">{n(r.conMaterialPendiente, "OF esperando material", "OF esperando material")}</Chip>
-          )}
-          {r.bultos.verde === r.ofs && r.tpPendiente === 0 && r.cotPendiente === 0 && r.conMaterialPendiente === 0 && (
-            <Chip tono="verde">Todo subido, nada pendiente</Chip>
-          )}
-          {r.bultos.verde > 0 && r.bultos.verde < r.ofs && (
-            <Chip tono="neutro">{n(r.bultos.verde, "OF con bultos subidos", "OF con bultos subidos")}</Chip>
-          )}
-        </ul>
+        <div className="mt-2 grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]">
+          <Cifra
+            etiqueta="Bultos subidos"
+            valor={`${r.bultos.verde} de ${r.ofs}`}
+            tono={r.bultos.rojo > 0 ? "rojo" : r.bultos.marron > 0 ? "marron" : "verde"}
+            sub={
+              r.bultos.verde === r.ofs ? (
+                "Todas las OF subidas"
+              ) : (
+                <>
+                  {r.bultos.rojo > 0 && `${n(r.bultos.rojo, "OF", "OF")} sin subir`}
+                  {r.bultos.rojo > 0 && r.bultos.marron > 0 && " · "}
+                  {r.bultos.marron > 0 && (
+                    <span className="font-semibold text-amber-800 dark:text-amber-300">
+                      {n(r.bultos.marron, "no cuadra", "no cuadran")}
+                    </span>
+                  )}
+                </>
+              )
+            }
+            onClick={() => setSeccion("resumen")}
+          />
+          <Cifra
+            etiqueta="Fecha comprometida"
+            valor={r.comprometida ? fechaCorta(r.comprometida) : "Sin dar"}
+            tono={r.comprometida ? "teal" : "neutro"}
+            sub={`Solicitada ${r.igual.fechaSolicitada ? fechaCorta(r.comunes.fechaSolicitada) || "—" : "distinta por OF"}`}
+          />
+          <Cifra
+            etiqueta="Fichado"
+            valor={tiempos.tipo === "listo" && tiempos.datos ? fmtMinEnteros(tiempos.datos.minutos) : "…"}
+            sub={
+              tiempos.tipo === "listo" && tiempos.datos
+                ? n(tiempos.datos.personas.length, "persona", "personas")
+                : "Cargando"
+            }
+            onClick={() => setSeccion("tiempos")}
+          />
+          <Cifra
+            etiqueta="Material"
+            valor={
+              estadoMat === "sinReservar"
+                ? "Sin reservar"
+                : estadoMat === "aMedias"
+                  ? "A medias"
+                  : estadoMat === "reservado"
+                    ? "Reservado"
+                    : material.tipo === "listo"
+                      ? "Sin asignar"
+                      : "…"
+            }
+            tono={
+              estadoMat === "sinReservar"
+                ? "rojo"
+                : estadoMat === "aMedias"
+                  ? "ambar"
+                  : estadoMat === "reservado"
+                    ? "verde"
+                    : "neutro"
+            }
+            sub={
+              r.conMaterialPendiente > 0
+                ? `${n(r.conMaterialPendiente, "OF", "OF")} en compras`
+                : "Compras al día"
+            }
+            onClick={() => setSeccion("material")}
+          />
+          <Cifra
+            etiqueta="Documentos"
+            valor={docs.tipo === "listo" ? docs.datos.length : "…"}
+            sub={
+              docs.tipo === "listo"
+                ? docs.datos.some((d) => d.clase === "Planteamiento")
+                  ? "Con planteamiento"
+                  : "Sin planteamiento"
+                : "Cargando"
+            }
+            onClick={() => setSeccion("documentos")}
+          />
+        </div>
 
-        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-border pt-2.5 sm:grid-cols-4">
-          <Dato etiqueta="Entrega">{r.igual.formaEntrega ? enFrase(r.comunes.formaEntrega) || "—" : "Distinta por OF"}</Dato>
-          <Dato etiqueta="Rotulación">{r.igual.rotulacion ? r.comunes.rotulacion ?? "Sin rotular" : "Distinta por OF"}</Dato>
-          <Dato etiqueta="Fecha solicitada">
-            {r.igual.fechaSolicitada ? fechaCorta(r.comunes.fechaSolicitada) || "—" : "Distinta por OF"}
-          </Dato>
-          <Dato etiqueta="Fecha comprometida">
-            {r.comprometida ? (
-              <span className="text-teal-700 dark:text-teal-300">{fechaCorta(r.comprometida)}</span>
-            ) : (
-              <span className="font-normal text-text-muted">Sin dar</span>
-            )}
-          </Dato>
-        </dl>
-        {pedido.comentarioVenta && (
-          <div className="mt-2.5 border-t border-border pt-2">
-            <div className="text-[11px] text-text-muted">Comentario del pedido</div>
-            <p className="whitespace-pre-line text-[13px]">{pedido.comentarioVenta}</p>
-          </div>
-        )}
+        {pedido.comentarioVenta && <ComentarioPedido texto={pedido.comentarioVenta} />}
       </header>
 
-      <div role="tablist" aria-label="Detalle del pedido" className="flex flex-wrap gap-1.5 px-1 pt-1">
+      {/* La misma píldora que se desliza del resto de Coordina (PildorasDeslizantes). */}
+      <div
+        role="tablist"
+        aria-label="Detalle del pedido"
+        className="tira-3d glass-chip mt-1 inline-flex flex-wrap self-start rounded-lg p-[3px]"
+      >
         {SECCIONES.map((x) => (
           <button
             key={x.id}
@@ -182,29 +317,23 @@ export function PedidoBelenView({
             aria-selected={seccion === x.id}
             aria-controls={`panel-detalle-${x.id}`}
             onClick={() => setSeccion(x.id)}
-            className={`flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-              seccion === x.id
-                ? "bg-text text-bg"
-                : "bg-[var(--hero-relleno)] text-text-muted hover:bg-[var(--hero-relleno-encima)] hover:text-text"
+            className={`flex h-8 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+              seccion === x.id ? "pestana-activa" : "text-text-muted hover:text-text"
             }`}
           >
             {x.label}
-            {x.extra && (
-              <span
-                className={`rounded-full px-1.5 text-[11px] tabular-nums ${seccion === x.id ? "bg-bg/20" : "bg-[var(--hero-relleno-encima)]"}`}
-              >
-                {x.extra}
-              </span>
-            )}
+            {x.extra && <span className="text-[11.5px] font-medium tabular-nums text-text-muted">{x.extra}</span>}
           </button>
         ))}
       </div>
 
       {seccion === "documentos" && (
-        <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-4 py-3">
-          <p className="mb-2 text-[12.5px] text-text-muted">
-            Todo lo que RPS tiene colgado de este pedido. Pincha uno para verlo en grande; las flechas pasan al siguiente.
-          </p>
+        <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-5 py-4">
+          <div data-bloque="documentos" className="cabecera-bloque mb-2 flex items-center gap-1.5 text-[13px] font-semibold">
+            <AcentoBloque tipo="documentos" />
+            Documentos del pedido
+            <span className="ml-auto text-[12px] font-normal text-text-muted">Pincha uno para verlo en grande; las flechas pasan al siguiente</span>
+          </div>
           {docs.tipo === "cargando" && <p className="text-sm text-text-muted">Cargando documentos…</p>}
           {docs.tipo === "error" && (
             <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
@@ -223,7 +352,6 @@ export function PedidoBelenView({
 
       {seccion === "material" && (
         <div role="tabpanel" id="panel-detalle-material" aria-labelledby="detalle-material">
-          <p className="mb-2 px-1 text-[12.5px] text-text-muted">Por OF: lo que Oficina Técnica asignó, lo que Almacén ha reservado de eso y lo que Compras pidió al proveedor.</p>
           {material.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando material…</p>}
           {material.tipo === "error" && (
             <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
@@ -239,11 +367,11 @@ export function PedidoBelenView({
           role="tabpanel"
           id="panel-detalle-notas"
           aria-labelledby="detalle-notas"
-          className="tarjeta-of rounded-3xl bg-surface px-5 py-3"
+          className="tarjeta-of rounded-3xl bg-surface px-5 py-4"
         >
-          <p className="mb-2 text-[12.5px] text-text-muted">
-            Aquí ves las notas que Oficina Técnica pone «para todos» y las tuyas. Lo que escribas «para todos» lo lee
-            todo el equipo.
+          <p className="mb-2 rounded-xl bg-[var(--detalle)] px-3 py-2 text-[12.5px] text-text-muted">
+            Aquí ves las notas que Oficina Técnica pone <b className="text-text">«para todos»</b> y las tuyas. Lo que
+            escribas «para todos» lo lee todo el equipo.
           </p>
           <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} publicaPorDefecto />
         </div>
@@ -251,7 +379,6 @@ export function PedidoBelenView({
 
       {seccion === "tiempos" && (
         <div role="tabpanel" id="panel-detalle-tiempos" aria-labelledby="detalle-tiempos">
-          <p className="mb-2 px-1 text-[12.5px] text-text-muted">Cada vez que alguien fichó en una tarea de este pedido, sacado de RPS: el día, la hora en que se registró y los minutos. Pincha una tarea o una persona para ver sus fichajes.</p>
           {tiempos.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando tareas y tiempos…</p>}
           {tiempos.tipo === "error" && (
             <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
@@ -277,13 +404,22 @@ export function PedidoBelenView({
           type="button"
           aria-expanded={verFinalizadas}
           onClick={() => setVerFinalizadas((v) => !v)}
-          className="self-start rounded-full px-3 py-1 text-[13px] font-semibold text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="self-start rounded-full px-3 py-1 text-[13px] font-semibold text-text-muted transition-[transform,background-color] hover:bg-[var(--hero-relleno)] hover:text-text active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
-          {verFinalizadas ? "▾" : "▸"} {n(finalizadas.length, "OF finalizada", "OF finalizadas")}
+          <span aria-hidden className={`inline-block transition-transform duration-200 motion-reduce:transition-none ${verFinalizadas ? "rotate-90" : ""}`}>
+            ▸
+          </span>{" "}
+          {n(finalizadas.length, "OF finalizada", "OF finalizadas")}
         </button>
       )}
-      {verFinalizadas &&
-        finalizadas.map((o) => <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />)}
+      {/* Se despliegan con la animación de siempre de Coordina (Desplegable). */}
+      <Desplegable abierto={verFinalizadas}>
+        <div className="flex flex-col gap-2">
+          {finalizadas.map((o) => (
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
+          ))}
+        </div>
+      </Desplegable>
       </div>
       )}
     </section>

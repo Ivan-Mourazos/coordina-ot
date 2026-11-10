@@ -25,6 +25,16 @@ function haceCuanto(iso: string): string {
   return `a las ${new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
+/** Color de una etiqueta de estado según lo que dice: lo acabado o subido en
+ *  verde, lo parado o lo que falta en rojo, lo que está en marcha en ámbar. */
+function claseEstado(valor: string): string {
+  const v = valor.trim().toUpperCase();
+  if (v === "SI" || v === "FINALIZADA") return "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300";
+  if (v === "NO" || v === "DETENIDA") return "bg-red-500/12 text-red-800 dark:text-red-300";
+  if (v === "CON IMPUTACIONES") return "bg-amber-500/15 text-amber-900 dark:text-amber-200";
+  return "bg-[var(--hero-relleno)] text-text";
+}
+
 function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | null | undefined }) {
   if (valor === null || valor === undefined || valor === "") return <span className="text-text-muted">—</span>;
   switch (col.tipo) {
@@ -36,6 +46,12 @@ function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | nul
       return <span className="font-mono font-semibold">{valor}</span>;
     case "pedido":
       return <span className="whitespace-nowrap font-semibold tabular-nums">{valor}</span>;
+    case "estado":
+      return (
+        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${claseEstado(String(valor))}`}>
+          {String(valor).charAt(0) + String(valor).slice(1).toLowerCase()}
+        </span>
+      );
     default:
       return <>{valor}</>;
   }
@@ -99,7 +115,11 @@ export function TablaListaBelen({
         (carga.filas.length === 0 ? (
           <p className="px-1 text-sm text-text-muted">No hay ninguna ahora mismo.</p>
         ) : (
-          <div className="overflow-x-auto rounded-3xl bg-surface shadow-[var(--hero-sombra-panel)]">
+          <div className="tarjeta-of overflow-x-auto rounded-3xl bg-surface">
+            <div className="flex items-baseline gap-2.5 px-4 pb-1 pt-3">
+              <span className="text-[22px] font-bold leading-none tabular-nums">{carga.filas.length}</span>
+              <span className="text-[14px] font-semibold">{def.label}</span>
+            </div>
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr className="text-left text-[10.5px] uppercase tracking-wide text-text-muted">
@@ -120,7 +140,7 @@ export function TablaListaBelen({
                   return (
                     <tr
                       key={f.clave}
-                      className={`border-t border-border ${abrir ? "cursor-pointer hover:bg-[var(--hero-relleno)]" : ""}`}
+                      className={`border-t border-border transition-colors ${abrir ? "cursor-pointer hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)]" : ""}`}
                       onClick={abrir}
                     >
                       {def.columnas.map((c, i) => (

@@ -14,6 +14,8 @@ import {
   type TipoAviso,
   difiereDelPedido,
 } from "@/lib/vista-belen";
+import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
+import { CaraPersona } from "./CaraPersona";
 import { SIGNIFICA } from "./significados";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
@@ -65,35 +67,13 @@ function persona(nombre: string | null): string {
   return propio ? `${capital(propio)} ${capital(apellidos)}` : capital(apellidos);
 }
 
-function Fecha({
-  etiqueta,
-  valor,
-  clase = "",
-  ayuda,
-}: {
-  etiqueta: string;
-  valor: string | null;
-  clase?: string;
-  ayuda: string;
-}) {
-  if (!valor) return null;
-  return (
-    <div className="text-right">
-      <dt className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] leading-tight text-text-muted" title={ayuda}>
-        {etiqueta}
-      </dt>
-      <dd className={`text-[14px] font-semibold tabular-nums leading-tight ${clase}`}>{fechaCorta(valor)}</dd>
-    </div>
-  );
-}
-
 /** El texto de la línea del pedido (medidas, acabados): a veces es una línea
  *  y a veces veinte. Se ven dos y el resto al pedirlo. */
 function DetalleLinea({ texto }: { texto: string }) {
   const [entero, setEntero] = useState(false);
   const largo = texto.length > 160 || texto.split(/\r?\n/).length > 2;
   return (
-    <div className="mt-1 rounded-xl bg-[var(--detalle)] px-3 py-1.5 text-[12.5px]">
+    <div className="rounded-xl bg-[var(--detalle)] px-3.5 py-2 text-[12.5px]">
       <span className="text-[11px] text-text-muted">Detalle del pedido · </span>
       <span className={`whitespace-pre-line ${entero || !largo ? "" : "line-clamp-2"}`}>{texto}</span>
       {largo && (
@@ -133,6 +113,33 @@ function ChipAviso({ of, tipo }: { of: OFBelen; tipo: TipoAviso }) {
   );
 }
 
+/** Cabecera pequeña de un bloque, con su icono de color como en el resto de
+ *  Coordina (AcentoBloque): se sabe de un vistazo qué bloque es cuál. */
+function CabeceraBloque({
+  tipo,
+  children,
+  derecha,
+  ayuda,
+}: {
+  tipo: TipoBloque;
+  children: React.ReactNode;
+  derecha?: React.ReactNode;
+  ayuda?: string;
+}) {
+  return (
+    <div data-bloque={tipo} className="cabecera-bloque mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text">
+      <AcentoBloque tipo={tipo} />
+      <span
+        title={ayuda}
+        className={ayuda ? "cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2" : ""}
+      >
+        {children}
+      </span>
+      {derecha && <span className="ml-auto text-[12px] font-medium tabular-nums text-text-muted">{derecha}</span>}
+    </div>
+  );
+}
+
 export function FilaOFBelen({
   of,
   resumen,
@@ -150,82 +157,106 @@ export function FilaOFBelen({
   const otraEntrega = difiereDelPedido(of, resumen, "formaEntrega");
   const otraRotulacion = difiereDelPedido(of, resumen, "rotulacion");
   const hayAvisos = of.notas || of.compras.length > 0 || of.avisos.length > 0;
+  const fechas = [
+    difiereDelPedido(of, resumen, "fechaSolicitada") && of.fechaSolicitada
+      ? { etiqueta: "Solicitada", valor: of.fechaSolicitada, clase: "text-text", ayuda: SIGNIFICA.solicitada }
+      : null,
+    of.fechaComprometida
+      ? { etiqueta: "Comprometida", valor: of.fechaComprometida, clase: "text-teal-700 dark:text-teal-300", ayuda: SIGNIFICA.comprometida }
+      : null,
+    of.fechaCompras
+      ? { etiqueta: "Llega material", valor: of.fechaCompras, clase: "text-amber-700 dark:text-amber-300", ayuda: SIGNIFICA.llegaMaterial }
+      : null,
+  ].filter((f): f is NonNullable<typeof f> => f !== null);
 
   return (
     <article
       aria-label={`OF ${of.of}`}
-      className={`tarjeta-of overflow-hidden rounded-3xl bg-surface ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
+      className={`tarjeta-of relative overflow-hidden rounded-3xl bg-surface ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
     >
       {/* 1. Identidad */}
-      <div className="flex items-start gap-3 px-5 pb-2 pt-3">
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          <span className={`size-3 rounded-full ${punto.clase}`} title={textoPunto} role="img" aria-label={textoPunto} />
-          <span className="w-5 text-center text-[22px] font-bold leading-none tabular-nums" title={SIGNIFICA.prioridad}>
-            {of.prioridad ?? "—"}
-          </span>
-        </div>
+      <div className="flex items-start gap-3 px-6 pb-3 pt-4">
+        <span
+          title={SIGNIFICA.prioridad}
+          className="grid h-9 min-w-9 shrink-0 cursor-help place-items-center rounded-xl bg-[var(--hero-relleno)] px-1.5 text-[15px] font-bold tabular-nums"
+        >
+          <span className="sr-only">Prioridad </span>P{of.prioridad ?? "—"}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="font-mono text-[15px] font-bold">{of.of}</span>
-            <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${claseSituacion(of.situacion)}`}>
+            <span
+              role="img"
+              aria-label={textoPunto}
+              title={textoPunto}
+              className={`size-3 shrink-0 cursor-help rounded-full ${punto.clase}`}
+            />
+            <span className="font-mono text-[16px] font-bold">{of.of}</span>
+            <span
+              title={SIGNIFICA.situacion}
+              className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${claseSituacion(of.situacion)}`}
+            >
               {enFrase(of.situacion)}
             </span>
             {of.linea !== null && <span className="text-[12px] text-text-muted">línea {of.linea}</span>}
             {of.subidas > 0 && of.subidas !== of.cantidad && (
-              <span className="text-[12px] font-semibold text-amber-800 dark:text-amber-300">
+              <span className="rounded-full bg-amber-700 px-2.5 py-0.5 text-[11.5px] font-bold text-white dark:bg-amber-500 dark:text-black">
                 {of.subidas} de {of.cantidad} uds. subidas
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[13.5px] text-text-muted">{enFrase(of.descripcion)}</p>
-          {of.detalleLinea && <DetalleLinea texto={of.detalleLinea} />}
+          <p className="mt-1 text-[14.5px] font-medium">{enFrase(of.descripcion)}</p>
           {/* Solo lo que difiere del resto del pedido. */}
           {(otraEntrega || otraRotulacion) && (
-            <p className="mt-0.5 text-[12.5px]">
+            <p className="mt-0.5 text-[12.5px] text-text-muted">
               {otraEntrega && <span>Entrega: {enFrase(of.formaEntrega) || "—"}</span>}
-              {otraEntrega && otraRotulacion && <span className="text-text-muted"> · </span>}
+              {otraEntrega && otraRotulacion && <span> · </span>}
               {otraRotulacion && <span>Rotulación: {of.rotulacion ?? "sin rotular"}</span>}
             </p>
           )}
         </div>
-        <dl className="flex shrink-0 gap-4">
-          {difiereDelPedido(of, resumen, "fechaSolicitada") && <Fecha etiqueta="Solicitada" valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}
-          <Fecha
-            etiqueta="Comprometida"
-            valor={of.fechaComprometida}
-            clase="text-teal-700 dark:text-teal-300"
-            ayuda={SIGNIFICA.comprometida}
-          />
-          <Fecha
-            etiqueta="Llega material"
-            valor={of.fechaCompras}
-            clase="text-amber-700 dark:text-amber-300"
-            ayuda={SIGNIFICA.llegaMaterial}
-          />
-        </dl>
+        {fechas.length > 0 && (
+          <dl className="flex shrink-0 gap-1.5">
+            {fechas.map((f) => (
+              <div key={f.etiqueta} className="rounded-xl bg-[var(--detalle)] px-3 py-1.5 text-right">
+                <dt
+                  title={f.ayuda}
+                  className="cursor-help text-[11px] leading-tight text-text-muted underline decoration-dotted decoration-text-muted/60 underline-offset-2"
+                >
+                  {f.etiqueta}
+                </dt>
+                <dd className={`text-[15px] font-bold leading-tight tabular-nums ${f.clase}`}>{fechaCorta(f.valor)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
 
+      {of.detalleLinea && (
+        <div className="px-6 pb-3">
+          <DetalleLinea texto={of.detalleLinea} />
+        </div>
+      )}
+
       {/* 2. Trabajo */}
-      <div className="grid gap-x-6 gap-y-2 px-5 pb-3 min-[900px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="grid gap-x-6 gap-y-3 px-6 pb-4 min-[900px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="min-w-0">
+          <CabeceraBloque tipo="tareas" derecha={ops.length > 0 ? `${hechas} de ${ops.length} acabadas` : undefined}>
+            Operaciones
+          </CabeceraBloque>
           {ops.length > 0 ? (
             <>
-              <div className="flex items-center gap-2">
-                <div className="flex h-1.5 flex-1 gap-0.5 overflow-hidden rounded-full" aria-hidden>
-                  {ops.map((o) => (
-                    <span key={o.codigo} className={`flex-1 ${OPERACION[o.estado].barra}`} />
-                  ))}
-                </div>
-                <span className="shrink-0 text-[12px] font-semibold tabular-nums text-text-muted">
-                  {hechas} de {ops.length} operaciones
-                </span>
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+                {ops.map((o) => (
+                  <span key={o.codigo} className={`flex-1 transition-colors ${OPERACION[o.estado].barra}`} />
+                ))}
               </div>
-              <ul className="mt-1.5 grid gap-x-5 gap-y-0.5 min-[1100px]:grid-cols-2" aria-label="Operaciones">
+              <ul className="mt-2 grid gap-x-5 gap-y-1 min-[1100px]:grid-cols-2" aria-label="Operaciones">
                 {ops.map((op) => {
                   const e = OPERACION[op.estado];
                   return (
-                    <li key={op.codigo} className="flex min-w-0 items-baseline gap-2 text-[12.5px]">
-                      <span className="w-5 shrink-0 text-right tabular-nums text-text-muted">{op.codigo}</span>
+                    <li key={op.codigo} className="flex min-w-0 items-center gap-2 text-[13px]">
+                      <span className={`size-2 shrink-0 rounded-full ${e.barra}`} aria-hidden />
+                      <span className="w-5 shrink-0 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
                       <span
                         title={`${enFrase(op.descripcion)}${op.maquina ? ` · ${op.maquina}` : ""}`}
                         className={`min-w-0 flex-1 truncate ${op.estado === "sin_empezar" ? "text-text-muted" : ""}`}
@@ -234,7 +265,13 @@ export function FilaOFBelen({
                       </span>
                       <span
                         className={`shrink-0 cursor-help text-[11.5px] font-semibold ${e.clase}`}
-                        title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
+                        title={
+                          op.estado === "finalizado"
+                            ? SIGNIFICA.finalizado
+                            : op.estado === "interrumpido"
+                              ? SIGNIFICA.interrumpido
+                              : SIGNIFICA.sinEmpezar
+                        }
                       >
                         {e.texto}
                       </span>
@@ -248,30 +285,34 @@ export function FilaOFBelen({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 rounded-2xl bg-[var(--detalle)] px-3.5 py-2.5 text-[12.5px]">
+        <div className="flex min-w-0 flex-col gap-3 rounded-2xl bg-[var(--detalle)] px-4 py-3 text-[13px]">
           <div>
-            <div className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] text-text-muted" title={SIGNIFICA.paquete}>
+            <CabeceraBloque tipo="ofs" ayuda={SIGNIFICA.paquete}>
               Paquete
-            </div>
+            </CabeceraBloque>
             {of.paquetes.length > 0 ? (
-              of.paquetes.map((p, i) => (
-                <div key={i} className="flex justify-between gap-2">
-                  <span className="truncate font-semibold">{persona(p.quien) || "—"}</span>
-                  <span className="shrink-0 tabular-nums text-text-muted">{fechaCorta(p.fecha)}</span>
-                </div>
-              ))
+              <ul className="flex flex-col gap-1.5">
+                {of.paquetes.map((p, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <CaraPersona nombre={persona(p.quien) || "?"} />
+                    <span className="min-w-0 flex-1 truncate font-semibold">{persona(p.quien) || "—"}</span>
+                    <span className="shrink-0 tabular-nums text-text-muted">{fechaCorta(p.fecha)}</span>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <div className="text-text-muted">Sin paquete todavía</div>
+              <p className="text-text-muted">Sin paquete todavía</p>
             )}
           </div>
           {of.logistica && (
             <div>
-              <div className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2 text-[11px] text-text-muted" title={SIGNIFICA.logistica}>
+              <CabeceraBloque tipo="recorrido" ayuda={SIGNIFICA.logistica}>
                 Previsión de logística
-              </div>
-              <div className="flex justify-between gap-2">
-                <span className="truncate font-semibold">{persona(of.logistica.responsable) || "—"}</span>
-                <span className="shrink-0 font-semibold tabular-nums text-purple-700 dark:text-purple-300">
+              </CabeceraBloque>
+              <div className="flex items-center gap-2">
+                <CaraPersona nombre={persona(of.logistica.responsable) || "?"} />
+                <span className="min-w-0 flex-1 truncate font-semibold">{persona(of.logistica.responsable) || "—"}</span>
+                <span className="shrink-0 rounded-lg bg-purple-500/12 px-2 py-0.5 font-bold tabular-nums text-purple-700 dark:text-purple-300">
                   {fechaCorta(of.logistica.fecha)}
                 </span>
               </div>
@@ -282,7 +323,7 @@ export function FilaOFBelen({
 
       {/* 3. Avisos */}
       {hayAvisos && (
-        <div className="flex flex-col gap-1.5 border-t border-border px-5 py-2.5">
+        <div className="flex flex-col gap-1.5 border-t border-border px-6 py-3">
           {of.avisos.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               <ChipAviso of={of} tipo="TP" />
@@ -290,15 +331,19 @@ export function FilaOFBelen({
             </div>
           )}
           {of.notas && (
-            <p className="rounded-xl bg-red-500/8 px-3 py-1.5 text-[13px] font-semibold text-red-800 dark:text-red-200">
-              {of.notas}
+            <p className="flex items-start gap-2 rounded-xl bg-red-500/8 px-3 py-2 text-[13px] font-semibold text-red-800 dark:text-red-200">
+              <AcentoBloque tipo="comentario" />
+              <span>{of.notas}</span>
             </p>
           )}
           {of.compras.map((c, i) => (
-            <p key={i} className="rounded-xl bg-amber-500/10 px-3 py-1.5 text-[12.5px] text-amber-900 dark:text-amber-100">
+            <p
+              key={i}
+              className="flex flex-wrap items-baseline gap-x-1.5 rounded-xl bg-amber-500/10 px-3 py-2 text-[12.5px] text-amber-900 dark:text-amber-100"
+            >
               <span className="font-semibold">Falta por recibir:</span> {enFrase(c.articulo)} ({c.recibida} de {c.pedida})
-              {c.proveedor && <span className="text-amber-800/80 dark:text-amber-200/80"> · {enFrase(c.proveedor)}</span>}
-              {c.prevista && <span className="font-semibold"> · llega {fechaCorta(c.prevista)}</span>}
+              {c.proveedor && <span className="text-amber-800/80 dark:text-amber-200/80">· {enFrase(c.proveedor)}</span>}
+              {c.prevista && <span className="font-semibold">· llega {fechaCorta(c.prevista)}</span>}
             </p>
           ))}
         </div>

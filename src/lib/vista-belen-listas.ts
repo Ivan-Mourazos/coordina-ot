@@ -20,7 +20,7 @@ export type IdLista =
 /** Cómo se pinta el valor. `of` y `pedido` van en negrita y monoespaciado;
  *  `fecha` espera ISO (yyyy-mm-dd) y sale dd/mm/aa; `numero` alineado a la
  *  derecha. */
-export type TipoColumna = "texto" | "numero" | "fecha" | "of" | "pedido";
+export type TipoColumna = "texto" | "numero" | "fecha" | "of" | "pedido" | "estado";
 
 export interface ColumnaLista {
   clave: string;
@@ -54,7 +54,7 @@ const COLUMNAS_TAREA: ColumnaLista[] = [
   { clave: "cliente", titulo: "Cliente", ancho: "max-w-[15rem]" },
   { clave: "tarea", titulo: "Tarea pendiente", ancho: "max-w-[22rem]" },
   { clave: "maquina", titulo: "Máquina" },
-  { clave: "situacion", titulo: "Situación" },
+  { clave: "situacion", titulo: "Situación", tipo: "estado" },
   { clave: "fechaSolicitada", titulo: "F. sol.", tipo: "fecha" },
 ];
 
@@ -100,7 +100,7 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "articulo", titulo: "Artículo", ancho: "max-w-[22rem]" },
       { clave: "formaEntrega", titulo: "Forma de entrega" },
       { clave: "fechaComprometida", titulo: "F. comprometida", tipo: "fecha" },
-      { clave: "bultosSubidos", titulo: "Bultos subidos" },
+      { clave: "bultosSubidos", titulo: "Bultos subidos", tipo: "estado" },
     ],
   },
   {

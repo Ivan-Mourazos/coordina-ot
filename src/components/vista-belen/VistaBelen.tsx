@@ -229,8 +229,7 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   return (
     <div className="min-h-full">
       <header className="glass-header sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-        <Logo height={30} />
-        <span className="text-sm font-semibold text-text-muted">Producción</span>
+        <Logo height={38} />
         <div
           role="tablist"
           aria-label="Secciones"
@@ -289,7 +288,7 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                 type="button"
                 onClick={volver}
                 title="Volver a lo de antes (también con el botón «atrás» del ratón o Alt+←)"
-                className="h-10 rounded-full bg-[var(--hero-relleno)] px-3.5 text-sm font-semibold text-text hover:bg-[var(--hero-relleno-encima)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="h-10 rounded-full bg-[var(--hero-relleno)] px-3.5 text-sm font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 ← Volver
               </button>
@@ -329,7 +328,8 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
         </main>
       ) : (
         <main role="tabpanel" id="panel-comprobaciones" aria-labelledby="pestana-comprobaciones" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
-          <div role="group" aria-label="Lista" className="mb-3 flex flex-wrap gap-1.5">
+          {/* La misma píldora que se desliza del resto de Coordina. */}
+          <div role="group" aria-label="Lista" className="tira-3d glass-chip mb-3 inline-flex flex-wrap rounded-lg p-[3px]">
             {LISTAS_BELEN.map((l) => {
               const c = listas[l.id];
               return (
@@ -338,16 +338,16 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                   type="button"
                   aria-pressed={l.id === lista}
                   onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
-                  className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                    l.id === lista
-                      ? "bg-text text-bg"
-                      : "bg-[var(--hero-relleno)] text-text-muted hover:bg-[var(--hero-relleno-encima)] hover:text-text"
+                  className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                    l.id === lista ? "pestana-activa" : "text-text-muted hover:text-text"
                   }`}
                 >
                   {l.label}
                   <span
-                    className={`min-w-5 rounded-full px-1.5 text-center text-[11px] tabular-nums ${
-                      l.id === lista ? "bg-bg/20" : "bg-[var(--hero-relleno-encima)]"
+                    className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular-nums ${
+                      c?.tipo === "listo" && c.filas.length > 0
+                        ? "bg-amber-500/20 text-amber-900 dark:text-amber-200"
+                        : "bg-[var(--hero-relleno-encima)] text-text-muted"
                     }`}
                   >
                     {c?.tipo === "listo" ? c.filas.length : c?.tipo === "error" ? "!" : "…"}
