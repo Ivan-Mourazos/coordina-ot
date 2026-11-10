@@ -218,6 +218,8 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
     }
   };
 
+  const grande = pestana === "pedido" && estado.tipo === "vacio";
+
   const volver = () => {
     if (pasoActual() > 0) history.back();
     else navegar({});
@@ -290,27 +292,53 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
 
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {(puedeVolver || estado.tipo !== "vacio") && (
+          {/* En el inicio el buscador es lo principal (Iván, 10/11/2026): grande,
+              centrado y con su tarjeta. Con un pedido abierto vuelve a ser una
+              barra compacta, para no quitarle sitio a la ficha. */}
+          <div
+            className={
+              grande
+                ? "tarjeta-of relative mb-4 flex flex-col items-center rounded-3xl bg-surface px-6 pb-5 pt-6"
+                : "mb-3 flex flex-wrap items-center gap-2"
+            }
+          >
+            {(puedeVolver || !grande) && (
               <button
                 type="button"
                 onClick={volver}
                 title="Volver a lo de antes (también con el botón «atrás» del ratón o Alt+←)"
-                className="h-10 rounded-full bg-[var(--hero-relleno)] px-3.5 text-sm font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className={`rounded-full bg-[var(--hero-relleno)] px-3.5 text-sm font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                  grande ? "absolute left-4 top-4 h-9" : "h-10"
+                }`}
               >
                 ← Volver
               </button>
             )}
+            {grande && <h1 className="mb-3 text-[20px] font-bold">¿Qué pedido buscas?</h1>}
             <form
               role="search"
               onSubmit={(e) => {
                 e.preventDefault();
                 buscar(q);
               }}
-              className="flex min-w-72 max-w-xl flex-1 items-center gap-2"
+              className={`flex items-center gap-2 ${grande ? "w-full max-w-2xl" : "min-w-72 max-w-xl flex-1"}`}
             >
               <label className="relative flex-1">
                 <span className="sr-only">Buscar pedido, OF o cliente</span>
+                {grande && (
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 24 24"
+                    className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-text-muted"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                )}
                 <input
                   ref={caja}
                   // Lo primero que hace al entrar es buscar: el cursor ya está ahí.
@@ -321,16 +349,25 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Pedido (4716, 26.04716…), OF o cliente"
-                  className="campo-hundido h-10 w-full rounded-[14px] px-3 text-[15px] text-text outline-none placeholder:text-text-muted"
+                  className={`campo-hundido w-full text-text outline-none placeholder:text-text-muted ${
+                    grande ? "h-14 rounded-2xl pl-12 pr-4 text-[18px]" : "h-10 rounded-[14px] px-3 text-[15px]"
+                  }`}
                 />
               </label>
               <button
                 type="submit"
-                className="h-10 rounded-full bg-brand-400 px-4 text-sm font-semibold text-brand-950 transition-transform active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
+                className={`rounded-full bg-brand-400 font-semibold text-brand-950 transition-transform active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none ${
+                  grande ? "h-14 px-7 text-[16px]" : "h-10 px-4 text-sm"
+                }`}
               >
                 Buscar
               </button>
             </form>
+            {grande && (
+              <p className="mt-2.5 text-center text-[12.5px] text-text-muted">
+                Como quieras: AR.26.04716, 26.04716 o 4716 · una OF (0232470) · o el nombre del cliente. Y pulsa Intro.
+              </p>
+            )}
           </div>
           <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} />
           {estado.tipo === "vacio" && (
@@ -395,11 +432,7 @@ function ResultadoBusqueda({
 }) {
   switch (estado.tipo) {
     case "vacio":
-      return (
-        <p className="text-sm text-text-muted">
-          Escribe el pedido como quieras (AR.26.04716, 26.04716, 4716), una OF (0232470) o el cliente, y pulsa Intro.
-        </p>
-      );
+      return null;
     case "buscando":
       return <p className="text-sm text-text-muted" aria-live="polite">Buscando…</p>;
     case "nada":
