@@ -49,11 +49,11 @@ function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
   return carga;
 }
 
-type Tono = "rojo" | "granate" | "verde" | "ambar" | "neutro";
+type Tono = "rojo" | "marron" | "verde" | "ambar" | "neutro";
 
 const TONO: Record<Tono, string> = {
   rojo: "bg-red-500/12 text-red-800 dark:text-red-300",
-  granate: "bg-rose-900/12 text-rose-900 dark:bg-rose-400/15 dark:text-rose-200",
+  marron: "bg-amber-700 text-white dark:bg-amber-500 dark:text-black",
   verde: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
   ambar: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
   neutro: "bg-[var(--hero-relleno)] text-text",
@@ -134,8 +134,8 @@ export function PedidoBelenView({
         {/* Lo que falta, de un vistazo. Si no hay nada pendiente, lo dice. */}
         <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Resumen del pedido">
           {r.bultos.rojo > 0 && <Chip tono="rojo">{n(r.bultos.rojo, "OF sin bultos", "OF sin bultos")}</Chip>}
-          {r.bultos.granate > 0 && (
-            <Chip tono="granate">{n(r.bultos.granate, "OF con unidades que no cuadran", "OF con unidades que no cuadran")}</Chip>
+          {r.bultos.marron > 0 && (
+            <Chip tono="marron">{n(r.bultos.marron, "OF con unidades que no cuadran", "OF con unidades que no cuadran")}</Chip>
           )}
           {r.tpPendiente > 0 && <Chip tono="ambar">TP pendiente</Chip>}
           {r.cotPendiente > 0 && <Chip tono="ambar">COT pendiente</Chip>}

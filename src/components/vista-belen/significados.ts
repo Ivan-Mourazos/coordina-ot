@@ -5,7 +5,7 @@
 // leyenda fija se probó y ocupaba demasiado: aquí solo los textos.
 export const SIGNIFICA = {
   puntoVerde: "Bultos subidos: se han dado de entrada tantas unidades como lleva la OF. El trabajo está acabado.",
-  puntoGranate: "Hay unidades subidas, pero no coinciden con las de la OF (de más o de menos). Revisar.",
+  puntoMarron: "Hay unidades subidas, pero no coinciden con las de la OF (de más o de menos). Revisar.",
   puntoRojo: "Bultos sin subir: todavía no se ha dado de entrada ninguna unidad. El trabajo no está acabado.",
   prioridad: "Prioridad de la OF en RPS.",
   situacion: "Situación de la OF en RPS: con imputaciones (se está trabajando), detenida o finalizada.",

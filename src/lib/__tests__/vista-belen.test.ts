@@ -19,8 +19,8 @@ describe("punto de los bultos", () => {
   test("nada subido: rojo", () => expect(puntoBultos(3, 0)).toBe("rojo"));
   test("subidas las de la OF: verde", () => expect(puntoBultos(3, 3)).toBe("verde"));
   // 0233680 (AR.26.05381): OF de 1 unidad con 2 subidas.
-  test("subidas de más: granate", () => expect(puntoBultos(1, 2)).toBe("granate"));
-  test("subidas de menos: granate", () => expect(puntoBultos(3, 1)).toBe("granate"));
+  test("subidas de más: marrón", () => expect(puntoBultos(1, 2)).toBe("marron"));
+  test("subidas de menos: marrón", () => expect(puntoBultos(3, 1)).toBe("marron"));
 });
 
 describe("estado de una operación", () => {
@@ -111,7 +111,7 @@ describe("resumen del pedido", () => {
         of({ of: "3", compras: [{ articulo: "LONA", pedida: 1, recibida: 0, prevista: null, proveedor: null }] }),
       ],
     });
-    expect(r.bultos).toEqual({ verde: 1, granate: 1, rojo: 1 });
+    expect(r.bultos).toEqual({ verde: 1, marron: 1, rojo: 1 });
     expect(r.cotPendiente).toBe(1);
     expect(r.tpPendiente).toBe(0);
     expect(r.conMaterialPendiente).toBe(1);

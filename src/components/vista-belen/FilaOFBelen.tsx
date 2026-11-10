@@ -32,7 +32,7 @@ import { SIGNIFICA } from "./significados";
 
 const PUNTO: Record<PuntoBultos, { clase: string; texto: string }> = {
   verde: { clase: "bg-emerald-600 dark:bg-emerald-400", texto: SIGNIFICA.puntoVerde },
-  granate: { clase: "bg-rose-900 dark:bg-rose-300", texto: SIGNIFICA.puntoGranate },
+  marron: { clase: "bg-amber-700 dark:bg-amber-500", texto: SIGNIFICA.puntoMarron },
   rojo: { clase: "bg-red-600 dark:bg-red-400", texto: SIGNIFICA.puntoRojo },
 };
 
@@ -172,7 +172,7 @@ export function FilaOFBelen({
             </span>
             {of.linea !== null && <span className="text-[12px] text-text-muted">línea {of.linea}</span>}
             {of.subidas > 0 && of.subidas !== of.cantidad && (
-              <span className="text-[12px] font-semibold text-rose-900 dark:text-rose-200">
+              <span className="text-[12px] font-semibold text-amber-800 dark:text-amber-300">
                 {of.subidas} de {of.cantidad} uds. subidas
               </span>
             )}
