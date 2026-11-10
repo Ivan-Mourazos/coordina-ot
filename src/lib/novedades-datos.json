@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-10",
-    "hasta": "cb5a75e",
+    "hasta": "143cb14",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -19,6 +19,12 @@
         "titulo": "En la pantalla de Belén funciona el «atrás» del ratón y hay un botón «Volver»",
         "detalle": "Si abres un pedido desde una lista, volver te deja en esa lista.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La pantalla de Belén, rediseñada: cifras grandes, colores y todo más compacto",
+        "detalle": "Cada pedido abre con sus cifras clave arriba y cada pestaña se lee de un vistazo, también en monitores pequeños.",
+        "tanda": 2
       }
     ]
   },
