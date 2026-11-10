@@ -12,7 +12,9 @@ import { ThemeToggle } from "../ThemeToggle";
 import { PanelNovedades } from "../PanelNovedades";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
-import { apuntarReciente, InicioBelen, leerRecientes, type PedidoReciente } from "./InicioBelen";
+import { InicioBelen } from "./InicioBelen";
+import { EntregasBelen } from "./EntregasBelen";
+import { AvisosBelen } from "./AvisosBelen";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -26,18 +28,20 @@ import { apuntarReciente, InicioBelen, leerRecientes, type PedidoReciente } from
 //   ?pedido=AR.…[&of=…]                 un pedido abierto
 //   ?q=texto                            la lista de pedidos que encajan
 //   ?vista=comprobaciones&lista=…       una lista de comprobación
+//   ?vista=entregas                     pedidos por fecha de entrega
 //   (nada)                              el buscador vacío
 // Cada paso que da ella se apunta en el historial del navegador, así que el
 // «atrás» del ratón, el del navegador, Alt+← y el «← Volver» hacen lo mismo:
 // abrir un pedido desde una lista y volver deja otra vez en esa lista.
 
-// Dos pestañas arriba y, dentro de «Comprobaciones», un selector con sus
-// listas: con una pestaña por hoja de Excel no cabían en un monitor pequeño.
-type Pestana = "pedido" | "comprobaciones";
+// Accesos al inicio, las comprobaciones y los pedidos por entrega. Cada
+// herramienta también se puede abrir desde su tarjeta en la portada.
+type Pestana = "pedido" | "comprobaciones" | "entregas";
 
 const PESTANAS: { id: Pestana; label: string }[] = [
-  { id: "pedido", label: "Pedidos" },
+  { id: "pedido", label: "Inicio" },
   { id: "comprobaciones", label: "Comprobaciones" },
+  { id: "entregas", label: "Pedidos por entrega" },
 ];
 
 type Estado =
@@ -45,7 +49,7 @@ type Estado =
   | { tipo: "buscando" }
   | { tipo: "elegir"; pedidos: PedidoEncontrado[] }
   | { tipo: "nada"; q: string }
-  | { tipo: "pedido"; pedido: PedidoBelen; ofResaltada: string | null }
+  | { tipo: "pedido"; pedido: PedidoBelen; ofResaltada: string | null; abrirNotas: boolean }
   | { tipo: "error"; mensaje: string };
 
 /** Lo que se apunta en el historial con cada paso, para saber si «Volver»
@@ -82,12 +86,8 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
   const [puedeVolver, setPuedeVolver] = useState(false);
-  const [recientes, setRecientes] = useState<PedidoReciente[]>([]);
   const caja = useRef<HTMLInputElement>(null);
   const enCurso = useRef<AbortController | null>(null);
-  // La última dirección de la pestaña Pedidos, para volver a ella al cambiar
-  // de pestaña sin perder el pedido que estaba abierto.
-  const ultimaDePedidos = useRef("");
 
   // ── Las listas: se piden TODAS al entrar, por detrás ────────────────────────
   // Antes cada una se pedía al pinchar en ella, y los números de los botones
@@ -108,12 +108,11 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
     // Fuera del cuerpo del efecto: cargarLista pinta «Cargando» al momento.
     void Promise.resolve().then(() => {
       LISTAS_BELEN.forEach((l) => void cargarLista(l.id));
-      setRecientes(leerRecientes());
     });
   }, [cargarLista]);
 
   // ── Pedidos ────────────────────────────────────────────────────────────────
-  const mostrarPedido = useCallback(async (codigo: string, ofResaltada: string | null) => {
+  const mostrarPedido = useCallback(async (codigo: string, ofResaltada: string | null, abrirNotas = false) => {
     enCurso.current?.abort();
     const ctl = new AbortController();
     enCurso.current = ctl;
@@ -124,11 +123,10 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
         ctl.signal,
       );
       if (ctl.signal.aborted) return;
-      setEstado(pedido ? { tipo: "pedido", pedido, ofResaltada } : { tipo: "nada", q: codigo });
+      setEstado(pedido ? { tipo: "pedido", pedido, ofResaltada, abrirNotas } : { tipo: "nada", q: codigo });
       // En la caja queda el código entero: escribió «4716» y ve AR.26.04716.
       if (pedido) {
         setQ(pedido.codigo);
-        setRecientes(apuntarReciente({ codigo: pedido.codigo, cliente: pedido.cliente }));
       }
     } catch (e) {
       if (!ctl.signal.aborted) setEstado({ tipo: "error", mensaje: (e as Error).message });
@@ -140,16 +138,21 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
   const aplicarUrl = useCallback(async () => {
     const p = new URLSearchParams(window.location.search);
     setPuedeVolver(pasoActual() > 0);
+    if (p.get("vista") === "entregas") {
+      enCurso.current?.abort();
+      setPestana("entregas");
+      return;
+    }
     if (p.get("vista") === "comprobaciones") {
+      enCurso.current?.abort();
       setPestana("comprobaciones");
       const l = p.get("lista");
       if (esIdLista(l)) setLista(l);
       return;
     }
     setPestana("pedido");
-    ultimaDePedidos.current = window.location.search;
     const pedido = p.get("pedido");
-    if (pedido) return mostrarPedido(pedido, p.get("of"));
+    if (pedido) return mostrarPedido(pedido, p.get("of"), p.get("detalle") === "notas");
     const texto = p.get("q");
     if (!texto) {
       enCurso.current?.abort();
@@ -175,7 +178,6 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
         const params = new URLSearchParams({ pedido: pedidos[0].codigo });
         if (que.tipo === "of") params.set("of", que.codigo);
         history.replaceState(history.state, "", `?${params}`);
-        ultimaDePedidos.current = `?${params}`;
         return mostrarPedido(pedidos[0].codigo, que.tipo === "of" ? que.codigo : null);
       }
       setEstado(pedidos.length ? { tipo: "elegir", pedidos } : { tipo: "nada", q: texto });
@@ -229,7 +231,7 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
 
   const grande = pestana === "pedido" && estado.tipo === "vacio";
 
-  /** La página de inicio (buscador grande, recientes, comprobaciones). Si ya
+  /** La página de inicio (buscador grande y herramientas). Si ya
    *  está ahí no apunta otro paso en el historial. */
   const irAlInicio = () => {
     if (pestana === "pedido" && estado.tipo === "vacio") return caja.current?.focus();
@@ -242,9 +244,10 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
   };
 
   const irAPestana = (p: Pestana) => {
+    if (p === "pedido") { irAlInicio(); return; }
     if (p === pestana) return;
     if (p === "comprobaciones") navegar({ vista: "comprobaciones", lista });
-    else navegar(Object.fromEntries(new URLSearchParams(ultimaDePedidos.current)));
+    else if (p === "entregas") navegar({ vista: "entregas" });
   };
 
   const salir = async () => {
@@ -304,20 +307,8 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[13px] text-text-muted">{nombre}</span>
-          {ULTIMA && (
-            <button
-              type="button"
-              onClick={novedades.abrir}
-              aria-label={novedades.pendientes > 0 ? `Novedades: ${novedades.pendientes} actualizaciones sin leer` : "Novedades de la web"}
-              title="Novedades de la web"
-              className="glass-chip relative grid size-9 place-items-center rounded-full text-text-muted hover:text-text"
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {novedades.pendientes > 0 && <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-600 text-[9px] font-bold text-white">{novedades.pendientes}</span>}
-            </button>
-          )}
+          <AvisosBelen miId={miId} onAbrir={(pedido) => navegar({ pedido, detalle: "notas" })} />
+          {ULTIMA && <button type="button" onClick={novedades.abrir} className="rounded-full px-3 py-2 text-[12px] text-text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">Novedades de la web</button>}
           <ThemeToggle />
           <button
             type="button"
@@ -410,14 +401,13 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
           <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} />
           {estado.tipo === "vacio" && (
             <InicioBelen
-              recientes={recientes}
+              miId={miId}
               listas={listas}
-              onAbrirPedido={(codigo, of) => navegar(of ? { pedido: codigo, of } : { pedido: codigo })}
-              onAbrirLista={(id) => navegar({ vista: "comprobaciones", lista: id })}
+              onAbrir={(id) => navegar(id === "entregas" ? { vista: "entregas" } : { vista: "comprobaciones", lista: id })}
             />
           )}
         </main>
-      ) : (
+      ) : pestana === "comprobaciones" ? (
         <main role="tabpanel" id="panel-comprobaciones" aria-labelledby="pestana-comprobaciones" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
           {/* La misma píldora que se desliza del resto de Coordina. */}
           <div role="group" aria-label="Lista" className="tira-3d glass-chip mb-3 inline-flex flex-wrap rounded-lg p-[3px]">
@@ -454,7 +444,8 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
             onAbrir={(pedido, of) => navegar(of ? { pedido, of } : { pedido })}
           />
         </main>
-      )}
+      ) : null}
+      <EntregasBelen activa={pestana === "entregas"} onVolver={volver} onAbrir={(pedido) => navegar({ pedido })} />
     </div>
   );
 }
@@ -507,7 +498,7 @@ function ResultadoBusqueda({
       );
     case "pedido":
       return (
-        <PedidoBelenView key={estado.pedido.codigo} pedido={estado.pedido} ofResaltada={estado.ofResaltada} miId={miId} />
+        <PedidoBelenView key={`${estado.pedido.codigo}:${estado.abrirNotas}`} pedido={estado.pedido} ofResaltada={estado.ofResaltada} miId={miId} abrirNotas={estado.abrirNotas} />
       );
   }
 }

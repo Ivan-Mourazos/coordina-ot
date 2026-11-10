@@ -4,6 +4,7 @@ import { leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/serv
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
+import { leerEntregasBelen } from "@/lib/server/entregas-belen-db";
 
 // ─── GET /api/vista-belen ─────────────────────────────────────────────────────
 // La pantalla de Belén Alamancos (Producción), hecha a su medida. Solo lectura.
@@ -28,6 +29,9 @@ export async function GET(req: Request) {
 
   const params = new URL(req.url).searchParams;
   try {
+    if (params.get("entregas") === "1") {
+      return NextResponse.json({ pedidos: await leerEntregasBelen() }, { headers: SIN_CACHE });
+    }
     const pedido = params.get("pedido");
     if (pedido !== null) {
       return NextResponse.json({ pedido: await leerPedidoBelen(pedido) }, { headers: SIN_CACHE });

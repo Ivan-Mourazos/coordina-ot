@@ -93,6 +93,7 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     label: "Fechas comprometidas",
     explica: "OF con fecha dada por Producción y unidades todavía sin facturar.",
     columnas: [
+      { clave: "bultosSubidos", titulo: "Bultos subidos", tipo: "estado" },
       { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
       { clave: "of", titulo: "OF", tipo: "of" },
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
@@ -100,7 +101,6 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "articulo", titulo: "Artículo", ancho: "max-w-[22rem]" },
       { clave: "formaEntrega", titulo: "Forma de entrega" },
       { clave: "fechaComprometida", titulo: "F. comprometida", tipo: "fecha" },
-      { clave: "bultosSubidos", titulo: "Bultos subidos", tipo: "estado" },
     ],
   },
   {

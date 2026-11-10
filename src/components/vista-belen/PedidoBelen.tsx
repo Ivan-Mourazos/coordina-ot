@@ -144,11 +144,13 @@ export function PedidoBelenView({
   pedido,
   ofResaltada,
   miId,
+  abrirNotas = false,
 }: {
   pedido: PedidoBelen;
   ofResaltada: string | null;
   /** Quién escribe las notas: la sesión. null = sin sesión, notas solo de lectura. */
   miId: string | null;
+  abrirNotas?: boolean;
 }) {
   const r = resumenPedido(pedido);
   const fin = (s: string) => s.trim().toUpperCase() === "FINALIZADA";
@@ -161,7 +163,7 @@ export function PedidoBelenView({
   );
 
   const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
-  const [seccion, setSeccion] = useState<Seccion>("resumen");
+  const [seccion, setSeccion] = useState<Seccion>(abrirNotas ? "notas" : "resumen");
   const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos`, (j) =>
     (j as { documentos?: DocumentoRps[] }).documentos ?? [],
   );

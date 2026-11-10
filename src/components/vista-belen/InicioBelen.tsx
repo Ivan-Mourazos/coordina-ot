@@ -1,214 +1,88 @@
 "use client";
 
-import { fechaCorta } from "@/lib/vista-belen";
-import { LISTAS_BELEN, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
-import { AcentoBloque } from "../AcentoBloque";
+import { useEffect, useState } from "react";
+import { HERRAMIENTAS_BELEN, ordenarHerramientas } from "@/lib/herramientas-belen";
+import type { IdLista } from "@/lib/vista-belen-listas";
 import type { CargaLista } from "./ListaBelen";
 
-// ─── La página de inicio de Belén ────────────────────────────────────────────
-// Lo que se ve debajo del buscador antes de buscar nada (Iván, 10/11/2026):
-//   1. Sus pedidos recientes, a un clic (los recuerda el navegador).
-//   2. Las comprobaciones con su número: qué hay que mirar hoy.
-//   3. Las fechas comprometidas de esta semana y las que ya pasaron sin subir.
-// Todo sale de lo que la pantalla ya carga al entrar: no pide nada nuevo a RPS.
+const PULSABLE = "transition-[transform,background-color] duration-150 hover:bg-[var(--hero-relleno)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none";
 
-export interface PedidoReciente {
-  codigo: string;
-  cliente: string | null;
-}
-
-const CLAVE_RECIENTES = "coordina.belen.recientes";
-const MAX_RECIENTES = 8;
-
-export function leerRecientes(): PedidoReciente[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(CLAVE_RECIENTES) ?? "[]") as PedidoReciente[];
-    return Array.isArray(v) ? v.slice(0, MAX_RECIENTES) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** El que acaba de abrir, el primero; sin repetir. */
-export function apuntarReciente(p: PedidoReciente): PedidoReciente[] {
-  const lista = [p, ...leerRecientes().filter((r) => r.codigo !== p.codigo)].slice(0, MAX_RECIENTES);
-  try {
-    localStorage.setItem(CLAVE_RECIENTES, JSON.stringify(lista));
-  } catch {
-    // Sin almacenamiento (modo privado): no pasa nada, solo no se recuerda.
-  }
-  return lista;
-}
-
-const masDias = (hoy: string, dias: number) => {
-  const d = new Date(`${hoy}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + dias);
-  return d.toISOString().slice(0, 10);
-};
-
-/** Fechas comprometidas que importan HOY, por fecha:
- *  · proximas: las de los próximos 7 días (hoy incluido);
- *  · vencidas: las que pasaron la ÚLTIMA semana sin bultos subidos;
- *  · antiguas: cuántas más viejas siguen sin subir (en la lista entera hay
- *    pedidos de marzo; listarlas aquí taparía las de esta semana). */
-export function comprometidasDeLaSemana(
-  filas: readonly FilaLista[],
-  hoy: string,
-): { proximas: FilaLista[]; vencidas: FilaLista[]; antiguas: number } {
-  const fecha = (f: FilaLista) => String(f.fechaComprometida ?? "");
-  const porFecha = (a: FilaLista, b: FilaLista) => fecha(a).localeCompare(fecha(b));
-  const sinSubir = (f: FilaLista) => f.bultosSubidos !== "SI";
-  const haceSiete = masDias(hoy, -7);
-  return {
-    proximas: filas.filter((f) => fecha(f) >= hoy && fecha(f) <= masDias(hoy, 7)).sort(porFecha),
-    vencidas: filas.filter((f) => fecha(f) >= haceSiete && fecha(f) < hoy && sinSubir(f)).sort(porFecha),
-    antiguas: filas.filter((f) => fecha(f) && fecha(f) < haceSiete && sinSubir(f)).length,
-  };
-}
-
-function Titulo({ tipo, children, derecha }: { tipo: Parameters<typeof AcentoBloque>[0]["tipo"]; children: React.ReactNode; derecha?: React.ReactNode }) {
-  return (
-    <h2 data-bloque={tipo} className="cabecera-bloque mb-2 flex items-center gap-1.5 text-[13px] font-semibold">
-      <AcentoBloque tipo={tipo} />
-      {children}
-      {derecha && <span className="ml-auto text-[12px] font-normal text-text-muted">{derecha}</span>}
-    </h2>
-  );
-}
-
-const PULSABLE =
-  "transition-[transform,background-color] duration-150 hover:bg-[var(--hero-relleno)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none";
-
-export function InicioBelen({
-  recientes,
-  listas,
-  onAbrirPedido,
-  onAbrirLista,
-}: {
-  recientes: PedidoReciente[];
+export function InicioBelen({ miId, listas, onAbrir }: {
+  miId: string | null;
   listas: Partial<Record<IdLista, CargaLista>>;
-  onAbrirPedido: (codigo: string, of?: string | null) => void;
-  onAbrirLista: (id: IdLista) => void;
+  onAbrir: (id: string) => void;
 }) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const fechas = listas["fechas-comprometidas"];
-  const semana = fechas?.tipo === "listo" ? comprometidasDeLaSemana(fechas.filas, hoy) : null;
+  const clave = `coordina.belen.herramientas:${miId ?? "local"}`;
+  const [herramientas, setHerramientas] = useState(HERRAMIENTAS_BELEN);
+  const [ordenando, setOrdenando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [lista, setLista] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      try { setHerramientas(ordenarHerramientas(JSON.parse(localStorage.getItem(clave) ?? "null"))); }
+      catch { setHerramientas(HERRAMIENTAS_BELEN); }
+      setLista(true);
+    });
+    return () => { vivo = false; };
+  }, [clave]);
+
+  const mover = (id: string, destino: number) => {
+    const origen = herramientas.findIndex((h) => h.id === id);
+    if (origen < 0 || destino < 0 || destino >= herramientas.length || origen === destino) return;
+    const nuevas = [...herramientas];
+    const [tarjeta] = nuevas.splice(origen, 1);
+    nuevas.splice(destino, 0, tarjeta);
+    setHerramientas(nuevas);
+    try {
+      localStorage.setItem(clave, JSON.stringify(nuevas.map((h) => h.id)));
+      setMensaje(`${tarjeta.label}: posición ${destino + 1} de ${nuevas.length}. Orden guardado.`);
+    } catch { setMensaje("El orden ha cambiado, pero este navegador no permite guardarlo para la próxima visita."); }
+  };
 
   return (
-    <div className="mt-1 flex flex-col gap-3">
-      {/* 1. Recientes */}
-      {recientes.length > 0 && (
-        <section aria-label="Pedidos recientes">
-          <Titulo tipo="recorrido">Abiertos hace poco</Titulo>
-          <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))]">
-            {recientes.map((r) => (
-              <button
-                key={r.codigo}
-                type="button"
-                onClick={() => onAbrirPedido(r.codigo)}
-                className={`tarjeta-of min-w-0 rounded-2xl bg-surface px-3 py-2 text-left ${PULSABLE}`}
-              >
-                <span className="block text-[14px] font-bold tabular-nums">{r.codigo}</span>
-                <span className="block truncate text-[12px] text-text-muted">{r.cliente ?? "—"}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 2. Qué hay que mirar hoy */}
-      <section aria-label="Comprobaciones">
-        <Titulo tipo="tareas">Qué hay que mirar</Titulo>
-        <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
-          {LISTAS_BELEN.map((l) => {
-            const c = listas[l.id];
-            const n = c?.tipo === "listo" ? c.filas.length : null;
-            return (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => onAbrirLista(l.id)}
-                title={l.explica}
-                className={`tarjeta-of min-w-0 rounded-2xl bg-surface px-3 py-2.5 text-left ${PULSABLE}`}
-              >
-                <span
-                  className={`block text-[22px] font-bold leading-tight tabular-nums ${
-                    n === null ? "text-text-muted" : n > 0 ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"
-                  }`}
-                >
-                  {n === null ? "…" : n}
-                </span>
-                <span className="block text-[12.5px] font-medium leading-snug">{l.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 3. Fechas comprometidas de esta semana */}
-      <section aria-label="Fechas comprometidas de esta semana" className="tarjeta-of rounded-3xl bg-surface px-4 py-3">
-        <Titulo
-          tipo="recorrido"
-          derecha={
-            <button type="button" onClick={() => onAbrirLista("fechas-comprometidas")} className="font-semibold hover:text-text hover:underline">
-              Ver todas
-            </button>
-          }
-        >
-          Fechas comprometidas: esta semana
-        </Titulo>
-        {!semana ? (
-          <p className="text-[13px] text-text-muted">Cargando…</p>
-        ) : (
-          <>
-          {semana.vencidas.length + semana.proximas.length === 0 && (
-            <p className="text-[13px] text-text-muted">Nada vence en los próximos 7 días ni venció la semana pasada sin subir.</p>
-          )}
-          <ul className="flex flex-col">
-            {[...semana.proximas.map((f) => ({ f, vencida: false })), ...semana.vencidas.map((f) => ({ f, vencida: true }))]
-              .slice(0, 10)
-              .map(({ f, vencida }) => (
-                <li key={f.clave} className="border-t border-border first:border-t-0">
-                  <button
-                    type="button"
-                    onClick={() => f.pedido && onAbrirPedido(f.pedido, f.of)}
-                    className="grid w-full grid-cols-[5.5rem_4.5rem_6.5rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-lg px-1 py-1.5 text-left text-[13px] transition-colors hover:bg-[var(--hero-relleno)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                  >
-                    <span
-                      className={`rounded-lg px-2 py-0.5 text-center font-bold tabular-nums ${
-                        vencida ? "bg-red-500/12 text-red-800 dark:text-red-300" : "bg-teal-500/12 text-teal-800 dark:text-teal-300"
-                      }`}
-                    >
-                      {fechaCorta(String(f.fechaComprometida))}
-                    </span>
-                    <span className="font-mono font-semibold">{f.of}</span>
-                    <span className="font-semibold tabular-nums">{f.pedido}</span>
-                    <span className="truncate text-text-muted">{f.cliente}</span>
-                    <span
-                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
-                        f.bultosSubidos === "SI"
-                          ? "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300"
-                          : "bg-red-500/12 text-red-800 dark:text-red-300"
-                      }`}
-                    >
-                      {f.bultosSubidos === "SI" ? "Bultos subidos" : vencida ? "Pasada, sin subir" : "Sin subir"}
-                    </span>
-                  </button>
-                </li>
-              ))}
-          </ul>
-          {semana.antiguas > 0 && (
-            <button
-              type="button"
-              onClick={() => onAbrirLista("fechas-comprometidas")}
-              className="mt-1.5 w-full rounded-xl bg-red-500/8 px-3 py-1.5 text-left text-[12.5px] font-semibold text-red-800 transition-colors hover:bg-red-500/12 dark:text-red-200"
+    <section aria-labelledby="herramientas-belen" className="mx-auto mt-6 max-w-5xl">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 id="herramientas-belen" className="text-[16px] font-semibold">Herramientas</h2>
+        <button type="button" aria-pressed={ordenando} disabled={!lista} onClick={() => setOrdenando(!ordenando)} className={`rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-[13px] font-semibold ${PULSABLE}`}>
+          {ordenando ? "Terminar de ordenar" : "Ordenar herramientas"}
+        </button>
+      </div>
+      {ordenando && <p className="mb-3 text-[13px] text-text-muted">Arrastra las tarjetas o usa las flechas para ponerlas a tu gusto. El orden se guarda en este navegador.</p>}
+      <p role="status" className="sr-only">{mensaje}</p>
+      {mensaje.includes("no permite") && <p className="mb-3 text-sm text-text-muted">{mensaje}</p>}
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Herramientas">
+        {herramientas.map((h, i) => {
+          const carga = listas[h.id as IdLista];
+          return (
+            <li key={h.id} data-herramienta={h.id} draggable={ordenando}
+              onDragStart={(e) => { e.dataTransfer.setData("text/plain", h.id); e.dataTransfer.effectAllowed = "move"; }}
+              onDragOver={(e) => { if (ordenando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+              onDrop={(e) => { if (ordenando) { e.preventDefault(); mover(e.dataTransfer.getData("text/plain"), i); } }}
+              className={`tarjeta-of flex flex-col rounded-3xl bg-surface ${ordenando ? "cursor-grab active:cursor-grabbing" : ""}`}
             >
-              Y {semana.antiguas} más antiguas que pasaron sin subir los bultos → ver en la lista
-            </button>
-          )}
-          </>
-        )}
-      </section>
-    </div>
+              <button type="button" onClick={() => onAbrir(h.id)} disabled={ordenando} className={`flex flex-1 flex-col items-start gap-2 rounded-3xl p-4 text-left ${ordenando ? "" : PULSABLE}`}>
+                <span className="flex w-full items-baseline justify-between gap-2">
+                  <span className="text-[14px] font-semibold">{h.label}</span>
+                  {carga && <span className="text-[12px] tabular-nums text-text-muted">{carga.tipo === "listo" ? carga.filas.length : carga.tipo === "error" ? "!" : "…"}</span>}
+                </span>
+                <span className="text-[12.5px] leading-relaxed text-text-muted">{h.explica}</span>
+              </button>
+              {ordenando && (
+                <div className="flex items-center justify-between gap-2 px-4 pb-3">
+                  <span aria-hidden="true" className="text-sm text-text-muted">⠿ {i + 1}</span>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={i === 0} aria-label={`Mover ${h.label} antes`} onClick={() => mover(h.id, i - 1)} className={`rounded-full bg-[var(--hero-relleno)] px-3 py-1.5 disabled:opacity-40 ${PULSABLE}`}>←</button>
+                    <button type="button" disabled={i === herramientas.length - 1} aria-label={`Mover ${h.label} después`} onClick={() => mover(h.id, i + 1)} className={`rounded-full bg-[var(--hero-relleno)] px-3 py-1.5 disabled:opacity-40 ${PULSABLE}`}>→</button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
