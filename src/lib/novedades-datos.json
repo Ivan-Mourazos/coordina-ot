@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-10",
-    "hasta": "00d8fa3",
+    "hasta": "900e8c1",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -17,6 +17,19 @@
         "tanda": 4
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Puedes ver los pedidos ordenados por día de entrega",
+        "apartado": "produccion",
+        "detalle": "Está en el inicio, con las demás herramientas. Se puede filtrar por fechas, situación o cliente.",
+        "tanda": 5
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "La campana te avisa de las notas nuevas que te dejamos en tus pedidos",
+        "apartado": "produccion",
+        "tanda": 5
+      },
+      {
         "tipo": "arreglado",
         "titulo": "En la pantalla de Belén, el punto de unidades que no cuadran se confundía con el rojo",
         "apartado": "produccion",
@@ -29,6 +42,11 @@
         "apartado": "produccion",
         "detalle": "Sus notas son siempre para todos: no es de Oficina Técnica.",
         "tanda": 3
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los toldos y lonas de PVC mandaban el correo de «Impreso» en vez del planteamiento con el PDF",
+        "tanda": 5
       },
       {
         "tipo": "mejor",
@@ -73,6 +91,12 @@
         "titulo": "En Novedades lees lo de tu apartado y lo de los demás queda plegado",
         "detalle": "La campana solo avisa de cambios que te afectan. Dirección ve todo desplegado.",
         "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las herramientas del inicio se pueden poner en el orden que quieras",
+        "apartado": "produccion",
+        "tanda": 5
       }
     ]
   },
