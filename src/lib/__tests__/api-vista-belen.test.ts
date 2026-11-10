@@ -98,6 +98,17 @@ test("no puede editar ni borrar las notas de otro", async () => {
   expect(borrar.status).toBe(403);
 });
 
+test("Belén no puede dejar una nota «solo OT»: siempre queda para todos", async () => {
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00003", texto: "intento interno", publica: false }));
+  const { nota } = (await res.json()) as { nota: { id: number; publica: boolean } };
+  expect(nota.publica).toBe(true);
+  // Ni editándola.
+  await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: nota.id, texto: "sigue", publica: false }));
+  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00003", "GET", undefined, ivan()));
+  const guardada = ((await deOT.json()) as { notas: { id: number; publica: boolean }[] }).notas.find((n) => n.id === nota.id);
+  expect(guardada?.publica).toBe(true);
+});
+
 test("Dirección sigue sin escribir notas", async () => {
   const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "hola" }, carlos()));
   expect(res.status).toBe(403);

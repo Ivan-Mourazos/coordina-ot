@@ -27,6 +27,7 @@ export function NotasPedido({
   operarios,
   soloLectura: soloLecturaProp = false,
   publicaPorDefecto = false,
+  soloParaTodos = false,
 }: {
   /** CÓDIGO del pedido ("AR.26.03914"), no su id interno: es lo que sobrevive
    *  al paso al Historial, donde el id cambia. */
@@ -39,6 +40,9 @@ export function NotasPedido({
    *  de Belén, «Para todos»: escribe para hablar con OT y tiene que poder
    *  leer lo que le contesten. */
   publicaPorDefecto?: boolean;
+  /** Quien no es de OT (Belén) no elige «Solo OT»: todo lo que escribe es
+   *  «para todos». El servidor lo fuerza igual; esto solo quita el selector. */
+  soloParaTodos?: boolean;
 }) {
   // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo.
   const soloLecturaCuenta = useSoloLectura();
@@ -208,6 +212,7 @@ export function NotasPedido({
                   valor={editando.texto}
                   publica={editando.publica}
                   onPublica={(publica) => setEditando({ ...editando, publica })}
+                  elegirPara={!soloParaTodos}
                   guardando={guardando}
                   onCambio={(texto) => setEditando({ ...editando, texto })}
                   onGuardar={async () => {
@@ -301,6 +306,7 @@ export function NotasPedido({
             valor={borrador}
             publica={borradorPublica}
             onPublica={setBorradorPublica}
+            elegirPara={!soloParaTodos}
             guardando={guardando}
             onCambio={setBorrador}
             onGuardar={async () => {
@@ -373,6 +379,7 @@ function Editor({
   onGuardar,
   onCancelar,
   guardando,
+  elegirPara = true,
 }: {
   valor: string;
   /** Para quién es: «Solo OT» (false) o «Para todos» (true). */
@@ -382,6 +389,8 @@ function Editor({
   onGuardar: () => void;
   onCancelar: () => void;
   guardando: boolean;
+  /** Sin selector «Solo OT / Para todos» (quien no es de OT). */
+  elegirPara?: boolean;
 }) {
   // La validación es la misma que en la ruta (`validarTexto`): antes se
   // recalculaba aquí a mano con `valor.trim().length` y divergía, porque
@@ -441,6 +450,7 @@ function Editor({
         )}
         {/* Para quién: un interruptor a la vista y no una pregunta en una
             ventana, que con el tiempo se acepta sin leer. */}
+        {elegirPara && (
         <div role="radiogroup" aria-label="Quién puede ver la nota" className="ml-auto flex rounded-lg ring-1 ring-border">
           {([false, true] as const).map((valorPublica) => (
             <button
@@ -467,8 +477,9 @@ function Editor({
             </button>
           ))}
         </div>
+        )}
       </div>
-      {publica && (
+      {publica && elegirPara && (
         <p className="mt-1 text-right text-[10px] text-sky-800 dark:text-sky-300">
           La verá también quien entra sin iniciar sesión.
         </p>

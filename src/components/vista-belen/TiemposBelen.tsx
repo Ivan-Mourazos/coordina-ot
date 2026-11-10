@@ -71,8 +71,42 @@ function Cifra({ etiqueta, valor, sub }: { etiqueta: string; valor: React.ReactN
 const FILA =
   "w-full text-left transition-[background-color,transform] enabled:hover:bg-[var(--hero-relleno)] enabled:active:scale-[.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus motion-reduce:transition-none";
 
-function FilaTarea({ t }: { t: TareaTiempos }) {
-  const [abierta, setAbierta] = useState(false);
+/** Los fichajes de una persona, una LÍNEA POR DÍA: el día una sola vez, cada
+ *  fichaje como una pastilla «10:15 · 5m» y el total del día al final. Antes
+ *  era una ristra de «fecha hora minutos» que repetía el día y partía «2h 23m»
+ *  en dos líneas (Iván, 10/11/2026). Los de 0 minutos, apagados. */
+function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: string | null; minutos: number }[] }) {
+  const dias = porDia(fichajes);
+  return (
+    <ul className="mt-1 flex flex-col gap-1 pl-7">
+      {dias.map(([dia, delDia]) => (
+        <li key={dia} className="flex items-start gap-3 text-[12.5px]">
+          <span className="w-[5.5rem] shrink-0 pt-0.5 tabular-nums text-text-muted">{fechaLarga(dia)}</span>
+          <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+            {delDia.map((f, i) => (
+              <span
+                key={i}
+                className={`whitespace-nowrap rounded-lg px-2 py-0.5 tabular-nums ${
+                  f.minutos > 0 ? "bg-surface font-medium text-text shadow-[var(--hero-sombra-campo)]" : "text-text-muted opacity-60"
+                }`}
+              >
+                {f.hora ?? "—"} · <b className="font-bold">{min(f.minutos)}</b>
+              </span>
+            ))}
+          </span>
+          {/* Con un solo día, su total es el de la persona: no se repite. */}
+          {dias.length > 1 && (
+            <span className="shrink-0 whitespace-nowrap pt-0.5 font-semibold tabular-nums text-text-muted">
+              {min(delDia.reduce((s, x) => s + x.minutos, 0))}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FilaTarea({ t, abierta, onAlternar }: { t: TareaTiempos; abierta: boolean; onAlternar: () => void }) {
   const e = ESTADO[t.estado];
   const conFichajes = t.personas.length > 0;
   return (
@@ -81,7 +115,7 @@ function FilaTarea({ t }: { t: TareaTiempos }) {
         type="button"
         disabled={!conFichajes}
         aria-expanded={conFichajes ? abierta : undefined}
-        onClick={() => setAbierta((v) => !v)}
+        onClick={onAlternar}
         className={`${FILA} grid grid-cols-[1rem_0.6rem_2.2rem_minmax(0,1fr)_6.5rem_5rem] items-center gap-x-2 px-4 py-2 text-[13px] min-[1000px]:grid-cols-[1rem_0.6rem_2.2rem_minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_5rem]`}
       >
         <span>{conFichajes && <Flecha abierta={abierta} />}</span>
@@ -122,17 +156,7 @@ function FilaTarea({ t }: { t: TareaTiempos }) {
                 <span className="font-semibold">{p.persona}</span>
                 <span className="ml-auto font-bold tabular-nums">{min(p.minutos)}</span>
               </div>
-              <ul className="mt-1 grid grid-cols-[repeat(auto-fill,minmax(8.5rem,9.5rem))] gap-x-6 gap-y-0.5 pl-7 text-[12.5px] text-text-muted">
-                {p.fichajes.map((f, i) => (
-                  <li key={i} className={`flex justify-between gap-2 tabular-nums ${f.minutos > 0 ? "" : "opacity-60"}`}>
-                    <span>
-                      {fechaCorta(f.dia)}
-                      {f.hora && <span className="ml-1.5">{f.hora}</span>}
-                    </span>
-                    <span className={f.minutos > 0 ? "font-semibold text-text" : ""}>{min(f.minutos)}</span>
-                  </li>
-                ))}
-              </ul>
+              <FichajesPorDia fichajes={p.fichajes} />
             </div>
           ))}
         </div>
@@ -141,8 +165,17 @@ function FilaTarea({ t }: { t: TareaTiempos }) {
   );
 }
 
-function FilaPersona({ p, total }: { p: PersonaTiempos; total: number }) {
-  const [abierta, setAbierta] = useState(false);
+function FilaPersona({
+  p,
+  total,
+  abierta,
+  onAlternar,
+}: {
+  p: PersonaTiempos;
+  total: number;
+  abierta: boolean;
+  onAlternar: () => void;
+}) {
   const rango =
     p.primerDia && p.ultimoDia && p.primerDia !== p.ultimoDia
       ? `del ${fechaCorta(p.primerDia)} al ${fechaCorta(p.ultimoDia)}`
@@ -155,7 +188,7 @@ function FilaPersona({ p, total }: { p: PersonaTiempos; total: number }) {
       <button
         type="button"
         aria-expanded={abierta}
-        onClick={() => setAbierta((v) => !v)}
+        onClick={onAlternar}
         className={`${FILA} grid grid-cols-[1rem_1.75rem_minmax(0,1fr)_minmax(0,1.4fr)_5rem] items-center gap-x-2.5 px-4 py-2.5 text-[13px]`}
       >
         <Flecha abierta={abierta} />
@@ -211,7 +244,7 @@ function FilaPersona({ p, total }: { p: PersonaTiempos; total: number }) {
                       <td className="truncate py-px" title={enFrase(f.descripcion)}>
                         <span className="tabular-nums text-text-muted">{f.tarea}</span> {enFrase(f.descripcion)}
                       </td>
-                      <td className="py-px text-right tabular-nums">{min(f.minutos)}</td>
+                      <td className="whitespace-nowrap py-px text-right tabular-nums">{min(f.minutos)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -226,6 +259,10 @@ function FilaPersona({ p, total }: { p: PersonaTiempos; total: number }) {
 
 export function TiemposBelen({ tiempos }: { tiempos: TiemposPedido }) {
   const [modo, setModo] = useState<"tarea" | "persona">("tarea");
+  // Una sola abierta a la vez (Iván, 10/11/2026): al desplegar otra, la de
+  // antes se recoge. La clave lleva el modo, así no se cruzan las dos vistas.
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const alternar = (clave: string) => setAbierta((a) => (a === clave ? null : clave));
   const tareas = tiempos.ofs.flatMap((o) => o.tareas);
   const acabadas = tareas.filter((t) => t.estado === "finalizado").length;
   const dias = new Set(tiempos.personas.flatMap((p) => p.fichajes.map((f) => f.dia))).size;
@@ -276,7 +313,12 @@ export function TiemposBelen({ tiempos }: { tiempos: TiemposPedido }) {
             </header>
             <ul>
               {of.tareas.map((t) => (
-                <FilaTarea key={t.codigo} t={t} />
+                <FilaTarea
+                  key={t.codigo}
+                  t={t}
+                  abierta={abierta === `t|${of.of}|${t.codigo}`}
+                  onAlternar={() => alternar(`t|${of.of}|${t.codigo}`)}
+                />
               ))}
             </ul>
           </section>
@@ -285,7 +327,13 @@ export function TiemposBelen({ tiempos }: { tiempos: TiemposPedido }) {
         <section aria-label="Tiempo por persona" className="tarjeta-of overflow-hidden rounded-3xl bg-surface py-1">
           <ul>
             {tiempos.personas.map((p) => (
-              <FilaPersona key={p.persona} p={p} total={tiempos.minutos} />
+              <FilaPersona
+                key={p.persona}
+                p={p}
+                total={tiempos.minutos}
+                abierta={abierta === `p|${p.persona}`}
+                onAlternar={() => alternar(`p|${p.persona}`)}
+              />
             ))}
           </ul>
         </section>

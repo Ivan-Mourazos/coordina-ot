@@ -371,9 +371,9 @@ export function PedidoBelenView({
         >
           <p className="mb-2 rounded-xl bg-[var(--detalle)] px-3 py-2 text-[12.5px] text-text-muted">
             Aquí ves las notas que Oficina Técnica pone <b className="text-text">«para todos»</b> y las tuyas. Lo que
-            escribas «para todos» lo lee todo el equipo.
+            escribas lo lee todo el equipo.
           </p>
-          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} publicaPorDefecto />
+          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} publicaPorDefecto soloParaTodos />
         </div>
       )}
 
