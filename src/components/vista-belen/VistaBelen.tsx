@@ -363,11 +363,6 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                 Buscar
               </button>
             </form>
-            {grande && (
-              <p className="mt-2.5 text-center text-[12.5px] text-text-muted">
-                Como quieras: AR.26.04716, 26.04716 o 4716 · una OF (0232470) · o el nombre del cliente. Y pulsa Intro.
-              </p>
-            )}
           </div>
           <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} />
           {estado.tipo === "vacio" && (
