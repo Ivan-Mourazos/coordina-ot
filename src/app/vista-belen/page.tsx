@@ -16,5 +16,5 @@ export default async function PaginaVistaBelen() {
   const puede =
     yo && (vistaAMedida(yo) === "belen" || yo.roles.includes("tecnico") || yo.roles.includes("direccion"));
   if (!puede) redirect("/");
-  return <VistaBelen nombre={yo.nombre} miId={yo.id} />;
+  return <VistaBelen nombre={yo.nombre} miId={yo.id} direccion={yo.roles.includes("direccion")} />;
 }

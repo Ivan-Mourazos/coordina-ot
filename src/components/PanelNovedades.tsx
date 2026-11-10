@@ -1,7 +1,7 @@
 "use client";
 
 import { PanelFlotante, BotonCerrarPanel } from "./PanelFlotante";
-import { ETIQUETA, NOVEDADES, type Cambio, type TipoCambio } from "@/lib/novedades";
+import { APARTADOS_NOVEDADES, ETIQUETA, NOVEDADES, agruparCambios, type Cambio, type PerfilNovedades, type TipoCambio } from "@/lib/novedades";
 
 /** Qué ha cambiado en la web, por actualizaciones.
  *
@@ -15,6 +15,7 @@ import { ETIQUETA, NOVEDADES, type Cambio, type TipoCambio } from "@/lib/novedad
 export function PanelNovedades({
   fechas,
   nuevos,
+  perfil,
   onCerrar,
 }: {
   /** Cuándo salió cada entrada, por su id. Puede faltar alguna —el sello lo
@@ -23,6 +24,7 @@ export function PanelNovedades({
   fechas: Record<string, string>;
   /** Lo que esta persona no había leído (ver `cambiosSinLeer`): se pinta. */
   nuevos: ReadonlySet<Cambio>;
+  perfil: PerfilNovedades;
   onCerrar: () => void;
 }) {
   return (
@@ -41,54 +43,60 @@ export function PanelNovedades({
       )}
 
       <div className="flex flex-col gap-5">
-        {NOVEDADES.map((n) => (
-          <section key={n.id}>
-            <h4 className="border-b border-border pb-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">
-              {/* La suya si la trae —las de antes de este log, sacadas del
-                  historial de cambios—; si no, la que sello el servidor. */}
-              {n.fecha ? fecha(n.fecha) : fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
-            </h4>
-            {/* Agrupados por tipo y con un rótulo por grupo, en vez de una
-                insignia en cada línea: con catorce cambios seguidos eran
-                catorce insignias que descodificar una a una. Y cada grupo
-                dice QUÉ ES, porque «arreglado» y «mejor» se pisan si no se
-                explica la diferencia, y quien lo lee no tiene por qué
-                adivinarla. */}
-            {ORDEN.map((tipo) => {
-              const suyos = n.cambios.filter((c) => c.tipo === tipo);
-              if (suyos.length === 0) return null;
-              return (
-                <div key={tipo} className="mt-3">
-                  <p className={`text-[11px] font-bold ${COLOR[tipo]}`}>{ETIQUETA[tipo]}</p>
-                  <p className="text-[10px] text-text-muted">{QUE_ES[tipo]}</p>
-                  <ul className="mt-1.5 flex flex-col gap-2">
-                    {suyos.map((c) => (
-                      <li
-                        key={c.titulo}
-                        className={
-                          nuevos.has(c)
-                            ? "rounded-r border-l-2 border-brand-500 bg-brand-500/10 py-1 pl-2 pr-1 dark:bg-brand-400/10"
-                            : "border-l-2 border-border pl-2"
-                        }
-                      >
-                        {nuevos.has(c) && <span className="sr-only">Nuevo para ti: </span>}
-                        <span className="block text-xs font-semibold text-text">{c.titulo}</span>
-                        {c.detalle && (
-                          <span className="mt-0.5 block text-[11px] leading-snug text-text-muted">
-                            {c.detalle}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </section>
-        ))}
+        {NOVEDADES.map((n) => {
+          const { propios, otros } = agruparCambios(n.cambios, perfil);
+          return (
+            <section key={n.id}>
+              <h4 className="border-b border-border pb-1 text-[11px] font-bold uppercase tracking-wide text-text-muted">
+                {n.fecha ? fecha(n.fecha) : fechas[n.id] ? fecha(fechas[n.id]) : "Última actualización"}
+              </h4>
+              <ListaCambios cambios={propios} nuevos={nuevos} mostrarApartado={perfil === "direccion"} />
+              {otros.map((grupo) => (
+                <details key={grupo.apartado} className="mt-3">
+                  <summary className="cursor-pointer rounded-lg text-xs font-semibold text-text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-focus">
+                    {grupo.cambios.length} {grupo.cambios.length === 1 ? "cambio" : "cambios"} en la pantalla de {APARTADOS_NOVEDADES[grupo.apartado]}
+                  </summary>
+                  <ListaCambios cambios={grupo.cambios} nuevos={nuevos} />
+                </details>
+              ))}
+            </section>
+          );
+        })}
       </div>
     </PanelFlotante>
   );
+}
+
+function ListaCambios({ cambios, nuevos, mostrarApartado = false }: {
+  cambios: readonly Cambio[];
+  nuevos: ReadonlySet<Cambio>;
+  mostrarApartado?: boolean;
+}) {
+  return ORDEN.map((tipo) => {
+    const suyos = cambios.filter((c) => c.tipo === tipo);
+    if (suyos.length === 0) return null;
+    return (
+      <div key={tipo} className="mt-3">
+        <p className={`text-[11px] font-bold ${COLOR[tipo]}`}>{ETIQUETA[tipo]}</p>
+        <p className="text-[10px] text-text-muted">{QUE_ES[tipo]}</p>
+        <ul className="mt-1.5 flex flex-col gap-2">
+          {suyos.map((c) => (
+            <li
+              key={c.titulo}
+              className={nuevos.has(c)
+                ? "rounded-r border-l-2 border-brand-500 bg-brand-500/10 py-1 pl-2 pr-1 dark:bg-brand-400/10"
+                : "border-l-2 border-border pl-2"}
+            >
+              {nuevos.has(c) && <span className="sr-only">Nuevo para ti: </span>}
+              {mostrarApartado && c.apartado && <span className="block text-[10px] text-text-muted">{APARTADOS_NOVEDADES[c.apartado]}</span>}
+              <span className="block text-xs font-semibold text-text">{c.titulo}</span>
+              {c.detalle && <span className="mt-0.5 block text-[11px] leading-snug text-text-muted">{c.detalle}</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  });
 }
 
 /** El orden en que se leen: primero lo que se gana, después lo que deja de

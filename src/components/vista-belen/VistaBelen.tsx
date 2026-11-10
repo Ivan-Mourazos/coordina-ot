@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PedidoEncontrado } from "@/lib/buscador";
 import { interpretarBusqueda } from "@/lib/codigo-busqueda";
+import { useNovedades } from "@/lib/useNovedades";
+import { ULTIMA } from "@/lib/novedades";
 import type { PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, LISTAS_BELEN, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
+import { PanelNovedades } from "../PanelNovedades";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
 import { apuntarReciente, InicioBelen, leerRecientes, type PedidoReciente } from "./InicioBelen";
@@ -70,7 +73,9 @@ const pasoActual = (): number => {
   return s?.belen ? (s.n ?? 0) : 0;
 };
 
-export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: string | null }) {
+export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre: string; miId?: string | null; direccion?: boolean }) {
+  const perfilNovedades = direccion ? "direccion" : "produccion";
+  const novedades = useNovedades(miId ?? "vista-produccion-local", perfilNovedades);
   const [pestana, setPestana] = useState<Pestana>("pedido");
   const [lista, setLista] = useState<IdLista>(LISTAS_BELEN[0].id);
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
@@ -299,6 +304,20 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[13px] text-text-muted">{nombre}</span>
+          {ULTIMA && (
+            <button
+              type="button"
+              onClick={novedades.abrir}
+              aria-label={novedades.pendientes > 0 ? `Novedades: ${novedades.pendientes} actualizaciones sin leer` : "Novedades de la web"}
+              title="Novedades de la web"
+              className="glass-chip relative grid size-9 place-items-center rounded-full text-text-muted hover:text-text"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {novedades.pendientes > 0 && <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-600 text-[9px] font-bold text-white">{novedades.pendientes}</span>}
+            </button>
+          )}
           <ThemeToggle />
           <button
             type="button"
@@ -309,6 +328,10 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
           </button>
         </div>
       </header>
+
+      {novedades.abierta && (
+        <PanelNovedades perfil={perfilNovedades} fechas={novedades.fechas} nuevos={novedades.nuevos} onCerrar={novedades.cerrar} />
+      )}
 
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">

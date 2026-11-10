@@ -69,20 +69,13 @@ function detalleDe(item: NotifItem): string {
  *  recibe el ITEM entero y no solo el id del pedido: lo que se apaga es el
  *  aviso que se ha abierto, no todos los del pedido —te tocan dos cosas
  *  distintas del mismo parte y solo has atendido una. */
-/** LA CAMPANA ES DE TU TRABAJO, y solo de eso.
- *
- *  Aquí hubo una fila de "la web ha cambiado", que era el único aviso que no
- *  hablaba de un pedido. Se fue cuando el log pasó a abrirse solo al entrar
- *  tras una actualización: enseñarlo y ADEMÁS contarlo en la campana era
- *  decirlo dos veces, y de paso subía el contador con algo que no es trabajo
- *  pendiente — un "3" que en realidad eran dos avisos y un cambio de la web.
- *
- *  Se sigue pudiendo abrir cuando se quiera, desde el menú de herramientas,
- *  que además enseña de cuándo es la última actualización. */
+/** Trabajo pendiente y actualizaciones que afectan a esta persona. */
 export function Notificaciones({
   items,
   onNavigate,
   onDescartar,
+  novedadesPendientes = 0,
+  onVerNovedades,
 }: {
   items: NotifItem[];
   onNavigate: (vista: Vista, item: NotifItem) => void;
@@ -90,6 +83,8 @@ export function Notificaciones({
    *  parte re-escaneado: es el único que te puede dar igual —los demás son
    *  trabajo tuyo— y antes solo se quitaba apagándoselo a todo el equipo. */
   onDescartar: (item: NotifItem) => void;
+  novedadesPendientes?: number;
+  onVerNovedades?: () => void;
 }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
 
@@ -115,16 +110,25 @@ export function Notificaciones({
           <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        {items.length > 0 && (
+        {items.length + novedadesPendientes > 0 && (
           <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-600 text-[9px] font-bold text-white">
-            {items.length}
+            {items.length + novedadesPendientes}
           </span>
         )}
       </button>
 
       {open && (
         <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-80 rounded-xl p-1">
-          {items.length === 0 ? (
+          {novedadesPendientes > 0 && onVerNovedades && (
+            <button
+              type="button"
+              onClick={() => { onVerNovedades(); setOpen(false); }}
+              className="block w-full rounded-lg px-2 py-2 text-left text-xs font-semibold text-text hover:bg-surface-2"
+            >
+              {novedadesPendientes} {novedadesPendientes === 1 ? "actualización con novedades para ti" : "actualizaciones con novedades para ti"}
+            </button>
+          )}
+          {items.length === 0 && novedadesPendientes === 0 ? (
             <p className="px-2 py-3 text-center text-xs text-text-muted">
               Sin avisos pendientes
             </p>

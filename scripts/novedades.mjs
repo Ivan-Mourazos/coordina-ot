@@ -31,9 +31,9 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { novedadesDe } from "../src/lib/novedades-commits.mjs";
 
 const DATOS = "src/lib/novedades-datos.json";
-const TIPOS = new Set(["nuevo", "arreglado", "mejor"]);
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
@@ -50,31 +50,6 @@ function rango(entradas) {
       "  último. Si quieres otro punto de partida, ponle `hasta` a mano.",
   );
   return "HEAD~1..HEAD";
-}
-
-/** Las novedades escritas en un mensaje de commit. */
-function novedadesDe(mensaje) {
-  const salida = [];
-  // SIN recortar los espacios de delante: la línea tiene que empezar en la
-  // primera columna, como los pies de commit de git. Si no, un ejemplo
-  // sangrado dentro del propio mensaje —explicando el formato— se cuela como
-  // entrada de verdad. Pasó a la primera.
-  for (const linea of mensaje.split(/\r?\n/)) {
-    const nov = /^Novedad:\s*(\w+)\s*\|\s*(.+)$/i.exec(linea);
-    if (nov) {
-      const tipo = nov[1].toLowerCase();
-      if (!TIPOS.has(tipo)) {
-        console.warn(`· Tipo desconocido "${tipo}", se ignora: ${nov[2]}`);
-        continue;
-      }
-      salida.push({ tipo, titulo: nov[2].trim() });
-      continue;
-    }
-    const det = /^Detalle:\s*(.+)$/i.exec(linea);
-    // El detalle acompaña a la novedad de encima; suelto no significa nada.
-    if (det && salida.length > 0) salida[salida.length - 1].detalle = det[1].trim();
-  }
-  return salida;
 }
 
 /** La entrada de HOY, si ya hay una.
@@ -132,7 +107,7 @@ console.log(
   `\n${cambios.length} cambios nuevos ${previa ? `añadidos a` : `para`} la entrada ${hoy}` +
     `${previa ? ` (queda con ${todos.length})` : ""}:\n`,
 );
-for (const c of cambios) console.log(`  [${c.tipo}] ${c.titulo}`);
+for (const c of cambios) console.log(`  [${c.apartado ?? "todos"}] [${c.tipo}] ${c.titulo}`);
 
 if (previa) {
   console.log(

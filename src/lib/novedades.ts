@@ -1,6 +1,6 @@
 // ─── Qué ha cambiado en la web ───────────────────────────────────────────────
-// Lo que el equipo ve al entrar después de una actualización. Se escribe A MANO
-// y en el idioma de quien lo va a leer: los mensajes de los commits dicen cosas
+// Lo que el equipo ve al entrar después de una actualización. La frase se escribe
+// en el commit y en el idioma de quien lo va a leer: los mensajes técnicos dicen cosas
 // como "la migración de `revisada` podía dejar la base a medias", y eso no le
 // dice nada a nadie que no haya escrito el código.
 //
@@ -13,11 +13,37 @@
 // va aquí: llenar esto de cosas invisibles enseña a saltárselo.
 
 import DATOS from "./novedades-datos.json";
+import type { SeccionId } from "./secciones";
 
 export type TipoCambio = "nuevo" | "arreglado" | "mejor";
+export type ApartadoNovedades = SeccionId | "produccion";
+/** Dirección recibe todos los apartados; los demás, el suyo y los generales. */
+export type PerfilNovedades = ApartadoNovedades | "direccion" | readonly ApartadoNovedades[];
+export const APARTADOS_NOVEDADES: Record<ApartadoNovedades, string> = {
+  ot: "Oficina Técnica",
+  diseno: "Diseño",
+  impresion: "Impresión",
+  produccion: "Producción",
+};
+
+export function leAfecta(cambio: Cambio, perfil: PerfilNovedades): boolean {
+  return !cambio.apartado || perfil === "direccion" || (typeof perfil === "string"
+    ? cambio.apartado === perfil
+    : perfil.includes(cambio.apartado));
+}
+
+export function agruparCambios(cambios: readonly Cambio[], perfil: PerfilNovedades) {
+  const propios = cambios.filter((c) => leAfecta(c, perfil));
+  const otros = (Object.keys(APARTADOS_NOVEDADES) as ApartadoNovedades[])
+    .map((apartado) => ({ apartado, cambios: cambios.filter((c) => c.apartado === apartado && !leAfecta(c, perfil)) }))
+    .filter((grupo) => grupo.cambios.length > 0);
+  return { propios, otros };
+}
 
 export interface Cambio {
   tipo: TipoCambio;
+  /** Ausente = para todo el equipo, también en el historial anterior. */
+  apartado?: ApartadoNovedades;
   /** Una frase que se entienda sola. */
   titulo: string;
   /** El detalle, si hace falta. Dos líneas como mucho. */
@@ -103,15 +129,32 @@ export const MARCA_ULTIMA: string | null = NOVEDADES[0]
  *  quedó guardado en los navegadores de antes. Sin esa compatibilidad, el día
  *  del cambio todo el equipo se habría encontrado un aviso de "13 novedades"
  *  por algo que ya había leído. */
-export function cuantasNuevas(visto: string | null): number {
+export function cuantasNuevas(
+  visto: string | null,
+  perfil: PerfilNovedades = "direccion",
+  entradas: readonly Novedad[] = NOVEDADES,
+): number {
   if (visto === null) return 0;
   const [id, n] = visto.split("·");
-  const i = NOVEDADES.findIndex((x) => x.id === id);
-  if (i < 0) return NOVEDADES.length;
-  // La leyó, pero desde entonces le han añadido cambios a esa misma entrada:
-  // es un despliegue más del mismo día y cuenta como una novedad que atender.
-  if (i === 0 && n !== undefined && Number(n) < NOVEDADES[0].cambios.length) return 1;
-  return i;
+  const i = entradas.findIndex((x) => x.id === id);
+  const anteriores = i < 0 ? entradas : entradas.slice(0, i);
+  let cuantas = anteriores.filter((e) => e.cambios.some((c) => leAfecta(c, perfil))).length;
+  // La marca cuenta TODOS los cambios, incluso los plegados. Solo después de
+  // localizar las tandas sin leer se filtra: así reclasificar no mueve la marca.
+  if (i >= 0 && n !== undefined && cambiosDeTandasSinLeer(entradas[i], Number(n)).some((c) => leAfecta(c, perfil))) cuantas++;
+  return cuantas;
+}
+
+function cambiosDeTandasSinLeer(entrada: Novedad, leidos: number): Cambio[] {
+  const tandas = [...new Set(entrada.cambios.map((c) => c.tanda ?? 1))].sort((a, b) => a - b);
+  let antes = 0;
+  const nuevos: Cambio[] = [];
+  for (const t of tandas) {
+    const suyos = entrada.cambios.filter((c) => (c.tanda ?? 1) === t);
+    if (antes + suyos.length > leidos) nuevos.push(...suyos);
+    antes += suyos.length;
+  }
+  return nuevos;
 }
 
 /** Los cambios que esta persona todavía no había leído, para pintarlos.
@@ -132,6 +175,7 @@ export function cuantasNuevas(visto: string | null): number {
 export function cambiosSinLeer(
   visto: string | null,
   entradas: readonly Novedad[] = NOVEDADES,
+  perfil: PerfilNovedades = "direccion",
 ): ReadonlySet<Cambio> {
   const nuevos = new Set<Cambio>();
   if (visto === null) return nuevos;
@@ -139,16 +183,8 @@ export function cambiosSinLeer(
   const i = entradas.findIndex((x) => x.id === id);
   if (i < 0 || n === undefined) return nuevos;
 
-  for (const entrada of entradas.slice(0, i)) for (const c of entrada.cambios) nuevos.add(c);
-
-  const leida = entradas[i];
-  const tandas = [...new Set(leida.cambios.map((c) => c.tanda ?? 1))].sort((a, b) => a - b);
-  let antes = 0;
-  for (const t of tandas) {
-    const suyos = leida.cambios.filter((c) => (c.tanda ?? 1) === t);
-    if (antes >= Number(n)) for (const c of suyos) nuevos.add(c);
-    antes += suyos.length;
-  }
+  for (const entrada of entradas.slice(0, i)) for (const c of entrada.cambios) if (leAfecta(c, perfil)) nuevos.add(c);
+  for (const c of cambiosDeTandasSinLeer(entradas[i], Number(n))) if (leAfecta(c, perfil)) nuevos.add(c);
   return nuevos;
 }
 

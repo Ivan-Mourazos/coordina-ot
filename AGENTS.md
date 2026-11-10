@@ -24,6 +24,13 @@ Detalle: Marcas una o varias causas y escribes qué hay que corregir.
 - `Detalle:` es opcional y acompaña a la `Novedad:` de encima.
 - Un commit puede llevar varias.
 
+**Destinatario:** `Novedad[produccion]: mejor | …` avisa solo a Producción.
+Los apartados válidos son `ot`, `diseno`, `impresion` y `produccion`. Sin
+corchetes sigue siendo para todos. Cada persona lee lo suyo y lo general;
+lo de otros apartados aparece plegado y no cuenta en su campana. Dirección
+recibe todo. Elige el apartado de quien usa el cambio: una mejora en la
+pantalla de Belén es de Producción; imprimir desde OT sigue siendo de OT.
+
 **Los tres tipos, y en qué se diferencian:**
 
 | Tipo | Cuándo | Cómo lo lee el equipo |

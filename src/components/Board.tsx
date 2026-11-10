@@ -28,7 +28,8 @@ import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
 import { PanelImpresoras } from "./PanelImpresoras";
 import { VersionNueva } from "./VersionNueva";
-import { MARCA_ULTIMA, ULTIMA, cambiosSinLeer, cuantasNuevas } from "@/lib/novedades";
+import { ULTIMA, type PerfilNovedades } from "@/lib/novedades";
+import { useNovedades } from "@/lib/useNovedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
 import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
@@ -223,34 +224,6 @@ function leerIdentidadGuardada(): string | null {
  *  todos los implicados en el pedido: con una sola lista, apagarlo uno se lo
  *  apagaría al compañero que entrara después en el mismo puesto. */
 const DESCARTES_KEY = "coordina-avisos-descartados";
-/** La última actualización que este navegador ha dado por leída. Sin operario
- *  en la clave: lo que ha cambiado en la web es lo mismo para todos, y quien
- *  comparta equipo no tiene que volver a leerlo. */
-const NOVEDADES_KEY = "coordina-novedades-visto";
-
-/** La última actualización que este navegador dio por leída.
- *
- *  `null` cuando no hay nada guardado todavía —o cuando no se puede leer— y ahí
- *  NO se avisa: a quien entra por primera vez contarle "novedades" de cosas que
- *  nunca ha visto de otra forma es ruido. Se sella al vuelo con la última, y a
- *  partir de ahí sí se entera de las siguientes. */
-function leerVistoNovedades(): string | null {
-  // Se guarda la MARCA (`id·cuántos cambios`) y no el id a secas: las entradas
-  // del mismo día se funden en una, así que el id no basta para saber si hay
-  // algo nuevo. Lo que ya estuviera guardado en formato viejo sigue valiendo
-  // (ver `cuantasNuevas`).
-  if (typeof window === "undefined") return MARCA_ULTIMA;
-  try {
-    const guardado = localStorage.getItem(NOVEDADES_KEY);
-    if (guardado) return guardado;
-    if (MARCA_ULTIMA) localStorage.setItem(NOVEDADES_KEY, MARCA_ULTIMA);
-    return MARCA_ULTIMA;
-  } catch {
-    // Modo privado o almacenamiento bloqueado: no se avisa, y no pasa nada.
-    return MARCA_ULTIMA;
-  }
-}
-
 function leerDescartes(operarioId: string | null): string[] {
   if (typeof window === "undefined" || !operarioId) return [];
   try {
@@ -1292,67 +1265,19 @@ export function Board({
   // exige saber qué avisos siguen vivos, o sea el tablero entero: justo lo que
   // /api/avisos está diseñado para NO cargar (7-15 s contra RPS). Aquí el
   // tablero ya está en memoria.
-  // ── Novedades de la web ──
-  // En localStorage y no en el servidor: "ya he leído qué ha cambiado" es de
-  // cada persona y de cada sitio donde trabaja, y no pasa nada por leerlo dos
-  // veces si entra desde otro equipo. Mismo sitio que los descartes de avisos.
-  //
-  // Sin nada guardado NO se avisa: a quien entra por primera vez —o estrena
-  // navegador— contarle "novedades" de cosas que nunca ha visto de otra manera
-  // es ruido. Se marca como visto y a partir de ahí sí se entera de las
-  // próximas.
-  // `undefined` = todavía sin mirar el almacenamiento. Se lee en el primer
-  // render del navegador y no en un efecto: en el servidor no hay
-  // localStorage, y leerlo antes de tiempo daría siempre "no visto".
-  const [vistoNovedades, setVistoNovedades] = useState<string | null | undefined>(undefined);
-  const [novedadesAbiertas, setNovedadesAbiertas] = useState(false);
+  // La sección de la PERSONA, no la lista que está mirando. Dirección recibe
+  // todo aunque no haya encendido «Ver como Dirección».
+  const esDireccion = sesion?.roles.includes("direccion") ?? false;
+  const perfilNovedades = useMemo<PerfilNovedades>(() => {
+    if (esDireccion) return "direccion";
+    const persona = TODOS_LOS_OPERARIOS.find((o) => o.id === miId);
+    return [persona?.seccion ?? SECCION_POR_DEFECTO, ...(persona?.tambienEn ?? [])];
+  }, [miId, esDireccion]);
+  const novedades = useNovedades(miId, perfilNovedades);
   // La guía de revisión, abierta desde el menú para leerla en frío. La de
   // trabajar está en la propia tarjeta de "Revisando"; esta es la de consulta.
   const [guiaAbierta, setGuiaAbierta] = useState(false);
   const [impresorasAbiertas, setImpresorasAbiertas] = useState(false);
-
-  // Cuándo salió cada entrada del log. Lo sella el servidor la primera vez que
-  // arranca con ella dentro, así que no cambia mientras la pestaña esté
-  // abierta: se pide una vez y no se vuelve a mirar.
-  //
-  // Si falla, el log se pinta sin fechas. Lo que importa es qué cambió.
-  const [fechasNovedades, setFechasNovedades] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let vivo = true;
-    fetch("/api/novedades", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { fechas?: Record<string, string> } | null) => {
-        if (vivo && d?.fechas) setFechasNovedades(d.fechas);
-      })
-      .catch(() => {});
-    return () => {
-      vivo = false;
-    };
-  }, []);
-  if (vistoNovedades === undefined && typeof window !== "undefined") {
-    const visto = leerVistoNovedades();
-    setVistoNovedades(visto);
-    // EL LOG SE ABRE SOLO la primera vez que se entra tras una actualización.
-    //
-    // Con la campana a secas no lo leía nadie: hay que fijarse en un punto
-    // rojo, saber que ahí hay algo y pulsarlo. El equipo se enteraba de los
-    // cambios tropezándose con ellos, que es justo lo que este log existe para
-    // evitar.
-    //
-    // UNA VEZ Y SE ACABÓ: al cerrarlo se da por leído (ver `onCerrar`), y esta
-    // rama no vuelve a entrar porque solo corre con `vistoNovedades` todavía
-    // sin leer — o sea, una vez por carga de página. Quien lo cierre no se lo
-    // encuentra otra vez ni recargando.
-    //
-    // A quien entra por PRIMERA VEZ no le salta: `leerVistoNovedades` sella la
-    // última al vuelo y `cuantasNuevas` devuelve 0. Contarle "novedades" de
-    // cosas que nunca ha visto de otra forma sería ruido.
-    //
-    // Van dos `setState` en la misma pasada, y aquí sí se puede: son estados
-    // DISTINTOS. Lo que no se puede es encadenar dos del mismo, que es de lo
-    // que avisa el comentario de los descartes más abajo.
-    if (cuantasNuevas(visto) > 0) setNovedadesAbiertas(true);
-  }
 
   const [descartes, setDescartes] = useState<{ opId: string | null; claves: string[] }>({
     opId: null,
@@ -2794,6 +2719,8 @@ export function Board({
                 tocan una vez al día, no a cada rato. */}
             <Notificaciones
               items={avisosVisibles}
+              novedadesPendientes={novedades.pendientes}
+              onVerNovedades={novedades.abrir}
               onNavigate={irANotificacion}
               onDescartar={descartarAviso}
             />
@@ -2808,8 +2735,8 @@ export function Board({
             {/* EL ÚLTIMO de la cabecera, pegado al borde: es el menú de la
                 aplicación y ahí es donde se busca. */}
             <Herramientas
-              fechaUltimaNovedad={ULTIMA ? fechasNovedades[ULTIMA] : undefined}
-              onVerNovedades={() => setNovedadesAbiertas(true)}
+              fechaUltimaNovedad={ULTIMA ? novedades.fechas[ULTIMA] : undefined}
+              onVerNovedades={novedades.abrir}
               onVerGuiaRevision={() => setGuiaAbierta(true)}
               onVerImpresoras={() => setImpresorasAbiertas(true)}
               seccion={seccionVista ?? (yo.seccion ?? SECCION_POR_DEFECTO)}
@@ -3171,26 +3098,12 @@ export function Board({
         {hayVersionNueva && <VersionNueva />}
 
         {/* ── VISTA HISTORIAL ── */}
-        {novedadesAbiertas && (
+        {novedades.abierta && (
           <PanelNovedades
-            fechas={fechasNovedades}
-            // Con la marca de ANTES de abrir: la nueva se guarda al cerrar,
-            // así que mientras está abierto lo pintado no se apaga.
-            nuevos={cambiosSinLeer(vistoNovedades ?? null)}
-            onCerrar={() => {
-              setNovedadesAbiertas(false);
-              // Se dan por vistas al CERRAR, no al abrir: si se marca al abrir
-              // y alguien cierra sin querer, el aviso desaparece sin haber
-              // leído nada y no vuelve.
-              // La MARCA y no el id: si hoy se despliega otra vez y a esta
-              // misma entrada se le añaden cambios, el aviso vuelve.
-              if (MARCA_ULTIMA) {
-                setVistoNovedades(MARCA_ULTIMA);
-                try {
-                  localStorage.setItem(NOVEDADES_KEY, MARCA_ULTIMA);
-                } catch {}
-              }
-            }}
+            fechas={novedades.fechas}
+            perfil={perfilNovedades}
+            nuevos={novedades.nuevos}
+            onCerrar={novedades.cerrar}
           />
         )}
 
