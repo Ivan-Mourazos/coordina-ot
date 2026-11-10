@@ -8,6 +8,7 @@ import {
   fechaCorta,
   resumenPedido,
   type MaterialPedido,
+  type OFTiempos,
   type PedidoBelen,
   type TiemposPedido,
 } from "@/lib/vista-belen";
@@ -176,6 +177,10 @@ export function PedidoBelenView({
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
   const estadoMat =
     material.tipo === "listo" && material.datos ? estadoMaterialDe(material.datos.ofs) : null;
+  // Las tareas de cada OF para su desplegable: las mismas que «Tareas y
+  // tiempos», que ya se cargan al abrir el pedido.
+  const tareasDe = (of: string): OFTiempos | null | undefined =>
+    tiempos.tipo === "listo" ? (tiempos.datos?.ofs.find((o) => o.of === of) ?? null) : tiempos.tipo === "error" ? null : undefined;
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
@@ -399,7 +404,7 @@ export function PedidoBelenView({
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} tareas={tareasDe(o.of)} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -418,7 +423,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} tareas={tareasDe(o.of)} />
           ))}
         </div>
       </Desplegable>

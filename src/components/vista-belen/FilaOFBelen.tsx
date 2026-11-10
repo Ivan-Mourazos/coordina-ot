@@ -9,12 +9,15 @@ import {
   resumenAvisos,
   type EstadoOperacion,
   type OFBelen,
+  type OFTiempos,
   type PuntoBultos,
   type ResumenPedido,
   type TipoAviso,
   difiereDelPedido,
 } from "@/lib/vista-belen";
+import { fmtMinEnteros } from "@/lib/estado";
 import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
+import { Desplegable } from "../Desplegable";
 import { CaraPersona } from "./CaraPersona";
 import { SIGNIFICA } from "./significados";
 
@@ -27,6 +30,10 @@ import { SIGNIFICA } from "./significados";
 //   2. Trabajo: las operaciones con su estado y una barra de avance; al lado,
 //      el paquete (quién y cuándo) y la logística.
 //   3. Avisos, solo si hay: material que falta, TP/COT.
+//   4. Desplegable (Belén, 10/11/2026: «las OF podrían aparecer así hacia
+//      abajo»): cada tarea con su máquina, el tiempo fichado, el último día
+//      que se fichó y su estado; al final los TP/COT. Se abre pinchando en el
+//      número de la OF o en «Ver las tareas».
 //
 // Lo que es igual en todas las OF del pedido (entrega, rotulación) ya va en
 // la cabecera y aquí solo sale si esta OF es distinta.
@@ -114,6 +121,68 @@ function ChipAviso({ of, tipo }: { of: OFBelen; tipo: TipoAviso }) {
   );
 }
 
+/** Último día en que alguien fichó en la tarea. */
+function ultimoFichaje(t: OFTiempos["tareas"][number]): string | null {
+  return t.personas.flatMap((p) => p.fichajes.map((f) => f.dia)).sort().pop() ?? null;
+}
+
+function DetalleTareas({ of, tareas }: { of: OFBelen; tareas: OFTiempos | null | undefined }) {
+  if (tareas === undefined) return <p className="px-6 py-3 text-[12.5px] text-text-muted">Cargando tareas…</p>;
+  const filas = tareas?.tareas ?? [];
+  return (
+    <div className="px-6 pb-4 pt-1">
+      {filas.length === 0 ? (
+        <p className="text-[12.5px] text-text-muted">Esta OF no tiene tareas en RPS.</p>
+      ) : (
+        <table className="w-full table-fixed border-collapse text-[13px]">
+          <caption className="sr-only">Tareas de la OF {of.of}</caption>
+          <thead>
+            <tr className="text-left text-[10.5px] uppercase tracking-wide text-text-muted">
+              <th scope="col" className="py-1.5 pr-2">Tarea</th>
+              <th scope="col" className="w-[9rem] px-2 py-1.5">Máquina</th>
+              <th scope="col" className="w-[6rem] px-2 py-1.5 text-right">Tiempo</th>
+              <th scope="col" className="w-[7.5rem] px-2 py-1.5">Último fichaje</th>
+              <th scope="col" className="w-[7rem] py-1.5 pl-2 text-right">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((t) => {
+              const e = OPERACION[t.estado];
+              const quien = t.personas.map((x) => `${persona(x.persona)} · ${fmtMinEnteros(x.minutos)}`).join("\n");
+              return (
+                <tr key={t.codigo} className="border-t border-border">
+                  <td className="truncate py-1.5 pr-2" title={enFrase(t.descripcion)}>
+                    <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{t.codigo}</span>
+                    {enFrase(t.descripcion)}
+                  </td>
+                  <td className="truncate px-2 py-1.5 font-mono text-[12px]" title={t.maquina ?? undefined}>{t.maquina ?? "—"}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums" title={quien || undefined}>
+                    {t.minutos > 0 ? fmtMinEnteros(t.minutos) : <span className="text-text-muted">Sin tiempo</span>}
+                  </td>
+                  <td className="px-2 py-1.5 tabular-nums">{fechaCorta(ultimoFichaje(t)) || <span className="text-text-muted">—</span>}</td>
+                  <td className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${e.clase}`}>{e.texto}</td>
+                </tr>
+              );
+            })}
+            {of.avisos.map((a) => (
+              <tr key={a.codigo} className="border-t border-border">
+                <td colSpan={3} className="truncate py-1.5 pr-2" title={enFrase(a.descripcion)}>
+                  <span className="mr-1.5 rounded-full bg-indigo-500/12 px-2 py-0.5 text-[11px] font-bold text-indigo-800 dark:text-indigo-200">{a.tipo}</span>
+                  {enFrase(a.descripcion) || a.codigo}
+                </td>
+                <td className="px-2 py-1.5 tabular-nums">{fechaCorta(a.cerrado) || <span className="text-text-muted">—</span>}</td>
+                <td className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${a.cerrado ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
+                  {a.cerrado ? "Hecho" : "Pendiente"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 /** Cabecera pequeña de un bloque, con su icono de color como en el resto de
  *  Coordina (AcentoBloque): se sabe de un vistazo qué bloque es cuál. */
 function CabeceraBloque({
@@ -145,11 +214,17 @@ export function FilaOFBelen({
   of,
   resumen,
   resaltada,
+  tareas,
 }: {
   of: OFBelen;
   resumen: ResumenPedido;
   resaltada: boolean;
+  /** Sus tareas con tiempos (de la pestaña «Tareas y tiempos»). undefined =
+   *  cargando; null = RPS no tiene ninguna. */
+  tareas?: OFTiempos | null;
 }) {
+  const [abierta, setAbierta] = useState(false);
+  const idDetalle = `tareas-of-${of.of}`;
   const punto = PUNTO[puntoBultos(of.cantidad, of.subidas)];
   const textoPunto =
     of.subidas && of.subidas !== of.cantidad ? `${punto.texto}: ${of.subidas} de ${of.cantidad}` : punto.texto;
@@ -197,7 +272,16 @@ export function FilaOFBelen({
               title={textoPunto}
               className={`size-3 shrink-0 cursor-help rounded-full ${punto.clase}`}
             />
-            <span className="font-mono text-[16px] font-bold">{of.of}</span>
+            <button
+              type="button"
+              aria-expanded={abierta}
+              aria-controls={idDetalle}
+              onClick={() => setAbierta((v) => !v)}
+              title={abierta ? "Ocultar las tareas" : "Ver las tareas de la OF"}
+              className="rounded font-mono text-[16px] font-bold underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {of.of}
+            </button>
             <span
               title={SIGNIFICA.situacion}
               className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${claseSituacion(of.situacion)}`}
@@ -355,6 +439,25 @@ export function FilaOFBelen({
           ))}
         </div>
       )}
+
+      {/* 4. Las tareas, hacia abajo. */}
+      <button
+        type="button"
+        aria-expanded={abierta}
+        aria-controls={idDetalle}
+        onClick={() => setAbierta((v) => !v)}
+        className="flex w-full items-center gap-2 border-t border-border px-6 py-2 text-left text-[12.5px] font-semibold text-text-muted transition-colors hover:bg-[var(--hero-relleno)] hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+      >
+        <span aria-hidden className={`inline-block transition-transform duration-200 motion-reduce:transition-none ${abierta ? "rotate-90" : ""}`}>▸</span>
+        {abierta
+          ? "Ocultar las tareas"
+          : `Ver las tareas${tareas?.tareas.length ? ` (${tareas.tareas.length})` : ""}${tareas?.minutos ? ` · ${fmtMinEnteros(tareas.minutos)} fichados` : ""}`}
+      </button>
+      <div id={idDetalle}>
+        <Desplegable abierto={abierta}>
+          <DetalleTareas of={of} tareas={tareas} />
+        </Desplegable>
+      </div>
     </article>
   );
 }
