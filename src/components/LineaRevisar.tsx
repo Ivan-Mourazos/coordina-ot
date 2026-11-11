@@ -1,10 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { Operario, Pedido, Rol } from "@/lib/types";
 import type { FacetRevision } from "@/lib/revision";
 import { accionesDisponibles } from "@/lib/acciones";
 import { ofsFichablesDe } from "@/lib/accion-pedido";
-import { ROL } from "@/lib/estado";
+import { ROL, bordePrioridad } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
 import { ChipComprometida } from "./ChipComprometida";
 import { FamiliaTag } from "./FamiliaTag";
@@ -47,7 +48,6 @@ export function LineaRevisar({
 }) {
   const soloLectura = useSoloLectura();
   const { pedido, ofs } = facet;
-  const urgente = pedido.prioridad === 3;
   const fichandoYo = ofs.filter((o) => ofIdsFichandoYo?.has(o.id));
   // Es la máquina de estados la que dice si puedo empezar (ver `soloEl` en
   // lib/acciones.ts), no esta fila.
@@ -64,8 +64,9 @@ export function LineaRevisar({
 
   return (
     <div
-      style={{ borderLeftColor: urgente ? "var(--color-red-600)" : ROL.revisar.color }}
-      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      // La prioridad, como en las demás filas de los paneles (11/11/2026).
+      style={{ borderLeftColor: bordePrioridad(pedido.prioridad), "--borde-prioridad": bordePrioridad(pedido.prioridad) } as CSSProperties}
+      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         fichandoYo.length > 0 ? "bg-[color-mix(in_srgb,var(--color-violet-500)_10%,var(--fila))]" : "bg-[var(--fila)]"
       }`}
     >

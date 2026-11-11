@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { SECCIONES, type SeccionId } from "./secciones";
+import type { Prioridad } from "./types";
 
 // ─── Integración de solo lectura con la web de planteamientos ────────────────
 // La web de toldos (y después la de remolques) pregunta cómo están sus OF para
@@ -27,6 +28,9 @@ export interface EstadoOfIntegracion {
   // cogido con «Coger». Planteamientos deja corregir y generar a esa persona y
   // pone los dos técnicos en el cajetín (Iván, 23/10/2026). Vacío si nadie.
   autor: string;
+  // La prioridad del pedido (1 poca, 2 normal, 3 urgente), si el tablero ya
+  // está en memoria: Planteamientos la pinta en el borde de la fila (11/11/2026).
+  prioridad?: Prioridad;
 }
 
 export interface FilaOverlayOf {
@@ -88,8 +92,9 @@ export function filasDeOficinaTecnica<T extends FilaOverlayConSeccion>(filas: re
   return deOt.length > 0 ? deOt : filas.filter((f) => f.seccion === null);
 }
 
-export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOfIntegracion {
-  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "" };
+export function resumirOf(of: string, filas: readonly FilaOverlayOf[], prioridad?: Prioridad): EstadoOfIntegracion {
+  const conPrioridad = prioridad === undefined ? {} : { prioridad };
+  if (filas.length === 0) return { of, estado: "sin_estado", nota: "", actualizado: null, revisor: "", autor: "", ...conPrioridad };
   const todas = filas.map((f) => ({ ...f, normal: normalizar(f.estado) }));
   // Una tarea anulada no debe bloquear la OF para siempre: con `anulada` antes que
   // `aprobada` en AVANCE, un duplicado anulado junto a la tarea aprobada de OT dejaba la
@@ -114,5 +119,6 @@ export function resumirOf(of: string, filas: readonly FilaOverlayOf[]): EstadoOf
     revisor: ultimaAprobada?.revisorId ?? "",
     // El de la tarea que manda; si no tiene, el de otra tarea viva de OT.
     autor: peor.autorId ?? conEstado.find((f) => f.autorId)?.autorId ?? "",
+    ...conPrioridad,
   };
 }

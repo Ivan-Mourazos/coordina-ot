@@ -1673,6 +1673,13 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
 // leer, así que la clave es la sección.
 const cache = new Map<SeccionId, { data: Tablero; at: number }>();
 const enVuelo = new Map<SeccionId, Promise<Tablero>>();
+
+/** Los tableros que ya están en memoria, aunque estén caducados, sin consultar
+ *  ni refrescar nada. Para la integración con planteamientos (la prioridad de
+ *  cada OF), que no puede esperar los 7-15 s de RPS. */
+export function tablerosEnCache(): Tablero[] {
+  return [...cache.values()].map((guardado) => guardado.data);
+}
 /** Secciones cuyo refresco en vuelo ya no vale: algo cambió (una OF retenida,
  *  por ejemplo) DESPUÉS de que ese refresco leyera lo suyo. Ver
  *  `invalidarCacheTablero`. */

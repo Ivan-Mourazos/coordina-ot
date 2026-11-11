@@ -1,9 +1,9 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { Operario, Rol } from "@/lib/types";
 import type { Facet } from "./PedidoCard";
 import {
-  FASES,
   autoresQueFaltan,
   avisaDeOFNueva,
   motivoBloqueo,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/fases-tablero";
 import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { motivoNoFichable } from "@/lib/fichaje";
-import { fmtMin } from "@/lib/estado";
+import { bordePrioridad, fmtMin } from "@/lib/estado";
 import { IconoCandado, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
 import { ChipComprometida } from "./ChipComprometida";
@@ -36,8 +36,9 @@ import { useSoloLectura } from "./SoloLectura";
  *  —hay que nombrar revisor— y no la que se pulsa de pasada. Se hace desde
  *  dentro del pedido.
  *
- *  El borde izquierdo lleva el color de la fase, salvo en urgentes, que lo
- *  pintan en rojo: la prioridad tiene que verse sin leer. */
+ *  El borde izquierdo lleva el color de la PRIORIDAD (ver `bordePrioridad`):
+ *  la fase ya la dicen la columna y su fondo, y la prioridad solo se veía en
+ *  las urgentes (Iván, 11/11/2026). */
 /** El ámbar de "parado por Producción" (el mismo del aviso de la zona
  *  personal). Va como variable porque lo pide un `style` en línea. */
 const AMBAR_PARADO = "var(--color-amber-600)";
@@ -75,7 +76,6 @@ export function PedidoLinea({
 }) {
   const soloLectura = useSoloLectura();
   const { pedido, ofs } = facet;
-  const urgente = pedido.prioridad === 3;
   // OJO: `fichandoRol` significa "alguien está fichando esta OF", no "la estoy
   // fichando yo": puede ser el revisor, o cualquiera desde el mini-olanet. Solo
   // se ofrece «Pausar» si la OF está en MI intervalo abierto; si no, pausar
@@ -86,7 +86,7 @@ export function PedidoLinea({
   // veces y el reloj seguía andando entre pulsación y pulsación.
   const fichandoYo = ofs.filter((o) => ofIdsFichandoYo?.has(o.id));
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
-  const color = urgente ? "var(--color-red-600)" : FASES.find((f) => f.id === fase)?.color;
+  const color = bordePrioridad(pedido.prioridad);
   const descripcion = ofs[0]?.descripcion ?? "";
   // Las familias del pedido, que es lo que dice DE QUÉ es sin leer: la
   // descripción de la primera OF ("LONA (TECHO, LATERAL,,,) PARA ESTRUCTURA
@@ -233,13 +233,15 @@ export function PedidoLinea({
       // Ámbar y NO rojo: el rojo es de "urgente" en toda la app, y un pedido
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.
-      style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color }}
+      // `--borde-prioridad`: el mismo color para el estilo HeroUI, que quita los
+      // bordes de las filas y lo pinta como sombra interior (ver hero.css).
+      style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color, "--borde-prioridad": detenidoDelTodo ? AMBAR_PARADO : color } as CSSProperties}
       // `@container`: la fila mide SU ancho y las reglas `@max-[26rem]` de
       // dentro se aplican según él. Sin contenedor no casaban nunca, y en las
       // columnas estrechas de la zona personal (cinco fases repartiéndose el
       // ancho) «Parte nuevo» se montaba sobre la fecha y la cuenta de OF
       // salía cortada ("2 O").
-      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         // Del color del ROL, no siempre verde: revisando salía igual que
         // planteando (Iván, 16/10/2026). Ver `.fila-fichando-*` en globals.css.
         fichandoAlguien ? `fila-fichando-${fichandoAlguien.fichandoRol}` : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"

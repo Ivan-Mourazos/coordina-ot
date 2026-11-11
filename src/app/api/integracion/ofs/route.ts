@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { claveValida, filasDeOficinaTecnica, leerOfsPedidas, resumirOf } from "@/lib/integracion";
 import { leerOverlayPorOrdenes } from "@/lib/server/estado-db";
+import { prioridadesDeOfs, tablerosEnMemoria } from "@/lib/server/prioridades";
 
 // ─── GET /api/integracion/ofs?ofs=0230194,0230195 ────────────────────────────
 // Solo lectura, para la web de planteamientos: cómo está cada OF (aprobada,
 // devuelta con su nota, en revisión…). Pide la cabecera X-Clave-Integracion
 // igual a INTEGRACION_CLAVE. Sin la variable configurada no responde nada:
 // una integración a medio montar no debe quedar abierta.
-// Solo sale `of`, `estado`, `nota`, `actualizado`, `autor` (quién la lleva) y `revisor` (quién la aprobó,
+// Solo sale `of`, `estado`, `nota`, `actualizado`, `autor` (quién la lleva), `prioridad`
+// (la del pedido, si el tablero ya está en memoria; nunca se espera a RPS) y `revisor` (quién la aprobó,
 // solo si está aprobada, para el campo REVISOR de planteamientos): ni cliente,
 // ni más personas, ni notas internas.
 //
@@ -32,5 +34,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Lista de OF no válida" }, { status: 400, headers: sinCache });
   }
   const filas = leerOverlayPorOrdenes(ofs);
-  return NextResponse.json({ ofs: ofs.map((of) => resumirOf(of, filasDeOficinaTecnica(filas.get(of) ?? []))) }, { headers: sinCache });
+  // Si leer la memoria fallara, el estado de las OF sale igual, sin prioridad.
+  const prioridades = prioridadesDeOfs(await tablerosEnMemoria().catch(() => []), ofs);
+  return NextResponse.json({ ofs: ofs.map((of) => resumirOf(of, filasDeOficinaTecnica(filas.get(of) ?? []), prioridades.get(of))) }, { headers: sinCache });
 }

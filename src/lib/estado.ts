@@ -20,6 +20,17 @@ export const PRIORIDAD: Record<Prioridad, PrioridadMeta> = {
   1: { label: "Poca", color: "#6b7280", tinta: "#ffffff", rank: 1 },
 };
 
+/** El color del borde izquierdo de una fila según su prioridad (Iván,
+ *  11/11/2026: «en las filas de los paneles no sale y debería. Algo sin ser
+ *  cargante»). Urgente, lleno: tiene que verse sin leer. Normal, que es casi
+ *  todo, apagado para no llenar el panel de ámbar; poca, casi nada. El rojo es
+ *  el mismo que ya llevaban las urgentes. Planteamientos usa los mismos tres. */
+export function bordePrioridad(prioridad: Prioridad): string {
+  if (prioridad === 3) return "var(--color-red-600)";
+  if (prioridad === 2) return `color-mix(in srgb, ${PRIORIDAD[2].color} 55%, transparent)`;
+  return `color-mix(in srgb, ${PRIORIDAD[1].color} 40%, transparent)`;
+}
+
 // Clases Tailwind literales (deben aparecer como texto para que se compilen).
 export interface EstadoMeta {
   label: string;
