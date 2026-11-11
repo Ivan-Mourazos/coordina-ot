@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-11",
-    "hasta": "d7a5769",
+    "hasta": "7a14e52",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -16,6 +16,13 @@
         "apartado": "produccion",
         "detalle": "Buscar, elegir un día o un rango con el calendario y ordenar pinchando en cualquier columna.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Botón «Actualizar» en el pedido",
+        "apartado": "produccion",
+        "detalle": "Vuelve a leer el pedido de RPS, por si acabas de cambiar los bultos o cualquier otra cosa.",
+        "tanda": 4
       },
       {
         "tipo": "arreglado",
@@ -44,6 +51,18 @@
         "apartado": "produccion",
         "detalle": "El resaltado respeta la forma de cada tarjeta y de cada nota.",
         "tanda": 2
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Una OF solo sale en amarillo si tiene los TP/COT hechos y todas las tareas acabadas",
+        "apartado": "produccion",
+        "tanda": 4
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los documentos destacados ya no salen repetidos debajo",
+        "apartado": "produccion",
+        "tanda": 4
       },
       {
         "tipo": "mejor",
@@ -99,6 +118,40 @@
         "apartado": "produccion",
         "detalle": "Como tu Excel: una fila por OF, por la fecha que pidió el cliente.",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al abrir un pedido, cada OF sale en una línea con lo importante",
+        "apartado": "produccion",
+        "detalle": "Punto, prioridad, TP/COT, OF, artículo y fechas. Pincha en ella para ver sus tareas y el resto.",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Por fecha solicitada» solo enseña las OF que tienen algo por acabar",
+        "apartado": "produccion",
+        "detalle": "Las que tienen todas sus tareas finalizadas ya no salen.",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los documentos del pedido, más fáciles de encontrar",
+        "apartado": "produccion",
+        "detalle": "Arriba, en grande, el último planteamiento, el pedido escaneado y el último presupuesto. Debajo, filtros por tipo, miniaturas más grandes y las fotos agrupadas por orden de mantenimiento.",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los tiempos están dentro de cada OF, por tarea o por persona",
+        "apartado": "produccion",
+        "detalle": "Al desplegar una OF, pincha en una tarea para ver quién fichó y cuándo, o cambia a «Por persona». Ya no hace falta la pestaña «Tareas y tiempos».",
+        "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La OF en amarillo se ve mejor: solo su línea, y más marcada",
+        "apartado": "produccion",
+        "tanda": 4
       }
     ]
   },
