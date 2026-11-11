@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePopover } from "@/lib/usePopover";
+import { useVentanaAnclada, VentanaAnclada } from "./VentanaAnclada";
 import { hoyISO } from "@/lib/types";
 import { sumarDias } from "@/lib/fechas";
 import {
@@ -52,7 +52,8 @@ export function SelectorFecha({
    *  necesita saber que existen los días sueltos, solo el rango. */
   onCambiar: (desde: string, hasta: string) => void;
 }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  const { anclaje, alternar, cerrar } = useVentanaAnclada();
+  const open = anclaje !== null;
   const hoy = hoyISO();
   // Arranca en el mes de lo ya elegido: al reabrir el filtro se vuelve a donde
   // estabas, no a hoy.
@@ -72,7 +73,7 @@ export function SelectorFecha({
   function elegir(d: string) {
     if (modo === "dia") {
       onCambiar(d, d);
-      setOpen(false);
+      cerrar();
       return;
     }
     if (!inicioRango) {
@@ -85,7 +86,7 @@ export function SelectorFecha({
     const [a, b] = d < inicioRango ? [d, inicioRango] : [inicioRango, d];
     setInicioRango(null);
     onCambiar(a, b);
-    setOpen(false);
+    cerrar();
   }
 
   function atajo(d: string, h: string) {
@@ -94,14 +95,14 @@ export function SelectorFecha({
     setEligiendoMes(false);
     setMes(primerDiaDelMes(d));
     onCambiar(d, h);
-    setOpen(false);
+    cerrar();
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative min-w-0 max-w-full">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => alternar(e.currentTarget)}
         aria-haspopup="dialog"
         aria-expanded={open}
         title={ayuda}
@@ -113,21 +114,25 @@ export function SelectorFecha({
               }`
         }
       >
-        <svg viewBox="0 0 24 24" aria-hidden className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="5" width="18" height="16" rx="2" />
           <path d="M3 10h18M8 3v4M16 3v4" strokeLinecap="round" />
         </svg>
         {/* Vacío dice qué pasa si no lo tocas, no cómo se llama el campo: el
             nombre ya lo pone el rótulo del grupo ("Planificado"), y repetirlo
             aquí dejaba "PLANIFICADO  Planificado" seguido. */}
-        <span>{resumen ?? vacio}</span>
+        <span className="min-w-0 truncate">{resumen ?? vacio}</span>
       </button>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Elegir fecha de planificación"
-          className="glass-pop absolute left-0 top-full z-40 mt-1 w-[17rem] rounded-xl p-2"
+      {/* En un portal: las barras con scroll no lo recortan y el panel se
+          mantiene dentro de la ventana, también junto al borde derecho. */}
+      {anclaje && (
+        <VentanaAnclada
+          anclaje={anclaje}
+          onCerrar={cerrar}
+          etiqueta={ayuda}
+          ancho={272}
+          alto={400}
         >
           {/* Un día / Rango. El rango detrás de una pestaña y no siempre a la
               vista: la consulta de todos los días es de un solo día. */}
@@ -275,7 +280,7 @@ export function SelectorFecha({
                 onClick={() => {
                   setInicioRango(null);
                   onCambiar("", "");
-                  setOpen(false);
+                  cerrar();
                 }}
                 className="ml-auto rounded-lg px-2 py-1 text-[11px] font-semibold text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
               >
@@ -283,7 +288,7 @@ export function SelectorFecha({
               </button>
             )}
           </div>
-        </div>
+        </VentanaAnclada>
       )}
     </div>
   );

@@ -9,14 +9,14 @@ import { SelectorFecha } from "../SelectorFecha";
 // botones en pastilla y el calendario de siempre de Coordina para las fechas.
 
 const CAMPO =
-  "campo-hundido h-10 rounded-[14px] px-3 text-sm text-text outline-none placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]";
+  "campo-hundido h-10 min-w-0 max-w-full rounded-[14px] px-3 text-sm text-text outline-none placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]";
 
 /** Quita tildes y pasa a minúsculas, para buscar «alvarez» y encontrar «Álvarez». */
 export const normalizar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es");
 
 export function CampoBuscar({ valor, onCambiar, pista, etiqueta = "Buscar en la lista" }: { valor: string; onCambiar: (v: string) => void; pista: string; etiqueta?: string }) {
   return (
-    <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs font-medium text-text-muted">
+    <label className="flex min-w-[min(14rem,100%)] flex-1 flex-col gap-1 text-xs font-medium text-text-muted">
       {etiqueta}
       <span className="relative">
         <svg aria-hidden viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -42,7 +42,7 @@ export function FiltroFechas({
   onCambiar: (desde: string, hasta: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+    <div className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-medium text-text-muted">
       <span>{etiqueta}</span>
       <SelectorFecha
         desde={desde}
@@ -50,7 +50,7 @@ export function FiltroFechas({
         onCambiar={onCambiar}
         vacio="Cualquier fecha"
         ayuda={`${etiqueta}: un día o entre dos fechas`}
-        claseBoton="campo-hundido flex h-10 min-w-40 items-center gap-2 rounded-[14px] px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
+        claseBoton="campo-hundido flex h-10 min-w-40 max-w-full items-center gap-2 rounded-[14px] px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
       />
     </div>
   );
@@ -68,7 +68,7 @@ export function Seleccion<T extends string>({
   onCambiar: (v: T) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+    <label className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-medium text-text-muted">
       {etiqueta}
       <select value={valor} onChange={(e) => onCambiar(e.target.value as T)} className={CAMPO}>
         {opciones.map(([v, t]) => (
