@@ -42,9 +42,12 @@ export default async function PaginaImprimir({
     const hoyCalendario = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()));
     for (const of of ofs) {
       const ruta = datos.hojaRuta.filter((f) => f.ManufacturingOrder_CodManufacturingOrder === of);
+      // Sin nada reservado no hay vale: imprimir uno vacío solo gasta papel
+      // (Belén, 11/11/2026: «hay muchos pedidos que no llevan reserva»).
       const vale = datos.vale.filter((f) => f.ManufacturingOrder_CodManufacturingOrder === of);
+      const conReserva = vale.some((f) => Number(f.StockReserve_Quantity) > 0);
       if (que !== "vale" && ruta.length) bloques.push({ of, titulo: `Hoja de ruta ${of}`, paginas: maquetar(PLANTILLA_HOJA_RUTA, ruta, hoyCalendario) });
-      if (que !== "ruta" && vale.length) bloques.push({ of, titulo: `Vale de material ${of}`, paginas: maquetar(PLANTILLA_VALE, vale, hoyCalendario) });
+      if (que !== "ruta" && conReserva) bloques.push({ of, titulo: `Vale de material ${of}`, paginas: maquetar(PLANTILLA_VALE, vale, hoyCalendario) });
     }
   } catch (e) {
     error = (e as Error).message;

@@ -29,6 +29,11 @@ export interface OperacionOF {
   minutos?: number;
   /** yyyy-mm-dd del último fichaje. */
   ultimoFichaje?: string | null;
+  /** yyyy-mm-dd en que se acabó (OLANET o, si no, el cierre de RPS). Solo si
+   *  está finalizada. */
+  fin?: string | null;
+  /** Es la tarea en la que se suben los bultos (entrada de producto en RPS). */
+  subeBultos?: boolean;
   estado: EstadoOperacion;
 }
 

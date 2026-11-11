@@ -78,6 +78,9 @@ interface FilaTarea {
   imps: number;
   minutos: number | null;
   ultimo: Date | null;
+  bultos: boolean | null;
+  finOlanet: Date | null;
+  finRps: Date | null;
   tipoAviso: string | null;
   aviso: string | null;
   cierreAviso: Date | null;
@@ -118,8 +121,17 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     consulta<FilaTarea>(`
       SELECT o.cod, t.IDMOTask AS idTarea, t.CodMOTask AS tarea, CAST(t.Description AS varchar(300)) AS descr,
              t.PercentProgress AS pct, rm.CodMOResourceMachine AS maq,
-             CAST(maq.Description AS varchar(100)) AS maqNombre,
+             -- El nombre de la sección: el de la máquina o, si la tarea va a un
+             -- GRUPO de máquinas (SOLD-P, COMA-A, FINAL-P…), el del grupo.
+             CAST(COALESCE(maq.Description, grp.Description, rm.Description) AS varchar(100)) AS maqNombre,
              fich.minutos, fich.ultimo,
+             -- La tarea en la que se suben los bultos (entrada de producto).
+             t.ProductEntry AS bultos,
+             -- Cuándo acabó: OLANET al darla por finalizada y, si no, el
+             -- cierre de RPS (Belén, 11/11/2026: «la fecha en que finalizaron»).
+             (SELECT MAX(fecha_cambio) FROM dbo.tgm_estadosof_olanet
+               WHERE orden = o.cod AND fase = t.CodMOTask AND idestadoof = 3) AS finOlanet,
+             t.RealEndDate AS finRps,
              (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
                WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
              (SELECT COUNT(*) FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask) AS imps,
@@ -129,6 +141,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
       LEFT JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
       LEFT JOIN dbo.CPRMachine maq ON maq.IDMachine = rm.IDMachine
+      LEFT JOIN dbo.CPRMachineGroup grp ON grp.IDMachineGroup = rm.IDMachineGroup
       OUTER APPLY (
         -- Lo fichado por personas (ResourceType = 1, la regla del Historial),
         -- con la duración exacta y sin los fichajes de menos de un minuto.
@@ -215,7 +228,14 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
           seccion: texto(t.maqNombre),
           minutos: Number(t.minutos) || 0,
           ultimoFichaje: iso(t.ultimo),
-          estado: estadoOperacion({ olanet: t.olanet, porcentaje: t.pct, imputaciones: t.imps }),
+          subeBultos: !!t.bultos || undefined,
+          ...(() => {
+            const estado = estadoOperacion({ olanet: t.olanet, porcentaje: t.pct, imputaciones: t.imps });
+            // Solo las acabadas tienen fecha de fin. OLANET guarda fecha y
+            // hora del cambio: se toma el día. RPS, el día a medianoche.
+            const fin = estado === "finalizado" ? (iso(t.finOlanet) ?? iso(t.finRps)) : null;
+            return { estado, fin };
+          })(),
         })),
       avisos: suyas
         .filter((t) => TIPO_AVISO[t.tipoAviso ?? ""])

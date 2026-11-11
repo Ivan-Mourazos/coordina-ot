@@ -1,39 +1,43 @@
 import { describe, expect, test } from "vitest";
 import { agruparEntregas, filtrarEntregas, sumarDias, type FiltrosEntregasBelen, type PedidoEntregaBelen } from "../entregas-belen";
 
-const filtros: FiltrosEntregasBelen = { texto: "", delegacion: "", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
+const filtros: FiltrosEntregasBelen = { texto: "", delegacion: "", desde: "", hasta: "", orden: "fechaEntrega", descendente: false };
+const of = (codigo: string, ofCod: string, extra: Partial<PedidoEntregaBelen> = {}): PedidoEntregaBelen => ({
+  codigo, of: ofCod, cliente: null, prioridad: 2, articulo: null, articuloDescripcion: null,
+  formaEntrega: null, rotulacion: null, fechaEntrega: null, ...extra,
+});
 const pedidos: PedidoEntregaBelen[] = [
-  { codigo: "AR.26.00003", cliente: "Álvarez", ciudad: "Lugo", fechaEntrega: null, situacion: "fabrica", ofs: 2 },
-  { codigo: "AR.26.00002", cliente: "Pérez", ciudad: "León", fechaEntrega: "2026-11-12", situacion: "salir", ofs: 10 },
-  { codigo: "AR.26.00001", cliente: "Álvarez", ciudad: "León", fechaEntrega: "2026-11-10", situacion: "fabrica", ofs: 1 },
+  of("AR.26.00003", "0003", { cliente: "Álvarez", rotulacion: "MAHOU" }),
+  of("AR.26.00002", "0002", { cliente: "Pérez", fechaEntrega: "2026-11-12", prioridad: 1 }),
+  of("AR.26.00001", "0001", { cliente: "Álvarez", fechaEntrega: "2026-11-10", articulo: "1 × CAMTELTOL" }),
 ];
 
-test("ordena todas las entregas y deja sin fecha al final en ambos sentidos", () => {
-  expect(filtrarEntregas(pedidos, filtros).map((p) => p.codigo)).toEqual(["AR.26.00001", "AR.26.00002", "AR.26.00003"]);
-  expect(filtrarEntregas(pedidos, { ...filtros, descendente: true }).map((p) => p.codigo)).toEqual(["AR.26.00002", "AR.26.00001", "AR.26.00003"]);
-  expect(pedidos[0].fechaEntrega).toBe(null);
+test("ordena por fecha y deja sin fecha al final en ambos sentidos", () => {
+  expect(filtrarEntregas(pedidos, filtros).map((p) => p.of)).toEqual(["0001", "0002", "0003"]);
+  expect(filtrarEntregas(pedidos, { ...filtros, descendente: true }).map((p) => p.of)).toEqual(["0002", "0001", "0003"]);
 });
 
-test("combina texto sin acentos, situación e intervalo inclusivo", () => {
-  const r = filtrarEntregas(pedidos, { ...filtros, texto: "alvarez leon", situacion: "fabrica", desde: "2026-11-10", hasta: "2026-11-10" });
-  expect(r.map((p) => p.codigo)).toEqual(["AR.26.00001"]);
+test("busca sin tildes en pedido, OF, cliente, artículo y rotulación, e intervalo inclusivo", () => {
+  expect(filtrarEntregas(pedidos, { ...filtros, texto: "alvarez camteltol", desde: "2026-11-10", hasta: "2026-11-10" }).map((p) => p.of)).toEqual(["0001"]);
+  expect(filtrarEntregas(pedidos, { ...filtros, texto: "mahou" }).map((p) => p.of)).toEqual(["0003"]);
   expect(filtrarEntregas(pedidos, { ...filtros, desde: "2026-11-13" })).toEqual([]);
 });
 
 test("filtra por delegación con la serie del pedido", () => {
-  const conSa = [...pedidos, { ...pedidos[0], codigo: "SA.26.00009" }];
+  const conSa = [...pedidos, of("SA.26.00009", "0009")];
   expect(filtrarEntregas(conSa, { ...filtros, delegacion: "SA" }).map((p) => p.codigo)).toEqual(["SA.26.00009"]);
   expect(filtrarEntregas(conSa, { ...filtros, delegacion: "AR" })).toHaveLength(3);
   expect(filtrarEntregas(conSa, filtros)).toHaveLength(4);
 });
 
-test("ordena cantidades como números", () => {
-  expect(filtrarEntregas(pedidos, { ...filtros, orden: "ofs" }).map((p) => p.ofs)).toEqual([1, 2, 10]);
+test("ordena la prioridad como número y desempata por prioridad, pedido y OF", () => {
+  expect(filtrarEntregas(pedidos, { ...filtros, orden: "prioridad" }).map((p) => p.of)).toEqual(["0002", "0001", "0003"]);
+  const mismoDia = [of("AR.2", "0020", { fechaEntrega: "2026-11-12", prioridad: 2 }), of("AR.1", "0010", { fechaEntrega: "2026-11-12", prioridad: 1 })];
+  expect(filtrarEntregas(mismoDia, filtros).map((p) => p.of)).toEqual(["0010", "0020"]);
 });
 
 describe("grupos por día de entrega", () => {
-  const p = (codigo: string, fechaEntrega: string | null): PedidoEntregaBelen =>
-    ({ codigo, cliente: null, ciudad: null, fechaEntrega, situacion: "fabrica", ofs: 1 });
+  const p = (codigo: string, fechaEntrega: string | null): PedidoEntregaBelen => of(codigo, codigo, { fechaEntrega });
   // Martes 10/11/2026: mañana es miércoles y la semana acaba el domingo 15.
   const hoy = "2026-11-10";
 

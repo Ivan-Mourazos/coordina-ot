@@ -19,6 +19,7 @@ import {
 import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
 import { chip, ESTADO_OPERACION, FECHA, tonoSituacion } from "./estilos-belen";
 import { SIGNIFICA } from "./significados";
+import { ImprimirOF } from "./ImprimirOF";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
 // Todo a la vista, sin desplegar nada (Iván, 11/11/2026: «si busca un pedido,
@@ -120,7 +121,7 @@ function Tareas({ of }: { of: OFBelen }) {
             <th scope="col" className="py-1 pr-2">Tarea</th>
             <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
             <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
-            <th scope="col" className="w-[8.5rem] whitespace-nowrap px-2 py-1">Último fichaje</th>
+            <th scope="col" className="w-[6.5rem] whitespace-nowrap px-2 py-1" title="El día en que se acabó la operación">Fin</th>
             <th scope="col" className="w-[6.5rem] py-1 pl-2 text-right">Estado</th>
           </tr>
         </thead>
@@ -133,6 +134,11 @@ function Tareas({ of }: { of: OFBelen }) {
                   <span className={`mr-2 inline-block size-2 rounded-full align-middle ${e.punto}`} aria-hidden />
                   <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
                   <span className={op.estado === "sin_empezar" ? "text-text-muted" : ""}>{enFrase(op.descripcion)}</span>
+                  {op.subeBultos && (
+                    <span title="En esta tarea se suben los bultos (entrada de producto en RPS)" className={`${chip("info")} ml-2 cursor-help`}>
+                      Bultos
+                    </span>
+                  )}
                 </td>
                 <td className="truncate px-2 py-1.5" title={[op.seccion, op.maquina].filter(Boolean).join(" · ") || undefined}>
                   {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
@@ -140,7 +146,9 @@ function Tareas({ of }: { of: OFBelen }) {
                 <td className="px-2 py-1.5 text-right tabular-nums">
                   {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
                 </td>
-                <td className="px-2 py-1.5 tabular-nums">{fechaCorta(op.ultimoFichaje) || <span className="text-text-muted">—</span>}</td>
+                <td className="px-2 py-1.5 tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
+                  {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
+                </td>
                 <td
                   className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${e.tinta}`}
                   title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
@@ -203,7 +211,18 @@ function Compras({ of }: { of: OFBelen }) {
   );
 }
 
-export function FilaOFBelen({ of, resumen, resaltada }: { of: OFBelen; resumen: ResumenPedido; resaltada: boolean }) {
+export function FilaOFBelen({
+  of,
+  resumen,
+  resaltada,
+  conReserva,
+}: {
+  of: OFBelen;
+  resumen: ResumenPedido;
+  resaltada: boolean;
+  /** ¿Tiene material reservado? undefined = el material aún está cargando. */
+  conReserva?: boolean;
+}) {
   const punto = PUNTO[puntoBultos(of.cantidad, of.subidas)];
   const noCuadra = of.subidas > 0 && of.subidas !== of.cantidad;
   const textoPunto = noCuadra ? `${punto.texto}: ${of.subidas} de ${of.cantidad}` : punto.texto;
@@ -249,19 +268,9 @@ export function FilaOFBelen({ of, resumen, resaltada }: { of: OFBelen; resumen: 
               </span>
               {of.linea !== null && <span className="text-[12px] text-text-muted">línea {of.linea}</span>}
               {noCuadra && <span className={chip("info")}>{of.subidas} de {of.cantidad} uds. subidas</span>}
-              <a
-                href={`/vista-belen/imprimir?ofs=${encodeURIComponent(of.of)}`}
-                target="_blank"
-                rel="noopener"
-                title="La hoja de ruta y el vale de material, como en RPS, con sus códigos de barras"
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[var(--hero-relleno)] px-3 py-1 text-[12.5px] font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                  <path d="M6 14h12v7H6z" />
-                </svg>
-                Imprimir OF y reserva
-              </a>
+              <span className="ml-auto">
+                <ImprimirOF ofs={[of.of]} conReserva={conReserva} />
+              </span>
             </div>
             <p className="mt-1 text-[14.5px] font-medium">{enFrase(of.descripcion)}</p>
           </div>

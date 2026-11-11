@@ -21,6 +21,7 @@ import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { TiemposBelen } from "./TiemposBelen";
 import { chip, FECHA } from "./estilos-belen";
+import { ImprimirOF } from "./ImprimirOF";
 
 // ─── Un pedido en la pantalla de Belén ───────────────────────────────────────
 // Arriba, una cabecera con lo que es del PEDIDO: cliente, lo que comparten
@@ -175,6 +176,11 @@ export function PedidoBelenView({
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
   const estadoMat =
     material.tipo === "listo" && material.datos ? estadoMaterialDe(material.datos.ofs) : null;
+  // ¿Qué OF tienen algo reservado? Para apagar la casilla «Reserva» donde no
+  // hay vale que imprimir. Mientras carga, undefined (se deja marcar).
+  const conReserva = (of: string): boolean | undefined =>
+    material.tipo !== "listo" ? undefined : !!material.datos?.ofs.find((o) => o.of === of)?.materiales.some((m) => m.reservada > 0);
+  const paraImprimir = abiertas.length ? abiertas : pedido.ofs;
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
@@ -207,15 +213,13 @@ export function PedidoBelenView({
               COT pendiente
             </span>
           )}
-          <a
-            href={`/vista-belen/imprimir?ofs=${encodeURIComponent((abiertas.length ? abiertas : pedido.ofs).map((o) => o.of).join(","))}`}
-            target="_blank"
-            rel="noopener"
-            title={`Hoja de ruta y vale de material de ${abiertas.length ? "las OF abiertas" : "todas las OF"} del pedido`}
-            className="ml-auto rounded-full bg-[var(--hero-relleno)] px-3 py-1 text-[12.5px] font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus motion-reduce:transition-none"
-          >
-            Imprimir OF y reserva{abiertas.length > 1 ? ` (${abiertas.length})` : ""}
-          </a>
+          <span className="ml-auto" title={`Todas las OF ${abiertas.length ? "abiertas " : ""}del pedido`}>
+            <ImprimirOF
+              ofs={paraImprimir.map((o) => o.of)}
+              conReserva={material.tipo !== "listo" ? undefined : paraImprimir.some((o) => conReserva(o.of))}
+              etiqueta={paraImprimir.length > 1 ? `Imprimir las ${paraImprimir.length}` : "Imprimir"}
+            />
+          </span>
           <span className="text-[12.5px] text-text-muted">
             Entrega{" "}
             <b className="font-semibold text-text">
@@ -414,7 +418,7 @@ export function PedidoBelenView({
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -433,7 +437,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} />
           ))}
         </div>
       </Desplegable>

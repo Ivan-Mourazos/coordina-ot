@@ -10,37 +10,37 @@ import {
   type PedidoEntregaBelen,
 } from "@/lib/entregas-belen";
 import { hoyEnOficina } from "@/lib/consulta";
-import { fechaCorta } from "@/lib/vista-belen";
-import { chip } from "./estilos-belen";
+import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, Seleccion } from "./Filtros";
 
 // ─── Pedidos por día de entrega ──────────────────────────────────────────────
-// La fecha es la solicitada del pedido (la misma que usa Coordina para todos).
+// Una fila por OF, con las columnas en el orden de Belén (11/11/2026, con su
+// Excel): prioridad, pedido, OF, (cliente,) artículo, forma de entrega y
+// rotulación. La fecha es la solicitada de la línea.
 // Ordenada por fecha, la lista va en grupos: Atrasados (plegado), Hoy, Mañana,
 // Resto de la semana, Más adelante y Sin fecha. La fecha se dice una vez: en el
 // título del grupo o en el separador del día, nunca también en la fila.
 // Ordenada por otra columna, es una tabla sola con la fecha en su columna.
 
 // Por defecto, Arzúa: Belén no revisa las delegaciones salvo que lo pida.
-const INICIAL: FiltrosEntregasBelen = { texto: "", delegacion: "AR", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
+const INICIAL: FiltrosEntregasBelen = { texto: "", delegacion: "AR", desde: "", hasta: "", orden: "fechaEntrega", descendente: false };
 const DELEGACIONES = { AR: "Arzúa (AR)", SA: "Santiago (SA)", BE: "Bergondo (BE)" } as const;
 const sonIniciales = (f: FiltrosEntregasBelen) => (Object.keys(INICIAL) as Array<keyof FiltrosEntregasBelen>).every((k) => f[k] === INICIAL[k]);
 type Orden = FiltrosEntregasBelen["orden"];
 const COLUMNAS: { clave: Orden; titulo: string; ancho: string; derecha?: boolean }[] = [
-  { clave: "codigo", titulo: "Pedido", ancho: "w-[9.5rem]" },
+  { clave: "prioridad", titulo: "Prio.", ancho: "w-[4.5rem]" },
+  { clave: "codigo", titulo: "Pedido", ancho: "w-[8.5rem]" },
+  { clave: "of", titulo: "OF", ancho: "w-[6rem]" },
   { clave: "cliente", titulo: "Cliente", ancho: "" },
-  { clave: "ciudad", titulo: "Localidad", ancho: "w-[13rem]" },
-  { clave: "situacion", titulo: "Situación", ancho: "w-[10rem]" },
-  { clave: "ofs", titulo: "OF", ancho: "w-[4rem]", derecha: true },
+  { clave: "articulo", titulo: "Artículo", ancho: "w-[12rem]" },
+  { clave: "formaEntrega", titulo: "Forma de entrega", ancho: "w-[11rem]" },
+  { clave: "rotulacion", titulo: "Rotulación", ancho: "w-[12rem]" },
 ];
+const NCOL = COLUMNAS.length;
 const COLUMNA_FECHA = { clave: "fechaEntrega" as const, titulo: "Fecha de entrega", ancho: "w-[8.5rem]" };
 const BOTON =
   "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
 
-
-function Situacion({ valor }: { valor: PedidoEntregaBelen["situacion"] }) {
-  return valor === "fabrica" ? <span className={chip("aviso")}>En fábrica</span> : <span className={chip("ok")}>Esperando salir</span>;
-}
 
 function Cabecera({
   filtros,
@@ -78,22 +78,25 @@ function Fila({ p, conFecha, onAbrir }: { p: PedidoEntregaBelen; conFecha: boole
       className="cursor-pointer border-t border-border transition-colors hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)] focus-within:bg-[var(--hero-relleno)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--hero-anillo)]"
     >
       {conFecha && <td className="whitespace-nowrap px-2.5 py-1.5 pl-4 tabular-nums">{fechaCorta(p.fechaEntrega) || "—"}</td>}
-      <td className="px-2.5 py-1.5 first:pl-4">
+      <td className="px-2.5 py-1.5 first:pl-4 tabular-nums font-semibold">{p.prioridad ?? "—"}</td>
+      <td className="px-2.5 py-1.5">
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onAbrir(p.codigo);
           }}
+          aria-label={`Abrir ${p.codigo}, OF ${p.of}`}
           className="whitespace-nowrap rounded font-semibold tabular-nums focus:outline-none"
         >
           {p.codigo}
         </button>
       </td>
+      <td className="px-2.5 py-1.5 font-mono text-[12.5px] font-semibold">{p.of}</td>
       <td className="max-w-0 truncate px-2.5 py-1.5" title={p.cliente ?? undefined}>{p.cliente ?? "—"}</td>
-      <td className="max-w-0 truncate px-2.5 py-1.5" title={p.ciudad ?? undefined}>{p.ciudad ?? "—"}</td>
-      <td className="px-2.5 py-1.5"><Situacion valor={p.situacion} /></td>
-      <td className="px-2.5 py-1.5 pr-4 text-right tabular-nums">{p.ofs}</td>
+      <td className="max-w-0 truncate px-2.5 py-1.5" title={p.articuloDescripcion ?? undefined}>{p.articulo ?? "—"}</td>
+      <td className="max-w-0 truncate px-2.5 py-1.5" title={p.formaEntrega ?? undefined}>{enFrase(p.formaEntrega) || "—"}</td>
+      <td className="max-w-0 truncate px-2.5 py-1.5 pr-4" title={p.rotulacion ?? undefined}>{p.rotulacion ?? <span className="text-text-muted">—</span>}</td>
     </tr>
   );
 }
@@ -105,10 +108,10 @@ function FilasGrupo({ grupo, onAbrir }: { grupo: GrupoEntregas; onAbrir: (c: str
   return (
     <tbody>
       {grupo.pedidos.map((p, i) => (
-        <Fragment key={p.codigo}>
+        <Fragment key={p.of}>
           {variosDias && p.fechaEntrega && (i === 0 || p.fechaEntrega !== grupo.pedidos[i - 1].fechaEntrega) && (
             <tr>
-              <th colSpan={5} scope="rowgroup" className="px-4 pb-1 pt-3 text-left text-[12px] font-semibold first-letter:uppercase text-text-muted">
+              <th colSpan={NCOL} scope="rowgroup" className="px-4 pb-1 pt-3 text-left text-[12px] font-semibold first-letter:uppercase text-text-muted">
                 {diaConNombre(p.fechaEntrega)}
               </th>
             </tr>
@@ -134,7 +137,8 @@ function TarjetaGrupo({
   onAbrir: (c: string) => void;
 }) {
   const n = grupo.pedidos.length;
-  const cuantos = `${n} ${n === 1 ? "pedido" : "pedidos"}`;
+  const pedidos = new Set(grupo.pedidos.map((p) => p.codigo)).size;
+  const cuantos = `${n} OF · ${pedidos} ${pedidos === 1 ? "pedido" : "pedidos"}`;
   const dia = grupo.id === "hoy" ? diaConNombre(hoy) : grupo.id === "manana" ? diaConNombre(grupo.pedidos[0].fechaEntrega!) : null;
   const tabla = (
     <table className="w-full table-fixed border-collapse text-[13px]">
@@ -221,10 +225,10 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
         </button>
       </div>
       <p className="mb-3 text-[13px] text-text-muted">
-        Pedidos pendientes de entregar, por la fecha que pidió el cliente (la solicitada). Pincha uno para abrirlo.
+        Las OF con su pedido pendiente de entregar, por la fecha que pidió el cliente (la solicitada). Pincha una para abrir su pedido.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2.5">
-        <CampoBuscar valor={filtros.texto} onCambiar={(texto) => cambiar({ texto })} pista="Pedido, cliente o localidad" />
+        <CampoBuscar valor={filtros.texto} onCambiar={(texto) => cambiar({ texto })} pista="Pedido, OF, cliente, artículo, rotulación…" />
         <Seleccion
           etiqueta="Delegación"
           valor={filtros.delegacion}
@@ -232,17 +236,11 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
           onCambiar={(delegacion) => cambiar({ delegacion })}
         />
         <FiltroFechas etiqueta="Fecha de entrega" desde={filtros.desde} hasta={filtros.hasta} onCambiar={(desde, hasta) => cambiar({ desde, hasta })} />
-        <Seleccion
-          etiqueta="Situación"
-          valor={filtros.situacion}
-          opciones={[["", "Todas"], ["fabrica", "En fábrica"], ["salir", "Esperando salir"]]}
-          onCambiar={(situacion) => cambiar({ situacion })}
-        />
         {!sonIniciales(filtros) && <BotonLimpiar onClick={() => setFiltros(INICIAL)} />}
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-error">{error} <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}
       <p role="status" className="mb-2 px-1 text-[13px] text-text-muted">
-        {pedidos === null ? (cargando ? "Cargando pedidos…" : "") : `${filas.length} de ${pedidos.length} pedidos`}
+        {pedidos === null ? (cargando ? "Cargando…" : "") : `${filas.length} de ${pedidos.length} OF · ${new Set(filas.map((f) => f.codigo)).size} pedidos`}
         {!enGrupos && pedidos !== null && (
           <>
             {" · "}
@@ -252,7 +250,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
           </>
         )}
       </p>
-      {pedidos !== null && filas.length === 0 && <p className="px-1 text-sm text-text-muted">No hay pedidos que coincidan con los filtros.</p>}
+      {pedidos !== null && filas.length === 0 && <p className="px-1 text-sm text-text-muted">No hay ninguna OF que coincida con los filtros.</p>}
       {filas.length > 0 && enGrupos && (
         <div className="flex flex-col gap-2.5" aria-busy={cargando}>
           {grupos.map((g) => (
@@ -264,7 +262,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
         <div className="tarjeta-of rounded-3xl bg-surface py-2" aria-busy={cargando}>
           <table className="w-full table-fixed border-collapse text-[13px]">
             <Cabecera filtros={filtros} conFecha onOrdenar={ordenar} />
-            <tbody>{filas.map((p) => <Fila key={p.codigo} p={p} conFecha onAbrir={onAbrir} />)}</tbody>
+            <tbody>{filas.map((p) => <Fila key={p.of} p={p} conFecha onAbrir={onAbrir} />)}</tbody>
           </table>
         </div>
       )}

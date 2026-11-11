@@ -1,28 +1,32 @@
 import { afterEach, expect, test, vi } from "vitest";
-import type { BaseHistorial, IndiceHistorial } from "../historial-indice";
-import { SECCION_POR_DEFECTO } from "../secciones";
+import type sql from "mssql";
 
-const { indiceSiListo, asegurarIndice } = vi.hoisted(() => ({ indiceSiListo: vi.fn(), asegurarIndice: vi.fn() }));
-vi.mock("../server/historial-indice", () => ({ indiceSiListo, asegurarIndice }));
-import { leerEntregasBelen } from "../server/entregas-belen-db";
+const { getPool } = vi.hoisted(() => ({ getPool: vi.fn() }));
+vi.mock("../server/db", () => ({ getPool }));
+import { articuloConCantidad, leerEntregasBelen } from "../server/entregas-belen-db";
 
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
-test("usa la entrega de Coordina; AR y delegaciones (SA, BE) todavía sin entregar", async () => {
+test("una fila por OF con la línea pendiente de entregar, recortada y con la fecha solicitada", async () => {
   vi.stubEnv("DATASOURCE", "rps");
-  const fila = (pedido: string, pendienteEntrega = true): BaseHistorial => ({
-    pedido, pendienteEntrega, fechaEntrega: Date.parse("2026-11-13T00:00:00Z"), trabajoAbierto: false, nOf: 4,
-    fechaPedido: null, fechaEntregado: null, tieneSeccion: true, pendienteSeccion: false, pendienteTotal: false, finalizada: null,
-  });
-  const indice = { base: { [SECCION_POR_DEFECTO]: [fila("AR.26.1"), fila("AR.26.2", false), fila("SA.26.1"), fila("LA.26.1")] }, info: new Map() } as unknown as IndiceHistorial;
-  indiceSiListo.mockReturnValue(indice);
-  const base = { cliente: null, ciudad: null, fechaEntrega: "2026-11-13", situacion: "salir", ofs: 4 };
-  expect(await leerEntregasBelen()).toEqual([{ codigo: "AR.26.1", ...base }, { codigo: "SA.26.1", ...base }]);
-  expect(asegurarIndice).toHaveBeenCalledOnce();
+  const query = vi.fn().mockResolvedValue({ recordset: [{
+    codigo: " AR.26.05272 ", of: "0233424 ", cliente: "PALETS CERVELO, S. L. ,", prioridad: 2, cantidad: 2,
+    articulo: "CAMTELTOLMOT ", articuloDescripcion: "CAMBIO DE TELA", formaEntrega: "INSTALAR", rotulacion: "  ",
+    fSol: new Date("2026-11-12T00:00:00Z"),
+  }] });
+  getPool.mockResolvedValue({ request: () => ({ query }) } as unknown as sql.ConnectionPool);
+  expect(await leerEntregasBelen()).toEqual([{
+    codigo: "AR.26.05272", of: "0233424", cliente: "PALETS CERVELO, S. L. ,", prioridad: 2, articulo: "2 × CAMTELTOLMOT",
+    articuloDescripcion: "CAMBIO DE TELA", formaEntrega: "INSTALAR", rotulacion: null, fechaEntrega: "2026-11-12",
+  }]);
+  // Solo lo pendiente de entregar y de AR, SA y BE.
+  expect(query.mock.calls[0][0]).toMatch(/PendingDelivery = 1/);
+  expect(query.mock.calls[0][0]).toMatch(/'SA\.%'/);
 });
 
-test("un índice todavía no disponible se comunica como error, nunca como lista vacía", async () => {
-  vi.stubEnv("DATASOURCE", "rps");
-  indiceSiListo.mockReturnValue(null);
-  await expect(leerEntregasBelen()).rejects.toThrow(/preparando/);
+test("el artículo con sus unidades, sin ceros de sobra", () => {
+  expect(articuloConCantidad(1, "CARPRECT2")).toBe("1 × CARPRECT2");
+  expect(articuloConCantidad(29.9, "REJILLA")).toBe("29,9 × REJILLA");
+  expect(articuloConCantidad(null, "X")).toBe("X");
+  expect(articuloConCantidad(3, null)).toBeNull();
 });
