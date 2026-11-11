@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-11",
-    "hasta": "38d30e5",
+    "hasta": "d7a5769",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -72,6 +72,33 @@
         "apartado": "produccion",
         "detalle": "Panel limpio, contador de notas nuevas y fecha y autor más fáciles de distinguir. La lista se adapta a la altura de la ventana.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "La prioridad del pedido se ve en el borde de cada fila de tus paneles",
+        "detalle": "Rojo si es urgente, ámbar suave si es normal y gris si es de poca prioridad.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Imprimir la OF y la reserva, cada una con su casilla",
+        "apartado": "produccion",
+        "detalle": "En cada OF imprime solo esa; en el pedido, todas. Si no hay nada reservado, la reserva no sale.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En las tareas ves dónde se suben los bultos y cuándo acabó cada una",
+        "apartado": "produccion",
+        "detalle": "La tarea de los bultos lleva la marca «Bultos» y la columna Fin es el día en que se finalizó.",
+        "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "«Pedidos por día de entrega» va por OF, con prioridad, artículo, forma de entrega y rotulación",
+        "apartado": "produccion",
+        "detalle": "Como tu Excel: una fila por OF, por la fecha que pidió el cliente.",
+        "tanda": 3
       }
     ]
   },
