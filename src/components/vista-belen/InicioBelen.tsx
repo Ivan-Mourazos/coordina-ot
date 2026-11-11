@@ -175,7 +175,7 @@ export function InicioBelen({ miId, listas, onAbrir }: {
                 type="button"
                 onClick={() => onAbrir(h.id)}
                 disabled={ordenando}
-                className={`flex flex-1 flex-col items-start gap-2 rounded-[inherit] p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
+                className={`belen-herramienta flex flex-1 flex-col items-start gap-2 rounded-[inherit] p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
                   ordenando ? "pointer-events-none" : "transition-transform duration-150 active:scale-[.98] motion-reduce:transition-none"
                 } ${esLaQueSeMueve ? "opacity-40" : ""}`}
               >

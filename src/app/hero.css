@@ -178,6 +178,19 @@ html[data-estilo="hero"] :where(button, a[role="button"]) {
 html[data-estilo="hero"]:root button.glass-panel:hover {
   scale: 1;
 }
+/* Una tarjeta o una fila de avisos conserva su forma al resaltarse: la regla
+   general de botones no debe convertir su superficie en una pastilla. */
+html[data-estilo="hero"]:root .belen-herramienta {
+  border-radius: inherit;
+  background-color: transparent;
+}
+html[data-estilo="hero"]:root .belen-notificacion {
+  border-radius: 12px;
+  background-color: transparent;
+}
+html[data-estilo="hero"]:root .belen-notificacion:hover {
+  background-color: var(--hero-relleno);
+}
 html[data-estilo="hero"] :where(button, a[role="button"]):active:not(:disabled) {
   scale: .97;
 }
