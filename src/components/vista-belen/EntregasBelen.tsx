@@ -13,7 +13,7 @@ import { hoyEnOficina } from "@/lib/consulta";
 import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, Seleccion } from "./Filtros";
 
-// ─── Pedidos por día de entrega ──────────────────────────────────────────────
+// ─── Pedidos por fecha solicitada ────────────────────────────────────────────
 // Una fila por OF, con las columnas en el orden de Belén (11/11/2026, con su
 // Excel): prioridad, pedido, OF, (cliente,) artículo, forma de entrega y
 // rotulación. La fecha es la solicitada de la línea.
@@ -37,7 +37,7 @@ const COLUMNAS: { clave: Orden; titulo: string; ancho: string; derecha?: boolean
   { clave: "rotulacion", titulo: "Rotulación", ancho: "w-[12rem]" },
 ];
 const NCOL = COLUMNAS.length;
-const COLUMNA_FECHA = { clave: "fechaEntrega" as const, titulo: "Fecha de entrega", ancho: "w-[8.5rem]" };
+const COLUMNA_FECHA = { clave: "fechaEntrega" as const, titulo: "Solicitada", ancho: "w-[8.5rem]" };
 const BOTON =
   "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
 
@@ -219,13 +219,13 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
   return (
     <main hidden={!activa} role="tabpanel" id="panel-entregas" aria-labelledby="pestana-entregas" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
       <div className="mb-1 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold">Pedidos por día de entrega</h1>
+        <h1 className="text-xl font-bold">Pedidos por fecha solicitada</h1>
         <button type="button" disabled={cargando} onClick={() => setIntento((n) => n + 1)} className={`ml-auto ${BOTON}`}>
           {cargando ? "Actualizando…" : "Actualizar"}
         </button>
       </div>
       <p className="mb-3 text-[13px] text-text-muted">
-        Las OF con su pedido pendiente de entregar, por la fecha que pidió el cliente (la solicitada). Pincha una para abrir su pedido.
+        Las OF con alguna tarea por acabar y el pedido sin entregar, por la fecha que pidió el cliente. Pincha una para abrir su pedido.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2.5">
         <CampoBuscar valor={filtros.texto} onCambiar={(texto) => cambiar({ texto })} pista="Pedido, OF, cliente, artículo, rotulación…" />
@@ -235,7 +235,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
           opciones={[["", "Todas"], ...(Object.entries(DELEGACIONES) as Array<[FiltrosEntregasBelen["delegacion"], string]>)]}
           onCambiar={(delegacion) => cambiar({ delegacion })}
         />
-        <FiltroFechas etiqueta="Fecha de entrega" desde={filtros.desde} hasta={filtros.hasta} onCambiar={(desde, hasta) => cambiar({ desde, hasta })} />
+        <FiltroFechas etiqueta="Fecha solicitada" desde={filtros.desde} hasta={filtros.hasta} onCambiar={(desde, hasta) => cambiar({ desde, hasta })} />
         {!sonIniciales(filtros) && <BotonLimpiar onClick={() => setFiltros(INICIAL)} />}
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-error">{error} <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}

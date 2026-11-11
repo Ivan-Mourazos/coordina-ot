@@ -210,3 +210,15 @@ describe("tiempos exactos de RPS", () => {
     expect(horaDeSegundos(null)).toBeNull();
   });
 });
+
+describe("OF en amarillo", () => {
+  test("solo con las visitas hechas y todas las tareas finalizadas", async () => {
+    const { ofEnAmarillo } = await import("../vista-belen");
+    const tp = (cerrado: string | null) => ({ tipo: "TP" as const, codigo: "I1", descripcion: "", cerrado });
+    const op = (estado: "finalizado" | "interrumpido") => ({ codigo: "5", descripcion: "", maquina: null, estado });
+    expect(ofEnAmarillo({ avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(true);
+    expect(ofEnAmarillo({ avisos: [tp("2026-11-01")], operaciones: [op("finalizado"), op("interrumpido")] })).toBe(false);
+    expect(ofEnAmarillo({ avisos: [tp(null)], operaciones: [op("finalizado")] })).toBe(false);
+    expect(ofEnAmarillo({ avisos: [], operaciones: [op("finalizado")] })).toBe(false);
+  });
+});

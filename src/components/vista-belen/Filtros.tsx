@@ -3,7 +3,7 @@
 import { SelectorFecha } from "../SelectorFecha";
 
 // ─── Filtros y orden de las listas de Belén ──────────────────────────────────
-// Las mismas piezas en «Pedidos por entrega» y en las listas de Comprobaciones
+// Las mismas piezas en «Por fecha solicitada» y en las listas de Comprobaciones
 // (Iván, 11/11/2026: «todas las pestañas con lista de pedidos, con filtros y
 // orden, estilo HeroUI»). Campos de 14 px de radio con su sombra mínima,
 // botones en pastilla y el calendario de siempre de Coordina para las fechas.

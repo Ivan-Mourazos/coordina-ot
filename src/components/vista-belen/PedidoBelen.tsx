@@ -5,7 +5,6 @@ import type { DocumentoRps } from "@/lib/historial";
 import {
   enFrase,
   fechaCorta,
-  fmtDuracion,
   ordenarOFs,
   resumenPedido,
   type MaterialPedido,
@@ -148,12 +147,19 @@ export function PedidoBelenView({
   ofResaltada,
   miId,
   abrirNotas = false,
+  version = 0,
+  actualizando = false,
+  onActualizar,
 }: {
   pedido: PedidoBelen;
   ofResaltada: string | null;
   /** Quién escribe las notas: la sesión. null = sin sesión, notas solo de lectura. */
   miId: string | null;
   abrirNotas?: boolean;
+  /** Sube con cada «Actualizar»: vuelve a pedir documentos, tiempos y material. */
+  version?: number;
+  actualizando?: boolean;
+  onActualizar?: () => void;
 }) {
   const r = resumenPedido(pedido);
   const { abiertas, finalizadas } = ordenarOFs(pedido.ofs);
@@ -163,14 +169,26 @@ export function PedidoBelenView({
   );
 
   const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
+  // Las OF van ENCOGIDAS, en una línea con lo que se mira de un vistazo
+  // (Belén, 11/11/2026); al pincharlas se despliega todo. La que se buscó por
+  // su número entra ya desplegada.
+  const [desplegadas, setDesplegadas] = useState<Set<string>>(() => new Set(ofResaltada ? [ofResaltada] : []));
+  const alternarOF = (of: string) =>
+    setDesplegadas((d) => {
+      const n2 = new Set(d);
+      if (n2.has(of)) n2.delete(of);
+      else n2.add(of);
+      return n2;
+    });
+  const todasDesplegadas = pedido.ofs.every((o) => desplegadas.has(o.of));
   const [seccion, setSeccion] = useState<Seccion>(abrirNotas ? "notas" : "resumen");
-  const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos`, (j) =>
+  const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos?v=${version}`, (j) =>
     (j as { documentos?: DocumentoRps[] }).documentos ?? [],
   );
-  const tiempos = useCarga(`/api/vista-belen?tiempos=${encodeURIComponent(pedido.codigo)}`, (j) =>
+  const tiempos = useCarga(`/api/vista-belen?tiempos=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
     (j as { tiempos: TiemposPedido | null }).tiempos,
   );
-  const material = useCarga(`/api/vista-belen?material=${encodeURIComponent(pedido.codigo)}`, (j) =>
+  const material = useCarga(`/api/vista-belen?material=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
     (j as { material: MaterialPedido | null }).material,
   );
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
@@ -184,11 +202,7 @@ export function PedidoBelenView({
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
-    {
-      id: "tiempos",
-      label: "Tareas y tiempos",
-      extra: tiempos.tipo === "listo" && tiempos.datos ? fmtDuracion(tiempos.datos.minutos) : undefined,
-    },
+    { id: "tiempos", label: "Tareas y tiempos" },
     {
       id: "material",
       label: "Material",
@@ -213,7 +227,21 @@ export function PedidoBelenView({
               COT pendiente
             </span>
           )}
-          <span className="ml-auto" title={`Todas las OF ${abiertas.length ? "abiertas " : ""}del pedido`}>
+          {onActualizar && (
+            <button
+              type="button"
+              onClick={onActualizar}
+              disabled={actualizando}
+              title="Vuelve a leer el pedido de RPS: OF, tareas, bultos, material y documentos"
+              className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--hero-relleno)] px-3 text-[12.5px] font-semibold text-text transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] motion-reduce:transition-none"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className={`size-4 ${actualizando ? "animate-spin motion-reduce:animate-none" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5" />
+              </svg>
+              {actualizando ? "Actualizando…" : "Actualizar"}
+            </button>
+          )}
+          <span className={onActualizar ? "" : "ml-auto"} title={`Todas las OF ${abiertas.length ? "abiertas " : ""}del pedido`}>
             <ImprimirOF
               ofs={paraImprimir.map((o) => o.of)}
               conReserva={material.tipo !== "listo" ? undefined : paraImprimir.some((o) => conReserva(o.of))}
@@ -266,16 +294,6 @@ export function PedidoBelenView({
                 </b>
               </>
             }
-          />
-          <Cifra
-            etiqueta="Fichado"
-            valor={tiempos.tipo === "listo" && tiempos.datos ? fmtDuracion(tiempos.datos.minutos) : "…"}
-            sub={
-              tiempos.tipo === "listo" && tiempos.datos
-                ? n(tiempos.datos.personas.length, "persona", "personas")
-                : "Cargando"
-            }
-            onClick={() => setSeccion("tiempos")}
           />
           <Cifra
             etiqueta="Material"
@@ -417,8 +435,17 @@ export function PedidoBelenView({
 
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
+      <div className="flex justify-end px-1">
+        <button
+          type="button"
+          onClick={() => setDesplegadas(todasDesplegadas ? new Set() : new Set(pedido.ofs.map((o) => o.of)))}
+          className="rounded-full px-3 py-1 text-[12.5px] font-semibold text-text-muted transition-[transform,background-color] hover:bg-[var(--hero-relleno)] hover:text-text active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] motion-reduce:transition-none"
+        >
+          {todasDesplegadas ? "Recoger todas" : "Desplegar todas"}
+        </button>
+      </div>
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -437,7 +464,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} />
           ))}
         </div>
       </Desplegable>

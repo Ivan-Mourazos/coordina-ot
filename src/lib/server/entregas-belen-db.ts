@@ -3,13 +3,16 @@ import { PEDIDOS } from "../mock";
 import { getPool } from "./db";
 import { ES_RPS, iso, texto } from "./rps-belen-comun";
 
-// ─── Pedidos por día de entrega: una fila por OF ─────────────────────────────
+// ─── Pedidos por fecha solicitada: una fila por OF ───────────────────────────
 // Solo lectura, contra RPS. Cada OF cuya línea de pedido sigue pendiente de
 // entregar (PendingDelivery = 1: ni albaranada ni cumplimentada), de Arzúa y de
 // las delegaciones (Santiago y Bergondo); la pantalla elige cuál ver. Como el
 // Excel de Belén (11/11/2026): prioridad, pedido, OF, cliente, artículo, forma
-// de entrega, rotulación y fecha solicitada. Medido contra RPS el 11/11/2026:
-// 760 OF de 465 pedidos en 0,3 s.
+// de entrega, rotulación y fecha solicitada. Solo las OF con alguna tarea sin
+// acabar (Belén, 11/11/2026: «los ya finalizados no deben salir; si tienen
+// alguna tarea sin finalizar, sí»): ni al 100 % en RPS ni finalizada en
+// OLANET. Medido contra RPS el 11/11/2026: 524 OF de 306 pedidos en 0,1 s
+// (sin ese filtro eran 760).
 
 const SQL = `
   SELECT ped.CodOrder AS codigo, mo.CodManufacturingOrder AS [of], cli.Description AS cliente,
@@ -25,7 +28,13 @@ const SQL = `
   LEFT JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = lin.IDOrderLine
   LEFT JOIN dbo._FormaEntregaPedido fe ON fe.IDFormaEntregaPedido = lc.IDFormaEntrega
   WHERE lin.CodCompany = '001' AND ped.CodCompany = '001' AND lin.PendingDelivery = 1
-    AND (ped.CodOrder LIKE 'AR.%' OR ped.CodOrder LIKE 'SA.%' OR ped.CodOrder LIKE 'BE.%')`;
+    AND (ped.CodOrder LIKE 'AR.%' OR ped.CodOrder LIKE 'SA.%' OR ped.CodOrder LIKE 'BE.%')
+    AND EXISTS (
+      SELECT 1 FROM dbo.CPRMOTask t
+      WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.PercentProgress < 100
+        AND ISNULL((SELECT TOP (1) e.idestadoof FROM dbo.tgm_estadosof_olanet e
+                    WHERE e.orden = mo.CodManufacturingOrder AND e.fase = t.CodMOTask
+                    ORDER BY e.fecha_cambio DESC), 0) <> 3)`;
 
 interface FilaRps {
   codigo: string;

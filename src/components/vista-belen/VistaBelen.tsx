@@ -41,7 +41,7 @@ type Pestana = "pedido" | "comprobaciones" | "entregas";
 const PESTANAS: { id: Pestana; label: string }[] = [
   { id: "pedido", label: "Inicio" },
   { id: "comprobaciones", label: "Comprobaciones" },
-  { id: "entregas", label: "Pedidos por entrega" },
+  { id: "entregas", label: "Por fecha solicitada" },
 ];
 
 type Estado =
@@ -49,7 +49,7 @@ type Estado =
   | { tipo: "buscando" }
   | { tipo: "elegir"; pedidos: PedidoEncontrado[] }
   | { tipo: "nada"; q: string }
-  | { tipo: "pedido"; pedido: PedidoBelen; ofResaltada: string | null; abrirNotas: boolean }
+  | { tipo: "pedido"; pedido: PedidoBelen; ofResaltada: string | null; abrirNotas: boolean; version: number; actualizando?: boolean }
   | { tipo: "error"; mensaje: string };
 
 /** Lo que se apunta en el historial con cada paso, para saber si «Volver»
@@ -85,6 +85,11 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
+  // Lo último pintado, para que «Actualizar» sepa qué pedido volver a pedir.
+  const estadoRef = useRef(estado);
+  useEffect(() => {
+    estadoRef.current = estado;
+  }, [estado]);
   const caja = useRef<HTMLInputElement>(null);
   const enCurso = useRef<AbortController | null>(null);
 
@@ -122,13 +127,36 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
         ctl.signal,
       );
       if (ctl.signal.aborted) return;
-      setEstado(pedido ? { tipo: "pedido", pedido, ofResaltada, abrirNotas } : { tipo: "nada", q: codigo });
+      setEstado(pedido ? { tipo: "pedido", pedido, ofResaltada, abrirNotas, version: 0 } : { tipo: "nada", q: codigo });
       // En la caja queda el código entero: escribió «4716» y ve AR.26.04716.
       if (pedido) {
         setQ(pedido.codigo);
       }
     } catch (e) {
       if (!ctl.signal.aborted) setEstado({ tipo: "error", mensaje: (e as Error).message });
+    }
+  }, []);
+
+  /** Vuelve a leer de RPS el pedido abierto (OF, tareas, bultos…) sin quitar
+   *  la pantalla ni cambiar de pestaña. Belén, 11/11/2026: «por si hace un
+   *  cambio de los bultos o lo que sea, que aparezca al actualizar». La
+   *  versión nueva hace que documentos, tiempos y material se pidan otra vez. */
+  const actualizarPedido = useCallback(async () => {
+    const actual = estadoRef.current;
+    if (actual.tipo !== "pedido") return;
+    setEstado({ ...actual, actualizando: true });
+    try {
+      const { pedido } = await pedirJson<{ pedido: PedidoBelen | null }>(
+        `/api/vista-belen?pedido=${encodeURIComponent(actual.pedido.codigo)}`,
+        new AbortController().signal,
+      );
+      setEstado((e) =>
+        e.tipo === "pedido" && e.pedido.codigo === actual.pedido.codigo
+          ? { ...e, pedido: pedido ?? e.pedido, version: e.version + 1, actualizando: false }
+          : e,
+      );
+    } catch {
+      setEstado((e) => (e.tipo === "pedido" ? { ...e, actualizando: false } : e));
     }
   }, []);
 
@@ -397,7 +425,7 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
               </button>
             </form>
           </div>
-          <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} />
+          <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} onActualizar={() => void actualizarPedido()} />
           {estado.tipo === "vacio" && (
             <InicioBelen
               miId={miId}
@@ -453,10 +481,12 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
 function ResultadoBusqueda({
   estado,
   onElegir,
+  onActualizar,
   miId,
 }: {
   estado: Estado;
   onElegir: (codigo: string) => void;
+  onActualizar: () => void;
   miId: string | null;
 }) {
   switch (estado.tipo) {
@@ -498,7 +528,16 @@ function ResultadoBusqueda({
       );
     case "pedido":
       return (
-        <PedidoBelenView key={`${estado.pedido.codigo}:${estado.abrirNotas}`} pedido={estado.pedido} ofResaltada={estado.ofResaltada} miId={miId} abrirNotas={estado.abrirNotas} />
+        <PedidoBelenView
+          key={`${estado.pedido.codigo}:${estado.abrirNotas}`}
+          pedido={estado.pedido}
+          ofResaltada={estado.ofResaltada}
+          miId={miId}
+          abrirNotas={estado.abrirNotas}
+          version={estado.version}
+          actualizando={!!estado.actualizando}
+          onActualizar={onActualizar}
+        />
       );
   }
 }

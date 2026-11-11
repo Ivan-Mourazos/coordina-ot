@@ -1,6 +1,6 @@
 import { sumarDias } from "./fechas";
 
-// ─── Pedidos por día de entrega: UNA FILA POR OF ─────────────────────────────
+// ─── Pedidos por fecha solicitada: UNA FILA POR OF ───────────────────────────
 // Belén, 11/11/2026, con su Excel de ejemplo: «1º prioridad, 2º pedido, 3º OF,
 // 4º artículo, 5º forma de entrega, 6º rotulación». Cada OF con su línea de
 // pedido pendiente de entregar (AR, SA y BE) y la fecha que pidió el cliente.
@@ -83,7 +83,7 @@ const TITULOS: Record<IdGrupoEntrega, string> = {
   manana: "Mañana",
   semana: "Resto de la semana",
   despues: "Más adelante",
-  sinFecha: "Sin fecha de entrega",
+  sinFecha: "Sin fecha solicitada",
 };
 
 /** La de siempre de Coordina (lib/fechas): aquí se reexporta para los tests. */

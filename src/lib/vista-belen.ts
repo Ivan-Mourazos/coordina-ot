@@ -77,6 +77,11 @@ export interface OFBelen {
   subidas: number;
   /** ISO yyyy-mm-dd. La que pidió el cliente («F.Sol»). */
   fechaSolicitada: string | null;
+  /** ISO yyyy-mm-dd. «F. ENTREGA» de la hoja de ruta: la fecha de fabricación
+   *  de la OF en RPS (ManualEndDate). */
+  fechaEntrega?: string | null;
+  /** Descripción del artículo de la OF. */
+  articulo?: string | null;
   /** ISO yyyy-mm-dd. La que dio Producción («F.Compro»). */
   fechaComprometida: string | null;
   /** ISO yyyy-mm-dd. Cuándo llega lo último que falta de compras. */
@@ -140,6 +145,17 @@ export function agruparPaquetes(
     grupos.set(clave, g);
   }
   return [...grupos.values()];
+}
+
+/** ¿La OF va en amarillo? Belén (11/11/2026): cuando tiene sus visitas
+ *  (TP/COT) hechas Y todas sus tareas finalizadas. Es de la OF, no del pedido.
+ *  Sin TP ni COT no hay amarillo. */
+export function ofEnAmarillo(of: Pick<OFBelen, "avisos" | "operaciones">): boolean {
+  return (
+    of.avisos.length > 0 &&
+    of.avisos.every((a) => a.cerrado) &&
+    of.operaciones.every((o) => o.estado === "finalizado")
+  );
 }
 
 export function puntoBultos(cantidad: number, subidas: number): PuntoBultos {

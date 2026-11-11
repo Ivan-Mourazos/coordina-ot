@@ -58,6 +58,8 @@ interface FilaOF {
   detalleLinea: string | null;
   comentarioVenta: string | null;
   fSol: Date | null;
+  fEntrega: Date | null;
+  articulo: string | null;
   formaEntrega: string | null;
   rotulacion: string | null;
   subidas: number | null;
@@ -100,6 +102,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              mo.Priority AS prioridad, mo.Quantity AS cantidad,
              CAST(mo.Description AS varchar(300)) AS descripcion, sit.Description AS situacion,
              CAST(mo.Notes AS varchar(1000)) AS notas, lin.ReceptionDemandDate AS fSol,
+             -- «F. ENTREGA» de la hoja de ruta de RPS: la fecha de fabricación de la OF.
+             mo.ManualEndDate AS fEntrega,
+             CAST((SELECT Description FROM dbo.STKArticle WHERE IDArticle = mo.IDArticle) AS varchar(300)) AS articulo,
              CAST(lin.Comment AS varchar(4000)) AS detalleLinea, CAST(p.Comment AS varchar(4000)) AS comentarioVenta,
              fe.DescripcionFormaEntregaPedido AS formaEntrega, lc.TextoRotulacion AS rotulacion,
              (SELECT SUM(Quantity) FROM dbo.CPRImputationEntryProduct
@@ -210,6 +215,8 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       cantidad: Number(f.cantidad) || 0,
       subidas: Number(f.subidas) || 0,
       fechaSolicitada: iso(f.fSol),
+      fechaEntrega: iso(f.fEntrega),
+      articulo: texto(f.articulo),
       fechaComprometida: fechaDeTexto(f.fCompro),
       fechaCompras: iso(f.fCompras),
       formaEntrega: texto(f.formaEntrega),
