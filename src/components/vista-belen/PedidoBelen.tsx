@@ -14,7 +14,7 @@ import {
 import { estadoMaterialDe } from "@/lib/types";
 import { AcentoBloque } from "../AcentoBloque";
 import { Desplegable } from "../Desplegable";
-import { DocumentosRps } from "../DocumentosRps";
+import { DocumentosBelen } from "./DocumentosBelen";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
@@ -368,24 +368,24 @@ export function PedidoBelenView({
 
       {seccion === "documentos" && (
         <div role="tabpanel" id="panel-detalle-documentos" aria-labelledby="detalle-documentos" className="tarjeta-of rounded-3xl bg-surface px-5 py-4">
-          <div data-bloque="documentos" className="cabecera-bloque mb-2 flex items-center gap-1.5 text-[13px] font-semibold">
+          <div data-bloque="documentos" className="cabecera-bloque mb-3 flex flex-wrap items-center gap-1.5 text-[14px] font-semibold">
             <AcentoBloque tipo="documentos" />
             Documentos del pedido
-            <span className="ml-auto text-[12px] font-normal text-text-muted">Pincha uno para verlo en grande; las flechas pasan al siguiente</span>
+            <span className="ml-auto text-[12.5px] font-normal text-text-muted">Pincha uno para verlo en grande; con las flechas pasas al siguiente</span>
           </div>
-          {docs.tipo === "cargando" && <p className="text-sm text-text-muted">Cargando documentos…</p>}
+          {docs.tipo === "cargando" && (
+            <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr))]" aria-label="Cargando documentos">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-[var(--hero-relleno)] motion-reduce:animate-none" />
+              ))}
+            </div>
+          )}
           {docs.tipo === "error" && (
             <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
               No se pudieron leer los documentos de RPS. Prueba otra vez en un momento.
             </p>
           )}
-          {docs.tipo === "listo" &&
-            (docs.datos.length ? (
-              // Los planteamientos primero: es lo que más busca (Belén, 09/11/2026).
-              <DocumentosRps documentos={docs.datos} clasePrimero="Planteamiento" abrirPrimera />
-            ) : (
-              <p className="text-sm text-text-muted">Este pedido no tiene documentos en RPS.</p>
-            ))}
+          {docs.tipo === "listo" && <DocumentosBelen documentos={docs.datos} />}
         </div>
       )}
 
