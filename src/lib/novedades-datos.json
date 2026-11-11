@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-11",
-    "hasta": "87b07dd",
+    "hasta": "38d30e5",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -39,6 +39,13 @@
         "tanda": 1
       },
       {
+        "tipo": "arreglado",
+        "titulo": "Las herramientas y los avisos ya no se vuelven ovalados al pasar el ratón",
+        "apartado": "produccion",
+        "detalle": "El resaltado respeta la forma de cada tarjeta y de cada nota.",
+        "tanda": 2
+      },
+      {
         "tipo": "mejor",
         "titulo": "Al buscar un pedido ves todo de golpe, en tu orden",
         "apartado": "produccion",
@@ -58,6 +65,13 @@
         "apartado": "produccion",
         "detalle": "Pulsa «Ordenar herramientas» y arrastra cada tarjeta: verás cómo queda antes de soltarla.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las notificaciones tienen el mismo diseño que el resto de la web",
+        "apartado": "produccion",
+        "detalle": "Panel limpio, contador de notas nuevas y fecha y autor más fáciles de distinguir. La lista se adapta a la altura de la ventana.",
+        "tanda": 2
       }
     ]
   },
