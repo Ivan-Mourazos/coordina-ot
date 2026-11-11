@@ -101,17 +101,28 @@ function Tarjeta({ doc, onAbrir, enSuOrden = false }: { doc: DocBelen; onAbrir: 
 export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) {
   const { grupos, destacados, sinFichero } = useMemo(() => ordenarDocumentos(documentos), [documentos]);
   const [filtro, setFiltro] = useState<string>("todo");
-  const visibles = filtro === "todo" ? grupos : grupos.filter((g) => g.grupo === filtro);
+  // En «Todo», la rejilla NO repite lo que ya va destacado arriba (Iván,
+  // 11/11/2026: «se repiten los documentos»); con una clase elegida salen
+  // todos los suyos, también el destacado, para comparar versiones.
+  const destacadosDocs = destacados.map((d) => d.doc);
+  const visibles =
+    filtro === "todo"
+      ? grupos
+          .map((g) => ({ ...g, documentos: g.documentos.filter((d) => !destacadosDocs.includes(d)) }))
+          .filter((g) => g.documentos.length > 0)
+      : grupos.filter((g) => g.grupo === filtro);
   // El visor pasa por los documentos en el MISMO orden en que se ven: la
   // lista y la posición se guardan juntas al abrir.
   const [visor, setVisor] = useState<{ docs: DocBelen[]; i: number } | null>(null);
   const abrir = (doc: DocBelen) => {
-    const vistos = visibles.flatMap((g) => g.documentos);
+    const vistos = filtro === "todo" ? [...destacadosDocs, ...visibles.flatMap((g) => g.documentos)] : visibles.flatMap((g) => g.documentos);
     // Un destacado de una clase que el filtro esconde: se pasea por todos.
     const docs = vistos.includes(doc) ? vistos : grupos.flatMap((g) => g.documentos);
     setVisor({ docs, i: docs.indexOf(doc) });
   };
   const total = grupos.reduce((n, g) => n + g.documentos.length, 0);
+  // Sin nada más que lo destacado, sobran las píldoras y la rejilla.
+  const hayMas = total > destacadosDocs.length;
 
   if (!total) {
     return (
@@ -132,6 +143,7 @@ export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) 
       )}
 
       {/* La misma píldora que se desliza del resto de Coordina. */}
+      {hayMas && (
       <div role="group" aria-label="Ver" className="tira-3d glass-chip inline-flex flex-wrap self-start rounded-lg p-[3px]">
         {[["todo", "Todo", total] as const, ...grupos.map((g) => [g.grupo, g.grupo, g.documentos.length] as const)].map(([id, rotulo, n]) => (
           <button
@@ -146,8 +158,13 @@ export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) 
           </button>
         ))}
       </div>
+      )}
 
-      {visibles.map((g) => {
+      {hayMas && filtro === "todo" && destacados.length > 0 && (
+        <h3 className="-mb-2 text-[13px] font-semibold text-text-muted">El resto de documentos</h3>
+      )}
+
+      {(hayMas || filtro !== "todo") && visibles.map((g) => {
         // Las fotos, en bloques por orden de mantenimiento; lo demás, de una vez.
         const bloques =
           g.grupo === "Fotos"
@@ -157,7 +174,7 @@ export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) 
           <section key={g.grupo} aria-label={g.grupo}>
             {filtro === "todo" && (
               <h3 className="mb-2 flex items-baseline gap-2 text-[14px] font-semibold">
-                {g.grupo}
+                {destacados.some((d) => d.doc.grupo === g.grupo) ? `${g.grupo} · otras versiones` : g.grupo}
                 <span className="text-[12px] font-medium tabular-nums text-text-muted">{g.documentos.length}</span>
               </h3>
             )}
