@@ -1,5 +1,67 @@
 [
   {
+    "id": "2026-11-11",
+    "hasta": "87b07dd",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En «Pedidos por entrega» puedes elegir la delegación",
+        "apartado": "produccion",
+        "detalle": "Arzúa, Santiago, Bergondo o todas. Así ves lo de hoy, mañana y lo atrasado de cada una.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Todas las listas se pueden filtrar y ordenar",
+        "apartado": "produccion",
+        "detalle": "Buscar, elegir un día o un rango con el calendario y ordenar pinchando en cualquier columna.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La fecha comprometida era distinta en la lista y en el pedido",
+        "apartado": "produccion",
+        "detalle": "Si se apuntó más de una vez, ahora las dos pantallas enseñan la última.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los TP y los paquetes ya no salen repetidos",
+        "apartado": "produccion",
+        "detalle": "Cada TP o COT sale una sola vez, y los paquetes se juntan por persona y día con sus unidades.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Los calendarios de los filtros ya no se salen de la pantalla",
+        "apartado": "produccion",
+        "detalle": "Se ajustan al espacio disponible y permiten desplazarse por dentro si falta altura. Los campos de los filtros también respetan el ancho de la ventana.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al buscar un pedido ves todo de golpe, en tu orden",
+        "apartado": "produccion",
+        "detalle": "Cada OF enseña sus fechas, el comentario, el paquete, los TP/COT y todas sus tareas con la sección, el tiempo y el último fichaje, sin tener que desplegar nada.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los tiempos de las tareas son exactos, al segundo, con la hora de inicio y fin",
+        "apartado": "produccion",
+        "detalle": "Antes salían redondeados al minuto y con la hora en que se volcaban a RPS. Los fichajes de menos de un minuto ya no salen.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Las herramientas de la portada se ordenan arrastrándolas",
+        "apartado": "produccion",
+        "detalle": "Pulsa «Ordenar herramientas» y arrastra cada tarjeta: verás cómo queda antes de soltarla.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-10",
     "hasta": "104ea8d",
     "cambios": [
