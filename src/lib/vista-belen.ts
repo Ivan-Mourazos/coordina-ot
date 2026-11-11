@@ -504,3 +504,25 @@ export function agruparTiempos(filas: readonly FilaTiempo[]): TiemposPedido {
     personas: [...personas.values()].sort((a, b) => b.minutos - a.minutos),
   };
 }
+
+/** Las personas que han fichado en UNA OF, de más a menos tiempo, con sus
+ *  fichajes por fecha: la vista «Por persona» del desplegable de la OF. */
+export function personasDeOF(of: OFTiempos): PersonaTiempos[] {
+  const porPersona = new Map<string, PersonaTiempos>();
+  for (const t of of.tareas) {
+    for (const p of t.personas) {
+      const yo = porPersona.get(p.persona) ?? { persona: p.persona, minutos: 0, dias: 0, primerDia: null, ultimoDia: null, fichajes: [] };
+      yo.minutos += p.minutos;
+      yo.fichajes.push(...p.fichajes.map((f) => ({ ...f, of: of.of, tarea: t.codigo, descripcion: t.descripcion })));
+      porPersona.set(p.persona, yo);
+    }
+  }
+  for (const p of porPersona.values()) {
+    p.fichajes.sort((a, b) => a.dia.localeCompare(b.dia) || (a.hora ?? "").localeCompare(b.hora ?? ""));
+    const dias = [...new Set(p.fichajes.map((f) => f.dia))].sort();
+    p.dias = dias.length;
+    p.primerDia = dias[0] ?? null;
+    p.ultimoDia = dias[dias.length - 1] ?? null;
+  }
+  return [...porPersona.values()].sort((a, b) => b.minutos - a.minutos);
+}

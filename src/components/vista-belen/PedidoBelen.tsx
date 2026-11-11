@@ -18,7 +18,6 @@ import { DocumentosBelen } from "./DocumentosBelen";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
-import { TiemposBelen } from "./TiemposBelen";
 import { chip, FECHA } from "./estilos-belen";
 import { ImprimirOF } from "./ImprimirOF";
 
@@ -33,7 +32,9 @@ import { ImprimirOF } from "./ImprimirOF";
 // en un monitor pequeño sin un scroll eterno. Documentos y tiempos se piden al
 // abrir el pedido, en paralelo, para que cambiar de pestaña sea instantáneo.
 
-type Seccion = "resumen" | "documentos" | "tiempos" | "material" | "notas";
+// Sin «Tareas y tiempos» desde el 11/11/2026: los fichajes van dentro de cada
+// OF desplegada, «Por tarea» o «Por persona».
+type Seccion = "resumen" | "documentos" | "material" | "notas";
 type Carga<T> = { tipo: "cargando" } | { tipo: "listo"; datos: T } | { tipo: "error" };
 
 function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
@@ -199,10 +200,13 @@ export function PedidoBelenView({
   const conReserva = (of: string): boolean | undefined =>
     material.tipo !== "listo" ? undefined : !!material.datos?.ofs.find((o) => o.of === of)?.materiales.some((m) => m.reservada > 0);
   const paraImprimir = abiertas.length ? abiertas : pedido.ofs;
+  // Los fichajes de cada OF, para su «Por tarea / Por persona». undefined
+  // mientras cargan; null si RPS no tiene ninguno.
+  const tiemposDe = (of: string) =>
+    tiempos.tipo === "cargando" ? undefined : tiempos.tipo === "listo" ? (tiempos.datos?.ofs.find((o) => o.of === of) ?? null) : null;
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
-    { id: "tiempos", label: "Tareas y tiempos" },
     {
       id: "material",
       label: "Material",
@@ -416,23 +420,6 @@ export function PedidoBelenView({
         </div>
       )}
 
-      {seccion === "tiempos" && (
-        <div role="tabpanel" id="panel-detalle-tiempos" aria-labelledby="detalle-tiempos">
-          {tiempos.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando tareas y tiempos…</p>}
-          {tiempos.tipo === "error" && (
-            <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
-              No se pudieron leer los tiempos de RPS. Prueba otra vez en un momento.
-            </p>
-          )}
-          {tiempos.tipo === "listo" &&
-            (tiempos.datos ? (
-              <TiemposBelen tiempos={tiempos.datos} />
-            ) : (
-              <p className="px-1 text-sm text-text-muted">Este pedido no tiene tareas en RPS.</p>
-            ))}
-        </div>
-      )}
-
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
       <div className="flex justify-end px-1">
@@ -445,7 +432,7 @@ export function PedidoBelenView({
         </button>
       </div>
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -464,7 +451,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegadas.has(o.of)} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} />
           ))}
         </div>
       </Desplegable>

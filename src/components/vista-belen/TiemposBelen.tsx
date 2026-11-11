@@ -7,21 +7,16 @@ import {
   fmtDuracion,
   type PersonaTiempos,
   type TareaTiempos,
-  type TiemposPedido,
 } from "@/lib/vista-belen";
-import { AcentoBloque } from "../AcentoBloque";
 import { Desplegable } from "../Desplegable";
-import { ESTADO_OPERACION } from "./estilos-belen";
 import { CaraPersona, colorDePersona } from "./CaraPersona";
 
-// ─── Tareas y tiempos del pedido, en la pantalla de Belén ────────────────────
-// Dos maneras de mirar lo mismo:
-//   · Por tarea: OF → tarea → quién y cuánto; al desplegar, cada fichaje.
-//   · Por persona: quién, cuánto y qué días; al desplegar, cada fichaje con
-//     la OF y la tarea, por día.
-// Arriba, las cifras del pedido. Todo cerrado al entrar: con 20 tareas
-// abiertas no se ve nada; se despliega lo que interesa (con la animación de
-// Coordina, Desplegable).
+// ─── Los fichajes del pedido, en la pantalla de Belén ────────────────────────
+// Antes, una pestaña «Tareas y tiempos» con dos vistas. Desde el 11/11/2026
+// (Iván: «si al desplegar la OF salen los tiempos, ¿para qué la pestaña?»):
+//   · Por tarea → FichajesDeTarea, dentro de cada tarea de la OF desplegada.
+//   · Por persona → TiemposPorPersona, plegado al final del resumen.
+// Tiempos exactos de RPS (inicio y fin), sin los fichajes de menos de 1 min.
 
 
 // Tiempos EXACTOS de RPS (inicio y fin del fichaje), sin redondear; los de
@@ -55,17 +50,6 @@ function Flecha({ abierta }: { abierta: boolean }) {
   );
 }
 
-function Cifra({ etiqueta, valor, sub }: { etiqueta: string; valor: React.ReactNode; sub?: string }) {
-  return (
-    <div className="min-w-0 rounded-2xl bg-surface px-3 py-2 shadow-[var(--hero-sombra-panel)]">
-      <div className="text-[11.5px] font-medium text-text-muted">{etiqueta}</div>
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-[17px] font-bold leading-tight tabular-nums">{valor}</span>
-        {sub && <span className="truncate text-[11.5px] text-text-muted">{sub}</span>}
-      </div>
-    </div>
-  );
-}
 
 const FILA =
   "w-full text-left transition-[background-color,transform] enabled:hover:bg-[var(--hero-relleno)] enabled:active:scale-[.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus motion-reduce:transition-none";
@@ -102,62 +86,24 @@ function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: 
   );
 }
 
-function FilaTarea({ t, abierta, onAlternar }: { t: TareaTiempos; abierta: boolean; onAlternar: () => void }) {
-  const e = ESTADO_OPERACION[t.estado];
-  const conFichajes = t.personas.length > 0;
+/** Quién fichó en una tarea y cuándo: cada persona con su total y, debajo,
+ *  sus fichajes por día con la franja horaria. Va dentro del desplegable de la
+ *  tarea, en la ficha de la OF. */
+export function FichajesDeTarea({ tarea }: { tarea: TareaTiempos }) {
+  if (!tarea.personas.length) return <p className="text-[12.5px] text-text-muted">Nadie ha fichado en esta tarea.</p>;
   return (
-    <li className="border-t border-border first:border-t-0">
-      <button
-        type="button"
-        disabled={!conFichajes}
-        aria-expanded={conFichajes ? abierta : undefined}
-        onClick={onAlternar}
-        className={`${FILA} grid grid-cols-[1rem_0.6rem_2.2rem_minmax(0,1fr)_6.5rem_5rem] items-center gap-x-2 px-4 py-2 text-[13px] min-[1000px]:grid-cols-[1rem_0.6rem_2.2rem_minmax(0,1.2fr)_minmax(0,1.3fr)_6.5rem_5rem]`}
-      >
-        <span>{conFichajes && <Flecha abierta={abierta} />}</span>
-        <span className={`size-2 rounded-full ${e.punto}`} aria-hidden />
-        <span className="text-right text-[12px] tabular-nums text-text-muted">{t.codigo}</span>
-        <span className="min-w-0">
-          <span className="block truncate font-medium" title={enFrase(t.descripcion)}>
-            {enFrase(t.descripcion)}
-          </span>
-          {t.maquina && <span className="text-[11px] text-text-muted">{t.maquina}</span>}
-        </span>
-        {/* Quién, con su cara, en pantallas de 1000 px o más. */}
-        <span className="hidden min-w-0 items-center gap-1 min-[1000px]:flex">
-          {t.personas.length ? (
-            <>
-              {t.personas.slice(0, 4).map((p) => (
-                <span key={p.persona} title={`${p.persona} · ${min(p.minutos)}`}>
-                  <CaraPersona nombre={p.persona} tamano="xs" />
-                </span>
-              ))}
-              <span className="ml-1 truncate text-[12px] text-text-muted">
-                {t.personas.length === 1 ? t.personas[0].persona : `${t.personas.length} personas`}
-              </span>
-            </>
-          ) : (
-            <span className="text-[12px] text-text-muted">Nadie ha fichado</span>
-          )}
-        </span>
-        <span className={`text-[11.5px] font-semibold ${e.tinta}`}>{e.texto}</span>
-        <span className="text-right font-bold tabular-nums">{conFichajes ? min(t.minutos) : "—"}</span>
-      </button>
-      <Desplegable abierto={abierta}>
-        <div className="bg-[var(--detalle)] px-4 pb-3 pl-[5rem] pt-2">
-          {t.personas.map((p) => (
-            <div key={p.persona} className="mt-2 first:mt-0">
-              <div className="flex items-center gap-2 text-[13px]">
-                <CaraPersona nombre={p.persona} tamano="xs" />
-                <span className="font-semibold">{p.persona}</span>
-                <span className="ml-auto font-bold tabular-nums">{min(p.minutos)}</span>
-              </div>
-              <FichajesPorDia fichajes={p.fichajes} />
-            </div>
-          ))}
+    <div className="flex flex-col gap-2">
+      {tarea.personas.map((p) => (
+        <div key={p.persona}>
+          <div className="flex items-center gap-2 text-[13px]">
+            <CaraPersona nombre={p.persona} tamano="xs" />
+            <span className="font-semibold">{p.persona}</span>
+            <span className="ml-auto font-bold tabular-nums">{min(p.minutos)}</span>
+          </div>
+          <FichajesPorDia fichajes={p.fichajes} />
         </div>
-      </Desplegable>
-    </li>
+      ))}
+    </div>
   );
 }
 
@@ -252,91 +198,24 @@ function FilaPersona({
   );
 }
 
-export function TiemposBelen({ tiempos }: { tiempos: TiemposPedido }) {
-  const [modo, setModo] = useState<"tarea" | "persona">("tarea");
-  // Una sola abierta a la vez (Iván, 10/11/2026): al desplegar otra, la de
-  // antes se recoge. La clave lleva el modo, así no se cruzan las dos vistas.
+/** Tiempo por persona: quién, cuánto y qué días; al desplegar, cada fichaje
+ *  con su tarea. Antes era la vista «Por persona» de la pestaña «Tareas y
+ *  tiempos»; ahora es el «Por persona» de cada OF desplegada. */
+export function TiemposPorPersona({ personas, total }: { personas: readonly PersonaTiempos[]; total: number }) {
+  // Una persona abierta a la vez (Iván, 10/11/2026).
   const [abierta, setAbierta] = useState<string | null>(null);
-  const alternar = (clave: string) => setAbierta((a) => (a === clave ? null : clave));
-  // Las visitas (TP/COT) no son trabajo de taller: no cuentan, igual que en la
-  // ficha de cada OF.
-  const tareas = tiempos.ofs.flatMap((o) => o.tareas).filter((t) => !t.visita);
-  const acabadas = tareas.filter((t) => t.estado === "finalizado").length;
-  const dias = new Set(tiempos.personas.flatMap((p) => p.fichajes.map((f) => f.dia))).size;
-
+  if (!personas.length) return <p className="py-2 text-[12.5px] text-text-muted">Nadie ha fichado todavía.</p>;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]">
-        <Cifra etiqueta="Fichado en el pedido" valor={min(tiempos.minutos)} />
-        <Cifra etiqueta="Personas" valor={tiempos.personas.length} />
-        <Cifra etiqueta="Días con fichajes" valor={dias} />
-        <Cifra etiqueta="Tareas acabadas" valor={`${acabadas} de ${tareas.length}`} />
-      </div>
-
-      {/* La misma píldora que se desliza del resto de Coordina. */}
-      <div role="group" aria-label="Ver por" className="tira-3d glass-chip inline-flex self-start rounded-lg p-[3px]">
-        {(
-          [
-            ["tarea", "Por tarea"],
-            ["persona", "Por persona"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={modo === id}
-            onClick={() => setModo(id)}
-            className={`h-8 rounded-md px-3.5 text-[13px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-              modo === id ? "pestana-activa" : "text-text-muted hover:text-text"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {modo === "tarea" ? (
-        tiempos.ofs.map((of) => (
-          <section key={of.of} aria-label={`OF ${of.of}`} className="tarjeta-of overflow-hidden rounded-3xl bg-surface">
-            <header className="flex items-center gap-2.5 px-4 pb-2 pt-3">
-              <span data-bloque="ofs" className="cabecera-bloque flex items-center">
-                <AcentoBloque tipo="ofs" />
-              </span>
-              <span className="font-mono text-[15px] font-bold">{of.of}</span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{enFrase(of.descripcion)}</span>
-              <span className="rounded-lg bg-[var(--hero-relleno)] px-2 py-0.5 text-[13px] font-bold tabular-nums">
-                {min(of.minutos)}
-              </span>
-            </header>
-            <ul>
-              {of.tareas.map((t) => (
-                <FilaTarea
-                  key={t.codigo}
-                  t={t}
-                  abierta={abierta === `t|${of.of}|${t.codigo}`}
-                  onAlternar={() => alternar(`t|${of.of}|${t.codigo}`)}
-                />
-              ))}
-            </ul>
-          </section>
-        ))
-      ) : tiempos.personas.length ? (
-        <section aria-label="Tiempo por persona" className="tarjeta-of overflow-hidden rounded-3xl bg-surface py-1">
-          <ul>
-            {tiempos.personas.map((p) => (
-              <FilaPersona
-                key={p.persona}
-                p={p}
-                total={tiempos.minutos}
-                abierta={abierta === `p|${p.persona}`}
-                onAlternar={() => alternar(`p|${p.persona}`)}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <p className="px-1 text-sm text-text-muted">Nadie ha fichado todavía en este pedido.</p>
-      )}
-    </div>
+    <ul>
+      {personas.map((p) => (
+        <FilaPersona
+          key={p.persona}
+          p={p}
+          total={total}
+          abierta={abierta === p.persona}
+          onAlternar={() => setAbierta((a) => (a === p.persona ? null : p.persona))}
+        />
+      ))}
+    </ul>
   );
 }

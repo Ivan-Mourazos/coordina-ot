@@ -222,3 +222,18 @@ describe("OF en amarillo", () => {
     expect(ofEnAmarillo({ avisos: [], operaciones: [op("finalizado")] })).toBe(false);
   });
 });
+
+describe("personas de una OF", () => {
+  test("suma por persona entre tareas, días distintos y de más a menos tiempo", async () => {
+    const { agruparTiempos, personasDeOF } = await import("../vista-belen");
+    const base = { of: "0001", ofDescripcion: "", maquina: null, estado: "finalizado" as const, hora: "08:00" };
+    const t = agruparTiempos([
+      { ...base, tarea: "5", descripcion: "Cortar", persona: "Ana", dia: "2026-11-03", minutos: 10 },
+      { ...base, tarea: "10", descripcion: "Coser", persona: "Ana", dia: "2026-11-04", minutos: 20 },
+      { ...base, tarea: "10", descripcion: "Coser", persona: "Luis", dia: "2026-11-04", minutos: 50 },
+    ]);
+    const ps = personasDeOF(t.ofs[0]);
+    expect(ps.map((p) => [p.persona, p.minutos, p.dias])).toEqual([["Luis", 50, 1], ["Ana", 30, 2]]);
+    expect(ps[1].fichajes.map((f) => f.tarea)).toEqual(["5", "10"]);
+  });
+});

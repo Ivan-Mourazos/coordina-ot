@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import {
   agruparPaquetes,
@@ -10,9 +10,11 @@ import {
   fechaCorta,
   fmtDuracion,
   ofEnAmarillo,
+  personasDeOF,
   puntoBultos,
   resumenAvisos,
   type OFBelen,
+  type OFTiempos,
   type PuntoBultos,
   type ResumenPedido,
   type TipoAviso,
@@ -22,6 +24,7 @@ import { Desplegable } from "../Desplegable";
 import { chip, ESTADO_OPERACION, FECHA, tonoSituacion } from "./estilos-belen";
 import { SIGNIFICA } from "./significados";
 import { ImprimirOF } from "./ImprimirOF";
+import { FichajesDeTarea, TiemposPorPersona } from "./TiemposBelen";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
 // Encogida, una línea con lo que se mira de un vistazo (Belén, 11/11/2026):
@@ -98,74 +101,146 @@ function ChipAviso({ of, tipo }: { of: OFBelen; tipo: TipoAviso }) {
   );
 }
 
-/** Las tareas de la OF con todo lo suyo y, al final, sus TP/COT. */
-function Tareas({ of }: { of: OFBelen }) {
+/** Las tareas de la OF con todo lo suyo y, al final, sus TP/COT. Con un
+ *  selector (Iván, 11/11/2026, en lugar de la pestaña «Tareas y tiempos»):
+ *    · Por tarea: la tabla; pinchando una tarea se ve debajo quién fichó y
+ *      cuándo (franja horaria y tiempo exacto).
+ *    · Por persona: quién ha trabajado en esta OF, cuánto y qué días. */
+function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | undefined }) {
+  const [modo, setModo] = useState<"tarea" | "persona">("tarea");
+  const [abierta, setAbierta] = useState<string | null>(null);
   const ops = of.operaciones;
   const hechas = ops.filter((o) => o.estado === "finalizado").length;
+  const fichajes = new Map((tiempos?.tareas ?? []).map((t) => [t.codigo, t]));
   if (!ops.length && !of.avisos.length) return <p className="text-[12.5px] text-text-muted">Sin tareas en RPS.</p>;
   return (
     <div>
-      <CabeceraBloque tipo="tareas" derecha={ops.length ? `${hechas} de ${ops.length} acabadas` : undefined}>
-        Tareas
-      </CabeceraBloque>
-      <table className="w-full table-fixed border-collapse text-[13px]">
-        <caption className="sr-only">Tareas de la OF {of.of}</caption>
-        <thead>
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-            <th scope="col" className="py-1 pr-2">Tarea</th>
-            <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
-            <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
-            <th scope="col" className="w-[6.5rem] whitespace-nowrap px-2 py-1" title="El día en que se acabó la operación">Fin</th>
-            <th scope="col" className="w-[6.5rem] py-1 pl-2 text-right">Estado</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {ops.map((op) => {
-            const e = ESTADO_OPERACION[op.estado];
-            return (
-              <tr key={op.codigo}>
-                <td className="truncate py-1.5 pr-2" title={enFrase(op.descripcion)}>
-                  <span className={`mr-2 inline-block size-2 rounded-full align-middle ${e.punto}`} aria-hidden />
-                  <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
-                  <span className={op.estado === "sin_empezar" ? "text-text-muted" : ""}>{enFrase(op.descripcion)}</span>
-                  {op.subeBultos && (
-                    <span title="En esta tarea se suben los bultos (entrada de producto en RPS)" className={`${chip("info")} ml-2 cursor-help`}>
-                      Bultos
-                    </span>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <CabeceraBloque tipo="tareas">Tareas</CabeceraBloque>
+        <div role="group" aria-label="Ver tareas" className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
+          {(
+            [
+              ["tarea", "Por tarea"],
+              ["persona", "Por persona"],
+            ] as const
+          ).map(([id, rotulo]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={modo === id}
+              onClick={() => setModo(id)}
+              className={`h-7 rounded-md px-3 text-[12.5px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
+                modo === id ? "pestana-activa" : "text-text-muted hover:text-text"
+              }`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+        {ops.length > 0 && <span className="ml-auto text-[12px] font-medium tabular-nums text-text-muted">{hechas} de {ops.length} acabadas</span>}
+      </div>
+
+      {modo === "persona" ? (
+        tiempos === undefined ? (
+          <p className="text-[12.5px] text-text-muted">Cargando fichajes…</p>
+        ) : (
+          <div className="overflow-hidden rounded-2xl bg-[var(--detalle)]">
+            <TiemposPorPersona personas={tiempos ? personasDeOF(tiempos) : []} total={tiempos?.minutos ?? 0} />
+          </div>
+        )
+      ) : (
+        <table className="w-full table-fixed border-collapse text-[13px]">
+          <caption className="sr-only">Tareas de la OF {of.of}</caption>
+          <thead>
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              <th scope="col" className="py-1 pr-2">Tarea</th>
+              <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
+              <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
+              <th scope="col" className="w-[6.5rem] whitespace-nowrap px-2 py-1" title="El día en que se acabó la operación">Fin</th>
+              <th scope="col" className="w-[6.5rem] py-1 pl-2 text-right">Estado</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {ops.map((op) => {
+              const e = ESTADO_OPERACION[op.estado];
+              const suya = fichajes.get(op.codigo);
+              const conFichajes = !!suya?.personas.length;
+              const desplegada = abierta === op.codigo && conFichajes;
+              return (
+                <Fragment key={op.codigo}>
+                  <tr
+                    onClick={conFichajes ? () => setAbierta((x) => (x === op.codigo ? null : op.codigo)) : undefined}
+                    className={conFichajes ? "cursor-pointer transition-colors hover:bg-[var(--hero-relleno)]" : ""}
+                  >
+                    <td className="truncate py-1.5 pr-2" title={enFrase(op.descripcion)}>
+                      {conFichajes ? (
+                        <button
+                          type="button"
+                          aria-expanded={desplegada}
+                          aria-label={`${desplegada ? "Ocultar" : "Ver"} quién fichó en ${op.codigo}`}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setAbierta((x) => (x === op.codigo ? null : op.codigo));
+                          }}
+                          className="mr-1 inline-block w-3 text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
+                        >
+                          <span aria-hidden className={`inline-block transition-transform motion-reduce:transition-none ${desplegada ? "rotate-90" : ""}`}>▸</span>
+                        </button>
+                      ) : (
+                        <span className="mr-1 inline-block w-3" aria-hidden />
+                      )}
+                      <span className={`mr-2 inline-block size-2 rounded-full align-middle ${e.punto}`} aria-hidden />
+                      <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
+                      <span className={op.estado === "sin_empezar" ? "text-text-muted" : ""}>{enFrase(op.descripcion)}</span>
+                      {op.subeBultos && (
+                        <span title="En esta tarea se suben los bultos (entrada de producto en RPS)" className={`${chip("info")} ml-2 cursor-help`}>
+                          Bultos
+                        </span>
+                      )}
+                    </td>
+                    <td className="truncate px-2 py-1.5" title={[op.seccion, op.maquina].filter(Boolean).join(" · ") || undefined}>
+                      {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">
+                      {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
+                    </td>
+                    <td className="px-2 py-1.5 tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
+                      {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
+                    </td>
+                    <td
+                      className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${e.tinta}`}
+                      title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
+                    >
+                      {e.texto}
+                    </td>
+                  </tr>
+                  {desplegada && suya && (
+                    <tr>
+                      <td colSpan={5} className="pb-2.5 pl-9 pt-1">
+                        <div className="rounded-2xl bg-[var(--detalle)] px-3.5 py-2.5">
+                          <FichajesDeTarea tarea={suya} />
+                        </div>
+                      </td>
+                    </tr>
                   )}
+                </Fragment>
+              );
+            })}
+            {of.avisos.map((av) => (
+              <tr key={`${av.tipo}-${av.codigo}`}>
+                <td colSpan={3} className="truncate py-1.5 pl-4 pr-2" title={enFrase(av.descripcion)}>
+                  <span className={`${chip("neutro")} mr-2`}>{av.tipo}</span>
+                  {enFrase(av.descripcion) || av.codigo}
                 </td>
-                <td className="truncate px-2 py-1.5" title={[op.seccion, op.maquina].filter(Boolean).join(" · ") || undefined}>
-                  {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
-                </td>
-                <td className="px-2 py-1.5 text-right tabular-nums">
-                  {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
-                </td>
-                <td className="px-2 py-1.5 tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
-                  {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
-                </td>
-                <td
-                  className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${e.tinta}`}
-                  title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
-                >
-                  {e.texto}
+                <td className="px-2 py-1.5 tabular-nums">{fechaCorta(av.cerrado) || <span className="text-text-muted">—</span>}</td>
+                <td className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${av.cerrado ? ESTADO_OPERACION.finalizado.tinta : ESTADO_OPERACION.interrumpido.tinta}`}>
+                  {av.cerrado ? "Hecho" : "Pendiente"}
                 </td>
               </tr>
-            );
-          })}
-          {of.avisos.map((a) => (
-            <tr key={`${a.tipo}-${a.codigo}`}>
-              <td colSpan={3} className="truncate py-1.5 pr-2" title={enFrase(a.descripcion)}>
-                <span className={`${chip("neutro")} mr-2`}>{a.tipo}</span>
-                {enFrase(a.descripcion) || a.codigo}
-              </td>
-              <td className="px-2 py-1.5 tabular-nums">{fechaCorta(a.cerrado) || <span className="text-text-muted">—</span>}</td>
-              <td className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${a.cerrado ? ESTADO_OPERACION.finalizado.tinta : ESTADO_OPERACION.interrumpido.tinta}`}>
-                {a.cerrado ? "Hecho" : "Pendiente"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -223,6 +298,7 @@ export function FilaOFBelen({
   conReserva,
   abierta,
   onAlternar,
+  tiempos,
 }: {
   of: OFBelen;
   resumen: ResumenPedido;
@@ -232,6 +308,8 @@ export function FilaOFBelen({
   /** Desplegada (todo) o encogida (una línea). */
   abierta: boolean;
   onAlternar: () => void;
+  /** Los fichajes de esta OF (para ver quién y cuándo). undefined = cargando. */
+  tiempos?: OFTiempos | null;
 }) {
   const punto = PUNTO[puntoBultos(of.cantidad, of.subidas)];
   const noCuadra = of.subidas > 0 && of.subidas !== of.cantidad;
@@ -343,7 +421,7 @@ export function FilaOFBelen({
               )}
             </div>
 
-            <Tareas of={of} />
+            <Tareas of={of} tiempos={tiempos} />
             <Compras of={of} />
             {of.detalleLinea && <DetalleLinea texto={of.detalleLinea} />}
           </div>
