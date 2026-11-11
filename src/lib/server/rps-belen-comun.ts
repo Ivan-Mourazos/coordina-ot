@@ -16,6 +16,26 @@ export const TIPO_AVISO: Readonly<Record<string, AvisoOF["tipo"]>> = {
 
 export const ES_RPS = () => process.env.DATASOURCE === "rps";
 
+/** Duración EXACTA de un fichaje, en segundos. RPS guarda la hora de inicio y
+ *  de fin (StartHour, EndHour) en segundos desde la medianoche; ExecutionTime
+ *  son esos mismos minutos ya REDONDEADOS (comprobado el 11/11/2026: cuadra
+ *  redondeando en 22.916 de 23.127 fichajes). Se usa la diferencia; si cruzara
+ *  la medianoche se le suma un día, y si faltara una hora, ExecutionTime. */
+export const SEGUNDOS_FICHAJE = (i: string) => `
+  CASE WHEN ${i}.StartHour IS NULL OR ${i}.EndHour IS NULL THEN ${i}.ExecutionTime * 60
+       WHEN ${i}.EndHour >= ${i}.StartHour THEN ${i}.EndHour - ${i}.StartHour
+       ELSE ${i}.EndHour + 86400 - ${i}.StartHour END`;
+
+/** Los fichajes de menos de un minuto no salen ni suman (Iván, 11/11/2026:
+ *  «solo rellenan de ruido»). Son el 31 % y casi todos de abrir y cerrar. */
+export const SEGUNDOS_MINIMOS = 60;
+
+/** Segundos desde la medianoche → «07:33». */
+export const horaDeSegundos = (s: number | null | undefined): string | null =>
+  s === null || s === undefined || s < 0
+    ? null
+    : `${String(Math.floor(s / 3600) % 24).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
+
 /** Fecha de calendario de RPS (medianoche, leída en UTC) → yyyy-mm-dd. Las de
  *  1899/1900 son «sin fecha». */
 export const iso = (d: Date | null | undefined): string | null =>

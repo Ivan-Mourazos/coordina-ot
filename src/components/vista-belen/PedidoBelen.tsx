@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { DocumentoRps } from "@/lib/historial";
-import { fmtMinEnteros } from "@/lib/estado";
 import {
   enFrase,
   fechaCorta,
+  fmtDuracion,
   ordenarOFs,
   resumenPedido,
   type MaterialPedido,
@@ -181,7 +181,7 @@ export function PedidoBelenView({
     {
       id: "tiempos",
       label: "Tareas y tiempos",
-      extra: tiempos.tipo === "listo" && tiempos.datos ? fmtMinEnteros(tiempos.datos.minutos) : undefined,
+      extra: tiempos.tipo === "listo" && tiempos.datos ? fmtDuracion(tiempos.datos.minutos) : undefined,
     },
     {
       id: "material",
@@ -265,7 +265,7 @@ export function PedidoBelenView({
           />
           <Cifra
             etiqueta="Fichado"
-            valor={tiempos.tipo === "listo" && tiempos.datos ? fmtMinEnteros(tiempos.datos.minutos) : "…"}
+            valor={tiempos.tipo === "listo" && tiempos.datos ? fmtDuracion(tiempos.datos.minutos) : "…"}
             sub={
               tiempos.tipo === "listo" && tiempos.datos
                 ? n(tiempos.datos.personas.length, "persona", "personas")

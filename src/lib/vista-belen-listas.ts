@@ -133,3 +133,56 @@ export const LISTAS_BELEN: readonly DefLista[] = [
 export function esIdLista(v: unknown): v is IdLista {
   return LISTAS_BELEN.some((l) => l.id === v);
 }
+
+// ─── Filtros y orden de una lista ────────────────────────────────────────────
+// En el navegador, sobre las filas ya cargadas: buscar texto en cualquier
+// columna, filtrar por la PRIMERA columna de fecha de la lista (un día o un
+// rango) y ordenar por cualquier columna. Sin orden elegido, el de RPS.
+
+export interface FiltroLista {
+  texto: string;
+  desde: string;
+  hasta: string;
+  orden: { clave: string; descendente: boolean } | null;
+}
+
+export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: "", orden: null };
+
+const sinTildes = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+
+/** La columna de fecha por la que se filtra, si la lista tiene alguna. */
+export const columnaFecha = (def: DefLista): ColumnaLista | null => def.columnas.find((c) => c.tipo === "fecha") ?? null;
+
+export function filtrarLista(filas: readonly FilaLista[], def: DefLista, f: FiltroLista): FilaLista[] {
+  const palabras = sinTildes(f.texto.trim()).split(/\s+/).filter(Boolean);
+  const fecha = columnaFecha(def);
+  const salida = filas.filter((fila) => {
+    if (fecha && (f.desde || f.hasta)) {
+      const v = fila[fecha.clave];
+      if (typeof v !== "string") return false;
+      if (f.desde && v < f.desde) return false;
+      if (f.hasta && v > f.hasta) return false;
+    }
+    if (!palabras.length) return true;
+    const todo = sinTildes(def.columnas.map((c) => String(fila[c.clave] ?? "")).join(" "));
+    return palabras.every((p) => todo.includes(p));
+  });
+  const orden = f.orden;
+  if (!orden) return salida;
+  const col = def.columnas.find((c) => c.clave === orden.clave);
+  return salida
+    .map((fila, i) => ({ fila, i }))
+    .sort((a, b) => {
+      const x = a.fila[orden.clave];
+      const y = b.fila[orden.clave];
+      // Lo vacío siempre al final, se ordene como se ordene.
+      if (x == null && y != null) return 1;
+      if (y == null && x != null) return -1;
+      const r =
+        col?.tipo === "numero" && typeof x === "number" && typeof y === "number"
+          ? x - y
+          : String(x ?? "").localeCompare(String(y ?? ""), "es", { numeric: true, sensitivity: "base" });
+      return (orden.descendente ? -r : r) || a.i - b.i;
+    })
+    .map((x) => x.fila);
+}

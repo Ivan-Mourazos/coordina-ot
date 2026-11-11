@@ -8,6 +8,7 @@ import {
   enFrase,
   enTitulo,
   fechaCorta,
+  fmtDuracion,
   puntoBultos,
   resumenAvisos,
   type OFBelen,
@@ -15,7 +16,6 @@ import {
   type ResumenPedido,
   type TipoAviso,
 } from "@/lib/vista-belen";
-import { fmtMinEnteros } from "@/lib/estado";
 import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
 import { chip, ESTADO_OPERACION, FECHA, tonoSituacion } from "./estilos-belen";
 import { SIGNIFICA } from "./significados";
@@ -119,7 +119,7 @@ function Tareas({ of }: { of: OFBelen }) {
           <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             <th scope="col" className="py-1 pr-2">Tarea</th>
             <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
-            <th scope="col" className="w-[5.5rem] px-2 py-1 text-right">Tiempo</th>
+            <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
             <th scope="col" className="w-[8.5rem] whitespace-nowrap px-2 py-1">Último fichaje</th>
             <th scope="col" className="w-[6.5rem] py-1 pl-2 text-right">Estado</th>
           </tr>
@@ -138,7 +138,7 @@ function Tareas({ of }: { of: OFBelen }) {
                   {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
                 </td>
                 <td className="px-2 py-1.5 text-right tabular-nums">
-                  {op.minutos ? fmtMinEnteros(op.minutos) : <span className="text-text-muted">—</span>}
+                  {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
                 </td>
                 <td className="px-2 py-1.5 tabular-nums">{fechaCorta(op.ultimoFichaje) || <span className="text-text-muted">—</span>}</td>
                 <td

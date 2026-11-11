@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import type sql from "mssql";
-import { esIdLista, LISTAS_BELEN, type IdLista } from "../vista-belen-listas";
+import { esIdLista, filtrarLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type IdLista } from "../vista-belen-listas";
 import { CONSULTAS, leerListaBelen, olvidarListasBelen } from "../server/vista-belen-listas-db";
 import { getPool } from "../server/db";
 
@@ -148,5 +148,29 @@ describe("fechas comprometidas: la última apuntada, leída como en la ficha", (
     const filas = await CONSULTAS["fechas-comprometidas"](pool);
     expect(filas.map((f) => [f.of, f.fechaComprometida])).toEqual([["1", "2026-11-06"], ["2", "2026-11-13"]]);
     expect(filas[0]).not.toHaveProperty("textoComprometida");
+  });
+});
+
+describe("filtros y orden de las listas", () => {
+  const def = LISTAS_BELEN.find((l) => l.id === "fechas-comprometidas")!;
+  const filas = [
+    { clave: "1", of: "0001", pedido: "AR.1", cliente: "Álvarez", prioridad: 3, fechaComprometida: "2026-11-13" },
+    { clave: "2", of: "0002", pedido: "AR.2", cliente: "Pérez", prioridad: 1, fechaComprometida: "2026-11-06" },
+    { clave: "3", of: "0003", pedido: "AR.3", cliente: "Lago", prioridad: null, fechaComprometida: "2026-11-20" },
+  ];
+  test("busca sin tildes en cualquier columna", () => {
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, texto: "alvarez" }).map((f) => f.clave)).toEqual(["1"]);
+  });
+  test("filtra por la columna de fecha, un día o un rango", () => {
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, desde: "2026-11-06", hasta: "2026-11-13" }).map((f) => f.clave)).toEqual(["1", "2"]);
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, desde: "2026-11-20", hasta: "2026-11-20" }).map((f) => f.clave)).toEqual(["3"]);
+  });
+  test("ordena números como números, en los dos sentidos, y lo vacío al final", () => {
+    const asc = { ...FILTRO_LISTA_INICIAL, orden: { clave: "prioridad", descendente: false } };
+    expect(filtrarLista(filas, def, asc).map((f) => f.clave)).toEqual(["2", "1", "3"]);
+    expect(filtrarLista(filas, def, { ...asc, orden: { clave: "prioridad", descendente: true } }).map((f) => f.clave)).toEqual(["1", "2", "3"]);
+  });
+  test("sin orden elegido, el de RPS", () => {
+    expect(filtrarLista(filas, def, FILTRO_LISTA_INICIAL).map((f) => f.clave)).toEqual(["1", "2", "3"]);
   });
 });

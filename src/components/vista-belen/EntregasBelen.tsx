@@ -12,6 +12,7 @@ import {
 import { hoyEnOficina } from "@/lib/consulta";
 import { fechaCorta } from "@/lib/vista-belen";
 import { chip } from "./estilos-belen";
+import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, Seleccion } from "./Filtros";
 
 // ─── Pedidos por día de entrega ──────────────────────────────────────────────
 // La fecha es la solicitada del pedido (la misma que usa Coordina para todos).
@@ -33,7 +34,6 @@ const COLUMNAS: { clave: Orden; titulo: string; ancho: string; derecha?: boolean
   { clave: "ofs", titulo: "OF", ancho: "w-[4rem]", derecha: true },
 ];
 const COLUMNA_FECHA = { clave: "fechaEntrega" as const, titulo: "Fecha de entrega", ancho: "w-[8.5rem]" };
-const CAMPO = "campo-hundido h-10 rounded-[14px] px-3 text-sm text-text";
 const BOTON =
   "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
 
@@ -54,24 +54,17 @@ function Cabecera({
   const columnas = conFecha ? [COLUMNA_FECHA, ...COLUMNAS] : COLUMNAS;
   return (
     <thead>
-      <tr className="text-left text-[10.5px] uppercase tracking-wide text-text-muted">
+      <tr>
         {columnas.map((c) => (
-          <th
+          <CabeceraOrdenable
             key={c.clave}
-            scope="col"
-            aria-sort={filtros.orden === c.clave ? (filtros.descendente ? "descending" : "ascending") : "none"}
-            className={`${c.ancho} px-2.5 py-1.5 first:pl-4 last:pr-4 ${"derecha" in c && c.derecha ? "text-right" : ""}`}
-          >
-            <button
-              type="button"
-              onClick={() => onOrdenar(c.clave)}
-              title={`Ordenar por ${c.titulo.toLowerCase()}`}
-              className="whitespace-nowrap rounded font-semibold uppercase hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            >
-              {c.titulo}
-              {filtros.orden === c.clave && <span aria-hidden> {filtros.descendente ? "↓" : "↑"}</span>}
-            </button>
-          </th>
+            clave={c.clave}
+            titulo={c.titulo}
+            orden={{ clave: filtros.orden, descendente: filtros.descendente }}
+            onOrdenar={onOrdenar}
+            derecha={"derecha" in c && !!c.derecha}
+            className={c.ancho}
+          />
         ))}
       </tr>
     </thead>
@@ -231,27 +224,21 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
         Pedidos pendientes de entregar, por la fecha que pidió el cliente (la solicitada). Pincha uno para abrirlo.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2.5">
-        <label className="flex min-w-52 flex-1 flex-col gap-1 text-xs text-text-muted">Buscar en la lista
-          <input type="search" value={filtros.texto} onChange={(e) => cambiar({ texto: e.target.value })} placeholder="Pedido, cliente o localidad" className={CAMPO} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">Delegación
-          <select value={filtros.delegacion} onChange={(e) => cambiar({ delegacion: e.target.value as FiltrosEntregasBelen["delegacion"] })} className={CAMPO}>
-            <option value="">Todas</option>
-            {Object.entries(DELEGACIONES).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">Desde
-          <input type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={(e) => cambiar({ desde: e.target.value })} className={CAMPO} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">Hasta
-          <input type="date" value={filtros.hasta} min={filtros.desde || undefined} onChange={(e) => cambiar({ hasta: e.target.value })} className={CAMPO} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">Situación
-          <select value={filtros.situacion} onChange={(e) => cambiar({ situacion: e.target.value as FiltrosEntregasBelen["situacion"] })} className={CAMPO}>
-            <option value="">Todas</option><option value="fabrica">En fábrica</option><option value="salir">Esperando salir</option>
-          </select>
-        </label>
-        {!sonIniciales(filtros) && <button type="button" onClick={() => setFiltros(INICIAL)} className={BOTON}>Limpiar</button>}
+        <CampoBuscar valor={filtros.texto} onCambiar={(texto) => cambiar({ texto })} pista="Pedido, cliente o localidad" />
+        <Seleccion
+          etiqueta="Delegación"
+          valor={filtros.delegacion}
+          opciones={[["", "Todas"], ...(Object.entries(DELEGACIONES) as Array<[FiltrosEntregasBelen["delegacion"], string]>)]}
+          onCambiar={(delegacion) => cambiar({ delegacion })}
+        />
+        <FiltroFechas etiqueta="Fecha de entrega" desde={filtros.desde} hasta={filtros.hasta} onCambiar={(desde, hasta) => cambiar({ desde, hasta })} />
+        <Seleccion
+          etiqueta="Situación"
+          valor={filtros.situacion}
+          opciones={[["", "Todas"], ["fabrica", "En fábrica"], ["salir", "Esperando salir"]]}
+          onCambiar={(situacion) => cambiar({ situacion })}
+        />
+        {!sonIniciales(filtros) && <BotonLimpiar onClick={() => setFiltros(INICIAL)} />}
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-error">{error} <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}
       <p role="status" className="mb-2 px-1 text-[13px] text-text-muted">

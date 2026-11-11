@@ -35,9 +35,19 @@ export function SelectorFecha({
   desde,
   hasta,
   onCambiar,
+  ayuda = "Qué hay planificado para un día concreto, o entre dos fechas",
+  vacio = "Cualquier día",
+  claseBoton,
 }: {
   desde: string;
   hasta: string;
+  /** Texto al pasar el ratón; por defecto, el del filtro de planificación. */
+  ayuda?: string;
+  /** Lo que pone sin fecha elegida. */
+  vacio?: string;
+  /** Clases del botón si se quiere otro tamaño (la vista de Belén lo usa a
+   *  la altura de sus campos). Sustituye a las de por defecto. */
+  claseBoton?: string;
   /** Un día suelto llega con `desde === hasta`: el modelo de filtros no
    *  necesita saber que existen los días sueltos, solo el rango. */
   onCambiar: (desde: string, hasta: string) => void;
@@ -94,10 +104,14 @@ export function SelectorFecha({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="Qué hay planificado para un día concreto, o entre dos fechas"
-        className={`glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
-          resumen ? "glass-chip-activo text-brand-800 dark:text-brand-300" : "text-text-muted"
-        }`}
+        title={ayuda}
+        className={
+          claseBoton
+            ? `${claseBoton} ${resumen ? "text-brand-800 dark:text-brand-300" : "text-text-muted"}`
+            : `glass-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong ${
+                resumen ? "glass-chip-activo text-brand-800 dark:text-brand-300" : "text-text-muted"
+              }`
+        }
       >
         <svg viewBox="0 0 24 24" aria-hidden className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -106,7 +120,7 @@ export function SelectorFecha({
         {/* Vacío dice qué pasa si no lo tocas, no cómo se llama el campo: el
             nombre ya lo pone el rótulo del grupo ("Planificado"), y repetirlo
             aquí dejaba "PLANIFICADO  Planificado" seguido. */}
-        <span>{resumen ?? "Cualquier día"}</span>
+        <span>{resumen ?? vacio}</span>
       </button>
 
       {open && (

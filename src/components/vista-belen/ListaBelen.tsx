@@ -1,7 +1,18 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { enFrase, fechaCorta } from "@/lib/vista-belen";
-import { LISTAS_BELEN, type ColumnaLista, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
+import {
+  columnaFecha,
+  filtrarLista,
+  FILTRO_LISTA_INICIAL,
+  LISTAS_BELEN,
+  type ColumnaLista,
+  type FilaLista,
+  type FiltroLista,
+  type IdLista,
+} from "@/lib/vista-belen-listas";
+import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, siguienteOrden } from "./Filtros";
 import { chip, tonoSituacion } from "./estilos-belen";
 
 // ─── Una lista de comprobación de la pantalla de Belén ───────────────────────
@@ -69,6 +80,12 @@ export function TablaListaBelen({
   onActualizar: () => void;
 }) {
   const def = LISTAS_BELEN.find((l) => l.id === lista)!;
+  // Los filtros son de cada lista: VistaBelen la monta con key={lista}, así
+  // que al cambiar de lista empiezan limpios.
+  const [filtro, setFiltro] = useState<FiltroLista>(FILTRO_LISTA_INICIAL);
+  const fecha = columnaFecha(def);
+  const filas = useMemo(() => (carga.tipo === "listo" ? filtrarLista(carga.filas, def, filtro) : []), [carga, def, filtro]);
+  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.orden !== null;
 
   return (
     <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
@@ -100,31 +117,54 @@ export function TablaListaBelen({
           </button>
         </p>
       )}
+      {carga.tipo === "listo" && carga.filas.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-end gap-2.5">
+          <CampoBuscar valor={filtro.texto} onCambiar={(texto) => setFiltro((f) => ({ ...f, texto }))} pista="OF, pedido, cliente, tarea…" />
+          {fecha && (
+            <FiltroFechas
+              etiqueta={fecha.titulo}
+              desde={filtro.desde}
+              hasta={filtro.hasta}
+              onCambiar={(desde, hasta) => setFiltro((f) => ({ ...f, desde, hasta }))}
+            />
+          )}
+          {filtrando && <BotonLimpiar onClick={() => setFiltro(FILTRO_LISTA_INICIAL)} />}
+        </div>
+      )}
       {carga.tipo === "listo" &&
         (carga.filas.length === 0 ? (
           <p className="px-1 text-sm text-text-muted">No hay ninguna ahora mismo.</p>
         ) : (
           <div className="tarjeta-of overflow-x-auto rounded-3xl bg-surface">
             <div className="flex items-baseline gap-2.5 px-4 pb-1 pt-3">
-              <span className="text-[22px] font-bold leading-none tabular-nums">{carga.filas.length}</span>
+              <span className="text-[22px] font-bold leading-none tabular-nums">{filas.length}</span>
               <span className="text-[14px] font-semibold">{def.label}</span>
+              {filas.length !== carga.filas.length && <span className="text-[13px] text-text-muted">de {carga.filas.length}</span>}
             </div>
             <table className="w-full border-collapse text-[13px]">
               <thead>
-                <tr className="text-left text-[10.5px] uppercase tracking-wide text-text-muted">
+                <tr>
                   {def.columnas.map((c) => (
-                    <th
+                    <CabeceraOrdenable
                       key={c.clave}
-                      scope="col"
-                      className={`px-2.5 py-2 font-semibold first:pl-4 last:pr-4 ${c.tipo === "numero" ? "text-right" : ""}`}
-                    >
-                      {c.titulo}
-                    </th>
+                      clave={c.clave}
+                      titulo={c.titulo}
+                      orden={filtro.orden}
+                      derecha={c.tipo === "numero"}
+                      onOrdenar={(clave) => setFiltro((f) => ({ ...f, orden: siguienteOrden(f.orden, clave) }))}
+                    />
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {carga.filas.map((f) => {
+                {filas.length === 0 && (
+                  <tr>
+                    <td colSpan={def.columnas.length} className="px-4 py-3 text-sm text-text-muted">
+                      Ninguna fila cumple los filtros.
+                    </td>
+                  </tr>
+                )}
+                {filas.map((f) => {
                   const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : undefined;
                   return (
                     <tr

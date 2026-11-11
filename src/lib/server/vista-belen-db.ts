@@ -13,7 +13,7 @@ import {
 } from "../vista-belen";
 import { nombreHistorial } from "../nombre-historial";
 import { nombresHistorial } from "./nombres-historial";
-import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto, TIPO_AVISO } from "./rps-belen-comun";
+import { ES_RPS, FEATURE_COMPROMETIDA, horaDeSegundos, iso, SEGUNDOS_FICHAJE, SEGUNDOS_MINIMOS, texto, TIPO_AVISO } from "./rps-belen-comun";
 
 // ─── Vista de Belén Alamancos: lectura de RPS ────────────────────────────
 // Solo lectura, con el usuario de lectura. Cada dato sale de donde lo sacaban
@@ -130,9 +130,12 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       LEFT JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
       LEFT JOIN dbo.CPRMachine maq ON maq.IDMachine = rm.IDMachine
       OUTER APPLY (
-        -- Lo fichado por personas (ResourceType = 1, la regla del Historial).
-        SELECT SUM(i.ExecutionTime) AS minutos, MAX(i.ImputationDate) AS ultimo
-        FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask AND i.ResourceType = 1
+        -- Lo fichado por personas (ResourceType = 1, la regla del Historial),
+        -- con la duración exacta y sin los fichajes de menos de un minuto.
+        SELECT SUM(s.seg) / 60.0 AS minutos, MAX(s.dia) AS ultimo
+        FROM (SELECT ${SEGUNDOS_FICHAJE("i")} AS seg, i.ImputationDate AS dia
+              FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask AND i.ResourceType = 1) s
+        WHERE s.seg >= ${SEGUNDOS_MINIMOS}
       ) fich
       LEFT JOIN dbo._CPRMOTask_Custom c ON c.IDMOTask = t.IDMOTask
       LEFT JOIN dbo.MANMaintenanceWarning w ON w.IDMaintenanceWarning = c.IDMaintenanceWarning`),
@@ -376,8 +379,9 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     imps: number;
     persona: string | null;
     dia: Date | null;
-    registro: Date | null;
-    minutos: number | null;
+    inicio: number | null;
+    fin: number | null;
+    segundos: number | null;
     tipoAviso: string | null;
   }>(`${OFS_DEL_PEDIDO}
     SELECT o.cod AS [of], CAST(mo.Description AS varchar(300)) AS ofDescripcion,
@@ -389,8 +393,8 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
            (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
              WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
            (SELECT COUNT(*) FROM dbo.CPRImputationMO x WHERE x.IDMOTask = t.IDMOTask) AS imps,
-           e.CodEmployee AS codEmpleado, e.Description AS persona, i.ImputationDate AS dia, i.EntryDate AS registro,
-           i.ExecutionTime AS minutos
+           e.CodEmployee AS codEmpleado, e.Description AS persona, i.ImputationDate AS dia,
+           i.StartHour AS inicio, i.EndHour AS fin, ${SEGUNDOS_FICHAJE("i")} AS segundos
     FROM ofs o
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id
     JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
@@ -401,23 +405,30 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool`);
   if (!r.recordset.length) return null;
 
-  const filas: FilaTiempo[] = r.recordset.map((f) => ({
-    of: f.of.trim(),
-    ofDescripcion: (f.ofDescripcion ?? "").trim(),
-    tarea: f.tarea.trim(),
-    descripcion: (f.descripcion ?? "").trim(),
-    maquina: texto(f.maquina),
-    estado: estadoOperacion({ olanet: f.olanet, porcentaje: f.pct, imputaciones: f.imps }),
-    visita: !!TIPO_AVISO[f.tipoAviso ?? ""] || undefined,
-    // Un fichaje sin empleado (máquina o dato perdido) no es de nadie: se
-    // queda la tarea, sin persona.
-    persona: f.persona && f.dia ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.persona) : null,
-    dia: iso(f.dia),
-    // RPS guarda la hora sin zona y el driver la trae como UTC: la hora del
-    // ISO es la del reloj de la nave.
-    hora: f.registro && f.registro.getUTCFullYear() > 1900 ? f.registro.toISOString().slice(11, 16) : null,
-    minutos: Number(f.minutos) || 0,
-  }));
+  const filas: FilaTiempo[] = r.recordset.map((f) => {
+    // Un fichaje sin empleado (máquina o dato perdido) no es de nadie, y uno de
+    // menos de un minuto es ruido: en los dos casos se queda la tarea, sin
+    // persona, para que siga saliendo en la lista.
+    const segundos = Number(f.segundos) || 0;
+    const cuenta = !!(f.persona && f.dia) && segundos >= SEGUNDOS_MINIMOS;
+    return {
+      of: f.of.trim(),
+      ofDescripcion: (f.ofDescripcion ?? "").trim(),
+      tarea: f.tarea.trim(),
+      descripcion: (f.descripcion ?? "").trim(),
+      maquina: texto(f.maquina),
+      estado: estadoOperacion({ olanet: f.olanet, porcentaje: f.pct, imputaciones: f.imps }),
+      visita: !!TIPO_AVISO[f.tipoAviso ?? ""] || undefined,
+      persona: cuenta ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.persona) : null,
+      dia: cuenta ? iso(f.dia) : null,
+      // La hora en que empezó y acabó de verdad (StartHour/EndHour), no la
+      // de cuando el fichaje se volcó a RPS.
+      hora: cuenta ? horaDeSegundos(f.inicio) : null,
+      horaFin: cuenta ? horaDeSegundos(f.fin) : null,
+      // Exactos: minutos con decimales (segundos / 60), sin redondear.
+      minutos: cuenta ? segundos / 60 : 0,
+    };
+  });
   return agruparTiempos(filas);
 }
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { fmtMinEnteros } from "@/lib/estado";
 import {
   enFrase,
   fechaCorta,
+  fmtDuracion,
   type PersonaTiempos,
   type TareaTiempos,
   type TiemposPedido,
@@ -24,7 +24,11 @@ import { CaraPersona, colorDePersona } from "./CaraPersona";
 // Coordina, Desplegable).
 
 
-const min = (m: number) => (m > 0 ? fmtMinEnteros(m) : "0m");
+// Tiempos EXACTOS de RPS (inicio y fin del fichaje), sin redondear; los de
+// menos de un minuto ya no llegan (lib/server/rps-belen-comun.ts).
+const min = fmtDuracion;
+const franja = (f: { hora: string | null; horaFin?: string | null }) =>
+  f.hora ? (f.horaFin && f.horaFin !== f.hora ? `${f.hora}–${f.horaFin}` : f.hora) : "—";
 
 /** Los fichajes (ya en orden) agrupados por día, conservando el orden. */
 function porDia<T extends { dia: string }>(fichajes: readonly T[]): Array<[string, T[]]> {
@@ -67,10 +71,9 @@ const FILA =
   "w-full text-left transition-[background-color,transform] enabled:hover:bg-[var(--hero-relleno)] enabled:active:scale-[.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus motion-reduce:transition-none";
 
 /** Los fichajes de una persona, una LÍNEA POR DÍA: el día una sola vez, cada
- *  fichaje como una pastilla «10:15 · 5m» y el total del día al final. Antes
- *  era una ristra de «fecha hora minutos» que repetía el día y partía «2h 23m»
- *  en dos líneas (Iván, 10/11/2026). Los de 0 minutos, apagados. */
-function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: string | null; minutos: number }[] }) {
+ *  fichaje como una pastilla «07:33–07:39 · 5m 36s» y el total del día al
+ *  final (Iván, 10/11/2026). */
+function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: string | null; horaFin?: string | null; minutos: number }[] }) {
   const dias = porDia(fichajes);
   return (
     <ul className="mt-1 flex flex-col gap-1 pl-7">
@@ -81,11 +84,9 @@ function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: 
             {delDia.map((f, i) => (
               <span
                 key={i}
-                className={`whitespace-nowrap rounded-lg px-2 py-0.5 tabular-nums ${
-                  f.minutos > 0 ? "bg-surface font-medium text-text shadow-[var(--hero-sombra-campo)]" : "text-text-muted"
-                }`}
+                className="whitespace-nowrap rounded-lg bg-surface px-2 py-0.5 font-medium tabular-nums text-text shadow-[var(--hero-sombra-campo)]"
               >
-                {f.hora ?? "—"} · <b className="font-bold">{min(f.minutos)}</b>
+                {franja(f)} · <b className="font-bold">{min(f.minutos)}</b>
               </span>
             ))}
           </span>
@@ -205,8 +206,7 @@ function FilaPersona({
         <span className="text-right font-bold tabular-nums">{min(p.minutos)}</span>
       </button>
       <Desplegable abierto={abierta}>
-        {/* Por día: el día con su total y, debajo, cada fichaje. Los de 0
-            minutos (abrir la tarea sin echarle tiempo) se ven, pero apagados. */}
+        {/* Por día: el día con su total y, debajo, cada fichaje con su franja. */}
         <div className="bg-[var(--detalle)] pb-2 pt-1">
           {porDia(p.fichajes).map(([dia, fichajes]) => (
             <section key={dia} aria-label={fechaCorta(dia)} className="px-4 pl-[3.6rem] pt-1.5">
@@ -218,10 +218,10 @@ function FilaPersona({
                 {/* Los anchos van en <col>: con table-fixed manda la primera fila,
                     y la cabecera es solo para lectores de pantalla. */}
                 <colgroup>
-                  <col className="w-14" />
+                  <col className="w-24" />
                   <col className="w-20" />
                   <col />
-                  <col className="w-16" />
+                  <col className="w-20" />
                 </colgroup>
                 <thead className="sr-only">
                   <tr>
@@ -233,8 +233,8 @@ function FilaPersona({
                 </thead>
                 <tbody>
                   {fichajes.map((f, i) => (
-                    <tr key={i} className={f.minutos > 0 ? "text-text" : "text-text-muted"}>
-                      <td className="py-px tabular-nums text-text-muted">{f.hora ?? "—"}</td>
+                    <tr key={i}>
+                      <td className="py-px tabular-nums text-text-muted">{franja(f)}</td>
                       <td className="py-px font-mono">{f.of}</td>
                       <td className="truncate py-px" title={enFrase(f.descripcion)}>
                         <span className="tabular-nums text-text-muted">{f.tarea}</span> {enFrase(f.descripcion)}

@@ -437,6 +437,7 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
             })}
           </div>
           <TablaListaBelen
+            key={lista}
             lista={lista}
             carga={listas[lista] ?? { tipo: "cargando" }}
             onActualizar={() => void cargarLista(lista)}

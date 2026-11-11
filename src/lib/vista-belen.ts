@@ -278,6 +278,18 @@ export function resumenPedido(pedido: PedidoBelen): ResumenPedido {
   };
 }
 
+/** Una duración EXACTA, sin redondear: «5h 43m 12s», «28m 5s», «45s». Entra
+ *  en minutos (con decimales: segundos / 60). */
+export function fmtDuracion(minutos: number): string {
+  const s = Math.round(minutos * 60);
+  if (s <= 0) return "0s";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const seg = s % 60;
+  const partes = [h ? `${h}h` : "", h || m ? `${m}m` : "", seg ? `${seg}s` : ""].filter(Boolean);
+  return partes.join(" ");
+}
+
 /** «FALDON LATERAL O FRONTAL» → «Faldon lateral o frontal». RPS lo guarda todo
  *  en mayúsculas; en frase se lee mejor y la pantalla no grita. Las siglas
  *  conocidas se respetan. */
@@ -326,6 +338,8 @@ export interface FichajeBelen {
   persona: string;
   /** yyyy-mm-dd */
   dia: string;
+  /** «HH:MM» en que acabó. */
+  horaFin?: string | null;
   /** «HH:MM» en que se registró en RPS; null si no se sabe. */
   hora: string | null;
   minutos: number;
@@ -346,6 +360,7 @@ export interface FilaTiempo {
   persona: string | null;
   dia: string | null;
   hora: string | null;
+  horaFin?: string | null;
   minutos: number;
 }
 
@@ -425,7 +440,7 @@ export function agruparTiempos(filas: readonly FilaTiempo[]): TiemposPedido {
     }
     if (!f.persona || !f.dia) continue;
 
-    const fichaje: FichajeBelen = { persona: f.persona, dia: f.dia, hora: f.hora, minutos: f.minutos };
+    const fichaje: FichajeBelen = { persona: f.persona, dia: f.dia, hora: f.hora, horaFin: f.horaFin ?? null, minutos: f.minutos };
     tarea.minutos += f.minutos;
     of.minutos += f.minutos;
     let enTarea = tarea.personas.find((p) => p.persona === f.persona);

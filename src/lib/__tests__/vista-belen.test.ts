@@ -193,3 +193,20 @@ describe("tareas y tiempos", () => {
     expect(t.personas[0].persona).toBe("Pilar Santos");
   });
 });
+
+describe("tiempos exactos de RPS", () => {
+  test("duración sin redondear: horas, minutos y segundos", async () => {
+    const { fmtDuracion } = await import("../vista-belen");
+    expect(fmtDuracion(336 / 60)).toBe("5m 36s");
+    expect(fmtDuracion(1)).toBe("1m");
+    expect(fmtDuracion(20592 / 60)).toBe("5h 43m 12s");
+    expect(fmtDuracion(3600 / 60)).toBe("1h 0m");
+    expect(fmtDuracion(0)).toBe("0s");
+  });
+  test("hora de inicio desde los segundos de RPS", async () => {
+    const { horaDeSegundos } = await import("../server/rps-belen-comun");
+    expect(horaDeSegundos(27227)).toBe("07:33");
+    expect(horaDeSegundos(0)).toBe("00:00");
+    expect(horaDeSegundos(null)).toBeNull();
+  });
+});
