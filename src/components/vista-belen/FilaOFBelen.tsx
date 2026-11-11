@@ -317,8 +317,9 @@ export function FilaOFBelen({
   const otraEntrega = difiereDelPedido(of, resumen, "formaEntrega");
   const otraRotulacion = difiereDelPedido(of, resumen, "rotulacion");
   // Belén (11/11/2026): la OF en amarillo cuando tiene sus visitas (TP/COT)
-  // hechas y TODAS sus tareas finalizadas. Es de la OF, no del pedido. Tinte
-  // suave sobre la superficie (Iván lo aprobó con capturas el 10/11).
+  // hechas y TODAS sus tareas finalizadas. Es de la OF, no del pedido. Solo
+  // la línea compactada y bien marcada; lo desplegado queda como siempre
+  // (Iván, 11/11/2026: «si no, queda fatal»).
   const amarilla = ofEnAmarillo(of);
   const paquetes = agruparPaquetes(of.paquetes);
   const tp = resumenAvisos(of.avisos, "TP");
@@ -331,7 +332,8 @@ export function FilaOFBelen({
       data-avisos-hechos={amarilla || undefined}
       className={`tarjeta-of relative overflow-hidden rounded-3xl ${
         // HeroUI pinta .tarjeta-of con var(--surface): se tiñe la variable.
-        amarilla ? "bg-surface [--surface:var(--belen-avisos-hechos)]" : "bg-surface"
+        // El amarillo va SOLO en la línea compactada (abajo), no en la tarjeta.
+        "bg-surface"
       } ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
     >
       {/* La OF encogida, en una línea, con lo que pidió Belén (11/11/2026) y en
@@ -343,7 +345,11 @@ export function FilaOFBelen({
         aria-expanded={abierta}
         aria-controls={idCuerpo}
         onClick={onAlternar}
-        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-left transition-colors hover:bg-[var(--hero-relleno)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--hero-anillo)]"
+        className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-none! px-5 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--hero-anillo)] ${
+          // Belén (11/11/2026): OF con TP/COT hechos y todas las tareas
+          // acabadas → la LÍNEA en amarillo marcado; lo desplegado, normal.
+          amarilla ? "bg-[var(--belen-avisos-hechos)] hover:bg-[var(--belen-avisos-hechos-encima)]" : "hover:bg-[var(--hero-relleno)]"
+        }`}
       >
         <span aria-hidden className={`inline-block w-3 text-text-muted transition-transform duration-200 motion-reduce:transition-none ${abierta ? "rotate-90" : ""}`}>▸</span>
         <span role="img" aria-label={textoPunto} title={textoPunto} className={`size-3 shrink-0 rounded-full ${punto.clase}`} />
