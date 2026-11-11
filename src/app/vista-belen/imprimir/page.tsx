@@ -4,8 +4,8 @@ import { PaginasInforme } from "@/components/vista-belen/InformeRps";
 import { BotonImprimir } from "@/components/vista-belen/BotonImprimir";
 import { maquetar, type Pagina } from "@/lib/informes-rps/maquetar";
 import { PLANTILLA_HOJA_RUTA, PLANTILLA_VALE } from "@/lib/informes-rps/plantillas";
-import { vistaAMedida } from "@/lib/personas";
-import { leerDatosImpresion } from "@/lib/server/informes-rps-db";
+import { puedeVerVistaBelen } from "@/lib/personas";
+import { leerDatosImpresion, ofsAImprimir } from "@/lib/server/informes-rps-db";
 import { loginActivo, quienEs } from "@/lib/server/sesion";
 
 // ─── Imprimir la hoja de ruta y el vale de material de una o varias OF ──────
@@ -27,15 +27,11 @@ export default async function PaginaImprimir({
 }) {
   if (loginActivo()) {
     const yo = quienEs(new Request("http://interno/", { headers: await headers() }));
-    const puede =
-      yo && (vistaAMedida(yo) === "belen" || yo.roles.includes("tecnico") || yo.roles.includes("direccion") || yo.roles.includes("produccion"));
-    if (!puede) redirect("/");
+    if (!yo || !puedeVerVistaBelen(yo)) redirect("/");
   }
   const p = await searchParams;
-  const ofs = String(p.ofs ?? "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
+  // Sin repetidas ni basura, y con tope: lo mismo que acepta la consulta.
+  const ofs = ofsAImprimir(String(p.ofs ?? ""));
   const que = p.que === "ruta" || p.que === "vale" ? p.que : "todo";
 
   let error = "";

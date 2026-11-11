@@ -5,7 +5,7 @@ import type { PedidoEncontrado } from "@/lib/buscador";
 import { interpretarBusqueda } from "@/lib/codigo-busqueda";
 import { useNovedades } from "@/lib/useNovedades";
 import { ULTIMA } from "@/lib/novedades";
-import type { PedidoBelen } from "@/lib/vista-belen";
+import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, LISTAS_BELEN, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
@@ -383,7 +383,7 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Pedido (4716, 26.04716…), OF o cliente"
                   className={`campo-hundido w-full text-text outline-none placeholder:text-text-muted ${
-                    grande ? "h-14 rounded-2xl pl-12 pr-4 text-[18px]" : "h-10 rounded-[14px] px-3 text-[15px]"
+                    grande ? "h-14 rounded-[14px] pl-12 pr-4 text-[18px]" : "h-10 rounded-[14px] px-3 text-[15px]"
                   }`}
                 />
               </label>
@@ -488,7 +488,7 @@ function ResultadoBusqueda({
                 <span className="font-bold tabular-nums">{p.codigo}</span>
                 <span className="min-w-0 flex-1 truncate">{p.cliente}</span>
                 {p.fecha && (
-                  <span className="text-xs text-text-muted">{new Date(p.fecha).toLocaleDateString("es-ES")}</span>
+                  <span className="text-xs tabular-nums text-text-muted">{fechaCorta(p.fecha)}</span>
                 )}
               </button>
             </li>

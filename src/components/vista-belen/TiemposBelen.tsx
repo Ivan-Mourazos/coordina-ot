@@ -5,13 +5,13 @@ import { fmtMinEnteros } from "@/lib/estado";
 import {
   enFrase,
   fechaCorta,
-  type EstadoOperacion,
   type PersonaTiempos,
   type TareaTiempos,
   type TiemposPedido,
 } from "@/lib/vista-belen";
 import { AcentoBloque } from "../AcentoBloque";
 import { Desplegable } from "../Desplegable";
+import { ESTADO_OPERACION } from "./estilos-belen";
 import { CaraPersona, colorDePersona } from "./CaraPersona";
 
 // ─── Tareas y tiempos del pedido, en la pantalla de Belén ────────────────────
@@ -23,11 +23,6 @@ import { CaraPersona, colorDePersona } from "./CaraPersona";
 // abiertas no se ve nada; se despliega lo que interesa (con la animación de
 // Coordina, Desplegable).
 
-const ESTADO: Record<EstadoOperacion, { texto: string; clase: string; punto: string }> = {
-  finalizado: { texto: "Finalizado", clase: "text-emerald-700 dark:text-emerald-300", punto: "bg-emerald-500" },
-  interrumpido: { texto: "Interrumpido", clase: "text-amber-700 dark:text-amber-300", punto: "bg-amber-500" },
-  sin_empezar: { texto: "Sin empezar", clase: "text-text-muted", punto: "bg-[var(--hero-relleno-encima)]" },
-};
 
 const min = (m: number) => (m > 0 ? fmtMinEnteros(m) : "0m");
 
@@ -87,7 +82,7 @@ function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: 
               <span
                 key={i}
                 className={`whitespace-nowrap rounded-lg px-2 py-0.5 tabular-nums ${
-                  f.minutos > 0 ? "bg-surface font-medium text-text shadow-[var(--hero-sombra-campo)]" : "text-text-muted opacity-60"
+                  f.minutos > 0 ? "bg-surface font-medium text-text shadow-[var(--hero-sombra-campo)]" : "text-text-muted"
                 }`}
               >
                 {f.hora ?? "—"} · <b className="font-bold">{min(f.minutos)}</b>
@@ -107,7 +102,7 @@ function FichajesPorDia({ fichajes }: { fichajes: readonly { dia: string; hora: 
 }
 
 function FilaTarea({ t, abierta, onAlternar }: { t: TareaTiempos; abierta: boolean; onAlternar: () => void }) {
-  const e = ESTADO[t.estado];
+  const e = ESTADO_OPERACION[t.estado];
   const conFichajes = t.personas.length > 0;
   return (
     <li className="border-t border-border first:border-t-0">
@@ -144,7 +139,7 @@ function FilaTarea({ t, abierta, onAlternar }: { t: TareaTiempos; abierta: boole
             <span className="text-[12px] text-text-muted">Nadie ha fichado</span>
           )}
         </span>
-        <span className={`text-[11.5px] font-semibold ${e.clase}`}>{e.texto}</span>
+        <span className={`text-[11.5px] font-semibold ${e.tinta}`}>{e.texto}</span>
         <span className="text-right font-bold tabular-nums">{conFichajes ? min(t.minutos) : "—"}</span>
       </button>
       <Desplegable abierto={abierta}>
@@ -238,7 +233,7 @@ function FilaPersona({
                 </thead>
                 <tbody>
                   {fichajes.map((f, i) => (
-                    <tr key={i} className={f.minutos > 0 ? "text-text" : "text-text-muted opacity-70"}>
+                    <tr key={i} className={f.minutos > 0 ? "text-text" : "text-text-muted"}>
                       <td className="py-px tabular-nums text-text-muted">{f.hora ?? "—"}</td>
                       <td className="py-px font-mono">{f.of}</td>
                       <td className="truncate py-px" title={enFrase(f.descripcion)}>
@@ -263,7 +258,9 @@ export function TiemposBelen({ tiempos }: { tiempos: TiemposPedido }) {
   // antes se recoge. La clave lleva el modo, así no se cruzan las dos vistas.
   const [abierta, setAbierta] = useState<string | null>(null);
   const alternar = (clave: string) => setAbierta((a) => (a === clave ? null : clave));
-  const tareas = tiempos.ofs.flatMap((o) => o.tareas);
+  // Las visitas (TP/COT) no son trabajo de taller: no cuentan, igual que en la
+  // ficha de cada OF.
+  const tareas = tiempos.ofs.flatMap((o) => o.tareas).filter((t) => !t.visita);
   const acabadas = tareas.filter((t) => t.estado === "finalizado").length;
   const dias = new Set(tiempos.personas.flatMap((p) => p.fichajes.map((f) => f.dia))).size;
 

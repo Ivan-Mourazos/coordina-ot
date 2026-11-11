@@ -14,6 +14,30 @@ import {
   type FilaTiempo,
 } from "../vista-belen";
 import { vistaAMedida } from "../personas";
+import { enTitulo, esFinalizada, agruparPaquetes } from "../vista-belen";
+
+describe("nombres de sección, finalizada y paquetes", () => {
+  test("sección en nombre propio; códigos tal cual", () => {
+    expect(enTitulo("DISEÑO GRAFICO ARZUA")).toBe("Diseño Grafico Arzua");
+    expect(enTitulo("MONTAJE DE TOLDOS")).toBe("Montaje de Toldos");
+    expect(enTitulo("OTEC-A")).toBe("OTEC-A");
+  });
+  test("finalizada con espacios y en minúscula", () => {
+    expect(esFinalizada(" finalizada ")).toBe(true);
+    expect(esFinalizada("DETENIDA")).toBe(false);
+    expect(esFinalizada(null)).toBe(false);
+  });
+  test("paquetes juntos por persona y día, sumando unidades", () => {
+    expect(agruparPaquetes([
+      { quien: "Ignacio Penas", fecha: "2026-11-10T08:00:00.000Z", unidades: 1 },
+      { quien: "Ignacio Penas", fecha: "2026-11-10T12:00:00.000Z", unidades: 2 },
+      { quien: "Teresa Vázquez", fecha: "2026-11-10T12:00:00.000Z", unidades: 1 },
+    ])).toEqual([
+      { quien: "Ignacio Penas", dia: "2026-11-10", paquetes: 2, unidades: 3 },
+      { quien: "Teresa Vázquez", dia: "2026-11-10", paquetes: 1, unidades: 1 },
+    ]);
+  });
+});
 
 describe("punto de los bultos", () => {
   test("nada subido: rojo", () => expect(puntoBultos(3, 0)).toBe("rojo"));

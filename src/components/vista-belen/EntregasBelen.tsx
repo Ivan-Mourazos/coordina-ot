@@ -9,7 +9,9 @@ import {
   type GrupoEntregas,
   type PedidoEntregaBelen,
 } from "@/lib/entregas-belen";
+import { hoyEnOficina } from "@/lib/consulta";
 import { fechaCorta } from "@/lib/vista-belen";
+import { chip } from "./estilos-belen";
 
 // ─── Pedidos por día de entrega ──────────────────────────────────────────────
 // La fecha es la solicitada del pedido (la misma que usa Coordina para todos).
@@ -18,7 +20,10 @@ import { fechaCorta } from "@/lib/vista-belen";
 // título del grupo o en el separador del día, nunca también en la fila.
 // Ordenada por otra columna, es una tabla sola con la fecha en su columna.
 
-const INICIAL: FiltrosEntregasBelen = { texto: "", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
+// Por defecto, Arzúa: Belén no revisa las delegaciones salvo que lo pida.
+const INICIAL: FiltrosEntregasBelen = { texto: "", delegacion: "AR", desde: "", hasta: "", situacion: "", orden: "fechaEntrega", descendente: false };
+const DELEGACIONES = { AR: "Arzúa (AR)", SA: "Santiago (SA)", BE: "Bergondo (BE)" } as const;
+const sonIniciales = (f: FiltrosEntregasBelen) => (Object.keys(INICIAL) as Array<keyof FiltrosEntregasBelen>).every((k) => f[k] === INICIAL[k]);
 type Orden = FiltrosEntregasBelen["orden"];
 const COLUMNAS: { clave: Orden; titulo: string; ancho: string; derecha?: boolean }[] = [
   { clave: "codigo", titulo: "Pedido", ancho: "w-[9.5rem]" },
@@ -32,21 +37,9 @@ const CAMPO = "campo-hundido h-10 rounded-[14px] px-3 text-sm text-text";
 const BOTON =
   "rounded-full bg-[var(--hero-relleno)] px-3.5 py-2 text-sm font-semibold transition-[transform,background-color] hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40";
 
-/** Hoy en Galicia, como yyyy-mm-dd (no en UTC: a las 00:30 ya es mañana). */
-function hoyIso(): string {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-}
 
 function Situacion({ valor }: { valor: PedidoEntregaBelen["situacion"] }) {
-  return valor === "fabrica" ? (
-    <span className="whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-[11.5px] font-semibold text-amber-900 dark:text-amber-200">
-      En fábrica
-    </span>
-  ) : (
-    <span className="whitespace-nowrap rounded-full bg-emerald-500/12 px-2 py-0.5 text-[11.5px] font-semibold text-emerald-800 dark:text-emerald-300">
-      Esperando salir
-    </span>
-  );
+  return valor === "fabrica" ? <span className={chip("aviso")}>En fábrica</span> : <span className={chip("ok")}>Esperando salir</span>;
 }
 
 function Cabecera({
@@ -89,7 +82,7 @@ function Fila({ p, conFecha, onAbrir }: { p: PedidoEntregaBelen; conFecha: boole
   return (
     <tr
       onClick={() => onAbrir(p.codigo)}
-      className="cursor-pointer border-t border-border transition-colors hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)]"
+      className="cursor-pointer border-t border-border transition-colors hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)] focus-within:bg-[var(--hero-relleno)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--hero-anillo)]"
     >
       {conFecha && <td className="whitespace-nowrap px-2.5 py-1.5 pl-4 tabular-nums">{fechaCorta(p.fechaEntrega) || "—"}</td>}
       <td className="px-2.5 py-1.5 first:pl-4">
@@ -99,7 +92,7 @@ function Fila({ p, conFecha, onAbrir }: { p: PedidoEntregaBelen; conFecha: boole
             e.stopPropagation();
             onAbrir(p.codigo);
           }}
-          className="whitespace-nowrap rounded font-semibold tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="whitespace-nowrap rounded font-semibold tabular-nums focus:outline-none"
         >
           {p.codigo}
         </button>
@@ -211,7 +204,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
     return () => ctl.abort();
   }, [activa, intento]);
 
-  const hoy = hoyIso();
+  const hoy = hoyEnOficina();
   const filas = useMemo(() => filtrarEntregas(pedidos ?? [], filtros), [pedidos, filtros]);
   const enGrupos = filtros.orden === "fechaEntrega" && !filtros.descendente;
   const grupos = useMemo(() => {
@@ -235,11 +228,17 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
         </button>
       </div>
       <p className="mb-3 text-[13px] text-text-muted">
-        Pedidos AR pendientes de entregar, por la fecha que pidió el cliente. Pincha uno para abrirlo.
+        Pedidos pendientes de entregar, por la fecha que pidió el cliente (la solicitada). Pincha uno para abrirlo.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2.5">
         <label className="flex min-w-52 flex-1 flex-col gap-1 text-xs text-text-muted">Buscar en la lista
           <input type="search" value={filtros.texto} onChange={(e) => cambiar({ texto: e.target.value })} placeholder="Pedido, cliente o localidad" className={CAMPO} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-text-muted">Delegación
+          <select value={filtros.delegacion} onChange={(e) => cambiar({ delegacion: e.target.value as FiltrosEntregasBelen["delegacion"] })} className={CAMPO}>
+            <option value="">Todas</option>
+            {Object.entries(DELEGACIONES).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-text-muted">Desde
           <input type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={(e) => cambiar({ desde: e.target.value })} className={CAMPO} />
@@ -252,7 +251,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
             <option value="">Todas</option><option value="fabrica">En fábrica</option><option value="salir">Esperando salir</option>
           </select>
         </label>
-        {filtros !== INICIAL && <button type="button" onClick={() => setFiltros(INICIAL)} className={BOTON}>Limpiar</button>}
+        {!sonIniciales(filtros) && <button type="button" onClick={() => setFiltros(INICIAL)} className={BOTON}>Limpiar</button>}
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-error">{error} <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}
       <p role="status" className="mb-2 px-1 text-[13px] text-text-muted">

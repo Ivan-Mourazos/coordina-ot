@@ -5,7 +5,6 @@ import {
   estadoOperacion,
   fechaDeTexto,
   unaFilaPorTarea,
-  type AvisoOF,
   type FilaTiempo,
   type MaterialPedido,
   type OFBelen,
@@ -14,6 +13,7 @@ import {
 } from "../vista-belen";
 import { nombreHistorial } from "../nombre-historial";
 import { nombresHistorial } from "./nombres-historial";
+import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto, TIPO_AVISO } from "./rps-belen-comun";
 
 // ─── Vista de Belén Alamancos: lectura de RPS ────────────────────────────
 // Solo lectura, con el usuario de lectura. Cada dato sale de donde lo sacaban
@@ -32,13 +32,6 @@ import { nombresHistorial } from "./nombres-historial";
 // Un pedido son cinco consultas pequeñas EN PARALELO: medido contra RPS el
 // 09/11/2026, unos 55 ms el pedido (250 ms la primera, en frío).
 
-const FEATURE_COMPROMETIDA = "e655eb1f-3f23-4ccb-846b-9e145d3b8df6";
-const TIPO_AVISO: Readonly<Record<string, AvisoOF["tipo"]>> = {
-  "001-tp": "TP",
-  "cdf68c47-3473-4abd-b32e-5dc5f42fb2a3": "COT",
-};
-
-const ES_RPS = () => process.env.DATASOURCE === "rps";
 
 // Las OF del pedido. Todas las consultas parten de aquí, con el código TIPADO
 // (varchar, como la columna): sin tipo, SQL Server no usa el índice.
@@ -51,9 +44,6 @@ const OFS_DEL_PEDIDO = `
     WHERE p.CodCompany = '001' AND p.CodOrder = @pedido
   )`;
 
-const iso = (d: Date | null | undefined): string | null =>
-  d && d.getFullYear() > 1900 ? d.toISOString().slice(0, 10) : null;
-const texto = (s: string | null | undefined): string | null => (s ?? "").trim() || null;
 
 interface FilaOF {
   cod: string;
@@ -82,8 +72,12 @@ interface FilaTarea {
   descr: string | null;
   pct: number | null;
   maq: string | null;
+  /** Nombre de la máquina o sección («DISEÑO GRAFICO ARZUA»). */
+  maqNombre: string | null;
   olanet: number | null;
   imps: number;
+  minutos: number | null;
+  ultimo: Date | null;
   tipoAviso: string | null;
   aviso: string | null;
   cierreAviso: Date | null;
@@ -97,7 +91,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
   const consulta = <T>(q: string) =>
     pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${OFS_DEL_PEDIDO} ${q}`);
 
-  const [ofs, tareas, paquetes, compras, logistica] = await Promise.all([
+  const [ofs, tareas, paquetes, compras, logistica, nombres] = await Promise.all([
     consulta<FilaOF>(`
       SELECT o.cod, p.CodOrder AS pedido, lin.NumLine AS linea, cli.Description AS cliente,
              mo.Priority AS prioridad, mo.Quantity AS cantidad,
@@ -124,6 +118,8 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     consulta<FilaTarea>(`
       SELECT o.cod, t.IDMOTask AS idTarea, t.CodMOTask AS tarea, CAST(t.Description AS varchar(300)) AS descr,
              t.PercentProgress AS pct, rm.CodMOResourceMachine AS maq,
+             CAST(maq.Description AS varchar(100)) AS maqNombre,
+             fich.minutos, fich.ultimo,
              (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
                WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
              (SELECT COUNT(*) FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask) AS imps,
@@ -132,10 +128,16 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       FROM ofs o
       JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
       LEFT JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
+      LEFT JOIN dbo.CPRMachine maq ON maq.IDMachine = rm.IDMachine
+      OUTER APPLY (
+        -- Lo fichado por personas (ResourceType = 1, la regla del Historial).
+        SELECT SUM(i.ExecutionTime) AS minutos, MAX(i.ImputationDate) AS ultimo
+        FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask AND i.ResourceType = 1
+      ) fich
       LEFT JOIN dbo._CPRMOTask_Custom c ON c.IDMOTask = t.IDMOTask
       LEFT JOIN dbo.MANMaintenanceWarning w ON w.IDMaintenanceWarning = c.IDMaintenanceWarning`),
-    consulta<{ cod: string; idPaquete: string; fecha: Date | null; empleado: string | null; cantidad: number }>(`
-      SELECT o.cod, p.IDPaquete AS idPaquete, p.Fecha AS fecha, emp.Description AS empleado,
+    consulta<{ cod: string; idPaquete: string; fecha: Date | null; empleado: string | null; codEmpleado: string | null; cantidad: number }>(`
+      SELECT o.cod, p.IDPaquete AS idPaquete, p.Fecha AS fecha, emp.Description AS empleado, emp.CodEmployee AS codEmpleado,
              d.Cantidad AS cantidad
       FROM ofs o
       JOIN dbo.tgm_detalles_paquetes_olanet d ON d.IDManufacturingOrder = o.id
@@ -156,25 +158,33 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
       LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
       WHERE l.Quantity > l.ReceivedQuantity`),
-    consulta<{ cod: string; fecha: Date | null; responsable: string | null }>(`
-      SELECT o.cod, om.ExecutionDate AS fecha, emp.Description AS responsable
+    consulta<{ cod: string; fecha: Date | null; responsable: string | null; codEmpleado: string | null }>(`
+      SELECT o.cod, om.ExecutionDate AS fecha, emp.Description AS responsable, emp.CodEmployee AS codEmpleado
       FROM ofs o
       JOIN dbo._ACOrderLineSL_PuestaMarcha pm ON pm.IDOrderLine = o.idLin
       JOIN dbo.MANMaintenanceOrder om
         ON om.IDMaintenanceWarning = pm.IDMaintenanceWarning AND om.IDMaintenanceOrderStatus = '001-0'
       LEFT JOIN dbo.GENEmployee emp ON emp.IDEmployee = om.IDResponsible`),
+    nombresHistorial(),
   ]);
 
   if (!ofs.recordset.length) return null;
-  // Una fila por tarea aunque tenga varias máquinas.
-  const porTarea = unaFilaPorTarea(tareas.recordset);
+  // Los nombres, como en «Tareas y tiempos» y el Historial: el del equipo en
+  // Coordina si es de los nuestros, el de RPS recortado si no.
+  const nombre = (cod: string | null, rps: string | null) =>
+    rps ? nombres.get((cod ?? "").trim()) || nombreHistorial(rps) : null;
+  // Una fila por tarea aunque tenga varias máquinas (y sus nombres, juntos).
+  const porTarea = unaFilaPorTarea(tareas.recordset).map((t) => ({
+    ...t,
+    maqNombre: [...new Set(tareas.recordset.filter((x) => x.idTarea === t.idTarea).map((x) => texto(x.maqNombre)).filter(Boolean))].join(", ") || null,
+  }));
 
   const resultado: OFBelen[] = ofs.recordset.map((f) => {
     const suyas = porTarea.filter((t) => t.cod === f.cod);
     const logs = logistica.recordset.filter((l) => l.cod === f.cod);
     const log = logs.sort((a, b) => (b.fecha?.getTime() ?? 0) - (a.fecha?.getTime() ?? 0))[0];
     return {
-      of: f.cod,
+      of: f.cod.trim(),
       pedido: f.pedido.trim(),
       linea: f.linea,
       cliente: texto(f.cliente),
@@ -190,15 +200,18 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       rotulacion: texto(f.rotulacion),
       notas: texto(f.notas),
       detalleLinea: texto(f.detalleLinea),
-      // Operaciones: las tareas con máquina. Las visitas (TP/COT) no llevan
-      // máquina y van aparte, como avisos.
+      // Operaciones: todas las tareas menos las visitas (TP/COT), que van
+      // aparte, como avisos. En el orden de su código como número.
       operaciones: suyas
-        .filter((t) => t.maq && !TIPO_AVISO[t.tipoAviso ?? ""])
+        .filter((t) => !TIPO_AVISO[t.tipoAviso ?? ""])
         .sort((a, b) => Number(a.tarea) - Number(b.tarea) || a.tarea.localeCompare(b.tarea))
         .map((t) => ({
           codigo: t.tarea.trim(),
           descripcion: (t.descr ?? "").trim(),
           maquina: texto(t.maq),
+          seccion: texto(t.maqNombre),
+          minutos: Number(t.minutos) || 0,
+          ultimoFichaje: iso(t.ultimo),
           estado: estadoOperacion({ olanet: t.olanet, porcentaje: t.pct, imputaciones: t.imps }),
         })),
       avisos: suyas
@@ -209,11 +222,22 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
           descripcion: (t.descr ?? "").trim(),
           cerrado: iso(t.cierreAviso),
         })),
-      paquetes: paquetes.recordset
-        .filter((p) => p.cod === f.cod)
+      // Un paquete puede traer varias líneas de detalle para la misma OF: se
+      // junta por paquete sumando sus unidades, para no contarlo dos veces.
+      paquetes: [
+        ...paquetes.recordset
+          .filter((p) => p.cod === f.cod)
+          .reduce((m, p) => {
+            const ya = m.get(p.idPaquete);
+            if (ya) ya.cantidad = (Number(ya.cantidad) || 0) + (Number(p.cantidad) || 0);
+            else m.set(p.idPaquete, { ...p });
+            return m;
+          }, new Map<string, (typeof paquetes.recordset)[number]>())
+          .values(),
+      ]
         .sort((a, b) => (a.fecha?.getTime() ?? 0) - (b.fecha?.getTime() ?? 0))
         .map((p) => ({
-          quien: texto(p.empleado),
+          quien: nombre(p.codEmpleado, p.empleado),
           fecha: p.fecha ? p.fecha.toISOString() : null,
           unidades: Number(p.cantidad) || 0,
         })),
@@ -226,7 +250,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
           prevista: iso(c.prevista),
           proveedor: texto(c.proveedor),
         })),
-      logistica: log ? { fecha: iso(log.fecha), responsable: texto(log.responsable) } : null,
+      logistica: log ? { fecha: iso(log.fecha), responsable: nombre(log.codEmpleado, log.responsable) } : null,
     };
   });
 
@@ -354,11 +378,13 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     dia: Date | null;
     registro: Date | null;
     minutos: number | null;
+    tipoAviso: string | null;
   }>(`${OFS_DEL_PEDIDO}
     SELECT o.cod AS [of], CAST(mo.Description AS varchar(300)) AS ofDescripcion,
            t.CodMOTask AS tarea, CAST(t.Description AS varchar(300)) AS descripcion,
-           (SELECT TOP (1) rm.CodMOResourceMachine FROM dbo.CPRMOResourceMachine rm
-             WHERE rm.IDMOTask = t.IDMOTask ORDER BY rm.CodMOResourceMachine) AS maquina,
+           STUFF((SELECT DISTINCT ', ' + LTRIM(RTRIM(rm.CodMOResourceMachine)) FROM dbo.CPRMOResourceMachine rm
+             WHERE rm.IDMOTask = t.IDMOTask FOR XML PATH(''), TYPE).value('.', 'varchar(max)'), 1, 2, '') AS maquina,
+           w.IDMaintenanceWarningType AS tipoAviso,
            t.PercentProgress AS pct,
            (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
              WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
@@ -368,6 +394,8 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     FROM ofs o
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id
     JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = o.id
+    LEFT JOIN dbo._CPRMOTask_Custom c ON c.IDMOTask = t.IDMOTask
+    LEFT JOIN dbo.MANMaintenanceWarning w ON w.IDMaintenanceWarning = c.IDMaintenanceWarning
     LEFT JOIN dbo.CPRImputationMO i
       ON i.IDMOTask = t.IDMOTask AND i.IDManufacturingOrder = o.id AND i.ResourceType = 1
     LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool`);
@@ -380,6 +408,7 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     descripcion: (f.descripcion ?? "").trim(),
     maquina: texto(f.maquina),
     estado: estadoOperacion({ olanet: f.olanet, porcentaje: f.pct, imputaciones: f.imps }),
+    visita: !!TIPO_AVISO[f.tipoAviso ?? ""] || undefined,
     // Un fichaje sin empleado (máquina o dato perdido) no es de nadie: se
     // queda la tarea, sin persona.
     persona: f.persona && f.dia ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.persona) : null,

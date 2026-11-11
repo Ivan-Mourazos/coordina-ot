@@ -1,9 +1,11 @@
 "use client";
 
+import { hoyEnOficina } from "@/lib/consulta";
 import { estadoMaterial, type EstadoMaterial } from "@/lib/types";
 import { enFrase, fechaCorta, type MaterialPedido } from "@/lib/vista-belen";
 import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
 import { SIGNIFICA } from "./significados";
+import { chip, TONO, type Tono } from "./estilos-belen";
 
 // ─── Material del pedido, en la pantalla de Belén ────────────────────────────
 // Por OF, las tres manos del material: lo que OT ASIGNÓ (y cuánto ha
@@ -14,20 +16,23 @@ import { SIGNIFICA } from "./significados";
 // Arriba de cada OF, de un vistazo: cuántas líneas están reservadas (con su
 // barra) y cuántas compras faltan por llegar.
 
-const ESTADO: Record<EstadoMaterial, { texto: string; clase: string; barra: string }> = {
+const ESTADO: Record<EstadoMaterial, { texto: string; tono: Tono; clase: string; barra: string }> = {
   reservado: {
     texto: "Reservado",
-    clase: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300",
+    tono: "ok",
+    clase: TONO.ok,
     barra: "bg-emerald-500",
   },
   aMedias: {
     texto: "A medias",
-    clase: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
+    tono: "aviso",
+    clase: TONO.aviso,
     barra: "bg-amber-500",
   },
   sinReservar: {
     texto: "Sin reservar",
-    clase: "bg-red-500/12 text-red-800 dark:text-red-300",
+    tono: "error",
+    clase: TONO.error,
     barra: "bg-red-500",
   },
 };
@@ -36,10 +41,10 @@ const ESTADO: Record<EstadoMaterial, { texto: string; clase: string; barra: stri
 const cantidad = (n: number) => n.toLocaleString("es-ES", { maximumFractionDigits: 2 });
 
 function estadoCompra(c: { pedida: number; recibida: number; estimada?: string }, hoy: string) {
-  if (c.recibida >= c.pedida) return { texto: "Recibido", clase: "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300" };
-  if (c.estimada && c.estimada < hoy) return { texto: "Atrasado", clase: "bg-red-500/12 text-red-800 dark:text-red-300" };
-  if (c.recibida > 0) return { texto: "En parte", clase: "bg-amber-500/15 text-amber-900 dark:text-amber-200" };
-  return { texto: "Pendiente", clase: "bg-amber-500/15 text-amber-900 dark:text-amber-200" };
+  if (c.recibida >= c.pedida) return { texto: "Recibido", tono: "ok" as const };
+  if (c.estimada && c.estimada < hoy) return { texto: "Atrasado", tono: "error" as const };
+  if (c.recibida > 0) return { texto: "En parte", tono: "aviso" as const };
+  return { texto: "Pendiente", tono: "aviso" as const };
 }
 
 const Th = ({ children, derecha = false, ayuda }: { children: React.ReactNode; derecha?: boolean; ayuda?: string }) => (
@@ -47,7 +52,7 @@ const Th = ({ children, derecha = false, ayuda }: { children: React.ReactNode; d
     scope="col"
     title={ayuda}
     className={`pb-1 pr-3 text-[11px] font-semibold text-text-muted ${derecha ? "text-right" : "text-left"} ${
-      ayuda ? "cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2" : ""
+      ayuda ? "cursor-help underline decoration-dotted underline-offset-2" : ""
     }`}
   >
     {children}
@@ -65,7 +70,8 @@ function Cabecera({ tipo, children, derecha }: { tipo: TipoBloque; children: Rea
 }
 
 export function MaterialBelen({ material }: { material: MaterialPedido }) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  // Hoy en Galicia: en UTC, de 00:00 a 02:00 aún sería ayer.
+  const hoy = hoyEnOficina();
   const conAlgo = material.ofs.filter((o) => o.materiales.length || o.compras.length);
   if (!conAlgo.length) {
     return (
@@ -132,7 +138,7 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
                           <td className="w-24 py-1.5 pr-3 text-right tabular-nums">{cantidad(m.cantidad)}</td>
                           <td className="w-24 py-1.5 pr-3 text-right font-semibold tabular-nums">{cantidad(m.reservada)}</td>
                           <td className="w-32 py-1.5">
-                            <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${e.clase}`}>{e.texto}</span>
+                            <span className={chip(e.tono)}>{e.texto}</span>
                           </td>
                         </tr>
                       );
@@ -145,7 +151,7 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
             <Cabecera tipo="recorrido" derecha={o.compras.length ? `${o.compras.length} ${o.compras.length === 1 ? "línea" : "líneas"}` : undefined}>
               <span
                 title={SIGNIFICA.pedidoProveedor}
-                className="cursor-help underline decoration-dotted decoration-text-muted/60 underline-offset-2"
+                className="cursor-help underline decoration-dotted underline-offset-2"
               >
                 Pedido a proveedor
               </span>
@@ -177,7 +183,7 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
                         </td>
                         <td className="w-24 py-1.5 pr-3 font-semibold tabular-nums">{fechaCorta(c.estimada)}</td>
                         <td className="w-28 py-1.5">
-                          <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${e.clase}`}>{e.texto}</span>
+                          <span className={chip(e.tono)}>{e.texto}</span>
                         </td>
                       </tr>
                     );

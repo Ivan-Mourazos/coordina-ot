@@ -4,10 +4,14 @@ import { SECCION_POR_DEFECTO } from "../secciones";
 import { estaFinalizado } from "../types";
 import { asegurarIndice, indiceSiListo } from "./historial-indice";
 
+/** Series que salen en la lista: Arzúa y las delegaciones (Santiago y
+ *  Bergondo). La pantalla elige cuál ver; por defecto, AR. */
+const SERIES = ["AR.", "SA.", "BE."];
+
 /** Misma fecha y mismo criterio de entrega pendiente que Coordina para todos. */
 export async function leerEntregasBelen(): Promise<PedidoEntregaBelen[]> {
   if (process.env.DATASOURCE !== "rps") {
-    return PEDIDOS.filter((p) => p.codigo.startsWith("AR.")).map((p) => ({
+    return PEDIDOS.filter((p) => SERIES.some((s) => p.codigo.startsWith(s))).map((p) => ({
       codigo: p.codigo, cliente: p.cliente ?? null, ciudad: p.ciudadEntrega ?? null,
       fechaEntrega: p.fechaEntrega || null, situacion: estaFinalizado(p) ? "salir" : "fabrica", ofs: p.ofs.length,
     }));
@@ -16,7 +20,7 @@ export async function leerEntregasBelen(): Promise<PedidoEntregaBelen[]> {
   const indice = indiceSiListo();
   if (!indice) throw new Error("La lista de pedidos se está preparando");
   return indice.base[SECCION_POR_DEFECTO]
-    .filter((b) => b.pendienteEntrega && b.pedido.startsWith("AR."))
+    .filter((b) => b.pendienteEntrega && SERIES.some((s) => b.pedido.startsWith(s)))
     .map((b) => {
       const info = indice.info.get(b.pedido);
       return {

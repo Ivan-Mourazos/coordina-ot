@@ -74,8 +74,8 @@ export function InicioBelen({ miId, listas, onAbrir }: {
                 <div className="flex items-center justify-between gap-2 px-4 pb-3">
                   <span aria-hidden="true" className="text-sm text-text-muted">⠿ {i + 1}</span>
                   <div className="flex gap-2">
-                    <button type="button" disabled={i === 0} aria-label={`Mover ${h.label} antes`} onClick={() => mover(h.id, i - 1)} className={`rounded-full bg-[var(--hero-relleno)] px-3 py-1.5 disabled:opacity-40 ${PULSABLE}`}>←</button>
-                    <button type="button" disabled={i === herramientas.length - 1} aria-label={`Mover ${h.label} después`} onClick={() => mover(h.id, i + 1)} className={`rounded-full bg-[var(--hero-relleno)] px-3 py-1.5 disabled:opacity-40 ${PULSABLE}`}>→</button>
+                    <button type="button" disabled={i === 0} aria-label={`Mover ${h.label} antes`} onClick={() => mover(h.id, i - 1)} className={`min-h-9 rounded-full bg-[var(--hero-relleno)] px-3.5 py-1.5 disabled:opacity-40 ${PULSABLE}`}><span aria-hidden="true">←</span></button>
+                    <button type="button" disabled={i === herramientas.length - 1} aria-label={`Mover ${h.label} después`} onClick={() => mover(h.id, i + 1)} className={`min-h-9 rounded-full bg-[var(--hero-relleno)] px-3.5 py-1.5 disabled:opacity-40 ${PULSABLE}`}><span aria-hidden="true">→</span></button>
                   </div>
                 </div>
               )}

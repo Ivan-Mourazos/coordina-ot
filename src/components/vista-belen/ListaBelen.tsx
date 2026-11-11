@@ -1,7 +1,8 @@
 "use client";
 
-import { fechaCorta } from "@/lib/vista-belen";
+import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import { LISTAS_BELEN, type ColumnaLista, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
+import { chip, tonoSituacion } from "./estilos-belen";
 
 // ─── Una lista de comprobación de la pantalla de Belén ───────────────────────
 // Genérica: pinta las columnas que declara su entrada en lib/vista-belen-listas
@@ -25,16 +26,6 @@ function haceCuanto(iso: string): string {
   return `a las ${new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-/** Color de una etiqueta de estado según lo que dice: lo acabado o subido en
- *  verde, lo parado o lo que falta en rojo, lo que está en marcha en ámbar. */
-function claseEstado(valor: string): string {
-  const v = valor.trim().toUpperCase();
-  if (v === "SI" || v === "FINALIZADA") return "bg-emerald-500/12 text-emerald-800 dark:text-emerald-300";
-  if (v === "NO" || v === "DETENIDA") return "bg-red-500/12 text-red-800 dark:text-red-300";
-  if (v === "CON IMPUTACIONES") return "bg-amber-500/15 text-amber-900 dark:text-amber-200";
-  return "bg-[var(--hero-relleno)] text-text";
-}
-
 function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | null | undefined }) {
   if (valor === null || valor === undefined || valor === "") return <span className="text-text-muted">—</span>;
   switch (col.tipo) {
@@ -48,9 +39,7 @@ function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | nul
       return <span className="whitespace-nowrap font-semibold tabular-nums">{valor}</span>;
     case "estado":
       return (
-        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${claseEstado(String(valor))}`}>
-          {String(valor).charAt(0) + String(valor).slice(1).toLowerCase()}
-        </span>
+        <span className={chip(tonoSituacion(String(valor)))}>{enFrase(String(valor))}</span>
       );
     default:
       return <>{valor}</>;
@@ -140,7 +129,7 @@ export function TablaListaBelen({
                   return (
                     <tr
                       key={f.clave}
-                      className={`border-t border-border transition-colors ${abrir ? "cursor-pointer hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)]" : ""}`}
+                      className={`border-t border-border transition-colors ${abrir ? "cursor-pointer hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)] focus-within:bg-[var(--hero-relleno)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--hero-anillo)]" : ""}`}
                       onClick={abrir}
                     >
                       {def.columnas.map((c, i) => (
@@ -149,7 +138,7 @@ export function TablaListaBelen({
                           className={`px-2.5 py-1.5 align-top first:pl-4 last:pr-4 ${c.tipo === "numero" ? "text-right" : ""} ${
                             c.ancho ? `${c.ancho} truncate` : ""
                           }`}
-                          title={c.ancho && f[c.clave] !== null ? String(f[c.clave]) : undefined}
+                          title={c.ancho && f[c.clave] != null ? String(f[c.clave]) : undefined}
                         >
                           {/* La primera columna es la que se alcanza con el
                               teclado; la fila entera responde al ratón. */}
@@ -161,7 +150,7 @@ export function TablaListaBelen({
                                 abrir();
                               }}
                               aria-label={`Abrir ${f.pedido}${f.of ? `, OF ${f.of}` : ""}`}
-                              className="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                              className="rounded focus:outline-none"
                             >
                               <Celda col={c} valor={f[c.clave]} />
                             </button>

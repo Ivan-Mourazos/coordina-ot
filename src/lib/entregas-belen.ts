@@ -1,3 +1,5 @@
+import { sumarDias } from "./fechas";
+
 export interface PedidoEntregaBelen {
   codigo: string;
   cliente: string | null;
@@ -7,8 +9,13 @@ export interface PedidoEntregaBelen {
   ofs: number;
 }
 
+/** «AR», «SA» o «BE»: Arzúa o la delegación del pedido. */
+export const delegacion = (codigo: string) => codigo.slice(0, 2).toUpperCase();
+
 export interface FiltrosEntregasBelen {
   texto: string;
+  /** "" = todas. */
+  delegacion: "" | "AR" | "SA" | "BE";
   desde: string;
   hasta: string;
   situacion: "" | PedidoEntregaBelen["situacion"];
@@ -21,6 +28,7 @@ const normalizar = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,
 export function filtrarEntregas(pedidos: readonly PedidoEntregaBelen[], f: FiltrosEntregasBelen): PedidoEntregaBelen[] {
   const palabras = normalizar(f.texto.trim()).split(/\s+/).filter(Boolean);
   return pedidos.filter((p) => {
+    if (f.delegacion && delegacion(p.codigo) !== f.delegacion) return false;
     if (f.situacion && p.situacion !== f.situacion) return false;
     if (f.desde && (!p.fechaEntrega || p.fechaEntrega < f.desde)) return false;
     if (f.hasta && (!p.fechaEntrega || p.fechaEntrega > f.hasta)) return false;
@@ -62,11 +70,8 @@ const TITULOS: Record<IdGrupoEntrega, string> = {
   sinFecha: "Sin fecha de entrega",
 };
 
-/** ISO yyyy-mm-dd de un día del calendario, `n` días después (UTC: sin horas). */
-export function sumarDias(iso: string, n: number): string {
-  const [a, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
-}
+/** La de siempre de Coordina (lib/fechas): aquí se reexporta para los tests. */
+export { sumarDias };
 
 /** Domingo de la semana de `iso` (la semana empieza en lunes). */
 function domingoDe(iso: string): string {

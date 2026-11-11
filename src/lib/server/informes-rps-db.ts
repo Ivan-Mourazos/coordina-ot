@@ -98,8 +98,15 @@ export interface DatosImpresion {
   vale: Fila[];
 }
 
+/** Las OF del enlace, limpias: solo números de OF, sin repetir y como mucho
+ *  60 (un pedido grande no llega a eso). La página y la consulta usan la
+ *  misma lista, así no se imprime una OF dos veces. */
+export function ofsAImprimir(texto: string): string[] {
+  return [...new Set(texto.split(",").map((o) => o.trim()).filter((o) => /^\d{5,10}$/.test(o)))].slice(0, 60);
+}
+
 export async function leerDatosImpresion(ofs: readonly string[]): Promise<DatosImpresion> {
-  const limpias = [...new Set(ofs.map((o) => o.trim()).filter((o) => /^\d{5,10}$/.test(o)))].slice(0, 60);
+  const limpias = ofsAImprimir(ofs.join(","));
   if (!limpias.length || process.env.DATASOURCE !== "rps") return { hojaRuta: [], vale: [] };
   const pool = await getPool();
   const r1 = pool.request();

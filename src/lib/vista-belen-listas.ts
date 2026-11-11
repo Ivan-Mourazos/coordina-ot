@@ -57,7 +57,7 @@ const COLUMNAS_TAREA: ColumnaLista[] = [
   { clave: "tarea", titulo: "Tarea pendiente", ancho: "max-w-[22rem]" },
   { clave: "maquina", titulo: "Máquina" },
   { clave: "situacion", titulo: "Situación", tipo: "estado" },
-  { clave: "fechaSolicitada", titulo: "F. sol.", tipo: "fecha" },
+  { clave: "fechaSolicitada", titulo: "Solicitada", tipo: "fecha" },
 ];
 
 export const LISTAS_BELEN: readonly DefLista[] = [
@@ -93,7 +93,7 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     label: "Fechas comprometidas",
     explica: "OF con fecha dada por Producción, sin bultos subidos y con el pedido sin entregar ni cumplimentar. Por fecha.",
     columnas: [
-      { clave: "fechaComprometida", titulo: "F. comprometida", tipo: "fecha" },
+      { clave: "fechaComprometida", titulo: "Comprometida", tipo: "fecha" },
       { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
       { clave: "of", titulo: "OF", tipo: "of" },
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },

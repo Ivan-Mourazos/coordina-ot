@@ -20,6 +20,9 @@ html[data-estilo="hero"] {
   --recuadro: var(--bg);
   /* El desplegado de una fila: ni el blanco de la fila ni el gris de la página. */
   --detalle: #fafafa;
+  /* Vista de Belén: la OF con su TP/COT ya hecho, tinte amarillo suave sobre
+     la fila (Iván, 10/11/2026). */
+  --belen-avisos-hechos: color-mix(in oklab, #fff, #facc15 16%);
   --franja-ot: var(--surface-2);
   --franja-diseno: var(--surface-2);
   --franja-impresion: var(--surface-2);
@@ -70,6 +73,7 @@ html[data-estilo="hero"].dark {
   --hero-zona: #1a1a1d;
   /* Más claro que la fila (#202024) y que la página (#161618). */
   --detalle: #26262b;
+  --belen-avisos-hechos: color-mix(in oklab, #202024, #facc15 10%);
   --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
   --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);

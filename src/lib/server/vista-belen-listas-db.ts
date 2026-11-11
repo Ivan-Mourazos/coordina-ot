@@ -1,7 +1,8 @@
 import sql from "mssql";
 import { getPool } from "./db";
-import { unaFilaPorTarea } from "../vista-belen";
+import { fechaDeTexto, unaFilaPorTarea } from "../vista-belen";
 import type { FilaLista, IdLista } from "../vista-belen-listas";
+import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto } from "./rps-belen-comun";
 
 // ─── Vista de Belén: las consultas de las listas ─────────────────────────────
 // Solo lectura, contra RPS. Cada lista sale de una hoja de sus Excels (leídos
@@ -11,11 +12,6 @@ import type { FilaLista, IdLista } from "../vista-belen-listas";
 // Para añadir una: una función `(pool) => Promise<FilaLista[]>` en CONSULTAS,
 // con la misma clave que su entrada en lib/vista-belen-listas.ts.
 
-const ES_RPS = () => process.env.DATASOURCE === "rps";
-
-const iso = (d: Date | null | undefined): string | null =>
-  d && d.getFullYear() > 1900 ? d.toISOString().slice(0, 10) : null;
-const texto = (s: string | null | undefined): string | null => (s ?? "").trim() || null;
 
 // ─── Tareas pendientes (hoja «comprobaciones_planificador») ──────────────────
 // «Bultos subidos, tareas pendientes»: OF con todas sus unidades subidas y
@@ -153,40 +149,47 @@ const SQL_DESFASE = `
           AND NULLIF(LTRIM(RTRIM(CAST(t.Description AS varchar(max)))), '') IS NOT NULL)
     ORDER BY pedido.fechaExigida, mo.CodManufacturingOrder`;
 
-// Value es texto AMERICANO, no dd/mm/aaaa. Una característica mal escrita no
-// tumba toda la lista: TRY_CONVERT la descarta (NULLIF evita que un texto vacío
-// se convierta en 1900). Si se repite la característica,
-// mostramos el compromiso válido más temprano, para no ocultar el más urgente.
-// RPS, 09/11/2026: 122 filas, 207 ms. Contraste de conjuntos: las mismas 122
-// OF que las 466 filas del Excel AR; ninguna OF añadida ni perdida.
+// La fecha comprometida es TEXTO americano (mm/dd/aaaa) en una característica
+// de la OF. Si se apuntó varias veces, vale la ÚLTIMA (RowTimestamp), igual que
+// en la ficha del pedido; y se lee con la misma función (fechaDeTexto), así las
+// dos pantallas dicen siempre el mismo día. Antes la lista cogía la más
+// temprana y la leía SQL: con dos fechas, cada pantalla decía una.
 // Belén, 10/11/2026: «solo los pendientes de hacer». Fuera las que ya tienen
-// los bultos subidos (100 de 126 ese día) y las líneas que ya no están
-// pendientes de entregar (otras 13): las albaranadas (Delivered = 1) y las
-// CUMPLIMENTADAS, que es como llama Producción a cerrar una línea sin albarán
-// (Delivered = 0 y PendingDelivery = 0; así lo calcula TGM_ETL_BI32). Una OF
-// finalizada no basta para darla por hecha: manda la entrega.
+// los bultos subidos y las líneas que ya no están pendientes de entregar: las
+// albaranadas (Delivered = 1) y las CUMPLIMENTADAS, que es como llama
+// Producción a cerrar una línea sin albarán (Delivered = 0 y
+// PendingDelivery = 0; así lo calcula TGM_ETL_BI32). Una OF finalizada no basta
+// para darla por hecha: manda la entrega.
 const SQL_FECHAS_COMPROMETIDAS = `
-    WITH compromisos AS (
-      SELECT IDManufacturingOrder,
-             MIN(TRY_CONVERT(date, NULLIF(LTRIM(RTRIM(CAST(Value AS varchar(100)))), ''), 101)) AS fechaComprometida
-      FROM dbo.CPRMOFeature
-      WHERE CodCompany = '001' AND IDFeatureLabel = 'e655eb1f-3f23-4ccb-846b-9e145d3b8df6'
-      GROUP BY IDManufacturingOrder
-      HAVING MIN(TRY_CONVERT(date, NULLIF(LTRIM(RTRIM(CAST(Value AS varchar(100)))), ''), 101)) IS NOT NULL),
-    ${SUBIDAS}
+    WITH ${SUBIDAS}
     SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of],
            pedido.pedido, pedido.cliente, mo.Priority AS prioridad,
-           art.CodArticle AS articulo, pedido.formaEntrega, compromisos.fechaComprometida,
+           CAST(art.Description AS varchar(max)) AS articulo, pedido.formaEntrega,
+           CAST(ultima.Value AS varchar(100)) AS textoComprometida,
            sit.Description AS situacion
-    FROM compromisos
-    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = compromisos.IDManufacturingOrder
+    FROM dbo.CPRManufacturingOrder mo
+    CROSS APPLY (
+      SELECT TOP (1) f.Value FROM dbo.CPRMOFeature f
+      WHERE f.CodCompany = '001' AND f.IDManufacturingOrder = mo.IDManufacturingOrder
+        AND f.IDFeatureLabel = '${FEATURE_COMPROMETIDA}'
+      ORDER BY f.RowTimestamp DESC
+    ) ultima
     JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
       AND sit.CodCompany = mo.CodCompany
     ${pedidoDe(true)}
-    JOIN dbo.STKArticle art ON art.IDArticle = pedido.IDArticle
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
     LEFT JOIN subidas ON subidas.IDManufacturingOrder = mo.IDManufacturingOrder
-    WHERE mo.CodCompany = '001' AND mo.Quantity > ISNULL(subidas.cantidad, 0)
-    ORDER BY compromisos.fechaComprometida, mo.CodManufacturingOrder`;
+    WHERE mo.CodCompany = '001' AND mo.Quantity > ISNULL(subidas.cantidad, 0)`;
+
+/** La lista de fechas comprometidas: lee el texto con fechaDeTexto, descarta
+ *  lo que no es una fecha y ordena de la más antigua a la más lejana. */
+async function fechasComprometidas(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const filas = await comprobacion(pool, SQL_FECHAS_COMPROMETIDAS);
+  return filas
+    .map(({ textoComprometida, ...f }) => ({ ...f, fechaComprometida: fechaDeTexto(String(textoComprometida ?? "")) }))
+    .filter((f) => f.fechaComprometida)
+    .sort((a, b) => String(a.fechaComprometida).localeCompare(String(b.fechaComprometida)) || String(a.of).localeCompare(String(b.of)));
+}
 
 // El recuento se hace antes de unir pedidos; varias líneas del pedido no
 // pueden convertir una sola asignación de máquina en un falso aviso.
@@ -276,7 +279,7 @@ async function comprobacion(pool: sql.ConnectionPool, consulta: string): Promise
 export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<FilaLista[]>> = {
   "bultos-subidos": (pool) => tareasPendientes(pool),
   "desfase": (pool) => comprobacion(pool, SQL_DESFASE),
-  "fechas-comprometidas": (pool) => comprobacion(pool, SQL_FECHAS_COMPROMETIDAS),
+  "fechas-comprometidas": (pool) => fechasComprometidas(pool),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
 };

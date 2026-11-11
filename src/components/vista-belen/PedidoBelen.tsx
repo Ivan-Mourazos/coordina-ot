@@ -6,9 +6,9 @@ import { fmtMinEnteros } from "@/lib/estado";
 import {
   enFrase,
   fechaCorta,
+  ordenarOFs,
   resumenPedido,
   type MaterialPedido,
-  type OFTiempos,
   type PedidoBelen,
   type TiemposPedido,
 } from "@/lib/vista-belen";
@@ -20,6 +20,7 @@ import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { TiemposBelen } from "./TiemposBelen";
+import { chip, FECHA } from "./estilos-belen";
 
 // ─── Un pedido en la pantalla de Belén ───────────────────────────────────────
 // Arriba, una cabecera con lo que es del PEDIDO: cliente, lo que comparten
@@ -73,7 +74,7 @@ const PUNTO: Record<Tono, string> = {
   verde: "bg-emerald-500",
   ambar: "bg-amber-400",
   teal: "bg-teal-500",
-  neutro: "bg-[var(--border-strong)]",
+  neutro: "bg-[var(--hero-relleno-pulsado)]",
 };
 
 function Cifra({
@@ -154,10 +155,7 @@ export function PedidoBelenView({
   abrirNotas?: boolean;
 }) {
   const r = resumenPedido(pedido);
-  const fin = (s: string) => s.trim().toUpperCase() === "FINALIZADA";
-  const porOF = (a: { of: string }, b: { of: string }) => a.of.localeCompare(b.of);
-  const abiertas = pedido.ofs.filter((o) => !fin(o.situacion)).sort(porOF);
-  const finalizadas = pedido.ofs.filter((o) => fin(o.situacion)).sort(porOF);
+  const { abiertas, finalizadas } = ordenarOFs(pedido.ofs);
   // Si busca una OF finalizada, o no queda ninguna abierta, se despliegan.
   const [verFinalizadas, setVerFinalizadas] = useState(
     abiertas.length === 0 || finalizadas.some((o) => o.of === ofResaltada),
@@ -177,10 +175,6 @@ export function PedidoBelenView({
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
   const estadoMat =
     material.tipo === "listo" && material.datos ? estadoMaterialDe(material.datos.ofs) : null;
-  // Las tareas de cada OF para su desplegable: las mismas que «Tareas y
-  // tiempos», que ya se cargan al abrir el pedido.
-  const tareasDe = (of: string): OFTiempos | null | undefined =>
-    tiempos.tipo === "listo" ? (tiempos.datos?.ofs.find((o) => o.of === of) ?? null) : tiempos.tipo === "error" ? null : undefined;
   const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
@@ -204,12 +198,12 @@ export function PedidoBelenView({
           <h1 className="text-[20px] font-bold leading-tight tabular-nums">{pedido.codigo}</h1>
           <span className="text-[15px] font-semibold">{pedido.cliente}</span>
           {r.tpPendiente > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+            <span className={chip("aviso")}>
               TP pendiente
             </span>
           )}
           {r.cotPendiente > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[12px] font-semibold text-amber-900 dark:text-amber-200">
+            <span className={chip("aviso")}>
               COT pendiente
             </span>
           )}
@@ -257,10 +251,17 @@ export function PedidoBelenView({
             onClick={() => setSeccion("resumen")}
           />
           <Cifra
-            etiqueta="Fecha comprometida"
+            etiqueta={FECHA.comprometida.rotulo}
             valor={r.comprometida ? fechaCorta(r.comprometida) : "Sin dar"}
             tono={r.comprometida ? "verde" : "neutro"}
-            sub={`Solicitada ${r.igual.fechaSolicitada ? fechaCorta(r.comunes.fechaSolicitada) || "—" : "distinta por OF"}`}
+            sub={
+              <>
+                {FECHA.solicitada.rotulo}{" "}
+                <b className={`font-semibold ${FECHA.solicitada.tinta}`}>
+                  {r.igual.fechaSolicitada ? fechaCorta(r.comunes.fechaSolicitada) || "—" : "distinta por OF"}
+                </b>
+              </>
+            }
           />
           <Cifra
             etiqueta="Fichado"
@@ -413,7 +414,7 @@ export function PedidoBelenView({
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} tareas={tareasDe(o.of)} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -432,7 +433,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} tareas={tareasDe(o.of)} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} />
           ))}
         </div>
       </Desplegable>

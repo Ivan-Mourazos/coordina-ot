@@ -16,7 +16,8 @@ const IDS = {
   "sin-descripcion": true,
 } satisfies Record<IdLista, true>;
 
-const NUEVAS = ["desfase", "fechas-comprometidas", "varias-maquinas", "sin-descripcion"] as const;
+// «fechas-comprometidas» se prueba aparte: lee la fecha del texto y descarta lo que no lo es.
+const NUEVAS = ["desfase", "varias-maquinas", "sin-descripcion"] as const;
 
 function poolCon(filas: Record<string, unknown>[]) {
   const query = vi.fn().mockResolvedValue({ recordset: filas });
@@ -128,22 +129,24 @@ describe("valores de las comprobaciones", () => {
   test("las fechas SQL salen ISO y los marcadores de 1900 quedan vacíos", async () => {
     const { pool } = poolCon([{
       clave: "id", of: "0233680", pedido: "AR.26.05381",
-      fechaComprometida: new Date("2026-11-13T00:00:00.000Z"),
       fechaFabricacion: new Date("1900-01-01T00:00:00.000Z"),
-      fechaExigida: null,
+      fechaExigida: new Date("2026-11-13T00:00:00.000Z"),
     }]);
-    const [fila] = await CONSULTAS["fechas-comprometidas"](pool);
-    expect(fila.fechaComprometida).toBe("2026-11-13");
+    const [fila] = await CONSULTAS["desfase"](pool);
     expect(fila.fechaFabricacion).toBeNull();
-    expect(fila.fechaExigida).toBeNull();
+    expect(fila.fechaExigida).toBe("2026-11-13");
   });
+});
 
-  test("respeta el orden de fechas que devuelve RPS", async () => {
+describe("fechas comprometidas: la última apuntada, leída como en la ficha", () => {
+  test("texto americano a ISO, sin las que no son fecha, de la más antigua a la más lejana", async () => {
     const { pool } = poolCon([
-      { clave: "a", of: "1", pedido: "AR.1", fechaComprometida: new Date("2026-11-06T00:00:00Z") },
-      { clave: "b", of: "2", pedido: "AR.2", fechaComprometida: new Date("2026-11-13T00:00:00Z") },
+      { clave: "b", of: "2", pedido: "AR.2", textoComprometida: " 11/13/2026 " },
+      { clave: "c", of: "3", pedido: "AR.3", textoComprometida: "BELEN" },
+      { clave: "a", of: "1", pedido: "AR.1", textoComprometida: "11/6/26" },
     ]);
     const filas = await CONSULTAS["fechas-comprometidas"](pool);
-    expect(filas.map((f) => f.fechaComprometida)).toEqual(["2026-11-06", "2026-11-13"]);
+    expect(filas.map((f) => [f.of, f.fechaComprometida])).toEqual([["1", "2026-11-06"], ["2", "2026-11-13"]]);
+    expect(filas[0]).not.toHaveProperty("textoComprometida");
   });
 });

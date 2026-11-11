@@ -58,6 +58,13 @@ export function vistaAMedida(p: { id: string; roles: readonly RolAcceso[] }): Vi
   return VISTAS_A_MEDIDA[p.id] ?? null;
 }
 
+/** ¿Puede abrir la pantalla de Belén (y imprimir desde ella)? Belén, y los
+ *  técnicos y Dirección para mirarla. Un solo criterio para la pantalla y la
+ *  página de imprimir. */
+export function puedeVerVistaBelen(p: { id: string; roles: readonly RolAcceso[] }): boolean {
+  return vistaAMedida(p) === "belen" || p.roles.includes("tecnico") || p.roles.includes("direccion");
+}
+
 /** ¿Se pinta la web sin controles de escribir? Sin `tecnico`, siempre: el
  *  servidor ya le contesta 403 a cualquier escritura. Con `tecnico`, solo si
  *  además tiene `direccion` y ha encendido «Ver como Dirección», que es para

@@ -21,7 +21,14 @@ export type EstadoOperacion = "finalizado" | "interrumpido" | "sin_empezar";
 export interface OperacionOF {
   codigo: string;
   descripcion: string;
+  /** Código de la máquina, o varios juntos («A-CFAC, A-CONF»). */
   maquina: string | null;
+  /** Nombre de la máquina o sección, como lo veía Belén («DISEÑO GRAFICO ARZUA»). */
+  seccion?: string | null;
+  /** Minutos fichados por personas. */
+  minutos?: number;
+  /** yyyy-mm-dd del último fichaje. */
+  ultimoFichaje?: string | null;
   estado: EstadoOperacion;
 }
 
@@ -107,6 +114,29 @@ export interface MaterialPedido {
   ofs: MaterialOF[];
 }
 
+/** ¿La OF está FINALIZADA? Un solo sitio para la comprobación (antes estaba
+ *  en cinco). */
+export function esFinalizada(situacion: string | null | undefined): boolean {
+  return (situacion ?? "").trim().toUpperCase() === "FINALIZADA";
+}
+
+/** Los paquetes de una OF juntos por persona y día: «2 paquetes · Ignacio
+ *  Penas · 10/11/26» en vez de dos filas iguales. */
+export function agruparPaquetes(
+  paquetes: readonly PaqueteOF[],
+): Array<{ quien: string | null; dia: string | null; paquetes: number; unidades: number }> {
+  const grupos = new Map<string, { quien: string | null; dia: string | null; paquetes: number; unidades: number }>();
+  for (const p of paquetes) {
+    const dia = p.fecha ? p.fecha.slice(0, 10) : null;
+    const clave = `${p.quien ?? ""}|${dia ?? ""}`;
+    const g = grupos.get(clave) ?? { quien: p.quien, dia, paquetes: 0, unidades: 0 };
+    g.paquetes += 1;
+    g.unidades += p.unidades;
+    grupos.set(clave, g);
+  }
+  return [...grupos.values()];
+}
+
 export function puntoBultos(cantidad: number, subidas: number): PuntoBultos {
   if (!subidas) return "rojo";
   return subidas === cantidad ? "verde" : "azul";
@@ -179,10 +209,9 @@ export function unaFilaPorTarea<T extends { idTarea: string; maq: string | null 
  *  aún se mueve. Dentro de cada grupo, por número de OF. */
 export function ordenarOFs(ofs: readonly OFBelen[]): { abiertas: OFBelen[]; finalizadas: OFBelen[] } {
   const porOF = (a: OFBelen, b: OFBelen) => a.of.localeCompare(b.of);
-  const fin = (o: OFBelen) => o.situacion.trim().toUpperCase() === "FINALIZADA";
   return {
-    abiertas: ofs.filter((o) => !fin(o)).sort(porOF),
-    finalizadas: ofs.filter(fin).sort(porOF),
+    abiertas: ofs.filter((o) => !esFinalizada(o.situacion)).sort(porOF),
+    finalizadas: ofs.filter((o) => esFinalizada(o.situacion)).sort(porOF),
   };
 }
 
@@ -215,7 +244,7 @@ export interface ResumenPedido {
 
 export function resumenPedido(pedido: PedidoBelen): ResumenPedido {
   const ofs = pedido.ofs;
-  const abiertas = ofs.filter((o) => o.situacion.trim().toUpperCase() !== "FINALIZADA");
+  const abiertas = ofs.filter((o) => !esFinalizada(o.situacion));
   // Lo común se mira en las OF que siguen abiertas, que son las que se leen:
   // una finalizada de hace un mes con otra rotulación no debe convertir la
   // cabecera en «distinta por OF». Si están todas finalizadas, todas.
@@ -238,9 +267,9 @@ export function resumenPedido(pedido: PedidoBelen): ResumenPedido {
     igual,
     ofs: ofs.length,
     bultos,
-    tpPendiente: ofs.filter((o) => resumenAvisos(o.avisos, "TP")?.pendiente).length,
-    cotPendiente: ofs.filter((o) => resumenAvisos(o.avisos, "COT")?.pendiente).length,
-    conMaterialPendiente: ofs.filter((o) => o.compras.length > 0).length,
+    tpPendiente: abiertas.filter((o) => resumenAvisos(o.avisos, "TP")?.pendiente).length,
+    cotPendiente: abiertas.filter((o) => resumenAvisos(o.avisos, "COT")?.pendiente).length,
+    conMaterialPendiente: abiertas.filter((o) => o.compras.length > 0).length,
     comprometida:
       abiertas
         .map((o) => o.fechaComprometida)
@@ -257,6 +286,23 @@ export function enFrase(texto: string | null | undefined): string {
   if (!t) return "";
   const conSiglas = t.replace(/\b(of|tp|cot|pvc|led|uv|dg|ot|rps)\b/g, (m) => m.toUpperCase());
   return conSiglas.charAt(0).toUpperCase() + conSiglas.slice(1);
+}
+
+/** Nombre propio (sección, máquina): «DISEÑO GRAFICO ARZUA» → «Diseño Grafico
+ *  Arzua». Las palabras cortas de enlace van en minúscula y los códigos con
+ *  guion o cifras («OTEC-A») se quedan como están. */
+export function enTitulo(texto: string | null | undefined): string {
+  const t = (texto ?? "").trim();
+  if (!t) return "";
+  return t
+    .split(/\s+/)
+    .map((p, i) => {
+      if (/[\d-]/.test(p)) return p;
+      const min = p.toLowerCase();
+      if (i > 0 && /^(de|del|la|las|el|los|y|e|a|en)$/.test(min)) return min;
+      return min.charAt(0).toUpperCase() + min.slice(1);
+    })
+    .join(" ");
 }
 
 /** ¿Esta OF tiene un dato distinto del común del pedido? Entonces lo enseña
@@ -294,6 +340,9 @@ export interface FilaTiempo {
   descripcion: string;
   maquina: string | null;
   estado: EstadoOperacion;
+  /** Tarea de visita (TP/COT): no es trabajo de taller y no cuenta como
+   *  operación acabada o pendiente. */
+  visita?: boolean;
   persona: string | null;
   dia: string | null;
   hora: string | null;
@@ -312,6 +361,7 @@ export interface TareaTiempos {
   descripcion: string;
   maquina: string | null;
   estado: EstadoOperacion;
+  visita?: boolean;
   minutos: number;
   personas: PersonaEnTarea[];
 }
@@ -366,6 +416,7 @@ export function agruparTiempos(filas: readonly FilaTiempo[]): TiemposPedido {
         descripcion: f.descripcion,
         maquina: f.maquina,
         estado: f.estado,
+        visita: f.visita,
         minutos: 0,
         personas: [],
       };
