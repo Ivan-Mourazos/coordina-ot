@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-12",
+    "hasta": "cddb872",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Una OF sale en amarillo cuando está terminada: bultos subidos y todas las tareas acabadas",
+        "apartado": "produccion",
+        "detalle": "Si tiene TP o COT, también tienen que estar hechos. Antes las OF sin visitas no salían nunca en amarillo.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-11",
     "hasta": "7a14e52",
     "cambios": [
