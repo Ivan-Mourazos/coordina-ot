@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PedidoEncontrado } from "@/lib/buscador";
 import { interpretarBusqueda } from "@/lib/codigo-busqueda";
-import { useNovedades } from "@/lib/useNovedades";
-import { ULTIMA } from "@/lib/novedades";
 import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, LISTAS_BELEN, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
-import { PanelNovedades } from "../PanelNovedades";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
 import { InicioBelen } from "./InicioBelen";
@@ -77,9 +74,7 @@ const pasoActual = (): number => {
   return s?.belen ? (s.n ?? 0) : 0;
 };
 
-export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre: string; miId?: string | null; direccion?: boolean }) {
-  const perfilNovedades = direccion ? "direccion" : "produccion";
-  const novedades = useNovedades(miId ?? "vista-produccion-local", perfilNovedades);
+export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: string | null }) {
   const [pestana, setPestana] = useState<Pestana>("pedido");
   const [lista, setLista] = useState<IdLista>(LISTAS_BELEN[0].id);
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
@@ -334,7 +329,6 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[13px] text-text-muted">{nombre}</span>
           <AvisosBelen miId={miId} onAbrir={(pedido) => navegar({ pedido, detalle: "notas" })} />
-          {ULTIMA && <button type="button" onClick={novedades.abrir} className="rounded-full px-3 py-2 text-[12px] text-text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">Novedades de la web</button>}
           <ThemeToggle />
           <button
             type="button"
@@ -345,10 +339,6 @@ export function VistaBelen({ nombre, miId = null, direccion = false }: { nombre:
           </button>
         </div>
       </header>
-
-      {novedades.abierta && (
-        <PanelNovedades perfil={perfilNovedades} fechas={novedades.fechas} nuevos={novedades.nuevos} onCerrar={novedades.cerrar} />
-      )}
 
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">

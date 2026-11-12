@@ -14,5 +14,5 @@ export default async function PaginaVistaBelen() {
   if (!loginActivo()) return <VistaBelen nombre="" />;
   const yo = quienEs(new Request("http://interno/", { headers: await headers() }));
   if (!yo || !puedeVerVistaBelen(yo)) redirect("/");
-  return <VistaBelen nombre={yo.nombre} miId={yo.id} direccion={yo.roles.includes("direccion")} />;
+  return <VistaBelen nombre={yo.nombre} miId={yo.id} />;
 }

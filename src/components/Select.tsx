@@ -45,6 +45,7 @@ export function Select({
   ariaLabelledBy,
   abiertoAlMontar = false,
   plano = false,
+  claseBoton,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -73,6 +74,9 @@ export function Select({
    *  acción: con relieve de botón parecía lo primero que había que pulsar
    *  (Iván, 15/10/2026). */
   plano?: boolean;
+  /** Forma del botón cerrado en vez del chip de vidrio: para ponerlo a la
+   *  altura de los campos de al lado (filtros HeroUI de la vista de Belén). */
+  claseBoton?: string;
 }) {
   // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
   // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
@@ -230,7 +234,9 @@ export function Select({
         // que el acento de "este filtro está recortando la lista" no llegaba a
         // pintarse nunca.
         className={`${
-          plano
+          claseBoton
+            ? `flex w-full items-center gap-2 text-left transition-colors ${claseBoton}`
+            : plano
             ? "group -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold transition-colors hover:bg-surface-2"
             : "glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
         } ${

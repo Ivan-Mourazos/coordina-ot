@@ -39,9 +39,22 @@ pantalla de Belén es de Producción; imprimir desde OT sigue siendo de OT.
 | `arreglado` | Fallaba, y ya no | "Ah, era eso lo que pasaba" |
 | `mejor` | Funcionaba, pero costaba más | "Esto va más rápido ahora" |
 
-**Qué NO lleva línea:** refactors, tests, comentarios, arreglos internos que
-nadie percibe, migraciones de base de datos. Llenar el log de cosas invisibles
-enseña al equipo a saltárselo, y entonces no sirve para nada.
+**Solo lo importante (Iván, 12/11/2026).** El log se estaba convirtiendo en algo
+que nadie lee. Lleva línea únicamente:
+
+- una **función nueva** (`nuevo`): algo que antes no se podía hacer;
+- un **cambio importante** en cómo se trabaja: una pantalla que cambia de
+  sitio, un paso que desaparece o se añade, un fallo que hacía perder trabajo
+  o daba datos falsos.
+
+**No lleva línea:** retoques de diseño, colores, espaciados, textos, orden de
+columnas, ajustes de filtros, arreglos pequeños, refactors, tests, comentarios,
+migraciones. Ante la duda, sin línea. Mejor tres novedades al mes que se leen
+que treinta que se saltan. Varios commits de la misma función: una sola línea,
+en el que la deja usable.
+
+La vista de Producción (Belén) no enseña novedades por ahora (12/11/2026):
+`Novedad[produccion]:` solo para algo que Producción deba saber de verdad.
 
 **Cómo se escribe la frase.** En el idioma de quien la va a leer, no en el del
 código. Cuéntalo como se lo contarías a un compañero en el pasillo: qué cambia

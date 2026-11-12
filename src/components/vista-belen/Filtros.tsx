@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+import { Select } from "../Select";
 import { SelectorFecha } from "../SelectorFecha";
 
 // ─── Filtros y orden de las listas de Belén ──────────────────────────────────
@@ -67,17 +69,24 @@ export function Seleccion<T extends string>({
   opciones: ReadonlyArray<readonly [T, string]>;
   onCambiar: (v: T) => void;
 }) {
+  // El desplegable de Coordina y no un <select> del navegador, que no se deja
+  // pintar (Iván, 12/11/2026: «los seleccionables hay que darles diseño»). La
+  // opción "" es la de vaciar («Todas»).
+  const id = useId();
+  const vacia = opciones.find(([v]) => v === "");
   return (
-    <label className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-medium text-text-muted">
-      {etiqueta}
-      <select value={valor} onChange={(e) => onCambiar(e.target.value as T)} className={CAMPO}>
-        {opciones.map(([v, t]) => (
-          <option key={v} value={v}>
-            {t}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="flex min-w-0 max-w-full flex-col gap-1 text-xs font-medium text-text-muted">
+      <span id={id}>{etiqueta}</span>
+      <Select
+        value={valor === "" ? null : valor}
+        onChange={(v) => onCambiar((v ?? "") as T)}
+        options={opciones.filter(([v]) => v !== "").map(([value, label]) => ({ value, label }))}
+        placeholder={vacia ? vacia[1] : null}
+        ariaLabelledBy={id}
+        className="min-w-40"
+        claseBoton="campo-hundido h-10 rounded-[14px]! px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
+      />
+    </div>
   );
 }
 
