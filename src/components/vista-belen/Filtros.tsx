@@ -114,6 +114,7 @@ export function CabeceraOrdenable<K extends string>({
   orden,
   onOrdenar,
   derecha = false,
+  envolver = false,
   className = "",
 }: {
   clave: K;
@@ -121,6 +122,8 @@ export function CabeceraOrdenable<K extends string>({
   orden: Orden<K> | null;
   onOrdenar: (clave: K) => void;
   derecha?: boolean;
+  /** En tablas de ancho fijo: el título baja a dos líneas en vez de cortarse. */
+  envolver?: boolean;
   className?: string;
 }) {
   const activa = orden?.clave === clave;
@@ -130,14 +133,18 @@ export function CabeceraOrdenable<K extends string>({
         type="button"
         onClick={() => onOrdenar(clave)}
         title={`Ordenar por ${titulo.toLowerCase()}`}
-        className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
+        className={`inline-flex items-center gap-1 ${envolver ? "max-w-full text-balance leading-tight" : "whitespace-nowrap"} rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
           activa ? "bg-[var(--hero-relleno)] text-text" : "text-text-muted hover:text-text"
         } ${derecha ? "flex-row-reverse" : ""}`}
       >
         {titulo}
-        <span aria-hidden className={activa ? "" : "opacity-0"}>
-          {activa && orden!.descendente ? "↓" : "↑"}
-        </span>
+        {/* Con envolver, la flecha solo ocupa sitio en la columna ordenada:
+            invisible, robaba ancho a títulos que ya van justos. */}
+        {(activa || !envolver) && (
+          <span aria-hidden className={activa ? "" : "opacity-0"}>
+            {activa && orden!.descendente ? "↓" : "↑"}
+          </span>
+        )}
       </button>
     </th>
   );

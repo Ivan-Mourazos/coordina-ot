@@ -50,11 +50,38 @@ function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | nul
     case "pedido":
       return <span className="whitespace-nowrap font-semibold tabular-nums">{valor}</span>;
     case "estado":
+      // El chip también encoge: con la tabla de ancho fijo, mejor «Con
+      // imputac…» que salirse de la celda.
       return (
-        <span className={chip(tonoSituacion(String(valor)))}>{enFrase(String(valor))}</span>
+        <span className={`${chip(tonoSituacion(String(valor)))} max-w-full`}>
+          <span className="min-w-0 truncate">{enFrase(String(valor))}</span>
+        </span>
       );
     default:
       return <>{valor}</>;
+  }
+}
+
+/** Ancho de cada columna. La tabla es de ancho FIJO (Iván, 12/11/2026: «no
+ *  podemos tener scroll»): las columnas cortas (fechas, OF, pedido, números,
+ *  situación y los textos sin `largo`) tienen el suyo, y las de texto largo
+ *  (las que declaran `largo`: cliente, artículo, tarea…) se reparten lo que
+ *  queda. Lo que no cabe se corta con «…» y se lee entero al pasar el ratón.
+ *  Clases literales para que Tailwind las genere. */
+function anchoColumna(c: ColumnaLista): string | undefined {
+  switch (c.tipo) {
+    case "fecha":
+      return "w-[7.25rem]";
+    case "numero":
+      return "w-[5.25rem]";
+    case "of":
+      return "w-[5.5rem]";
+    case "pedido":
+      return "w-[7.5rem]";
+    case "estado":
+      return "w-[10.5rem]";
+    default:
+      return c.largo ? undefined : "w-[7.5rem]";
   }
 }
 
@@ -154,13 +181,18 @@ export function TablaListaBelen({
         (carga.filas.length === 0 ? (
           <p className="px-1 text-sm text-text-muted">No hay ninguna ahora mismo.</p>
         ) : (
-          <div className="tarjeta-of overflow-x-auto rounded-3xl bg-surface">
+          <div className="tarjeta-of overflow-hidden rounded-3xl bg-surface">
             <div className="flex items-baseline gap-2.5 px-4 pb-1 pt-3">
               <span className="text-[22px] font-bold leading-none tabular-nums">{filas.length}</span>
               <span className="text-[14px] font-semibold">{def.label}</span>
               {filas.length !== carga.filas.length && <span className="text-[13px] text-text-muted">de {carga.filas.length}</span>}
             </div>
-            <table className="w-full border-collapse text-[13px]">
+            <table className="w-full table-fixed border-collapse text-[13px]">
+              <colgroup>
+                {def.columnas.map((c) => (
+                  <col key={c.clave} className={anchoColumna(c)} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
                   {def.columnas.map((c) => (
@@ -170,6 +202,8 @@ export function TablaListaBelen({
                       titulo={c.titulo}
                       orden={filtro.orden}
                       derecha={c.tipo === "numero"}
+                      className="align-bottom"
+                      envolver
                       onOrdenar={(clave) => setFiltro((f) => ({ ...f, orden: siguienteOrden(f.orden, clave) }))}
                     />
                   ))}
@@ -195,10 +229,8 @@ export function TablaListaBelen({
                       {def.columnas.map((c, i) => (
                         <td
                           key={c.clave}
-                          className={`px-2.5 py-1.5 align-top first:pl-4 last:pr-4 ${c.tipo === "numero" ? "text-right" : ""} ${
-                            c.ancho ? `${c.ancho} truncate` : ""
-                          }`}
-                          title={c.ancho && f[c.clave] != null ? String(f[c.clave]) : undefined}
+                          className={`truncate px-2.5 py-1.5 align-top first:pl-4 last:pr-4 ${c.tipo === "numero" ? "text-right" : ""}`}
+                          title={f[c.clave] != null && c.tipo !== "fecha" ? String(f[c.clave]) : undefined}
                         >
                           {/* La primera columna es la que se alcanza con el
                               teclado; la fila entera responde al ratón. */}
