@@ -11,6 +11,7 @@ import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
 import { InicioBelen } from "./InicioBelen";
 import { EntregasBelen } from "./EntregasBelen";
+import { usePestanasOrdenables } from "./usePestanasOrdenables";
 import { AvisosBelen } from "./AvisosBelen";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
@@ -76,7 +77,10 @@ const pasoActual = (): number => {
 
 export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: string | null }) {
   const [pestana, setPestana] = useState<Pestana>("pedido");
-  const [lista, setLista] = useState<IdLista>(LISTAS_BELEN[0].id);
+  // null = la primera de SU orden de listas (usePestanasOrdenables).
+  const [listaElegida, setLista] = useState<IdLista | null>(null);
+  const ordenListas = usePestanasOrdenables(`coordina.belen.pestanas-listas:${miId ?? "local"}`, LISTAS_BELEN);
+  const lista: IdLista = listaElegida ?? ordenListas.items[0].id;
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
@@ -428,17 +432,18 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
         <main role="tabpanel" id="panel-comprobaciones" aria-labelledby="pestana-comprobaciones" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
           {/* La misma píldora que se desliza del resto de Coordina. */}
           <div role="group" aria-label="Lista" className="tira-3d glass-chip mb-3 inline-flex flex-wrap rounded-lg p-[3px]">
-            {LISTAS_BELEN.map((l) => {
+            {ordenListas.items.map((l, i) => {
               const c = listas[l.id];
               return (
                 <button
                   key={l.id}
+                  {...ordenListas.propsDe(l.id, i)}
                   type="button"
                   aria-pressed={l.id === lista}
                   onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
                   className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                     l.id === lista ? "pestana-activa" : "text-text-muted hover:text-text"
-                  }`}
+                  } ${ordenListas.claseArrastre(l.id)}`}
                 >
                   {l.label}
                   <span

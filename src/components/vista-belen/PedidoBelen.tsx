@@ -19,6 +19,7 @@ import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { chip, FECHA } from "./estilos-belen";
+import { usePestanasOrdenables } from "./usePestanasOrdenables";
 import { ImprimirOF } from "./ImprimirOF";
 
 // ─── Un pedido en la pantalla de Belén ───────────────────────────────────────
@@ -103,8 +104,11 @@ function Cifra({
       </span>
     </>
   );
+  // Sin fondo propio: separados por una línea fina. Con fondo, los que son
+  // botón y el que no lo es salían de tonos distintos (Iván, 12/11/2026:
+  // «iguala las sombras… ahora hay diferentes fondos»).
   const clase =
-    "min-w-0 rounded-2xl bg-[var(--detalle)] px-3 py-2 text-left transition-[transform,background-color] duration-150";
+    "min-w-0 rounded-none! bg-transparent px-3 py-1.5 text-left transition-[transform,background-color] duration-150";
   return onClick ? (
     <button
       type="button"
@@ -177,7 +181,8 @@ export function PedidoBelenView({
   // 12/11/2026). Sin «Desplegar todas».
   const [desplegada, setDesplegada] = useState<string | null>(ofResaltada ?? null);
   const alternarOF = (of: string) => setDesplegada((d) => (d === of ? null : of));
-  const [seccion, setSeccion] = useState<Seccion>(abrirNotas ? "notas" : "resumen");
+  // null = la primera de SU orden de pestañas (usePestanasOrdenables).
+  const [eleccion, setSeccion] = useState<Seccion | null>(abrirNotas ? "notas" : null);
   const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos?v=${version}`, (j) =>
     (j as { documentos?: DocumentoRps[] }).documentos ?? [],
   );
@@ -209,6 +214,8 @@ export function PedidoBelenView({
     },
     { id: "notas", label: "Notas" },
   ];
+  const pestanas = usePestanasOrdenables(`coordina.belen.pestanas-pedido:${miId ?? "local"}`, SECCIONES);
+  const seccion: Seccion = eleccion ?? pestanas.items[0].id;
 
   return (
     <section aria-label={`Pedido ${pedido.codigo}`} className="flex flex-col gap-2">
@@ -259,7 +266,7 @@ export function PedidoBelenView({
           </span>
         </div>
 
-        <div className="mt-2 grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]">
+        <div className="mt-2 grid gap-y-1.5 border-t border-border pt-2 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))] [&>*+*]:border-l! [&>*+*]:border-border">
           <Cifra
             etiqueta="Bultos subidos"
             valor={`${r.bultos.verde} de ${r.ofs}`}
@@ -346,9 +353,10 @@ export function PedidoBelenView({
         aria-label="Detalle del pedido"
         className="tira-3d glass-chip mt-1 inline-flex flex-wrap self-start rounded-lg p-[3px]"
       >
-        {SECCIONES.map((x) => (
+        {pestanas.items.map((x, i) => (
           <button
             key={x.id}
+            {...pestanas.propsDe(x.id, i)}
             type="button"
             role="tab"
             id={`detalle-${x.id}`}
@@ -357,7 +365,7 @@ export function PedidoBelenView({
             onClick={() => setSeccion(x.id)}
             className={`flex h-8 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
               seccion === x.id ? "pestana-activa" : "text-text-muted hover:text-text"
-            }`}
+            } ${pestanas.claseArrastre(x.id)}`}
           >
             {x.label}
             {x.extra && <span className="text-[11.5px] font-medium tabular-nums text-text-muted">{x.extra}</span>}

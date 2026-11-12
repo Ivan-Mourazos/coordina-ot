@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HERRAMIENTAS_BELEN, ordenarHerramientas } from "@/lib/herramientas-belen";
+import { moverA } from "@/lib/orden-guardado";
+import { useDeslizar } from "./usePestanasOrdenables";
 import type { IdLista } from "@/lib/vista-belen-listas";
 import type { CargaLista } from "./ListaBelen";
 
@@ -20,39 +22,6 @@ const BOTON =
   "rounded-full px-4 py-2 text-[13px] font-semibold transition-[transform,background-color] duration-150 active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] motion-reduce:transition-none disabled:opacity-40";
 
 type Herramienta = (typeof HERRAMIENTAS_BELEN)[number];
-
-/** Mueve el elemento `id` a la posición `destino`. */
-function moverA(lista: readonly Herramienta[], id: string, destino: number): Herramienta[] {
-  const origen = lista.findIndex((h) => h.id === id);
-  if (origen < 0 || destino < 0 || destino >= lista.length || origen === destino) return [...lista];
-  const nuevas = [...lista];
-  const [h] = nuevas.splice(origen, 1);
-  nuevas.splice(destino, 0, h);
-  return nuevas;
-}
-
-/** Desliza cada tarjeta desde donde estaba a donde está ahora (FLIP). */
-function useDeslizar(orden: string) {
-  const nodos = useRef(new Map<string, HTMLElement>());
-  const antes = useRef(new Map<string, DOMRect>());
-  useLayoutEffect(() => {
-    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    for (const [id, el] of nodos.current) {
-      const previo = antes.current.get(id);
-      const ahora = el.getBoundingClientRect();
-      antes.current.set(id, ahora);
-      if (!previo || quieto) continue;
-      const dx = previo.left - ahora.left;
-      const dy = previo.top - ahora.top;
-      if (!dx && !dy) continue;
-      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 180, easing: "ease-out" });
-    }
-  }, [orden]);
-  return useCallback((id: string) => (el: HTMLElement | null) => {
-    if (el) nodos.current.set(id, el);
-    else nodos.current.delete(id);
-  }, []);
-}
 
 export function InicioBelen({ miId, listas, onAbrir }: {
   miId: string | null;

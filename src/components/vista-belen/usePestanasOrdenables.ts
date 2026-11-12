@@ -1,0 +1,119 @@
+"use client";
+
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { moverA, ordenarPorIds } from "@/lib/orden-guardado";
+
+// ─── Pestañas que Belén ordena a su manera ───────────────────────────────────
+// Iván, 12/11/2026: «Belén quiere poder ordenar las cosas a su manera… quizá
+// agarrando la pestaña y desplazando». Sin modo «ordenar»: se agarra la
+// pestaña y se suelta donde se quiera; un clic sigue abriéndola.
+//   · Mientras se arrastra, las demás se apartan EN VIVO (FLIP) y la que se
+//     mueve queda como hueco.
+//   · Cambia de sitio al pasar la MITAD de la vecina: con pestañas de anchos
+//     distintos, cambiar nada más entrar hacía que rebotaran.
+//   · Al soltar se guarda en este navegador, por persona. Soltar fuera o Esc
+//     la deja como estaba.
+//   · Con teclado: Ctrl + Mayús + ← / →.
+// La PRIMERA de su orden es la que se abre por defecto.
+
+/** Desliza cada elemento desde donde estaba a donde está ahora (FLIP). */
+export function useDeslizar(orden: string) {
+  const nodos = useRef(new Map<string, HTMLElement>());
+  const antes = useRef(new Map<string, DOMRect>());
+  useLayoutEffect(() => {
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const [id, el] of nodos.current) {
+      const previo = antes.current.get(id);
+      const ahora = el.getBoundingClientRect();
+      antes.current.set(id, ahora);
+      if (!previo || quieto) continue;
+      const dx = previo.left - ahora.left;
+      const dy = previo.top - ahora.top;
+      if (!dx && !dy) continue;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 180, easing: "ease-out" });
+    }
+  }, [orden]);
+  return useCallback((id: string) => (el: HTMLElement | null) => {
+    if (el) nodos.current.set(id, el);
+    else nodos.current.delete(id);
+  }, []);
+}
+
+export function usePestanasOrdenables<T extends { id: string }>(clave: string, base: readonly T[]) {
+  // Se guardan los ids, no las pestañas: sus rótulos llevan cifras que cambian.
+  const [ids, setIds] = useState<string[] | null>(null);
+  const [arrastrando, setArrastrando] = useState<string | null>(null);
+  const antes = useRef<string[] | null>(null);
+  const soltado = useRef(false);
+  const items = ordenarPorIds(base, ids);
+  const deslizar = useDeslizar(items.map((x) => x.id).join("|"));
+
+  useEffect(() => {
+    let vivo = true;
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      try {
+        const v: unknown = JSON.parse(localStorage.getItem(clave) ?? "null");
+        setIds(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : null);
+      } catch {
+        setIds(null);
+      }
+    });
+    return () => { vivo = false; };
+  }, [clave]);
+
+  const guardar = (nuevos: string[]) => {
+    try { localStorage.setItem(clave, JSON.stringify(nuevos)); } catch { /* Sin almacenamiento: vale para esta visita. */ }
+  };
+
+  const propsDe = (id: string, i: number) => ({
+    ref: deslizar(id),
+    draggable: true,
+    title: "Arrastra para cambiar el orden",
+    onDragStart: (e: React.DragEvent) => {
+      antes.current = items.map((x) => x.id);
+      soltado.current = false;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);
+      setArrastrando(id);
+    },
+    onDragOver: (e: React.DragEvent<HTMLElement>) => {
+      if (!arrastrando) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (arrastrando === id) return;
+      const desde = items.findIndex((x) => x.id === arrastrando);
+      const r = e.currentTarget.getBoundingClientRect();
+      const mitad = r.left + r.width / 2;
+      // Hacia la derecha cambia al pasar la mitad; hacia la izquierda, igual.
+      if ((desde < i && e.clientX < mitad) || (desde > i && e.clientX > mitad)) return;
+      setIds(moverA(items, arrastrando, i).map((x) => x.id));
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!arrastrando) return;
+      e.preventDefault();
+      soltado.current = true;
+      guardar(items.map((x) => x.id));
+    },
+    onDragEnd: () => {
+      if (!soltado.current && antes.current) setIds(antes.current);
+      antes.current = null;
+      setArrastrando(null);
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      if (!e.ctrlKey || !e.shiftKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      e.preventDefault();
+      const nuevos = moverA(items, id, i + (e.key === "ArrowLeft" ? -1 : 1)).map((x) => x.id);
+      setIds(nuevos);
+      guardar(nuevos);
+      const el = e.currentTarget;
+      requestAnimationFrame(() => el.focus());
+    },
+  });
+
+  /** Clases para la pestaña mientras se arrastra: hueco con borde de puntos. */
+  const claseArrastre = (id: string) =>
+    arrastrando === id ? "opacity-40 outline-dashed outline-2 outline-[var(--hero-anillo)]" : "";
+
+  return { items, propsDe, claseArrastre, arrastrando };
+}
