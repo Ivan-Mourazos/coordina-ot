@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CODIGO_PEDIDO_RE } from "@/lib/historial";
-import { documentosDePedido } from "@/lib/server/historial-db";
+import { aDocumentosDelCliente, leerDocumentosPedido } from "@/lib/server/historial-db";
+import { precalentarMiniaturas } from "@/lib/server/miniaturas-documentos";
 import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/pedidos/AR.26.04116/documentos ─────────────────────────────────
@@ -44,8 +45,13 @@ export async function GET(
   }
 
   try {
+    const crudos = await leerDocumentosPedido(pedido);
+    // Por detrás, las miniaturas: cuando se pincha «Documentos» ya están
+    // hechas y el share, caliente para abrirlos (12/11/2026: la primera
+    // lectura del share era lo lento, 8,4 s para 23 ficheros).
+    precalentarMiniaturas(pedido.toUpperCase(), crudos);
     return NextResponse.json(
-      { documentos: await documentosDePedido(pedido) },
+      { documentos: aDocumentosDelCliente(pedido, crudos) },
       // Los documentos de un pedido cambian poco, pero cambian: se cuelga una
       // foto nueva y hay que verla. Sin caché de navegador; ya se pide una sola
       // vez por apertura de ficha.

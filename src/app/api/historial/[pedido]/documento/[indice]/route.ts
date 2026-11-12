@@ -1,15 +1,12 @@
-import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
-import path from "node:path";
 import {
   CODIGO_PEDIDO_RE,
   archivoDeRuta,
   comoServir,
-  esImagen,
   segmentosEnShare,
 } from "@/lib/historial";
 import { CLAVE_DOCUMENTO_RE, documentoDePedido } from "@/lib/server/historial-db";
-import { miniaturaCacheada, redimensionarImagen, renderizarPdf } from "@/lib/server/miniaturas";
+import { miniaturaDeDocumento, mtimeDe, rutaEnDisco, tieneMiniatura } from "@/lib/server/miniaturas-documentos";
 import { soloConSesion } from "@/lib/server/sesion";
 
 // ─── GET /api/historial/AR.26.03453/documento/0 ──────────────────────────────
@@ -35,26 +32,18 @@ import { soloConSesion } from "@/lib/server/sesion";
  *  llegue siquiera a abrir la conexión con la BD. */
 const INDICE_RE = CLAVE_DOCUMENTO_RE;
 
-/** Carpeta de caché de las miniaturas de documentos, dentro de la de Next.
- *  Aparte de la de los partes (`pedidos-thumbs`): allí la clave es el código
- *  del pedido y aquí la ruta del fichero, y mezclarlas invitaba a chocar. */
-const CACHE_MINIATURAS = path.join(process.cwd(), ".next", "cache", "docs-thumbs");
-
-// El share se llega distinto según dónde corra la app, igual que en
-// /api/pedidos/[archivo]:
-//   · Windows (desarrollo): ruta UNC \\192.168.0.128\RPS (por VPN).
-//   · Linux (deploy): punto de montaje CIFS, p.ej. /mnt/rps.
-// OJO: aquí la raíz es el share ENTERO y no la carpeta de pedidos, porque los
-// documentos están repartidos por medio share (VENTAS\PLANTEAMIENTOS, OF\OF,
-// VENTAS\FOTOS TRABAJOS…). Por eso `RPS_DOCS_DIR` es una variable aparte de
-// `RPS_PEDIDOS_PDF_DIR` y no se deduce de ella.
-const RAIZ =
-  process.platform === "win32"
-    ? (process.env.RPS_DOCS_DIR_WIN ?? "\\\\192.168.0.128\\RPS")
-    : (process.env.RPS_DOCS_DIR ?? "/mnt/rps");
+// La raíz del share y la caché de miniaturas viven en
+// lib/server/miniaturas-documentos.ts (también las usa el precalentado).
 
 /** Privada (lleva datos del cliente) y revalidando siempre: ver la `firma`. */
 const CACHE_DOCUMENTO = "private, no-cache";
+
+/** La miniatura sí se guarda un rato en el navegador sin preguntar (12/11/2026):
+ *  al volver a un pedido, cada una costaba una vuelta al share solo para oír
+ *  «no ha cambiado». Diez minutos: si se rehace un planteamiento con el mismo
+ *  nombre, el dibujito tarda eso en ponerse al día (el documento, no: ese
+ *  pregunta siempre). */
+const CACHE_MINIATURA = "private, max-age=600";
 
 export const dynamic = "force-dynamic";
 
@@ -100,20 +89,15 @@ export async function GET(
     return new Response("Ese documento no está en el archivo de RPS", { status: 404 });
   }
 
-  // Segmento a segmento, nunca una cadena: `path.join` con los trozos ya
-  // validados no puede salir de RAIZ. La comprobación de abajo es el cinturón
-  // sobre los tirantes — si algún día `segmentosEnShare` deja pasar algo, esto
-  // lo para igual.
-  const ruta = path.join(RAIZ, ...segmentos);
-  if (!path.resolve(ruta).startsWith(path.resolve(RAIZ))) {
-    console.error("[historial] documento fuera de la raíz del share:", doc.ruta);
-    return new Response("Documento no encontrado", { status: 404 });
-  }
+  // Segmento a segmento, nunca una cadena: `rutaEnDisco` une los trozos ya
+  // validados y vuelve a comprobar que no se sale de la raíz del share.
+  const ruta = rutaEnDisco(doc.ruta);
+  if (!ruta) return new Response("Documento no encontrado", { status: 404 });
 
   const archivo = archivoDeRuta(doc.ruta);
   const { tipo, incrustable } = comoServir(archivo);
 
-  if (mini) return await miniatura(req, ruta, doc.ruta, archivo, tipo);
+  if (mini) return await miniatura(req, ruta, doc.ruta, archivo);
 
   // El navegador PREGUNTA cada vez si ha cambiado (19/10/2026). Antes lo
   // guardaba un día sin preguntar, y un planteamiento rehecho con el mismo
@@ -173,40 +157,32 @@ async function miniatura(
   ruta: string,
   rutaOriginal: string,
   archivo: string,
-  tipo: string,
 ): Promise<Response> {
-  const esPdf = tipo === "application/pdf";
-  if (!esPdf && !esImagen(archivo)) {
+  if (!tieneMiniatura(archivo)) {
     return new Response("Ese documento no tiene miniatura", { status: 415 });
   }
 
   let mtime: number;
   try {
-    mtime = (await stat(ruta)).mtimeMs;
+    mtime = await mtimeDe(ruta);
   } catch {
     return new Response("Documento no encontrado", { status: 404 });
   }
   const firma = `"m-${Math.round(mtime)}"`;
   if (req.headers.get("if-none-match") === firma) {
-    return new Response(null, { status: 304, headers: { ETag: firma, "Cache-Control": CACHE_DOCUMENTO } });
+    return new Response(null, { status: 304, headers: { ETag: firma, "Cache-Control": CACHE_MINIATURA } });
   }
 
-  const clave = createHash("sha1").update(rutaOriginal).digest("hex");
   try {
-    const bytes = await miniaturaCacheada(
-      CACHE_MINIATURAS,
-      `${clave}.${esPdf ? "png" : "jpg"}`,
-      mtime,
-      () => (esPdf ? renderizarPdf(ruta) : redimensionarImagen(ruta)),
-    );
+    const { bytes, tipo } = await miniaturaDeDocumento(ruta, rutaOriginal, mtime);
     return new Response(new Uint8Array(bytes), {
       headers: {
-        "Content-Type": esPdf ? "image/png" : "image/jpeg",
+        "Content-Type": tipo,
         "X-Content-Type-Options": "nosniff",
         // Privada: lleva datos del cliente y no puede quedarse en ninguna
-        // caché compartida. Revalida igual que el documento entero.
+        // caché compartida.
         ETag: firma,
-        "Cache-Control": CACHE_DOCUMENTO,
+        "Cache-Control": CACHE_MINIATURA,
       },
     });
   } catch (e) {

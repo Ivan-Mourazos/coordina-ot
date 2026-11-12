@@ -804,14 +804,52 @@ export interface DocumentoRpsCrudo {
  *  Verificado en vivo (08/2026): 3960 de los 3962 pedidos AR.26 llevan algún
  *  documento; 18 975 ya descontados los repetidos, 4,8 por pedido de media.
  *  La media engaña un poco: los adjuntos de OF son uno POR OF, así que un
- *  pedido de 12 OFs se planta en 12 documentos él solo (AR.26.03453). */
+ *  pedido de 12 OFs se planta en 12 documentos él solo (AR.26.03453).
+ *
+ *  GUARDADA UN MINUTO por pedido (12/11/2026, «los documentos son lo más
+ *  lento de la web»): cada miniatura y cada documento que se abre resuelve su
+ *  índice contra esta lista, así que un pedido con 23 documentos lanzaba 23
+ *  veces la misma consulta a la vez. Ahora es una, y las que llegan mientras
+ *  está en marcha esperan a esa. Un documento recién colgado en RPS tarda
+ *  como mucho un minuto en salir. */
 export async function leerDocumentosPedido(pedido: string): Promise<DocumentoRpsCrudo[]> {
   if (ES_MOCK) return [];
+  const clave = pedido.trim().toUpperCase();
+  const guardada = documentosGuardados.get(clave);
+  if (guardada && Date.now() - guardada.at < VIDA_DOCUMENTOS_MS) return guardada.docs;
+  let enCurso = documentosEnCurso.get(clave);
+  if (!enCurso) {
+    enCurso = consultarDocumentosPedido(clave)
+      .then((docs) => {
+        documentosGuardados.delete(clave);
+        documentosGuardados.set(clave, { at: Date.now(), docs });
+        if (documentosGuardados.size > MAX_PEDIDOS_DOCUMENTOS) documentosGuardados.delete(documentosGuardados.keys().next().value!);
+        return docs;
+      })
+      .finally(() => documentosEnCurso.delete(clave));
+    documentosEnCurso.set(clave, enCurso);
+  }
+  return enCurso;
+}
 
+const VIDA_DOCUMENTOS_MS = 60_000;
+const MAX_PEDIDOS_DOCUMENTOS = 300;
+const documentosGuardados = new Map<string, { at: number; docs: DocumentoRpsCrudo[] }>();
+const documentosEnCurso = new Map<string, Promise<DocumentoRpsCrudo[]>>();
+
+/** Solo para los tests: que uno no herede la lista guardada por otro. */
+export function olvidarDocumentosGuardados(): void {
+  documentosGuardados.clear();
+  documentosEnCurso.clear();
+}
+
+async function consultarDocumentosPedido(pedido: string): Promise<DocumentoRpsCrudo[]> {
   const pool = await getPool();
   const r = await pool
     .request()
-    .input("pedido", pedido)
+    // Tipado como la columna (varchar): sin tipo, SQL Server compara en
+    // nvarchar y puede dejar de usar el índice (ver parametros-sql-varchar).
+    .input("pedido", sql.VarChar(25), pedido)
     .query<{ descripcion: string | null; ruta: string | null; clase: string | null }>(`
       ;WITH Docs AS (
         SELECT 1 AS fuente, CAST(ed.IDEntityDocument AS varchar(50)) AS id,
