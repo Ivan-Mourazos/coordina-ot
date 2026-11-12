@@ -147,14 +147,18 @@ export function agruparPaquetes(
   return [...grupos.values()];
 }
 
-/** ¿La OF va en amarillo? Belén (11/11/2026): cuando tiene sus visitas
- *  (TP/COT) hechas Y todas sus tareas finalizadas. Es de la OF, no del pedido.
- *  Sin TP ni COT no hay amarillo. */
-export function ofEnAmarillo(of: Pick<OFBelen, "avisos" | "operaciones">): boolean {
+/** ¿La OF va en amarillo? Cuando está TERMINADA: sus bultos subidos (todas
+ *  las unidades, punto verde), todas sus tareas finalizadas y, si tiene
+ *  visitas (TP/COT), hechas; sin TP ni COT cuentan solo bultos y tareas. Es de la OF, no del pedido (Belén,
+ *  11/11/2026). Al principio se pedía además que hubiera algún TP/COT, y una OF
+ *  acabada sin visitas (0233574) no salía amarilla (Iván, 12/11/2026: «¿no
+ *  está terminado?»). Sin tareas no hay nada que dar por terminado. */
+export function ofEnAmarillo(of: Pick<OFBelen, "avisos" | "operaciones" | "cantidad" | "subidas">): boolean {
   return (
-    of.avisos.length > 0 &&
-    of.avisos.every((a) => a.cerrado) &&
-    of.operaciones.every((o) => o.estado === "finalizado")
+    puntoBultos(of.cantidad, of.subidas) === "verde" &&
+    of.operaciones.length > 0 &&
+    of.operaciones.every((o) => o.estado === "finalizado") &&
+    of.avisos.every((a) => a.cerrado)
   );
 }
 

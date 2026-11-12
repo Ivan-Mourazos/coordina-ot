@@ -212,14 +212,20 @@ describe("tiempos exactos de RPS", () => {
 });
 
 describe("OF en amarillo", () => {
-  test("solo con las visitas hechas y todas las tareas finalizadas", async () => {
+  test("terminada: bultos subidos, tareas finalizadas y, si hay visitas, hechas", async () => {
     const { ofEnAmarillo } = await import("../vista-belen");
     const tp = (cerrado: string | null) => ({ tipo: "TP" as const, codigo: "I1", descripcion: "", cerrado });
     const op = (estado: "finalizado" | "interrumpido") => ({ codigo: "5", descripcion: "", maquina: null, estado });
-    expect(ofEnAmarillo({ avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(true);
-    expect(ofEnAmarillo({ avisos: [tp("2026-11-01")], operaciones: [op("finalizado"), op("interrumpido")] })).toBe(false);
-    expect(ofEnAmarillo({ avisos: [tp(null)], operaciones: [op("finalizado")] })).toBe(false);
-    expect(ofEnAmarillo({ avisos: [], operaciones: [op("finalizado")] })).toBe(false);
+    const subida = { cantidad: 1, subidas: 1 };
+    expect(ofEnAmarillo({ ...subida, avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(true);
+    expect(ofEnAmarillo({ ...subida, avisos: [tp("2026-11-01")], operaciones: [op("finalizado"), op("interrumpido")] })).toBe(false);
+    expect(ofEnAmarillo({ ...subida, avisos: [tp(null)], operaciones: [op("finalizado")] })).toBe(false);
+    // Sin TP ni COT y acabada (0233574): también amarilla.
+    expect(ofEnAmarillo({ ...subida, avisos: [], operaciones: [op("finalizado")] })).toBe(true);
+    expect(ofEnAmarillo({ ...subida, avisos: [], operaciones: [] })).toBe(false);
+    // Sin los bultos subidos (o con unidades que no cuadran), no.
+    expect(ofEnAmarillo({ cantidad: 2, subidas: 0, avisos: [], operaciones: [op("finalizado")] })).toBe(false);
+    expect(ofEnAmarillo({ cantidad: 2, subidas: 1, avisos: [], operaciones: [op("finalizado")] })).toBe(false);
   });
 });
 
