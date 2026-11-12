@@ -100,6 +100,18 @@ export interface OFBelen {
   logistica: { fecha: string | null; responsable: string | null } | null;
 }
 
+/** Alguien fichando AHORA en una tarea, según OLANET (tgm_fichajes_olanet:
+ *  la foto de quién ficha, que OLANET rehace cada pocos minutos). */
+export interface FichandoAhora {
+  of: string;
+  /** El código de tarea TAL CUAL («2» y «02» son tareas distintas). */
+  tarea: string;
+  persona: string;
+  /** Minutos que lleva en este tramo. */
+  minutos: number;
+  maquina: string | null;
+}
+
 export interface PedidoBelen {
   codigo: string;
   cliente: string | null;
@@ -147,14 +159,14 @@ export function agruparPaquetes(
   return [...grupos.values()];
 }
 
-/** ¿La OF va en amarillo? Cuando está TERMINADA: sus bultos subidos (todas
- *  las unidades, punto verde), todas sus tareas finalizadas y, si tiene
- *  visitas (TP/COT), hechas; sin TP ni COT cuentan solo bultos y tareas. Es de la OF, no del pedido (Belén,
- *  11/11/2026). Al principio se pedía además que hubiera algún TP/COT, y una OF
- *  acabada sin visitas (0233574) no salía amarilla (Iván, 12/11/2026: «¿no
- *  está terminado?»). Sin tareas no hay nada que dar por terminado. */
+/** ¿La OF va en amarillo? Cuando tiene visitas (TP/COT) y están TODAS hechas,
+ *  con sus bultos subidos (todas las unidades, punto verde) y todas sus tareas
+ *  finalizadas. Es de la OF, no del pedido (Belén, 11/11/2026). Una OF sin TP
+ *  ni COT NO va en amarillo aunque esté acabada (Iván, 12/11/2026: se había
+ *  pedido al revés por error). Sin tareas no hay nada que dar por terminado. */
 export function ofEnAmarillo(of: Pick<OFBelen, "avisos" | "operaciones" | "cantidad" | "subidas">): boolean {
   return (
+    of.avisos.length > 0 &&
     puntoBultos(of.cantidad, of.subidas) === "verde" &&
     of.operaciones.length > 0 &&
     of.operaciones.every((o) => o.estado === "finalizado") &&

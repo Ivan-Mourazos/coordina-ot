@@ -5,6 +5,7 @@ import {
   estadoOperacion,
   fechaDeTexto,
   unaFilaPorTarea,
+  type FichandoAhora,
   type FilaTiempo,
   type MaterialPedido,
   type OFBelen,
@@ -189,7 +190,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     nombresHistorial(),
   ]);
 
-  if (!ofs.recordset.length) return null;
+  if (!ofs.recordset.length) return pedidoSinOF(pool, pedido);
   // Los nombres, como en «Tareas y tiempos» y el Historial: el del equipo en
   // Coordina si es de los nuestros, el de RPS recortado si no.
   const nombre = (cod: string | null, rps: string | null) =>
@@ -290,6 +291,55 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     comentarioVenta: texto(ofs.recordset[0].comentarioVenta),
     ofs: resultado,
   };
+}
+
+/** Un pedido que existe pero aún no tiene ninguna OF («sin gestionar»): se
+ *  abre igual, con su cliente y su comentario, para que se vea que está ahí.
+ *  null si el pedido no existe. */
+async function pedidoSinOF(pool: sql.ConnectionPool, pedido: string): Promise<PedidoBelen | null> {
+  const r = await pool.request().input("pedido", sql.VarChar(25), pedido).query<{ cliente: string | null; comentario: string | null }>(`
+    SELECT TOP (1) cli.Description AS cliente, CAST(p.Comment AS varchar(4000)) AS comentario
+    FROM dbo.FACOrderSL p
+    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = p.IDCustomer
+    WHERE p.CodCompany = '001' AND p.CodOrder = @pedido`);
+  const f = r.recordset[0];
+  if (!f) return null;
+  return { codigo: pedido, cliente: texto(f.cliente), comentarioVenta: texto(f.comentario), ofs: [] };
+}
+
+// ─── Quién ficha AHORA en las OF del pedido ──────────────────────────────────
+// tgm_fichajes_olanet es la foto de quién está fichando, que OLANET rehace cada
+// pocos minutos (comprobado el 12/11/2026: 15 personas a las 15:10, todas con
+// la misma hora de creación). `tiempo` = minutos que lleva en ese tramo;
+// `codoperario` = el CodEmployee de RPS, en número. Unos milisegundos: la
+// pantalla lo pregunta cada minuto mientras el pedido está abierto.
+export async function leerFichandoAhora(codigo: string): Promise<FichandoAhora[]> {
+  const pedido = codigo.trim().toUpperCase();
+  if (!ES_RPS()) return [];
+  const pool = await getPool();
+  const [r, nombres] = await Promise.all([
+    pool.request().input("pedido", sql.VarChar(25), pedido).query<{
+      orden: string;
+      fase: string;
+      tiempo: number | null;
+      maquina: string | null;
+      codEmpleado: string | null;
+      empleado: string | null;
+    }>(`${OFS_DEL_PEDIDO}
+      SELECT f.orden, f.fase, f.tiempo, f.maquina, emp.CodEmployee AS codEmpleado, emp.Description AS empleado
+      FROM dbo.tgm_fichajes_olanet f
+      JOIN ofs o ON o.cod = f.orden
+      LEFT JOIN dbo.GENEmployee emp
+        ON emp.CodCompany = '001' AND emp.CodEmployee = CAST(f.codoperario AS varchar(20))`),
+    nombresHistorial(),
+  ]);
+  return r.recordset.map((f) => ({
+    of: f.orden.trim(),
+    tarea: f.fase.trim(),
+    persona: (f.empleado ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.empleado) : null) ?? "Alguien",
+    minutos: Number(f.tiempo) || 0,
+    maquina: texto(f.maquina),
+  }));
 }
 
 // ─── Material: asignado, reservado y comprado ────────────────────────────────

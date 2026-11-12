@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import type sql from "mssql";
-import { esIdLista, filtrarLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type IdLista } from "../vista-belen-listas";
+import { esIdLista, filtrarLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, valoresFiltro, type IdLista } from "../vista-belen-listas";
 import { CONSULTAS, leerListaBelen, olvidarListasBelen } from "../server/vista-belen-listas-db";
 import { getPool } from "../server/db";
 
@@ -14,6 +14,14 @@ const IDS = {
   "fechas-comprometidas": true,
   "varias-maquinas": true,
   "sin-descripcion": true,
+  "tiempos-previstos": true,
+  "maquina-a-horas": true,
+  "tiempos-sin-subir": true,
+  "delimitacion": true,
+  "detenidas-material": true,
+  "compras-pendientes": true,
+  "tp-cot": true,
+  "sin-gestionar": true,
 } satisfies Record<IdLista, true>;
 
 // «fechas-comprometidas» se prueba aparte: lee la fecha del texto y descarta lo que no lo es.
@@ -67,6 +75,26 @@ describe("caché de las listas: lo último al momento y se renueva por detrás",
   });
 });
 
+describe("«Actualizar» a mano recalcula aunque lo guardado sea reciente", () => {
+  test("forzar pregunta a RPS otra vez", async () => {
+    vi.stubEnv("DATASOURCE", "rps");
+    vi.mocked(getPool).mockResolvedValue({} as sql.ConnectionPool);
+    const fila = (clave: string) => ({ clave, of: "0000001", pedido: "AR.26.00001" });
+    const consulta = vi.spyOn(CONSULTAS, "desfase").mockResolvedValueOnce([fila("a")]).mockResolvedValueOnce([fila("b")]);
+    try {
+      expect((await leerListaBelen("desfase")).filas[0].clave).toBe("a");
+      expect((await leerListaBelen("desfase")).filas[0].clave).toBe("a");
+      expect((await leerListaBelen("desfase", { forzar: true })).filas[0].clave).toBe("b");
+      expect(consulta).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllEnvs();
+      consulta.mockRestore();
+      olvidarListasBelen();
+      vi.mocked(getPool).mockReset();
+    }
+  });
+});
+
 describe("registro de listas de Belén", () => {
   test("cada IdLista tiene definición y consulta, sin ids repetidos", () => {
     const ids = Object.keys(IDS).sort();
@@ -78,8 +106,10 @@ describe("registro de listas de Belén", () => {
   test.each(LISTAS_BELEN)("$id: columnas únicas y navegación al pedido", (lista) => {
     const claves = lista.columnas.map((c) => c.clave);
     expect(new Set(claves).size).toBe(claves.length);
-    expect(claves).toContain("of");
+    // «Pedidos sin gestionar» son justo los que aún no tienen OF.
+    if (lista.id !== "sin-gestionar") expect(claves).toContain("of");
     expect(claves).toContain("pedido");
+    if (lista.filtro) expect(claves).toContain(lista.filtro.clave);
     expect(lista.label.trim()).not.toBe("");
     expect(lista.explica.trim()).not.toBe("");
   });
@@ -172,5 +202,19 @@ describe("filtros y orden de las listas", () => {
   });
   test("sin orden elegido, el de RPS", () => {
     expect(filtrarLista(filas, def, FILTRO_LISTA_INICIAL).map((f) => f.clave)).toEqual(["1", "2", "3"]);
+  });
+});
+
+describe("el desplegable de la lista (tiempo previsto: «Sin tiempo» u «8 h o más»)", () => {
+  const def = LISTAS_BELEN.find((l) => l.id === "tiempos-previstos")!;
+  const filas = [
+    { clave: "1", of: "0001", pedido: "AR.1", problema: "Sin tiempo" },
+    { clave: "2", of: "0002", pedido: "AR.2", problema: "8 h o más" },
+    { clave: "3", of: "0003", pedido: "AR.3", problema: "Sin tiempo" },
+  ];
+  test("ofrece los valores que hay y se queda con el elegido", () => {
+    expect(valoresFiltro(filas, def)).toEqual(["8 h o más", "Sin tiempo"]);
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, valor: "Sin tiempo" }).map((f) => f.clave)).toEqual(["1", "3"]);
+    expect(filtrarLista(filas, def, FILTRO_LISTA_INICIAL)).toHaveLength(3);
   });
 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
-import { leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
+import { leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
@@ -14,7 +14,9 @@ import { leerEntregasBelen } from "@/lib/server/entregas-belen-db";
 //   ?pedido=AR.…    el pedido con una fila por OF
 //   ?tiempos=AR.…   todas sus tareas y cada fichaje de cada persona
 //   ?material=AR.… lo asignado, reservado y comprado de cada OF
-//   ?lista=…        una de las pestañas (lib/vista-belen-listas.ts, LISTAS_BELEN)
+//   ?ahora=AR.…     quién ficha AHORA en sus tareas (OLANET)
+//   ?lista=…        una de las pestañas (lib/vista-belen-listas.ts, LISTAS_BELEN);
+//                   con &forzar=1 se recalcula aunque lo guardado sea reciente
 //
 // Con el login encendido pide sesión, como el resto de lo que no es para toda
 // la red. No escribe nada, así que no hace falta ningún rol.
@@ -42,6 +44,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ tiempos: await leerTiemposBelen(tiempos) }, { headers: SIN_CACHE });
     }
 
+    const ahora = params.get("ahora");
+    if (ahora !== null) {
+      return NextResponse.json({ fichando: await leerFichandoAhora(ahora) }, { headers: SIN_CACHE });
+    }
+
     const material = params.get("material");
     if (material !== null) {
       return NextResponse.json({ material: await leerMaterialBelen(material) }, { headers: SIN_CACHE });
@@ -50,7 +57,7 @@ export async function GET(req: Request) {
     const lista = params.get("lista");
     if (lista !== null) {
       if (!esIdLista(lista)) return NextResponse.json({ error: "Lista desconocida" }, { status: 400 });
-      const { filas, calculadaAt } = await leerListaBelen(lista);
+      const { filas, calculadaAt } = await leerListaBelen(lista, { forzar: params.get("forzar") === "1" });
       return NextResponse.json({ filas, calculadaAt }, { headers: SIN_CACHE });
     }
 

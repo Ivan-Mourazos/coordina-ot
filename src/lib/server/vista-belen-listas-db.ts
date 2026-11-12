@@ -2,7 +2,7 @@ import sql from "mssql";
 import { getPool } from "./db";
 import { fechaDeTexto, unaFilaPorTarea } from "../vista-belen";
 import type { FilaLista, IdLista } from "../vista-belen-listas";
-import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto } from "./rps-belen-comun";
+import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto, TIPO_AVISO } from "./rps-belen-comun";
 
 // ─── Vista de Belén: las consultas de las listas ─────────────────────────────
 // Solo lectura, contra RPS. Cada lista sale de una hoja de sus Excels (leídos
@@ -253,7 +253,7 @@ const SQL_SIN_DESCRIPCION = `
 
 type FilaListaRPS = {
   clave: string;
-  of: string;
+  of: string | null;
   pedido: string;
 } & Record<string, string | number | Date | null>;
 
@@ -263,11 +263,326 @@ async function comprobacion(pool: sql.ConnectionPool, consulta: string): Promise
     ...Object.fromEntries(Object.entries(f).map(([k, v]) => [
       k, v instanceof Date ? iso(v) : typeof v === "string" ? texto(v) : v,
     ])),
-    clave: f.clave.trim(),
-    of: f.of.trim(),
+    clave: String(f.clave).trim(),
+    of: f.of ? f.of.trim() : null,
     pedido: f.pedido.trim(),
   }));
 }
+
+// ─── Listas del 12/11/2026 ───────────────────────────────────────────────────
+
+/** Minutos de una tarea según su unidad: RPS guarda ExecutionTime en minutos
+ *  (TimeUnit 1) o en horas (TimeUnit 2: 90 tareas abiertas el 12/11/2026,
+ *  casi todas de delegaciones). */
+const MINUTOS_TAREA = (t: string) => `CASE ${t}.TimeUnit WHEN 2 THEN ${t}.ExecutionTime * 60 ELSE ${t}.ExecutionTime END`;
+
+/** Tareas por hacer de OF abiertas (sin diseño, como sus Excels), una fila por
+ *  tarea con sus máquinas juntas y sin las que OLANET ya dio por acabadas. */
+async function tareasConTiempo(pool: sql.ConnectionPool, condicion: string, situaciones: string): Promise<Array<FilaLista & { minutos: number }>> {
+  const r = await pool.request().query<{
+    idTarea: string;
+    of: string;
+    pedido: string;
+    cliente: string | null;
+    prioridad: number | null;
+    tarea: string;
+    descripcion: string | null;
+    maq: string | null;
+    situacion: string | null;
+    fSol: Date | null;
+    minutos: number | null;
+  }>(`
+    SELECT task.IDMOTask AS idTarea, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, task.CodMOTask AS tarea, CAST(task.Description AS varchar(300)) AS descripcion,
+           rm.CodMOResourceMachine AS maq, sit.Description AS situacion, pedido.fechaExigida AS fSol,
+           ${MINUTOS_TAREA("task")} AS minutos
+    FROM dbo.CPRMOTask task
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = task.IDMOTask
+    ${pedidoDe()}
+    WHERE task.CodCompany = '001' AND ${situaciones} AND task.PercentProgress < 100
+      AND art.CodArticle <> 'diseño' AND ${condicion}
+    ORDER BY mo.Priority, pedido.fechaExigida, mo.CodManufacturingOrder, task.CodMOTask`);
+  const filas = unaFilaPorTarea(r.recordset);
+  const acabadas = await finalizadasEnOlanet(pool, filas.map((f) => ({ of: f.of.trim(), tarea: f.tarea.trim() })));
+  return filas
+    .filter((f) => !acabadas.has(`${f.of.trim()}|${f.tarea.trim()}`))
+    .map((f) => {
+      const minutos = Number(f.minutos) || 0;
+      return {
+        clave: f.idTarea,
+        of: f.of.trim(),
+        pedido: f.pedido.trim(),
+        cliente: texto(f.cliente),
+        prioridad: f.prioridad,
+        tarea: `${f.tarea.trim()} ${(f.descripcion ?? "").trim()}`,
+        maquina: texto(f.maq),
+        horas: Math.round(minutos / 6) / 10,
+        situacion: (f.situacion ?? "").trim(),
+        fechaSolicitada: iso(f.fSol),
+        minutos,
+      };
+    });
+}
+
+// Sus hojas «Tareas tiempo 0» (situaciones 1-5) y «Tareas 8 horas» (el Excel
+// buscaba EXACTAMENTE 480 min, que es lo que se pone por defecto; Belén pide
+// «más de 8 horas»: aquí, 8 h o más). Las situaciones, las de OF en marcha.
+async function tiemposPrevistos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const filas = await tareasConTiempo(
+    pool,
+    `(task.ExecutionTime = 0 OR ${MINUTOS_TAREA("task")} >= 480)`,
+    "sit.CodSituation IN ('1', '2', '3', '4', '5')",
+  );
+  return filas.map(({ minutos, ...f }) => ({ ...f, problema: minutos === 0 ? "Sin tiempo" : "8 h o más" }));
+}
+
+// La hoja «Tareas» de «carga_por_maquina_datos_planificador», que Belén filtra
+// por máquina A- y unidad «horas». Su consulta toma toda OF no finalizada.
+async function maquinaAEnHoras(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  // Arzúa = máquinas «A-…» y grupos «…-A» (OTEC-A, ROTU-A, DGRA-A).
+  const filas = await tareasConTiempo(
+    pool,
+    "task.TimeUnit = 2 AND (rm.CodMOResourceMachine LIKE 'A-%' OR rm.CodMOResourceMachine LIKE '%-A')",
+    "sit.CodSituation <> '6'",
+  );
+  // Los minutos solo sirven para separar el problema en la otra lista.
+  return filas.map(({ minutos, ...f }) => (void minutos, f));
+}
+
+// CPRImputationOnLine = lo que OLANET mandó y RPS no ha podido imputar. El 12/11
+// eran 4 fichajes de una OF detenida (y 117 viejos de OF con imputaciones o
+// finalizadas, de 2024: no son de esta lista). La OF «001-0000001» es la de
+// las tareas indirectas, como en su Excel.
+const SQL_TIEMPOS_SIN_SUBIR = `
+    SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, CAST(art.Description AS varchar(max)) AS articulo,
+           imp.fichajes, imp.desde, imp.hasta, pedido.fechaExigida AS fechaSolicitada
+    FROM dbo.CPRManufacturingOrder mo
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    CROSS APPLY (
+      SELECT COUNT(*) AS fichajes, MIN(i.ImputationDate) AS desde, MAX(i.ImputationDate) AS hasta
+      FROM dbo.CPRImputationOnLine i
+      WHERE i.CodCompany = '001' AND i.IDManufacturingOrder = mo.IDManufacturingOrder
+      HAVING COUNT(*) > 0
+    ) imp
+    ${pedidoDe()}
+    WHERE mo.CodCompany = '001' AND mo.IDManufacturingOrder <> '001-0000001' AND sit.CodSituation = '7'
+    ORDER BY imp.desde, mo.CodManufacturingOrder`;
+
+// Delimitación «no empezar antes de» (tipo 7) con la tarea planificada para
+// empezar antes; y la de «empezar el» (tipo 6) en otro día, que es lo que
+// miraba su Excel. Medido el 12/11/2026: 40 de las 190 de tipo 7, todas AR o no.
+const SQL_DELIMITACION = `
+    SELECT task.IDMOTask AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, task.CodMOTask + ' ' + CAST(task.Description AS varchar(300)) AS tarea,
+           STUFF((SELECT DISTINCT ', ' + LTRIM(RTRIM(rm.CodMOResourceMachine)) FROM dbo.CPRMOResourceMachine rm
+             WHERE rm.IDMOTask = task.IDMOTask FOR XML PATH(''), TYPE).value('.', 'varchar(max)'), 1, 2, '') AS maquina,
+           task.DelimitationDate AS fechaDelimitacion, task.PlannedStartDate AS fechaPlanificada,
+           sit.Description AS situacion
+    FROM dbo.CPRMOTask task
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    ${pedidoDe()}
+    WHERE task.CodCompany = '001' AND sit.CodSituation IN ('0', '1', '2', '3', '4', '5')
+      AND task.PercentProgress < 100 AND art.CodArticle <> 'diseño' AND task.DelimitationDate IS NOT NULL
+      AND ((task.DelimitationType = 7 AND CONVERT(date, task.PlannedStartDate) < CONVERT(date, task.DelimitationDate))
+        OR (task.DelimitationType = 6 AND CONVERT(date, task.PlannedStartDate) <> CONVERT(date, task.DelimitationDate)))
+    ORDER BY task.DelimitationDate, mo.CodManufacturingOrder, task.CodMOTask`;
+
+// Su hoja «OF detenidas material recibido»: detenida, con compras y ninguna
+// por recibir, con alguna operación de máquina de Arzúa, sin las unidades
+// subidas y sin TP ni COT (esas se detienen esperando la visita).
+// Primero las detenidas y sus compras, y después lo demás: sumando las
+// entradas de TODAS las OF (como en las otras listas) tardaba 6,7 s; así,
+// menos de un segundo (12/11/2026: 82 detenidas, 9 con compras, 0 recibidas).
+const SQL_DETENIDAS_MATERIAL = `
+    WITH detenidas AS (
+      SELECT mo.IDManufacturingOrder
+      FROM dbo.CPRManufacturingOrder mo
+      JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+        AND sit.CodCompany = mo.CodCompany
+      WHERE mo.CodCompany = '001' AND sit.CodSituation = '7'),
+    compras AS (
+      SELECT l.IDManufacturingOrder, COUNT(*) AS lineas,
+             SUM(CASE WHEN l.Quantity > l.ReceivedQuantity THEN 1 ELSE 0 END) AS pendientes
+      FROM dbo.PUROrderLine l
+      JOIN detenidas d ON d.IDManufacturingOrder = l.IDManufacturingOrder
+      WHERE l.CodCompany = '001'
+      GROUP BY l.IDManufacturingOrder)
+    SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, CAST(art.Description AS varchar(max)) AS articulo,
+           compras.lineas, pedido.fechaExigida AS fechaSolicitada
+    FROM compras
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = compras.IDManufacturingOrder
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    ${pedidoDe()}
+    WHERE compras.pendientes = 0
+      AND mo.Quantity > ISNULL((SELECT SUM(e.Quantity) FROM dbo.CPRImputationEntryProduct e
+                                 WHERE e.CodCompany = '001' AND e.IDManufacturingOrder = mo.IDManufacturingOrder), 0)
+      AND EXISTS (
+        SELECT 1 FROM dbo.CPRMOTask t
+        JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = t.IDMOTask
+        WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND rm.CodMOResourceMachine LIKE 'A-%')
+      AND NOT EXISTS (
+        SELECT 1 FROM dbo.CPRMOTask t
+        JOIN dbo._CPRMOTask_Custom c ON c.IDMOTask = t.IDMOTask
+        WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND c.IDMaintenanceWarning IS NOT NULL)
+    ORDER BY pedido.fechaExigida, mo.Priority, mo.CodManufacturingOrder`;
+
+// Compras por recibir de OF no finalizadas cuyo pedido sigue sin entregar.
+// «Llega» = la fecha prevista más lejana de lo que falta.
+const SQL_COMPRAS_PENDIENTES = `
+    SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, CAST(art.Description AS varchar(max)) AS articulo,
+           compras.lineas, compras.llega, sit.Description AS situacion, pedido.fechaExigida AS fechaSolicitada
+    FROM dbo.CPRManufacturingOrder mo
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    CROSS APPLY (
+      SELECT COUNT(*) AS lineas, MAX(l.ReceptionDate) AS llega
+      FROM dbo.PUROrderLine l
+      WHERE l.CodCompany = '001' AND l.IDManufacturingOrder = mo.IDManufacturingOrder
+        AND l.Quantity > l.ReceivedQuantity
+      HAVING COUNT(*) > 0
+    ) compras
+    ${pedidoDe(true)}
+    WHERE mo.CodCompany = '001' AND sit.CodSituation <> '6'`;
+
+/** Por fecha solicitada (sin fecha, al final) y, el mismo día, por prioridad. */
+const porSolicitadaYPrioridad = (a: FilaLista, b: FilaLista) =>
+  (a.fechaSolicitada === null ? 1 : 0) - (b.fechaSolicitada === null ? 1 : 0) ||
+  String(a.fechaSolicitada ?? "").localeCompare(String(b.fechaSolicitada ?? "")) ||
+  (Number(a.prioridad ?? 999) - Number(b.prioridad ?? 999)) ||
+  String(a.of).localeCompare(String(b.of));
+
+// TP o COT sin rematar. Candidatas: OF no finalizadas, de pedidos sin entregar,
+// con algún TP o COT. Luego se miran sus tareas (las que no son visita) con el
+// mismo criterio de «acabada» que la ficha, y quedan las que tienen algo por
+// hacer: la visita, alguna tarea o los bultos. Amarilla = visitas hechas.
+async function tpCotSinRematar(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const tipos = Object.keys(TIPO_AVISO).map((t) => `'${t}'`).join(", ");
+  const candidatas = (extra = "") => `
+    FROM dbo.CPRManufacturingOrder mo ${extra}
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    ${pedidoDe(true)}
+    WHERE mo.CodCompany = '001' AND sit.CodSituation <> '6'
+      AND EXISTS (
+        SELECT 1 FROM dbo.CPRMOTask t
+        JOIN dbo._CPRMOTask_Custom c ON c.IDMOTask = t.IDMOTask
+        JOIN dbo.MANMaintenanceWarning w ON w.IDMaintenanceWarning = c.IDMaintenanceWarning
+        WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND w.IDMaintenanceWarningType IN (${tipos}))`;
+  const [ofs, avisos, tareas] = await Promise.all([
+    pool.request().query<{
+      id: string; of: string; pedido: string; cliente: string | null; prioridad: number | null;
+      articulo: string | null; situacion: string | null; fSol: Date | null; cantidad: number; subidas: number | null;
+    }>(`
+      SELECT mo.IDManufacturingOrder AS id, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+             mo.Priority AS prioridad, CAST(art.Description AS varchar(300)) AS articulo,
+             sit.Description AS situacion, pedido.fechaExigida AS fSol, mo.Quantity AS cantidad,
+             (SELECT SUM(Quantity) FROM dbo.CPRImputationEntryProduct
+               WHERE CodCompany = '001' AND IDManufacturingOrder = mo.IDManufacturingOrder) AS subidas
+      ${candidatas("JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle")}`),
+    pool.request().query<{ id: string; tipo: string; cierre: Date | null }>(`
+      SELECT mo.IDManufacturingOrder AS id, w.IDMaintenanceWarningType AS tipo, w.ClosingDate AS cierre
+      FROM dbo.CPRMOTask t2
+      JOIN dbo._CPRMOTask_Custom c2 ON c2.IDMOTask = t2.IDMOTask
+      JOIN dbo.MANMaintenanceWarning w ON w.IDMaintenanceWarning = c2.IDMaintenanceWarning
+      JOIN (SELECT mo.IDManufacturingOrder ${candidatas()}) mo ON mo.IDManufacturingOrder = t2.IDManufacturingOrder
+      WHERE w.IDMaintenanceWarningType IN (${tipos})`),
+    // Las tareas que no son visita y RPS no da por acabadas.
+    pool.request().query<{ id: string; of: string; tarea: string }>(`
+      SELECT mo.IDManufacturingOrder AS id, mo.CodManufacturingOrder AS [of], t2.CodMOTask AS tarea
+      FROM dbo.CPRMOTask t2
+      JOIN (SELECT mo.IDManufacturingOrder, mo.CodManufacturingOrder ${candidatas()}) mo
+        ON mo.IDManufacturingOrder = t2.IDManufacturingOrder
+      LEFT JOIN dbo._CPRMOTask_Custom c2 ON c2.IDMOTask = t2.IDMOTask
+      WHERE t2.CodCompany = '001' AND t2.PercentProgress < 100 AND c2.IDMaintenanceWarning IS NULL`),
+  ]);
+  const acabadas = await finalizadasEnOlanet(pool, tareas.recordset.map((t) => ({ of: t.of.trim(), tarea: t.tarea.trim() })));
+  const pendientes = new Map<string, number>();
+  for (const t of tareas.recordset) {
+    if (acabadas.has(`${t.of.trim()}|${t.tarea.trim()}`)) continue;
+    pendientes.set(t.id, (pendientes.get(t.id) ?? 0) + 1);
+  }
+  const resumen = (id: string, tipo: "TP" | "COT") => {
+    const suyos = avisos.recordset.filter((a) => a.id === id && TIPO_AVISO[a.tipo] === tipo);
+    if (!suyos.length) return null;
+    return suyos.some((a) => !a.cierre) ? `${tipo} pendiente` : `${tipo} hecho`;
+  };
+  return ofs.recordset
+    .map((o) => {
+      const tp = resumen(o.id, "TP");
+      const cot = resumen(o.id, "COT");
+      const visitasHechas = ![tp, cot].some((r) => r?.endsWith("pendiente"));
+      const nPendientes = pendientes.get(o.id) ?? 0;
+      const cantidad = Number(o.cantidad) || 0;
+      const subidas = Number(o.subidas) || 0;
+      const bultosOk = subidas > 0 && subidas === cantidad;
+      return {
+        rematada: visitasHechas && nPendientes === 0 && bultosOk,
+        fila: {
+          clave: o.id,
+          of: o.of.trim(),
+          pedido: o.pedido.trim(),
+          cliente: texto(o.cliente),
+          prioridad: o.prioridad,
+          articulo: texto(o.articulo),
+          visitas: [tp, cot].filter(Boolean).join(" · "),
+          falta: [
+            nPendientes ? `${nPendientes} ${nPendientes === 1 ? "tarea" : "tareas"}` : null,
+            bultosOk ? null : subidas ? `bultos ${subidas} de ${cantidad}` : "bultos",
+          ].filter(Boolean).join(" · ") || "la visita",
+          situacion: (o.situacion ?? "").trim(),
+          fechaSolicitada: iso(o.fSol),
+          amarilla: visitasHechas ? 1 : null,
+        } satisfies FilaLista,
+      };
+    })
+    .filter((x) => !x.rematada)
+    .map((x) => x.fila)
+    .sort(porSolicitadaYPrioridad);
+}
+
+// Su Excel «pedidos_sin_of» (12/11/2026), una fila por LÍNEA: pedido AR de
+// los últimos 60 días, línea sin OF, sin albarán y pendiente de entregar, que
+// no es pedido de almacén, cuya forma de entrega no es la «06» (reparación in
+// situ / instalación sin fabricar) y cuyo artículo tiene escandallo
+// (CPRStructure: el que lleva fabricación). Dos cambios a propósito: cliente y
+// datos de la línea opcionales (que falten no esconde la línea) y una línea
+// sin forma de entrega sí sale (su NOT IN la dejaba fuera sin querer).
+// Medido el 12/11/2026: 1 ms en RPS.
+const SQL_SIN_GESTIONAR = `
+    SELECT a.IDOrderLine AS clave, CAST(NULL AS varchar(20)) AS [of], b.CodOrder AS pedido,
+           a.NumLine AS linea, c.Description AS cliente,
+           LTRIM(STR(a.Quantity, 10, 0)) + ' - ' + CAST(d.Description AS varchar(300)) AS articulo,
+           e.TextoRotulacion AS rotulacion, f.DescripcionFormaEntregaPedido AS formaEntrega,
+           g.DescripcionPedidoSinCargo AS sinCargo, e.OrderPriority AS prioridad,
+           b.OrderDate AS fechaPedido,
+           CASE WHEN YEAR(a.ReceptionDemandDate) > 1970 THEN a.ReceptionDemandDate END AS fechaSolicitada
+    FROM dbo.FACOrderLineSL a
+    JOIN dbo.FACOrderSL b ON b.IDOrder = a.IDOrder
+    JOIN dbo.STKArticle d ON d.IDArticle = a.IDArticle
+    LEFT JOIN dbo.FACCustomer c ON c.IDCustomer = b.IDCustomer
+    LEFT JOIN dbo._FACOrderLineSL_Custom e ON e.IDOrderLine = a.IDOrderLine
+    LEFT JOIN dbo._FormaEntregaPedido f ON f.IDFormaEntregaPedido = e.IDFormaEntrega
+    LEFT JOIN dbo._TipoPedidoSinCargo g ON g.IDTipoPedidoSinCargo = e.IDTipoPedidoSinCargo
+    WHERE a.CodCompany = '001' AND a.IDManufacturingOrder IS NULL AND b.CodOrder LIKE 'AR%'
+      AND b.OrderDate >= DATEADD(day, -60, GETDATE())
+      AND a.Delivered = 0 AND a.PendingDelivery = 1
+      AND ISNULL(e.PedidoAlmacen, 0) = 0
+      AND ISNULL(f.CodigoFormaEntregaPedido, '') <> '06'
+      AND EXISTS (SELECT 1 FROM dbo.CPRStructure s WHERE s.CodCompany = '001' AND s.IDArticle = d.IDArticle)
+    ORDER BY b.CodOrder, a.NumLine`;
 
 // Diferencias con los Excels, a propósito (09/11/2026): una fila por OF y no
 // por tarea o máquina (sus joins repetían la OF y podían inflar unidades);
@@ -282,6 +597,14 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "fechas-comprometidas": (pool) => fechasComprometidas(pool),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
+  "tiempos-previstos": (pool) => tiemposPrevistos(pool),
+  "maquina-a-horas": (pool) => maquinaAEnHoras(pool),
+  "tiempos-sin-subir": (pool) => comprobacion(pool, SQL_TIEMPOS_SIN_SUBIR),
+  "delimitacion": (pool) => comprobacion(pool, SQL_DELIMITACION),
+  "detenidas-material": (pool) => comprobacion(pool, SQL_DETENIDAS_MATERIAL),
+  "compras-pendientes": async (pool) => (await comprobacion(pool, SQL_COMPRAS_PENDIENTES)).sort(porSolicitadaYPrioridad),
+  "tp-cot": (pool) => tpCotSinRematar(pool),
+  "sin-gestionar": (pool) => comprobacion(pool, SQL_SIN_GESTIONAR),
 };
 
 /** Las listas cuestan de medio segundo a cuatro («bultos subidos, tareas
@@ -323,7 +646,7 @@ function recalcular(id: IdLista, g: Guardada): Promise<FilaLista[]> {
 }
 
 /** Las filas y su edad, para que la pantalla pueda decir «actualizado hace…». */
-export async function leerListaBelen(id: IdLista): Promise<{ filas: FilaLista[]; calculadaAt: string }> {
+export async function leerListaBelen(id: IdLista, { forzar = false } = {}): Promise<{ filas: FilaLista[]; calculadaAt: string }> {
   const ahora = Date.now();
   let g = cache.get(id);
   if (!g) {
@@ -331,7 +654,9 @@ export async function leerListaBelen(id: IdLista): Promise<{ filas: FilaLista[];
     cache.set(id, g);
   }
   const edad = ahora - g.at;
-  if (g.filas && edad < CADUCA_MS) {
+  // «Actualizar» a mano: se recalcula de verdad, aunque lo guardado sea de
+  // hace un momento (si ya hay una en marcha, se espera a esa).
+  if (g.filas && edad < CADUCA_MS && !forzar) {
     // Lo que hay, ya; y si está pasada, se renueva para la próxima. El error
     // de esa renovación no le llega a nadie: se reintenta en la siguiente.
     if (edad >= FRESCA_MS) recalcular(id, g).catch(() => {});

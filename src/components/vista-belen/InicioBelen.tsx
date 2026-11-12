@@ -1,21 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { HERRAMIENTAS_BELEN, ordenarHerramientas } from "@/lib/herramientas-belen";
+import { enGrupos, grupoDe, HERRAMIENTAS_BELEN, ordenarHerramientas, vecinaDelGrupo } from "@/lib/herramientas-belen";
 import { moverA } from "@/lib/orden-guardado";
 import { useDeslizar } from "./usePestanasOrdenables";
 import type { IdLista } from "@/lib/vista-belen-listas";
 import type { CargaLista } from "./ListaBelen";
+import { IconoHerramienta } from "./IconoHerramienta";
 
-// ─── Portada de Belén: sus herramientas, en el orden que ella quiera ────────
+// ─── Portada de Belén: sus herramientas, por temas y en su orden ─────────────
+// Por temas desde el 12/11/2026 (GRUPOS_BELEN): un panel por grupo y una fila
+// por herramienta con icono, nombre y cuántas hay; lo que explica cada una,
+// al pasar el ratón (Iván: «se podría omitir la explicación»). Se ordena
+// DENTRO de cada grupo; los grupos van siempre en el mismo orden.
+//
 // Ordenar es ARRASTRAR (Iván, 11/11/2026: «un sistema de arrastre visual que
 // vea fácil cómo ordenar y cómo quedaría»):
-//   · «Ordenar herramientas» pone cada tarjeta con su número y un asa.
+//   · «Ordenar» pone en cada una sus flechas ↑ ↓.
 //   · Al arrastrar una, las demás se apartan EN VIVO a donde quedarían; la que
 //     se mueve se ve como hueco con borde de puntos.
 //   · Al soltar se guarda (en este navegador). Esc o soltar fuera la deja
 //     donde estaba.
-//   · Con teclado: las flechas ← → de cada tarjeta.
+//   · Con teclado: las flechas ↑ ↓ de cada una, sin salir de su grupo.
 // Las tarjetas se deslizan a su sitio (FLIP) salvo con movimiento reducido.
 
 const BOTON =
@@ -75,6 +81,8 @@ export function InicioBelen({ miId, listas, onAbrir }: {
   // se ve cómo quedaría antes de soltar.
   const pasarPor = (destino: number, ahora: number) => {
     if (!arrastrando || herramientas[destino]?.id === arrastrando) return;
+    // Solo dentro de su grupo: fuera de él volvería a su sitio al pintar.
+    if (grupoDe(herramientas[destino]?.id ?? "") !== grupoDe(arrastrando)) return;
     if (ahora - ultimoMovimiento.current < 220) return;
     ultimoMovimiento.current = ahora;
     setHerramientas((hs) => moverA(hs, arrastrando, destino));
@@ -102,101 +110,100 @@ export function InicioBelen({ miId, listas, onAbrir }: {
           onClick={() => setOrdenando(!ordenando)}
           className={`${BOTON} ${ordenando ? "bg-brand-400 text-brand-950" : "bg-[var(--hero-relleno)] text-text hover:bg-[var(--hero-relleno-encima)]"}`}
         >
-          {ordenando ? "Hecho" : "Ordenar herramientas"}
+          {ordenando ? "Hecho" : "Ordenar"}
         </button>
       </div>
       {ordenando && (
         <p className="mb-3 rounded-2xl bg-[var(--detalle)] px-4 py-2.5 text-[13px] text-text">
-          <b>Arrastra cada tarjeta</b> a donde la quieras: las demás se apartan para enseñarte cómo quedará. Al soltar, se
-          guarda. También puedes usar las flechas de cada tarjeta.
+          <b>Arrastra cada herramienta</b> arriba o abajo dentro de su grupo: las demás se apartan para enseñarte cómo
+          quedará. Al soltar, se guarda. También con las flechas de cada una.
         </p>
       )}
       <p role="status" className="sr-only">{mensaje}</p>
       {mensaje.includes("no permite") && <p className="mb-3 text-sm text-text-muted">{mensaje}</p>}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Herramientas">
-        {herramientas.map((h, i) => {
-          const carga = listas[h.id as IdLista];
-          const esLaQueSeMueve = arrastrando === h.id;
-          return (
-            <li
-              key={h.id}
-              ref={deslizar(h.id)}
-              data-herramienta={h.id}
-              draggable={ordenando}
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", h.id);
-                e.dataTransfer.effectAllowed = "move";
-                empezar(h.id);
-              }}
-              onDragEnter={(e) => { if (ordenando) { e.preventDefault(); pasarPor(i, e.timeStamp); } }}
-              onDragOver={(e) => { if (ordenando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; pasarPor(i, e.timeStamp); } }}
-              onDrop={(e) => { if (ordenando) { e.preventDefault(); soltar(); } }}
-              onDragEnd={terminar}
-              className={`tarjeta-of relative flex flex-col rounded-3xl bg-surface transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none ${
-                ordenando
-                  ? esLaQueSeMueve
-                    ? "cursor-grabbing outline-2 outline-dashed outline-[var(--hero-anillo)] [--surface:var(--detalle)]"
-                    : "cursor-grab"
-                  : "hover:[--surface:color-mix(in_oklab,var(--hero-relleno)_55%,var(--detalle))]"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => onAbrir(h.id)}
-                disabled={ordenando}
-                className={`belen-herramienta flex flex-1 flex-col items-start gap-2 rounded-[inherit] p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
-                  ordenando ? "pointer-events-none" : "transition-transform duration-150 active:scale-[.98] motion-reduce:transition-none"
-                } ${esLaQueSeMueve ? "opacity-40" : ""}`}
-              >
-                <span className="flex w-full items-center justify-between gap-2">
-                  <span className="flex items-center gap-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {enGrupos(herramientas).map((g) => (
+          <section key={g.id} aria-label={g.label} className="tarjeta-of rounded-3xl bg-surface p-2">
+            <h3 className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">{g.label}</h3>
+            <ul className="flex flex-col gap-0.5">
+              {g.items.map((h) => {
+                const i = herramientas.indexOf(h);
+                const carga = listas[h.id as IdLista];
+                const n = carga?.tipo === "listo" ? carga.filas.length : null;
+                const esLaQueSeMueve = arrastrando === h.id;
+                const antes = vecinaDelGrupo(herramientas, h.id, -1);
+                const despues = vecinaDelGrupo(herramientas, h.id, 1);
+                return (
+                  <li
+                    key={h.id}
+                    ref={deslizar(h.id)}
+                    data-herramienta={h.id}
+                    draggable={ordenando}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", h.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      empezar(h.id);
+                    }}
+                    onDragEnter={(e) => { if (ordenando) { e.preventDefault(); pasarPor(i, e.timeStamp); } }}
+                    onDragOver={(e) => { if (ordenando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; pasarPor(i, e.timeStamp); } }}
+                    onDrop={(e) => { if (ordenando) { e.preventDefault(); soltar(); } }}
+                    onDragEnd={terminar}
+                    className={`flex items-center rounded-2xl ${
+                      ordenando ? (esLaQueSeMueve ? "cursor-grabbing outline-2 outline-dashed outline-[var(--hero-anillo)]" : "cursor-grab") : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onAbrir(h.id)}
+                      disabled={ordenando}
+                      title={h.explica}
+                      className={`flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2.5 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
+                        ordenando
+                          ? "pointer-events-none"
+                          : "transition-[transform,background-color] duration-150 hover:bg-[var(--hero-relleno)] active:scale-[.98] motion-reduce:transition-none"
+                      } ${esLaQueSeMueve ? "opacity-40" : ""}`}
+                    >
+                      <IconoHerramienta id={h.id} />
+                      <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug">{h.label}</span>
+                      {!ordenando && carga && (
+                        <span
+                          className={`min-w-6 rounded-full px-1.5 text-center text-[12px] font-bold tabular-nums ${
+                            n ? "bg-amber-500/20 text-amber-900 dark:text-amber-200" : "bg-[var(--hero-relleno)] text-text-muted"
+                          }`}
+                        >
+                          {n ?? (carga.tipo === "error" ? "!" : "…")}
+                        </span>
+                      )}
+                    </button>
                     {ordenando && (
-                      <span className="grid size-6 place-items-center rounded-full bg-[var(--hero-relleno)] text-[12px] font-bold tabular-nums" aria-hidden>
-                        {i + 1}
+                      <span className="flex shrink-0 items-center gap-1 pr-1.5">
+                        <button
+                          type="button"
+                          disabled={antes < 0}
+                          aria-label={`Subir ${h.label}`}
+                          onClick={() => moverConTeclado(h.id, antes)}
+                          className={`${BOTON} min-h-8 bg-[var(--hero-relleno)] px-2.5 py-1 text-text hover:bg-[var(--hero-relleno-encima)]`}
+                        >
+                          <span aria-hidden="true">↑</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={despues < 0}
+                          aria-label={`Bajar ${h.label}`}
+                          onClick={() => moverConTeclado(h.id, despues)}
+                          className={`${BOTON} min-h-8 bg-[var(--hero-relleno)] px-2.5 py-1 text-text hover:bg-[var(--hero-relleno-encima)]`}
+                        >
+                          <span aria-hidden="true">↓</span>
+                        </button>
                       </span>
                     )}
-                    <span className="text-[14px] font-semibold">{h.label}</span>
-                  </span>
-                  {ordenando ? (
-                    <svg aria-hidden viewBox="0 0 24 24" className="size-5 text-text-muted" fill="currentColor">
-                      {[6, 12, 18].flatMap((y) => [9, 15].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" />))}
-                    </svg>
-                  ) : (
-                    carga && (
-                      <span className="text-[12px] tabular-nums text-text-muted">
-                        {carga.tipo === "listo" ? carga.filas.length : carga.tipo === "error" ? "!" : "…"}
-                      </span>
-                    )
-                  )}
-                </span>
-                <span className="text-[12.5px] leading-relaxed text-text-muted">{h.explica}</span>
-              </button>
-              {ordenando && (
-                <div className="flex items-center justify-end gap-2 px-4 pb-3">
-                  <button
-                    type="button"
-                    disabled={i === 0}
-                    aria-label={`Mover ${h.label} antes`}
-                    onClick={() => moverConTeclado(h.id, i - 1)}
-                    className={`${BOTON} min-h-9 bg-[var(--hero-relleno)] px-3.5 py-1.5 text-text hover:bg-[var(--hero-relleno-encima)]`}
-                  >
-                    <span aria-hidden="true">←</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={i === herramientas.length - 1}
-                    aria-label={`Mover ${h.label} después`}
-                    onClick={() => moverConTeclado(h.id, i + 1)}
-                    className={`${BOTON} min-h-9 bg-[var(--hero-relleno)] px-3.5 py-1.5 text-text hover:bg-[var(--hero-relleno-encima)]`}
-                  >
-                    <span aria-hidden="true">→</span>
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
     </section>
   );
 }

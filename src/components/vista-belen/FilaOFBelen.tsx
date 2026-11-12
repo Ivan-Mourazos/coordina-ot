@@ -13,6 +13,7 @@ import {
   personasDeOF,
   puntoBultos,
   resumenAvisos,
+  type FichandoAhora,
   type OFBelen,
   type OFTiempos,
   type PuntoBultos,
@@ -28,12 +29,15 @@ import { FichajesDeTarea, TiemposPorPersona } from "./TiemposBelen";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
 // Encogida, una línea con lo que se mira de un vistazo (Belén, 11/11/2026):
-// punto de bultos, prioridad, TP/COT, OF, artículo, fecha de entrega,
-// solicitada, situación, comprometida, compras y logística; lo vacío no sale.
+// punto de bultos, prioridad, TP/COT, OF, artículo, solicitada, situación,
+// comprometida, compras y logística; lo vacío no sale (la fecha de entrega
+// de la hoja de ruta se quitó el 12/11/2026). Si alguien está fichando en
+// ella AHORA, un punto verde que late.
 // Al pincharla se despliega todo, en el orden de Belén: descripción e
 // imprimir, comentario de la OF (rojo), entrega/rotulación si difieren del
-// pedido, paquete y TP/COT, las tareas (sección, tiempo, fin, estado y la de
-// los bultos), lo que falta de compras y el texto de la línea del pedido.
+// pedido, paquete y TP/COT, las tareas (sección, tiempo, estado, fin, quién
+// ficha en directo y la de los bultos), lo que falta de compras y el texto
+// de la línea del pedido.
 // A 1280 px la línea encogida cabe; si no, las fechas bajan a una segunda.
 
 const PUNTO: Record<PuntoBultos, { clase: string; texto: string }> = {
@@ -41,6 +45,17 @@ const PUNTO: Record<PuntoBultos, { clase: string; texto: string }> = {
   azul: { clase: "bg-blue-600 dark:bg-blue-400", texto: SIGNIFICA.puntoAzul },
   rojo: { clase: "bg-red-600 dark:bg-red-400", texto: SIGNIFICA.puntoRojo },
 };
+
+/** Punto verde que late: alguien está fichando ahora. Con «reducir
+ *  movimiento» activado queda quieto, pero sigue ahí. */
+function PuntoEnDirecto() {
+  return (
+    <span aria-hidden className="relative inline-flex size-2">
+      <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75 motion-reduce:animate-none dark:bg-emerald-400" />
+      <span className="relative inline-flex size-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+    </span>
+  );
+}
 
 /** Rótulo pequeño con su ayuda al pasar el ratón (subrayado de puntos). */
 function Rotulo({ children, ayuda }: { children: React.ReactNode; ayuda?: string }) {
@@ -106,7 +121,7 @@ function ChipAviso({ of, tipo }: { of: OFBelen; tipo: TipoAviso }) {
  *    · Por tarea: la tabla; pinchando una tarea se ve debajo quién fichó y
  *      cuándo (franja horaria y tiempo exacto).
  *    · Por persona: quién ha trabajado en esta OF, cuánto y qué días. */
-function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | undefined }) {
+function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | null | undefined; enDirecto: readonly FichandoAhora[] }) {
   const [modo, setModo] = useState<"tarea" | "persona">("tarea");
   const [abierta, setAbierta] = useState<string | null>(null);
   const ops = of.operaciones;
@@ -156,8 +171,8 @@ function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | unde
               <th scope="col" className="py-1 pr-2">Tarea</th>
               <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
               <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
-              <th scope="col" className="w-[6.5rem] whitespace-nowrap px-2 py-1" title="El día en que se acabó la operación">Fin</th>
-              <th scope="col" className="w-[6.5rem] py-1 pl-2 text-right">Estado</th>
+              <th scope="col" className="w-[7rem] px-2 py-1">Estado</th>
+              <th scope="col" className="w-[6.5rem] whitespace-nowrap py-1 pl-2 text-right" title="El día en que se acabó la operación">Fin</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -166,6 +181,8 @@ function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | unde
               const suya = fichajes.get(op.codigo);
               const conFichajes = !!suya?.personas.length;
               const desplegada = abierta === op.codigo && conFichajes;
+              // Exacto: «2» y «02» son tareas distintas de la misma OF.
+              const ahora = enDirecto.filter((f) => f.tarea === op.codigo);
               return (
                 <Fragment key={op.codigo}>
                   <tr
@@ -192,6 +209,11 @@ function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | unde
                       <span className={`mr-2 inline-block size-2 rounded-full align-middle ${e.punto}`} aria-hidden />
                       <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
                       <span className={op.estado === "sin_empezar" ? "text-text-muted" : ""}>{enFrase(op.descripcion)}</span>
+                      {ahora.length > 0 && (
+                        <span className="mt-0.5 block truncate pl-[3.25rem] text-[12px] font-semibold text-emerald-700 dark:text-emerald-300" title={SIGNIFICA.enDirecto}>
+                          {ahora.map((f) => `${f.persona} (${fmtDuracion(f.minutos)})`).join(" · ")}
+                        </span>
+                      )}
                       {op.subeBultos && (
                         <span title="En esta tarea se suben los bultos (entrada de producto en RPS)" className={`${chip("info")} ml-2 cursor-help`}>
                           Bultos
@@ -204,14 +226,23 @@ function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | unde
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
                     </td>
-                    <td className="px-2 py-1.5 tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
+                    {ahora.length > 0 ? (
+                      <td className="px-2 py-1.5 align-top text-[12px] font-semibold text-emerald-700 dark:text-emerald-300" title={SIGNIFICA.enDirecto}>
+                        <span className="inline-flex items-center gap-1.5">
+                          <PuntoEnDirecto />
+                          Fichando
+                        </span>
+                      </td>
+                    ) : (
+                      <td
+                        className={`px-2 py-1.5 align-top text-[12px] font-semibold ${e.tinta}`}
+                        title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
+                      >
+                        {e.texto}
+                      </td>
+                    )}
+                    <td className="py-1.5 pl-2 text-right align-top tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
                       {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
-                    </td>
-                    <td
-                      className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${e.tinta}`}
-                      title={op.estado === "finalizado" ? SIGNIFICA.finalizado : op.estado === "interrumpido" ? SIGNIFICA.interrumpido : SIGNIFICA.sinEmpezar}
-                    >
-                      {e.texto}
                     </td>
                   </tr>
                   {desplegada && suya && (
@@ -232,10 +263,10 @@ function Tareas({ of, tiempos }: { of: OFBelen; tiempos: OFTiempos | null | unde
                   <span className={`${chip("neutro")} mr-2`}>{av.tipo}</span>
                   {enFrase(av.descripcion) || av.codigo}
                 </td>
-                <td className="px-2 py-1.5 tabular-nums">{fechaCorta(av.cerrado) || <span className="text-text-muted">—</span>}</td>
-                <td className={`py-1.5 pl-2 text-right text-[12px] font-semibold ${av.cerrado ? ESTADO_OPERACION.finalizado.tinta : ESTADO_OPERACION.interrumpido.tinta}`}>
+                <td className={`px-2 py-1.5 text-[12px] font-semibold ${av.cerrado ? ESTADO_OPERACION.finalizado.tinta : ESTADO_OPERACION.interrumpido.tinta}`}>
                   {av.cerrado ? "Hecho" : "Pendiente"}
                 </td>
+                <td className="py-1.5 pl-2 text-right tabular-nums">{fechaCorta(av.cerrado) || <span className="text-text-muted">—</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -299,6 +330,7 @@ export function FilaOFBelen({
   abierta,
   onAlternar,
   tiempos,
+  enDirecto = [],
 }: {
   of: OFBelen;
   resumen: ResumenPedido;
@@ -310,6 +342,8 @@ export function FilaOFBelen({
   onAlternar: () => void;
   /** Los fichajes de esta OF (para ver quién y cuándo). undefined = cargando. */
   tiempos?: OFTiempos | null;
+  /** Quién ficha AHORA en sus tareas (OLANET). */
+  enDirecto?: readonly FichandoAhora[];
 }) {
   const punto = PUNTO[puntoBultos(of.cantidad, of.subidas)];
   const noCuadra = of.subidas > 0 && of.subidas !== of.cantidad;
@@ -359,11 +393,19 @@ export function FilaOFBelen({
         {tp && <span title={SIGNIFICA.tp} className={chip(tp.pendiente ? "aviso" : "ok")}>TP</span>}
         {cot && <span title={SIGNIFICA.cot} className={chip(cot.pendiente ? "aviso" : "ok")}>COT</span>}
         <span className="font-mono text-[15px] font-bold">{of.of}</span>
+        {enDirecto.length > 0 && (
+          <span
+            title={[SIGNIFICA.enDirecto, "", ...enDirecto.map((f) => `${f.persona} · tarea ${f.tarea} · ${fmtDuracion(f.minutos)}`)].join("\n")}
+            className={`${chip("ok")} cursor-help`}
+          >
+            <PuntoEnDirecto />
+            Fichando ahora
+          </span>
+        )}
         <span className="min-w-[10rem] flex-1 truncate text-[13.5px] font-medium" title={of.articulo ?? of.descripcion}>
           {enFrase(of.articulo ?? of.descripcion)}
         </span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {of.fechaEntrega && <FechaCorta rotulo="Entrega" valor={of.fechaEntrega} tinta="text-text" ayuda="«F. ENTREGA» de la hoja de ruta: la fecha de fabricación de la OF en RPS" />}
           {of.fechaSolicitada && <FechaCorta {...FECHA.solicitada} valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}
           {of.situacion && <span title={SIGNIFICA.situacion} className={chip(tonoSituacion(of.situacion))}>{enFrase(of.situacion)}</span>}
           {of.fechaComprometida && <FechaCorta {...FECHA.comprometida} valor={of.fechaComprometida} ayuda={SIGNIFICA.comprometida} />}
@@ -427,7 +469,7 @@ export function FilaOFBelen({
               )}
             </div>
 
-            <Tareas of={of} tiempos={tiempos} />
+            <Tareas of={of} tiempos={tiempos} enDirecto={enDirecto} />
             <Compras of={of} />
             {of.detalleLinea && <DetalleLinea texto={of.detalleLinea} />}
           </div>

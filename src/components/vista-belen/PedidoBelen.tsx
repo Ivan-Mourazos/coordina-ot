@@ -7,6 +7,7 @@ import {
   fechaCorta,
   ordenarOFs,
   resumenPedido,
+  type FichandoAhora,
   type MaterialPedido,
   type PedidoBelen,
   type TiemposPedido,
@@ -53,6 +54,36 @@ function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
   return carga;
+}
+
+/** Quién ficha AHORA en las tareas del pedido. Se pregunta cada minuto
+ *  mientras la pestaña está a la vista (OLANET rehace su foto cada pocos
+ *  minutos: más a menudo no trae nada nuevo). Si falla, se queda lo último. */
+const CADA_MS_EN_DIRECTO = 60_000;
+function useEnDirecto(pedido: string): FichandoAhora[] {
+  const [fichando, setFichando] = useState<FichandoAhora[]>([]);
+  useEffect(() => {
+    let ctl: AbortController | null = null;
+    const pedir = () => {
+      if (document.visibilityState !== "visible") return;
+      ctl?.abort();
+      const este = new AbortController();
+      ctl = este;
+      fetch(`/api/vista-belen?ahora=${encodeURIComponent(pedido)}`, { signal: este.signal, cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((j: { fichando?: FichandoAhora[] }) => setFichando(j.fichando ?? []))
+        .catch(() => {});
+    };
+    pedir();
+    const reloj = window.setInterval(pedir, CADA_MS_EN_DIRECTO);
+    document.addEventListener("visibilitychange", pedir);
+    return () => {
+      window.clearInterval(reloj);
+      document.removeEventListener("visibilitychange", pedir);
+      ctl?.abort();
+    };
+  }, [pedido]);
+  return fichando;
 }
 
 // ─── Recuadros de la cabecera ────────────────────────────────────────────────
@@ -192,6 +223,8 @@ export function PedidoBelenView({
   const material = useCarga(`/api/vista-belen?material=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
     (j as { material: MaterialPedido | null }).material,
   );
+  const enDirecto = useEnDirecto(pedido.codigo);
+  const enDirectoDe = (of: string) => enDirecto.filter((f) => f.of === of);
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
   const estadoMat =
     material.tipo === "listo" && material.datos ? estadoMaterialDe(material.datos.ofs) : null;
@@ -425,8 +458,13 @@ export function PedidoBelenView({
 
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
+      {pedido.ofs.length === 0 && (
+        <p className="tarjeta-of rounded-3xl bg-surface px-5 py-4 text-[14px] text-text-muted">
+          Este pedido todavía no tiene ninguna OF en RPS.
+        </p>
+      )}
       {abiertas.map((o) => (
-        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegada === o.of} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} />
+        <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegada === o.of} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} enDirecto={enDirectoDe(o.of)} />
       ))}
       {finalizadas.length > 0 && (
         <button
@@ -445,7 +483,7 @@ export function PedidoBelenView({
       <Desplegable abierto={verFinalizadas}>
         <div className="flex flex-col gap-2">
           {finalizadas.map((o) => (
-            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegada === o.of} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} />
+            <FilaOFBelen key={o.of} of={o} resumen={r} resaltada={o.of === ofResaltada} conReserva={conReserva(o.of)} abierta={desplegada === o.of} onAlternar={() => alternarOF(o.of)} tiempos={tiemposDe(o.of)} enDirecto={enDirectoDe(o.of)} />
           ))}
         </div>
       </Desplegable>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import {
   columnaFecha,
@@ -11,8 +11,9 @@ import {
   type FilaLista,
   type FiltroLista,
   type IdLista,
+  valoresFiltro,
 } from "@/lib/vista-belen-listas";
-import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, siguienteOrden } from "./Filtros";
+import { BotonLimpiar, CabeceraOrdenable, CampoBuscar, FiltroFechas, Seleccion, siguienteOrden } from "./Filtros";
 import { chip, tonoSituacion } from "./estilos-belen";
 
 // ─── Una lista de comprobación de la pantalla de Belén ───────────────────────
@@ -71,27 +72,37 @@ function Esqueleto() {
 export function TablaListaBelen({
   lista,
   carga,
+  filtro,
+  setFiltro,
   onAbrir,
   onActualizar,
 }: {
   lista: IdLista;
   carga: CargaLista;
+  /** Los filtros de ESTA lista. Los guarda la pantalla, no la tabla: así
+   *  siguen puestos al abrir un pedido y volver (Iván, 12/11/2026). */
+  filtro: FiltroLista;
+  setFiltro: Dispatch<SetStateAction<FiltroLista>>;
   onAbrir: (pedido: string, of: string | null) => void;
   onActualizar: () => void;
 }) {
   const def = LISTAS_BELEN.find((l) => l.id === lista)!;
-  // Los filtros son de cada lista: VistaBelen la monta con key={lista}, así
-  // que al cambiar de lista empiezan limpios.
-  const [filtro, setFiltro] = useState<FiltroLista>(FILTRO_LISTA_INICIAL);
   const fecha = columnaFecha(def);
   const filas = useMemo(() => (carga.tipo === "listo" ? filtrarLista(carga.filas, def, filtro) : []), [carga, def, filtro]);
-  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.orden !== null;
+  const valores = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def) : []), [carga, def]);
+  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.orden !== null;
 
   return (
     <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 px-1 text-[13px] text-text-muted">
         <p>
           {def.explica} {def.alcance ?? "Solo pedidos AR."}
+          {def.amarillo && (
+            <>
+              {" "}
+              <span className="rounded bg-[var(--belen-avisos-hechos)] px-1 text-text">{def.amarillo}</span>
+            </>
+          )}
           {carga.tipo === "listo" && carga.filas.length > 0 && " Pincha una fila para abrir su pedido."}
         </p>
         {carga.tipo === "listo" && (
@@ -120,6 +131,14 @@ export function TablaListaBelen({
       {carga.tipo === "listo" && carga.filas.length > 0 && (
         <div className="mb-3 flex flex-wrap items-end gap-2.5">
           <CampoBuscar valor={filtro.texto} onCambiar={(texto) => setFiltro((f) => ({ ...f, texto }))} pista="OF, pedido, cliente, tarea…" />
+          {def.filtro && valores.length > 0 && (
+            <Seleccion
+              etiqueta={def.filtro.titulo}
+              valor={filtro.valor}
+              opciones={[["", "Todos"], ...valores.map((v) => [v, v] as const)]}
+              onCambiar={(valor) => setFiltro((f) => ({ ...f, valor }))}
+            />
+          )}
           {fecha && (
             <FiltroFechas
               etiqueta={fecha.titulo}
@@ -166,10 +185,11 @@ export function TablaListaBelen({
                 )}
                 {filas.map((f) => {
                   const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : undefined;
+                  const amarilla = !!f.amarilla;
                   return (
                     <tr
                       key={f.clave}
-                      className={`border-t border-border transition-colors ${abrir ? "cursor-pointer hover:bg-[var(--hero-relleno)] active:bg-[var(--hero-relleno-encima)] focus-within:bg-[var(--hero-relleno)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--hero-anillo)]" : ""}`}
+                      className={`border-t border-border transition-colors ${amarilla ? "bg-[var(--belen-avisos-hechos)]" : ""} ${abrir ? `cursor-pointer ${amarilla ? "hover:bg-[var(--belen-avisos-hechos-encima)]" : "hover:bg-[var(--hero-relleno)]"} active:bg-[var(--hero-relleno-encima)] focus-within:bg-[var(--hero-relleno)] focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--hero-anillo)]` : ""}`}
                       onClick={abrir}
                     >
                       {def.columnas.map((c, i) => (

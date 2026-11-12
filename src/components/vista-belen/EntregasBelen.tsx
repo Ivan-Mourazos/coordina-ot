@@ -175,7 +175,16 @@ function TarjetaGrupo({
   );
 }
 
-export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (codigo: string) => void }) {
+export function EntregasBelen({
+  activa,
+  refresco = 0,
+  onAbrir,
+}: {
+  activa: boolean;
+  /** Sube cada vez que la pantalla se refresca sola: se vuelve a pedir. */
+  refresco?: number;
+  onAbrir: (codigo: string) => void;
+}) {
   const [pedidos, setPedidos] = useState<PedidoEntregaBelen[] | null>(null);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -199,7 +208,7 @@ export function EntregasBelen({ activa, onAbrir }: { activa: boolean; onAbrir: (
       finally { if (!ctl.signal.aborted) setCargando(false); }
     });
     return () => ctl.abort();
-  }, [activa, intento]);
+  }, [activa, intento, refresco]);
 
   const hoy = hoyEnOficina();
   const filas = useMemo(() => filtrarEntregas(pedidos ?? [], filtros), [pedidos, filtros]);

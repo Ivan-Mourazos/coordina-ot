@@ -39,7 +39,15 @@ export function useDeslizar(orden: string) {
   }, []);
 }
 
-export function usePestanasOrdenables<T extends { id: string }>(clave: string, base: readonly T[]) {
+/** Opciones: `grupoDe` para no dejar mover una pestaña fuera de su grupo
+ *  (la barra de listas va por temas desde el 12/11/2026) y `vertical` para
+ *  listas de arriba abajo (se mira la mitad en alto y se usan ↑ ↓). */
+export function usePestanasOrdenables<T extends { id: string }>(
+  clave: string,
+  base: readonly T[],
+  { grupoDe, vertical = false }: { grupoDe?: (id: string) => string; vertical?: boolean } = {},
+) {
+  const mismoGrupo = (a: string, b: string) => !grupoDe || grupoDe(a) === grupoDe(b);
   // Se guardan los ids, no las pestañas: sus rótulos llevan cifras que cambian.
   const [ids, setIds] = useState<string[] | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
@@ -81,12 +89,13 @@ export function usePestanasOrdenables<T extends { id: string }>(clave: string, b
       if (!arrastrando) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (arrastrando === id) return;
+      if (arrastrando === id || !mismoGrupo(arrastrando, id)) return;
       const desde = items.findIndex((x) => x.id === arrastrando);
       const r = e.currentTarget.getBoundingClientRect();
-      const mitad = r.left + r.width / 2;
-      // Hacia la derecha cambia al pasar la mitad; hacia la izquierda, igual.
-      if ((desde < i && e.clientX < mitad) || (desde > i && e.clientX > mitad)) return;
+      const mitad = vertical ? r.top + r.height / 2 : r.left + r.width / 2;
+      const donde = vertical ? e.clientY : e.clientX;
+      // Hacia delante cambia al pasar la mitad; hacia atrás, igual.
+      if ((desde < i && donde < mitad) || (desde > i && donde > mitad)) return;
       setIds(moverA(items, arrastrando, i).map((x) => x.id));
     },
     onDrop: (e: React.DragEvent) => {
@@ -101,9 +110,12 @@ export function usePestanasOrdenables<T extends { id: string }>(clave: string, b
       setArrastrando(null);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
-      if (!e.ctrlKey || !e.shiftKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      const [atras, adelante] = vertical ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"];
+      if (!e.ctrlKey || !e.shiftKey || (e.key !== atras && e.key !== adelante)) return;
       e.preventDefault();
-      const nuevos = moverA(items, id, i + (e.key === "ArrowLeft" ? -1 : 1)).map((x) => x.id);
+      const destino = i + (e.key === atras ? -1 : 1);
+      if (!items[destino] || !mismoGrupo(id, items[destino].id)) return;
+      const nuevos = moverA(items, id, destino).map((x) => x.id);
       setIds(nuevos);
       guardar(nuevos);
       const el = e.currentTarget;

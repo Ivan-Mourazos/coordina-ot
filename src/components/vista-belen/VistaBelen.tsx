@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import type { PedidoEncontrado } from "@/lib/buscador";
 import { interpretarBusqueda } from "@/lib/codigo-busqueda";
 import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
-import { esIdLista, LISTAS_BELEN, type FilaLista, type IdLista } from "@/lib/vista-belen-listas";
+import { esIdLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
 import { PedidoBelenView } from "./PedidoBelen";
@@ -13,6 +13,8 @@ import { InicioBelen } from "./InicioBelen";
 import { EntregasBelen } from "./EntregasBelen";
 import { usePestanasOrdenables } from "./usePestanasOrdenables";
 import { AvisosBelen } from "./AvisosBelen";
+import { IconoHerramienta } from "./IconoHerramienta";
+import { enGrupos, grupoDe } from "@/lib/herramientas-belen";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -70,6 +72,13 @@ async function pedirJson<T>(url: string, senal?: AbortSignal): Promise<T> {
   return json;
 }
 
+/** Cada cuánto se refresca sola la pantalla (listas, pedidos por fecha y el
+ *  pedido abierto) mientras está a la vista. Belén, 12/11/2026: «que se
+ *  actualice de vez en cuando, y a mayores el botón». Las listas se
+ *  recalculan en el servidor como mucho cada 2 min, así que más a menudo no
+ *  traería nada nuevo. */
+const REFRESCO_MS = 5 * 60_000;
+
 const pasoActual = (): number => {
   const s = history.state as Partial<PasoHistorial> | null;
   return s?.belen ? (s.n ?? 0) : 0;
@@ -79,9 +88,15 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   const [pestana, setPestana] = useState<Pestana>("pedido");
   // null = la primera de SU orden de listas (usePestanasOrdenables).
   const [listaElegida, setLista] = useState<IdLista | null>(null);
-  const ordenListas = usePestanasOrdenables(`coordina.belen.pestanas-listas:${miId ?? "local"}`, LISTAS_BELEN);
-  const lista: IdLista = listaElegida ?? ordenListas.items[0].id;
+  const ordenListas = usePestanasOrdenables(`coordina.belen.pestanas-listas:${miId ?? "local"}`, LISTAS_BELEN, { grupoDe, vertical: true });
+  // La primera de la columna: el primer grupo con listas, en SU orden.
+  const lista: IdLista = listaElegida ?? enGrupos(ordenListas.items)[0].items[0].id;
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
+  // Los filtros y el orden de cada lista viven aquí y no en la tabla: la tabla
+  // se desmonta al abrir un pedido y, al volver, los perdía (Belén, 12/11/2026).
+  const [filtros, setFiltros] = useState<Partial<Record<IdLista, FiltroLista>>>({});
+  // Sube para que «Pedidos por fecha solicitada» se vuelva a pedir.
+  const [refresco, setRefresco] = useState(0);
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
   // Lo último pintado, para que «Actualizar» sepa qué pedido volver a pedir.
@@ -95,11 +110,13 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   // ── Las listas: se piden TODAS al entrar, por detrás ────────────────────────
   // Antes cada una se pedía al pinchar en ella, y los números de los botones
   // salían a medida que se visitaban (Iván: «tuve que ir pestaña por pestaña»).
-  const cargarLista = useCallback(async (id: IdLista) => {
+  /** `forzar` = el botón «Actualizar»: el servidor recalcula aunque tenga
+   *  algo reciente. Lo automático se conforma con lo guardado. */
+  const cargarLista = useCallback(async (id: IdLista, forzar = false) => {
     setListas((ls) => ({ ...ls, [id]: ls[id]?.tipo === "listo" ? { ...ls[id], actualizando: true } : { tipo: "cargando" } }));
     try {
       const { filas, calculadaAt } = await pedirJson<{ filas: FilaLista[]; calculadaAt: string }>(
-        `/api/vista-belen?lista=${id}`,
+        `/api/vista-belen?lista=${id}${forzar ? "&forzar=1" : ""}`,
       );
       setListas((ls) => ({ ...ls, [id]: { tipo: "listo", filas, calculadaAt } }));
     } catch (e) {
@@ -158,6 +175,34 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
       setEstado((e) => (e.tipo === "pedido" ? { ...e, actualizando: false } : e));
     }
   }, []);
+
+  // ── Se actualiza sola cada REFRESCO_MS, solo si la pestaña está a la vista;
+  // al volver a ella tras un rato, también.
+  useEffect(() => {
+    let ultima = Date.now();
+    const refrescar = () => {
+      if (document.visibilityState !== "visible" || Date.now() - ultima < REFRESCO_MS - 5_000) return;
+      ultima = Date.now();
+      LISTAS_BELEN.forEach((l) => void cargarLista(l.id));
+      setRefresco((n) => n + 1);
+      void actualizarPedido();
+    };
+    const reloj = window.setInterval(refrescar, REFRESCO_MS);
+    document.addEventListener("visibilitychange", refrescar);
+    return () => {
+      window.clearInterval(reloj);
+      document.removeEventListener("visibilitychange", refrescar);
+    };
+  }, [cargarLista, actualizarPedido]);
+
+  const setFiltroLista = useCallback(
+    (accion: SetStateAction<FiltroLista>) =>
+      setFiltros((fs) => {
+        const actual = fs[lista] ?? FILTRO_LISTA_INICIAL;
+        return { ...fs, [lista]: typeof accion === "function" ? accion(actual) : accion };
+      }),
+    [lista],
+  );
 
   /** Lleva la pantalla a lo que dice la dirección. Lo usa todo: los clics
    *  (después de apuntar el paso), el «atrás» y el recargar la página. */
@@ -430,45 +475,63 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
         </main>
       ) : pestana === "comprobaciones" ? (
         <main role="tabpanel" id="panel-comprobaciones" aria-labelledby="pestana-comprobaciones" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
-          {/* La misma píldora que se desliza del resto de Coordina. */}
-          <div role="group" aria-label="Lista" className="tira-3d glass-chip mb-3 inline-flex flex-wrap rounded-lg p-[3px]">
-            {ordenListas.items.map((l, i) => {
-              const c = listas[l.id];
-              return (
-                <button
-                  key={l.id}
-                  {...ordenListas.propsDe(l.id, i)}
-                  type="button"
-                  aria-pressed={l.id === lista}
-                  onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
-                  className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                    l.id === lista ? "pestana-activa" : "text-text-muted hover:text-text"
-                  } ${ordenListas.claseArrastre(l.id)}`}
-                >
-                  {l.label}
-                  <span
-                    className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular-nums ${
-                      c?.tipo === "listo" && c.filas.length > 0
-                        ? "bg-amber-500/20 text-amber-900 dark:text-amber-200"
-                        : "bg-[var(--hero-relleno-encima)] text-text-muted"
-                    }`}
-                  >
-                    {c?.tipo === "listo" ? c.filas.length : c?.tipo === "error" ? "!" : "…"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Las listas por temas, en una columna a la izquierda (Iván,
+              12/11/2026: con catorce, tres filas de pestañas eran un lío).
+              Se ordenan arrastrando dentro de su grupo. En pantallas
+              estrechas la columna se pone encima. */}
+          <div className="grid items-start gap-4 lg:grid-cols-[14rem_minmax(0,1fr)]">
+          <nav aria-label="Listas de comprobación" className="tarjeta-of self-start rounded-3xl bg-surface p-2 lg:sticky lg:top-16">
+            {enGrupos(ordenListas.items).map((g) => (
+              <div key={g.id} role="group" aria-label={g.label} className="mb-1 last:mb-0">
+                <p className="px-2.5 pb-0.5 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-text-muted">{g.label}</p>
+                {g.items.map((l) => {
+                  const i = ordenListas.items.indexOf(l);
+                  const c = listas[l.id];
+                  const activa = l.id === lista;
+                  return (
+                    <button
+                      key={l.id}
+                      {...ordenListas.propsDe(l.id, i)}
+                      type="button"
+                      aria-current={activa ? "page" : undefined}
+                      title={`${l.explica}\n\nArrastra para cambiar el orden dentro de «${g.label}».`}
+                      onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
+                      className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left text-[13px] leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                        activa ? "bg-[var(--hero-relleno-encima)] font-bold text-text" : "font-semibold text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text"
+                      } ${ordenListas.claseArrastre(l.id)}`}
+                    >
+                      <IconoHerramienta id={l.id} tam="sm" />
+                      <span className="min-w-0 flex-1">{l.label}</span>
+                      <span
+                        className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular-nums ${
+                          c?.tipo === "listo" && c.filas.length > 0
+                            ? "bg-amber-500/20 text-amber-900 dark:text-amber-200"
+                            : "bg-[var(--hero-relleno)] text-text-muted"
+                        }`}
+                      >
+                        {c?.tipo === "listo" ? c.filas.length : c?.tipo === "error" ? "!" : "…"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+          <div className="min-w-0">
           <TablaListaBelen
             key={lista}
             lista={lista}
             carga={listas[lista] ?? { tipo: "cargando" }}
-            onActualizar={() => void cargarLista(lista)}
+            filtro={filtros[lista] ?? FILTRO_LISTA_INICIAL}
+            setFiltro={setFiltroLista}
+            onActualizar={() => void cargarLista(lista, true)}
             onAbrir={(pedido, of) => navegar(of ? { pedido, of } : { pedido })}
           />
+          </div>
+          </div>
         </main>
       ) : null}
-      <EntregasBelen activa={pestana === "entregas"} onAbrir={(pedido) => navegar({ pedido })} />
+      <EntregasBelen activa={pestana === "entregas"} refresco={refresco} onAbrir={(pedido) => navegar({ pedido })} />
     </div>
   );
 }
