@@ -60,7 +60,7 @@ function Tarjeta({ doc, onAbrir, enSuOrden = false, nota }: { doc: DocBelen; onA
       type="button"
       onClick={onAbrir}
       title={`${doc.descripcion || doc.archivo} — abrir`}
-      className={`flex w-full flex-col overflow-hidden ${CAJA} bg-[var(--detalle)] text-left transition-[background-color,transform] duration-150 hover:bg-[var(--hero-relleno)] active:scale-[.98] motion-reduce:transition-none ${ENFOQUE}`}
+      className={`flex w-full flex-col overflow-hidden ${CAJA} bg-surface shadow-[var(--hero-sombra-campo)] text-left transition-[background-color,transform] duration-150 hover:bg-[var(--hero-relleno)] active:scale-[.98] motion-reduce:transition-none ${ENFOQUE}`}
     >
       <span className="relative block">
         <Miniatura doc={doc} className="aspect-[3/4] w-full" />
@@ -98,7 +98,7 @@ export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) 
     // Los papeles (planteamiento, pedido, presupuesto…) van seguidos en la
     // misma fila, cada apartado a su ancho; las fotos, que son muchas, debajo
     // a todo el ancho.
-    <div className="flex flex-wrap items-start gap-x-8 gap-y-5">
+    <div className="flex flex-wrap items-start gap-3">
       {grupos.map((g) => {
         const esFotos = g.grupo === "Fotos";
         // Las fotos, en bloques por orden de mantenimiento; lo demás, de una vez.
@@ -107,7 +107,7 @@ export function DocumentosBelen({ documentos }: { documentos: DocumentoRps[] }) 
             ? [...new Set(g.documentos.map((d) => d.orden ?? ""))].map((o) => ({ titulo: o ? `Orden ${o}` : "Fotos sueltas", docs: g.documentos.filter((d) => (d.orden ?? "") === o) }))
             : [{ titulo: "", docs: g.documentos }];
         return (
-          <section key={g.grupo} aria-label={g.grupo} className={esFotos ? "w-full" : "max-w-full"}>
+          <section key={g.grupo} aria-label={g.grupo} className={`rounded-2xl bg-[var(--detalle)] p-3 ${esFotos ? "w-full" : "max-w-full"}`}>
             <h3 className="mb-2 flex items-baseline gap-2 text-[14px] font-semibold">
               {g.grupo}
               {g.documentos.length > 1 && <span className="text-[12px] font-medium tabular-nums text-text-muted">{g.documentos.length}</span>}
