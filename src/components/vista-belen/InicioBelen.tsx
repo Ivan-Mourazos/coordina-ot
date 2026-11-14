@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { enGrupos, grupoDe, HERRAMIENTAS_BELEN, ordenarHerramientas, vecinaDelGrupo } from "@/lib/herramientas-belen";
 import { moverA } from "@/lib/orden-guardado";
 import { useDeslizar } from "./usePestanasOrdenables";
-import type { IdLista } from "@/lib/vista-belen-listas";
+import { filasALaVista, LISTAS_BELEN, type IdLista } from "@/lib/vista-belen-listas";
 import type { CargaLista } from "./ListaBelen";
 import { IconoHerramienta } from "./IconoHerramienta";
 
@@ -129,7 +129,8 @@ export function InicioBelen({ miId, listas, onAbrir }: {
               {g.items.map((h) => {
                 const i = herramientas.indexOf(h);
                 const carga = listas[h.id as IdLista];
-                const n = carga?.tipo === "listo" ? carga.filas.length : null;
+                const defLista = LISTAS_BELEN.find((d) => d.id === h.id);
+                const n = carga?.tipo === "listo" ? (defLista ? filasALaVista(carga.filas, defLista) : carga.filas).length : null;
                 const esLaQueSeMueve = arrastrando === h.id;
                 const antes = vecinaDelGrupo(herramientas, h.id, -1);
                 const despues = vecinaDelGrupo(herramientas, h.id, 1);

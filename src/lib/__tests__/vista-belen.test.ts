@@ -209,6 +209,13 @@ describe("tiempos exactos de RPS", () => {
     expect(horaDeSegundos(0)).toBe("00:00");
     expect(horaDeSegundos(null)).toBeNull();
   });
+  test("las fechas «sin fecha» de RPS (1900 y 1/1/1970) no se pintan", async () => {
+    const { iso } = await import("../server/rps-belen-comun");
+    expect(iso(new Date(Date.UTC(1900, 0, 1)))).toBeNull();
+    expect(iso(new Date(Date.UTC(1970, 0, 1)))).toBeNull();
+    expect(iso(new Date(Date.UTC(2026, 10, 14)))).toBe("2026-11-14");
+    expect(iso(null)).toBeNull();
+  });
 });
 
 describe("OF en amarillo", () => {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type SetStateAction } from "r
 import type { PedidoEncontrado } from "@/lib/buscador";
 import { interpretarBusqueda } from "@/lib/codigo-busqueda";
 import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
-import { esIdLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
+import { esIdLista, filasALaVista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
 import { PedidoBelenView } from "./PedidoBelen";
@@ -487,6 +487,7 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                 {g.items.map((l) => {
                   const i = ordenListas.items.indexOf(l);
                   const c = listas[l.id];
+                  const cuenta = c?.tipo === "listo" ? filasALaVista(c.filas, l).length : null;
                   const activa = l.id === lista;
                   return (
                     <button
@@ -504,12 +505,12 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                       <span className="min-w-0 flex-1">{l.label}</span>
                       <span
                         className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular-nums ${
-                          c?.tipo === "listo" && c.filas.length > 0
+                          cuenta !== null && cuenta > 0
                             ? "bg-amber-500/20 text-amber-900 dark:text-amber-200"
                             : "bg-[var(--hero-relleno)] text-text-muted"
                         }`}
                       >
-                        {c?.tipo === "listo" ? c.filas.length : c?.tipo === "error" ? "!" : "…"}
+                        {cuenta !== null ? cuenta : c?.tipo === "error" ? "!" : "…"}
                       </span>
                     </button>
                   );

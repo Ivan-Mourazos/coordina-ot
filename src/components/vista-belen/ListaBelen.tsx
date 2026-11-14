@@ -4,6 +4,7 @@ import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import {
   columnaFecha,
+  filasALaVista,
   filtrarLista,
   FILTRO_LISTA_INICIAL,
   LISTAS_BELEN,
@@ -116,6 +117,9 @@ export function TablaListaBelen({
   const def = LISTAS_BELEN.find((l) => l.id === lista)!;
   const fecha = columnaFecha(def);
   const filas = useMemo(() => (carga.tipo === "listo" ? filtrarLista(carga.filas, def, filtro) : []), [carga, def, filtro]);
+  // El total de referencia: lo que la lista enseña sin filtros (con o sin delegaciones).
+  const total = carga.tipo === "listo" ? (filtro.delegaciones ? carga.filas : filasALaVista(carga.filas, def)).length : 0;
+  const escondidas = carga.tipo === "listo" && !filtro.delegaciones ? carga.filas.length - total : 0;
   const valores = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def) : []), [carga, def]);
   const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.delegaciones || filtro.orden !== null;
 
@@ -202,7 +206,7 @@ export function TablaListaBelen({
             <div className="flex items-baseline gap-2.5 px-4 pb-1 pt-3">
               <span className="text-[22px] font-bold leading-none tabular-nums">{filas.length}</span>
               <span className="text-[14px] font-semibold">{def.label}</span>
-              {filas.length !== carga.filas.length && <span className="text-[13px] text-text-muted">de {carga.filas.length}</span>}
+              {filas.length !== total && <span className="text-[13px] text-text-muted">de {total}</span>}
             </div>
             <table className="w-full table-fixed border-collapse text-[13px]">
               <colgroup>
@@ -230,7 +234,9 @@ export function TablaListaBelen({
                 {filas.length === 0 && (
                   <tr>
                     <td colSpan={def.columnas.length} className="px-4 py-3 text-sm text-text-muted">
-                      Ninguna fila cumple los filtros.
+                      {total === 0 && escondidas > 0
+                        ? "Ninguna de Arzúa. Marca «Ver delegaciones» para ver las de Santiago y Bergondo."
+                        : "Ninguna fila cumple los filtros."}
                     </td>
                   </tr>
                 )}

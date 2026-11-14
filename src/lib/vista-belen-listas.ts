@@ -353,6 +353,12 @@ export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: 
 /** ¿Es de Arzúa? Las filas sin pedido cuentan como de aquí. */
 const esDeArzua = (fila: FilaLista) => !fila.pedido || fila.pedido.toUpperCase().startsWith("AR.");
 
+/** Las filas que la lista enseña antes de tocar ningún filtro: en las que traen
+ *  delegaciones, solo las de Arzúa. Es lo que cuentan los contadores; si
+ *  contaran también Santiago y Bergondo, el número no cuadraría con lo que se ve. */
+export const filasALaVista = (filas: readonly FilaLista[], def: DefLista): readonly FilaLista[] =>
+  def.delegaciones ? filas.filter(esDeArzua) : filas;
+
 /** Los valores que hay en la columna del desplegable, sin repetir y en orden. */
 export function valoresFiltro(filas: readonly FilaLista[], def: DefLista): string[] {
   const clave = def.filtro?.clave;

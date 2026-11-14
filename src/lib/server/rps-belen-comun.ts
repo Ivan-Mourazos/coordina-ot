@@ -37,9 +37,9 @@ export const horaDeSegundos = (s: number | null | undefined): string | null =>
     : `${String(Math.floor(s / 3600) % 24).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}`;
 
 /** Fecha de calendario de RPS (medianoche, leída en UTC) → yyyy-mm-dd. Las de
- *  1899/1900 son «sin fecha». */
+ *  1899/1900 son «sin fecha», y también el 1/1/1970 (sale en pedidos antiguos). */
 export const iso = (d: Date | null | undefined): string | null =>
-  d && d.getUTCFullYear() > 1900 ? d.toISOString().slice(0, 10) : null;
+  d && d.getUTCFullYear() > 1970 ? d.toISOString().slice(0, 10) : null;
 
 /** Texto recortado; vacío → null. */
 export const texto = (s: string | null | undefined): string | null => (s ?? "").trim() || null;

@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import type sql from "mssql";
-import { esIdLista, filtrarLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, valoresFiltro, type IdLista } from "../vista-belen-listas";
+import { esIdLista, filasALaVista, filtrarLista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, valoresFiltro, type IdLista } from "../vista-belen-listas";
 import { CONSULTAS, leerListaBelen, olvidarListasBelen } from "../server/vista-belen-listas-db";
 import { getPool } from "../server/db";
 
@@ -235,5 +235,9 @@ describe("«Ver delegaciones»: SA y BE escondidas hasta marcar la casilla", () 
   test("las listas sin la casilla no esconden nada", () => {
     const desfase = LISTAS_BELEN.find((l) => l.id === "desfase")!;
     expect(filtrarLista(filas, desfase, FILTRO_LISTA_INICIAL)).toHaveLength(3);
+  });
+  test("el contador cuenta lo que se ve al abrirla, no las delegaciones", () => {
+    expect(filasALaVista(filas, def)).toHaveLength(1);
+    expect(filasALaVista(filas, LISTAS_BELEN.find((l) => l.id === "desfase")!)).toHaveLength(3);
   });
 });
