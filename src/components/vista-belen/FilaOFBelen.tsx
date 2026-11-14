@@ -395,8 +395,8 @@ export function FilaOFBelen({
       } ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
     >
       {/* La OF encogida, en una línea, con lo que pidió Belén (11/11/2026) y en
-          su orden: punto, prioridad, TP/COT, OF, artículo, fecha de entrega,
-          solicitada, situación, comprometida, compras y logística. Lo que no
+          su orden: punto, prioridad, TP/COT, OF, artículo, rotulación,
+          solicitada, comprometida, logística, compras, comentario y situación. Lo que no
           tiene valor no sale. Pinchando se despliega todo. */}
       <button
         type="button"
@@ -429,12 +429,28 @@ export function FilaOFBelen({
         <span className="min-w-[10rem] flex-1 truncate text-[13.5px] font-medium" title={of.articulo ?? of.descripcion}>
           {enFrase(of.articulo ?? of.descripcion)}
         </span>
+        {/* Belén (14/11/2026): la rotulación en la línea, sin desplegar, como en
+            su pantalla de antes. Solo si la OF la tiene y no es la del pedido
+            (esa ya sale en la cabecera). */}
+        {otraRotulacion && of.rotulacion && (
+          <span className="max-w-[18rem] truncate text-[12.5px] text-text-muted" title={`Rotulación: ${of.rotulacion}`}>
+            Rotulación <b className="font-semibold text-text">{of.rotulacion}</b>
+          </span>
+        )}
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* Belén (14/11/2026), en este orden: solicitada (rojo), comprometida
+              (verde), logística (malva), compras (azul) y el comentario de la
+              OF (rojo). La situación, detrás. */}
           {of.fechaSolicitada && <FechaCorta {...FECHA.solicitada} valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}
-          {of.situacion && <span title={SIGNIFICA.situacion} className={chip(tonoSituacion(of.situacion))}>{enFrase(of.situacion)}</span>}
           {of.fechaComprometida && <FechaCorta {...FECHA.comprometida} valor={of.fechaComprometida} ayuda={SIGNIFICA.comprometida} />}
-          {of.fechaCompras && <FechaCorta {...FECHA.compras} valor={of.fechaCompras} ayuda={SIGNIFICA.compras} />}
           {of.logistica?.fecha && <FechaCorta {...FECHA.logistica} valor={of.logistica.fecha} ayuda={SIGNIFICA.logistica} extra={of.logistica.responsable} />}
+          {of.fechaCompras && <FechaCorta {...FECHA.compras} valor={of.fechaCompras} ayuda={SIGNIFICA.compras} />}
+          {of.notas && (
+            <span className="max-w-[20rem] truncate text-[12.5px] font-semibold text-red-700 dark:text-red-300" title={`Comentario de la OF: ${of.notas}`}>
+              {of.notas}
+            </span>
+          )}
+          {of.situacion && <span title={SIGNIFICA.situacion} className={chip(tonoSituacion(of.situacion))}>{enFrase(of.situacion)}</span>}
         </span>
       </button>
 
