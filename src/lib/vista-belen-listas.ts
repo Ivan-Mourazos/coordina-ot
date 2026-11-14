@@ -23,7 +23,8 @@ export type IdLista =
   | "detenidas-material"
   | "compras-pendientes"
   | "tp-cot"
-  | "sin-gestionar";
+  | "sin-gestionar"
+  | "incidencias";
 
 /** Cómo se pinta el valor. `of` y `pedido` van en negrita y monoespaciado;
  *  `fecha` espera ISO (yyyy-mm-dd) y sale dd/mm/aa; `numero` alineado a la
@@ -282,6 +283,28 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "formaEntrega", titulo: "Entrega", largo: true },
       { clave: "rotulacion", titulo: "Rotulación", largo: true },
       { clave: "sinCargo", titulo: "Sin cargo", largo: true },
+    ],
+  },
+  {
+    // Belén, 14/11/2026: lo que miraba en RPS en «Fabricación > Imputación de
+    // tiempos» con el filtro de improductivo, buscando por OF. Una fila por
+    // fichaje improductivo de una persona (los de máquina repiten lo mismo
+    // sin empleado), del último año y de cualquier serie.
+    id: "incidencias",
+    label: "Incidencias",
+    explica: "Fichajes improductivos del último año, con su causa. Escribe la OF en el buscador para ver los suyos.",
+    alcance: "Todas las series.",
+    filtro: { clave: "causa", titulo: "Causa" },
+    columnas: [
+      { clave: "dia", titulo: "Día", tipo: "fecha" },
+      { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "empleado", titulo: "Empleado", largo: true },
+      { clave: "inicio", titulo: "Inicio" },
+      { clave: "fin", titulo: "Fin" },
+      { clave: "tarea", titulo: "Tarea", largo: true },
+      { clave: "improductivo", titulo: "Improd." },
+      { clave: "causa", titulo: "Causa", largo: true },
     ],
   },
 ];

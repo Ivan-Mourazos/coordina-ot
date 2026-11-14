@@ -76,6 +76,13 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
       <path d="M12 12.5v8M9 15.5l3-3 3 3" />
     </>
   ),
+  // Triángulo de aviso: tiempo improductivo
+  "incidencias": (
+    <>
+      <path d="M10.3 4.2 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z" />
+      <path d="M12 9.5v4.5M12 17.2v.1" />
+    </>
+  ),
   // Camión
   "compras-pendientes": (
     <>

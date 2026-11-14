@@ -2,7 +2,8 @@ import sql from "mssql";
 import { getPool } from "./db";
 import { fechaDeTexto, unaFilaPorTarea } from "../vista-belen";
 import type { FilaLista, IdLista } from "../vista-belen-listas";
-import { ES_RPS, FEATURE_COMPROMETIDA, iso, texto, TIPO_AVISO } from "./rps-belen-comun";
+import { ES_RPS, FEATURE_COMPROMETIDA, horaDeSegundos, iso, texto, TIPO_AVISO } from "./rps-belen-comun";
+import { nombreHistorial } from "../nombre-historial";
 
 // ─── Vista de Belén: las consultas de las listas ─────────────────────────────
 // Solo lectura, contra RPS. Cada lista sale de una hoja de sus Excels (leídos
@@ -584,6 +585,51 @@ const SQL_SIN_GESTIONAR = `
       AND EXISTS (SELECT 1 FROM dbo.CPRStructure s WHERE s.CodCompany = '001' AND s.IDArticle = d.IDArticle)
     ORDER BY b.CodOrder, a.NumLine`;
 
+// Fichajes improductivos (Belén, 14/11/2026): su pantalla de RPS «Imputación
+// de tiempos». Solo los de persona (ResourceType 1): cada uno tiene su gemelo
+// de máquina (tipo 2) sin empleado. Último año: ~930 filas, 2 s (14/11/2026).
+// El pedido, el primero de la OF en cualquier serie; si no tiene, sin pedido.
+async function incidencias(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const r = await pool.request().query<{
+      clave: string; of: string; pedido: string | null; codEmpleado: string | null; persona: string | null;
+      dia: Date | null; inicio: number | null; fin: number | null; tarea: string; descripcion: string | null; causa: string | null;
+    }>(`
+      SELECT i.IDImputation AS clave, mo.CodManufacturingOrder AS [of], ped.pedido,
+             e.CodEmployee AS codEmpleado, e.Description AS persona, i.ImputationDate AS dia,
+             i.StartHour AS inicio, i.EndHour AS fin, t.CodMOTask AS tarea,
+             CAST(t.Description AS varchar(300)) AS descripcion, u.Description AS causa
+      FROM dbo.CPRImputationMO i
+      JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
+      JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = i.IDManufacturingOrder
+      LEFT JOIN dbo.CPRUnproductiveType u ON u.IDUnproductiveType = i.IDUnproductiveType
+      LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool
+      OUTER APPLY (
+        SELECT TOP (1) p.CodOrder AS pedido
+        FROM dbo.FACOrderLineSL lin
+        JOIN dbo.FACOrderSL p ON p.IDOrder = lin.IDOrder
+        WHERE lin.IDManufacturingOrder = mo.IDManufacturingOrder AND lin.CodCompany = '001'
+        ORDER BY p.CodOrder, lin.NumLine
+      ) ped
+      WHERE i.CodCompany = '001' AND i.Unproductive = 1 AND i.ResourceType = 1
+        AND i.ImputationDate >= DATEADD(year, -1, CONVERT(date, GETDATE()))
+      ORDER BY i.ImputationDate DESC, i.StartHour DESC, mo.CodManufacturingOrder`);
+  return r.recordset.map((f) => {
+    const cod = (f.codEmpleado ?? "").trim();
+    return {
+      clave: String(f.clave).trim(),
+      of: f.of.trim(),
+      pedido: texto(f.pedido),
+      dia: iso(f.dia),
+      empleado: cod ? `${cod} · ${nombreHistorial(f.persona)}` : null,
+      inicio: horaDeSegundos(f.inicio),
+      fin: horaDeSegundos(f.fin),
+      tarea: `${f.tarea.trim()} ${(f.descripcion ?? "").trim()}`.trim(),
+      improductivo: "Sí",
+      causa: texto(f.causa),
+    };
+  });
+}
+
 // Diferencias con los Excels, a propósito (09/11/2026): una fila por OF y no
 // por tarea o máquina (sus joins repetían la OF y podían inflar unidades);
 // cliente y forma de entrega opcionales, para que su falta no esconda un aviso;
@@ -605,6 +651,7 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "compras-pendientes": async (pool) => (await comprobacion(pool, SQL_COMPRAS_PENDIENTES)).sort(porSolicitadaYPrioridad),
   "tp-cot": (pool) => tpCotSinRematar(pool),
   "sin-gestionar": (pool) => comprobacion(pool, SQL_SIN_GESTIONAR),
+  "incidencias": (pool) => incidencias(pool),
 };
 
 /** Las listas cuestan de medio segundo a cuatro («bultos subidos, tareas

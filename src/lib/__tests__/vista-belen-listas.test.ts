@@ -22,6 +22,7 @@ const IDS = {
   "compras-pendientes": true,
   "tp-cot": true,
   "sin-gestionar": true,
+  "incidencias": true,
 } satisfies Record<IdLista, true>;
 
 // «fechas-comprometidas» se prueba aparte: lee la fecha del texto y descarta lo que no lo es.

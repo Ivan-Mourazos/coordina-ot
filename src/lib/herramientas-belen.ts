@@ -41,6 +41,7 @@ export const GRUPO_DE: Record<IdHerramienta, IdGrupo> = {
   "tiempos-previstos": "tiempos",
   "maquina-a-horas": "tiempos",
   "tiempos-sin-subir": "tiempos",
+  "incidencias": "tiempos",
   "compras-pendientes": "material",
   "detenidas-material": "material",
   "varias-maquinas": "datos",
