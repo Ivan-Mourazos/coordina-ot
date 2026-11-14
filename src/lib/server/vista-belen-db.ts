@@ -7,6 +7,7 @@ import {
   unaFilaPorTarea,
   type FichandoAhora,
   type FilaTiempo,
+  type LineaDescontada,
   type MaterialPedido,
   type OFBelen,
   type PedidoBelen,
@@ -411,6 +412,74 @@ export async function leerMaterialBelen(codigo: string): Promise<MaterialPedido 
       }))
       .sort((a, b) => a.of.localeCompare(b.of)),
   };
+}
+
+// ─── Material descontado: lo que salió de verdad ─────────────────────────────
+// «Imputación de material» de RPS (CPRImputationMaterialMO), un apunte por
+// fila, como la pantalla de RPS: artículo, descripción, operario, almacén,
+// cantidad y unidad, fecha y número de serie (Iván, 14/11/2026). El operario
+// y el origen van en la tabla custom: IDEmpleado es el IDEmployee («001-45»)
+// y Origen dice por dónde entró (PDA = almacén, OLANET = Producción, vacío =
+// a mano en RPS; en oct-nov 2026, 2.398 / 1.766 / 1.634 apuntes).
+export async function leerDescontadoBelen(codigo: string): Promise<LineaDescontada[] | null> {
+  const pedido = codigo.trim().toUpperCase();
+  if (!ES_RPS()) return [];
+  const pool = await getPool();
+  const [r, nombres] = await Promise.all([
+    pool.request().input("pedido", sql.VarChar(25), pedido).query<{
+      cod: string;
+      tarea: string | null;
+      articulo: string | null;
+      descripcion: string | null;
+      cantidad: number | null;
+      unidad: string | null;
+      almacen: string | null;
+      codEmpleado: string | null;
+      empleado: string | null;
+      fecha: Date | null;
+      serie: string | null;
+      origen: string | null;
+      comentario: string | null;
+    }>(`${OFS_DEL_PEDIDO}
+      SELECT o.cod, t.CodMOTask AS tarea, art.CodArticle AS articulo,
+             COALESCE(NULLIF(LTRIM(RTRIM(i.Description)), ''), CAST(art.Description AS varchar(300))) AS descripcion,
+             i.Quantity AS cantidad, mu.Abreviature AS unidad, wh.Description AS almacen,
+             emp.CodEmployee AS codEmpleado, emp.Description AS empleado,
+             i.ImputationDate AS fecha, i.Series AS serie, c.Origen AS origen,
+             c.ComentarioMovimientoAlmacn AS comentario
+      FROM (SELECT DISTINCT id, cod FROM ofs) o
+      JOIN dbo.CPRImputationMaterialMO i ON i.IDManufacturingOrder = o.id AND i.CodCompany = '001'
+      LEFT JOIN dbo._CPRImputationMaterialMO_Custom c ON c.IDImputationMaterial = i.IDImputationMaterial
+      LEFT JOIN dbo.CPRMOTask t ON t.IDMOTask = i.IDMOTask
+      LEFT JOIN dbo.STKArticle art ON art.IDArticle = i.IDArticle
+      LEFT JOIN dbo.GENMeasureUnit mu ON mu.IDMeasureUnit = art.IDUnitQuantityWarehouse
+      LEFT JOIN dbo.GENWarehouse wh ON wh.IDWarehouse = i.IDWarehouse
+      LEFT JOIN dbo.GENEmployee emp ON emp.IDEmployee = c.IDEmpleado
+      ORDER BY o.cod, i.ImputationDate, i.EntryDate`),
+    nombresHistorial(),
+  ]);
+  return r.recordset.map((f) => {
+    const origen = (f.origen ?? "").trim().toUpperCase();
+    // OLANET añade «Transporte: … Generated from OLANET»: no dice nada.
+    const comentario = (f.comentario ?? "")
+      .replace(/Transporte:\s*/gi, "")
+      .replace(/Generated from OLANET/gi, "")
+      .trim();
+    return {
+      of: f.cod.trim(),
+      tarea: texto(f.tarea),
+      articulo: (f.articulo ?? "").trim(),
+      descripcion: (f.descripcion ?? "").trim(),
+      cantidad: Number(f.cantidad) || 0,
+      unidad: texto(f.unidad),
+      almacen: texto(f.almacen),
+      operario: f.empleado ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.empleado) : null,
+      fecha: iso(f.fecha),
+      serie: texto(f.serie),
+      origen: origen === "PDA" ? "almacen" : origen === "OLANET" ? "produccion" : "rps",
+      comentario: comentario || null,
+    };
+  });
 }
 
 function materialDeEjemplo(): MaterialPedido {

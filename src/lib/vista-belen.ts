@@ -136,6 +136,30 @@ export interface MaterialPedido {
   ofs: MaterialOF[];
 }
 
+/** Por dónde se descontó: PDA del almacén, OLANET desde Producción o a mano
+ *  en RPS (`_CPRImputationMaterialMO_Custom.Origen` vacío). */
+export type OrigenDescuento = "almacen" | "produccion" | "rps";
+
+/** Una línea de material DESCONTADO de una OF: lo que salió de verdad
+ *  (CPRImputationMaterialMO, «Imputación de material» en RPS), una por
+ *  apunte. Cantidad negativa = devolución. */
+export interface LineaDescontada {
+  of: string;
+  tarea: string | null;
+  articulo: string;
+  descripcion: string;
+  cantidad: number;
+  unidad: string | null;
+  almacen: string | null;
+  operario: string | null;
+  /** yyyy-mm-dd */
+  fecha: string | null;
+  serie: string | null;
+  origen: OrigenDescuento;
+  /** El comentario del movimiento («10 MTS X 1.54…»), sin la coletilla de OLANET. */
+  comentario: string | null;
+}
+
 /** ¿La OF está FINALIZADA? Un solo sitio para la comprobación (antes estaba
  *  en cinco). */
 export function esFinalizada(situacion: string | null | undefined): boolean {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
-import { leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
+import { leerDescontadoBelen, leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
@@ -14,6 +14,7 @@ import { leerEntregasBelen } from "@/lib/server/entregas-belen-db";
 //   ?pedido=AR.…    el pedido con una fila por OF
 //   ?tiempos=AR.…   todas sus tareas y cada fichaje de cada persona
 //   ?material=AR.… lo asignado, reservado y comprado de cada OF
+//   ?descontado=AR.… el material que salió de verdad (imputación de material)
 //   ?ahora=AR.…     quién ficha AHORA en sus tareas (OLANET)
 //   ?lista=…        una de las pestañas (lib/vista-belen-listas.ts, LISTAS_BELEN);
 //                   con &forzar=1 se recalcula aunque lo guardado sea reciente
@@ -52,6 +53,11 @@ export async function GET(req: Request) {
     const material = params.get("material");
     if (material !== null) {
       return NextResponse.json({ material: await leerMaterialBelen(material) }, { headers: SIN_CACHE });
+    }
+
+    const descontado = params.get("descontado");
+    if (descontado !== null) {
+      return NextResponse.json({ descontado: await leerDescontadoBelen(descontado) }, { headers: SIN_CACHE });
     }
 
     const lista = params.get("lista");

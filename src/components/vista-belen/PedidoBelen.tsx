@@ -8,6 +8,7 @@ import {
   ordenarOFs,
   resumenPedido,
   type FichandoAhora,
+  type LineaDescontada,
   type MaterialPedido,
   type PedidoBelen,
   type TiemposPedido,
@@ -18,6 +19,7 @@ import { Desplegable } from "../Desplegable";
 import { DocumentosBelen } from "./DocumentosBelen";
 import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
+import { DescontadoBelen } from "./DescontadoBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
 import { chip, FECHA } from "./estilos-belen";
 import { usePestanasOrdenables } from "./usePestanasOrdenables";
@@ -36,7 +38,8 @@ import { ImprimirOF } from "./ImprimirOF";
 
 // Sin «Tareas y tiempos» desde el 11/11/2026: los fichajes van dentro de cada
 // OF desplegada, «Por tarea» o «Por persona».
-type Seccion = "resumen" | "documentos" | "material" | "notas";
+// «Descontado» desde el 14/11/2026: lo que salió de verdad (imputación de material).
+type Seccion = "resumen" | "documentos" | "material" | "notas" | "descontado";
 type Carga<T> = { tipo: "cargando" } | { tipo: "listo"; datos: T } | { tipo: "error" };
 
 function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
@@ -223,6 +226,9 @@ export function PedidoBelenView({
   const material = useCarga(`/api/vista-belen?material=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
     (j as { material: MaterialPedido | null }).material,
   );
+  const descontado = useCarga(`/api/vista-belen?descontado=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
+    (j as { descontado: LineaDescontada[] | null }).descontado ?? [],
+  );
   const enDirecto = useEnDirecto(pedido.codigo);
   const enDirectoDe = (of: string) => enDirecto.filter((f) => f.of === of);
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
@@ -246,6 +252,7 @@ export function PedidoBelenView({
       extra: estadoMat === "sinReservar" ? "sin reservar" : estadoMat === "aMedias" ? "a medias" : estadoMat === "reservado" ? "reservado" : undefined,
     },
     { id: "notas", label: "Notas" },
+    { id: "descontado", label: "Descontado", extra: descontado.tipo === "listo" && descontado.datos.length ? String(descontado.datos.length) : undefined },
   ];
   const pestanas = usePestanasOrdenables(`coordina.belen.pestanas-pedido:${miId ?? "local"}`, SECCIONES);
   const seccion: Seccion = eleccion ?? pestanas.items[0].id;
@@ -438,6 +445,18 @@ export function PedidoBelenView({
             </p>
           )}
           {material.tipo === "listo" && material.datos && <MaterialBelen material={material.datos} />}
+        </div>
+      )}
+
+      {seccion === "descontado" && (
+        <div role="tabpanel" id="panel-detalle-descontado" aria-labelledby="detalle-descontado">
+          {descontado.tipo === "cargando" && <p className="px-1 text-sm text-text-muted">Cargando material descontado…</p>}
+          {descontado.tipo === "error" && (
+            <p role="alert" className="px-1 text-sm font-semibold text-red-700 dark:text-red-300">
+              No se pudo leer el material descontado de RPS. Prueba otra vez en un momento.
+            </p>
+          )}
+          {descontado.tipo === "listo" && <DescontadoBelen lineas={descontado.datos} />}
         </div>
       )}
 
