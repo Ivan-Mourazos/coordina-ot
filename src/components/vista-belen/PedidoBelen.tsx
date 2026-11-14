@@ -42,9 +42,11 @@ import { ImprimirOF } from "./ImprimirOF";
 type Seccion = "resumen" | "documentos" | "material" | "notas" | "descontado";
 type Carga<T> = { tipo: "cargando" } | { tipo: "listo"; datos: T } | { tipo: "error" };
 
-function useCarga<T>(url: string, sacar: (json: unknown) => T): Carga<T> {
+function useCarga<T>(url: string | null, sacar: (json: unknown) => T): Carga<T> {
   const [carga, setCarga] = useState<Carga<T>>({ tipo: "cargando" });
   useEffect(() => {
+    // null = no hay nada que pedir (los documentos de una OF de stock).
+    if (url === null) return;
     const ctl = new AbortController();
     fetch(url, { signal: ctl.signal, cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
@@ -217,7 +219,9 @@ export function PedidoBelenView({
   const alternarOF = (of: string) => setDesplegada((d) => (d === of ? null : of));
   // null = la primera de SU orden de pestañas (usePestanasOrdenables).
   const [eleccion, setSeccion] = useState<Seccion | null>(abrirNotas ? "notas" : null);
-  const docs = useCarga(`/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos?v=${version}`, (j) =>
+  // Una OF de stock no tiene pedido: ni documentos colgados de él, ni notas.
+  const stock = !!pedido.stock;
+  const docs = useCarga(stock ? null : `/api/pedidos/${encodeURIComponent(pedido.codigo)}/documentos?v=${version}`, (j) =>
     (j as { documentos?: DocumentoRps[] }).documentos ?? [],
   );
   const tiempos = useCarga(`/api/vista-belen?tiempos=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
@@ -243,7 +247,7 @@ export function PedidoBelenView({
   // mientras cargan; null si RPS no tiene ninguno.
   const tiemposDe = (of: string) =>
     tiempos.tipo === "cargando" ? undefined : tiempos.tipo === "listo" ? (tiempos.datos?.ofs.find((o) => o.of === of) ?? null) : null;
-  const SECCIONES: { id: Seccion; label: string; extra?: string }[] = [
+  const TODAS: { id: Seccion; label: string; extra?: string }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
     {
@@ -254,7 +258,9 @@ export function PedidoBelenView({
     { id: "notas", label: "Notas" },
     { id: "descontado", label: "Descontado", extra: descontado.tipo === "listo" && descontado.datos.length ? String(descontado.datos.length) : undefined },
   ];
-  const pestanas = usePestanasOrdenables(`coordina.belen.pestanas-pedido:${miId ?? "local"}`, SECCIONES);
+  const SECCIONES = stock ? TODAS.filter((x) => x.id !== "documentos" && x.id !== "notas") : TODAS;
+  // Clave aparte para stock: reordenar ahí no debe perder Documentos y Notas.
+  const pestanas = usePestanasOrdenables(`coordina.belen.pestanas-${stock ? "stock" : "pedido"}:${miId ?? "local"}`, SECCIONES);
   const seccion: Seccion = eleccion ?? pestanas.items[0].id;
 
   return (
@@ -262,7 +268,13 @@ export function PedidoBelenView({
       <header className="tarjeta-of rounded-3xl bg-surface px-5 pb-3 pt-3">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-[20px] font-bold leading-tight tabular-nums">{pedido.codigo}</h1>
-          <span className="text-[15px] font-semibold">{pedido.cliente}</span>
+          {stock ? (
+            <span className={chip("neutro")} title="OF de fabricación para stock: no cuelga de ningún pedido">
+              OF de stock
+            </span>
+          ) : (
+            <span className="text-[15px] font-semibold">{pedido.cliente}</span>
+          )}
           {r.tpPendiente > 0 && (
             <span className={chip("aviso")}>
               TP pendiente
@@ -370,7 +382,7 @@ export function PedidoBelenView({
             }
             onClick={() => setSeccion("material")}
           />
-          <Cifra
+          {!stock && <Cifra
             etiqueta="Documentos"
             valor={docs.tipo === "listo" ? docs.datos.length : "…"}
             sub={
@@ -381,7 +393,7 @@ export function PedidoBelenView({
                 : "Cargando"
             }
             onClick={() => setSeccion("documentos")}
-          />
+          />}
         </div>
 
         {pedido.comentarioVenta && <ComentarioPedido texto={pedido.comentarioVenta} />}

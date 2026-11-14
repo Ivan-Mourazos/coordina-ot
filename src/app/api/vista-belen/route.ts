@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
-import { leerDescontadoBelen, leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
+import { buscarOFStock, leerDescontadoBelen, leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
@@ -68,7 +68,9 @@ export async function GET(req: Request) {
     }
 
     const q = params.get("q") ?? "";
-    const pedidos = await buscarPedidosRps(q);
+    // Un número de OF sin pedido es una OF de STOCK: se abre ella misma.
+    let pedidos = await buscarPedidosRps(q);
+    if (!pedidos.length) pedidos = await buscarOFStock(q);
     return NextResponse.json({ pedidos }, { headers: SIN_CACHE });
   } catch (e) {
     console.error("[vista-belen] falló:", (e as Error).message);

@@ -122,7 +122,13 @@ export interface PedidoBelen {
   /** Lo que apuntó el comercial en el pedido (FACOrderSL.Comment). */
   comentarioVenta?: string | null;
   ofs: OFBelen[];
+  /** Una OF de STOCK, sin pedido: `codigo` es el número de la OF. */
+  stock?: boolean;
 }
+
+/** ¿Lo escrito es un número de OF («0233962»)? Así se abre una OF de stock,
+ *  que no tiene pedido por el que buscarla. */
+export const esCodigoOF = (codigo: string): boolean => /^0\d{6}$/.test(codigo.trim());
 
 // ─── Material del pedido ─────────────────────────────────────────────────────
 // Las tres manos del material (ver la memoria del flujo y types.ts): lo que OT

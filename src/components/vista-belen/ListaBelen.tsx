@@ -235,7 +235,8 @@ export function TablaListaBelen({
                   </tr>
                 )}
                 {filas.map((f) => {
-                  const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : undefined;
+                  // Sin pedido pero con OF: una OF de stock, que se abre por su número.
+                  const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : f.of ? () => onAbrir(f.of!, f.of) : undefined;
                   const amarilla = !!f.amarilla;
                   return (
                     <tr
@@ -258,7 +259,7 @@ export function TablaListaBelen({
                                 e.stopPropagation();
                                 abrir();
                               }}
-                              aria-label={`Abrir ${f.pedido}${f.of ? `, OF ${f.of}` : ""}`}
+                              aria-label={f.pedido ? `Abrir ${f.pedido}${f.of ? `, OF ${f.of}` : ""}` : `Abrir la OF ${f.of}`}
                               className="rounded focus:outline-none"
                             >
                               <Celda col={c} valor={f[c.clave]} />

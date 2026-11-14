@@ -2,6 +2,7 @@ import sql from "mssql";
 import { getPool } from "./db";
 import {
   agruparTiempos,
+  esCodigoOF,
   estadoOperacion,
   fechaDeTexto,
   unaFilaPorTarea,
@@ -46,10 +47,27 @@ const OFS_DEL_PEDIDO = `
     WHERE p.CodCompany = '001' AND p.CodOrder = @pedido
   )`;
 
+// Una OF de STOCK no cuelga de ningún pedido (ninguna línea de venta la
+// apunta): la ficha se abre con su propio número en lugar del del pedido
+// (Belén, 14/11/2026: «las OF de stock no puedo verlas en Apryl», ej. 0233962).
+// Misma forma que OFS_DEL_PEDIDO, sin línea. Una OF que sí es de un pedido no
+// entra por aquí: se busca por su pedido, como siempre.
+const OF_DE_STOCK = `
+  WITH ofs AS (
+    SELECT mo.IDManufacturingOrder AS id, mo.CodManufacturingOrder AS cod, CAST(NULL AS varchar(50)) AS idLin
+    FROM dbo.CPRManufacturingOrder mo
+    WHERE mo.CodCompany = '001' AND mo.CodManufacturingOrder = @pedido
+      AND NOT EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder)
+  )`;
+
+/** La base de todas las consultas: las OF del pedido o, si lo escrito es un
+ *  número de OF («0233962»), esa OF de stock. */
+const ofsDe = (codigo: string) => (esCodigoOF(codigo) ? OF_DE_STOCK : OFS_DEL_PEDIDO);
+
 
 interface FilaOF {
   cod: string;
-  pedido: string;
+  pedido: string | null;
   linea: number | null;
   cliente: string | null;
   prioridad: number | null;
@@ -98,7 +116,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
 
   const pool = await getPool();
   const consulta = <T>(q: string) =>
-    pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${OFS_DEL_PEDIDO} ${q}`);
+    pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${ofsDe(pedido)} ${q}`);
 
   const [ofs, tareas, paquetes, compras, logistica, nombres] = await Promise.all([
     consulta<FilaOF>(`
@@ -121,8 +139,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
                  AND Quantity > ReceivedQuantity) AS fCompras
       FROM ofs o
       JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id
-      JOIN dbo.FACOrderLineSL lin ON lin.IDOrderLine = o.idLin
-      JOIN dbo.FACOrderSL p ON p.IDOrder = lin.IDOrder
+      -- LEFT: una OF de stock no tiene línea ni pedido.
+      LEFT JOIN dbo.FACOrderLineSL lin ON lin.IDOrderLine = o.idLin
+      LEFT JOIN dbo.FACOrderSL p ON p.IDOrder = lin.IDOrder
       LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = p.IDCustomer
       JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
       LEFT JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = o.idLin
@@ -213,7 +232,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     const log = logs.sort((a, b) => (b.fecha?.getTime() ?? 0) - (a.fecha?.getTime() ?? 0))[0];
     return {
       of: f.cod.trim(),
-      pedido: f.pedido.trim(),
+      pedido: (f.pedido ?? "").trim(),
       linea: f.linea,
       cliente: texto(f.cliente),
       prioridad: f.prioridad,
@@ -298,7 +317,26 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     cliente: resultado[0].cliente,
     comentarioVenta: texto(ofs.recordset[0].comentarioVenta),
     ofs: resultado,
+    ...(esCodigoOF(pedido) ? { stock: true } : {}),
   };
+}
+
+/** Para el buscador: la OF de stock con ese número, como si fuera un pedido
+ *  encontrado. [] si no existe o si es de un pedido (entonces sale su pedido). */
+export async function buscarOFStock(codigo: string): Promise<{ codigo: string; cliente: string | null; negocio: string | null; fecha: string | null }[]> {
+  const of = codigo.trim();
+  if (!ES_RPS() || !esCodigoOF(of)) return [];
+  const pool = await getPool();
+  const r = await pool.request().input("pedido", sql.VarChar(25), of).query<{ cod: string; descripcion: string | null; fecha: Date | null }>(`
+    ${OF_DE_STOCK}
+    SELECT o.cod, CAST(mo.Description AS varchar(300)) AS descripcion, mo.ManualEndDate AS fecha
+    FROM ofs o JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = o.id`);
+  return r.recordset.map((f) => ({
+    codigo: f.cod.trim(),
+    cliente: "OF de stock",
+    negocio: texto(f.descripcion),
+    fecha: f.fecha ? f.fecha.toISOString() : null,
+  }));
 }
 
 /** Un pedido que existe pero aún no tiene ninguna OF («sin gestionar»): se
@@ -333,7 +371,7 @@ export async function leerFichandoAhora(codigo: string): Promise<FichandoAhora[]
       maquina: string | null;
       codEmpleado: string | null;
       empleado: string | null;
-    }>(`${OFS_DEL_PEDIDO}
+    }>(`${ofsDe(pedido)}
       SELECT f.orden, f.fase, f.tiempo, f.maquina, emp.CodEmployee AS codEmpleado, emp.Description AS empleado
       FROM dbo.tgm_fichajes_olanet f
       JOIN ofs o ON o.cod = f.orden
@@ -360,7 +398,7 @@ export async function leerMaterialBelen(codigo: string): Promise<MaterialPedido 
   if (!ES_RPS()) return materialDeEjemplo();
   const pool = await getPool();
   const consulta = <T>(q: string) =>
-    pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${OFS_DEL_PEDIDO} ${q}`);
+    pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${ofsDe(pedido)} ${q}`);
   const [ofs, materiales, compras] = await Promise.all([
     consulta<{ cod: string; descripcion: string | null }>(`
       SELECT o.cod, CAST(mo.Description AS varchar(300)) AS descripcion
@@ -447,7 +485,7 @@ export async function leerDescontadoBelen(codigo: string): Promise<LineaDesconta
       serie: string | null;
       origen: string | null;
       comentario: string | null;
-    }>(`${OFS_DEL_PEDIDO}
+    }>(`${ofsDe(pedido)}
       SELECT o.cod, t.CodMOTask AS tarea, art.CodArticle AS articulo,
              COALESCE(NULLIF(LTRIM(RTRIM(i.Description)), ''), CAST(art.Description AS varchar(300))) AS descripcion,
              i.Quantity AS cantidad, mu.Abreviature AS unidad, wh.Description AS almacen,
@@ -536,7 +574,7 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     fin: number | null;
     segundos: number | null;
     tipoAviso: string | null;
-  }>(`${OFS_DEL_PEDIDO}
+  }>(`${ofsDe(pedido)}
     SELECT o.cod AS [of], CAST(mo.Description AS varchar(300)) AS ofDescripcion,
            t.CodMOTask AS tarea, CAST(t.Description AS varchar(300)) AS descripcion,
            STUFF((SELECT DISTINCT ', ' + LTRIM(RTRIM(rm.CodMOResourceMachine)) FROM dbo.CPRMOResourceMachine rm

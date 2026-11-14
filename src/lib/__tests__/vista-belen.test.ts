@@ -14,7 +14,7 @@ import {
   type FilaTiempo,
 } from "../vista-belen";
 import { vistaAMedida } from "../personas";
-import { enTitulo, esFinalizada, agruparPaquetes } from "../vista-belen";
+import { enTitulo, esCodigoOF, esFinalizada, agruparPaquetes } from "../vista-belen";
 
 describe("nombres de sección, finalizada y paquetes", () => {
   test("sección en nombre propio; códigos tal cual", () => {
@@ -251,5 +251,17 @@ describe("personas de una OF", () => {
     const ps = personasDeOF(t.ofs[0]);
     expect(ps.map((p) => [p.persona, p.minutos, p.dias])).toEqual([["Luis", 50, 1], ["Ana", 30, 2]]);
     expect(ps[1].fichajes.map((f) => f.tarea)).toEqual(["5", "10"]);
+  });
+});
+
+describe("esCodigoOF: la ficha de una OF de stock se abre por su número", () => {
+  test("siete cifras empezando por 0 es una OF", () => {
+    expect(esCodigoOF("0233962")).toBe(true);
+    expect(esCodigoOF(" 0233962 ")).toBe(true);
+  });
+  test("un pedido u otra cosa no", () => {
+    expect(esCodigoOF("AR.26.04716")).toBe(false);
+    expect(esCodigoOF("233962")).toBe(false);
+    expect(esCodigoOF("02339620")).toBe(false);
   });
 });
