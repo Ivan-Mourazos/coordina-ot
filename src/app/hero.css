@@ -25,6 +25,9 @@ html[data-estilo="hero"] {
      11/11/2026: «un amarillo más marcado»). */
   --belen-avisos-hechos: color-mix(in oklab, #fff, #facc15 42%);
   --belen-avisos-hechos-encima: color-mix(in oklab, #fff, #facc15 55%);
+  /* Tarea con alguien fichando ahora: verde igual de fuerte que el amarillo
+     (Iván, 14/11/2026). */
+  --belen-fichando: color-mix(in oklab, #fff, #22c55e 42%);
   --franja-ot: var(--surface-2);
   --franja-diseno: var(--surface-2);
   --franja-impresion: var(--surface-2);
@@ -77,6 +80,7 @@ html[data-estilo="hero"].dark {
   --detalle: #26262b;
   --belen-avisos-hechos: color-mix(in oklab, #202024, #facc15 26%);
   --belen-avisos-hechos-encima: color-mix(in oklab, #202024, #facc15 34%);
+  --belen-fichando: color-mix(in oklab, #202024, #22c55e 26%);
   --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
   --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
@@ -415,4 +419,39 @@ html[data-estilo="hero"]:root .tarjeta-rectificado {
    el carbón en oscuro (ver preferencias de color); la raya es la marca de la casa. */
 html[data-estilo="hero"]:root .metricas-panel.metricas-mio {
   box-shadow: inset 0 3px 0 var(--color-brand-500), var(--hero-sombra-panel);
+}
+
+/* Vista de Belén: tarea con alguien fichando ahora. La línea entera en verde
+   con un brillo que la recorre, como la barra de copiar archivos de Windows
+   (Iván, 14/11/2026). Sin animación, se queda el verde liso. */
+.belen-fichando {
+  background-color: var(--belen-fichando);
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: belen-fichando-barre 2.4s linear infinite;
+}
+.dark .belen-fichando {
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+}
+@keyframes belen-fichando-barre {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .belen-fichando { animation: none; background-image: none; }
 }

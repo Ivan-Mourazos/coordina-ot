@@ -169,13 +169,13 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
           <thead>
             <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">
               <th scope="col" className="py-1 pr-2">Tarea</th>
-              <th scope="col" className="w-[13rem] px-2 py-1">Sección</th>
-              <th scope="col" className="w-[7rem] px-2 py-1 text-right">Tiempo</th>
-              <th scope="col" className="w-[7rem] px-2 py-1">Estado</th>
+              <th scope="col" className="w-[22rem] px-2 py-1">Sección</th>
+              <th scope="col" className="w-[8rem] px-2 py-1 text-right">Tiempo</th>
+              <th scope="col" className="w-[8rem] px-2 py-1">Estado</th>
               <th scope="col" className="w-[6.5rem] whitespace-nowrap py-1 pl-2 text-right" title="El día en que se acabó la operación">Fin</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-[color-mix(in_srgb,var(--border-strong)_30%,var(--border))]">
             {ops.map((op) => {
               const e = ESTADO_OPERACION[op.estado];
               const suya = fichajes.get(op.codigo);
@@ -187,7 +187,16 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                 <Fragment key={op.codigo}>
                   <tr
                     onClick={conFichajes ? () => setAbierta((x) => (x === op.codigo ? null : op.codigo)) : undefined}
-                    className={conFichajes ? "cursor-pointer transition-colors hover:bg-[var(--hero-relleno)]" : ""}
+                    className={[
+                      conFichajes ? "cursor-pointer transition-colors" : "",
+                      // Alguien fichando ahora → la línea en verde, como en la
+                      // app vieja (Iván, 14/11/2026). Gana al hover.
+                      ahora.length > 0
+                        ? "belen-fichando"
+                        : conFichajes
+                          ? "hover:bg-[var(--hero-relleno)]"
+                          : "",
+                    ].join(" ")}
                   >
                     <td className="truncate py-1.5 pr-2" title={enFrase(op.descripcion)}>
                       {conFichajes ? (
@@ -210,7 +219,7 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                       <span className="mr-1.5 inline-block w-6 text-right text-[12px] tabular-nums text-text-muted">{op.codigo}</span>
                       <span className={op.estado === "sin_empezar" ? "text-text-muted" : ""}>{enFrase(op.descripcion)}</span>
                       {ahora.length > 0 && (
-                        <span className="mt-0.5 block truncate pl-[3.25rem] text-[12px] font-semibold text-emerald-700 dark:text-emerald-300" title={SIGNIFICA.enDirecto}>
+                        <span className="mt-0.5 block truncate pl-[3.25rem] text-[12px] font-bold text-blue-800 dark:text-sky-200" title={SIGNIFICA.enDirecto}>
                           {ahora.map((f) => `${f.persona} (${fmtDuracion(f.minutos)})`).join(" · ")}
                         </span>
                       )}
@@ -227,7 +236,7 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                       {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
                     </td>
                     {ahora.length > 0 ? (
-                      <td className="px-2 py-1.5 align-top text-[12px] font-semibold text-emerald-700 dark:text-emerald-300" title={SIGNIFICA.enDirecto}>
+                      <td className="px-2 py-1.5 align-top text-[12px] font-bold text-blue-800 dark:text-sky-200" title={SIGNIFICA.enDirecto}>
                         <span className="inline-flex items-center gap-1.5">
                           <PuntoEnDirecto />
                           Fichando
