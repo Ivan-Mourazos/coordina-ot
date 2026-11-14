@@ -13,6 +13,11 @@ import { ES_RPS, iso, texto } from "./rps-belen-comun";
 // alguna tarea sin finalizar, sí»): ni al 100 % en RPS ni finalizada en
 // OLANET. Medido contra RPS el 11/11/2026: 524 OF de 306 pedidos en 0,1 s
 // (sin ese filtro eran 760).
+//
+// Ni las OF FINALIZADAS ni las DETENIDAS en RPS (Belén, 14/11/2026). Por
+// CodSituation (6 y 7), como el Historial: el id es de la empresa. Medido el
+// 14/11/2026: de 518 OF caían 40 finalizadas y 67 detenidas; las 13 de
+// prioridad 0 estaban todas entre ellas.
 
 const SQL = `
   SELECT ped.CodOrder AS codigo, mo.CodManufacturingOrder AS [of], cli.Description AS cliente,
@@ -27,7 +32,9 @@ const SQL = `
   LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = ped.IDCustomer
   LEFT JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = lin.IDOrderLine
   LEFT JOIN dbo._FormaEntregaPedido fe ON fe.IDFormaEntregaPedido = lc.IDFormaEntrega
+  LEFT JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
   WHERE lin.CodCompany = '001' AND ped.CodCompany = '001' AND lin.PendingDelivery = 1
+    AND ISNULL(sit.CodSituation, '') NOT IN ('6', '7')
     AND (ped.CodOrder LIKE 'AR.%' OR ped.CodOrder LIKE 'SA.%' OR ped.CodOrder LIKE 'BE.%')
     AND EXISTS (
       SELECT 1 FROM dbo.CPRMOTask t

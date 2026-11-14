@@ -234,7 +234,7 @@ export function EntregasBelen({
         </button>
       </div>
       <p className="mb-3 text-[13px] text-text-muted">
-        Las OF con alguna tarea por acabar y el pedido sin entregar, por la fecha que pidió el cliente. Pincha una para abrir su pedido.
+        Las OF con alguna tarea por acabar y el pedido sin entregar (ni detenidas ni finalizadas), por la fecha que pidió el cliente. Pincha una para abrir su pedido.
       </p>
       <div className="mb-3 flex flex-wrap items-end gap-2.5">
         <CampoBuscar valor={filtros.texto} onCambiar={(texto) => cambiar({ texto })} pista="Pedido, OF, cliente, artículo, rotulación…" />
