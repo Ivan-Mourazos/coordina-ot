@@ -376,16 +376,26 @@ const SQL_TIEMPOS_SIN_SUBIR = `
     WHERE mo.CodCompany = '001' AND mo.IDManufacturingOrder <> '001-0000001' AND sit.CodSituation = '7'
     ORDER BY imp.desde, mo.CodManufacturingOrder`;
 
-// Delimitación «no empezar antes de» (tipo 7) con la tarea planificada para
-// empezar antes; y la de «empezar el» (tipo 6) en otro día, que es lo que
-// miraba su Excel. Medido el 12/11/2026: 40 de las 190 de tipo 7, todas AR o no.
+// Sus dos hojas de delimitación, tal cual las consulta su Excel (Belén,
+// 14/11/2026: la versión anterior, «planificada antes de la delimitación» con
+// el tipo 7, sacaba delimitaciones de 2035 que no eran ningún fallo):
+// - «Fecha delimitación incorrecta»: la delimitación ya pasó, o cae después
+//   de la fecha de fabricación (ManualEndDate). Cualquier tipo.
+// - «Fecha delimita<>fecha planific»: «empezar el» (tipo 6) en otro día que
+//   el que puso el planificador.
+// Como su Excel, solo tareas con alguna máquina.
 const SQL_DELIMITACION = `
     SELECT task.IDMOTask AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
            mo.Priority AS prioridad, task.CodMOTask + ' ' + CAST(task.Description AS varchar(300)) AS tarea,
            STUFF((SELECT DISTINCT ', ' + LTRIM(RTRIM(rm.CodMOResourceMachine)) FROM dbo.CPRMOResourceMachine rm
              WHERE rm.IDMOTask = task.IDMOTask FOR XML PATH(''), TYPE).value('.', 'varchar(max)'), 1, 2, '') AS maquina,
-           task.DelimitationDate AS fechaDelimitacion, task.PlannedStartDate AS fechaPlanificada,
-           sit.Description AS situacion
+           CASE
+             WHEN task.DelimitationDate < CONVERT(date, GETDATE()) THEN 'Ya pasada'
+             WHEN task.DelimitationDate > task.ManualEndDate THEN 'Después de fabricación'
+             ELSE 'Distinta de la planificada'
+           END AS problema,
+           task.DelimitationDate AS fechaDelimitacion, task.ManualEndDate AS fechaFabricacion,
+           task.PlannedStartDate AS fechaPlanificada, sit.Description AS situacion
     FROM dbo.CPRMOTask task
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder
     JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
@@ -394,7 +404,10 @@ const SQL_DELIMITACION = `
     ${pedidoDe()}
     WHERE task.CodCompany = '001' AND sit.CodSituation IN ('0', '1', '2', '3', '4', '5')
       AND task.PercentProgress < 100 AND art.CodArticle <> 'diseño' AND task.DelimitationDate IS NOT NULL
-      AND ((task.DelimitationType = 7 AND CONVERT(date, task.PlannedStartDate) < CONVERT(date, task.DelimitationDate))
+      AND EXISTS (SELECT 1 FROM dbo.CPRMOResourceMachine rm JOIN dbo.CPRMachine maq ON maq.IDMachine = rm.IDMachine
+                  WHERE rm.IDMOTask = task.IDMOTask)
+      AND (task.DelimitationDate < CONVERT(date, GETDATE())
+        OR task.DelimitationDate > task.ManualEndDate
         OR (task.DelimitationType = 6 AND CONVERT(date, task.PlannedStartDate) <> CONVERT(date, task.DelimitationDate)))
     ORDER BY task.DelimitationDate, mo.CodManufacturingOrder, task.CodMOTask`;
 

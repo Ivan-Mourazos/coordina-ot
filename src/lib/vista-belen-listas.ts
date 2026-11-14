@@ -197,14 +197,16 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     ],
   },
   {
-    // Su hoja «Fecha delimita<>fecha planific», con el tipo que se usa de
-    // verdad en RPS: «no empezar antes de» (tipo 7: 190 tareas abiertas el
-    // 12/11/2026). El de su Excel, «empezar el» (tipo 6), lo tiene una.
+    // Sus hojas «Fecha delimitación incorrecta» y «Fecha delimita<>fecha
+    // planific», juntas y separadas por el desplegable «Problema».
     id: "delimitacion",
-    label: "Planificada antes de la delimitación",
-    explica: "Operaciones por hacer que el planificador ha puesto a empezar antes de su fecha de delimitación (no pueden empezar antes de ese día).",
+    label: "Fecha de delimitación incorrecta",
+    explica: "Operaciones por hacer con la delimitación ya pasada, después de la fecha de fabricación, o (si es «empezar el») en otro día que el planificado.",
+    filtro: { clave: "problema", titulo: "Problema" },
     columnas: [
+      { clave: "problema", titulo: "Problema" },
       { clave: "fechaDelimitacion", titulo: "Delimitación", tipo: "fecha" },
+      { clave: "fechaFabricacion", titulo: "Fabricación", tipo: "fecha" },
       { clave: "fechaPlanificada", titulo: "Planificada", tipo: "fecha" },
       { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
       { clave: "of", titulo: "OF", tipo: "of" },
