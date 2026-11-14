@@ -85,6 +85,8 @@ interface FilaTarea {
   bultos: boolean | null;
   finOlanet: Date | null;
   finRps: Date | null;
+  planIni: Date | null;
+  planFin: Date | null;
   tipoAviso: string | null;
   aviso: string | null;
   cierreAviso: Date | null;
@@ -139,6 +141,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              (SELECT MAX(fecha_cambio) FROM dbo.tgm_estadosof_olanet
                WHERE orden = o.cod AND fase = t.CodMOTask AND idestadoof = 3) AS finOlanet,
              t.RealEndDate AS finRps,
+             -- Lo que dice el planificador de RPS (Belén, 14/11/2026: en las
+             -- que faltan, el inicio y el fin que salen en la OF).
+             t.PlannedStartDate AS planIni, t.PlannedEndDate AS planFin,
              (SELECT TOP (1) idestadoof FROM dbo.tgm_estadosof_olanet
                WHERE orden = o.cod AND fase = t.CodMOTask ORDER BY fecha_cambio DESC) AS olanet,
              (SELECT COUNT(*) FROM dbo.CPRImputationMO i WHERE i.IDMOTask = t.IDMOTask) AS imps,
@@ -243,7 +248,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
             // Solo las acabadas tienen fecha de fin. OLANET guarda fecha y
             // hora del cambio: se toma el día. RPS, el día a medianoche.
             const fin = estado === "finalizado" ? (iso(t.finOlanet) ?? iso(t.finRps)) : null;
-            return { estado, fin };
+            // Las que faltan, con lo que dice el planificador.
+            const plan = estado === "finalizado" ? {} : { planInicio: iso(t.planIni), planFin: iso(t.planFin) };
+            return { estado, fin, ...plan };
           })(),
         })),
       avisos: suyas

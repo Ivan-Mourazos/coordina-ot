@@ -172,7 +172,7 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
               <th scope="col" className="w-[22rem] px-2 py-1">Sección</th>
               <th scope="col" className="w-[8rem] px-2 py-1 text-right">Tiempo</th>
               <th scope="col" className="w-[8rem] px-2 py-1">Estado</th>
-              <th scope="col" className="w-[6.5rem] whitespace-nowrap py-1 pl-2 text-right" title="El día en que se acabó la operación">Fin</th>
+              <th scope="col" className="w-[6.5rem] whitespace-nowrap py-1 pl-2 text-right" title="El día en que se acabó la operación. Si falta, en gris, el inicio y el fin que le da el planificador">Fin</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[color-mix(in_srgb,var(--border-strong)_30%,var(--border))]">
@@ -250,9 +250,22 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                         {e.texto}
                       </td>
                     )}
-                    <td className="py-1.5 pl-2 text-right align-top tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
-                      {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
-                    </td>
+                    {op.fin || !(op.planInicio || op.planFin) ? (
+                      <td className="py-1.5 pl-2 text-right align-top tabular-nums" title={op.ultimoFichaje ? `Último fichaje: ${fechaCorta(op.ultimoFichaje)}` : undefined}>
+                        {fechaCorta(op.fin) || <span className="text-text-muted">—</span>}
+                      </td>
+                    ) : (
+                      // Sin acabar: inicio y fin del planificador de RPS, uno
+                      // encima del otro como en la app vieja (Belén, 14/11/2026).
+                      // En gris: es lo previsto, no lo hecho.
+                      <td
+                        className="py-1.5 pl-2 text-right align-top text-[12px] leading-tight tabular-nums text-text-muted"
+                        title={`Según el planificador: empieza ${fechaCorta(op.planInicio) || "—"} y acaba ${fechaCorta(op.planFin) || "—"}`}
+                      >
+                        <span className="block">{fechaCorta(op.planInicio) || "—"}</span>
+                        <span className="block">{fechaCorta(op.planFin) || "—"}</span>
+                      </td>
+                    )}
                   </tr>
                   {desplegada && suya && (
                     <tr>

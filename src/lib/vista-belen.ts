@@ -32,6 +32,10 @@ export interface OperacionOF {
   /** yyyy-mm-dd en que se acabó (OLANET o, si no, el cierre de RPS). Solo si
    *  está finalizada. */
   fin?: string | null;
+  /** yyyy-mm-dd de inicio y fin según el planificador de RPS. Solo si NO está
+   *  finalizada: es lo que va en la columna Fin mientras falta. */
+  planInicio?: string | null;
+  planFin?: string | null;
   /** Es la tarea en la que se suben los bultos (entrada de producto en RPS). */
   subeBultos?: boolean;
   estado: EstadoOperacion;
