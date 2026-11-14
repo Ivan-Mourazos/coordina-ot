@@ -258,7 +258,9 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
               );
             })}
             {of.avisos.map((av) => (
-              <tr key={`${av.tipo}-${av.codigo}`}>
+              // Hecha → la línea en amarillo, como en la app vieja (Iván,
+              // 14/11/2026). El resto de lo desplegado, sin color.
+              <tr key={`${av.tipo}-${av.codigo}`} className={av.cerrado ? "bg-[var(--belen-avisos-hechos)]" : undefined}>
                 <td colSpan={3} className="truncate py-1.5 pl-4 pr-2" title={enFrase(av.descripcion)}>
                   <span className={`${chip("neutro")} mr-2`}>{av.tipo}</span>
                   {enFrase(av.descripcion) || av.codigo}
@@ -351,7 +353,7 @@ export function FilaOFBelen({
   const otraEntrega = difiereDelPedido(of, resumen, "formaEntrega");
   const otraRotulacion = difiereDelPedido(of, resumen, "rotulacion");
   // Belén (11/11/2026): la OF en amarillo cuando tiene sus visitas (TP/COT)
-  // hechas y TODAS sus tareas finalizadas. Es de la OF, no del pedido. Solo
+  // hechas (ver ofEnAmarillo). Es de la OF, no del pedido. Solo
   // la línea compactada y bien marcada; lo desplegado queda como siempre
   // (Iván, 11/11/2026: «si no, queda fatal»).
   const amarilla = ofEnAmarillo(of);
@@ -380,8 +382,8 @@ export function FilaOFBelen({
         aria-controls={idCuerpo}
         onClick={onAlternar}
         className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-none! px-5 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--hero-anillo)] ${
-          // Belén (11/11/2026): OF con TP/COT hechos y todas las tareas
-          // acabadas → la LÍNEA en amarillo marcado; lo desplegado, normal.
+          // Belén (11/11/2026): OF con TP/COT hechos → la LÍNEA en
+          // amarillo marcado; lo desplegado, normal.
           amarilla ? "bg-[var(--belen-avisos-hechos)] hover:bg-[var(--belen-avisos-hechos-encima)]" : "hover:bg-[var(--hero-relleno)]"
         }`}
       >

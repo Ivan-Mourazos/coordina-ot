@@ -212,20 +212,30 @@ describe("tiempos exactos de RPS", () => {
 });
 
 describe("OF en amarillo", () => {
-  test("terminada: con visitas hechas, bultos subidos y tareas finalizadas", async () => {
+  test("con sus visitas (TP/COT) todas hechas, como en la app vieja", async () => {
     const { ofEnAmarillo } = await import("../vista-belen");
     const tp = (cerrado: string | null) => ({ tipo: "TP" as const, codigo: "I1", descripcion: "", cerrado });
-    const op = (estado: "finalizado" | "interrumpido") => ({ codigo: "5", descripcion: "", maquina: null, estado });
-    const subida = { cantidad: 1, subidas: 1 };
-    expect(ofEnAmarillo({ ...subida, avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(true);
-    expect(ofEnAmarillo({ ...subida, avisos: [tp("2026-11-01")], operaciones: [op("finalizado"), op("interrumpido")] })).toBe(false);
-    expect(ofEnAmarillo({ ...subida, avisos: [tp(null)], operaciones: [op("finalizado")] })).toBe(false);
-    // Sin TP ni COT, aunque esté acabada: NO (Iván, 12/11/2026).
-    expect(ofEnAmarillo({ ...subida, avisos: [], operaciones: [op("finalizado")] })).toBe(false);
-    expect(ofEnAmarillo({ ...subida, avisos: [tp("2026-11-01")], operaciones: [] })).toBe(false);
-    // Sin los bultos subidos (o con unidades que no cuadran), no.
-    expect(ofEnAmarillo({ cantidad: 2, subidas: 0, avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(false);
-    expect(ofEnAmarillo({ cantidad: 2, subidas: 1, avisos: [tp("2026-11-01")], operaciones: [op("finalizado")] })).toBe(false);
+    const cot = (cerrado: string | null) => ({ tipo: "COT" as const, codigo: "I2", descripcion: "", cerrado });
+    expect(ofEnAmarillo({ avisos: [tp("2026-10-05")] })).toBe(true);
+    expect(ofEnAmarillo({ avisos: [tp(null)] })).toBe(false);
+    // Con dos visitas, las dos hechas.
+    expect(ofEnAmarillo({ avisos: [tp("2026-10-05"), cot(null)] })).toBe(false);
+    expect(ofEnAmarillo({ avisos: [tp("2026-10-05"), cot("2026-10-06")] })).toBe(true);
+    // Sin TP ni COT: NO (Iván, 12/11/2026).
+    expect(ofEnAmarillo({ avisos: [] })).toBe(false);
+  });
+  test("la 0230837: TP hecho y la instalación por hacer, amarilla (14/11/2026)", async () => {
+    const { ofEnAmarillo } = await import("../vista-belen");
+    const of = {
+      cantidad: 2,
+      subidas: 2,
+      avisos: [{ tipo: "TP" as const, codigo: "I131350", descripcion: "PASAR A MEDIR", cerrado: "2026-10-05" }],
+      operaciones: [
+        { codigo: "46", descripcion: "FINALIZAR", maquina: null, estado: "finalizado" as const },
+        { codigo: "50", descripcion: "INSTALAR EN SANTIAGO", maquina: null, estado: "sin_empezar" as const },
+      ],
+    };
+    expect(ofEnAmarillo(of)).toBe(true);
   });
 });
 

@@ -160,18 +160,13 @@ export function agruparPaquetes(
 }
 
 /** ¿La OF va en amarillo? Cuando tiene visitas (TP/COT) y están TODAS hechas,
- *  con sus bultos subidos (todas las unidades, punto verde) y todas sus tareas
- *  finalizadas. Es de la OF, no del pedido (Belén, 11/11/2026). Una OF sin TP
- *  ni COT NO va en amarillo aunque esté acabada (Iván, 12/11/2026: se había
- *  pedido al revés por error). Sin tareas no hay nada que dar por terminado. */
-export function ofEnAmarillo(of: Pick<OFBelen, "avisos" | "operaciones" | "cantidad" | "subidas">): boolean {
-  return (
-    of.avisos.length > 0 &&
-    puntoBultos(of.cantidad, of.subidas) === "verde" &&
-    of.operaciones.length > 0 &&
-    of.operaciones.every((o) => o.estado === "finalizado") &&
-    of.avisos.every((a) => a.cerrado)
-  );
+ *  como en la app vieja y en la lista «TP o COT sin rematar». Es de la OF, no
+ *  del pedido (Belén, 11/11/2026). Una OF sin TP ni COT NO va en amarillo
+ *  (Iván, 12/11/2026). Ya no se miran tareas ni bultos (Iván, 14/11/2026):
+ *  la 0230837 (AR.26.03703), con el TP hecho el 05/10, no salía amarilla por
+ *  la instalación del 17/11 sin empezar, y en la app vieja sí lo está. */
+export function ofEnAmarillo(of: Pick<OFBelen, "avisos">): boolean {
+  return of.avisos.length > 0 && of.avisos.every((a) => a.cerrado);
 }
 
 export function puntoBultos(cantidad: number, subidas: number): PuntoBultos {
