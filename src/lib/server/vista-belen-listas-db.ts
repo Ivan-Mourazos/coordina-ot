@@ -99,6 +99,9 @@ async function finalizadasEnOlanet(
 // En fechas comprometidas solo se elige entre las líneas pendientes de entregar.
 // Los datos auxiliares son opcionales: que falte la forma de entrega o el
 // cliente no debe esconder un desfase o una descripción sin rellenar.
+/** Arzúa y las delegaciones (Santiago y Bergondo). */
+const SERIES_TODAS = ["AR", "SA", "BE"] as const;
+
 const pedidoDe = (soloPendientes = false, series: readonly string[] = ["AR"]) => `
     CROSS APPLY (
       SELECT TOP (1) ped.CodOrder AS pedido, cli.Description AS cliente,
@@ -279,7 +282,12 @@ const MINUTOS_TAREA = (t: string) => `CASE ${t}.TimeUnit WHEN 2 THEN ${t}.Execut
 
 /** Tareas por hacer de OF abiertas (sin diseño, como sus Excels), una fila por
  *  tarea con sus máquinas juntas y sin las que OLANET ya dio por acabadas. */
-async function tareasConTiempo(pool: sql.ConnectionPool, condicion: string, situaciones: string): Promise<Array<FilaLista & { minutos: number }>> {
+async function tareasConTiempo(
+  pool: sql.ConnectionPool,
+  condicion: string,
+  situaciones: string,
+  series: readonly string[] = ["AR"],
+): Promise<Array<FilaLista & { minutos: number }>> {
   const r = await pool.request().query<{
     idTarea: string;
     of: string;
@@ -303,7 +311,7 @@ async function tareasConTiempo(pool: sql.ConnectionPool, condicion: string, situ
       AND sit.CodCompany = mo.CodCompany
     JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
     JOIN dbo.CPRMOResourceMachine rm ON rm.IDMOTask = task.IDMOTask
-    ${pedidoDe()}
+    ${pedidoDe(false, series)}
     WHERE task.CodCompany = '001' AND ${situaciones} AND task.PercentProgress < 100
       AND art.CodArticle <> 'diseño' AND ${condicion}
     ORDER BY mo.Priority, pedido.fechaExigida, mo.CodManufacturingOrder, task.CodMOTask`);
@@ -329,28 +337,39 @@ async function tareasConTiempo(pool: sql.ConnectionPool, condicion: string, situ
     });
 }
 
-// Sus hojas «Tareas tiempo 0» (situaciones 1-5) y «Tareas 8 horas» (el Excel
-// buscaba EXACTAMENTE 480 min, que es lo que se pone por defecto; Belén pide
-// «más de 8 horas»: aquí, 8 h o más). Las situaciones, las de OF en marcha.
-async function tiemposPrevistos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
-  const filas = await tareasConTiempo(
-    pool,
-    `(task.ExecutionTime = 0 OR ${MINUTOS_TAREA("task")} >= 480)`,
-    "sit.CodSituation IN ('1', '2', '3', '4', '5')",
-  );
-  return filas.map(({ minutos, ...f }) => ({ ...f, problema: minutos === 0 ? "Sin tiempo" : "8 h o más" }));
-}
+// Belén, 14/11/2026: sustituye a «Tiempo previsto 0 u 8 h o más» (sus hojas
+// «Tareas tiempo 0» y «Tareas 8 horas»). Una fila por OF en marcha
+// (situaciones 1-5) que no tiene tiempo previsto en NINGUNA operación: si
+// alguna lo tiene, alguien ya la planificó. Medido el 14/11/2026: 126 OF
+// abiertas así, y solo 12 con tiempo en unas operaciones y en otras no.
+// Casi todas son de Santiago (106 de 115): se traen AR, SA y BE, y la pantalla
+// enseña solo AR hasta que se marca «Ver delegaciones». Con NOT EXISTS y no
+// sumando todas las tareas: 0,8 s en vez de 10 s.
+const SQL_SIN_TIEMPOS = `
+    SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, CAST(art.Description AS varchar(300)) AS articulo,
+           ops.operaciones, sit.Description AS situacion, pedido.fechaExigida AS fechaSolicitada
+    FROM dbo.CPRManufacturingOrder mo
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    ${pedidoDe(false, SERIES_TODAS)}
+    CROSS APPLY (
+      SELECT COUNT(*) AS operaciones FROM dbo.CPRMOTask t WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder
+    ) ops
+    WHERE mo.CodCompany = '001' AND sit.CodSituation IN ('1', '2', '3', '4', '5')
+      AND art.CodArticle <> 'diseño' AND ops.operaciones > 0
+      AND NOT EXISTS (SELECT 1 FROM dbo.CPRMOTask t
+                      WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.ExecutionTime > 0)
+    ORDER BY mo.Priority, pedido.fechaExigida, mo.CodManufacturingOrder`;
 
-// La hoja «Tareas» de «carga_por_maquina_datos_planificador», que Belén filtra
-// por máquina A- y unidad «horas». Su consulta toma toda OF no finalizada.
-async function maquinaAEnHoras(pool: sql.ConnectionPool): Promise<FilaLista[]> {
-  // Arzúa = máquinas «A-…» y grupos «…-A» (OTEC-A, ROTU-A, DGRA-A).
-  const filas = await tareasConTiempo(
-    pool,
-    "task.TimeUnit = 2 AND (rm.CodMOResourceMachine LIKE 'A-%' OR rm.CodMOResourceMachine LIKE '%-A')",
-    "sit.CodSituation <> '6'",
-  );
-  // Los minutos solo sirven para separar el problema en la otra lista.
+// La hoja «Tareas» de «carga_por_maquina_datos_planificador», que Belén
+// filtraba por máquina A- y unidad «horas». Desde el 14/11/2026, cualquier
+// máquina: lo que importa es la unidad mal puesta. Toda OF no finalizada.
+// En Arzúa, las tareas en horas son visitas y «Materiales», sin máquina (no
+// entran); las de verdad son de Santiago, que se ven con «Ver delegaciones».
+async function tareasEnHoras(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const filas = await tareasConTiempo(pool, "task.TimeUnit = 2", "sit.CodSituation <> '6'", SERIES_TODAS);
   return filas.map(({ minutos, ...f }) => (void minutos, f));
 }
 
@@ -656,8 +675,8 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "fechas-comprometidas": (pool) => fechasComprometidas(pool),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
-  "tiempos-previstos": (pool) => tiemposPrevistos(pool),
-  "maquina-a-horas": (pool) => maquinaAEnHoras(pool),
+  "sin-tiempos": (pool) => comprobacion(pool, SQL_SIN_TIEMPOS),
+  "tareas-horas": (pool) => tareasEnHoras(pool),
   "tiempos-sin-subir": (pool) => comprobacion(pool, SQL_TIEMPOS_SIN_SUBIR),
   "delimitacion": (pool) => comprobacion(pool, SQL_DELIMITACION),
   "detenidas-material": (pool) => comprobacion(pool, SQL_DETENIDAS_MATERIAL),

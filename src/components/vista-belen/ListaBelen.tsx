@@ -117,7 +117,7 @@ export function TablaListaBelen({
   const fecha = columnaFecha(def);
   const filas = useMemo(() => (carga.tipo === "listo" ? filtrarLista(carga.filas, def, filtro) : []), [carga, def, filtro]);
   const valores = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def) : []), [carga, def]);
-  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.orden !== null;
+  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.delegaciones || filtro.orden !== null;
 
   return (
     <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
@@ -173,6 +173,23 @@ export function TablaListaBelen({
               hasta={filtro.hasta}
               onCambiar={(desde, hasta) => setFiltro((f) => ({ ...f, desde, hasta }))}
             />
+          )}
+          {def.delegaciones && (
+            // Apagada de entrada: Belén revisa Arzúa (Iván, 14/11/2026).
+            <label
+              className={`inline-flex h-10 cursor-pointer select-none items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--hero-anillo)] ${
+                filtro.delegaciones ? "bg-surface text-text shadow-[var(--hero-sombra-campo)]" : "bg-[var(--hero-relleno)] text-text-muted"
+              }`}
+              title="Enseñar también los pedidos de Santiago (SA) y Bergondo (BE)"
+            >
+              <input
+                type="checkbox"
+                checked={filtro.delegaciones}
+                onChange={(e) => setFiltro((f) => ({ ...f, delegaciones: e.target.checked }))}
+                className="size-3.5 accent-[var(--color-brand-500)]"
+              />
+              Ver delegaciones
+            </label>
           )}
           {filtrando && <BotonLimpiar onClick={() => setFiltro(FILTRO_LISTA_INICIAL)} />}
         </div>

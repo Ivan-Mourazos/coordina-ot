@@ -16,8 +16,8 @@ export type IdLista =
   | "fechas-comprometidas"
   | "varias-maquinas"
   | "sin-descripcion"
-  | "tiempos-previstos"
-  | "maquina-a-horas"
+  | "sin-tiempos"
+  | "tareas-horas"
   | "tiempos-sin-subir"
   | "delimitacion"
   | "detenidas-material"
@@ -55,6 +55,10 @@ export interface DefLista {
   filtro?: { clave: string; titulo: string };
   /** Qué quiere decir una fila en amarillo, si la lista las tiene. */
   amarillo?: string;
+  /** La consulta trae también SA y BE, pero de entrada solo se ven las de AR:
+   *  una casilla («Ver delegaciones», apagada) enseña el resto (Iván,
+   *  14/11/2026). */
+  delegaciones?: true;
 }
 
 /** Una fila. `of` y `pedido` son obligatorios (null si no hay) porque de ellos
@@ -162,19 +166,32 @@ export const LISTAS_BELEN: readonly DefLista[] = [
   // ── Belén, 12/11/2026: ocho más, casi todas hojas de sus Excels
   // («comprobaciones_planificador» y «carga_por_maquina_datos_planificador»).
   {
-    // Sus hojas «Tareas tiempo 0» y «Tareas 8 horas», juntas: es el mismo
-    // fallo (el tiempo previsto de la tarea mal puesto) y se separa con el
-    // desplegable «Problema».
-    id: "tiempos-previstos",
-    label: "Tiempo previsto 0 u 8 h o más",
-    explica: "Operaciones por hacer con el tiempo previsto a cero o de 8 horas o más.",
-    filtro: { clave: "problema", titulo: "Problema" },
-    columnas: [{ clave: "problema", titulo: "Problema" }, ...COLUMNAS_TIEMPO],
+    // Belén, 14/11/2026: «Tiempo previsto 0 u 8 h» no la convencía. Ahora,
+    // solo las OF a las que no se les ha puesto tiempo en ninguna tarea.
+    id: "sin-tiempos",
+    label: "OF sin tiempos",
+    explica: "OF en marcha sin tiempo previsto en ninguna de sus operaciones.",
+    alcance: "Pedidos AR; con «Ver delegaciones», también SA y BE.",
+    delegaciones: true,
+    columnas: [
+      { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
+      { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "cliente", titulo: "Cliente", largo: true },
+      { clave: "articulo", titulo: "Artículo", largo: true },
+      { clave: "operaciones", titulo: "Operac.", tipo: "numero" },
+      { clave: "situacion", titulo: "Situación", tipo: "estado" },
+      { clave: "fechaSolicitada", titulo: "Solicitada", tipo: "fecha" },
+    ],
   },
   {
-    id: "maquina-a-horas",
-    label: "Máquina A en horas",
-    explica: "Operaciones por hacer en máquinas de Arzúa (A-… y grupos …-A) con el tiempo previsto en horas en vez de en minutos.",
+    // Antes «Máquina A en horas»: solo máquinas de Arzúa. Belén, 14/11/2026:
+    // todas las operaciones con la unidad en horas, sea cual sea la máquina.
+    id: "tareas-horas",
+    label: "Operaciones en horas",
+    explica: "Operaciones por hacer con el tiempo previsto en horas en vez de en minutos.",
+    alcance: "Pedidos AR; con «Ver delegaciones», también SA y BE.",
+    delegaciones: true,
     columnas: COLUMNAS_TIEMPO,
   },
   {
@@ -326,10 +343,15 @@ export interface FiltroLista {
   hasta: string;
   /** El valor elegido en el desplegable de la lista (DefLista.filtro); "" = todos. */
   valor: string;
+  /** Enseñar SA y BE en las listas con DefLista.delegaciones. */
+  delegaciones: boolean;
   orden: { clave: string; descendente: boolean } | null;
 }
 
-export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: "", valor: "", orden: null };
+export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: "", valor: "", delegaciones: false, orden: null };
+
+/** ¿Es de Arzúa? Las filas sin pedido cuentan como de aquí. */
+const esDeArzua = (fila: FilaLista) => !fila.pedido || fila.pedido.toUpperCase().startsWith("AR.");
 
 /** Los valores que hay en la columna del desplegable, sin repetir y en orden. */
 export function valoresFiltro(filas: readonly FilaLista[], def: DefLista): string[] {
@@ -348,6 +370,7 @@ export function filtrarLista(filas: readonly FilaLista[], def: DefLista, f: Filt
   const palabras = sinTildes(f.texto.trim()).split(/\s+/).filter(Boolean);
   const fecha = columnaFecha(def);
   const salida = filas.filter((fila) => {
+    if (def.delegaciones && !f.delegaciones && !esDeArzua(fila)) return false;
     if (def.filtro && f.valor && String(fila[def.filtro.clave] ?? "") !== f.valor) return false;
     if (fecha && (f.desde || f.hasta)) {
       const v = fila[fecha.clave];

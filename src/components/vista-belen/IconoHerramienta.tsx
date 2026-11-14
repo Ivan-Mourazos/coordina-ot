@@ -56,14 +56,14 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
     </>
   ),
   // Reloj
-  "tiempos-previstos": (
+  "sin-tiempos": (
     <>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M12 7.5V12l3 2" />
     </>
   ),
   // Reloj de arena: horas donde van minutos
-  "maquina-a-horas": (
+  "tareas-horas": (
     <>
       <path d="M6.5 3.5h11M6.5 20.5h11" />
       <path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5" />

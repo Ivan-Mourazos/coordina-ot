@@ -14,8 +14,8 @@ const IDS = {
   "fechas-comprometidas": true,
   "varias-maquinas": true,
   "sin-descripcion": true,
-  "tiempos-previstos": true,
-  "maquina-a-horas": true,
+  "sin-tiempos": true,
+  "tareas-horas": true,
   "tiempos-sin-subir": true,
   "delimitacion": true,
   "detenidas-material": true,
@@ -206,8 +206,8 @@ describe("filtros y orden de las listas", () => {
   });
 });
 
-describe("el desplegable de la lista (tiempo previsto: «Sin tiempo» u «8 h o más»)", () => {
-  const def = LISTAS_BELEN.find((l) => l.id === "tiempos-previstos")!;
+describe("el desplegable de la lista (delimitación: «Problema»)", () => {
+  const def = LISTAS_BELEN.find((l) => l.id === "delimitacion")!;
   const filas = [
     { clave: "1", of: "0001", pedido: "AR.1", problema: "Sin tiempo" },
     { clave: "2", of: "0002", pedido: "AR.2", problema: "8 h o más" },
@@ -217,5 +217,23 @@ describe("el desplegable de la lista (tiempo previsto: «Sin tiempo» u «8 h o 
     expect(valoresFiltro(filas, def)).toEqual(["8 h o más", "Sin tiempo"]);
     expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, valor: "Sin tiempo" }).map((f) => f.clave)).toEqual(["1", "3"]);
     expect(filtrarLista(filas, def, FILTRO_LISTA_INICIAL)).toHaveLength(3);
+  });
+});
+
+describe("«Ver delegaciones»: SA y BE escondidas hasta marcar la casilla", () => {
+  const def = LISTAS_BELEN.find((l) => l.id === "sin-tiempos")!;
+  const filas = [
+    { clave: "1", of: "0001", pedido: "AR.26.00001" },
+    { clave: "2", of: "0002", pedido: "SA.26.00002" },
+    { clave: "3", of: "0003", pedido: "BE.26.00003" },
+  ];
+  test("apagada, solo Arzúa; encendida, todas", () => {
+    expect(def.delegaciones).toBe(true);
+    expect(filtrarLista(filas, def, FILTRO_LISTA_INICIAL).map((f) => f.clave)).toEqual(["1"]);
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, delegaciones: true }).map((f) => f.clave)).toEqual(["1", "2", "3"]);
+  });
+  test("las listas sin la casilla no esconden nada", () => {
+    const desfase = LISTAS_BELEN.find((l) => l.id === "desfase")!;
+    expect(filtrarLista(filas, desfase, FILTRO_LISTA_INICIAL)).toHaveLength(3);
   });
 });
