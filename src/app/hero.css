@@ -140,42 +140,103 @@ html[data-estilo="hero"]:root .cabecera-abierta {
   background-color: var(--fila);
   background-image: none;
 }
-/* La fila que alguien está fichando conserva su fondo blanco (en claro) o gris
-   neutro (en oscuro) para destacar limpia sobre la caja verde o violeta de su
-   fase, y lo que lleva el color del rol es la onda del barrido que la recorre
-   (Iván, 16/11/2026). Clase duplicada para ganar a `:is(..., .bloque-3d.fila-levantada, ...)`. */
-html[data-estilo="hero"]:root :is(.fila-fichando-plantear, .fila-fichando-revisar) {
-  background-color: var(--fila);
-}
+/* Fila o tarjeta con alguien fichando ahora (Iván, 16/11/2026):
+   - Por dentro conserva su fondo blanco (claro) o gris neutro (oscuro) y la
+     recorre una onda suave del color del rol (verde planteando, violeta
+     revisando), difuminada a los lados y arriba y abajo.
+   - Por fuera, las luces traseras de una tele: un foco del mismo color que
+     viaja con la onda y asoma por detrás de la tarjeta.
+   Capas, de abajo arriba, dentro de la propia tarjeta (isolation):
+     ::before = el foco, más grande que la tarjeta;
+     ::after  = la superficie de la tarjeta con la onda, que TAPA el foco por
+                dentro (si no, la luz se veía por delante de los datos);
+     el contenido.
+   Onda y foco salen de UN solo reloj (--t, de 0 a 1), así van a la par. El
+   centro de la onda está en (2t - 0,5) del ancho: cruza el borde izquierdo en
+   t = 0,25 y el derecho en 0,75; el foco se enciende en 0,17 y se apaga en
+   0,83, cuando ya no puede asomar fuera de la tarjeta.
+   Clase duplicada para ganar a `:is(..., .bloque-3d.fila-levantada, ...)`. */
 html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear,
 html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar {
-  --onda-fichando: rgba(34, 197, 94, 0.45);
-  background-image: linear-gradient(
-    100deg,
-    transparent 0%,
-    transparent 42%,
-    var(--onda-fichando) 50%,
-    transparent 58%,
+  --onda-fichando: rgba(34, 197, 94, 0.3);
+  --luz-fichando: rgb(34, 197, 94);
+  --brillo: max(0, 1 - max(var(--t) - 0.5, 0.5 - var(--t)) * 3);
+  background: transparent;
+  animation: fichando-ciclo 2.4s linear infinite;
+  position: relative;
+  isolation: isolate;
+}
+html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear::before,
+html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  /* La caja del foco NUNCA sale de la tarjeta: si salía (llegaba a 1,5 veces
+     el ancho), el panel del compañero sacaba scroll horizontal aunque el
+     foco estuviera apagado (Iván, 16/11/2026). Lo que asoma fuera es la
+     box-shadow, que solo se pinta y no ocupa sitio. En los extremos el foco
+     se para (clamp) mientras se apaga. */
+  top: 0;
+  bottom: 0;
+  left: clamp(15%, (2 * var(--t) - 0.5) * 100%, 85%);
+  width: 30%;
+  translate: -50% 0;
+  border-radius: 50%;
+  box-shadow: 0 0 22px 8px color-mix(in srgb, var(--luz-fichando) 40%, transparent);
+  opacity: var(--brillo);
+  pointer-events: none;
+}
+html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear::after,
+html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  /* El filo de prioridad y el contorno van en box-shadow de la fila; esta
+     capa los taparía, así que los repite. */
+  box-shadow: inherit;
+  background-color: var(--fila);
+  background-image: radial-gradient(
+    ellipse 14% 115% at 50% 50%,
+    var(--onda-fichando) 0%,
+    color-mix(in srgb, var(--onda-fichando) 85%, transparent) 20%,
+    color-mix(in srgb, var(--onda-fichando) 45%, transparent) 45%,
+    color-mix(in srgb, var(--onda-fichando) 12%, transparent) 72%,
     transparent 100%
   );
   background-size: 300% 100%;
   background-repeat: no-repeat;
-  animation: belen-fichando-barre 2.4s linear infinite;
+  background-position: calc((1 - var(--t)) * 100%) 0;
+  pointer-events: none;
+}
+@property --t {
+  syntax: "<number>";
+  /* Hereda para que ::before y ::after lean el mismo reloj que su tarjeta. */
+  inherits: true;
+  initial-value: 0;
+}
+@keyframes fichando-ciclo {
+  from { --t: 0; }
+  to { --t: 1; }
 }
 html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar {
-  --onda-fichando: rgba(139, 92, 246, 0.42);
+  --onda-fichando: rgba(139, 92, 246, 0.28);
+  --luz-fichando: rgb(139, 92, 246);
 }
 html[data-estilo="hero"].dark:root .fila-fichando-plantear.fila-fichando-plantear {
-  --onda-fichando: rgba(74, 222, 128, 0.42);
+  --onda-fichando: rgba(74, 222, 128, 0.28);
+  --luz-fichando: rgb(74, 222, 128);
 }
 html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar {
-  --onda-fichando: rgba(167, 139, 250, 0.45);
+  --onda-fichando: rgba(167, 139, 250, 0.3);
+  --luz-fichando: rgb(167, 139, 250);
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear,
-  html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar,
-  html[data-estilo="hero"].dark:root .fila-fichando-plantear.fila-fichando-plantear,
-  html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar { animation: none; background-image: none; }
+  html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar { animation: none; }
+  html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear::after,
+  html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar::after { background-image: none; }
 }
 
 html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,
