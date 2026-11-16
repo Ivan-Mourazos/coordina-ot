@@ -1,14 +1,39 @@
 "use client";
 
-import { useId, useRef, useState, type KeyboardEvent } from "react";
-import { SECCIONES_MENCIONABLES, tokenMencion, type Destino } from "@/lib/nota-pedido";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  SECCIONES_MENCIONABLES,
+  claveDestino,
+  etiquetasMencion,
+  tokensAVisible,
+  trocearVisible,
+  visibleATokens,
+  type Destino,
+} from "@/lib/nota-pedido";
 import type { PersonaPublica } from "@/lib/personas";
 
 // ─── El cuadro de una nota, con menciones (16/11/2026) ──────────────────────
 // Al teclear `@` sale la lista de secciones y personas, filtrada por lo que se
-// escribe detrás. Al elegir se mete el token (`@[persona:ivan]`): el cuadro lo
-// enseña tal cual —es sencillo y no se rompe al editar— y la nota guardada lo
-// pinta como etiqueta con el nombre. Ver docs/NOTAS-MENCIONES.md.
+// escribe detrás. El cuadro enseña `@Producción` resaltado; lo que sube al
+// padre (y se guarda) es el token `@[seccion:produccion]`. Antes el cuadro
+// enseñaba el token crudo y no se entendía (Iván, 16/11/2026).
+// Ver docs/NOTAS-MENCIONES.md.
+
+/** El color de una mención: personas en el ámbar de la marca, secciones en
+ *  azul, para distinguirlas de un vistazo (Iván, 16/11/2026). En la nota
+ *  guardada, la que va contigo va en sólido y las demás en suave. */
+export function claseMencion(tipo: Destino["tipo"], tono: "cuadro" | "mia" | "otra"): string {
+  if (tipo === "seccion") {
+    if (tono === "cuadro") return "bg-sky-400/35";
+    return tono === "mia" ? "bg-sky-600 text-white" : "bg-sky-500/15 text-sky-800 dark:text-sky-200";
+  }
+  if (tono === "cuadro") return "bg-brand-400/35";
+  return tono === "mia" ? "bg-brand-400 text-brand-950" : "bg-brand-400/20 text-brand-800 dark:text-brand-200";
+}
+
+/** Lo que comparten el cuadro y la capa de resaltado: si difieren, el
+ *  resaltado se descuadra del texto. */
+const CAJA = "px-3 py-2 text-[13px] leading-relaxed";
 
 interface Opcion {
   destino: Destino;
@@ -54,6 +79,15 @@ export function CampoMencion({
   const idLista = useId();
   const [consulta, setConsulta] = useState<{ desde: number; q: string } | null>(null);
   const [activa, setActiva] = useState(0);
+  const capa = useRef<HTMLDivElement>(null);
+  const etiquetas = useMemo(() => etiquetasMencion(personas), [personas]);
+  const etiquetaDe = useMemo(
+    () => new Map(etiquetas.map((e) => [claveDestino(e.destino), e.etiqueta])),
+    [etiquetas],
+  );
+  // Lo que se ve y se teclea; `valor` (con tokens) es lo que tiene el padre.
+  const visible = tokensAVisible(valor, etiquetas);
+  const cambiar = (v: string) => onCambio(visibleATokens(v, etiquetas));
 
   const opciones: Opcion[] = consulta
     ? [
@@ -64,16 +98,47 @@ export function CampoMencion({
         })),
         ...personas
           .filter((p) => p.id !== miId)
-          .map((p) => ({ destino: { tipo: "persona", id: p.id } as Destino, nombre: p.nombre, detalle: p.nombreCompleto })),
-      ]
-        .filter((o) => {
-          const q = llano(consulta.q);
-          return !q || llano(o.nombre).includes(q) || llano(o.detalle).includes(q);
-        })
-        .slice(0, 8)
+          .map((p) => ({ destino: { tipo: "persona", id: p.id } as Destino, nombre: p.nombre, detalle: p.nombreCompleto }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+      ].filter((o) => {
+        // Con la `@` sola salen todas, agrupadas: así se descubre a quién se
+        // puede avisar sin saberse los nombres (Iván, 16/11/2026).
+        const q = llano(consulta.q);
+        return !q || llano(o.nombre).includes(q) || llano(o.detalle).includes(q);
+      })
     : [];
-  const abierta = consulta !== null && opciones.length > 0;
+  // Ya escrita entera («@Diseño») es una mención hecha: la lista sobra, y
+  // abierta tapaba el botón de Guardar y se comía el clic.
+  const completa = consulta !== null && etiquetas.some((e) => e.etiqueta === consulta.q);
+  const abierta = consulta !== null && !completa && opciones.length > 0;
   const indice = Math.min(activa, Math.max(opciones.length - 1, 0));
+
+  // Con las flechas, la elegida siempre a la vista: la lista ya no se corta
+  // en 8 y baja con desplazamiento.
+  useEffect(() => {
+    if (abierta) document.getElementById(`${idLista}-${indice}`)?.scrollIntoView({ block: "nearest" });
+  }, [abierta, indice, idLista]);
+
+  // El cursor tras elegir, puesto en el mismo render que el texto nuevo. Con
+  // requestAnimationFrame llegaba tarde si se seguía tecleando deprisa: lo
+  // devolvía atrás y la siguiente mención duplicaba el texto.
+  const cursorPendiente = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const pos = cursorPendiente.current;
+    if (pos === null || !ref.current) return;
+    cursorPendiente.current = null;
+    ref.current.focus();
+    ref.current.setSelectionRange(pos, pos);
+  });
+
+  // Hacia arriba si abajo no cabe: al final de la ficha se cortaba.
+  const [arriba, setArriba] = useState(false);
+  useLayoutEffect(() => {
+    if (!abierta || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const alto = 300;
+    setArriba(window.innerHeight - r.bottom < alto && r.top > window.innerHeight - r.bottom);
+  }, [abierta]);
 
   function mirar(texto: string, cursor: number) {
     const c = consultaEn(texto, cursor);
@@ -83,16 +148,11 @@ export function CampoMencion({
 
   function elegir(o: Opcion) {
     if (!consulta) return;
-    const token = `${tokenMencion(o.destino)} `;
-    const cursor = ref.current?.selectionStart ?? valor.length;
-    const nuevo = valor.slice(0, consulta.desde) + token + valor.slice(cursor);
-    onCambio(nuevo);
+    const token = `@${etiquetaDe.get(claveDestino(o.destino)) ?? o.nombre} `;
+    const cursor = ref.current?.selectionStart ?? visible.length;
+    cambiar(visible.slice(0, consulta.desde) + token + visible.slice(cursor));
     setConsulta(null);
-    const pos = consulta.desde + token.length;
-    requestAnimationFrame(() => {
-      ref.current?.focus();
-      ref.current?.setSelectionRange(pos, pos);
-    });
+    cursorPendiente.current = consulta.desde + token.length;
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -130,12 +190,15 @@ export function CampoMencion({
     <div className="relative">
       <textarea
         ref={ref}
-        value={valor}
+        value={visible}
         autoFocus
         rows={3}
         onChange={(e) => {
-          onCambio(e.target.value);
+          cambiar(e.target.value);
           mirar(e.target.value, e.target.selectionStart);
+        }}
+        onScroll={(e) => {
+          if (capa.current) capa.current.scrollTop = e.currentTarget.scrollTop;
         }}
         onSelect={(e) => mirar(e.currentTarget.value, e.currentTarget.selectionStart)}
         onBlur={() => setConsulta(null)}
@@ -150,16 +213,46 @@ export function CampoMencion({
         // Bloqueado mientras se guarda: el camino de éxito limpia el borrador,
         // así que lo que se teclease en esa ventana se iría sin avisar.
         disabled={disabled}
-        className="recuadro w-full rounded-lg border border-borde-campo px-3 py-2 text-[13px] leading-relaxed text-text disabled:opacity-60"
+        className={`recuadro w-full rounded-lg border border-borde-campo ${CAJA} text-text disabled:opacity-60`}
       />
+      {/* Las menciones resaltadas: una capa encima, transparente salvo el
+          fondo de cada mención, con la misma caja y letra que el cuadro. */}
+      <div
+        ref={capa}
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words border border-transparent text-transparent ${CAJA}`}
+      >
+        {trocearVisible(visible, etiquetas).map((t, i) =>
+          t.mencion ? (
+            <span key={i} className={`rounded-sm [box-decoration-break:clone] ${claseMencion(t.mencion, "cuadro")}`}>
+              {t.texto}
+            </span>
+          ) : (
+            <span key={i}>{t.texto}</span>
+          ),
+        )}
+        {"​"}
+      </div>
       {abierta && (
         <ul
           id={idLista}
           role="listbox"
           aria-label="A quién mencionar"
-          className="absolute left-2 top-full z-30 -mt-1 max-h-64 w-64 overflow-y-auto rounded-[14px] bg-surface p-1 shadow-[var(--hero-sombra-panel)]"
+          className={`absolute left-2 z-30 max-h-72 w-72 max-w-[calc(100%-1rem)] overflow-y-auto rounded-[14px] bg-surface p-1 shadow-[var(--hero-sombra-panel)] ${
+            arriba ? "bottom-full mb-1" : "top-full -mt-1"
+          }`}
         >
-          {opciones.map((o, i) => (
+          {opciones.map((o, i) => [
+            // Título de grupo delante de la primera de cada tipo.
+            (i === 0 || opciones[i - 1].destino.tipo !== o.destino.tipo) && (
+              <li
+                key={`titulo-${o.destino.tipo}`}
+                role="presentation"
+                className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted"
+              >
+                {o.destino.tipo === "seccion" ? "Secciones" : "Personas"}
+              </li>
+            ),
             <li
               key={`${o.destino.tipo}:${o.destino.id}`}
               id={`${idLista}-${i}`}
@@ -172,16 +265,22 @@ export function CampoMencion({
                 elegir(o);
               }}
               onMouseEnter={() => setActiva(i)}
-              className={`flex cursor-pointer items-baseline justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] ${
+              className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[13px] ${
                 i === indice ? "bg-[var(--hero-relleno)] text-text" : "text-text"
               }`}
             >
-              <span className="truncate font-semibold">{o.nombre}</span>
-              <span className="shrink-0 text-[11px] text-text-muted">
-                {o.destino.tipo === "seccion" ? "Sección" : o.detalle !== o.nombre ? o.detalle : ""}
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 rounded-full ${o.destino.tipo === "seccion" ? "bg-sky-500" : "bg-brand-400"}`}
+                />
+                <span className="truncate font-semibold">{o.nombre}</span>
               </span>
-            </li>
-          ))}
+              {o.destino.tipo === "persona" && o.detalle !== o.nombre && (
+                <span className="truncate text-[11px] text-text-muted">{o.detalle}</span>
+              )}
+            </li>,
+          ])}
         </ul>
       )}
     </div>

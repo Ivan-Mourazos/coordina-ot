@@ -128,6 +128,112 @@ export function trocearTexto(texto: string): Trozo[] {
   return salida;
 }
 
+// ─── El cuadro enseña nombres, la nota guarda tokens (16/11/2026) ──────────
+// En el cuadro de escribir se ve `@Producción`; al guardar va `@[seccion:
+// produccion]`. La conversión es de ida y vuelta exacta mientras cada etiqueta
+// sea única, y por eso una persona cuyo nombre corto coincide con otro (o con
+// una sección) usa el completo.
+
+export interface PersonaEtiquetable {
+  id: string;
+  nombre: string;
+  nombreCompleto?: string;
+}
+
+/** Cada destino mencionable con la etiqueta que se le ve en el cuadro. */
+export function etiquetasMencion(
+  personas: readonly PersonaEtiquetable[],
+): Array<{ destino: Destino; etiqueta: string }> {
+  const salida: Array<{ destino: Destino; etiqueta: string }> = SECCIONES_MENCIONABLES.map((s) => ({
+    destino: { tipo: "seccion", id: s.id },
+    etiqueta: s.nombre,
+  }));
+  const usadas = new Set(salida.map((e) => llano(e.etiqueta)));
+  const veces = new Map<string, number>();
+  for (const p of personas) veces.set(llano(p.nombre), (veces.get(llano(p.nombre)) ?? 0) + 1);
+  for (const p of personas) {
+    const corto = llano(p.nombre);
+    let etiqueta = (veces.get(corto) ?? 0) > 1 || usadas.has(corto) ? (p.nombreCompleto ?? p.nombre) : p.nombre;
+    if (usadas.has(llano(etiqueta))) etiqueta = `${etiqueta} (${p.id})`;
+    usadas.add(llano(etiqueta));
+    salida.push({ destino: { tipo: "persona", id: p.id }, etiqueta });
+  }
+  return salida;
+}
+
+/** Sin mayúsculas ni tildes, para comparar nombres. */
+function llano(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/** Del texto guardado al del cuadro: cada token pasa a `@Etiqueta`. Un token
+ *  de alguien que ya no está en la lista se queda tal cual. */
+export function tokensAVisible(
+  texto: string,
+  etiquetas: ReadonlyArray<{ destino: Destino; etiqueta: string }>,
+): string {
+  const porClave = new Map(etiquetas.map((e) => [claveDestino(e.destino), e.etiqueta]));
+  return texto.replace(MENCION, (todo, tipo: string, id: string) => {
+    const e = porClave.get(`${tipo}:${id}`);
+    return e ? `@${e}` : todo;
+  });
+}
+
+/** Del cuadro al texto que se guarda: cada `@Etiqueta` conocida (y que no siga
+ *  con otra letra o cifra) pasa a token. La más larga primero, para que
+ *  «@Iván Sánchez» no se quede en «@Iván». */
+export function visibleATokens(
+  texto: string,
+  etiquetas: ReadonlyArray<{ destino: Destino; etiqueta: string }>,
+): string {
+  return trozosVisibles(texto, etiquetas)
+    .map((t) => (t.destino ? tokenMencion(t.destino) : t.texto))
+    .join("");
+}
+
+/** El texto del cuadro partido en trozos, marcadas las menciones: para la
+ *  capa que las resalta mientras se escribe. */
+export function trocearVisible(
+  texto: string,
+  etiquetas: ReadonlyArray<{ destino: Destino; etiqueta: string }>,
+): Array<{ texto: string; mencion: Destino["tipo"] | null }> {
+  return trozosVisibles(texto, etiquetas).map((t) => ({ texto: t.texto, mencion: t.destino?.tipo ?? null }));
+}
+
+function trozosVisibles(
+  texto: string,
+  etiquetas: ReadonlyArray<{ destino: Destino; etiqueta: string }>,
+): Array<{ texto: string; destino: Destino | null }> {
+  const salida: Array<{ texto: string; destino: Destino | null }> = [];
+  const ordenadas = texto.includes("@")
+    ? [...etiquetas].sort((a, b) => b.etiqueta.length - a.etiqueta.length)
+    : [];
+  let suelto = "";
+  let i = 0;
+  while (i < texto.length) {
+    if (texto[i] === "@" && ordenadas.length) {
+      const resto = texto.slice(i + 1);
+      const hallada = ordenadas.find(
+        (e) => resto.startsWith(e.etiqueta) && !/^[\p{L}\p{N}]/u.test(resto.slice(e.etiqueta.length)),
+      );
+      if (hallada) {
+        if (suelto) salida.push({ texto: suelto, destino: null });
+        suelto = "";
+        salida.push({ texto: `@${hallada.etiqueta}`, destino: hallada.destino });
+        i += 1 + hallada.etiqueta.length;
+        continue;
+      }
+    }
+    suelto += texto[i];
+    i++;
+  }
+  if (suelto) salida.push({ texto: suelto, destino: null });
+  return salida;
+}
+
 /** Lo que ve de una nota quien no tiene sesión: el texto, quién y cuándo.
  *  Ni ids ni pedido: la pide ya dentro de su pedido. */
 export interface NotaPublica {

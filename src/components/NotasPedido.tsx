@@ -18,7 +18,7 @@ import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useSoloLecturaNotas } from "./SoloLectura";
 import { AcentoBloque } from "./AcentoBloque";
-import { CampoMencion } from "./notas/CampoMencion";
+import { CampoMencion, claseMencion } from "./notas/CampoMencion";
 import { ChipSoloPara, SelectorPara, nombreDestino } from "./notas/SelectorPara";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
@@ -556,11 +556,10 @@ function TextoNota({
         ) : (
           <span
             key={i}
-            className={`rounded-full px-1.5 py-px text-[12px] font-semibold ${
-              misDestinos.includes(claveDestino(t.destino))
-                ? "bg-brand-400 text-brand-950"
-                : "bg-[var(--hero-relleno)] text-text"
-            }`}
+            className={`rounded-full px-1.5 py-px text-[12px] font-semibold ${claseMencion(
+              t.destino.tipo,
+              misDestinos.includes(claveDestino(t.destino)) ? "mia" : "otra",
+            )}`}
           >
             @{nombreDestino(t.destino, personas)}
           </span>

@@ -46,7 +46,11 @@ const pila = crearPila();
 let escuchando = false;
 
 function alPulsar(e: KeyboardEvent) {
-  if (e.key !== "Escape" || e.defaultPrevented) return;
+  // `cancelBubble`: quien cortó la propagación ya se quedó el Escape. Hace
+  // falta mirarlo: Next monta React en el propio `document`, y un
+  // `stopPropagation` de React no frena a otro listener del mismo nodo. Así
+  // Escape en el cuadro de una nota o de devolver cerraba la ficha (16/11/2026).
+  if (e.key !== "Escape" || e.defaultPrevented || e.cancelBubble) return;
   // Un popover nativo abierto (un desplegable de `Select` o `SelectorFecha`)
   // lo cierra el propio navegador con esta misma pulsación: es suya, no de la
   // capa de debajo.
