@@ -1,5 +1,61 @@
 [
   {
+    "id": "2026-11-16",
+    "hasta": "40c1133",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En cada pedido ves todo el material descontado de sus OF",
+        "apartado": "produccion",
+        "detalle": "Pestaña «Descontado»: artículo, cantidad, almacén, quién lo descontó, fecha y número de serie, sea del almacén o de Producción.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las OF de stock se abren escribiendo su número en el buscador",
+        "apartado": "produccion",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las hojas de almacén salen al buscar el pedido, en verde si están hechas y en rojo si no",
+        "apartado": "produccion",
+        "detalle": "Con el artículo, las unidades, la forma de entrega y la fecha solicitada, como en Apryl. Y en cada OF se ven ya sus unidades junto al artículo.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Dirección ya puede escribir notas en los pedidos",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Una OF con su TP o COT hecho sale en amarillo aunque le quede la instalación",
+        "apartado": "produccion",
+        "detalle": "Al desplegarla, la línea del TP o COT también sale en amarillo.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La lista de delimitación ahora mira lo mismo que tu Excel",
+        "apartado": "produccion",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "La vista de Producción ya enseña también a quien ficha desde Oficina Técnica, Diseño o Impresión",
+        "apartado": "produccion",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los documentos de un pedido cargan mucho más rápido",
+        "detalle": "Las miniaturas se preparan en cuanto abres el pedido, y al volver a él ya no se esperan.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-12",
     "hasta": "cddb872",
     "cambios": [
