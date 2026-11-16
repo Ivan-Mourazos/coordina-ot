@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-16",
-    "hasta": "40c1133",
+    "hasta": "6efc4ae",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -27,6 +27,18 @@
         "tipo": "nuevo",
         "titulo": "Dirección ya puede escribir notas en los pedidos",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Las notas avisan solo a quien mencionas con @",
+        "detalle": "Escribe @ y elige una persona o una sección (Oficina Técnica, Diseño, Impresión, Producción, Dirección). La campana ya no suena por cada nota: solo cuando va contigo. También puedes dejar una nota solo para algunas personas o secciones.",
+        "tanda": 2
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Puedes responder a una nota y marcar la conversación como resuelta",
+        "detalle": "Las respuestas avisan a quien escribió la nota. Las conversaciones resueltas quedan plegadas.",
+        "tanda": 2
       },
       {
         "tipo": "arreglado",
