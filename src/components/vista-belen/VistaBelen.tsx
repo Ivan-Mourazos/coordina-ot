@@ -518,10 +518,12 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                       aria-current={activa ? "page" : undefined}
                       title={`${l.explica}\n\nArrastra para cambiar el orden dentro de «${g.label}».`}
                       onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
-                      className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left text-[13px] leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                      // Mismo grosor activa o no: en negrita los rótulos largos
+                      // pasaban a otra línea y la columna daba un salto.
+                      className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left text-[13px] font-semibold leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                         activa
-                          ? `font-bold text-text ${pildoraListas.estilo ? "" : "bg-[var(--hero-relleno-encima)]"}`
-                          : "font-semibold text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text"
+                          ? `text-text ${pildoraListas.estilo ? "" : "bg-[var(--hero-relleno-encima)]"}`
+                          : "text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text"
                       } ${ordenListas.claseArrastre(l.id)}`}
                     >
                       <IconoHerramienta id={l.id} tam="sm" />
