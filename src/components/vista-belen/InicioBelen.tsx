@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { enGrupos, grupoDe, HERRAMIENTAS_BELEN, ordenarHerramientas, vecinaDelGrupo } from "@/lib/herramientas-belen";
+import { enGrupos, grupoDe, GRUPOS_BELEN, HERRAMIENTAS_BELEN, ordenarGrupos, ordenarHerramientas, vecinaDelGrupo } from "@/lib/herramientas-belen";
 import { moverA } from "@/lib/orden-guardado";
 import { useDeslizar } from "./usePestanasOrdenables";
 import { filasALaVista, LISTAS_BELEN, type IdLista } from "@/lib/vista-belen-listas";
@@ -12,7 +12,8 @@ import { IconoHerramienta } from "./IconoHerramienta";
 // Por temas desde el 12/11/2026 (GRUPOS_BELEN): un panel por grupo y una fila
 // por herramienta con icono, nombre y cuántas hay; lo que explica cada una,
 // al pasar el ratón (Iván: «se podría omitir la explicación»). Se ordena
-// DENTRO de cada grupo; los grupos van siempre en el mismo orden.
+// DENTRO de cada grupo, y desde el 16/11/2026 también los grupos (bloques):
+// con «Ordenar», cada bloque se arrastra por su título o con sus flechas ← →.
 //
 // Ordenar es ARRASTRAR (Iván, 11/11/2026: «un sistema de arrastre visual que
 // vea fácil cómo ordenar y cómo quedaría»):
@@ -28,6 +29,7 @@ const BOTON =
   "rounded-full px-4 py-2 text-[13px] font-semibold transition-[transform,background-color] duration-150 active:scale-[.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] motion-reduce:transition-none disabled:opacity-40";
 
 type Herramienta = (typeof HERRAMIENTAS_BELEN)[number];
+type Grupo = (typeof GRUPOS_BELEN)[number];
 
 export function InicioBelen({ miId, listas, onAbrir }: {
   miId: string | null;
@@ -48,16 +50,52 @@ export function InicioBelen({ miId, listas, onAbrir }: {
   const ultimoMovimiento = useRef(0);
   const deslizar = useDeslizar(herramientas.map((h) => h.id).join("|"));
 
+  // Los bloques (grupos), con su propio orden guardado y su propio arrastre.
+  const claveGrupos = `coordina.belen.grupos:${miId ?? "local"}`;
+  const [grupos, setGrupos] = useState<Grupo[]>(() => [...GRUPOS_BELEN]);
+  const [arrastrandoGrupo, setArrastrandoGrupo] = useState<string | null>(null);
+  const gruposAntes = useRef<Grupo[] | null>(null);
+  const grupoSoltado = useRef(false);
+  const ultimoMovimientoGrupo = useRef(0);
+  const deslizarGrupo = useDeslizar(grupos.map((g) => g.id).join("|"));
+
   useEffect(() => {
     let vivo = true;
     void Promise.resolve().then(() => {
       if (!vivo) return;
       try { setHerramientas(ordenarHerramientas(JSON.parse(localStorage.getItem(clave) ?? "null"))); }
       catch { setHerramientas(HERRAMIENTAS_BELEN); }
+      try { setGrupos(ordenarGrupos(JSON.parse(localStorage.getItem(claveGrupos) ?? "null"))); }
+      catch { setGrupos([...GRUPOS_BELEN]); }
       setLista(true);
     });
     return () => { vivo = false; };
-  }, [clave]);
+  }, [clave, claveGrupos]);
+
+  const guardarGrupos = (nuevos: Grupo[], movido: Grupo) => {
+    try {
+      localStorage.setItem(claveGrupos, JSON.stringify(nuevos.map((g) => g.id)));
+      setMensaje(`Bloque ${movido.label}: posición ${nuevos.indexOf(movido) + 1} de ${nuevos.length}. Orden guardado.`);
+    } catch { setMensaje("El orden ha cambiado, pero este navegador no permite guardarlo para la próxima visita."); }
+  };
+  const moverGrupo = (id: string, destino: number) => {
+    const nuevos = moverA(grupos, id, destino);
+    setGrupos(nuevos);
+    guardarGrupos(nuevos, nuevos.find((g) => g.id === id)!);
+  };
+  // Igual que con las herramientas: al pasar por encima de otro bloque, el
+  // arrastrado ocupa ya su sitio.
+  const pasarPorGrupo = (id: string, ahora: number) => {
+    if (!arrastrandoGrupo || arrastrandoGrupo === id) return;
+    if (ahora - ultimoMovimientoGrupo.current < 220) return;
+    ultimoMovimientoGrupo.current = ahora;
+    setGrupos((gs) => moverA(gs, arrastrandoGrupo, gs.findIndex((g) => g.id === id)));
+  };
+  const terminarGrupo = () => {
+    if (!grupoSoltado.current && gruposAntes.current) setGrupos(gruposAntes.current);
+    gruposAntes.current = null;
+    setArrastrandoGrupo(null);
+  };
 
   const guardar = (nuevas: Herramienta[], movida: Herramienta) => {
     try {
@@ -115,16 +153,72 @@ export function InicioBelen({ miId, listas, onAbrir }: {
       </div>
       {ordenando && (
         <p className="mb-3 rounded-2xl bg-[var(--detalle)] px-4 py-2.5 text-[13px] text-text">
-          <b>Arrastra cada herramienta</b> arriba o abajo dentro de su grupo: las demás se apartan para enseñarte cómo
-          quedará. Al soltar, se guarda. También con las flechas de cada una.
+          <b>Arrastra cada herramienta</b> arriba o abajo dentro de su grupo, o <b>cada bloque</b> agarrándolo por su
+          título: lo demás se aparta para enseñarte cómo quedará. Al soltar, se guarda. También con las flechas.
         </p>
       )}
       <p role="status" className="sr-only">{mensaje}</p>
       {mensaje.includes("no permite") && <p className="mb-3 text-sm text-text-muted">{mensaje}</p>}
       <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {enGrupos(herramientas).map((g) => (
-          <section key={g.id} aria-label={g.label} className="tarjeta-of rounded-3xl bg-surface p-2">
-            <h3 className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">{g.label}</h3>
+        {enGrupos(herramientas, grupos).map((g) => {
+          const gi = grupos.findIndex((x) => x.id === g.id);
+          const grupoQueSeMueve = arrastrandoGrupo === g.id;
+          return (
+          <section
+            key={g.id}
+            ref={deslizarGrupo(g.id)}
+            aria-label={g.label}
+            draggable={ordenando}
+            onDragStart={(e) => {
+              // Las herramientas de dentro se arrastran solas (paran el evento).
+              if (e.target !== e.currentTarget) return;
+              e.dataTransfer.setData("text/plain", g.id);
+              e.dataTransfer.effectAllowed = "move";
+              gruposAntes.current = grupos;
+              grupoSoltado.current = false;
+              setArrastrandoGrupo(g.id);
+            }}
+            onDragEnter={(e) => { if (arrastrandoGrupo) { e.preventDefault(); pasarPorGrupo(g.id, e.timeStamp); } }}
+            onDragOver={(e) => { if (arrastrandoGrupo) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; pasarPorGrupo(g.id, e.timeStamp); } }}
+            onDrop={(e) => {
+              if (!arrastrandoGrupo) return;
+              e.preventDefault();
+              grupoSoltado.current = true;
+              const movido = grupos.find((x) => x.id === arrastrandoGrupo);
+              if (movido) guardarGrupos(grupos, movido);
+            }}
+            onDragEnd={terminarGrupo}
+            className={`tarjeta-of rounded-3xl bg-surface p-2 ${
+              ordenando ? (grupoQueSeMueve ? "cursor-grabbing opacity-50 outline-2 outline-dashed outline-[var(--hero-anillo)]" : "cursor-grab") : ""
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <h3 className="min-w-0 flex-1 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">{g.label}</h3>
+              {ordenando && (
+                <span className="flex shrink-0 items-center gap-1 pr-1.5 pt-1">
+                  <button
+                    type="button"
+                    disabled={gi <= 0}
+                    aria-label={`Bloque ${g.label} antes`}
+                    title="Mover el bloque antes"
+                    onClick={() => moverGrupo(g.id, gi - 1)}
+                    className={`${BOTON} min-h-7 bg-[var(--hero-relleno)] px-2 py-0.5 text-text hover:bg-[var(--hero-relleno-encima)]`}
+                  >
+                    <span aria-hidden="true">←</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={gi >= grupos.length - 1}
+                    aria-label={`Bloque ${g.label} después`}
+                    title="Mover el bloque después"
+                    onClick={() => moverGrupo(g.id, gi + 1)}
+                    className={`${BOTON} min-h-7 bg-[var(--hero-relleno)] px-2 py-0.5 text-text hover:bg-[var(--hero-relleno-encima)]`}
+                  >
+                    <span aria-hidden="true">→</span>
+                  </button>
+                </span>
+              )}
+            </div>
             <ul className="flex flex-col gap-0.5">
               {g.items.map((h) => {
                 const i = herramientas.indexOf(h);
@@ -141,6 +235,7 @@ export function InicioBelen({ miId, listas, onAbrir }: {
                     data-herramienta={h.id}
                     draggable={ordenando}
                     onDragStart={(e) => {
+                      e.stopPropagation();
                       e.dataTransfer.setData("text/plain", h.id);
                       e.dataTransfer.effectAllowed = "move";
                       empezar(h.id);
@@ -148,7 +243,7 @@ export function InicioBelen({ miId, listas, onAbrir }: {
                     onDragEnter={(e) => { if (ordenando) { e.preventDefault(); pasarPor(i, e.timeStamp); } }}
                     onDragOver={(e) => { if (ordenando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; pasarPor(i, e.timeStamp); } }}
                     onDrop={(e) => { if (ordenando) { e.preventDefault(); soltar(); } }}
-                    onDragEnd={terminar}
+                    onDragEnd={(e) => { e.stopPropagation(); terminar(); }}
                     className={`flex items-center rounded-2xl ${
                       ordenando ? (esLaQueSeMueve ? "cursor-grabbing outline-2 outline-dashed outline-[var(--hero-anillo)]" : "cursor-grab") : ""
                     }`}
@@ -203,7 +298,8 @@ export function InicioBelen({ miId, listas, onAbrir }: {
               })}
             </ul>
           </section>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

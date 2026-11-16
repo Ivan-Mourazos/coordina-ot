@@ -1,5 +1,12 @@
 import { expect, test } from "vitest";
-import { HERRAMIENTAS_BELEN, ordenarHerramientas } from "../herramientas-belen";
+import { enGrupos, GRUPOS_BELEN, HERRAMIENTAS_BELEN, ordenarGrupos, ordenarHerramientas } from "../herramientas-belen";
+
+test("los bloques salen en el orden guardado y los que faltan van al final", () => {
+  const grupos = ordenarGrupos(["tiempos", "fechas", "no-existe"]);
+  expect(grupos.map((g) => g.id)).toEqual(["tiempos", "fechas", "pedidos", "bultos", "material", "datos"]);
+  expect(enGrupos(HERRAMIENTAS_BELEN, grupos).map((g) => g.id)).toEqual(grupos.map((g) => g.id));
+  expect(ordenarGrupos(null)).toEqual(GRUPOS_BELEN);
+});
 
 test("respeta el orden elegido, descarta duplicados y añade herramientas nuevas", () => {
   const r = ordenarHerramientas(["sin-descripcion", "entregas", "sin-descripcion", "retirada", 42]);

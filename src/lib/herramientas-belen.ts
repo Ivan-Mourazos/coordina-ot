@@ -15,8 +15,10 @@ export function ordenarHerramientas(guardado: unknown): typeof HERRAMIENTAS_BELE
 
 // ─── Grupos ──────────────────────────────────────────────────────────────────
 // Iván, 12/11/2026: con catorce herramientas la portada y la barra de listas
-// eran un batiburrillo («hay que ordenar esto todo»). Van por tema, siempre en
-// este orden; dentro de cada grupo, en el que elija Belén arrastrando.
+// eran un batiburrillo («hay que ordenar esto todo»). Van por tema; dentro de
+// cada grupo, en el que elija Belén arrastrando. En la portada, desde el
+// 16/11/2026, también los grupos (ordenarGrupos); la columna de listas sigue
+// con este orden.
 
 export type IdGrupo = "fechas" | "pedidos" | "bultos" | "tiempos" | "material" | "datos";
 
@@ -50,10 +52,19 @@ export const GRUPO_DE: Record<IdHerramienta, IdGrupo> = {
 
 export const grupoDe = (id: string): IdGrupo => GRUPO_DE[id as IdHerramienta] ?? "datos";
 
+/** Los grupos en el orden guardado por la persona (Iván, 16/11/2026: Belén
+ *  ordena también los bloques de la portada). Los nuevos van al final. */
+export function ordenarGrupos(guardado: unknown): Array<(typeof GRUPOS_BELEN)[number]> {
+  return ordenarPorIds(GRUPOS_BELEN, guardado);
+}
+
 /** Reparte lo que llega (ya en el orden de la persona) en los grupos, en el
- *  orden fijo de los grupos. Los grupos sin nada no salen. */
-export function enGrupos<T extends { id: string }>(items: readonly T[]): Array<{ id: IdGrupo; label: string; items: T[] }> {
-  return GRUPOS_BELEN.map((g) => ({ ...g, items: items.filter((x) => grupoDe(x.id) === g.id) })).filter((g) => g.items.length > 0);
+ *  orden de `grupos` (por defecto, el de siempre). Los grupos sin nada no salen. */
+export function enGrupos<T extends { id: string }>(
+  items: readonly T[],
+  grupos: ReadonlyArray<{ id: IdGrupo; label: string }> = GRUPOS_BELEN,
+): Array<{ id: IdGrupo; label: string; items: T[] }> {
+  return grupos.map((g) => ({ ...g, items: items.filter((x) => grupoDe(x.id) === g.id) })).filter((g) => g.items.length > 0);
 }
 
 /** La posición (en la lista entera) de la vecina del mismo grupo hacia
