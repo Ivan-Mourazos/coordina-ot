@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { enFrase, fechaCorta } from "@/lib/vista-belen";
 import {
   columnaFecha,
@@ -86,6 +86,39 @@ function anchoColumna(c: ColumnaLista): string | undefined {
   }
 }
 
+/** Filas por página. Incidencias trae un año de fichajes (miles de filas):
+ *  pintarlas todas de golpe hacía la tabla lenta (Iván, 16/11/2026). Filtros,
+ *  buscador y orden siguen trabajando sobre la lista entera. */
+const POR_PAGINA = 100;
+
+const miles = (n: number) => n.toLocaleString("es-ES");
+
+function Paginacion({ pagina, paginas, total, onIr }: { pagina: number; paginas: number; total: number; onIr: (p: number) => void }) {
+  const boton =
+    "rounded-full bg-[var(--hero-relleno)] px-3 py-1 text-[12px] font-semibold text-text hover:bg-[var(--hero-relleno-encima)] disabled:opacity-40 disabled:hover:bg-[var(--hero-relleno)] focus:outline-none focus-visible:ring-2 focus-visible:ring-focus";
+  const desde = pagina * POR_PAGINA + 1;
+  const hasta = Math.min(total, (pagina + 1) * POR_PAGINA);
+  return (
+    <nav aria-label="Páginas de la lista" className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-2 text-[13px] text-text-muted">
+      <button type="button" className={boton} onClick={() => onIr(0)} disabled={pagina === 0} aria-label="Primera página">
+        «
+      </button>
+      <button type="button" className={boton} onClick={() => onIr(pagina - 1)} disabled={pagina === 0}>
+        Anterior
+      </button>
+      <span className="tabular-nums" aria-live="polite">
+        {miles(desde)}–{miles(hasta)} de {miles(total)}
+      </span>
+      <button type="button" className={boton} onClick={() => onIr(pagina + 1)} disabled={pagina >= paginas - 1}>
+        Siguiente
+      </button>
+      <button type="button" className={boton} onClick={() => onIr(paginas - 1)} disabled={pagina >= paginas - 1} aria-label="Última página">
+        »
+      </button>
+    </nav>
+  );
+}
+
 /** Esqueleto mientras llega la primera vez: la tabla ocupa su sitio y no salta. */
 function Esqueleto() {
   return (
@@ -121,6 +154,17 @@ export function TablaListaBelen({
   const total = carga.tipo === "listo" ? (filtro.delegaciones ? carga.filas : filasALaVista(carga.filas, def)).length : 0;
   const escondidas = carga.tipo === "listo" && !filtro.delegaciones ? carga.filas.length - total : 0;
   const valores = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def) : []), [carga, def]);
+  // Página: vuelve a la primera al cambiar cualquier filtro u orden. Al
+  // actualizar los datos se queda donde estaba (si la página sigue existiendo).
+  const [pagina, setPagina] = useState(0);
+  const [filtroVisto, setFiltroVisto] = useState(filtro);
+  if (filtroVisto !== filtro) {
+    setFiltroVisto(filtro);
+    setPagina(0);
+  }
+  const paginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, paginas - 1);
+  const visibles = useMemo(() => filas.slice(paginaActual * POR_PAGINA, (paginaActual + 1) * POR_PAGINA), [filas, paginaActual]);
   const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.delegaciones || filtro.orden !== null;
 
   return (
@@ -240,7 +284,7 @@ export function TablaListaBelen({
                     </td>
                   </tr>
                 )}
-                {filas.map((f) => {
+                {visibles.map((f) => {
                   // Sin pedido pero con OF: una OF de stock, que se abre por su número.
                   const abrir = f.pedido ? () => onAbrir(f.pedido!, f.of) : f.of ? () => onAbrir(f.of!, f.of) : undefined;
                   const amarilla = !!f.amarilla;
@@ -280,6 +324,7 @@ export function TablaListaBelen({
                 })}
               </tbody>
             </table>
+            {paginas > 1 && <Paginacion pagina={paginaActual} paginas={paginas} total={filas.length} onIr={setPagina} />}
           </div>
         ))}
     </section>
