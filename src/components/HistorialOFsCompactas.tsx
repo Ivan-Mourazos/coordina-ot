@@ -119,7 +119,7 @@ export function HistorialOFsCompactas({ ofs, seccion, detalle, botonesPlegada, a
         const personasFila = desplegada ? personas.filter((x) => !enTareas.has(x.nombre)) : personas;
         // Fila hundida y DOS renglones, como las OF de Pendientes
         // (ver `FilaOF`). Iba todo en una línea con `flex-wrap`, y la gente
-        // —"Alberto Carbon planteó 23m · Jaime Vázquez revisó 2m"— se comía el
+        // —"Alberto Carbón planteó 23m · Jaime Vázquez revisó 2m"— se comía el
         // ancho: en un pedido de trece OF la descripción quedaba en "LONA
         // ESCENAR…" y no se distinguía una fila de la siguiente.
         //

@@ -16,7 +16,7 @@ import { diasEntre, sumarDias } from "./fechas";
 // sección de siempre y ponérsela a mano sería repetir en dos sitios lo que ya
 // dice server/operarios.ts.
 export const OPERARIOS: Operario[] = [
-  { id: "alberto", nombre: "Alberto Carbon", iniciales: "AL", color: "#e0533d" },
+  { id: "alberto", nombre: "Alberto Carbón", iniciales: "AL", color: "#e0533d" },
   { id: "jaime", nombre: "Jaime Vázquez", iniciales: "JA", color: "#3d7de0" },
   { id: "tamara", nombre: "Tamara Villar", iniciales: "TA", color: "#9b3de0" },
   { id: "adrian", nombre: "Adrián Quinteiro", iniciales: "AD", color: "#1fa37a" },

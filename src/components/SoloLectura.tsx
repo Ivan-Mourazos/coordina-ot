@@ -17,3 +17,16 @@ export const SoloLecturaProvider = SoloLectura.Provider;
 export function useSoloLectura(): boolean {
   return useContext(SoloLectura);
 }
+
+// Las notas son la excepción: Dirección mira el tablero sin tocar, pero las
+// notas sí las escribe (Iván, 16/11/2026; ver `puedeEscribirNotas`). Sin
+// proveedor propio vale lo mismo que el resto de la pantalla.
+const SoloLecturaNotas = createContext<boolean | null>(null);
+
+export const SoloLecturaNotasProvider = SoloLecturaNotas.Provider;
+
+export function useSoloLecturaNotas(): boolean {
+  const notas = useContext(SoloLecturaNotas);
+  const general = useContext(SoloLectura);
+  return notas ?? general;
+}

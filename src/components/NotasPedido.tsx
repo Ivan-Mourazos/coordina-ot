@@ -6,7 +6,7 @@ import { NOTA_MAX, fmtCuandoNota, validarTexto, type NotaPedido } from "@/lib/no
 import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { useSoloLectura } from "./SoloLectura";
+import { useSoloLecturaNotas } from "./SoloLectura";
 import { AcentoBloque } from "./AcentoBloque";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
@@ -44,8 +44,9 @@ export function NotasPedido({
    *  «para todos». El servidor lo fuerza igual; esto solo quita el selector. */
   soloParaTodos?: boolean;
 }) {
-  // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo.
-  const soloLecturaCuenta = useSoloLectura();
+  // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo,
+  // salvo para Dirección, que sí escribe notas (16/11/2026).
+  const soloLecturaCuenta = useSoloLecturaNotas();
   const soloLectura = soloLecturaProp || soloLecturaCuenta;
   const [notas, setNotas] = useState<NotaPedido[] | null>(null);
   // El error lleva si se arregla recargando. Un fallo de CARGA sí (de ahí el

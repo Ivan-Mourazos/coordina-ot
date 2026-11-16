@@ -37,8 +37,8 @@ import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/l
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
 import type { Yo } from "./LoginGate";
-import { SoloLecturaProvider } from "./SoloLectura";
-import { esSoloLectura, puedeVerComoDireccion } from "@/lib/personas";
+import { SoloLecturaNotasProvider, SoloLecturaProvider } from "./SoloLectura";
+import { esSoloLectura, puedeEscribirNotas, puedeVerComoDireccion } from "@/lib/personas";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
@@ -2644,6 +2644,8 @@ export function Board({
 
   return (
     <SoloLecturaProvider value={soloLectura}>
+    {/* Las notas son lo único que Dirección escribe (16/11/2026). */}
+    <SoloLecturaNotasProvider value={soloLectura && !(sesion && puedeEscribirNotas(sesion.roles))}>
       {/* TODA la web del equipo en un ancho máximo centrado (1.800 px): cabecera
           y pestañas. En un monitor de 2.500 px las listas se estiraban hasta que
           la línea de tiempo medía 1.300 px para cuatro fechas, y Métricas, que no
@@ -3600,6 +3602,7 @@ Le llegará el aviso de que ya no lo lleva.`
         }}
         onCancelar={() => setFichajeAjenoPendiente(null)}
       />
+    </SoloLecturaNotasProvider>
     </SoloLecturaProvider>
   );
 }

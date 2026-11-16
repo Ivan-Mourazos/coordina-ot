@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { puedeEscribirNotas } from "../personas";
 
 // La cuenta de Belén (rol `produccion`, migración 16) lee su pantalla y no
 // escribe nada: como Dirección, toda escritura pide `tecnico`.
@@ -114,9 +115,12 @@ test("Belén no puede dejar una nota «solo OT»: siempre queda para todos", asy
   expect(guardada?.publica).toBe(true);
 });
 
-test("Dirección sigue sin escribir notas", async () => {
+test("Dirección también escribe notas (16/11/2026)", async () => {
   const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "hola" }, carlos()));
-  expect(res.status).toBe(403);
+  expect(res.ok).toBe(true);
+  // Y no por ser Carlos también de Producción: Dirección a secas, igual.
+  expect(puedeEscribirNotas(["direccion"])).toBe(true);
+  expect(puedeEscribirNotas(["supervisor"])).toBe(false);
 });
 
 test("su pantalla: con sesión 200, sin sesión 401", async () => {

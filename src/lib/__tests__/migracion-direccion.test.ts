@@ -59,9 +59,10 @@ afterAll(() => {
 });
 
 test("Carlos y Esteban pasan a Dirección, activos y sin supervisor", () => {
-  expect(fila("carlos")).toMatchObject({ roles: "direccion", activo: 1 });
+  // La 19 le suma `produccion`: es el encargado de Producción.
+  expect(fila("carlos")).toMatchObject({ roles: "direccion,produccion", activo: 1 });
   expect(fila("esteban")).toMatchObject({ roles: "direccion", activo: 1 });
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(17);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(19);
 });
 
 test("Iván gana direccion sin perder nada; Cris y Jaime no cambian", () => {
@@ -84,6 +85,6 @@ test("pasarla dos veces deja lo mismo", () => {
     const roles = (id: string) =>
       (otra.getDb().prepare("SELECT roles FROM persona WHERE id = ?").get(id) as { roles: string }).roles;
     expect(roles("ivan")).toBe("tecnico,supervisor,direccion");
-    expect(roles("carlos")).toBe("direccion");
+    expect(roles("carlos")).toBe("direccion,produccion");
   });
 });

@@ -110,6 +110,10 @@ describe("pantalla a medida", () => {
     expect(vistaAMedida({ id: "belen-alamancos", roles: ["produccion"] })).toBe("belen"));
   test("Cristina Rivas empieza con la de Belén", () =>
     expect(vistaAMedida({ id: "cristina-rivas", roles: ["produccion"] })).toBe("belen"));
+  test("Miguel Tato y Belén Quintela también empiezan con la de Belén", () => {
+    expect(vistaAMedida({ id: "miguel-tato", roles: ["produccion"] })).toBe("belen");
+    expect(vistaAMedida({ id: "belen-quintela", roles: ["produccion"] })).toBe("belen");
+  });
   test("otra persona de Producción no hereda la de Belén", () =>
     expect(vistaAMedida({ id: "otra", roles: ["produccion"] })).toBeNull());
   test("con tecnico sigue en el tablero", () =>

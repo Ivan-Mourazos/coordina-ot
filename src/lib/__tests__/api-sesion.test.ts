@@ -65,7 +65,7 @@ test("la primera vez se elige PIN, y hay que teclearlo dos veces igual", async (
 
   const bien = await entrar({ id: "tamara", pin: "1704", pinRepetido: "1704" });
   expect(bien.status).toBe(200);
-  expect(await bien.json()).toEqual({ yo: { id: "tamara", nombre: "Tamara", roles: ["tecnico"] } });
+  expect(await bien.json()).toEqual({ yo: { id: "tamara", nombre: "Tamara Villar", roles: ["tecnico"] } });
   expect(bien.headers.get("set-cookie")).toContain("coordina_sesion=");
 });
 
@@ -151,7 +151,7 @@ test("GET /api/sesion dice quién eres, y null si no eres nadie", async () => {
     }),
   );
   expect((await con.json()) as { yo: { id: string } }).toEqual({
-    yo: { id: "ivan", nombre: "Iván", roles: ["tecnico", "supervisor", "direccion"] },
+    yo: { id: "ivan", nombre: "Iván Sánchez", roles: ["tecnico", "supervisor", "direccion"] },
   });
 });
 

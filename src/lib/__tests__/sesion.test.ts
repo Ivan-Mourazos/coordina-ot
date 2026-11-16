@@ -37,7 +37,7 @@ test("una cookie firmada aquí se reconoce, con el nombre y los roles al día", 
   const req = con(`coordina_sesion=${s.firmarSesion("angel")}`);
   expect(s.quienEs(req)).toEqual({
     id: "angel",
-    nombre: "Ángel",
+    nombre: "Ángel García",
     roles: ["tecnico", "supervisor"],
   });
 });
@@ -137,7 +137,7 @@ test("apagado, la identidad sale del cuerpo, como hasta ahora", () => {
   process.env.COORDINA_LOGIN = "off";
   const r = s.identidad(con(), "tamara", "tecnico");
   expect(r).not.toBeInstanceOf(Response);
-  expect((r as { id: string; nombre: string }).nombre).toBe("Tamara");
+  expect((r as { id: string; nombre: string }).nombre).toBe("Tamara Villar");
 });
 
 test("apagado, un operarioId que no existe se rechaza igual que hoy", () => {

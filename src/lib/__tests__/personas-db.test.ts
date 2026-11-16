@@ -134,6 +134,6 @@ test("una baja deja de entrar, pero su FILA se queda con su nombre", () => {
     .getDb()
     .prepare("SELECT nombre FROM persona WHERE id = 'smith'")
     .get() as { nombre: string };
-  expect(fila.nombre).toBe("Smith");
+  expect(fila.nombre).toBe("Francisco Javier Smith");
   estado.getDb().prepare("UPDATE persona SET activo = 1 WHERE id = 'smith'").run();
 });

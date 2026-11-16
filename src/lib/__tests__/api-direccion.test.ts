@@ -47,7 +47,8 @@ const peticion = (url: string, method: string, body?: unknown) =>
 
 test("la sesión de Carlos es válida y es de Dirección", () => {
   const yo = s.quienEs(new Request("http://x/", { headers: carlos() }));
-  expect(yo?.roles).toEqual(["direccion"]);
+  // Carlos es además encargado de Producción (migración 19).
+  expect(yo?.roles).toEqual(["direccion", "produccion"]);
 });
 
 test("cambiar el estado de una OF: 403", async () => {
@@ -67,9 +68,9 @@ test("fichar: 403", async () => {
   expect(res.status).toBe(403);
 });
 
-test("escribir una nota: 403", async () => {
+test("escribir una nota: sí, Dirección también escribe (16/11/2026)", async () => {
   const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00001", texto: "hola" }));
-  expect(res.status).toBe(403);
+  expect(res.ok).toBe(true);
 });
 
 test("leer notas y causas: 200", async () => {

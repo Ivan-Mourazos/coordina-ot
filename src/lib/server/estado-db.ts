@@ -592,7 +592,50 @@ const MIGRACIONES: ReadonlyArray<{
   { version: 16, nombre: "cuenta_de_produccion", aplicar: (db) => altaDeProduccion(db, "belen-alamancos", "Belén Alamancos") },
   // Cristina Rivas (Producción) entra con la pantalla de Belén (16/11/2026).
   { version: 17, nombre: "cuenta_cristina_rivas", aplicar: (db) => altaDeProduccion(db, "cristina-rivas", "Cristina Rivas") },
+  // La siembra de la 7 dejó solo el nombre de pila («Carrón», «Smith»), y es lo
+  // que sale en el login y como autor de las notas. Iván (16/11/2026): nombre y
+  // apellido, igual que en el tablero, antes de poder mencionar a la gente.
+  { version: 18, nombre: "nombres_completos", aplicar: nombresCompletos },
+  // Producción completa (Iván, 16/11/2026): entran Miguel Tato y Belén
+  // Quintela, y Carlos Veiga (Dirección) es además su encargado.
+  { version: 19, nombre: "produccion_completa", aplicar: produccionCompleta },
 ];
+
+/** Nombre y primer apellido de cada cuenta sembrada, los mismos que pinta el
+ *  tablero (mock.ts, OPERARIOS). Solo se cambia la fila que SIGUE con el nombre
+ *  de la siembra: si alguien lo corrigió a mano, esa decisión manda.
+ *
+ *  `cris` era Cristina Rivas, sembrada desactivada en la 7. Su cuenta de verdad
+ *  es `cristina-rivas` (la 17); esta se queda desactivada, con el nombre bien
+ *  puesto para que el histórico no enseñe un «Cris» suelto. */
+const NOMBRES_COMPLETOS: ReadonlyArray<[id: string, antes: string, ahora: string]> = [
+  ["alberto", "Alberto", "Alberto Carbón"],
+  ["jaime", "Jaime", "Jaime Vázquez"],
+  ["tamara", "Tamara", "Tamara Villar"],
+  ["adrian", "Adrián", "Adrián Quinteiro"],
+  ["ivan", "Iván", "Iván Sánchez"],
+  ["angel", "Ángel", "Ángel García"],
+  ["carron", "Carrón", "José Luis Carrón"],
+  ["manuel", "Manuel", "Manuel Ramón Gómez"],
+  ["smith", "Smith", "Francisco Javier Smith"],
+  ["esteban", "Esteban", "Esteban Raposo"],
+  ["carlos", "Carlos", "Carlos Veiga"],
+  ["cris", "Cris", "Cristina Rivas"],
+];
+
+function nombresCompletos(db: Database.Database): void {
+  const poner = db.prepare("UPDATE persona SET nombre = ? WHERE id = ? AND nombre = ?");
+  for (const [id, antes, ahora] of NOMBRES_COMPLETOS) poner.run(ahora, id, antes);
+}
+
+/** Se dan de alta Miguel Tato y Belén Quintela, y Carlos Veiga suma
+ *  `produccion` a su `direccion`: es el encargado de Producción y escribe
+ *  notas (Iván, 16/11/2026). Sigue entrando como Dirección (`vistaAMedida`). */
+function produccionCompleta(db: Database.Database): void {
+  altaDeProduccion(db, "carlos", "Carlos Veiga");
+  altaDeProduccion(db, "miguel-tato", "Miguel Tato");
+  altaDeProduccion(db, "belen-quintela", "Belén Quintela");
+}
 
 /** Da de alta a alguien de Producción con el rol `produccion` (ver
  *  lib/personas.ts). Sin PIN: lo elige la primera vez, como todos.

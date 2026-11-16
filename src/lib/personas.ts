@@ -28,10 +28,11 @@ export function esRolAcceso(v: unknown): v is RolAcceso {
   return v === "tecnico" || v === "supervisor" || v === "direccion" || v === "produccion";
 }
 
-/** Notas del pedido: las escriben los técnicos y, para hablar con OT,
- *  Producción (Belén, 10/11/2026). Dirección solo mira. */
+/** Notas del pedido: las escriben los técnicos, Producción (Belén,
+ *  10/11/2026) y Dirección (Iván, 16/11/2026). Es lo ÚNICO que escribe
+ *  Dirección: el resto del tablero lo sigue mirando sin tocar. */
 export function puedeEscribirNotas(roles: readonly RolAcceso[]): boolean {
-  return roles.includes("tecnico") || roles.includes("produccion");
+  return roles.includes("tecnico") || roles.includes("produccion") || roles.includes("direccion");
 }
 
 /** ¿Ve también las notas «solo OT»? El equipo y Dirección, sí; Producción
@@ -50,6 +51,10 @@ const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {
   // Cristina Rivas (16/11/2026) empieza con la de Belén tal cual; cuando pida
   // cambios que Belén no quiera, tendrá la suya.
   "cristina-rivas": "belen",
+  // Miguel Tato y Belén Quintela (16/11/2026), igual: la de Belén de partida y
+  // se ajusta a cada uno según la vayan usando.
+  "miguel-tato": "belen",
+  "belen-quintela": "belen",
 };
 
 /** La pantalla a medida en la que aterriza esta persona, o null si va a lo de

@@ -93,7 +93,7 @@ export const PROCESO_DISENO = "DISEÑO";
  *  «MANUEL» solo no vale: hay un Manuel Rivadulla en fábrica. Lucía Guillín
  *  ya no está en el equipo pero sus causas son de OT (Iván, 26/10/2026). */
 export const RESPONSABLES: readonly { id: string; nombre: string; seccion: SeccionId; alias: readonly string[] }[] = [
-  { id: "alberto", nombre: "Alberto Carbon", seccion: "ot", alias: ["ALBERTO"] },
+  { id: "alberto", nombre: "Alberto Carbón", seccion: "ot", alias: ["ALBERTO"] },
   { id: "jaime", nombre: "Jaime Vázquez", seccion: "ot", alias: ["JAIME"] },
   { id: "tamara", nombre: "Tamara Villar", seccion: "ot", alias: ["TAMARA"] },
   { id: "adrian", nombre: "Adrián Quinteiro", seccion: "ot", alias: ["ADRIAN"] },
