@@ -223,7 +223,7 @@ export function NotasPedido({
                         id: n.id,
                         operarioId: miId,
                         texto: editando.texto,
-                        publica: editando.publica,
+                        enConsultaPublica: editando.publica,
                       }),
                     });
                     if (ok) setEditando(null);
@@ -256,7 +256,7 @@ export function NotasPedido({
                     {delSistema ? "Coordina" : (op?.nombre ?? n.autor ?? n.operarioId)}
                   </span>
                   <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
-                  {n.publica && (
+                  {n.enConsultaPublica && (
                     // Que en OT se sepa qué está leyendo Producción.
                     <span
                       title="La ve también quien entra sin iniciar sesión: Producción, comerciales…"
@@ -279,7 +279,7 @@ export function NotasPedido({
                     <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
                       <button
                         type="button"
-                        onClick={() => setEditando({ id: n.id, texto: n.texto, publica: n.publica })}
+                        onClick={() => setEditando({ id: n.id, texto: n.texto, publica: n.enConsultaPublica })}
                         className="text-[10px] font-semibold text-text-muted hover:text-text"
                       >
                         Editar
@@ -313,7 +313,7 @@ export function NotasPedido({
             onGuardar={async () => {
               const ok = await mandar({
                 method: "POST",
-                body: JSON.stringify({ pedido, operarioId: miId, texto: borrador, publica: borradorPublica }),
+                body: JSON.stringify({ pedido, operarioId: miId, texto: borrador, enConsultaPublica: borradorPublica }),
               });
               if (ok) {
                 setBorrador("");

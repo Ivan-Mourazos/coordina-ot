@@ -26,7 +26,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  estado.getDb().prepare("DELETE FROM nota_pedido").run();
+  estado.getDb().exec("DELETE FROM nota_audiencia; DELETE FROM nota_mencion; DELETE FROM nota_pedido;");
 });
 
 const post = (body: unknown) =>
@@ -124,18 +124,28 @@ test("PATCH o DELETE con un id que no es número es 400", async () => {
   expect((await del({ id: null, operarioId: "jaime" })).status).toBe(400);
 });
 
-test("POST sin decir para quién la deja solo para OT; con publica: true, para todos", async () => {
+test("POST: para todos y fuera de la consulta pública salvo un true claro", async () => {
   const a = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "interna" })).json()) as { nota: NotaPedido };
-  expect(a.nota.publica).toBe(false);
-  const b = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "fuera", publica: true })).json()) as { nota: NotaPedido };
-  expect(b.nota.publica).toBe(true);
+  expect(a.nota.enConsultaPublica).toBe(false);
+  expect(a.nota.para).toEqual([]);
+  const b = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "fuera", enConsultaPublica: true })).json()) as { nota: NotaPedido };
+  expect(b.nota.enConsultaPublica).toBe(true);
   // Algo que no es un sí claro no la abre.
-  const c = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", publica: "true" })).json()) as { nota: NotaPedido };
-  expect(c.nota.publica).toBe(false);
+  const c = (await (await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", enConsultaPublica: "true" })).json()) as { nota: NotaPedido };
+  expect(c.nota.enConsultaPublica).toBe(false);
 });
 
-test("PATCH cambia para quién es la mía", async () => {
+test("POST con «para»: secciones válidas sí, destinos inventados 400", async () => {
+  const ok = await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", para: [{ tipo: "seccion", id: "ot" }] });
+  expect(ok.status).toBe(200);
+  expect(((await ok.json()) as { nota: NotaPedido }).nota.para).toEqual([{ tipo: "seccion", id: "ot" }]);
+  expect((await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", para: [{ tipo: "seccion", id: "cocina" }] })).status).toBe(400);
+  expect((await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", para: [{ tipo: "persona", id: "nadie-tal" }] })).status).toBe(400);
+  expect((await post({ pedido: "AR.1", operarioId: "jaime", texto: "x", para: "ot" })).status).toBe(400);
+});
+
+test("PATCH cambia si la mía sale en la consulta pública", async () => {
   const n = notasDb.crearNota("AR.1", "jaime", "texto", "2026-10-19T09:00:00.000Z");
-  expect((await patch({ id: n.id, operarioId: "jaime", texto: "texto", publica: true })).status).toBe(200);
-  expect(notasDb.leerNotas("AR.1")[0].publica).toBe(true);
+  expect((await patch({ id: n.id, operarioId: "jaime", texto: "texto", enConsultaPublica: true })).status).toBe(200);
+  expect(notasDb.leerNotas("AR.1")[0].enConsultaPublica).toBe(true);
 });

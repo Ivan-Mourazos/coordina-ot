@@ -1,35 +1,44 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
-const { quienEs, leerNotasRecientes, soloConSesion } = vi.hoisted(() => ({ quienEs: vi.fn(), leerNotasRecientes: vi.fn(), soloConSesion: vi.fn() }));
-vi.mock("../server/sesion", () => ({ loginActivo: () => true, quienEs, soloConSesion }));
-vi.mock("../server/notas-db", () => ({ leerNotasRecientes }));
+// La campana pide sus avisos con el lector de la sesión: qué notas van con
+// cada uno lo decide la base (notas-db, probado aparte). Aquí solo se mira que
+// la ruta pase el lector correcto y no mande nada sin él.
+
+const { lectorDePeticion, leerAvisosNotas, soloConSesion } = vi.hoisted(() => ({
+  lectorDePeticion: vi.fn(),
+  leerAvisosNotas: vi.fn(),
+  soloConSesion: vi.fn(),
+}));
+vi.mock("../server/sesion", () => ({ soloConSesion }));
+vi.mock("../server/lector-sesion", () => ({ lectorDePeticion }));
+vi.mock("../server/notas-db", () => ({ leerAvisosNotas }));
 import { GET } from "../../app/api/notas-recientes/route";
+import { VENTANA_AVISOS_DIAS } from "../avisos";
 
 beforeEach(() => {
   soloConSesion.mockReturnValue(null);
-  leerNotasRecientes.mockReturnValue([
-    { id: 1, publica: false, operarioId: "ivan" },
-    { id: 2, publica: true, operarioId: "ivan" },
-    { id: 3, publica: false, operarioId: "belen" },
-  ]);
+  leerAvisosNotas.mockReset();
+  leerAvisosNotas.mockReturnValue([{ id: 7, operarioId: "ivan" }]);
 });
 
-test("la campana de Producción recibe las públicas y las propias", async () => {
-  quienEs.mockReturnValue({ id: "belen", roles: ["produccion"] });
+test("devuelve los avisos del lector de la sesión, sin caché", async () => {
+  const lector = { id: "belen", destinos: ["persona:belen", "seccion:produccion"] };
+  lectorDePeticion.mockReturnValue(lector);
   const r = GET(new Request("http://local/api/notas-recientes"));
   expect(r.headers.get("cache-control")).toBe("no-store");
-  expect((await r.json()).notas.map((n: { id: number }) => n.id)).toEqual([2, 3]);
+  expect(leerAvisosNotas).toHaveBeenCalledWith(lector, VENTANA_AVISOS_DIAS);
+  expect((await r.json()).avisos.map((n: { id: number }) => n.id)).toEqual([7]);
 });
 
-test("OT conserva también sus avisos de notas internas", async () => {
-  quienEs.mockReturnValue({ id: "ivan", roles: ["tecnico"] });
-  expect((await GET(new Request("http://local/api/notas-recientes")).json()).notas).toHaveLength(3);
+test("sin lector (login apagado) no hay avisos", async () => {
+  lectorDePeticion.mockReturnValue(null);
+  expect((await GET(new Request("http://local/api/notas-recientes")).json()).avisos).toEqual([]);
+  expect(leerAvisosNotas).not.toHaveBeenCalled();
 });
 
 test("sin sesión no se leen notas", () => {
   const corte = new Response(null, { status: 401 });
   soloConSesion.mockReturnValue(corte);
-  leerNotasRecientes.mockClear();
   expect(GET(new Request("http://local/api/notas-recientes"))).toBe(corte);
-  expect(leerNotasRecientes).not.toHaveBeenCalled();
+  expect(leerAvisosNotas).not.toHaveBeenCalled();
 });

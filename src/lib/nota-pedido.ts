@@ -20,10 +20,6 @@ export interface NotaPedido {
   creadoAt: string;
   /** ISO, o null si nunca se editó. */
   editadoAt: string | null;
-  /** «Para todos»: la ve también la consulta sin sesión (Producción,
-   *  comerciales). Por defecto no: una nota interna que sale de OT es peor
-   *  que una para todos que se queda dentro. */
-  publica: boolean;
   /** Para quién es. Vacío = para todos (el caso normal). Con algo dentro,
    *  solo la ven esas personas y secciones, y su autor. */
   para: Destino[];

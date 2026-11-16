@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { NOTA_MAX, validarTexto } from "@/lib/nota-pedido";
-import { borrarNota, crearNota, editarNota, leerNotas } from "@/lib/server/notas-db";
-import { puedeEscribirNotas, veNotasInternas } from "@/lib/personas";
-import { identidad, loginActivo, quienEs, soloConSesion } from "@/lib/server/sesion";
+import { NOTA_MAX, esSeccionMencionable, validarTexto, type Destino } from "@/lib/nota-pedido";
+import { borrarNota, crearNota, editarNota, leerNotas, puedeVer } from "@/lib/server/notas-db";
+import { puedeEscribirNotas } from "@/lib/personas";
+import { leerPersonas } from "@/lib/server/personas-db";
+import { lectorDePeticion } from "@/lib/server/lector-sesion";
+import { identidad, soloConSesion } from "@/lib/server/sesion";
 
 // ─── /api/notas ──────────────────────────────────────────────────────────────
 // El hilo de notas de un pedido. Cuatro verbos en un fichero, como hace
@@ -19,9 +21,10 @@ import { identidad, loginActivo, quienEs, soloConSesion } from "@/lib/server/ses
 // accidente aunque la identidad venga bien firmada (editar la nota de otro
 // sigue sin ser cosa de la ruta).
 //
-// Producción (Belén, 10/11/2026) también escribe: es como se comunica con OT.
-// Pero LEE solo las notas «para todos» y las suyas, no las internas de OT.
-// Eso lo decide el servidor, no la pantalla.
+// Para quién es cada nota (16/11/2026, docs/NOTAS-MENCIONES.md): para todos
+// por defecto, o «solo para» unas personas o secciones. Quién ve qué lo
+// decide el servidor con la sesión (lectorDePeticion), en SQL; una nota que
+// no ves no existe para ti, tampoco al editarla o borrarla.
 
 export const dynamic = "force-dynamic";
 
@@ -67,16 +70,42 @@ function errorTexto(motivo: "vacio" | "largo") {
   );
 }
 
+/** El «para» del cuerpo: lista de destinos que existen, o null si algo no
+ *  vale. Una persona tiene que ser una cuenta activa; una sección, una de las
+ *  mencionables. Sin `para` (undefined) es «no lo dice». */
+function leerPara(v: unknown): Destino[] | null | undefined {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v) || v.length > 50) return null;
+  const personas = new Set(leerPersonas().map((p) => p.id));
+  const salida: Destino[] = [];
+  const vistos = new Set<string>();
+  for (const d of v as unknown[]) {
+    if (typeof d !== "object" || d === null) return null;
+    const { tipo, id } = d as { tipo?: unknown; id?: unknown };
+    if (typeof id !== "string") return null;
+    let destino: Destino;
+    if (tipo === "persona" && personas.has(id)) destino = { tipo: "persona", id };
+    else if (tipo === "seccion" && esSeccionMencionable(id)) destino = { tipo: "seccion", id };
+    else return null;
+    const k = `${destino.tipo}:${destino.id}`;
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    salida.push(destino);
+  }
+  return salida;
+}
+
+const errorPara = () => NextResponse.json({ error: "Ese destinatario no existe" }, { status: 400 });
+const noExiste = () => NextResponse.json({ error: "Esa nota no existe" }, { status: 404 });
+
 export async function GET(req: Request) {
   const corte = soloConSesion(req);
   if (corte) return corte;
 
   const pedido = clave(new URL(req.url).searchParams.get("pedido"));
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
-  const yo = loginActivo() ? quienEs(req) : null;
-  const soloPara = yo && !veNotasInternas(yo.roles) ? yo.id : undefined;
   return NextResponse.json(
-    { notas: leerNotas(pedido, { soloPara }) },
+    { notas: leerNotas(pedido, lectorDePeticion(req)) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -92,18 +121,19 @@ export async function POST(req: Request) {
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);
-  // Solo un `true` de verdad la abre: cualquier otra cosa, solo OT.
+  const para = leerPara(b.para);
+  if (para === null) return errorPara();
   return NextResponse.json({
-    // Quien no es de OT (Producción) no escribe notas «solo OT»: las suyas
-    // son siempre para todos (Iván, 10/11/2026). Lo decide el servidor.
+    // Solo un `true` de verdad la saca a la consulta pública.
     nota: crearNota(pedido, yo.id, v.texto, undefined, {
-      publica: veNotasInternas(yo.roles) ? b.publica === true : true,
+      para: para ?? [],
+      enConsultaPublica: b.enConsultaPublica === true,
     }),
   });
 }
 
-/** Quién escribe, si puede escribir notas: técnicos y Producción. Dirección
- *  y supervisores puros siguen en solo lectura. */
+/** Quién escribe, si puede escribir notas: técnicos, Producción y Dirección.
+ *  Supervisores puros siguen en solo lectura. */
 function escritor(req: Request, operarioId: unknown) {
   const yo = identidad(req, operarioId);
   if (yo instanceof NextResponse) return yo;
@@ -124,13 +154,19 @@ export async function PATCH(req: Request) {
 
   const yo = escritor(req, b.operarioId);
   if (yo instanceof NextResponse) return yo;
+  // Antes que la autoría: de una nota que no ves no se dice ni que es de otro.
+  if (!puedeVer(id, lectorDePeticion(req))) return noExiste();
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);
+  const para = leerPara(b.para);
+  if (para === null) return errorPara();
   // 403 y no 404: desde fuera no se distingue "no era tuya" de "ya no está", y
   // decir cuál de las dos es sería contar algo de una nota que no es tuya.
-  const publica = !veNotasInternas(yo.roles) ? true : typeof b.publica === "boolean" ? b.publica : undefined;
-  return editarNota(id, yo.id, v.texto, undefined, publica)
+  return editarNota(id, yo.id, v.texto, undefined, {
+    para,
+    enConsultaPublica: typeof b.enConsultaPublica === "boolean" ? b.enConsultaPublica : undefined,
+  })
     ? NextResponse.json({ ok: true })
     : NextResponse.json({ error: "Esa nota no es tuya" }, { status: 403 });
 }
@@ -143,6 +179,7 @@ export async function DELETE(req: Request) {
 
   const yo = escritor(req, b.operarioId);
   if (yo instanceof NextResponse) return yo;
+  if (!puedeVer(id, lectorDePeticion(req))) return noExiste();
 
   return borrarNota(id, yo.id)
     ? NextResponse.json({ ok: true })

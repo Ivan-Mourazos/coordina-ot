@@ -92,7 +92,6 @@ function completar(filas: Fila[]): NotaPedido[] {
     editadoAt: f.editado_at,
     para: para.get(f.id) ?? [],
     enConsultaPublica: f.en_consulta_publica === 1,
-    publica: f.en_consulta_publica === 1,
     menciones: menciones.get(f.id) ?? [],
     autor: f.nombre ?? null,
   }));
@@ -185,7 +184,6 @@ export function crearNota(
       editadoAt: null,
       para: [...para],
       enConsultaPublica: publica,
-      publica,
       menciones: extraerMenciones(texto),
     };
   })();

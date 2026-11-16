@@ -35,12 +35,6 @@ export function puedeEscribirNotas(roles: readonly RolAcceso[]): boolean {
   return roles.includes("tecnico") || roles.includes("produccion") || roles.includes("direccion");
 }
 
-/** ¿Ve también las notas «solo OT»? El equipo y Dirección, sí; Producción
- *  solo las «para todos» y las suyas. */
-export function veNotasInternas(roles: readonly RolAcceso[]): boolean {
-  return roles.includes("tecnico") || roles.includes("direccion") || roles.includes("supervisor");
-}
-
 /** Pantallas hechas a medida de una persona de Producción. Son POR PERSONA y
  *  no por rol (Iván, 09/11/2026): cada compañero de Producción tendrá la suya,
  *  distinta de la de Belén. El rol `produccion` solo dice que entra por aquí. */

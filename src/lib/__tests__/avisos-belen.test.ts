@@ -3,14 +3,15 @@ import { avisosPendientes, leerMarca, marcarVistas } from "../avisos-belen";
 import type { NotaPedido } from "../nota-pedido";
 
 const nota = (id: number, pedido: string, creadoAt: string, extra: Partial<NotaPedido> = {}): NotaPedido =>
-  ({ id, pedido, operarioId: "ot1", texto: `nota ${id}`, creadoAt, editadoAt: null, publica: true, autor: "OT", ...extra }) as NotaPedido;
+  ({ id, pedido, operarioId: "ot1", texto: `nota ${id}`, creadoAt, editadoAt: null, para: [], enConsultaPublica: false, menciones: [], autor: "OT", ...extra }) as NotaPedido;
 
 const NOTAS = [
   nota(1, "AR.1", "2026-11-10T08:00:00Z"),
   nota(2, "AR.1", "2026-11-12T09:00:00Z"),
   nota(3, "AR.2", "2026-11-12T10:00:00Z"),
   nota(4, "AR.1", "2026-11-12T11:00:00Z"),
-  nota(5, "AR.3", "2026-11-12T12:00:00Z", { publica: false }),
+  nota(5, "AR.3", "2026-11-12T08:00:00Z", { avisoAt: "2026-11-10T08:00:00Z" }),
+  nota(7, "AR.4", "2026-11-10T08:00:00Z", { avisoAt: "2026-11-12T08:30:00Z" }),
   nota(6, "AR.3", "2026-11-12T12:30:00Z", { operarioId: "belen" }),
 ];
 
@@ -31,16 +32,17 @@ describe("marca de la campana", () => {
 
 describe("avisos por pedido", () => {
   const marca = { desde: "2026-11-11T00:00:00Z", vistas: [] };
-  test("un aviso por pedido, el más reciente arriba; sin internas ni las suyas", () => {
+  test("un aviso por pedido, el más reciente arriba; manda la hora del aviso; sin las suyas", () => {
     const a = avisosPendientes(NOTAS, marca, "belen");
     expect(a.map((x) => [x.pedido, x.notas.map((n) => n.id)])).toEqual([
       ["AR.1", [4, 2]],
       ["AR.2", [3]],
+      ["AR.4", [7]],
     ]);
   });
   test("abrir un pedido da por vistas sus notas", () => {
     const m = marcarVistas(marca, [4, 2], NOTAS);
-    expect(avisosPendientes(NOTAS, m, "belen").map((x) => x.pedido)).toEqual(["AR.2"]);
+    expect(avisosPendientes(NOTAS, m, "belen").map((x) => x.pedido)).toEqual(["AR.2", "AR.4"]);
   });
   test("las vistas que ya no llegan se olvidan", () => {
     expect(marcarVistas({ desde: marca.desde, vistas: [99] }, [3], NOTAS).vistas).toEqual([3]);

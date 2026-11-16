@@ -12,6 +12,7 @@ let s: typeof import("../server/sesion");
 let estado: typeof import("../../app/api/estado/route");
 let fichaje: typeof import("../../app/api/fichaje/route");
 let notas: typeof import("../../app/api/notas/route");
+let recientes: typeof import("../../app/api/notas-recientes/route");
 let vista: typeof import("../../app/api/vista-belen/route");
 let db: typeof import("../server/estado-db");
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
   estado = await import("../../app/api/estado/route");
   fichaje = await import("../../app/api/fichaje/route");
   notas = await import("../../app/api/notas/route");
+  recientes = await import("../../app/api/notas-recientes/route");
   vista = await import("../../app/api/vista-belen/route");
   db = await import("../server/estado-db");
   db.getDb();
@@ -72,47 +74,57 @@ test("fichar: 403", async () => {
 const ivan = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("ivan")}` });
 const carlos = () => ({ cookie: `${s.COOKIE}=${s.firmarSesion("carlos")}` });
 
+type NotaApi = { id: number; texto: string; autor?: string };
+const textosDe = async (res: Response) => ((await res.json()) as { notas: NotaApi[] }).notas;
+
 test("Belén escribe una nota y sale con su nombre", async () => {
-  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "¿Cuándo sale?", publica: true }));
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "¿Cuándo sale?" }));
   expect(res.status).toBe(200);
   const { nota } = (await res.json()) as { nota: { operarioId: string } };
   expect(nota.operarioId).toBe("belen-alamancos");
+  const deOT = await textosDe(await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan())));
+  expect(deOT.find((n) => n.texto === "¿Cuándo sale?")?.autor).toBe("Belén Alamancos");
 });
 
-test("lee las «para todos» y las suyas, nunca las internas de OT", async () => {
-  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "interna de OT" }, ivan()));
-  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "sale el jueves", publica: true }, ivan()));
-  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "privada de Belén" }));
+test("una nota «solo para OT» no la ve Belén; una para todos, sí", async () => {
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "solo OT", para: [{ tipo: "seccion", id: "ot" }] }, ivan()));
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00002", texto: "sale el jueves" }, ivan()));
 
-  const suya = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET"));
-  const textos = ((await suya.json()) as { notas: { texto: string; autor?: string }[] }).notas.map((n) => n.texto);
-  expect(textos).toEqual(["¿Cuándo sale?", "sale el jueves", "privada de Belén"]);
+  const deBelen = (await textosDe(await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET")))).map((n) => n.texto);
+  expect(deBelen).toContain("sale el jueves");
+  expect(deBelen).not.toContain("solo OT");
 
-  // OT lo ve todo, y la de Belén con su nombre.
-  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan()));
-  const todas = ((await deOT.json()) as { notas: { texto: string; autor?: string }[] }).notas;
-  expect(todas.map((n) => n.texto)).toContain("interna de OT");
-  expect(todas.find((n) => n.texto === "¿Cuándo sale?")?.autor).toBe("Belén Alamancos");
+  const deIvan = (await textosDe(await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan())))).map((n) => n.texto);
+  expect(deIvan).toContain("solo OT");
 });
 
-test("no puede editar ni borrar las notas de otro", async () => {
-  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan()));
-  const ajena = ((await deOT.json()) as { notas: { id: number; texto: string }[] }).notas.find((n) => n.texto === "sale el jueves")!;
-  const editar = await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: ajena.id, texto: "cambiada" }));
-  expect(editar.status).toBe(403);
-  const borrar = await notas.DELETE(peticion("http://x/api/notas", "DELETE", { id: ajena.id }));
-  expect(borrar.status).toBe(403);
+test("una nota restringida que no ve: editarla o borrarla es 404", async () => {
+  const deIvan = await textosDe(await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan())));
+  const oculta = deIvan.find((n) => n.texto === "solo OT")!;
+  expect((await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: oculta.id, texto: "x" }))).status).toBe(404);
+  expect((await notas.DELETE(peticion("http://x/api/notas", "DELETE", { id: oculta.id }))).status).toBe(404);
 });
 
-test("Belén no puede dejar una nota «solo OT»: siempre queda para todos", async () => {
-  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00003", texto: "intento interno", publica: false }));
-  const { nota } = (await res.json()) as { nota: { id: number; publica: boolean } };
-  expect(nota.publica).toBe(true);
-  // Ni editándola.
-  await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: nota.id, texto: "sigue", publica: false }));
-  const deOT = await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00003", "GET", undefined, ivan()));
-  const guardada = ((await deOT.json()) as { notas: { id: number; publica: boolean }[] }).notas.find((n) => n.id === nota.id);
-  expect(guardada?.publica).toBe(true);
+test("no puede editar ni borrar las notas de otro que sí ve", async () => {
+  const deIvan = await textosDe(await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00002", "GET", undefined, ivan())));
+  const ajena = deIvan.find((n) => n.texto === "sale el jueves")!;
+  expect((await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: ajena.id, texto: "cambiada" }))).status).toBe(403);
+  expect((await notas.DELETE(peticion("http://x/api/notas", "DELETE", { id: ajena.id }))).status).toBe(403);
+});
+
+test("Belén menciona a Iván: le avisa a él y no a Carlos", async () => {
+  await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00003", texto: "@[persona:ivan] ¿lo miras?" }));
+  const avisosDe = async (cabeceras: { cookie: string }) =>
+    ((await (await recientes.GET(new Request("http://x/api/notas-recientes", { headers: cabeceras }))).json()) as { avisos: NotaApi[] }).avisos.map((n) => n.texto);
+  expect(await avisosDe(ivan())).toContain("@[persona:ivan] ¿lo miras?");
+  expect(await avisosDe(carlos())).not.toContain("@[persona:ivan] ¿lo miras?");
+  // A quien la escribe no le avisa su propia nota.
+  expect(await avisosDe(belen())).toEqual([]);
+});
+
+test("«para» con una persona que no existe: 400", async () => {
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00003", texto: "x", para: [{ tipo: "persona", id: "fantasma" }] }));
+  expect(res.status).toBe(400);
 });
 
 test("Dirección también escribe notas (16/11/2026)", async () => {

@@ -128,7 +128,7 @@ test("las visitas contestan sin sesión", async () => {
 test("la ficha y la lista enseñan las notas para todos, nunca las de solo OT", async () => {
   const notasDb = await import("../server/notas-db");
   notasDb.crearNota("AR.26.05501", "jaime", "INTERNA-NO-SALE", "2026-10-19T09:00:00.000Z");
-  notasDb.crearNota("AR.26.05501", "jaime", "Sale el jueves", "2026-10-19T10:00:00.000Z", { publica: true });
+  notasDb.crearNota("AR.26.05501", "jaime", "Sale el jueves", "2026-10-19T10:00:00.000Z", { enConsultaPublica: true });
 
   const data = (await (await getDetalle("AR.26.05501")).json()) as { notas: { texto: string; autor: string }[] };
   expect(data.notas.map((n) => n.texto)).toEqual(["Sale el jueves"]);

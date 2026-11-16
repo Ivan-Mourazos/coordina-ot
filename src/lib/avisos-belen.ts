@@ -37,13 +37,19 @@ export interface AvisoPedido {
   notas: NotaPedido[];
 }
 
+/** Cuándo llegó el aviso: la mención o el público que la incluye, que puede ser
+ *  después de escribirse la nota (al editarla). */
+export const instanteAviso = (n: NotaPedido): string => n.avisoAt ?? n.creadoAt;
+
 /** Las notas que avisan, juntas por pedido; el pedido con la nota más
- *  reciente, arriba. Solo las «para todos» y que no escribió ella. */
+ *  reciente, arriba. Qué notas van con ella lo decide el servidor
+ *  (/api/notas-recientes); aquí solo se quitan las de antes de la marca, las
+ *  ya vistas y, por si acaso, las suyas. */
 export function avisosPendientes(notas: readonly NotaPedido[], marca: MarcaAvisos, miId: string | null): AvisoPedido[] {
   const desde = Date.parse(marca.desde);
   const nuevas = notas
-    .filter((n) => n.publica && n.operarioId !== miId && Date.parse(n.creadoAt) > desde && !marca.vistas.includes(n.id))
-    .sort((a, b) => Date.parse(b.creadoAt) - Date.parse(a.creadoAt));
+    .filter((n) => n.operarioId !== miId && Date.parse(instanteAviso(n)) > desde && !marca.vistas.includes(n.id))
+    .sort((a, b) => Date.parse(instanteAviso(b)) - Date.parse(instanteAviso(a)));
   const porPedido = new Map<string, NotaPedido[]>();
   for (const n of nuevas) porPedido.set(n.pedido, [...(porPedido.get(n.pedido) ?? []), n]);
   return [...porPedido].map(([pedido, delPedido]) => ({ pedido, notas: delPedido }));
