@@ -13,6 +13,7 @@ import { TablaListaBelen, type CargaLista } from "./ListaBelen";
 import { InicioBelen } from "./InicioBelen";
 import { EntregasBelen } from "./EntregasBelen";
 import { usePestanasOrdenables } from "./usePestanasOrdenables";
+import { usePildoraVertical } from "./usePildoraVertical";
 import { AvisosBelen } from "./AvisosBelen";
 import { IconoHerramienta } from "./IconoHerramienta";
 import { enGrupos, grupoDe } from "@/lib/herramientas-belen";
@@ -93,6 +94,9 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
   // La primera de la columna: el primer grupo con listas, en SU orden.
   const lista: IdLista = listaElegida ?? enGrupos(ordenListas.items)[0].items[0].id;
   const [listas, setListas] = useState<Partial<Record<IdLista, CargaLista>>>({});
+  // La píldora de la columna se vuelve a medir al cambiar de lista, de orden o
+  // al volver a la pestaña (la columna se monta de nuevo).
+  const pildoraListas = usePildoraVertical<HTMLElement>(`${pestana}|${lista}|${ordenListas.items.map((x) => x.id).join(",")}`);
   // Los filtros y el orden de cada lista viven aquí y no en la tabla: la tabla
   // se desmonta al abrir un pedido y, al volver, los perdía (Belén, 12/11/2026).
   const [filtros, setFiltros] = useState<Partial<Record<IdLista, FiltroLista>>>({});
@@ -453,7 +457,7 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Pedido (4716, 26.04716…), OF o cliente"
                   className={`campo-hundido w-full text-text outline-none placeholder:text-text-muted ${
-                    grande ? "h-14 rounded-[14px] pl-12 pr-4 text-[18px]" : "h-10 rounded-[14px] px-3 text-[15px]"
+                    grande ? "h-14 rounded-[14px]! pl-12 pr-4 text-[18px]" : "h-10 rounded-[14px]! px-3 text-[15px]"
                   }`}
                 />
               </label>
@@ -483,9 +487,23 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
               Se ordenan arrastrando dentro de su grupo. En pantallas
               estrechas la columna se pone encima. */}
           <div className="grid items-start gap-4 lg:grid-cols-[14rem_minmax(0,1fr)]">
-          <nav aria-label="Listas de comprobación" className="tarjeta-of self-start rounded-3xl bg-surface p-2 lg:sticky lg:top-16">
+          {/* `isolate` + píldora en z-index -1: queda bajo los botones y sobre
+              el fondo de la tarjeta. La misma píldora que las pestañas de
+              arriba, deslizándose de una lista a otra. */}
+          <nav
+            ref={pildoraListas.contenedor}
+            aria-label="Listas de comprobación"
+            className="tarjeta-of relative isolate self-start rounded-3xl bg-surface p-2 lg:sticky lg:top-16"
+          >
+            {pildoraListas.estilo && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-0 top-0 -z-10 rounded-2xl bg-[var(--hero-relleno-encima)] shadow-[var(--hero-sombra-pildora)]"
+                style={pildoraListas.estilo}
+              />
+            )}
             {enGrupos(ordenListas.items).map((g) => (
-              <div key={g.id} role="group" aria-label={g.label} className="mb-1 last:mb-0">
+              <div key={g.id} role="group" aria-label={g.label} className="mb-1 space-y-0.5 last:mb-0">
                 <p className="px-2.5 pb-0.5 pt-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-text-muted">{g.label}</p>
                 {g.items.map((l) => {
                   const i = ordenListas.items.indexOf(l);
@@ -501,7 +519,9 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
                       title={`${l.explica}\n\nArrastra para cambiar el orden dentro de «${g.label}».`}
                       onClick={() => navegar({ vista: "comprobaciones", lista: l.id }, { reemplazar: true })}
                       className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left text-[13px] leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
-                        activa ? "bg-[var(--hero-relleno-encima)] font-bold text-text" : "font-semibold text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text"
+                        activa
+                          ? `font-bold text-text ${pildoraListas.estilo ? "" : "bg-[var(--hero-relleno-encima)]"}`
+                          : "font-semibold text-text-muted hover:bg-[var(--hero-relleno)] hover:text-text"
                       } ${ordenListas.claseArrastre(l.id)}`}
                     >
                       <IconoHerramienta id={l.id} tam="sm" />

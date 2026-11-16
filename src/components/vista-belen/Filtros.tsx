@@ -11,7 +11,7 @@ import { SelectorFecha } from "../SelectorFecha";
 // botones en pastilla y el calendario de siempre de Coordina para las fechas.
 
 const CAMPO =
-  "campo-hundido h-10 min-w-0 max-w-full rounded-[14px] px-3 text-sm text-text outline-none placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]";
+  "campo-hundido h-10 min-w-0 max-w-full rounded-[14px]! px-3 text-sm text-text outline-none placeholder:text-text-muted focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]";
 
 /** Quita tildes y pasa a minúsculas, para buscar «alvarez» y encontrar «Álvarez». */
 export const normalizar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es");
@@ -52,7 +52,7 @@ export function FiltroFechas({
         onCambiar={onCambiar}
         vacio="Cualquier fecha"
         ayuda={`${etiqueta}: un día o entre dos fechas`}
-        claseBoton="campo-hundido flex h-10 min-w-40 max-w-full items-center gap-2 rounded-[14px] px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
+        claseBoton="campo-hundido flex h-10 min-w-40 max-w-full items-center gap-2 rounded-[14px]! px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
       />
     </div>
   );
