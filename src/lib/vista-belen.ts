@@ -104,8 +104,9 @@ export interface OFBelen {
   logistica: { fecha: string | null; responsable: string | null } | null;
 }
 
-/** Alguien fichando AHORA en una tarea, según OLANET (tgm_fichajes_olanet:
- *  la foto de quién ficha, que OLANET rehace cada pocos minutos). */
+/** Alguien fichando AHORA en una tarea: el taller según OLANET
+ *  (tgm_fichajes_olanet, la foto que rehace cada pocos minutos) y las
+ *  oficinas según su reloj abierto en la web (ver fichandoDesdeLaWeb). */
 export interface FichandoAhora {
   of: string;
   /** El código de tarea TAL CUAL («2» y «02» son tareas distintas). */
@@ -144,6 +145,44 @@ export interface LineaAlmacen {
 /** ¿Lo escrito es un número de OF («0233962»)? Así se abre una OF de stock,
  *  que no tiene pedido por el que buscarla. */
 export const esCodigoOF = (codigo: string): boolean => /^0\d{6}$/.test(codigo.trim());
+
+/** Un reloj abierto en la propia web: OT, Diseño e Impresión fichan aquí, y
+ *  OLANET no se entera hasta que lo cierran (entonces llega como bono), así
+ *  que tgm_fichajes_olanet nunca los enseña. Caso que lo destapó: Jaime
+ *  planteando AR.26.05563/64/65 a la vez, 16/11/2026. */
+export interface RelojAbiertoWeb {
+  operarioId: string;
+  /** «OF:tarea», como los guarda el fichaje (ver partirOfId en bonos.ts). */
+  ofIds: readonly string[];
+  /** Desde cuándo corre sin cortes (ver inicioDelTramoContinuo). */
+  desde: string;
+}
+
+/** Los relojes de la web que caen en las OF del pedido, en la forma de
+ *  FichandoAhora. Varias OF en un mismo reloj salen como una fila por OF, con
+ *  los minutos enteros del reloj: es lo que lleva esa persona en ellas. */
+export function fichandoDesdeLaWeb(
+  relojes: readonly RelojAbiertoWeb[],
+  ofsDelPedido: ReadonlySet<string>,
+  ahoraMs: number,
+  nombre: (operarioId: string) => string,
+  maquina: (operarioId: string) => string | null,
+): FichandoAhora[] {
+  const filas: FichandoAhora[] = [];
+  for (const r of relojes) {
+    const desde = Date.parse(r.desde);
+    const minutos = Number.isFinite(desde) ? Math.max(0, Math.floor((ahoraMs - desde) / 60_000)) : 0;
+    for (const ofId of r.ofIds) {
+      const i = ofId.indexOf(":");
+      if (i <= 0) continue;
+      const of = ofId.slice(0, i).trim();
+      const tarea = ofId.slice(i + 1).trim();
+      if (!tarea || !ofsDelPedido.has(of)) continue;
+      filas.push({ of, tarea, persona: nombre(r.operarioId), minutos, maquina: maquina(r.operarioId) });
+    }
+  }
+  return filas;
+}
 
 // ─── Material del pedido ─────────────────────────────────────────────────────
 // Las tres manos del material (ver la memoria del flujo y types.ts): lo que OT

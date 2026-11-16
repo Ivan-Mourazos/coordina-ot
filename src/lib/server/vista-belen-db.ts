@@ -4,6 +4,7 @@ import {
   agruparTiempos,
   esCodigoOF,
   estadoOperacion,
+  fichandoDesdeLaWeb,
   fechaDeTexto,
   unaFilaPorTarea,
   type FichandoAhora,
@@ -16,6 +17,8 @@ import {
 } from "../vista-belen";
 import { nombreHistorial } from "../nombre-historial";
 import { nombresHistorial } from "./nombres-historial";
+import { leerRelojesAbiertos } from "./fichaje-db";
+import { MAQUINA_POR_OPERARIO } from "./operarios";
 import { ES_RPS, FEATURE_COMPROMETIDA, horaDeSegundos, iso, SEGUNDOS_FICHAJE, SEGUNDOS_MINIMOS, texto, TIPO_AVISO } from "./rps-belen-comun";
 
 // ─── Vista de Belén Alamancos: lectura de RPS ────────────────────────────
@@ -404,7 +407,10 @@ export async function leerFichandoAhora(codigo: string): Promise<FichandoAhora[]
   const pedido = codigo.trim().toUpperCase();
   if (!ES_RPS()) return [];
   const pool = await getPool();
-  const [r, nombres] = await Promise.all([
+  // Las oficinas fichan en la web y OLANET no las ve hasta que cierran: sus
+  // relojes abiertos se suman aquí. Si no hay ninguno, no se pregunta nada más.
+  const relojes = leerRelojesAbiertos();
+  const [r, nombres, ofs] = await Promise.all([
     pool.request().input("pedido", sql.VarChar(25), pedido).query<{
       orden: string;
       fase: string;
@@ -419,14 +425,29 @@ export async function leerFichandoAhora(codigo: string): Promise<FichandoAhora[]
       LEFT JOIN dbo.GENEmployee emp
         ON emp.CodCompany = '001' AND emp.CodEmployee = CAST(f.codoperario AS varchar(20))`),
     nombresHistorial(),
+    relojes.length
+      ? pool.request().input("pedido", sql.VarChar(25), pedido)
+          .query<{ cod: string }>(`${ofsDe(pedido)} SELECT o.cod FROM ofs o`)
+      : null,
   ]);
-  return r.recordset.map((f) => ({
+  const taller: FichandoAhora[] = r.recordset.map((f) => ({
     of: f.orden.trim(),
     tarea: f.fase.trim(),
     persona: (f.empleado ? nombres.get((f.codEmpleado ?? "").trim()) || nombreHistorial(f.empleado) : null) ?? "Alguien",
     minutos: Number(f.tiempo) || 0,
     maquina: texto(f.maquina),
   }));
+  if (!ofs) return taller;
+  const web = fichandoDesdeLaWeb(
+    relojes,
+    new Set(ofs.recordset.map((o) => o.cod.trim())),
+    Date.now(),
+    (op) => nombres.get(op) ?? "Alguien",
+    (op) => MAQUINA_POR_OPERARIO[op] ?? null,
+  );
+  // Si alguna vez la misma persona sale por los dos lados, una sola fila.
+  const vistos = new Set(taller.map((f) => `${f.of}|${f.tarea}|${f.persona}`));
+  return [...taller, ...web.filter((f) => !vistos.has(`${f.of}|${f.tarea}|${f.persona}`))];
 }
 
 // ─── Material: asignado, reservado y comprado ────────────────────────────────

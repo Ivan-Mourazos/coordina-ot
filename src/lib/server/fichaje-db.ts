@@ -1,5 +1,6 @@
 import type { Fichaje, Intervalo } from "../fichaje";
-import { fichar } from "../fichaje";
+import { abierto, fichar, inicioDelTramoContinuo } from "../fichaje";
+import type { RelojAbiertoWeb } from "../vista-belen";
 import type { Rol } from "../types";
 import { getDb } from "./estado-db";
 import { encolarFichajeOLanzar, encolarTramosDeOF } from "./olanet-outbox";
@@ -63,6 +64,23 @@ export function leerTodosIntervalos(): Intervalo[] {
     .prepare(`${SELECT} WHERE traspasado_at IS NULL ORDER BY inicio`)
     .all() as Fila[];
   return filas.map(filaAIntervalo).filter((x): x is Intervalo => x !== null);
+}
+
+/** Los relojes que corren AHORA en la web, uno por operario, con desde cuándo
+ *  corren sin cortes. Lo enseña la vista de Producción junto a lo que ficha el
+ *  taller en OLANET (ver fichandoDesdeLaWeb). */
+export function leerRelojesAbiertos(): RelojAbiertoWeb[] {
+  const operarios = getDb()
+    .prepare("SELECT DISTINCT operario_id FROM fichaje_intervalo WHERE fin IS NULL")
+    .all() as Array<{ operario_id: string }>;
+  const relojes: RelojAbiertoWeb[] = [];
+  for (const { operario_id } of operarios) {
+    const f = leerFichaje(operario_id);
+    const ab = abierto(f);
+    const desde = inicioDelTramoContinuo(f);
+    if (ab && desde) relojes.push({ operarioId: operario_id, ofIds: ab.ofIds, desde });
+  }
+  return relojes;
 }
 
 /** TODOS los intervalos, traspasados incluidos. Solo para ENSEÑAR lo fichado
