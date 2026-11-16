@@ -32,6 +32,9 @@ export interface NotaPedido {
   enConsultaPublica: boolean;
   /** A quién nombra con `@`, sacado del texto al guardar. */
   menciones: Destino[];
+  /** Solo en los avisos de la campana: cuándo te llegó (la mención o el
+   *  público que te incluye), que puede ser después de escribirse la nota. */
+  avisoAt?: string;
   /** Nombre de quien la escribió, de la tabla de personas. Para las cuentas
    *  que no son del tablero (Belén, de Producción): sin él, el hilo del
    *  equipo enseñaría su id en vez de su nombre. */

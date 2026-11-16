@@ -49,6 +49,8 @@ test("sella la 20", () => {
 test("la «solo OT» sigue siendo para OT, Diseño, Impresión y Dirección, y fuera de la consulta", () => {
   expect(audiencia(1)).toEqual(["direccion", "diseno", "impresion", "ot"]);
   expect(enConsulta(1)).toBe(0);
+  // Sin fecha: no son notas «para ti» y no deben sonar en la campana.
+  expect(estado.getDb().prepare("SELECT COUNT(*) AS n FROM nota_audiencia WHERE creado_at IS NOT NULL").get()).toEqual({ n: 0 });
 });
 
 test("la «para todos» queda sin restricción y en la consulta pública", () => {

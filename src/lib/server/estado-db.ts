@@ -614,14 +614,21 @@ const MIGRACIONES: ReadonlyArray<{
  *    sin audiencia y `en_consulta_publica = 1`.
  *  Las viejas no llevan menciones: no existían.
  *
+ *  `nota_audiencia.creado_at` es cuándo entró ese destino en el público: de ahí
+ *  sale el aviso de la campana, y al editar solo suenan los recién añadidos.
+ *  Las filas de la traducción van con NULL a propósito: son notas internas de
+ *  antes, no notas «para ti», y no deben llenar de golpe la campana de Diseño,
+ *  Impresión y Dirección.
+ *
  *  Se puede repetir: la traducción de las viejas solo corre la vez que se crea
  *  la columna. Repetirla después pisaría la audiencia de notas nuevas. */
 function notasAudiencia(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS nota_audiencia (
-      nota_id INTEGER NOT NULL REFERENCES nota_pedido(id),
-      tipo    TEXT NOT NULL CHECK (tipo IN ('persona','seccion')),
-      destino TEXT NOT NULL,
+      nota_id   INTEGER NOT NULL REFERENCES nota_pedido(id),
+      tipo      TEXT NOT NULL CHECK (tipo IN ('persona','seccion')),
+      destino   TEXT NOT NULL,
+      creado_at TEXT,
       PRIMARY KEY (nota_id, tipo, destino));
     CREATE TABLE IF NOT EXISTS nota_mencion (
       nota_id   INTEGER NOT NULL REFERENCES nota_pedido(id),
