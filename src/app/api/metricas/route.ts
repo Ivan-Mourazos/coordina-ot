@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { INICIO_METRICAS, calcularMetricas } from "@/lib/metricas";
+import { INICIO_METRICAS, calcularMetricas, periodoAnioRps } from "@/lib/metricas";
 import { calcularCuadroMetricas } from "@/lib/metricas-cuadro";
 import { calcularDetalleMetricas, contarDevueltas, contarEntregas } from "@/lib/metricas-personales";
 import { leerFamiliasMetricas, leerIncidenciasMetricas, leerPasesRps } from "@/lib/server/metricas-fuentes";
@@ -68,10 +68,13 @@ export async function GET(req: Request) {
     // Las gráficas enseñan el AÑO del periodo elegido (Iván, 21/10/2026), sin
     // pasar de hoy ni empezar antes de que hubiera registro.
     const anio = periodo.desde.slice(0, 4);
-    const finAnio = `${anio}-12-31`;
+    // Lo de RPS no empieza en agosto: las incidencias y las OF pasadas antes
+    // de Coordina están ahí (Iván, 21/10/2026). Año entero, sin el recorte de
+    // INICIO_METRICAS. El mismo tramo que se precalienta al arrancar.
+    const periodoAnio = periodoAnioRps(anio, hoyISO());
     const periodoGrafica = {
-      desde: `${anio}-01-01` > INICIO_METRICAS ? `${anio}-01-01` : INICIO_METRICAS,
-      hasta: finAnio < hoyISO() ? finAnio : hoyISO(),
+      desde: periodoAnio.desde > INICIO_METRICAS ? periodoAnio.desde : INICIO_METRICAS,
+      hasta: periodoAnio.hasta,
     };
     const movimientosGrafica = leerMovimientosMetricas(limite(periodoGrafica.desde), limite(periodoGrafica.hasta, true), seccion);
     const equipo = operariosDeSeccion(seccion);
@@ -85,10 +88,7 @@ export async function GET(req: Request) {
       // Con login, la identidad viene de la sesión: el navegador no puede
       // pedir las correcciones o incidencias privadas de otro compañero.
       const miId = loginActivo() ? quienEs(req)?.id ?? "" : q.get("operario") ?? "";
-      // Lo de RPS no empieza en agosto: las incidencias y las OF pasadas
-      // antes de Coordina están ahí (Iván, 21/10/2026). Año entero, o el
-      // periodo pedido tal cual, sin el recorte de INICIO_METRICAS.
-      const periodoAnio = { desde: `${anio}-01-01`, hasta: periodoGrafica.hasta };
+      // El periodo pedido tal cual, también sin el recorte de INICIO_METRICAS.
       const periodoRps = { desde: pedido?.slice(0, 10) ?? periodoAnio.desde, hasta: periodo.hasta };
       const [familias, incidencias, pases, nc] = await Promise.allSettled([
         leerFamiliasMetricas(movimientosGrafica),

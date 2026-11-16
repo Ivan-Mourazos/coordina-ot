@@ -31,10 +31,16 @@ export async function register() {
   // Fire-and-forget dentro: register no debe retrasar el arranque 15 s.
   precalentarTablero();
 
-  // La lista del Historial en memoria (ver historial-indice.ts): ~14 s de RPS
-  // que se come el arranque y no el primero que abre el Historial.
+  // La lista del Historial en memoria (ver historial-indice.ts). Hacerla es
+  // más de un minuto de RPS, así que al arrancar se recupera la última guardada
+  // en disco (un segundo) y solo se rehace cuando caduca o si no hay ninguna.
   const { precalentarHistorial } = await import("./lib/server/historial-indice");
   precalentarHistorial();
+
+  // Lo que Métricas guarda de RPS, para que no lo espere el primero que la
+  // abre después de actualizar (ver metricas-precalentar.ts).
+  const { precalentarMetricas } = await import("./lib/server/metricas-precalentar");
+  void precalentarMetricas();
 
   // Sincronización con OLANET. Arranca siempre: en modo sombra las vueltas no
   // hacen nada, así que activar el fichaje es cambiar una variable de entorno

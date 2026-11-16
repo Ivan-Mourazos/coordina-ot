@@ -356,6 +356,15 @@ export function ventanaDeDias(dias: number, hoy: string): Periodo {
   return { desde: sumarDias(hoy, -(dias - 1)), hasta: hoy };
 }
 
+/** El tramo de un año que las gráficas piden a RPS: entero, o hasta hoy si es
+ *  el año en curso. Lo que se guarda de RPS se guarda por periodo, así que
+ *  quien lo precalienta al arrancar (metricas-precalentar.ts) y quien pinta
+ *  (/api/metricas) tienen que pedir exactamente el mismo: por eso sale de aquí. */
+export function periodoAnioRps(anio: string, hoy: string): Periodo {
+  const fin = `${anio}-12-31`;
+  return { desde: `${anio}-01-01`, hasta: fin < hoy ? fin : hoy };
+}
+
 /** Desde cuándo cuentan las métricas. En julio la web aún no estaba en uso:
  *  salían cuatro planteos sueltos de pruebas, y un mes así en la gráfica
  *  parecía un mes sin trabajo (Iván, 16/10/2026). */

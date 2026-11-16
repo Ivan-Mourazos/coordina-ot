@@ -1,6 +1,7 @@
 import type { ConnectionPool, Request } from "mssql";
 import { getPool } from "./db";
 import { ctesFinalizacionHistorial } from "./historial-finalizacion-sql";
+import { guardarInstantanea, leerInstantanea, rutaInstantanea } from "./historial-instantanea";
 import { familiaDeTexto } from "./rps";
 import { COD_RPS_POR_OPERARIO } from "./operarios";
 import { SECCIONES, type SeccionId } from "../secciones";
@@ -27,6 +28,11 @@ import { normalizaBusqueda, type BaseHistorial, type IndiceHistorial, type InfoP
 //  · se refresca cada 30 min y no cada 10.
 
 const VIDA_MS = 30 * 60_000;
+
+// Hasta cuándo vale la lista guardada en disco al arrancar. Con el servidor en
+// marcha nunca tiene más de media hora; más de esto significa que estuvo
+// parado, y servirla diría lo de entonces como si fuera de ahora.
+const INSTANTANEA_MAX_MS = 6 * 3_600_000;
 
 // Tope propio para las consultas que llenan la lista. Van por detrás, sin nadie
 // esperando, y cada una lee RPS entero: el 27/10/2026 tardaban 27-49 s y la
@@ -259,26 +265,61 @@ async function construir(): Promise<IndiceHistorial> {
   // construye por detrás cada 30 min, así que lo que se gana en paralelo no lo
   // nota nadie.
   const base = {} as Record<SeccionId, BaseHistorial[]>;
+  // Cuánto tarda cada consulta, para que el log diga CUÁL se ha ido de madre
+  // el día que la lista tarde minutos y no solo que ha tardado.
+  const pasos: string[] = [];
+  const medir = async <T>(nombre: string, tarea: () => Promise<T>): Promise<T> => {
+    const t = Date.now();
+    const r = await tarea();
+    pasos.push(`${nombre} ${Date.now() - t}`);
+    return r;
+  };
   for (const s of Object.keys(SECCIONES) as SeccionId[]) {
-    base[s] = await baseDe(s);
+    base[s] = await medir(s, () => baseDe(s));
   }
   const pedidos = new Set(Object.values(base).flat().map((b) => b.pedido));
-  const info = await textosDe(pedidos);
-  const personas = await personasDe();
-  console.info(`[historial] lista en memoria lista en ${Date.now() - t0} ms: ${pedidos.size} pedidos`);
+  const info = await medir("textos", () => textosDe(pedidos));
+  const personas = await medir("personas", () => personasDe());
+  console.info(`[historial] lista en memoria lista en ${Date.now() - t0} ms: ${pedidos.size} pedidos (${pasos.join(", ")})`);
   return { at: Date.now(), base, info, personas };
 }
 
 function refrescar(): Promise<IndiceHistorial> {
   const yendo = globalThis.__coordinaHistorialEnVuelo;
   if (yendo) return yendo;
-  const nueva = construir()
+  return enVuelo(construirYGuardar());
+}
+
+/** Deja la lista puesta cuando llegue y, mientras, la da por «en camino»: quien
+ *  la pida entretanto espera a esta y no lanza otra. */
+function enVuelo(tarea: Promise<IndiceHistorial>): Promise<IndiceHistorial> {
+  const nueva = tarea
     .then((lista) => (globalThis.__coordinaHistorialIndice = lista))
     .finally(() => {
       globalThis.__coordinaHistorialEnVuelo = undefined;
     });
   globalThis.__coordinaHistorialEnVuelo = nueva;
   return nueva;
+}
+
+async function construirYGuardar(): Promise<IndiceHistorial> {
+  const lista = await construir();
+  guardarEnDisco(lista);
+  return lista;
+}
+
+/** Deja la lista en disco para el próximo arranque (ver
+ *  historial-instantanea.ts). Por detrás y sin esperarla: si falla, la lista en
+ *  memoria sigue valiendo y el próximo arranque la construye como siempre.
+ *
+ *  Solo el servidor de verdad, el que arrancó con `precalentarHistorial`: los
+ *  tests y los scripts que construyen la lista no dejan ficheros. */
+function guardarEnDisco(lista: IndiceHistorial): void {
+  if (!globalThis.__coordinaHistorialPrecalentado) return;
+  const t0 = Date.now();
+  guardarInstantanea(lista, rutaInstantanea())
+    .then(() => console.info(`[historial] lista guardada en disco en ${Date.now() - t0} ms`))
+    .catch((e) => console.warn("[historial] no se pudo guardar la lista en disco:", (e as Error).message));
 }
 
 /** La lista si ya está hecha, aunque esté a punto de caducar. No construye
@@ -330,14 +371,51 @@ declare global {
   var __coordinaHistorialPrecalentado: ReturnType<typeof setInterval> | undefined;
 }
 
-/** Al arrancar el servidor: la primera construcción ya, y un refresco periódico
- *  para que la lista esté caliente aunque nadie mire el Historial. */
+/** Al arrancar el servidor: la lista guardada en disco si la hay, o la primera
+ *  construcción ya; y un refresco periódico para que esté caliente aunque nadie
+ *  mire el Historial.
+ *
+ *  Con la guardada, el reinicio no se nota: la lista está en un par de segundos
+ *  en vez de en minutos. Y si aún no ha caducado (lo normal al actualizar la
+ *  web: se guardó hace menos de media hora), NO se reconstruye al arrancar sino
+ *  cuando le toca: justo después de reiniciar es cuando todos recargan el
+ *  tablero, y esas consultas ya no compiten con las de la lista. */
 export function precalentarHistorial(): void {
   if (globalThis.__coordinaHistorialPrecalentado) return;
-  refrescar().catch((e) => console.warn("[historial] no se pudo precalentar la lista:", (e as Error).message));
-  const t = setInterval(() => {
+  const refresca = () => {
     refrescar().catch((e) => console.warn("[historial] refresco de la lista falló:", (e as Error).message));
-  }, VIDA_MS);
-  t.unref?.();
-  globalThis.__coordinaHistorialPrecalentado = t;
+  };
+  const cadaMediaHora = () => {
+    const t = setInterval(refresca, VIDA_MS);
+    t.unref?.();
+    globalThis.__coordinaHistorialPrecalentado = t;
+  };
+  cadaMediaHora();
+
+  const t0 = Date.now();
+  let delDisco = false;
+  const primera = leerInstantanea(rutaInstantanea(), {
+    secciones: Object.keys(SECCIONES) as SeccionId[],
+    maxEdadMs: INSTANTANEA_MAX_MS,
+  }).then((guardada) => {
+    if (!guardada) return construirYGuardar();
+    delDisco = true;
+    const minutos = Math.round((Date.now() - guardada.at) / 60_000);
+    console.info(`[historial] lista recuperada del disco en ${Date.now() - t0} ms: ${guardada.info.size} pedidos, de hace ${minutos} min`);
+    return guardada;
+  });
+  enVuelo(primera)
+    .then((lista) => {
+      if (!delDisco || !globalThis.__coordinaHistorialPrecalentado) return;
+      // El reloj del refresco se pone en hora con la lista recuperada y no
+      // con el arranque: se rehace cuando ELLA cumple la media hora (ya, si
+      // la cumplió con el servidor parado) y desde ahí cada media hora. Con el
+      // reloj del arranque se construiría dos veces casi seguidas.
+      clearInterval(globalThis.__coordinaHistorialPrecalentado);
+      const leQueda = Math.max(0, lista.at + VIDA_MS - Date.now());
+      const primero = setTimeout(() => { refresca(); cadaMediaHora(); }, leQueda);
+      primero.unref?.();
+      globalThis.__coordinaHistorialPrecalentado = primero;
+    })
+    .catch((e) => console.warn("[historial] no se pudo precalentar la lista:", (e as Error).message));
 }
