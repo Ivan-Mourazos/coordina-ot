@@ -47,6 +47,9 @@ export type VistaAMedida = "belen";
 
 const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {
   "belen-alamancos": "belen",
+  // Cristina Rivas (16/11/2026) empieza con la de Belén tal cual; cuando pida
+  // cambios que Belén no quiera, tendrá la suya.
+  "cristina-rivas": "belen",
 };
 
 /** La pantalla a medida en la que aterriza esta persona, o null si va a lo de

@@ -47,6 +47,11 @@ test("la migración da de alta a Belén, activa, sin PIN y solo con produccion",
   expect(yo?.roles).toEqual(["produccion"]);
 });
 
+test("la migración da de alta a Cristina Rivas igual que a Belén", () => {
+  const fila = db.getDb().prepare("SELECT nombre, roles, activo, pin_hash FROM persona WHERE id = 'cristina-rivas'").get();
+  expect(fila).toEqual({ nombre: "Cristina Rivas", roles: "produccion", activo: 1, pin_hash: null });
+});
+
 test("cambiar el estado de una OF: 403", async () => {
   const res = await estado.POST(
     peticion("http://x/api/estado", "POST", {

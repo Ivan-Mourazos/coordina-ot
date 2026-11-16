@@ -589,26 +589,29 @@ const MIGRACIONES: ReadonlyArray<{
   { version: 15, nombre: "trabajo_impresion", aplicar: trabajoImpresion },
   // Belén Alamancos (Producción) entra a su propia pantalla (09/11/2026). Sin
   // PIN: lo elige ella la primera vez, como todos.
-  { version: 16, nombre: "cuenta_de_produccion", aplicar: cuentaDeProduccion },
+  { version: 16, nombre: "cuenta_de_produccion", aplicar: (db) => altaDeProduccion(db, "belen-alamancos", "Belén Alamancos") },
+  // Cristina Rivas (Producción) entra con la pantalla de Belén (16/11/2026).
+  { version: 17, nombre: "cuenta_cristina_rivas", aplicar: (db) => altaDeProduccion(db, "cristina-rivas", "Cristina Rivas") },
 ];
 
-/** Da de alta a Belén con el rol `produccion` (ver lib/personas.ts).
+/** Da de alta a alguien de Producción con el rol `produccion` (ver
+ *  lib/personas.ts). Sin PIN: lo elige la primera vez, como todos.
  *
  *  Se puede repetir sin estropear nada: si la fila ya existe (alguien la creó
  *  a mano) solo se le AÑADE el rol si le falta, sin tocar el PIN ni lo demás. */
-function cuentaDeProduccion(db: Database.Database): void {
-  const fila = db.prepare("SELECT roles FROM persona WHERE id = 'belen-alamancos'").get() as { roles: string } | undefined;
+function altaDeProduccion(db: Database.Database, id: string, nombre: string): void {
+  const fila = db.prepare("SELECT roles FROM persona WHERE id = ?").get(id) as { roles: string } | undefined;
   if (!fila) {
     db.prepare(
       `INSERT INTO persona (id, nombre, pin_hash, roles, seccion, activo)
-       VALUES ('belen-alamancos', 'Belén Alamancos', NULL, 'produccion', NULL, 1)`,
-    ).run();
+       VALUES (?, ?, NULL, 'produccion', NULL, 1)`,
+    ).run(id, nombre);
     return;
   }
   const roles = fila.roles.split(",").map((r) => r.trim()).filter(Boolean);
   if (!roles.includes("produccion")) {
     roles.push("produccion");
-    db.prepare("UPDATE persona SET roles = ? WHERE id = 'belen-alamancos'").run(roles.join(","));
+    db.prepare("UPDATE persona SET roles = ? WHERE id = ?").run(roles.join(","), id);
   }
 }
 
