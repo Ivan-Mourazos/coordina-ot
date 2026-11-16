@@ -345,11 +345,17 @@ async function tareasConTiempo(
 // Casi todas son de Santiago (106 de 115): se traen AR, SA y BE, y la pantalla
 // enseña solo AR hasta que se marca «Ver delegaciones». Con NOT EXISTS y no
 // sumando todas las tareas: 0,8 s en vez de 10 s.
+// Iván, 16/11/2026: fuera las que ya están hechas aunque RPS no las cierre:
+// bultos todos subidos y todas sus tareas finalizadas (RPS al 100 % u OLANET,
+// el mismo criterio que la ficha). Caso: AR.21.00731, «Lanzada» desde 2021.
 const SQL_SIN_TIEMPOS = `
+    WITH ${SUBIDAS}
     SELECT mo.IDManufacturingOrder AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
            mo.Priority AS prioridad, CAST(art.Description AS varchar(300)) AS articulo,
-           ops.operaciones, sit.Description AS situacion, pedido.fechaExigida AS fechaSolicitada
+           ops.operaciones, sit.Description AS situacion, pedido.fechaExigida AS fechaSolicitada,
+           CASE WHEN ISNULL(subidas.cantidad, 0) >= mo.Quantity AND mo.Quantity > 0 THEN 1 ELSE 0 END AS bultosSubidos
     FROM dbo.CPRManufacturingOrder mo
+    LEFT JOIN subidas ON subidas.IDManufacturingOrder = mo.IDManufacturingOrder
     JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
       AND sit.CodCompany = mo.CodCompany
     JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
@@ -362,6 +368,30 @@ const SQL_SIN_TIEMPOS = `
       AND NOT EXISTS (SELECT 1 FROM dbo.CPRMOTask t
                       WHERE t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.ExecutionTime > 0)
     ORDER BY mo.Priority, pedido.fechaExigida, mo.CodManufacturingOrder`;
+
+/** «OF sin tiempos» sin las ya rematadas: bultos subidos y ninguna tarea
+ *  pendiente, ni en RPS (< 100 %) ni sin finalizar en OLANET. */
+async function sinTiempos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const filas = await comprobacion(pool, SQL_SIN_TIEMPOS);
+  const conBultos = [...new Set(filas.filter((f) => f.bultosSubidos === 1 && f.of).map((f) => String(f.of)))];
+  const conPendientes = new Set<string>();
+  if (conBultos.length) {
+    const req = pool.request();
+    const lista = conBultos.map((o, i) => (req.input(`o${i}`, sql.VarChar(20), o), `@o${i}`)).join(", ");
+    const r = await req.query<{ of: string; tarea: string }>(`
+      SELECT mo.CodManufacturingOrder AS [of], t.CodMOTask AS tarea
+      FROM dbo.CPRMOTask t
+      JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = t.IDManufacturingOrder
+      WHERE mo.CodCompany = '001' AND mo.CodManufacturingOrder IN (${lista})
+        AND ISNULL(t.PercentProgress, 0) < 100`);
+    const abiertas = r.recordset.map((t) => ({ of: t.of.trim(), tarea: t.tarea.trim() }));
+    const acabadas = await finalizadasEnOlanet(pool, abiertas);
+    for (const t of abiertas) if (!acabadas.has(`${t.of}|${t.tarea}`)) conPendientes.add(t.of);
+  }
+  return filas
+    .filter((f) => f.bultosSubidos !== 1 || conPendientes.has(String(f.of)))
+    .map(({ bultosSubidos, ...f }) => (void bultosSubidos, f));
+}
 
 // La hoja «Tareas» de «carga_por_maquina_datos_planificador», que Belén
 // filtraba por máquina A- y unidad «horas». Desde el 14/11/2026, cualquier
@@ -675,7 +705,7 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "fechas-comprometidas": (pool) => fechasComprometidas(pool),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),
   "sin-descripcion": (pool) => comprobacion(pool, SQL_SIN_DESCRIPCION),
-  "sin-tiempos": (pool) => comprobacion(pool, SQL_SIN_TIEMPOS),
+  "sin-tiempos": (pool) => sinTiempos(pool),
   "tareas-horas": (pool) => tareasEnHoras(pool),
   "tiempos-sin-subir": (pool) => comprobacion(pool, SQL_TIEMPOS_SIN_SUBIR),
   "delimitacion": (pool) => comprobacion(pool, SQL_DELIMITACION),
