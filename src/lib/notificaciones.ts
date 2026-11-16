@@ -384,13 +384,14 @@ export function aplicarDescartes(
 
 /** «Iván te menciona», «Iván menciona a Producción» o «Nota para ti de Iván». */
 export function motivoAviso(
-  nota: Pick<NotaPedido, "menciones" | "para">,
+  nota: Pick<NotaPedido, "menciones" | "para" | "respondeA">,
   misDestinos: readonly string[],
   autor: string,
 ): string {
   const mios = new Set(misDestinos);
   const nombradas = nota.menciones.filter((d) => mios.has(claveDestino(d)));
   if (nombradas.some((d) => d.tipo === "persona")) return `${autor} te menciona`;
+  if (nota.respondeA && mios.has(`persona:${nota.respondeA}`)) return `${autor} te responde`;
   const seccion = nombradas.find((d) => d.tipo === "seccion");
   if (seccion) {
     const nombre = SECCIONES_MENCIONABLES.find((s) => s.id === seccion.id)?.nombre ?? seccion.id;

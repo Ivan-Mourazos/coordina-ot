@@ -7,6 +7,11 @@ Plan en `docs/superpowers/plans/2026-11-16-notas-menciones-fase1.md`. Desvío: l
 `nota_audiencia` migradas tienen `creado_at` NULL y no avisan (si no, la campana de Diseño,
 Impresión y Dirección se habría llenado con todas las notas internas viejas).
 
+**Fase 2 hecha (16/11/2026):** respuestas sin límite de nivel (`padre_id`, `raiz_id`),
+plegar y «Resuelta» (migración 21). Decisiones: resolver lo puede cualquiera que vea la
+conversación, solo en la raíz; una respuesta nueva la reabre. En la consulta pública salen
+las respuestas de una raíz pública. El aviso al autor del padre sale como «Fulano te responde».
+
 ## Problema
 
 Hoy la campana avisa de cualquier nota de otra persona en cualquier pedido de tu lista

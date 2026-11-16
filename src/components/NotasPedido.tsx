@@ -6,6 +6,7 @@ import {
   NOTA_MAX,
   claveDestino,
   fmtCuandoNota,
+  ordenarHilo,
   trocearTexto,
   validarTexto,
   type Destino,
@@ -64,6 +65,11 @@ export function NotasPedido({
   // Lo que soy yo («persona:ivan», «seccion:ot»…): resalta lo que va conmigo.
   const [misDestinos, setMisDestinos] = useState<string[]>([]);
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
+  // La respuesta que se está escribiendo, colgada de la nota `padreId`.
+  const [respondiendo, setRespondiendo] = useState<{ padreId: number; texto: string } | null>(null);
+  // Conversaciones que alguien abrió o plegó a mano. Sin entrada, manda la
+  // regla: las resueltas, plegadas; el resto, abiertas.
+  const [plegado, setPlegado] = useState<ReadonlyMap<number, boolean>>(new Map());
   const [guardando, setGuardando] = useState(false);
   const reqSeq = useRef(0);
   // El pedido que se ve AHORA. `cargar` está memoizado por pedido
@@ -108,6 +114,8 @@ export function NotasPedido({
       setEscribiendo(false);
       setBorrador(BORRADOR_VACIO);
       setBorrando(null);
+      setRespondiendo(null);
+      setPlegado(new Map());
       void cargar();
     }, 0);
     return () => clearTimeout(id);
@@ -174,18 +182,29 @@ export function NotasPedido({
   // Con un editor abierto (nota nueva o edición) no se ofrece abrir otro: el
   // clic cambiaría de objetivo y lo escrito en el primero se perdería sin
   // avisar. Mismo candado que ya usa el botón "+ Añadir".
-  const hayEditorAbierto = escribiendo || editando !== null;
+  const hayEditorAbierto = escribiendo || editando !== null || respondiendo !== null;
   // Vacío es lo NORMAL, y el bloque va arriba de la ficha (encima de las OF):
   // sin notas se queda en una línea, rótulo y botón, para no empujar hacia
   // abajo lo que se viene a hacer.
   const vacio = notas !== null && notas.length === 0 && !escribiendo && !error;
+  const filas = ordenarHilo(notas ?? [], (id) => plegado.get(id));
+  const vivas = (notas ?? []).filter((n) => !n.borrada).length;
+  const nombreDe = (id: string) =>
+    id === OPERARIO_SISTEMA ? "Coordina" : (opPorId(id)?.nombre ?? personas.find((p) => p.id === id)?.nombre ?? id);
+  const plegar = (raizId: number, valor: boolean | undefined) =>
+    setPlegado((m) => {
+      const x = new Map(m);
+      if (valor === undefined) x.delete(raizId);
+      else x.set(raizId, valor);
+      return x;
+    });
 
   return (
     <div className="bloque-3d mb-4 rounded-xl p-3 bajo:mb-2 bajo:px-3 bajo:py-2">
       <div data-bloque="notas" className={`cabecera-bloque flex items-center gap-2 ${vacio ? "" : "mb-2"}`}>
         <AcentoBloque tipo="notas" />
         <p className="text-[11px] font-semibold uppercase tracking-wide text-text">
-          Notas{notas && notas.length > 0 ? ` (${notas.length})` : ""}
+          Notas{vivas > 0 ? ` (${vivas})` : ""}
         </p>
         {vacio && (
           <span
@@ -217,7 +236,7 @@ export function NotasPedido({
 
 
       <ul className="space-y-2.5">
-        {(notas ?? []).map((n) => {
+        {filas.map(({ nota: n, nivel, raizId, respuestas, plegada }) => {
           const op = opPorId(n.operarioId);
           // Las notas que escribe la propia web (p. ej. "han vuelto a escanear
           // el parte"). No son de ningún operario, así que `mia` es falso para
@@ -226,10 +245,65 @@ export function NotasPedido({
           // id crudo, "sistema", y un círculo gris.
           const delSistema = n.operarioId === OPERARIO_SISTEMA;
           const mia = n.operarioId === miId;
+          // La sangría se corta en el nivel 3: el panel es estrecho. Más hondo,
+          // mismo margen y «↳ respondiendo a…» para no perder el hilo.
+          const sangria = SANGRIA[Math.min(nivel, 3)];
+          const esRaiz = nivel === 0;
+          const resuelta = esRaiz && !!n.resueltaAt;
+          // Lo que va debajo de cada nota: su cuadro de respuesta, si se está
+          // contestando, y en la raíz el botón de plegar la conversación.
+          const pie = (
+            <>
+              {respondiendo?.padreId === n.id && (
+                <div className={`mt-2 ${SANGRIA[Math.min(nivel + 1, 3)]}`}>
+                  <Editor
+                    respuesta
+                    valor={{ texto: respondiendo.texto, para: [], enConsultaPublica: false }}
+                    onCambio={(b) => {
+                      if (b.texto !== undefined) setRespondiendo({ ...respondiendo, texto: b.texto });
+                    }}
+                    personas={personas}
+                    miId={miId}
+                    guardando={guardando}
+                    onGuardar={async () => {
+                      const ok = await mandar({
+                        method: "POST",
+                        body: JSON.stringify({ pedido, operarioId: miId, texto: respondiendo.texto, padreId: n.id }),
+                      });
+                      if (ok) setRespondiendo(null);
+                    }}
+                    onCancelar={() => setRespondiendo(null)}
+                  />
+                </div>
+              )}
+              {esRaiz && respuestas > 0 && (
+                <button
+                  type="button"
+                  aria-expanded={!plegada}
+                  onClick={() => plegar(n.id, !plegada)}
+                  className="ml-7 mt-1.5 text-[11px] font-semibold text-text-muted hover:text-text"
+                >
+                  {plegada
+                    ? `▸ Ver ${respuestas === 1 ? "1 respuesta" : `${respuestas} respuestas`}`
+                    : "▾ Ocultar respuestas"}
+                </button>
+              )}
+            </>
+          );
+          if (n.borrada) {
+            // Borrada con respuestas vivas: su hueco, para no dejarlas huérfanas.
+            return (
+              <li key={n.id} className={sangria}>
+                <p className="recuadro rounded-lg px-3 py-2 text-[11px] italic text-text-muted">Nota borrada</p>
+                {pie}
+              </li>
+            );
+          }
           if (editando?.id === n.id) {
             return (
-              <li key={n.id}>
+              <li key={n.id} className={sangria}>
                 <Editor
+                  respuesta={!esRaiz}
                   valor={editando}
                   onCambio={(b) => setEditando({ ...editando, ...b })}
                   personas={personas}
@@ -242,85 +316,136 @@ export function NotasPedido({
                         id: n.id,
                         operarioId: miId,
                         texto: editando.texto,
-                        para: editando.para,
-                        enConsultaPublica: editando.para.length === 0 && editando.enConsultaPublica,
+                        // Una respuesta no tiene público propio: hereda el de la raíz.
+                        ...(esRaiz && {
+                          para: editando.para,
+                          enConsultaPublica: editando.para.length === 0 && editando.enConsultaPublica,
+                        }),
                       }),
                     });
                     if (ok) setEditando(null);
                   }}
                   onCancelar={() => setEditando(null)}
                 />
+                {pie}
               </li>
             );
           }
           return (
-            <li key={n.id} className="group/nota recuadro flex gap-2.5 rounded-lg p-3">
-              {delSistema ? (
-                <span
-                  aria-hidden
-                  className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[9px] font-bold text-white dark:bg-amber-400 dark:text-brand-950"
-                >
-                  !
-                </span>
-              ) : op ? (
-                <OpDot color={op.color} iniciales={op.iniciales} />
-              ) : (
-                // Quien ya no está en la plantilla no tiene color ni iniciales,
-                // pero su nota sigue valiendo: hueco del mismo tamaño para que
-                // las filas no bailen.
-                <span className="size-4.5 shrink-0 rounded-full ring-1 ring-inset ring-border" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
-                  <span className="font-semibold text-text">
-                    {delSistema ? "Coordina" : (op?.nombre ?? n.autor ?? n.operarioId)}
+            <li key={n.id} className={sangria}>
+              <div className={`group/nota recuadro flex gap-2.5 rounded-lg p-3 ${resuelta ? "opacity-80" : ""}`}>
+                {delSistema ? (
+                  <span
+                    aria-hidden
+                    className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[9px] font-bold text-white dark:bg-amber-400 dark:text-brand-950"
+                  >
+                    !
                   </span>
-                  <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
-                  <ChipSoloPara para={n.para} personas={personas} />
-                  {n.enConsultaPublica && (
-                    // Que se sepa qué se lee desde fuera, sin sesión.
-                    <span
-                      title="La ve también quien entra sin iniciar sesión: comerciales, taller…"
-                      className="rounded-full bg-[var(--hero-relleno)] px-2 py-px text-[10px] font-semibold text-text-muted"
-                    >
-                      En la consulta pública
+                ) : op ? (
+                  <OpDot color={op.color} iniciales={op.iniciales} />
+                ) : (
+                  // Quien ya no está en la plantilla no tiene color ni iniciales,
+                  // pero su nota sigue valiendo: hueco del mismo tamaño para que
+                  // las filas no bailen.
+                  <span className="size-4.5 shrink-0 rounded-full ring-1 ring-inset ring-border" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
+                    <span className="font-semibold text-text">
+                      {delSistema ? "Coordina" : (op?.nombre ?? n.autor ?? n.operarioId)}
                     </span>
-                  )}
-                  {n.editadoAt && (
-                    <span
-                      className="text-text-muted"
-                      title={`Editada el ${fmtCuandoNota(n.editadoAt, ahora)}`}
-                    >
-                      · editada
-                    </span>
-                  )}
-                  {mia && !soloLectura && !hayEditorAbierto && (
-                    // Con ratón se descubren al pasar; en táctil y con teclado
-                    // siguen disponibles sin tener que acertar un gesto de hover.
-                    <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditando({ id: n.id, texto: n.texto, para: n.para, enConsultaPublica: n.enConsultaPublica })
-                        }
-                        className="text-[10px] font-semibold text-text-muted hover:text-text"
+                    <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
+                    {nivel > 3 && n.respondeA && (
+                      <span className="text-text-muted">↳ respondiendo a {nombreDe(n.respondeA)}</span>
+                    )}
+                    <ChipSoloPara para={n.para} personas={personas} />
+                    {n.enConsultaPublica && (
+                      // Que se sepa qué se lee desde fuera, sin sesión.
+                      <span
+                        title="La ve también quien entra sin iniciar sesión: comerciales, taller…"
+                        className="rounded-full bg-[var(--hero-relleno)] px-2 py-px text-[10px] font-semibold text-text-muted"
                       >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBorrando(n)}
-                        className="text-[10px] font-semibold text-text-muted hover:text-red-600 dark:hover:text-red-400"
+                        En la consulta pública
+                      </span>
+                    )}
+                    {resuelta && n.resueltaAt && (
+                      <span
+                        title={`Resuelta por ${nombreDe(n.resueltaPor ?? "")} · ${fmtCuandoNota(n.resueltaAt, ahora)}`}
+                        className="rounded-full bg-emerald-600 px-2 py-px text-[10px] font-semibold text-white dark:bg-emerald-400 dark:text-brand-950"
                       >
-                        Borrar
-                      </button>
-                    </span>
-                  )}
-                </p>
-                <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-relaxed text-text">
-                  <TextoNota texto={n.texto} personas={personas} misDestinos={misDestinos} />
-                </p>
+                        Resuelta
+                      </span>
+                    )}
+                    {n.editadoAt && (
+                      <span
+                        className="text-text-muted"
+                        title={`Editada el ${fmtCuandoNota(n.editadoAt, ahora)}`}
+                      >
+                        · editada
+                      </span>
+                    )}
+                    {puedeEscribir && !hayEditorAbierto && (
+                      // Con ratón se descubren al pasar; en táctil y con teclado
+                      // siguen disponibles sin tener que acertar un gesto de hover.
+                      <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRespondiendo({ padreId: n.id, texto: "" });
+                            // Responder dentro de una conversación plegada la abre.
+                            plegar(raizId, false);
+                          }}
+                          className="text-[10px] font-semibold text-text-muted hover:text-text"
+                        >
+                          Responder
+                        </button>
+                        {esRaiz && (
+                          // Cualquiera que la vea, no solo quien la abrió: la
+                          // da por resuelta quien sabe que ya está.
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Vuelve a la regla: resuelta, plegada; reabierta, abierta.
+                              plegar(n.id, undefined);
+                              void mandar({
+                                method: "PATCH",
+                                body: JSON.stringify({ id: n.id, operarioId: miId, resuelta: !resuelta }),
+                              });
+                            }}
+                            className="text-[10px] font-semibold text-text-muted hover:text-text"
+                          >
+                            {resuelta ? "Reabrir" : "Resuelta"}
+                          </button>
+                        )}
+                        {mia && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditando({ id: n.id, texto: n.texto, para: n.para, enConsultaPublica: n.enConsultaPublica })
+                              }
+                              className="text-[10px] font-semibold text-text-muted hover:text-text"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBorrando(n)}
+                              className="text-[10px] font-semibold text-text-muted hover:text-red-600 dark:hover:text-red-400"
+                            >
+                              Borrar
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-relaxed text-text">
+                    <TextoNota texto={n.texto} personas={personas} misDestinos={misDestinos} />
+                  </p>
+                </div>
               </div>
+              {pie}
             </li>
           );
         })}
@@ -409,6 +534,9 @@ interface Borrador {
 
 const BORRADOR_VACIO: Borrador = { texto: "", para: [], enConsultaPublica: false };
 
+/** Margen por nivel de respuesta; a partir del 3, el mismo. */
+const SANGRIA = ["", "ml-5", "ml-10", "ml-15"] as const;
+
 /** El texto de una nota con las menciones como etiquetas. Resaltada la que va
  *  contigo (a ti o a una sección tuya). */
 function TextoNota({
@@ -451,7 +579,10 @@ function Editor({
   personas,
   miId,
   guardando,
+  respuesta = false,
 }: {
+  /** Una respuesta no elige público: hereda el de la conversación. */
+  respuesta?: boolean;
   valor: Borrador;
   onCambio: (b: Partial<Borrador>) => void;
   onGuardar: () => void;
@@ -505,32 +636,34 @@ function Editor({
             {largo} de {NOTA_MAX} caracteres
           </span>
         )}
-        <div className="ml-auto flex items-center gap-3">
-          {/* Restringida nunca es pública: la casilla ni se ofrece. */}
-          {!restringida && (
-            <label
-              className="flex cursor-pointer items-center gap-1.5 text-[11px] text-text-muted"
-              title="La verá también quien entra sin iniciar sesión: comerciales, taller… Cualquiera en la red de la empresa."
-            >
-              <input
-                type="checkbox"
-                checked={valor.enConsultaPublica}
-                disabled={guardando}
-                onChange={(e) => onCambio({ enConsultaPublica: e.target.checked })}
-              />
-              Visible en la consulta pública
-            </label>
-          )}
-          <SelectorPara
-            para={valor.para}
-            onPara={(para) => onCambio({ para })}
-            personas={personas}
-            miId={miId}
-            disabled={guardando}
-          />
-        </div>
+        {!respuesta && (
+          <div className="ml-auto flex items-center gap-3">
+            {/* Restringida nunca es pública: la casilla ni se ofrece. */}
+            {!restringida && (
+              <label
+                className="flex cursor-pointer items-center gap-1.5 text-[11px] text-text-muted"
+                title="La verá también quien entra sin iniciar sesión: comerciales, taller… Cualquiera en la red de la empresa."
+              >
+                <input
+                  type="checkbox"
+                  checked={valor.enConsultaPublica}
+                  disabled={guardando}
+                  onChange={(e) => onCambio({ enConsultaPublica: e.target.checked })}
+                />
+                Visible en la consulta pública
+              </label>
+            )}
+            <SelectorPara
+              para={valor.para}
+              onPara={(para) => onCambio({ para })}
+              personas={personas}
+              miId={miId}
+              disabled={guardando}
+            />
+          </div>
+        )}
       </div>
-      {restringida && (
+      {restringida && !respuesta && (
         <p className="mt-1 text-right">
           <ChipSoloPara para={valor.para} personas={personas} />
         </p>

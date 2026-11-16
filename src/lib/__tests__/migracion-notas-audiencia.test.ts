@@ -43,7 +43,7 @@ const enConsulta = (id: number) =>
   (estado.getDb().prepare("SELECT en_consulta_publica AS c FROM nota_pedido WHERE id = ?").get(id) as { c: number }).c;
 
 test("sella la 20", () => {
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(20);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(21);
 });
 
 test("la «solo OT» sigue siendo para OT, Diseño, Impresión y Dirección, y fuera de la consulta", () => {

@@ -248,3 +248,89 @@ test("consulta pública: solo marcadas y sin restricción", () => {
   db.crearNota("AR.5", "ivan", "restringida", T, { para: [{ tipo: "seccion", id: "ot" }], enConsultaPublica: true });
   expect(db.leerNotasPublicas("AR.5").map((n) => n.texto)).toEqual(["pública"]);
 });
+
+// ─── Conversaciones (fase 2, 16/11/2026) ─────────────────────────────────────
+
+const T2 = "2026-11-16T10:00:00.000Z";
+const T3 = "2026-11-16T11:00:00.000Z";
+
+test("una respuesta cuelga de su padre y sabe a quién responde", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "¿color?", T);
+  const r = db.crearNota("AR.1", "carron", "gris", T2, { padreId: raiz.id });
+  const rr = db.crearNota("AR.1", "ivan", "vale", T3, { padreId: r.id });
+  const hilo = db.leerNotas("AR.1", ivan);
+  expect(hilo.map((n) => [n.texto, n.padreId, n.respondeA])).toEqual([
+    ["¿color?", null, null],
+    ["gris", raiz.id, "ivan"],
+    ["vale", r.id, "carron"],
+  ]);
+  expect(rr.padreId).toBe(r.id);
+});
+
+test("una respuesta hereda el público de la raíz y no lo puede ampliar", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "solo prod", T, { para: [{ tipo: "seccion", id: "produccion" }] });
+  const r = db.crearNota("AR.1", "belen-alamancos", "visto", T2, {
+    padreId: raiz.id,
+    para: [{ tipo: "seccion", id: "diseno" }],
+    enConsultaPublica: true,
+  });
+  expect(r.para).toEqual([]);
+  expect(r.enConsultaPublica).toBe(false);
+  expect(db.puedeVer(r.id, carron)).toBe(false);
+  expect(db.leerNotas("AR.1", carron)).toEqual([]);
+  // Editarla tampoco le abre el público.
+  db.editarNota(r.id, "belen-alamancos", "visto", T3, { para: [{ tipo: "seccion", id: "diseno" }] });
+  expect(db.puedeVer(r.id, carron)).toBe(false);
+});
+
+test("responder a una nota de otro pedido no vale", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "x", T);
+  expect(() => db.crearNota("AR.2", "ivan", "y", T2, { padreId: raiz.id })).toThrow();
+});
+
+test("una respuesta avisa al autor de la nota a la que responde, no a quien la escribe", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "¿color?", T);
+  db.crearNota("AR.1", "carron", "gris", T2, { padreId: raiz.id });
+  expect(db.leerAvisosNotas(ivan, 30, AHORA).map((n) => [n.texto, n.respondeA])).toEqual([["gris", "ivan"]]);
+  expect(db.leerAvisosNotas(carron, 30, AHORA)).toEqual([]);
+  // Responderse a uno mismo no suena.
+  db.crearNota("AR.1", "ivan", "me contesto", T3, { padreId: raiz.id });
+  expect(db.leerAvisosNotas(ivan, 30, AHORA)).toHaveLength(1);
+});
+
+test("borrada con respuestas: queda el hueco; sin respuestas vivas, desaparece", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "secreto", T);
+  const r = db.crearNota("AR.1", "carron", "respuesta", T2, { padreId: raiz.id });
+  db.borrarNota(raiz.id, "ivan");
+  const hilo = db.leerNotas("AR.1", carron);
+  expect(hilo.map((n) => [n.texto, n.borrada ?? false])).toEqual([
+    ["", true],
+    ["respuesta", false],
+  ]);
+  db.borrarNota(r.id, "carron");
+  expect(db.leerNotas("AR.1", carron)).toEqual([]);
+});
+
+test("resolver: solo la raíz; responder la reabre", () => {
+  const raiz = db.crearNota("AR.1", "ivan", "¿color?", T);
+  const r = db.crearNota("AR.1", "carron", "gris", T2, { padreId: raiz.id });
+  expect(db.marcarResuelta(r.id, "carron", true, T3)).toBe(false);
+  expect(db.marcarResuelta(raiz.id, "carron", true, T3)).toBe(true);
+  expect(db.leerNotas("AR.1")[0]).toMatchObject({ resueltaAt: T3, resueltaPor: "carron" });
+  db.crearNota("AR.1", "ivan", "otra cosa", T3, { padreId: r.id });
+  expect(db.leerNotas("AR.1")[0]).toMatchObject({ resueltaAt: null, resueltaPor: null });
+  expect(db.marcarResuelta(raiz.id, "ivan", true, T3)).toBe(true);
+  expect(db.marcarResuelta(raiz.id, "ivan", false, T3)).toBe(true);
+  expect(db.leerNotas("AR.1")[0].resueltaAt).toBeNull();
+});
+
+test("consulta pública: las respuestas salen si la raíz sale", () => {
+  const pub = db.crearNota("AR.1", "ivan", "pública", T, { enConsultaPublica: true });
+  db.crearNota("AR.1", "carron", "resp pública", T2, { padreId: pub.id });
+  const priv = db.crearNota("AR.1", "ivan", "interna", T);
+  db.crearNota("AR.1", "carron", "resp interna", T2, { padreId: priv.id });
+  expect(db.leerNotasPublicas("AR.1").map((n) => n.texto)).toEqual(["pública", "resp pública"]);
+  expect(db.contarNotasPublicas(["AR.1"]).get("AR.1")).toBe(2);
+  db.borrarNota(pub.id, "ivan");
+  expect(db.leerNotasPublicas("AR.1")).toEqual([]);
+});

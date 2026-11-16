@@ -39,16 +39,33 @@ interface Fila {
   editado_at: string | null;
   en_consulta_publica: number;
   nombre?: string | null;
+  padre_id: number | null;
+  raiz_id: number | null;
+  resuelta_at: string | null;
+  resuelta_por: string | null;
+  borrado_at: string | null;
+  padre_operario: string | null;
 }
 
-const COLUMNAS = `n.id, n.pedido, n.operario_id, n.texto, n.creado_at, n.editado_at, n.en_consulta_publica, p.nombre`;
+const COLUMNAS = `n.id, n.pedido, n.operario_id, n.texto, n.creado_at, n.editado_at, n.en_consulta_publica, p.nombre,
+  n.padre_id, n.raiz_id, n.resuelta_at, n.resuelta_por, n.borrado_at, pa.operario_id AS padre_operario`;
 
-/** La nota se ve si eres el autor, si es para todos o si estás en su público.
+/** De dónde salen las notas: con el nombre del autor y el autor de la nota a
+ *  la que responden (para «te responde»). */
+const DESDE = `nota_pedido n
+  LEFT JOIN persona p ON p.id = n.operario_id
+  LEFT JOIN nota_pedido pa ON pa.id = n.padre_id`;
+
+/** La nota se ve si eres su autor, o si su RAÍZ es tuya, para todos, o te
+ *  tiene en su público. Una respuesta hereda el público de la raíz y no lo
+ *  puede ampliar: abrirla a más gente filtraría el contexto restringido.
  *  Parámetros con nombre: `@yo` y `@destinos` (JSON con las claves del lector). */
-const VISIBLE = `(n.operario_id = @yo
-  OR NOT EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = n.id)
-  OR EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = n.id
-             AND (a.tipo || ':' || a.destino) IN (SELECT value FROM json_each(@destinos))))`;
+const VISIBLE = `(n.operario_id = @yo OR EXISTS (
+  SELECT 1 FROM nota_pedido r WHERE r.id = COALESCE(n.raiz_id, n.id) AND (
+    r.operario_id = @yo
+    OR NOT EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = r.id)
+    OR EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = r.id
+               AND (a.tipo || ':' || a.destino) IN (SELECT value FROM json_each(@destinos))))))`;
 
 const paramsLector = (l: Lector) => ({ yo: l.id, destinos: JSON.stringify(l.destinos) });
 
@@ -83,38 +100,57 @@ function completar(filas: Fila[]): NotaPedido[] {
   };
   const para = agrupar("nota_audiencia");
   const menciones = agrupar("nota_mencion");
-  return filas.map((f) => ({
-    id: f.id,
-    pedido: f.pedido,
-    operarioId: f.operario_id,
-    texto: f.texto,
-    creadoAt: f.creado_at,
-    editadoAt: f.editado_at,
-    para: para.get(f.id) ?? [],
-    enConsultaPublica: f.en_consulta_publica === 1,
-    menciones: menciones.get(f.id) ?? [],
-    autor: f.nombre ?? null,
-  }));
+  return filas.map((f) => {
+    // Borrada con respuestas: solo el hueco. Ni texto ni destinos.
+    const borrada = f.borrado_at !== null;
+    return {
+      id: f.id,
+      pedido: f.pedido,
+      operarioId: f.operario_id,
+      texto: borrada ? "" : f.texto,
+      creadoAt: f.creado_at,
+      editadoAt: borrada ? null : f.editado_at,
+      para: borrada ? [] : (para.get(f.id) ?? []),
+      enConsultaPublica: !borrada && f.en_consulta_publica === 1,
+      menciones: borrada ? [] : (menciones.get(f.id) ?? []),
+      autor: f.nombre ?? null,
+      padreId: f.padre_id,
+      respondeA: f.padre_operario,
+      resueltaAt: f.resuelta_at,
+      resueltaPor: f.resuelta_por,
+      ...(borrada ? { borrada: true } : {}),
+    };
+  });
 }
 
 /** El hilo de un pedido, de la más vieja a la más nueva: se lee como una
- *  conversación y lo último que pasó queda abajo del todo. Las borradas no
- *  salen.
+ *  conversación y lo último que pasó queda abajo del todo. El árbol de
+ *  respuestas lo monta quien pinta, con `padreId`.
+ *
+ *  Las borradas no salen, salvo que tengan respuestas vivas debajo: entonces
+ *  sale su hueco («nota borrada») para no dejar huérfanas las respuestas.
  *
  *  `lector` null = sin filtro de audiencia: es el login apagado, donde no hay
  *  sesión con la que decidir (como hasta ahora). */
 export function leerNotas(pedido: string, lector: Lector | null = null): NotaPedido[] {
   const filtro = lector ? `AND ${VISIBLE}` : "";
-  return completar(
-    getDb()
-      .prepare(
-        `SELECT ${COLUMNAS}
-           FROM nota_pedido n LEFT JOIN persona p ON p.id = n.operario_id
-          WHERE n.pedido = @pedido AND n.borrado_at IS NULL ${filtro}
-          ORDER BY n.creado_at, n.id`,
-      )
-      .all({ pedido, ...(lector ? paramsLector(lector) : {}) }) as Fila[],
-  );
+  const filas = getDb()
+    .prepare(
+      `SELECT ${COLUMNAS}
+         FROM ${DESDE}
+        WHERE n.pedido = @pedido ${filtro}
+        ORDER BY n.creado_at, n.id`,
+    )
+    .all({ pedido, ...(lector ? paramsLector(lector) : {}) }) as Fila[];
+  const porId = new Map(filas.map((f) => [f.id, f]));
+  const conservar = new Set<number>();
+  for (const f of filas) {
+    if (f.borrado_at !== null) continue;
+    // Una viva se queda, y con ella toda su cadena de padres.
+    for (let x: Fila | undefined = f; x && !conservar.has(x.id); x = x.padre_id ? porId.get(x.padre_id) : undefined)
+      conservar.add(x.id);
+  }
+  return completar(filas.filter((f) => conservar.has(f.id)));
 }
 
 /** ¿Puede este lector ver esta nota (no borrada)? */
@@ -125,6 +161,12 @@ export function puedeVer(id: number, lector: Lector | null): boolean {
       .prepare(`SELECT 1 FROM nota_pedido n WHERE n.id = @id AND n.borrado_at IS NULL ${filtro}`)
       .get({ id, ...(lector ? paramsLector(lector) : {}) }) !== undefined
   );
+}
+
+/** El pedido del que cuelga una nota, o undefined si no existe. */
+export function pedidoDeNota(id: number): string | undefined {
+  return (getDb().prepare(`SELECT pedido FROM nota_pedido WHERE id = ?`).get(id) as { pedido: string } | undefined)
+    ?.pedido;
 }
 
 export interface OpcionesNota {
@@ -160,21 +202,35 @@ export function crearNota(
   operarioId: string,
   texto: string,
   ahora = new Date().toISOString(),
-  { para = [], enConsultaPublica = false }: Partial<OpcionesNota> = {},
+  opc: Partial<OpcionesNota> & { padreId?: number } = {},
 ): NotaPedido {
   const db = getDb();
-  const publica = para.length === 0 && enConsultaPublica;
   return db.transaction(() => {
+    // Una respuesta hereda el público de la raíz: no lleva el suyo ni sale
+    // por su cuenta en la consulta pública (lo decide la raíz).
+    let padre: { id: number; raiz_id: number | null; operario_id: string } | undefined;
+    if (opc.padreId !== undefined) {
+      padre = db
+        .prepare(`SELECT id, raiz_id, operario_id FROM nota_pedido WHERE id = ? AND pedido = ?`)
+        .get(opc.padreId, pedido) as typeof padre;
+      if (!padre) throw new Error(`La nota ${opc.padreId} no es de ${pedido}`);
+    }
+    const para = padre ? [] : (opc.para ?? []);
+    const publica = !padre && para.length === 0 && (opc.enConsultaPublica ?? false);
+    const raiz = padre ? (padre.raiz_id ?? padre.id) : null;
     // `publica` se sigue rellenando igual que `en_consulta_publica`: la columna
     // vieja queda obsoleta, pero así no miente si alguien la mira.
     const r = db
       .prepare(
-        `INSERT INTO nota_pedido (pedido, operario_id, texto, creado_at, publica, en_consulta_publica)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO nota_pedido (pedido, operario_id, texto, creado_at, publica, en_consulta_publica, padre_id, raiz_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(pedido, operarioId, texto, ahora, publica ? 1 : 0, publica ? 1 : 0);
+      .run(pedido, operarioId, texto, ahora, publica ? 1 : 0, publica ? 1 : 0, padre?.id ?? null, raiz);
     const id = Number(r.lastInsertRowid);
     guardarDestinos(id, texto, para, ahora);
+    // Quien responde reabre la conversación: si sigue hablándose, no está resuelta.
+    if (raiz !== null)
+      db.prepare(`UPDATE nota_pedido SET resuelta_at = NULL, resuelta_por = NULL WHERE id = ?`).run(raiz);
     return {
       id,
       pedido,
@@ -185,8 +241,30 @@ export function crearNota(
       para: [...para],
       enConsultaPublica: publica,
       menciones: extraerMenciones(texto),
+      padreId: padre?.id ?? null,
+      respondeA: padre?.operario_id ?? null,
+      resueltaAt: null,
+      resueltaPor: null,
     };
   })();
+}
+
+/** Da por resuelta (o reabre) una conversación. Solo la raíz y viva; quien la
+ *  pueda ver (la ruta lo comprueba antes). Devuelve si cambió algo. */
+export function marcarResuelta(
+  id: number,
+  operarioId: string,
+  resuelta: boolean,
+  ahora = new Date().toISOString(),
+): boolean {
+  return (
+    getDb()
+      .prepare(
+        `UPDATE nota_pedido SET resuelta_at = ?, resuelta_por = ?
+          WHERE id = ? AND raiz_id IS NULL AND borrado_at IS NULL`,
+      )
+      .run(resuelta ? ahora : null, resuelta ? operarioId : null, id).changes > 0
+  );
 }
 
 /** Cambia el texto de una nota PROPIA, y si se dice, su público. Devuelve si
@@ -200,8 +278,13 @@ export function editarNota(
   opc: Partial<OpcionesNota> = {},
 ): boolean {
   const db = getDb();
-  const consulta = opc.enConsultaPublica === undefined ? null : opc.enConsultaPublica ? 1 : 0;
   return db.transaction(() => {
+    // Una respuesta no tiene público propio: lo que llegue de él se ignora.
+    const esRespuesta =
+      (db.prepare(`SELECT raiz_id FROM nota_pedido WHERE id = ?`).get(id) as { raiz_id: number | null } | undefined)
+        ?.raiz_id != null;
+    if (esRespuesta) opc = {};
+    const consulta = opc.enConsultaPublica === undefined ? null : opc.enConsultaPublica ? 1 : 0;
     const cambio = db
       .prepare(
         `UPDATE nota_pedido SET texto = ?, editado_at = ?,
@@ -221,10 +304,13 @@ export function editarNota(
   })();
 }
 
-/** Lo que sale en la consulta pública: marcada para ella y sin público
- *  restringido. Las dos cosas: una restringida no sale nunca sin login. */
-const EN_CONSULTA = `n.en_consulta_publica = 1 AND n.borrado_at IS NULL
-  AND NOT EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = n.id)`;
+/** Lo que sale en la consulta pública: lo decide la RAÍZ de la conversación,
+ *  que tiene que estar marcada para ella, viva y sin público restringido (una
+ *  restringida no sale nunca sin login). Sus respuestas vivas salen con ella. */
+const EN_CONSULTA = `n.borrado_at IS NULL AND EXISTS (
+  SELECT 1 FROM nota_pedido r WHERE r.id = COALESCE(n.raiz_id, n.id)
+    AND r.en_consulta_publica = 1 AND r.borrado_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM nota_audiencia a WHERE a.nota_id = r.id))`;
 
 /** Las notas de la consulta pública de un pedido, como las ve quien no tiene
  *  sesión.
@@ -310,8 +396,10 @@ export function leerAvisosNotas(lector: Lector, dias: number, ahora = new Date()
                    SELECT a.creado_at FROM nota_audiencia a
                     WHERE a.nota_id = n.id AND a.creado_at IS NOT NULL
                       AND (a.tipo || ':' || a.destino) IN (SELECT value FROM json_each(@destinos))
+                   UNION ALL
+                   SELECT n.creado_at WHERE pa.operario_id = @yo AND pa.borrado_at IS NULL
                  ) x) AS aviso_at
-           FROM nota_pedido n LEFT JOIN persona p ON p.id = n.operario_id
+           FROM ${DESDE}
           WHERE n.borrado_at IS NULL AND n.operario_id <> @yo AND ${VISIBLE}
        ) WHERE aviso_at >= @desde
        ORDER BY aviso_at DESC, id DESC`,

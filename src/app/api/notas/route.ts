@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { NOTA_MAX, esSeccionMencionable, validarTexto, type Destino } from "@/lib/nota-pedido";
-import { borrarNota, crearNota, editarNota, leerNotas, puedeVer } from "@/lib/server/notas-db";
+import { borrarNota, crearNota, editarNota, leerNotas, marcarResuelta, pedidoDeNota, puedeVer } from "@/lib/server/notas-db";
 import { puedeEscribirNotas } from "@/lib/personas";
 import { leerPersonas } from "@/lib/server/personas-db";
 import { lectorDePeticion } from "@/lib/server/lector-sesion";
@@ -125,11 +125,21 @@ export async function POST(req: Request) {
   if (!v.ok) return errorTexto(v.motivo);
   const para = leerPara(b.para);
   if (para === null) return errorPara();
+  // Respuesta: a una nota que ves y del mismo pedido. Si no, 404: de una nota
+  // que no ves no se dice nada, ni que existe.
+  let padreId: number | undefined;
+  if (b.padreId !== undefined && b.padreId !== null) {
+    const p = idDe(b.padreId);
+    if (p === null || !puedeVer(p, lectorDePeticion(req)) || pedidoDeNota(p) !== pedido) return noExiste();
+    padreId = p;
+  }
   return NextResponse.json({
-    // Solo un `true` de verdad la saca a la consulta pública.
+    // Solo un `true` de verdad la saca a la consulta pública. Una respuesta
+    // ignora las dos cosas: hereda las de la raíz.
     nota: crearNota(pedido, yo.id, v.texto, undefined, {
       para: para ?? [],
       enConsultaPublica: b.enConsultaPublica === true,
+      padreId,
     }),
   });
 }
@@ -158,6 +168,13 @@ export async function PATCH(req: Request) {
   if (yo instanceof NextResponse) return yo;
   // Antes que la autoría: de una nota que no ves no se dice ni que es de otro.
   if (!puedeVer(id, lectorDePeticion(req))) return noExiste();
+
+  // Dar por resuelta una conversación (o reabrirla): cualquiera que la vea,
+  // no solo su autor. Solo la raíz.
+  if (typeof b.resuelta === "boolean" && b.texto === undefined)
+    return marcarResuelta(id, yo.id, b.resuelta)
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Solo se resuelve la nota que abre la conversación" }, { status: 400 });
 
   const v = validarTexto(b.texto);
   if (!v.ok) return errorTexto(v.motivo);

@@ -35,6 +35,17 @@ export interface NotaPedido {
    *  que no son del tablero (Belén, de Producción): sin él, el hilo del
    *  equipo enseñaría su id en vez de su nombre. */
   autor?: string | null;
+  // ─── Conversaciones (fase 2, 16/11/2026) ───
+  /** La nota a la que responde; null o ausente = nota raíz. */
+  padreId?: number | null;
+  /** Quién escribió la nota a la que responde (su id): para «te responde». */
+  respondeA?: string | null;
+  /** Solo en la raíz: cuándo se dio el hilo por resuelto, y quién. */
+  resueltaAt?: string | null;
+  resueltaPor?: string | null;
+  /** Borrada pero con respuestas vivas: se pinta «nota borrada» en su sitio
+   *  para no romper el hilo. Llega sin texto ni destinos. */
+  borrada?: boolean;
 }
 
 // ─── Destinos y menciones (16/11/2026, docs/NOTAS-MENCIONES.md) ─────────────
@@ -173,4 +184,46 @@ export function fmtCuandoNota(iso: string, ahora: string): string {
   return d.getFullYear() === hoy.getFullYear()
     ? `${dia} ${hora}`
     : `${dia}/${d.getFullYear()} ${hora}`;
+}
+
+export interface FilaHilo {
+  nota: NotaPedido;
+  nivel: number;
+  /** La nota que abre la conversación. */
+  raizId: number;
+  /** Solo en la raíz: cuántas respuestas vivas cuelgan de ella. */
+  respuestas: number;
+  /** Solo en la raíz: si sus respuestas están escondidas. */
+  plegada: boolean;
+}
+
+/** El hilo en el orden en que se pinta: cada nota seguida de sus respuestas,
+ *  en profundidad. Las de una conversación plegada no salen. `aMano` dice si
+ *  alguien la plegó (true) o la abrió (false); sin decir, plegadas las resueltas. */
+export function ordenarHilo(
+  notas: readonly NotaPedido[],
+  aMano: (raizId: number) => boolean | undefined,
+): FilaHilo[] {
+  const ids = new Set(notas.map((n) => n.id));
+  const hijos = new Map<number | null, NotaPedido[]>();
+  for (const n of notas) {
+    // Un padre que no llegó cuelga como raíz: mejor suelta que perdida.
+    const p = n.padreId != null && ids.has(n.padreId) ? n.padreId : null;
+    hijos.set(p, [...(hijos.get(p) ?? []), n]);
+  }
+  const contar = (id: number): number =>
+    (hijos.get(id) ?? []).reduce((t, h) => t + (h.borrada ? 0 : 1) + contar(h.id), 0);
+  const salida: FilaHilo[] = [];
+  const bajar = (padre: number, nivel: number, raizId: number) => {
+    for (const h of hijos.get(padre) ?? []) {
+      salida.push({ nota: h, nivel, raizId, respuestas: 0, plegada: false });
+      bajar(h.id, nivel + 1, raizId);
+    }
+  };
+  for (const r of hijos.get(null) ?? []) {
+    const plegada = aMano(r.id) ?? !!r.resueltaAt;
+    salida.push({ nota: r, nivel: 0, raizId: r.id, respuestas: contar(r.id), plegada });
+    if (!plegada) bajar(r.id, 1, r.id);
+  }
+  return salida;
 }

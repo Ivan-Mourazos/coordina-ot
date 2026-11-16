@@ -153,3 +153,39 @@ test("lista desconocida: 400", async () => {
   const res = await vista.GET(peticion("http://x/api/vista-belen?lista=otra", "GET"));
   expect(res.status).toBe(400);
 });
+
+// ─── Conversaciones (fase 2, 16/11/2026) ─────────────────────────────────────
+
+const crear = async (body: Record<string, unknown>, cabeceras = belen()) =>
+  ((await (await notas.POST(peticion("http://x/api/notas", "POST", body, cabeceras))).json()) as { nota: NotaApi }).nota;
+
+test("responder a una nota que no ve: 404; a una que ve, le avisa a su autor", async () => {
+  const oculta = await crear({ pedido: "AR.26.00004", texto: "solo OT", para: [{ tipo: "seccion", id: "ot" }] }, ivan());
+  const r404 = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00004", texto: "eh", padreId: oculta.id }));
+  expect(r404.status).toBe(404);
+
+  const abierta = await crear({ pedido: "AR.26.00004", texto: "¿sale hoy?" }, ivan());
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00004", texto: "mañana", padreId: abierta.id }));
+  expect(res.status).toBe(200);
+  const avisos = ((await (await recientes.GET(new Request("http://x/api/notas-recientes", { headers: ivan() }))).json()) as { avisos: NotaApi[] }).avisos;
+  expect(avisos.map((n) => n.texto)).toContain("mañana");
+});
+
+test("responder con el padre de otro pedido: 404", async () => {
+  const otra = await crear({ pedido: "AR.26.00005", texto: "x" }, ivan());
+  const res = await notas.POST(peticion("http://x/api/notas", "POST", { pedido: "AR.26.00004", texto: "y", padreId: otra.id }));
+  expect(res.status).toBe(404);
+});
+
+test("resolver: cualquiera que la vea, solo la raíz; la que no ve, 404", async () => {
+  const raiz = await crear({ pedido: "AR.26.00006", texto: "¿color?" }, ivan());
+  const resp = await crear({ pedido: "AR.26.00006", texto: "gris", padreId: raiz.id });
+  expect((await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: raiz.id, resuelta: true }))).status).toBe(200);
+  expect((await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: resp.id, resuelta: true }))).status).toBe(400);
+  const oculta = await crear({ pedido: "AR.26.00006", texto: "solo OT", para: [{ tipo: "seccion", id: "ot" }] }, ivan());
+  expect((await notas.PATCH(peticion("http://x/api/notas", "PATCH", { id: oculta.id, resuelta: true }))).status).toBe(404);
+  const hilo = (await (await notas.GET(peticion("http://x/api/notas?pedido=AR.26.00006", "GET", undefined, ivan()))).json()) as {
+    notas: { id: number; resueltaPor: string | null }[];
+  };
+  expect(hilo.notas.find((n) => n.id === raiz.id)?.resueltaPor).toBe("belen-alamancos");
+});

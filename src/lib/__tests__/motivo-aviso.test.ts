@@ -23,3 +23,10 @@ test("textoLlano cambia los tokens por nombres", () => {
   expect(textoLlano("@[persona:ivan] y @[seccion:produccion], mirad", (id) => nombres[id])).toBe("@Iván y @Producción, mirad");
   expect(textoLlano("@[persona:nadie] hola", () => null)).toBe("@nadie hola");
 });
+
+test("te responden: «te responde», salvo que además te nombren", () => {
+  const nota = { menciones: [], para: [], respondeA: "ivan" };
+  expect(motivoAviso(nota, yo, "Belén")).toBe("Belén te responde");
+  const nombrado = { ...nota, menciones: [{ tipo: "persona" as const, id: "ivan" }] };
+  expect(motivoAviso(nombrado, yo, "Belén")).toBe("Belén te menciona");
+});

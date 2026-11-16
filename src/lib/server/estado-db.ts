@@ -603,7 +603,32 @@ const MIGRACIONES: ReadonlyArray<{
   // quién ve cada nota y a quién nombra pasan a sus tablas. Nadie gana ni
   // pierde acceso a las notas viejas.
   { version: 20, nombre: "notas_audiencia", aplicar: notasAudiencia },
+  // Respuestas a una nota, sin límite de nivel, y hilos «resueltos» (fase 2).
+  { version: 21, nombre: "notas_respuestas", aplicar: notasRespuestas },
 ];
+
+/** Respuestas y hilos resueltos.
+ *
+ *  `padre_id` es la nota a la que responde; `raiz_id`, la primera del hilo
+ *  (NULL en la propia raíz). Se guarda la raíz y no se recorre la cadena al
+ *  leer: quién ve una respuesta lo decide el público de su raíz, y eso se
+ *  pregunta en cada lectura. `resuelta_at`/`resuelta_por` solo en la raíz.
+ *
+ *  Se puede repetir: cada columna se añade solo si falta. */
+function notasRespuestas(db: Database.Database): void {
+  const hay = new Set(
+    (db.prepare("PRAGMA table_info(nota_pedido)").all() as Array<{ name: string }>).map((c) => c.name),
+  );
+  const columnas: Array<[string, string]> = [
+    ["padre_id", "INTEGER REFERENCES nota_pedido(id)"],
+    ["raiz_id", "INTEGER REFERENCES nota_pedido(id)"],
+    ["resuelta_at", "TEXT"],
+    ["resuelta_por", "TEXT"],
+  ];
+  for (const [nombre, tipo] of columnas)
+    if (!hay.has(nombre)) db.exec(`ALTER TABLE nota_pedido ADD COLUMN ${nombre} ${tipo}`);
+  db.exec(`CREATE INDEX IF NOT EXISTS nota_pedido_raiz ON nota_pedido(raiz_id)`);
+}
 
 /** Audiencia y menciones de las notas.
  *
