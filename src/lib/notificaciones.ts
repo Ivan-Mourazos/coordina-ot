@@ -2,6 +2,7 @@ import { pedidoParado } from "./fases-tablero";
 import { SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "./secciones";
 import type { OF, Pedido } from "./types";
 import type { AvisoMovimiento } from "./avisos";
+import { SECCIONES_MENCIONABLES, claveDestino, trocearTexto, type NotaPedido } from "./nota-pedido";
 
 // ─── Avisos de la campana: uno por PEDIDO, no uno por OF ─────────────────────
 // Mandar a revisar un pedido de cuatro OF encendía cuatro avisos idénticos,
@@ -73,6 +74,9 @@ export interface AvisoSuelto {
    *  texto de la nota. Sin esto habría que meterlo en `otro`, que significa
    *  otra cosa (la otra persona de un traspaso). */
   texto?: string;
+  /** Solo en `notaNueva`: por qué te llega («Iván te menciona»). Sustituye al
+   *  rótulo genérico «Nota nueva». */
+  motivo?: string;
   /** De qué lista es, SOLO si no es la que se está mirando (ver
    *  `avisosDeOtraSeccion`). Ausente = de la lista de delante, como siempre. */
   seccion?: SeccionId;
@@ -94,6 +98,8 @@ export interface NotifItem {
   clave?: string;
   /** Ver `AvisoSuelto.texto`. */
   texto?: string;
+  /** Ver `AvisoSuelto.motivo`. */
+  motivo?: string;
   /** Ver `AvisoSuelto.seccion`. */
   seccion?: SeccionId;
 }
@@ -202,6 +208,7 @@ export function agruparAvisos(sueltos: readonly AvisoSuelto[]): NotifItem[] {
       otro: a.otro,
       clave: a.clave,
       texto: a.texto,
+      ...(a.motivo ? { motivo: a.motivo } : {}),
       ...(a.seccion ? { seccion: a.seccion } : {}),
     });
   }
@@ -368,3 +375,50 @@ export function aplicarDescartes(
     }),
   };
 }
+
+// ─── Por qué te llega una nota (16/11/2026) ──────────────────────────────────
+// La campana ya no suena por cualquier nota: solo por las que van contigo. El
+// servidor decide cuáles (leerAvisosNotas) y manda también tus destinos; aquí
+// se cuenta el porqué, de lo más personal a lo menos: que te nombren a ti,
+// que nombren a una sección tuya, o que la nota sea solo para ti / los tuyos.
+
+/** «Iván te menciona», «Iván menciona a Producción» o «Nota para ti de Iván». */
+export function motivoAviso(
+  nota: Pick<NotaPedido, "menciones" | "para">,
+  misDestinos: readonly string[],
+  autor: string,
+): string {
+  const mios = new Set(misDestinos);
+  const nombradas = nota.menciones.filter((d) => mios.has(claveDestino(d)));
+  if (nombradas.some((d) => d.tipo === "persona")) return `${autor} te menciona`;
+  const seccion = nombradas.find((d) => d.tipo === "seccion");
+  if (seccion) {
+    const nombre = SECCIONES_MENCIONABLES.find((s) => s.id === seccion.id)?.nombre ?? seccion.id;
+    return `${autor} menciona a ${nombre}`;
+  }
+  return `Nota para ti de ${autor}`;
+}
+
+/** El texto de una nota para una línea de aviso: las menciones como «@Iván» o
+ *  «@Producción» en vez del token guardado. */
+export function textoLlano(texto: string, nombrePersona: (id: string) => string | null | undefined): string {
+  return trocearTexto(texto)
+    .map((t) => {
+      if (t.tipo === "texto") return t.texto;
+      const d = t.destino;
+      if (d.tipo === "persona") return `@${nombrePersona(d.id) ?? d.id}`;
+      return `@${SECCIONES_MENCIONABLES.find((s) => s.id === d.id)?.nombre ?? d.id}`;
+    })
+    .join("");
+}
+
+const FUERA = "fuera:";
+
+/** Un pedido que ya no está en el tablero (pasado a Producción), solo para
+ *  que su aviso de nota tenga dónde colgarse: código y nada más. Al pulsarlo
+ *  se abre el panel del Historial por código (ver `esPedidoFueraDelTablero`). */
+export function pedidoFueraDelTablero(codigo: string): Pedido {
+  return { id: `${FUERA}${codigo}`, codigo, cliente: "Fuera del tablero", ofs: [] } as unknown as Pedido;
+}
+
+export const esPedidoFueraDelTablero = (p: Pick<Pedido, "id">): boolean => p.id.startsWith(FUERA);

@@ -151,7 +151,7 @@ export function Notificaciones({
                           {/* De otra lista (Manuel: Impresión y Diseño). Sin
                               el rótulo parecería trabajo de la de delante. */}
                           {item.seccion ? `${SECCIONES[item.seccion].nombreCorto} · ` : ""}
-                          {meta.label}
+                          {item.motivo ?? meta.label}
                         </span>
                         <span className="block truncate text-xs font-semibold text-text">
                           {item.pedido.codigo} · {item.pedido.cliente}

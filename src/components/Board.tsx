@@ -46,6 +46,7 @@ import { Notificaciones } from "./Notificaciones";
 import { Herramientas } from "./Herramientas";
 import { BuscadorGlobal } from "./BuscadorGlobal";
 import { HistorialDrawer } from "./HistorialDrawer";
+import { usePersonas } from "./notas/usePersonas";
 import { DireccionCasa } from "./DireccionCasa";
 import {
   agruparAvisos,
@@ -58,6 +59,10 @@ import {
   type AvisoSuelto,
   type NotifItem,
   avisaParteNuevo,
+  motivoAviso,
+  textoLlano,
+  pedidoFueraDelTablero,
+  esPedidoFueraDelTablero,
 } from "@/lib/notificaciones";
 import { useHydrated } from "@/lib/useHydrated";
 import { useContenidoFluido } from "@/lib/useContenidoFluido";
@@ -591,11 +596,13 @@ export function Board({
     };
   }, [miId, loginActivo, espectador]);
 
-  // Notas recientes de TODO el equipo: una nota es un hecho del que los demás
-  // se tienen que enterar, igual que un traspaso. No depende de quién soy —la
-  // nota de un pedido le importa a cualquiera que vaya a tocarlo—, así que se
-  // piden una vez y el filtro de "no las mías" se hace al armar el aviso.
+  // Avisos de notas: solo las que van CONMIGO (me mencionan, mencionan a una
+  // sección mía o me tienen en su público). Desde el 16/11/2026 lo decide el
+  // servidor con la sesión; antes llegaban todas las del equipo y la campana
+  // sonaba por cualquier nota. `misDestinos` dice por qué me llega cada una.
   const [notasRecientes, setNotasRecientes] = useState<NotaPedido[]>([]);
+  const [misDestinos, setMisDestinos] = useState<string[]>([]);
+  const personas = usePersonas();
   // Si las notas han llegado del servidor ALGUNA VEZ. Sin esto la poda de
   // descartes de más abajo se lleva por delante los de las notas en el primer
   // render, cuando todavía no ha contestado el fetch. Ver allí.
@@ -605,9 +612,10 @@ export function Board({
     const cargar = () => {
       fetch("/api/notas-recientes", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d: { notas: NotaPedido[] } | null) => {
+        .then((d: { avisos: NotaPedido[]; destinos?: string[] } | null) => {
           if (!vivo || !d) return;
-          setNotasRecientes(d.notas);
+          setNotasRecientes(d.avisos);
+          setMisDestinos(d.destinos ?? []);
           setNotasCargadas(true);
         })
         .catch(() => {});
@@ -660,6 +668,10 @@ export function Board({
   // Cada sección conserva su consulta al salir de Historial y regresar.
   const [filtrosHistorial, setFiltrosHistorial] = useState<Partial<Record<SeccionId, FiltrosHistorial>>>({});
   const [openId, setOpenId] = useState<string | null>(null);
+  // Pedido del historial abierto en su propio panel (el de solo lectura). Lo
+  // abre el buscador global: un resultado del historial no se puede enseñar en
+  // el Drawer normal, que espera un pedido vivo del tablero.
+  const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   // Cómo se reparte la bandeja en filas. NO es un filtro y por eso no vive con
   // ellos: el desplegable se llamaba "Orden" pero lo que hace es agrupar, y
   // encima compartía valores con las otras vistas ("Fecha de entrega") que aquí
@@ -1185,7 +1197,10 @@ export function Board({
 
     // Movimientos leídos del registro. Los ids se resuelven aquí: el servidor
     // manda ids crudos para no tener que cargar el tablero.
-    const nombre = (id: string | null) => operarios.find((o) => o.id === id)?.nombre;
+    // Las cuentas que no son del tablero (Producción, Dirección) salen de
+    // personas: sin ellas, una nota de Belén o una mención a ella iría con su id.
+    const nombre = (id: string | null) =>
+      operarios.find((o) => o.id === id)?.nombre ?? personas.find((p) => p.id === id)?.nombre;
     for (const a of avisosMov) {
       const pedido = procesadosAll.find((p) => p.ofs.some((o) => o.id === a.ofId));
       const of = pedido?.ofs.find((o) => o.id === a.ofId);
@@ -1203,29 +1218,31 @@ export function Board({
     for (const s of vecinasClave ? (vecinasClave.split(",") as SeccionId[]) : []) {
       out.push(...avisosDeOtraSeccion(pedidosVecinos[s] ?? [], s, miId, avisosMov, nombre));
     }
-    // Notas que ha dejado OTRA persona. Las mías no: la campana avisa de lo
-    // que ha pasado y no has provocado tú (ver notificaciones.ts), y avisarme
-    // de mi propia nota sería contarme lo que acabo de escribir.
+    // Notas que van conmigo: el servidor ya solo manda esas (ni las mías ni
+    // las que no me nombran). El filtro de "no las mías" se queda por si acaso.
     //
     // La nota cuelga del CÓDIGO del pedido, no de su id: es lo que sobrevive al
-    // paso al Historial. Por eso se busca por código.
+    // paso al Historial. Por eso se busca por código, y si el pedido ya no
+    // está en el tablero el aviso sale igual: una mención no se pierde porque
+    // el pedido haya pasado a Producción. Abre el panel del Historial.
     for (const n of notasRecientes) {
       if (n.operarioId === miId) continue;
       // Las que escribe la propia web (el re-escaneo) tienen su propio aviso
       // más abajo; contarlas dos veces sería repetir la misma noticia.
       if (n.operarioId === OPERARIO_SISTEMA) continue;
-      const pedido = procesadosAll.find((p) => p.codigo === n.pedido);
-      if (!pedido) continue; // nota de un pedido que ya no está en el tablero
+      const pedido = procesadosAll.find((p) => p.codigo === n.pedido) ?? pedidoFueraDelTablero(n.pedido);
+      const autor = n.autor ?? nombre(n.operarioId) ?? n.operarioId;
       out.push({
         pedido,
         of: null,
         tipo: "notaNueva",
-        quien: nombre(n.operarioId) ?? n.operarioId,
+        quien: autor,
         // La clave lleva el id de la nota: dos notas seguidas en el mismo
         // pedido son dos noticias, y con `pedido:tipo` la segunda se habría
         // agrupado con la primera y no habría sonado.
         clave: `nota:${n.id}`,
-        texto: n.texto,
+        texto: textoLlano(n.texto, nombre),
+        motivo: motivoAviso(n, misDestinos, autor),
       });
     }
 
@@ -1255,7 +1272,7 @@ export function Board({
       }
     }
     return agruparAvisos(out);
-  }, [procesadosAll, miId, espectador, avisosMov, operarios, notasRecientes, vecinasClave, pedidosVecinos]);
+  }, [procesadosAll, miId, espectador, avisosMov, operarios, notasRecientes, misDestinos, personas, vecinasClave, pedidosVecinos]);
 
   // ── Avisos deducidos ya abiertos ──
   // En localStorage y no en el servidor como los de movimiento: estos se
@@ -1435,6 +1452,13 @@ export function Board({
         setDescartes((prev) =>
           prev.claves.includes(clave) ? prev : { ...prev, claves: [...prev.claves, clave] },
         );
+      }
+      // Nota de un pedido que ya no está en el tablero: su panel del
+      // Historial, de solo lectura, como el buscador.
+      if (esPedidoFueraDelTablero(item.pedido)) {
+        setOpenId(null);
+        setHistorialAbierto(item.pedido.codigo);
+        return;
       }
       setVista(destino);
       // Aviso de OTRA sección (Manuel en Impresión, trabajo en Diseño): se
@@ -2528,10 +2552,6 @@ export function Board({
     (id: string) => operarios.find((o) => o.id === id)?.nombre ?? id,
     [operarios],
   );
-  // Pedido del historial abierto en su propio panel (el de solo lectura). Lo
-  // abre el buscador global: un resultado del historial no se puede enseñar en
-  // el Drawer normal, que espera un pedido vivo del tablero.
-  const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   // Abrir OTRO pedido desde una no conformidad (el original o el que lo
   // rectifica), en Coordina y no en su PDF (Iván, 26/10/2026). Como el
   // buscador: si está en el tablero, su ficha con todas las acciones; si no,

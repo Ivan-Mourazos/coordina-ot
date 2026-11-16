@@ -27,7 +27,9 @@ test("devuelve los avisos del lector de la sesión, sin caché", async () => {
   const r = GET(new Request("http://local/api/notas-recientes"));
   expect(r.headers.get("cache-control")).toBe("no-store");
   expect(leerAvisosNotas).toHaveBeenCalledWith(lector, VENTANA_AVISOS_DIAS);
-  expect((await r.json()).avisos.map((n: { id: number }) => n.id)).toEqual([7]);
+  const d = await r.json();
+  expect(d.avisos.map((n: { id: number }) => n.id)).toEqual([7]);
+  expect(d.destinos).toEqual(lector.destinos);
 });
 
 test("sin lector (login apagado) no hay avisos", async () => {

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { avisosPendientes, leerMarca, marcarVistas, type AvisoPedido, type MarcaAvisos } from "@/lib/avisos-belen";
 import type { NotaPedido } from "@/lib/nota-pedido";
 import { usePopover } from "@/lib/usePopover";
+import { textoLlano } from "@/lib/notificaciones";
+import { usePersonas } from "../notas/usePersonas";
 
 export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (pedido: string) => void }) {
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
@@ -11,6 +13,8 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
   // seguían saliendo todas las de antes (lib/avisos-belen.ts).
   const clave = `coordina.belen.avisos-notas:${miId ?? "local"}`;
   const [notas, setNotas] = useState<NotaPedido[]>([]);
+  const personas = usePersonas();
+  const nombreDe = (id: string) => personas.find((p) => p.id === id)?.nombre;
   const [marca, setMarca] = useState<MarcaAvisos | null>(null);
   const [estado, setEstado] = useState<"cargando" | "listo" | "error">("cargando");
   const [intento, setIntento] = useState(0);
@@ -40,8 +44,8 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
         const r = await fetch("/api/notas-recientes", { cache: "no-store", signal: ctl.signal });
         if (r.status === 401) { window.location.href = "/entrar"; return; }
         if (!r.ok) throw new Error("No se pudieron comprobar las notas");
-        const d = await r.json() as { notas: NotaPedido[] };
-        if (!ctl.signal.aborted) { setNotas(d.notas); setEstado("listo"); }
+        const d = await r.json() as { avisos: NotaPedido[] };
+        if (!ctl.signal.aborted) { setNotas(d.avisos); setEstado("listo"); }
       } catch { if (!ctl.signal.aborted) setEstado("error"); }
     };
     void pedir();
@@ -88,7 +92,7 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
         </div>
         {estado === "cargando" && <p role="status" className="py-3 text-sm text-text-muted">Comprobando notas…</p>}
         {estado === "error" && <p role="alert" className="py-2 text-sm text-text-muted">No se pudieron comprobar las notas. <button type="button" onClick={() => setIntento((n) => n + 1)} className="underline">Reintentar</button></p>}
-        {estado === "listo" && marca !== null && cuantas === 0 && <p className="py-3 text-sm text-text-muted">Sin notas nuevas. Aquí avisan las notas «para todos» que escriba Oficina Técnica en un pedido.</p>}
+        {estado === "listo" && marca !== null && cuantas === 0 && <p className="py-3 text-sm text-text-muted">Sin notas nuevas. Aquí avisan las notas en las que te mencionan con @ (a ti o a Producción) o que te dejan solo para ti.</p>}
         <ul className="scroll-thin min-h-0 space-y-1 overflow-y-auto">
           {avisos.map((a) => {
             const ultima = a.notas[0];
@@ -99,7 +103,7 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
                     <span className="text-sm font-semibold text-text">{a.pedido}</span>
                     <time dateTime={ultima.creadoAt} className="text-[11px] text-text-muted">{new Date(ultima.creadoAt).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</time>
                   </span>
-                  <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-text-muted">{ultima.texto}</span>
+                  <span className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-text-muted">{textoLlano(ultima.texto, nombreDe)}</span>
                   <span className="mt-1.5 flex items-center justify-between gap-2 text-xs text-text-muted">
                     <span>{ultima.autor ?? ""}</span>
                     {a.notas.length > 1 && <span className="rounded-full bg-[var(--hero-relleno)] px-2 py-0.5 font-semibold tabular-nums">{a.notas.length} notas nuevas</span>}

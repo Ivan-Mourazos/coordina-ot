@@ -25,7 +25,11 @@ export function GET(req: Request) {
 
   const lector = lectorDePeticion(req);
   return NextResponse.json(
-    { avisos: lector ? leerAvisosNotas(lector, VENTANA_AVISOS_DIAS) : [] },
+    {
+      avisos: lector ? leerAvisosNotas(lector, VENTANA_AVISOS_DIAS) : [],
+      // Para que la campana diga por qué te llega cada una (motivoAviso).
+      destinos: lector?.destinos ?? [],
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
