@@ -599,7 +599,49 @@ const MIGRACIONES: ReadonlyArray<{
   // Producción completa (Iván, 16/11/2026): entran Miguel Tato y Belén
   // Quintela, y Carlos Veiga (Dirección) es además su encargado.
   { version: 19, nombre: "produccion_completa", aplicar: produccionCompleta },
+  // Notas para todos con @menciones (16/11/2026, docs/NOTAS-MENCIONES.md):
+  // quién ve cada nota y a quién nombra pasan a sus tablas. Nadie gana ni
+  // pierde acceso a las notas viejas.
+  { version: 20, nombre: "notas_audiencia", aplicar: notasAudiencia },
 ];
+
+/** Audiencia y menciones de las notas.
+ *
+ *  Las notas de antes se traducen sin cambiar quién las ve:
+ *  · «solo OT» (`publica = 0`) la veían OT, Diseño, Impresión y Dirección →
+ *    audiencia con esas cuatro secciones.
+ *  · «para todos» (`publica = 1`) la veía cualquiera y la consulta pública →
+ *    sin audiencia y `en_consulta_publica = 1`.
+ *  Las viejas no llevan menciones: no existían.
+ *
+ *  Se puede repetir: la traducción de las viejas solo corre la vez que se crea
+ *  la columna. Repetirla después pisaría la audiencia de notas nuevas. */
+function notasAudiencia(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS nota_audiencia (
+      nota_id INTEGER NOT NULL REFERENCES nota_pedido(id),
+      tipo    TEXT NOT NULL CHECK (tipo IN ('persona','seccion')),
+      destino TEXT NOT NULL,
+      PRIMARY KEY (nota_id, tipo, destino));
+    CREATE TABLE IF NOT EXISTS nota_mencion (
+      nota_id   INTEGER NOT NULL REFERENCES nota_pedido(id),
+      tipo      TEXT NOT NULL CHECK (tipo IN ('persona','seccion')),
+      destino   TEXT NOT NULL,
+      creado_at TEXT NOT NULL,
+      PRIMARY KEY (nota_id, tipo, destino));
+    CREATE INDEX IF NOT EXISTS nota_mencion_destino ON nota_mencion(tipo, destino);
+  `);
+  const columnas = db.prepare("PRAGMA table_info(nota_pedido)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "en_consulta_publica")) return;
+  db.exec(`
+    ALTER TABLE nota_pedido ADD COLUMN en_consulta_publica INTEGER NOT NULL DEFAULT 0;
+    UPDATE nota_pedido SET en_consulta_publica = 1 WHERE publica = 1;
+    INSERT INTO nota_audiencia (nota_id, tipo, destino)
+      SELECT n.id, 'seccion', s.d FROM nota_pedido n
+      CROSS JOIN (SELECT 'ot' d UNION ALL SELECT 'diseno' UNION ALL SELECT 'impresion' UNION ALL SELECT 'direccion') s
+      WHERE n.publica = 0;
+  `);
+}
 
 /** Nombre y primer apellido de cada cuenta sembrada, los mismos que pinta el
  *  tablero (mock.ts, OPERARIOS). Solo se cambia la fila que SIGUE con el nombre

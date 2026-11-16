@@ -86,6 +86,12 @@ export function seccionConocidaDeOperario(operarioId: string | null | undefined)
   return (operarioId && SECCION_POR_OPERARIO[operarioId]) || null;
 }
 
+/** Las secciones en las que este operario cuenta ADEMÁS de la suya
+ *  (`tambienEn`). Vacío si no tiene o no está en el mapa. */
+export function tambienEnDeOperario(operarioId: string): readonly SeccionId[] {
+  return Object.values(COD_EMPLEADO_A_OPERARIO).find((e) => e.operarioId === operarioId)?.tambienEn ?? [];
+}
+
 /** operarioId → sección, derivado del mapa de arriba para que no puedan quedar
  *  descuadrados. */
 const SECCION_POR_OPERARIO: Readonly<Record<string, SeccionId>> = Object.fromEntries(
