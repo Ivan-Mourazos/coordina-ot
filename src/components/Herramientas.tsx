@@ -345,6 +345,26 @@ export function Herramientas({
               Impresoras
             </button>
 
+            {/* La pantalla de Producción (Belén y Cristina), para mirarla sin
+                cambiar de cuenta (Iván, 16/11/2026). Solo Dirección: al resto
+                del equipo no le hace falta y alargaría el menú. En pestaña
+                nueva, porque esa pantalla no tiene vuelta al tablero. */}
+            {roles.includes("direccion") && (
+              <a
+                href="/vista-belen"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                title="La pantalla que ven Belén y Cristina en Producción."
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-surface-2"
+              >
+                Vista de Producción
+                <svg viewBox="0 0 24 24" aria-hidden className="size-3 shrink-0 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            )}
+
             {ULTIMA && (
               <button
                 onClick={() => {
