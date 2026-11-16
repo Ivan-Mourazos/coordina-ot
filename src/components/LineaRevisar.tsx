@@ -67,7 +67,7 @@ export function LineaRevisar({
       // La prioridad, como en las demás filas de los paneles (11/11/2026).
       style={{ borderLeftColor: bordePrioridad(pedido.prioridad), "--borde-prioridad": bordePrioridad(pedido.prioridad) } as CSSProperties}
       className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
-        fichandoYo.length > 0 ? "bg-[color-mix(in_srgb,var(--color-violet-500)_10%,var(--fila))]" : "bg-[var(--fila)]"
+        fichandoYo.length > 0 ? "fila-fichando-revisar" : "bg-[var(--fila)]"
       }`}
     >
       <button
@@ -135,7 +135,7 @@ export function LineaRevisar({
 
       <span
         className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${
-          fichandoYo.length > 0 ? "[background:inherit]" : "group-hover:[background:inherit]"
+          fichandoYo.length > 0 ? "" : "group-hover:[background-color:inherit]"
         }`}
       >
         {soloLectura ? null : fichandoYo.length > 0 ? (

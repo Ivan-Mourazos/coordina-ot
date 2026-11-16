@@ -28,6 +28,8 @@ html[data-estilo="hero"] {
   /* Tarea con alguien fichando ahora: verde igual de fuerte que el amarillo
      (Iván, 14/11/2026). */
   --belen-fichando: color-mix(in oklab, #fff, #22c55e 42%);
+  /* Lo mismo para una revisión en marcha en el tablero de OT, en violeta. */
+  --fila-revisando: color-mix(in oklab, #fff, #8b5cf6 36%);
   --franja-ot: var(--surface-2);
   --franja-diseno: var(--surface-2);
   --franja-impresion: var(--surface-2);
@@ -81,6 +83,7 @@ html[data-estilo="hero"].dark {
   --belen-avisos-hechos: color-mix(in oklab, #202024, #facc15 26%);
   --belen-avisos-hechos-encima: color-mix(in oklab, #202024, #facc15 34%);
   --belen-fichando: color-mix(in oklab, #202024, #22c55e 26%);
+  --fila-revisando: color-mix(in oklab, #202024, #8b5cf6 30%);
   --hero-sombra-panel: 0 0 0 1px rgba(255,255,255,.06);
   --hero-sombra-campo: 0 0 0 1px rgba(255,255,255,.08);
   --hero-sombra-pildora: 0 1px 3px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.12);
@@ -125,13 +128,6 @@ html[data-estilo="hero"]:root .fila-sombra.con-prioridad {
 html[data-estilo="hero"].dark:root .fila-sombra.con-prioridad {
   box-shadow: inset 3px 0 0 var(--borde-prioridad), 0 0 0 1px var(--border);
 }
-/* Los tintes de fichaje son información, no acabado de aluminio. */
-html[data-estilo="hero"]:root .fila-fichando-plantear {
-  background-color: color-mix(in srgb, var(--color-emerald-500) 14%, var(--surface));
-}
-html[data-estilo="hero"]:root .fila-fichando-revisar {
-  background-color: color-mix(in srgb, var(--color-violet-500) 16%, var(--surface));
-}
 html[data-estilo="hero"]:root .recuadro {
   background: var(--bg);
   box-shadow: none;
@@ -146,6 +142,47 @@ html[data-estilo="hero"]:root .detalle-hundido {
 html[data-estilo="hero"]:root .cabecera-abierta {
   background-color: var(--fila);
   background-image: none;
+}
+/* Los tintes de fichaje son información, no acabado de aluminio. La fila que
+   alguien está fichando lleva el verde y el barrido de la vista de Belén
+   (.belen-fichando, más abajo), en el panel propio y en el de los compañeros
+   (Iván, 16/11/2026). La revisión, igual en violeta. Clase duplicada para
+   igualar la especificidad de `:is(..., .bloque-3d.fila-levantada, ...)` de
+   arriba, que lleva dos clases. */
+html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear,
+html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar {
+  background-color: var(--belen-fichando);
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: belen-fichando-barre 2.4s linear infinite;
+}
+html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar {
+  background-color: var(--fila-revisando);
+}
+html[data-estilo="hero"].dark:root .fila-fichando-plantear.fila-fichando-plantear,
+html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar {
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear,
+  html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar,
+  html[data-estilo="hero"].dark:root .fila-fichando-plantear.fila-fichando-plantear,
+  html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar { animation: none; background-image: none; }
 }
 
 html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,

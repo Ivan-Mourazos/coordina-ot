@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
+import { LineaRevisar } from "../../components/LineaRevisar";
 import { PedidoLinea } from "../../components/PedidoLinea";
 import { OPERARIOS, PEDIDOS } from "../mock";
 
@@ -107,4 +108,51 @@ test("el motivo se recorta en pantalla estrecha: la franja se superpone al clien
   // Corto en la fila, largo al posar el ratón.
   expect(html).toContain("Lo tiene el revisor</span>");
   expect(html).toContain("le toca al revisor");
+});
+
+test("las filas del panel propio y de revisar llevan la clase del barrido de fichaje sin parche opaco encima", () => {
+  const pedido = PEDIDOS[0];
+  const ofsPlantear = pedido.ofs.map((o) => ({
+    ...o,
+    ajenaOT: false,
+    detenida: false,
+    fichandoRol: "plantear" as const,
+  }));
+  const htmlPlantear = renderToStaticMarkup(
+    createElement(PedidoLinea, {
+      facet: { pedido: { ...pedido, ofs: ofsPlantear }, locationId: "ivan", ofs: ofsPlantear },
+      fase: "planteando" as const,
+      onOpen: noop,
+      onFichar: noop,
+      onDesficharVarias: noop,
+      completarPedido: noop,
+      operarios: OPERARIOS,
+      ofIdsFichandoYo: new Set(ofsPlantear.map((o) => o.id)),
+    }),
+  );
+  expect(htmlPlantear).toContain("fila-fichando-plantear");
+  expect(htmlPlantear).not.toContain("[background-color:inherit]");
+
+  const ofsRevisar = pedido.ofs.map((o) => ({
+    ...o,
+    ajenaOT: false,
+    detenida: false,
+    estado: "en_revision" as const,
+    revisorId: "ivan",
+    fichandoRol: "revisar" as const,
+  }));
+  const htmlRevisar = renderToStaticMarkup(
+    createElement(LineaRevisar, {
+      facet: { pedido: { ...pedido, ofs: ofsRevisar }, ofs: ofsRevisar },
+      miId: "ivan",
+      operarios: OPERARIOS,
+      onOpen: noop,
+      onEmpezar: noop,
+      onFichar: noop,
+      onDesficharVarias: noop,
+      ofIdsFichandoYo: new Set(ofsRevisar.map((o) => o.id)),
+    }),
+  );
+  expect(htmlRevisar).toContain("fila-fichando-revisar");
+  expect(htmlRevisar).not.toContain("[background-color:inherit]");
 });
