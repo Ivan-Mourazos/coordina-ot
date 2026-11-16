@@ -8,6 +8,8 @@
 // así que una nota colgada del id se perdería justo al pasar a Producción, que
 // es cuando más se quiere leer. Ver el spec del 2026-08-23.
 
+import type { SeccionId } from "./secciones";
+
 export interface NotaPedido {
   id: number;
   /** Código del pedido. También vale el sintético de las OF sueltas. */
@@ -22,10 +24,98 @@ export interface NotaPedido {
    *  comerciales). Por defecto no: una nota interna que sale de OT es peor
    *  que una para todos que se queda dentro. */
   publica: boolean;
+  /** Para quién es. Vacío = para todos (el caso normal). Con algo dentro,
+   *  solo la ven esas personas y secciones, y su autor. */
+  para: Destino[];
+  /** Sale también en la consulta pública sin sesión. Nunca si `para` tiene
+   *  algo: una nota restringida no se enseña a quien no ha entrado. */
+  enConsultaPublica: boolean;
+  /** A quién nombra con `@`, sacado del texto al guardar. */
+  menciones: Destino[];
   /** Nombre de quien la escribió, de la tabla de personas. Para las cuentas
    *  que no son del tablero (Belén, de Producción): sin él, el hilo del
    *  equipo enseñaría su id en vez de su nombre. */
   autor?: string | null;
+}
+
+// ─── Destinos y menciones (16/11/2026, docs/NOTAS-MENCIONES.md) ─────────────
+// Una mención se guarda en el texto como `@[persona:ivan]` o
+// `@[seccion:produccion]`: un formato fijo que identifica a quién sin depender
+// del nombre (que cambia) y que se pinta como etiqueta con el nombre de hoy.
+
+/** Las secciones a las que se puede escribir: las tres del tablero y las dos
+ *  que salen de los roles (Producción y Dirección). */
+export type DestinoSeccion = SeccionId | "produccion" | "direccion";
+
+export type Destino = { tipo: "persona"; id: string } | { tipo: "seccion"; id: DestinoSeccion };
+
+export const SECCIONES_MENCIONABLES: ReadonlyArray<{ id: DestinoSeccion; nombre: string }> = [
+  { id: "ot", nombre: "Oficina Técnica" },
+  { id: "diseno", nombre: "Diseño" },
+  { id: "impresion", nombre: "Impresión" },
+  { id: "produccion", nombre: "Producción" },
+  { id: "direccion", nombre: "Dirección" },
+];
+
+export function esSeccionMencionable(id: string): id is DestinoSeccion {
+  return SECCIONES_MENCIONABLES.some((s) => s.id === id);
+}
+
+/** Lo que se escribe en el texto para mencionar a alguien. */
+export function tokenMencion(d: Destino): string {
+  return `@[${d.tipo}:${d.id}]`;
+}
+
+/** La clave de un destino tal como la guardan las tablas y el lector:
+ *  "persona:ivan", "seccion:ot". */
+export function claveDestino(d: Destino): string {
+  return `${d.tipo}:${d.id}`;
+}
+
+// Global: se usa con matchAll/replace, que necesitan la bandera.
+const MENCION = /@\[(persona|seccion):([a-z0-9-]+)\]/g;
+
+function destinoDe(tipo: string, id: string): Destino | null {
+  if (tipo === "persona") return { tipo: "persona", id };
+  return esSeccionMencionable(id) ? { tipo: "seccion", id } : null;
+}
+
+/** Las menciones de un texto, sin repetir y en el orden en que aparecen. Una
+ *  sección que no existe no cuenta (se queda como texto). */
+export function extraerMenciones(texto: string): Destino[] {
+  const vistos = new Set<string>();
+  const salida: Destino[] = [];
+  for (const m of texto.matchAll(MENCION)) {
+    const d = destinoDe(m[1], m[2]);
+    if (!d || vistos.has(claveDestino(d))) continue;
+    vistos.add(claveDestino(d));
+    salida.push(d);
+  }
+  return salida;
+}
+
+export type Trozo = { tipo: "texto"; texto: string } | { tipo: "mencion"; destino: Destino };
+
+/** El texto partido en trozos para pintar las menciones como etiquetas. */
+export function trocearTexto(texto: string): Trozo[] {
+  const salida: Trozo[] = [];
+  let pendiente = "";
+  let desde = 0;
+  for (const m of texto.matchAll(MENCION)) {
+    const d = destinoDe(m[1], m[2]);
+    pendiente += texto.slice(desde, m.index);
+    desde = m.index + m[0].length;
+    if (!d) {
+      pendiente += m[0];
+      continue;
+    }
+    if (pendiente) salida.push({ tipo: "texto", texto: pendiente });
+    pendiente = "";
+    salida.push({ tipo: "mencion", destino: d });
+  }
+  pendiente += texto.slice(desde);
+  if (pendiente) salida.push({ tipo: "texto", texto: pendiente });
+  return salida;
 }
 
 /** Lo que ve de una nota quien no tiene sesión: el texto, quién y cuándo.
