@@ -16,6 +16,48 @@
 //
 // La versión la trae la respuesta del tablero (cabecera `X-Coordina-Version`),
 // así que esto no pide nada por su cuenta: el Board ya pregunta cada 30 s.
+// Las pantallas que no piden el tablero (la de Belén) usan `useVersionNueva`,
+// que pregunta a `/api/version` por su cuenta.
+
+import { useEffect, useRef, useState } from "react";
+
+/** Cada cuánto pregunta una pantalla sin tablero si ha cambiado la versión.
+ *  La petición es de nada (no toca la base de datos). */
+const SONDEO_VERSION_MS = 60_000;
+
+/** `true` en cuanto el servidor sirve otra compilación que la que había al
+ *  abrir la pestaña. Pregunta cada minuto mientras la pestaña está a la
+ *  vista, y en cuanto se vuelve a ella. */
+export function useVersionNueva(): boolean {
+  const cargada = useRef<string | null>(null);
+  const [nueva, setNueva] = useState(false);
+  useEffect(() => {
+    if (nueva) return;
+    let vivo = true;
+    const mirar = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const r = await fetch("/api/version", { cache: "no-store" });
+        if (!r.ok) return;
+        const { version } = (await r.json()) as { version?: string };
+        if (!vivo || !version || version === "dev") return;
+        if (!cargada.current) cargada.current = version;
+        else if (cargada.current !== version) setNueva(true);
+      } catch {
+        // Sin red no hay nada que decir; ya preguntará la próxima vez.
+      }
+    };
+    void mirar();
+    const reloj = window.setInterval(mirar, SONDEO_VERSION_MS);
+    document.addEventListener("visibilitychange", mirar);
+    return () => {
+      vivo = false;
+      window.clearInterval(reloj);
+      document.removeEventListener("visibilitychange", mirar);
+    };
+  }, [nueva]);
+  return nueva;
+}
 
 export function VersionNueva({ onRecargar }: { onRecargar?: () => void }) {
   return (

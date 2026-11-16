@@ -7,6 +7,7 @@ import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, filasALaVista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
+import { useVersionNueva, VersionNueva } from "../VersionNueva";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
 import { InicioBelen } from "./InicioBelen";
@@ -320,6 +321,8 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
     else if (p === "entregas") navegar({ vista: "entregas" });
   };
 
+  const hayVersionNueva = useVersionNueva();
+
   const salir = async () => {
     await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
     window.location.href = "/";
@@ -533,6 +536,8 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
         </main>
       ) : null}
       <EntregasBelen activa={pestana === "entregas"} refresco={refresco} onAbrir={(pedido) => navegar({ pedido })} />
+      {/* Se ha desplegado con la pestaña abierta: el mismo aviso que en OT. */}
+      {hayVersionNueva && <VersionNueva />}
     </div>
   );
 }
