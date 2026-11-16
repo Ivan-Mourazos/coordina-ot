@@ -605,6 +605,7 @@ const MIGRACIONES: ReadonlyArray<{
   { version: 20, nombre: "notas_audiencia", aplicar: notasAudiencia },
   // Respuestas a una nota, sin límite de nivel, y hilos «resueltos» (fase 2).
   { version: 21, nombre: "notas_respuestas", aplicar: notasRespuestas },
+  { version: 22, nombre: "notas_audiencia_fecha", aplicar: notasAudienciaFecha },
 ];
 
 /** Respuestas y hilos resueltos.
@@ -628,6 +629,17 @@ function notasRespuestas(db: Database.Database): void {
   for (const [nombre, tipo] of columnas)
     if (!hay.has(nombre)) db.exec(`ALTER TABLE nota_pedido ADD COLUMN ${nombre} ${tipo}`);
   db.exec(`CREATE INDEX IF NOT EXISTS nota_pedido_raiz ON nota_pedido(raiz_id)`);
+}
+
+/** Las BD de desarrollo que pasaron por el primer borrador de la migración 20
+ *  (16/11/2026) tienen `nota_audiencia` sin `creado_at`, y la 20 ya no se
+ *  repite. NULL = fila de antes, que no avisa: lo mismo que hace la 20. En una
+ *  BD sana no hace nada. */
+function notasAudienciaFecha(db: Database.Database): void {
+  const audiencia = (db.prepare("PRAGMA table_info(nota_audiencia)").all() as Array<{ name: string }>).map(
+    (c) => c.name,
+  );
+  if (!audiencia.includes("creado_at")) db.exec(`ALTER TABLE nota_audiencia ADD COLUMN creado_at TEXT`);
 }
 
 /** Audiencia y menciones de las notas.

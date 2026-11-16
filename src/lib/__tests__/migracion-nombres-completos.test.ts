@@ -50,7 +50,7 @@ const fila = (id: string) =>
 test("las cuentas con el nombre de la siembra pasan a nombre y apellido", () => {
   expect(fila("carron").nombre).toBe("José Luis Carrón");
   expect(fila("alberto").nombre).toBe("Alberto Carbón");
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(21);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(22);
 });
 
 test("Carlos Veiga: Dirección y encargado de Producción; Cris sigue desactivada", () => {
