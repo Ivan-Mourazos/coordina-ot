@@ -57,5 +57,5 @@ snap-board.md
 /public/pdf.worker.mjs
 /public/pdfjs/
 
-# Capturas y comprobaciones locales del estilo HeroUI
-/tmp/hero/
+# Restos locales de trabajo: capturas, logs, bases de prueba, scripts de consulta
+/tmp/
