@@ -426,7 +426,17 @@ export function FilaOFBelen({
             Fichando ahora
           </span>
         )}
-        <span className="min-w-[10rem] flex-1 truncate text-[13.5px] font-medium" title={of.articulo ?? of.descripcion}>
+        {/* Belén (16/11/2026): las unidades delante del artículo, como en su
+            pantalla de RPS («2 - LONA REMOLQUE»). */}
+        <span
+          className="min-w-[10rem] flex-1 truncate text-[13.5px] font-medium"
+          title={`${of.cantidad > 0 ? `${of.cantidad.toLocaleString("es-ES", { maximumFractionDigits: 2 })} × ` : ""}${of.articulo ?? of.descripcion}`}
+        >
+          {of.cantidad > 0 && (
+            <b className="mr-1.5 font-bold tabular-nums">
+              {of.cantidad.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ×
+            </b>
+          )}
           {enFrase(of.articulo ?? of.descripcion)}
         </span>
         {/* Belén (14/11/2026): la rotulación en la línea, sin desplegar, como en

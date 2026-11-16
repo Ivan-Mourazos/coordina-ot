@@ -21,6 +21,7 @@ import { NotasPedido } from "../NotasPedido";
 import { MaterialBelen } from "./MaterialBelen";
 import { DescontadoBelen } from "./DescontadoBelen";
 import { FilaOFBelen } from "./FilaOFBelen";
+import { HojaAlmacenBelen } from "./HojaAlmacenBelen";
 import { chip, FECHA } from "./estilos-belen";
 import { usePestanasOrdenables } from "./usePestanasOrdenables";
 import { ImprimirOF } from "./ImprimirOF";
@@ -319,6 +320,20 @@ export function PedidoBelenView({
         </div>
 
         <div className="mt-2 grid gap-y-1.5 border-t border-border pt-2 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))] [&>*+*]:border-l! [&>*+*]:border-border">
+          {r.ofs === 0 && pedido.almacen?.length ? (() => {
+            // Hoja de almacén: en vez de «0 de 0 OF subidas», lo hecho por Almacén.
+            const hechas = pedido.almacen.filter((l) => l.traspasadas > 0).length;
+            const total = pedido.almacen.length;
+            return (
+              <Cifra
+                etiqueta="Hoja de almacén"
+                valor={hechas === total ? "Hecha" : hechas === 0 ? "Sin hacer" : `${hechas} de ${total}`}
+                tono={hechas === total ? "verde" : "rojo"}
+                sub={n(total, "línea", "líneas")}
+                onClick={() => setSeccion("resumen")}
+              />
+            );
+          })() : (
           <Cifra
             etiqueta="Bultos subidos"
             valor={`${r.bultos.verde} de ${r.ofs}`}
@@ -340,6 +355,7 @@ export function PedidoBelenView({
             }
             onClick={() => setSeccion("resumen")}
           />
+          )}
           <Cifra
             etiqueta={FECHA.comprometida.rotulo}
             valor={r.comprometida ? fechaCorta(r.comprometida) : "Sin dar"}
@@ -489,7 +505,7 @@ export function PedidoBelenView({
 
       {seccion === "resumen" && (
       <div role="tabpanel" id="panel-detalle-resumen" aria-labelledby="detalle-resumen" className="flex flex-col gap-2">
-      {pedido.ofs.length === 0 && (
+      {pedido.almacen?.length ? <HojaAlmacenBelen lineas={pedido.almacen} /> : pedido.ofs.length === 0 && (
         <p className="tarjeta-of rounded-3xl bg-surface px-5 py-4 text-[14px] text-text-muted">
           Este pedido todavía no tiene ninguna OF en RPS.
         </p>

@@ -118,7 +118,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
   const consulta = <T>(q: string) =>
     pool.request().input("pedido", sql.VarChar(25), pedido).query<T>(`${ofsDe(pedido)} ${q}`);
 
-  const [ofs, tareas, paquetes, compras, logistica, nombres] = await Promise.all([
+  const [ofs, tareas, paquetes, compras, logistica, nombres, almacen] = await Promise.all([
     consulta<FilaOF>(`
       SELECT o.cod, p.CodOrder AS pedido, lin.NumLine AS linea, cli.Description AS cliente,
              mo.Priority AS prioridad, mo.Quantity AS cantidad,
@@ -213,6 +213,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
         ON om.IDMaintenanceWarning = pm.IDMaintenanceWarning AND om.IDMaintenanceOrderStatus = '001-0'
       LEFT JOIN dbo.GENEmployee emp ON emp.IDEmployee = om.IDResponsible`),
     nombresHistorial(),
+    // Las líneas con la casilla «Pedido almacén» no llevan OF: un pedido puede
+    // mezclar las dos cosas (Iván, 16/11/2026).
+    esCodigoOF(pedido) ? Promise.resolve([]) : hojaDeAlmacen(pool, pedido),
   ]);
 
   if (!ofs.recordset.length) return pedidoSinOF(pool, pedido);
@@ -317,6 +320,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
     cliente: resultado[0].cliente,
     comentarioVenta: texto(ofs.recordset[0].comentarioVenta),
     ofs: resultado,
+    ...(almacen.length ? { almacen } : {}),
     ...(esCodigoOF(pedido) ? { stock: true } : {}),
   };
 }
@@ -350,7 +354,44 @@ async function pedidoSinOF(pool: sql.ConnectionPool, pedido: string): Promise<Pe
     WHERE p.CodCompany = '001' AND p.CodOrder = @pedido`);
   const f = r.recordset[0];
   if (!f) return null;
-  return { codigo: pedido, cliente: texto(f.cliente), comentarioVenta: texto(f.comentario), ofs: [] };
+  return { codigo: pedido, cliente: texto(f.cliente), comentarioVenta: texto(f.comentario), ofs: [], almacen: await hojaDeAlmacen(pool, pedido) };
+}
+
+// ─── Hoja de almacén ─────────────────────────────────────────────────────────
+// Las líneas con la casilla «Pedido almacén» marcada en RPS
+// (_FACOrderLineSL_Custom.PedidoAlmacen): esas van por hoja de almacén; sin
+// marcar, se les hará OF. Y lo que Almacén ya traspasó para ellas. Apryl pinta verde la hoja cuando hay
+// traspaso entre almacenes (tipo 001-3, salida = MovementType 1) con el código
+// del pedido en el comentario (vista TGM_APRYL_HOJA_ALMACEN, leída el
+// 16/11/2026); aquí, igual, pero por artículo de la línea.
+async function hojaDeAlmacen(pool: sql.ConnectionPool, pedido: string) {
+  const r = await pool.request().input("pedido", sql.VarChar(25), pedido).query<{
+    linea: number;
+    articulo: string | null;
+    cantidad: number;
+    traspasadas: number | null;
+    formaEntrega: string | null;
+    fSol: Date | null;
+  }>(`
+    SELECT lin.NumLine AS linea, CAST(lin.Description AS varchar(300)) AS articulo, lin.Quantity AS cantidad,
+           (SELECT SUM(m.Quantity) FROM dbo.STKWarehouseMovement m
+             WHERE m.CodCompany = '001' AND m.IDMovementType = '001-3' AND m.MovementType = 1
+               AND m.Comment = @pedido AND m.IDArticle = lin.IDArticle) AS traspasadas,
+           fe.DescripcionFormaEntregaPedido AS formaEntrega, lin.ReceptionDemandDate AS fSol
+    FROM dbo.FACOrderSL p
+    JOIN dbo.FACOrderLineSL lin ON lin.IDOrder = p.IDOrder
+    JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = lin.IDOrderLine AND lc.PedidoAlmacen = 1
+    LEFT JOIN dbo._FormaEntregaPedido fe ON fe.IDFormaEntregaPedido = lc.IDFormaEntrega
+    WHERE p.CodCompany = '001' AND p.CodOrder = @pedido AND lin.IDManufacturingOrder IS NULL
+    ORDER BY lin.NumLine`);
+  return r.recordset.map((l) => ({
+    linea: l.linea,
+    articulo: texto(l.articulo) ?? "",
+    cantidad: Number(l.cantidad) || 0,
+    traspasadas: Number(l.traspasadas) || 0,
+    formaEntrega: texto(l.formaEntrega),
+    fechaSolicitada: iso(l.fSol),
+  }));
 }
 
 // ─── Quién ficha AHORA en las OF del pedido ──────────────────────────────────

@@ -124,6 +124,21 @@ export interface PedidoBelen {
   ofs: OFBelen[];
   /** Una OF de STOCK, sin pedido: `codigo` es el número de la OF. */
   stock?: boolean;
+  /** Pedido sin OF: las líneas de su hoja de almacén, como en Apryl. */
+  almacen?: LineaAlmacen[];
+}
+
+/** Una línea de hoja de almacén (pedido sin OF, `PedidoAlmacen` en RPS).
+ *  Hecha = Almacén hizo el traspaso con el código del pedido, la misma regla
+ *  que el verde/rojo de Apryl (vista TGM_APRYL_HOJA_ALMACEN, 16/11/2026). */
+export interface LineaAlmacen {
+  linea: number;
+  articulo: string;
+  cantidad: number;
+  /** Unidades traspasadas por Almacén para este artículo del pedido. */
+  traspasadas: number;
+  formaEntrega: string | null;
+  fechaSolicitada: string | null;
 }
 
 /** ¿Lo escrito es un número de OF («0233962»)? Así se abre una OF de stock,
