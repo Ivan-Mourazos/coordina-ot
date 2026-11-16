@@ -1769,9 +1769,14 @@ export function precalentarTablero(): void {
   // porque no se consultan (ver `Seccion.enObras`).
   const todas = Object.values(SECCIONES).filter((s) => !s.enObras);
   for (const s of todas) {
-    refrescarTablero(s).catch((e) => {
-      console.warn(`[coordina] precalentado de ${s.nombre} falló (se reintenta):`, e?.message);
-    });
+    // Lo que tarda cada una al arrancar queda en el log: junto a las líneas de
+    // Métricas (ver metricas-precalentar.ts) dice si RPS iba cargado en el
+    // primer minuto, que es cuando todo se pide a la vez.
+    const t0 = Date.now();
+    refrescarTablero(s).then(
+      () => console.info(`[coordina] tablero de ${s.nombre} listo en ${Date.now() - t0} ms`),
+      (e) => console.warn(`[coordina] precalentado de ${s.nombre} falló (se reintenta):`, e?.message),
+    );
   }
   globalThis.__coordinaPrecalentado = setInterval(() => {
     for (const s of todas) refrescarTablero(s).catch(() => {});

@@ -53,6 +53,45 @@ async function medir<T>(nombre: string, tarea: () => Promise<T>): Promise<T | nu
   }
 }
 
+// Las dos fuentes que Métricas pide al arrancar, solas y en el mismo orden que
+// `precalentarMetricas`. Sirve para comparar con lo que dice el log del
+// servidor (`[metricas] … del año listas en … ms`): si aquí tardan mucho menos,
+// lo que las frena allí es el arranque y no la consulta.
+test.skipIf(!ACTIVO)("lo que cuestan las fuentes de Métricas, solas", async () => {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const anio = { desde: `${hoy.slice(0, 4)}-01-01`, hasta: hoy };
+  await medir("metricas · no conformidades (año), sola", () => leerNcPeriodo(anio));
+  await medir("metricas · OF pasadas en RPS (año), sola", () => leerPasesRps(anio, "ot"));
+}, 300_000);
+
+// Lo mismo, pero a la vez que el tablero, que es lo que pasa al arrancar el
+// servidor (ver instrumentation.ts): las tres secciones del tablero en
+// paralelo y Métricas detrás. Cada 5 s apunta cómo está el reparto de
+// conexiones, para distinguir «RPS va lento» de «no quedan conexiones».
+test.skipIf(!ACTIVO)("Métricas a la vez que el tablero, como al arrancar", async () => {
+  const { precalentarTablero, getTableroRPS } = await import("../src/lib/server/rps");
+  const { precalentarMetricas } = await import("../src/lib/server/metricas-precalentar");
+  const pool = await getPool();
+  const t0 = Date.now();
+  const vigia = setInterval(() => {
+    anotar(`[medir] arranque · +${Math.round((Date.now() - t0) / 1000)} s: ${pool.size} conexiones, ${pool.borrowed} ocupadas, ${pool.pending} consultas en cola`);
+  }, 5_000);
+  try {
+    precalentarTablero();
+    const tableros = (Object.keys(SECCIONES) as SeccionId[])
+      .filter((s) => !SECCIONES[s].enObras)
+      .map((s) => medir(`arranque · tablero de ${s}`, async () => (await getTableroRPS(s)).pedidos));
+    await precalentarMetricas();
+    anotar(`[medir] arranque · Métricas lista a los ${Date.now() - t0} ms`);
+    await Promise.all(tableros);
+    anotar(`[medir] arranque · tablero listo a los ${Date.now() - t0} ms`);
+  } finally {
+    clearInterval(vigia);
+    clearInterval(globalThis.__coordinaPrecalentado);
+    globalThis.__coordinaPrecalentado = undefined;
+  }
+}, 300_000);
+
 // Las familias de las OF del año: la cuarta fuente del detalle de Métricas. Con
 // las OF que OT cerró en RPS como lista de prueba (el registro de producción
 // no está en este equipo), que es del mismo orden de tamaño.

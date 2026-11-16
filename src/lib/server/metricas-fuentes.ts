@@ -1,5 +1,6 @@
 import sql from "mssql";
 import { getPool } from "./db";
+import { cacheConDisco } from "./cache-disco";
 import { familiaDeTexto } from "./rps";
 import { sumarDias } from "../fechas";
 import { partirOfId } from "../bonos";
@@ -111,24 +112,24 @@ export async function leerIncidenciasMetricas(periodo: Periodo, seccion: Seccion
   return r.recordset.map(deFila);
 }
 
-const pasesGuardados = new Map<string, { hasta: number; filas: Promise<PaseRps[]> }>();
+const pasesGuardados = cacheConDisco<PaseRps[]>("metricas-pases-rps", 6 * 3_600_000);
 
 /** Las OF que OT cerró en RPS antes de que todo pasara por Coordina (ver
  *  COORDINA_EN_USO): la base del % de incidencias para esos meses, para las
  *  que Coordina no conoce. Cerrada = la última de sus tareas de OT
  *  terminada en OLANET o con fin real en RPS, como en el Historial. Son meses
- *  que ya no cambian, así que se guardan unas horas. */
-export async function leerPasesRps(periodo: Periodo, seccion: SeccionId): Promise<PaseRps[]> {
+ *  que ya no cambian, así que se guardan unas horas, y también en disco: la
+ *  primera vez tras arrancar no se esperan (ver cache-disco.ts). */
+export async function leerPasesRps(periodo: Periodo, seccion: SeccionId, opciones?: { esperarRps?: boolean }): Promise<PaseRps[]> {
   if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return [];
   const hasta = periodo.hasta && periodo.hasta < COORDINA_EN_USO ? periodo.hasta : sumarDias(COORDINA_EN_USO, -1);
   if (periodo.desde > hasta) return [];
   const clave = `${periodo.desde}|${hasta}`;
-  const guardado = pasesGuardados.get(clave);
-  if (guardado && guardado.hasta > Date.now()) return guardado.filas;
-  const filas = consultarPases(periodo.desde, hasta);
-  pasesGuardados.set(clave, { hasta: Date.now() + 6 * 3_600_000, filas });
-  filas.catch(() => pasesGuardados.delete(clave));
-  return filas;
+  return pasesGuardados(clave, () => consultarPases(periodo.desde, hasta), {
+    clave,
+    maxEdadMs: 24 * 3_600_000,
+    esperarRps: opciones?.esperarRps,
+  });
 }
 
 async function consultarPases(desde: string, hasta: string): Promise<PaseRps[]> {

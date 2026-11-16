@@ -97,7 +97,7 @@ export async function GET(req: Request) {
         // Las NC del periodo pedido, como las incidencias: de RPS y sin el
         // recorte de INICIO_METRICAS. Todas las de la empresa: de ellas salen
         // las de la sección y los totales (ver lib/no-conformidad.ts).
-        leerNcPeriodo(periodoAnio),
+        leerNcPeriodo(periodoAnio, { disco: true }),
       ]);
       if (nc.status === "rejected") console.error("[metricas] no conformidades no disponibles:", nc.reason?.message);
       if (familias.status === "rejected") console.error("[metricas] familias no disponibles:", familias.reason?.message);

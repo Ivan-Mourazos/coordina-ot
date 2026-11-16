@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { periodoAnioRps } from "../metricas";
 
@@ -35,14 +38,25 @@ async function modulos() {
 
 const HOY = "2026-11-16";
 const fuenteDeAntes = process.env.DATASOURCE;
-beforeEach(() => {
+const rutaDeAntes = process.env.COORDINA_DB_PATH;
+// El precalentado enciende la caché en disco (ver cache-disco.ts): que escriba
+// en una carpeta temporal y no en data/.
+let carpeta: string;
+beforeEach(async () => {
+  carpeta = await mkdtemp(path.join(os.tmpdir(), "coordina-metricas-"));
+  process.env.COORDINA_DB_PATH = path.join(carpeta, "coordina.db");
+  globalThis.__coordinaCacheEnDisco = undefined;
   process.env.DATASOURCE = "rps";
   getPool.mockReset();
   vi.useFakeTimers({ now: new Date(2026, 10, 16, 9, 0), toFake: ["Date"] });
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => {
+afterEach(async () => {
+  globalThis.__coordinaCacheEnDisco = undefined;
+  if (rutaDeAntes === undefined) delete process.env.COORDINA_DB_PATH;
+  else process.env.COORDINA_DB_PATH = rutaDeAntes;
+  await rm(carpeta, { recursive: true, force: true, maxRetries: 10, retryDelay: 20 });
   vi.restoreAllMocks();
   vi.useRealTimers();
   if (fuenteDeAntes === undefined) delete process.env.DATASOURCE;
@@ -86,6 +100,20 @@ describe("las fuentes de RPS de Métricas al arrancar el servidor", () => {
     getPool.mockResolvedValue(pool);
     expect(await leerNcPeriodo(periodoAnioRps("2026", HOY))).toEqual([]);
     expect(consultas.length).toBeGreaterThan(0);
+  });
+
+  // En el servidor tardaban cinco veces más que solas (16/11/2026) y el log no
+  // decía por qué: si RPS iba lento o si no quedaban conexiones libres.
+  it("el log dice cómo de ocupadas estaban las conexiones mientras esperaba", async () => {
+    const { pool } = rpsVacio();
+    getPool.mockResolvedValue({ ...pool, borrowed: 5, pending: 3 });
+    const { precalentarMetricas } = await modulos();
+
+    await precalentarMetricas();
+
+    const lineas = vi.mocked(console.info).mock.calls.map((c) => String(c[0]));
+    expect(lineas).toHaveLength(2);
+    for (const linea of lineas) expect(linea).toContain("hasta 5 conexiones ocupadas y 3 consultas en cola");
   });
 
   it("con datos de prueba no se pide nada a RPS", async () => {
