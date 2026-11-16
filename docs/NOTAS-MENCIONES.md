@@ -2,6 +2,11 @@
 
 Diseño acordado con Iván el 16/11/2026. Sustituye el «Solo OT / Para todos» actual.
 
+**Fase 1 hecha (16/11/2026):** para quién, consulta pública aparte, `@` y campana filtrada.
+Plan en `docs/superpowers/plans/2026-11-16-notas-menciones-fase1.md`. Desvío: las filas de
+`nota_audiencia` migradas tienen `creado_at` NULL y no avisan (si no, la campana de Diseño,
+Impresión y Dirección se habría llenado con todas las notas internas viejas).
+
 ## Problema
 
 Hoy la campana avisa de cualquier nota de otra persona en cualquier pedido de tu lista

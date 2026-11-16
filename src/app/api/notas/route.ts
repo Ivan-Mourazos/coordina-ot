@@ -104,8 +104,10 @@ export async function GET(req: Request) {
 
   const pedido = clave(new URL(req.url).searchParams.get("pedido"));
   if (!pedido) return NextResponse.json({ error: "Falta pedido" }, { status: 400 });
+  const lector = lectorDePeticion(req);
   return NextResponse.json(
-    { notas: leerNotas(pedido, lectorDePeticion(req)) },
+    // `destinos`: para que el panel resalte las menciones que van contigo.
+    { notas: leerNotas(pedido, lector), destinos: lector?.destinos ?? [] },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

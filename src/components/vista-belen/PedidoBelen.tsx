@@ -499,7 +499,7 @@ export function PedidoBelenView({
             Aquí ves las notas que Oficina Técnica pone <b className="text-text">«para todos»</b> y las tuyas. Lo que
             escribas lo lee todo el equipo.
           </p>
-          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} publicaPorDefecto soloParaTodos />
+          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} />
         </div>
       )}
 

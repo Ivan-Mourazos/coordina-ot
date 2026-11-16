@@ -2,12 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Operario } from "@/lib/types";
-import { NOTA_MAX, fmtCuandoNota, validarTexto, type NotaPedido } from "@/lib/nota-pedido";
+import {
+  NOTA_MAX,
+  claveDestino,
+  fmtCuandoNota,
+  trocearTexto,
+  validarTexto,
+  type Destino,
+  type NotaPedido,
+} from "@/lib/nota-pedido";
+import type { PersonaPublica } from "@/lib/personas";
 import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useSoloLecturaNotas } from "./SoloLectura";
 import { AcentoBloque } from "./AcentoBloque";
+import { CampoMencion } from "./notas/CampoMencion";
+import { ChipSoloPara, SelectorPara, nombreDestino } from "./notas/SelectorPara";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
 // El post-it que pidió Ángel: lo que sabe OT y no está en ningún campo de RPS
@@ -26,8 +37,6 @@ export function NotasPedido({
   miId,
   operarios,
   soloLectura: soloLecturaProp = false,
-  publicaPorDefecto = false,
-  soloParaTodos = false,
 }: {
   /** CÓDIGO del pedido ("AR.26.03914"), no su id interno: es lo que sobrevive
    *  al paso al Historial, donde el id cambia. */
@@ -36,13 +45,6 @@ export function NotasPedido({
   operarios: readonly Operario[];
   /** El Historial no escribe: el pedido ya está cerrado para OT. */
   soloLectura?: boolean;
-  /** Con qué sale marcada una nota nueva. En OT, «Solo OT»; en la pantalla
-   *  de Belén, «Para todos»: escribe para hablar con OT y tiene que poder
-   *  leer lo que le contesten. */
-  publicaPorDefecto?: boolean;
-  /** Quien no es de OT (Belén) no elige «Solo OT»: todo lo que escribe es
-   *  «para todos». El servidor lo fuerza igual; esto solo quita el selector. */
-  soloParaTodos?: boolean;
 }) {
   // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo,
   // salvo para Dirección, que sí escribe notas (16/11/2026).
@@ -52,12 +54,15 @@ export function NotasPedido({
   // El error lleva si se arregla recargando. Un fallo de CARGA sí (de ahí el
   // botón "Reintentar"); uno de GUARDADO no, que recargar tiraría lo escrito.
   const [error, setError] = useState<{ texto: string; recargable: boolean } | null>(null);
-  const [borrador, setBorrador] = useState("");
-  // Para quién es la nota nueva. Empieza siempre en «Solo OT»: si alguien no
-  // se fija, la nota no sale de la oficina (19/10/2026).
-  const [borradorPublica, setBorradorPublica] = useState(publicaPorDefecto);
+  // Desde el 16/11/2026 una nota es para todos salvo que se elija «Para…», y
+  // la consulta pública (sin sesión) solo la enseña si se marca a propósito.
+  const [borrador, setBorrador] = useState<Borrador>(BORRADOR_VACIO);
   const [escribiendo, setEscribiendo] = useState(false);
-  const [editando, setEditando] = useState<{ id: number; texto: string; publica: boolean } | null>(null);
+  const [editando, setEditando] = useState<(Borrador & { id: number }) | null>(null);
+  // Para pintar las menciones con su nombre y ofrecerlas al escribir @.
+  const [personas, setPersonas] = useState<PersonaPublica[]>([]);
+  // Lo que soy yo («persona:ivan», «seccion:ot»…): resalta lo que va conmigo.
+  const [misDestinos, setMisDestinos] = useState<string[]>([]);
   const [borrando, setBorrando] = useState<NotaPedido | null>(null);
   const [guardando, setGuardando] = useState(false);
   const reqSeq = useRef(0);
@@ -78,9 +83,10 @@ export function NotasPedido({
         cache: "no-store",
       });
       if (!r.ok) throw new Error(String(r.status));
-      const d = (await r.json()) as { notas: NotaPedido[] };
+      const d = (await r.json()) as { notas: NotaPedido[]; destinos?: string[] };
       if (seq !== reqSeq.current) return; // respuesta de un pedido anterior: la ignoramos
       setNotas(d.notas);
+      setMisDestinos(d.destinos ?? []);
       setError(null);
     } catch {
       if (seq !== reqSeq.current) return;
@@ -100,13 +106,27 @@ export function NotasPedido({
       setError(null);
       setEditando(null);
       setEscribiendo(false);
-      setBorrador("");
-      setBorradorPublica(publicaPorDefecto);
+      setBorrador(BORRADOR_VACIO);
       setBorrando(null);
       void cargar();
     }, 0);
     return () => clearTimeout(id);
-  }, [cargar, publicaPorDefecto]);
+  }, [cargar]);
+
+  // Una vez por ficha: la plantilla cambia poco. Si falla, las menciones salen
+  // como «@alguien» y el @ solo ofrece secciones; la nota se puede escribir.
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/personas", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ personas: PersonaPublica[] }>) : null))
+      .then((d) => {
+        if (vivo && d) setPersonas(d.personas);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   /** Manda el cambio y recarga el hilo. Devuelve si salió bien, para que quien
    *  llama sepa si puede cerrar su editor. */
@@ -210,12 +230,11 @@ export function NotasPedido({
             return (
               <li key={n.id}>
                 <Editor
-                  valor={editando.texto}
-                  publica={editando.publica}
-                  onPublica={(publica) => setEditando({ ...editando, publica })}
-                  elegirPara={!soloParaTodos}
+                  valor={editando}
+                  onCambio={(b) => setEditando({ ...editando, ...b })}
+                  personas={personas}
+                  miId={miId}
                   guardando={guardando}
-                  onCambio={(texto) => setEditando({ ...editando, texto })}
                   onGuardar={async () => {
                     const ok = await mandar({
                       method: "PATCH",
@@ -223,7 +242,8 @@ export function NotasPedido({
                         id: n.id,
                         operarioId: miId,
                         texto: editando.texto,
-                        enConsultaPublica: editando.publica,
+                        para: editando.para,
+                        enConsultaPublica: editando.para.length === 0 && editando.enConsultaPublica,
                       }),
                     });
                     if (ok) setEditando(null);
@@ -256,13 +276,14 @@ export function NotasPedido({
                     {delSistema ? "Coordina" : (op?.nombre ?? n.autor ?? n.operarioId)}
                   </span>
                   <time dateTime={n.creadoAt} title={new Date(n.creadoAt).toLocaleString("es-ES")} className="text-text-muted">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
+                  <ChipSoloPara para={n.para} personas={personas} />
                   {n.enConsultaPublica && (
-                    // Que en OT se sepa qué está leyendo Producción.
+                    // Que se sepa qué se lee desde fuera, sin sesión.
                     <span
-                      title="La ve también quien entra sin iniciar sesión: Producción, comerciales…"
-                      className="rounded bg-sky-500/15 px-1.5 py-px text-[10px] font-semibold text-sky-800 dark:text-sky-300"
+                      title="La ve también quien entra sin iniciar sesión: comerciales, taller…"
+                      className="rounded-full bg-[var(--hero-relleno)] px-2 py-px text-[10px] font-semibold text-text-muted"
                     >
-                      Visible para todos
+                      En la consulta pública
                     </span>
                   )}
                   {n.editadoAt && (
@@ -279,7 +300,9 @@ export function NotasPedido({
                     <span className="ml-auto flex shrink-0 gap-2 [@media(hover:hover)]:opacity-0 group-hover/nota:opacity-100 group-focus-within/nota:opacity-100">
                       <button
                         type="button"
-                        onClick={() => setEditando({ id: n.id, texto: n.texto, publica: n.enConsultaPublica })}
+                        onClick={() =>
+                          setEditando({ id: n.id, texto: n.texto, para: n.para, enConsultaPublica: n.enConsultaPublica })
+                        }
                         className="text-[10px] font-semibold text-text-muted hover:text-text"
                       >
                         Editar
@@ -294,7 +317,9 @@ export function NotasPedido({
                     </span>
                   )}
                 </p>
-                <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-relaxed text-text">{n.texto}</p>
+                <p className="mt-1.5 whitespace-pre-line break-words text-[13px] leading-relaxed text-text">
+                  <TextoNota texto={n.texto} personas={personas} misDestinos={misDestinos} />
+                </p>
               </div>
             </li>
           );
@@ -305,25 +330,28 @@ export function NotasPedido({
         <div className="mt-2">
           <Editor
             valor={borrador}
-            publica={borradorPublica}
-            onPublica={setBorradorPublica}
-            elegirPara={!soloParaTodos}
+            onCambio={(b) => setBorrador({ ...borrador, ...b })}
+            personas={personas}
+            miId={miId}
             guardando={guardando}
-            onCambio={setBorrador}
             onGuardar={async () => {
               const ok = await mandar({
                 method: "POST",
-                body: JSON.stringify({ pedido, operarioId: miId, texto: borrador, enConsultaPublica: borradorPublica }),
+                body: JSON.stringify({
+                  pedido,
+                  operarioId: miId,
+                  texto: borrador.texto,
+                  para: borrador.para,
+                  enConsultaPublica: borrador.para.length === 0 && borrador.enConsultaPublica,
+                }),
               });
               if (ok) {
-                setBorrador("");
-                setBorradorPublica(publicaPorDefecto);
+                setBorrador(BORRADOR_VACIO);
                 setEscribiendo(false);
               }
             }}
             onCancelar={() => {
-              setBorrador("");
-              setBorradorPublica(publicaPorDefecto);
+              setBorrador(BORRADOR_VACIO);
               setEscribiendo(false);
             }}
           />
@@ -371,68 +399,96 @@ export function NotasPedido({
   );
 }
 
+interface Borrador {
+  texto: string;
+  /** Vacío = para todos. */
+  para: Destino[];
+  /** Solo cuenta con `para` vacío: una nota restringida nunca es pública. */
+  enConsultaPublica: boolean;
+}
+
+const BORRADOR_VACIO: Borrador = { texto: "", para: [], enConsultaPublica: false };
+
+/** El texto de una nota con las menciones como etiquetas. Resaltada la que va
+ *  contigo (a ti o a una sección tuya). */
+function TextoNota({
+  texto,
+  personas,
+  misDestinos,
+}: {
+  texto: string;
+  personas: readonly PersonaPublica[];
+  misDestinos: readonly string[];
+}) {
+  return (
+    <>
+      {trocearTexto(texto).map((t, i) =>
+        t.tipo === "texto" ? (
+          <span key={i}>{t.texto}</span>
+        ) : (
+          <span
+            key={i}
+            className={`rounded-full px-1.5 py-px text-[12px] font-semibold ${
+              misDestinos.includes(claveDestino(t.destino))
+                ? "bg-brand-400 text-brand-950"
+                : "bg-[var(--hero-relleno)] text-text"
+            }`}
+          >
+            @{nombreDestino(t.destino, personas)}
+          </span>
+        ),
+      )}
+    </>
+  );
+}
+
 /** El cuadro de escribir, el mismo para una nota nueva y para editar una. */
 function Editor({
   valor,
-  publica,
-  onPublica,
   onCambio,
   onGuardar,
   onCancelar,
+  personas,
+  miId,
   guardando,
-  elegirPara = true,
 }: {
-  valor: string;
-  /** Para quién es: «Solo OT» (false) o «Para todos» (true). */
-  publica: boolean;
-  onPublica: (publica: boolean) => void;
-  onCambio: (v: string) => void;
+  valor: Borrador;
+  onCambio: (b: Partial<Borrador>) => void;
   onGuardar: () => void;
   onCancelar: () => void;
+  personas: readonly PersonaPublica[];
+  miId: string | null;
   guardando: boolean;
-  /** Sin selector «Solo OT / Para todos» (quien no es de OT). */
-  elegirPara?: boolean;
 }) {
   // La validación es la misma que en la ruta (`validarTexto`): antes se
   // recalculaba aquí a mano con `valor.trim().length` y divergía, porque
   // `validarTexto` normaliza `\r\n` a `\n` antes de medir y esta copia no.
-  const validacion = validarTexto(valor);
+  const validacion = validarTexto(valor.texto);
   const vacio = !validacion.ok && validacion.motivo === "vacio";
   const pasado = !validacion.ok && validacion.motivo === "largo";
   // El contador tiene que medir el mismo texto que acaba de medir
   // `validarTexto` (normalizado), no el crudo del textarea: `validarTexto` no
   // devuelve el texto cuando falla, así que se repite aquí la misma normalización.
-  const largo = valor.replace(/\r\n/g, "\n").trim().length;
+  const largo = valor.texto.replace(/\r\n/g, "\n").trim().length;
+  const restringida = valor.para.length > 0;
   return (
     <div>
-      <textarea
-        value={valor}
-        autoFocus
-        rows={3}
-        onChange={(e) => onCambio(e.target.value)}
-        onKeyDown={(e) => {
-          // Cancela la nota y nada más: sin cortarlo, Escape cerraba la ficha.
-          if (e.key === "Escape") {
-            e.stopPropagation();
-            onCancelar();
-          }
-          // Ctrl/Cmd+Enter guarda: el Enter suelto hace falta para el salto de
-          // línea, que estas notas suelen llevar más de una.
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !vacio && !pasado) onGuardar();
-        }}
-        placeholder="Lo que hay que saber de este pedido…"
-        aria-label="Nota del pedido"
-        // Bloqueado mientras se guarda: el camino de éxito limpia el borrador,
-        // así que lo que se teclease en esa ventana se iría sin avisar.
+      <CampoMencion
+        valor={valor.texto}
+        onCambio={(texto) => onCambio({ texto })}
+        onGuardar={onGuardar}
+        onCancelar={onCancelar}
+        personas={personas}
+        miId={miId}
         disabled={guardando}
-        className="recuadro w-full rounded-lg border border-borde-campo px-3 py-2 text-[13px] leading-relaxed text-text disabled:opacity-60"
+        puedeGuardar={!vacio && !pasado}
       />
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={onGuardar}
           disabled={vacio || pasado || guardando}
-          className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+          className="rounded-full bg-brand-400 px-3 py-1 text-[11px] font-semibold text-brand-950 active:scale-[.97] disabled:opacity-50"
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
@@ -440,7 +496,7 @@ function Editor({
           type="button"
           onClick={onCancelar}
           disabled={guardando}
-          className="rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-text-muted hover:text-text disabled:opacity-50"
+          className="rounded-full bg-[var(--hero-relleno)] px-3 py-1 text-[11px] font-semibold text-text-muted hover:text-text active:scale-[.97] disabled:opacity-50"
         >
           Cancelar
         </button>
@@ -449,40 +505,34 @@ function Editor({
             {largo} de {NOTA_MAX} caracteres
           </span>
         )}
-        {/* Para quién: un interruptor a la vista y no una pregunta en una
-            ventana, que con el tiempo se acepta sin leer. */}
-        {elegirPara && (
-        <div role="radiogroup" aria-label="Quién puede ver la nota" className="ml-auto flex rounded-lg ring-1 ring-border">
-          {([false, true] as const).map((valorPublica) => (
-            <button
-              key={String(valorPublica)}
-              type="button"
-              role="radio"
-              aria-checked={publica === valorPublica}
-              disabled={guardando}
-              onClick={() => onPublica(valorPublica)}
-              title={
-                valorPublica
-                  ? "La verá también quien entra sin iniciar sesión: Producción, comerciales… Cualquiera en la red de la empresa."
-                  : "Solo la ve Oficina Técnica"
-              }
-              className={`px-2 py-1 text-[11px] font-semibold first:rounded-l-lg last:rounded-r-lg disabled:opacity-50 ${
-                publica === valorPublica
-                  ? valorPublica
-                    ? "bg-sky-600 text-white"
-                    : "bg-surface-2 text-text"
-                  : "text-text-muted hover:text-text"
-              }`}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Restringida nunca es pública: la casilla ni se ofrece. */}
+          {!restringida && (
+            <label
+              className="flex cursor-pointer items-center gap-1.5 text-[11px] text-text-muted"
+              title="La verá también quien entra sin iniciar sesión: comerciales, taller… Cualquiera en la red de la empresa."
             >
-              {valorPublica ? "Para todos" : "Solo OT"}
-            </button>
-          ))}
+              <input
+                type="checkbox"
+                checked={valor.enConsultaPublica}
+                disabled={guardando}
+                onChange={(e) => onCambio({ enConsultaPublica: e.target.checked })}
+              />
+              Visible en la consulta pública
+            </label>
+          )}
+          <SelectorPara
+            para={valor.para}
+            onPara={(para) => onCambio({ para })}
+            personas={personas}
+            miId={miId}
+            disabled={guardando}
+          />
         </div>
-        )}
       </div>
-      {publica && elegirPara && (
-        <p className="mt-1 text-right text-[10px] text-sky-800 dark:text-sky-300">
-          La verá también quien entra sin iniciar sesión.
+      {restringida && (
+        <p className="mt-1 text-right">
+          <ChipSoloPara para={valor.para} personas={personas} />
         </p>
       )}
     </div>
