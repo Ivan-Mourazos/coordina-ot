@@ -12,7 +12,7 @@ const pintar = () =>
   );
 
 test("la caja de alrededor no se maqueta, para no mover el botón en su fila", () => {
-  expect(pintar()).toMatch(/^<span class="contents"><button\b/);
+  expect(pintar()).toMatch(/^<span class="contents" data-pista-propia=""><button\b/);
 });
 
 test("la explicación va en el propio botón, para el lector de pantalla", () => {

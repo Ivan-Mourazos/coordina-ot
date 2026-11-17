@@ -82,6 +82,7 @@ export function Pista({
     // eventos del botón (entrar el ratón en un hijo es entrar en ella).
     <span
       className="contents"
+      data-pista-propia=""
       onPointerEnter={(e) => {
         if (e.pointerType === "mouse") abrir(e.currentTarget.firstElementChild, false);
       }}
@@ -169,17 +170,31 @@ export function PistasGlobales() {
   useEffect(() => {
     let el: HTMLElement | null = null;
     let espera: number | undefined;
+    /** Todo lo que lleva el `title` apartado ahora: el objetivo y sus padres. */
+    let apartados: HTMLElement[] = [];
+    let vigia: MutationObserver | null = null;
+
+    const apartar = (e: HTMLElement) => {
+      const t = e.getAttribute("title");
+      if (t === null) return;
+      e.dataset.pistaTitulo = t;
+      e.removeAttribute("title");
+      if (!apartados.includes(e)) apartados.push(e);
+    };
 
     const devolver = () => {
       window.clearTimeout(espera);
-      if (el) {
-        const guardado = el.dataset.pistaTitulo;
+      vigia?.disconnect();
+      vigia = null;
+      for (const e of apartados) {
+        const guardado = e.dataset.pistaTitulo;
         if (guardado !== undefined) {
-          el.setAttribute("title", guardado);
-          delete el.dataset.pistaTitulo;
+          e.setAttribute("title", guardado);
+          delete e.dataset.pistaTitulo;
         }
-        el = null;
       }
+      apartados = [];
+      el = null;
       setActual((antes) => {
         if (antes) apuntarCierre();
         return null;
@@ -191,11 +206,26 @@ export function PistasGlobales() {
       devolver();
       const texto = objetivo.getAttribute("title")?.trim();
       if (!texto) return;
-      objetivo.dataset.pistaTitulo = objetivo.getAttribute("title") ?? "";
-      objetivo.removeAttribute("title");
+      // Salían dos globos pisándose (Iván, 17/11/2026): al apartar el `title`
+      // del objetivo, el navegador enseñaba el del primer padre que lo tuviera
+      // (la fila entera, la tarjeta…) con su recuadro gris, encima del nuestro.
+      // Se apartan también los de los padres mientras dure.
+      for (let e: HTMLElement | null = objetivo; e; e = e.parentElement) apartar(e);
+      // Y si React vuelve a escribir el `title` con el ratón encima (minutos
+      // que corren, «hace 1 min»), se aparta otra vez y el globo se pone al día.
+      vigia = new MutationObserver((cambios) => {
+        for (const c of cambios) {
+          const e = c.target as HTMLElement;
+          const nuevo = e.getAttribute("title");
+          if (nuevo === null) continue;
+          apartar(e);
+          if (e === objetivo && nuevo.trim()) setActual((antes) => (antes ? { ...antes, texto: nuevo.trim() } : antes));
+        }
+      });
+      for (const e of apartados) vigia.observe(e, { attributes: true, attributeFilter: ["title"] });
       el = objetivo;
       const sacar = () => {
-        if (el === objetivo) setActual({ ancla: objetivo.getBoundingClientRect(), texto });
+        if (el === objetivo) setActual({ ancla: objetivo.getBoundingClientRect(), texto: objetivo.dataset.pistaTitulo?.trim() || texto });
       };
       if (inmediata || vieneDeOtra()) sacar();
       else espera = window.setTimeout(sacar, ESPERA_MS);
@@ -210,6 +240,17 @@ export function PistasGlobales() {
 
     const sobre = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
+      // Un botón con su propia `Pista` ya enseña globo: aquí solo se callan
+      // los `title` de los padres, para que no salga otro encima.
+      const propia = (e.target as Element | null)?.closest?.("[data-pista-propia]");
+      if (propia instanceof HTMLElement) {
+        if (propia !== el) {
+          devolver();
+          for (let p = propia.parentElement; p; p = p.parentElement) apartar(p);
+          el = propia;
+        }
+        return;
+      }
       const objetivo = conPista(e.target);
       if (objetivo) tomar(objetivo, false);
       else if (el) devolver();
