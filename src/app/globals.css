@@ -1016,6 +1016,93 @@ body {
   }
 }
 
+/* ─── Select nativo: `appearance: base-select` (17/11/2026) ────────────────
+   Lo usa components/Select.tsx. El <select> lleva las clases de siempre
+   (glass-chip, la del campo hundido de Belén…) y aquí solo se le quita lo que
+   pone el navegador. La lista (`::picker(select)`) va a la capa superior y se
+   cuelga del control sola; si abajo no cabe, el navegador la abre arriba.
+   Sin soporte (Firefox) todo esto se ignora y sale el desplegable del sistema. */
+.select-nativo,
+.select-nativo::picker(select) {
+  appearance: base-select;
+}
+@layer base {
+  .select-nativo {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    min-block-size: 0;
+  }
+  /* El botón de dentro solo coloca icono, texto y flecha: lo que se ve es
+     el <select>. */
+  .select-nativo > button {
+    all: unset;
+    box-sizing: border-box;
+  }
+}
+.select-nativo::picker(select) {
+  border: 0;
+  border-radius: 14px;
+  padding: 4px;
+  margin-block: 4px;
+  background-color: var(--surface);
+  color: var(--text);
+  box-shadow: var(--hero-sombra-panel);
+  max-block-size: 16rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  min-inline-size: anchor-size(self-inline);
+  animation: pop-in 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  transform-origin: top;
+}
+/* La flecha la pone Select.tsx (gira al abrir y en `plano` va discreta).
+   Sin esto salía también la del navegador. */
+.select-nativo::picker-icon {
+  display: none;
+}
+/* `alignRight`: la lista crece hacia la izquierda desde el borde derecho. */
+.select-nativo.select-derecha::picker(select) {
+  position-area: block-end span-inline-start;
+}
+.select-nativo option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: none;
+}
+.select-nativo option:is(:hover, :focus-visible) {
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+}
+.select-nativo option:checked {
+  color: var(--color-brand-800);
+}
+.dark .select-nativo option:checked {
+  color: var(--color-brand-400);
+}
+/* La marca de la elegida, al final de la fila como antes (el navegador la
+   pone delante). */
+.select-nativo option::checkmark {
+  order: 1;
+  margin-inline-start: auto;
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-nativo::picker(select) {
+    animation: none;
+  }
+}
+
 /* Ventanitas que cuelgan de un botón de la ficha (material, notas de
    Producción, tareas y tiempos). Mismo cuerpo que las fichas de las OF sobre
    las que se abren: canto de luz arriba, canto inferior y sombra que la

@@ -365,8 +365,12 @@ html[data-estilo="hero"]:root .tira-3d[data-pildora] > :is(.pestana-activa, .gla
   box-shadow: none;
 }
 
-html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea, select,
-  .campo-hundido, button:where([aria-haspopup="listbox"]).glass-chip) {
+/* Los desplegables de la casa (components/Select.tsx) son <select> desde el
+   17/11/2026, pero no todos tienen forma de campo: el autor de la ficha va
+   `plano`, como texto. Por eso fuera del `select` general y dentro solo los
+   que llevan el chip (`.glass-chip`). */
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea, select:not(.select-nativo),
+  .campo-hundido, select.select-nativo.glass-chip) {
   background: var(--surface);
   border: 0;
   border-radius: 10px;
@@ -374,9 +378,9 @@ html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type=
   transform: none;
   transition: box-shadow 150ms ease;
 }
-html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), textarea, select):focus,
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), textarea, select:not(.select-nativo)):focus,
 html[data-estilo="hero"]:root .campo-hundido:focus-within,
-html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip:focus-visible {
+html[data-estilo="hero"]:root select.select-nativo:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--hero-anillo);
 }
@@ -388,7 +392,7 @@ html[data-estilo="hero"]:root .campo-hundido :is(input, textarea):focus {
   outline: none;
 }
 /* La forma sigue siendo la del campo aunque tenga un filtro aplicado. */
-html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo {
+html[data-estilo="hero"]:root select.select-nativo.glass-chip-activo {
   background: var(--hero-pildora);
   box-shadow: var(--hero-sombra-pildora);
 }
@@ -396,17 +400,17 @@ html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo 
    selector de mes y año no cambie de forma al pulsar»). Con un filtro puesto,
    la regla de la píldora elegida (:hover) lo volvía píldora de 999 px, y la de
    los botones lo encogía al 97 %: un campo no es un botón. */
-html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
+html[data-estilo="hero"]:root select.select-nativo.glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
   border-radius: 10px;
   transform: none;
 }
 /* En regla aparte y con OTRO selector (`[type="button"]`): junto a un
    `transform`, o con el mismo selector, el compilador de CSS funde las reglas y
    el `scale` desaparece (comprobado en la hoja servida, 27/10/2026). */
-html[data-estilo="hero"]:root button[type="button"][aria-haspopup="listbox"].glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
+html[data-estilo="hero"]:root select.select-nativo:not([multiple]).glass-chip:is(:hover, :active, :focus, :focus-visible):not(:disabled) {
   scale: none;
 }
-html[data-estilo="hero"]:root button[aria-haspopup="listbox"].glass-chip-activo:is(:hover, :active):not(:disabled) {
+html[data-estilo="hero"]:root select.select-nativo.glass-chip-activo:is(:hover, :active):not(:disabled) {
   background: var(--hero-pildora);
 }
 html[data-estilo="hero"]:root :is(button, a, summary, [role="button"], [tabindex]):focus-visible {

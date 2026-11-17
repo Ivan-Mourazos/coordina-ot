@@ -45,16 +45,28 @@ export function crearPila(): PilaCapas {
 const pila = crearPila();
 let escuchando = false;
 
+function selectAbierto(): boolean {
+  try {
+    return document.querySelector("select:open") !== null;
+  } catch {
+    return false;
+  }
+}
+
 function alPulsar(e: KeyboardEvent) {
   // `cancelBubble`: quien cortó la propagación ya se quedó el Escape. Hace
   // falta mirarlo: Next monta React en el propio `document`, y un
   // `stopPropagation` de React no frena a otro listener del mismo nodo. Así
   // Escape en el cuadro de una nota o de devolver cerraba la ficha (16/11/2026).
   if (e.key !== "Escape" || e.defaultPrevented || e.cancelBubble) return;
-  // Un popover nativo abierto (un desplegable de `Select` o `SelectorFecha`)
+  // Un popover nativo abierto (el `SelectorFecha` o un menú)
   // lo cierra el propio navegador con esta misma pulsación: es suya, no de la
   // capa de debajo.
   if (document.querySelector(":popover-open")) return;
+  // Y la lista abierta de un <select> nativo (components/Select.tsx): no es un
+  // popover, se ve con `:open`. En un try porque un navegador que no conoce
+  // `:open` lanza al leer el selector.
+  if (selectAbierto()) return;
   // Lo mismo con un <dialog> modal (ConfirmDialog): Escape lo cierra el
   // navegador, y cancelar la confirmación no puede cerrar también la ficha.
   if (document.querySelector("dialog:modal")) return;

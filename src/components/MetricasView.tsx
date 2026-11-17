@@ -190,8 +190,8 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
           <span id={etiquetaAnio} className="sr-only">Año</span>
           <span id={etiquetaMes} className="sr-only">Mes</span>
           <button type="button" onClick={() => ir(-1)} disabled={primero} aria-label={mes ? "Mes anterior" : "Año anterior"} className="glass-chip grid size-8 place-items-center rounded-lg text-[10px] text-text-muted hover:text-text disabled:opacity-30">◀</button>
-          <Select value={anio} onChange={(v) => { if (v) elegirAnio(v); }} options={anios.map((a) => ({ value: a, label: a }))} placeholder={null} ariaLabelledBy={etiquetaAnio} acentuarActivo className="w-24 [&>button]:h-8 [&>button]:font-semibold" />
-          <Select value={mesSel} onChange={(v) => setMesSel(v ?? "")} options={[{ value: "", label: "Todo el año" }, ...mesesDelAnio.map((mm) => ({ value: mm, label: `${nombreMesCorto(mm)}${`${anio}-${mm}` === mesHoy ? " · en curso" : ""}` }))]} placeholder={null} ariaLabelledBy={etiquetaMes} acentuarActivo className="w-44 [&>button]:h-8 [&>button]:font-semibold" />
+          <Select value={anio} onChange={(v) => { if (v) elegirAnio(v); }} options={anios.map((a) => ({ value: a, label: a }))} placeholder={null} ariaLabelledBy={etiquetaAnio} acentuarActivo className="w-24 [&>select]:h-8 [&>select]:font-semibold" />
+          <Select value={mesSel} onChange={(v) => setMesSel(v ?? "")} options={[{ value: "", label: "Todo el año" }, ...mesesDelAnio.map((mm) => ({ value: mm, label: `${nombreMesCorto(mm)}${`${anio}-${mm}` === mesHoy ? " · en curso" : ""}` }))]} placeholder={null} ariaLabelledBy={etiquetaMes} acentuarActivo className="w-44 [&>select]:h-8 [&>select]:font-semibold" />
           <button type="button" onClick={() => ir(1)} disabled={ultimo} aria-label={mes ? "Mes siguiente" : "Año siguiente"} className="glass-chip grid size-8 place-items-center rounded-lg text-[10px] text-text-muted hover:text-text disabled:opacity-30">▶</button>
         </div>
       </div>

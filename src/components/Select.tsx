@@ -1,27 +1,27 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
-import { useCapaEscape } from "@/lib/useCapaEscape";
+import { useEffect, useRef } from "react";
 import { tintaSobre } from "@/lib/tinta";
 
-// ─── Por qué el menú va en un PORTAL ─────────────────────────────────────────
-// Estaba `absolute` dentro del propio control, y eso le daba dos problemas que
-// solo se ven cuando el desplegable no está en mitad de la pantalla:
+// ─── Un <select> de verdad, con `appearance: base-select` (17/11/2026) ───────
+// Hasta aquí era un botón con una lista en un PORTAL: su clic fuera, su Escape
+// en `capas-escape`, la marca `data-en-portal` para que los paneles flotantes no
+// se cerraran al pinchar en él, sus flechas, su `aria-activedescendant` y su
+// cuenta de si cabía abajo o arriba. Todo eso lo hace ahora el navegador:
 //
-//  · Lo recorta cualquier ancestro con `overflow` — las filas con scroll
-//    horizontal de la bandeja, el drawer, la tabla—, así que el menú de
-//    "Asignar" de una tarjeta salía cortado por la mitad.
-//  · Y contra el borde de la ventana se salía de la pantalla, porque `left-0`
-//    no sabe cuánto sitio queda.
+//  · la lista va a la capa superior y se cuelga del control sola (nada la
+//    recorta y, si abajo no cabe, se abre hacia arriba);
+//  · teclado completo —flechas, Inicio/Fin, escribir para saltar, Intro, Esc—
+//    y el lector de pantalla lo anuncia como lo que es;
+//  · las opciones siguen DENTRO del control en el DOM, así que el panel que lo
+//    contiene ve el clic como suyo sin marcas.
 //
-// En un portal a `document.body` y con posición fija calculada, el menú no lo
-// recorta nadie y se puede sujetar dentro de la ventana. Es el mismo patrón que
-// ya usaba el popover de reservas.
-
-/** Alto máximo del menú (`max-h-64`), para decidir si abre arriba o abajo. */
-const ALTO_MAX = 256;
+// Lo que se ve lo pinta `globals.css` (`.select-nativo` y su `::picker`). Pedía
+// React 19.3 (Next 16.4): el de antes solo admitía texto dentro de <option> y
+// aquí van iconos y avatares.
+//
+// En un navegador sin `base-select` (Firefox, hoy) sale el desplegable del
+// sistema, sin iconos: funciona igual, solo se ve más soso.
 
 export interface SelectOption {
   value: string;
@@ -30,9 +30,7 @@ export interface SelectOption {
   icon?: React.ReactNode;
 }
 
-/** Select propio con estética de vidrio (los <select> nativos no se pueden
- *  tematizar). Teclado: ↑/↓ mueven, Enter elige, Esc cierra; clic fuera
- *  cierra. `value` null = placeholder. */
+/** Desplegable con el aspecto de la casa. `value` null = placeholder. */
 export function Select({
   value,
   onChange,
@@ -53,6 +51,7 @@ export function Select({
   /** Opción vacía al principio (para "Todos", "Sin asignar"…). Si es null,
    *  no se ofrece vaciar. */
   placeholder?: string | null;
+  /** La lista se alinea con el borde derecho del control. */
   alignRight?: boolean;
   className?: string;
   /** Para los filtros: con valor elegido se pinta con el color de marca, para
@@ -62,11 +61,9 @@ export function Select({
   acentuarActivo?: boolean;
   /** Texto de la opción que quita el valor, cuando no sirve el del botón. */
   etiquetaVaciar?: string;
-  /** Id del rótulo de al lado. Un `<label>` alrededor NO vale: este control es
-   *  un `<button>`, y entonces el rótulo gana al contenido del botón al
-   *  calcular el nombre accesible — se oye «Estado» y nunca el valor elegido. */
+  /** Id del rótulo de al lado (un `<span>`, no un `<label>` alrededor). */
   ariaLabelledBy?: string;
-  /** Sale ya desplegado, con el foco en el botón. Para cuando elegir ES el
+  /** Sale ya desplegado, con el foco puesto. Para cuando elegir ES el
    *  siguiente paso y no un dato opcional: el revisor al pasar a revisión. */
   abiertoAlMontar?: boolean;
   /** Sin aspecto de botón: el valor como texto, con la flecha discreta. Para
@@ -74,171 +71,56 @@ export function Select({
    *  acción: con relieve de botón parecía lo primero que había que pulsar
    *  (Iván, 15/10/2026). */
   plano?: boolean;
-  /** Forma del botón cerrado en vez del chip de vidrio: para ponerlo a la
+  /** Forma del control cerrado en vez del chip de vidrio: para ponerlo a la
    *  altura de los campos de al lado (filtros HeroUI de la vista de Belén). */
   claseBoton?: string;
 }) {
-  // `caja` es el sitio del botón en el momento de abrir: null = cerrado. Guarda
-  // el rectángulo y no solo un booleano porque el menú vive en otro sitio del
-  // DOM y necesita saber dónde pintarse.
-  const [caja, setCaja] = useState<DOMRect | null>(null);
-  const open = caja !== null;
-  const setOpen = (v: boolean) =>
-    setCaja(v ? (btnRef.current?.getBoundingClientRect() ?? null) : null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLUListElement>(null);
-
-  // Cierre por Escape y por clic fuera. Se hace aquí y no con `usePopover`
-  // porque hay DOS trozos que cuentan como "dentro" y viven separados: el botón
-  // y el menú, que está en un portal. Con un solo contenedor vigilado, pulsar
-  // el menú se leía como clic fuera.
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setCaja(null);
-    }
-    // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
-    // quedaría flotando donde estaba: se cierra, que es menos molesto que
-    // perseguirlo con un recálculo en cada píxel.
-    //
-    // Pero NO cuando lo que se mueve es el menú por dentro. El listener va con
-    // `capture` para enterarse del scroll de cualquier contenedor, y eso
-    // incluía la propia lista: en cuanto tenía más opciones de las que caben
-    // (el filtro de familia ahora tiene 22), la rueda la cerraba en vez de
-    // bajarla, y no había forma de llegar a las de abajo.
-    function onMover(e?: Event) {
-      const donde = e?.target;
-      if (donde instanceof Node && menuRef.current?.contains(donde)) return;
-      setCaja(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", onMover);
-    window.addEventListener("scroll", onMover, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", onMover);
-      window.removeEventListener("scroll", onMover, true);
-    };
-  }, [open]);
-  // Escape cierra el menú y nada más: la ficha de debajo sigue abierta (ver
-  // capas-escape.ts). El foco vuelve al botón, que es donde estaba el teclado.
-  useCapaEscape(open, () => {
-    setCaja(null);
-    btnRef.current?.focus();
-  });
-
-  // El botón cerrado y la opción de vaciar dicen cosas distintas: el botón
-  // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla
-  // ("Todas"). Con un solo texto, el menú del filtro de familia ofrecía una
-  // opción llamada "Familia", que no dice nada de lo que hace.
-  const items: SelectOption[] = [
-    ...(placeholder !== null ? [{ value: "", label: etiquetaVaciar ?? placeholder }] : []),
-    ...options,
-  ];
+  const ref = useRef<HTMLSelectElement>(null);
   const selected = options.find((o) => o.value === value) ?? null;
-  const [activeIx, setActiveIx] = useState(0);
-  const listRef = useRef<HTMLUListElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    listRef.current
-      ?.querySelector(`[data-ix="${activeIx}"]`)
-      ?.scrollIntoView({ block: "nearest" });
-  }, [open, activeIx]);
-
-  // Al abrir, el activo arranca en la opción seleccionada
-  function abrir() {
-    const ix = items.findIndex((o) => o.value === (value ?? ""));
-    setActiveIx(ix >= 0 ? ix : 0);
-    setOpen(true);
-  }
-
-  // Abrir al montar. En un timeout y no en el propio efecto: el botón tiene que
-  // estar ya pintado para medir dónde va el menú, y así además no se pinta
-  // dentro del efecto.
+  // Abrir al montar. En un timeout y no en el propio efecto: el control tiene
+  // que estar ya pintado para colgarle la lista. `showPicker` pide que venga de
+  // un gesto del usuario; si el navegador no lo da por bueno, se queda con el
+  // foco, que con Intro o las flechas ya la abre.
   useEffect(() => {
     if (!abiertoAlMontar) return;
     const t = setTimeout(() => {
-      btnRef.current?.focus();
-      abrir();
+      const el = ref.current;
+      el?.focus();
+      try {
+        el?.showPicker();
+      } catch {
+        /* sin gesto del usuario: se queda enfocado */
+      }
     }, 0);
     return () => clearTimeout(t);
     // Solo al montar: si se cierra, es porque quien lo usa lo ha cerrado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function elegir(o: SelectOption) {
-    onChange(o.value === "" ? null : o.value);
-    setOpen(false);
-  }
-
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (!open) {
-      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        abrir();
-      }
-      return;
-    }
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIx((i) => Math.min(i + 1, items.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      setActiveIx(0);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      setActiveIx(items.length - 1);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      elegir(items[activeIx]);
-    }
-  }
-
-  // Dónde cabe el menú. Se sujeta a la ventana por los dos lados y, si abajo no
-  // queda sitio, se abre hacia arriba: contra el borde inferior se quedaba
-  // medio menú fuera de la pantalla.
-  // La cuenta vive en lib/menu-flotante.ts: la comparten todos los menús que se
-  // pintan en un portal, que si no cada uno se salía de la pantalla a su manera.
-  // Las flechas mueven un resaltado VISUAL (`activeIx`) pero el foco del DOM
-  // no se va del botón, así que un lector de pantalla no tenía forma de saber
-  // en qué opción estás: se oía abrir el menú y después, silencio. Con
-  // `aria-activedescendant` el botón dice cuál es la opción activa, y cada
-  // opción lleva el id con el que se la nombra.
-  const idOpcion = useId();
-  const idDe = (ix: number) => `${idOpcion}-${ix}`;
-
-  const ventana = ventanaActual();
-  const sitio =
-    caja && ventana ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight }) : null;
+  // El control cerrado y la opción de vaciar dicen cosas distintas: el control
+  // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla
+  // ("Todas"). Por eso lo de dentro del botón se pinta aquí y no con
+  // <selectedcontent>, que copiaría el texto de la opción.
+  const textoCerrado = selected?.label ?? placeholder ?? "—";
 
   return (
-    <div className={`relative ${className}`}>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => (open ? setOpen(false) : abrir())}
-        onKeyDown={onKeyDown}
-        aria-haspopup="listbox"
+    <div className={className}>
+      <select
+        ref={ref}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
         aria-labelledby={ariaLabelledBy}
-        aria-expanded={open}
-        aria-controls={open ? idOpcion : undefined}
-        aria-activedescendant={open && activeIx >= 0 ? idDe(activeIx) : undefined}
         // `glass-chip-activo` y no un `bg-*` de Tailwind: el fondo de
         // `.glass-chip` gana siempre a las utilidades (ver globals.css), así
         // que el acento de "este filtro está recortando la lista" no llegaba a
         // pintarse nunca.
-        className={`${
+        className={`select-nativo group ${alignRight ? "select-derecha" : ""} ${
           claseBoton
-            ? `flex w-full items-center gap-2 text-left transition-colors ${claseBoton}`
+            ? `w-full transition-colors ${claseBoton}`
             : plano
-            ? "group -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold transition-colors hover:bg-surface-2"
-            : "glass-chip flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
+              ? "-mx-1.5 rounded-md px-1.5 py-1 text-xs font-semibold transition-colors hover:bg-surface-2"
+              : "glass-chip w-full rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong"
         } ${
           acentuarActivo && selected
             ? "glass-chip-activo text-brand-800 dark:text-brand-300"
@@ -247,71 +129,41 @@ export function Select({
               : "text-text-muted"
         }`}
       >
-        {selected?.icon}
-        <span className="min-w-0 flex-1 truncate text-left">
-          {selected?.label ?? placeholder ?? "—"}
-        </span>
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className={`size-3 shrink-0 text-text-muted transition-transform ${open ? "rotate-180" : ""} ${
-            plano && !open ? "opacity-40 group-hover:opacity-100 group-focus-visible:opacity-100" : ""
-          }`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-        >
-          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+        {/* El botón de dentro es lo que se ve cerrado. Sin `base-select` el
+            navegador lo ignora y enseña la opción elegida. */}
+        <button type="button" className={`flex w-full min-w-0 items-center ${claseBoton ? "gap-2" : "gap-1.5"}`}>
+          {selected?.icon}
+          <span className="min-w-0 flex-1 truncate text-left">{textoCerrado}</span>
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className={`size-3 shrink-0 text-text-muted transition-transform group-open:rotate-180 ${
+              plano ? "opacity-40 group-hover:opacity-100 group-focus-visible:opacity-100 group-open:opacity-100" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
 
-      {open &&
-        sitio &&
-        createPortal(
-        <ul
-          ref={(el) => {
-            listRef.current = el;
-            menuRef.current = el;
-          }}
-          id={idOpcion}
-          role="listbox"
-          // Marca de "esto vive en un portal": lo que se cierra al hacer clic
-          // fuera (los paneles flotantes) tiene que saber que este menú sigue
-          // siendo parte de lo que lo abrió, aunque en el DOM cuelgue del body.
-          data-en-portal=""
-          className="glass-pop scroll-thin fixed z-[60] max-h-64 w-max overflow-y-auto rounded-xl p-1"
-          style={sitio}
-        >
-          {items.map((o, ix) => {
-            const isSel = (value ?? "") === o.value;
-            return (
-              <li key={o.value || "__empty"}>
-                <button
-                  type="button"
-                  id={idDe(ix)}
-                  data-ix={ix}
-                  role="option"
-                  aria-selected={isSel}
-                  onClick={() => elegir(o)}
-                  onMouseEnter={() => setActiveIx(ix)}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium whitespace-nowrap ${
-                    ix === activeIx ? "bg-[var(--glass-highlight)] text-text" : "text-text-muted"
-                  } ${isSel ? "text-brand-800 dark:text-brand-400" : ""}`}
-                >
-                  {o.icon}
-                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
-                  {isSel && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="3">
-                      <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>,
-          document.body,
+        {placeholder !== null ? (
+          <option value="">
+            <span className="min-w-0 flex-1 truncate">{etiquetaVaciar ?? placeholder}</span>
+          </option>
+        ) : (
+          // Sin opción de vaciar y sin valor: que no salga elegida la primera
+          // opción como si lo estuviera.
+          value === null && <option value="" disabled hidden>—</option>
         )}
+        {options.map((o) => (
+          <option key={o.value || "__empty"} value={o.value}>
+            {o.icon}
+            <span className="min-w-0 flex-1 truncate">{o.label}</span>
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
