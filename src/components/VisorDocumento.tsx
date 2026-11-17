@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { comoServir, type DocumentoRps } from "@/lib/historial";
-import { useCapaEscape } from "@/lib/useCapaEscape";
 import { CLAVE_ENCAJE_DOCUMENTOS, siguienteGiro, type Giro } from "@/lib/visor-pdf";
 import { FotoConZoom } from "./FotoConZoom";
 import { Pista } from "./Pista";
@@ -70,9 +68,31 @@ export function VisorDocumento({
     }
   }, [motor, indice, documentos]);
 
-  // Escape es una capa más: cierra el visor y deja la ficha de debajo abierta
-  // (ver capas-escape.ts).
-  useCapaEscape(true, onCerrar);
+  // ─── <dialog> modal nativo (17/11/2026) ────────────────────────────────────
+  // Antes, un `div` en un portal al `body` con `z-[90]` y Escape apilado en
+  // capas-escape. Ahora el navegador lo sube a la capa superior (encima de la
+  // ficha y del visor del parte sin pelear con `z-index`), deja inerte lo de
+  // debajo —el Tab ya no se pierde por la ficha tapada—, Escape lo cierra solo
+  // a él, y al cerrarse el foco vuelve al documento que se pinchó.
+  //
+  // Se monta abierto (quien lo usa lo pinta solo con un documento elegido).
+  // Cerrar pasa SIEMPRE por `close()`: quitarlo del DOM a secas no devuelve el
+  // foco. El aviso al padre sale del evento `close`, que llega igual con
+  // Escape que con la ✕ o el clic en el telón.
+  const dialogoRef = useRef<HTMLDialogElement>(null);
+  const alCerrar = useEffectEvent(onCerrar);
+  useLayoutEffect(() => {
+    const dlg = dialogoRef.current;
+    if (!dlg) return;
+    if (!dlg.open) dlg.showModal();
+    // El foco al propio cuadro y no al primer botón: ahí saldría su pista
+    // nada más abrir, tapando la barra.
+    dlg.focus();
+    const h = () => alCerrar();
+    dlg.addEventListener("close", h);
+    return () => dlg.removeEventListener("close", h);
+  }, []);
+  const cerrar = () => dialogoRef.current?.close();
 
   // ← y →. En fase de captura y con stopPropagation: las flechas son del
   // visor mientras está abierto, no de lo que haya detrás.
@@ -91,20 +111,21 @@ export function VisorDocumento({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [indice, documentos.length, onIr]);
 
-  if (!doc || typeof document === "undefined") return null;
+  if (!doc) return null;
 
   const { tipo, incrustable } = comoServir(doc.archivo);
   const esPdf = tipo === "application/pdf";
 
-  return createPortal(
-    // z-[90]: por encima de los drawers (z-50) y del visor del parte (z-80),
-    // que es desde donde se puede llegar hasta aquí.
-    <div
-      className="overlay-in fixed inset-0 z-[90] flex flex-col bg-black/80 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
+  return (
+    // A pantalla completa: el telón es el propio cuadro (`bg-black/80`) y no
+    // el `::backdrop`, que se queda transparente. `open:flex` y no `flex`:
+    // pisaría el `display: none` del cuadro cerrado.
+    <dialog
+      ref={dialogoRef}
+      tabIndex={-1}
       aria-label={doc.descripcion || doc.archivo}
-      onClick={onCerrar}
+      onClick={cerrar}
+      className="overlay-in fixed inset-0 m-0 size-full max-h-none max-w-none flex-col overflow-hidden border-0 bg-black/80 p-0 text-white outline-none backdrop-blur-md open:flex backdrop:bg-transparent"
     >
       <div
         className="flex shrink-0 items-center gap-3 px-4 py-3 text-white"
@@ -222,7 +243,10 @@ export function VisorDocumento({
         <Pista lado="abajo" texto="Cerrar" detalle="También con Esc">
           <button
             type="button"
-            onClick={onCerrar}
+            onClick={(e) => {
+              e.stopPropagation();
+              cerrar();
+            }}
             aria-label="Cerrar"
             className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-lg hover:bg-white/20"
           >
@@ -231,7 +255,7 @@ export function VisorDocumento({
         </Pista>
       </div>
 
-      <div className="relative min-h-0 flex-1 px-4 pb-4" onClick={onCerrar}>
+      <div className="relative min-h-0 flex-1 px-4 pb-4">
         {esPdf &&
           (motor === "propio" ? (
             <VisorPdf
@@ -275,8 +299,7 @@ export function VisorDocumento({
           <FlechaVisor lado="der" onClick={() => onIr(indice + 1)} />
         )}
       </div>
-    </div>,
-    document.body,
+    </dialog>
   );
 }
 

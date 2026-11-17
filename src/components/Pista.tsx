@@ -1,6 +1,6 @@
 "use client";
 
-import { cloneElement, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactElement } from "react";
+import { cloneElement, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactElement } from "react";
 import { createPortal } from "react-dom";
 
 // ─── La pista de un botón ────────────────────────────────────────────────────
@@ -14,8 +14,12 @@ import { createPortal } from "react-dom";
 // una caja normal alrededor movía el botón dentro de su fila y rompía el
 // `flex` del carril.
 //
-// Se pinta en un portal con `position: fixed`: así no la recorta ningún
-// `overflow` de la ficha y queda por encima del visor de documentos (z-90).
+// El globo es un popover (`popover="hint"`, 17/11/2026) y va a la capa
+// superior del navegador: no lo recorta ningún `overflow` y queda encima de
+// cualquier cosa abierta antes, también de un <dialog> modal (el visor de
+// documentos). Antes era un portal con `z-[100]`, y un modal nativo lo habría
+// tapado. Sigue en un portal al `body` solo para no colgar un `div` dentro
+// del `span` (y a veces de un `<p>`) que envuelve al botón.
 
 /** Lo que se espera con el ratón quieto encima antes de sacarla. Lo justo
  *  para que no salten pistas al cruzar la barra camino de otra cosa. */
@@ -103,18 +107,59 @@ export function Pista({
       {cloneElement(children, { "aria-description": detalle })}
       {ancla &&
         typeof document !== "undefined" &&
-        createPortal(<Globo ancla={ancla} lado={lado} texto={texto} detalle={detalle} />, document.body)}
+        createPortal(<Globo ancla={ancla} lado={lado} texto={texto} detalle={detalle} onCerrado={cerrar} />, document.body)}
     </span>
   );
 }
 
-function Globo({ ancla, lado, texto, detalle }: { ancla: DOMRect; lado: Lado; texto?: string; detalle?: string }) {
+function Globo({
+  ancla,
+  lado,
+  texto,
+  detalle,
+  onCerrado,
+}: {
+  ancla: DOMRect;
+  lado: Lado;
+  texto?: string;
+  detalle?: string;
+  /** Lo cerró el navegador (Escape): hay que olvidarlo también aquí. */
+  onCerrado: () => void;
+}) {
   const caja = useRef<HTMLDivElement>(null);
-  // Se coloca antes de pintarse (layout effect): hay que medirla para que no
-  // se salga de la ventana, y medida después se vería el salto.
+  const alCerrar = useEffectEvent(onCerrado);
+
+  // `hint`: Escape lo cierra el navegador, y solo a él (la ficha de debajo se
+  // queda), y no cierra los desplegables `auto` abiertos. Donde no se conoce
+  // (Safari) se queda en `manual`: no hace nada solo, y Escape se escucha aquí.
+  useEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const cerrado = (e: Event) => {
+      if ((e as ToggleEvent).newState === "closed") alCerrar();
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && el.matches(":popover-open")) {
+        e.preventDefault();
+        el.hidePopover();
+      }
+    };
+    el.addEventListener("toggle", cerrado);
+    const sinHint = el.popover !== "hint";
+    if (sinHint) document.addEventListener("keydown", tecla, true);
+    return () => {
+      el.removeEventListener("toggle", cerrado);
+      if (sinHint) document.removeEventListener("keydown", tecla, true);
+    };
+  }, []);
+
+  // Se abre y se coloca antes de pintarse (layout effect): hay que medirla
+  // para que no se salga de la ventana, y medida después se vería el salto. Se
+  // mide ya abierta: cerrado, un popover no ocupa nada.
   useLayoutEffect(() => {
     const el = caja.current;
     if (!el) return;
+    if (!el.matches(":popover-open")) el.showPopover();
     const { width, height } = el.getBoundingClientRect();
     let x: number;
     let y: number;
@@ -133,10 +178,14 @@ function Globo({ ancla, lado, texto, detalle }: { ancla: DOMRect; lado: Lado; te
   }, [ancla, lado]);
 
   return (
+    // `inset-auto m-0`: el navegador centra los popovers en la pantalla; aquí
+    // manda el `left`/`top` de arriba. Sin `role="tooltip"` y oculto al
+    // lector: lo que dice ya lo lleva el botón (`aria-description`).
     <div
       ref={caja}
+      popover="hint"
       aria-hidden="true"
-      className={`pista pista-${lado} pointer-events-none fixed z-[100] max-w-72 rounded-lg px-2.5 py-1.5`}
+      className={`pista pista-${lado} pointer-events-none inset-auto m-0 max-w-72 overflow-visible rounded-lg px-2.5 py-1.5`}
       style={{ left: 0, top: 0, visibility: "hidden" }}
     >
       {texto && <p className="text-xs font-semibold leading-tight">{texto}</p>}
@@ -279,5 +328,8 @@ export function PistasGlobales() {
   }, []);
 
   if (!actual || typeof document === "undefined") return null;
-  return createPortal(<Globo ancla={actual.ancla} lado="abajo" detalle={actual.texto} />, document.body);
+  return createPortal(
+    <Globo ancla={actual.ancla} lado="abajo" detalle={actual.texto} onCerrado={() => setActual(null)} />,
+    document.body,
+  );
 }
