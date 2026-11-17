@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-17",
-    "hasta": "82c5959",
+    "hasta": "048cbc2",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -15,6 +15,18 @@
         "apartado": "produccion",
         "detalle": "Salen los que siguen abiertos ahora en OLANET y los de la última semana ya cerrados, con operario, OF, tarea y máquina.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Los sacos de arena de Portanova ya tienen el botón para plantearlos en Planteamientos",
+        "tanda": 2,
+        "apartado": "ot"
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes ver en tu pantalla las novedades de la web",
+        "apartado": "produccion",
+        "tanda": 2
       },
       {
         "tipo": "arreglado",
