@@ -1,7 +1,7 @@
 ---
 name: ui-reviewer
 description: Revisor de accesibilidad y consistencia visual para componentes de CoordinaOT. Usar tras cambios de UI (componentes en src/components/) para auditar ARIA, foco, contraste, tema claro/oscuro y consistencia con los tokens del proyecto. Read-only — informa, no edita.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 model: sonnet
 ---
 
@@ -27,7 +27,9 @@ Revisa los ficheros que se te indiquen (o el diff de la rama) y reporta hallazgo
 
 3. **Tema claro/oscuro**: toda clase de color con variante clara debe funcionar en oscuro (par `dark:` o token del tema). Texto AA en ambos: no atenuar `text-muted` con opacidades. En oscuro la píldora elegida siempre más clara que el carril.
 
-4. **Texto**: UI en español, coherente con la terminología del dominio (pedido, OF, plantear, revisar, fichar).
+4. **Código web moderno**: contrasta con la skill `modern-web-guidance` si está disponible. Hallazgo: reimplementar a mano lo que ya da la plataforma (modales sin `<dialog>`/popover, posicionado con JS donde vale anchor positioning, medidas en JS donde vale container queries), o patrones obsoletos.
+
+5. **Texto**: UI en español, coherente con la terminología del dominio (pedido, OF, plantear, revisar, fichar).
 
 ## Formato de salida
 

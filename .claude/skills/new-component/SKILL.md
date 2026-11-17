@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 Crea `src/components/<Nombre>.tsx` para el nombre pedido en `$ARGUMENTS` (PascalCase, en español como el resto: `PedidoCard`, `Bandeja`, `Zona`).
 
+**Antes de escribir:** consulta la skill `modern-web-guidance` para el patrón de HTML/CSS/JS del componente (diálogos, popovers, formularios, tablas, selects, animaciones…). Usa la plataforma moderna (`<dialog>`, popover, anchor positioning, container queries, view transitions) antes que reimplementarla a mano. El aspecto lo fija `docs/ESTILO-HEROUI.md`, no un estilo genérico.
+
 ## Convenciones obligatorias (extraídas de los 25 componentes existentes)
 
 1. **Named exports de function components** — nunca `export default`. Varios componentes pequeños relacionados pueden convivir en un fichero (p.ej. `LiveDot` + `LiveBadge`).
