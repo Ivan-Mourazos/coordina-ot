@@ -125,9 +125,10 @@ export function ConfirmDialog({
   // queda inerte (ni clic ni Tab), Escape lo cierra y el foco vuelve solo a lo
   // que lo abrió. Sin `role`/`aria-modal`: los pone el propio <dialog>.
   //
-  // `data-en-portal` se queda: los paneles que se cierran al pinchar fuera
-  // (Herramientas, PanelFlotante) lo miran para no cerrarse al pulsar aquí, y
-  // pinchar en el telón también cae en el <dialog>.
+  // `data-en-portal` se queda mientras PanelFlotante cierre a mano al pinchar
+  // fuera: lo mira para no cerrarse al pulsar aquí (pinchar en el telón
+  // también cae en el <dialog>). Los desplegables de `usePopover` ya no lo
+  // necesitan: un <dialog> que cuelga de ellos cuenta como dentro.
   //
   // Nada de `flex` a secas: pisaría el `display: none` del cuadro cerrado.
   // Con `open:flex` solo se aplica abierto.

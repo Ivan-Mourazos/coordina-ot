@@ -8,7 +8,7 @@ import { textoLlano } from "@/lib/notificaciones";
 import { usePersonas } from "../notas/usePersonas";
 
 export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (pedido: string) => void }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLDivElement>({ separacion: 8 });
   // Clave nueva a propósito: la vieja era la lista de ids vistos, y con ella
   // seguían saliendo todas las de antes (lib/avisos-belen.ts).
   const clave = `coordina.belen.avisos-notas:${miId ?? "local"}`;
@@ -77,11 +77,13 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-label={cuantas ? `Notificaciones: ${cuantas} ${cuantas === 1 ? "nota nueva" : "notas nuevas"}` : "Notificaciones"} aria-expanded={open} aria-controls="avisos-belen" title="Notificaciones de pedidos" onClick={() => setOpen(!open)} className="glass-chip relative grid size-9 place-items-center rounded-full text-text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+      <button type="button" aria-label={cuantas ? `Notificaciones: ${cuantas} ${cuantas === 1 ? "nota nueva" : "notas nuevas"}` : "Notificaciones"} aria-expanded={open} popoverTarget={idPanel} title="Notificaciones de pedidos" className="glass-chip relative grid size-9 place-items-center rounded-full text-text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus">
         <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" /></svg>
         {cuantas > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">{cuantas > 9 ? "9+" : cuantas}</span>}
       </button>
-      {open && <section id="avisos-belen" aria-label="Notificaciones de pedidos" className="glass-pop absolute right-0 top-full z-40 mt-2 flex max-h-[min(30rem,calc(100dvh-5rem))] w-[22rem] max-w-[calc(100vw-2rem)] flex-col p-4">
+      {/* Popover montado siempre (el botón lo abre por su id); el contenido, solo abierto. `open:flex` y no `flex`, que pisaría el `display: none` del cerrado. */}
+      <section ref={panelRef} id={idPanel} popover="auto" aria-label="Notificaciones de pedidos" className="glass-pop max-h-[min(30rem,calc(100dvh-5rem))] w-[22rem] max-w-[calc(100vw-2rem)] flex-col p-4 text-text open:flex">
+        {open && <>
         <div className="mb-2 flex shrink-0 items-center justify-between gap-3 border-b border-border pb-3">
           <h2 className="text-sm font-semibold">Notificaciones</h2>
           {cuantas > 0 && (
@@ -113,7 +115,8 @@ export function AvisosBelen({ miId, onAbrir }: { miId: string | null; onAbrir: (
             );
           })}
         </ul>
-      </section>}
+        </>}
+      </section>
     </div>
   );
 }

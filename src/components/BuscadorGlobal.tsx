@@ -55,7 +55,9 @@ export function BuscadorGlobal({
   const [otros, setOtros] = useState<PedidoEncontrado[]>([]);
   const [cargandoHist, setCargandoHist] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  const { open, setOpen, ref, panelRef } = usePopover<HTMLDivElement>({ lado: "ancho" });
+  // Con menos letras no se busca, y el panel abierto saldría vacío.
+  const hayConsulta = (texto: string) => texto.trim().length >= MIN_LETRAS;
   const inputRef = useRef<HTMLInputElement | null>(null);
   // Descarta respuestas que llegan tarde: al escribir rápido se solapan varias
   // consultas y la vieja no puede pisar a la nueva.
@@ -132,7 +134,7 @@ export function BuscadorGlobal({
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setOpen(true);
+      setOpen(hayConsulta(q));
       const paso = e.key === "ArrowDown" ? 1 : -1;
       setCursor((c) => {
         const n = resultados.length;
@@ -165,9 +167,14 @@ export function BuscadorGlobal({
           onChange={(e) => {
             setQ(e.target.value);
             setCursor(0);
-            setOpen(true);
+            setOpen(hayConsulta(e.target.value));
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => setOpen(hayConsulta(q))}
+          // El campo queda fuera del popover: pinchar en él lo cierra como
+          // "clic fuera" y aquí se vuelve a abrir, en el mismo fotograma. Sin
+          // esto, pinchar en el campo para seguir escribiendo dejaba la lista
+          // cerrada (el foco ya estaba dentro y `onFocus` no salta).
+          onClick={() => setOpen(hayConsulta(q))}
           onKeyDown={onKeyDown}
           role="combobox"
           aria-expanded={abierto}
@@ -187,6 +194,7 @@ export function BuscadorGlobal({
           <button
             onClick={() => {
               setQ("");
+              setOpen(false);
               inputRef.current?.focus();
             }}
             aria-label="Limpiar"
@@ -204,11 +212,16 @@ export function BuscadorGlobal({
         )}
       </div>
 
+      {/* Popover montado siempre; lo abre y cierra `setOpen` (usePopover.ts).
+          Lo de dentro se pinta solo abierto. */}
+      <div
+        ref={panelRef}
+        id="buscador-global-resultados"
+        popover="auto"
+        className="glass-pop rounded-xl p-1 text-text"
+      >
       {abierto && (
-        <div
-          id="buscador-global-resultados"
-          className="glass-pop absolute left-0 right-0 top-full z-40 mt-1.5 rounded-xl p-1"
-        >
+        <>
           {resultados.length === 0 ? (
             <p className="px-2 py-3 text-center text-xs text-text-muted">
               {cargandoHist ? "Buscando…" : "Nada con eso, ni en el tablero ni en RPS."}
@@ -253,8 +266,9 @@ export function BuscadorGlobal({
               )}
             </ul>
           )}
-        </div>
+        </>
       )}
+      </div>
     </div>
   );
 }

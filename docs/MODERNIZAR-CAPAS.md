@@ -2,7 +2,7 @@
 
 Inventario del 17/11/2026, contrastado con `modern-web-guidance` (guías `dialog`,
 `viewport-aware-dropdowns`, `light-dismiss-a-dialog`, `branded-select-styling`).
-Fase 1 hecha el 17/11/2026 (ConfirmDialog); el resto, pendiente.
+Fases 1 (ConfirmDialog) y 2 (`usePopover`) hechas el 17/11/2026; el resto, pendiente.
 
 ## Qué hay hoy
 
@@ -47,7 +47,7 @@ CoordinaOT no usa `<dialog>`, `popover` ni anchor positioning. Todo está hecho 
 ## Orden propuesto
 
 1. ~~**`ConfirmDialog` → `<dialog>`.**~~ Hecho (17/11). Mientras convivan, `capas-escape` y `useFocoModal` se apartan si hay un `dialog:modal` abierto.
-2. **`usePopover` → `popover="auto"`.** Arregla 6 sitios de una vez y elimina el truco de `[data-en-portal]`.
+2. ~~**`usePopover` → `popover="auto"`.**~~ Hecho (17/11). Eran 4 usuarios, no 6: `Select` y `MenuAccionesOF` solo lo nombraban en un comentario y van en sus fases. El panel queda siempre montado (el contenido solo abierto) y los botones lo abren con `popovertarget`: con `showPopover({ source })` pinchar en el botón con el panel abierto lo cerraba por "clic fuera" y lo reabría (probado en Chrome 157). El buscador, cuyo disparador es un campo, lo reabre en su `onClick`. La colocación sigue en JS. `[data-en-portal]` sigue hasta que `PanelFlotante` (fase 3) deje de cerrar a mano.
 3. Modales sencillos: `AbrirCad`, visores y `PanelFlotante`.
 4. Menús (`MenuAccionesOF`, `MenuAsignar`, `VentanaAnclada`, `Pista`) manteniendo su colocación actual.
 5. `Select` con `base-select`, aparte.

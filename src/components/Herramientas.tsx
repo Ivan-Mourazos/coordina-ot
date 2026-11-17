@@ -71,10 +71,10 @@ export function Herramientas({
   /** Solo para quien tiene técnico y dirección. Cambia lo que se pinta, no lo que puede hacer la cuenta. */
   verComoDireccion?: { activo: boolean; onCambiar: (v: boolean) => void };
 }) {
-  // Ignora los portales: es el único de los cuatro que abre un diálogo
-  // (ConfirmDialog, desde ResetPin) DESDE DENTRO de su propio desplegable.
-  // Ver el porqué de que sea opcional en usePopover.ts.
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>({ ignorarPortales: true });
+  // El ConfirmDialog de ResetPin se abre DESDE DENTRO del desplegable: al
+  // colgar de él en el DOM, el navegador lo cuenta como parte del popover y
+  // confirmar no lo cierra (ver usePopover.ts).
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLDivElement>();
   /** Si se está enseñando la lista de técnicos. Se apaga al cerrar el menú:
    *  quien lo vuelva a abrir espera encontrarlo como estaba al entrar, no a
    *  medio cambiarse de nombre. */
@@ -93,7 +93,8 @@ export function Herramientas({
           rejilla se queda al lado para que siga leyéndose como "más sitios a
           los que ir" y no solo como "tu perfil". */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        type="button"
+        popoverTarget={idPanel}
         aria-label={`Menú de ${yo.nombre}`}
         aria-expanded={open}
         title="Quién eres, qué lista miras y otras herramientas"
@@ -119,12 +120,15 @@ export function Herramientas({
         </svg>
       </button>
 
+      {/* Popover montado siempre (el botón lo abre por su id); lo de dentro se
+          pinta solo abierto. */}
+      <div ref={panelRef} id={idPanel} popover="auto" className="glass-pop scroll-thin max-h-[80vh] w-80 overflow-y-auto rounded-xl p-2 text-text">
       {open && (
         // Con todo dentro —nueve técnicos, la sección, el tema, las otras
         // páginas y las novedades— el menú es largo y en una pantalla de
         // portátil se salía por abajo: lo último no se podía ni ver. Con tope y
         // scroll cabe siempre.
-        <div className="glass-pop scroll-thin absolute right-0 top-full z-40 mt-1.5 max-h-[80vh] w-80 overflow-y-auto rounded-xl p-2">
+        <>
           {/* QUIÉN ERES, lo primero: de esto dependen el reloj, los avisos y a
               nombre de quién se escribe en RPS.
               Se dice en UNA línea y la lista de técnicos vive detrás de
@@ -410,8 +414,9 @@ export function Herramientas({
               />
             </label>
           )}
-        </div>
+        </>
       )}
+      </div>
     </div>
   );
 }

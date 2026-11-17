@@ -86,12 +86,14 @@ export function Notificaciones({
   novedadesPendientes?: number;
   onVerNovedades?: () => void;
 }) {
-  const { open, setOpen, ref } = usePopover<HTMLDivElement>();
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLDivElement>();
 
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        type="button"
+        popoverTarget={idPanel}
+        aria-expanded={open}
         aria-label="Notificaciones"
         title="Tus avisos"
         className="glass-chip relative grid size-9 place-items-center rounded-lg text-text-muted hover:text-text"
@@ -117,8 +119,11 @@ export function Notificaciones({
         )}
       </button>
 
+      {/* Montado siempre: es un popover y el botón lo abre por su id. Lo de
+          dentro se pinta solo abierto. */}
+      <div ref={panelRef} id={idPanel} popover="auto" className="glass-pop w-80 rounded-xl p-1 text-text">
       {open && (
-        <div className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-80 rounded-xl p-1">
+        <>
           {novedadesPendientes > 0 && onVerNovedades && (
             <button
               type="button"
@@ -190,8 +195,9 @@ export function Notificaciones({
               })}
             </ul>
           )}
-        </div>
+        </>
       )}
+      </div>
     </div>
   );
 }
