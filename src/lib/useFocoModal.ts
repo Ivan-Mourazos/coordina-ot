@@ -51,7 +51,9 @@ export function useFocoModal<T extends HTMLElement>(activo: boolean) {
     inicial?.focus();
 
     function onKey(e: KeyboardEvent) {
-      if (e.key !== "Tab" || !panel) return;
+      // Un Tab que ya resolvió otro (el selector de DWG da vueltas por sus
+      // opciones) no se toca.
+      if (e.key !== "Tab" || !panel || e.defaultPrevented) return;
       // Un <dialog> modal encima (ConfirmDialog) lleva su propio foco y deja
       // inerte todo lo demás: recuperar el foco hacia este panel lo perdería.
       const modal = document.querySelector("dialog:modal");
@@ -88,11 +90,9 @@ export function useFocoModal<T extends HTMLElement>(activo: boolean) {
       // nada —el foco se queda en el `body`—. Aquí no se puede arreglar: no
       // hay forma de adivinar a dónde debería volver.
       //
-      // La solución sería que `usePopover` devolviese el foco a su propio
-      // botón al cerrarse. No se ha hecho todavía porque lo usan seis
-      // componentes (entre ellos el buscador, que al elegir un resultado abre
-      // el Drawer) y dos restauraciones de foco compitiendo no tienen un orden
-      // garantizado: hay que hacerlo con calma y mirándolo.
+      // Los desplegables de `usePopover` (popover nativo desde el 17/11/2026)
+      // ya devuelven el foco a su botón al cerrarse; esto queda para los menús
+      // que aún se cierran a mano (fase 4 de docs/MODERNIZAR-CAPAS.md).
       if (previo && document.contains(previo)) previo.focus?.();
     };
   }, [activo]);

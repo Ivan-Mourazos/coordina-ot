@@ -2,7 +2,7 @@
 
 Inventario del 17/11/2026, contrastado con `modern-web-guidance` (guías `dialog`,
 `viewport-aware-dropdowns`, `light-dismiss-a-dialog`, `branded-select-styling`).
-Fases 1 (ConfirmDialog) y 2 (`usePopover`) hechas el 17/11/2026; el resto, pendiente.
+Fases 1 (ConfirmDialog), 2 (`usePopover`) y 3 (AbrirCad) hechas el 17/11/2026; el resto, pendiente.
 
 ## Qué hay hoy
 
@@ -48,9 +48,13 @@ CoordinaOT no usa `<dialog>`, `popover` ni anchor positioning. Todo está hecho 
 
 1. ~~**`ConfirmDialog` → `<dialog>`.**~~ Hecho (17/11). Mientras convivan, `capas-escape` y `useFocoModal` se apartan si hay un `dialog:modal` abierto.
 2. ~~**`usePopover` → `popover="auto"`.**~~ Hecho (17/11). Eran 4 usuarios, no 6: `Select` y `MenuAccionesOF` solo lo nombraban en un comentario y van en sus fases. El panel queda siempre montado (el contenido solo abierto) y los botones lo abren con `popovertarget`: con `showPopover({ source })` pinchar en el botón con el panel abierto lo cerraba por "clic fuera" y lo reabría (probado en Chrome 157). El buscador, cuyo disparador es un campo, lo reabre en su `onClick`. La colocación sigue en JS. `[data-en-portal]` sigue hasta que `PanelFlotante` (fase 3) deje de cerrar a mano.
-3. Modales sencillos: `AbrirCad`, visores y `PanelFlotante`.
-4. Menús (`MenuAccionesOF`, `MenuAsignar`, `VentanaAnclada`, `Pista`) manteniendo su colocación actual.
-5. `Select` con `base-select`, aparte.
+3. ~~**`AbrirCad`.**~~ Hecho (17/11). No era un modal sino un selector colgado de su botón: ahora es un panel de `usePopover`. De paso, dos arreglos en `usePopover` que afectaban también a la fase 2: al cerrar, el foco caía en el `body` en vez de volver al botón (React desmontaba lo enfocado antes de que el navegador terminara de cerrar; ahora se vacía en `toggle` y el `setOpen(false)` del hook pasa por `hidePopover()`). Y `useFocoModal` respeta un Tab con `preventDefault`.
+   **Lo demás de esta fase se aplaza**, porque un `<dialog>` modal deja inerte todo lo que no cuelga de él en el DOM:
+   - `VisorDocumento` lleva `Pista`, que se pinta en un portal al `body`: las pistas quedarían debajo del visor. Va detrás de `Pista` (fase 4).
+   - `PanelFlotante` lleva `Select` (guía de revisión) y menús en portal: no se podrían pulsar. Va detrás de la fase 5.
+   - `ScanViewer` no lo usa nadie: borrarlo, no migrarlo. `QuickLook` no es un modal (vista previa al pasar el ratón, sin foco): se queda.
+4. Menús (`MenuAccionesOF`, `MenuAsignar`, `VentanaAnclada`, `Pista`) manteniendo su colocación actual. Después, `VisorDocumento` → `<dialog>`.
+5. `Select` con `base-select`, aparte. Después, `PanelFlotante` → `<dialog>` y fuera `[data-en-portal]`.
 6. Fichas: `MarcoFicha`, `Drawer` y `HistorialDrawer`. Al final, junto con partir `Drawer`.
 7. Cuando no quede nadie, borrar `capas-escape`, `useCapaEscape` y `useFocoModal`.
 

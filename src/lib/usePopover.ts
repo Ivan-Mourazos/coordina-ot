@@ -100,10 +100,13 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
     if (!panel) return;
     function antes(e: Event) {
       if ((e as ToggleEvent).newState === "closed") {
-        // En el acto y no en `toggle`, que llega más tarde: si se vuelve a
-        // abrir antes, la apertura tiene que ver que esto ya estaba cerrado.
+        // La marca, en el acto: si se vuelve a abrir antes del `toggle`, la
+        // apertura tiene que ver que esto ya estaba cerrado. Pero `setOpen`
+        // espera al `toggle` (abajo): llamado aquí, React desmontaba el
+        // contenido —y con él lo que tenía el foco— antes de que el navegador
+        // terminara de cerrar, y el foco caía en el `body` en vez de volver al
+        // botón (medido el 17/11/2026 con el selector de DWG).
         abiertoRef.current = false;
-        setOpen(false);
         return;
       }
       if (abiertoRef.current) return; // la pidió `setOpen`, ya está pintando
@@ -118,8 +121,17 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
         abriendoRef.current = false;
       }
     }
+    // Ya cerrado del todo (y el foco devuelto): ahora sí se vacía. Si entre
+    // medias se reabrió, `abiertoRef` vuelve a estar a `true` y no se toca.
+    function despues(e: Event) {
+      if ((e as ToggleEvent).newState === "closed" && !abiertoRef.current) setOpen(false);
+    }
     panel.addEventListener("beforetoggle", antes);
-    return () => panel.removeEventListener("beforetoggle", antes);
+    panel.addEventListener("toggle", despues);
+    return () => {
+      panel.removeEventListener("beforetoggle", antes);
+      panel.removeEventListener("toggle", despues);
+    };
   }, [colocar]);
 
   // Abierto, sigue al ancla si la ventana cambia o algo se desplaza.
@@ -133,5 +145,15 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
     };
   }, [open, colocar]);
 
-  return { open, setOpen, ref, panelRef, idPanel };
+  // Cerrar desde React (la ✕, elegir un resultado) pasa primero por el
+  // navegador: `hidePopover()` cierra con el contenido aún montado, devuelve
+  // el foco al botón y el `toggle` vacía después. Con `setOpen(false)` a
+  // secas, React desmontaba antes lo enfocado y el foco caía en el `body`.
+  const pedir = useCallback((abrir: boolean) => {
+    const panel = panelRef.current;
+    if (!abrir && panel?.matches(":popover-open")) panel.hidePopover();
+    else setOpen(abrir);
+  }, []);
+
+  return { open, setOpen: pedir, ref, panelRef, idPanel };
 }
