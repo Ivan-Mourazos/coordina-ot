@@ -335,13 +335,25 @@ function Compras({ of }: { of: OFBelen }) {
   );
 }
 
+/** La línea encogida como una tabla sin rayas (Belén, 17/11/2026): las
+ *  mismas columnas en todas las OF, así cada dato cae debajo del de la de
+ *  arriba. Las de ancho fijo son las cortas; artículo, rotulación y
+ *  comentario se reparten lo que sobra (el comentario, el que más). En una
+ *  pantalla estrecha vuelve a ser una línea que salta. */
+const COLUMNAS =
+  "flex flex-wrap items-center gap-x-3 gap-y-1 lg:grid lg:gap-x-2.5 lg:grid-cols-[0.75rem_0.75rem_2rem_4.5rem_4.75rem_minmax(10rem,2fr)_9rem_5.25rem_5.75rem_8rem_5.25rem_minmax(5rem,1fr)_minmax(6rem,1.2fr)]";
+/** Una celda: vacía no ocupa en la línea que salta, pero deja su hueco en la tabla. */
+const CELDA = "flex min-w-0 items-center gap-1.5 empty:hidden lg:empty:flex";
+
 /** Una fecha de la línea encogida: rótulo pequeño y el día en su color. */
 function FechaCorta({ rotulo, valor, tinta, ayuda, extra }: { rotulo: string; valor: string; tinta: string; ayuda?: string; extra?: string | null }) {
   return (
-    <span className="inline-flex items-baseline gap-1 whitespace-nowrap" title={ayuda}>
+    <span className="inline-flex min-w-0 items-baseline gap-1 whitespace-nowrap lg:flex lg:flex-col lg:items-start lg:gap-0 lg:leading-tight" title={ayuda}>
       <span className="text-[11px] font-medium text-text-muted">{rotulo}</span>
-      <b className={`text-[13px] font-bold tabular-nums ${tinta}`}>{fechaCorta(valor)}</b>
-      {extra && <span className={`max-w-[9rem] truncate text-[11.5px] font-semibold ${tinta}`}>· {extra}</span>}
+      <span className="inline-flex min-w-0 max-w-full items-baseline gap-1">
+        <b className={`text-[13px] font-bold tabular-nums ${tinta}`}>{fechaCorta(valor)}</b>
+        {extra && <span className={`max-w-[9rem] truncate text-[11.5px] font-semibold ${tinta}`}>· {extra}</span>}
+      </span>
     </span>
   );
 }
@@ -394,16 +406,16 @@ export function FilaOFBelen({
         "bg-surface"
       } ${resaltada ? "ring-2 ring-[var(--hero-anillo)]" : ""}`}
     >
-      {/* La OF encogida, en una línea, con lo que pidió Belén (11/11/2026) y en
-          su orden: punto, prioridad, TP/COT, OF, artículo, rotulación,
-          solicitada, comprometida, logística, compras, comentario y situación. Lo que no
-          tiene valor no sale. Pinchando se despliega todo. */}
+      {/* La OF encogida, en una línea y en columnas (Belén, 17/11/2026):
+          punto, prioridad, TP/COT, OF, artículo, situación, solicitada,
+          comprometida, logística, compras, rotulación y comentario. Lo que no
+          tiene valor deja el hueco. Pinchando se despliega todo. */}
       <button
         type="button"
         aria-expanded={abierta}
         aria-controls={idCuerpo}
         onClick={onAlternar}
-        className={`flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-none! px-5 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--hero-anillo)] ${
+        className={`${COLUMNAS} w-full rounded-none! px-5 py-2.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--hero-anillo)] ${
           // Belén (11/11/2026): OF con TP/COT hechos → la LÍNEA en
           // amarillo marcado; lo desplegado, normal.
           amarilla ? "bg-[var(--belen-avisos-hechos)] hover:bg-[var(--belen-avisos-hechos-encima)]" : "hover:bg-[var(--hero-relleno)]"
@@ -414,53 +426,63 @@ export function FilaOFBelen({
         <span title={SIGNIFICA.prioridad} className="grid h-7 min-w-8 place-items-center rounded-lg bg-[var(--hero-relleno)] px-1 text-[13px] font-bold tabular-nums">
           <span className="sr-only">Prioridad </span>P{of.prioridad ?? "—"}
         </span>
-        {tp && <span title={SIGNIFICA.tp} className={chip(tp.pendiente ? "aviso" : "ok")}>TP</span>}
-        {cot && <span title={SIGNIFICA.cot} className={chip(cot.pendiente ? "aviso" : "ok")}>COT</span>}
+        <span className={CELDA}>
+          {tp && <span title={SIGNIFICA.tp} className={chip(tp.pendiente ? "aviso" : "ok")}>TP</span>}
+          {cot && <span title={SIGNIFICA.cot} className={chip(cot.pendiente ? "aviso" : "ok")}>COT</span>}
+        </span>
         <span className="font-mono text-[15px] font-bold">{of.of}</span>
-        {enDirecto.length > 0 && (
-          <span
-            title={[SIGNIFICA.enDirecto, "", ...enDirecto.map((f) => `${f.persona} · tarea ${f.tarea} · ${fmtDuracion(f.minutos)}`)].join("\n")}
-            className={`${chip("ok")} cursor-help`}
-          >
-            <PuntoEnDirecto />
-            Fichando ahora
-          </span>
-        )}
         {/* Belén (16/11/2026): las unidades delante del artículo, como en su
             pantalla de RPS («2 - LONA REMOLQUE»). */}
         <span
-          className="min-w-[10rem] flex-1 truncate text-[13.5px] font-medium"
+          className="flex min-w-[10rem] flex-1 items-center gap-2 text-[13.5px] font-medium lg:min-w-0"
           title={`${of.cantidad > 0 ? `${of.cantidad.toLocaleString("es-ES", { maximumFractionDigits: 2 })} × ` : ""}${of.articulo ?? of.descripcion}`}
         >
-          {of.cantidad > 0 && (
-            <b className="mr-1.5 font-bold tabular-nums">
-              {of.cantidad.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ×
-            </b>
+          {enDirecto.length > 0 && (
+            <span
+              title={[SIGNIFICA.enDirecto, "", ...enDirecto.map((f) => `${f.persona} · tarea ${f.tarea} · ${fmtDuracion(f.minutos)}`)].join("\n")}
+              className={`${chip("ok")} cursor-help`}
+            >
+              <PuntoEnDirecto />
+              <span className="sr-only lg:not-sr-only">Fichando</span>
+            </span>
           )}
-          {enFrase(of.articulo ?? of.descripcion)}
-        </span>
-        {/* Belén (14/11/2026): la rotulación en la línea, sin desplegar, como en
-            su pantalla de antes. Solo si la OF la tiene y no es la del pedido
-            (esa ya sale en la cabecera). */}
-        {otraRotulacion && of.rotulacion && (
-          <span className="max-w-[18rem] truncate text-[12.5px] text-text-muted" title={`Rotulación: ${of.rotulacion}`}>
-            Rotulación <b className="font-semibold text-text">{of.rotulacion}</b>
+          <span className="min-w-0 truncate">
+            {of.cantidad > 0 && (
+              <b className="mr-1.5 font-bold tabular-nums">
+                {of.cantidad.toLocaleString("es-ES", { maximumFractionDigits: 2 })} ×
+              </b>
+            )}
+            {enFrase(of.articulo ?? of.descripcion)}
           </span>
-        )}
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {/* Belén (14/11/2026), en este orden: solicitada (rojo), comprometida
-              (verde), logística (malva), compras (azul) y el comentario de la
-              OF (rojo). La situación, detrás. */}
-          {of.fechaSolicitada && <FechaCorta {...FECHA.solicitada} valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}
-          {of.fechaComprometida && <FechaCorta {...FECHA.comprometida} valor={of.fechaComprometida} ayuda={SIGNIFICA.comprometida} />}
-          {of.logistica?.fecha && <FechaCorta {...FECHA.logistica} valor={of.logistica.fecha} ayuda={SIGNIFICA.logistica} extra={of.logistica.responsable} />}
-          {of.fechaCompras && <FechaCorta {...FECHA.compras} valor={of.fechaCompras} ayuda={SIGNIFICA.compras} />}
+        </span>
+        {/* Belén (17/11/2026): detrás del artículo, la situación; después, en
+            columnas que casan de una OF a otra, solicitada (rojo), comprometida
+            (verde), logística (malva), compras (azul), rotulación y el
+            comentario de la OF (rojo). Lo que falta deja su hueco en blanco;
+            rotulación y comentario son las columnas anchas. */}
+        <span className={CELDA}>
+          {of.situacion && <span title={SIGNIFICA.situacion} className={chip(tonoSituacion(of.situacion))}>{enFrase(of.situacion)}</span>}
+        </span>
+        <span className={CELDA}>{of.fechaSolicitada && <FechaCorta {...FECHA.solicitada} valor={of.fechaSolicitada} ayuda={SIGNIFICA.solicitada} />}</span>
+        <span className={CELDA}>{of.fechaComprometida && <FechaCorta {...FECHA.comprometida} valor={of.fechaComprometida} ayuda={SIGNIFICA.comprometida} />}</span>
+        <span className={CELDA}>
+          {of.logistica?.fecha && <FechaCorta {...FECHA.logistica} valor={of.logistica.fecha} ayuda={of.logistica.responsable ? `${SIGNIFICA.logistica}\n\nResponsable: ${of.logistica.responsable}` : SIGNIFICA.logistica} extra={of.logistica.responsable} />}
+        </span>
+        <span className={CELDA}>{of.fechaCompras && <FechaCorta {...FECHA.compras} valor={of.fechaCompras} ayuda={SIGNIFICA.compras} />}</span>
+        <span className={CELDA}>
+          {of.rotulacion && (
+            <span className="flex w-full min-w-0 flex-col leading-tight" title={`Rotulación: ${of.rotulacion}`}>
+              <span className="text-[11px] font-medium text-text-muted">Rotulación</span>
+              <b className="block truncate text-[12.5px] font-semibold">{of.rotulacion}</b>
+            </span>
+          )}
+        </span>
+        <span className={CELDA}>
           {of.notas && (
-            <span className="max-w-[20rem] truncate text-[12.5px] font-semibold text-red-700 dark:text-red-300" title={`Comentario de la OF: ${of.notas}`}>
+            <span className="min-w-0 truncate text-[12.5px] font-semibold leading-tight text-red-700 dark:text-red-300" title={`Comentario de la OF: ${of.notas}`}>
               {of.notas}
             </span>
           )}
-          {of.situacion && <span title={SIGNIFICA.situacion} className={chip(tonoSituacion(of.situacion))}>{enFrase(of.situacion)}</span>}
         </span>
       </button>
 

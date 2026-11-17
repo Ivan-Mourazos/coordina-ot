@@ -234,6 +234,15 @@ export function PedidoBelenView({
   const descontado = useCarga(`/api/vista-belen?descontado=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
     (j as { descontado: LineaDescontada[] | null }).descontado ?? [],
   );
+  // Iván (17/11/2026): la pestaña Notas dice cuántas hay, para saber sin
+  // abrirla que alguien dejó algo. Se cuentan como en el hilo: las no borradas.
+  // Al escribir o borrar dentro, el hilo avisa (onCuenta) y la cuenta se pone al día.
+  const notasCarga = useCarga(stock ? null : `/api/notas?pedido=${encodeURIComponent(pedido.codigo)}&v=${version}`, (j) =>
+    ((j as { notas?: { borrada?: boolean }[] }).notas ?? []).filter((x) => !x.borrada).length,
+  );
+  const [notasVivas, setNotasVivas] = useState<{ pedido: string; n: number } | null>(null);
+  const cuentaNotas =
+    notasVivas?.pedido === pedido.codigo ? notasVivas.n : notasCarga.tipo === "listo" ? notasCarga.datos : 0;
   const enDirecto = useEnDirecto(pedido.codigo);
   const enDirectoDe = (of: string) => enDirecto.filter((f) => f.of === of);
   // En la pestaña, cómo va lo asignado: lo peor manda, como en el tablero.
@@ -248,7 +257,7 @@ export function PedidoBelenView({
   // mientras cargan; null si RPS no tiene ninguno.
   const tiemposDe = (of: string) =>
     tiempos.tipo === "cargando" ? undefined : tiempos.tipo === "listo" ? (tiempos.datos?.ofs.find((o) => o.of === of) ?? null) : null;
-  const TODAS: { id: Seccion; label: string; extra?: string }[] = [
+  const TODAS: { id: Seccion; label: string; extra?: string; marca?: boolean }[] = [
     { id: "resumen", label: "Resumen", extra: n(r.ofs, "OF", "OF") },
     { id: "documentos", label: "Documentos", extra: docs.tipo === "listo" ? String(docs.datos.length) : undefined },
     {
@@ -256,7 +265,7 @@ export function PedidoBelenView({
       label: "Material",
       extra: estadoMat === "sinReservar" ? "sin reservar" : estadoMat === "aMedias" ? "a medias" : estadoMat === "reservado" ? "reservado" : undefined,
     },
-    { id: "notas", label: "Notas" },
+    { id: "notas", label: "Notas", extra: cuentaNotas > 0 ? String(cuentaNotas) : undefined, marca: cuentaNotas > 0 },
     { id: "descontado", label: "Descontado", extra: descontado.tipo === "listo" && descontado.datos.length ? String(descontado.datos.length) : undefined },
   ];
   const SECCIONES = stock ? TODAS.filter((x) => x.id !== "documentos" && x.id !== "notas") : TODAS;
@@ -436,7 +445,18 @@ export function PedidoBelenView({
             } ${pestanas.claseArrastre(x.id)}`}
           >
             {x.label}
-            {x.extra && <span className="text-[11.5px] font-medium tabular-nums text-text-muted">{x.extra}</span>}
+            {x.extra &&
+              (x.marca ? (
+                // Marcada: que se vea de lejos que ahí hay algo que leer.
+                <span
+                  aria-label={`${x.extra} ${x.extra === "1" ? "nota" : "notas"}`}
+                  className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-amber-500 px-1 text-[11px] font-bold tabular-nums text-white dark:bg-amber-400 dark:text-amber-950"
+                >
+                  {x.extra}
+                </span>
+              ) : (
+                <span className="text-[11.5px] font-medium tabular-nums text-text-muted">{x.extra}</span>
+              ))}
           </button>
         ))}
       </div>
@@ -499,7 +519,7 @@ export function PedidoBelenView({
             Aquí ves las notas que Oficina Técnica pone <b className="text-text">«para todos»</b> y las tuyas. Lo que
             escribas lo lee todo el equipo.
           </p>
-          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} />
+          <NotasPedido pedido={pedido.codigo} miId={miId} operarios={[]} onCuenta={(n) => setNotasVivas({ pedido: pedido.codigo, n })} />
         </div>
       )}
 

@@ -38,6 +38,7 @@ export function NotasPedido({
   miId,
   operarios,
   soloLectura: soloLecturaProp = false,
+  onCuenta,
 }: {
   /** CÓDIGO del pedido ("AR.26.03914"), no su id interno: es lo que sobrevive
    *  al paso al Historial, donde el id cambia. */
@@ -46,6 +47,8 @@ export function NotasPedido({
   operarios: readonly Operario[];
   /** El Historial no escribe: el pedido ya está cerrado para OT. */
   soloLectura?: boolean;
+  /** Cuántas notas vivas hay, cada vez que cambia (la pestaña de Belén la enseña). */
+  onCuenta?: (vivas: number) => void;
 }) {
   // La cuenta de Dirección (contexto) y el Historial (prop) cierran lo mismo,
   // salvo para Dirección, que sí escribe notas (16/11/2026).
@@ -189,6 +192,13 @@ export function NotasPedido({
   const vacio = notas !== null && notas.length === 0 && !escribiendo && !error;
   const filas = ordenarHilo(notas ?? [], (id) => plegado.get(id));
   const vivas = (notas ?? []).filter((n) => !n.borrada).length;
+  // Solo con el hilo cargado: mientras carga no se sabe, y no se pisa la cuenta.
+  const cargadas = notas !== null;
+  useEffect(() => {
+    if (cargadas) onCuenta?.(vivas);
+    // onCuenta se escribe en el sitio: cambiarla no cambia la cuenta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargadas, vivas]);
   const nombreDe = (id: string) =>
     id === OPERARIO_SISTEMA ? "Coordina" : (opPorId(id)?.nombre ?? personas.find((p) => p.id === id)?.nombre ?? id);
   const plegar = (raizId: number, valor: boolean | undefined) =>
