@@ -258,9 +258,11 @@ function PorQueVuelven({ devueltas, causa, porFamilia, cargando, detalleViejo = 
   </div>;
 }
 
-/** La tira de opciones de dentro de un panel (la misma que el resto de la web). */
+/** La tira de opciones de dentro de un panel (la misma que el resto de la web).
+ *  Con `data-sin-transicion`: cambia lo de un panel, no la pantalla, y el
+ *  fundido de pestañas (pestanasFluidas) hacía parpadear la página entera. */
 function Tira<T extends string>({ opciones, valor, onCambiar, etiqueta }: { opciones: readonly (readonly [T, string])[]; valor: T; onCambiar: (v: T) => void; etiqueta: string }) {
-  return <div className="tira-3d glass-chip inline-flex shrink-0 self-start rounded-lg p-1" role="group" aria-label={etiqueta}>
+  return <div data-sin-transicion className="tira-3d glass-chip inline-flex shrink-0 self-start rounded-lg p-1" role="group" aria-label={etiqueta}>
     {opciones.map(([v, l]) => <button key={v} type="button" aria-pressed={valor === v} onClick={() => onCambiar(v)} className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${valor === v ? "pestana-activa" : "text-text-muted hover:text-text"}`}>{l}</button>)}
   </div>;
 }
