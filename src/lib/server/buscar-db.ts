@@ -67,6 +67,12 @@ export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrad
   // Ordenado por FECHA y no por código: el código ordena alfabéticamente y
   // ponía los presupuestos "QU.25…" por encima de los pedidos "AR.26…", o sea
   // lo viejo por encima de lo de esta semana.
+  // Por código sin serie salen las tres delegaciones: Arzúa delante, y las
+  // de Santiago y Bergondo debajo, para verlas y elegirlas si es esa.
+  const orden =
+    que.tipo === "pedido"
+      ? "CASE WHEN o.CodOrder LIKE 'AR.%' THEN 0 ELSE 1 END, o.OrderDate DESC"
+      : "o.OrderDate DESC";
   const r = await req.query<{
       pedido: string | null;
       cliente: string | null;
@@ -82,7 +88,7 @@ export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrad
         ON d.IDCustomerDeliveryAddress = o.IDCustomerDeliveryAddress
       WHERE o.CodCompany = '001'
         AND (${donde})
-      ORDER BY o.OrderDate DESC
+      ORDER BY ${orden}
     `);
 
   return r.recordset

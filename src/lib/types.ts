@@ -19,13 +19,22 @@ import type { SeccionId } from "./secciones";
 
 /** Código de un pedido de venta real de RPS: "AR.26.03376".
  *
- *  Los tres prefijos son las tres delegaciones —AR Arteixo, SA Santiago, BE
+ *  Los tres prefijos son las tres delegaciones —AR Arzúa, SA Santiago, BE
  *  Bergondo— y los tres entran en Oficina Técnica. Se comprueba en varios
  *  sitios (¿tiene PDF?, ¿es un pedido o trabajo interno?) y estaba escrito a
  *  mano en cada uno de ellos SOLO con AR, así que los de las otras dos
  *  delegaciones salían sin miniatura y sin enlace al parte. Una sola regla, y
  *  con nombre, para que la siguiente delegación se añada en un sitio. */
-const CODIGO_PEDIDO_RE = /^(AR|SA|BE)\.\d{2}\.\d{5}$/;
+export const SERIES_PEDIDO = ["AR", "SA", "BE"] as const;
+
+/** Nombre de la delegación de cada serie, para distinguirlas en una lista. */
+export const DELEGACION_SERIE: Record<(typeof SERIES_PEDIDO)[number], string> = {
+  AR: "Arzúa",
+  SA: "Santiago",
+  BE: "Bergondo",
+};
+
+const CODIGO_PEDIDO_RE = new RegExp(`^(${SERIES_PEDIDO.join("|")})\\.\\d{2}\\.\\d{5}$`);
 
 export const esCodigoPedido = (codigo: string): boolean => CODIGO_PEDIDO_RE.test(codigo);
 

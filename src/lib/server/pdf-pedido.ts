@@ -9,7 +9,7 @@ import path from "node:path";
 
 /** Subcarpeta del año donde vive el PDF de cada delegación.
  *
- *  Los pedidos de Arteixo (AR) cuelgan del año a secas y los de las otras dos
+ *  Los pedidos de Arzúa (AR) cuelgan del año a secas y los de las otras dos
  *  de una carpeta con el nombre del sitio: `2026/SANTIAGO/SA.26.00844.pdf`.
  *
  *  Comprobado contra `GENEntityDocument`, que es el índice de RPS: las 1245

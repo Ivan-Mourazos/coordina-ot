@@ -16,7 +16,7 @@ import { usePildoraVertical } from "./usePildoraVertical";
 import { AvisosBelen } from "./AvisosBelen";
 import { IconoHerramienta } from "./IconoHerramienta";
 import { enGrupos, grupoDe } from "@/lib/herramientas-belen";
-import { hoyISO } from "@/lib/types";
+import { DELEGACION_SERIE, hoyISO } from "@/lib/types";
 import { useFueraHoy } from "../useFueraHoy";
 import { FueraHoyTira } from "../Disponibilidad";
 import { PanelNovedades } from "../PanelNovedades";
@@ -627,6 +627,11 @@ function ResultadoBusqueda({
                 className="tarjeta-of flex w-full items-baseline gap-3 rounded-2xl bg-surface px-4 py-2 text-left text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 <span className="font-bold tabular-nums">{p.codigo}</span>
+                {p.codigo.startsWith("SA.") || p.codigo.startsWith("BE.") ? (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-muted">
+                    {DELEGACION_SERIE[p.codigo.slice(0, 2) as "SA" | "BE"]}
+                  </span>
+                ) : null}
                 <span className="min-w-0 flex-1 truncate">{p.cliente}</span>
                 {p.fecha && (
                   <span className="text-xs tabular-nums text-text-muted">{fechaCorta(p.fecha)}</span>

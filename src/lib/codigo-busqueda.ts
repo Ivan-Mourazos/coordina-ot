@@ -5,7 +5,13 @@
 // puede usar el índice del código. Convertido a un código EXACTO (o a un
 // principio de código) la misma consulta tarda 15 ms.
 //
+// Sin serie escrita se prueban las tres delegaciones (AR, SA, BE): el mismo
+// número existe en las tres y antes solo se buscaba en Arzúa, así que los
+// de Santiago y Bergondo no aparecían (17/11/2026). Arzúa sigue primero.
+//
 // Esto solo decide QUÉ buscar; la consulta la hace quien llama.
+
+import { SERIES_PEDIDO } from "./types";
 
 export type Busqueda =
   /** Códigos de pedido: exactos y/o por cómo empiezan («AR.26.054»). */
@@ -22,6 +28,9 @@ const ANIOS_ATRAS = 3;
 const relleno = (n: string) => n.padStart(5, "0");
 const codigo = (serie: string, aa: string, n: string) => `${serie}.${aa}.${n}`;
 
+/** La serie escrita, o las de todas las delegaciones si no se escribió. */
+const series = (escrita?: string): readonly string[] => (escrita ? [escrita] : SERIES_PEDIDO);
+
 /** Lo que el buscador ha de pedir a RPS para lo escrito. `anio` es el año en
  *  curso con cuatro cifras (se pasa para poder probarlo). */
 export function interpretarBusqueda(escrito: string, anio: number): Busqueda {
@@ -34,11 +43,16 @@ export function interpretarBusqueda(escrito: string, anio: number): Busqueda {
   // Con separador entre año y número: «26.05448», «AR.26.054», «ar 26 5448».
   const partes = limpio.match(/^(?:([A-Z]{2})[\s.\-]*)?(\d{2})[\s.\-]+(\d{1,5})$/);
   if (partes) {
-    const [, serie = "AR", aa, n] = partes;
+    const [, serie, aa, n] = partes;
+    const ss = series(serie);
     return n.length === 5
-      ? { tipo: "pedido", exactos: [codigo(serie, aa, n)], prefijos: [] }
+      ? { tipo: "pedido", exactos: ss.map((s) => codigo(s, aa, n)), prefijos: [] }
       // «26.5448»: puede ser el 05448 sin el cero o el principio de un 5448x.
-      : { tipo: "pedido", exactos: [codigo(serie, aa, relleno(n))], prefijos: [codigo(serie, aa, n)] };
+      : {
+          tipo: "pedido",
+          exactos: ss.map((s) => codigo(s, aa, relleno(n))),
+          prefijos: ss.map((s) => codigo(s, aa, n)),
+        };
   }
 
   const pegado = limpio.replace(/[\s.\-]+/g, "");
@@ -57,17 +71,20 @@ export function interpretarBusqueda(escrito: string, anio: number): Busqueda {
 
   // Año y número pegados: «2605448».
   const pegados = pegado.match(/^(\d{2})(\d{5})$/);
-  if (pegados) return { tipo: "pedido", exactos: [codigo("AR", pegados[1], pegados[2])], prefijos: [] };
+  if (pegados) {
+    return { tipo: "pedido", exactos: series().map((s) => codigo(s, pegados[1], pegados[2])), prefijos: [] };
+  }
 
   // Año y medio número: «260544», el principio de un AR.26.0544x.
   const medio = pegado.match(/^(\d{2})(\d{4})$/);
-  if (medio) return { tipo: "pedido", exactos: [], prefijos: [codigo("AR", medio[1], medio[2])] };
+  if (medio) return { tipo: "pedido", exactos: [], prefijos: series().map((s) => codigo(s, medio[1], medio[2])) };
 
-  // Solo el número: «5448», «05448». Ese número en los últimos años.
+  // Solo el número: «5448», «05448». Ese número en los últimos años, en cada
+  // delegación.
   if (/^\d{1,5}$/.test(pegado)) {
     const n = relleno(pegado);
-    const exactos = Array.from({ length: ANIOS_ATRAS + 1 }, (_, i) =>
-      codigo("AR", String((anio - i) % 100).padStart(2, "0"), n),
+    const exactos = series().flatMap((s) =>
+      Array.from({ length: ANIOS_ATRAS + 1 }, (_, i) => codigo(s, String((anio - i) % 100).padStart(2, "0"), n)),
     );
     return { tipo: "pedido", exactos, prefijos: [] };
   }
