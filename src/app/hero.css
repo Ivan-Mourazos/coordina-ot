@@ -368,9 +368,11 @@ html[data-estilo="hero"]:root .tira-3d[data-pildora] > :is(.pestana-activa, .gla
 /* Los desplegables de la casa (components/Select.tsx) son <select> desde el
    17/11/2026, pero no todos tienen forma de campo: el autor de la ficha va
    `plano`, como texto. Por eso fuera del `select` general y dentro solo los
-   que llevan el chip (`.glass-chip`). */
-html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea, select:not(.select-nativo),
-  .campo-hundido, select.select-nativo.glass-chip) {
+   que llevan el chip (`.glass-chip`). Las clases van en `:where()`: `:is()`
+   pesa lo que su argumento más fuerte, y con `.select-nativo` contando ganaba
+   a `.campo-hundido :is(input)` y el buscador salía con un campo dentro. */
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea, select:where(:not(.select-nativo)),
+  .campo-hundido, select:where(.select-nativo).glass-chip) {
   background: var(--surface);
   border: 0;
   border-radius: 10px;
@@ -378,7 +380,7 @@ html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type=
   transform: none;
   transition: box-shadow 150ms ease;
 }
-html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), textarea, select:not(.select-nativo)):focus,
+html[data-estilo="hero"]:root :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])), textarea, select:where(:not(.select-nativo))):focus,
 html[data-estilo="hero"]:root .campo-hundido:focus-within,
 html[data-estilo="hero"]:root select.select-nativo:focus-visible {
   outline: none;
