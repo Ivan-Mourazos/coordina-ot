@@ -1,5 +1,29 @@
 [
   {
+    "id": "2026-11-17",
+    "hasta": "82c5959",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al pasar a Producción puedes dejar OF para más tarde",
+        "detalle": "Desmarca las que no quieras pasar todavía; se quedan en tu tablero y las pasas cuando estén.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En Comprobaciones ves quién se dejó el fichaje abierto: más de 9 h 20 seguidas o pasadas las 23:30",
+        "apartado": "produccion",
+        "detalle": "Salen los que siguen abiertos ahora en OLANET y los de la última semana ya cerrados, con operario, OF, tarea y máquina.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Al pasar el ratón ya no salen dos avisos uno encima de otro",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-16",
     "hasta": "6efc4ae",
     "cambios": [
