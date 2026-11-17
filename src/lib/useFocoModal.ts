@@ -90,9 +90,9 @@ export function useFocoModal<T extends HTMLElement>(activo: boolean) {
       // nada —el foco se queda en el `body`—. Aquí no se puede arreglar: no
       // hay forma de adivinar a dónde debería volver.
       //
-      // Los desplegables de `usePopover` (popover nativo desde el 17/11/2026)
-      // ya devuelven el foco a su botón al cerrarse; esto queda para los menús
-      // que aún se cierran a mano (fase 4 de docs/MODERNIZAR-CAPAS.md).
+      // Los desplegables y menús con popover nativo (desde el 17/11/2026), el
+      // "⋯" incluido, se cierran antes de actuar y devuelven el foco a su
+      // botón, así que aquí `previo` ya es ese botón y sigue en el documento.
       if (previo && document.contains(previo)) previo.focus?.();
     };
   }, [activo]);

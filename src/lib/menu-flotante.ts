@@ -74,3 +74,17 @@ export function ventanaActual(): Ventana | null {
   if (typeof window === "undefined") return null;
   return { ancho: window.innerWidth, alto: window.innerHeight };
 }
+
+/** Lleva un `SitioMenu` al estilo de un panel ya montado (un popover). Los
+ *  lados que no dice quedan en `auto`: el navegador pone `inset: 0` a los
+ *  popovers, y un `bottom: 0` olvidado estiraría el menú hasta el suelo. */
+export function aplicarSitio(panel: HTMLElement, sitio: SitioMenu & { maxHeight?: number }): void {
+  const px = (n: number | undefined) => (n === undefined ? "auto" : `${n}px`);
+  panel.style.left = px(sitio.left);
+  panel.style.right = px(sitio.right);
+  panel.style.top = px(sitio.top);
+  panel.style.bottom = px(sitio.bottom);
+  panel.style.minWidth = `${sitio.minWidth}px`;
+  panel.style.maxWidth = `${sitio.maxWidth}px`;
+  if (sitio.maxHeight !== undefined) panel.style.maxHeight = `${sitio.maxHeight}px`;
+}

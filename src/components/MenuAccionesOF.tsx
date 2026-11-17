@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
-import { useCapaEscape } from "@/lib/useCapaEscape";
+import { aplicarSitio, sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { usePopover } from "@/lib/usePopover";
 import type { AccionDef } from "@/lib/acciones";
 
 // ─── El cajón de "⋯" de una OF ───────────────────────────────────────────────
@@ -17,16 +15,15 @@ import type { AccionDef } from "@/lib/acciones";
 // que un botón que se pulsa una vez al mes no puede competir por el sitio con
 // uno que se pulsa veinte veces al día.
 //
-// POR QUÉ VA EN UN PORTAL. Estaba `absolute` dentro de la propia ficha de la
-// OF, y ahí lo recorta cualquier ancestro con `overflow` — el panel del drawer
-// lo tiene—. La fila de acciones cae al final de la ficha, así que el menú se
-// abría justo contra el borde de abajo: "Dar por corregida" salía cortada y
-// tapada por el pie del panel. Colgado del `body` no hay quien lo recorte, y
-// `sitioDeMenu` lo voltea hacia arriba cuando no cabe abajo.
-//
-// Mismo camino que ya recorrieron el desplegable de Select y el cuadro de
-// confirmación, incluida la marca `data-en-portal` para que los paneles que se
-// cierran al hacer clic fuera no se cierren al pulsar aquí dentro.
+// POR QUÉ NO SE RECORTA. Estaba `absolute` dentro de la propia ficha de la OF,
+// y ahí lo recortaba cualquier ancestro con `overflow` —el panel del drawer lo
+// tiene—: "Dar por corregida" salía cortada y tapada por el pie del panel.
+// Luego fue a un portal en el `body`, con su clic fuera, su Escape en
+// `capas-escape` y la marca `data-en-portal`. Desde el 17/11/2026 es un popover
+// nativo (`usePopover`): va a la capa superior, donde nada lo recorta, sin
+// salir de la ficha en el DOM (la trampa de foco del drawer lo ve dentro); el
+// navegador lo cierra al pinchar fuera y con Escape (solo a él) y devuelve el
+// foco al botón. `sitioDeMenu` lo sigue volteando hacia arriba si abajo no cabe.
 
 /** El ancho del menú, en píxeles y sabido de antemano (era `w-56`).
  *
@@ -48,62 +45,25 @@ export function MenuAccionesOF({
   /** Cómo se llama cada una en ESTA OF ("Aprobar → Jaime"). */
   etiqueta: (a: AccionDef) => string;
 }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  // La posición del botón al abrir. `null` = cerrado.
-  const [caja, setCaja] = useState<DOMRect | null>(null);
-  const open = caja !== null;
-
-  // El cierre se lleva aquí y no con `usePopover` porque hay DOS trozos que
-  // cuentan como "dentro" y viven separados: el botón y el menú, que está en un
-  // portal. Con un solo contenedor vigilado, pulsar una opción se leería como
-  // clic fuera y el menú se cerraría antes de que la acción llegara.
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setCaja(null);
-    }
-    // Al hacer scroll o cambiar el tamaño, el botón se mueve y el menú se
-    // quedaría flotando donde estaba: se cierra, que es menos molesto que
-    // perseguirlo con un recálculo en cada píxel. Mismo criterio que Select.
-    function onMover() {
-      setCaja(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", onMover);
-    window.addEventListener("scroll", onMover, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", onMover);
-      window.removeEventListener("scroll", onMover, true);
-    };
-  }, [open]);
-  // Escape cierra el cajón y no la ficha (ver capas-escape.ts).
-  useCapaEscape(open, () => {
-    setCaja(null);
-    btnRef.current?.focus();
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLButtonElement>({
+    colocar: (caja, panel) => {
+      const ventana = ventanaActual();
+      if (!ventana) return;
+      aplicarSitio(
+        panel,
+        sitioDeMenu(caja, { ventana, alto: acciones.length * ALTO_OPCION + 8, alignRight: true, ancho: ANCHO }),
+      );
+    },
   });
 
   if (acciones.length === 0) return null;
 
-  const ventana = ventanaActual();
-  const sitio =
-    caja && ventana
-      ? sitioDeMenu(caja, {
-          ventana,
-          alto: acciones.length * ALTO_OPCION + 8,
-          alignRight: true,
-          ancho: ANCHO,
-        })
-      : null;
-
   return (
     <>
       <button
-        ref={btnRef}
-        onClick={() => setCaja(open ? null : (btnRef.current?.getBoundingClientRect() ?? null))}
+        ref={ref}
+        type="button"
+        popoverTarget={idPanel}
         aria-label="Más acciones"
         aria-expanded={open}
         title="Más acciones para esta OF"
@@ -112,31 +72,27 @@ export function MenuAccionesOF({
         ⋯
       </button>
 
-      {sitio &&
-        createPortal(
-          <div
-            ref={menuRef}
-            data-en-portal=""
-            style={sitio}
-            className="glass-pop fixed z-[60] rounded-xl p-1"
-          >
-            {acciones.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => {
-                  setCaja(null);
-                  onElegir(a);
-                }}
-                className={`block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold hover:bg-[var(--glass-highlight)] ${
-                  a.tono === "peligro" ? "text-error" : "text-text"
-                }`}
-              >
-                {etiqueta(a)}
-              </button>
-            ))}
-          </div>,
-          document.body,
-        )}
+      <div ref={panelRef} id={idPanel} popover="auto" className="glass-pop rounded-xl p-1 text-text">
+        {open &&
+          acciones.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => {
+                // Primero se cierra (el foco vuelve al ⋯) y luego la acción: si
+                // abre un ConfirmDialog, al cerrarse este devuelve el foco al ⋯
+                // y no al `body`.
+                setOpen(false);
+                onElegir(a);
+              }}
+              className={`block w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold hover:bg-[var(--glass-highlight)] ${
+                a.tono === "peligro" ? "text-error" : "text-text"
+              }`}
+            >
+              {etiqueta(a)}
+            </button>
+          ))}
+      </div>
     </>
   );
 }

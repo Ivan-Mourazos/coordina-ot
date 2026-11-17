@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { Operario } from "@/lib/types";
-import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
-import { useCapaEscape } from "@/lib/useCapaEscape";
+import { aplicarSitio, sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
+import { usePopover } from "@/lib/usePopover";
 import { tintaSobre } from "@/lib/tinta";
 
 /** Alto máximo del menú, para decidir si abre hacia arriba o hacia abajo. */
@@ -23,10 +21,11 @@ const ANCHO = 176;
  *  Se abre desde la tarjeta y no se lleva el clic de encima: pulsar el parte
  *  sigue abriéndolo, que es lo que más se hace.
  *
- *  El menú va en un PORTAL, igual que el de Select y por lo mismo: estaba
- *  `absolute` dentro de la tarjeta y, en la bandeja de "Sin asignar", se abría
- *  fuera de la pantalla —la tarjeta está pegada al borde y encima el mini-PDF
- *  tiene su propio recorte—, así que la lista de nombres no se podía ni ver. */
+ *  Estaba `absolute` dentro de la tarjeta y, en la bandeja de "Sin asignar", se
+ *  abría fuera de la pantalla —la tarjeta está pegada al borde y encima el
+ *  mini-PDF tiene su propio recorte—. Pasó a un portal y, desde el 17/11/2026,
+ *  es un popover nativo (`usePopover`): capa superior sin recortes, clic fuera
+ *  y Escape del navegador, sin salir de la tarjeta en el DOM. */
 export function MenuAsignar({
   operarios,
   miId,
@@ -40,45 +39,15 @@ export function MenuAsignar({
    *  miniatura; en su sitio de siempre, un chip. */
   claseBoton?: string;
 }) {
-  // El rectángulo del botón al abrir, no un booleano: el menú vive en otro
-  // sitio del DOM y necesita saber dónde pintarse.
-  const [caja, setCaja] = useState<DOMRect | null>(null);
-  const open = caja !== null;
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    // Dos trozos cuentan como "dentro" y viven separados: el botón y el menú
-    // del portal. Vigilando un solo contenedor, pulsar un nombre se leía como
-    // clic fuera y el menú se cerraba sin asignar nada.
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setCaja(null);
-    }
-    // Al mover la página el botón se va y el menú se quedaría flotando solo.
-    // Salvo que lo que se mueva sea el menú por dentro: el listener va con
-    // `capture` y si no, con la lista de nombres larga, la rueda lo cerraría
-    // en vez de bajarlo (ver el mismo caso en Select.tsx).
-    function onMover(e?: Event) {
-      const donde = e?.target;
-      if (donde instanceof Node && menuRef.current?.contains(donde)) return;
-      setCaja(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", onMover);
-    window.addEventListener("scroll", onMover, true);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", onMover);
-      window.removeEventListener("scroll", onMover, true);
-    };
-  }, [open]);
-  // Escape cierra solo este menú (ver capas-escape.ts).
-  useCapaEscape(open, () => {
-    setCaja(null);
-    btnRef.current?.focus();
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLButtonElement>({
+    colocar: (caja, panel) => {
+      const ventana = ventanaActual();
+      if (!ventana) return;
+      aplicarSitio(panel, {
+        ...sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight: true, ancho: ANCHO }),
+        maxHeight: ALTO_MAX,
+      });
+    },
   });
 
   // Yo primero: lo más frecuente es cogerse un parte uno mismo.
@@ -87,12 +56,6 @@ export function MenuAsignar({
     ...operarios.filter((o) => o.id !== miId),
   ];
 
-  const ventana = ventanaActual();
-  const sitio =
-    caja && ventana
-      ? sitioDeMenu(caja, { ventana, alto: ALTO_MAX, alignRight: true, ancho: ANCHO })
-      : null;
-
   return (
     <div
       className={`w-full transition-opacity ${
@@ -100,12 +63,12 @@ export function MenuAsignar({
       }`}
     >
       <button
-        ref={btnRef}
+        ref={ref}
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setCaja(open ? null : (btnRef.current?.getBoundingClientRect() ?? null));
-        }}
+        popoverTarget={idPanel}
+        // Lo abre `popoverTarget`; esto solo evita que el clic llegue a la
+        // tarjeta y abra el parte.
+        onClick={(e) => e.stopPropagation()}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Dar este parte a alguien"
@@ -114,40 +77,39 @@ export function MenuAsignar({
         Asignar
       </button>
 
-      {sitio &&
-        createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            // Ver Select.tsx: marca de portal, para que los paneles flotantes no
-            // tomen este clic por un clic fuera y se cierren solos.
-            data-en-portal=""
-            style={{ ...sitio, maxHeight: ALTO_MAX }}
-            className="glass-pop scroll-thin fixed z-[60] overflow-y-auto rounded-xl p-1"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {orden.map((o) => (
-              <button
-                key={o.id}
-                role="menuitem"
-                onClick={() => {
-                  onAsignar(o.id);
-                  setCaja(null);
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-text hover:bg-[var(--glass-highlight)]"
+      <div
+        ref={panelRef}
+        id={idPanel}
+        popover="auto"
+        role="menu"
+        className="glass-pop scroll-thin overflow-y-auto rounded-xl p-1"
+        // El menú cuelga de la tarjeta en el DOM: sin esto, pulsar un nombre (o
+        // Intro/Espacio sobre él) llegaría a la tarjeta y abriría el parte.
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        {open &&
+          orden.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onAsignar(o.id);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-text hover:bg-[var(--glass-highlight)]"
+            >
+              <span
+                className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
+                style={{ background: o.color, color: tintaSobre(o.color) }}
               >
-                <span
-                  className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
-                  style={{ background: o.color, color: tintaSobre(o.color) }}
-                >
-                  {o.iniciales}
-                </span>
-                {o.id === miId ? `${o.nombre} (tú)` : o.nombre}
-              </button>
-            ))}
-          </div>,
-          document.body,
-        )}
+                {o.iniciales}
+              </span>
+              {o.id === miId ? `${o.nombre} (tú)` : o.nombre}
+            </button>
+          ))}
+      </div>
     </div>
   );
 }

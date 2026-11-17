@@ -159,22 +159,50 @@ function Globo({
   useLayoutEffect(() => {
     const el = caja.current;
     if (!el) return;
-    if (!el.matches(":popover-open")) el.showPopover();
-    const { width, height } = el.getBoundingClientRect();
-    let x: number;
-    let y: number;
-    if (lado === "derecha") {
-      x = ancla.right + SEPARACION;
-      y = ancla.top + ancla.height / 2 - height / 2;
-    } else {
-      x = ancla.left + ancla.width / 2 - width / 2;
-      y = ancla.bottom + SEPARACION;
+    if (el.matches(":popover-open")) {
+      colocar(el);
+      return;
     }
-    x = Math.min(Math.max(x, BORDE), window.innerWidth - width - BORDE);
-    y = Math.min(Math.max(y, BORDE), window.innerHeight - height - BORDE);
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
-    el.style.visibility = "visible";
+    try {
+      el.showPopover();
+      colocar(el);
+      return;
+    } catch {
+      // El navegador está a mitad de abrir otro popover: el ⋯ de una OF lleva
+      // `title`, y al pulsarlo el `flushSync` de `usePopover` (dentro del
+      // `beforetoggle` del menú) pintaba también el globo pendiente. Abrir uno
+      // durante la apertura de otro lanza "Invalid to show a popover during
+      // another show operation", y el error tumbaba la ficha entera (17/11/2026).
+      // Se reintenta en el siguiente fotograma, ya fuera de esa apertura.
+    }
+    const pendiente = requestAnimationFrame(() => {
+      if (!el.isConnected || el.matches(":popover-open")) return;
+      try {
+        el.showPopover();
+        colocar(el);
+      } catch {
+        // Sin globo esta vez: no merece romper nada.
+      }
+    });
+    return () => cancelAnimationFrame(pendiente);
+
+    function colocar(el: HTMLElement) {
+      const { width, height } = el.getBoundingClientRect();
+      let x: number;
+      let y: number;
+      if (lado === "derecha") {
+        x = ancla.right + SEPARACION;
+        y = ancla.top + ancla.height / 2 - height / 2;
+      } else {
+        x = ancla.left + ancla.width / 2 - width / 2;
+        y = ancla.bottom + SEPARACION;
+      }
+      x = Math.min(Math.max(x, BORDE), window.innerWidth - width - BORDE);
+      y = Math.min(Math.max(y, BORDE), window.innerHeight - height - BORDE);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.visibility = "visible";
+    }
   }, [ancla, lado]);
 
   return (

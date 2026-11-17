@@ -32,16 +32,26 @@ type Lado = "derecha" | "ancho";
  *  disparador (es el ancla) y `panelRef` + `idPanel` en el panel, que lleva
  *  `popover="auto"` y está SIEMPRE montado; lo de dentro se pinta solo con
  *  `open`. Compartido por la campana, Herramientas, el buscador y los avisos
- *  de Producción. */
+ *  de Producción, y por los menús ⋯ de la OF y Asignar (con `colocar`). */
 export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
   /** `derecha`: borde derecho con el del ancla (menús de la esquina).
    *  `ancho`: mismo ancho que el ancla (los resultados del buscador). */
   lado?: Lado;
   /** Hueco entre el ancla y el panel, en px. */
   separacion?: number;
+  /** Colocación propia, en vez de `lado`: los menús que se voltean hacia
+   *  arriba si abajo no caben (`sitioDeMenu`). Recibe la caja del ancla y el
+   *  panel, ya con `inset` y `margin` anulados. */
+  colocar?: (caja: DOMRect, panel: HTMLElement) => void;
 }) {
   const lado = opciones?.lado ?? "derecha";
   const separacion = opciones?.separacion ?? 6;
+  // En una ref: llega como función nueva en cada render, y `colocar` (abajo)
+  // no puede cambiar con cada render o los efectos se reengancharían sin parar.
+  const propia = useRef(opciones?.colocar);
+  useLayoutEffect(() => {
+    propia.current = opciones?.colocar;
+  });
   const [open, setOpen] = useState(false);
   const ref = useRef<T | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -63,6 +73,10 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
     // se dan coordenadas explícitas, así que se anulan.
     panel.style.inset = "auto";
     panel.style.margin = "0";
+    if (propia.current) {
+      propia.current(caja, panel);
+      return;
+    }
     panel.style.top = `${caja.bottom + separacion}px`;
     if (lado === "ancho") {
       panel.style.left = `${caja.left}px`;

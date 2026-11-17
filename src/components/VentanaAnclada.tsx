@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { sitioDeMenu, ventanaActual } from "@/lib/menu-flotante";
-import { useCapaEscape } from "@/lib/useCapaEscape";
 
 // ─── La ventanita que cuelga de un botón de la ficha ─────────────────────────
 // Materiales en Pendientes, y materiales y notas de Producción en el Historial.
@@ -11,10 +9,15 @@ import { useCapaEscape } from "@/lib/useCapaEscape";
 // en la otra, con su ancho, su alto y su manera de cerrarse cada una. Se abría
 // lo mismo de dos maneras según por dónde se entrara al pedido.
 //
-// Aquí queda una: en un portal para que el scroll del panel no la recorte,
-// anclada al botón y volteada hacia arriba si abajo no cabe, con techo de alto
-// y scroll propio. Se cierra con su botón, con un clic fuera, con Escape (solo
-// ella: la ficha sigue abierta) o al mover lo que hay detrás.
+// Aquí queda una, anclada al botón y volteada hacia arriba si abajo no cabe,
+// con techo de alto y scroll propio. Se cierra con su botón, con un clic fuera,
+// con Escape (solo ella: la ficha sigue abierta) o al mover lo que hay detrás.
+//
+// Desde el 17/11/2026 es un popover nativo (`popover="auto"`) montado en su
+// sitio, ya no un portal al `body`: la capa superior hace que el scroll del
+// panel no la recorte, y el clic fuera y Escape los pone el navegador. Como
+// sigue dentro de la ficha en el DOM, la trampa de foco del drawer y el clic
+// fuera de PanelFlotante la cuentan como suya sin marcas (`data-en-portal`).
 
 /** Lista de artículos con una raya fina entre uno y otro: sin ella, siete
  *  descripciones largas de RPS seguidas se leían como un solo párrafo y no se
@@ -34,9 +37,7 @@ const MINIMO_ABAJO = 160;
 export const BOTON_DETALLE =
   "chip-3d inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold";
 
-/** El sitio del botón al abrir y el propio botón. El botón hace falta para que
- *  pulsarlo otra vez no cuente como "clic fuera": el `mousedown` cerraría y el
- *  `click` de detrás la volvería a abrir. */
+/** El sitio del botón al abrir y el propio botón (para colgarse de él). */
 export interface Anclaje {
   rect: DOMRect;
   el: HTMLElement;
@@ -70,40 +71,51 @@ export function VentanaAnclada({
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const { el: disparador } = anclaje;
+  const alCerrar = useEffectEvent(onCerrar);
+
+  // Montada = abierta. Se abre antes de pintar, y cuando el navegador la
+  // cierra (clic fuera, Escape) se avisa al padre para que la desmonte. Con
+  // Escape o clic fuera el navegador ya devolvió el foco al botón.
+  //
+  // Va en `toggle` y no en `beforetoggle` a propósito: el clic fuera salta
+  // al soltar el botón del ratón, ANTES del `click`. Si pulsar el propio botón
+  // la cerrara en ese momento, su `onClick` (`alternar`) la vería cerrada y
+  // la volvería a abrir. `toggle` llega después del `click`: `alternar` ya la
+  // cerró y avisar otra vez no cambia nada.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    function cambio(e: Event) {
+      if ((e as ToggleEvent).newState === "closed") alCerrar();
+    }
+    el.addEventListener("toggle", cambio);
+    if (!el.matches(":popover-open")) el.showPopover();
+    return () => {
+      el.removeEventListener("toggle", cambio);
+      // Desmontada desde dentro (elegir un día, su ✕) con el foco en ella: al
+      // quitarla del DOM el navegador no lo devuelve, y caía en el `body`.
+      if (el.contains(document.activeElement)) disparador.focus();
+    };
+  }, [disparador]);
 
   useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const destino = e.target as Node;
-      // El botón no es "fuera": de cerrarla ya se encarga su propio onClick.
-      if (disparador.contains(destino)) return;
-      if (ref.current && !ref.current.contains(destino)) onCerrar();
-    }
     // Si se mueve el panel de la ficha, el botón se va y la ventana se quedaría
     // flotando en otro sitio. Salvo que lo que se mueva sea ella por dentro.
     function onMover(e?: Event) {
       const donde = e?.target;
       if (donde instanceof Node && ref.current?.contains(donde)) return;
-      onCerrar();
+      alCerrar();
     }
-    document.addEventListener("mousedown", onDown);
     window.addEventListener("resize", onMover);
     window.addEventListener("scroll", onMover, true);
     return () => {
-      document.removeEventListener("mousedown", onDown);
       window.removeEventListener("resize", onMover);
       window.removeEventListener("scroll", onMover, true);
     };
-  }, [onCerrar, disparador]);
-
-  // Escape cierra solo esta ventana y devuelve el foco a su botón; otra
-  // pulsación ya cierra la ficha (ver capas-escape.ts).
-  useCapaEscape(true, () => {
-    onCerrar();
-    disparador.focus();
-  });
+  }, []);
 
   const ventana = ventanaActual();
-  if (typeof document === "undefined" || !ventana) return null;
+  if (!ventana) return null;
   // Dentro de la ficha, del ancho del panel lateral (Iván, 20/10/2026): con
   // 288 px las descripciones de RPS se partían en tres renglones y la
   // cantidad quedaba perdida entre ellos. Fuera de una ficha, el ancho de
@@ -133,20 +145,28 @@ export function VentanaAnclada({
     ? { top: bottom + 4, bottom: undefined, maxHeight: Math.min(alto, abajo) }
     : { top: undefined, bottom: ventana.alto - top + 4, maxHeight: Math.min(alto, arriba) };
 
-  return createPortal(
+  // Los lados que no se usan, en `auto` y a mano: el navegador pone `inset: 0`
+  // y `margin: auto` a los popovers para centrarlos.
+  const px = (n: number | undefined) => (n === undefined ? "auto" : n);
+  return (
     <div
       ref={ref}
+      popover="auto"
       role="dialog"
       aria-label={etiqueta}
-      // Ver Select.tsx: marca de portal para que los paneles flotantes no lo
-      // tomen por un clic fuera y se cierren solos.
-      data-en-portal=""
-      className="ventana-3d scroll-thin fixed z-[70] overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
-      style={{ ...sitio, ...vertical }}
+      className="ventana-3d scroll-thin m-0 overflow-y-auto rounded-xl p-2.5 text-[11px] text-text"
+      style={{
+        left: px(sitio.left),
+        right: px(sitio.right),
+        top: px(vertical.top),
+        bottom: px(vertical.bottom),
+        minWidth: sitio.minWidth,
+        maxWidth: sitio.maxWidth,
+        maxHeight: vertical.maxHeight,
+      }}
     >
       {children}
-    </div>,
-    document.body,
+    </div>
   );
 }
 
