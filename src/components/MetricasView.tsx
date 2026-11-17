@@ -403,7 +403,7 @@ function MisDatos({ anio, mes, unidad, detalle, cargando, causa, seccion, nombre
   const ancho = ANCHO[sinRevision ? 2 : 3];
   return <>
     <Panel titulo="Mis OF por mes" extra={`Año ${anio}`} actualizando={actualizando} className={ancho} mio>
-      <MetricasGrafica llenar titulo="Mis OF por mes" resaltar={mes || undefined} series={series}
+      <MetricasGrafica llenar titulo="Mis OF por mes" resaltar={mes || undefined} series={series} guardarComo="metricas-mias"
         puntos={filas.map(({ mes, fila }) => ({ mes, valores: fila ? valoresDe(fila) : series.map(() => null) }))} />
     </Panel>
     {!sinRevision && <Panel titulo="Mis correcciones" extra={String(p.correcciones)} actualizando={actualizando} className={ancho} mio>
@@ -446,9 +446,10 @@ function Tile({ titulo, valor, extra, ayuda, delta, mio = false }: { titulo: str
 }
 /** «Realizadas» suma las OF que OT cerró en RPS antes de usar la web (`rps`,
  *  llega con el detalle): sin ellas el año empezaba en agosto (Iván,
- *  21/10/2026). Las devoluciones no existían antes: sin línea. Sin
- *  «Revisadas» (Iván, 17/11/2026); devoluciones e incidencias, del color de
- *  sus barras en «Motivo de devolución» e «Incidencias por familia». */
+ *  21/10/2026). Revisadas y devoluciones no existían antes: sin línea.
+ *  Devoluciones e incidencias, del color de sus barras en «Motivo de
+ *  devolución» e «Incidencias por familia»; «Revisadas», en gris y apagada
+ *  de entrada: se enciende en la leyenda (Iván, 17/11/2026). */
 function Meses({ anio, meses, mes, rps, rectificados, incidencias, sinRevision = false }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number>; rectificados?: DetalleMetricas["rectificadosMeses"]; incidencias?: Record<string, number> | null; sinRevision?: boolean }) {
   const filas = delAnio(anio, meses);
   // Rectificados con culpa de la sección, como las incidencias en «Mis datos»
@@ -463,19 +464,23 @@ function Meses({ anio, meses, mes, rps, rectificados, incidencias, sinRevision =
   // Sin «pasadas sin revisión» (Iván, 21/10/2026): ya sale en Mis datos.
   const incid = (m: string) => !incidencias || m > hastaHoy ? null : incidencias[m] ?? 0;
   const incidValor = mes ? incidencias?.[mes] ?? 0 : Object.entries(incidencias ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
-  const cuenta = (k: "planteos" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
+  const cuenta = (k: "planteos" | "revisiones" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
   const deRps = mes ? rps?.[mes] ?? 0 : Object.entries(rps ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
-  // Donde no se revisa, sin devoluciones: sería una línea pegada al cero.
-  return <MetricasGrafica llenar titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
+  // Donde no se revisa, sin revisadas ni devoluciones: serían líneas
+  // pegadas al cero.
+  return <MetricasGrafica llenar titulo="Actividad del equipo mes a mes" resaltar={mes || undefined} guardarComo="metricas-equipo"
     puntos={filas.map(({ mes, fila }) => ({ mes, valores: [
       realizadas(mes, fila),
-      ...(sinRevision ? [] : [fila?.devoluciones ?? null]),
+      ...(sinRevision ? [] : [fila?.revisiones ?? null, fila?.devoluciones ?? null]),
       ...(incidencias ? [incid(mes)] : []),
       ...(rectificados ? [rect(mes)] : []),
     ] }))}
     series={[
       { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") + deRps },
-      ...(sinRevision ? [] : [{ etiqueta: "Devoluciones", color: SERIES[1].color, valor: cuenta("devoluciones") }]),
+      ...(sinRevision ? [] : [
+        { etiqueta: "Revisadas", color: "var(--text-muted)", valor: cuenta("revisiones"), oculta: true },
+        { etiqueta: "Devoluciones", color: SERIES[1].color, valor: cuenta("devoluciones") },
+      ]),
       ...(incidencias ? [{ etiqueta: "Incidencias", color: COLOR_DEVUELTA, valor: incidValor }] : []),
       ...(rectificados ? [{ etiqueta: "Rectificados", color: COLOR_RECTIFICADO, valor: rectValor }] : []),
     ]} />;
