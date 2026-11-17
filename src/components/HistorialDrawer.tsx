@@ -12,15 +12,12 @@ import {
 } from "./MarcoFicha";
 import { NotasPedido } from "./NotasPedido";
 import { AcentoBloque } from "./AcentoBloque";
-import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { NoConformidadesPedido } from "./NoConformidadesPedido";
 import { PlanteamientoPedido } from "./PlanteamientoPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
-import { useFocoModal } from "@/lib/useFocoModal";
-import { useCapaEscape } from "@/lib/useCapaEscape";
 import { OFsDeLaFicha } from "./HistorialCentros";
 import { AtajosPedido } from "./AtajosPedido";
 import { botonPlantearHistorial } from "@/lib/herramientas";
@@ -123,16 +120,8 @@ export function HistorialDrawer({
     return () => clearTimeout(id);
   }, [pedido, cargar]);
 
-  // Con el drawer abierto, la rueda seguía moviendo la lista del historial que
-  // hay detrás: al cerrarlo aparecías en otro sitio. El mismo bloqueo que la
-  // ficha de Pendientes, con su contador: dos cosas abiertas a la vez no se
-  // pisan el estilo del body al cerrarse.
-  useScrollBloqueado(pedido !== null);
-
-  // Escape cierra la ficha. Los popovers nativos (los desplegables de un
-  // `Select`) se cierran solos y la pila les deja esa pulsación (ver
-  // capas-escape.ts).
-  useCapaEscape(pedido !== null, onClose);
+  // Escape, foco y scroll de la lista de detrás: los lleva el <dialog> de
+  // MarcoFicha.
 
   // ¿Está el parte escaneado? `null` = todavía sin comprobar, y ahí se pinta el
   // marco: lo normal es que exista, y esperar a la comprobación para enseñarlo
@@ -163,10 +152,6 @@ export function HistorialDrawer({
     };
   }, [pedido]);
 
-  // Mismo trato que el drawer del tablero: con telón delante, el foco no puede
-  // quedarse recorriendo la lista del historial que hay detrás.
-  const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
-
   if (!pedido) return null;
   const scanUrl = detalle?.scanUrl ?? `/api/partes/${pedido}.pdf`;
   // La ruta de PDFs resuelve las tres delegaciones (AR, SA y BE); para lo que
@@ -181,7 +166,6 @@ export function HistorialDrawer({
 
   return (
     <MarcoFicha
-      refModal={modalRef}
       etiqueta={`Historial del pedido ${pedido}`}
       onCerrar={onClose}
       cabecera={

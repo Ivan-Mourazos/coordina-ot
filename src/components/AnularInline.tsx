@@ -81,6 +81,7 @@ export function AnularInline({
           onKeyDown={(e) => {
             // Solo este cuadro: sin cortarlo, Escape cerraba también la ficha.
             if (e.key === "Escape") {
+              e.preventDefault();
               e.stopPropagation();
               cerrar();
             }

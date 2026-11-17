@@ -178,6 +178,7 @@ export function CampoMencion({
     }
     // Cancela la nota y nada más: sin cortarlo, Escape cerraba la ficha.
     if (e.key === "Escape") {
+      e.preventDefault();
       e.stopPropagation();
       onCancelar();
     }

@@ -61,6 +61,7 @@ export function SelectorPara({
       className="relative"
       onKeyDown={(e) => {
         if (e.key === "Escape" && abierto) {
+          e.preventDefault();
           e.stopPropagation();
           setAbierto(false);
           // El foco vuelve al botón: si se queda en el aire, el siguiente

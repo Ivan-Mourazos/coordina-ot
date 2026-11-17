@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ReactNode, type Ref } from "react";
+import { useEffectEvent, useId, useLayoutEffect, useRef, type ReactNode } from "react";
 import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
 import { AcentoBloque } from "./AcentoBloque";
 import type { Prioridad } from "@/lib/types";
@@ -22,7 +22,6 @@ import { negocioAparte } from "@/lib/negocio";
 // compactar la ficha en pantallas de poca altura (720p): no cambiarlas de sitio.
 
 export function MarcoFicha({
-  refModal,
   etiqueta,
   onCerrar,
   visor,
@@ -31,8 +30,6 @@ export function MarcoFicha({
   encima,
   children,
 }: {
-  /** El contenedor que atrapa el foco (useFocoModal): cubre visor y panel. */
-  refModal: Ref<HTMLDivElement>;
   /** Nombre del diálogo para el lector de pantalla. */
   etiqueta: string;
   onCerrar: () => void;
@@ -46,15 +43,60 @@ export function MarcoFicha({
   encima?: ReactNode;
   children: ReactNode;
 }) {
+  // ─── <dialog> modal nativo (17/11/2026) ────────────────────────────────────
+  // Antes, un `div` con `role="dialog"` y tres ganchos: `useCapaEscape` (la
+  // pila de Escape), `useFocoModal` (trampa de foco) y `useScrollBloqueado`
+  // (el `overflow` del `body`). Ahora lo hace el navegador:
+  //
+  //  · la página de detrás queda inerte (ni clic ni Tab) y, al cerrar, el foco
+  //    vuelve a la tarjeta o la fila que abrió la ficha;
+  //  · Escape cierra solo la capa de arriba: un Select, un menú o una
+  //    confirmación abiertos dentro se van ellos primero. Lo que se escribe
+  //    (motivo, nota) se queda su Escape con `preventDefault`;
+  //  · el telón no deja pasar la rueda a la lista de detrás
+  //    (`overscroll-behavior`, en globals.css).
+  //
+  // El cuadro ocupa la pantalla entera y el telón sigue siendo el `div` de
+  // dentro: el `::backdrop` queda transparente. Por eso NO lleva
+  // `closedby="any"`: el clic fuera nunca caería fuera del cuadro; el telón y
+  // el hueco del parte cierran a mano.
+  //
+  // Cerrar pasa SIEMPRE por `close()`: quitar el cuadro del DOM a secas no
+  // devuelve el foco. El aviso al padre sale del evento `close`. Y si es el
+  // padre quien la quita (pasar o devolver el pedido), la limpieza de abajo
+  // cierra antes de que React borre el nodo, con el aviso ya desenganchado.
+  const ref = useRef<HTMLDialogElement>(null);
+  const botonCerrar = useRef<HTMLButtonElement>(null);
+  const alCerrar = useEffectEvent(onCerrar);
+  useLayoutEffect(() => {
+    const dlg = ref.current;
+    if (!dlg) return;
+    if (!dlg.open) dlg.showModal();
+    // A la ✕, la salida, como antes. Sin esto el navegador elige el primer
+    // control, que es del parte.
+    botonCerrar.current?.focus();
+    // El evento `close` llega en una tarea aparte. En desarrollo React monta,
+    // limpia y vuelve a montar: el `close()` de la limpieza avisaría con el
+    // cuadro ya reabierto y la ficha se cerraba sola. Solo cuenta si sigue
+    // cerrado.
+    const h = () => {
+      if (!dlg.open) alCerrar();
+    };
+    dlg.addEventListener("close", h);
+    return () => {
+      dlg.removeEventListener("close", h);
+      if (dlg.open) dlg.close();
+    };
+  }, []);
+  const cerrar = () => ref.current?.close();
+
   return (
-    <div
-      ref={refModal}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={ref}
       aria-label={etiqueta}
-      className="fixed inset-0 z-50"
+      className="marco-ficha m-0 size-full max-h-none max-w-none overflow-hidden border-0 bg-transparent p-0 text-text outline-none backdrop:bg-transparent"
     >
-      <div className="telon-ficha overlay-in absolute inset-0" onClick={onCerrar} />
+      <div className="telon-ficha overlay-in absolute inset-0" onClick={cerrar} />
 
       {/* Las DOS piezas flotan sobre el telón y miden lo mismo: arrancan y
           acaban a la misma altura, con el mismo aire alrededor.
@@ -77,7 +119,7 @@ export function MarcoFicha({
         // altura que el panel. Con el de aquí más el del visor, la hoja quedaba
         // 24 px más baja arriba y 64 px más corta abajo.
         className="overlay-in absolute inset-y-0 left-0 right-[calc(clamp(512px,34vw,680px)+1rem)] flex flex-col px-4 bajo:right-[calc(560px+1rem)]"
-        onClick={onCerrar}
+        onClick={cerrar}
       >
         <div className="min-h-0 flex-1" onClick={(e) => e.stopPropagation()}>
           {visor}
@@ -99,8 +141,9 @@ export function MarcoFicha({
         <header className="relative flex items-start gap-3 p-4 pb-2 bajo:px-3 bajo:pt-2 bajo:pb-1">
           {cabecera}
           <button
-            onClick={onCerrar}
-            data-foco-inicial
+            ref={botonCerrar}
+            type="button"
+            onClick={cerrar}
             aria-label="Cerrar"
             title="Cerrar · Esc"
             className="absolute top-4 right-4 grid size-8 place-items-center rounded-lg text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text bajo:top-2 bajo:right-3"
@@ -123,7 +166,7 @@ export function MarcoFicha({
       </aside>
 
       {encima}
-    </div>
+    </dialog>
   );
 }
 

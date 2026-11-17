@@ -1204,6 +1204,17 @@ body {
   }
 }
 
+/* Ficha del pedido (MarcoFicha): <dialog> a pantalla completa con su telón
+ * dentro. Sin estas dos reglas la rueda sobre la ficha movía la lista de
+ * detrás (antes lo paraba `useScrollBloqueado` tocando el `body`). */
+.marco-ficha:modal {
+  overscroll-behavior: contain;
+}
+.marco-ficha::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
 /* PanelFlotante es un <dialog> modal: el telón es su `::backdrop`. Entra y
  * sale con las mismas animaciones que tenía el `div` de fondo, y con el mismo
  * tiempo que la hoja para que se vayan a la vez. `overscroll-behavior` en los

@@ -49,9 +49,6 @@ import { AcentoBloque } from "./AcentoBloque";
 import { AvisoParteNuevo } from "./AvisoParteNuevo";
 import { botonPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
-import { useCapaEscape } from "@/lib/useCapaEscape";
-import { useFocoModal } from "@/lib/useFocoModal";
-import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 import { tintaSobre } from "@/lib/tinta";
 import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
 import { subfamiliaAparte } from "@/lib/familia";
@@ -323,9 +320,7 @@ export function Drawer({
   ofIdsFichandoYo?: ReadonlySet<string>;
 }) {
   const soloLectura = useSoloLectura();
-  // La ficha es la capa de abajo: lo que se abra encima (un desplegable, la
-  // confirmación, los materiales) se cierra antes con su propio Escape.
-  useCapaEscape(pedido !== null, onClose);
+  // Escape, foco y scroll de detrás: los lleva el <dialog> de MarcoFicha.
 
   // Qué grupos de OF ajenas al trabajo de OT se han desplegado a mano.
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
@@ -414,13 +409,6 @@ export function Drawer({
       clearTimeout(id);
     };
   }, [scanUrl]);
-  // Es un modal de verdad (telón opaco, el tablero no se puede tocar): el foco
-  // tiene que entrar aquí y no seguir paseando por lo que hay detrás.
-  const modalRef = useFocoModal<HTMLDivElement>(pedido !== null);
-  // El Drawer tapa la pantalla entera pero dejaba el `body` suelto: la rueda
-  // sobre él movía la Lista de detrás, y al cerrar aparecías en otro sitio sin
-  // haber tocado nada. Mismo bloqueo que usan los paneles del tablero.
-  useScrollBloqueado(pedido !== null);
 
   // Cambiar de pedido cierra lo que se hubiera desplegado: haber mirado las
   // detenidas de uno no es motivo para abrir el siguiente ya destripado.
@@ -675,7 +663,6 @@ export function Drawer({
 
   return (
     <MarcoFicha
-      refModal={modalRef}
       etiqueta={`Pedido ${pedido.codigo}`}
       onCerrar={onClose}
       cabecera={

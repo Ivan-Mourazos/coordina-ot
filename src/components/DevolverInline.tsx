@@ -299,6 +299,7 @@ export function DevolverInline({
                 // Escape pliega el cuadro y se queda aquí: sin cortarlo, llegaba a
                 // la ficha y la cerraba también.
                 if (e.key === "Escape") {
+                  e.preventDefault();
                   e.stopPropagation();
                   setAbierto(false);
                 } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
