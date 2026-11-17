@@ -171,8 +171,11 @@ export interface CompraOF {
   /** Cuándo se hizo el pedido al proveedor (ISO). */
   fechaPedido?: string;
   /** Entrega estimada (ISO). Cuando ya está recibida, es la fecha en que se
-   *  esperaba: RPS no guarda la de llegada real por línea. */
+   *  esperaba, no la de llegada: esa es `llego`. */
   estimada?: string;
+  /** Día del último albarán del proveedor (ISO): cuándo llegó de verdad. Solo
+   *  lo trae la pantalla de Producción. */
+  llego?: string;
   proveedor?: string;
 }
 

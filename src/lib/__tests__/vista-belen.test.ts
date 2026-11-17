@@ -14,7 +14,7 @@ import {
   type FilaTiempo,
 } from "../vista-belen";
 import { vistaAMedida } from "../personas";
-import { enTitulo, esCodigoOF, esFinalizada, agruparPaquetes } from "../vista-belen";
+import { enTitulo, esCodigoOF, esFinalizada, agruparPaquetes, ordenCompras } from "../vista-belen";
 
 describe("nombres de sección, finalizada y paquetes", () => {
   test("sección en nombre propio; códigos tal cual", () => {
@@ -274,5 +274,20 @@ describe("esCodigoOF: la ficha de una OF de stock se abre por su número", () =>
     expect(esCodigoOF("AR.26.04716")).toBe(false);
     expect(esCodigoOF("233962")).toBe(false);
     expect(esCodigoOF("02339620")).toBe(false);
+  });
+});
+
+describe("ordenCompras", () => {
+  test("primero lo llegado (lo último arriba), luego lo que falta por fecha prevista, sin fecha al final", () => {
+    const c = [
+      { a: "sin fecha", pedida: 1, recibida: 0, prevista: null },
+      { a: "falta tarde", pedida: 1, recibida: 0, prevista: "2026-11-25" },
+      { a: "llegó antes", pedida: 1, recibida: 1, llego: "2026-11-02", prevista: "2026-11-01" },
+      { a: "falta pronto", pedida: 2, recibida: 1, prevista: "2026-11-19" },
+      { a: "llegó ayer", pedida: 1, recibida: 1, llego: "2026-11-16", prevista: "2026-11-10" },
+    ];
+    expect(ordenCompras(c, (x) => x.prevista).map((x) => x.a)).toEqual([
+      "llegó ayer", "llegó antes", "falta pronto", "falta tarde", "sin fecha",
+    ]);
   });
 });

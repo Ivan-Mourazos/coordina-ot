@@ -82,6 +82,7 @@ interface FilaOF {
   comentarioVenta: string | null;
   fSol: Date | null;
   fEntrega: Date | null;
+  fCreada: Date | null;
   articulo: string | null;
   formaEntrega: string | null;
   rotulacion: string | null;
@@ -129,6 +130,8 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              CAST(mo.Notes AS varchar(1000)) AS notas, lin.ReceptionDemandDate AS fSol,
              -- «F. ENTREGA» de la hoja de ruta de RPS: la fecha de fabricación de la OF.
              mo.ManualEndDate AS fEntrega,
+             -- «F. OF»: el día en que OT creó la OF en RPS (Belén, 17/11/2026).
+             mo.CreationTimestamp AS fCreada,
              CAST((SELECT Description FROM dbo.STKArticle WHERE IDArticle = mo.IDArticle) AS varchar(300)) AS articulo,
              CAST(lin.Comment AS varchar(4000)) AS detalleLinea, CAST(p.Comment AS varchar(4000)) AS comentarioVenta,
              fe.DescripcionFormaEntregaPedido AS formaEntrega, lc.TextoRotulacion AS rotulacion,
@@ -257,6 +260,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       subidas: Number(f.subidas) || 0,
       fechaSolicitada: iso(f.fSol),
       fechaEntrega: iso(f.fEntrega),
+      fechaOF: iso(f.fCreada),
       articulo: texto(f.articulo),
       fechaComprometida: fechaDeTexto(f.fCompro),
       fechaCompras: iso(f.fCompras),
@@ -492,15 +496,24 @@ export async function leerMaterialBelen(codigo: string): Promise<MaterialPedido 
       recibida: number;
       fechaPedido: Date | null;
       estimada: Date | null;
+      llego: Date | null;
       proveedor: string | null;
     }>(`
       SELECT o.cod, CAST(l.Description AS varchar(300)) AS articulo, l.Quantity AS pedida,
              l.ReceivedQuantity AS recibida, po.OrderDate AS fechaPedido, l.ReceptionDate AS estimada,
-             prov.Description AS proveedor
+             alb.llego, prov.Description AS proveedor
       FROM ofs o
       JOIN dbo.PUROrderLine l ON l.IDManufacturingOrder = o.id AND l.CodCompany = '001'
       JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
       LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
+      -- Cuándo llegó de verdad: el último albarán del proveedor (la estimada,
+      -- en lo recibido, casi nunca es el día de llegada).
+      OUTER APPLY (
+        SELECT MAX(dn.DeliveryNoteDate) AS llego
+        FROM dbo.PURDeliveryNoteLine dl
+        JOIN dbo.PURDeliveryNote dn ON dn.IDDeliveryNote = dl.IDDeliveryNote
+        WHERE dl.IDOrderLine = l.IDOrderLine
+      ) alb
       ORDER BY po.OrderDate`),
   ]);
   if (!ofs.recordset.length) return null;
@@ -524,6 +537,7 @@ export async function leerMaterialBelen(codigo: string): Promise<MaterialPedido 
             recibida: Number(c.recibida) || 0,
             fechaPedido: iso(c.fechaPedido) ?? undefined,
             estimada: iso(c.estimada) ?? undefined,
+            llego: iso(c.llego) ?? undefined,
             proveedor: texto(c.proveedor) ?? undefined,
           })),
       }))
@@ -611,6 +625,7 @@ function materialDeEjemplo(): MaterialPedido {
         ],
         compras: [
           { articulo: "LONA ROJA", pedida: 12, recibida: 0, fechaPedido: "2026-11-04", estimada: "2026-11-12", proveedor: "PROVEEDOR DE EJEMPLO" },
+          { articulo: "LONA ACRILICA PERLA", pedida: 33, recibida: 33, fechaPedido: "2026-11-03", estimada: "2026-11-10", llego: "2026-11-13", proveedor: "PROVEEDOR DE EJEMPLO" },
         ],
       },
     ],

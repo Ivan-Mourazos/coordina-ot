@@ -2,7 +2,8 @@
 
 import { hoyEnOficina } from "@/lib/consulta";
 import { estadoMaterial, type EstadoMaterial } from "@/lib/types";
-import { enFrase, fechaCorta, type MaterialPedido } from "@/lib/vista-belen";
+import { enFrase, fechaCorta, ordenCompras, type MaterialPedido } from "@/lib/vista-belen";
+import { LlegadaCompra } from "./LlegadaCompra";
 import { AcentoBloque, type TipoBloque } from "../AcentoBloque";
 import { SIGNIFICA } from "./significados";
 import { chip, TONO, type Tono } from "./estilos-belen";
@@ -164,12 +165,12 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
                     <Th>Proveedor</Th>
                     <Th>Pedido el</Th>
                     <Th derecha>Recibido</Th>
-                    <Th>Llega</Th>
+                    <Th ayuda="Lo que falta: la fecha prevista. Lo que ya llegó: el día del albarán del proveedor.">Llegada</Th>
                     <Th>Estado</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {o.compras.map((c, i) => {
+                  {ordenCompras(o.compras, (c) => c.estimada).map((c, i) => {
                     const e = estadoCompra(c, hoy);
                     return (
                       <tr key={i} className="border-b border-border transition-colors last:border-b-0 hover:bg-[var(--detalle)]">
@@ -181,7 +182,9 @@ export function MaterialBelen({ material }: { material: MaterialPedido }) {
                         <td className="w-28 py-1.5 pr-3 text-right tabular-nums">
                           <b className="font-semibold">{cantidad(c.recibida)}</b> de {cantidad(c.pedida)}
                         </td>
-                        <td className="w-24 py-1.5 pr-3 font-semibold tabular-nums">{fechaCorta(c.estimada)}</td>
+                        <td className="py-1.5 pr-3">
+                          <LlegadaCompra pedida={c.pedida} recibida={c.recibida} llego={c.llego} prevista={c.estimada} hoy={hoy} />
+                        </td>
                         <td className="w-28 py-1.5">
                           <span className={chip(e.tono)}>{e.texto}</span>
                         </td>

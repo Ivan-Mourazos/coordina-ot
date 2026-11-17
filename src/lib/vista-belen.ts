@@ -78,6 +78,20 @@ export interface CompraPendiente {
 /** Ya recibida entera. */
 export const compraRecibida = (c: Pick<CompraPendiente, "pedida" | "recibida">) => c.recibida >= c.pedida;
 
+/** Lo pedido a compras en el orden de leer (Belén, 17/11/2026): primero lo
+ *  que ya llegó, lo último en llegar arriba; después lo que falta, lo que
+ *  antes tiene que llegar arriba (sin fecha prevista, al final). */
+export function ordenCompras<T extends { pedida: number; recibida: number; llego?: string | null }>(
+  compras: readonly T[],
+  prevista: (c: T) => string | null | undefined,
+): T[] {
+  const llegadas = compras.filter(compraRecibida).sort((a, b) => (b.llego ?? "").localeCompare(a.llego ?? ""));
+  const faltan = compras
+    .filter((c) => !compraRecibida(c))
+    .sort((a, b) => (prevista(a) ?? "9").localeCompare(prevista(b) ?? "9"));
+  return [...llegadas, ...faltan];
+}
+
 export interface OFBelen {
   of: string;
   pedido: string;
@@ -93,6 +107,8 @@ export interface OFBelen {
   /** ISO yyyy-mm-dd. «F. ENTREGA» de la hoja de ruta: la fecha de fabricación
    *  de la OF en RPS (ManualEndDate). */
   fechaEntrega?: string | null;
+  /** ISO yyyy-mm-dd. «F. OF»: el día en que OT creó la OF en RPS. */
+  fechaOF?: string | null;
   /** Descripción del artículo de la OF. */
   articulo?: string | null;
   /** ISO yyyy-mm-dd. La que dio Producción («F.Compro»). */

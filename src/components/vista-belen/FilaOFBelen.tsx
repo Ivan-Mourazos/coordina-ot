@@ -5,6 +5,7 @@ import { Fragment, useState } from "react";
 import {
   agruparPaquetes,
   compraRecibida,
+  ordenCompras,
   difiereDelPedido,
   enFrase,
   enTitulo,
@@ -26,6 +27,7 @@ import { Desplegable } from "../Desplegable";
 import { chip, ESTADO_OPERACION, FECHA, tonoSituacion } from "./estilos-belen";
 import { SIGNIFICA } from "./significados";
 import { ImprimirOF } from "./ImprimirOF";
+import { LlegadaCompra } from "./LlegadaCompra";
 import { FichajesDeTarea, TiemposPorPersona } from "./TiemposBelen";
 
 // ─── Una OF en la pantalla de Belén ──────────────────────────────────────────
@@ -308,17 +310,13 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
 function Compras({ of }: { of: OFBelen }) {
   const [todas, setTodas] = useState(false);
   if (!of.compras.length) return null;
-  const llegadas = of.compras
-    .filter(compraRecibida)
-    .sort((a, b) => (b.llego ?? "").localeCompare(a.llego ?? ""));
-  const faltan = of.compras
-    .filter((c) => !compraRecibida(c))
-    .sort((a, b) => (a.prevista ?? "9").localeCompare(b.prevista ?? "9"));
-  const lista = [...llegadas, ...faltan];
-  const vistas = todas ? lista : lista.slice(0, 3);
+  const lista = ordenCompras(of.compras, (c) => c.prevista);
+  const llegadas = lista.filter(compraRecibida).length;
+  const faltan = lista.length - llegadas;
+  const vistas = todas ? lista : lista.slice(0, 4);
   const cuenta = [
-    llegadas.length ? `${llegadas.length} ${llegadas.length === 1 ? "llegada" : "llegadas"}` : "",
-    faltan.length ? `${faltan.length} por recibir` : "",
+    llegadas ? `${llegadas} ${llegadas === 1 ? "llegada" : "llegadas"}` : "",
+    faltan ? `${faltan} por recibir` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -327,33 +325,42 @@ function Compras({ of }: { of: OFBelen }) {
       <CabeceraBloque tipo="recorrido" derecha={cuenta}>
         Pedido a compras
       </CabeceraBloque>
-      <ul className="flex flex-col gap-0.5 text-[12.5px]">
-        {vistas.map((c, i) => {
-          const llego = compraRecibida(c);
-          return (
-            <li key={i} className="flex flex-wrap items-baseline gap-x-1.5">
-              <span className="font-medium">{enFrase(c.articulo)}</span>
-              <span className="tabular-nums text-text-muted">({c.recibida} de {c.pedida})</span>
-              {c.proveedor && <span className="text-text-muted">· {enFrase(c.proveedor)}</span>}
-              {llego ? (
-                <span className={`font-semibold ${ESTADO_OPERACION.finalizado.tinta}`}>
-                  · {c.llego ? `llegó ${fechaCorta(c.llego)}` : "recibido"}
-                </span>
-              ) : (
-                c.prevista && <span className={`font-semibold ${FECHA.compras.tinta}`}>· llega {fechaCorta(c.prevista)}</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {lista.length > 3 && (
+      {/* Una tabla sin rayas: material, cuánto, proveedor y la fecha, cada
+          cosa en su columna para leerlo de arriba abajo (Belén, 17/11/2026). */}
+      <table className="w-full text-[13px]">
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">Material</th>
+            <th scope="col">Recibido</th>
+            <th scope="col">Proveedor</th>
+            <th scope="col">Llegada</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vistas.map((c, i) => (
+            <tr key={i} className="border-t border-border/60 first:border-t-0">
+              <td className="py-1 pr-3 font-semibold">{enFrase(c.articulo)}</td>
+              <td className="w-20 whitespace-nowrap py-1 pr-3 text-right tabular-nums text-text-muted">
+                {c.recibida} de {c.pedida}
+              </td>
+              <td className="max-w-[12rem] truncate py-1 pr-3 text-[12px] text-text-muted" title={c.proveedor ?? undefined}>
+                {enFrase(c.proveedor)}
+              </td>
+              <td className="w-36 py-1">
+                <LlegadaCompra pedida={c.pedida} recibida={c.recibida} llego={c.llego} prevista={c.prevista} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {lista.length > 4 && (
         <button
           type="button"
           aria-expanded={todas}
           onClick={() => setTodas((v) => !v)}
           className="mt-1 text-[12px] font-semibold text-text-muted underline-offset-2 hover:text-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
-          {todas ? "Ver menos" : `Ver las ${lista.length - 3} restantes`}
+          {todas ? "Ver menos" : `Ver las ${lista.length - 4} restantes`}
         </button>
       )}
     </div>
@@ -517,6 +524,11 @@ export function FilaOFBelen({
             {/* Descripción de la OF, línea, unidades e imprimir */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <p className="min-w-0 flex-1 text-[14px] font-medium">{enFrase(of.descripcion)}</p>
+              {of.fechaOF && (
+                <span className="whitespace-nowrap text-[12px] text-text-muted" title="El día en que Oficina Técnica creó la OF en RPS">
+                  F. OF <b className="font-bold tabular-nums text-text">{fechaCorta(of.fechaOF)}</b>
+                </span>
+              )}
               {of.linea !== null && <span className="text-[12px] text-text-muted">línea {of.linea}</span>}
               {noCuadra && <span className={chip("info")}>{of.subidas} de {of.cantidad} uds. subidas</span>}
               <ImprimirOF ofs={[of.of]} conReserva={conReserva} />
