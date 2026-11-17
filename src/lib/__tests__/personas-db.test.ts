@@ -137,3 +137,17 @@ test("una baja deja de entrar, pero su FILA se queda con su nombre", () => {
   expect(fila.nombre).toBe("Francisco Javier Smith");
   estado.getDb().prepare("UPDATE persona SET activo = 1 WHERE id = 'smith'").run();
 });
+
+test("cada uno guarda su color, y null vuelve al de siempre", () => {
+  expect(db.leerPersona("jaime")?.color).toBeNull();
+  expect(db.ponerColor("jaime", "#0d7f7f")).toBe(true);
+  expect(db.leerPersona("jaime")?.color).toBe("#0d7f7f");
+  expect(db.ponerColor("jaime", null)).toBe(true);
+  expect(db.leerPersona("jaime")?.color).toBeNull();
+  expect(db.ponerColor("nadie", "#0d7f7f")).toBe(false);
+});
+
+test("un color que no es de la paleta, metido a mano en la base, no se pinta", () => {
+  estado.getDb().prepare("UPDATE persona SET color = ? WHERE id = ?").run("red; background:url(x)", "tamara");
+  expect(db.leerPersona("tamara")?.color).toBeNull();
+});

@@ -35,7 +35,8 @@ import { ULTIMA, type PerfilNovedades } from "@/lib/novedades";
 import { useNovedades } from "@/lib/useNovedades";
 import { Drawer } from "./Drawer";
 import type { Facet } from "./PedidoCard";
-import { OPERARIOS as TODOS_LOS_OPERARIOS } from "@/lib/mock";
+import { OPERARIOS as CATALOGO_OPERARIOS } from "@/lib/mock";
+import { useColoresPersona } from "@/lib/useColoresPersona";
 import { SECCIONES, SECCION_POR_DEFECTO, esSeccionId, type SeccionId } from "@/lib/secciones";
 import { SeccionEnObras } from "./SeccionEnObras";
 import { IdentityGate } from "./IdentityGate";
@@ -316,7 +317,16 @@ export function Board({
   // servidor pinta el HTML sin saber quién mira —la identidad vive en el
   // navegador—, así que arranca con las de Oficina Técnica y el primer sondeo
   // trae las que toquen. Ver el efecto del tablero más abajo.
-  const [operarios, setOperarios] = useState<Operario[]>(operariosIniciales);
+  const [operariosCrudos, setOperarios] = useState<Operario[]>(operariosIniciales);
+  // El color que eligió cada uno (17/11/2026) se pinta encima del de siempre,
+  // aquí y una sola vez: todo lo de abajo recibe ya las caras con su color.
+  const colores = useColoresPersona();
+  const conSuColor = useCallback(
+    (lista: Operario[]) => lista.map((o) => (colores.porId[o.id] ? { ...o, color: colores.porId[o.id] } : o)),
+    [colores],
+  );
+  const operarios = useMemo(() => conSuColor(operariosCrudos), [conSuColor, operariosCrudos]);
+  const TODOS_LOS_OPERARIOS = useMemo(() => conSuColor(CATALOGO_OPERARIOS), [conSuColor]);
   // QUÉ LISTA se mira, que no es lo mismo que quién eres: Ángel supervisa las
   // dos secciones y necesita ver la de diseño sin dejar de ser Ángel. `null` =
   // todavía no ha elegido nada, así que manda la suya (ver el efecto de abajo).
@@ -731,7 +741,7 @@ export function Board({
         // pedidos que lleguen. Si no se eligió a mano, la del operario.
         const pedida =
           seccionVista ??
-          TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
+          CATALOGO_OPERARIOS.find((o) => o.id === miId)?.seccion ??
           SECCION_POR_DEFECTO;
         const url = q.size > 0 ? `/api/tablero?${q}` : "/api/tablero";
         const r = await fetch(url, { cache: "no-store" });
@@ -1077,7 +1087,7 @@ export function Board({
   // identidad; el catálogo completo está disponible desde el principio.
   const seccionActual =
     seccionVista ??
-    TODOS_LOS_OPERARIOS.find((o) => o.id === miId)?.seccion ??
+    CATALOGO_OPERARIOS.find((o) => o.id === miId)?.seccion ??
     SECCION_POR_DEFECTO;
 
   // ── El contador de «Rectificados» ──
@@ -1302,7 +1312,7 @@ export function Board({
   const esDireccion = sesion?.roles.includes("direccion") ?? false;
   const perfilNovedades = useMemo<PerfilNovedades>(() => {
     if (esDireccion) return "direccion";
-    const persona = TODOS_LOS_OPERARIOS.find((o) => o.id === miId);
+    const persona = CATALOGO_OPERARIOS.find((o) => o.id === miId);
     return [persona?.seccion ?? SECCION_POR_DEFECTO, ...(persona?.tambienEn ?? [])];
   }, [miId, esDireccion]);
   const novedades = useNovedades(miId, perfilNovedades);
@@ -2723,7 +2733,7 @@ export function Board({
       id: miId,
       nombre: sesion?.nombre ?? miId,
       iniciales: (sesion?.nombre ?? miId).slice(0, 2).toUpperCase(),
-      color: "#5a6472",
+      color: colores.porId[miId] ?? "#5a6472",
     }) as Operario;
 
   // Lo que hace falta para contar el cierre automático y poder deshacerlo: qué

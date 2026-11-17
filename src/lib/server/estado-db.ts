@@ -606,7 +606,17 @@ const MIGRACIONES: ReadonlyArray<{
   // Respuestas a una nota, sin límite de nivel, y hilos «resueltos» (fase 2).
   { version: 21, nombre: "notas_respuestas", aplicar: notasRespuestas },
   { version: 22, nombre: "notas_audiencia_fecha", aplicar: notasAudienciaFecha },
+  // Cada uno elige el color de su cara (Iván, 17/11/2026). NULL = el de siempre
+  // (el del catálogo del equipo, o el que sale del nombre en Producción).
+  { version: 23, nombre: "persona_color", aplicar: personaColor },
 ];
+
+/** El color elegido de cada cuenta. Se puede repetir: la columna solo se añade si falta. */
+function personaColor(db: Database.Database): void {
+  const cols = (db.prepare("PRAGMA table_info(persona)").all() as Array<{ name: string }>).map((c) => c.name);
+  // Sin tabla (bases de prueba a medias): nada que añadir.
+  if (cols.length > 0 && !cols.includes("color")) db.exec("ALTER TABLE persona ADD COLUMN color TEXT");
+}
 
 /** Respuestas y hilos resueltos.
  *

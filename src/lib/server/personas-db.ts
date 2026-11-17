@@ -3,6 +3,7 @@ import { esRolAcceso, type PersonaPublica, type RolAcceso } from "../personas";
 import type { SeccionId } from "../secciones";
 import { getDb } from "./estado-db";
 import { OPERARIOS } from "../mock";
+import { esColorElegible } from "../color-persona";
 
 /** Nombre y primer apellido de quien NO está en el catálogo del equipo
  *  (OPERARIOS, que ya lo trae). Dirección entra por la rejilla igual que
@@ -71,6 +72,7 @@ interface Fila {
   roles: string;
   seccion: string | null;
   activo: number;
+  color: string | null;
 }
 
 function aPublica(f: Fila): PersonaPublica {
@@ -81,6 +83,7 @@ function aPublica(f: Fila): PersonaPublica {
     seccion: (f.seccion as SeccionId | null) ?? null,
     sinPin: f.pin_hash === null,
     nombreCompleto: nombreCompleto(f.id, f.nombre),
+    color: esColorElegible(f.color) ? f.color : null,
   };
 }
 
@@ -154,5 +157,15 @@ export function resetearPin(id: string): boolean {
     getDb()
       .prepare("UPDATE persona SET pin_hash = NULL WHERE id = ? AND activo = 1")
       .run(id).changes > 0
+  );
+}
+
+/** Cambia el color de la cara de una persona activa; null vuelve al de siempre.
+ *  El color tiene que ser de los elegibles: quien llama ya lo ha comprobado. */
+export function ponerColor(id: string, color: string | null): boolean {
+  return (
+    getDb()
+      .prepare("UPDATE persona SET color = ? WHERE id = ? AND activo = 1")
+      .run(color, id).changes > 0
   );
 }

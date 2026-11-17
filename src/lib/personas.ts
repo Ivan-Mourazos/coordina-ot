@@ -96,4 +96,6 @@ export interface PersonaPublica {
    *  pila solos, dos personas iguales (hay dos Belén en Producción) no se
    *  distinguen. Solo se enseña ahí; el resto de la web usa `nombre`. */
   nombreCompleto: string;
+  /** El color que eligió para su cara; null = el de siempre. */
+  color: string | null;
 }

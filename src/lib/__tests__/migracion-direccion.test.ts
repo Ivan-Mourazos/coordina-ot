@@ -62,7 +62,7 @@ test("Carlos y Esteban pasan a Dirección, activos y sin supervisor", () => {
   // La 19 le suma `produccion`: es el encargado de Producción.
   expect(fila("carlos")).toMatchObject({ roles: "direccion,produccion", activo: 1 });
   expect(fila("esteban")).toMatchObject({ roles: "direccion", activo: 1 });
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(22);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(23);
 });
 
 test("Iván gana direccion sin perder nada; Cris y Jaime no cambian", () => {

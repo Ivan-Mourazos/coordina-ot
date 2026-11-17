@@ -1,5 +1,9 @@
+"use client";
+
 import { inicialesDe } from "@/lib/nombre-persona";
 import { tintaSobre } from "@/lib/tinta";
+import { colorDeNombre } from "@/lib/color-persona";
+import { colorElegidoDeNombre, useColoresPersona, type ColoresPersona } from "@/lib/useColoresPersona";
 
 // ─── La cara de una persona en la pantalla de Belén ──────────────────────────
 // Las iniciales en un círculo de color, como en la pantalla de entrar y en el
@@ -8,17 +12,25 @@ import { tintaSobre } from "@/lib/tinta";
 // el mismo para la misma persona, y la misma persona se reconoce de un vistazo
 // en el paquete, en los tiempos y en las notas.
 
-/** Tonos sobrios, separados entre sí, que se leen en claro y en oscuro. */
-const PALETA = ["#3d7de0", "#1fa37a", "#9b3de0", "#d39a1c", "#e0533d", "#0d7f7f", "#4a5fd0", "#b0477a", "#5f8f2f", "#7a4fc0"];
-
-export function colorDePersona(nombre: string): string {
-  let h = 0;
-  for (const c of nombre.toLocaleLowerCase("es")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return PALETA[h % PALETA.length];
+/** El color de alguien por su nombre: el que eligió, si tiene cuenta y lo
+ *  eligió, o el que sale del nombre. */
+export function colorDePersona(nombre: string, colores?: ColoresPersona): string {
+  return (colores && colorElegidoDeNombre(colores, nombre)) ?? colorDeNombre(nombre);
 }
 
-export function CaraPersona({ nombre, tamano = "sm" }: { nombre: string; tamano?: "xs" | "sm" }) {
-  const color = colorDePersona(nombre);
+export function CaraPersona({
+  nombre,
+  tamano = "sm",
+  color: delQueLlama,
+}: {
+  nombre: string;
+  tamano?: "xs" | "sm";
+  /** Ya resuelto por quien llama (p. ej. por id de cuenta, que no se confunde
+   *  entre dos personas con el mismo nombre). */
+  color?: string;
+}) {
+  const colores = useColoresPersona();
+  const color = delQueLlama ?? colorDePersona(nombre, colores);
   return (
     <span
       aria-hidden

@@ -7,6 +7,7 @@ import { ULTIMA } from "@/lib/novedades";
 import type { RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import type { Operario } from "@/lib/types";
+import { ElegirColor } from "./ElegirColor";
 import { ResetPin } from "./ResetPin";
 import { SelectorSeccion } from "./SelectorSeccion";
 import { ThemeToggle } from "./ThemeToggle";
@@ -168,6 +169,8 @@ export function Herramientas({
               </button>
             )}
           </div>
+
+          {!cambiando && <ElegirColor miId={yo.id} actual={yo.color} />}
 
           {/* Con el login encendido no hay lista que desplegar: `cambiando`
               no puede encenderse de otra forma que el botón de arriba, que

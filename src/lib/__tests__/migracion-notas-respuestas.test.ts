@@ -41,7 +41,7 @@ const columnas = (tabla: string) =>
   (estado.getDb().prepare(`PRAGMA table_info(${tabla})`).all() as { name: string }[]).map((c) => c.name);
 
 test("sella la 22", () => {
-  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(22);
+  expect(estado.getDb().pragma("user_version", { simple: true })).toBe(23);
 });
 
 test("la 21 añade lo de las respuestas", () => {

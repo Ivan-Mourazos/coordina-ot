@@ -404,6 +404,7 @@ export function VistaBelen({
         <div className="ml-auto flex items-center gap-2">
           <AvisosBelen miId={miId} onAbrir={(pedido) => navegar({ pedido, detalle: "notas" })} />
           <MenuProduccion
+            miId={miId}
             nombre={nombre}
             novedadesSinLeer={novedades.pendientes}
             fechaUltimaNovedad={ULTIMA ? novedades.fechas[ULTIMA] : undefined}

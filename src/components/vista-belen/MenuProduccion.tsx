@@ -3,7 +3,9 @@
 import { usePopover } from "@/lib/usePopover";
 import { ULTIMA } from "@/lib/novedades";
 import { ThemeToggle } from "../ThemeToggle";
-import { CaraPersona } from "./CaraPersona";
+import { CaraPersona, colorDePersona } from "./CaraPersona";
+import { ElegirColor } from "../ElegirColor";
+import { useColoresPersona } from "@/lib/useColoresPersona";
 
 // ─── El menú de la cuenta en la vista de Producción ──────────────────────────
 // El mismo botón que en OT —tu cara, y el menú detrás— (Iván, 17/11/2026),
@@ -18,12 +20,15 @@ function fechaCorta(iso: string): string {
 }
 
 export function MenuProduccion({
+  miId,
   nombre,
   novedadesSinLeer,
   fechaUltimaNovedad,
   onVerNovedades,
   onSalir,
 }: {
+  /** Tu cuenta: para guardar el color que elijas. */
+  miId?: string | null;
   nombre: string;
   /** Las que le tocan y no ha leído: van en el botón, para que se vean sin abrir. */
   novedadesSinLeer: number;
@@ -33,6 +38,9 @@ export function MenuProduccion({
 }) {
   const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLDivElement>();
   const quien = nombre || "Producción";
+  const colores = useColoresPersona();
+  // Por la cuenta y no por el nombre: hay dos Belén.
+  const miColor = (miId ? colores.porId[miId] : undefined) ?? colorDePersona(quien, colores);
 
   return (
     <div ref={ref} className="relative">
@@ -44,7 +52,7 @@ export function MenuProduccion({
         title="Quién eres, el tema y las novedades"
         className="glass-chip relative flex h-9 items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
-        <CaraPersona nombre={quien} />
+        <CaraPersona nombre={quien} color={miColor} />
         <span className="max-w-[10rem] truncate text-xs font-semibold text-text">{quien}</span>
         <svg viewBox="0 0 24 24" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -60,7 +68,7 @@ export function MenuProduccion({
         {open && (
           <>
             <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <CaraPersona nombre={quien} />
+              <CaraPersona nombre={quien} color={miColor} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-text">{quien}</span>
                 <span className="block text-[10px] leading-tight text-text-muted">Producción</span>
@@ -76,6 +84,9 @@ export function MenuProduccion({
                 Salir
               </button>
             </div>
+
+            {/* El color tampoco cierra el menú: se ve el cambio en la cara de arriba. */}
+            {miId && <ElegirColor miId={miId} actual={miColor} />}
 
             {/* El tema no cierra el menú: se elige mirando. */}
             <div className="mt-2 flex items-center justify-between border-t border-border px-2 pt-2">

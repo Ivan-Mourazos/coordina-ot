@@ -21,13 +21,16 @@ export interface Yo {
   roles: RolAcceso[];
 }
 
-/** El color y las iniciales de cada uno. Se quedan en el código y no en la
- *  base: son presentación, no identidad, y cambiarlos no debería ser una
- *  migración. El que no esté en el mapa sale en gris con su inicial. */
+/** El color y las iniciales de cada uno, de siempre. Desde el 17/11/2026 cada
+ *  uno puede elegir su color (columna `color` de la cuenta), y ese manda. El
+ *  que no esté en el mapa sale en gris con su inicial. */
 const APARIENCIA = new Map(OPERARIOS.map((o) => [o.id, { iniciales: o.iniciales, color: o.color }]));
 
-const pinta = (p: PersonaPublica) =>
-  APARIENCIA.get(p.id) ?? { iniciales: p.nombre.slice(0, 2).toUpperCase(), color: "#5a6472" };
+const pinta = (p: PersonaPublica) => {
+  const base = APARIENCIA.get(p.id) ?? { iniciales: p.nombre.slice(0, 2).toUpperCase(), color: "#5a6472" };
+  // El color que eligió cada uno (17/11/2026) manda sobre el del catálogo.
+  return p.color ? { ...base, color: p.color } : base;
+};
 
 const PIN_LARGO = 4;
 

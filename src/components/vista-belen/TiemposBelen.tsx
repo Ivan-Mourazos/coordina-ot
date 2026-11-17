@@ -10,6 +10,7 @@ import {
 } from "@/lib/vista-belen";
 import { Desplegable } from "../Desplegable";
 import { CaraPersona, colorDePersona } from "./CaraPersona";
+import { useColoresPersona } from "@/lib/useColoresPersona";
 
 // ─── Los fichajes del pedido, en la pantalla de Belén ────────────────────────
 // Antes, una pestaña «Tareas y tiempos» con dos vistas. Desde el 11/11/2026
@@ -125,6 +126,7 @@ function FilaPersona({
         ? `el ${fechaCorta(p.primerDia)}`
         : "";
   const parte = total > 0 ? Math.max(2, Math.round((p.minutos / total) * 100)) : 0;
+  const colores = useColoresPersona();
   return (
     <li className="border-t border-border first:border-t-0">
       <button
@@ -145,7 +147,7 @@ function FilaPersona({
         {/* Cuánto del pedido lleva esta persona, en su color. */}
         <span className="flex items-center gap-2" title={`${parte} % del tiempo del pedido`}>
           <span className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--hero-relleno)]">
-            <span className="block h-full rounded-full" style={{ width: `${parte}%`, background: colorDePersona(p.persona) }} />
+            <span className="block h-full rounded-full" style={{ width: `${parte}%`, background: colorDePersona(p.persona, colores) }} />
           </span>
           <span className="w-9 text-right text-[11.5px] tabular-nums text-text-muted">{parte} %</span>
         </span>
