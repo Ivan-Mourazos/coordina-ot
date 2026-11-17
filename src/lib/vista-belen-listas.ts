@@ -337,8 +337,9 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     explica: "Fichajes de más de 9 h 20 min en la misma tarea, o abiertos pasadas las 23:30: los que siguen abiertos ahora en OLANET y los de los últimos 7 días que ya se cerraron y están en RPS.",
     alcance: "Arzúa, Santiago y Bergondo.",
     filtro: { clave: "delegacion", titulo: "Dónde" },
+    // Sin columna «Estado» (Belén, 17/11): era el del fichaje y se leía como el
+    // de la OF. Los que siguen abiertos ya se ven en «De … a» («→ sigue»).
     columnas: [
-      { clave: "estado", titulo: "Estado" },
       { clave: "delegacion", titulo: "Dónde" },
       { clave: "dia", titulo: "Fecha", tipo: "fecha" },
       { clave: "horario", titulo: "De … a", largo: true },
