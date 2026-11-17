@@ -389,7 +389,9 @@ html[data-estilo="hero"]:root select.select-nativo:focus-visible {
 html[data-estilo="hero"]:root .campo-hundido :is(input, textarea),
 html[data-estilo="hero"]:root .campo-hundido :is(input, textarea):focus {
   background: transparent;
-  border-radius: inherit;
+  /* Sin esquinas: el campo de dentro mide 15 px y con las de la caja
+     recortaba el cursor pegado a la izquierda (con el buscador vacío). */
+  border-radius: 0;
   box-shadow: none;
   outline: none;
 }
