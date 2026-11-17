@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-17",
-    "hasta": "048cbc2",
+    "hasta": "aded587",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -29,9 +29,20 @@
         "tanda": 2
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Ya puedes elegir el color de tu cara en el menú de tu cuenta",
+        "tanda": 3
+      },
+      {
         "tipo": "arreglado",
         "titulo": "Al pasar el ratón ya no salen dos avisos uno encima de otro",
         "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "El buscador ya encuentra los pedidos de Santiago y Bergondo",
+        "detalle": "Al escribir solo el número salen también los de las delegaciones, debajo de los de Arzúa, para pinchar el que sea.",
+        "tanda": 3
       }
     ]
   },
