@@ -130,10 +130,26 @@ export const PUERTAS_EN_PLANTEAMIENTOS = true;
 
 /** ¿Planteamientos TGM sabe plantear esta OF? Toldo y remolque, siempre; una
  *  puerta de lona o una lona de System Dock, si el interruptor de arriba está
- *  encendido. */
-export function ofPlanteable(of: { familia: string; descripcion?: string; codigoArticulo?: string }): boolean {
+ *  encendido; y el saco de arena de Portanova, si se sabe el cliente. */
+export function ofPlanteable(
+  of: { familia: string; descripcion?: string; codigoArticulo?: string },
+  cliente?: string,
+): boolean {
   if (FAMILIAS_PLANTEABLES.has(of.familia)) return true;
+  if (esSacoPortanova(of, cliente)) return true;
   return PUERTAS_EN_PLANTEAMIENTOS && (esPuertaDeLona(of) || esLonaSystemDock(of));
+}
+
+/** El saco de arena confeccionado de 2006 PORTANOVA, S.L. (Iván, 17/11/2026:
+ *  «como el 5585»). Planteamientos TGM lo plantea en Puertas → Portanova, y lo
+ *  reconoce igual que aquí: artículo SACOTGM (2026) o FUNDA (los de antes), y
+ *  SOLO de ese cliente —una FUNDA de otro cliente es otra cosa— (src/puertas/
+ *  rps.ts allí). Sin el artículo no se adivina. */
+const ARTICULOS_SACO_PORTANOVA: ReadonlySet<string> = new Set(["SACOTGM", "FUNDA"]);
+
+export function esSacoPortanova(of: { codigoArticulo?: string }, cliente?: string): boolean {
+  if (!cliente || !/PORTANOVA/i.test(cliente)) return false;
+  return ARTICULOS_SACO_PORTANOVA.has((of.codigoArticulo ?? "").trim().toUpperCase());
 }
 
 /** Una lona perimetral de abrigo de muelle de SYSTEM DOCK, S.L., que aquella
@@ -216,8 +232,9 @@ export function botonPlantear(
     codigoArticulo?: string;
   }[],
   miId?: string | null,
+  cliente?: string,
 ): { modo: ModoPlantear; url: string } | null {
-  const suyas = ofs.filter((o) => ofPlanteable(o) && o.estado !== "anulada");
+  const suyas = ofs.filter((o) => ofPlanteable(o, cliente) && o.estado !== "anulada");
   if (suyas.length === 0) return null;
   const url = urlPlanteamientos(codigo);
   if (!url) return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, botonPlantearHistorial, enlacePlantear, esLonaSystemDock, esPuertaDeLona } from "../herramientas";
+import { PUERTAS_EN_PLANTEAMIENTOS, botonPlantear, botonPlantearHistorial, enlacePlantear, esLonaSystemDock, esPuertaDeLona, esSacoPortanova } from "../herramientas";
 
 describe("enlacePlantear", () => {
   it("abre Planteamientos TGM con el pedido, sin puntos", () => {
@@ -218,5 +218,30 @@ describe("botonPlantearHistorial", () => {
   });
   it("sin nada planteable, sin botón", () => {
     expect(botonPlantearHistorial("AR.26.05333", ["LONA", "CARPA"])).toBeNull();
+  });
+});
+
+describe("saco de arena de Portanova (AR.26.05585)", () => {
+  const PORTANOVA = "2006 PORTANOVA, S.L.";
+  const saco = (estado: string, codigoArticulo = "SACOTGM") => ({
+    familia: "FUNDA", estado, autorId: null, descripcion: "SACO ARENA 2000 X 9 CM", codigoArticulo,
+  });
+
+  it("SACOTGM y FUNDA de Portanova se plantean", () => {
+    expect(esSacoPortanova({ codigoArticulo: "SACOTGM" }, PORTANOVA)).toBe(true);
+    expect(esSacoPortanova({ codigoArticulo: " funda " }, PORTANOVA)).toBe(true);
+  });
+  it("de otro cliente, sin cliente o sin artículo, no", () => {
+    expect(esSacoPortanova({ codigoArticulo: "FUNDA" }, "ACCESUS GROUP S.L.")).toBe(false);
+    expect(esSacoPortanova({ codigoArticulo: "SACOTGM" })).toBe(false);
+    expect(esSacoPortanova({}, PORTANOVA)).toBe(false);
+    expect(esSacoPortanova({ codigoArticulo: "PUERTAENR2" }, PORTANOVA)).toBe(false);
+  });
+  it("la ficha enseña Plantear y luego Revisar", () => {
+    expect(botonPlantear("AR.26.04351", [saco("pendiente")], null, PORTANOVA)).toEqual({ modo: "plantear", url: PEDIDO });
+    expect(botonPlantear("AR.26.04351", [saco("por_revisar")], null, PORTANOVA)?.modo).toBe("revisar");
+  });
+  it("una funda de otro cliente sigue sin botón", () => {
+    expect(botonPlantear("AR.26.04351", [saco("pendiente", "FUNDA")], null, "ACCESUS GROUP S.L.")).toBeNull();
   });
 });

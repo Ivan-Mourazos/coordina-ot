@@ -671,7 +671,7 @@ export function Drawer({
   // El rótulo dice lo que toca —Plantear, Corregir, Revisar o Abrir— y, salvo
   // para plantear, abre el pedido en Pedidos de aquella web (ver
   // `botonPlantear`). Con `miId`, «Corregir» solo le sale al autor.
-  const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs, miId);
+  const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs, miId, pedido.cliente);
 
   return (
     <MarcoFicha
