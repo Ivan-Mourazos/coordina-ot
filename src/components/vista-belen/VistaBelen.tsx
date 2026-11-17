@@ -6,7 +6,6 @@ import { interpretarBusqueda } from "@/lib/codigo-busqueda";
 import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, filasALaVista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
-import { ThemeToggle } from "../ThemeToggle";
 import { useVersionNueva, VersionNueva } from "../VersionNueva";
 import { PedidoBelenView } from "./PedidoBelen";
 import { TablaListaBelen, type CargaLista } from "./ListaBelen";
@@ -22,6 +21,8 @@ import { useFueraHoy } from "../useFueraHoy";
 import { FueraHoyTira } from "../Disponibilidad";
 import { PanelNovedades } from "../PanelNovedades";
 import { useNovedades } from "@/lib/useNovedades";
+import { ULTIMA } from "@/lib/novedades";
+import { MenuProduccion } from "./MenuProduccion";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -401,29 +402,14 @@ export function VistaBelen({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[13px] text-text-muted">{nombre}</span>
           <AvisosBelen miId={miId} onAbrir={(pedido) => navegar({ pedido, detalle: "notas" })} />
-          <button
-            type="button"
-            onClick={novedades.abrir}
-            title="Qué ha cambiado en la web"
-            className="boton-arriba relative h-8 rounded-full px-3 text-[13px] font-semibold text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            Novedades
-            {novedades.pendientes > 0 && (
-              <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-4 text-white">
-                {novedades.pendientes}
-              </span>
-            )}
-          </button>
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={salir}
-            className="boton-arriba h-8 rounded-full px-3 text-[13px] font-semibold text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            Salir
-          </button>
+          <MenuProduccion
+            nombre={nombre}
+            novedadesSinLeer={novedades.pendientes}
+            fechaUltimaNovedad={ULTIMA ? novedades.fechas[ULTIMA] : undefined}
+            onVerNovedades={novedades.abrir}
+            onSalir={() => void salir()}
+          />
         </div>
       </header>
       {novedades.abierta && (
