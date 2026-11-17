@@ -93,6 +93,12 @@ export function VisorDocumento({
     return () => dlg.removeEventListener("close", h);
   }, []);
   const cerrar = () => dialogoRef.current?.close();
+  // Si la lista se refresca y el documento abierto ya no está, el cuadro se
+  // desmonta sin `close()` y el padre no se enteraba: se quedaba «abierto» sin
+  // verse y no dejaba abrir otro. Se le avisa a mano.
+  useEffect(() => {
+    if (!doc) alCerrar();
+  }, [doc]);
 
   // ← y →. En fase de captura y con stopPropagation: las flechas son del
   // visor mientras está abierto, no de lo que haya detrás.

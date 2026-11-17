@@ -109,6 +109,8 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
 
   // Navegador → React: el botón con `popovertarget`, el clic fuera y Escape
   // abren o cierran sin pasar por `setOpen`.
+  // Se engancha al montar: el panel tiene que estar YA en el DOM y no cambiar
+  // de nodo (si el componente no pinta nada a veces, que el panel se quede).
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
@@ -163,11 +165,23 @@ export function usePopover<T extends HTMLElement = HTMLDivElement>(opciones?: {
   // navegador: `hidePopover()` cierra con el contenido aún montado, devuelve
   // el foco al botón y el `toggle` vacía después. Con `setOpen(false)` a
   // secas, React desmontaba antes lo enfocado y el foco caía en el `body`.
-  const pedir = useCallback((abrir: boolean) => {
-    const panel = panelRef.current;
-    if (!abrir && panel?.matches(":popover-open")) panel.hidePopover();
-    else setOpen(abrir);
-  }, []);
+  // Abrir con el panel cerrado también se pide al navegador en el acto: si lo
+  // acaba de cerrar un clic fuera (pinchar en el propio campo del buscador),
+  // React aún cree que está abierto hasta el `toggle`, `setOpen(true)` no hace
+  // nada y el `toggle` lo dejaba cerrado (revisión del 17/11/2026).
+  const pedir = useCallback(
+    (abrir: boolean) => {
+      const panel = panelRef.current;
+      if (!abrir && panel?.matches(":popover-open")) panel.hidePopover();
+      else if (abrir && panel && !panel.matches(":popover-open")) {
+        abiertoRef.current = true; // el `beforetoggle` no repite el trabajo
+        colocar();
+        panel.showPopover();
+        setOpen(true);
+      } else setOpen(abrir);
+    },
+    [colocar],
+  );
 
   return { open, setOpen: pedir, ref, panelRef, idPanel };
 }

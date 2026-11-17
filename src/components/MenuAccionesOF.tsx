@@ -56,11 +56,13 @@ export function MenuAccionesOF({
     },
   });
 
-  if (acciones.length === 0) return null;
-
+  // Sin acciones no hay ⋯, pero el panel se queda montado (vacío y cerrado):
+  // `usePopover` engancha sus escuchas al panel al montar, y la OF puede ganar
+  // acciones luego sin que la fila se vuelva a montar. Con un `return null`
+  // aquí, ese ⋯ abría una caja vacía en el centro (revisión del 17/11/2026).
   return (
     <>
-      <button
+      {acciones.length > 0 && <button
         ref={ref}
         type="button"
         popoverTarget={idPanel}
@@ -70,7 +72,7 @@ export function MenuAccionesOF({
         className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
       >
         ⋯
-      </button>
+      </button>}
 
       <div ref={panelRef} id={idPanel} popover="auto" className="glass-pop rounded-xl p-1 text-text">
         {open &&

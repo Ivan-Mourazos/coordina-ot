@@ -165,9 +165,12 @@ function SelectorDwg({
               <button
                 key={dwg.id}
                 type="button"
-                disabled={ocupado}
+                // `aria-disabled` y no `disabled`: desactivar el botón que
+                // tiene el foco lo tira al `body`, y al cerrar ya no volvía a
+                // «Abrir CAD». `abrir` ya no hace nada mientras está ocupado.
+                aria-disabled={ocupado}
                 onClick={async () => { if (await abrir(dwg)) setOpen(false); }}
-                className="block w-full rounded-xl px-2 py-2 text-left hover:bg-surface-2 disabled:opacity-50"
+                className="block w-full rounded-xl px-2 py-2 text-left hover:bg-surface-2 aria-disabled:opacity-50"
               >
                 <span className="block break-all text-xs font-semibold">{dwg.nombre}</span>
                 <span className="block break-all text-[11px] text-text-muted">{dwg.subcarpeta}</span>

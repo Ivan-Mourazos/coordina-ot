@@ -110,7 +110,8 @@ export function Herramientas({
       <button
         type="button"
         popoverTarget={idPanel}
-        aria-label={`Menú de ${yo.nombre}`}
+        // Con la sección que se ve («OT»): quien dicta por voz dice lo que lee.
+        aria-label={`Menú de ${yo.nombre}, ${SECCIONES[seccion].nombreCorto}`}
         aria-expanded={open}
         title="Quién eres, qué lista miras y otras herramientas"
         className="flex h-full items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text"

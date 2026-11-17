@@ -85,7 +85,12 @@ export function MiFichaje({
       {/* El rótulo es lo primero que sobra. En móvil no cabe; de lg a 2xl la
           cabecera va en una sola fila y aplastaba el buscador. Fuera de eso
           (tablet, con su fila propia, y pantalla grande) sí sale. */}
-      <span className="hidden max-w-[14rem] truncate md:inline lg:hidden 2xl:inline">{queCorre}</span>
+      <span aria-hidden className="hidden max-w-[14rem] truncate md:inline lg:hidden 2xl:inline">
+        {queCorre}
+      </span>
+      {/* El de arriba se esconde con `display: none` y el `title` de un span no
+          lo lee nadie: los lectores de pantalla tienen este, siempre. */}
+      <span className="sr-only">{titulo}</span>
       {/* tabular-nums: sin ancho fijo de cifra, el reloj tiembla cada segundo
           y arrastra lo que tiene al lado. */}
       <span className="tabular-nums">{fmtHMS(acumuladoSeg)}</span>
@@ -94,7 +99,7 @@ export function MiFichaje({
         onClick={onPausarTodo}
         aria-label="Pausar el fichaje"
         title="Para el reloj. Las OF se quedan como están: no se cierra nada."
-        className={`boton-3d grid size-6 place-items-center rounded-md text-[10px] ${ROL[ab.rol].solido}`}
+        className={`grid size-6 place-items-center rounded-md text-[10px] ${ROL[ab.rol].solido}`}
       >
         ⏸
       </button>

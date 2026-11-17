@@ -349,6 +349,9 @@ export const PedidoCard = memo(function PedidoCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
+        // Solo con el foco en la propia tarjeta: Intro sobre un botón de dentro
+        // (Asignar) es de ese botón, y aquí abría el parte en su lugar.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen(facet);
