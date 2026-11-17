@@ -60,14 +60,23 @@ export interface PaqueteOF {
   unidades: number;
 }
 
+/** Una línea pedida a proveedor para la OF: la que falta y también la que ya
+ *  llegó, para encontrar lo que se pidió y saber cuándo entró (Iván,
+ *  17/11/2026: el acrílico estaba pedido, había llegado, y no aparecía). */
 export interface CompraPendiente {
   articulo: string;
   pedida: number;
   recibida: number;
-  /** ISO yyyy-mm-dd. */
+  /** ISO yyyy-mm-dd. La entrega estimada que puso Compras. */
   prevista: string | null;
+  /** ISO yyyy-mm-dd. El día del último albarán del proveedor: cuándo llegó de
+   *  verdad. La estimada solo coincide en una de cada cinco recibidas. */
+  llego?: string | null;
   proveedor: string | null;
 }
+
+/** Ya recibida entera. */
+export const compraRecibida = (c: Pick<CompraPendiente, "pedida" | "recibida">) => c.recibida >= c.pedida;
 
 export interface OFBelen {
   of: string;
@@ -389,7 +398,7 @@ export function resumenPedido(pedido: PedidoBelen): ResumenPedido {
     bultos,
     tpPendiente: abiertas.filter((o) => resumenAvisos(o.avisos, "TP")?.pendiente).length,
     cotPendiente: abiertas.filter((o) => resumenAvisos(o.avisos, "COT")?.pendiente).length,
-    conMaterialPendiente: abiertas.filter((o) => o.compras.length > 0).length,
+    conMaterialPendiente: abiertas.filter((o) => o.compras.some((c) => !compraRecibida(c))).length,
     comprometida:
       abiertas
         .map((o) => o.fechaComprometida)

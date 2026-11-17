@@ -139,9 +139,11 @@ describe("resumen del pedido", () => {
         of({ subidas: 1 }),
         of({ of: "2", cantidad: 3, subidas: 2, avisos: [{ tipo: "COT", codigo: "I1", descripcion: "", cerrado: null }] }),
         of({ of: "3", compras: [{ articulo: "LONA", pedida: 1, recibida: 0, prevista: null, proveedor: null }] }),
+        // Lo ya recibido se enseña, pero no cuenta como material pendiente.
+        of({ of: "4", compras: [{ articulo: "ACRILICO", pedida: 33, recibida: 33, prevista: null, llego: "2026-11-13", proveedor: null }] }),
       ],
     });
-    expect(r.bultos).toEqual({ verde: 1, azul: 1, rojo: 1 });
+    expect(r.bultos).toEqual({ verde: 1, azul: 1, rojo: 2 });
     expect(r.cotPendiente).toBe(1);
     expect(r.tpPendiente).toBe(0);
     expect(r.conMaterialPendiente).toBe(1);

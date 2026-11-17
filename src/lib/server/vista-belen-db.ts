@@ -33,7 +33,7 @@ import { ES_RPS, FEATURE_COMPROMETIDA, horaDeSegundos, iso, SEGUNDOS_FICHAJE, SE
 //   prev. logística     orden de mantenimiento abierta del aviso PM de la línea
 //   TP / COT            avisos colgados de las tareas (_CPRMOTask_Custom)
 //   operaciones         tgm_estadosof_olanet + PercentProgress + imputaciones
-//   compras pendientes  PUROrderLine con Quantity > ReceivedQuantity
+//   compras             PUROrderLine de la OF, también las recibidas; llegada = PURDeliveryNote
 //
 // Un pedido son cinco consultas pequeñas EN PARALELO: medido contra RPS el
 // 09/11/2026, unos 55 ms el pedido (250 ms la primera, en frío).
@@ -199,15 +199,24 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
       pedida: number;
       recibida: number;
       prevista: Date | null;
+      llego: Date | null;
       proveedor: string | null;
     }>(`
+      -- Todas las líneas, también las recibidas. Cuándo llegó = el último
+      -- albarán del proveedor (ReceptionDate es la estimada, y en lo recibido
+      -- solo coincide en 241 de 1.180 líneas desde junio de 2026).
       SELECT o.cod, CAST(l.Description AS varchar(200)) AS articulo, l.Quantity AS pedida,
-             l.ReceivedQuantity AS recibida, l.ReceptionDate AS prevista, prov.Description AS proveedor
+             l.ReceivedQuantity AS recibida, l.ReceptionDate AS prevista, alb.llego, prov.Description AS proveedor
       FROM ofs o
       JOIN dbo.PUROrderLine l ON l.IDManufacturingOrder = o.id AND l.CodCompany = '001'
       JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
       LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
-      WHERE l.Quantity > l.ReceivedQuantity`),
+      OUTER APPLY (
+        SELECT MAX(dn.DeliveryNoteDate) AS llego
+        FROM dbo.PURDeliveryNoteLine dl
+        JOIN dbo.PURDeliveryNote dn ON dn.IDDeliveryNote = dl.IDDeliveryNote
+        WHERE dl.IDOrderLine = l.IDOrderLine
+      ) alb`),
     consulta<{ cod: string; fecha: Date | null; responsable: string | null; codEmpleado: string | null }>(`
       SELECT o.cod, om.ExecutionDate AS fecha, emp.Description AS responsable, emp.CodEmployee AS codEmpleado
       FROM ofs o
@@ -312,6 +321,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
           pedida: Number(c.pedida) || 0,
           recibida: Number(c.recibida) || 0,
           prevista: iso(c.prevista),
+          llego: iso(c.llego),
           proveedor: texto(c.proveedor),
         })),
       logistica: log ? { fecha: iso(log.fecha), responsable: nombre(log.codEmpleado, log.responsable) } : null,
@@ -746,6 +756,7 @@ function pedidoDeEjemplo(codigo: string): PedidoBelen {
       paquetes: [],
       compras: [
         { articulo: "LONA ROJA", pedida: 12, recibida: 0, prevista: "2026-11-12", proveedor: "PROVEEDOR DE EJEMPLO" },
+        { articulo: "LONA ACRILICA PERLA", pedida: 33, recibida: 33, prevista: "2026-11-13", llego: "2026-11-13", proveedor: "PROVEEDOR DE EJEMPLO" },
       ],
       fechaCompras: "2026-11-12",
       logistica: { fecha: "2026-11-11", responsable: "VALIÑO ALAMANCOS, JOSE LUIS" },

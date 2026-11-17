@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 
 import {
   agruparPaquetes,
+  compraRecibida,
   difiereDelPedido,
   enFrase,
   enTitulo,
@@ -300,35 +301,59 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
   );
 }
 
-/** Lo que falta por recibir de compras: tres a la vista y el resto al pedirlo
- *  (hay OF con treinta líneas de perfiles). */
+/** Todo lo pedido a compras para la OF: primero lo que ya llegó (con el día
+ *  del albarán) y después lo que falta. Tres a la vista y el resto al pedirlo
+ *  (hay OF con treinta líneas de perfiles). Iván, 17/11/2026: el acrílico
+ *  estaba pedido y recibido, y aquí no salía. */
 function Compras({ of }: { of: OFBelen }) {
   const [todas, setTodas] = useState(false);
   if (!of.compras.length) return null;
-  const vistas = todas ? of.compras : of.compras.slice(0, 3);
+  const llegadas = of.compras
+    .filter(compraRecibida)
+    .sort((a, b) => (b.llego ?? "").localeCompare(a.llego ?? ""));
+  const faltan = of.compras
+    .filter((c) => !compraRecibida(c))
+    .sort((a, b) => (a.prevista ?? "9").localeCompare(b.prevista ?? "9"));
+  const lista = [...llegadas, ...faltan];
+  const vistas = todas ? lista : lista.slice(0, 3);
+  const cuenta = [
+    llegadas.length ? `${llegadas.length} ${llegadas.length === 1 ? "llegada" : "llegadas"}` : "",
+    faltan.length ? `${faltan.length} por recibir` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className="rounded-2xl bg-[var(--detalle)] px-3.5 py-2">
-      <CabeceraBloque tipo="recorrido" derecha={`${of.compras.length} ${of.compras.length === 1 ? "línea" : "líneas"}`}>
-        Falta por recibir de compras
+      <CabeceraBloque tipo="recorrido" derecha={cuenta}>
+        Pedido a compras
       </CabeceraBloque>
       <ul className="flex flex-col gap-0.5 text-[12.5px]">
-        {vistas.map((c, i) => (
-          <li key={i} className="flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-medium">{enFrase(c.articulo)}</span>
-            <span className="tabular-nums text-text-muted">({c.recibida} de {c.pedida})</span>
-            {c.proveedor && <span className="text-text-muted">· {enFrase(c.proveedor)}</span>}
-            {c.prevista && <span className={`font-semibold ${FECHA.compras.tinta}`}>· llega {fechaCorta(c.prevista)}</span>}
-          </li>
-        ))}
+        {vistas.map((c, i) => {
+          const llego = compraRecibida(c);
+          return (
+            <li key={i} className="flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-medium">{enFrase(c.articulo)}</span>
+              <span className="tabular-nums text-text-muted">({c.recibida} de {c.pedida})</span>
+              {c.proveedor && <span className="text-text-muted">· {enFrase(c.proveedor)}</span>}
+              {llego ? (
+                <span className={`font-semibold ${ESTADO_OPERACION.finalizado.tinta}`}>
+                  · {c.llego ? `llegó ${fechaCorta(c.llego)}` : "recibido"}
+                </span>
+              ) : (
+                c.prevista && <span className={`font-semibold ${FECHA.compras.tinta}`}>· llega {fechaCorta(c.prevista)}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
-      {of.compras.length > 3 && (
+      {lista.length > 3 && (
         <button
           type="button"
           aria-expanded={todas}
           onClick={() => setTodas((v) => !v)}
           className="mt-1 text-[12px] font-semibold text-text-muted underline-offset-2 hover:text-text hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
-          {todas ? "Ver menos" : `Ver las ${of.compras.length - 3} restantes`}
+          {todas ? "Ver menos" : `Ver las ${lista.length - 3} restantes`}
         </button>
       )}
     </div>
