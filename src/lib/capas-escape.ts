@@ -55,6 +55,9 @@ function alPulsar(e: KeyboardEvent) {
   // lo cierra el propio navegador con esta misma pulsación: es suya, no de la
   // capa de debajo.
   if (document.querySelector(":popover-open")) return;
+  // Lo mismo con un <dialog> modal (ConfirmDialog): Escape lo cierra el
+  // navegador, y cancelar la confirmación no puede cerrar también la ficha.
+  if (document.querySelector("dialog:modal")) return;
   if (pila.cerrarUltima()) e.preventDefault();
 }
 

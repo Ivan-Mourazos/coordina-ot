@@ -438,7 +438,7 @@ html[data-estilo="hero"]:root .pedido-panel.glass-panel-strong :is(.glass-chip, 
 /* Diálogo de confirmar como los de HeroUI, igual que en Planteamientos (Iván, 26/10/2026): tarjeta muy redondeada sin
    borde, sombra suave, entra subiendo un poco sobre un telón oscurecido y desenfocado; Cancelar en gris de píldora.
    La entrada anima `transform` y no `translate`: el centrado del cuadro va en `translate` y no se toca. */
-html[data-estilo="hero"]:root .dialogo-telon { backdrop-filter: blur(6px); background: rgba(9, 9, 11, 0.38); }
+html[data-estilo="hero"]:root .dialogo-confirmar::backdrop { backdrop-filter: blur(6px); background: rgba(9, 9, 11, 0.38); }
 html[data-estilo="hero"]:root .dialogo-confirmar.glass-panel-strong {
   animation: dialogo-hero-entra 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   border-radius: 24px;

@@ -25,8 +25,7 @@ const FOCUSABLES = [
  *
  *  El elemento que recibe el foco al abrir es el marcado con
  *  `data-foco-inicial` (normalmente la ✕, que es la salida); si no hay
- *  ninguno, el primero que se pueda enfocar. El mismo criterio que usa
- *  ConfirmDialog, que ya lo hacía a mano para sus dos botones.
+ *  ninguno, el primero que se pueda enfocar.
  *
  *  Devuelve la ref que hay que poner en el contenedor del diálogo — el de
  *  fuera, el que cubre la pantalla: en los drawers el PDF de la izquierda y
@@ -53,6 +52,10 @@ export function useFocoModal<T extends HTMLElement>(activo: boolean) {
 
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Tab" || !panel) return;
+      // Un <dialog> modal encima (ConfirmDialog) lleva su propio foco y deja
+      // inerte todo lo demás: recuperar el foco hacia este panel lo perdería.
+      const modal = document.querySelector("dialog:modal");
+      if (modal && modal !== panel) return;
       const items = paradas();
       if (items.length === 0) return;
       const primero = items[0];

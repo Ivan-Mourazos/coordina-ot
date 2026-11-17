@@ -389,6 +389,17 @@ body {
   button:disabled:not([aria-busy="true"]) {
     cursor: not-allowed;
   }
+
+  /* Con un <dialog> modal abierto, la rueda sobre el cuadro o sobre el telón
+     no puede mover la página de detrás. Las dos reglas hacen falta: el
+     `::backdrop` no es contenedor de scroll si no se le dice. */
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
 }
 
 /* ── Vidrio ──
