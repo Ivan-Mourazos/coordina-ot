@@ -76,6 +76,13 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
       <path d="M12 12.5v8M9 15.5l3-3 3 3" />
     </>
   ),
+  // Cronómetro con aviso: un fichaje que se quedó abierto
+  "tiempos-abiertos": (
+    <>
+      <circle cx="12" cy="13" r="7.5" />
+      <path d="M10 3h4M12 3v2.5M12 9.5V13M12 16.2v.3" />
+    </>
+  ),
   // Triángulo de aviso: tiempo improductivo
   "incidencias": (
     <>

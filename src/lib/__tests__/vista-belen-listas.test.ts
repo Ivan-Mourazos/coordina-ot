@@ -23,6 +23,7 @@ const IDS = {
   "tp-cot": true,
   "sin-gestionar": true,
   "incidencias": true,
+  "tiempos-abiertos": true,
 } satisfies Record<IdLista, true>;
 
 // «fechas-comprometidas» se prueba aparte: lee la fecha del texto y descarta lo que no lo es.
@@ -30,7 +31,12 @@ const NUEVAS = ["desfase", "varias-maquinas", "sin-descripcion"] as const;
 
 function poolCon(filas: Record<string, unknown>[]) {
   const query = vi.fn().mockResolvedValue({ recordset: filas });
-  return { pool: { request: () => ({ query }) } as unknown as sql.ConnectionPool, query };
+  // Con .input() encadenable: algunas consultas llevan parámetros.
+  const request = () => {
+    const r = { input: () => r, query };
+    return r;
+  };
+  return { pool: { request } as unknown as sql.ConnectionPool, query };
 }
 
 describe("caché de las listas: lo último al momento y se renueva por detrás", () => {
@@ -239,5 +245,59 @@ describe("«Ver delegaciones»: SA y BE escondidas hasta marcar la casilla", () 
   test("el contador cuenta lo que se ve al abrirla, no las delegaciones", () => {
     expect(filasALaVista(filas, def)).toHaveLength(1);
     expect(filasALaVista(filas, LISTAS_BELEN.find((l) => l.id === "desfase")!)).toHaveLength(3);
+  });
+});
+
+describe("tiempos abiertos en OLANET", () => {
+  const fila = (extra: Record<string, unknown>) => ({
+    clave: "g-1", orden: "0233511", fase: "02", tiempo: 600, maquina: "S-MONT", codoperario: 94,
+    dia: "2026-11-16", hora: "07:00", nocturno: 0, of: "0233511", pedido: "SA.26.00123",
+    tarea: "MONTAR ", codEmpleado: "94", persona: "PEREZ, ANA", ...extra,
+  });
+
+  /** Primero la foto de OLANET; luego los cerrados de RPS (vacío salvo que se diga). */
+  const dosConsultas = (ahora: Record<string, unknown>[], cerrados: Record<string, unknown>[] = []) => {
+    const { pool, query } = poolCon([]);
+    query.mockResolvedValueOnce({ recordset: ahora }).mockResolvedValueOnce({ recordset: cerrados });
+    return pool;
+  };
+
+  test("más de 9 h 20: dónde por la máquina, lo que lleva y el porqué", async () => {
+    const pool = dosConsultas([fila({})]);
+    const [f] = await CONSULTAS["tiempos-abiertos"](pool);
+    expect(f).toMatchObject({
+      of: "0233511", pedido: "SA.26.00123", delegacion: "Santiago", dia: "2026-11-16",
+      horario: "07:00 → sigue", tiempo: "10:00", maquina: "S-MONT", tarea: "02 MONTAR · S-MONT", motivo: "Más de 9 h 20", estado: "Abierto",
+    });
+  });
+
+  test("abierto a las 23:30, Bergondo y Arzúa, y la indirecta sin OF que abrir", async () => {
+    const pool = dosConsultas([
+      fila({ clave: "a", tiempo: 45, nocturno: 1, maquina: "B-CONF" }),
+      fila({ clave: "b", tiempo: 900, nocturno: 1, maquina: "P-REPA" }),
+      fila({ clave: "c", orden: "1", of: "0000001", pedido: null, fase: "8", tarea: null, maquina: "A-TARE" }),
+    ]);
+    const [a, b, c] = await CONSULTAS["tiempos-abiertos"](pool);
+    expect(a).toMatchObject({ delegacion: "Bergondo", tiempo: "00:45", motivo: "Pasadas las 23:30" });
+    expect(b).toMatchObject({ delegacion: "Arzúa", tiempo: "15:00", motivo: "Más de 9 h 20 · Pasadas las 23:30" });
+    expect(c).toMatchObject({ of: null, pedido: null, delegacion: "Arzúa", tarea: "Indirecta 8 · A-TARE" });
+  });
+
+  test("los cerrados de RPS van detrás, con el tiempo entero aunque pasaran la medianoche", async () => {
+    const cerrado = {
+      clave: "X1", dia: "2026-11-12", inicio: "11:55", hasta: "07:05", diaFin: "2026-11-13", segundos: 19 * 3600 + 10 * 60,
+      nocturno: 1, maquina: "A-MONT", of: "0233424", pedido: "AR.26.05272", codTarea: "01", tarea: "DESMONTAR TOLDO",
+      codEmpleado: "90", persona: "CASTRO, OSCAR",
+    };
+    const filas = await CONSULTAS["tiempos-abiertos"](dosConsultas([fila({})], [
+      cerrado,
+      { ...cerrado, clave: "X2", inicio: "22:00", hasta: "23:45", diaFin: "2026-11-12", segundos: 6300, of: "0000001", codTarea: "8", tarea: null },
+    ]));
+    expect(filas.map((f) => f.estado)).toEqual(["Abierto", "Cerrado", "Cerrado"]);
+    expect(filas[1]).toMatchObject({
+      clave: "rps-X1", delegacion: "Arzúa", dia: "2026-11-12", horario: "11:55 → 07:05 (13/11)",
+      tiempo: "19:10", of: "0233424", tarea: "01 DESMONTAR TOLDO · A-MONT", motivo: "Más de 9 h 20 · Pasadas las 23:30",
+    });
+    expect(filas[2]).toMatchObject({ horario: "22:00 → 23:45", tiempo: "01:45", of: null, tarea: "Indirecta 8 · A-MONT", motivo: "Pasadas las 23:30" });
   });
 });

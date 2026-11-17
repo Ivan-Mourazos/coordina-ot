@@ -692,6 +692,193 @@ async function incidencias(pool: sql.ConnectionPool): Promise<FilaLista[]> {
   });
 }
 
+// ─── Tiempos abiertos en OLANET (Belén, 17/11/2026) ──────────────────────────
+// Quien sigue fichando con más de 9 h 20 min en la misma tarea, o con el
+// fichaje abierto a las 23:30 (se fue sin cerrarlo). Sale de la foto de quién
+// ficha AHORA (tgm_fichajes_olanet: `tiempo` = minutos del tramo abierto), así
+// que el inicio es la hora de la foto menos lo que lleva. Las horas se sacan
+// en SQL, en la hora del servidor, para no pasar por la zona horaria de node.
+// Dónde, por la máquina: S- Santiago, B- Bergondo y el resto Arzúa (A- y las
+// P- de Arzúa). La orden «1» es la de indirectas (OF 0000001).
+/** 9 h 20 min. */
+export const MINUTOS_TIEMPO_ABIERTO = 9 * 60 + 20;
+
+export function delegacionDeMaquina(maquina: string | null): string {
+  const m = (maquina ?? "").trim().toUpperCase();
+  return m.startsWith("S-") ? "Santiago" : m.startsWith("B-") ? "Bergondo" : "Arzúa";
+}
+
+/** Minutos → «9:45», con la hora a dos cifras para que ordene bien como texto. */
+export const horasMinutos = (min: number): string =>
+  `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+/** Días hacia atrás de los fichajes ya cerrados (los de RPS). */
+export const DIAS_TIEMPOS_CERRADOS = 7;
+
+/** 23:30 en segundos desde la medianoche, y lo que RPS usa de fin de día al
+ *  partir un fichaje en la medianoche (24:00, con algún segundo de menos). */
+const SEG_23_30 = 23 * 3600 + 30 * 60;
+const SEG_FIN_DIA = 86340;
+
+const motivoTiempo = (minutos: number, nocturno: boolean) =>
+  [minutos >= MINUTOS_TIEMPO_ABIERTO && "Más de 9 h 20", nocturno && "Pasadas las 23:30"].filter(Boolean).join(" · ");
+
+/** «02 MONTAR · S-MONT»: la máquina va con la tarea (la tabla no tiene sitio
+ *  para otra columna). */
+const conMaquina = (tarea: string, maquina: string | null) =>
+  [tarea.trim(), (maquina ?? "").trim()].filter(Boolean).join(" · ");
+
+const empleadoTiempo = (cod: string | null, persona: string | null) =>
+  cod ? `${cod} · ${persona ? nombreHistorial(persona) : "?"}` : null;
+
+/** Los que siguen abiertos AHORA, de la foto de OLANET. */
+async function tiemposAbiertosAhora(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const r = await pool.request().input("minutos", sql.Int, MINUTOS_TIEMPO_ABIERTO).query<{
+    clave: string; orden: string; fase: string; tiempo: number; maquina: string | null; dia: string; hora: string;
+    nocturno: number; of: string | null; pedido: string | null; tarea: string | null; codEmpleado: string | null;
+    persona: string | null; codoperario: number | null;
+  }>(`
+    WITH f AS (
+      SELECT f.*, DATEADD(minute, -f.tiempo, f.CreationTimestamp) AS inicio,
+             -- Las 23:30 más recientes antes de la foto: si empezó antes, sigue abierto desde entonces.
+             CASE WHEN CAST(f.CreationTimestamp AS time) >= '23:30'
+                  THEN DATEADD(minute, 1410, CAST(CAST(f.CreationTimestamp AS date) AS datetime))
+                  ELSE DATEADD(minute, -30, CAST(CAST(f.CreationTimestamp AS date) AS datetime)) END AS corte
+      FROM dbo.tgm_fichajes_olanet f
+    )
+    SELECT CAST(f.ID_fichaje AS varchar(40)) AS clave, f.orden, f.fase, f.tiempo, f.maquina, f.codoperario,
+           CONVERT(varchar(10), f.inicio, 23) AS dia, CONVERT(varchar(5), f.inicio, 108) AS hora,
+           CASE WHEN f.inicio <= f.corte THEN 1 ELSE 0 END AS nocturno,
+           mo.CodManufacturingOrder AS [of], ped.pedido, CAST(t.Description AS varchar(300)) AS tarea,
+           emp.CodEmployee AS codEmpleado, emp.Description AS persona
+    FROM f
+    LEFT JOIN dbo.CPRManufacturingOrder mo ON mo.CodCompany = '001'
+      AND mo.CodManufacturingOrder = RIGHT('0000000' + LTRIM(RTRIM(f.orden)), 7)
+    -- Exacto: «2» y «02» son tareas distintas de la misma OF.
+    LEFT JOIN dbo.CPRMOTask t ON t.CodCompany = '001' AND t.IDManufacturingOrder = mo.IDManufacturingOrder
+      AND t.CodMOTask = LTRIM(RTRIM(f.fase))
+    OUTER APPLY (
+      SELECT TOP (1) p.CodOrder AS pedido
+      FROM dbo.FACOrderLineSL lin JOIN dbo.FACOrderSL p ON p.IDOrder = lin.IDOrder
+      WHERE lin.IDManufacturingOrder = mo.IDManufacturingOrder AND lin.CodCompany = '001'
+      ORDER BY p.CodOrder, lin.NumLine
+    ) ped
+    LEFT JOIN dbo.GENEmployee emp ON emp.CodCompany = '001' AND emp.CodEmployee = CAST(f.codoperario AS varchar(20))
+    WHERE f.tiempo >= @minutos OR f.inicio <= f.corte
+    ORDER BY f.tiempo DESC`);
+  return r.recordset.map((f) => {
+    const cod = (f.codEmpleado ?? "").trim() || (f.codoperario != null ? String(f.codoperario) : "");
+    const indirecta = f.orden.trim() === "1";
+    const fase = f.fase.trim();
+    return {
+      clave: f.clave,
+      estado: "Abierto",
+      of: indirecta ? null : (texto(f.of) ?? f.orden.trim()),
+      pedido: texto(f.pedido),
+      delegacion: delegacionDeMaquina(f.maquina),
+      dia: f.dia,
+      horario: `${f.hora} → sigue`,
+      tiempo: horasMinutos(f.tiempo),
+      empleado: empleadoTiempo(cod, f.persona),
+      maquina: texto(f.maquina),
+      tarea: conMaquina(`${indirecta ? "Indirecta " : ""}${fase} ${(f.tarea ?? "").trim()}`, f.maquina),
+      motivo: motivoTiempo(f.tiempo, f.nocturno === 1),
+    };
+  });
+}
+
+/** Los ya cerrados de la última semana, de RPS: lo que ya metieron en la OF.
+ *  Un fichaje que pasa la medianoche llega partido en dos (hasta las 24:00 y
+ *  desde las 0:00 del día siguiente): se cosen y sale una fila con el tiempo
+ *  entero. Solo personas (ResourceType 1); la máquina va en IDMachine
+ *  («001-s-conf»). */
+async function tiemposCerrados(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const r = await pool
+    .request()
+    .input("dias", sql.Int, DIAS_TIEMPOS_CERRADOS)
+    .input("minutos", sql.Int, MINUTOS_TIEMPO_ABIERTO)
+    .input("noche", sql.Int, SEG_23_30)
+    .input("finDia", sql.Int, SEG_FIN_DIA)
+    .query<{
+      clave: string; dia: string; inicio: string; hasta: string; diaFin: string; segundos: number; nocturno: number;
+      maquina: string | null; of: string | null; pedido: string | null; codTarea: string | null; tarea: string | null;
+      codEmpleado: string | null; persona: string | null;
+    }>(`
+    WITH i AS (
+      SELECT i.IDImputation, i.IDManufacturingOrder, i.IDMOTask, i.IDEmployeeMachineTool AS emp, i.IDMachine,
+             i.ImputationDate AS d, i.StartHour AS s, i.EndHour AS e
+      FROM dbo.CPRImputationMO i
+      WHERE i.CodCompany = '001' AND i.ResourceType = 1
+        AND i.ImputationDate >= DATEADD(day, -@dias, CAST(GETDATE() AS date))
+        AND i.StartHour IS NOT NULL AND i.EndHour IS NOT NULL
+    ),
+    tramo AS (
+      SELECT a.*, sig.e AS e2, sig.d AS d2
+      FROM i a
+      -- Su continuación del día siguiente, si la hay.
+      OUTER APPLY (
+        SELECT TOP (1) b.e, b.d FROM i b
+        WHERE a.e >= @finDia AND b.emp = a.emp AND b.IDMOTask = a.IDMOTask
+          AND b.d = DATEADD(day, 1, a.d) AND b.s = 0
+      ) sig
+      -- La continuación sola no sale: ya va cosida a su primer trozo.
+      WHERE NOT (a.s = 0 AND EXISTS (
+        SELECT 1 FROM i p WHERE p.emp = a.emp AND p.IDMOTask = a.IDMOTask
+          AND p.d = DATEADD(day, -1, a.d) AND p.e >= @finDia))
+    ),
+    t2 AS (
+      SELECT *, (e - s) + ISNULL(e2, 0) AS segundos,
+             CASE WHEN e > @noche THEN 1 ELSE 0 END AS nocturno
+      FROM tramo
+    )
+    SELECT CAST(t2.IDImputation AS varchar(40)) AS clave,
+           CONVERT(varchar(10), t2.d, 23) AS dia,
+           CONVERT(varchar(5), DATEADD(second, t2.s, 0), 108) AS inicio,
+           CONVERT(varchar(5), DATEADD(second, ISNULL(t2.e2, t2.e), 0), 108) AS hasta,
+           CONVERT(varchar(10), ISNULL(t2.d2, t2.d), 23) AS diaFin,
+           t2.segundos, t2.nocturno,
+           UPPER(CASE WHEN t2.IDMachine LIKE '001-%' THEN SUBSTRING(t2.IDMachine, 5, 50) ELSE t2.IDMachine END) AS maquina,
+           mo.CodManufacturingOrder AS [of], ped.pedido, t.CodMOTask AS codTarea, CAST(t.Description AS varchar(300)) AS tarea,
+           emp.CodEmployee AS codEmpleado, emp.Description AS persona
+    FROM t2
+    LEFT JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = t2.IDManufacturingOrder
+    LEFT JOIN dbo.CPRMOTask t ON t.IDMOTask = t2.IDMOTask
+    OUTER APPLY (
+      SELECT TOP (1) p.CodOrder AS pedido
+      FROM dbo.FACOrderLineSL lin JOIN dbo.FACOrderSL p ON p.IDOrder = lin.IDOrder
+      WHERE lin.IDManufacturingOrder = t2.IDManufacturingOrder AND lin.CodCompany = '001'
+      ORDER BY p.CodOrder, lin.NumLine
+    ) ped
+    LEFT JOIN dbo.GENEmployee emp ON emp.IDEmployee = t2.emp
+    WHERE t2.segundos >= @minutos * 60 OR t2.nocturno = 1
+    ORDER BY t2.d DESC, t2.s DESC`);
+  return r.recordset.map((f) => {
+    const minutos = Math.round(f.segundos / 60);
+    const indirecta = (f.of ?? "").trim() === "0000001";
+    return {
+      clave: `rps-${f.clave}`,
+      estado: "Cerrado",
+      of: indirecta ? null : texto(f.of),
+      pedido: texto(f.pedido),
+      delegacion: delegacionDeMaquina(f.maquina),
+      dia: f.dia,
+      // Si acabó otro día, se dice: «11:55 → 07:05 (13/11)».
+      horario: `${f.inicio} → ${f.hasta}${f.diaFin !== f.dia ? ` (${f.diaFin.slice(8, 10)}/${f.diaFin.slice(5, 7)})` : ""}`,
+      tiempo: horasMinutos(minutos),
+      empleado: empleadoTiempo(texto(f.codEmpleado), f.persona),
+      maquina: texto(f.maquina),
+      tarea: conMaquina(`${indirecta ? "Indirecta " : ""}${(f.codTarea ?? "").trim()} ${(f.tarea ?? "").trim()}`, f.maquina),
+      motivo: motivoTiempo(minutos, f.nocturno === 1),
+    };
+  });
+}
+
+/** Primero los que siguen abiertos (hay que avisar ya); luego los cerrados. */
+async function tiemposAbiertos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const [ahora, cerrados] = await Promise.all([tiemposAbiertosAhora(pool), tiemposCerrados(pool)]);
+  return [...ahora, ...cerrados];
+}
+
 // Diferencias con los Excels, a propósito (09/11/2026): una fila por OF y no
 // por tarea o máquina (sus joins repetían la OF y podían inflar unidades);
 // cliente y forma de entrega opcionales, para que su falta no esconda un aviso;
@@ -714,6 +901,7 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "tp-cot": (pool) => tpCotSinRematar(pool),
   "sin-gestionar": (pool) => comprobacion(pool, SQL_SIN_GESTIONAR),
   "incidencias": (pool) => incidencias(pool),
+  "tiempos-abiertos": (pool) => tiemposAbiertos(pool),
 };
 
 /** Las listas cuestan de medio segundo a cuatro («bultos subidos, tareas

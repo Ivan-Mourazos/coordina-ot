@@ -24,7 +24,8 @@ export type IdLista =
   | "compras-pendientes"
   | "tp-cot"
   | "sin-gestionar"
-  | "incidencias";
+  | "incidencias"
+  | "tiempos-abiertos";
 
 /** Cómo se pinta el valor. `of` y `pedido` van en negrita y monoespaciado;
  *  `fecha` espera ISO (yyyy-mm-dd) y sale dd/mm/aa; `numero` alineado a la
@@ -324,6 +325,28 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "tarea", titulo: "Tarea", largo: true },
       { clave: "improductivo", titulo: "Improd." },
       { clave: "causa", titulo: "Causa", largo: true },
+    ],
+  },
+  {
+    // Belén, 17/11/2026: quien se dejó el fichaje abierto en OLANET. Los que
+    // siguen abiertos salen en directo de OLANET (se ven antes de que nadie
+    // cierre); los de la última semana ya cerrados, de RPS, con lo que metieron
+    // en la OF (Iván: «ponemos todos»).
+    id: "tiempos-abiertos",
+    label: "Tiempos abiertos OLANET",
+    explica: "Fichajes de más de 9 h 20 min en la misma tarea, o abiertos pasadas las 23:30: los que siguen abiertos ahora en OLANET y los de los últimos 7 días que ya se cerraron y están en RPS.",
+    alcance: "Arzúa, Santiago y Bergondo.",
+    filtro: { clave: "delegacion", titulo: "Dónde" },
+    columnas: [
+      { clave: "estado", titulo: "Estado" },
+      { clave: "delegacion", titulo: "Dónde" },
+      { clave: "dia", titulo: "Fecha", tipo: "fecha" },
+      { clave: "horario", titulo: "De … a", largo: true },
+      { clave: "tiempo", titulo: "Tiempo" },
+      { clave: "empleado", titulo: "Operario", largo: true },
+      { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "tarea", titulo: "Tarea y máquina", largo: true },
     ],
   },
 ];
