@@ -72,6 +72,8 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
+import { avisosTrasCerrarEnRps } from "@/lib/cerrar-of-avisos";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
 import { AJUSTES_DE_SERIE, NOTA_MAX, type AjustesImpresion, type EleccionPase } from "@/lib/planteamiento";
@@ -2410,11 +2412,17 @@ export function Board({
   // El reparto por tamaño: orientación de cada parte y las que se imprimen a
   // mano. Vacío al abrir el diálogo: todo como viene y todo solo.
   const [ajustesImpresion, setAjustesImpresion] = useState<AjustesImpresion>(AJUSTES_DE_SERIE);
+  // OF desmarcadas en el pase (ver lib/paso-parcial.ts). Vacío = todas, que es
+  // lo normal; se vacía cada vez que se abre el diálogo.
+  const [desmarcadasPase, setDesmarcadasPase] = useState<ReadonlySet<string>>(new Set());
+  // Pase parcial en marcha: se cierran de una en una y tarda.
+  const [pasandoParcial, setPasandoParcial] = useState<{ hechas: number; total: number } | null>(null);
   const completarPedido = useCallback((pedidoId: string) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
     if (pedido && puedePasarAProduccion(pedido, miId)) {
       pedidoDelDialogo.current = pedidoId;
       setPasarPendiente(pedidoId);
+      setDesmarcadasPase(new Set());
       setImprimirAlPasar(true);
       setReimprimir(null);
       setMandarCorreoAlPasar(true);
@@ -2535,7 +2543,85 @@ export function Board({
     },
     [miId, persistir, setPedidosSync, completarPedidoAhora, soltarDeMiFichaje],
   );
+  // «Pasar a Producción» con OF desmarcadas: las marcadas se dan por terminadas
+  // en RPS de una en una, por la misma ruta que «Dar por terminada en RPS», y
+  // el pedido se queda en el tablero con las demás. En orden y sin prisa: cada
+  // cierre drena la cola de OLANET antes de escribir. Una que falla no para
+  // las siguientes; al final se dice cuáles no entraron.
+  //
+  // El planteamiento se imprime UNA vez: va en las llamadas hasta que una sale
+  // bien. Correo, ninguno (Iván, 17/11/2026); el servidor también lo impone.
+  const pasarParcial = useCallback(
+    async (
+      ofIds: string[],
+      seccion: SeccionId,
+      planteamiento: Record<string, unknown> | null,
+    ) => {
+      setPasarError(null);
+      setPasandoParcial({ hechas: 0, total: ofIds.length });
+      const fallos: string[] = [];
+      const avisos: string[] = [];
+      let impreso = planteamiento === null;
+      for (const [i, ofId] of ofIds.entries()) {
+        const codigo = pedidosRef.current.flatMap((p) => p.ofs).find((o) => o.id === ofId)?.codigo ?? ofId;
+        try {
+          const r = await fetch("/api/fases/cerrar-of", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ofId,
+              seccion,
+              operarioId: miId,
+              pasoParcial: true,
+              mandarCorreo: false,
+              ...(!impreso && planteamiento ? { conPlanteamiento: true, ...planteamiento } : {}),
+            }),
+          });
+          const d = (await r.json().catch(() => null)) as
+            | { ok: true; modo: "sombra" | "ensayo" | "activo"; at?: string; gemelasSinEscribir?: string[] }
+            | { error?: string }
+            | null;
+          if (!r.ok || !d || !("ok" in d)) {
+            fallos.push(`${codigo}: ${(d as { error?: string } | null)?.error ?? "no se ha podido cerrar en RPS"}`);
+          } else {
+            impreso = true;
+            marcarCerradaEnRps(ofId, {
+              at: d.at ?? new Date().toISOString(),
+              por: miId ?? "",
+              modo: d.modo,
+              gemelaSinEscribir: d.gemelasSinEscribir?.[0],
+            });
+            // Solo lo que pide hacer algo: «ya estaba terminada» con trece OF
+            // sería ruido.
+            avisos.push(...avisosTrasCerrarEnRps({ gemelasSinEscribir: d.gemelasSinEscribir }).map((t) => `${codigo}: ${t}`));
+          }
+        } catch {
+          fallos.push(`${codigo}: no se puede hablar con el servidor`);
+        }
+        setPasandoParcial({ hechas: i + 1, total: ofIds.length });
+      }
+      setPasandoParcial(null);
+      if (fallos.length > 0 || avisos.length > 0) {
+        const pasadas = ofIds.length - fallos.length;
+        setPasarError(
+          [
+            fallos.length > 0
+              ? `Pasadas ${pasadas} de ${ofIds.length}. No entraron: ${fallos.join(" · ")}`
+              : null,
+            ...avisos,
+          ].filter(Boolean).join(" · "),
+        );
+      }
+    },
+    [miId, marcarCerradaEnRps],
+  );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
+  const listaPase = useMemo(() => ofsDelPase(pedidoAPasar?.ofs ?? [], miId), [pedidoAPasar, miId]);
+  // Solo donde se pasa con «Pasar a Producción»: en Diseño e Impresión el
+  // final es «Finalizar todo»/«Impreso», y allí no se cierran OF sueltas.
+  const seccionDelPase: SeccionId = seccionDeLosPedidos ?? SECCION_POR_DEFECTO;
+  const conEleccionPase = !SECCIONES[seccionDelPase].finalizar && hayEleccion(listaPase);
+  const decisionPase = conEleccionPase ? decidirPase(listaPase, desmarcadasPase) : ({ tipo: "todo" } as const);
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;
   // Las mismas OF que pone el servidor en el correo (api/estado): sin anuladas
   // ni las de taller.
@@ -2805,6 +2891,11 @@ export function Board({
             Abrir el pedido
           </button>
           <button className="text-xs underline" onClick={() => setSinRevisor(null)}>Cerrar</button>
+        </div>
+      )}
+      {pasandoParcial && (
+        <div role="status" className="border-b border-cyan-500/30 bg-cyan-500/10 px-5 py-2 text-sm text-text">
+          Pasando las OF marcadas a Producción… {pasandoParcial.hechas} de {pasandoParcial.total}
         </div>
       )}
       {pasarError && (
@@ -3239,19 +3330,78 @@ export function Board({
         abierto={pedidoAPasar !== null}
         titulo={`Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
         ancho
-        textoConfirmar="Pasar a Producción"
+        textoConfirmar={
+          decisionPase.tipo === "parcial"
+            ? `Pasar ${decisionPase.ofIds.length === 1 ? "la marcada" : `las ${decisionPase.ofIds.length} marcadas`}`
+            : "Pasar a Producción"
+        }
+        confirmarDesactivado={decisionPase.tipo === "nada"}
         mensaje={
           <>
             <p className="text-sm text-text">
-              {`Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido pasa al Historial.`}
+              {decisionPase.tipo === "parcial"
+                ? `Se dan por terminadas en RPS ${decisionPase.ofIds.length === 1 ? "la OF marcada" : `las ${decisionPase.ofIds.length} OF marcadas`}. Las demás se quedan en tu tablero para pasarlas más tarde.`
+                : decisionPase.tipo === "nada"
+                  ? "Marca al menos una OF para pasar."
+                  : `Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido pasa al Historial.`}
             </p>
             <p className="mt-1 text-xs text-text-muted">
               Es el final del trabajo de Oficina Técnica: si después hubiera que retocar algo, habría que hablarlo con Producción.
             </p>
+            {conEleccionPase && (
+              <div className="mt-4">
+              <ApartadoPase titulo="Qué OF se pasan">
+                <div className="mb-1.5 flex items-center gap-3 text-[11px]">
+                  <span className="text-text-muted">Desmarca las que quieras dejar para más tarde.</span>
+                  {desmarcadasPase.size > 0 && (
+                    <button type="button" className="ml-auto underline" onClick={() => setDesmarcadasPase(new Set())}>
+                      Marcar todas
+                    </button>
+                  )}
+                </div>
+                <div className="flex max-h-56 flex-col gap-1 overflow-y-auto text-xs">
+                  {listaPase.map(({ of, elegible, motivo }) => {
+                    // Las de otro autor van si se pasa todo y se quedan si no:
+                    // sueltas solo las cierra quien las lleva.
+                    const marcada = elegible ? !desmarcadasPase.has(of.id) : motivo === "de_otro" && decisionPase.tipo === "todo";
+                    return (
+                      <label key={of.id} className={`flex items-start gap-2 ${elegible ? "text-text" : "text-text-muted"}`}>
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 size-4 shrink-0 accent-brand-500"
+                          checked={marcada}
+                          disabled={!elegible}
+                          onChange={(e) =>
+                            setDesmarcadasPase((prev) => {
+                              const s = new Set(prev);
+                              if (e.target.checked) s.delete(of.id);
+                              else s.add(of.id);
+                              return s;
+                            })
+                          }
+                        />
+                        <span className="min-w-0">
+                          <b className="font-semibold">{of.codigo}</b>
+                          {of.descripcion && <span> · {of.descripcion}</span>}
+                          {motivo === "detenida" && <span className="block text-amber-800 dark:text-amber-300">Detenida: no se pasa</span>}
+                          {motivo === "de_otro" && (
+                            <span className="block">
+                              De {operarios.find((o) => o.id === of.autorId)?.nombre ?? of.autorId ?? "sin asignar"}: si no se pasa todo, la pasa quien la lleva
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </ApartadoPase>
+              </div>
+            )}
             {vistaPlanteamiento?.pedidoId === pasarPendiente &&
               (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (() => {
               const datos = vistaPlanteamiento.datos;
-              const conCorreo = !!datos.correo && datos.correo.modo !== "off";
+              // Pasando solo unas OF no hay correo (Iván, 17/11/2026).
+              const conCorreo = !!datos.correo && datos.correo.modo !== "off" && decisionPase.tipo !== "parcial";
               // Solo los PDF que se van a imprimir: con «No se imprimirá otra
               // vez» o quitados en «Cambiar…» no hay nada que repartir.
               const impresos = impresosAntes(datos);
@@ -3284,7 +3434,7 @@ export function Board({
                   />
                 </label>
               );
-              const caducidad = mandarCorreoAlPasar && textoCaducidadSecreto(datos) && (
+              const caducidad = mandarCorreoAlPasar && decisionPase.tipo !== "parcial" && textoCaducidadSecreto(datos) && (
                 <p role="alert" className="mt-2 font-semibold text-amber-800 dark:text-amber-300">
                   {textoCaducidadSecreto(datos)}
                 </p>
@@ -3374,7 +3524,12 @@ export function Board({
                       {reparto}
                     </ApartadoPase>
                   )}
-                  {textoCorreoAntesDePasar(datos) && (
+                  {textoCorreoAntesDePasar(datos) && decisionPase.tipo === "parcial" && (
+                    <ApartadoPase titulo="Correo">
+                      <p className="text-text">Pasando solo unas OF no se manda correo.</p>
+                    </ApartadoPase>
+                  )}
+                  {textoCorreoAntesDePasar(datos) && decisionPase.tipo !== "parcial" && (
                     <ApartadoPase titulo="Correo">
                       <p className="text-text">
                         {yaSePasoAntes(datos) && !mandarCorreoAlPasar
@@ -3437,6 +3592,22 @@ export function Board({
             for (const f of seImprimen.filter((x) => !x.todoA4 && !x.tamanos)) {
               abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
             }
+          }
+          if (decisionPase.tipo === "nada") return;
+          if (decisionPase.tipo === "parcial") {
+            // Lo que se imprime, igual que en el pase entero; sin correo. Sin
+            // vista del planteamiento (o con la impresión apagada) no se pide
+            // nada: el cierre va igual.
+            const imprimir = vista && vista.modo !== "off" && pedido?.codigo
+              ? {
+                  imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : seleccion.length > 0,
+                  ...(conImpresos && !eleccion ? { imprimirSolo: seleccion } : {}),
+                  impresion: ajustesImpresion,
+                  ...(eleccion ? { planteamiento: { ...eleccion, nota: "" } } : {}),
+                }
+              : null;
+            void pasarParcial(decisionPase.ofIds, seccionDelPase, imprimir);
+            return;
           }
           completarPedidoAhora(id, undefined, undefined, {
             imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : seleccion.length > 0,

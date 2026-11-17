@@ -8,7 +8,7 @@ import { esSeccionId, esFaseDe, SECCIONES, type SeccionId } from "@/lib/seccione
 import type { OF } from "@/lib/types";
 import { seccionDeOperario, COD_RPS_POR_OPERARIO } from "@/lib/server/operarios";
 import { finalizables, situacionDe } from "@/lib/fase-pendiente";
-import { pedidoListoParaPasar } from "@/lib/fases-tablero";
+import { ofsQueCuentan, pedidoListoParaPasar } from "@/lib/fases-tablero";
 import { cortarFichajeDeOFConAviso, leerTodosIntervalos, reencolarTramosDeOF } from "@/lib/server/fichaje-db";
 import { empezarCierreOF, terminarCierreOF } from "@/lib/server/cierre-of-en-curso";
 import { lanzarPlanteamiento } from "@/lib/server/mandar-planteamiento";
@@ -88,9 +88,22 @@ export async function POST(req: Request) {
   // "Pasar a Producción" lo que toca, no esto — ver ofsQueCuentan/
   // pedidoListoParaPasar en fases-tablero.ts.
   const laOF = of;
-  const comoSiAprobada = { ...pedido, ofs: pedido.ofs.map((o) => (o.id === laOF.id ? { ...o, estado: "aprobada" as const } : o)) };
-  if (pedidoListoParaPasar(comoSiAprobada))
-    return NextResponse.json({ error: "Es la última OF pendiente del pedido: usa «Pasar a Producción»." }, { status: 409 });
+  // «Pasar a Producción» con OF desmarcadas (Iván, 17/11/2026: el 5335, con 13
+  // aprobadas, y su autor quería pasar solo unas). Las marcadas se cierran por
+  // aquí aunque el pedido ya esté listo, con una condición que el servidor
+  // comprueba solo: tiene que quedar OTRA OF por pasar, sin cerrar. Así este
+  // camino nunca da el pedido entero por terminado; eso sigue siendo
+  // «Pasar a Producción».
+  const pasoParcial = b.pasoParcial === true;
+  if (pasoParcial) {
+    const quedaOtra = ofsQueCuentan(pedido).some((o) => o.id !== laOF.id && !o.cerradaRps);
+    if (!quedaOtra)
+      return NextResponse.json({ error: "Es la última OF que queda por pasar: usa «Pasar a Producción»." }, { status: 409 });
+  } else {
+    const comoSiAprobada = { ...pedido, ofs: pedido.ofs.map((o) => (o.id === laOF.id ? { ...o, estado: "aprobada" as const } : o)) };
+    if (pedidoListoParaPasar(comoSiAprobada))
+      return NextResponse.json({ error: "Es la última OF pendiente del pedido: usa «Pasar a Producción»." }, { status: 409 });
+  }
 
   // 3. Candado de la OF mientras dura el cierre: nadie puede empezar a fichar
   //    en ella (POST /api/fichaje lo rechaza) ni cerrarla otra vez a la vez.
@@ -124,7 +137,9 @@ export async function POST(req: Request) {
         revisor: nombreDe(laOF.revisorId),
       }],
       pasadoPor: nombreDe(operarioId) ?? operarioId,
-    }, b);
+    // En el paso parcial no sale correo, de momento (Iván, 17/11/2026): solo
+    // se imprime. Lo impone el servidor, diga lo que diga el navegador.
+    }, pasoParcial ? { ...b, mandarCorreo: false } : b);
   }
   return respuesta;
 }

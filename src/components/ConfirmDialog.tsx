@@ -39,6 +39,7 @@ export function ConfirmDialog({
   tono = "primaria",
   textoConfirmar = "Confirmar",
   ancho = false,
+  confirmarDesactivado = false,
   onConfirmar,
   onCancelar,
 }: {
@@ -60,6 +61,9 @@ export function ConfirmDialog({
   /** Para los avisos con apartados (pasar a Producción): más ancho y más alto,
    *  que en el estrecho había que hacer scroll para ver qué se imprime. */
   ancho?: boolean;
+  /** Cuando lo elegido dentro del cuadro no deja hacer nada (p.ej. ninguna OF
+   *  marcada para pasar). */
+  confirmarDesactivado?: boolean;
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
@@ -177,7 +181,8 @@ export function ConfirmDialog({
               ref={confirmarRef}
               type="button"
               onClick={onConfirmar}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${toneCls}`}
+              disabled={confirmarDesactivado}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${toneCls}`}
             >
               {textoConfirmar}
             </button>

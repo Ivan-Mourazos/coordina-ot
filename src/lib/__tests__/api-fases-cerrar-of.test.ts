@@ -140,6 +140,48 @@ test("si es la ÚLTIMA OF que queda del pedido, no se ofrece: toca pasar el pedi
   expect(finalizarFase).not.toHaveBeenCalled();
 });
 
+// «Pasar a Producción» con OF desmarcadas (17/11/2026): todas aprobadas, pero
+// el autor deja alguna para más tarde.
+const TODAS_APROBADAS = { ...PEDIDO_DOS_OF, ofs: [PEDIDO_DOS_OF.ofs[0], { ...PEDIDO_DOS_OF.ofs[1], estado: "aprobada" as const }] };
+
+test("paso parcial: con el pedido listo, cierra la marcada si queda otra por pasar", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(dataMod, "getTablero").mockResolvedValue({ operarios: [], pedidos: [TODAS_APROBADAS] });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", pasoParcial: true });
+  expect(res.status).toBe(200);
+  expect(finalizarFase).toHaveBeenCalledTimes(1);
+  expect(estadoDb.leerOverlay("ot").ofs.get("0232086:9")?.cerradaRps).toEqual(expect.objectContaining({ modo: "activo" }));
+});
+
+test("paso parcial: nunca cierra la última que queda sin cerrar", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(dataMod, "getTablero").mockResolvedValue({
+    operarios: [],
+    pedidos: [{ ...TODAS_APROBADAS, ofs: [TODAS_APROBADAS.ofs[0], { ...TODAS_APROBADAS.ofs[1], cerradaRps: { at: "2026-09-16T10:00:00.000Z", por: "ivan", modo: "activo" as const } }] }],
+  });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", pasoParcial: true });
+  expect(res.status).toBe(409);
+  expect(finalizarFase).not.toHaveBeenCalled();
+});
+
+test("paso parcial: una detenida no cuenta como «queda otra»", async () => {
+  vi.spyOn(dataMod, "getTablero").mockResolvedValue({
+    operarios: [],
+    pedidos: [{ ...TODAS_APROBADAS, ofs: [TODAS_APROBADAS.ofs[0], { ...TODAS_APROBADAS.ofs[1], detenida: true }] }],
+  });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", pasoParcial: true });
+  expect(res.status).toBe(409);
+});
+
+test("paso parcial: se imprime pero nunca se manda correo, aunque lo pida el navegador", async () => {
+  process.env.FICHAJE_OLANET = "activo";
+  vi.spyOn(dataMod, "getTablero").mockResolvedValue({ operarios: [], pedidos: [TODAS_APROBADAS] });
+  const res = await post({ ofId: "0232086:9", operarioId: "ivan", pasoParcial: true, conPlanteamiento: true, mandarCorreo: true });
+  expect(res.status).toBe(200);
+  expect(lanzarPlanteamiento).toHaveBeenCalledTimes(1);
+  expect(lanzarPlanteamiento.mock.calls[0][3]).toEqual(expect.objectContaining({ mandarCorreo: false }));
+});
+
 test("el corte del fichaje va ANTES que el 3, y con un tramo que no entra no se cierra nada", async () => {
   // Un intervalo abierto de Iván sobre esta OF: el corte lo cierra y lo
   // encola, y como el mock del envío no vacía la cola de verdad, el tramo
