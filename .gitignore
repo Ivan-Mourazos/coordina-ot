@@ -41,7 +41,9 @@ next-env.d.ts
 
 # personal Claude Code config (not shared with the team)
 /.claude/settings.local.json
-/.claude/hooks/
+/.claude/hooks/*
+!/.claude/hooks/block-lockfile.mjs
+!/.claude/hooks/typecheck.mjs
 /.claude/.caveman-*
 
 # Playwright MCP artefacts

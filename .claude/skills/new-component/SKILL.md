@@ -15,7 +15,7 @@ Crea `src/components/<Nombre>.tsx` para el nombre pedido en `$ARGUMENTS` (Pascal
 3. **Doc-comment `/** … */` en español** encima de cada export explicando qué es y cuándo usar cada prop no obvia.
 4. **`"use client"` solo si hay hooks/interactividad.** Componentes presentacionales puros van sin directiva.
 5. **Tipos del dominio desde `@/lib/types`**; metadatos visuales desde `@/lib/estado` (`ESTADO`, `ROL`) y `@/lib/familia` — nunca hardcodear colores de estado/rol/familia.
-6. **Tailwind 4 con tokens del tema**: `text-text-muted`, `ring-border`, `bg-[var(--glass-highlight)]`… (definidos en `src/app/globals.css`). Clases como literales (no construir strings dinámicos de clases).
+6. **Tailwind 4 con tokens del tema, estilo HeroUI** (`docs/ESTILO-HEROUI.md`, tokens en `src/app/hero.css`): `text-text-muted`, `bg-[var(--surface)]`, `bg-[var(--hero-relleno)]`, `shadow-[var(--hero-sombra-panel)]`… Fondos lisos, paneles sin borde (radio 24 px), botones píldora (radio 999 px), campos radio 14 px con foco `--hero-anillo`. Nada de degradados, textura, cantos metálicos ni sombras interiores; `--glass-*` y las clases del metal quedan solo por compatibilidad, no se usan en código nuevo. Clases como literales (no construir strings dinámicos de clases).
 7. **Accesibilidad**: `aria-hidden` en SVG/decoración, `title` cuando solo hay icono, `motion-reduce:animate-none` junto a animaciones.
 8. Imports relativos entre componentes (`./Logo`), alias `@/` para `lib`.
 
@@ -44,4 +44,4 @@ export function MiComponente({
 
 ## Después de crear
 
-Comprobar con `npx tsc --noEmit` (el hook PostToolUse ya lo hace) y revisar en la app si hay dev server corriendo.
+Comprobar con `pnpm exec tsc --noEmit` (el hook PostToolUse ya lo hace) y revisar en la app si hay dev server corriendo.
