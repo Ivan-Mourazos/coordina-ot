@@ -144,9 +144,8 @@ function SelectorDwg({
         className="glass-pop max-h-[min(320px,70vh)] w-[min(360px,calc(100vw-1rem))] overflow-y-auto rounded-2xl p-3 text-text"
         onKeyDown={(e) => {
           if (!["Tab", "ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
-          // El foco da vueltas dentro del selector. El `preventDefault` avisa
-          // también a la trampa de foco de la ficha (useFocoModal) de que este
-          // Tab ya está resuelto.
+          // El foco da vueltas dentro del selector: el `preventDefault` evita
+          // que el Tab salga a la ficha de detrás.
           e.preventDefault();
           e.stopPropagation();
           const opciones = [...(panelRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];

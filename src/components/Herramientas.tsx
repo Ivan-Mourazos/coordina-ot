@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { usePopover } from "@/lib/usePopover";
 import { HERRAMIENTAS, cuantasDisponibles } from "@/lib/herramientas";
 import { ULTIMA } from "@/lib/novedades";
 import type { RolAcceso } from "@/lib/personas";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
-import type { Operario } from "@/lib/types";
+import type { Operario, Rol } from "@/lib/types";
 import { ElegirColor } from "./ElegirColor";
 import { ResetPin } from "./ResetPin";
 import { SelectorSeccion } from "./SelectorSeccion";
@@ -46,6 +46,7 @@ export function Herramientas({
   onSalir,
   roles,
   verComoDireccion,
+  fichando,
 }: {
   /** Cuándo salió la última, si el servidor ya la ha sellado. */
   fechaUltimaNovedad?: string;
@@ -71,6 +72,10 @@ export function Herramientas({
   roles: RolAcceso[];
   /** Solo para quien tiene técnico y dirección. Cambia lo que se pinta, no lo que puede hacer la cuenta. */
   verComoDireccion?: { activo: boolean; onCambiar: (v: boolean) => void };
+  /** Lo que estás fichando, DENTRO de esta píldora (17/11/2026): la píldora
+   *  crece y lleva el mismo barrido que la tarjeta de un compañero que ficha.
+   *  `null` con el reloj parado. Ver MiFichaje. */
+  fichando?: { rol: Rol; contenido: ReactNode } | null;
 }) {
   // El ConfirmDialog de ResetPin se abre DESDE DENTRO del desplegable: al
   // colgar de él en el DOM, el navegador lo cuenta como parte del popover y
@@ -87,7 +92,16 @@ export function Herramientas({
   const listas = cuantasDisponibles();
 
   return (
-    <div ref={ref} className="relative">
+    // La píldora es el envoltorio y no el botón: con el reloj en marcha lleva
+    // dentro el resumen del fichaje y su botón de pausar, que no puede ir
+    // dentro de otro botón.
+    <div
+      ref={ref}
+      className={`relative flex h-9 items-center rounded-lg ${fichando ? `fila-fichando-${fichando.rol}` : "glass-chip"}`}
+    >
+      <div className="pildora-fichaje flex h-full items-center" data-abierta={fichando ? "" : undefined}>
+        {fichando?.contenido}
+      </div>
       {/* El botón lleva TU avatar, como cualquier menú de cuenta: aquí dentro
           está quién eres, y si el menú se lo tragara todo sin dejar rastro
           fuera, saber en nombre de quién estás fichando costaría un clic. La
@@ -99,7 +113,7 @@ export function Herramientas({
         aria-label={`Menú de ${yo.nombre}`}
         aria-expanded={open}
         title="Quién eres, qué lista miras y otras herramientas"
-        className="glass-chip flex h-9 items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text"
+        className="flex h-full items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text"
       >
         <span
           className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"

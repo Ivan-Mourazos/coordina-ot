@@ -239,6 +239,23 @@ html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar 
   html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar::after { background-image: none; }
 }
 
+/* La píldora del avatar crece para enseñar lo que estás fichando (17/11/2026).
+   El hueco va de 0 a su ancho natural (auto): sin `interpolate-size` el
+   navegador no anima hacia `auto` y salta de golpe, que es lo que pasa en los
+   que no lo conocen. */
+.pildora-fichaje {
+  inline-size: 0;
+  overflow: hidden;
+  interpolate-size: allow-keywords;
+  transition: inline-size 0.35s ease;
+}
+.pildora-fichaje[data-abierta] {
+  inline-size: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pildora-fichaje { transition: none; }
+}
+
 html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,
   .pildora-plantear, .pildora-revisar, .pildora-aviso, .pildora-reposo,
   .boton-arriba, .tira-3d > *) {

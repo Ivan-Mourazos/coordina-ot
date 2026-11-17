@@ -2896,6 +2896,25 @@ export function Board({
                   ? { activo: verComoDireccion, onCambiar: alternarVerComoDireccion }
                   : undefined
               }
+              // Lo que estás fichando, dentro de la píldora del avatar, que
+              // crece para hacerle sitio. Antes era una píldora abajo a la
+              // derecha que nadie abría (17/11/2026). Solo con el reloj en marcha.
+              fichando={(() => {
+                const ab = espectador ? null : abierto(fichaje);
+                return ab
+                  ? {
+                      rol: ab.rol,
+                      contenido: (
+                        <MiFichaje
+                          pedidos={procesadosAll}
+                          fichaje={fichaje}
+                          desfaseServidor={desfaseServidor}
+                          onPausarTodo={pausarTodo}
+                        />
+                      ),
+                    }
+                  : null;
+              })()}
             />
           </div>
         </header>
@@ -3362,21 +3381,6 @@ export function Board({
         onClose={() => setHistorialAbierto(null)}
         onAbrirPedidoPorCodigo={abrirPedidoPorCodigo}
       />
-
-      {!espectador && (
-      <MiFichaje
-        miId={miId}
-        operarios={operarios}
-        pedidos={procesadosAll}
-        fichaje={fichaje}
-        dobleFichaje={dobleFichaje}
-        desfaseServidor={desfaseServidor}
-        onFichar={ficharOFsConAviso}
-        onDesfichar={desficharOF}
-        onDesficharVarias={desficharVarias}
-        onPausarTodo={pausarTodo}
-      />
-      )}
 
       <ConfirmDialog
         abierto={pedidoAPasar !== null}
