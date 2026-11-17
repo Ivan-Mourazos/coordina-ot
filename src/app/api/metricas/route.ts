@@ -116,6 +116,7 @@ export async function GET(req: Request) {
       detalle.personal.meses = delAnio.personal.meses;
       // El total, del periodo pedido; los meses, del año entero de la gráfica.
       detalle.equipoRps = { ofs: detalle.equipoRps.ofs, meses: delAnio.equipoRps.meses };
+      detalle.incidenciasMeses = delAnio.incidenciasMeses;
       // El año entero, para las líneas de las gráficas; la tabla y el resumen,
       // solo el periodo elegido.
       const ncDelAnio = nc.status === "fulfilled" ? nc.value : null;

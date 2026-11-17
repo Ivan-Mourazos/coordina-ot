@@ -221,7 +221,7 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
               ayuda={`Lo normal desde que se entrega una OF hasta que se aprueba, contando noches y fines de semana. ${c.aprobacion.n} ciclos.`}
               delta={<span>{soloDesdeWeb ?? "lo normal"}</span>} />}
           </Cifras>
-          <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} sinRevision={sinRevision} /></Panel>
+          <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} incidencias={conIncidencias ? datos?.detalle?.incidenciasMeses : undefined} sinRevision={sinRevision} /></Panel>
           {!sinRevision && <Panel titulo="Cuánto tarda" extra={soloDesdeWeb ?? "lo normal"}><Recorrido m={m} /></Panel>}
           {!sinRevision && <Panel titulo="Motivo de devolución" extra={datos?.devueltas ? `${datos.devueltas.devueltas} de ${datos.devueltas.entregadas} OF` : `${m.devoluciones}`} className={anchoPorQue}><PorQueVuelven devueltas={datos?.devueltas} causa={causa} porFamilia={datos?.detalle?.familiasDisponibles ? datos.detalle.porFamilia : undefined} cargando={datos?.detalleCargando} detalleViejo={detalleViejo} /></Panel>}
           {conIncidencias && <Panel titulo={`Incidencias ${SECCIONES[seccion].siglas} por familia`} extra={incid ? `${incid.total} de ${incid.base} OF` : undefined} actualizando={detalleViejo} className={anchoPorQue}><IncidenciasSeccion seccion={seccion} incidencias={incid} cargando={datos?.detalleCargando} /></Panel>}
@@ -446,8 +446,10 @@ function Tile({ titulo, valor, extra, ayuda, delta, mio = false }: { titulo: str
 }
 /** «Realizadas» suma las OF que OT cerró en RPS antes de usar la web (`rps`,
  *  llega con el detalle): sin ellas el año empezaba en agosto (Iván,
- *  21/10/2026). Revisadas y devoluciones no existían antes: sin línea. */
-function Meses({ anio, meses, mes, rps, rectificados, sinRevision = false }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number>; rectificados?: DetalleMetricas["rectificadosMeses"]; sinRevision?: boolean }) {
+ *  21/10/2026). Las devoluciones no existían antes: sin línea. Sin
+ *  «Revisadas» (Iván, 17/11/2026); devoluciones e incidencias, del color de
+ *  sus barras en «Motivo de devolución» e «Incidencias por familia». */
+function Meses({ anio, meses, mes, rps, rectificados, incidencias, sinRevision = false }: { anio: string; meses: MesMetricas[]; mes: string; rps?: Record<string, number>; rectificados?: DetalleMetricas["rectificadosMeses"]; incidencias?: Record<string, number> | null; sinRevision?: boolean }) {
   const filas = delAnio(anio, meses);
   // Rectificados con culpa de la sección, como las incidencias en «Mis datos»
   // (26/10/2026). Hasta el mes en curso; los que faltan por llegar, sin punto.
@@ -459,22 +461,22 @@ function Meses({ anio, meses, mes, rps, rectificados, sinRevision = false }: { a
   // La cantidad de cada línea en la leyenda (Iván, 21/10/2026): la del mes
   // elegido, o la del año si se mira el año entero.
   // Sin «pasadas sin revisión» (Iván, 21/10/2026): ya sale en Mis datos.
-  const cuenta = (k: "planteos" | "revisiones" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
+  const incid = (m: string) => !incidencias || m > hastaHoy ? null : incidencias[m] ?? 0;
+  const incidValor = mes ? incidencias?.[mes] ?? 0 : Object.entries(incidencias ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
+  const cuenta = (k: "planteos" | "devoluciones") => mes ? meses.find((x) => x.mes === mes)?.[k] ?? 0 : meses.reduce((s, x) => s + x[k], 0);
   const deRps = mes ? rps?.[mes] ?? 0 : Object.entries(rps ?? {}).reduce((s, [m, n]) => m.startsWith(anio) ? s + n : s, 0);
-  // Donde no se revisa, solo «Realizadas»: revisadas y devoluciones serían
-  // dos líneas pegadas al cero.
+  // Donde no se revisa, sin devoluciones: sería una línea pegada al cero.
   return <MetricasGrafica llenar titulo="Actividad del equipo mes a mes" resaltar={mes || undefined}
     puntos={filas.map(({ mes, fila }) => ({ mes, valores: [
       realizadas(mes, fila),
-      ...(sinRevision ? [] : [fila?.revisiones ?? null, fila?.devoluciones ?? null]),
+      ...(sinRevision ? [] : [fila?.devoluciones ?? null]),
+      ...(incidencias ? [incid(mes)] : []),
       ...(rectificados ? [rect(mes)] : []),
     ] }))}
     series={[
       { etiqueta: "Realizadas", color: SERIES[0].color, valor: cuenta("planteos") + deRps },
-      ...(sinRevision ? [] : [
-        { etiqueta: "Revisadas", color: SERIES[1].color, valor: cuenta("revisiones") },
-        { etiqueta: "Devoluciones", color: COLOR_DEVUELTA, valor: cuenta("devoluciones") },
-      ]),
+      ...(sinRevision ? [] : [{ etiqueta: "Devoluciones", color: SERIES[1].color, valor: cuenta("devoluciones") }]),
+      ...(incidencias ? [{ etiqueta: "Incidencias", color: COLOR_DEVUELTA, valor: incidValor }] : []),
       ...(rectificados ? [{ etiqueta: "Rectificados", color: COLOR_RECTIFICADO, valor: rectValor }] : []),
     ]} />;
 }

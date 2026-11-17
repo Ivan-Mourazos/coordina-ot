@@ -112,6 +112,13 @@ describe("incidencias de planteamiento", () => {
     expect(d.personal.incidenciasPorFamilia).toEqual([{ familia: "LONA", n: 1, base: 1 }]);
     expect(d.incidenciasOT).toEqual({ total: 2, base: 2, porFamilia: [{ familia: "LONA", n: 2, base: 2 }] });
   });
+  it("las incidencias del equipo, por mes y una vez por OF", () => {
+    const incidencias = [inc("2026-07-10", "X", "LONA", "146"), inc("2026-07-20", "X", "LONA", "146"), inc("2026-08-01", "Y", "LONA", null)];
+    const d = calcularDetalleMetricas([], [], fam, { incidencias, pases: [] }, yo, anio, meses);
+    expect(d.incidenciasMeses).toEqual({ "2026-07": 1, "2026-08": 1 });
+    const caida = calcularDetalleMetricas([], [], fam, { incidencias: null, pases: [] }, yo, anio, meses);
+    expect(caida.incidenciasMeses).toBeNull();
+  });
   it("las OF pasadas de RPS solo cuentan antes de Coordina y si Coordina no las conoce", () => {
     const movs = [mov("08-05", "terminar_planteo", "ivan", ofA)];
     const pases = [pase("2026-07-01", "A"), pase("2026-07-02", "P"), pase("2026-08-10", "R"), pase("2026-09-01", "Q")];

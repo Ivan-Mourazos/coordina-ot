@@ -23,6 +23,9 @@ export interface DetalleMetricas {
   porFamilia: (Devueltas & { familia: string })[];
   /** Los errores de planteamiento de todo el equipo. null si RPS no contestó. */
   incidenciasOT: { total: number; base: number; porFamilia: CuentaFamilia[] } | null;
+  /** Las OF del equipo con incidencia, por mes ("2026-03"), para la gráfica
+   *  mes a mes. null si RPS no contestó. */
+  incidenciasMeses: Record<string, number> | null;
   personal: {
     entregadas: number;
     correcciones: number;
@@ -194,9 +197,12 @@ export function calcularDetalleMetricas(
   };
   const delEquipo = new Map<string, string>();
   const delMio = new Map<string, string>();
+  const equipoPorMes = new Map<string, Set<string>>();
   for (const i of rps.incidencias ?? []) {
     if (!enPeriodo(i.fecha, periodo)) continue;
     delEquipo.set(i.orden, i.familia);
+    const mesI = i.fecha.slice(0, 7);
+    equipoPorMes.set(mesI, (equipoPorMes.get(mesI) ?? new Set()).add(i.orden));
     const mia = autorCoordina.has(i.orden) ? autorCoordina.get(i.orden) === yo.id : soyYo(i.autor);
     if (!mia) continue;
     delMio.set(i.orden, i.familia);
@@ -212,6 +218,7 @@ export function calcularDetalleMetricas(
       base: pasadas.size,
       porFamilia: porFamiliaDe(delEquipo, base(pasadas.keys())),
     },
+    incidenciasMeses: rps.incidencias === null ? null : Object.fromEntries([...equipoPorMes].map(([m, ofs]) => [m, ofs.size])),
     personal: {
       entregadas: mias.size,
       correcciones: correcciones.size,
