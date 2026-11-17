@@ -35,36 +35,31 @@ export function puedeEscribirNotas(roles: readonly RolAcceso[]): boolean {
   return roles.includes("tecnico") || roles.includes("produccion") || roles.includes("direccion");
 }
 
-/** Pantallas hechas a medida de una persona de Producción. Son POR PERSONA y
- *  no por rol (Iván, 09/11/2026): cada compañero de Producción tendrá la suya,
- *  distinta de la de Belén. El rol `produccion` solo dice que entra por aquí. */
-export type VistaAMedida = "belen";
+/** La pantalla en la que aterriza alguien de Producción. Se hizo a medida de
+ *  Belén Alamancos (09/11/2026) y desde el 17/11/2026 es LA vista de
+ *  Producción: todo el que tenga solo el rol `produccion` entra en ella
+ *  (Iván: «es raro que entre Cris en vista Belén»). Cuando alguien pida
+ *  cambios que los demás no quieran, tendrá la suya: se añade aquí otro valor
+ *  y su id en VISTAS_A_MEDIDA. Por dentro los ficheros siguen llamándose
+ *  vista-belen; lo que se ve (dirección, menú) dice Producción. */
+export type VistaAMedida = "produccion";
 
-const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {
-  "belen-alamancos": "belen",
-  // Cristina Rivas (16/11/2026) empieza con la de Belén tal cual; cuando pida
-  // cambios que Belén no quiera, tendrá la suya.
-  "cristina-rivas": "belen",
-  // Miguel Tato y Belén Quintela (16/11/2026), igual: la de Belén de partida y
-  // se ajusta a cada uno según la vayan usando.
-  "miguel-tato": "belen",
-  "belen-quintela": "belen",
-};
+/** Quien tenga una distinta de la común. Vacío de momento. */
+const VISTAS_A_MEDIDA: Readonly<Record<string, VistaAMedida>> = {};
 
 /** La pantalla a medida en la que aterriza esta persona, o null si va a lo de
  *  siempre. Quien tenga `tecnico` o `direccion` sigue entrando a lo suyo
- *  aunque lleve `produccion`. Alguien de Producción sin pantalla propia todavía
- *  ve la consulta de solo lectura, como quien no ha entrado. */
+ *  aunque lleve `produccion`. */
 export function vistaAMedida(p: { id: string; roles: readonly RolAcceso[] }): VistaAMedida | null {
   if (!p.roles.includes("produccion") || p.roles.includes("tecnico") || p.roles.includes("direccion")) return null;
-  return VISTAS_A_MEDIDA[p.id] ?? null;
+  return VISTAS_A_MEDIDA[p.id] ?? "produccion";
 }
 
-/** ¿Puede abrir la pantalla de Belén (y imprimir desde ella)? Belén, y los
- *  técnicos y Dirección para mirarla. Un solo criterio para la pantalla y la
- *  página de imprimir. */
-export function puedeVerVistaBelen(p: { id: string; roles: readonly RolAcceso[] }): boolean {
-  return vistaAMedida(p) === "belen" || p.roles.includes("tecnico") || p.roles.includes("direccion");
+/** ¿Puede abrir la vista de Producción (y imprimir desde ella)? Producción, y
+ *  los técnicos y Dirección para mirarla. Un solo criterio para la pantalla y
+ *  la página de imprimir. */
+export function puedeVerVistaProduccion(p: { id: string; roles: readonly RolAcceso[] }): boolean {
+  return vistaAMedida(p) === "produccion" || p.roles.includes("tecnico") || p.roles.includes("direccion");
 }
 
 /** ¿Se pinta la web sin controles de escribir? Sin `tecnico`, siempre: el

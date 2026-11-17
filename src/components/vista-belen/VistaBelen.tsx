@@ -20,6 +20,8 @@ import { enGrupos, grupoDe } from "@/lib/herramientas-belen";
 import { hoyISO } from "@/lib/types";
 import { useFueraHoy } from "../useFueraHoy";
 import { FueraHoyTira } from "../Disponibilidad";
+import { PanelNovedades } from "../PanelNovedades";
+import { useNovedades } from "@/lib/useNovedades";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -115,6 +117,9 @@ export function VistaBelen({
   const [filtros, setFiltros] = useState<Partial<Record<IdLista, FiltroLista>>>({});
   // Sube para que «Pedidos por fecha solicitada» se vuelva a pedir.
   const [refresco, setRefresco] = useState(0);
+  // Novedades de la web (Iván, 17/11/2026): las de Producción y las de todos.
+  // Las de otros apartados salen plegadas y no cuentan.
+  const novedades = useNovedades(miId, "produccion");
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
   // Lo último pintado, para que «Actualizar» sepa qué pedido volver a pedir.
@@ -398,6 +403,19 @@ export function VistaBelen({
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[13px] text-text-muted">{nombre}</span>
           <AvisosBelen miId={miId} onAbrir={(pedido) => navegar({ pedido, detalle: "notas" })} />
+          <button
+            type="button"
+            onClick={novedades.abrir}
+            title="Qué ha cambiado en la web"
+            className="boton-arriba relative h-8 rounded-full px-3 text-[13px] font-semibold text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          >
+            Novedades
+            {novedades.pendientes > 0 && (
+              <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-brand-500 px-1 text-[10px] font-bold leading-4 text-white">
+                {novedades.pendientes}
+              </span>
+            )}
+          </button>
           <ThemeToggle />
           <button
             type="button"
@@ -408,6 +426,9 @@ export function VistaBelen({
           </button>
         </div>
       </header>
+      {novedades.abierta && (
+        <PanelNovedades fechas={novedades.fechas} perfil="produccion" nuevos={novedades.nuevos} onCerrar={novedades.cerrar} />
+      )}
 
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">

@@ -106,16 +106,12 @@ test("una fila por tarea aunque tenga varias máquinas", () => {
 });
 
 describe("pantalla a medida", () => {
-  test("Belén, solo con produccion, va a la suya", () =>
-    expect(vistaAMedida({ id: "belen-alamancos", roles: ["produccion"] })).toBe("belen"));
-  test("Cristina Rivas empieza con la de Belén", () =>
-    expect(vistaAMedida({ id: "cristina-rivas", roles: ["produccion"] })).toBe("belen"));
-  test("Miguel Tato y Belén Quintela también empiezan con la de Belén", () => {
-    expect(vistaAMedida({ id: "miguel-tato", roles: ["produccion"] })).toBe("belen");
-    expect(vistaAMedida({ id: "belen-quintela", roles: ["produccion"] })).toBe("belen");
+  test("todo el que tenga solo produccion entra en la vista de Producción", () => {
+    for (const id of ["belen-alamancos", "cristina-rivas", "miguel-tato", "belen-quintela", "otra"])
+      expect(vistaAMedida({ id, roles: ["produccion"] })).toBe("produccion");
   });
-  test("otra persona de Producción no hereda la de Belén", () =>
-    expect(vistaAMedida({ id: "otra", roles: ["produccion"] })).toBeNull());
+  test("sin el rol produccion, nada", () =>
+    expect(vistaAMedida({ id: "belen-alamancos", roles: [] })).toBeNull());
   test("con tecnico sigue en el tablero", () =>
     expect(vistaAMedida({ id: "belen-alamancos", roles: ["produccion", "tecnico"] })).toBeNull());
 });

@@ -25,7 +25,7 @@ export function ImprimirOF({
   const [vale, setVale] = useState(true);
   const valeActivo = vale && conReserva !== false;
   const que = ruta && valeActivo ? "todo" : ruta ? "ruta" : valeActivo ? "vale" : null;
-  const href = que ? `/vista-belen/imprimir?ofs=${encodeURIComponent(ofs.join(","))}&que=${que}` : undefined;
+  const href = que ? `/produccion/imprimir?ofs=${encodeURIComponent(ofs.join(","))}&que=${que}` : undefined;
 
   return (
     <div role="group" aria-label={etiqueta} className="inline-flex items-center gap-1 rounded-full bg-[var(--hero-relleno)] p-1">

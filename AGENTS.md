@@ -53,8 +53,10 @@ migraciones. Ante la duda, sin línea. Mejor tres novedades al mes que se leen
 que treinta que se saltan. Varios commits de la misma función: una sola línea,
 en el que la deja usable.
 
-La vista de Producción (Belén) no enseña novedades por ahora (12/11/2026):
-`Novedad[produccion]:` solo para algo que Producción deba saber de verdad.
+La vista de Producción enseña novedades desde el 17/11/2026 (botón
+«Novedades» arriba): las de `[produccion]` y las de todos. Una línea sin
+corchetes llega a todas las secciones, así que lo que solo toca a OT lleva
+`[ot]` para no llenarle el panel a Producción.
 
 **Cómo se escribe la frase.** En el idioma de quien la va a leer, no en el del
 código. Cuéntalo como se lo contarías a un compañero en el pasillo: qué cambia

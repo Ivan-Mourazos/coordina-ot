@@ -1,0 +1,18 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { VistaBelen } from "@/components/vista-belen/VistaBelen";
+import { puedeVerVistaProduccion } from "@/lib/personas";
+import { loginActivo, quienEs } from "@/lib/server/sesion";
+
+// La vista de Producción por su dirección (/produccion), para que Iván
+// (técnico y Dirección) la mire sin cambiar de cuenta. Producción no la
+// necesita: aterriza en ella al entrar (app/page.tsx). Solo lectura: lo que enseña es de RPS.
+
+export const dynamic = "force-dynamic";
+
+export default async function PaginaVistaProduccion() {
+  if (!loginActivo()) return <VistaBelen nombre="" />;
+  const yo = quienEs(new Request("http://interno/", { headers: await headers() }));
+  if (!yo || !puedeVerVistaProduccion(yo)) redirect("/");
+  return <VistaBelen nombre={yo.nombre} miId={yo.id} />;
+}

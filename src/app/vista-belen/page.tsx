@@ -1,18 +1,7 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { VistaBelen } from "@/components/vista-belen/VistaBelen";
-import { puedeVerVistaBelen } from "@/lib/personas";
-import { loginActivo, quienEs } from "@/lib/server/sesion";
 
-// La pantalla de Belén por su dirección, para que Iván (técnico y Dirección)
-// la mire sin cambiar de cuenta. Belén no la necesita: aterriza en ella al
-// entrar (app/page.tsx). Solo lectura: lo que enseña es de RPS.
-
-export const dynamic = "force-dynamic";
-
-export default async function PaginaVistaBelen() {
-  if (!loginActivo()) return <VistaBelen nombre="" />;
-  const yo = quienEs(new Request("http://interno/", { headers: await headers() }));
-  if (!yo || !puedeVerVistaBelen(yo)) redirect("/");
-  return <VistaBelen nombre={yo.nombre} miId={yo.id} />;
+// Dirección antigua (hasta el 17/11/2026): la vista de Producción vive ahora
+// en /produccion. Se deja para los marcadores y pestañas que ya la tengan.
+export default function VistaBelenAntigua() {
+  redirect("/produccion");
 }

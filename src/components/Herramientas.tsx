@@ -349,17 +349,17 @@ export function Herramientas({
               Impresoras
             </button>
 
-            {/* La pantalla de Producción (Belén y Cristina), para mirarla sin
+            {/* La pantalla de Producción, para mirarla sin
                 cambiar de cuenta (Iván, 16/11/2026). Solo Dirección: al resto
                 del equipo no le hace falta y alargaría el menú. En pestaña
                 nueva, porque esa pantalla no tiene vuelta al tablero. */}
             {roles.includes("direccion") && (
               <a
-                href="/vista-belen"
+                href="/produccion"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setOpen(false)}
-                title="La pantalla que ven Belén y Cristina en Producción."
+                title="La pantalla que ve Producción."
                 className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-surface-2"
               >
                 Vista de Producción

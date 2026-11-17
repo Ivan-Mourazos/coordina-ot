@@ -4,7 +4,7 @@ import type { Elemento, Pagina } from "@/lib/informes-rps/maquetar";
 // ─── Pinta las páginas de un informe de RPS ──────────────────────────────────
 // Cada página es una hoja A4 de verdad (cm) con sus piezas en posición
 // absoluta, tal y como las coloca la plantilla de RPS. Sin colores de la web:
-// es papel. Se imprime con el navegador (ver app/vista-belen/imprimir).
+// es papel. Se imprime con el navegador (ver app/produccion/imprimir).
 
 const cm = (n: number) => `${n.toFixed(3)}cm`;
 
