@@ -1204,6 +1204,23 @@ body {
   }
 }
 
+/* PanelFlotante es un <dialog> modal: el telón es su `::backdrop`. Entra y
+ * sale con las mismas animaciones que tenía el `div` de fondo, y con el mismo
+ * tiempo que la hoja para que se vayan a la vez. `overscroll-behavior` en los
+ * dos para que la rueda no llegue a la bandeja de detrás (sin tocar el `body`). */
+.panel-flotante:modal {
+  overscroll-behavior: contain;
+}
+.panel-flotante::backdrop {
+  background: rgb(0 0 0 / 0.15);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  animation: overlay-in 160ms ease-out;
+}
+.panel-flotante.pop-out::backdrop {
+  animation: overlay-out 130ms ease-in forwards;
+}
+
 /* Desplegar/plegar una fila (Lista, Historial).
  *
  * Sobre una rejilla de UNA fila: animar `grid-template-rows` de 0fr a 1fr es la
@@ -1265,6 +1282,10 @@ body {
     animation: none;
     transition: none;
     transform: none;
+  }
+  .panel-flotante::backdrop,
+  .panel-flotante.pop-out::backdrop {
+    animation: none;
   }
   /* `.pop-out` NO se anula del todo: sin animación no llega `animationend` y
    * el panel se quedaría abierto para siempre. Se deja instantánea, que es lo

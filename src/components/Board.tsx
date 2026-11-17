@@ -1520,6 +1520,15 @@ export function Board({
     [seccionActual],
   );
   const openFacet = useCallback((f: Facet) => abrirPedido(f.pedido.id), [abrirPedido]);
+  // El panel de un compañero es un modal: la ficha que se abre desde él no lo
+  // es y quedaría debajo, inerte. Se cierra antes, como el «+N más» de una fase.
+  const abrirDesdeCompanero = useCallback(
+    (f: Facet) => {
+      closeExpanded();
+      openFacet(f);
+    },
+    [closeExpanded, openFacet],
+  );
   const openPedidoCb = useCallback((p: Pedido) => abrirPedido(p.id), [abrirPedido]);
   const closeDrawer = useCallback(() => setOpenId(null), []);
 
@@ -3094,7 +3103,7 @@ export function Board({
                     expanded={expandedId === op.id}
                     onToggle={() => toggleExpanded(op.id)}
                     onClose={closeExpanded}
-                    onOpen={openFacet}
+                    onOpen={abrirDesdeCompanero}
                     onFichar={ficharOFsConAviso}
                     onDesficharVarias={desficharVarias}
                     completarPedido={completarPedido}

@@ -5,13 +5,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { useCapaEscape } from "@/lib/useCapaEscape";
-import { useFocoModal } from "@/lib/useFocoModal";
-import { useScrollBloqueado } from "@/lib/useScrollBloqueado";
 
 /** Cómo pide cerrar el contenido de un panel flotante (la ✕ de su cabecera).
  *
@@ -48,9 +47,7 @@ export function BotonCerrarPanel({ className = "" }: { className?: string }) {
  *  forma de cerrarse. Antes eran dos implementaciones distintas y se notaba.
  *
  *  Flota en vez de empujar: si creciera el bloque de arriba, la página daría un
- *  salto y se perdería el alto que el rediseño acaba de ganar. Y mientras está
- *  abierto se congela el scroll del fondo, porque si no la rueda mueve la
- *  bandeja de detrás y al cerrar apareces en otro sitio. */
+ *  salto y se perdería el alto que el rediseño acaba de ganar. */
 /** Ancho de TODOS los desplegables del tablero. Uno solo a propósito: el de
  *  tus pedidos y el de un compañero enseñan lo mismo, y verlos de dos tamaños
  *  distintos hacía pensar que eran cosas distintas. */
@@ -59,10 +56,23 @@ export function BotonCerrarPanel({ className = "" }: { className?: string }) {
 // quedaba en dos palabras. Sigue con el tope de 92vw para pantallas pequeñas.
 const ANCHO = "62rem";
 
-// Es un modal de hecho —telón por encima de todo, el fondo congelado, Escape y
-// clic fuera para salir— pero para el teclado no lo era: sin `role`, sin nombre
-// y sin trampa de foco, el tabulador seguía recorriendo la bandeja de detrás
-// mientras la hoja tapaba la pantalla. Mismo arreglo que llevan los drawers.
+// ─── <dialog> nativo con `showModal()` (17/11/2026) ──────────────────────────
+// Antes era un `div` con `role="dialog"`, su telón, su clic fuera (que tenía
+// que hacer la vista gorda con lo marcado `data-en-portal`), su Escape en
+// `capas-escape`, su trampa de foco y su bloqueo del scroll del `body`. Ahora:
+//
+//  · la página de detrás queda inerte (ni clic ni Tab) y el foco vuelve solo a
+//    lo que abrió el panel al cerrarse;
+//  · Escape y el clic fuera (`closedby="any"`) cierran solo la capa de arriba:
+//    con la lista de un Select, un menú o una confirmación abiertos encima, se
+//    van ellos primero. Lo que cuelga del panel en el DOM cuenta como dentro;
+//  · el telón es el `::backdrop` y no deja pasar la rueda a la bandeja de
+//    detrás (`overscroll-behavior`, en globals.css).
+//
+// Lo único que se hace a mano es la animación de salida: Escape y el clic fuera
+// llegan como `cancel`, que se para, se anima `pop-out` y al terminar se llama
+// a `close()`. El aviso al padre va siempre en `close`, para que el foco vuelva
+// antes de que React desmonte el panel.
 export function PanelFlotante({
   onCerrar,
   children,
@@ -75,74 +85,64 @@ export function PanelFlotante({
   titulo: string;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const ref = useRef<HTMLDialogElement | null>(null);
   // Cerrar se pide aquí y lo ejecuta la animación al terminar, no el clic.
-  // El padre desmonta el panel en cuanto se lo dicen, así que avisarle de
-  // inmediato hacía desaparecer la hoja de golpe y no había nada que animar.
-  // Todas las vías de cierre —Escape, clic fuera, fondo, la ✕ de dentro— pasan
-  // por aquí, para que no haya una que se salte la salida.
+  // Todas las vías de cierre —Escape, clic fuera, la ✕ de dentro— pasan por
+  // aquí, para que no haya una que se salte la salida.
   const [cerrando, setCerrando] = useState(false);
   const pedirCierre = useCallback(() => setCerrando(true), []);
 
+  useLayoutEffect(() => {
+    const dlg = ref.current;
+    if (dlg && !dlg.open) dlg.showModal();
+  }, []);
+
+  const alCerrar = useEffectEvent(onCerrar);
   useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const donde = e.target as Node;
-      if (ref.current?.contains(donde)) return;
-      // Lo que sale del panel por un PORTAL sigue siendo del panel aunque en el
-      // DOM cuelgue del `body`. Sin esto, elegir revisor desde el «+N más»
-      // cerraba el panel al pulsar la opción —el menú del Select es un portal—
-      // y el pedido nunca llegaba a pasar a revisión.
-      if (donde instanceof Element && donde.closest("[data-en-portal]")) return;
-      pedirCierre();
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    const dlg = ref.current;
+    if (!dlg) return;
+    const h = () => alCerrar();
+    dlg.addEventListener("close", h);
+    return () => dlg.removeEventListener("close", h);
+  }, []);
+
+  // Safari no conoce `closedby`: allí el clic en el telón llega al propio
+  // <dialog> con las coordenadas fuera de su caja.
+  useEffect(() => {
+    const dlg = ref.current;
+    if (!dlg || "closedBy" in HTMLDialogElement.prototype) return;
+    const h = (e: MouseEvent) => {
+      if (e.target !== dlg) return;
+      const r = dlg.getBoundingClientRect();
+      const dentro = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!dentro) pedirCierre();
+    };
+    dlg.addEventListener("click", h);
+    return () => dlg.removeEventListener("click", h);
   }, [pedirCierre]);
-  // Escape como capa: con un Select o una confirmación abiertos encima, se
-  // cierran ellos primero y el panel se queda (ver capas-escape.ts).
-  useCapaEscape(true, pedirCierre);
-
-  // El fondo se congela mientras el panel está abierto: si no, la rueda mueve
-  // la bandeja de detrás y al cerrar apareces en otro sitio.
-  useScrollBloqueado(true);
-
-  // El foco entra al abrir y vuelve a donde estaba al cerrar. Se apaga en
-  // cuanto se PIDE el cierre, no al desmontar: entre las dos cosas corre la
-  // animación de salida, y seguir atrapando el foco durante ese rato dejaría
-  // el tabulador dando vueltas dentro de una hoja que ya se está yendo.
-  const focoRef = useFocoModal<HTMLDivElement>(!cerrando);
 
   return (
-    <div
-      ref={focoRef}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={ref}
       aria-label={titulo}
-      className="fixed inset-0 z-40 flex items-start justify-center pt-24"
+      {...({ closedby: "any" } as Record<string, string>)}
+      onCancel={(e) => {
+        e.preventDefault();
+        pedirCierre();
+      }}
+      onAnimationEnd={(e) => {
+        // Solo la salida de ESTA hoja: `animationend` burbujea y dentro hay
+        // cosas animadas (el punto de quien está fichando), y el telón también
+        // avisa aquí al terminar su propia animación.
+        if (e.target !== e.currentTarget || e.animationName !== "pop-out") return;
+        if (cerrando) ref.current?.close();
+      }}
+      style={{ background: "var(--surface)", width: `min(${ANCHO}, 92vw)` }}
+      className={`panel-flotante scroll-thin inset-x-0 top-24 bottom-auto mx-auto my-0 max-h-[60vh] max-w-none overflow-y-auto rounded-xl border-0 p-3 text-text ${
+        cerrando ? "pop-out" : "glass-pop"
+      }`}
     >
-      {/* Fondo suave: separa el panel sin apagar el tablero, que sigue siendo
-          contexto útil mientras decides. */}
-      <div
-        onClick={pedirCierre}
-        aria-hidden
-        className={`absolute inset-0 bg-black/15 ${cerrando ? "overlay-out" : "overlay-in"}`}
-      />
-      <div
-        ref={ref}
-        style={{ background: "var(--surface)", width: `min(${ANCHO}, 92vw)` }}
-        className={`scroll-thin relative max-h-[60vh] overflow-y-auto rounded-xl p-3 ${
-          cerrando ? "pop-out" : "glass-pop"
-        }`}
-        onAnimationEnd={(e) => {
-          // Solo la animación de ESTA hoja: `animationend` burbujea y dentro
-          // hay cosas animadas (el punto de quien está fichando), que si no
-          // dispararían el cierre nada más abrir.
-          if (e.target !== e.currentTarget) return;
-          if (cerrando) onCerrar();
-        }}
-      >
-        <CerrarPanel.Provider value={pedirCierre}>{children}</CerrarPanel.Provider>
-      </div>
-    </div>
+      <CerrarPanel.Provider value={pedirCierre}>{children}</CerrarPanel.Provider>
+    </dialog>
   );
 }
