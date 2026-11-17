@@ -18,6 +18,9 @@ import { BotonArriba } from "./BotonArriba";
 import { ListaView } from "./ListaView";
 import { RevisionView } from "./RevisionView";
 import { VisitasCotView } from "./VisitasCotView";
+import { EquipoView } from "./EquipoView";
+import { useFueraHoy } from "./useFueraHoy";
+import { textoFuera } from "./Disponibilidad";
 import { RectificadosView } from "./RectificadosView";
 import { SolicitudesView } from "./SolicitudesView";
 import { seccionConSolicitudes } from "@/lib/solicitudes";
@@ -284,6 +287,7 @@ export function Board({
   pedidos: initial,
   dobleFichaje = true,
   loginActivo = false,
+  conCalendario = false,
 }: {
   operarios: Operario[];
   pedidos: Pedido[];
@@ -298,7 +302,16 @@ export function Board({
    *  siempre — dejar a la gente fuera de su herramienta es peor que no pedir
    *  PIN un rato. */
   loginActivo?: boolean;
+  /** Bizneo conectado (o datos de ejemplo en desarrollo): pestaña
+   *  «Calendario» y aviso de quién está fuera hoy en las tarjetas. */
+  conCalendario?: boolean;
 }) {
+  // Quién está fuera hoy según Bizneo, por operario del tablero.
+  const fueraHoy = useFueraHoy(conCalendario);
+  const fueraPorOperario = useMemo(
+    () => new Map((fueraHoy ?? []).filter((f) => f.operarioId).map((f) => [f.operarioId as string, f])),
+    [fueraHoy],
+  );
   // Las zonas del tablero son personas, y cada sección tiene las suyas. El
   // servidor pinta el HTML sin saber quién mira —la identidad vive en el
   // navegador—, así que arranca con las de Oficina Técnica y el primer sondeo
@@ -2792,6 +2805,7 @@ export function Board({
                 onChange={setVista}
                 badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0, solicitudes: seccionConSolicitudes(seccionActual) ? solicitudesSinCoger : 0 }}
                 conCasa={espectador}
+                conCalendario={conCalendario}
                 sinRevision={SECCIONES[seccionActual].sinRevision === true}
                 conRectificados={seccionConRectificados(seccionActual)}
               />
@@ -3042,7 +3056,17 @@ export function Board({
                 {equipo.libres.length > 0 && (
                   <p className="text-[11px] text-text-muted">
                     <span className="font-semibold">Libres:</span>{" "}
-                    {equipo.libres.map((o) => o.nombre).join(", ")}
+                    {equipo.libres.map((o, i) => {
+                      // Libre de trabajo no es libre para cogerlo si está de vacaciones.
+                      const f = fueraPorOperario.get(o.id);
+                      return (
+                        <span key={o.id}>
+                          {i > 0 && ", "}
+                          {o.nombre}
+                          {f && f.estado !== "teletrabajo" && <span className="text-text-muted"> ({textoFuera(f, hoy).toLowerCase()})</span>}
+                        </span>
+                      );
+                    })}
                   </p>
                 )}
               </div>
@@ -3065,6 +3089,8 @@ export function Board({
                     onDesficharVarias={desficharVarias}
                     completarPedido={completarPedido}
                     onCoger={pedirCoger}
+                    fuera={fueraPorOperario.get(op.id) ?? null}
+                    hoy={hoy}
                   />
                 ))}
               </div>
@@ -3242,6 +3268,13 @@ export function Board({
               operarios={operarios}
               miId={miId}
             />
+          </div>
+        )}
+
+        {/* ── CALENDARIO DEL EQUIPO (Bizneo) ── */}
+        {vista === "calendario" && conCalendario && (
+          <div className="p-5 pb-24">
+            <EquipoView />
           </div>
         )}
 

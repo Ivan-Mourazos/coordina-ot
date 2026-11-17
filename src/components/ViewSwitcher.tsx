@@ -9,6 +9,7 @@ export type Vista =
   | "solicitudes"
   | "historial"
   | "metricas"
+  | "calendario"
   | "casa";
 
 // Los `id` NO se tocan: viajan en la URL (`?v=asignar`) y hay enlaces
@@ -30,6 +31,8 @@ const OPCIONES: { id: Vista; label: string }[] = [
   // Mirar hacia atrás, no trabajo que tengas delante: por eso va la última y
   // no dentro de Historial, donde quedaría escondida.
   { id: "metricas", label: "Métricas" },
+  // Quién está y quién no, de Bizneo. Solo si está conectado (`conCalendario`).
+  { id: "calendario", label: "Calendario" },
   // Solo Dirección (ver `conCasa`): los pedidos de toda la fábrica.
   { id: "casa", label: "Toda la casa" },
 ];
@@ -50,7 +53,10 @@ export function ViewSwitcher({
   conCasa = false,
   sinRevision = false,
   conRectificados = false,
+  conCalendario = false,
 }: {
+  /** Bizneo conectado: enseñar «Calendario». */
+  conCalendario?: boolean;
   /** La sección no tiene revisión (Impresión Digital): sin «Revisiones»,
    *  que saldría siempre vacía. */
   sinRevision?: boolean;
@@ -71,7 +77,7 @@ export function ViewSwitcher({
   // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
   return (
     <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
-      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "revision" || !sinRevision) && ((o.id !== "rectificados" && o.id !== "solicitudes") || conRectificados)).map((o) => {
+      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "calendario" || conCalendario) && (o.id !== "revision" || !sinRevision) && ((o.id !== "rectificados" && o.id !== "solicitudes") || conRectificados)).map((o) => {
         const activo = o.id === vista;
         const n = badge?.[o.id];
         return (

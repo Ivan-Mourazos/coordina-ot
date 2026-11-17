@@ -17,6 +17,9 @@ import { usePildoraVertical } from "./usePildoraVertical";
 import { AvisosBelen } from "./AvisosBelen";
 import { IconoHerramienta } from "./IconoHerramienta";
 import { enGrupos, grupoDe } from "@/lib/herramientas-belen";
+import { hoyISO } from "@/lib/types";
+import { useFueraHoy } from "../useFueraHoy";
+import { FueraHoyTira } from "../Disponibilidad";
 
 // ─── La pantalla de Belén Alamancos (Producción) ─────────────────────────────
 // Hecha a su medida (09/11/2026): no es la de Producción en general, cada
@@ -86,7 +89,17 @@ const pasoActual = (): number => {
   return s?.belen ? (s.n ?? 0) : 0;
 };
 
-export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: string | null }) {
+export function VistaBelen({
+  nombre,
+  miId = null,
+  conDisponibilidad = false,
+}: {
+  nombre: string;
+  miId?: string | null;
+  /** Bizneo conectado: arriba sale quién falta hoy. */
+  conDisponibilidad?: boolean;
+}) {
+  const fueraHoy = useFueraHoy(conDisponibilidad);
   const [pestana, setPestana] = useState<Pestana>("pedido");
   // null = la primera de SU orden de listas (usePestanasOrdenables).
   const [listaElegida, setLista] = useState<IdLista | null>(null);
@@ -398,6 +411,9 @@ export function VistaBelen({ nombre, miId = null }: { nombre: string; miId?: str
 
       {pestana === "pedido" ? (
         <main role="tabpanel" id="panel-pedido" aria-labelledby="pestana-pedido" className="mx-auto w-full max-w-[1320px] px-4 pb-8 pt-3">
+          {/* Quién falta hoy (Bizneo): sin quién teletrabaja, a Producción solo
+              le importa quién no está. Si no falta nadie no ocupa sitio. */}
+          <FueraHoyTira fuera={fueraHoy} hoy={hoyISO()} conTeletrabajo={false} className="mb-3" />
           {/* En el inicio el buscador es lo principal (Iván, 10/11/2026): grande,
               centrado, sin tarjeta, solo sobre el fondo. Con un pedido abierto vuelve a ser una
               barra compacta, para no quitarle sitio a la ficha. */}

@@ -4,6 +4,7 @@ import { Consulta } from "@/components/Consulta";
 import { getTablero } from "@/lib/data";
 import { loginActivo, quienEs } from "@/lib/server/sesion";
 import { vistaAMedida } from "@/lib/personas";
+import { bizneoActivo } from "@/lib/server/bizneo";
 
 // El tablero se carga APARTE, y no con un import normal, para que el invitado
 // no se lo descargue. Importando los dos aquí arriba, Next mete `Board` y
@@ -37,7 +38,7 @@ export default async function Home() {
     const soloProduccion =
       yo.roles.includes("produccion") && !yo.roles.includes("tecnico") && !yo.roles.includes("direccion");
     if (soloProduccion) {
-      return vistaAMedida(yo) === "belen" ? <VistaBelen nombre={yo.nombre} miId={yo.id} /> : <Consulta />;
+      return vistaAMedida(yo) === "belen" ? <VistaBelen nombre={yo.nombre} miId={yo.id} conDisponibilidad={bizneoActivo()} /> : <Consulta />;
     }
   }
 
@@ -48,6 +49,7 @@ export default async function Home() {
       pedidos={pedidos}
       dobleFichaje={dobleFichaje ?? true}
       loginActivo={loginActivo()}
+      conCalendario={bizneoActivo()}
     />
   );
 }

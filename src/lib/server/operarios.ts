@@ -58,6 +58,14 @@ export function correoDeOperario(operarioId: string | null | undefined): string 
   return Object.values(COD_EMPLEADO_A_OPERARIO).find((e) => e.operarioId === operarioId)?.correo ?? null;
 }
 
+/** Operario del tablero con este correo (sin distinguir mayúsculas), o null.
+ *  Es la llave con Bizneo, que no conoce los códigos de RPS. */
+export function operarioDeCorreo(correo: string | null | undefined): string | null {
+  const c = (correo ?? "").trim().toLowerCase();
+  if (!c) return null;
+  return Object.values(COD_EMPLEADO_A_OPERARIO).find((e) => e.correo.toLowerCase() === c)?.operarioId ?? null;
+}
+
 /** Id de operario del tablero para un CodEmployee de RPS (o null si no está en
  *  ninguna sección). Admite número o texto y descarta los códigos "S…". */
 export function operarioDeEmpleado(

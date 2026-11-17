@@ -12,6 +12,8 @@ import { agruparPorFase } from "@/lib/fases-tablero";
 import { bloquesDeCarga, type ItemCarga } from "@/lib/equipo";
 import type { Seccion } from "@/lib/secciones";
 import { tintaSobre } from "@/lib/tinta";
+import type { FueraHoy } from "@/lib/disponibilidad";
+import { ChipFuera } from "./Disponibilidad";
 
 /** Tarjeta compacta de un compañero: nombre, si está fichando AHORA (y con
  *  qué rol), y una barra con la distribución de sus OF por fase. Zona
@@ -31,7 +33,13 @@ export const TecnicoCard = memo(function TecnicoCard({
   onDesficharVarias,
   completarPedido,
   onCoger,
+  fuera = null,
+  hoy = "",
 }: {
+  /** Si hoy está fuera (o en casa) según Bizneo. */
+  fuera?: FueraHoy | null;
+  /** Hoy, para decir cuándo vuelve («mañana», «el lun 24»). */
+  hoy?: string;
   operario: Operario;
   facets: Facet[];
   /** Pedidos que le toca revisar (por_revisar o en_revision a su nombre). */
@@ -169,7 +177,11 @@ export const TecnicoCard = memo(function TecnicoCard({
         {!live && (
           <div className="mt-1 flex items-center gap-1.5 text-[11px] text-text-muted">
             <span className="size-1.5 shrink-0 rounded-full bg-text-muted/40" aria-hidden="true" />
-            Sin fichar ahora
+            <span className="shrink-0">Sin fichar ahora</span>
+            {/* Vacaciones, ausente, unas horas fuera o en casa (Bizneo): que se
+                vea antes de pasarle trabajo. En esta misma línea para no
+                descuadrar la altura de la fila. Quien ficha ya está aquí. */}
+            {fuera && <ChipFuera f={fuera} hoy={hoy} className="ml-auto min-w-0" />}
           </div>
         )}
 
