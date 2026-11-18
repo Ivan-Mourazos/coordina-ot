@@ -341,6 +341,34 @@ export function NotasPedido({
               </li>
             );
           }
+          // Las de la web, sin conversación debajo: UNA línea, sin tarjeta
+          // (Iván, 18/11/2026). Con tres reescaneos el hilo era un muro gris
+          // y los recados de las personas no destacaban. El texto entero y a
+          // quién va, al pasar el ratón.
+          if (delSistema && respuestas === 0 && respondiendo?.padreId !== n.id) {
+            const reescaneo = /vuelto a escanear el parte \(([^)]+)\)/.exec(n.texto);
+            const corto = reescaneo ? `Parte reescaneado el ${reescaneo[1]}` : n.texto;
+            const titulo = `${n.texto}${n.para.length ? `\nSolo para: ${n.para.map((d) => nombreDestino(d, personas)).join(", ")}` : ""}`;
+            return (
+              <li key={n.id} className={sangria}>
+                <p
+                  title={titulo}
+                  className={`flex items-center gap-1.5 px-1 text-[11px] text-text-muted ${resuelta ? "opacity-70" : ""}`}
+                >
+                  <span
+                    aria-hidden
+                    className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-amber-700 text-[8px] font-bold text-white dark:bg-amber-400 dark:text-brand-950"
+                  >
+                    !
+                  </span>
+                  <span className="font-semibold text-text">Coordina</span>
+                  <time dateTime={n.creadoAt} className="shrink-0">· {fmtCuandoNota(n.creadoAt, ahora)}</time>
+                  <span className="min-w-0 truncate">· {corto}</span>
+                  <span className="sr-only">{titulo}</span>
+                </p>
+              </li>
+            );
+          }
           return (
             <li key={n.id} className={sangria}>
               <div className={`group/nota recuadro flex gap-2.5 rounded-lg p-3 ${resuelta ? "opacity-80" : ""}`}>

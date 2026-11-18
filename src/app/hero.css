@@ -232,6 +232,18 @@ html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar 
   --onda-fichando: rgba(167, 139, 250, 0.3);
   --luz-fichando: rgb(167, 139, 250);
 }
+/* La franja de mi reloj en la ficha de un pedido, cuando lo que corre es OTRO
+   pedido (MiFichaje, 18/11/2026): misma onda, en ámbar de aviso. */
+html[data-estilo="hero"]:root .fila-fichando-plantear.franja-fichaje-otro,
+html[data-estilo="hero"]:root .fila-fichando-revisar.franja-fichaje-otro {
+  --onda-fichando: rgba(245, 158, 11, 0.32);
+  --luz-fichando: rgb(245, 158, 11);
+}
+html[data-estilo="hero"].dark:root .fila-fichando-plantear.franja-fichaje-otro,
+html[data-estilo="hero"].dark:root .fila-fichando-revisar.franja-fichaje-otro {
+  --onda-fichando: rgba(251, 191, 36, 0.28);
+  --luz-fichando: rgb(251, 191, 36);
+}
 @media (prefers-reduced-motion: reduce) {
   html[data-estilo="hero"]:root .fila-fichando-plantear.fila-fichando-plantear,
   html[data-estilo="hero"]:root .fila-fichando-revisar.fila-fichando-revisar { animation: none; }

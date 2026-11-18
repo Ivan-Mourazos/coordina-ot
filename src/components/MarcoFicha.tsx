@@ -188,7 +188,11 @@ export function CabeceraFicha({
   familias = [],
   extra,
   acciones,
+  arriba,
 }: {
+  /** Encima del código, sin moverse al bajar por la ficha: mi reloj en marcha
+   *  (ver `franja` en MiFichaje). */
+  arriba?: ReactNode;
   codigo: string;
   prioridad?: Prioridad;
   cliente?: string | null;
@@ -207,6 +211,7 @@ export function CabeceraFicha({
 }) {
   return (
     <div className="min-w-0 flex-1">
+      {arriba}
       <div className="flex items-center gap-2 pr-10">
         <h2 className="font-mono text-lg font-bold text-text bajo:text-base">{codigo}</h2>
         {/* Solo la urgente, como en la bandeja: la normal salía en todos los

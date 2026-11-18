@@ -3410,6 +3410,19 @@ export function Board({
         onCerradoEnRps={marcarCerradaEnRps}
         onGemelaReintentada={marcarGemelaResuelta}
         ofIdsFichandoYo={ofIdsFichandoYo}
+        // Mi reloj, arriba de la ficha: con el parte abierto la píldora del
+        // avatar queda tapada (Iván, 18/11/2026). Mismo guardián que allí.
+        miFichaje={(pedidoId) =>
+          !espectador && abierto(fichaje) ? (
+            <MiFichaje
+              pedidos={procesadosAll}
+              fichaje={fichaje}
+              desfaseServidor={desfaseServidor}
+              onPausarTodo={pausarTodo}
+              franja={{ pedidoId, onIr: abrirPedidoPorCodigo }}
+            />
+          ) : null
+        }
       />
 
       <HistorialDrawer

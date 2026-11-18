@@ -30,6 +30,7 @@ export function MiFichaje({
   fichaje,
   desfaseServidor,
   onPausarTodo,
+  franja,
 }: {
   pedidos: Pedido[];
   fichaje: Fichaje;
@@ -38,6 +39,16 @@ export function MiFichaje({
    *  contra su reloj (ver lib/reloj-servidor.ts). */
   desfaseServidor: number | null;
   onPausarTodo: () => void;
+  /** Pintado como franja en la cabecera de la ficha del pedido, y no en la
+   *  píldora del avatar. La ficha (con el parte abierto) tapa la cabecera de
+   *  la web, y solo se sabía qué corría bajando a las OF —y nada si el reloj
+   *  era de OTRO pedido— (Iván, 18/11/2026). */
+  franja?: {
+    /** El pedido de la ficha abierta. */
+    pedidoId: string;
+    /** «Ir»: abre el pedido que se está fichando. */
+    onIr: (codigo: string) => void;
+  };
 }) {
   // La hora es la DEL SERVIDOR: el `inicio` de los tramos lo sella él, y
   // restarle la hora local es restar dos relojes distintos (el de producción
@@ -78,6 +89,58 @@ export function MiFichaje({
   const titulo = `${ROL[ab.rol].label} en ${ab.ofIds.length} OF${
     pedidosCorriendo.length ? ` (${pedidosCorriendo.map((p) => p.codigo).join(", ")})` : ""
   } · llevas ${fmtHMS(sinParar)} sin parar`;
+
+  if (franja) {
+    const aqui = pedidosCorriendo.some((p) => p.id === franja.pedidoId);
+    // Lo que corre fuera de esta ficha. Sin pedido conocido (fichas en otra
+    // sección) no hay a dónde ir, pero el aviso sigue valiendo.
+    const fuera = pedidosCorriendo.filter((p) => p.id !== franja.pedidoId);
+    const irA = !aqui && fuera.length === 1 ? fuera[0] : null;
+    return (
+      <div
+        role="status"
+        title={titulo}
+        // El mismo barrido que la tarjeta de quien ficha (`fila-fichando-*`,
+        // hero.css), en píldora de HeroUI: radio entero, sin borde y la sombra
+        // de los paneles. Si el reloj es de OTRO pedido, la onda va en ámbar
+        // (`franja-fichaje-otro`): es un aviso, no lo que tienes delante.
+        className={`fila-fichando-${ab.rol} ${aqui ? ROL[ab.rol].texto : "franja-fichaje-otro text-amber-800 dark:text-amber-200"} mb-2 mr-10 flex items-center gap-2 rounded-full py-1 pl-3.5 pr-1 text-xs font-bold shadow-[var(--hero-sombra-panel)]`}
+      >
+        <LiveDot rol={ab.rol} className="size-2" />
+        <span className="min-w-0 flex-1 truncate">
+          {aqui
+            ? // Si además corren OF de otro pedido, que no se pierda.
+              `${ROL[ab.rol].label} este pedido${fuera.length ? ` y ${fuera.length === 1 ? fuera[0].codigo : `${fuera.length} más`}` : ""}`
+            : fuera.length === 1
+              ? `${ROL[ab.rol].label} otro pedido: ${fuera[0].codigo}`
+              : fuera.length > 1
+                ? `${ROL[ab.rol].label} otros ${fuera.length} pedidos`
+                : `${ROL[ab.rol].label} otro pedido`}
+        </span>
+        <span className="sr-only">{titulo}</span>
+        <span className="tabular-nums">{fmtHMS(acumuladoSeg)}</span>
+        {irA && (
+          <button
+            type="button"
+            onClick={() => franja.onIr(irA.codigo)}
+            title={`Abre ${irA.codigo}`}
+            className="rounded-full bg-[var(--hero-relleno)] px-2.5 py-1 text-text hover:bg-[var(--hero-relleno-encima)] active:scale-[.97] motion-reduce:active:scale-100"
+          >
+            Ir
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onPausarTodo}
+          aria-label="Pausar el fichaje"
+          title="Para el reloj. Las OF se quedan como están: no se cierra nada."
+          className={`grid size-6 place-items-center rounded-full active:scale-[.97] motion-reduce:active:scale-100 text-[10px] ${ROL[ab.rol].solido}`}
+        >
+          ⏸
+        </button>
+      </div>
+    );
+  }
 
   return (
     <span className={`flex items-center gap-2 whitespace-nowrap pl-3 pr-1 text-xs font-bold ${ROL[ab.rol].texto}`} title={titulo}>

@@ -270,6 +270,7 @@ export function Drawer({
   onCerradoEnRps,
   onGemelaReintentada,
   ofIdsFichandoYo,
+  miFichaje,
 }: {
   pedido: Pedido | null;
   operarios: Operario[];
@@ -318,6 +319,10 @@ export function Drawer({
    *  el reloj de otro, que este botón no puede parar. Mismo criterio que usa
    *  PedidoLinea. */
   ofIdsFichandoYo?: ReadonlySet<string>;
+  /** Mi reloj en marcha, en una franja arriba de la ficha (ver `franja` en
+   *  MiFichaje). La pinta el Board, que es quien tiene el fichaje; sin reloj
+   *  devuelve `null`. */
+  miFichaje?: (pedidoId: string) => React.ReactNode;
 }) {
   const soloLectura = useSoloLectura();
   // Escape, foco y scroll de detrás: los lleva el <dialog> de MarcoFicha.
@@ -667,6 +672,7 @@ export function Drawer({
       onCerrar={onClose}
       cabecera={
         <CabeceraFicha
+          arriba={miFichaje?.(pedido.id)}
           codigo={pedido.codigo}
           prioridad={pedido.prioridad}
           cliente={pedido.cliente}
