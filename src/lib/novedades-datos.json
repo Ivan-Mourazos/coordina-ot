@@ -1,5 +1,29 @@
 [
   {
+    "id": "2026-11-18",
+    "hasta": "703f9d9",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En las gráficas de Métricas eliges qué líneas ver",
+        "detalle": "Pulsa un nombre de la leyenda para encenderlo o apagarlo; al pasar el ratón por un mes ves todas sus cifras.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "Un pedido con una OF pasada y otra detenida ya sale en el Historial",
+        "apartado": "ot",
+        "detalle": "Aparece con las OF que ya pasaste; la detenida sigue en Detenidos hasta que se resuelva.",
+        "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Lo que estás fichando se ve ahora arriba, junto a tu nombre, y se pausa desde ahí",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-17",
     "hasta": "aded587",
     "cambios": [
