@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
+import { esRangoFecha } from "@/lib/codigo-busqueda";
 import { buscarOFStock, leerDescontadoBelen, leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
@@ -11,6 +12,7 @@ import { leerEntregasBelen } from "@/lib/server/entregas-belen-db";
 // El buscador encuentra cualquier serie (AR, SA, BE…); las pestañas, solo AR.
 //
 //   ?q=texto        pedidos que encajan con lo escrito (el buscador de siempre)
+//   &fecha=mes|trimestre|anio|antiguos   acotado por la fecha del pedido
 //   ?pedido=AR.…    el pedido con una fila por OF
 //   ?tiempos=AR.…   todas sus tareas y cada fichaje de cada persona
 //   ?material=AR.… lo asignado, reservado y comprado de cada OF
@@ -69,8 +71,11 @@ export async function GET(req: Request) {
 
     const q = params.get("q") ?? "";
     // Un número de OF sin pedido es una OF de STOCK: se abre ella misma.
-    let pedidos = await buscarPedidosRps(q);
-    if (!pedidos.length) pedidos = await buscarOFStock(q);
+    const fecha = params.get("fecha");
+    const rango = esRangoFecha(fecha) ? fecha : "todo";
+    let pedidos = await buscarPedidosRps(q, rango);
+    // Una OF de stock no se acota por fecha: es un código exacto.
+    if (!pedidos.length && rango === "todo") pedidos = await buscarOFStock(q);
     return NextResponse.json({ pedidos }, { headers: SIN_CACHE });
   } catch (e) {
     console.error("[vista-belen] falló:", (e as Error).message);

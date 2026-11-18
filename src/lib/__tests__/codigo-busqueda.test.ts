@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { interpretarBusqueda } from "../codigo-busqueda";
+import { esRangoFecha, interpretarBusqueda, limitesRango } from "../codigo-busqueda";
 
 const exacto = (...exactos: string[]) => ({ tipo: "pedido", exactos, prefijos: [] });
 const enLasTres = (resto: string) => ["AR", "SA", "BE"].map((s) => `${s}.${resto}`);
@@ -50,5 +50,25 @@ describe("interpretarBusqueda", () => {
   test("lo demás es el cliente", () => {
     expect(interpretarBusqueda("  talleres cal ", 2026)).toEqual({ tipo: "texto", texto: "talleres cal" });
     expect(interpretarBusqueda("mahou", 2026)).toEqual({ tipo: "texto", texto: "mahou" });
+  });
+});
+
+describe("limitesRango", () => {
+  const hoy = new Date(2026, 10, 18);
+  test("cuenta hacia atrás desde hoy", () => {
+    expect(limitesRango("mes", hoy)).toEqual({ desde: new Date(2026, 9, 18), hasta: null });
+    expect(limitesRango("trimestre", hoy)).toEqual({ desde: new Date(2026, 7, 18), hasta: null });
+    expect(limitesRango("anio", hoy)).toEqual({ desde: new Date(2025, 10, 18), hasta: null });
+  });
+  test("«Hace más de un año» corta por arriba", () => {
+    expect(limitesRango("antiguos", hoy)).toEqual({ desde: null, hasta: new Date(2025, 10, 18) });
+  });
+  test("sin rango no limita", () => {
+    expect(limitesRango("todo", hoy)).toEqual({ desde: null, hasta: null });
+  });
+  test("solo acepta los rangos conocidos", () => {
+    expect(esRangoFecha("mes")).toBe(true);
+    expect(esRangoFecha("semana")).toBe(false);
+    expect(esRangoFecha(null)).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import type { PedidoEncontrado } from "@/lib/buscador";
-import { interpretarBusqueda } from "@/lib/codigo-busqueda";
+import { esRangoFecha, interpretarBusqueda, RANGOS_FECHA, type RangoFecha } from "@/lib/codigo-busqueda";
 import { fechaCorta, type PedidoBelen } from "@/lib/vista-belen";
 import { esIdLista, filasALaVista, FILTRO_LISTA_INICIAL, LISTAS_BELEN, type FilaLista, type FiltroLista, type IdLista } from "@/lib/vista-belen-listas";
 import { Logo } from "../Logo";
@@ -34,7 +34,7 @@ import { MenuProduccion } from "./MenuProduccion";
 // NAVEGACIÓN (Iván, 10/11/2026: «necesitamos un botón de volver atrás o que
 // funcione el del ratón»). Manda la dirección de la página:
 //   ?pedido=AR.…[&of=…]                 un pedido abierto
-//   ?q=texto                            la lista de pedidos que encajan
+//   ?q=texto[&fecha=mes|…]              la lista de pedidos que encajan
 //   ?vista=comprobaciones&lista=…       una lista de comprobación
 //   ?vista=entregas                     pedidos por fecha de entrega
 //   (nada)                              el buscador vacío
@@ -56,7 +56,7 @@ type Estado =
   | { tipo: "vacio" }
   | { tipo: "buscando" }
   | { tipo: "elegir"; pedidos: PedidoEncontrado[] }
-  | { tipo: "nada"; q: string }
+  | { tipo: "nada"; q: string; rango?: RangoFecha }
   | { tipo: "pedido"; pedido: PedidoBelen; ofResaltada: string | null; abrirNotas: boolean; version: number; actualizando?: boolean }
   | { tipo: "error"; mensaje: string };
 
@@ -122,6 +122,8 @@ export function VistaBelen({
   // Las de otros apartados salen plegadas y no cuentan.
   const novedades = useNovedades(miId, "produccion");
   const [q, setQ] = useState("");
+  // La fecha con que se acota la lista de resultados (sale en la dirección).
+  const [rango, setRango] = useState<RangoFecha>("todo");
   const [estado, setEstado] = useState<Estado>({ tipo: "vacio" });
   // Lo último pintado, para que «Actualizar» sepa qué pedido volver a pedir.
   const estadoRef = useRef(estado);
@@ -255,17 +257,22 @@ export function VistaBelen({
       return;
     }
     setQ(texto);
+    const fecha = p.get("fecha");
+    const rangoUrl: RangoFecha = esRangoFecha(fecha) ? fecha : "todo";
+    setRango(rangoUrl);
     enCurso.current?.abort();
     const ctl = new AbortController();
     enCurso.current = ctl;
     setEstado({ tipo: "buscando" });
     try {
       const { pedidos } = await pedirJson<{ pedidos: PedidoEncontrado[] }>(
-        `/api/vista-belen?q=${encodeURIComponent(texto)}`,
+        `/api/vista-belen?q=${encodeURIComponent(texto)}${rangoUrl === "todo" ? "" : `&fecha=${rangoUrl}`}`,
         ctl.signal,
       );
       if (ctl.signal.aborted) return;
-      if (pedidos.length === 1) {
+      // Acotando por fecha no se abre solo: así se ve qué ha quedado y se
+      // puede cambiar de fecha sin perder la lista.
+      if (pedidos.length === 1 && rangoUrl === "todo") {
         // Uno solo: se abre, y la búsqueda no se queda como paso intermedio
         // (volver desde el pedido lleva a donde estaba antes de buscar).
         const que = interpretarBusqueda(texto, new Date().getFullYear());
@@ -274,7 +281,7 @@ export function VistaBelen({
         history.replaceState(history.state, "", `?${params}`);
         return mostrarPedido(pedidos[0].codigo, que.tipo === "of" ? que.codigo : null);
       }
-      setEstado(pedidos.length ? { tipo: "elegir", pedidos } : { tipo: "nada", q: texto });
+      setEstado(pedidos.length ? { tipo: "elegir", pedidos } : { tipo: "nada", q: texto, rango: rangoUrl });
     } catch (e) {
       if (!ctl.signal.aborted) setEstado({ tipo: "error", mensaje: (e as Error).message });
     }
@@ -495,6 +502,16 @@ export function VistaBelen({
               </button>
             </form>
           </div>
+          {(estado.tipo === "elegir" || (rango !== "todo" && (estado.tipo === "nada" || estado.tipo === "buscando"))) && (
+            <FiltroFecha
+              rango={rango}
+              onCambiar={(r) => {
+                // Lo buscado, no lo que haya en la caja ahora (puede haberlo tocado).
+                const buscado = new URLSearchParams(window.location.search).get("q") ?? q;
+                navegar(r === "todo" ? { q: buscado } : { q: buscado, fecha: r }, { reemplazar: true });
+              }}
+            />
+          )}
           <ResultadoBusqueda estado={estado} miId={miId} onElegir={(codigo) => navegar({ pedido: codigo })} onActualizar={() => void actualizarPedido()} />
           {estado.tipo === "vacio" && (
             <InicioBelen
@@ -607,7 +624,11 @@ function ResultadoBusqueda({
     case "nada":
       return (
         <p className="text-sm text-text-muted" aria-live="polite">
-          No hay ningún pedido que encaje con «{estado.q}».
+          No hay ningún pedido que encaje con «{estado.q}»
+          {estado.rango && estado.rango !== "todo"
+            ? ` en «${RANGOS_FECHA.find((r) => r.id === estado.rango)?.rotulo.toLowerCase()}»`
+            : ""}
+          .
         </p>
       );
     case "error":
@@ -655,4 +676,27 @@ function ResultadoBusqueda({
         />
       );
   }
+}
+
+/** Acotar la lista de resultados por la fecha del pedido, como el filtro
+ *  «Fecha pedido» de RPS (Belén, 18/11/2026). Cambiarla no apunta un paso
+ *  nuevo en el historial: «atrás» sigue llevando a antes de buscar. */
+function FiltroFecha({ rango, onCambiar }: { rango: RangoFecha; onCambiar: (r: RangoFecha) => void }) {
+  return (
+    <div role="group" aria-label="Fecha del pedido" className="tira-3d glass-chip mb-2 inline-flex flex-wrap rounded-lg p-[3px]">
+      {RANGOS_FECHA.map(({ id, rotulo }) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={rango === id}
+          onClick={() => onCambiar(id)}
+          className={`h-7 rounded-md px-3 text-[12.5px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)] ${
+            rango === id ? "pestana-activa" : "text-text-muted hover:text-text"
+          }`}
+        >
+          {rotulo}
+        </button>
+      ))}
+    </div>
+  );
 }

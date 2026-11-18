@@ -1,6 +1,6 @@
 import sql from "mssql";
 import { getPool } from "./db";
-import { interpretarBusqueda } from "../codigo-busqueda";
+import { interpretarBusqueda, limitesRango, type RangoFecha } from "../codigo-busqueda";
 import { PEDIDOS } from "../mock";
 import type { PedidoEncontrado } from "../buscador";
 
@@ -34,14 +34,18 @@ export function palabrasCliente(texto: string): string[] {
   return palabras.length ? palabras : [texto.trim()];
 }
 
-export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrado[]> {
+export async function buscarPedidosRps(termino: string, rango: RangoFecha = "todo"): Promise<PedidoEncontrado[]> {
   const term = termino.trim();
   if (term.length < MIN_LETRAS_RPS) return [];
+  const { desde, hasta } = limitesRango(rango, new Date());
   if (ES_MOCK) {
     const q = term.toLowerCase();
     const ws = palabrasCliente(q);
+    const enRango = (f: string) => (!desde || new Date(f) >= desde) && (!hasta || new Date(f) < hasta);
     return PEDIDOS.filter(
-      (p) => p.codigo.toLowerCase().includes(q) || ws.every((w) => p.cliente.toLowerCase().includes(w)),
+      (p) =>
+        (p.codigo.toLowerCase().includes(q) || ws.every((w) => p.cliente.toLowerCase().includes(w))) &&
+        enRango(p.fechaSolicitud),
     )
       .slice(0, TOPE)
       .map((p) => ({
@@ -78,6 +82,15 @@ export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrad
       .map((w, i) => (req.input(`w${i}`, sql.NVarChar(200), `%${w}%`), `cli.Description LIKE @w${i}`))
       .join(" AND ");
   }
+  const fechas: string[] = [];
+  if (desde) {
+    req.input("desde", sql.Date, desde);
+    fechas.push("o.OrderDate >= @desde");
+  }
+  if (hasta) {
+    req.input("hasta", sql.Date, hasta);
+    fechas.push("o.OrderDate < @hasta");
+  }
   // Ordenado por FECHA y no por código: el código ordena alfabéticamente y
   // ponía los presupuestos "QU.25…" por encima de los pedidos "AR.26…", o sea
   // lo viejo por encima de lo de esta semana.
@@ -101,7 +114,8 @@ export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrad
       LEFT JOIN dbo.FACCustomerDeliveryAddress d
         ON d.IDCustomerDeliveryAddress = o.IDCustomerDeliveryAddress
       WHERE o.CodCompany = '001'
-        AND (${donde})
+        AND (${donde})${fechas.map((f) => `
+        AND ${f}`).join("")}
       ORDER BY ${orden}
     `);
 

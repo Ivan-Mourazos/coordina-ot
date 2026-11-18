@@ -91,3 +91,39 @@ export function interpretarBusqueda(escrito: string, anio: number): Busqueda {
 
   return { tipo: "texto", texto: escrito.trim() };
 }
+
+// ─── Acotar por fecha del pedido ─────────────────────────────────────────────
+// Con varios resultados («carlos lopez» saca pedidos de años), Belén acota como
+// hace en RPS con «Fecha pedido = Este mes» (18/11/2026). Va al servidor, no
+// se filtra la lista ya traída: esa trae solo los 12 más nuevos y «Más
+// antiguos» saldría siempre vacío.
+
+export type RangoFecha = "todo" | "mes" | "trimestre" | "anio" | "antiguos";
+
+export const RANGOS_FECHA: readonly { id: RangoFecha; rotulo: string }[] = [
+  { id: "todo", rotulo: "Cualquier fecha" },
+  { id: "mes", rotulo: "Último mes" },
+  { id: "trimestre", rotulo: "Últimos 3 meses" },
+  { id: "anio", rotulo: "Último año" },
+  { id: "antiguos", rotulo: "Hace más de un año" },
+];
+
+export const esRangoFecha = (v: unknown): v is RangoFecha => RANGOS_FECHA.some((r) => r.id === v);
+
+/** Los límites de fecha del pedido para un rango, contados hacia atrás desde
+ *  `hoy`: `desde` incluido, `hasta` sin incluir. Sin límite, `null`. */
+export function limitesRango(rango: RangoFecha, hoy: Date): { desde: Date | null; hasta: Date | null } {
+  const atras = (meses: number) => new Date(hoy.getFullYear(), hoy.getMonth() - meses, hoy.getDate());
+  switch (rango) {
+    case "mes":
+      return { desde: atras(1), hasta: null };
+    case "trimestre":
+      return { desde: atras(3), hasta: null };
+    case "anio":
+      return { desde: atras(12), hasta: null };
+    case "antiguos":
+      return { desde: null, hasta: atras(12) };
+    default:
+      return { desde: null, hasta: null };
+  }
+}
