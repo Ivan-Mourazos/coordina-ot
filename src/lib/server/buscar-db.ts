@@ -26,13 +26,22 @@ export const MIN_LETRAS_RPS = 3;
  *  es pagar por lo que nadie va a leer. */
 const TOPE = 12;
 
+/** Las palabras de un nombre de cliente escrito a mano: sin comas ni puntos,
+ *  y como mucho seis (cada una es un LIKE más contra la base). Si no queda
+ *  ninguna, el texto entero. */
+export function palabrasCliente(texto: string): string[] {
+  const palabras = texto.split(/[\s,.;:()\/]+/).filter(Boolean).slice(0, 6);
+  return palabras.length ? palabras : [texto.trim()];
+}
+
 export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrado[]> {
   const term = termino.trim();
   if (term.length < MIN_LETRAS_RPS) return [];
   if (ES_MOCK) {
     const q = term.toLowerCase();
+    const ws = palabrasCliente(q);
     return PEDIDOS.filter(
-      (p) => p.codigo.toLowerCase().includes(q) || p.cliente.toLowerCase().includes(q),
+      (p) => p.codigo.toLowerCase().includes(q) || ws.every((w) => p.cliente.toLowerCase().includes(w)),
     )
       .slice(0, TOPE)
       .map((p) => ({
@@ -61,8 +70,13 @@ export async function buscarPedidosRps(termino: string): Promise<PedidoEncontrad
           JOIN dbo.FACOrderLineSL l ON l.IDManufacturingOrder = mo.IDManufacturingOrder
           WHERE mo.CodCompany = '001' AND mo.CodManufacturingOrder = @of)`;
   } else {
-    req.input("q", sql.NVarChar(200), `%${que.texto}%`);
-    donde = "cli.Description LIKE @q";
+    // Cada palabra por separado y en cualquier orden: RPS guarda «LOPEZ CAO,
+    // CARLOS» y se escribe «carlos lopez» (Belén, 18/11/2026). Con todas las
+    // palabras exigidas y lo más nuevo arriba, el de este mes sale primero.
+    const palabras = palabrasCliente(que.texto);
+    donde = palabras
+      .map((w, i) => (req.input(`w${i}`, sql.NVarChar(200), `%${w}%`), `cli.Description LIKE @w${i}`))
+      .join(" AND ");
   }
   // Ordenado por FECHA y no por código: el código ordena alfabéticamente y
   // ponía los presupuestos "QU.25…" por encima de los pedidos "AR.26…", o sea
