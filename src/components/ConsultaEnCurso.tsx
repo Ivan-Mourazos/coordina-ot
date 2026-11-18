@@ -7,6 +7,7 @@ import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { BloquePlegable } from "./Bandeja";
 import { ListaView } from "./ListaView";
 import { DocumentosEnCurso } from "./DocumentosEnCurso";
+import { CargandoFilas } from "./Cargando";
 
 // ─── «En curso»: el trabajo que tiene ahora la oficina ──────────────────────
 // Pedido por Esteban (09/10/2026): ver qué está planteando OT, quién, en qué
@@ -99,7 +100,7 @@ export function ConsultaEnCurso({
         </p>
       </div>
       {error && <p className="py-6 text-center text-sm text-red-600">No se pudo cargar el trabajo en curso. Recarga la página.</p>}
-      {!error && !datos && <p className="py-6 text-center text-sm text-text-muted">Cargando lo que tiene la oficina…</p>}
+      {!error && !datos && <CargandoFilas etiqueta="Cargando lo que tiene la oficina" filas={6} className="mt-2" />}
       {/* Agrupados por cómo va cada pedido, como el Historial por días
           (Iván, 14/10/2026). Los rótulos de columna, solo en el primero. Sin
           pedidos, una lista sola para que diga por qué está vacía. */}

@@ -20,6 +20,7 @@ import { BloqueLista } from "./BloqueLista";
 import { SECCIONES, SECCION_POR_DEFECTO, type SeccionId } from "@/lib/secciones";
 import { fmtMin } from "@/lib/estado";
 import { negocioAparte } from "@/lib/negocio";
+import { CargandoFilas } from "./Cargando";
 
 /** Fecha corta con año (dd/mm/aa) y la completa con hora para el `title`.
  *  Siempre con año: la lista baja hasta pedidos de 2024. */
@@ -426,7 +427,8 @@ export function HistorialView({
             )}
       </div>
 
-      {(cargando || !resultadosVigentes) && <p role="status" className="py-2 text-center text-xs text-text-muted">{buscando ? "Buscando en todo el historial…" : "Cargando…"}</p>}
+      {(cargando || !resultadosVigentes) && itemsVisibles.length === 0 && <CargandoFilas etiqueta={buscando ? "Buscando en todo el historial" : "Cargando el historial"} filas={6} />}
+      {(cargando || !resultadosVigentes) && itemsVisibles.length > 0 && <p role="status" className="py-2 text-center text-xs text-text-muted">{buscando ? "Buscando en todo el historial…" : "Cargando…"}</p>}
       <div ref={sentinela} className="h-1" />
 
       <HistorialDrawer

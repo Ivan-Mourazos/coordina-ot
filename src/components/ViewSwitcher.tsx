@@ -83,6 +83,7 @@ export function ViewSwitcher({
         return (
           <button
             key={o.id}
+            data-vista={o.id}
             onClick={() => onChange(o.id)}
             /* El padding se aprieta por debajo de 1280 px. Son seis pestañas:
                con `px-3.5` ocupan 473 px, y a esas anchuras la cabecera no da

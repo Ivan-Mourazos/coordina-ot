@@ -1,3 +1,32 @@
+/* Esqueletos de carga (components/Cargando.tsx). Un bloque gris suave con un brillo que lo cruza; el brillo va en un
+   ::after que solo se traslada, así no repinta. Con «reducir movimiento» no se para: va mucho más lento, para que se
+   siga viendo que algo está en marcha. */
+.esqueleto {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--text) 11%, transparent);
+}
+.esqueleto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  translate: -100% 0;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--surface) 70%, transparent), transparent);
+  animation: esqueleto-brillo 1.6s ease-in-out infinite;
+}
+@keyframes esqueleto-brillo { to { translate: 100% 0; } }
+/* Las cargas rápidas no llegan a enseñarlo. */
+.esqueleto-retrasado { animation: esqueleto-aparece 200ms ease-out 250ms backwards; }
+@keyframes esqueleto-aparece { from { opacity: 0; } }
+/* Lo que llega en lugar del esqueleto. Solo `backwards`: al terminar manda otra vez la opacidad de la página (el
+   atenuado al cambiar de mes). */
+.datos-aparecen { animation: datos-aparecen 320ms cubic-bezier(.2, .8, .2, 1) backwards; }
+@keyframes datos-aparecen { from { opacity: 0; translate: 0 4px; } }
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto::after { animation-duration: 4s; }
+  .datos-aparecen { animation-name: esqueleto-aparece; }
+}
+
 /* Cambio de pestaña (lib/pestanasFluidas.ts), como las Tabs de HeroUI y igual que en Planteamientos: la cabecera se
    queda quieta, lo viejo se apaga en 200 ms y lo nuevo entra en 350 ms subiendo 5 px (Iván, 27/10/2026: «a veces noto
    cortes», «incluso puede ser un fundido más lento»). La tira pulsada va en vivo
@@ -23,4 +52,80 @@ html[data-transicion-pestana]::view-transition { pointer-events: none; }
   html[data-transicion-pestana]::view-transition-group(contenido-pestana),
   html[data-transicion-pestana]::view-transition-old(contenido-pestana),
   html[data-transicion-pestana]::view-transition-new(contenido-pestana) { animation: none !important; }
+}
+
+/* Pase a Producción (lib/paseAnimado.ts): la ficha (o la fila) se dobla como un papel que se manda y vuela hasta la
+   pestaña «Historial», que se abre como una puerta, se la traga y se vuelve a cerrar. Las filas hermanas se
+   recolocan. El resto de la página no se funde: es la misma. */
+html[data-transicion-pase]::view-transition-old(root),
+html[data-transicion-pase]::view-transition-new(root) { animation-duration: 180ms; }
+/* 740 ms (Iván, 18/11/2026): a 520 «demasiado rápida», a 950 se pasaba; a medio camino. */
+html[data-transicion-pase]::view-transition-group(pedido-a-produccion) { animation-duration: 740ms; animation-timing-function: cubic-bezier(.5, 0, .25, 1); }
+html[data-transicion-pase]::view-transition-image-pair(pedido-a-produccion) { isolation: auto; perspective: 1200px; }
+html[data-transicion-pase]::view-transition-old(pedido-a-produccion) { animation: 740ms cubic-bezier(.5, 0, .25, 1) both pase-se-va; transform-origin: 50% 100%; }
+/* Lo de después es un hueco vacío dentro de la pestaña (el «buzón»): no se pinta. */
+html[data-transicion-pase]::view-transition-new(pedido-a-produccion) { animation: none; opacity: 0; }
+/* Desde la ficha abierta (lo normal): la ficha es alta y la pestaña ancha y baja. Estirada se deformaría; recortada
+   se queda con su esquina de arriba, que es el código del pedido. */
+html[data-transicion-pase="ficha"]::view-transition-group(pedido-a-produccion) { overflow: clip; border-radius: 12px; }
+html[data-transicion-pase="ficha"]::view-transition-old(pedido-a-produccion) { height: 100%; object-fit: cover; object-position: left top; }
+/* Sin pestaña a la vista: la fila (o la ficha) solo se apaga en su sitio. */
+html[data-transicion-pase]::view-transition-old(pedido-a-produccion):only-child { animation: 220ms ease-in both pestana-sale; }
+@keyframes pase-se-va {
+  0% { opacity: 1; transform: none; }
+  30% { transform: rotateX(28deg) rotateZ(-1.5deg); }
+  85% { opacity: 1; transform: rotateX(52deg) rotateZ(-3deg); }
+  100% { opacity: 0; transform: rotateX(60deg) rotateZ(-4deg); }
+}
+html[data-transicion-pase]::view-transition-group(.pase-hermana) { animation-duration: 400ms; animation-timing-function: cubic-bezier(.2, .8, .2, 1); animation-delay: 190ms; }
+
+/* La puerta. La pestaña va en su propio grupo, POR ENCIMA del vuelo: cuando se abre, detrás queda un hueco oscuro
+   que tapa la ficha al llegar, y parece que entra. Se abre antes de que llegue (400–580 ms), espera abierta y se
+   cierra cuando ya está dentro (760–1000 ms). */
+html[data-cajon]::view-transition-group(pestana-cajon) { z-index: 2; animation: none; }
+html[data-cajon]::view-transition-group(pedido-a-produccion) { z-index: 1; }
+html[data-cajon]::view-transition-image-pair(pestana-cajon) { perspective: 260px; isolation: auto; }
+/* El hueco es la foto de antes de la pestaña, en negro: el fondo de un grupo no se pinta, una imagen sí. El filtro
+   borra también el texto de la foto; sin él, en oscuro se leía «Historial» dentro del hueco. */
+html[data-cajon]::view-transition-old(pestana-cajon) {
+  border-radius: 8px;
+  background: black;
+  filter: brightness(0);
+  mix-blend-mode: normal;
+  animation: 1000ms linear both cajon-hueco;
+}
+html[data-cajon]::view-transition-new(pestana-cajon) {
+  border-radius: 8px;
+  mix-blend-mode: normal;
+  transform-origin: 0 50%;
+  animation: 1000ms both cajon-puerta;
+  --hoja: var(--surface);
+}
+/* En oscuro la superficie casi no se separa de la tira: la hoja se aclara para que se vea girar. */
+html.dark[data-cajon]::view-transition-new(pestana-cajon) { --hoja: color-mix(in srgb, var(--surface) 75%, white); }
+/* Cerrada no tiene fondo (si no, «Historial» parecería la pestaña elegida); abierta es una hoja con sombra. */
+@keyframes cajon-puerta {
+  0%, 40% { transform: none; background-color: transparent; box-shadow: none; animation-timing-function: cubic-bezier(.3, 0, .2, 1); }
+  58%, 76% { transform: rotateY(-72deg); background-color: var(--hoja); box-shadow: 6px 0 12px rgb(0 0 0 / .25); animation-timing-function: cubic-bezier(.5, 0, .3, 1.4); }
+  100% { transform: none; background-color: transparent; box-shadow: none; }
+}
+@keyframes cajon-hueco {
+  0%, 38%, 92%, 100% { opacity: 0; }
+  48%, 78% { opacity: 1; }
+}
+html[data-transicion-pase]::view-transition { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-transicion-pase]::view-transition-group(*),
+  html[data-cajon]::view-transition-new(pestana-cajon) { animation: none !important; }
+  html[data-cajon]::view-transition-old(pestana-cajon) { display: none; }
+  html[data-transicion-pase]::view-transition-old(pedido-a-produccion) { animation: 200ms ease-in both pestana-sale !important; }
+}
+
+/* El aviso de «pasado a Producción», abajo en el centro: sube al aparecer. */
+.aviso-pase {
+  transition: opacity 260ms ease-out, translate 260ms cubic-bezier(.2, .8, .2, 1);
+  @starting-style { opacity: 0; translate: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aviso-pase { translate: none; @starting-style { translate: none; } }
 }

@@ -230,6 +230,8 @@ export function PedidoLinea({
 
   return (
     <div
+      // Lo busca lib/paseAnimado.ts para hacer volar la fila al pasarla.
+      data-pedido={pedido.id}
       // Ámbar y NO rojo: el rojo es de "urgente" en toda la app, y un pedido
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.

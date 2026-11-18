@@ -98,6 +98,7 @@ import { cambiarRevisor, puedeCambiarRevisor, traspasarAutor } from "@/lib/trasp
 import { MOTIVO_CAMBIO_REVISOR, type AvisoMovimiento } from "@/lib/avisos";
 import { OPERARIO_SISTEMA } from "@/lib/pedido-scan";
 import type { NotaPedido } from "@/lib/nota-pedido";
+import { animarPaseAProduccion } from "@/lib/paseAnimado";
 import {
   FILTROS_INICIALES,
   ORDENES,
@@ -2418,6 +2419,14 @@ export function Board({
   // golpe, sin decir a dónde iba ni dar ocasión de rectificar.
   const [pasarPendiente, setPasarPendiente] = useState<string | null>(null);
   const [pasarError, setPasarError] = useState<string | null>(null);
+  // El último pedido pasado: aviso abajo con «Ver en Historial», unos segundos.
+  // `clave` reinicia la cuenta si se pasa otro antes de que se vaya.
+  const [pedidoPasado, setPedidoPasado] = useState<{ codigo: string; seccion: SeccionId; clave: number } | null>(null);
+  useEffect(() => {
+    if (!pedidoPasado) return;
+    const t = window.setTimeout(() => setPedidoPasado(null), 8000);
+    return () => window.clearTimeout(t);
+  }, [pedidoPasado]);
   /** Se pulsó "Pasar a revisión" y se dejó sin elegir revisor: la OF sigue en
    *  la mesa de quien la plantea. Se avisa en el momento, que es cuando todavía
    *  se está a tiempo; antes se enteraba minutos después (ver PedirRevisor). */
@@ -2516,16 +2525,21 @@ export function Board({
         setPasarError("No se ha pasado el pedido. Comprueba que todas sus OF estén listas y vuelve a intentarlo.");
         return;
       }
-      setPedidosSync((prev) =>
-        prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
-      );
+      // La fila vuela hasta la pestaña «Historial» y se queda uno donde
+      // estaba (lib/paseAnimado.ts); abajo, un aviso para abrirlo allí.
+      animarPaseAProduccion(pedidoId, () => {
+        setPedidosSync((prev) =>
+          prev.map((p) => (p.id === pedidoId ? { ...p, situacion: "completado" } : p)),
+        );
+        setOpenId(null);
+      });
+      if (pedido.codigo) setPedidoPasado({ codigo: pedido.codigo, seccion: seccion ?? seccionActual, clave: Date.now() });
       // Y mi navegador también tiene que enterarse: `ficharOFs` reenvía todo lo
       // que cree tener abierto, así que si sigue contando estas OF el siguiente
       // "Fichar" las reabriría en el servidor.
       soltarDeMiFichaje(ofIdsPedido);
-      setOpenId(null);
     },
-    [pedidos, miId, setPedidosSync, persistir, soltarDeMiFichaje],
+    [pedidos, miId, setPedidosSync, persistir, soltarDeMiFichaje, seccionActual],
   );
   // «Impreso» (Impresión Digital, sin revisión): aprueba lo que queda del
   // pedido y lo pasa a Producción. Son DOS escrituras porque /api/estado no
@@ -2950,6 +2964,31 @@ export function Board({
           Pasando las OF marcadas a Producción… {pasandoParcial.hechas} de {pasandoParcial.total}
         </div>
       )}
+      {/* Aviso de «pasado»: abajo y flotando, no en la franja de arriba, que
+          es de lo que pide hacer algo. role=status y no alert: no es un
+          problema. */}
+      <div role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
+        {pedidoPasado && (
+          <div key={pedidoPasado.clave} className="aviso-pase glass-panel-strong pointer-events-auto flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text shadow-lg">
+            <span aria-hidden className="grid size-5 place-items-center rounded-full bg-teal-600 text-[11px] font-bold text-white">✓</span>
+            <span>
+              <strong className="font-semibold tabular-nums">{pedidoPasado.codigo}</strong>{" "}
+              {SECCIONES[pedidoPasado.seccion].finalizar ? "terminado" : "pasado a Producción"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setHistorialAbierto(pedidoPasado.codigo);
+                setPedidoPasado(null);
+              }}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-600 hover:bg-[var(--glass-highlight)] dark:text-brand-300"
+            >
+              Ver en Historial
+            </button>
+            <button type="button" aria-label="Cerrar el aviso" onClick={() => setPedidoPasado(null)} className="grid size-6 place-items-center rounded-md text-text-muted hover:text-text">×</button>
+          </div>
+        )}
+      </div>
       {pasarError && (
         <div role="alert" className="flex items-center gap-3 border-b border-red-500/30 bg-red-500/10 px-5 py-2 text-sm text-text">
           <span>{pasarError}</span>

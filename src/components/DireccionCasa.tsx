@@ -13,6 +13,7 @@ import { FamiliaTag } from "./FamiliaTag";
 import { OFsDeLaFicha } from "./HistorialCentros";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { Select } from "./Select";
+import { CargandoFilas } from "./Cargando";
 
 // ─── «Toda la casa»: los pedidos de toda la fábrica, para Dirección ─────────
 // Pendientes enseña lo que tiene OT o Diseño; un pedido solo de taller no sale
@@ -158,7 +159,8 @@ export function DireccionCasa({ onAbrirPedido }: { onAbrirPedido: (codigo: strin
       {!cargando && !aviso && pedidos.length === 0 && (
         <p className="py-6 text-center text-sm text-text-muted">Ningún pedido con estos filtros.</p>
       )}
-      {cargando && <p className="py-4 text-center text-sm text-text-muted">Cargando…</p>}
+      {cargando && pedidos.length === 0 && <CargandoFilas etiqueta="Cargando pedidos" filas={6} className="mt-2" />}
+      {cargando && pedidos.length > 0 && <p role="status" className="py-4 text-center text-sm text-text-muted">Cargando…</p>}
       {hayMas && !cargando && (
         <div className="mt-3 flex justify-center">
           <button
