@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import sql from "mssql";
 import { agruparTiemposPorCentro, centroDeTareaHistorial, claveTareaHistorial, type FilaTiempoCentro } from "../historial-centros";
-import { filtrarIndice, type IndiceHistorial } from "../historial-indice";
+import { filtrarIndice, normalizaBusqueda, ordenarIndice, type BaseHistorial, type IndiceHistorial } from "../historial-indice";
+import { seleccionarHistorial, type HistorialParcial } from "../historial-parcial";
 import { indiceSiListo } from "./historial-indice";
 import { SECCIONES, recursosSql, seccionDe, type SeccionId } from "../secciones";
 import { getPool } from "./db";
@@ -16,7 +17,7 @@ import { familiaDeTexto } from "./rps";
 import { partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
-import { esCodigoPedido, estaFinalizado } from "../types";
+import { esCodigoPedido, estaFinalizado, type Pedido } from "../types";
 import {
   PAGE_SIZE,
   aMaterialOF,
@@ -91,14 +92,20 @@ const NOMBRE_POR_OPERARIO = new Map(OPERARIOS.map((o) => [o.id, o.nombre]));
 
 export async function leerHistorialPagina(
   f: HistorialFiltros,
+  tablero: readonly Pedido[] = [],
 ): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
-  if (ES_MOCK) return paginaMock(f);
+  const seccion = seccionDe(f.seccion).id;
+  const pasados = leerPasados(seccion);
+  const { pendientes, parciales } = seleccionarHistorial(tablero, pasados);
+  f = { ...f, pendientes: [...(f.pendientes ?? []), ...pendientes] };
+  const indiceParcial = parciales.size ? await indiceDeParciales(seccion, parciales, tablero) : undefined;
+  if (ES_MOCK) return paginaMock(f, pasados, parciales, indiceParcial, tablero);
 
   // Con la lista en memoria ya hecha (la construye la ruta o el arranque), se
   // filtra ahí: sin los 3,8 s de recalcular toda la historia en cada página.
   // Sin ella, la consulta de siempre.
   const enMemoria = indiceSiListo();
-  if (enMemoria) return paginaDesdeIndice(enMemoria, f);
+  if (enMemoria) return paginaDesdeIndice(enMemoria, f, pasados, parciales, indiceParcial);
 
   const { clausulas, params } = construirFiltros(f);
   // Buscar antes de agregar el histórico. El cierre se exige también al buscar.
@@ -116,26 +123,45 @@ export async function leerHistorialPagina(
   req.input("size", PAGE_SIZE + 1); // una fila extra para saber si hay más
 
   // Cuándo lo pasamos NOSOTROS a Producción, para poder ordenar por eso.
-  const pasados = pasadosParaOrden(req, seccionDe(f.seccion).id);
-  const fechaPasado = `COALESCE(${pasados.columna}, p.finalizada)`;
-  const cierre = `((p.tiene_seccion=1 AND (p.pendiente_seccion=0 OR ${pasados.columna} IS NOT NULL)) OR (p.tiene_seccion=0 AND p.pendiente_total=0))`;
+  const pasosSql = pasadosParaOrden(req, pasados);
+  const fechaPasado = `COALESCE(${pasosSql.columna}, p.finalizada)`;
+  const cierre = `((p.tiene_seccion=1 AND (p.pendiente_seccion=0 OR ${pasosSql.columna} IS NOT NULL)) OR (p.tiene_seccion=0 AND p.pendiente_total=0))`;
   // Los filtros de fecha usan la misma fecha que la fila y la ordenación.
   // RPS puede seguir sin fecha de cierre después de pulsar Pasar aquí.
   const where = `WHERE ${[cierre, ...otrosFiltros.map((filtro) => filtro.replaceAll("p.finalizada", fechaPasado))].join(" AND ")}`;
+  const filasParciales = indiceParcial ? ordenarIndice(indiceParcial, { ...f, seccion, pendientes: [] }, () => null).filas : [];
+  const parcialSql = filasParciales.length ? `
+    UNION ALL
+    SELECT cab.CodOrder, fin.at, cab.OrderDate, x.n.value('@nOf','int'),
+      cli.Description, d.Description, fin.at
+    FROM (SELECT CAST(@parcialesXml AS xml) AS lista) p CROSS APPLY p.lista.nodes('/pedidos/p') x(n)
+    CROSS APPLY (SELECT CONVERT(datetime2,x.n.value('@fin','varchar(40)'),127) AS at) fin
+    JOIN dbo.FACOrderSL cab ON cab.CodOrder=x.n.value('@pedido','varchar(25)') AND cab.CodCompany='001'
+    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer=cab.IDCustomer
+    LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress=cab.IDCustomerDeliveryAddress
+  ` : "";
+  if (filasParciales.length) {
+    req.input("parcialesXml", `<pedidos>${filasParciales.map((b) =>
+      `<p pedido="${textoXml(b.pedido)}" fin="${new Date(b.finalizada!).toISOString()}" nOf="${b.nOf}"/>`).join("")}</pedidos>`);
+  }
 
   const r = await req.query<FilaPagina>(`
-    ${ctesFinalizacionHistorial(seccionDe(f.seccion).id, busqueda)}
-    ${pasados.cte}
+    ${ctesFinalizacionHistorial(seccion, busqueda)}
+    ${pasosSql.cte}
+    , Filas AS (
     SELECT p.pedido, p.finalizada, p.fecha_pedido, p.n_of, cli.Description AS cliente,
-           d.Description AS negocio
+           d.Description AS negocio, ${fechaPasado} AS fecha_orden
     FROM PedFin p
     JOIN dbo.FACOrderSL cab ON cab.CodOrder=p.pedido AND cab.CodCompany='001'
     LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = cab.IDCustomer
     -- Negocio/local de entrega: misma tabla y mismo join que la cabecera del
     -- detalle, para que la lista y el pedido abierto digan lo mismo.
     LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress = cab.IDCustomerDeliveryAddress
-    ${pasados.join}
+    ${pasosSql.join}
     ${where}
+    ${parcialSql}
+    )
+    SELECT pedido, finalizada, fecha_pedido, n_of, cliente, negocio FROM Filas
     -- Al buscar manda la fecha del pedido (también se muestra), no su cierre.
     -- Sin búsqueda, la lista pinta "Pasado el
     -- tal" con pasadoAt cuando lo tenemos (cuándo se pulsó Pasar a Producción
@@ -144,7 +170,7 @@ export async function leerHistorialPagina(
     -- en masa, así que un pedido que OT soltó en julio podía aparecer arriba
     -- del todo con fecha de hoy. El orden decía una cosa y la fecha de al
     -- lado otra.
-    ORDER BY ${f.q?.trim() ? "p.fecha_pedido" : fechaPasado} DESC, p.pedido DESC
+    ORDER BY ${f.q?.trim() ? "fecha_pedido" : "fecha_orden"} DESC, pedido DESC
     OFFSET @off ROWS FETCH NEXT @size ROWS ONLY
     ;IF OBJECT_ID('tempdb..#CoordinaHistorialOrdenes') IS NOT NULL DROP TABLE #CoordinaHistorialOrdenes;
     IF OBJECT_ID('tempdb..#CoordinaHistorialPedidos') IS NOT NULL DROP TABLE #CoordinaHistorialPedidos;
@@ -152,7 +178,7 @@ export async function leerHistorialPagina(
     DROP TABLE #CoordinaHistorialFinalizados;
   `);
 
-  return completarPagina(r.recordset, f);
+  return completarPagina(r.recordset, seccion, pasados, parciales);
 }
 
 /** La página desde la lista en memoria (ver historial-indice.ts). Filtra,
@@ -161,16 +187,18 @@ export async function leerHistorialPagina(
 function paginaDesdeIndice(
   indice: IndiceHistorial,
   f: HistorialFiltros,
+  pasados: ReadonlyMap<string, PasoAProduccion>,
+  parciales: ReadonlyMap<string, HistorialParcial>,
+  indiceParcial?: IndiceHistorial,
 ): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
   const seccion = seccionDe(f.seccion).id;
-  const pasados = pasadosAt(seccion);
   const { filas, familias, porDia } = filtrarIndice(indice, { ...f, seccion }, (pedido) => {
     const paso = pasados.get(pedido);
     const at = paso ? Date.parse(paso.at) : NaN;
     return Number.isNaN(at) ? null : at;
-  });
+  }, indiceParcial);
   const deIndice: FilaPagina[] = filas.map((b) => {
-    const info = indice.info.get(b.pedido);
+    const info = (parciales.has(b.pedido) ? indiceParcial : indice)?.info.get(b.pedido);
     return {
       pedido: b.pedido,
       finalizada: b.finalizada === null ? null : new Date(b.finalizada),
@@ -180,14 +208,100 @@ function paginaDesdeIndice(
       negocio: info?.negocio ?? null,
     };
   });
-  return completarPagina(deIndice, f, familias, porDia);
+  return completarPagina(deIndice, seccion, pasados, parciales, familias, porDia);
+}
+
+/** Lectura acotada a las OF pasadas de los pedidos todavía en el tablero.
+ *  Se combina con la lista en memoria en cada petición, sin modificarla. */
+async function indiceDeParciales(
+  seccion: SeccionId,
+  parciales: ReadonlyMap<string, HistorialParcial>,
+  tablero: readonly Pedido[],
+): Promise<IndiceHistorial> {
+  const base: IndiceHistorial["base"] = { ot: [], diseno: [], impresion: [] };
+  const info: IndiceHistorial["info"] = new Map();
+  const personas: IndiceHistorial["personas"] = new Map();
+  const fechas = new Map<string, number | null>();
+  const textos = new Map<string, Set<string>>();
+  for (const p of tablero) {
+    const parcial = parciales.get(p.codigo);
+    if (!parcial) continue;
+    info.set(p.codigo, {
+      cliente: p.cliente, negocio: p.negocio ?? null, ciudadEntrega: null,
+      familias: [], ordenes: [...parcial.ordenes].join(" "), textos: "",
+    });
+    textos.set(p.codigo, new Set([normalizaBusqueda(p.cliente ?? "")]));
+    personas.set(p.codigo, new Set());
+    if (ES_MOCK) {
+      const ofs = p.ofs.filter((of) => parcial.ordenes.has(of.codigo));
+      info.get(p.codigo)!.familias = [...new Set(ofs.flatMap(({ familia }) => [familia, familia.slice(familia.lastIndexOf("/") + 1)]))];
+      for (const of of ofs) {
+        textos.get(p.codigo)?.add(normalizaBusqueda(of.descripcion));
+        personas.get(p.codigo)?.add(String(OPERARIOS.findIndex((o) => o.id === of.autorId)));
+      }
+    }
+  }
+  if (!ES_MOCK) {
+    const pool = await getPool();
+    const { recordset } = await pool.request().input("ofParciales",
+      `<ofs>${[...parciales].flatMap(([pedido, p]) => [...p.ordenes].map((of) =>
+        `<o p="${textoXml(pedido)}" of="${textoXml(of)}"/>`)).join("")}</ofs>`,
+    ).query<{
+      pedido: string; orden: string; fecha: Date | null; cliente: string | null; negocio: string | null;
+      descripcion: string | null; linea: string | null; subfamilia: string | null; empleado: string | null;
+    }>(`
+      SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden, o.OrderDate AS fecha,
+        cli.Description AS cliente, d.Description AS negocio, mo.Description AS descripcion,
+        l.Description AS linea, sf.CodProductSubFamily AS subfamilia, trabajo.empleado
+      FROM (SELECT CAST(@ofParciales AS xml) AS lista) p CROSS APPLY p.lista.nodes('/ofs/o') x(n)
+      JOIN dbo.FACOrderSL o ON o.CodOrder=x.n.value('@p','varchar(25)') AND o.CodCompany='001'
+      JOIN dbo.CPRManufacturingOrder mo ON mo.CodManufacturingOrder=x.n.value('@of','varchar(25)') AND mo.CodCompany='001'
+      JOIN dbo.FACOrderLineSL l ON l.IDOrder=o.IDOrder AND l.IDManufacturingOrder=mo.IDManufacturingOrder
+      LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer=o.IDCustomer
+      LEFT JOIN dbo.FACCustomerDeliveryAddress d ON d.IDCustomerDeliveryAddress=o.IDCustomerDeliveryAddress
+      LEFT JOIN dbo.STKArticle art ON art.IDArticle=l.IDArticle
+      LEFT JOIN dbo.GENProductSubFamily sf ON sf.IDProductSubFamily=art.IDProductSubFamily
+      OUTER APPLY (
+        SELECT DISTINCT e.CodEmployee AS empleado
+        FROM dbo.CPRImputationMO i
+        JOIN dbo.GENEmployee e ON e.IDEmployee=i.IDEmployeeMachineTool
+        WHERE i.IDManufacturingOrder=mo.IDManufacturingOrder AND i.ResourceType=1
+      ) trabajo
+    `);
+    for (const fila of recordset) {
+      const pedido = fila.pedido.trim();
+      const datos = info.get(pedido);
+      if (!datos || !parciales.get(pedido)?.ordenes.has(fila.orden.trim())) continue;
+      fechas.set(pedido, fila.fecha?.getTime() ?? null);
+      datos.cliente = fila.cliente?.trim() || null;
+      datos.negocio = fila.negocio?.trim() || null;
+      const familia = familiaDeTexto(fila.descripcion, null, { cliente: fila.cliente, subfamilia: fila.subfamilia });
+      if (!datos.familias.includes(familia)) datos.familias.push(familia);
+      for (const texto of [datos.cliente, fila.descripcion, fila.linea]) {
+        if (texto) textos.get(pedido)?.add(normalizaBusqueda(texto));
+      }
+      if (fila.empleado?.trim()) personas.get(pedido)?.add(fila.empleado.trim());
+    }
+  }
+  for (const [pedido, p] of parciales) {
+    const fila: BaseHistorial = {
+      pedido, nOf: p.ordenes.size, fechaPedido: fechas.get(pedido) ?? null, finalizada: Date.parse(p.at),
+      tieneSeccion: true, pendienteSeccion: false, pendienteTotal: true,
+      fechaEntrega: null, pendienteEntrega: true, trabajoAbierto: true, fechaEntregado: null,
+    };
+    base[seccion].push(fila);
+    info.get(pedido)!.textos = [...(textos.get(pedido) ?? [])].join("\n");
+  }
+  return { at: Date.now(), base, info, personas };
 }
 
 /** Lo común a las dos formas de sacar la página: quién la pasó y, en una sola
  *  consulta para las 40, personas, tiempos y familias. */
 async function completarPagina(
   filas: FilaPagina[],
-  f: HistorialFiltros,
+  seccion: SeccionId,
+  pasados: ReadonlyMap<string, PasoAProduccion>,
+  parciales: ReadonlyMap<string, HistorialParcial>,
   familiasDisponibles?: string[],
   /** Cuántos pedidos tiene cada día de la consulta entera. Solo lo sabe la
    *  lista en memoria; la consulta SQL de respaldo no lo trae. */
@@ -195,11 +309,12 @@ async function completarPagina(
 ): Promise<{ pedidos: HistorialItem[]; hasMore: boolean; familias?: string[]; porDia?: Record<string, number> }> {
   const nombres = await nombresHistorial();
   const hasMore = filas.length > PAGE_SIZE;
-  const items = filas.slice(0, PAGE_SIZE).map(filaAItem).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id, nombres));
+  const items = filas.slice(0, PAGE_SIZE).map(filaAItem)
+    .map((item) => anadirPasadoAt(item, parciales.get(item.pedido) ?? pasados.get(item.pedido), nombres));
 
   // Autores y familias se resuelven para la página ENTERA de una vez (ver
   // `extrasDePagina`): una query por pedido serían 40 idas y vueltas.
-  const extras = await extrasDePagina(items.map((p) => p.pedido), seccionDe(f.seccion).id);
+  const extras = await extrasDePagina(items.map((p) => p.pedido), seccion, parciales);
   const pedidos = items.map((p) => {
     const suyos = extras.get(p.pedido);
     if (!suyos) return p;
@@ -259,6 +374,7 @@ interface ExtrasPedido {
 async function extrasDePagina(
   pedidos: string[],
   seccion: SeccionId,
+  parciales: ReadonlyMap<string, HistorialParcial>,
 ): Promise<Map<string, ExtrasPedido>> {
   const salida = new Map<string, ExtrasPedido>();
   if (pedidos.length === 0) return salida;
@@ -315,7 +431,10 @@ async function extrasDePagina(
   const minutosVistos = new Set<string>();
   const ordenes = new Map<string, Set<string>>();
   const familias = new Map<string, Set<string>>();
-  const filasExtras = r.recordset.map((fila) => ({ ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea) }));
+  const filasExtras = r.recordset.filter((fila) => {
+    const parcial = parciales.get((fila.pedido ?? "").trim());
+    return !parcial || parcial.ordenes.has((fila.orden ?? "").trim());
+  }).map((fila) => ({ ...fila, centro: centroDeTareaHistorial(fila.centro, fila.descripcionTarea) }));
   const conSeccion = new Set(filasExtras.filter((fila) => fila.centro === seccion).map((fila) => fila.pedido?.trim()));
   // Nombre y primer apellido de quien imputó, con la misma resolución que la
   // ficha: el catálogo del equipo primero y el nombre de RPS si no está.
@@ -415,7 +534,7 @@ async function extrasDePagina(
  *  El overlay va por OF+tarea ("orden:codTarea") y la lista va por pedido, así
  *  que se conservan ambas claves para no mezclar autores entre secciones. Se lee
  *  entero de una vez — son pocas filas y vive en SQLite, igual que en
- *  `pasadosAt`, así que no compensa filtrar por ids.
+ *  los pases, así que no compensa filtrar por ids.
  *
  *  El revisor solo cuenta si la OF pasó de verdad por revisión (`revisada`):
  *  nombrarlo al mandarla a revisar no es haberla revisado. */
@@ -1047,8 +1166,11 @@ export function deducirRoles(
 /** Sella el item con la hora a la que se pulsó "pasar a Producción" en
  *  CoordinaOT, si fue desde aquí. Se lee una vez por página; son pocas filas y
  *  vive en SQLite, así que no compensa filtrar por ids. */
-function anadirPasadoAt(item: HistorialItem, seccion: SeccionId, nombres: ReadonlyMap<string, string> = NOMBRE_POR_OPERARIO): HistorialItem {
-  const paso = pasadosAt(seccion).get(item.pedido);
+function anadirPasadoAt(
+  item: HistorialItem,
+  paso: Pick<PasoAProduccion, "at" | "operarioId"> | undefined,
+  nombres: ReadonlyMap<string, string> = NOMBRE_POR_OPERARIO,
+): HistorialItem {
   if (!paso) return item;
   const nombre = paso.operarioId ? nombres.get(paso.operarioId) : undefined;
   return {
@@ -1062,8 +1184,8 @@ function anadirPasadoAt(item: HistorialItem, seccion: SeccionId, nombres: Readon
  *  Conserva también los pasos antiguos, sin el límite de 2100 parámetros. */
 function pasadosParaOrden(req: {
   input: (nombre: string, valor: unknown) => unknown;
-}, seccion: SeccionId): { cte: string; join: string; columna: string } {
-  const pasados = [...pasadosAt(seccion).entries()];
+}, pasos: ReadonlyMap<string, PasoAProduccion>): { cte: string; join: string; columna: string } {
+  const pasados = [...pasos];
 
   if (pasados.length === 0) {
     return { cte: "", join: "", columna: "CAST(NULL AS datetime2)" };
@@ -1080,15 +1202,11 @@ function pasadosParaOrden(req: {
   };
 }
 
-/** Cache muy corta: una misma página llama a esto una vez por pedido. */
-const cachePasados = new Map<SeccionId, { at: number; mapa: Map<string, PasoAProduccion> }>();
-function pasadosAt(seccion: SeccionId): Map<string, PasoAProduccion> {
-  const cache = cachePasados.get(seccion);
-  if (cache && Date.now() - cache.at < 5_000) return cache.mapa;
+/** Una lectura por petición: los pases parciales se ven aunque el índice
+ *  o su instantánea sean anteriores al pase. */
+function leerPasados(seccion: SeccionId): Map<string, PasoAProduccion> {
   try {
-    const mapa = leerPedidosPasados(seccion);
-    cachePasados.set(seccion, { at: Date.now(), mapa });
-    return mapa;
+    return leerPedidosPasados(seccion);
   } catch (e) {
     console.error("[historial] no se pudo leer pedido_overlay:", e);
     return new Map();
@@ -1206,9 +1324,12 @@ function anadirDesgloseRol(ofs: HistorialOF[], tareas: ReadonlySet<string>, nomb
 export async function leerHistorialPedidoDetalle(
   pedido: string,
   seccion: SeccionId = "ot",
+  actual?: Pedido,
 ): Promise<HistorialPedidoDetalle> {
-  const ofs = await leerHistorialPedido(pedido); // ya respeta mock/rps
-  if (ES_MOCK) return detalleCabeceraMock(pedido, ofs);
+  const parcial = actual && seleccionarHistorial([actual], leerPasados(seccion)).parciales.get(pedido);
+  const todas = await leerHistorialPedido(pedido); // ya respeta mock/rps
+  const ofs = parcial ? todas.filter((of) => parcial.ordenes.has(of.codigo)) : todas;
+  if (ES_MOCK) return detalleCabeceraMock(pedido, ofs, parcial);
 
   const pool = await getPool();
 
@@ -1233,20 +1354,25 @@ export async function leerHistorialPedidoDetalle(
     `)
   ).recordset[0] ?? null;
 
+  const peticionPiezas = pool.request().input("pedido", sql.VarChar(25), pedido);
+  if (parcial) {
+    peticionPiezas.input("ordenes", `<ofs>${[...parcial.ordenes].map((of) => `<o>${textoXml(of)}</o>`).join("")}</ofs>`);
+  }
   const pp = (
-    await pool
-      .request()
-      .input("pedido", pedido)
-      .query<{ prioridad: number | null; piezas: number | null }>(`
+    await peticionPiezas.query<{ prioridad: number | null; piezas: number | null }>(`
       SELECT MAX(mo.Priority) AS prioridad, SUM(mo.Quantity) AS piezas
       FROM dbo.CPRManufacturingOrder mo
       WHERE mo.CodCompany = '001'
+        ${parcial ? `AND mo.CodManufacturingOrder IN (
+          SELECT x.n.value('.','varchar(25)')
+          FROM (SELECT CAST(@ordenes AS xml) AS lista) p CROSS APPLY p.lista.nodes('/ofs/o') x(n)
+        )` : ""}
         AND EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l JOIN dbo.FACOrderSL o ON o.IDOrder = l.IDOrder AND o.CodCompany='001'
                     WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder AND o.CodOrder = @pedido)
     `)
   ).recordset[0] ?? { prioridad: null, piezas: null };
 
-  const fin = (
+  const fin = parcial ? null : (
     await pool.request().input("pedido", pedido).input("pendientes", "<pedidos/>")
       .query<{ finalizada: Date | null }>(`
       ${ctesFinalizacionHistorial(seccion, "o.CodOrder=@pedido")}
@@ -1272,7 +1398,7 @@ export async function leerHistorialPedidoDetalle(
   fila.piezas = pp.piezas;
 
   const familias = [...new Set(ofs.map((of) => familiaDeTexto(of.descripcion, null)))];
-  const finalizada = fin ? fin.toISOString() : null;
+  const finalizada = parcial?.at ?? fin?.toISOString() ?? null;
   return cabeceraADetalle(fila, ofs, finalizada, familias, {
     documentos: aDocumentosDelCliente(pedido, documentos),
   });
@@ -1363,7 +1489,13 @@ function pedidosFinalizadosMock(): HistorialItem[] {
     .sort((a, b) => b.finalizada.localeCompare(a.finalizada) || b.pedido.localeCompare(a.pedido));
 }
 
-function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: boolean } {
+function paginaMock(
+  f: HistorialFiltros,
+  pasados: ReadonlyMap<string, PasoAProduccion>,
+  parciales: ReadonlyMap<string, HistorialParcial>,
+  indiceParcial: IndiceHistorial | undefined,
+  tablero: readonly Pedido[],
+): { pedidos: HistorialItem[]; hasMore: boolean } {
   let todos = pedidosFinalizadosMock();
   const pendientes = new Set(f.pendientes ?? []);
   todos = todos.filter((p) => !pendientes.has(p.pedido));
@@ -1396,10 +1528,34 @@ function paginaMock(f: HistorialFiltros): { pedidos: HistorialItem[]; hasMore: b
     );
     todos = todos.filter((p) => pedidosFam.has(p.pedido));
   }
+  if (indiceParcial) {
+    // En simulación el filtro por persona usa el autor de la OF.
+    const filas = ordenarIndice(indiceParcial, {
+      ...f, seccion: seccionDe(f.seccion).id, pendientes: [],
+      empleado: f.operario?.trim() ? String(OPERARIOS.findIndex((o) => o.id === f.operario?.trim())) : undefined,
+    }, () => null).filas;
+    for (const fila of filas) {
+      const info = indiceParcial.info.get(fila.pedido);
+      const parcial = parciales.get(fila.pedido)!;
+      const ofs = tablero.find((p) => p.codigo === fila.pedido)!.ofs.filter((of) => parcial.ordenes.has(of.codigo));
+      const autores = [...new Set(ofs.flatMap((of) => of.autorId ? [NOMBRE_POR_OPERARIO.get(of.autorId) ?? of.autorId] : []))];
+      todos.push({
+        ...filaAItem({
+          pedido: fila.pedido, finalizada: new Date(fila.finalizada!), fecha_pedido: null,
+          cliente: info?.cliente ?? null, negocio: info?.negocio ?? null, n_of: fila.nOf,
+        }),
+        autores,
+        familias: [...new Set(ofs.map((of) => familiaDeTexto(of.descripcion, null)))],
+        minutos: ofs.reduce((total, of) => total + of.tiempoPlanteoMin + of.tiempoRevisionMin, 0),
+      });
+    }
+    todos.sort((a, b) => b.finalizada.localeCompare(a.finalizada) || b.pedido.localeCompare(a.pedido));
+  }
   const off = Math.max(0, f.page) * PAGE_SIZE;
   const pagina = todos.slice(off, off + PAGE_SIZE + 1);
   return {
-    pedidos: pagina.slice(0, PAGE_SIZE).map((item) => anadirPasadoAt(item, seccionDe(f.seccion).id)),
+    pedidos: pagina.slice(0, PAGE_SIZE)
+      .map((item) => anadirPasadoAt(item, parciales.get(item.pedido) ?? pasados.get(item.pedido))),
     hasMore: pagina.length > PAGE_SIZE,
   };
 }
@@ -1436,7 +1592,7 @@ function detalleMock(pedido: string): HistorialOF[] {
   }));
 }
 
-function detalleCabeceraMock(pedido: string, ofs: HistorialOF[]): HistorialPedidoDetalle {
+function detalleCabeceraMock(pedido: string, ofs: HistorialOF[], parcial?: HistorialParcial): HistorialPedidoDetalle {
   const p = PEDIDOS.find((x) => x.codigo === pedido);
   const familias = [...new Set(ofs.map((of) => familiaDeTexto(of.descripcion, null)))];
   return cabeceraADetalle(
@@ -1448,10 +1604,10 @@ function detalleCabeceraMock(pedido: string, ofs: HistorialOF[]): HistorialPedid
       comentario: p?.comentarioVenta ?? null,
       solicitada: p ? p.fechaSolicitud : null,
       prioridad: p?.prioridad ?? null,
-      piezas: p ? p.ofs.reduce((n, o) => n + o.piezas, 0) : null,
+      piezas: p ? p.ofs.filter((o) => !parcial || parcial.ordenes.has(o.codigo)).reduce((n, o) => n + o.piezas, 0) : null,
     },
     ofs,
-    p ? `${p.fechaPlanificacion}T00:00:00.000Z` : null,
+    parcial?.at ?? (p ? `${p.fechaPlanificacion}T00:00:00.000Z` : null),
     familias,
   );
 }

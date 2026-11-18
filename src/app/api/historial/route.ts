@@ -39,10 +39,6 @@ export async function GET(req: Request) {
       const { asegurarIndice } = await import("@/lib/server/historial-indice");
       await asegurarIndice();
     }
-    // Antes de paginar: quitar filas después deja huecos y un hasMore falso.
-    // Incluso aprobadas siguen pendientes hasta que el autor pulse Pasar.
-    const pendientes = tablero.pedidos.filter((p) => p.situacion !== "completado"
-      && p.ofs.some((of) => !of.ajenaOT)).map((p) => p.codigo);
     const data = await leerHistorialPagina({
       page,
       seccion,
@@ -53,8 +49,7 @@ export async function GET(req: Request) {
       cliente: url.searchParams.get("cliente") ?? undefined,
       soloSeccion: url.searchParams.get("soloSeccion") === "1",
       ...filtroOperario(url.searchParams.get("operario")),
-      pendientes,
-    });
+    }, tablero.pedidos);
     const busqueda = url.searchParams.get("q")?.trim();
     return NextResponse.json({
       ...data,

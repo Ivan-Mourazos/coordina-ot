@@ -24,8 +24,10 @@ export async function GET(
 
   try {
     const seccion = seccionDe(new URL(req.url).searchParams.get("seccion")).id;
-    const [detalle, tablero] = await Promise.all([leerHistorialPedidoDetalle(pedido, seccion), getTablero(seccion)]);
-    const estadoActual = estadoActualHistorial(tablero.pedidos.find((p) => p.codigo === pedido));
+    const tablero = await getTablero(seccion);
+    const actual = tablero.pedidos.find((p) => p.codigo === pedido);
+    const detalle = await leerHistorialPedidoDetalle(pedido, seccion, actual);
+    const estadoActual = estadoActualHistorial(actual);
     return NextResponse.json({ ...detalle, ...(estadoActual ? { estadoActual } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[historial] detalle falló:", (e as Error).message);

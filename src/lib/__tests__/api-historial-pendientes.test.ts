@@ -12,11 +12,11 @@ vi.mock("../server/historial-db", () => ({ leerHistorialPagina: pagina }));
 vi.mock("../data", () => ({ getTablero: tablero }));
 import { GET } from "../../app/api/historial/route";
 
-test("excluye aprobados sin pasar antes de paginar, pero deja evaluar pedidos ajenos", async () => {
+test("entrega el tablero de la sección a la consulta antes de paginar", async () => {
   const res = await GET(new Request("http://x/api/historial?page=2&q=enrollable&seccion=diseno"));
   expect(res.status).toBe(200);
   expect(tablero).toHaveBeenCalledWith("diseno");
   expect(pagina).toHaveBeenCalledWith(expect.objectContaining({
-    page: 2, q: "enrollable", seccion: "diseno", pendientes: ["AR.26.04403"],
-  }));
+    page: 2, q: "enrollable", seccion: "diseno",
+  }), (await tablero.mock.results[0].value).pedidos);
 });

@@ -136,6 +136,18 @@ export function filtrarIndice(
   f: HistorialFiltros & { seccion: SeccionId },
   /** Cuándo se pasó el pedido en CoordinaOT (ms), si se pasó desde aquí. */
   pasadoDe: (pedido: string) => number | null,
+  parciales?: IndiceHistorial,
+): PaginaIndice {
+  const off = Math.max(0, f.page) * PAGE_SIZE;
+  return ordenarIndice(indice, f, pasadoDe, parciales, off);
+}
+
+export function ordenarIndice(
+  indice: IndiceHistorial,
+  f: HistorialFiltros & { seccion: SeccionId },
+  pasadoDe: (pedido: string) => number | null,
+  parciales?: IndiceHistorial,
+  off?: number,
 ): PaginaIndice {
   const pendientes = new Set(f.pendientes ?? []);
   const q = f.q?.trim() ?? "";
@@ -171,22 +183,25 @@ export function filtrarIndice(
 
   // Todo menos la familia: de aquí salen las opciones del desplegable.
   const sinFamilia: { b: BaseHistorial; orden: number | null; info: InfoPedidoHistorial | undefined }[] = [];
-  for (const b of indice.base[f.seccion]) {
-    if (pendientes.has(b.pedido)) continue;
-    const pasado = pasadoDe(b.pedido);
-    // Cerrado: con tareas de la sección, las suyas terminadas o el pedido pasado
-    // desde aquí; sin tareas de la sección, todo lo demás terminado.
-    const cerrado = b.tieneSeccion ? !b.pendienteSeccion || pasado !== null : !b.pendienteTotal;
-    if (!cerrado) continue;
-    const orden = pasado ?? b.finalizada;
-    if (desde !== null && (orden === null || orden < desde)) continue;
-    if (hasta !== null && (orden === null || orden >= hasta)) continue;
-    if (f.soloSeccion && !b.tieneSeccion) continue;
-    if (empleado && !indice.personas.get(b.pedido)?.has(empleado)) continue;
-    const info = indice.info.get(b.pedido);
-    if (cliente && normalizaBusqueda(info?.cliente ?? "") !== cliente) continue;
-    if (q && !coincideTexto(b, info)) continue;
-    sinFamilia.push({ b, orden, info });
+  for (const fuente of parciales ? [indice, parciales] : [indice]) {
+    const parcial = fuente === parciales;
+    for (const b of fuente.base[f.seccion]) {
+      if (!parcial && pendientes.has(b.pedido)) continue;
+      const pasado = parcial ? b.finalizada : pasadoDe(b.pedido);
+      // Cerrado: con tareas de la sección, las suyas terminadas o el pedido pasado
+      // desde aquí; sin tareas de la sección, todo lo demás terminado.
+      const cerrado = b.tieneSeccion ? !b.pendienteSeccion || pasado !== null : !b.pendienteTotal;
+      if (!cerrado) continue;
+      const orden = pasado ?? b.finalizada;
+      if (desde !== null && (orden === null || orden < desde)) continue;
+      if (hasta !== null && (orden === null || orden >= hasta)) continue;
+      if (f.soloSeccion && !b.tieneSeccion) continue;
+      if (empleado && !fuente.personas.get(b.pedido)?.has(empleado)) continue;
+      const info = fuente.info.get(b.pedido);
+      if (cliente && normalizaBusqueda(info?.cliente ?? "") !== cliente) continue;
+      if (q && !coincideTexto(b, info)) continue;
+      sinFamilia.push({ b, orden, info });
+    }
   }
 
   const cuenta = new Map<string, number>();
@@ -212,6 +227,6 @@ export function filtrarIndice(
     const clave = orden === null ? "sin-fecha" : claveEnOficina(orden);
     porDia[clave] = (porDia[clave] ?? 0) + 1;
   }
-  const off = Math.max(0, f.page) * PAGE_SIZE;
-  return { filas: lista.slice(off, off + PAGE_SIZE + 1).map(({ b }) => b), familias, porDia };
+  const ventana = off === undefined ? lista : lista.slice(off, off + PAGE_SIZE + 1);
+  return { filas: ventana.map(({ b }) => b), familias, porDia };
 }
