@@ -1,13 +1,19 @@
 [
   {
     "id": "2026-11-18",
-    "hasta": "703f9d9",
+    "hasta": "4775c24",
     "cambios": [
       {
         "tipo": "nuevo",
         "titulo": "En las gráficas de Métricas eliges qué líneas ver",
         "detalle": "Pulsa un nombre de la leyenda para encenderlo o apagarlo; al pasar el ratón por un mes ves todas sus cifras.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Con un pedido abierto ves arriba qué estás fichando, aunque sea otro pedido",
+        "apartado": "ot",
+        "tanda": 2
       },
       {
         "tipo": "arreglado",
@@ -20,6 +26,13 @@
         "tipo": "mejor",
         "titulo": "Lo que estás fichando se ve ahora arriba, junto a tu nombre, y se pausa desde ahí",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El buscador encuentra al cliente aunque escribas el nombre en otro orden",
+        "apartado": "produccion",
+        "detalle": "«carlos lopez» ya encuentra a «LOPEZ CAO, CARLOS». Los pedidos más recientes salen arriba.",
+        "tanda": 2
       }
     ]
   },
