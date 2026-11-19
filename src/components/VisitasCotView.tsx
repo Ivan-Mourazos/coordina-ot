@@ -333,7 +333,7 @@ export function VisitasCotView({
             <button
               type="button"
               onClick={() => setMisAusenciasAbierto(true)}
-              className="mt-2 w-full rounded-full bg-surface-2 py-1.5 text-xs font-semibold text-text hover:brightness-95"
+              className="mt-2 w-full rounded-full bg-surface-2 py-1.5 text-xs font-semibold text-text hover:bg-[var(--hero-relleno-encima)]"
             >
               Mis ausencias
             </button>
@@ -355,7 +355,7 @@ export function VisitasCotView({
               )}
             </h2>
             {dia && ausentesMes[dia] && (
-              <p className="w-full rounded-[14px] bg-red-500/12 px-3 py-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+              <p className="w-full rounded-[14px] bg-error/10 px-3 py-1.5 text-xs font-semibold text-error">
                 No están en OT: {unirNombres(ausentesMes[dia])}
               </p>
             )}

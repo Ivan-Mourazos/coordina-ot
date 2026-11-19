@@ -174,7 +174,7 @@ export function CalendarioVisitas({
                 />
               )}
               {fuera.length > 0 && !activo && (
-                <span aria-hidden="true" className="absolute inset-x-1.5 top-0.5 h-0.5 rounded-full bg-red-500" />
+                <span aria-hidden="true" className="absolute inset-x-1.5 top-0.5 h-0.5 rounded-full bg-error" />
               )}
             </button>
           );
@@ -190,7 +190,7 @@ export function CalendarioVisitas({
         </span>
         {Object.keys(ausentes).length > 0 && (
           <span className="flex items-center gap-1">
-            <span className="h-0.5 w-2.5 rounded-full bg-red-500" /> falta alguien de OT
+            <span className="h-0.5 w-2.5 rounded-full bg-error" /> falta alguien de OT
           </span>
         )}
         <span className="ml-auto">
