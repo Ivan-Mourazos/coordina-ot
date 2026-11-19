@@ -1,5 +1,38 @@
 [
   {
+    "id": "2026-11-19",
+    "hasta": "42dc4bc",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Pedir visita a Instalaciones desde el pedido",
+        "apartado": "ot",
+        "detalle": "Marcas las OF, quién viene y el motivo; el correo lleva los días que no estáis en la oficina y queda nota en el pedido.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En las tareas de cada OF ves cuántas unidades van hechas",
+        "apartado": "produccion",
+        "detalle": "Sale en las tareas que imprimen etiquetas, como en OLANET (0/2 uds).",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Apunta en «Mis ausencias» los días que no estás en la oficina",
+        "apartado": "ot",
+        "detalle": "Está en la pestaña Visitas; salen en su calendario y en el correo cuando se pide una visita.",
+        "tanda": 1
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En una tarea de menos de un minuto ya se ve quién fichó",
+        "apartado": "produccion",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-18",
     "hasta": "4775c24",
     "cambios": [
