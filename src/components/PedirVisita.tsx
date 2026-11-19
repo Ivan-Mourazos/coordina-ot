@@ -46,7 +46,7 @@ export function PedirVisita({ pedido, operarios, miId, onPedida }: {
   return (
     <>
       <button type="button" onClick={() => setAbierta(true)}
-        className="rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text hover:brightness-95">
+        className="rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text hover:bg-[var(--hero-relleno-encima)]">
         Pedir visita
       </button>
       {abierta && (
@@ -61,7 +61,10 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
   pedido: Pedido; operarios: Operario[]; miId: string | null; datos: DatosVentana; onCerrar: () => void; onPedida: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { ref.current?.showModal(); }, []);
+  const vieneRef = useRef<HTMLInputElement>(null);
+  // showModal() da el foco al primer control (una casilla de OF); el primer
+  // dato que se escribe es quién viene.
+  useEffect(() => { ref.current?.showModal(); vieneRef.current?.focus(); }, []);
 
   const deOT = useMemo(() => operarios.filter((o) => !o.seccion || o.seccion === "ot"), [operarios]);
   const nombre = (id: string) => primer(operarios.find((o) => o.id === id)?.nombre ?? id);
@@ -110,7 +113,11 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
     if (atienden.length === 0) e.atienden = "Tiene que atenderle alguien";
     if (cuando.tipo === "dia" && !cuando.fecha) e.cuando = "Elige el día";
     setErrores(e);
-    if (Object.keys(e).length) return;
+    const primero = ["ofs", "viene", "cuando", "atienden"].find((k) => e[k]);
+    if (primero) {
+      ref.current?.querySelector<HTMLElement>(`[data-campo="${primero}"]`)?.focus();
+      return;
+    }
     setEnviando(true);
     const r = await fetch("/api/visitas", {
       method: "POST",
@@ -138,11 +145,16 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
   }
 
   const campo = "rounded-[14px] bg-surface-2 px-3 py-2 text-sm shadow-[var(--hero-sombra-campo)]";
-  const err = (k: string) => errores[k] && <p role="alert" className="mt-1 text-xs text-error">{errores[k]}</p>;
+  const err = (k: string) => errores[k] && <p id={`visita-err-${k}`} role="alert" className="mt-1 text-xs text-error">{errores[k]}</p>;
+  // Cada campo apunta a su error: el lector de pantalla lo lee al llegar a él.
+  const ariaErr = (k: string) => (errores[k] ? { "aria-invalid": true, "aria-describedby": `visita-err-${k}` } : {});
 
   return (
-    <dialog ref={ref} onClose={onCerrar} aria-labelledby="pedir-visita-titulo"
-      className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[24px] bg-surface p-6 text-text backdrop:bg-black/40">
+    // Sin clic fuera para cerrar: es un formulario y se perdería lo escrito.
+    // Mientras se envía, Escape no cierra (el envío seguiría en marcha).
+    <dialog ref={ref} onClose={onCerrar} onCancel={(e) => { if (enviando) e.preventDefault(); }}
+      aria-labelledby="pedir-visita-titulo"
+      className="m-auto w-[min(720px,calc(100vw-2rem))] max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[24px] bg-surface p-6 text-text shadow-[var(--hero-sombra-panel)] backdrop:overflow-hidden backdrop:overscroll-contain backdrop:bg-black/40">
       <h2 id="pedir-visita-titulo" className="text-lg font-semibold">Pedir visita a Oficina Técnica</h2>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <b className="font-mono">{pedido.codigo}</b><span>{pedido.cliente}</span>
@@ -157,9 +169,10 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
       <fieldset className="mt-4">
         <legend className="text-sm font-semibold">OF</legend>
         <div className="mt-1 space-y-1">
-          {pedido.ofs.map((o) => (
+          {pedido.ofs.map((o, i) => (
             <label key={o.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={ofs.includes(o.id)}
+              <input type="checkbox" checked={ofs.includes(o.id)} className="accent-brand-500"
+                {...(i === 0 ? { "data-campo": "ofs", ...ariaErr("ofs") } : {})}
                 onChange={() => setOfs((s) => (s.includes(o.id) ? s.filter((x) => x !== o.id) : [...s, o.id]))} />
               <b className="font-mono">{o.codigo}</b> <span>{o.descripcion}</span>
             </label>
@@ -169,16 +182,19 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
       </fieldset>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-semibold">Viene
-          <input list="visita-nombres" value={viene} onChange={(e) => setViene(e.target.value)} maxLength={80}
-            placeholder="Instalador o comercial" className={`mt-1 block w-full font-normal ${campo}`} />
+        <div>
+          <label className="block text-sm font-semibold">Viene
+            <input ref={vieneRef} list="visita-nombres" value={viene} onChange={(e) => setViene(e.target.value)} maxLength={80}
+              placeholder="Instalador o comercial" data-campo="viene" {...ariaErr("viene")}
+              className={`mt-1 block w-full font-normal ${campo}`} />
+          </label>
           <datalist id="visita-nombres">{datos.nombres.map((n) => <option key={n} value={n} />)}</datalist>
           {err("viene")}
-        </label>
+        </div>
         <div className="text-sm">
-          <span className="font-semibold">Cuándo</span>
+          <span id="visita-cuando" className="font-semibold">Cuándo</span>
           {/* PildorasDeslizantes (layout) desliza la píldora hasta el aria-pressed. */}
-          <div className="tira-3d mt-1 flex w-fit rounded-full p-1" role="group" aria-label="Cuándo">
+          <div className="tira-3d mt-1 flex w-fit rounded-full p-1" role="group" aria-labelledby="visita-cuando">
             {([["pronto", "Lo antes posible"], ["dia", "Un día"], ["sinPrisa", "Sin prisa"]] as const).map(([t, txt]) => (
               <button key={t} type="button" aria-pressed={cuando.tipo === t}
                 onClick={() => setCuando(t === "dia" ? { tipo: "dia", fecha: fechaDia } : { tipo: t })}
@@ -188,7 +204,7 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
             ))}
           </div>
           {cuando.tipo === "dia" && (
-            <input type="date" min={hoy} value={fechaDia} aria-label="Día de la visita"
+            <input type="date" min={hoy} value={fechaDia} aria-label="Día de la visita" data-campo="cuando" {...ariaErr("cuando")}
               onChange={(e) => { setFechaDia(e.target.value); setCuando({ tipo: "dia", fecha: e.target.value }); }}
               className={`mt-2 ${campo}`} />
           )}
@@ -204,8 +220,9 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
       <fieldset className="mt-4">
         <legend className="text-sm font-semibold">Le atiende</legend>
         <div className="mt-1 flex flex-wrap gap-2">
-          {deOT.map((o) => (
+          {deOT.map((o, i) => (
             <button key={o.id} type="button" aria-pressed={atienden.includes(o.id)}
+              {...(i === 0 ? { "data-campo": "atienden", ...ariaErr("atienden") } : {})}
               onClick={() => setAtienden((s) => (s.includes(o.id) ? s.filter((x) => x !== o.id) : [...s, o.id]))}
               className={`rounded-full px-3 py-1 text-xs font-semibold ${atienden.includes(o.id) ? "bg-brand-400 text-brand-950" : "bg-surface-2"}`}>
               {primer(o.nombre)}
@@ -222,11 +239,18 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
           {dias.map((d) => {
             const quien = fueraPor.get(d);
             const pasado = d < hoy;
-            const borde = d === elegido ? "ring-2 ring-emerald-500" : d === pedido.fechaEntrega ? "ring-2 ring-amber-500" : "";
+            // Elegido: anillo de marca. Solicitada: contorno a trazos (no solo color).
+            const esElegido = d === elegido;
+            const esSolicitada = d === pedido.fechaEntrega;
+            const borde = esElegido ? "ring-2 ring-[var(--hero-anillo)]" : esSolicitada ? "outline-2 outline-dashed outline-amber-500" : "";
             return (
               <button key={d} type="button" disabled={pasado} aria-pressed={!!quien} onClick={() => cambiarDia(d)}
-                className={`rounded-[14px] px-2 py-1.5 text-left text-xs ${quien ? "bg-red-500/12 text-red-700 dark:text-red-300" : "bg-surface-2"} ${borde} disabled:opacity-40`}>
-                <div className="font-semibold">{diaCorto(d)}</div>
+                className={`rounded-[14px] px-2 py-1.5 text-left text-xs ${quien ? "bg-error/10 text-error" : "bg-surface-2 text-text"} ${borde} disabled:opacity-40`}>
+                <div className="font-semibold">
+                  {diaCorto(d)}
+                  {esElegido && <span className="sr-only"> (día de la visita)</span>}
+                  {esSolicitada && <span className="sr-only"> (fecha solicitada)</span>}
+                </div>
                 <div className="truncate">{quien ? etiqueta(quien) : " "}</div>
               </button>
             );
@@ -234,11 +258,12 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
         </div>
       </fieldset>
 
-      {avisoDia && <p className="mt-3 text-sm text-yellow-800 dark:text-yellow-300">{avisoDia}</p>}
+      {avisoDia && <p role="status" className="mt-3 text-sm text-yellow-800 dark:text-yellow-300"><b>Ojo:</b> {avisoDia}</p>}
       {err("general")}
 
       <div className="mt-6 flex justify-end gap-2">
-        <button type="button" onClick={() => ref.current?.close()} className="rounded-full px-4 py-2 text-sm font-semibold hover:bg-surface-2">Cancelar</button>
+        <button type="button" onClick={() => ref.current?.close()} disabled={enviando}
+          className="rounded-full px-4 py-2 text-sm font-semibold hover:bg-[var(--hero-relleno-encima)] disabled:opacity-50">Cancelar</button>
         <button type="button" onClick={enviar} disabled={enviando}
           className="rounded-full bg-brand-400 px-5 py-2 text-sm font-semibold text-brand-950 disabled:opacity-50">
           {enviando ? "Enviando…" : "Pedir visita"}
