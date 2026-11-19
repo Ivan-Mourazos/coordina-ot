@@ -77,7 +77,8 @@ describe("pedirVisita", () => {
     const [c] = cola.visitasParaEnviar(T0);
     expect(c.id).toBe(correoId);
     expect(c.para).toEqual(["instalaciones@x.com"]);
-    expect(c.asunto).toBe("Visita de Juan Castro a Oficina Técnica · mié 25/11 · AR.26.05448");
+    expect(c.asunto).toBe("Visita AR.26.05448");
+    expect(c.html).toContain("<table");
     expect(c.cuerpo).toContain("2/12 al 3/12 · Tamara");
     expect(c.cuerpo).toContain("Pedido desde Coordina por Tamara.");
   });

@@ -71,7 +71,7 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
 
   const [ofs, setOfs] = useState<string[]>(pedido.ofs.length === 1 ? [pedido.ofs[0].id] : []);
   const [viene, setViene] = useState("");
-  const [cuando, setCuando] = useState<Cuando>({ tipo: "pronto" });
+  const [cuando, setCuando] = useState<Cuando>({ tipo: "sinPrisa" });
   const [fechaDia, setFechaDia] = useState("");
   const [motivo, setMotivo] = useState("");
   // Quien pide solo va puesto si es de OT: si no, no tendría chip para quitarlo.
@@ -158,7 +158,7 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
       <h2 id="pedir-visita-titulo" className="text-lg font-semibold">Pedir visita a Oficina Técnica</h2>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <b className="font-mono">{pedido.codigo}</b><span>{pedido.cliente}</span>
-        {pedido.fechaEntrega && <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs"><b>Solicitada</b> {diaCorto(pedido.fechaEntrega)}</span>}
+        {pedido.fechaEntrega && <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs"><b>Entrega del pedido</b> {diaCorto(pedido.fechaEntrega)}</span>}
         <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs"><b>Prioridad</b> {pedido.prioridad}</span>
         <span className="text-xs text-text-muted">{pedido.ofs.length} OF</span>
       </div>
@@ -195,7 +195,8 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
           <span id="visita-cuando" className="font-semibold">Cuándo</span>
           {/* PildorasDeslizantes (layout) desliza la píldora hasta el aria-pressed. */}
           <div className="tira-3d mt-1 flex w-fit rounded-full p-1" role="group" aria-labelledby="visita-cuando">
-            {([["pronto", "Lo antes posible"], ["dia", "Un día"], ["sinPrisa", "Sin prisa"]] as const).map(([t, txt]) => (
+            {/* Sin «lo antes posible»: Instalaciones ya las pone lo antes que puede (Iván, 19/11). */}
+            {([["sinPrisa", "Cuando puedan"], ["dia", "Un día"]] as const).map(([t, txt]) => (
               <button key={t} type="button" aria-pressed={cuando.tipo === t}
                 onClick={() => setCuando(t === "dia" ? { tipo: "dia", fecha: fechaDia } : { tipo: t })}
                 className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${cuando.tipo === t ? "pestana-activa" : ""}`}>
@@ -239,7 +240,7 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
           {dias.map((d) => {
             const quien = fueraPor.get(d);
             const pasado = d < hoy;
-            // Elegido: anillo de marca. Solicitada: contorno a trazos (no solo color).
+            // Elegido: anillo de marca. Entrega del pedido: contorno a trazos (no solo color).
             const esElegido = d === elegido;
             const esSolicitada = d === pedido.fechaEntrega;
             const borde = esElegido ? "ring-2 ring-[var(--hero-anillo)]" : esSolicitada ? "outline-2 outline-dashed outline-amber-500" : "";
@@ -249,13 +250,18 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
                 <div className="font-semibold">
                   {diaCorto(d)}
                   {esElegido && <span className="sr-only"> (día de la visita)</span>}
-                  {esSolicitada && <span className="sr-only"> (fecha solicitada)</span>}
+                  {esSolicitada && <span className="sr-only"> (entrega del pedido)</span>}
                 </div>
                 <div className="truncate">{quien ? etiqueta(quien) : " "}</div>
               </button>
             );
           })}
         </div>
+        {pedido.fechaEntrega && dias.includes(pedido.fechaEntrega) && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-text-muted">
+            <span aria-hidden="true" className="inline-block size-3 rounded-[4px] outline-2 outline-dashed outline-amber-500" /> entrega del pedido
+          </p>
+        )}
       </fieldset>
 
       {avisoDia && <p role="status" className="mt-3 text-sm text-yellow-800 dark:text-yellow-300"><b>Ojo:</b> {avisoDia}</p>}

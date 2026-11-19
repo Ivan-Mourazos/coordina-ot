@@ -33,6 +33,7 @@ export function pedirVisita(
     viene: e.viene, cuando: e.cuando, motivo: e.motivo,
     atienden: e.atienden.map((id) => nombres.get(id)!),
     noEstamos: agruparDias(e.noEstamos, (id) => nombres.get(id) ?? id),
+    diasFuera: e.noEstamos.map((x) => ({ fecha: x.fecha, quien: x.quien.map((id) => nombres.get(id) ?? id) })),
     pide: primerNombre(pide.nombre),
   };
   const ts = ahora.toISOString();
