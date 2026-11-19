@@ -21,23 +21,27 @@ const hoyIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+const CAMPOS_CON_ERROR = new Set(["ofs", "viene", "cuando", "atienden"]);
 const primer = (n: string) => n.trim().split(/\s+/)[0] ?? n;
 
 export function PedirVisita({ pedido, operarios, miId, onPedida }: {
   pedido: Pedido; operarios: Operario[]; miId: string | null; onPedida: () => void;
 }) {
-  const [datos, setDatos] = useState<DatosVentana | null>(null);
+  // Los datos van con su pedido: al cambiar de ficha no se usan los del anterior.
+  const [cargado, setCargado] = useState<{ codigo: string; datos: DatosVentana | null } | null>(null);
   const [abierta, setAbierta] = useState(false);
 
   useEffect(() => {
     let vivo = true;
-    fetch(`/api/visitas?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
+    const codigo = pedido.codigo;
+    fetch(`/api/visitas?pedido=${encodeURIComponent(codigo)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: DatosVentana | null) => { if (vivo) setDatos(d); })
+      .then((d: DatosVentana | null) => { if (vivo) setCargado({ codigo, datos: d }); })
       .catch(() => {});
     return () => { vivo = false; };
   }, [pedido.codigo, abierta]);
 
+  const datos = cargado?.codigo === pedido.codigo ? cargado.datos : null;
   if (!datos?.disponible) return null;
   return (
     <>
@@ -67,7 +71,8 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
   const [cuando, setCuando] = useState<Cuando>({ tipo: "pronto" });
   const [fechaDia, setFechaDia] = useState("");
   const [motivo, setMotivo] = useState("");
-  const [atienden, setAtienden] = useState<string[]>(miId ? [miId] : []);
+  // Quien pide solo va puesto si es de OT: si no, no tendría chip para quitarlo.
+  const [atienden, setAtienden] = useState<string[]>(miId && deOT.some((o) => o.id === miId) ? [miId] : []);
   const [retoques, setRetoques] = useState<Record<string, boolean>>({});
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
@@ -75,10 +80,17 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
   const hoy = hoyIso();
   const dias = useMemo(() => diasLaborables(hoy), [hoy]);
   const ausentes = useMemo(() => ausentesPorDia(dias, datos.ausencias, atienden), [dias, datos.ausencias, atienden]);
-  const fuera = useMemo(() => diasNoEstamos(dias, ausentes, retoques, atienden), [dias, ausentes, retoques, atienden]);
-  const fueraPor = new Map(fuera.map((f) => [f.fecha, f.quien]));
+  const fueraPor = useMemo(
+    () => new Map(diasNoEstamos(dias, ausentes, retoques, atienden).map((f) => [f.fecha, f.quien])),
+    [dias, ausentes, retoques, atienden],
+  );
+  // Al correo solo van los días que quedan: los de esta semana ya pasados no sirven.
+  const fuera = useMemo(() => [...fueraPor].filter(([f]) => f >= hoy).map(([fecha, quien]) => ({ fecha, quien })), [fueraPor, hoy]);
   const elegido = cuando.tipo === "dia" ? cuando.fecha : null;
-  const avisoDia = elegido && fueraPor.has(elegido) ? `El ${diaCorto(elegido)} no estáis todos en OT.` : null;
+  const quienFalta = elegido ? fueraPor.get(elegido) : undefined;
+  const avisoDia = elegido && quienFalta
+    ? `El ${diaCorto(elegido)} no ${quienFalta.length === 1 ? "está" : "están"} ${unirNombres(quienFalta.map(nombre))} en OT.`
+    : null;
 
   const etiqueta = (quien: string[]) =>
     quien.length === atienden.length && atienden.length > 1 ? (atienden.length === 2 ? "Ambos" : "Todos") : unirNombres(quien.map(nombre));
@@ -120,7 +132,9 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
     setEnviando(false);
     if (r?.ok) return onPedida();
     const j = (await r?.json().catch(() => null)) as { error?: string; campo?: string } | null;
-    setErrores({ [j?.campo ?? "general"]: j?.error ?? "No se ha podido pedir la visita" });
+    // Un campo que la ventana no pinta (pedido, motivo…) sale abajo, no se pierde.
+    const k = j?.campo && CAMPOS_CON_ERROR.has(j.campo) ? j.campo : "general";
+    setErrores({ [k]: j?.error ?? "No se ha podido pedir la visita" });
   }
 
   const campo = "rounded-[14px] bg-surface-2 px-3 py-2 text-sm shadow-[var(--hero-sombra-campo)]";
@@ -163,9 +177,10 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
         </label>
         <div className="text-sm">
           <span className="font-semibold">Cuándo</span>
-          <div className="tira-3d mt-1 flex w-fit rounded-full p-1" role="radiogroup" aria-label="Cuándo">
+          {/* PildorasDeslizantes (layout) desliza la píldora hasta el aria-pressed. */}
+          <div className="tira-3d mt-1 flex w-fit rounded-full p-1" role="group" aria-label="Cuándo">
             {([["pronto", "Lo antes posible"], ["dia", "Un día"], ["sinPrisa", "Sin prisa"]] as const).map(([t, txt]) => (
-              <button key={t} type="button" role="radio" aria-checked={cuando.tipo === t}
+              <button key={t} type="button" aria-pressed={cuando.tipo === t}
                 onClick={() => setCuando(t === "dia" ? { tipo: "dia", fecha: fechaDia } : { tipo: t })}
                 className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${cuando.tipo === t ? "pestana-activa" : ""}`}>
                 {txt}
