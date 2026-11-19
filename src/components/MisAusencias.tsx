@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Rango } from "@/lib/visita";
+import { SelectorFecha } from "./SelectorFecha";
 
 // «Mis ausencias» (spec 2026-11-19): teletrabajo fijo y días sueltos. Sirven
 // para rellenar «No estamos en OT» al pedir una visita. La nota es solo tuya.
@@ -88,16 +89,20 @@ export function MisAusencias({ miId, onCerrar, onGuardado }: {
         <ul className="mt-2 space-y-2">
           {rangos.map((r, i) => (
             <li key={i} className="flex flex-wrap items-center gap-2">
-              {/* La fila recién añadida recibe el foco: es lo siguiente que se rellena. */}
-              <input type="date" aria-label="Desde" value={r.desde} autoFocus={!r.desde && i === rangos.length - 1}
-                onChange={(e) => cambiarRango(i, { desde: e.target.value, hasta: r.hasta || e.target.value })}
-                className="rounded-[14px] bg-surface-2 px-3 py-1.5 text-sm shadow-[var(--hero-sombra-campo)]" />
-              <span className="text-sm text-text-muted">al</span>
-              <input type="date" aria-label="Hasta" value={r.hasta} min={r.desde} onChange={(e) => cambiarRango(i, { hasta: e.target.value })}
-                className="rounded-[14px] bg-surface-2 px-3 py-1.5 text-sm shadow-[var(--hero-sombra-campo)]" />
+              {/* El calendario de los filtros (Iván, 19/11): un día suelto o un
+                  tramo, sin dos campos de fecha del navegador. */}
+              <SelectorFecha
+                desde={r.desde}
+                hasta={r.hasta}
+                onCambiar={(desde, hasta) => cambiarRango(i, { desde, hasta })}
+                modoVacio="rango"
+                vacio="Elegir días"
+                ayuda="Días que no estás: uno suelto o un tramo"
+                claseBoton="flex h-9 min-w-44 max-w-full items-center gap-2 rounded-[14px] bg-surface-2 px-3 text-sm font-medium shadow-[var(--hero-sombra-campo)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hero-anillo)]"
+              />
               <input type="text" aria-label="Nota (solo la ves tú)" placeholder="Nota (solo tú)" maxLength={200} value={r.nota ?? ""}
                 onChange={(e) => cambiarRango(i, { nota: e.target.value })}
-                className="min-w-0 flex-1 rounded-[14px] bg-surface-2 px-3 py-1.5 text-sm shadow-[var(--hero-sombra-campo)]" />
+                className="h-9 min-w-0 flex-1 rounded-[14px] bg-surface-2 px-3 text-sm shadow-[var(--hero-sombra-campo)]" />
               <button type="button" onClick={() => setRangos((rs) => rs.filter((_, j) => j !== i))}
                 className="rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-[var(--hero-relleno-encima)]" aria-label="Quitar estos días">Quitar</button>
             </li>

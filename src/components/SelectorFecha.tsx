@@ -38,6 +38,7 @@ export function SelectorFecha({
   ayuda = "Qué hay planificado para un día concreto, o entre dos fechas",
   vacio = "Cualquier día",
   claseBoton,
+  modoVacio = "dia",
 }: {
   desde: string;
   hasta: string;
@@ -48,6 +49,9 @@ export function SelectorFecha({
   /** Clases del botón si se quiere otro tamaño (la vista de Belén lo usa a
    *  la altura de sus campos). Sustituye a las de por defecto. */
   claseBoton?: string;
+  /** Pestaña con la que abre si aún no hay fecha. En las ausencias lo normal
+   *  es un tramo (vacaciones); en los filtros, un día. */
+  modoVacio?: Modo;
   /** Un día suelto llega con `desde === hasta`: el modelo de filtros no
    *  necesita saber que existen los días sueltos, solo el rango. */
   onCambiar: (desde: string, hasta: string) => void;
@@ -58,7 +62,7 @@ export function SelectorFecha({
   // Arranca en el mes de lo ya elegido: al reabrir el filtro se vuelve a donde
   // estabas, no a hoy.
   const [mes, setMes] = useState(() => primerDiaDelMes(desde || hoy));
-  const [modo, setModo] = useState<Modo>(desde && hasta && desde !== hasta ? "rango" : "dia");
+  const [modo, setModo] = useState<Modo>(!desde ? modoVacio : hasta && desde !== hasta ? "rango" : "dia");
   // Saltar de mes o de año sin pasar uno a uno: el nombre del mes abre una
   // rejilla de doce. Ir a septiembre del año pasado eran doce clics en la
   // flecha; ahora son dos. Va en lugar de los días y no debajo: el popover no
