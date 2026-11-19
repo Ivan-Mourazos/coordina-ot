@@ -8,7 +8,11 @@ import { identidad } from "@/lib/server/sesion";
 
 export const dynamic = "force-dynamic";
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+// Fecha local (no UTC): pasada la medianoche en Madrid sigue siendo «ayer» en UTC.
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export async function GET(req: Request) {
   const yo = identidad(req, new URL(req.url).searchParams.get("operarioId"));

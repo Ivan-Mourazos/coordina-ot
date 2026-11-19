@@ -56,7 +56,11 @@ export async function POST(req: Request) {
   try {
     pedirVisita(v.entrada, { id: yo.id, nombre: yo.nombre });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message, campo: "atienden" }, { status: 400 });
+    // Solo el «quien atiende no existe» es culpa de la petición; lo demás
+    // (la base de datos) es un 500 de verdad, no un error en el campo.
+    const msg = (e as Error).message;
+    if (!msg.startsWith("Quien atiende no existe")) throw e;
+    return NextResponse.json({ error: msg, campo: "atienden" }, { status: 400 });
   }
   return NextResponse.json({ ok: true });
 }
