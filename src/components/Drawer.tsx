@@ -56,6 +56,7 @@ import { Pista } from "./Pista";
 import { useSoloLectura } from "./SoloLectura";
 import { DevolverAlHistorial } from "./DevolverAlHistorial";
 import { AtajosPedido } from "./AtajosPedido";
+import { PedirVisita } from "./PedirVisita";
 
 /** Las acciones que suben al bloque del pedido cuando la sección trabaja así.
  *  `anular` NO está, y es la excepción que importa: ver `revisionPorPedido`.
@@ -387,6 +388,8 @@ export function Drawer({
   // perderlo al refrescar obligaría a repasar los puntos otra vez.
   const { marcas: marcasGuia, comentarios: comentariosGuia, marcar: marcarGuia } = useMarcasRevision(idsParaRevisar, miId);
   const [guiaAbierta, setGuiaAbierta] = useState(true);
+  // Sube al pedir una visita: recarga el hilo de notas para enseñar la nota nueva.
+  const [visitasPedidas, setVisitasPedidas] = useState(0);
 
   // ¿Está escaneado el parte? `null` = todavía sin comprobar, y ahí se pinta el
   // marco: lo normal es que exista, y esperar a la comprobación metería un
@@ -731,7 +734,14 @@ export function Drawer({
           // pestaña, y su CAD. En la fila del código, junto a la ✕, igual que
           // en el Historial (Iván, 08/11/2026). De color sólido, a propósito:
           // escondido entre las acciones de cada OF no lo encontraba nadie.
-          acciones={<AtajosPedido codigo={pedido.codigo} plantear={plantear} />}
+          acciones={
+            <div className="flex items-center gap-2">
+              {!soloLectura && (
+                <PedirVisita pedido={pedido} operarios={operarios} miId={miId} onPedida={() => setVisitasPedidas((n) => n + 1)} />
+              )}
+              <AtajosPedido codigo={pedido.codigo} plantear={plantear} />
+            </div>
+          }
         />
       }
       // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí
@@ -860,7 +870,7 @@ export function Drawer({
               rectificación de otro. Solo sale si hay algo (ver el componente). */}
           <NoConformidadesPedido key={`nc:${pedido.codigo}`} pedido={pedido.codigo} onAbrirPedido={onAbrirPedidoPorCodigo} />
           <NotasPedido
-            key={`notas:${pedido.codigo}`}
+            key={`notas:${pedido.codigo}:${visitasPedidas}`}
             pedido={pedido.codigo}
             miId={miId}
             operarios={operarios}
