@@ -38,6 +38,11 @@ export interface OperacionOF {
   planFin?: string | null;
   /** Es la tarea en la que se suben los bultos (entrada de producto en RPS). */
   subeBultos?: boolean;
+  /** Unidades intermedias («0/2 UNI» en OLANET): solo en las tareas con la
+   *  casilla «Imprimir etiquetas» de la OF en RPS. `hechas` = las buenas que
+   *  han dado en OLANET (null si OLANET no contestó); `total` = las de la fase
+   *  (las de la OF). */
+  unidades?: { hechas: number | null; total: number };
   estado: EstadoOperacion;
 }
 

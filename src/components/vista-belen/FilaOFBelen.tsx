@@ -172,8 +172,11 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
           <thead>
             <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">
               <th scope="col" className="py-1 pr-2">Tarea</th>
-              <th scope="col" className="w-[22rem] px-2 py-1">Sección</th>
-              <th scope="col" className="w-[8rem] px-2 py-1 text-right">Tiempo</th>
+              {/* La sección más a la izquierda y, entre ella y el tiempo, las
+                  unidades intermedias (Iván, 19/11/2026). */}
+              <th scope="col" className="w-[24rem] px-2 py-1">Sección</th>
+              <th scope="col" className="w-[6rem] px-2 py-1 text-right" title={SIGNIFICA.unidades}>Unidades</th>
+              <th scope="col" className="w-[6.5rem] px-2 py-1 text-right">Tiempo</th>
               <th scope="col" className="w-[8rem] px-2 py-1">Estado</th>
               <th scope="col" className="w-[6.5rem] whitespace-nowrap py-1 pl-2 text-right" title="El día en que se acabó la operación. Si falta, en gris, el inicio y el fin que le da el planificador">Fin</th>
             </tr>
@@ -235,6 +238,21 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                     <td className="truncate px-2 py-1.5" title={[op.seccion, op.maquina].filter(Boolean).join(" · ") || undefined}>
                       {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
                     </td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                      {op.unidades ? (
+                        <span
+                          title={op.unidades.hechas == null ? `${SIGNIFICA.unidades}
+OLANET no ha contestado: solo el total.` : SIGNIFICA.unidades}
+                          className={`cursor-help ${
+                            op.unidades.hechas != null && op.unidades.total > 0 && op.unidades.hechas >= op.unidades.total
+                              ? "font-semibold"
+                              : "text-text-muted"
+                          }`}
+                        >
+                          {op.unidades.hechas ?? "?"}/{op.unidades.total} uds
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {/* Sin tiempo pero con fichajes de menos de un minuto (los
                           únicos de la tarea): sus segundos, en gris. */}
@@ -280,7 +298,7 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                   </tr>
                   {desplegada && suya && (
                     <tr>
-                      <td colSpan={5} className="pb-2.5 pl-9 pt-1">
+                      <td colSpan={6} className="pb-2.5 pl-9 pt-1">
                         <div className="rounded-2xl bg-[var(--detalle)] px-3.5 py-2.5">
                           <FichajesDeTarea tarea={suya} />
                         </div>
@@ -294,7 +312,7 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
               // Hecha → la línea en amarillo, como en la app vieja (Iván,
               // 14/11/2026). El resto de lo desplegado, sin color.
               <tr key={`${av.tipo}-${av.codigo}`} className={av.cerrado ? "bg-[var(--belen-avisos-hechos)]" : undefined}>
-                <td colSpan={3} className="truncate py-1.5 pl-4 pr-2" title={enFrase(av.descripcion)}>
+                <td colSpan={4} className="truncate py-1.5 pl-4 pr-2" title={enFrase(av.descripcion)}>
                   <span className={`${chip("neutro")} mr-2`}>{av.tipo}</span>
                   {enFrase(av.descripcion) || av.codigo}
                 </td>

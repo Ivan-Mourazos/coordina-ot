@@ -12,6 +12,7 @@ export const SIGNIFICA = {
   finalizado: "La operación está acabada: OLANET la dio por finalizada o RPS la tiene al 100 %.",
   interrumpido: "Alguien la empezó (fichó o la cargó en máquina) y no está acabada.",
   sinEmpezar: "Nadie la ha tocado todavía.",
+  unidades: "Unidades intermedias: las que van dadas en OLANET en esta tarea de las que tiene la OF. Solo en las tareas con «Imprimir etiquetas» en la OF de RPS.",
   enDirecto: "Alguien está fichando en esta tarea ahora mismo en OLANET. Se mira cada minuto; OLANET lo publica cada pocos minutos.",
   solicitada: "La fecha que pidió el cliente en el pedido.",
   comprometida: "La fecha que dio Producción (la que apuntas en RPS).",

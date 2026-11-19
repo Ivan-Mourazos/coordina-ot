@@ -1,5 +1,5 @@
 import sql from "mssql";
-import { getPool } from "./db";
+import { getPool, getPoolOlanet } from "./db";
 import {
   agruparTiempos,
   esCodigoOF,
@@ -105,6 +105,8 @@ interface FilaTarea {
   minutos: number | null;
   ultimo: Date | null;
   bultos: boolean | null;
+  /** Casilla «Imprimir etiquetas» de la tarea: lleva unidades intermedias. */
+  etiquetas: boolean | null;
   finOlanet: Date | null;
   finRps: Date | null;
   planIni: Date | null;
@@ -112,6 +114,32 @@ interface FilaTarea {
   tipoAviso: string | null;
   aviso: string | null;
   cierreAviso: Date | null;
+}
+
+/** Unidades intermedias de las fases en OLANET («0/2 UNI» en su pantalla),
+ *  por «OF|tarea». Buenas = las que van dadas en esa fase (null hasta la
+ *  primera); total = CantidadFasePrev, las de la OF. Comprobado contra
+ *  scg_Materiales y sch_CantidadesProd el 19/11/2026: cuadran. Si OLANET no
+ *  contesta, null: se enseña solo el total. */
+async function unidadesIntermedias(ofs: readonly string[]): Promise<Map<string, { hechas: number | null; total: number }> | null> {
+  if (!ofs.length) return null;
+  try {
+    const peticion = (await getPoolOlanet()).request();
+    // Tipadas: sin tipo irían como nvarchar y anularían el índice de Orden.
+    ofs.forEach((of, i) => peticion.input(`of${i}`, sql.VarChar(50), of));
+    const r = await peticion.query<{ orden: string; fase: string; buenas: number | null; total: number | null }>(`
+      SELECT Orden AS orden, Fase AS fase, CantidadBuenas AS buenas, CantidadFasePrev AS total
+      FROM scg_Fases WHERE Orden IN (${ofs.map((_, i) => `@of${i}`).join(", ")})`);
+    return new Map(
+      r.recordset.map((f) => [
+        `${f.orden.trim()}|${f.fase.trim()}`,
+        { hechas: f.buenas == null ? 0 : Number(f.buenas), total: Number(f.total) || 0 },
+      ]),
+    );
+  } catch (e) {
+    console.error("[vista-belen] unidades intermedias de OLANET:", e);
+    return null;
+  }
 }
 
 export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | null> {
@@ -161,6 +189,8 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              fich.minutos, fich.ultimo,
              -- La tarea en la que se suben los bultos (entrada de producto).
              t.ProductEntry AS bultos,
+             -- «Imprimir etiquetas»: en OLANET se cuentan sus unidades.
+             t.PrintLabels AS etiquetas,
              -- Cuándo acabó: OLANET al darla por finalizada y, si no, el
              -- cierre de RPS (Belén, 11/11/2026: «la fecha en que finalizaron»).
              (SELECT MAX(fecha_cambio) FROM dbo.tgm_estadosof_olanet
@@ -234,6 +264,9 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
   ]);
 
   if (!ofs.recordset.length) return pedidoSinOF(pool, pedido);
+  const unidades = tareas.recordset.some((t) => t.etiquetas)
+    ? await unidadesIntermedias(ofs.recordset.map((f) => f.cod.trim()))
+    : null;
   // Los nombres, como en «Tareas y tiempos» y el Historial: el del equipo en
   // Coordina si es de los nuestros, el de RPS recortado si no.
   const nombre = (cod: string | null, rps: string | null) =>
@@ -281,6 +314,12 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
           minutos: Number(t.minutos) || 0,
           ultimoFichaje: iso(t.ultimo),
           subeBultos: !!t.bultos || undefined,
+          unidades: t.etiquetas
+            ? (unidades?.get(`${f.cod.trim()}|${t.tarea.trim()}`) ?? {
+                hechas: null,
+                total: Number(f.cantidad) || 0,
+              })
+            : undefined,
           ...(() => {
             const estado = estadoOperacion({ olanet: t.olanet, porcentaje: t.pct, imputaciones: t.imps });
             // Solo las acabadas tienen fecha de fin. OLANET guarda fecha y
