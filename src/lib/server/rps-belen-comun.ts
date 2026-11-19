@@ -27,7 +27,9 @@ export const SEGUNDOS_FICHAJE = (i: string) => `
        ELSE ${i}.EndHour + 86400 - ${i}.StartHour END`;
 
 /** Los fichajes de menos de un minuto no salen ni suman (Iván, 11/11/2026:
- *  «solo rellenan de ruido»). Son el 31 % y casi todos de abrir y cerrar. */
+ *  «solo rellenan de ruido»). Son el 31 % y casi todos de abrir y cerrar.
+ *  Excepción en el desplegable de la OF: si una tarea SOLO tiene fichajes
+ *  cortos, salen, para saber quién la hizo (19/11/2026, leerTiemposBelen). */
 export const SEGUNDOS_MINIMOS = 60;
 
 /** Segundos desde la medianoche → «07:33». */

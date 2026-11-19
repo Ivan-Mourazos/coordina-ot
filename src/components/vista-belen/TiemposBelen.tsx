@@ -21,7 +21,8 @@ import { useColoresPersona } from "@/lib/useColoresPersona";
 
 
 // Tiempos EXACTOS de RPS (inicio y fin del fichaje), sin redondear; los de
-// menos de un minuto ya no llegan (lib/server/rps-belen-comun.ts).
+// menos de un minuto no llegan, salvo en tareas que no tienen otro
+// (lib/server/vista-belen-db.ts, leerTiemposBelen).
 const min = fmtDuracion;
 const franja = (f: { hora: string | null; horaFin?: string | null }) =>
   f.hora ? (f.horaFin && f.horaFin !== f.hora ? `${f.hora}–${f.horaFin}` : f.hora) : "—";

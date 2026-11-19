@@ -683,12 +683,22 @@ export async function leerTiemposBelen(codigo: string): Promise<TiemposPedido | 
     LEFT JOIN dbo.GENEmployee e ON e.IDEmployee = i.IDEmployeeMachineTool`);
   if (!r.recordset.length) return null;
 
+  // Tareas con algún fichaje de verdad (un minuto o más).
+  const conFichajeLargo = new Set(
+    r.recordset
+      .filter((f) => f.persona && f.dia && (Number(f.segundos) || 0) >= SEGUNDOS_MINIMOS)
+      .map((f) => `${f.of.trim()}|${f.tarea.trim()}`),
+  );
   const filas: FilaTiempo[] = r.recordset.map((f) => {
-    // Un fichaje sin empleado (máquina o dato perdido) no es de nadie, y uno de
-    // menos de un minuto es ruido: en los dos casos se queda la tarea, sin
-    // persona, para que siga saliendo en la lista.
+    // Un fichaje sin empleado (máquina o dato perdido) no es de nadie: se queda
+    // la tarea, sin persona, para que siga saliendo en la lista. Uno de menos
+    // de un minuto es ruido SALVO que la tarea no tenga otro: entonces es lo
+    // único que dice quién la hizo (Iván, 19/11/2026: «quién cortó la lona»,
+    // un corte de 3 s en RPS que aquí no tenía desplegable).
     const segundos = Number(f.segundos) || 0;
-    const cuenta = !!(f.persona && f.dia) && segundos >= SEGUNDOS_MINIMOS;
+    const cuenta =
+      !!(f.persona && f.dia) &&
+      (segundos >= SEGUNDOS_MINIMOS || !conFichajeLargo.has(`${f.of.trim()}|${f.tarea.trim()}`));
     return {
       of: f.of.trim(),
       ofDescripcion: (f.ofDescripcion ?? "").trim(),
