@@ -1,6 +1,7 @@
 // src/lib/server/pedir-visita.ts
 import { asuntoVisita, cuerpoVisita, cuerpoVisitaHtml, notaVisita, type DatosVisita } from "../correo-visita";
 import { agruparDias, type EntradaVisita } from "../visita";
+import { getDb } from "./estado-db";
 import { crearNota } from "./notas-db";
 import { correoDeOperario } from "./operarios";
 import { leerPersona } from "./personas-db";
@@ -35,16 +36,20 @@ export function pedirVisita(
     pide: primerNombre(pide.nombre),
   };
   const ts = ahora.toISOString();
-  const nota = crearNota(e.pedido, pide.id, notaVisita(datos), ts, { para: [], enConsultaPublica: false });
   const modo = modoVisita();
   const { para, cc } = destinatariosVisita(modo);
-  const correoId = encolarVisita(
-    {
-      pedido: e.pedido, notaId: nota.id, para, cc, responderA: correoDeOperario(pide.id),
-      asunto: asuntoVisita(datos), cuerpo: cuerpoVisita(datos), html: cuerpoVisitaHtml(datos), modo, pedidoPor: pide.id,
-    },
-    ahora,
-  );
-  usarNombreVisita(e.viene, ahora);
-  return { notaId: nota.id, correoId };
+  // Nota, correo y nombre van juntos: una nota de «visita solicitada» sin
+  // correo en la cola diría algo que no ha pasado.
+  return getDb().transaction(() => {
+    const nota = crearNota(e.pedido, pide.id, notaVisita(datos), ts, { para: [], enConsultaPublica: false });
+    const correoId = encolarVisita(
+      {
+        pedido: e.pedido, notaId: nota.id, para, cc, responderA: correoDeOperario(pide.id),
+        asunto: asuntoVisita(datos), cuerpo: cuerpoVisita(datos), html: cuerpoVisitaHtml(datos), modo, pedidoPor: pide.id,
+      },
+      ahora,
+    );
+    usarNombreVisita(e.viene, ahora);
+    return { notaId: nota.id, correoId };
+  })();
 }
