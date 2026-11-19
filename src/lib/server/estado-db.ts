@@ -609,6 +609,7 @@ const MIGRACIONES: ReadonlyArray<{
   // Cada uno elige el color de su cara (Iván, 17/11/2026). NULL = el de siempre
   // (el del catálogo del equipo, o el que sale del nombre en Producción).
   { version: 23, nombre: "persona_color", aplicar: personaColor },
+  { version: 24, nombre: "visitas", aplicar: visitas },
 ];
 
 /** El color elegido de cada cuenta. Se puede repetir: la columna solo se añade si falta. */
@@ -616,6 +617,50 @@ function personaColor(db: Database.Database): void {
   const cols = (db.prepare("PRAGMA table_info(persona)").all() as Array<{ name: string }>).map((c) => c.name);
   // Sin tabla (bases de prueba a medias): nada que añadir.
   if (cols.length > 0 && !cols.includes("color")) db.exec("ALTER TABLE persona ADD COLUMN color TEXT");
+}
+
+/** Pedir visita (spec 2026-11-19): las ausencias de cada técnico, los nombres
+ *  de quien suele venir y la cola de su correo (aparte de la del
+ *  planteamiento, que está atada a sus PDF). */
+function visitas(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ausencia_fija (
+      operario_id TEXT PRIMARY KEY,
+      dias TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE TABLE IF NOT EXISTS ausencia_rango (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operario_id TEXT NOT NULL,
+      desde TEXT NOT NULL,
+      hasta TEXT NOT NULL,
+      nota TEXT
+    );
+    CREATE INDEX IF NOT EXISTS ausencia_rango_operario ON ausencia_rango (operario_id);
+    CREATE TABLE IF NOT EXISTS visita_nombre (
+      nombre TEXT PRIMARY KEY COLLATE NOCASE,
+      usado_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS visita_correo (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido_id TEXT NOT NULL,
+      nota_id INTEGER,
+      para TEXT NOT NULL,
+      cc TEXT NOT NULL,
+      responder_a TEXT,
+      asunto TEXT NOT NULL,
+      cuerpo TEXT NOT NULL,
+      cuerpo_html TEXT,
+      estado TEXT NOT NULL,
+      intentos INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      modo TEXT,
+      pedido_por TEXT NOT NULL,
+      creado_at TEXT NOT NULL,
+      proximo_at TEXT,
+      enviado_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS visita_correo_pendiente ON visita_correo (estado, proximo_at);
+  `);
 }
 
 /** Respuestas y hilos resueltos.
