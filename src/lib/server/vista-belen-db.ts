@@ -130,7 +130,7 @@ export async function leerPedidoBelen(codigo: string): Promise<PedidoBelen | nul
              CAST(mo.Notes AS varchar(1000)) AS notas, lin.ReceptionDemandDate AS fSol,
              -- «F. ENTREGA» de la hoja de ruta de RPS: la fecha de fabricación de la OF.
              mo.ManualEndDate AS fEntrega,
-             -- «F. OF»: el día en que OT creó la OF en RPS (Belén, 17/11/2026).
+             -- «F. OF»: el día en que Producción creó la OF en RPS (Belén, 17/11/2026).
              mo.CreationTimestamp AS fCreada,
              CAST((SELECT Description FROM dbo.STKArticle WHERE IDArticle = mo.IDArticle) AS varchar(300)) AS articulo,
              CAST(lin.Comment AS varchar(4000)) AS detalleLinea, CAST(p.Comment AS varchar(4000)) AS comentarioVenta,

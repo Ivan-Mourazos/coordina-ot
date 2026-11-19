@@ -107,7 +107,7 @@ export interface OFBelen {
   /** ISO yyyy-mm-dd. «F. ENTREGA» de la hoja de ruta: la fecha de fabricación
    *  de la OF en RPS (ManualEndDate). */
   fechaEntrega?: string | null;
-  /** ISO yyyy-mm-dd. «F. OF»: el día en que OT creó la OF en RPS. */
+  /** ISO yyyy-mm-dd. «F. OF»: el día en que Producción creó la OF en RPS. */
   fechaOF?: string | null;
   /** Descripción del artículo de la OF. */
   articulo?: string | null;

@@ -525,7 +525,7 @@ export function FilaOFBelen({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <p className="min-w-0 flex-1 text-[14px] font-medium">{enFrase(of.descripcion)}</p>
               {of.fechaOF && (
-                <span className="whitespace-nowrap text-[12px] text-text-muted" title="El día en que Oficina Técnica creó la OF en RPS">
+                <span className="whitespace-nowrap text-[12px] text-text-muted" title="El día en que Producción creó la OF en RPS">
                   F. OF <b className="font-bold tabular-nums text-text">{fechaCorta(of.fechaOF)}</b>
                 </span>
               )}
