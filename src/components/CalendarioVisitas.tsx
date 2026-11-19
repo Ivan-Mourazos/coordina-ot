@@ -72,6 +72,7 @@ export function CalendarioVisitas({
   seleccionado,
   onSeleccionar,
   onCambiarMes,
+  ausentes = {},
 }: {
   /** Cualquier día del mes que se enseña. */
   mes: string;
@@ -80,6 +81,9 @@ export function CalendarioVisitas({
   seleccionado: string | null;
   onSeleccionar: (fecha: string | null) => void;
   onCambiarMes: (mes: string) => void;
+  /** Fecha → nombres de OT que no están. Solo con sesión; la consulta sin
+   *  login no la pasa. */
+  ausentes?: Record<string, string[]>;
 }) {
   const hoy = hoyISO();
   const porFecha = new Map(dias.map((d) => [d.fecha, d]));
@@ -124,6 +128,7 @@ export function CalendarioVisitas({
           const activo = fecha === seleccionado;
           const tiene = (info?.total ?? 0) > 0;
           const pendiente = (info?.pendientes ?? 0) > 0;
+          const fuera = ausentes[fecha] ?? [];
           return (
             <button
               key={fecha}
@@ -131,13 +136,17 @@ export function CalendarioVisitas({
               // Volver a pulsar el día elegido deselecciona: es la forma de
               // volver al mes entero sin buscar un botón de "quitar".
               onClick={() => onSeleccionar(activo ? null : fecha)}
-              disabled={!tiene}
+              disabled={!tiene && fuera.length === 0}
               aria-pressed={activo}
               title={
-                tiene
-                  ? `${info!.total} visita${info!.total === 1 ? "" : "s"}${
-                      pendiente ? ` · ${info!.pendientes} sin cerrar` : " · todas cerradas"
-                    }`
+                tiene || fuera.length
+                  ? `${
+                      tiene
+                        ? `${info!.total} visita${info!.total === 1 ? "" : "s"}${
+                            pendiente ? ` · ${info!.pendientes} sin cerrar` : " · todas cerradas"
+                          }`
+                        : ""
+                    }${fuera.length ? `${tiene ? " · " : ""}No están: ${fuera.join(", ")}` : ""}`
                   : undefined
               }
               // `disabled:cursor-default` a propósito: un día sin visitas no es
@@ -147,7 +156,7 @@ export function CalendarioVisitas({
               className={`relative grid aspect-square place-items-center rounded-lg text-xs tabular-nums transition-colors disabled:cursor-default ${
                 activo
                   ? "bg-brand-400 font-bold text-brand-950"
-                  : tiene
+                  : tiene || fuera.length > 0
                     ? "font-semibold text-text hover:bg-[var(--glass-highlight)]"
                     : "text-text-muted"
               } ${esHoy && !activo ? "ring-1 ring-brand-400" : ""}`}
@@ -164,6 +173,9 @@ export function CalendarioVisitas({
                   }`}
                 />
               )}
+              {fuera.length > 0 && !activo && (
+                <span aria-hidden="true" className="absolute inset-x-1.5 top-0.5 h-0.5 rounded-full bg-red-500" />
+              )}
             </button>
           );
         })}
@@ -176,6 +188,11 @@ export function CalendarioVisitas({
         <span className="flex items-center gap-1">
           <span className="size-1.5 rounded-full bg-cyan-600" /> hechas
         </span>
+        {Object.keys(ausentes).length > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="h-0.5 w-2.5 rounded-full bg-red-500" /> falta alguien de OT
+          </span>
+        )}
         <span className="ml-auto">
           {totalMes} en el mes
         </span>

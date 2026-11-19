@@ -12,6 +12,7 @@ import { hoyISO } from "@/lib/types";
 import { MESES_CORTOS } from "@/lib/calendario";
 import {
   CalendarioVisitas,
+  celdasDelMes,
   primerDiaDelMes,
   ultimoDiaDelMes,
   type DiaConVisitas,
@@ -19,6 +20,8 @@ import {
 import { Desplegable } from "./Desplegable";
 import { BloqueLista } from "./BloqueLista";
 import { tintaSobre } from "@/lib/tinta";
+import { MisAusencias } from "./MisAusencias";
+import { ausentesPorDia, diaSemana, unirNombres, type Ausencias } from "@/lib/visita";
 
 // ─── Agenda de visitas COT ───────────────────────────────────────────────────
 // Un comercial pide que Oficina Técnica le acompañe a ver una obra. Lo único
@@ -109,7 +112,11 @@ export function VisitasCotView({
   base = "/api/visitas-cot",
   sondeo = true,
   busqueda,
+  ausencias,
 }: {
+  /** Ausencias de OT en el calendario y botón «Mis ausencias». Solo la pasa
+   *  el tablero (con sesión); la consulta sin login no. */
+  ausencias?: { miId: string | null };
   base?: string;
   /** Refrescarse solo cada minuto. ENCENDIDO para el equipo, que tiene esto
    *  abierto toda la mañana y quiere ver entrar las visitas nuevas.
@@ -125,6 +132,33 @@ export function VisitasCotView({
 } = {}) {
   const [mes, setMes] = useState(() => primerDiaDelMes(hoyISO()));
   const [dia, setDia] = useState<string | null>(null);
+  const [equipo, setEquipo] = useState<{ nombres: Record<string, string>; ausencias: Ausencias[] } | null>(null);
+  const [misAusenciasAbierto, setMisAusenciasAbierto] = useState(false);
+  const [vueltaAusencias, setVueltaAusencias] = useState(0);
+  const conAusencias = ausencias !== undefined;
+
+  useEffect(() => {
+    if (!conAusencias) return;
+    let vivo = true;
+    fetch("/api/ausencias/equipo", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo) setEquipo(d); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [conAusencias, vueltaAusencias]);
+
+  const ausentesMes = useMemo(() => {
+    if (!equipo) return {};
+    const dias = celdasDelMes(mes).filter((d): d is string => d !== null);
+    const ids = equipo.ausencias.map((a) => a.operarioId);
+    const porDia = ausentesPorDia(dias, equipo.ausencias, ids);
+    const salida: Record<string, string[]> = {};
+    for (const [fecha, quien] of Object.entries(porDia)) {
+      // Un rango de vacaciones de lunes a domingo no marca el finde.
+      if (quien.length && diaSemana(fecha) <= 5) salida[fecha] = quien.map((id) => equipo.nombres[id] ?? id);
+    }
+    return salida;
+  }, [equipo, mes]);
   const [ambito, setAmbito] = useState<Ambito>("proximas");
   const [query, setQuery] = useState("");
   // El buscador propio o el de fuera: el de la consulta sin login manda.
@@ -293,7 +327,17 @@ export function VisitasCotView({
             seleccionado={dia}
             onSeleccionar={setDia}
             onCambiarMes={setMes}
+            ausentes={ausentesMes}
           />
+          {conAusencias && (
+            <button
+              type="button"
+              onClick={() => setMisAusenciasAbierto(true)}
+              className="mt-2 w-full rounded-full bg-surface-2 py-1.5 text-xs font-semibold text-text hover:brightness-95"
+            >
+              Mis ausencias
+            </button>
+          )}
         </div>
 
         <div className="min-w-0 space-y-4">
@@ -310,6 +354,11 @@ export function VisitasCotView({
                 </span>
               )}
             </h2>
+            {dia && ausentesMes[dia] && (
+              <p className="w-full rounded-[14px] bg-red-500/12 px-3 py-1.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                No están en OT: {unirNombres(ausentesMes[dia])}
+              </p>
+            )}
             <span className="text-[11px] text-text-muted">
               {mostradas.length} visita{mostradas.length === 1 ? "" : "s"}
               {!dia && pendientesMes > 0 && ` · ${pendientesMes} por hacer en el mes`}
@@ -386,6 +435,14 @@ export function VisitasCotView({
           ))}
         </div>
       </div>
+
+      {misAusenciasAbierto && ausencias && (
+        <MisAusencias
+          miId={ausencias.miId}
+          onCerrar={() => setMisAusenciasAbierto(false)}
+          onGuardado={() => setVueltaAusencias((n) => n + 1)}
+        />
+      )}
     </section>
   );
 }

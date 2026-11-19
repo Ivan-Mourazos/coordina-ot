@@ -65,4 +65,8 @@ export async function register() {
   // CORREO_PLANTEAMIENTO=off, o sin credenciales de Microsoft, no hace nada.
   const { arrancarCorreo } = await import("./lib/server/correo-worker");
   arrancarCorreo();
+
+  // Pedir visita (spec 2026-11-19). Con CORREO_VISITA=off no hace nada.
+  const { arrancarVisita } = await import("./lib/server/visita-correo-worker");
+  arrancarVisita();
 }
