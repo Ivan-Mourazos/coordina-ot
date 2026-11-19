@@ -236,7 +236,15 @@ function Tareas({ of, tiempos, enDirecto }: { of: OFBelen; tiempos: OFTiempos | 
                       {op.seccion ? enTitulo(op.seccion) : op.maquina ?? <span className="text-text-muted">—</span>}
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
-                      {op.minutos ? fmtDuracion(op.minutos) : <span className="text-text-muted">—</span>}
+                      {/* Sin tiempo pero con fichajes de menos de un minuto (los
+                          únicos de la tarea): sus segundos, en gris. */}
+                      {op.minutos ? (
+                        fmtDuracion(op.minutos)
+                      ) : suya?.minutos ? (
+                        <span className="text-text-muted" title="Fichajes de menos de un minuto">{fmtDuracion(suya.minutos)}</span>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
                     </td>
                     {ahora.length > 0 ? (
                       <td className="px-2 py-1.5 align-top text-[12px] font-bold text-blue-800 dark:text-sky-200" title={SIGNIFICA.enDirecto}>
