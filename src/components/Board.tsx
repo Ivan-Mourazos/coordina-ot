@@ -3358,7 +3358,7 @@ export function Board({
         {/* ── VISTA VISITAS COT ── */}
         {vista === "visitas" && (
           <div className="p-5 pb-24">
-            <VisitasCotView />
+            <VisitasCotView ausencias={{ miId }} />
           </div>
         )}
 
