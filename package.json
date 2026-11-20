@@ -16,7 +16,8 @@
     "test": "vitest run",
     "novedades": "node scripts/novedades.mjs",
     "backup": "node scripts/backup-db.mjs",
-    "pin:resetear": "node scripts/pin-resetear.mjs"
+    "pin:resetear": "node scripts/pin-resetear.mjs",
+    "consultas-sql": "node scripts/informe-consultas-sql.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",

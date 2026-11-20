@@ -61,3 +61,6 @@ snap-board.md
 
 # Restos locales de trabajo: capturas, logs, bases de prueba, scripts de consulta
 /tmp/
+
+# Informe de consultas a SQL Server para IT (pnpm consultas-sql)
+/informe-consultas-sql/

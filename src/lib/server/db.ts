@@ -1,4 +1,9 @@
 import sql from "mssql";
+import { medirConsultas } from "./medir-consultas.js";
+
+// Cada consulta a RPS y OLANET queda apuntada con su tiempo en logs/consultas-sql
+// (petición de IT, 20/11/2026). Informe: `pnpm consultas-sql`.
+medirConsultas({ web: "CoordinaOT", dir: "logs/consultas-sql" });
 
 // ─── Pool de conexión a SQL Server (RPS) ─────────────────────────────────────
 // SOLO servidor (API routes / Server Components). Nunca importar desde código
@@ -50,6 +55,8 @@ function config(prefijo: string): sql.config {
       encrypt: v("ENCRYPT") !== "false",
       trustServerCertificate: v("TRUST_SERVER_CERTIFICATE") !== "false",
       ...(instancia ? { instanceName: instancia } : {}),
+      // Así IT ve en SQL Server (program_name) qué conexiones son nuestras.
+      appName: "CoordinaOT",
     },
     pool: { max: 5, min: 0, idleTimeoutMillis: 30_000 },
     connectionTimeout: 10_000,
