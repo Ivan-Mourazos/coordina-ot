@@ -12,6 +12,7 @@
 
 export type IdLista =
   | "bultos-subidos"
+  | "finalizadas-bultos"
   | "desfase"
   | "fechas-comprometidas"
   | "varias-maquinas"
@@ -104,6 +105,26 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     label: "Bultos subidos, tareas pendientes",
     explica: "OF con todas sus unidades subidas y alguna operación sin fichar o interrumpida.",
     columnas: COLUMNAS_TAREA,
+  },
+  {
+    // Su hoja «Tare finalizadas bultos pendien» (Belén, 20/11/2026): lo
+    // contrario de la de arriba. La operación que sube el producto ya está
+    // hecha, pero las unidades no se subieron (o no todas).
+    id: "finalizadas-bultos",
+    label: "Tareas finalizadas, bultos pendientes",
+    explica: "OF sin finalizar cuya operación de subir bultos ya está acabada, pero con unidades todavía por subir.",
+    columnas: [
+      { clave: "prioridad", titulo: "Prio.", tipo: "numero" },
+      { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "cliente", titulo: "Cliente", largo: true },
+      { clave: "tarea", titulo: "Tarea finalizada", largo: true },
+      { clave: "maquina", titulo: "Máquina" },
+      { clave: "cantidadOF", titulo: "Unid. OF", tipo: "numero" },
+      { clave: "cantidadSubida", titulo: "Subidas", tipo: "numero" },
+      { clave: "situacion", titulo: "Situación", tipo: "estado" },
+      { clave: "fechaSolicitada", titulo: "Solicitada", tipo: "fecha" },
+    ],
   },
   {
     id: "desfase",

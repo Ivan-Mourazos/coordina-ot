@@ -128,6 +128,65 @@ const SUBIDAS = `
       WHERE CodCompany = '001'
       GROUP BY IDManufacturingOrder)`;
 
+// «Tareas finalizadas, bultos pendientes» (su hoja «Tare finalizadas bultos
+// pendien», Belén 20/11/2026): la operación que sube el producto
+// (ProductEntry = 1) está al 100 % en una OF sin finalizar, pero no se han
+// subido todas las unidades. Su Excel cruzaba con las líneas de pedido y
+// repetía la OF por línea; aquí sale una vez, con la primera línea AR.
+// Medido el 20/11/2026: 2 filas en 1,1 s, las mismas que su Excel. No se mira
+// OLANET para dar la tarea por acabada (sí en la lista de arriba): de las 312
+// operaciones así por debajo del 100 %, ninguna estaba finalizada en OLANET, y
+// mirarlo costaba 3 s más.
+const SQL_FINALIZADAS_BULTOS = `
+    WITH ${SUBIDAS}
+    SELECT task.IDMOTask AS idTarea, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           mo.Priority AS prioridad, task.CodMOTask AS tarea, CAST(task.Description AS varchar(300)) AS descripcion,
+           maq.CodMachine AS maq, sit.Description AS situacion, pedido.fechaExigida AS fSol,
+           mo.Quantity AS cantidadOF, ISNULL(subidas.cantidad, 0) AS cantidadSubida
+    FROM dbo.CPRMOTask task
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = task.IDManufacturingOrder
+    JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+      AND sit.CodCompany = mo.CodCompany
+    JOIN dbo.STKArticle art ON art.IDArticle = mo.IDArticle
+    LEFT JOIN subidas ON subidas.IDManufacturingOrder = mo.IDManufacturingOrder
+    LEFT JOIN dbo.CPRMOResourceMachine res ON res.IDMOTask = task.IDMOTask
+    LEFT JOIN dbo.CPRMachine maq ON maq.IDMachine = res.IDMachine
+    ${pedidoDe()}
+    WHERE mo.CodCompany = '001' AND sit.CodSituation < 6
+      AND task.PercentProgress = 100 AND task.ProductEntry = 1 AND art.CodArticle <> 'diseño'
+      AND ISNULL(subidas.cantidad, 0) < mo.Quantity
+    ORDER BY mo.Priority, pedido.fechaExigida, mo.CodManufacturingOrder, task.CodMOTask`;
+
+async function finalizadasBultosPendientes(pool: sql.ConnectionPool): Promise<FilaLista[]> {
+  const r = await pool.request().query<{
+    idTarea: string;
+    of: string;
+    pedido: string;
+    cliente: string | null;
+    prioridad: number | null;
+    tarea: string;
+    descripcion: string | null;
+    maq: string | null;
+    situacion: string | null;
+    fSol: Date | null;
+    cantidadOF: number;
+    cantidadSubida: number;
+  }>(SQL_FINALIZADAS_BULTOS);
+  return unaFilaPorTarea(r.recordset).map((f) => ({
+    clave: f.idTarea,
+    of: f.of.trim(),
+    pedido: f.pedido.trim(),
+    cliente: texto(f.cliente),
+    prioridad: f.prioridad,
+    tarea: `${f.tarea.trim()} ${(f.descripcion ?? "").trim()}`,
+    maquina: texto(f.maq),
+    cantidadOF: Number(f.cantidadOF),
+    cantidadSubida: Number(f.cantidadSubida),
+    situacion: (f.situacion ?? "").trim(),
+    fechaSolicitada: iso(f.fSol),
+  }));
+}
+
 // RPS, 09/11/2026: 1 fila, 860 ms (primera ejecución: 1.923 ms).
 // El Excel AR devuelve 2 filas por sus tareas; aquí la OF sale una sola vez.
 // Belén, 10/11/2026: «que aparezcan también las delegaciones» = SA y BE.
@@ -888,6 +947,7 @@ async function tiemposAbiertos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
 
 export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<FilaLista[]>> = {
   "bultos-subidos": (pool) => tareasPendientes(pool),
+  "finalizadas-bultos": (pool) => finalizadasBultosPendientes(pool),
   "desfase": (pool) => comprobacion(pool, SQL_DESFASE),
   "fechas-comprometidas": (pool) => fechasComprometidas(pool),
   "varias-maquinas": (pool) => comprobacion(pool, SQL_VARIAS_MAQUINAS),

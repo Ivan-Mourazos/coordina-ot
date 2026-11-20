@@ -10,6 +10,7 @@ vi.mock("../server/db", () => ({ getPool: vi.fn() }));
 // basta con que definición y consulta olviden por accidente la misma clave.
 const IDS = {
   "bultos-subidos": true,
+  "finalizadas-bultos": true,
   "desfase": true,
   "fechas-comprometidas": true,
   "varias-maquinas": true,

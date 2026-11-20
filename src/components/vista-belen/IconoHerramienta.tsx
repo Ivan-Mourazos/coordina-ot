@@ -48,6 +48,14 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
       <path d="M4 7.5 12 12l8-4.5M12 12v9" />
     </>
   ),
+  // Caja con flecha hacia arriba: falta subir los bultos
+  "finalizadas-bultos": (
+    <>
+      <path d="M4 10.5v6L12 21l8-4.5v-6" />
+      <path d="M4 10.5 12 15l8-4.5M12 15v6" />
+      <path d="M12 10V2.5M9 5.5l3-3 3 3" />
+    </>
+  ),
   // Balanza: lo subido no cuadra con lo que se fabrica
   "desfase": (
     <>
