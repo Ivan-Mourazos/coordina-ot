@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { buscarPedidosRps } from "@/lib/server/buscar-db";
 import { esRangoFecha } from "@/lib/codigo-busqueda";
-import { buscarOFStock, leerDescontadoBelen, leerFichandoAhora, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
+import { buscarOFStock, leerDescontadoBelen, leerFichandoAhora, leerHojaAlmacen, leerMaterialBelen, leerPedidoBelen, leerTiemposBelen } from "@/lib/server/vista-belen-db";
 import { leerListaBelen } from "@/lib/server/vista-belen-listas-db";
 import { soloConSesion } from "@/lib/server/sesion";
 import { esIdLista } from "@/lib/vista-belen-listas";
@@ -18,6 +18,7 @@ import { leerEntregasBelen } from "@/lib/server/entregas-belen-db";
 //   ?material=AR.… lo asignado, reservado y comprado de cada OF
 //   ?descontado=AR.… el material que salió de verdad (imputación de material)
 //   ?ahora=AR.…     quién ficha AHORA en sus tareas (OLANET)
+//   ?almacen=AR.…   su hoja de almacén sola (la ficha del pedido en OT)
 //   ?lista=…        una de las pestañas (lib/vista-belen-listas.ts, LISTAS_BELEN);
 //                   con &forzar=1 se recalcula aunque lo guardado sea reciente
 //
@@ -60,6 +61,11 @@ export async function GET(req: Request) {
     const descontado = params.get("descontado");
     if (descontado !== null) {
       return NextResponse.json({ descontado: await leerDescontadoBelen(descontado) }, { headers: SIN_CACHE });
+    }
+
+    const almacen = params.get("almacen");
+    if (almacen !== null) {
+      return NextResponse.json({ almacen: await leerHojaAlmacen(almacen) }, { headers: SIN_CACHE });
     }
 
     const lista = params.get("lista");

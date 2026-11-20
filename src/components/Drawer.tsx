@@ -23,6 +23,7 @@ import { NotaDevolucion } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { NoConformidadesPedido } from "./NoConformidadesPedido";
+import { HojaAlmacenPedido } from "./HojaAlmacenPedido";
 import { TareasDelPedido } from "./HistorialTareas";
 import { PedirRevisor } from "./PedirRevisor";
 import { useConfirmacion } from "./ConfirmDialog";
@@ -1337,6 +1338,9 @@ export function Drawer({
           )}
 
           <OFsFueraDeLaSeccion key={pedido.id} ofs={ofsFuera} seccion={seccion} />
+
+          {/* Lo que sirve Almacén sin OF, debajo de las OF. Solo OT. */}
+          {seccion.id === "ot" && <HojaAlmacenPedido key={`almacen:${pedido.codigo}`} pedido={pedido.codigo} />}
 
           {/* Comentario del pedido de venta (condiciones, avisos del comercial).
               DEBAJO de las OF y de las notas, y plegado: casi siempre es el

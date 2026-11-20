@@ -9,6 +9,7 @@ import {
   unaFilaPorTarea,
   type FichandoAhora,
   type FilaTiempo,
+  type LineaAlmacen,
   type LineaDescontada,
   type MaterialPedido,
   type OFBelen,
@@ -420,7 +421,15 @@ async function pedidoSinOF(pool: sql.ConnectionPool, pedido: string): Promise<Pe
 // traspaso entre almacenes (tipo 001-3, salida = MovementType 1) con el código
 // del pedido en el comentario (vista TGM_APRYL_HOJA_ALMACEN, leída el
 // 16/11/2026); aquí, igual, pero por artículo de la línea.
-async function hojaDeAlmacen(pool: sql.ConnectionPool, pedido: string) {
+/** La hoja de almacén sola, para la ficha del pedido en OT (Diseño no): la
+ *  pide al abrirla, sin cargar el pedido entero de Producción. */
+export async function leerHojaAlmacen(codigo: string): Promise<LineaAlmacen[]> {
+  const pedido = codigo.trim().toUpperCase();
+  if (!ES_RPS() || !pedido || esCodigoOF(pedido)) return [];
+  return hojaDeAlmacen(await getPool(), pedido);
+}
+
+async function hojaDeAlmacen(pool: sql.ConnectionPool, pedido: string): Promise<LineaAlmacen[]> {
   const r = await pool.request().input("pedido", sql.VarChar(25), pedido).query<{
     linea: number;
     articulo: string | null;

@@ -1579,7 +1579,8 @@ body {
 [data-bloque="notas"] { --acento-bloque: var(--bloque-notas); }
 [data-bloque="recorrido"] { --acento-bloque: var(--bloque-recorrido); }
 [data-bloque="comentario"] { --acento-bloque: var(--bloque-comentario); }
-[data-bloque="ofs"] { --acento-bloque: var(--bloque-ofs); }
+[data-bloque="ofs"],
+[data-bloque="almacen"] { --acento-bloque: var(--bloque-ofs); }
 .icono-bloque { color: var(--acento-bloque); }
 
 /* Lo desplegado dentro de un bloque. Clase propia y no `ring-1`: el filo y la
