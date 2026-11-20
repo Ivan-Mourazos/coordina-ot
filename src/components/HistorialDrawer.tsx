@@ -16,6 +16,7 @@ import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { RecuperarPedido } from "./RecuperarPedido";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { NoConformidadesPedido } from "./NoConformidadesPedido";
+import { HojaAlmacenPedido } from "./HojaAlmacenPedido";
 import { PlanteamientoPedido } from "./PlanteamientoPedido";
 import { ParteEscaneado } from "./ParteEscaneado";
 import { OFsDeLaFicha } from "./HistorialCentros";
@@ -331,6 +332,11 @@ export function HistorialDrawer({
                   }}
                 />
               </section>
+
+              {/* Lo que sirve Almacén sin OF, debajo de las OF. Solo OT. */}
+              {seccion === "ot" && esCodigoPedido(pedido) && (
+                <HojaAlmacenPedido key={`almacen:${pedido}`} pedido={pedido} />
+              )}
 
               {detalle.comentarioVenta && <ComentarioPedido texto={detalle.comentarioVenta} />}
 
