@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-20",
+    "hasta": "d66e7f6",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "La ficha del pedido enseña la hoja de almacén",
+        "apartado": "ot",
+        "detalle": "Debajo de las OF ves lo que sirve Almacén y si ya lo ha preparado.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-19",
     "hasta": "42dc4bc",
     "cambios": [
