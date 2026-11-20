@@ -69,12 +69,21 @@ function bdDe(req) {
   return "";
 }
 
+// La pila se toma DENTRO del envoltorio: la línea 0 es "Error", la 1 el propio
+// envoltorio y desde la 2 quien llamó. Se salta por posición y no por nombre de
+// fichero porque en el build de Next este módulo va empaquetado dentro del
+// chunk de db.ts, junto a otros módulos que sí son quien llama.
 function origenDe(pila) {
-  const lineas = String(pila ?? "").split("\n").slice(1);
+  const lineas = String(pila ?? "").split("\n").slice(2);
   for (const l of lineas) {
-    if (/node_modules|medir-consultas|node:internal|\(node:/.test(l)) continue;
+    if (/node_modules|node:internal|\(node:/.test(l)) continue;
     const m = l.match(/\(?((?:[A-Za-z]:)?[^():]+):(\d+):\d+\)?\s*$/);
-    if (m) return `${path.basename(m[1])}:${m[2]}`;
+    if (!m) continue;
+    const base = path.basename(m[1]);
+    // Chunk de Turbopack: "src_lib_server_rps_ts_1bm9ey3zgwln6._.js" → rps.ts
+    // (la línea no sirve: el chunk va minificado en una sola línea).
+    const chunk = base.match(/^(?:.*_)?([^_]+)_(ts|tsx|js|mjs)_[0-9a-z]+\._\.js$/);
+    return chunk ? `${chunk[1]}.${chunk[2]}` : `${base}:${m[2]}`;
   }
   return "";
 }
