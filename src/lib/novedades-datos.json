@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-20",
-    "hasta": "d66e7f6",
+    "hasta": "e195004",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -9,6 +9,13 @@
         "apartado": "ot",
         "detalle": "Debajo de las OF ves lo que sirve Almacén y si ya lo ha preparado.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Nueva lista: tareas finalizadas con bultos pendientes de subir",
+        "apartado": "produccion",
+        "detalle": "Está en «Bultos y unidades», junto a la de bultos subidos con tareas pendientes.",
+        "tanda": 2
       }
     ]
   },
