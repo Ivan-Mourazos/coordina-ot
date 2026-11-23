@@ -6,6 +6,7 @@ import { finalizables, situacionDe, type FaseDeOF } from "@/lib/fase-pendiente";
 import type { OF } from "@/lib/types";
 import { avisosTrasCerrarEnRps, type RespuestaCierreRps } from "@/lib/cerrar-of-avisos";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { elegirCorreoStock } from "./AvisoStockPase";
 import { PlanteamientoAlCerrar, type EleccionAlCerrar } from "./PlanteamientoAlCerrar";
 import { urlsAMano } from "./RepartoImpresion";
 import { AJUSTES_DE_SERIE } from "@/lib/planteamiento";
@@ -78,8 +79,8 @@ export function CerrarEnRpsInline({
   // Dar la OF por terminada es pasarla (Iván, 05/11/2026): en OT se ofrece
   // imprimir y mandar su planteamiento, como al pasar el pedido entero.
   const [vista, setVista] = useState<VistaPlanteamiento | null>(null);
-  const [eleccion, setEleccion] = useState<EleccionAlCerrar>({ imprimir: [], mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
-  const conPlanteamiento = !!vista && (vista.modo !== "off" || (!!vista.correo && vista.correo.modo !== "off"));
+  const [eleccion, setEleccion] = useState<EleccionAlCerrar>({ imprimir: [], correoStock: false, mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
+  const conPlanteamiento = !!vista && (!!vista.stockLona?.faltas.length || vista.modo !== "off" || (!!vista.correo && vista.correo.modo !== "off"));
 
   async function cargarYConfirmar() {
     setError(null);
@@ -110,7 +111,7 @@ export function CerrarEnRpsInline({
       setPendientes(abiertas);
       const v = await planteamiento;
       setVista(v);
-      setEleccion({ imprimir: v ? v.ficheros.map((f) => f.nombre) : [], mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
+      setEleccion({ imprimir: v ? v.ficheros.map((f) => f.nombre) : [], correoStock: elegirCorreoStock(v?.stockLona), mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
       setConfirmar(true);
     } catch {
       setError(SIN_RPS);
@@ -162,6 +163,7 @@ export function CerrarEnRpsInline({
               nota: eleccion.nota,
             },
             mandarCorreo: eleccion.mandarCorreo,
+            correoStock: eleccion.correoStock,
             impresion: eleccion.ajustes,
           } : {}),
         }),

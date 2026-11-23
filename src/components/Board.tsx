@@ -1,5 +1,7 @@
 "use client";
 
+import { AvisoStockPase, elegirCorreoStock } from "./AvisoStockPase";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
@@ -1569,6 +1571,7 @@ export function Board({
        *  planteamiento. Ausente = se imprime. */
       imprimirPlanteamiento?: boolean;
       mandarCorreo?: boolean;
+      correoStock?: boolean;
       /** Lo elegido a mano en el aviso de pasar; ausente = la norma. */
       planteamiento?: EleccionPase;
       /** Nota del correo sin cambiar nada más (ver `leerNotaCorreo`). */
@@ -2443,6 +2446,7 @@ export function Board({
   // Cuando algún PDF ya se imprimió (una OF pasada suelta, Iván 05/11/2026):
   // cuáles se imprimen ahora. null = lo de serie: los que aún no salieron.
   const [reimprimir, setReimprimir] = useState<string[] | null>(null);
+  const [correoStock, setCorreoStock] = useState<boolean | null>(null);
   const [mandarCorreoAlPasar, setMandarCorreoAlPasar] = useState(true);
   // «Cambiar lo que se imprime y se manda»: null = la norma, sin tocar nada.
   const [eleccionPase, setEleccionPase] = useState<EleccionPase | null>(null);
@@ -2470,6 +2474,7 @@ export function Board({
       setEleccionPase(null);
       setNotaCorreo("");
       setAjustesImpresion(AJUSTES_DE_SERIE);
+      setCorreoStock(null);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
         fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
@@ -2487,7 +2492,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion; imprimirSolo?: string[] },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; correoStock?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion; imprimirSolo?: string[] },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2517,6 +2522,7 @@ export function Board({
         seccion,
         imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
         mandarCorreo: opciones?.mandarCorreo,
+        correoStock: opciones?.correoStock,
         planteamiento: opciones?.planteamiento,
         notaCorreo: opciones?.notaCorreo,
         impresion: opciones?.impresion,
@@ -3505,6 +3511,10 @@ export function Board({
               </ApartadoPase>
               </div>
             )}
+            {decisionPase.tipo === "todo" && vistaPlanteamiento?.pedidoId === pasarPendiente && vistaPlanteamiento && (
+              <AvisoStockPase stock={vistaPlanteamiento.datos.stockLona} modo={vistaPlanteamiento.datos.correo?.modo}
+                marcado={correoStock ?? elegirCorreoStock(vistaPlanteamiento.datos.stockLona)} onCambiar={setCorreoStock} />
+            )}
             {vistaPlanteamiento?.pedidoId === pasarPendiente &&
               (textoAntesDePasar(vistaPlanteamiento.datos) || textoCorreoAntesDePasar(vistaPlanteamiento.datos)) && (() => {
               const datos = vistaPlanteamiento.datos;
@@ -3721,6 +3731,7 @@ export function Board({
             imprimirPlanteamiento: eleccion ? eleccion.imprimir.length > 0 : seleccion.length > 0,
             ...(conImpresos && !eleccion ? { imprimirSolo: seleccion } : {}),
             mandarCorreo: mandarCorreoAlPasar,
+            correoStock: correoStock ?? elegirCorreoStock(vista?.stockLona),
             impresion: ajustesImpresion,
             ...(eleccion ? { planteamiento: { ...eleccion, nota: notaCorreo } } : { notaCorreo }),
           });

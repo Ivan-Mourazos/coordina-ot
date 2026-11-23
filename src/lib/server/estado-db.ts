@@ -297,6 +297,13 @@ function abrir(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_planteamiento_correo ON planteamiento_correo(pedido_id, id);
     CREATE INDEX IF NOT EXISTS idx_planteamiento_correo_cola ON planteamiento_correo(estado, proximo_at);
+    -- Última comprobación de stock de lona de cada pedido, la que manda
+    -- Planteamientos al generar los archivos (spec 2026-11-23). Al pasar el
+    -- pedido se ofrece el correo «Falta material» si tiene faltas.
+    CREATE TABLE IF NOT EXISTS stock_lona (
+      pedido_id TEXT PRIMARY KEY, datos TEXT NOT NULL, consultado TEXT NOT NULL,
+      consultado_por TEXT, recibido_at TEXT NOT NULL
+    );
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
@@ -398,6 +405,8 @@ function prepararCorreoHtml(db: Database.Database): void {
  *  en activo deben poder calcularse aunque el pedido ya no esté en RPS. */
 function prepararCorreoCopias(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(planteamiento_correo)").all() as Array<{ name: string }>;
+  if (!columnas.some((c) => c.name === "tipo"))
+    db.exec("ALTER TABLE planteamiento_correo ADD COLUMN tipo TEXT NOT NULL DEFAULT 'planteamiento'");
   for (const nombre of ["cc", "autores"]) {
     if (!columnas.some((c) => c.name === nombre))
       db.exec(`ALTER TABLE planteamiento_correo ADD COLUMN ${nombre} TEXT NOT NULL DEFAULT '[]'`);

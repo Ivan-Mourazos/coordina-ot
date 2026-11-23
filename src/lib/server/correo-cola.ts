@@ -1,3 +1,6 @@
+import { asuntoCorreoStock, cuerpoCorreoStock, cuerpoCorreoStockHtml } from "../correo-stock";
+import { leerStockLona } from "./stock-lona-db";
+import { leerPersona } from "./personas-db";
 import { randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -122,15 +125,15 @@ function copiar(ficheros: Array<{ nombre: string; ruta: string }>): { copiados: 
 
 const insertar = (
   pedido: string, ficheros: FicheroCopiado[], para: string[], cc: string[], autores: string[], asunto: string | null, cuerpo: string | null,
-  html: string | null, estado: EstadoCorreo, error: string | null, modo: ModoCorreo, operarioId: string, ts: string,
+  html: string | null, estado: EstadoCorreo, error: string | null, modo: ModoCorreo, operarioId: string, ts: string, tipo: "stock" | "planteamiento" = "planteamiento",
 ) =>
   getDb()
     .prepare(
-      `INSERT INTO planteamiento_correo (pedido_id, ficheros, para, cc, autores, asunto, cuerpo, cuerpo_html, estado, error, modo, pasado_por, creado_at, proximo_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO planteamiento_correo (pedido_id, ficheros, para, cc, autores, asunto, cuerpo, cuerpo_html, estado, error, modo, pasado_por, creado_at, proximo_at, tipo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(pedido, JSON.stringify(ficheros), JSON.stringify(para), JSON.stringify(cc), JSON.stringify(autores), asunto, cuerpo, html, estado,
-      error?.slice(0, 500) ?? null, modo, operarioId, ts, estado === "pendiente" ? ts : null);
+      error?.slice(0, 500) ?? null, modo, operarioId, ts, estado === "pendiente" ? ts : null, tipo);
 
 /** Dónde se imprimen los planteamientos, para decirlo en el correo. null si la
  *  impresión está apagada: entonces no se puede decir «impreso». */
@@ -192,9 +195,33 @@ export async function prepararCorreo(
   return { encolado: true, aviso };
 }
 
+export function destinatariosStock(modo: ModoCorreo) {
+  return modo === "activo" ? lista(process.env.CORREO_STOCK_PARA, ["compras@toldosgomez.com", "almacen@toldosgomez.com"]) : destinatariosCorreo(modo);
+}
+
+export function prepararCorreoStock(pedido: string, operarioId: string, ahora = new Date()) {
+  const modo = modoCorreo();
+  const s = modo !== "off" ? leerStockLona(pedido) : null;
+  if (!s?.faltas.length) return { encolado: false, aviso: null };
+  const para = destinatariosStock(modo);
+  const cc = modo === "activo" ? destinatariosCorreo(modo).filter((c, i, todos) =>
+    !para.some(p => p.toLowerCase() === c.toLowerCase()) && todos.findIndex(p => p.toLowerCase() === c.toLowerCase()) === i) : [];
+  cc.push(...copiasCorreo(modo, [operarioId], [...para, ...cc]));
+  const nombre = s.consultadoPor && (leerPersona(s.consultadoPor)?.nombre ?? s.consultadoPor);
+  insertar(pedido, [], para, cc, [], asuntoCorreoStock(pedido, s.cliente), cuerpoCorreoStock(s, nombre || "—"),
+    cuerpoCorreoStockHtml(s, nombre || "—"), "pendiente", null, modo, operarioId, ahora.toISOString(), "stock");
+  return { encolado: true, aviso: null };
+}
+
+export function ultimoCorreoStock(pedido: string) {
+  return getDb().prepare(`SELECT enviado_at AS enviadoAt, creado_at AS creadoAt, pasado_por AS pasadoPor
+    FROM planteamiento_correo WHERE pedido_id = ? AND tipo = 'stock' AND estado IN ('enviado','pendiente')
+    ORDER BY id DESC LIMIT 1`).get(pedido) as { enviadoAt: string | null; creadoAt: string; pasadoPor: string | null } | undefined ?? null;
+}
+
 export function leerCorreosDe(pedidoId: string): FilaCorreo[] {
   return (getDb()
-    .prepare("SELECT * FROM planteamiento_correo WHERE pedido_id = ? ORDER BY id DESC LIMIT 20")
+    .prepare("SELECT * FROM planteamiento_correo WHERE tipo = 'planteamiento' AND pedido_id = ? ORDER BY id DESC LIMIT 20")
     .all(pedidoId) as FilaDb[]).map(aFila);
 }
 
@@ -271,7 +298,7 @@ export async function reenviarUltimo(
   esDePvc: (pedido: string) => Promise<boolean> = pedidoEsDePvc,
 ): Promise<boolean> {
   const fila = getDb()
-    .prepare("SELECT * FROM planteamiento_correo WHERE pedido_id = ? AND asunto IS NOT NULL ORDER BY id DESC LIMIT 1")
+    .prepare("SELECT * FROM planteamiento_correo WHERE tipo = 'planteamiento' AND pedido_id = ? AND asunto IS NOT NULL ORDER BY id DESC LIMIT 1")
     .get(pedidoId) as FilaDb | undefined;
   if (!fila) return false;
   const antes = parsear<FicheroCopiado[]>(fila.ficheros, []);

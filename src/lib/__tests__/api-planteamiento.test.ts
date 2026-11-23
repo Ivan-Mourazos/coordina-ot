@@ -75,6 +75,15 @@ test("GET devuelve modo, ficheros e impresiones", async () => {
   expect(j.ficheros[0].ruta).toBeUndefined();
 });
 
+test("GET presenta la última comprobación de stock del pedido", async () => {
+  const { guardarStockLona } = await import("../server/stock-lona-db");
+  const stock = { pedido: "AR.26.05016", cliente: "", ofs: [], lonas: [], consultado: "2026-11-23T11:40:00Z",
+    consultadoPor: "Iván", faltas: [{ codigo: "LV1", descripcion: "", necesita: 2, disponible: 1 }] };
+  guardarStockLona(stock);
+  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
+  expect((await r.json()).stockLona).toEqual({ faltas: stock.faltas, consultado: stock.consultado, consultadoPor: "Iván", yaAvisado: null });
+});
+
 test("GET con un código que no es de pedido: 400", async () => {
   expect((await ruta.GET(new Request("http://x/api/planteamiento?pedido=../etc"))).status).toBe(400);
 });

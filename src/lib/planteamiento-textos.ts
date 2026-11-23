@@ -9,6 +9,9 @@ import type { PaginaPdf, ParteImpresion } from "./planteamiento";
 // siempre lo mismo, y se puedan probar sin montar componentes.
 
 export interface VistaPlanteamiento {
+  stockLona?: Pick<import("./server/stock-lona-db").StockLona, "faltas" | "consultado" | "consultadoPor"> & {
+    yaAvisado: { creadoAt: string; pasadoPor: string | null } | null;
+  } | null;
   modo: ModoImpresion;
   /** `adjunto`: va en el correo (PVC); si no, solo se imprime y el correo
    *  avisa. Opcional: un servidor de antes no lo manda. */
@@ -49,7 +52,7 @@ export function textoAntesDePasar(d: VistaPlanteamiento): string | null {
 }
 
 /** «13/10 a las 13:05», en hora de Madrid. */
-function cuando(iso: string): string {
+export function cuando(iso: string): string {
   const d = new Date(iso);
   const dia = d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", timeZone: "Europe/Madrid" });
   const hora = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
