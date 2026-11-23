@@ -1,4 +1,4 @@
-import type { NotaPedido } from "./nota-pedido";
+import { SECCIONES_MENCIONABLES, claveDestino, type NotaPedido } from "./nota-pedido";
 
 // ─── La campana de notas de Belén ────────────────────────────────────────────
 // Antes guardaba qué notas había visto, una a una; la primera vez que entraba
@@ -53,6 +53,30 @@ export function avisosPendientes(notas: readonly NotaPedido[], marca: MarcaAviso
   const porPedido = new Map<string, NotaPedido[]>();
   for (const n of nuevas) porPedido.set(n.pedido, [...(porPedido.get(n.pedido) ?? []), n]);
   return [...porPedido].map(([pedido, delPedido]) => ({ pedido, notas: delPedido }));
+}
+
+/** El color del aviso, con el mismo orden que `motivoAviso`: te nombran o te
+ *  responden a ti (ámbar, como la mención de una persona), nombran a una
+ *  sección tuya (azul, como la mención de una sección) o la nota es solo para
+ *  ti o los tuyos (verde azulado, como «Nota nueva» en la campana de OT). */
+export type TonoAviso = "persona" | "seccion" | "para";
+
+/** Qué hizo quien escribe, para leerlo como frase detrás de su nombre:
+ *  «Ángel te menciona en AR.26.05720». Mismo orden que `motivoAviso`. */
+export function resumenAviso(
+  nota: Pick<NotaPedido, "menciones" | "respondeA">,
+  misDestinos: readonly string[],
+): { tono: TonoAviso; accion: string } {
+  const mios = new Set(misDestinos);
+  const nombradas = nota.menciones.filter((d) => mios.has(claveDestino(d)));
+  if (nombradas.some((d) => d.tipo === "persona")) return { tono: "persona", accion: "te menciona" };
+  if (nota.respondeA && mios.has(`persona:${nota.respondeA}`)) return { tono: "persona", accion: "te responde" };
+  const seccion = nombradas.find((d) => d.tipo === "seccion");
+  if (seccion) {
+    const nombre = SECCIONES_MENCIONABLES.find((s) => s.id === seccion.id)?.nombre ?? seccion.id;
+    return { tono: "seccion", accion: `menciona a ${nombre}` };
+  }
+  return { tono: "para", accion: "te deja una nota" };
 }
 
 /** Marca como vistas las notas de un pedido; de paso olvida las vistas que ya

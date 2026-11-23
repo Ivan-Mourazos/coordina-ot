@@ -4,10 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Operario } from "@/lib/types";
 import {
   NOTA_MAX,
-  claveDestino,
   fmtCuandoNota,
   ordenarHilo,
-  trocearTexto,
   validarTexto,
   type Destino,
   type NotaPedido,
@@ -18,8 +16,9 @@ import { OpDot } from "./Select";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useSoloLecturaNotas } from "./SoloLectura";
 import { AcentoBloque } from "./AcentoBloque";
-import { CampoMencion, claseMencion } from "./notas/CampoMencion";
+import { CampoMencion } from "./notas/CampoMencion";
 import { ChipSoloPara, SelectorPara, nombreDestino } from "./notas/SelectorPara";
+import { TextoNota } from "./notas/TextoNota";
 
 // ─── El hilo de notas de un pedido ───────────────────────────────────────────
 // El post-it que pidió Ángel: lo que sabe OT y no está en ningún campo de RPS
@@ -574,38 +573,6 @@ const BORRADOR_VACIO: Borrador = { texto: "", para: [], enConsultaPublica: false
 
 /** Margen por nivel de respuesta; a partir del 3, el mismo. */
 const SANGRIA = ["", "ml-5", "ml-10", "ml-15"] as const;
-
-/** El texto de una nota con las menciones como etiquetas. Resaltada la que va
- *  contigo (a ti o a una sección tuya). */
-function TextoNota({
-  texto,
-  personas,
-  misDestinos,
-}: {
-  texto: string;
-  personas: readonly PersonaPublica[];
-  misDestinos: readonly string[];
-}) {
-  return (
-    <>
-      {trocearTexto(texto).map((t, i) =>
-        t.tipo === "texto" ? (
-          <span key={i}>{t.texto}</span>
-        ) : (
-          <span
-            key={i}
-            className={`rounded-full px-1.5 py-px text-[12px] font-semibold ${claseMencion(
-              t.destino.tipo,
-              misDestinos.includes(claveDestino(t.destino)) ? "mia" : "otra",
-            )}`}
-          >
-            @{nombreDestino(t.destino, personas)}
-          </span>
-        ),
-      )}
-    </>
-  );
-}
 
 /** El cuadro de escribir, el mismo para una nota nueva y para editar una. */
 function Editor({
