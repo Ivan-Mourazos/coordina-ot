@@ -194,7 +194,7 @@ export async function prepararCorreo(
 
 export function leerCorreosDe(pedidoId: string): FilaCorreo[] {
   return (getDb()
-    .prepare("SELECT * FROM planteamiento_correo WHERE pedido_id = ? ORDER BY id DESC LIMIT 20")
+    .prepare("SELECT * FROM planteamiento_correo WHERE tipo = 'planteamiento' AND pedido_id = ? ORDER BY id DESC LIMIT 20")
     .all(pedidoId) as FilaDb[]).map(aFila);
 }
 
@@ -271,7 +271,7 @@ export async function reenviarUltimo(
   esDePvc: (pedido: string) => Promise<boolean> = pedidoEsDePvc,
 ): Promise<boolean> {
   const fila = getDb()
-    .prepare("SELECT * FROM planteamiento_correo WHERE pedido_id = ? AND asunto IS NOT NULL ORDER BY id DESC LIMIT 1")
+    .prepare("SELECT * FROM planteamiento_correo WHERE tipo = 'planteamiento' AND pedido_id = ? AND asunto IS NOT NULL ORDER BY id DESC LIMIT 1")
     .get(pedidoId) as FilaDb | undefined;
   if (!fila) return false;
   const antes = parsear<FicheroCopiado[]>(fila.ficheros, []);

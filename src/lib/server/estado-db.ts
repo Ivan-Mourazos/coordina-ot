@@ -279,6 +279,10 @@ function abrir(): Database.Database {
     -- copiados, asunto, cuerpo y destinatarios. Un reintento manda lo mismo.
     -- Tabla propia y no un tipo más en la de impresión: esa ya existe en
     -- producción y añadirle columnas pediría migrarla.
+    CREATE TABLE IF NOT EXISTS stock_lona (
+      pedido_id TEXT PRIMARY KEY, datos TEXT NOT NULL, consultado TEXT NOT NULL,
+      consultado_por TEXT, recibido_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS planteamiento_correo (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       pedido_id   TEXT NOT NULL,
@@ -398,6 +402,8 @@ function prepararCorreoHtml(db: Database.Database): void {
  *  en activo deben poder calcularse aunque el pedido ya no esté en RPS. */
 function prepararCorreoCopias(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(planteamiento_correo)").all() as Array<{ name: string }>;
+  if (!columnas.some((c) => c.name === "tipo"))
+    db.exec("ALTER TABLE planteamiento_correo ADD COLUMN tipo TEXT NOT NULL DEFAULT 'planteamiento'");
   for (const nombre of ["cc", "autores"]) {
     if (!columnas.some((c) => c.name === nombre))
       db.exec(`ALTER TABLE planteamiento_correo ADD COLUMN ${nombre} TEXT NOT NULL DEFAULT '[]'`);
