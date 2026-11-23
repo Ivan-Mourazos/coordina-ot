@@ -1,8 +1,15 @@
 [
   {
     "id": "2026-11-23",
-    "hasta": "8a7a353",
+    "hasta": "9b66659",
     "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Ya podéis ver todas las órdenes exteriores en «Pedidos con OE»",
+        "apartado": "produccion",
+        "detalle": "Lacados, vinilos y demás trabajos de fuera de las OF sin finalizar, con el proveedor, cuándo se pidió, cuándo se espera y si ya volvió. Primero salen las retrasadas.",
+        "tanda": 2
+      },
       {
         "tipo": "arreglado",
         "titulo": "Los tiempos de las estadísticas ya no cuentan noches, fines de semana ni festivos",
