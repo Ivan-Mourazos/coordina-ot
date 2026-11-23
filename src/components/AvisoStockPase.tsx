@@ -1,6 +1,6 @@
 import type { VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { cuando } from "@/lib/planteamiento-textos";
-import { metrosStock } from "@/lib/correo-stock";
+import { metrosStock, textoOFStock } from "@/lib/correo-stock";
 
 type Stock = VistaPlanteamiento["stockLona"];
 export const elegirCorreoStock = (s: Stock) => s?.faltas.some(f => !f.yaAvisado) ?? false;
@@ -18,7 +18,7 @@ export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
       <h4 className="font-bold">Falta material</h4>
       <ul>{stock.faltas.map(f => (
         <li key={`${f.entrega}:${f.codigo}`}>
-          {f.codigo}{f.entrega > 0 && ` · Entrega ${f.entrega}`} · necesita {metrosStock(f.necesita)} · disponible {metrosStock(f.disponible)}
+          {f.codigo}{f.entrega > 0 && ` · Entrega ${f.entrega}`} · {textoOFStock(f.ofs)} · necesita {metrosStock(f.necesita)} · disponible {metrosStock(f.disponible)}
         </li>
       ))}</ul>
       <label className="mt-2 flex min-h-11 items-center gap-3 text-base font-bold">

@@ -49,7 +49,9 @@ test("elige por OF la comprobación más reciente, incluso si esa OF ya tiene st
   guardarStockLona({ ...s, entrega: 3, ofs: ["124"], faltas: [], consultado: "2026-11-23T12:40:00Z" });
   expect(leerStockLona(s.pedido, ["124"])).toEqual([]);
   expect(leerStockLona(s.pedido, ["125"])).toEqual([]);
-  expect(leerStockLona(s.pedido, ["123", "124"])).toMatchObject([{ entrega: 0, faltas: s.faltas }]);
+  expect(leerStockLona(s.pedido, ["123", "124"])).toMatchObject([
+    { entrega: 0, faltas: [{ ...s.faltas[0], ofs: ["123", "124"] }] },
+  ]);
 });
 
 test("el historial y Reenviar excluyen stock, la cola de envío lo recoge", async () => {

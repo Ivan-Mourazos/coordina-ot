@@ -95,10 +95,9 @@ export function leerStockLona(pedido: string, ofs: readonly string[]) {
   for (const { datos, ...fila } of filas) {
     const stock = JSON.parse(datos) as Pick<StockLona, "cliente" | "ofs" | "faltas">;
     const cubiertas = new Set(stock.ofs.filter(of => pendientes.delete(of)));
-    const faltas = stock.faltas.flatMap(f => {
-      const ofs = [...new Set(f.ofs.filter(of => cubiertas.has(of)))];
-      return ofs.length ? [{ ...f, ofs, yaAvisado: avisoPorLona.get(`${fila.entrega}:${f.codigo}`) ?? null }] : [];
-    });
+    const faltas = stock.faltas
+      .filter(f => f.ofs.some(of => cubiertas.has(of)))
+      .map(f => ({ ...f, yaAvisado: avisoPorLona.get(`${fila.entrega}:${f.codigo}`) ?? null }));
     if (faltas.length) resultado.push({ pedido, cliente: stock.cliente, ...fila, faltas });
     if (!pendientes.size) break;
   }
