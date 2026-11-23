@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-23",
-    "hasta": "fcd11cb",
+    "hasta": "625925a",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -30,6 +30,12 @@
         "apartado": "ot",
         "detalle": "Compras y Almacén reciben un aviso por lona y entrega. Si ya se avisó, puedes volver a mandarlo marcando la casilla.",
         "tanda": 3
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "En «Pedidos con OE» salen también las que van a lacar por hoja de almacén, y el día que volvió el material",
+        "apartado": "produccion",
+        "tanda": 4
       }
     ]
   },
