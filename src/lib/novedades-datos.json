@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-23",
+    "hasta": "8a7a353",
+    "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Los tiempos de las estadísticas ya no cuentan noches, fines de semana ni festivos",
+        "apartado": "ot",
+        "detalle": "Solo cuenta el horario de 7 a 15; si alguien ficha fuera de hora, ese rato sí se suma.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-20",
     "hasta": "e195004",
     "cambios": [
