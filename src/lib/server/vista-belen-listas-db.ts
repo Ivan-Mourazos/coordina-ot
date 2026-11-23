@@ -706,6 +706,65 @@ const SQL_SIN_GESTIONAR = `
       AND EXISTS (SELECT 1 FROM dbo.CPRStructure s WHERE s.CodCompany = '001' AND s.IDArticle = d.IDArticle)
     ORDER BY b.CodOrder, a.NumLine`;
 
+// Órdenes exteriores (Cristina, 23/11/2026). OE = tarea de la OF con
+// [External] = 1 (palabra reservada: con corchetes). La compra cuelga de la
+// TAREA (PUROrderLine.IDMOTask), no solo de la OF. El proveedor bueno es el
+// del pedido de compra: el de la tarea es el previsto, y a veces cambia
+// (AR.26.05229: Novoneon en la tarea, Modauto en la compra). Sin pedido de
+// compra todavía, el de la tarea. Medido el 23/11/2026: 20 OE en OF sin
+// finalizar, de 3.833 desde 2023.
+// Las compras se leen UNA vez para todas las OE (CTE): buscándolas fila a
+// fila con OUTER APPLY, PUROrderLine no tiene índice por IDMOTask y tardaba
+// 5,5 s.
+const SQL_CON_OE = `
+    WITH oe AS (
+      SELECT t.IDMOTask, t.IDManufacturingOrder, t.Description, t.IDSupplier, t.CreationTimestamp
+      FROM dbo.CPRManufacturingOrder mo
+      JOIN dbo.CPRManufacturingOrderSituation sit ON sit.IDManufacturingOrderSituation = mo.IDMOSituation
+        AND sit.CodCompany = mo.CodCompany
+      JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
+      WHERE mo.CodCompany = '001' AND sit.CodSituation <> '6' AND t.CodCompany = '001' AND t.[External] = 1),
+    lineas AS (
+      SELECT l.IDMOTask, l.Quantity, l.ReceivedQuantity, l.ReceptionDate, po.OrderDate, prov.Description AS proveedor,
+             ROW_NUMBER() OVER (PARTITION BY l.IDMOTask ORDER BY po.OrderDate DESC, l.IDOrderLine DESC) AS n
+      FROM dbo.PUROrderLine l
+      JOIN oe ON oe.IDMOTask = l.IDMOTask
+      JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
+      LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
+      WHERE l.CodCompany = '001'),
+    compra AS (
+      SELECT IDMOTask, SUM(Quantity) AS pedida, SUM(ReceivedQuantity) AS recibida,
+             MIN(OrderDate) AS pedidoProveedor, MAX(ReceptionDate) AS prevista,
+             MAX(CASE WHEN n = 1 THEN proveedor END) AS proveedor
+      FROM lineas
+      GROUP BY IDMOTask)
+    SELECT oe.IDMOTask AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
+           CAST(oe.Description AS varchar(300)) AS oe,
+           COALESCE(compra.proveedor, provTarea.Description) AS proveedor,
+           oe.CreationTimestamp AS creada, compra.pedidoProveedor, compra.prevista,
+           CASE
+             WHEN compra.IDMOTask IS NULL THEN 'Sin pedir'
+             WHEN compra.recibida >= compra.pedida THEN 'Recibida'
+             WHEN compra.prevista < CONVERT(date, GETDATE()) THEN 'Retrasada'
+             ELSE 'Pendiente'
+           END AS estado,
+           CASE WHEN compra.recibida >= compra.pedida THEN 1 END AS amarilla
+    FROM oe
+    JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = oe.IDManufacturingOrder
+    LEFT JOIN compra ON compra.IDMOTask = oe.IDMOTask
+    LEFT JOIN dbo.PURSupplier provTarea ON provTarea.IDSupplier = oe.IDSupplier
+    ${pedidoDe()}`;
+
+const ORDEN_ESTADO_OE: Record<string, number> = { Retrasada: 0, "Sin pedir": 1, Pendiente: 2, Recibida: 3 };
+
+/** Primero lo que más urge (retrasadas, sin pedir, pendientes, recibidas) y,
+ *  dentro, por fecha prevista: sin fecha, al final. */
+const porEstadoOE = (a: FilaLista, b: FilaLista) =>
+  (ORDEN_ESTADO_OE[String(a.estado)] ?? 9) - (ORDEN_ESTADO_OE[String(b.estado)] ?? 9) ||
+  (a.prevista === null ? 1 : 0) - (b.prevista === null ? 1 : 0) ||
+  String(a.prevista ?? "").localeCompare(String(b.prevista ?? "")) ||
+  String(a.pedido).localeCompare(String(b.pedido));
+
 // Fichajes improductivos (Belén, 14/11/2026): su pantalla de RPS «Imputación
 // de tiempos». Solo los de persona (ResourceType 1): cada uno tiene su gemelo
 // de máquina (tipo 2) sin empleado. Último año: ~930 filas, 2 s (14/11/2026).
@@ -960,6 +1019,7 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "compras-pendientes": async (pool) => (await comprobacion(pool, SQL_COMPRAS_PENDIENTES)).sort(porSolicitadaYPrioridad),
   "tp-cot": (pool) => tpCotSinRematar(pool),
   "sin-gestionar": (pool) => comprobacion(pool, SQL_SIN_GESTIONAR),
+  "con-oe": async (pool) => (await comprobacion(pool, SQL_CON_OE)).sort(porEstadoOE),
   "incidencias": (pool) => incidencias(pool),
   "tiempos-abiertos": (pool) => tiemposAbiertos(pool),
 };

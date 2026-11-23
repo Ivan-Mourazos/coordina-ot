@@ -23,6 +23,7 @@ const IDS = {
   "compras-pendientes": true,
   "tp-cot": true,
   "sin-gestionar": true,
+  "con-oe": true,
   "incidencias": true,
   "tiempos-abiertos": true,
 } satisfies Record<IdLista, true>;
@@ -300,5 +301,21 @@ describe("tiempos abiertos en OLANET", () => {
       tiempo: "19:10", of: "0233424", tarea: "01 DESMONTAR TOLDO · A-MONT", motivo: "Más de 9 h 20 · Pasadas las 23:30",
     });
     expect(filas[2]).toMatchObject({ horario: "22:00 → 23:45", tiempo: "01:45", of: null, tarea: "Indirecta 8 · A-MONT", motivo: "Pasadas las 23:30" });
+  });
+});
+
+describe("Pedidos con OE", () => {
+  test("primero retrasadas, luego sin pedir, pendientes y recibidas; dentro, por previsión", async () => {
+    const oe = (clave: string, estado: string, prevista: Date | null) => ({ clave, of: "0000001", pedido: `AR.26.${clave}`, estado, prevista });
+    const { pool } = poolCon([
+      oe("00005", "Recibida", new Date("2026-11-01T00:00:00Z")),
+      oe("00004", "Pendiente", null),
+      oe("00003", "Pendiente", new Date("2026-11-25T00:00:00Z")),
+      oe("00002", "Sin pedir", null),
+      oe("00001", "Retrasada", new Date("2026-11-17T00:00:00Z")),
+    ]);
+    const filas = await CONSULTAS["con-oe"](pool);
+    expect(filas.map((f) => f.clave)).toEqual(["00001", "00002", "00003", "00004", "00005"]);
+    expect(filas[0].prevista).toBe("2026-11-17");
   });
 });

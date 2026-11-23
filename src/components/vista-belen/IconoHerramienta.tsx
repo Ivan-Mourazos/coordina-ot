@@ -41,6 +41,13 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
       <circle cx="12" cy="10" r="2.3" />
     </>
   ),
+  // Flecha que sale de la caja: trabajo que se manda fuera (OE)
+  "con-oe": (
+    <>
+      <path d="M13 4h7v7M20 4l-9 9" />
+      <path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+    </>
+  ),
   // Caja
   "bultos-subidos": (
     <>

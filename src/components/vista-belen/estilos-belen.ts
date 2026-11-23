@@ -26,8 +26,9 @@ export const chip = (tono: Tono) => `inline-flex items-center gap-1 whitespace-n
  *  impresa, con imputaciones) en marcha. */
 export function tonoSituacion(situacion: string | null | undefined): Tono {
   const v = (situacion ?? "").trim().toUpperCase();
-  if (esFinalizada(v) || v === "SI") return "ok";
-  if (v === "DETENIDA" || v === "NO") return "error";
+  // RECIBIDA y RETRASADA: el estado de una orden exterior («Pedidos con OE»).
+  if (esFinalizada(v) || v === "SI" || v === "RECIBIDA") return "ok";
+  if (v === "DETENIDA" || v === "NO" || v === "RETRASADA") return "error";
   return v ? "aviso" : "neutro";
 }
 

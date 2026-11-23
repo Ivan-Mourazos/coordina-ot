@@ -25,6 +25,7 @@ export type IdLista =
   | "compras-pendientes"
   | "tp-cot"
   | "sin-gestionar"
+  | "con-oe"
   | "incidencias"
   | "tiempos-abiertos";
 
@@ -324,6 +325,27 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "formaEntrega", titulo: "Entrega", largo: true },
       { clave: "rotulacion", titulo: "Rotulación", largo: true },
       { clave: "sinCargo", titulo: "Sin cargo", largo: true },
+    ],
+  },
+  {
+    // Cristina, 23/11/2026: en RPS no tenían dónde ver todas las órdenes
+    // exteriores (lacar, aplicar vinilo… fuera). Una fila por OE: la tarea de
+    // la OF marcada como exterior, con su pedido al proveedor si ya lo hay.
+    id: "con-oe",
+    label: "Pedidos con OE",
+    explica: "Órdenes exteriores (lacar, vinilo… fuera) de OF sin finalizar, con su pedido al proveedor. Primero las retrasadas.",
+    amarillo: "En amarillo, las que ya volvieron.",
+    filtro: { clave: "estado", titulo: "Estado" },
+    columnas: [
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "oe", titulo: "Qué se manda", largo: true },
+      { clave: "proveedor", titulo: "Proveedor", largo: true },
+      // La primera fecha es la del filtro «desde/hasta»: la previsión.
+      { clave: "prevista", titulo: "Prev. compras", tipo: "fecha" },
+      { clave: "pedidoProveedor", titulo: "Pedido prov.", tipo: "fecha" },
+      { clave: "creada", titulo: "OE creada", tipo: "fecha" },
+      { clave: "estado", titulo: "Estado", tipo: "estado" },
     ],
   },
   {
