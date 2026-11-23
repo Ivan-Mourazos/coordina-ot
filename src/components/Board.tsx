@@ -76,6 +76,7 @@ import { ahoraDelServidor, desfaseDeCabecera, fijarDesfaseServidor } from "@/lib
 import { adelantarTiempos, hayTiempoVivo, type FichajePropio } from "@/lib/tiempo-vivo";
 import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/lib/acciones";
 import { accionAlFichar } from "@/lib/accion-pedido";
+import { crearColaGuardados, type ColaGuardados } from "@/lib/cola-guardados";
 import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
 import { codigosOFDelPase, decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
@@ -724,6 +725,9 @@ export function Board({
   // debe pisar con un snapshot viejo un POST disparado después de arrancar.
   const postSeqRef = useRef(0);
   const revisionGuardadaSeq = useRef(0);
+  // Guardados del tablero (POST /api/estado), en fila: ver lib/cola-guardados.
+  const colaGuardados = useRef<ColaGuardados | null>(null);
+  colaGuardados.current ??= crearColaGuardados();
   useEffect(() => {
     // El tablero se pide A NOMBRE DE QUIEN MIRA: de ahí sale su sección, y con
     // ella su lista de trabajo (Oficina Técnica o Diseño Gráfico).
@@ -734,6 +738,7 @@ export function Board({
     // sea de diseño se pasaría medio minuto mirando trabajo que no es suyo.
     const traer = async () => {
       const revisionAlPedir = revisionGuardadaSeq.current;
+      const guardadosAlPedir = colaGuardados.current!.seq;
       try {
         const q = new URLSearchParams();
         if (miId) q.set("operarioId", miId);
@@ -769,6 +774,12 @@ export function Board({
         // Un sondeo arrancado antes del pase no puede reponer la foto vieja
         // después de que el servidor haya confirmado el envío.
         if (revisionAlPedir !== revisionGuardadaSeq.current) return;
+        // Igual con cualquier otro guardado: fichar pasa la OF a «planteando»
+        // en pantalla, y una foto pedida antes la devolvía a «sin empezar»
+        // —sin «Pasar a revisión»— hasta el sondeo siguiente. La vuelta que
+        // se salta la recoge la de dentro de 30 s.
+        const cola = colaGuardados.current!;
+        if (guardadosAlPedir !== cola.seq || cola.enVuelo > 0) return;
         setCalculadoAt(t.calculadoAt);
         const ab = abierto(fichajeRef.current);
         setPedidosSync(
@@ -1589,21 +1600,25 @@ export function Board({
       // guardián y reponía el reloj en pantalla —"Pausar" reaparecía sobre una
       // OF ya aprobada— hasta el sondeo siguiente, o sea hasta 30 s.
       if (payload.cortarFichajeDe?.length) postSeqRef.current += 1;
-      return fetch("/api/estado", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, operarioId: miId, seccion: payload.seccion ?? seccionActual }),
-      })
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return true;
+      // EN FILA, uno detrás de otro: si llegan al revés, gana la foto vieja
+      // (ver lib/cola-guardados.ts).
+      return colaGuardados.current!.encolar(() =>
+        fetch("/api/estado", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, operarioId: miId, seccion: payload.seccion ?? seccionActual }),
         })
-        .catch((e) => {
-          // La UI ya aplicó el cambio (optimista). Si el guardado falla, el
-          // siguiente polling repondrá la verdad del servidor.
-          console.warn("[coordina] no se pudo guardar el cambio:", e);
-          return false;
-        });
+          .then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return true;
+          })
+          .catch((e) => {
+            // La UI ya aplicó el cambio (optimista). Si el guardado falla, el
+            // siguiente polling repondrá la verdad del servidor.
+            console.warn("[coordina] no se pudo guardar el cambio:", e);
+            return false;
+          }),
+      );
     },
     [miId, seccionActual],
   );
