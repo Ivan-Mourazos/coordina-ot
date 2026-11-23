@@ -117,11 +117,11 @@ export function cuerpoCorreo(d: DatosCorreo, f: FicherosCorreo): string {
 // nombres) pasa por `esc`: un «<» en un nombre de cliente no puede romper el
 // correo.
 
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Colores fijos (un correo no tiene tokens): los de HeroUI en claro. */
-const C = {
+export const C = {
   fondo: "#f4f4f5",
   tarjeta: "#ffffff",
   zona: "#f4f4f5",
