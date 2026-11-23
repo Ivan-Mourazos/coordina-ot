@@ -55,7 +55,8 @@ describe("ciclos completos y tendencias", () => {
   it("mide entregas anteriores al filtro solo cuando se aprueban dentro", () => {
     const entrega = mov("08-31T08:00", "terminar_planteo");
     const fin = mov("09-01T08:00", "aprobar");
-    expect(calcular([fin], [entrega, fin]).aprobacion).toEqual({ n: 1, medianaMin: 1440 });
+    // De lunes 8:00 a martes 8:00 hay una jornada de turno, no 24 h.
+    expect(calcular([fin], [entrega, fin]).aprobacion).toEqual({ n: 1, medianaMin: 480 });
   });
   it("agrupa todo el mes en un solo punto, sin dividirlo en semanas", () => {
     const m = [mov("09-01T08:00", "empezar_revision"), mov("09-09T08:00", "devolver")];

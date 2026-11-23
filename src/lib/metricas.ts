@@ -2,6 +2,7 @@ import { leerDevolucion } from "./devolucion";
 import { leerAnulacion } from "./anulacion";
 import type { Intervalo } from "./fichaje";
 import { diasEntre, sumarDias } from "./fechas";
+import { minutosLaborables } from "./horario-laboral";
 
 // ─── Cuántas OF vuelven, y por qué ───────────────────────────────────────────
 // Sale del REGISTRO DE ACCIONES, no del estado de las OF, y la diferencia no es
@@ -565,7 +566,10 @@ class Cronometro {
   }
 
   private apunta(tramo: keyof Tiempos, desde: string, hasta: string, ofId?: string) {
-    const min = (Date.parse(hasta) - Date.parse(desde)) / 60000;
+    // Minutos de TURNO, no de reloj: lo de noches, fines de semana y festivos
+    // no es espera de nadie (Iván, 23/11/2026). Ver horario-laboral.ts.
+    // Lo fichado en la OF fuera de turno sí cuenta: ese rato pasó de verdad.
+    const min = minutosLaborables(desde, hasta, ofId ? this.porOF.get(ofId) : undefined);
     // Negativo solo puede salir de un registro desordenado; se ignora en vez
     // de restar tiempo al resto.
     if (!(min >= 0)) return;

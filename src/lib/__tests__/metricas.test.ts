@@ -264,7 +264,8 @@ describe("dónde se para el trabajo", () => {
     expect(m.tiempos.repaso).toEqual({ n: 1, medianaMin: 30, trabajo: sinFichaje });
     expect(m.tiempos.esperaCorreccion).toEqual({ n: 1, medianaMin: 60, trabajo: sinFichaje });
     expect(m.tiempos.correccion).toEqual({ n: 1, medianaMin: 60, trabajo: sinFichaje });
-    expect(m.tiempos.hastaProduccion).toEqual({ n: 1, medianaMin: 240, trabajo: sinFichaje });
+    // 14:30 a 18:30 en Madrid: solo la media hora hasta las 15:00 es de turno.
+    expect(m.tiempos.hastaProduccion).toEqual({ n: 1, medianaMin: 30, trabajo: sinFichaje });
     // El pase no cuenta como trabajo terminado ni entregado.
     expect(m.volumen.terminadas).toBe(2);
   });

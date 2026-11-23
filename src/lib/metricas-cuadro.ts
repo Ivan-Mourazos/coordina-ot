@@ -1,5 +1,7 @@
 import { calcularMetricas, type Medida, type MesMetricas, type MovimientoRegistrado, type Periodo } from "./metricas";
 import { sumarDias } from "./fechas";
+import { minutosLaborables } from "./horario-laboral";
+import type { Intervalo } from "./fichaje";
 
 /** Solo VOLUMEN por persona, a propósito. Un «% que te devuelven» a la vista
  *  de todos cambia cómo se usa la herramienta: se devuelve menos para no
@@ -42,7 +44,15 @@ export function calcularCuadroMetricas(
   historico: readonly MovimientoRegistrado[],
   operarios: readonly string[],
   periodo?: Periodo,
+  /** El fichaje: lo fichado en la OF fuera de turno también cuenta. */
+  intervalos: readonly Intervalo[] = [],
 ): CuadroMetricas {
+  const fichadoOF = new Map<string, Intervalo[]>();
+  for (const iv of intervalos) for (const id of iv.ofIds) {
+    const l = fichadoOF.get(id);
+    if (l) l.push(iv);
+    else fichadoOF.set(id, [iv]);
+  }
   const seleccion = new Set(movimientos.map(clave));
   const personas = new Map<string, TecnicoMetricas>();
   const permitidos = new Set(operarios);
@@ -72,7 +82,7 @@ export function calcularCuadroMetricas(
     } else if (cierre(m.motivo)) {
       const inicio = enviado.get(m.ofId);
       if (dentro && inicio) {
-        const minutos = (Date.parse(m.at) - Date.parse(inicio)) / 60000;
+        const minutos = minutosLaborables(inicio, m.at, fichadoOF.get(m.ofId));
         if (Number.isFinite(minutos) && minutos >= 0) aprobaciones.push({ at: m.at, minutos });
       }
       enviado.delete(m.ofId);

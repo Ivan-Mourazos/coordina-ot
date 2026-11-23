@@ -78,7 +78,7 @@ export async function GET(req: Request) {
     };
     const movimientosGrafica = leerMovimientosMetricas(limite(periodoGrafica.desde), limite(periodoGrafica.hasta, true), seccion);
     const equipo = operariosDeSeccion(seccion);
-    const cuadroMes = calcularCuadroMetricas(movs, historico, equipo, periodo);
+    const cuadroMes = calcularCuadroMetricas(movs, historico, equipo, periodo, intervalos);
     const cuadroGrafica = calcularCuadroMetricas(movimientosGrafica, historico, equipo, periodoGrafica);
     // Las tarjetas y los desgloses son del mes seleccionado. Las gráficas
     // comparan meses hasta ese mes, siempre con el mismo filtro de sección.

@@ -8,6 +8,7 @@ import { sumarDias } from "@/lib/fechas";
 import type { CuadroMetricas } from "@/lib/metricas-cuadro";
 import { hoyISO, type Operario } from "@/lib/types";
 import { fmtMin } from "@/lib/estado";
+import { MINUTOS_JORNADA } from "@/lib/horario-laboral";
 import type { CausaDevolucion } from "@/lib/causas-cliente";
 import { SECCIONES, type SeccionId } from "@/lib/secciones";
 import { familiaMeta } from "@/lib/familia";
@@ -32,7 +33,9 @@ const COLOR_DEVUELTA = "var(--fase-devuelta-relleno)";
 const COLOR_SIN_REVISION = "var(--fase-parado-relleno)";
 // Rectificados: el único color de serie libre en las dos gráficas donde salen.
 const COLOR_RECTIFICADO = "var(--fase-listo-relleno)";
-const tiempo = (min: number | null | undefined) => min == null ? "—" : min < 60 ? `${min} min` : min < 1440 ? fmtMin(min) : `${Math.floor(min / 1440)} d ${Math.floor(min % 1440 / 60)} h`;
+// Los tiempos vienen en minutos de TURNO (horario-laboral.ts): un «día» es una
+// jornada de 8 h, no 24, o tres días de espera saldrían como uno.
+const tiempo = (min: number | null | undefined) => min == null ? "—" : min < 60 ? `${min} min` : min < MINUTOS_JORNADA ? fmtMin(min) : `${Math.floor(min / MINUTOS_JORNADA)} d ${Math.floor(min % MINUTOS_JORNADA / 60)} h`;
 const porcentaje = (n: number | null) => n === null ? "—" : `${Math.round(n * 100)} %`;
 /** «n de base» como %, con un decimal por debajo de 10: las incidencias
  *  rondan el 2 % y redondeadas saldrían todas iguales. */
@@ -219,7 +222,7 @@ export function MetricasView({ seccion, operarios, miId, onAbrirPedido }: { secc
               ayuda={`Pedidos rectificados que Calidad achaca, en algo, a ${nombreCorto}. «≈» suma solo la parte de ${nombreCorto} (cada defecto reparte su 100 % entre sus causas).${totalesNc ? ` En toda la empresa: ${totalesNc.rectificadas} rectificados.` : ""}`}
               delta={<span>{rectConCausa ? `con culpa de ${nombreCorto}` : datos?.detalleCargando ? <Esqueleto className="mt-0.5 inline-block h-2.5 w-20 rounded align-middle" /> : "Sin datos de RPS"}</span>} />
             {!sinRevision && <Tile titulo="Hasta aprobarse" valor={tiempo(c.aprobacion.medianaMin)}
-              ayuda={`Lo normal desde que se entrega una OF hasta que se aprueba, contando noches y fines de semana. ${c.aprobacion.n} ciclos.`}
+              ayuda={`Lo normal desde que se entrega una OF hasta que se aprueba, en horas de turno (L-V 7:00-15:00, sin festivos ni vacaciones de empresa, más lo fichado fuera de turno); un día son 8 h. ${c.aprobacion.n} ciclos.`}
               delta={<span>{soloDesdeWeb ?? "lo normal"}</span>} />}
           </Cifras>
           <Panel titulo="Mes a mes" extra={`Año ${anio}`} className={sinRevision ? "col-span-2 xl:col-span-6" : "col-span-2 xl:col-span-4"}><Meses anio={anio} meses={c.meses} mes={mes} rps={datos?.detalle?.equipoRps.meses} rectificados={datos?.detalle?.rectificadosMeses} incidencias={conIncidencias ? datos?.detalle?.incidenciasMeses : undefined} sinRevision={sinRevision} /></Panel>
@@ -537,7 +540,7 @@ function Recorrido({ m }: { m: Metricas }) {
   ];
   if (tramos.every((x) => !x.tramo.n)) return <Vacio>Sin datos en este periodo.</Vacio>;
   return <dl className="grid grid-cols-2 gap-2">
-    {tramos.map((x) => <div key={x.nombre} className="metricas-cifra rounded-lg px-2.5 py-2" title={`${x.ayuda}. Lo normal, contando noches y fines de semana; ${x.tramo.n} medidas.`}>
+    {tramos.map((x) => <div key={x.nombre} className="metricas-cifra rounded-lg px-2.5 py-2" title={`${x.ayuda}. Lo normal, en horas de turno (L-V 7:00-15:00, sin festivos ni vacaciones de empresa, más lo fichado fuera de turno); un día son 8 h. ${x.tramo.n} medidas.`}>
       <dt className="truncate text-[10px] text-text-muted">{x.nombre}</dt>
       <dd className="text-lg leading-tight font-bold tabular-nums">{tiempo(x.tramo.medianaMin)}</dd>
     </div>)}
