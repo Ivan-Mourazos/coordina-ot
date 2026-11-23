@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { hoyEnOficina } from "@/lib/consulta";
 
 import {
   agruparPaquetes,
@@ -336,6 +337,9 @@ OLANET no ha contestado: solo el total.` : SIGNIFICA.unidades}
 function Compras({ of }: { of: OFBelen }) {
   const [todas, setTodas] = useState(false);
   if (!of.compras.length) return null;
+  // Hoy en Galicia: con él, una prevista ya pasada sale en rojo, igual que en
+  // la pestaña Material.
+  const hoy = hoyEnOficina();
   const lista = ordenCompras(of.compras, (c) => c.prevista);
   const llegadas = lista.filter(compraRecibida).length;
   const faltan = lista.length - llegadas;
@@ -349,7 +353,9 @@ function Compras({ of }: { of: OFBelen }) {
   return (
     <div className="rounded-2xl bg-[var(--detalle)] px-3.5 py-2">
       <CabeceraBloque tipo="recorrido" derecha={cuenta}>
-        Pedido a compras
+        <span title={SIGNIFICA.pedidoProveedor} className="cursor-help">
+          Pedido a proveedor
+        </span>
       </CabeceraBloque>
       {/* Una tabla sin rayas: material, cuánto, proveedor y la fecha, cada
           cosa en su columna para leerlo de arriba abajo (Belén, 17/11/2026). */}
@@ -373,7 +379,7 @@ function Compras({ of }: { of: OFBelen }) {
                 {enFrase(c.proveedor)}
               </td>
               <td className="w-36 py-1">
-                <LlegadaCompra pedida={c.pedida} recibida={c.recibida} llego={c.llego} prevista={c.prevista} />
+                <LlegadaCompra pedida={c.pedida} recibida={c.recibida} llego={c.llego} prevista={c.prevista} hoy={hoy} />
               </td>
             </tr>
           ))}
