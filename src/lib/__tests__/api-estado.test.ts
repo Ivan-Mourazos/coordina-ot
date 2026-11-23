@@ -14,7 +14,8 @@ const { prepararImpresionMock, modoImpresionMock } = vi.hoisted(() => ({ modoImp
 vi.mock("../server/impresion-cola", () => ({ prepararImpresion: prepararImpresionMock, modoImpresion: modoImpresionMock }));
 // Y la del correo: ningún test de aquí habla con Microsoft.
 const { prepararCorreoMock, modoCorreoMock } = vi.hoisted(() => ({ modoCorreoMock: vi.fn(() => "activo"), prepararCorreoMock: vi.fn<(d: { pedido: string; cliente: string; ofs: Array<{ codigo: string; descripcion: string; autor: string | null }>; pasadoPor: string; nota?: string }, o: string, ahora?: Date, buscar?: unknown, eleccion?: { adjuntar?: Set<string>; imprimir?: Set<string> }) => Promise<{ encolado: boolean; aviso: string | null }>>(async () => ({ encolado: true, aviso: null })) }));
-vi.mock("../server/correo-cola", () => ({ prepararCorreo: prepararCorreoMock, modoCorreo: modoCorreoMock }));
+const prepararCorreoStockMock = vi.hoisted(() => vi.fn());
+vi.mock("../server/correo-cola", () => ({ prepararCorreo: prepararCorreoMock, modoCorreo: modoCorreoMock, prepararCorreoStock: prepararCorreoStockMock }));
 
 // Mock de cortarFichajeDeOF para poder simular fallos en el test
 const cortarFichajeMock = vi.fn<(ofId: string, ahora: string) => string[]>();
@@ -59,6 +60,7 @@ beforeEach(() => {
   finalizarMock.mockReset();
   prepararImpresionMock.mockClear();
   prepararCorreoMock.mockClear();
+  prepararCorreoStockMock.mockClear();
   cortarFichajeMock
     .mockReset()
     .mockImplementation((ofId, ahora) => cortarFichajeReal(ofId, ahora));
@@ -591,6 +593,23 @@ test("con «Mandar por correo» desmarcado no se manda, pero sí se imprime", as
   expect((await pasarParaImprimir("P-correo-2", { mandarCorreo: false })).status).toBe(200);
   expect(prepararCorreoMock).not.toHaveBeenCalled();
   expect(prepararImpresionMock).toHaveBeenCalledTimes(1);
+});
+
+test("el aviso de stock del pase entero usa las OF del pedido que aún pasan", async () => {
+  const id = "P-stock";
+  const base = { ...PEDIDOS[0].ofs[0], autorId: "ivan", estado: "aprobada", ajenaOT: false, detenida: false };
+  tableroMock.mockResolvedValue({ operarios: [], pedidos: [{ ...PEDIDOS[0], id, codigo: CODIGO_IMPRESION, ofs: [
+    { ...base, id: "s1", codigo: "123" },
+    { ...base, id: "s2", codigo: "124", cerradaRps: { modo: "activo" } },
+    { ...base, id: "s3", codigo: "125", ajenaOT: true },
+    { ...base, id: "s4", codigo: "126", estado: "anulada" },
+  ] }] });
+  const res = await route.POST(new Request("http://x/api/estado", { method: "POST", body: JSON.stringify({
+    operarioId: "ivan", seccion: "ot", motivo: "completar", completarPedidoId: id, correoStock: true,
+    planteamiento: { imprimir: [], adjuntar: [], ofs: ["125"], nota: "" },
+  }) }));
+  expect(res.status).toBe(200);
+  expect(prepararCorreoStockMock).toHaveBeenCalledExactlyOnceWith(CODIGO_IMPRESION, "ivan", ["123"], false);
 });
 
 test("Diseño no manda correo", async () => {

@@ -75,13 +75,14 @@ test("GET devuelve modo, ficheros e impresiones", async () => {
   expect(j.ficheros[0].ruta).toBeUndefined();
 });
 
-test("GET presenta la última comprobación de stock del pedido", async () => {
+test("GET presenta las faltas solo para las OF solicitadas", async () => {
   const { guardarStockLona } = await import("../server/stock-lona-db");
-  const stock = { pedido: "AR.26.05016", cliente: "", ofs: [], lonas: [], consultado: "2026-11-23T11:40:00Z",
-    consultadoPor: "Iván", faltas: [{ codigo: "LV1", descripcion: "", necesita: 2, disponible: 1 }] };
+  const stock = { pedido: "AR.26.05016", entrega: 2, cliente: "", ofs: ["123", "124"], lonas: [], consultado: "2026-11-23T11:40:00Z",
+    consultadoPor: "Iván", faltas: [{ codigo: "LV1", descripcion: "", necesita: 2, disponible: 1, ofs: ["123"] }] };
   guardarStockLona(stock);
-  const r = await ruta.GET(new Request("http://x/api/planteamiento?pedido=AR.26.05016"));
-  expect((await r.json()).stockLona).toEqual({ faltas: stock.faltas, consultado: stock.consultado, consultadoPor: "Iván", yaAvisado: null });
+  const pedir = async (of: string) => (await (await ruta.GET(new Request(`http://x/api/planteamiento?pedido=AR.26.05016&of=${of}`))).json()).stockLona;
+  expect(await pedir("124")).toBeNull();
+  expect(await pedir("123")).toEqual({ faltas: [{ ...stock.faltas[0], entrega: 2, yaAvisado: null }] });
 });
 
 test("GET con un código que no es de pedido: 400", async () => {
