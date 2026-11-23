@@ -10,8 +10,10 @@ test("exige la clave configurada y valida antes de guardar", async () => {
   vi.stubEnv("INTEGRACION_CLAVE", "test");
   expect((await post("otra", {})).status).toBe(401);
   expect((await post("test", {})).status).toBe(400);
-  const r = await post("test", { pedido: "AR.26.05016", cliente: "", ofs: [], lonas: [], faltas: [],
-    consultado: new Date().toISOString(), consultadoPor: null });
+  const base = { pedido: "AR.26.05016", cliente: "", ofs: [], lonas: [], faltas: [],
+    consultado: "2026-11-23T11:40:00Z", consultadoPor: null };
+  expect((await post("test", base)).status).toBe(400);
+  const r = await post("test", { ...base, entrega: null });
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ ok: true });
 });

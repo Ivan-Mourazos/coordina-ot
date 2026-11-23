@@ -78,7 +78,7 @@ import { ACCIONES, accionesDisponibles, aplicarAccion, type AccionOF } from "@/l
 import { accionAlFichar } from "@/lib/accion-pedido";
 import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
-import { decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
+import { codigosOFDelPase, decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
 import { avisosTrasCerrarEnRps } from "@/lib/cerrar-of-avisos";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
@@ -1572,6 +1572,7 @@ export function Board({
       imprimirPlanteamiento?: boolean;
       mandarCorreo?: boolean;
       correoStock?: boolean;
+      reenviarStock?: boolean;
       /** Lo elegido a mano en el aviso de pasar; ausente = la norma. */
       planteamiento?: EleccionPase;
       /** Nota del correo sin cambiar nada más (ver `leerNotaCorreo`). */
@@ -2477,7 +2478,9 @@ export function Board({
       setCorreoStock(null);
       setVistaPlanteamiento(null);
       if (seccionActual === "ot" && pedido.codigo) {
-        fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedido.codigo)}`, { cache: "no-store" })
+        const params = new URLSearchParams({ pedido: pedido.codigo });
+        for (const of of codigosOFDelPase(pedido.ofs)) params.append("of", of);
+        fetch(`/api/planteamiento?${params}`, { cache: "no-store" })
           .then((r) => (r.ok ? r.json() : null))
           .then((d: VistaPlanteamiento | null) => d && pedidoDelDialogo.current === pedidoId && setVistaPlanteamiento({ pedidoId, datos: d }))
           .catch(() => {});
@@ -2492,7 +2495,7 @@ export function Board({
       pedidoId: string,
       recienAprobado?: Pedido,
       seccion?: SeccionId,
-      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; correoStock?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion; imprimirSolo?: string[] },
+      opciones?: { imprimirPlanteamiento?: boolean; mandarCorreo?: boolean; correoStock?: boolean; reenviarStock?: boolean; planteamiento?: EleccionPase; notaCorreo?: string; impresion?: AjustesImpresion; imprimirSolo?: string[] },
     ) => {
       // Las anuladas no son trabajo de OT: no se finalizan en OLANET.
       setPasarError(null);
@@ -2523,6 +2526,7 @@ export function Board({
         imprimirPlanteamiento: opciones?.imprimirPlanteamiento,
         mandarCorreo: opciones?.mandarCorreo,
         correoStock: opciones?.correoStock,
+        reenviarStock: opciones?.reenviarStock,
         planteamiento: opciones?.planteamiento,
         notaCorreo: opciones?.notaCorreo,
         impresion: opciones?.impresion,
@@ -3732,6 +3736,7 @@ export function Board({
             ...(conImpresos && !eleccion ? { imprimirSolo: seleccion } : {}),
             mandarCorreo: mandarCorreoAlPasar,
             correoStock: correoStock ?? elegirCorreoStock(vista?.stockLona),
+            reenviarStock: correoStock === true && !elegirCorreoStock(vista?.stockLona),
             impresion: ajustesImpresion,
             ...(eleccion ? { planteamiento: { ...eleccion, nota: notaCorreo } } : { notaCorreo }),
           });

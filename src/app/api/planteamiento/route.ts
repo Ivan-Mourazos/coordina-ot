@@ -1,6 +1,5 @@
 import { leerStockLona } from "@/lib/server/stock-lona-db";
 import { leerPersona } from "@/lib/server/personas-db";
-import { ultimoCorreoStock } from "@/lib/server/correo-cola";
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
 import { partesDe, vaAdjunto } from "@/lib/planteamiento";
@@ -44,16 +43,16 @@ async function correoDe(pedido: string) {
   }
 }
 
-function stockDelPedido(pedido: string) {
+function stockDelPedido(pedido: string, ofs: string[]) {
   try {
-    const stock = leerStockLona(pedido);
-    if (!stock) return null;
-    const { faltas, consultado, consultadoPor } = stock;
-    const aviso = ultimoCorreoStock(pedido);
-    return { faltas, consultado, consultadoPor, yaAvisado: aviso && {
-      creadoAt: aviso.enviadoAt ?? aviso.creadoAt,
-      pasadoPor: aviso.pasadoPor && (leerPersona(aviso.pasadoPor)?.nombre ?? aviso.pasadoPor),
-    } };
+    const faltas = leerStockLona(pedido, ofs).flatMap(s => s.faltas.map(f => {
+      const aviso = f.yaAvisado;
+      return { ...f, entrega: s.entrega, yaAvisado: aviso && {
+        creadoAt: aviso.creadoAt,
+        pasadoPor: leerPersona(aviso.pasadoPor)?.nombre ?? aviso.pasadoPor,
+      } };
+    }));
+    return faltas.length ? { faltas } : null;
   } catch (e) {
     console.error(`[stock] no se pudo leer el aviso de ${pedido}`, e);
     return null;
@@ -63,7 +62,8 @@ function stockDelPedido(pedido: string) {
 export async function GET(req: Request) {
   const corte = soloConSesion(req);
   if (corte) return corte;
-  const pedido = new URL(req.url).searchParams.get("pedido") ?? "";
+  const { searchParams } = new URL(req.url);
+  const pedido = searchParams.get("pedido") ?? "";
   if (!esCodigoPedido(pedido)) return NextResponse.json({ error: "Pedido no válido" }, { status: 400 });
   const [{ ficheros, aviso }, pvc] = await Promise.all([planteamientosDe(pedido), pedidoEsDePvc(pedido)]);
   return NextResponse.json(
@@ -82,7 +82,7 @@ export async function GET(req: Request) {
       puedeOt: puedeImprimirEnOt(),
       aviso,
       impresiones: leerImpresionesDe(pedido),
-      stockLona: stockDelPedido(pedido),
+      stockLona: stockDelPedido(pedido, searchParams.getAll("of")),
       correo: await correoDe(pedido),
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -14,6 +14,7 @@ import { lanzarPlanteamiento } from "@/lib/server/mandar-planteamiento";
 import { leerPersona } from "@/lib/server/personas-db";
 import type { DatosCorreo } from "@/lib/correo-planteamiento";
 import { esCodigoPedido } from "@/lib/types";
+import { codigosOFDelPase } from "@/lib/paso-parcial";
 
 // ─── POST /api/estado ────────────────────────────────────────────────────────
 // Persiste una mutación del tablero (asignar, revisor, acción de estado,
@@ -39,6 +40,7 @@ interface Body {
   /** Ausente = sí. La casilla «Mandar por correo» del diálogo de pasar. */
   mandarCorreo?: boolean;
   correoStock?: boolean;
+  reenviarStock?: boolean;
   /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
    *  `EleccionPase`). Ausente = la norma. */
   planteamiento?: unknown;
@@ -176,6 +178,7 @@ export async function POST(req: Request) {
   // Lo que lleva el correo del planteamiento, sacado del pedido que el servidor
   // acaba de releer: nada viene del navegador.
   let datosCorreo: DatosCorreo | undefined;
+  let ofsStock: string[] = [];
   if (completarPedidoId) {
     const base = await getTablero(seccion);
     // Releer tras la espera: otra persona puede haber devuelto una OF
@@ -195,6 +198,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Solo un autor del pedido puede pasarlo a Producción." }, { status: 403 });
     }
     codigoPedido = pedido.codigo;
+    if (body.correoStock === true) ofsStock = codigosOFDelPase(pedido.ofs);
     // Nombre de una persona por su id, para el correo. Una que ya no está
     // (o un id raro) sale como su id antes que desaparecer.
     const nombreDe = (id: string | null) => (id ? leerPersona(id)?.nombre ?? id : null);
@@ -337,7 +341,7 @@ export async function POST(req: Request) {
     // PDF en vez de fiarse de lo que vio el navegador. Nunca tumba el pase:
     // imprimir y mandar el correo son lo de después, el pedido ya está pasado.
     if (seccion === "ot" && codigoPedido && esCodigoPedido(codigoPedido)) {
-      lanzarPlanteamiento(codigoPedido, operarioId, datosCorreo, body);
+      lanzarPlanteamiento(codigoPedido, operarioId, datosCorreo, body, ofsStock);
     }
   }
   return NextResponse.json(body.pasarRevision

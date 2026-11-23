@@ -139,7 +139,7 @@ export async function POST(req: Request) {
       pasadoPor: nombreDe(operarioId) ?? operarioId,
     // En el paso parcial no sale correo, de momento (Iván, 17/11/2026): solo
     // se imprime. Lo impone el servidor, diga lo que diga el navegador.
-    }, pasoParcial ? { ...b, mandarCorreo: false, correoStock: false } : b);
+    }, pasoParcial ? { ...b, mandarCorreo: false, correoStock: false } : b, [laOF.codigo]);
   }
   return respuesta;
 }

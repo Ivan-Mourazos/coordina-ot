@@ -304,6 +304,16 @@ function abrir(): Database.Database {
       pedido_id TEXT PRIMARY KEY, datos TEXT NOT NULL, consultado TEXT NOT NULL,
       consultado_por TEXT, recibido_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS stock_lona_entrega (
+      pedido_id TEXT NOT NULL, entrega INTEGER NOT NULL, datos TEXT NOT NULL,
+      consultado TEXT NOT NULL, consultado_por TEXT, recibido_at TEXT NOT NULL,
+      PRIMARY KEY (pedido_id, entrega)
+    );
+    CREATE TABLE IF NOT EXISTS stock_lona_aviso (
+      pedido_id TEXT NOT NULL, entrega INTEGER NOT NULL, codigo TEXT NOT NULL,
+      avisado_por TEXT NOT NULL, avisado_at TEXT NOT NULL,
+      PRIMARY KEY (pedido_id, entrega, codigo)
+    );
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);

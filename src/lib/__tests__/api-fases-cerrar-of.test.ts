@@ -219,13 +219,15 @@ test("escribe el 3, marca la OF y la retiene, en modo activo", async () => {
 
 test("dar una OF por terminada la pasa: con el planteamiento pedido, se imprime y se manda solo con ESA OF", async () => {
   process.env.FICHAJE_OLANET = "activo";
-  const opciones = { conPlanteamiento: true, mandarCorreo: true, planteamiento: { imprimir: ["AR2604351-1.pdf"], adjuntar: [], ofs: ["0232086"], nota: "" } };
+  const opciones = { conPlanteamiento: true, mandarCorreo: true, correoStock: true, planteamiento: { imprimir: ["AR2604351-1.pdf"], adjuntar: [], ofs: ["0232086"], nota: "" } };
   const res = await post({ ofId: "0232086:9", operarioId: "ivan", ...opciones });
   expect(res.status).toBe(200);
   expect(lanzarPlanteamiento).toHaveBeenCalledTimes(1);
-  const [codigo, por, datos] = lanzarPlanteamiento.mock.calls[0];
+  const [codigo, por, datos, cuerpo, ofsStock] = lanzarPlanteamiento.mock.calls[0];
   expect([codigo, por]).toEqual(["AR.26.04351", "ivan"]);
   expect(datos.ofs.map((o: { codigo: string }) => o.codigo)).toEqual(["0232086"]);
+  expect(cuerpo.correoStock).toBe(true);
+  expect(ofsStock).toEqual(["0232086"]);
 });
 
 test("sin pedirlo, o si el cierre falla, no se imprime ni se manda nada", async () => {
