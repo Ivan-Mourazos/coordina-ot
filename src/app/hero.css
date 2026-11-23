@@ -321,12 +321,14 @@ html[data-estilo="hero"]:root .belen-herramienta {
   border-radius: inherit;
   background-color: transparent;
 }
+/* Cada aviso es una tarjeta gris sobre el panel, no solo al pasar el ratón: sin
+   fondo propio las filas se confundían con el panel (Iván, 23/11/2026). */
 html[data-estilo="hero"]:root .belen-notificacion {
-  border-radius: 12px;
-  background-color: transparent;
+  border-radius: 16px;
+  background-color: var(--hero-relleno);
 }
 html[data-estilo="hero"]:root .belen-notificacion:hover {
-  background-color: var(--hero-relleno);
+  background-color: var(--hero-relleno-encima);
 }
 html[data-estilo="hero"] :where(button, a[role="button"]):active:not(:disabled) {
   scale: .97;

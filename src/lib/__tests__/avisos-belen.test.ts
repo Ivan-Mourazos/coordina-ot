@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { avisosPendientes, leerMarca, marcarVistas } from "../avisos-belen";
+import { avisosPendientes, leerMarca, marcarVistas, resumenAviso } from "../avisos-belen";
 import type { NotaPedido } from "../nota-pedido";
 
 const nota = (id: number, pedido: string, creadoAt: string, extra: Partial<NotaPedido> = {}): NotaPedido =>
@@ -46,5 +46,22 @@ describe("avisos por pedido", () => {
   });
   test("las vistas que ya no llegan se olvidan", () => {
     expect(marcarVistas({ desde: marca.desde, vistas: [99] }, [3], NOTAS).vistas).toEqual([3]);
+  });
+});
+
+describe("resumen del aviso", () => {
+  const yo = ["persona:belen", "seccion:produccion"];
+  test("te nombran a ti: persona, aunque también nombren a tu sección", () => {
+    expect(resumenAviso({ menciones: [{ tipo: "seccion", id: "produccion" }, { tipo: "persona", id: "belen" }] }, yo)).toEqual({ tono: "persona", accion: "te menciona" });
+  });
+  test("te responden: persona", () => {
+    expect(resumenAviso({ menciones: [], respondeA: "belen" }, yo)).toEqual({ tono: "persona", accion: "te responde" });
+  });
+  test("nombran a tu sección: sección, con su nombre", () => {
+    expect(resumenAviso({ menciones: [{ tipo: "seccion", id: "produccion" }] }, yo)).toEqual({ tono: "seccion", accion: "menciona a Producción" });
+  });
+  test("solo para ti, o nombran a otro: para", () => {
+    expect(resumenAviso({ menciones: [] }, yo).tono).toBe("para");
+    expect(resumenAviso({ menciones: [{ tipo: "persona", id: "ivan" }] }, yo)).toEqual({ tono: "para", accion: "te deja una nota" });
   });
 });
