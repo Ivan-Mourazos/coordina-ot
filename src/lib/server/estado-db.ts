@@ -279,10 +279,6 @@ function abrir(): Database.Database {
     -- copiados, asunto, cuerpo y destinatarios. Un reintento manda lo mismo.
     -- Tabla propia y no un tipo más en la de impresión: esa ya existe en
     -- producción y añadirle columnas pediría migrarla.
-    CREATE TABLE IF NOT EXISTS stock_lona (
-      pedido_id TEXT PRIMARY KEY, datos TEXT NOT NULL, consultado TEXT NOT NULL,
-      consultado_por TEXT, recibido_at TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS planteamiento_correo (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       pedido_id   TEXT NOT NULL,
@@ -301,6 +297,13 @@ function abrir(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_planteamiento_correo ON planteamiento_correo(pedido_id, id);
     CREATE INDEX IF NOT EXISTS idx_planteamiento_correo_cola ON planteamiento_correo(estado, proximo_at);
+    -- Última comprobación de stock de lona de cada pedido, la que manda
+    -- Planteamientos al generar los archivos (spec 2026-11-23). Al pasar el
+    -- pedido se ofrece el correo «Falta material» si tiene faltas.
+    CREATE TABLE IF NOT EXISTS stock_lona (
+      pedido_id TEXT PRIMARY KEY, datos TEXT NOT NULL, consultado TEXT NOT NULL,
+      consultado_por TEXT, recibido_at TEXT NOT NULL
+    );
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
