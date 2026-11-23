@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-23",
-    "hasta": "9b66659",
+    "hasta": "fcd11cb",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -11,11 +11,25 @@
         "tanda": 2
       },
       {
+        "tipo": "nuevo",
+        "titulo": "Al pasar un pedido a Producción puedes avisar a Compras y Almacén si falta lona.",
+        "apartado": "ot",
+        "detalle": "Verás los metros necesarios y los disponibles. Si ya se avisó, la casilla aparecerá desmarcada.",
+        "tanda": 3
+      },
+      {
         "tipo": "arreglado",
         "titulo": "Los tiempos de las estadísticas ya no cuentan noches, fines de semana ni festivos",
         "apartado": "ot",
         "detalle": "Solo cuenta el horario de 7 a 15; si alguien ficha fuera de hora, ese rato sí se suma.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al pasar a Producción, el aviso de stock se ajusta a las OF que pasas",
+        "apartado": "ot",
+        "detalle": "Compras y Almacén reciben un aviso por lona y entrega. Si ya se avisó, puedes volver a mandarlo marcando la casilla.",
+        "tanda": 3
       }
     ]
   },
