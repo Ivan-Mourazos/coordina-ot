@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Operario, Pedido } from "@/lib/types";
 import {
-  ausentesPorDia, diaCorto, diasLaborables, diasNoEstamos, unirNombres, type Ausencias, type Cuando,
+  agruparDias, ausentesPorDia, diaCorto, diasLaborables, diasNoEstamos, lineaTramo, unirNombres,
+  type Ausencias, type Cuando, type Retoques,
 } from "@/lib/visita";
+import { IconoCalendario } from "./Iconos";
 
 // «Pedir visita» (spec 2026-11-19): un instalador o comercial viene a OT. Manda
 // el correo a Instalaciones con los días que no estamos y deja nota en el
@@ -76,7 +78,7 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
   const [motivo, setMotivo] = useState("");
   // Quien pide solo va puesto si es de OT: si no, no tendría chip para quitarlo.
   const [atienden, setAtienden] = useState<string[]>(miId && deOT.some((o) => o.id === miId) ? [miId] : []);
-  const [retoques, setRetoques] = useState<Record<string, boolean>>({});
+  const [retoques, setRetoques] = useState<Retoques>({});
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
@@ -95,16 +97,25 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
     ? `El ${diaCorto(elegido)} no ${quienFalta.length === 1 ? "está" : "están"} ${unirNombres(quienFalta.map(nombre))} en OT.`
     : null;
 
-  const etiqueta = (quien: string[]) =>
-    quien.length === atienden.length && atienden.length > 1 ? (atienden.length === 2 ? "Ambos" : "Todos") : unirNombres(quien.map(nombre));
+  const resumen = agruparDias(fuera, nombre).map(lineaTramo);
 
-  const cambiarDia = (fecha: string) =>
+  // Un clic deshace el retoque si lo había; si no, lo contrario de sus ausencias.
+  const cambiar = (fecha: string, id: string) =>
     setRetoques((r) => {
-      const n = { ...r };
-      if (fecha in n) delete n[fecha];
-      else n[fecha] = !((ausentes[fecha] ?? []).length > 0);
-      return n;
+      const dia = { ...r[fecha] };
+      if (id in dia) delete dia[id];
+      else dia[id] = !(ausentes[fecha] ?? []).includes(id);
+      return { ...r, [fecha]: dia };
     });
+  // Cómo está cada persona ese día, y de dónde sale.
+  const estado = (fecha: string, id: string) => {
+    const base = (ausentes[fecha] ?? []).includes(id);
+    const r = retoques[fecha]?.[id];
+    if (r === undefined) return base ? "ausencia" : "esta";
+    return r ? "marcado" : "quitado";
+  };
+  const semanas = [dias.slice(0, 5), dias.slice(5, 10), dias.slice(10, 15)];
+  const NOMBRE_SEMANA = ["Esta semana", "La que viene", "En dos semanas"];
 
   async function enviar() {
     const e: Record<string, string> = {};
@@ -234,33 +245,37 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
       </fieldset>
 
       <fieldset className="mt-4">
-        <legend className="text-sm font-semibold">No estamos en OT</legend>
-        <p className="text-xs text-text-muted">Sale de «Mis ausencias». Pincha un día para quitarlo o añadirlo solo en esta visita.</p>
-        <div className="mt-2 grid grid-cols-5 gap-1.5">
-          {dias.map((d) => {
-            const quien = fueraPor.get(d);
-            const pasado = d < hoy;
-            // Elegido: anillo de marca. Entrega del pedido: contorno a trazos (no solo color).
-            const esElegido = d === elegido;
-            const esSolicitada = d === pedido.fechaEntrega;
-            const borde = esElegido ? "ring-2 ring-[var(--hero-anillo)]" : esSolicitada ? "outline-2 outline-dashed outline-amber-500" : "";
-            return (
-              <button key={d} type="button" disabled={pasado} aria-pressed={!!quien} onClick={() => cambiarDia(d)}
-                className={`rounded-[14px] px-2 py-1.5 text-left text-xs ${quien ? "bg-error/10 text-error" : "bg-surface-2 text-text"} ${borde} disabled:opacity-40`}>
-                <div className="font-semibold">
-                  {diaCorto(d)}
-                  {esElegido && <span className="sr-only"> (día de la visita)</span>}
-                  {esSolicitada && <span className="sr-only"> (entrega del pedido)</span>}
-                </div>
-                <div className="truncate">{quien ? etiqueta(quien) : " "}</div>
-              </button>
-            );
-          })}
-        </div>
-        {pedido.fechaEntrega && dias.includes(pedido.fechaEntrega) && (
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-text-muted">
-            <span aria-hidden="true" className="inline-block size-3 rounded-[4px] outline-2 outline-dashed outline-amber-500" /> entrega del pedido
-          </p>
+        <legend className="text-sm font-semibold">¿Algún día más que no {atienden.length > 1 ? "estéis" : "esté"} en OT?</legend>
+        <p className="text-xs text-text-muted">
+          {atienden.length === 0
+            ? "Elige arriba quién le atiende."
+            : `Ya salen los de «Mis ausencias». Pincha ${atienden.length > 1 ? "el nombre de quien no esté" : "los días que falten"}; solo vale para esta visita.`}
+        </p>
+        {atienden.length > 0 && (
+          <>
+            <div className="mt-2 grid grid-cols-[4.5rem_repeat(5,minmax(0,1fr))] gap-1.5">
+              <span />
+              {["Lun", "Mar", "Mié", "Jue", "Vie"].map((d) => (
+                <span key={d} aria-hidden="true" className="text-center text-[11px] font-semibold text-text-muted">{d}</span>
+              ))}
+              {semanas.map((sem, i) => [
+                <span key={`s${i}`} className="self-center text-[11px] font-semibold leading-tight text-text-muted">{NOMBRE_SEMANA[i]}</span>,
+                ...sem.map((d) => (
+                  <Dia key={d} fecha={d} hoy={hoy} atienden={atienden} nombre={nombre} estado={estado}
+                    onCambiar={cambiar} esVisita={d === elegido} esEntrega={d === pedido.fechaEntrega} />
+                )),
+              ])}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
+              <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="inline-flex rounded-full bg-error/10 px-1.5 py-0.5 text-error"><IconoCalendario className="size-2.5" /></span>de «Mis ausencias»</span>
+              <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="rounded-full bg-error px-1.5 text-[10px] font-bold text-white dark:text-red-950">✓</span>marcado ahora</span>
+              <span><s>tachado</s>: sí está en esta visita</span>
+            </div>
+            <p className="mt-2 rounded-[14px] bg-surface-2 px-3 py-2 text-xs">
+              <b>Al correo va:</b> {resumen.length ? resumen.join(" · ") : "estamos todos los días"}
+            </p>
+            <p className="mt-1.5 text-[11px] text-text-muted">¿Es fija (vacaciones, todos los viernes…)? Apúntala en «Mis ausencias», en Visitas, y no habrá que marcarla más.</p>
+          </>
         )}
       </fieldset>
 
@@ -278,3 +293,73 @@ function VentanaVisita({ pedido, operarios, miId, datos, onCerrar, onPedida }: {
     </dialog>
   );
 }
+
+type Estado = "esta" | "ausencia" | "marcado" | "quitado";
+const FUERA = new Set<Estado>(["ausencia", "marcado"]);
+const LEIDO: Record<Estado, string> = {
+  esta: "está", ausencia: "no está (Mis ausencias)", marcado: "no está (marcado ahora)", quitado: "sí está (quitado de sus ausencias)",
+};
+
+// Una casilla del calendario. Con una sola persona (lo normal) toda la casilla
+// es el botón; con varias, cada nombre es el suyo y se marca justo quién falta.
+function Dia({ fecha, hoy, atienden, nombre, estado, onCambiar, esVisita, esEntrega }: {
+  fecha: string; hoy: string; atienden: string[]; nombre: (id: string) => string;
+  estado: (fecha: string, id: string) => Estado; onCambiar: (fecha: string, id: string) => void;
+  esVisita: boolean; esEntrega: boolean;
+}) {
+  const pasado = fecha < hoy;
+  const [, mes, dia] = fecha.split("-");
+  const cabecera = (
+    <span className="flex flex-wrap items-center gap-1">
+      <span className="text-base font-bold leading-none">{Number(dia)}</span>
+      {(dia === "01" || fecha === hoy) && <span className="text-[10px] font-semibold uppercase opacity-70">{MESES[Number(mes) - 1]}</span>}
+      {fecha === hoy && <span className="rounded-full bg-text px-1.5 text-[9px] font-bold text-surface">HOY</span>}
+      {esVisita && <span className="rounded-full bg-brand-400 px-1.5 text-[9px] font-bold text-brand-950">VISITA</span>}
+      {esEntrega && <span className="rounded-full px-1.5 text-[9px] font-bold text-amber-700 outline-1 outline-dashed outline-amber-500 dark:text-amber-300">ENTREGA</span>}
+    </span>
+  );
+  const marcas = `${esVisita ? " Día de la visita." : ""}${esEntrega ? " Entrega del pedido." : ""}`;
+
+  if (atienden.length === 1) {
+    const id = atienden[0];
+    const e = estado(fecha, id);
+    const color = e === "ausencia" ? "bg-error/10 text-error" : e === "marcado" ? "bg-error text-white dark:text-red-950" : "bg-surface-2 text-text";
+    return (
+      <button type="button" disabled={pasado} aria-pressed={FUERA.has(e)} onClick={() => onCambiar(fecha, id)}
+        aria-label={`${diaCorto(fecha)}: ${nombre(id)} ${LEIDO[e]}.${marcas}`}
+        className={`group min-h-16 rounded-[14px] px-2 py-1.5 text-left text-xs ${color} hover:shadow-[inset_0_0_0_1.5px_var(--color-text-muted)] disabled:pointer-events-none disabled:opacity-40`}>
+        {cabecera}
+        <span className="mt-1.5 flex items-center gap-1 font-semibold">
+          {e === "ausencia" && <><IconoCalendario />{nombre(id)}</>}
+          {e === "marcado" && <>✓ {nombre(id)}</>}
+          {e === "quitado" && <span className="font-normal text-text-muted"><s>{nombre(id)}</s> sí está</span>}
+          {e === "esta" && !pasado && <span className="font-normal text-text-muted opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">+ No está</span>}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div className={`min-h-16 rounded-[14px] bg-surface-2 px-2 py-1.5 text-xs ${pasado ? "opacity-40" : ""}`}>
+      {cabecera}
+      {marcas && <span className="sr-only">{marcas}</span>}
+      <span className="mt-1.5 flex flex-wrap gap-1">
+        {atienden.map((id) => {
+          const e = estado(fecha, id);
+          const color = e === "ausencia" ? "bg-error/10 text-error" : e === "marcado" ? "bg-error text-white dark:text-red-950" : "bg-surface text-text-muted";
+          return (
+            <button key={id} type="button" disabled={pasado} aria-pressed={FUERA.has(e)} onClick={() => onCambiar(fecha, id)}
+              aria-label={`${diaCorto(fecha)}: ${nombre(id)} ${LEIDO[e]}`}
+              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${color} hover:shadow-[inset_0_0_0_1px_var(--color-text-muted)] disabled:pointer-events-none`}>
+              {e === "ausencia" && <IconoCalendario className="size-2.5" />}
+              {e === "marcado" && "✓ "}
+              {e === "quitado" ? <s>{nombre(id)}</s> : nombre(id)}
+            </button>
+          );
+        })}
+      </span>
+    </div>
+  );
+}
+
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];

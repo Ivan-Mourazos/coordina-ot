@@ -44,12 +44,26 @@ describe("ausencias", () => {
     expect(a["2026-11-17"]).toEqual([]);
     expect(ausentesPorDia(dias, [T, A], ["tamara"])["2026-11-19"]).toEqual([]);
   });
-  it("retoques: true marca a todos, false quita", () => {
-    const a = ausentesPorDia(dias, [T, A], ["tamara", "alberto"]);
-    const f = diasNoEstamos(dias, a, { "2026-11-17": true, "2026-11-19": false }, ["tamara", "alberto"]);
-    expect(f.find((d) => d.fecha === "2026-11-17")?.quien).toEqual(["tamara", "alberto"]);
+  it("retoques por persona: true marca, false quita, el resto sale de sus ausencias", () => {
+    const at = ["tamara", "alberto"];
+    const a = ausentesPorDia(dias, [T, A], at);
+    const f = diasNoEstamos(dias, a, {
+      "2026-11-17": { alberto: true },
+      "2026-11-18": { tamara: false },
+      "2026-11-19": { alberto: false },
+      "2026-11-24": { tamara: true, alberto: true },
+    }, at);
+    expect(f.find((d) => d.fecha === "2026-11-17")?.quien).toEqual(["alberto"]);
+    expect(f.find((d) => d.fecha === "2026-11-18")).toBeUndefined();
     expect(f.find((d) => d.fecha === "2026-11-19")).toBeUndefined();
     expect(f.find((d) => d.fecha === "2026-11-20")?.quien).toEqual(["tamara"]);
+    expect(f.find((d) => d.fecha === "2026-11-24")?.quien).toEqual(["tamara", "alberto"]);
+  });
+
+  it("un retoque de quien ya no atiende no cuela", () => {
+    const a = ausentesPorDia(dias, [T, A], ["tamara"]);
+    const f = diasNoEstamos(dias, a, { "2026-11-17": { alberto: true } }, ["tamara"]);
+    expect(f.find((d) => d.fecha === "2026-11-17")).toBeUndefined();
   });
 });
 

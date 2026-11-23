@@ -46,15 +46,18 @@ export function ausentesPorDia(dias: string[], ausencias: Ausencias[], atienden:
   return salida;
 }
 
+/** Retoques de esta petición, por día y persona: true = no está, false = sí. */
+export type Retoques = Record<string, Record<string, boolean>>;
+
 /** Lo que va al correo: lo de sus ausencias, con los retoques de esta
- *  petición encima (true = ese día no está nadie; false = ese día sí). */
+ *  petición encima, persona a persona. */
 export function diasNoEstamos(
-  dias: string[], ausentes: Record<string, string[]>, retoques: Record<string, boolean>, atienden: string[],
+  dias: string[], ausentes: Record<string, string[]>, retoques: Retoques, atienden: string[],
 ): DiaFuera[] {
   const salida: DiaFuera[] = [];
   for (const fecha of dias) {
-    const r = retoques[fecha];
-    const quien = r === true ? [...atienden] : r === false ? [] : ausentes[fecha] ?? [];
+    const base = ausentes[fecha] ?? [];
+    const quien = atienden.filter((id) => retoques[fecha]?.[id] ?? base.includes(id));
     if (quien.length > 0) salida.push({ fecha, quien });
   }
   return salida;

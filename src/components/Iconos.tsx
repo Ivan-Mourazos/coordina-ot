@@ -96,3 +96,13 @@ export function IconoPausa({ className = "size-3" }: Props) {
     </svg>
   );
 }
+
+/** Calendario: el día viene de «Mis ausencias». */
+export function IconoCalendario({ className = "size-3" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </svg>
+  );
+}
