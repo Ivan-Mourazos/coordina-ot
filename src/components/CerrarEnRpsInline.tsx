@@ -89,7 +89,7 @@ export function CerrarEnRpsInline({
     // El planteamiento se pide a la vez que las operaciones; si falla, el
     // cierre sigue igual, sin imprimir ni correo.
     const planteamiento = seccion.id === "ot" && pedidoCodigo
-      ? fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedidoCodigo)}`, { cache: "no-store" })
+      ? fetch(`/api/planteamiento?pedido=${encodeURIComponent(pedidoCodigo)}&of=${encodeURIComponent(of.codigo)}`, { cache: "no-store" })
           .then((r) => (r.ok ? (r.json() as Promise<VistaPlanteamiento>) : null))
           .catch(() => null)
       : Promise.resolve(null);
@@ -164,6 +164,7 @@ export function CerrarEnRpsInline({
             },
             mandarCorreo: eleccion.mandarCorreo,
             correoStock: eleccion.correoStock,
+            reenviarStock: eleccion.correoStock && !elegirCorreoStock(vista.stockLona),
             impresion: eleccion.ajustes,
           } : {}),
         }),

@@ -1,5 +1,5 @@
 import { asuntoCorreoStock, cuerpoCorreoStock, cuerpoCorreoStockHtml } from "../correo-stock";
-import { leerStockLona } from "./stock-lona-db";
+import { leerStockLona, registrarAvisoLona } from "./stock-lona-db";
 import { leerPersona } from "./personas-db";
 import { randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
@@ -199,24 +199,31 @@ export function destinatariosStock(modo: ModoCorreo) {
   return modo === "activo" ? lista(process.env.CORREO_STOCK_PARA, ["compras@toldosgomez.com", "almacen@toldosgomez.com"]) : destinatariosCorreo(modo);
 }
 
-export function prepararCorreoStock(pedido: string, operarioId: string, ahora = new Date()) {
+export function prepararCorreoStock(pedido: string, operarioId: string, ofs: readonly string[], reenviar = false, ahora = new Date()) {
   const modo = modoCorreo();
-  const s = modo !== "off" ? leerStockLona(pedido) : null;
-  if (!s?.faltas.length) return { encolado: false, aviso: null };
+  if (modo === "off") return { encolado: false, aviso: null };
   const para = destinatariosStock(modo);
   const cc = modo === "activo" ? destinatariosCorreo(modo).filter((c, i, todos) =>
     !para.some(p => p.toLowerCase() === c.toLowerCase()) && todos.findIndex(p => p.toLowerCase() === c.toLowerCase()) === i) : [];
   cc.push(...copiasCorreo(modo, [operarioId], [...para, ...cc]));
-  const nombre = s.consultadoPor && (leerPersona(s.consultadoPor)?.nombre ?? s.consultadoPor);
-  insertar(pedido, [], para, cc, [], asuntoCorreoStock(pedido, s.cliente), cuerpoCorreoStock(s, nombre || "—"),
-    cuerpoCorreoStockHtml(s, nombre || "—"), "pendiente", null, modo, operarioId, ahora.toISOString(), "stock");
-  return { encolado: true, aviso: null };
-}
-
-export function ultimoCorreoStock(pedido: string) {
-  return getDb().prepare(`SELECT enviado_at AS enviadoAt, creado_at AS creadoAt, pasado_por AS pasadoPor
-    FROM planteamiento_correo WHERE pedido_id = ? AND tipo = 'stock' AND estado IN ('enviado','pendiente')
-    ORDER BY id DESC LIMIT 1`).get(pedido) as { enviadoAt: string | null; creadoAt: string; pasadoPor: string | null } | undefined ?? null;
+  const ts = ahora.toISOString();
+  return getDb().transaction(() => {
+    const comprobaciones = leerStockLona(pedido, ofs);
+    const hayNuevas = comprobaciones.some(s => s.faltas.some(f => !f.yaAvisado));
+    let encolado = false;
+    for (const s of comprobaciones) {
+      const nombre = s.consultadoPor && (leerPersona(s.consultadoPor)?.nombre ?? s.consultadoPor);
+      for (const falta of s.faltas) {
+        if (falta.yaAvisado && (hayNuevas || !reenviar)) continue;
+        const datos = { ...s, faltas: [falta] };
+        insertar(pedido, [], para, cc, [], asuntoCorreoStock(pedido, s.cliente), cuerpoCorreoStock(datos, nombre || "—"),
+          cuerpoCorreoStockHtml(datos, nombre || "—"), "pendiente", null, modo, operarioId, ts, "stock");
+        registrarAvisoLona(pedido, s.entrega, falta.codigo, operarioId, ts);
+        encolado = true;
+      }
+    }
+    return { encolado, aviso: null };
+  }).immediate();
 }
 
 export function leerCorreosDe(pedidoId: string): FilaCorreo[] {

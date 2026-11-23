@@ -10,6 +10,11 @@
 import { ofDeTaller } from "./fases-tablero";
 import type { OF } from "./types";
 
+/** OF que aún pasan a Producción con el pedido entero. */
+export function codigosOFDelPase(ofs: OF[]): string[] {
+  return ofs.filter(of => of.estado !== "anulada" && !of.ajenaOT && !of.detenida && !of.cerradaRps).map(of => of.codigo);
+}
+
 export interface OFDelPase {
   of: OF;
   /** Se puede desmarcar y dar por terminada por separado. */

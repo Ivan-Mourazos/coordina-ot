@@ -18,6 +18,7 @@ export interface OpcionesPlanteamiento {
   imprimirPlanteamiento?: unknown;
   mandarCorreo?: unknown;
   correoStock?: unknown;
+  reenviarStock?: unknown;
   planteamiento?: unknown;
   notaCorreo?: unknown;
   impresion?: unknown;
@@ -30,9 +31,10 @@ export function lanzarPlanteamiento(
   operarioId: string,
   datosCorreo: DatosCorreo | undefined,
   body: OpcionesPlanteamiento,
+  ofsStock: readonly string[],
 ): void {
   if (body.correoStock === true) {
-    try { prepararCorreoStock(codigo, operarioId); }
+    try { prepararCorreoStock(codigo, operarioId, ofsStock, body.reenviarStock === true); }
     catch (e) { console.error(`[stock] no se pudo preparar el correo de ${codigo}`, e); }
   }
   const eleccion = leerEleccion(body.planteamiento);

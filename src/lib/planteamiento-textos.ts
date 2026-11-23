@@ -2,6 +2,7 @@
 // no puede arrastrar código de servidor (SQLite, fs) al bundle.
 import type { FilaImpresion, ModoImpresion } from "./server/impresion-cola";
 import type { FilaCorreo, ModoCorreo } from "./server/correo-cola";
+import type { AvisoLona, FaltaLona } from "./server/stock-lona-db";
 import type { PaginaPdf, ParteImpresion } from "./planteamiento";
 
 // ─── Lo que la pantalla dice del planteamiento ───────────────────────────────
@@ -9,8 +10,8 @@ import type { PaginaPdf, ParteImpresion } from "./planteamiento";
 // siempre lo mismo, y se puedan probar sin montar componentes.
 
 export interface VistaPlanteamiento {
-  stockLona?: Pick<import("./server/stock-lona-db").StockLona, "faltas" | "consultado" | "consultadoPor"> & {
-    yaAvisado: { creadoAt: string; pasadoPor: string | null } | null;
+  stockLona?: {
+    faltas: (FaltaLona & { entrega: number; yaAvisado: AvisoLona | null })[];
   } | null;
   modo: ModoImpresion;
   /** `adjunto`: va en el correo (PVC); si no, solo se imprime y el correo
