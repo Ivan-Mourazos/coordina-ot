@@ -74,9 +74,11 @@ describe("correo de visita", () => {
     // 18/11 es pasado: sin ✕. 19/11 dos, 20/11 una; 3/12 fuera de vista. + 2 en la leyenda.
     expect(h.match(/>✕</g)?.length).toBe(3 + 2);
     expect(h).toContain("line-through");
-    expect(h).toContain('bgcolor="#e4e4e7"');
+    expect(h).toContain('bgcolor="#fef2f2"'); // pasado: sin fondo propio
     expect(h).toContain('bgcolor="#fee2e2"'); // 20/11, solo Tamara
-    expect(h).toContain("2px solid #18181b"); // entrega
+    expect(h).toContain("2px solid #0891b2"); // entrega
+    // Outlook en oscuro no invierte bordes: sin marca, transparente.
+    expect(h).toContain("2px solid transparent");
     expect(h).toContain("entrega del pedido");
     expect(h).toContain("visita pedida");
     expect(h).toContain("ya pasado");

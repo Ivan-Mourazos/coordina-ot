@@ -105,9 +105,15 @@ const TINTES = ["#fee2e2", "#dbeafe", "#ede9fe", "#d1fae5", "#ffedd5", "#fce7f3"
 const MAX_MESES = 2;
 const LETRAS = ["L", "M", "X", "J", "V", "S", "D"];
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const ENTREGA = "#18181b";
+// Outlook en oscuro (nuevo y web) invierte los fondos pero NO los bordes
+// (Iván, 23/11): un borde casi negro desaparece sobre la celda ya oscurecida, y
+// el borde «del color del fondo» se queda claro y enmarca cada día. Por eso:
+// marcas en colores vivos que se ven en los dos modos, borde transparente sin
+// marca, y lo pasado sin fondo propio (si no, en oscuro destaca más que lo que
+// viene).
+const ENTREGA = "#0891b2";
 const VISITA = "#f59e0b";
-const PASADO = { fondo: "#e4e4e7", num: "#a1a1aa" };
+const PASADO = { fondo: C.rojoFondo, num: "#a1a1aa" };
 
 const primeroDeMes = (iso: string) => `${iso.slice(0, 7)}-01`;
 function mesSiguiente(mes: string): string {
@@ -161,9 +167,9 @@ function mesHtml(mes: string, d: DatosVisita, hoy: string, fuera: Map<string, st
       const finde = diaSemana(f) > 5;
       const uno = quien.length === 1 ? idx.get(quien[0]) ?? 0 : null;
       const fondo = pasado ? PASADO.fondo : uno !== null ? TINTES[uno] : quien.length ? "#ffffff" : finde ? "#fef2f2" : "#fafafa";
-      // Borde siempre de 2px (del color del fondo si no hay marca) para que no cambie el tamaño.
+      // Borde siempre de 2px (transparente si no hay marca) para que no cambie el tamaño.
       const marca = pasado ? null : f === d.solicitada ? ENTREGA : f === visita ? VISITA : null;
-      const borde = `2px solid ${marca ?? fondo}`;
+      const borde = `2px solid ${marca ?? "transparent"}`;
       const colorNum = pasado ? PASADO.num : uno !== null ? COLORES_TECNICO[uno] : quien.length ? C.texto : finde ? "#d4d4d8" : C.apagado;
       const extra = `${quien.length ? "text-decoration:line-through;" : ""}${quien.length || marca ? "font-weight:700;" : ""}`;
       const num = `<div style="color:${colorNum};${extra}">${Number(f.slice(8))}</div>`;
@@ -196,7 +202,7 @@ function calendarioHtml(d: DatosVisita): string {
     ...nombres.map((n) => item(`<b style="color:${COLORES_TECNICO[idx.get(n)!]}">✕</b> ${esc(n)} no está`)),
     enVista(d.solicitada) ? item(`${caja(ENTREGA)} entrega del pedido`) : "",
     enVista(visita) ? item(`${caja(VISITA)} visita pedida`) : "",
-    item(`${caja(PASADO.fondo, PASADO.fondo)} ya pasado`),
+    item(`<b style="color:${PASADO.num}">1</b> ya pasado`),
   ].join("");
   // Dos meses, uno al lado del otro (tabla exterior: Outlook no hace columnas de otra forma).
   // Centrado en el recuadro: con un solo mes quedaba un hueco a la derecha.
