@@ -80,16 +80,28 @@ export function ConfirmDialog({
   // Abrir y cerrar los manda `abierto`. En efecto de LAYOUT para que el
   // contenido nuevo y el `showModal()` lleguen juntos a pantalla, sin un
   // fotograma del cuadro vacío.
+  //
+  // El `showModal()` va en un timeout y no en el propio efecto (Iván,
+  // 23/11/2026, AR.26.05626: «Quitar autor» no hacía nada). El desplegable
+  // nativo (`Select`) cambia de valor al SOLTAR el ratón, y el `click` de ese
+  // mismo gesto llega después: si el cuadro ya estaba abierto, ese clic caía
+  // fuera de él, `closedby="any"` lo cerraba y contaba como Cancelar. Abriendo
+  // en la tarea siguiente, el gesto ya ha terminado. Cerrado es `display:
+  // none`, así que el contenido montado un instante antes no se ve.
   useLayoutEffect(() => {
     const dlg = dialogoRef.current;
     if (!dlg) return;
     if (abierto && !dlg.open) {
-      dlg.showModal();
-      // El foco va a la respuesta esperada; en lo destructivo, a la salida
-      // segura, para que un Enter de más no ejecute nada. Se hace aquí y no
-      // con `autoFocus`: React no escribe ese atributo, enfoca él al montar,
-      // y el botón se monta antes de que el cuadro se abra.
-      (peligro ? cancelarRef : confirmarRef).current?.focus();
+      const t = setTimeout(() => {
+        if (dlg.open || !dlg.isConnected) return;
+        dlg.showModal();
+        // El foco va a la respuesta esperada; en lo destructivo, a la salida
+        // segura, para que un Enter de más no ejecute nada. Se hace aquí y no
+        // con `autoFocus`: React no escribe ese atributo, enfoca él al montar,
+        // y el botón se monta antes de que el cuadro se abra.
+        (peligro ? cancelarRef : confirmarRef).current?.focus();
+      }, 0);
+      return () => clearTimeout(t);
     } else if (!abierto && dlg.open) {
       dlg.close();
     }

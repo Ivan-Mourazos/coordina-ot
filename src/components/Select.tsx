@@ -23,6 +23,9 @@ import { tintaSobre } from "@/lib/tinta";
 // En un navegador sin `base-select` (Firefox, hoy) sale el desplegable del
 // sistema, sin iconos: funciona igual, solo se ve más soso.
 
+/** Valor del control cuando está repartido (ver `textoMixto`). */
+const MIXTO = "__mixto";
+
 export interface SelectOption {
   value: string;
   label: string;
@@ -44,6 +47,7 @@ export function Select({
   abiertoAlMontar = false,
   plano = false,
   claseBoton,
+  textoMixto,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -74,6 +78,11 @@ export function Select({
   /** Forma del control cerrado en vez del chip de vidrio: para ponerlo a la
    *  altura de los campos de al lado (filtros HeroUI de la vista de Belén). */
   claseBoton?: string;
+  /** Con `value` null, el control NO está vacío sino repartido (OF de un
+   *  pedido con autores distintos, o unas con autor y otras sin). Se enseña
+   *  este texto y la opción de vaciar queda elegible: sin esto ya salía
+   *  marcada, y elegirla no disparaba `onChange` (no había cambio). */
+  textoMixto?: string;
 }) {
   const ref = useRef<HTMLSelectElement>(null);
   const selected = options.find((o) => o.value === value) ?? null;
@@ -102,13 +111,14 @@ export function Select({
   // lleva el nombre del campo ("Familia") y la opción, qué pasa al elegirla
   // ("Todas"). Por eso lo de dentro del botón se pinta aquí y no con
   // <selectedcontent>, que copiaría el texto de la opción.
-  const textoCerrado = selected?.label ?? placeholder ?? "—";
+  const mixto = value === null && textoMixto !== undefined;
+  const textoCerrado = mixto ? textoMixto : (selected?.label ?? placeholder ?? "—");
 
   return (
     <div className={className}>
       <select
         ref={ref}
-        value={value ?? ""}
+        value={mixto ? MIXTO : (value ?? "")}
         onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
         aria-labelledby={ariaLabelledBy}
         // `glass-chip-activo` y no un `bg-*` de Tailwind: el fondo de
@@ -148,6 +158,7 @@ export function Select({
           </svg>
         </button>
 
+        {mixto && <option value={MIXTO} disabled hidden>{textoMixto}</option>}
         {placeholder !== null ? (
           <option value="">
             <span className="min-w-0 flex-1 truncate">{etiquetaVaciar ?? placeholder}</span>

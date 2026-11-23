@@ -715,6 +715,9 @@ export function Drawer({
                       }
                       onChange={(v) => onAssignPedido(v)}
                       placeholder="Sin asignar"
+                      // Repartido entre varios (o a medias): "Varios", y así
+                      // "Quitar autor" se puede elegir y suelta el pedido entero.
+                      textoMixto={pedido.ofs.some((of) => of.autorId) ? "Varios" : undefined}
                       // La opción de vaciar dice lo que HACE, no el estado en que
                       // deja las cosas: "Sin asignar" a secas se leía como el rótulo
                       // del selector vacío y nadie caía en que ahí estaba la forma de
