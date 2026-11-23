@@ -1,5 +1,6 @@
 "use client";
 
+import { AvisoStockPase } from "./AvisoStockPase";
 import { NOTA_MAX, type AjustesImpresion } from "@/lib/planteamiento";
 import type { VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { RepartoImpresion, hayReparto } from "./RepartoImpresion";
@@ -14,6 +15,7 @@ import { RepartoImpresion, hayReparto } from "./RepartoImpresion";
 export interface EleccionAlCerrar {
   imprimir: string[];
   mandarCorreo: boolean;
+  correoStock: boolean;
   nota: string;
   ajustes: AjustesImpresion;
 }
@@ -38,6 +40,8 @@ export function PlanteamientoAlCerrar({
     onCambiar({ ...eleccion, imprimir: si ? [...eleccion.imprimir, nombre] : eleccion.imprimir.filter((n) => n !== nombre) });
   return (
     <div className="mt-3 flex flex-col gap-2.5 text-xs">
+      <AvisoStockPase stock={vista.stockLona} modo={vista.correo?.modo} marcado={eleccion.correoStock}
+        onCambiar={correoStock => onCambiar({ ...eleccion, correoStock })} />
       {conImpresion && (
         <section className="rounded-2xl bg-[var(--recuadro)] p-3">
           <h4 className="mb-1.5 text-[11px] font-semibold text-text-muted">Impresión</h4>

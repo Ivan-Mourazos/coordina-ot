@@ -1,3 +1,6 @@
+import { leerStockLona } from "@/lib/server/stock-lona-db";
+import { leerPersona } from "@/lib/server/personas-db";
+import { ultimoCorreoStock } from "@/lib/server/correo-cola";
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
 import { partesDe, vaAdjunto } from "@/lib/planteamiento";
@@ -41,6 +44,22 @@ async function correoDe(pedido: string) {
   }
 }
 
+function stockDelPedido(pedido: string) {
+  try {
+    const stock = leerStockLona(pedido);
+    if (!stock) return null;
+    const { faltas, consultado, consultadoPor } = stock;
+    const aviso = ultimoCorreoStock(pedido);
+    return { faltas, consultado, consultadoPor, yaAvisado: aviso && {
+      creadoAt: aviso.enviadoAt ?? aviso.creadoAt,
+      pasadoPor: aviso.pasadoPor && (leerPersona(aviso.pasadoPor)?.nombre ?? aviso.pasadoPor),
+    } };
+  } catch (e) {
+    console.error(`[stock] no se pudo leer el aviso de ${pedido}`, e);
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   const corte = soloConSesion(req);
   if (corte) return corte;
@@ -63,6 +82,7 @@ export async function GET(req: Request) {
       puedeOt: puedeImprimirEnOt(),
       aviso,
       impresiones: leerImpresionesDe(pedido),
+      stockLona: stockDelPedido(pedido),
       correo: await correoDe(pedido),
     },
     { headers: { "Cache-Control": "no-store" } },

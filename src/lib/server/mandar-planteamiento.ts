@@ -1,5 +1,5 @@
 import { modoImpresion, prepararImpresion } from "./impresion-cola";
-import { modoCorreo, prepararCorreo } from "./correo-cola";
+import { modoCorreo, prepararCorreo, prepararCorreoStock } from "./correo-cola";
 import { planteamientosDe, type Planteamientos } from "./planteamiento-pdf";
 import type { DatosCorreo } from "../correo-planteamiento";
 import { leerAjustesImpresion, leerEleccion, leerNotaCorreo } from "../planteamiento";
@@ -17,6 +17,7 @@ import { leerAjustesImpresion, leerEleccion, leerNotaCorreo } from "../planteami
 export interface OpcionesPlanteamiento {
   imprimirPlanteamiento?: unknown;
   mandarCorreo?: unknown;
+  correoStock?: unknown;
   planteamiento?: unknown;
   notaCorreo?: unknown;
   impresion?: unknown;
@@ -30,6 +31,10 @@ export function lanzarPlanteamiento(
   datosCorreo: DatosCorreo | undefined,
   body: OpcionesPlanteamiento,
 ): void {
+  if (body.correoStock === true) {
+    try { prepararCorreoStock(codigo, operarioId); }
+    catch (e) { console.error(`[stock] no se pudo preparar el correo de ${codigo}`, e); }
+  }
   const eleccion = leerEleccion(body.planteamiento);
   // Qué se imprime: lo elegido, nada si se desmarcó, o (undefined) todo.
   const solo = Array.isArray(body.imprimirSolo)

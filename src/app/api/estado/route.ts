@@ -38,6 +38,7 @@ interface Body {
   imprimirPlanteamiento?: boolean;
   /** Ausente = sí. La casilla «Mandar por correo» del diálogo de pasar. */
   mandarCorreo?: boolean;
+  correoStock?: boolean;
   /** Lo elegido con «Cambiar lo que se imprime y se manda» (ver
    *  `EleccionPase`). Ausente = la norma. */
   planteamiento?: unknown;
