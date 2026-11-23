@@ -716,6 +716,11 @@ const SQL_SIN_GESTIONAR = `
 // Las compras se leen UNA vez para todas las OE (CTE): buscándolas fila a
 // fila con OUTER APPLY, PUROrderLine no tiene índice por IDMOTask y tardaba
 // 5,5 s.
+// «Recibida» (Cristina, 23/11/2026: cuándo volvió el material) = fecha del
+// último albarán del proveedor. PURDeliveryNoteLine tampoco tiene índice por
+// IDOrderLine: se cruza una vez con las pocas líneas de compra, no fila a fila.
+// Las cantidades van en valor absoluto: Compras a veces mete la línea en
+// negativo (AR.26.05523: −1, sin recibir) y saldría «Recibida» con 0 ≥ −1.
 const SQL_CON_OE = `
     WITH oe AS (
       SELECT t.IDMOTask, t.IDManufacturingOrder, t.Description, t.IDSupplier, t.CreationTimestamp
@@ -725,23 +730,32 @@ const SQL_CON_OE = `
       JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder
       WHERE mo.CodCompany = '001' AND sit.CodSituation <> '6' AND t.CodCompany = '001' AND t.[External] = 1),
     lineas AS (
-      SELECT l.IDMOTask, l.Quantity, l.ReceivedQuantity, l.ReceptionDate, po.OrderDate, prov.Description AS proveedor,
+      SELECT l.IDMOTask, l.IDOrderLine, l.Quantity, l.ReceivedQuantity, l.ReceptionDate, po.OrderDate, prov.Description AS proveedor,
              ROW_NUMBER() OVER (PARTITION BY l.IDMOTask ORDER BY po.OrderDate DESC, l.IDOrderLine DESC) AS n
       FROM dbo.PUROrderLine l
       JOIN oe ON oe.IDMOTask = l.IDMOTask
       JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
       LEFT JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
       WHERE l.CodCompany = '001'),
+    albaran AS (
+      SELECT dl.IDOrderLine, MAX(dn.DeliveryNoteDate) AS recibidaEl
+      FROM lineas
+      JOIN dbo.PURDeliveryNoteLine dl ON dl.IDOrderLine = lineas.IDOrderLine
+      JOIN dbo.PURDeliveryNote dn ON dn.IDDeliveryNote = dl.IDDeliveryNote
+      GROUP BY dl.IDOrderLine),
     compra AS (
-      SELECT IDMOTask, SUM(Quantity) AS pedida, SUM(ReceivedQuantity) AS recibida,
-             MIN(OrderDate) AS pedidoProveedor, MAX(ReceptionDate) AS prevista,
+      SELECT IDMOTask, SUM(ABS(Quantity)) AS pedida, SUM(ABS(ReceivedQuantity)) AS recibida,
+             MIN(OrderDate) AS pedidoProveedor, MAX(ReceptionDate) AS prevista, MAX(albaran.recibidaEl) AS recibidaEl,
              MAX(CASE WHEN n = 1 THEN proveedor END) AS proveedor
       FROM lineas
+      LEFT JOIN albaran ON albaran.IDOrderLine = lineas.IDOrderLine
       GROUP BY IDMOTask)
     SELECT oe.IDMOTask AS clave, mo.CodManufacturingOrder AS [of], pedido.pedido, pedido.cliente,
            CAST(oe.Description AS varchar(300)) AS oe,
            COALESCE(compra.proveedor, provTarea.Description) AS proveedor,
            oe.CreationTimestamp AS creada, compra.pedidoProveedor, compra.prevista,
+           CASE WHEN compra.recibida >= compra.pedida THEN compra.recibidaEl END AS recibida,
+           'OF' AS via,
            CASE
              WHEN compra.IDMOTask IS NULL THEN 'Sin pedir'
              WHEN compra.recibida >= compra.pedida THEN 'Recibida'
@@ -754,6 +768,50 @@ const SQL_CON_OE = `
     LEFT JOIN compra ON compra.IDMOTask = oe.IDMOTask
     LEFT JOIN dbo.PURSupplier provTarea ON provTarea.IDSupplier = oe.IDSupplier
     ${pedidoDe()}`;
+
+// OE por hoja de almacén (Cristina, 23/11/2026: AR.26.05523 y AR.26.05465).
+// Sin OF no hay tarea exterior: Compras pide el artículo al lacador colgando
+// la línea de compra de la línea del pedido (PUROrderLine.IDOrderLineSales).
+// RPS no marca esas compras como exteriores, y por hoja de almacén también se
+// compran toldos hechos, siliconas o tornillería; lo que va a lacar es lo de
+// Fresno Metal (todo brazos en color, 111 líneas desde 06/2023). Otro lacador,
+// se añade aquí. Solo líneas de pedido sin entregar, como las OF sin finalizar.
+const LACADORES_HOJA_ALMACEN = ["FRESNO METAL%"];
+
+const SQL_CON_OE_ALMACEN = `
+    WITH lineas AS (
+      SELECT l.IDOrderLine, l.IDOrderLineSales, l.Description, l.Quantity, l.ReceivedQuantity, l.ReceptionDate,
+             l.CreationTimestamp, po.OrderDate, prov.Description AS proveedor
+      FROM dbo.PUROrderLine l
+      JOIN dbo.PUROrder po ON po.IDOrder = l.IDOrder
+      JOIN dbo.PURSupplier prov ON prov.IDSupplier = po.IDSupplier
+      JOIN dbo._FACOrderLineSL_Custom lc ON lc.IDOrderLine = l.IDOrderLineSales AND lc.PedidoAlmacen = 1
+      WHERE l.CodCompany = '001' AND l.IDMOTask IS NULL
+        AND (${LACADORES_HOJA_ALMACEN.map((p) => `prov.Description LIKE '${p}'`).join(" OR ")})),
+    albaran AS (
+      SELECT dl.IDOrderLine, MAX(dn.DeliveryNoteDate) AS recibidaEl
+      FROM lineas
+      JOIN dbo.PURDeliveryNoteLine dl ON dl.IDOrderLine = lineas.IDOrderLine
+      JOIN dbo.PURDeliveryNote dn ON dn.IDDeliveryNote = dl.IDDeliveryNote
+      GROUP BY dl.IDOrderLine)
+    SELECT 'alm-' + CAST(lineas.IDOrderLine AS varchar(50)) AS clave, NULL AS [of],
+           ped.CodOrder AS pedido, cli.Description AS cliente,
+           CAST(lineas.Description AS varchar(300)) AS oe, lineas.proveedor,
+           lineas.CreationTimestamp AS creada, lineas.OrderDate AS pedidoProveedor, lineas.ReceptionDate AS prevista,
+           CASE WHEN ABS(lineas.ReceivedQuantity) >= ABS(lineas.Quantity) THEN albaran.recibidaEl END AS recibida,
+           'Hoja de almacén' AS via,
+           CASE
+             WHEN ABS(lineas.ReceivedQuantity) >= ABS(lineas.Quantity) THEN 'Recibida'
+             WHEN lineas.ReceptionDate < CONVERT(date, GETDATE()) THEN 'Retrasada'
+             ELSE 'Pendiente'
+           END AS estado,
+           CASE WHEN ABS(lineas.ReceivedQuantity) >= ABS(lineas.Quantity) THEN 1 END AS amarilla
+    FROM lineas
+    JOIN dbo.FACOrderLineSL vl ON vl.IDOrderLine = lineas.IDOrderLineSales
+    JOIN dbo.FACOrderSL ped ON ped.IDOrder = vl.IDOrder
+    LEFT JOIN dbo.FACCustomer cli ON cli.IDCustomer = ped.IDCustomer
+    LEFT JOIN albaran ON albaran.IDOrderLine = lineas.IDOrderLine
+    WHERE vl.CodCompany = '001' AND vl.PendingDelivery = 1 AND ped.CodOrder LIKE 'AR.%'`;
 
 const ORDEN_ESTADO_OE: Record<string, number> = { Retrasada: 0, "Sin pedir": 1, Pendiente: 2, Recibida: 3 };
 
@@ -1019,7 +1077,10 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   "compras-pendientes": async (pool) => (await comprobacion(pool, SQL_COMPRAS_PENDIENTES)).sort(porSolicitadaYPrioridad),
   "tp-cot": (pool) => tpCotSinRematar(pool),
   "sin-gestionar": (pool) => comprobacion(pool, SQL_SIN_GESTIONAR),
-  "con-oe": async (pool) => (await comprobacion(pool, SQL_CON_OE)).sort(porEstadoOE),
+  "con-oe": async (pool) => {
+    const [porOF, porAlmacen] = await Promise.all([comprobacion(pool, SQL_CON_OE), comprobacion(pool, SQL_CON_OE_ALMACEN)]);
+    return [...porOF, ...porAlmacen].sort(porEstadoOE);
+  },
   "incidencias": (pool) => incidencias(pool),
   "tiempos-abiertos": (pool) => tiemposAbiertos(pool),
 };

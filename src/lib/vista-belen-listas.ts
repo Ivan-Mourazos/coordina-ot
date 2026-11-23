@@ -333,16 +333,20 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     // la OF marcada como exterior, con su pedido al proveedor si ya lo hay.
     id: "con-oe",
     label: "Pedidos con OE",
-    explica: "Órdenes exteriores (lacar, vinilo… fuera) de OF sin finalizar, con su pedido al proveedor. Primero las retrasadas.",
+    // También las que van por hoja de almacén (sin OF): lo que Compras manda a
+    // lacar para un pedido sin entregar.
+    explica: "Órdenes exteriores (lacar, vinilo… fuera) de OF sin finalizar y lo que se manda a lacar por hoja de almacén, con su pedido al proveedor. Primero las retrasadas.",
     amarillo: "En amarillo, las que ya volvieron.",
     filtro: { clave: "estado", titulo: "Estado" },
     columnas: [
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
       { clave: "of", titulo: "OF", tipo: "of" },
+      { clave: "via", titulo: "Va por" },
       { clave: "oe", titulo: "Qué se manda", largo: true },
       { clave: "proveedor", titulo: "Proveedor", largo: true },
       // La primera fecha es la del filtro «desde/hasta»: la previsión.
       { clave: "prevista", titulo: "Prev. compras", tipo: "fecha" },
+      { clave: "recibida", titulo: "Recibida", tipo: "fecha" },
       { clave: "pedidoProveedor", titulo: "Pedido prov.", tipo: "fecha" },
       { clave: "creada", titulo: "OE creada", tipo: "fecha" },
       { clave: "estado", titulo: "Estado", tipo: "estado" },

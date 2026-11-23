@@ -307,15 +307,18 @@ describe("tiempos abiertos en OLANET", () => {
 describe("Pedidos con OE", () => {
   test("primero retrasadas, luego sin pedir, pendientes y recibidas; dentro, por previsión", async () => {
     const oe = (clave: string, estado: string, prevista: Date | null) => ({ clave, of: "0000001", pedido: `AR.26.${clave}`, estado, prevista });
-    const { pool } = poolCon([
+    const { pool, query } = poolCon([]);
+    query.mockResolvedValueOnce({ recordset: [
       oe("00005", "Recibida", new Date("2026-11-01T00:00:00Z")),
       oe("00004", "Pendiente", null),
-      oe("00003", "Pendiente", new Date("2026-11-25T00:00:00Z")),
       oe("00002", "Sin pedir", null),
       oe("00001", "Retrasada", new Date("2026-11-17T00:00:00Z")),
-    ]);
+    ] });
+    // Las de hoja de almacén (sin OF) se mezclan con las de OF en el mismo orden.
+    query.mockResolvedValueOnce({ recordset: [{ ...oe("00003", "Pendiente", new Date("2026-11-25T00:00:00Z")), of: null }] });
     const filas = await CONSULTAS["con-oe"](pool);
     expect(filas.map((f) => f.clave)).toEqual(["00001", "00002", "00003", "00004", "00005"]);
     expect(filas[0].prevista).toBe("2026-11-17");
+    expect(filas[2].of).toBeNull();
   });
 });
