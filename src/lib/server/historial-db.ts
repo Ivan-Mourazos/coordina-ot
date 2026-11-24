@@ -14,6 +14,7 @@ import { leerOverlay, leerPedidosPasados, type PasoAProduccion } from "./estado-
 import { leerTodosIntervalos } from "./fichaje-db";
 import { operarioDeEmpleado } from "./operarios";
 import { familiaDeTexto } from "./rps";
+import { piezasOfSql } from "./piezas-sql";
 import { partirOfId } from "../bonos";
 import { agregarPorRol } from "../fichaje";
 import { OPERARIOS, PEDIDOS } from "../mock";
@@ -1360,8 +1361,11 @@ export async function leerHistorialPedidoDetalle(
   }
   const pp = (
     await peticionPiezas.query<{ prioridad: number | null; piezas: number | null }>(`
-      SELECT MAX(mo.Priority) AS prioridad, SUM(mo.Quantity) AS piezas
+      SELECT MAX(mo.Priority) AS prioridad, SUM(${piezasOfSql("mo", "lin")}) AS piezas
       FROM dbo.CPRManufacturingOrder mo
+      OUTER APPLY (SELECT TOP 1 l.IDUnitQuantity, l.Quantity, l.QuantitySecondUnit
+                     FROM dbo.FACOrderLineSL l
+                    WHERE l.IDManufacturingOrder = mo.IDManufacturingOrder) lin
       WHERE mo.CodCompany = '001'
         ${parcial ? `AND mo.CodManufacturingOrder IN (
           SELECT x.n.value('.','varchar(25)')

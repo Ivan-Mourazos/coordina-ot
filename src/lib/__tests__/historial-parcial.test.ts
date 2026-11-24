@@ -67,7 +67,7 @@ beforeEach(() => {
   consultar.mockReset().mockImplementation((sql: string, params: Map<string, unknown>) => {
     if (params.has("ofParciales")) return filas;
     if (sql.includes("SUM(i.ExecutionTime)")) return filas;
-    if (sql.includes("SUM(mo.Quantity)")) return [{ piezas: params.has("ordenes") ? 2 : 5, prioridad: 1 }];
+    if (sql.includes("AS piezas") && sql.includes("OUTER APPLY")) return [{ piezas: params.has("ordenes") ? 2 : 5, prioridad: 1 }];
     return [];
   });
 });

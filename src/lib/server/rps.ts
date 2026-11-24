@@ -11,6 +11,7 @@ import {
 // `Seccion` (recuperar un pedido del Historial, y sus tests).
 export { SECCIONES } from "../secciones";
 import { operariosDeSeccion } from "./operarios";
+import { piezasOfSql } from "./piezas-sql";
 import type { Tablero } from "../data";
 import type {
   CompraOF, Familia, ImputacionRps, MaterialAsignado, OF, OFFuera, Pedido, Prioridad,
@@ -850,7 +851,7 @@ async function filasPorFase(
                  AND Planning LIKE '%CodTask="' + e.CodMOTask + '"%'), 101) AS FechaPlanificada,
            sit.Description AS SitOF, sit.AllowImputations AS PermiteImputaciones,
            d.Notes AS NotasOF,
-           d.Description AS DescripcionMO, d.Quantity AS Cantidad,
+           d.Description AS DescripcionMO, ${piezasOfSql("d", "a")} AS Cantidad,
            d.PlannedStartDate, d.PlannedEndDate, d.ManualEndDate
       FROM dbo.CPRMOTask AS e
       INNER JOIN dbo.CPRManufacturingOrder AS d WITH (NOLOCK)
@@ -1310,7 +1311,7 @@ async function consultarTablero(seccion: Seccion): Promise<Tablero> {
     // por tarea; sin tareas canceladas. Medido: 91 ms para un pedido.
     pool.request().query<FilaFuera>(`
       SELECT o.CodOrder AS pedido, mo.CodManufacturingOrder AS orden,
-             l.Description AS descripcion, l.Quantity AS cantidad,
+             l.Description AS descripcion, ${piezasOfSql("mo", "l")} AS cantidad,
              t.CodMOTask AS codTarea, t.Description AS tarea,
              (SELECT TOP 1 rm.CodMOResourceMachine FROM dbo.CPRMOResourceMachine rm WITH (NOLOCK)
                WHERE rm.IDMOTask = t.IDMOTask) AS maquina
