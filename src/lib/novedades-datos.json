@@ -1,8 +1,14 @@
 [
   {
     "id": "2026-11-24",
-    "hasta": "c585948",
+    "hasta": "817478e",
     "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Las OF de lonas y vinilos vendidos por m² enseñaban los metros en vez de las piezas",
+        "apartado": "ot",
+        "tanda": 2
+      },
       {
         "tipo": "mejor",
         "titulo": "Reimprimir desde la ficha del pedido ya no imprime al momento: eliges qué PDF y qué páginas",
