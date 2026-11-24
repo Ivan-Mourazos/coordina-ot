@@ -42,6 +42,27 @@ No añadas `!important`: usa el ámbito explícito del estilo y respeta la casca
 - Foco visible con teclado en botones, enlaces, menús y controles. Respetar
   `prefers-reduced-motion` tanto en la píldora como al pulsar.
 
+## Pantallas y piezas nuevas
+
+Tomado de la skill `frontend-design` de Anthropic (24/11/2026), solo lo que no
+choca con esta guía: el acabado de arriba manda sobre cualquier idea de «dar
+personalidad».
+
+- **Plan antes de construir.** Para una pantalla nueva, primero un plan corto:
+  qué hace quien la usa, qué acción es la principal y qué datos ve primero.
+  Repasar ese plan buscando lo genérico; luego construir. Si cambia cómo se
+  trabaja, Iván lo decide con capturas antes de darlo por bueno.
+- **Estructura solo si informa.** Bordes, etiquetas, chips, numeración e iconos
+  van cuando distinguen algo (estado, persona, familia), no para decorar.
+- **Nada de clichés por inercia:** filas de tarjetas idénticas cuando una tabla
+  se lee mejor, una palabra del título resaltada en color, flechas o iconos de
+  adorno en botones, degradados o brillos, animaciones que no explican nada.
+- **Movimiento con medida:** solo el que explica un cambio (la píldora, abrir y
+  cerrar). Siempre con `prefers-reduced-motion`.
+- **Textos largos** (notas, ayudas, correos) a menos de ~80 caracteres por línea.
+- **Errores que dicen qué hacer:** qué falló y cómo seguir, en el idioma del
+  técnico. Nada de «Error 500» ni nombres de campos o estados internos.
+
 ## Píldora que se desliza
 
 `PildorasDeslizantes` se monta una sola vez en el layout y no dibuja nodos.
