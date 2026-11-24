@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-24",
+    "hasta": "c585948",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "Reimprimir desde la ficha del pedido ya no imprime al momento: eliges qué PDF y qué páginas",
+        "apartado": "ot",
+        "detalle": "Reenviar el correo también pregunta antes. Y al pasar puedes marcar o desmarcar todas las páginas de una impresora de golpe.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-23",
     "hasta": "625925a",
     "cambios": [
