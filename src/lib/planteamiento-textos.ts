@@ -13,6 +13,7 @@ export interface VistaPlanteamiento {
   stockLona?: {
     faltas: (FaltaLona & { entrega: number; yaAvisado: AvisoLona | null })[];
   } | null;
+  ofsLonaSinComprobar?: string[];
   modo: ModoImpresion;
   /** `adjunto`: va en el correo (PVC); si no, solo se imprime y el correo
    *  avisa. Opcional: un servidor de antes no lo manda. */

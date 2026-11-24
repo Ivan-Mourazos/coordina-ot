@@ -2,6 +2,9 @@ import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { ofsConLona } from "../server/rps";
+
+vi.mock("../server/rps", () => ({ ofsConLona: vi.fn(async () => [] as string[]) }));
 
 // Ni el disco compartido ni la impresora se tocan: los dos módulos se simulan.
 const { planteamientosMock, modoMock, prepararMock } = vi.hoisted(() => ({
@@ -83,6 +86,41 @@ test("GET presenta las faltas solo para las OF solicitadas", async () => {
   const pedir = async (of: string) => (await (await ruta.GET(new Request(`http://x/api/planteamiento?pedido=AR.26.05016&of=${of}`))).json()).stockLona;
   expect(await pedir("124")).toBeNull();
   expect(await pedir("123")).toEqual({ faltas: [{ ...stock.faltas[0], entrega: 2, yaAvisado: null }] });
+});
+
+test("GET avisa solo de OF con lona y sin una comprobación que las cubra", async () => {
+  const { guardarStockLona } = await import("../server/stock-lona-db");
+  const pedido = "AR.26.05067";
+  const pedir = async (...ofs: string[]) => {
+    const params = new URLSearchParams({ pedido });
+    for (const of of ofs) params.append("of", of);
+    const r = await ruta.GET(new Request(`http://x/api/planteamiento?${params}`));
+    expect(r.status).toBe(200);
+    return r.json();
+  };
+  vi.mocked(ofsConLona).mockResolvedValueOnce(["0234012", "0234013"]);
+  expect((await pedir("0234012", "0234013", "0234014")).ofsLonaSinComprobar).toEqual(["0234012", "0234013"]);
+  expect(ofsConLona).toHaveBeenLastCalledWith(["0234012", "0234013", "0234014"]);
+  guardarStockLona({ pedido, entrega: 4, cliente: "", ofs: ["0234012"], lonas: [], faltas: [],
+    consultado: "2026-11-23T11:40:00Z", consultadoPor: null, origen: "plano-manual" });
+  vi.mocked(ofsConLona).mockResolvedValueOnce(["0234013"]);
+  expect((await pedir("0234012", "0234013")).ofsLonaSinComprobar).toEqual(["0234013"]);
+  expect(ofsConLona).toHaveBeenLastCalledWith(["0234013"]);
+  vi.mocked(ofsConLona).mockClear();
+  expect((await pedir("0234012")).ofsLonaSinComprobar).toEqual([]);
+  expect(ofsConLona).not.toHaveBeenCalled();
+});
+
+test("GET conserva las faltas conocidas si RPS no responde", async () => {
+  const { guardarStockLona } = await import("../server/stock-lona-db");
+  const pedido = "AR.26.05068";
+  guardarStockLona({ pedido, entrega: null, cliente: "", ofs: ["0234012"], lonas: [],
+    faltas: [{ codigo: "LV1", descripcion: "", necesita: 2, disponible: 1, ofs: ["0234012"] }],
+    consultado: "2026-11-23T11:40:00Z", consultadoPor: null });
+  vi.mocked(ofsConLona).mockRejectedValueOnce(new Error("RPS no responde"));
+  const r = await ruta.GET(new Request(`http://x/api/planteamiento?pedido=${pedido}&of=0234012&of=0234013`));
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ ofsLonaSinComprobar: [], stockLona: { faltas: [{ codigo: "LV1" }] } });
 });
 
 test("GET con un código que no es de pedido: 400", async () => {

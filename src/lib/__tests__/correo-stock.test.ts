@@ -134,6 +134,26 @@ test.each([1, 3])("al pasar %i OF, encola un correo con las tres OF y los metros
   expect(correos[0].html).toContain("18,75 m");
 });
 
+test("la misma lona en dos planos conserva ambos avisos y solo repite el que cambia de metros", () => {
+  vi.stubEnv("CORREO_PLANTEAMIENTO", "ensayo");
+  const pedido = "AR.26.05019";
+  const f = s.faltas[0];
+  guardarStockLona({ ...s, pedido, ofs: ["123"], faltas: [{ ...f, ofs: ["123"] }] });
+  const segundo = { ...s, pedido, origen: "plano-manual" as const, ofs: ["124"],
+    faltas: [{ ...f, necesita: 60, ofs: ["124"] }], consultado: "2026-11-23T11:45:00Z" };
+  guardarStockLona(segundo);
+  const ambas = ["123", "124"];
+  expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(true);
+  expect(correosDe(pedido)).toHaveLength(2);
+  expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(false);
+  guardarStockLona({ ...segundo, faltas: [{ ...segundo.faltas[0], necesita: 65 }], consultado: "2026-11-23T11:50:00Z" });
+  expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(true);
+  const correos = correosDe(pedido);
+  expect(correos).toHaveLength(3);
+  expect(correos[2].cuerpo).toContain("Necesita: 65,00 m");
+  expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(false);
+});
+
 test("si falla el registro del aviso tampoco se queda el correo en cola", () => {
   vi.stubEnv("CORREO_PLANTEAMIENTO", "ensayo");
   const pedido = "AR.26.05018";

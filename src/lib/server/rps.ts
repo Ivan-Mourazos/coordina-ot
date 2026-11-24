@@ -885,6 +885,29 @@ export interface FaseDelPedido {
   fichable: boolean;
 }
 
+/** OF con algún material asignado de la familia LONA, aunque no esté reservado. */
+export async function ofsConLona(ofs: readonly string[]): Promise<string[]> {
+  if (!ofs.length || process.env.DATASOURCE !== "rps") return [];
+  const { getPool } = await import("./db");
+  const req = (await getPool()).request();
+  const codigos = ofs.map((of, i) => {
+    req.input(`of${i}`, sql.VarChar(20), of);
+    return `@of${i}`;
+  });
+  const r = await req.query<{ orden: string }>(`
+    SELECT DISTINCT mo.CodManufacturingOrder AS orden
+    FROM dbo.CPRManufacturingOrder mo
+    JOIN dbo.CPRMOTask t ON t.IDManufacturingOrder = mo.IDManufacturingOrder AND t.CodCompany = mo.CodCompany
+    JOIN dbo.CPRMOMaterial m ON m.IDMOTask = t.IDMOTask AND m.CodCompany = t.CodCompany
+    JOIN dbo.STKArticle a ON a.IDArticle = m.IDArticle AND a.CodCompany = m.CodCompany
+    JOIN dbo.GENProductFamily pf ON pf.IDProductFamily = a.IDProductFamily AND pf.CodCompany = a.CodCompany
+    WHERE mo.CodCompany = '001' AND pf.Description = 'LONA'
+      AND mo.CodManufacturingOrder IN (${codigos.join(", ")})
+  `);
+  const encontradas = new Set(r.recordset.map(f => f.orden.trim()));
+  return ofs.filter(of => encontradas.has(of));
+}
+
 /** Las tareas de una sección para las OF de un pedido, directamente de RPS,
  *  sin pasar por OLANET ni por el filtro de "pendiente". Es el `SELECT` de
  *  `filasPorFase` acotado por PEDIDO en vez de por lista de órdenes, y SIN su

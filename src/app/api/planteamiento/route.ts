@@ -1,4 +1,5 @@
-import { leerStockLona } from "@/lib/server/stock-lona-db";
+import { leerComprobacionesLona } from "@/lib/server/stock-lona-db";
+import { ofsConLona } from "@/lib/server/rps";
 import { leerPersona } from "@/lib/server/personas-db";
 import { NextResponse } from "next/server";
 import { esCodigoPedido } from "@/lib/types";
@@ -45,17 +46,35 @@ async function correoDe(pedido: string) {
 
 function stockDelPedido(pedido: string, ofs: string[]) {
   try {
-    const faltas = leerStockLona(pedido, ofs).flatMap(s => s.faltas.map(f => {
+    const { resultado, sinComprobar } = leerComprobacionesLona(pedido, ofs);
+    const faltas = resultado.flatMap(s => s.faltas.map(f => {
       const aviso = f.yaAvisado;
       return { ...f, entrega: s.entrega, yaAvisado: aviso && {
         creadoAt: aviso.creadoAt,
         pasadoPor: leerPersona(aviso.pasadoPor)?.nombre ?? aviso.pasadoPor,
       } };
     }));
-    return faltas.length ? { faltas } : null;
+    return { stockLona: faltas.length ? { faltas } : null, sinComprobar };
   } catch (e) {
     console.error(`[stock] no se pudo leer el aviso de ${pedido}`, e);
-    return null;
+    return { stockLona: null, sinComprobar: [] };
+  }
+}
+
+async function lonasSinComprobar(ofs: string[]) {
+  if (!ofs.length) return [];
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ofsConLona(ofs),
+      // La vista previa del cierre individual también espera esta respuesta.
+      new Promise<string[]>(resolve => { reloj = setTimeout(() => resolve([]), 2_000); }),
+    ]);
+  } catch (e) {
+    console.warn("[stock] no se pudieron consultar las OF con lona en RPS:", (e as Error).message);
+    return [];
+  } finally {
+    clearTimeout(reloj);
   }
 }
 
@@ -65,7 +84,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const pedido = searchParams.get("pedido") ?? "";
   if (!esCodigoPedido(pedido)) return NextResponse.json({ error: "Pedido no válido" }, { status: 400 });
-  const [{ ficheros, aviso }, pvc] = await Promise.all([planteamientosDe(pedido), pedidoEsDePvc(pedido)]);
+  const { stockLona, sinComprobar } = stockDelPedido(pedido, searchParams.getAll("of"));
+  const [{ ficheros, aviso }, pvc, ofsLonaSinComprobar] = await Promise.all([
+    planteamientosDe(pedido), pedidoEsDePvc(pedido), lonasSinComprobar(sinComprobar),
+  ]);
   return NextResponse.json(
     {
       modo: modoImpresion(),
@@ -82,7 +104,8 @@ export async function GET(req: Request) {
       puedeOt: puedeImprimirEnOt(),
       aviso,
       impresiones: leerImpresionesDe(pedido),
-      stockLona: stockDelPedido(pedido, searchParams.getAll("of")),
+      stockLona,
+      ofsLonaSinComprobar,
       correo: await correoDe(pedido),
     },
     { headers: { "Cache-Control": "no-store" } },

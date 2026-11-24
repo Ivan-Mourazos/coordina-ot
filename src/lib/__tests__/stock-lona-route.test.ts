@@ -17,3 +17,12 @@ test("exige la clave configurada y valida antes de guardar", async () => {
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ ok: true });
 });
+
+test.each([["web", 200], ["plano-manual", 200], ["manual", 400], [null, 400]])(
+  "origen de primer nivel %s: responde %i", async (origen, status) => {
+    vi.stubEnv("INTEGRACION_CLAVE", "test");
+    const r = await post("test", { pedido: "AR.26.05017", cliente: "", entrega: null, ofs: ["123"],
+      lonas: [], faltas: [], consultado: "2026-11-23T11:40:00Z", consultadoPor: null, origen });
+    expect(r.status).toBe(status);
+  },
+);

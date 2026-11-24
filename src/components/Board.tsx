@@ -1,6 +1,6 @@
 "use client";
 
-import { AvisoStockPase, elegirCorreoStock } from "./AvisoStockPase";
+import { AvisoLonaSinComprobar, AvisoStockPase, elegirCorreoStock } from "./AvisoStockPase";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -2693,6 +2693,11 @@ export function Board({
   const seccionDelPase: SeccionId = seccionDeLosPedidos ?? SECCION_POR_DEFECTO;
   const conEleccionPase = !SECCIONES[seccionDelPase].finalizar && hayEleccion(listaPase);
   const decisionPase = conEleccionPase ? decidirPase(listaPase, desmarcadasPase) : ({ tipo: "todo" } as const);
+  const sinComprobar = vistaPlanteamiento?.pedidoId === pasarPendiente ? vistaPlanteamiento?.datos.ofsLonaSinComprobar : undefined;
+  const idsPaseParcial = decisionPase.tipo === "parcial" ? new Set(decisionPase.ofIds) : null;
+  const ofsLonaSinComprobar = decisionPase.tipo === "todo" ? sinComprobar : listaPase
+    .filter(({ of }) => idsPaseParcial?.has(of.id) && sinComprobar?.includes(of.codigo))
+    .map(({ of }) => of.codigo);
   const ofsAPasar = pedidoAPasar?.ofs.filter((o) => o.estado !== "anulada").length ?? 0;
   // Las mismas OF que pone el servidor en el correo (api/estado): sin anuladas
   // ni las de taller.
@@ -3530,6 +3535,7 @@ export function Board({
               </ApartadoPase>
               </div>
             )}
+            <AvisoLonaSinComprobar ofs={ofsLonaSinComprobar} />
             {decisionPase.tipo === "todo" && vistaPlanteamiento?.pedidoId === pasarPendiente && vistaPlanteamiento && (
               <AvisoStockPase stock={vistaPlanteamiento.datos.stockLona} modo={vistaPlanteamiento.datos.correo?.modo}
                 marcado={correoStock ?? elegirCorreoStock(vistaPlanteamiento.datos.stockLona)} onCambiar={setCorreoStock} />

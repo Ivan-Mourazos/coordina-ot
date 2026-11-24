@@ -31,6 +31,42 @@ test.each(["corte", "reserva", "manual"])("acepta el origen %s", origen => {
   expect(validarStockLona({ ...entrada, lonas: [{ ...entrada.lonas[0], origen }] })?.lonas[0].origen).toBe(origen);
 });
 
+test("valida el origen de primer nivel y usa web si se omite", () => {
+  expect(validarStockLona(entrada)?.origen).toBe("web");
+  expect(validarStockLona({ ...entrada, origen: "web" })?.origen).toBe("web");
+  expect(validarStockLona({ ...entrada, origen: "plano-manual" })?.origen).toBe("plano-manual");
+  expect(validarStockLona({ ...entrada, origen: undefined })).toBeNull();
+  expect(validarStockLona({ ...entrada, origen: "web", extra: true })).toBeNull();
+});
+
+test("el plano reemplaza sus OF, recorta las líneas compartidas y conserva las de otros planos", () => {
+  const s = validarStockLona({ ...entrada, pedido: "AR.26.05064", ofs: ["123", "124", "125"] })!;
+  const compartida = { ...s.faltas[0], codigo: "LV2", ofs: ["123", "124"] };
+  const otra = { ...s.faltas[0], codigo: "LV3", ofs: ["125"] };
+  const lonaCompartida = { ...s.lonas[0], codigo: "LV2", ofs: compartida.ofs };
+  const otraLona = { ...s.lonas[0], codigo: "LV3", ofs: otra.ofs };
+  guardarStockLona({ ...s, faltas: [...s.faltas, compartida, otra], lonas: [...s.lonas, lonaCompartida, otraLona] });
+  // Simula una fila de antes de que el contrato incluyera el origen.
+  getDb().prepare("UPDATE stock_lona_entrega SET datos = json_remove(datos, '$.origen') WHERE pedido_id = ?").run(s.pedido);
+
+  const plano = { ...s, origen: "plano-manual" as const, ofs: ["123", "126"], consultado: "2026-11-23T11:50:00Z",
+    faltas: [{ ...s.faltas[0], necesita: 60, ofs: ["126"] }], lonas: [{ ...s.lonas[0], ml: 60, ofs: ["126"] }] };
+  guardarStockLona(plano);
+  guardarStockLona({ ...plano, ofs: ["125"], lonas: [], faltas: [] });
+  guardarStockLona({ ...plano, ofs: ["124"], lonas: [], faltas: [], consultado: s.consultado });
+  const leido = () => JSON.parse((getDb().prepare("SELECT datos FROM stock_lona_entrega WHERE pedido_id = ?")
+    .get(s.pedido) as { datos: string }).datos);
+  expect(leido()).toEqual({
+    cliente: s.cliente, origen: "plano-manual", ofs: ["123", "124", "125", "126"],
+    faltas: [{ ...compartida, ofs: ["124"] }, otra, ...plano.faltas],
+    lonas: [{ ...lonaCompartida, ofs: ["124"] }, otraLona, ...plano.lonas],
+  });
+
+  guardarStockLona({ ...s, origen: "web", ofs: ["123"], consultado: "2026-11-23T12:00:00Z" });
+  expect(leido()).toEqual({ cliente: s.cliente, origen: "web", ofs: ["123"], faltas: s.faltas, lonas: s.lonas });
+  expect(leerStockLona(s.pedido, ["124", "125", "126"])).toEqual([]);
+});
+
 test.each([{ pedido: "" }, { entrega: undefined }, { entrega: "2" }, { entrega: 1.5 }, { consultadoPor: undefined },
   { extra: true }, { consultado: "23 nov 2026" }, { consultado: "2026-02-30T11:40:00Z" },
   { faltas: [{ ...entrada.faltas[0], disponible: -1 }] },
