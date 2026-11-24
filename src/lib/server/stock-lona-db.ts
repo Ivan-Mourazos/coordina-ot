@@ -1,7 +1,16 @@
 import { esCodigoPedido } from "../types";
 import { getDb } from "./estado-db";
 
-export interface FaltaLona { codigo: string; descripcion: string; necesita: number; disponible: number; ofs: string[] }
+export interface FaltaLona {
+  codigo: string;
+  descripcion: string;
+  necesita: number;
+  disponible: number;
+  ofs: string[];
+  stock?: number;
+  reservado?: number;
+  reservadoPropio?: number;
+}
 interface Lona { codigo: string; descripcion: string; ml: number; ofs: string[]; origen: "corte" | "reserva" | "manual" }
 export interface StockLona {
   pedido: string; entrega: number | null; cliente: string; ofs: string[]; lonas: Lona[]; faltas: FaltaLona[];
@@ -57,15 +66,25 @@ export function validarStockLona(v: unknown): StockLona | null {
     if (!base) return null;
     lonas.push({ ...base, ml: linea.ml, ofs: linea.ofs.map(texto), origen: linea.origen });
   }
+  const CLAVES_FALTA = ["codigo", "descripcion", "necesita", "disponible", "ofs"];
+  const CLAVES_FALTA_CUENTA = [...CLAVES_FALTA, "stock", "reservado", "reservadoPropio"];
   const faltas: FaltaLona[] = [];
   const codigosConFalta = new Set<string>();
   for (const f of v.faltas) {
-    if (!tieneClaves(f, ["codigo", "descripcion", "necesita", "disponible", "ofs"])
-      || !metros(f.necesita) || !metros(f.disponible) || f.disponible >= f.necesita || !ofsDeLona(f.ofs)) return null;
+    if (!tieneClaves(f, CLAVES_FALTA) && !tieneClaves(f, CLAVES_FALTA_CUENTA)) return null;
+    if (!metros(f.necesita) || !metros(f.disponible) || f.disponible >= f.necesita || !ofsDeLona(f.ofs)) return null;
+    const conCuenta = Object.hasOwn(f, "stock");
+    if (conCuenta && (!metros(f.stock) || !metros(f.reservado) || !metros(f.reservadoPropio))) return null;
     const base = material(f);
     if (!base || codigosConFalta.has(base.codigo)) return null;
     codigosConFalta.add(base.codigo);
-    faltas.push({ ...base, necesita: f.necesita, disponible: f.disponible, ofs: f.ofs.map(texto) });
+    faltas.push({
+      ...base,
+      necesita: f.necesita,
+      disponible: f.disponible,
+      ofs: f.ofs.map(texto),
+      ...(conCuenta ? { stock: f.stock as number, reservado: f.reservado as number, reservadoPropio: f.reservadoPropio as number } : {}),
+    });
   }
   return { pedido, entrega: v.entrega, cliente: texto(v.cliente), ofs: [...ofs], lonas, faltas,
     consultado, consultadoPor: v.consultadoPor === null ? null : texto(v.consultadoPor) };
