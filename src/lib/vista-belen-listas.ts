@@ -42,6 +42,9 @@ export interface ColumnaLista {
    *  ancho que sobra. Sin él, texto corto de ancho fijo. La tabla no tiene
    *  scroll (Iván, 12/11/2026): ver anchoColumna en ListaBelen. */
   largo?: true;
+  /** Campo de la fila que se enseña, en gris, cuando esta columna viene
+   *  vacía: en «Pedidos con OE», «Hoja almacén» donde no hay OF. */
+  siVacia?: string;
 }
 
 export interface DefLista {
@@ -340,8 +343,9 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     filtro: { clave: "estado", titulo: "Estado" },
     columnas: [
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
-      { clave: "of", titulo: "OF", tipo: "of" },
-      { clave: "via", titulo: "Va por" },
+      // Sin OF, va por hoja de almacén: se dice en su sitio y no en otra
+      // columna (Iván, 24/11/2026: ahorrar espacio).
+      { clave: "of", titulo: "OF", tipo: "of", siVacia: "via" },
       { clave: "oe", titulo: "Qué se manda", largo: true },
       { clave: "proveedor", titulo: "Proveedor", largo: true },
       // La primera fecha es la del filtro «desde/hasta»: la previsión.

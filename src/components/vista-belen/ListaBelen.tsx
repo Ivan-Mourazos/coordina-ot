@@ -39,8 +39,11 @@ function haceCuanto(iso: string): string {
   return `a las ${new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function Celda({ col, valor }: { col: ColumnaLista; valor: string | number | null | undefined }) {
-  if (valor === null || valor === undefined || valor === "") return <span className="text-text-muted">—</span>;
+function Celda({ col, valor, fila }: { col: ColumnaLista; valor: string | number | null | undefined; fila: FilaLista }) {
+  if (valor === null || valor === undefined || valor === "") {
+    const sustituto = col.siVacia ? fila[col.siVacia] : null;
+    return <span className="text-text-muted">{sustituto ?? "—"}</span>;
+  }
   switch (col.tipo) {
     case "fecha":
       return <span className="tabular-nums">{fechaCorta(String(valor))}</span>;
@@ -298,7 +301,7 @@ export function TablaListaBelen({
                         <td
                           key={c.clave}
                           className={`truncate px-2.5 py-1.5 align-top first:pl-4 last:pr-4 ${c.tipo === "numero" ? "text-right" : ""}`}
-                          title={f[c.clave] != null && c.tipo !== "fecha" ? String(f[c.clave]) : undefined}
+                          title={f[c.clave] != null && c.tipo !== "fecha" ? String(f[c.clave]) : c.siVacia && f[c.siVacia] != null ? String(f[c.siVacia]) : undefined}
                         >
                           {/* La primera columna es la que se alcanza con el
                               teclado; la fila entera responde al ratón. */}
@@ -312,10 +315,10 @@ export function TablaListaBelen({
                               aria-label={f.pedido ? `Abrir ${f.pedido}${f.of ? `, OF ${f.of}` : ""}` : `Abrir la OF ${f.of}`}
                               className="rounded focus:outline-none"
                             >
-                              <Celda col={c} valor={f[c.clave]} />
+                              <Celda col={c} valor={f[c.clave]} fila={f} />
                             </button>
                           ) : (
-                            <Celda col={c} valor={f[c.clave]} />
+                            <Celda col={c} valor={f[c.clave]} fila={f} />
                           )}
                         </td>
                       ))}

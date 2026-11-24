@@ -799,7 +799,7 @@ const SQL_CON_OE_ALMACEN = `
            CAST(lineas.Description AS varchar(300)) AS oe, lineas.proveedor,
            lineas.CreationTimestamp AS creada, lineas.OrderDate AS pedidoProveedor, lineas.ReceptionDate AS prevista,
            CASE WHEN ABS(lineas.ReceivedQuantity) >= ABS(lineas.Quantity) THEN albaran.recibidaEl END AS recibida,
-           'Hoja de almacén' AS via,
+           'Hoja almacén' AS via,
            CASE
              WHEN ABS(lineas.ReceivedQuantity) >= ABS(lineas.Quantity) THEN 'Recibida'
              WHEN lineas.ReceptionDate < CONVERT(date, GETDATE()) THEN 'Retrasada'
