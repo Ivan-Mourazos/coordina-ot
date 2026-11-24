@@ -82,7 +82,7 @@ import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduc
 import { codigosOFDelPase, decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
 import { avisosTrasCerrarEnRps } from "@/lib/cerrar-of-avisos";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
-import { CambiarPlanteamiento } from "./CambiarPlanteamiento";
+import { CambiarCorreo, CambiarImpresion } from "./CambiarPlanteamiento";
 import { AJUSTES_DE_SERIE, NOTA_MAX, type AjustesImpresion, type EleccionPase } from "@/lib/planteamiento";
 import { RepartoImpresion, hayReparto, urlsAMano } from "./RepartoImpresion";
 import { textoCaducidadSecreto, textoAntesDePasar, textoCorreo, textoCorreoAntesDePasar, textoImpresion, yaSePasoAntes, type VistaPlanteamiento } from "@/lib/planteamiento-textos";
@@ -3584,27 +3584,45 @@ export function Board({
               if (eleccionPase) {
                 return (
                   <div className="mt-4 flex flex-col gap-2.5 text-xs">
-                    <ApartadoPase titulo="Qué se imprime y qué se manda">
-                      {yaImpreso && <p className="mb-2 text-text-muted">Ya se imprimió antes: {textoImpresion(yaImpreso)}</p>}
-                      <CambiarPlanteamiento
-                        ficheros={datos.ficheros}
-                        ofs={ofsDelCorreo}
-                        eleccion={eleccionPase}
-                        onCambiar={setEleccionPase}
-                        conImpresion={datos.modo !== "off"}
-                        conCorreo={conCorreo}
-                        mandarCorreo={mandarCorreoAlPasar}
-                        onMandarCorreo={setMandarCorreoAlPasar}
-                        onDeshacer={() => {
-                          setEleccionPase(null);
-                          setImprimirAlPasar(true);
-                          setMandarCorreoAlPasar(true);
-                        }}
-                      />
-                      {reparto}
-                      {nota}
-                      {caducidad}
-                    </ApartadoPase>
+                    {/* Impresión y correo, cada uno en su apartado (Iván, 24/11/2026). */}
+                    {datos.modo !== "off" && (
+                      <ApartadoPase titulo="Impresión">
+                        {yaImpreso && <p className="mb-2 text-text-muted">Ya se imprimió antes: {textoImpresion(yaImpreso)}</p>}
+                        <CambiarImpresion ficheros={datos.ficheros} eleccion={eleccionPase} onCambiar={setEleccionPase} />
+                        {reparto}
+                      </ApartadoPase>
+                    )}
+                    {textoCorreoAntesDePasar(datos) && decisionPase.tipo === "parcial" && (
+                      <ApartadoPase titulo="Correo">
+                        <p className="text-text">Pasando solo unas OF no se manda correo.</p>
+                      </ApartadoPase>
+                    )}
+                    {conCorreo && (
+                      <ApartadoPase titulo="Correo">
+                        {yaMandado && <p className="mb-2 text-text-muted">Ya se mandó antes: {textoCorreo(yaMandado)}</p>}
+                        <CambiarCorreo
+                          ficheros={datos.ficheros}
+                          ofs={ofsDelCorreo}
+                          eleccion={eleccionPase}
+                          onCambiar={setEleccionPase}
+                          mandarCorreo={mandarCorreoAlPasar}
+                          onMandarCorreo={setMandarCorreoAlPasar}
+                        />
+                        {nota}
+                        {caducidad}
+                      </ApartadoPase>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEleccionPase(null);
+                        setImprimirAlPasar(true);
+                        setMandarCorreoAlPasar(true);
+                      }}
+                      className="chip-3d self-start px-3 py-1 text-[11px] font-semibold text-text"
+                    >
+                      Dejarlo como estaba
+                    </button>
                   </div>
                 );
               }

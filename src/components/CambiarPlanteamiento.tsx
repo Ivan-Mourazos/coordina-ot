@@ -8,6 +8,9 @@ import type { EleccionPase } from "@/lib/planteamiento";
 // pinta en el correo. Las OF solo se pueden QUITAR del correo: el resto lo
 // sigue montando CoordinaOT. La nota del correo ya no va aquí: está siempre a
 // la vista en el aviso de pasar (Board), haya elección o no.
+//
+// Dos piezas, una por apartado (Iván, 24/11/2026): lo que se imprime va en
+// «Impresión» y lo que se manda (adjuntos y OF) en «Correo», sin mezclarse.
 
 export interface FicheroPase {
   nombre: string;
@@ -19,111 +22,102 @@ export interface OfPase {
   descripcion: string;
 }
 
-interface Props {
+const alternar = (lista: string[], valor: string, marcado: boolean) =>
+  marcado ? (lista.includes(valor) ? lista : [...lista, valor]) : lista.filter((x) => x !== valor);
+
+/** Qué PDF se imprimen. */
+export function CambiarImpresion({
+  ficheros,
+  eleccion,
+  onCambiar,
+}: {
+  ficheros: FicheroPase[];
+  eleccion: EleccionPase;
+  onCambiar: (e: EleccionPase) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1 text-text">
+      <p className="text-text-muted">Qué PDF se imprimen:</p>
+      {ficheros.map((f) => (
+        <label key={f.nombre} className="flex items-start gap-2 py-0.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-brand-500"
+            checked={eleccion.imprimir.includes(f.nombre)}
+            onChange={(e) => onCambiar({ ...eleccion, imprimir: alternar(eleccion.imprimir, f.nombre, e.target.checked) })}
+          />
+          <span className="break-all">
+            {f.nombre}
+            {!f.todoA4 && <span className="block text-text-muted">No es todo A4: se abrirá el cuadro de imprimir</span>}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/** Si se manda el correo, qué PDF van adjuntos y qué OF salen. */
+export function CambiarCorreo({
+  ficheros,
+  ofs,
+  eleccion,
+  onCambiar,
+  mandarCorreo,
+  onMandarCorreo,
+}: {
   ficheros: FicheroPase[];
   ofs: OfPase[];
   eleccion: EleccionPase;
   onCambiar: (e: EleccionPase) => void;
-  /** La impresión o el correo apagados no se ofrecen. */
-  conImpresion: boolean;
-  conCorreo: boolean;
   mandarCorreo: boolean;
   onMandarCorreo: (v: boolean) => void;
-  /** Volver a la norma, sin nada elegido a mano. */
-  onDeshacer: () => void;
-}
-
-const alternar = (lista: string[], valor: string, marcado: boolean) =>
-  marcado ? (lista.includes(valor) ? lista : [...lista, valor]) : lista.filter((x) => x !== valor);
-
-export function CambiarPlanteamiento({
-  ficheros, ofs, eleccion, onCambiar, conImpresion, conCorreo, mandarCorreo, onMandarCorreo, onDeshacer,
-}: Props) {
+}) {
   const fijar = (parte: Partial<EleccionPase>) => onCambiar({ ...eleccion, ...parte });
   return (
-    <div className="space-y-3 text-text">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="text-text-muted">
-            <th className="pb-1 text-left font-normal">Planteamiento</th>
-            {conImpresion && <th className="w-16 pb-1 text-center font-normal">Imprimir</th>}
-            {conCorreo && mandarCorreo && <th className="w-16 pb-1 text-center font-normal">Adjuntar</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {ficheros.map((f) => (
-            <tr key={f.nombre} className="border-t border-border">
-              <td className="py-1 pr-2 break-all">
-                {f.nombre}
-                {!f.todoA4 && <span className="block text-text-muted">No es todo A4: se abrirá el cuadro de imprimir</span>}
-              </td>
-              {conImpresion && (
-                <td className="text-center">
+    <div className="text-text">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" className="size-4 accent-brand-500" checked={mandarCorreo} onChange={(e) => onMandarCorreo(e.target.checked)} />
+        Mandar el correo
+      </label>
+      {mandarCorreo && (
+        <div className="mt-2 space-y-2 pl-6">
+          {ficheros.length > 0 && (
+            <fieldset>
+              <legend className="mb-1 text-text-muted">PDF adjuntos</legend>
+              {ficheros.map((f) => (
+                <label key={f.nombre} className="flex items-start gap-2 py-0.5">
                   <input
                     type="checkbox"
-                    className="size-4 accent-brand-500"
-                    aria-label={`Imprimir ${f.nombre}`}
-                    checked={eleccion.imprimir.includes(f.nombre)}
-                    onChange={(e) => fijar({ imprimir: alternar(eleccion.imprimir, f.nombre, e.target.checked) })}
-                  />
-                </td>
-              )}
-              {conCorreo && mandarCorreo && (
-                <td className="text-center">
-                  <input
-                    type="checkbox"
-                    className="size-4 accent-brand-500"
-                    aria-label={`Adjuntar ${f.nombre} al correo`}
+                    className="mt-0.5 size-4 shrink-0 accent-brand-500"
                     checked={eleccion.adjuntar.includes(f.nombre)}
                     onChange={(e) => fijar({ adjuntar: alternar(eleccion.adjuntar, f.nombre, e.target.checked) })}
                   />
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {conCorreo && (
-        <div>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              className="size-4 accent-brand-500"
-              checked={mandarCorreo}
-              onChange={(e) => onMandarCorreo(e.target.checked)}
-            />
-            Mandar el correo
-          </label>
-          {mandarCorreo && (
-            <div className="mt-2 space-y-2 pl-6">
-              {ofs.length > 0 && (
-                <fieldset>
-                  <legend className="mb-1 text-text-muted">OF que salen en el correo</legend>
-                  {ofs.map((of) => (
-                    <label key={of.codigo} className="flex items-start gap-2 py-0.5">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 size-4 shrink-0 accent-brand-500"
-                        checked={eleccion.ofs.includes(of.codigo)}
-                        onChange={(e) => fijar({ ofs: alternar(eleccion.ofs, of.codigo, e.target.checked) })}
-                      />
-                      <span>
-                        <b>{of.codigo}</b>
-                        {of.descripcion.trim() ? ` · ${of.descripcion.trim()}` : ""}
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
-              )}
-            </div>
+                  <span className="break-all">{f.nombre}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {ofs.length > 0 && (
+            <fieldset>
+              <legend className="mb-1 text-text-muted">OF que salen en el correo</legend>
+              {ofs.map((of) => (
+                <label key={of.codigo} className="flex items-start gap-2 py-0.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 shrink-0 accent-brand-500"
+                    checked={eleccion.ofs.includes(of.codigo)}
+                    onChange={(e) => fijar({ ofs: alternar(eleccion.ofs, of.codigo, e.target.checked) })}
+                  />
+                  <span>
+                    <b>{of.codigo}</b>
+                    {of.descripcion.trim() ? ` · ${of.descripcion.trim()}` : ""}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
           )}
         </div>
       )}
-
-      <button type="button" onClick={onDeshacer} className="chip-3d px-3 py-1 text-[11px] font-semibold text-text">
-        Dejarlo como estaba
-      </button>
     </div>
   );
 }

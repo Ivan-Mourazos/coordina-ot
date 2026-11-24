@@ -43,6 +43,25 @@ const seleccionDe = (f: ConTamanos, ajustes: AjustesImpresion): SeleccionPaginas
   ajustes.paginas[f.nombre] ?? seleccionDeSerie(f.tamanos);
 const natural = (p: PaginaPdf): Orientacion => (p.horizontal ? "horizontal" : "vertical");
 
+/** Todas las páginas marcadas; las que ya lo estaban conservan su orientación. */
+function todasLasPaginas(tamanos: PaginaPdf[], elegidas: SeleccionPaginas[ImpresoraId]): SeleccionPaginas[ImpresoraId] {
+  const de = new Map(elegidas.map((e) => [e.pagina, e.orientacion]));
+  return tamanos.map((p, i) => ({ pagina: i + 1, orientacion: de.get(i + 1) ?? natural(p) }));
+}
+
+function MarcarTodo({ onTodo, onNada }: { onTodo: () => void; onNada: () => void }) {
+  return (
+    <span className="inline-flex gap-1.5">
+      <button type="button" onClick={onTodo} className="chip-3d px-2 py-0.5 text-[10px] font-semibold text-text">
+        Marcar todo
+      </button>
+      <button type="button" onClick={onNada} className="chip-3d px-2 py-0.5 text-[10px] font-semibold text-text">
+        Desmarcar todo
+      </button>
+    </span>
+  );
+}
+
 /** ¿Hay algo que elegir? Solo con las medidas de cada página. */
 export function hayReparto(ficheros: readonly FicheroConTamanos[]): boolean {
   return ficheros.some(conTamanos);
@@ -108,9 +127,35 @@ export function RepartoImpresion({
     });
   const conMedidas = ficheros.filter(conTamanos);
   const tocado = Object.keys(ajustes.paginas).length > 0 || ajustes.aMano.length > 0;
+  // Con varios PDF, marcar o desmarcar una impresora de golpe en todos
+  // (Iván, 24/11/2026): con muchas OF no hay que ir página a página.
+  const todasEn = (impresora: ImpresoraId, si: boolean) =>
+    onCambiar({
+      ...ajustes,
+      paginas: {
+        ...ajustes.paginas,
+        ...Object.fromEntries(
+          conMedidas.map((f) => {
+            const sel = seleccionDe(f, ajustes);
+            return [f.nombre, { ...sel, [impresora]: si ? todasLasPaginas(f.tamanos, sel[impresora]) : [] }];
+          }),
+        ),
+      },
+    });
 
   return (
     <div className="mt-2.5 flex flex-col gap-2.5">
+      {conMedidas.length > 1 && (
+        <div className="flex flex-col gap-1.5 rounded-xl bg-surface p-2.5 shadow-[var(--hero-sombra-campo)]">
+          <p className="text-text-muted">En todos los PDF a la vez:</p>
+          {IMPRESORAS.map((imp) => (
+            <div key={imp} className="flex flex-wrap items-center gap-2">
+              <Chip>{NOMBRE[imp]}</Chip>
+              <MarcarTodo onTodo={() => todasEn(imp, true)} onNada={() => todasEn(imp, false)} />
+            </div>
+          ))}
+        </div>
+      )}
       {conMedidas.map((f) => {
         const sel = seleccionDe(f, ajustes);
         const trabajos = trabajosDe(f.tamanos, sel);
@@ -262,6 +307,11 @@ function ColumnaImpresora({
         <h5 className="text-xs font-semibold text-text">{NOMBRE[impresora]}</h5>
         <span className="text-[11px] text-text-muted">{PAPELES_TXT[impresora]}</span>
       </div>
+      {fichero.tamanos.length > 1 && (
+        <div className="mb-2">
+          <MarcarTodo onTodo={() => onElegir(todasLasPaginas(fichero.tamanos, elegidas))} onNada={() => onElegir([])} />
+        </div>
+      )}
       {sinCodigo && <p className="mb-2 text-[11px] text-text-muted">Sin código de departamento: lo de aquí se abre para imprimir a mano.</p>}
       <div className="grid grid-cols-3 gap-2">
         {fichero.tamanos.map((p, i) => {
