@@ -18,6 +18,24 @@ test.each([false, true])("la casilla refleja si ya se avisó (%s)", antes => {
   expect(html).toContain("LV1 · OF 123, OF 124, OF 125 · necesita");
   expect(html).toContain("LV2 · OF 123, OF 124, OF 125 · necesita");
 });
+test("con la cuenta muestra stock menos reservados, disponible, necesita, faltan y reservado propio", () => {
+  const conCuenta = {
+    faltas: [{
+      codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204",
+      stock: 1257.8, reservado: 860, reservadoPropio: 40, disponible: 397.8, necesita: 410.2,
+      ofs: ["0234125"], entrega: 0, yaAvisado: null,
+    }],
+  };
+  const html = renderToStaticMarkup(createElement(AvisoStockPase, { stock: conCuenta, marcado: true, onCambiar: vi.fn() }));
+  expect(html).toContain("PLAST880NEGRP204 · OF 0234125 · stock 1.257,8 m − 860 m reservados = 397,8 m disponible · necesita 410,2 m");
+  expect(html).toContain("faltan 12,4 m");
+  expect(html).toContain("#c20e4d");
+  expect(html).toContain("Reservado para este pedido: 40 m (no se resta)");
+
+  const sinPropio = { faltas: [{ ...conCuenta.faltas[0], reservadoPropio: 0 }] };
+  const htmlSinPropio = renderToStaticMarkup(createElement(AvisoStockPase, { stock: sinPropio, marcado: true, onCambiar: vi.fn() }));
+  expect(htmlSinPropio).not.toContain("Reservado para este pedido");
+});
 test("solo la elección explícita prepara el aviso, y un fallo no interrumpe el pase", () => {
   lanzarPlanteamiento("P", "ivan", undefined, { correoStock: false }, ["123"]);
   expect(prepararCorreoStock).not.toHaveBeenCalled();

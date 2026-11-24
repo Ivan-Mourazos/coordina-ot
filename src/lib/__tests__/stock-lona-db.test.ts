@@ -37,10 +37,43 @@ test.each([{ pedido: "" }, { entrega: undefined }, { entrega: "2" }, { entrega: 
   { faltas: [{ ...entrada.faltas[0], disponible: entrada.faltas[0].necesita }] },
   { faltas: [{ ...entrada.faltas[0], ofs: ["otra"] }] },
   { faltas: [{ ...entrada.faltas[0], origen: "reserva" }] },
+  { faltas: [{ ...entrada.faltas[0], stock: 1257.8 }] },
+  { faltas: [{ ...entrada.faltas[0], stock: 1257.8, reservado: 860 }] },
+  { faltas: [{ ...entrada.faltas[0], stock: 1257.8, reservado: 860, reservadoOtros: 40 }] },
+  { faltas: [{ ...entrada.faltas[0], stock: -1, reservado: 0, reservadoPropio: 0 }] },
+  { faltas: [{ ...entrada.faltas[0], stock: 10, reservado: -1, reservadoPropio: 0 }] },
+  { faltas: [{ ...entrada.faltas[0], stock: 10, reservado: 0, reservadoPropio: Number.NaN }] },
   { lonas: [{ ...entrada.lonas[0], porOf: { "123": 42.3 } }] },
   { lonas: [{ ...entrada.lonas[0], origen: "otro" }] },
   { lonas: Array(51).fill(entrada.lonas[0]) }])("rechaza datos inválidos", cambio => {
   expect(validarStockLona({ ...entrada, ...cambio })).toBeNull();
+});
+
+test("acepta y guarda faltas con la cuenta completa de 8 claves y conserva el formato de 5", () => {
+  const conCuenta = {
+    ...entrada,
+    pedido: "AR.26.05099",
+    faltas: [{ codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204", necesita: 410.2, disponible: 397.8,
+      stock: 1257.8, reservado: 860, reservadoPropio: 40, ofs: ["123"] }],
+  };
+  const validado = validarStockLona(conCuenta);
+  expect(validado?.faltas[0]).toEqual({
+    codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204", necesita: 410.2, disponible: 397.8,
+    stock: 1257.8, reservado: 860, reservadoPropio: 40, ofs: ["123"],
+  });
+  guardarStockLona(validado!);
+  expect(leerStockLona("AR.26.05099", ["123"])[0].faltas[0]).toMatchObject({
+    codigo: "PLAST880NEGRP204", stock: 1257.8, reservado: 860, reservadoPropio: 40, disponible: 397.8, necesita: 410.2,
+  });
+
+  const conCeros = validarStockLona({
+    ...entrada,
+    faltas: [{ ...entrada.faltas[0], disponible: 0, stock: 0, reservado: 0, reservadoPropio: 0 }],
+  });
+  expect(conCeros?.faltas[0]).toMatchObject({ stock: 0, reservado: 0, reservadoPropio: 0 });
+
+  const sinCuenta = validarStockLona(entrada)!;
+  expect(Object.keys(sinCuenta.faltas[0]).sort()).toEqual(["codigo", "descripcion", "disponible", "necesita", "ofs"]);
 });
 
 test("elige por OF la comprobación más reciente, incluso si esa OF ya tiene stock", () => {

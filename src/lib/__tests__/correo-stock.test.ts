@@ -21,6 +21,48 @@ test("asunto y versiones del correo según la maqueta", () => {
   expect(html).toContain("Lona &lt;gris&gt;");
 });
 
+test("con la cuenta, texto plano y HTML muestran stock, reservas, disponible, falta y propio", () => {
+  const conCuenta = {
+    ...s,
+    faltas: [{
+      codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204",
+      stock: 1257.8, reservado: 860, reservadoPropio: 40, disponible: 397.8, necesita: 410.2,
+      ofs: ["0234125"],
+    }],
+  };
+  const texto = cuerpoCorreoStock(conCuenta, "Iván");
+  expect(texto).toBe([
+    "Falta material AR.26.05016 · Bar",
+    "",
+    "OF 0234125",
+    "No llega el stock de PLAST880NEGRP204 PVC negro 204",
+    "Stock en almacén: 1.257,8 m",
+    "− Reservado (otros pedidos): 860 m",
+    "= Disponible: 397,8 m",
+    "Necesita este pedido: 410,2 m",
+    "Faltan: 12,4 m",
+    "Reservado para este pedido: 40 m (no se resta)",
+    "",
+    "Stock consultado 23/11/2026 12:40",
+    "Por Iván",
+  ].join("\n"));
+
+  const html = cuerpoCorreoStockHtml(conCuenta, "Iván");
+  for (const trozo of [
+    "Stock en almacén", "1.257,8 m",
+    "− Reservado (otros pedidos)", "860 m",
+    "= Disponible", "397,8 m",
+    "Necesita este pedido", "410,2 m",
+    "Faltan", "12,4 m", "#c20e4d",
+    "Reservado para este pedido: 40 m (no se resta)",
+  ]) expect(html).toContain(trozo);
+  expect(html).toMatch(/color:#c20e4d[^>]*>Faltan<\/td>/);
+
+  const sinPropio = { ...conCuenta, faltas: [{ ...conCuenta.faltas[0], reservadoPropio: 0 }] };
+  expect(cuerpoCorreoStock(sinPropio, "Iván")).not.toContain("Reservado para este pedido");
+  expect(cuerpoCorreoStockHtml(sinPropio, "Iván")).not.toContain("Reservado para este pedido");
+});
+
 test("solo encola faltas y congela los destinatarios del modo elegido", () => {
   vi.stubEnv("CORREO_PLANTEAMIENTO", "activo");
   guardarStockLona({ ...s, faltas: [] });
