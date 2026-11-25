@@ -405,7 +405,7 @@ function Compras({ of }: { of: OFBelen }) {
  *  comentario se reparten lo que sobra (el comentario, el que más). En una
  *  pantalla estrecha vuelve a ser una línea que salta. */
 const COLUMNAS =
-  "flex flex-wrap items-center gap-x-3 gap-y-1 lg:grid lg:gap-x-2.5 lg:grid-cols-[0.75rem_0.75rem_2rem_4.5rem_4.75rem_minmax(10rem,2fr)_9rem_5.25rem_5.75rem_8rem_5.25rem_minmax(5rem,1fr)_minmax(6rem,1.2fr)]";
+  "flex flex-wrap items-center gap-x-3 gap-y-1 lg:grid lg:gap-x-2.5 lg:grid-cols-[0.75rem_0.75rem_2rem_4.5rem_4.75rem_minmax(10rem,2fr)_9rem_5.25rem_5.75rem_8rem_5.25rem_minmax(5rem,0.9fr)_minmax(5rem,1fr)_minmax(6rem,1.2fr)]";
 /** Una celda: vacía no ocupa en la línea que salta, pero deja su hueco en la tabla. */
 const CELDA = "flex min-w-0 items-center gap-1.5 empty:hidden lg:empty:flex";
 
@@ -533,6 +533,19 @@ export function FilaOFBelen({
           {of.logistica?.fecha && <FechaCorta {...FECHA.logistica} valor={of.logistica.fecha} ayuda={of.logistica.responsable ? `${SIGNIFICA.logistica}\n\nResponsable: ${of.logistica.responsable}` : SIGNIFICA.logistica} extra={of.logistica.responsable} />}
         </span>
         <span className={CELDA}>{of.fechaCompras && <FechaCorta {...FECHA.compras} valor={of.fechaCompras} ayuda={SIGNIFICA.compras} />}</span>
+        {/* Belén (25/11/2026): con OF que se entregan distinto (una la llevan
+            los instaladores, otra va por transporte), la de cada una a la
+            vista sin desplegar. Si es la misma que la del pedido ya la dice
+            la cabecera, y el hueco queda en blanco. */}
+        <span className={CELDA}>
+          {otraEntrega && (
+            <span className="flex w-full min-w-0 flex-col leading-tight" title={`Entrega: ${of.formaEntrega ?? "sin forma de entrega"}`}>
+              <span className="text-[11px] font-medium text-text-muted">Entrega</span>
+              {/* Dos líneas y no «Enviar por…»: cortada no dice nada. */}
+              <b className="line-clamp-2 text-[12.5px] font-semibold">{enFrase(of.formaEntrega) || "—"}</b>
+            </span>
+          )}
+        </span>
         <span className={CELDA}>
           {of.rotulacion && (
             <span className="flex w-full min-w-0 flex-col leading-tight" title={`Rotulación: ${of.rotulacion}`}>
