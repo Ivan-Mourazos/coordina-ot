@@ -988,19 +988,32 @@ async function tiemposCerrados(pool: sql.ConnectionPool): Promise<FilaLista[]> {
         AND i.ImputationDate >= DATEADD(day, -@dias, CAST(GETDATE() AS date))
         AND i.StartHour IS NOT NULL AND i.EndHour IS NOT NULL
     ),
+    -- El tramo de antes y el de después de la misma persona en la misma tarea.
+    -- Con LEAD/LAG y no con OUTER APPLY/EXISTS sobre «i»: así cada fila volvía
+    -- a leer CPRImputationMO y la lista pasaba del minuto (25/11/2026).
+    v AS (
+      SELECT i.*,
+             LEAD(i.d) OVER (PARTITION BY i.emp, i.IDMOTask ORDER BY i.d, i.s, i.IDImputation) AS nd,
+             LEAD(i.s) OVER (PARTITION BY i.emp, i.IDMOTask ORDER BY i.d, i.s, i.IDImputation) AS ns,
+             LEAD(i.e) OVER (PARTITION BY i.emp, i.IDMOTask ORDER BY i.d, i.s, i.IDImputation) AS ne,
+             LAG(i.d) OVER (PARTITION BY i.emp, i.IDMOTask ORDER BY i.d, i.s, i.IDImputation) AS pd,
+             LAG(i.e) OVER (PARTITION BY i.emp, i.IDMOTask ORDER BY i.d, i.s, i.IDImputation) AS pe
+      FROM i
+    ),
     tramo AS (
-      SELECT a.*, sig.e AS e2, sig.d AS d2
-      FROM i a
-      -- Su continuación del día siguiente, si la hay.
-      OUTER APPLY (
-        SELECT TOP (1) b.e, b.d FROM i b
-        WHERE a.e >= @finDia AND b.emp = a.emp AND b.IDMOTask = a.IDMOTask
-          AND b.d = DATEADD(day, 1, a.d) AND b.s = 0
-      ) sig
+      SELECT v.*,
+             -- Su continuación del día siguiente, si la hay.
+             CASE WHEN v.cose = 1 THEN v.ne END AS e2,
+             CASE WHEN v.cose = 1 THEN v.nd END AS d2
+      FROM (
+        SELECT v.*,
+               CASE WHEN v.emp IS NOT NULL AND v.IDMOTask IS NOT NULL AND v.e >= @finDia
+                         AND v.nd = DATEADD(day, 1, v.d) AND v.ns = 0 THEN 1 ELSE 0 END AS cose
+        FROM v
+      ) v
       -- La continuación sola no sale: ya va cosida a su primer trozo.
-      WHERE NOT (a.s = 0 AND EXISTS (
-        SELECT 1 FROM i p WHERE p.emp = a.emp AND p.IDMOTask = a.IDMOTask
-          AND p.d = DATEADD(day, -1, a.d) AND p.e >= @finDia))
+      WHERE NOT (v.s = 0 AND v.emp IS NOT NULL AND v.IDMOTask IS NOT NULL
+                 AND v.pd = DATEADD(day, -1, v.d) AND v.pe >= @finDia)
     ),
     t2 AS (
       SELECT *, (e - s) + ISNULL(e2, 0) AS segundos,
