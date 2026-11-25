@@ -26,6 +26,8 @@ const IDS = {
   "con-oe": true,
   "incidencias": true,
   "tiempos-abiertos": true,
+  "transporte": true,
+  "nave": true,
 } satisfies Record<IdLista, true>;
 
 // «fechas-comprometidas» se prueba aparte: lee la fecha del texto y descarta lo que no lo es.
@@ -115,8 +117,9 @@ describe("registro de listas de Belén", () => {
   test.each(LISTAS_BELEN)("$id: columnas únicas y navegación al pedido", (lista) => {
     const claves = lista.columnas.map((c) => c.clave);
     expect(new Set(claves).size).toBe(claves.length);
-    // «Pedidos sin gestionar» son justo los que aún no tienen OF.
-    if (lista.id !== "sin-gestionar") expect(claves).toContain("of");
+    // «Pedidos sin gestionar» son justo los que aún no tienen OF; transporte
+    // y nave van por pedido, no por OF.
+    if (!["sin-gestionar", "transporte", "nave"].includes(lista.id)) expect(claves).toContain("of");
     expect(claves).toContain("pedido");
     if (lista.filtro) expect(claves).toContain(lista.filtro.clave);
     expect(lista.label.trim()).not.toBe("");

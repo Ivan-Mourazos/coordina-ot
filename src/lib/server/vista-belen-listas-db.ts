@@ -1073,6 +1073,147 @@ async function tiemposAbiertos(pool: sql.ConnectionPool): Promise<FilaLista[]> {
 // cliente y forma de entrega opcionales, para que su falta no esconda un aviso;
 // cada lista conserva la situación de OF que filtraba su Excel.
 
+// ─── Envíos y recogidas (Cristina, 25/11/2026) ───────────────────────────────
+// Una fila por pedido: los que faltan por salir (del último año) y los que
+// salieron en los últimos 60 días. La forma de entrega, la del pedido
+// (_FACOrderSL_Custom): por línea solo cambia en 10 de 1.287 pedidos.
+// Los albaranes se leen desde los de los últimos 60 días (índice por fecha):
+// partiendo de los pedidos, cruzar FACDeliveryNoteLineSL por línea tardaba 8 s.
+
+const ALBARANES_RECIENTES = `
+    recientes AS (
+      SELECT d.IDDeliveryNote, d.DeliveryNoteDate, d.CodDeliveryNote, d.IDCustomer, d.IDDeliveryNoteType
+      FROM dbo.FACDeliveryNoteSL d
+      WHERE d.CodCompany = '001' AND d.DeliveryNoteDate >= DATEADD(day, -60, CONVERT(date, GETDATE()))),
+    propio AS (
+      SELECT a.IDOrder, r.IDDeliveryNote, r.DeliveryNoteDate, r.CodDeliveryNote, r.IDDeliveryNoteType
+      FROM recientes r
+      JOIN dbo.FACDeliveryNoteLineSL l ON l.IDDeliveryNote = r.IDDeliveryNote
+      JOIN dbo.FACOrderLineSL a ON a.IDOrderLine = l.IDOrderLine
+      GROUP BY a.IDOrder, r.IDDeliveryNote, r.DeliveryNoteDate, r.CodDeliveryNote, r.IDDeliveryNoteType)`;
+
+/** Pedidos AR del último año con esa forma de entrega y algo por entregar. */
+const PENDIENTES_DE_FORMA = (formas: string) => `
+    pendientes AS (
+      SELECT o.IDOrder FROM dbo.FACOrderSL o
+      JOIN dbo._FACOrderSL_Custom oc ON oc.IDOrder = o.IDOrder AND oc.IDFormaEntrega IN (${formas})
+      WHERE o.CodCompany = '001' AND o.CodOrder LIKE 'AR%' AND o.OrderDate >= DATEADD(year, -1, GETDATE())
+        AND EXISTS (SELECT 1 FROM dbo.FACOrderLineSL a WHERE a.IDOrder = o.IDOrder AND a.PendingDelivery = 1 AND a.Delivered = 0))`;
+
+/** Líneas sin entregar y fecha solicitada (la más temprana de lo pendiente). */
+const LINEAS_DEL_PEDIDO = `
+    OUTER APPLY (
+      SELECT SUM(CASE WHEN l.PendingDelivery = 1 AND l.Delivered = 0 THEN 1 ELSE 0 END) AS pendientes,
+             MIN(CASE WHEN l.PendingDelivery = 1 AND l.Delivered = 0 AND YEAR(l.ReceptionDemandDate) > 1970 THEN l.ReceptionDemandDate END) AS solicitada
+      FROM dbo.FACOrderLineSL l WHERE l.IDOrder = p.IDOrder) li`;
+
+// Pedidos por transporte. El albarán de envío suele ser el del propio pedido.
+// Hijos de Rivera y otros mandan con un albarán «Solo para transporte»
+// (tipo 001-2) hecho sobre un pedido AUXILIAR, y el pedido de verdad solo se
+// nombra en el texto de la línea («PARA ENVIO DE PEDIDO Nº AR.26.05287»).
+// David (25/11/2026): no hay enlace en RPS. Criterio acordado con Iván: vale
+// si el texto lleva el número de pedido entero Y el albarán es del mismo
+// cliente que el pedido; se enseña con su número para poder comprobarlo. Ese
+// pedido sale aunque su forma no sea transporte (AR.26.05287 es «instalar»).
+// Medido el 25/11/2026: 1,1 s, 260 pedidos.
+const SQL_TRANSPORTE = `
+    WITH ${ALBARANES_RECIENTES},
+    aparte AS (
+      SELECT o.IDOrder, r.DeliveryNoteDate, r.CodDeliveryNote,
+             ROW_NUMBER() OVER (PARTITION BY o.IDOrder ORDER BY r.DeliveryNoteDate DESC, r.CodDeliveryNote DESC) AS n
+      FROM recientes r
+      JOIN dbo.FACDeliveryNoteLineSL l ON l.IDDeliveryNote = r.IDDeliveryNote
+      JOIN dbo.FACOrderSL o ON o.CodCompany = '001' AND o.IDCustomer = r.IDCustomer
+       AND o.CodOrder LIKE 'AR%' AND CONVERT(nvarchar(max), l.Comment) LIKE '%' + o.CodOrder + '%'
+      WHERE r.IDDeliveryNoteType = '001-2'),
+    ${PENDIENTES_DE_FORMA("'001-01'")},
+    pedidos AS (
+      SELECT o.IDOrder, o.CodOrder, o.IDCustomer
+      FROM (SELECT IDOrder FROM pendientes UNION SELECT IDOrder FROM propio WHERE IDDeliveryNoteType <> '001-2'
+            UNION SELECT IDOrder FROM aparte) k
+      JOIN dbo.FACOrderSL o ON o.IDOrder = k.IDOrder
+      LEFT JOIN dbo._FACOrderSL_Custom oc ON oc.IDOrder = o.IDOrder
+      WHERE o.CodOrder LIKE 'AR%' AND (oc.IDFormaEntrega = '001-01' OR o.IDOrder IN (SELECT IDOrder FROM aparte))),
+    suyo AS (
+      SELECT IDOrder, DeliveryNoteDate, CodDeliveryNote,
+             ROW_NUMBER() OVER (PARTITION BY IDOrder ORDER BY DeliveryNoteDate DESC, CodDeliveryNote DESC) AS n
+      FROM propio WHERE IDDeliveryNoteType <> '001-2')
+    SELECT p.IDOrder AS clave, CAST(NULL AS varchar(20)) AS [of], p.CodOrder AS pedido, c.Description AS cliente,
+           COALESCE(x.DeliveryNoteDate, s.DeliveryNoteDate) AS enviado,
+           CASE WHEN x.CodDeliveryNote IS NOT NULL THEN x.CodDeliveryNote + ' (aparte)' ELSE s.CodDeliveryNote END AS albaran,
+           'Sin albarán de envío localizado' AS sinEnvio,
+           li.solicitada,
+           CASE WHEN x.IDOrder IS NOT NULL OR li.pendientes = 0 THEN 'Enviado'
+                WHEN s.IDOrder IS NOT NULL THEN 'Parcial'
+                ELSE 'Pendiente' END AS estado
+    FROM pedidos p
+    LEFT JOIN dbo.FACCustomer c ON c.IDCustomer = p.IDCustomer
+    LEFT JOIN aparte x ON x.IDOrder = p.IDOrder AND x.n = 1
+    LEFT JOIN suyo s ON s.IDOrder = p.IDOrder AND s.n = 1
+    ${LINEAS_DEL_PEDIDO}
+    ORDER BY CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 THEN 0 ELSE 1 END,
+             CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 AND li.solicitada IS NULL THEN 1 ELSE 0 END,
+             CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 THEN li.solicitada END,
+             COALESCE(x.DeliveryNoteDate, s.DeliveryNoteDate) DESC, p.CodOrder`;
+
+// Recoge o instala en nave. Instalar en nave (001-03): se entrega el día del
+// albarán (Cristina: «sempre cadran»). Recoge en nave (001-04): el albarán se
+// hace antes y el día de verdad lo apunta Producción en el WF «ENTREGA
+// MERCANCIA CLIENTE» (campo Fecha del formulario, con el albarán en el campo
+// Albaran). Desde 09/2026 solo el 45 % coincide con el albarán; de media, 5
+// días después. El WF se lee una vez para todos: buscándolo fila a fila
+// tardaba 33 s. Medido el 25/11/2026: 2,4 s, 308 pedidos.
+const SQL_NAVE = `
+    WITH ${ALBARANES_RECIENTES},
+    ${PENDIENTES_DE_FORMA("'001-03', '001-04'")},
+    pedidos AS (
+      SELECT o.IDOrder, o.CodOrder, o.IDCustomer, oc.IDFormaEntrega
+      FROM (SELECT IDOrder FROM pendientes UNION SELECT IDOrder FROM propio) k
+      JOIN dbo.FACOrderSL o ON o.IDOrder = k.IDOrder
+      JOIN dbo._FACOrderSL_Custom oc ON oc.IDOrder = o.IDOrder
+      WHERE o.CodOrder LIKE 'AR%' AND oc.IDFormaEntrega IN ('001-03', '001-04')),
+    albaran AS (
+      SELECT pr.IDOrder, pr.DeliveryNoteDate, pr.CodDeliveryNote,
+             ROW_NUMBER() OVER (PARTITION BY pr.IDOrder ORDER BY pr.DeliveryNoteDate DESC, pr.CodDeliveryNote DESC) AS n
+      FROM pedidos p JOIN propio pr ON pr.IDOrder = p.IDOrder),
+    wf AS (
+      SELECT t.WorkflowInstanceID,
+             MAX(CASE WHEN f.Caption = 'Albaran' THEN f.EntityIDValue END) AS alb,
+             MAX(CASE WHEN f.Caption = 'Fecha' THEN f.DateValue END) AS fecha,
+             MAX(CASE WHEN f.Caption = 'Observaciones' THEN CAST(f.TextValue AS varchar(300)) END) AS obs,
+             MAX(t.CompletedBy) AS quien
+      FROM dbo.BPMTask t
+      JOIN dbo.BPMWorkflow w ON w.IDWorkflow = t.IDWorkflow
+      JOIN dbo.BPMDataFormTask d ON d.IDTask = t.IDTask
+      JOIN dbo.BPMDataFormField f ON f.IDDataFormTask = d.IDDataFormTask
+      WHERE t.CodCompany = '001' AND w.Description = 'ENTREGA MERCANCIA CLIENTE'
+        AND t.CreationDate >= DATEADD(day, -90, CONVERT(date, GETDATE()))
+      GROUP BY t.WorkflowInstanceID),
+    recogida AS (
+      SELECT pr.IDOrder, wf.fecha, wf.quien, wf.obs,
+             ROW_NUMBER() OVER (PARTITION BY pr.IDOrder ORDER BY wf.fecha DESC) AS n
+      FROM wf JOIN propio pr ON pr.IDDeliveryNote = wf.alb
+      WHERE wf.fecha IS NOT NULL)
+    SELECT p.IDOrder AS clave, CAST(NULL AS varchar(20)) AS [of], p.CodOrder AS pedido, c.Description AS cliente,
+           CASE p.IDFormaEntrega WHEN '001-04' THEN 'Recoge' ELSE 'Instala en nave' END AS forma,
+           CASE p.IDFormaEntrega WHEN '001-04' THEN r.fecha ELSE a.DeliveryNoteDate END AS entregado,
+           CASE WHEN a.IDOrder IS NULL THEN 'Sin albarán' ELSE 'Sin fecha de recogida' END AS sinEntrega,
+           a.CodDeliveryNote AS albaran, a.DeliveryNoteDate AS fechaAlbaran,
+           r.quien, r.obs, li.solicitada,
+           CASE WHEN a.IDOrder IS NULL THEN 'Pendiente'
+                WHEN p.IDFormaEntrega = '001-04' AND r.IDOrder IS NULL THEN 'Sin recoger'
+                WHEN li.pendientes > 0 THEN 'Parcial'
+                ELSE 'Entregado' END AS estado
+    FROM pedidos p
+    LEFT JOIN dbo.FACCustomer c ON c.IDCustomer = p.IDCustomer
+    LEFT JOIN albaran a ON a.IDOrder = p.IDOrder AND a.n = 1
+    LEFT JOIN recogida r ON r.IDOrder = p.IDOrder AND r.n = 1
+    ${LINEAS_DEL_PEDIDO}
+    ORDER BY CASE WHEN a.IDOrder IS NULL THEN 0 ELSE 1 END,
+             CASE WHEN a.IDOrder IS NULL AND li.solicitada IS NULL THEN 1 ELSE 0 END,
+             CASE WHEN a.IDOrder IS NULL THEN li.solicitada END,
+             COALESCE(r.fecha, a.DeliveryNoteDate) DESC, p.CodOrder`;
+
 // ─── El registro ─────────────────────────────────────────────────────────────
 
 export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<FilaLista[]>> = {
@@ -1096,6 +1237,8 @@ export const CONSULTAS: Record<IdLista, (pool: sql.ConnectionPool) => Promise<Fi
   },
   "incidencias": (pool) => incidencias(pool),
   "tiempos-abiertos": (pool) => tiemposAbiertos(pool),
+  "transporte": (pool) => comprobacion(pool, SQL_TRANSPORTE),
+  "nave": (pool) => comprobacion(pool, SQL_NAVE),
 };
 
 /** Las listas cuestan de medio segundo a cuatro («bultos subidos, tareas
