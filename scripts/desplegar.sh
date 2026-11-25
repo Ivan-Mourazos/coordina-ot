@@ -20,7 +20,13 @@ cd "$(dirname "$0")/.."
 APP=coordina-ot
 PUERTO=4300
 t0=$SECONDS
-paso() { echo; echo "── $1  ($((SECONDS - t0)) s)"; }
+# Colores solo si la salida es una pantalla (no en logs ni tuberías): pasos en cian,
+# el final bueno en verde y los errores en rojo, para encontrarlos entre la salida del build.
+if [ -t 1 ]; then c_paso=$'\e[1;36m'; c_ok=$'\e[1;32m'; c_mal=$'\e[1;31m'; c_fin=$'\e[0m'
+else c_paso=; c_ok=; c_mal=; c_fin=; fi
+paso() { echo; echo "${c_paso}── $1  ($((SECONDS - t0)) s)${c_fin}"; }
+ok() { echo; echo "${c_ok}── $1  ($((SECONDS - t0)) s)${c_fin}"; }
+mal() { echo "${c_mal}!! $1${c_fin}"; }
 
 activa=$(cat .next-activa 2>/dev/null || echo .next)
 if [ "$activa" = ".next-a" ]; then nueva=.next-b; else nueva=.next-a; fi
@@ -43,19 +49,20 @@ NEXT_DIST_DIR=$nueva pnpm build
 
 paso "cambio a $nueva y reinicio"
 echo "$nueva" > .next-activa
-pm2 restart "$APP"
+# La tabla de PM2 solo tapa los pasos; si falla, el error sigue saliendo.
+pm2 restart "$APP" > /dev/null
 
 for _ in $(seq 1 60); do
   if curl -fsS -m 2 "http://localhost:$PUERTO/api/health" >/dev/null 2>&1; then
-    paso "listo: la web responde con $nueva"
+    ok "listo: la web responde con $nueva"
     exit 0
   fi
   sleep 1
 done
 
 echo
-echo "!! La web no responde tras 60 s. Mira: pm2 logs $APP --lines 50"
-echo "!! Para volver a la versión anterior: echo $activa > .next-activa && pm2 restart $APP"
+mal "La web no responde tras 60 s. Mira: pm2 logs $APP --lines 50"
+mal "Para volver a la versión anterior: echo $activa > .next-activa && pm2 restart $APP"
 exit 1
 }
 exit
