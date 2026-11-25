@@ -15,9 +15,12 @@ interface Lona { codigo: string; descripcion: string; ml: number; ofs: string[];
 export interface StockLona {
   pedido: string; entrega: number | null; cliente: string; ofs: string[]; lonas: Lona[]; faltas: FaltaLona[];
   consultado: string; consultadoPor: string | null;
+  origen?: "web" | "plano-manual";
 }
 export interface AvisoLona { creadoAt: string; pasadoPor: string }
 type FaltaConAviso = FaltaLona & { yaAvisado: AvisoLona | null };
+type DatosStock = Pick<StockLona, "cliente" | "ofs" | "lonas" | "faltas" | "origen">;
+type AvisoGuardado = AvisoLona & { entrega: number; codigo: string; necesita: number | null };
 
 function tieneClaves(v: unknown, claves: string[]): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v)
@@ -44,7 +47,10 @@ function material(v: Record<string, unknown>) {
 }
 
 export function validarStockLona(v: unknown): StockLona | null {
-  if (!tieneClaves(v, ["pedido", "entrega", "cliente", "ofs", "consultado", "consultadoPor", "lonas", "faltas"])
+  const claves = ["pedido", "entrega", "cliente", "ofs", "consultado", "consultadoPor", "lonas", "faltas"];
+  if (!tieneClaves(v, claves) && !tieneClaves(v, [...claves, "origen"])) return null;
+  const origen = Object.hasOwn(v, "origen") ? v.origen : "web";
+  if ((origen !== "web" && origen !== "plano-manual")
     || typeof v.pedido !== "string" || typeof v.cliente !== "string"
     || (v.consultadoPor !== null && typeof v.consultadoPor !== "string")
     || (v.entrega !== null && (typeof v.entrega !== "number" || !Number.isSafeInteger(v.entrega) || v.entrega < 0))
@@ -86,45 +92,94 @@ export function validarStockLona(v: unknown): StockLona | null {
       ...(conCuenta ? { stock: f.stock as number, reservado: f.reservado as number, reservadoPropio: f.reservadoPropio as number } : {}),
     });
   }
-  return { pedido, entrega: v.entrega, cliente: texto(v.cliente), ofs: [...ofs], lonas, faltas,
+  return { pedido, entrega: v.entrega, cliente: texto(v.cliente), ofs: [...ofs], lonas, faltas, origen,
     consultado, consultadoPor: v.consultadoPor === null ? null : texto(v.consultadoPor) };
 }
 
-export function guardarStockLona({ pedido, entrega, consultado, consultadoPor, ...datos }: StockLona, ahora = new Date()) {
-  getDb().prepare(`INSERT INTO stock_lona_entrega (pedido_id, entrega, datos, consultado, consultado_por, recibido_at)
-    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(pedido_id, entrega) DO UPDATE SET datos=excluded.datos,
-    consultado=excluded.consultado, consultado_por=excluded.consultado_por, recibido_at=excluded.recibido_at
-    WHERE excluded.consultado > stock_lona_entrega.consultado`)
-    .run(pedido, entrega ?? 0, JSON.stringify(datos), new Date(consultado).toISOString(), consultadoPor, ahora.toISOString());
+function combinarPlano(anterior: DatosStock, nuevo: DatosStock): DatosStock {
+  const nuevas = new Set(nuevo.ofs);
+  const conservar = <T extends { ofs: string[] }>(lineas: T[]) => lineas.flatMap(linea => {
+    const ofs = linea.ofs.filter(of => !nuevas.has(of));
+    return ofs.length ? [{ ...linea, ofs }] : [];
+  });
+  return {
+    ...nuevo,
+    ofs: [...new Set([...anterior.ofs, ...nuevo.ofs])],
+    lonas: [...conservar(anterior.lonas), ...nuevo.lonas],
+    faltas: [...conservar(anterior.faltas), ...nuevo.faltas],
+  };
 }
 
-export function leerStockLona(pedido: string, ofs: readonly string[]) {
-  if (!ofs.length) return [];
+export function guardarStockLona({ pedido, entrega, consultado, consultadoPor, origen = "web", ...datos }: StockLona, ahora = new Date()) {
+  const db = getDb();
+  const numeroEntrega = entrega ?? 0;
+  const fecha = new Date(consultado).toISOString();
+  db.transaction(() => {
+    const nuevo = { ...datos, origen };
+    const anterior = origen === "plano-manual" ? db.prepare(`SELECT datos, consultado FROM stock_lona_entrega
+      WHERE pedido_id = ? AND entrega = ?`).get(pedido, numeroEntrega) as { datos: string; consultado: string } | undefined : undefined;
+    if (anterior && fecha <= anterior.consultado) return;
+    const guardado = anterior ? combinarPlano(JSON.parse(anterior.datos) as DatosStock, nuevo) : nuevo;
+    db.prepare(`INSERT INTO stock_lona_entrega (pedido_id, entrega, datos, consultado, consultado_por, recibido_at)
+      VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(pedido_id, entrega) DO UPDATE SET datos=excluded.datos,
+      consultado=excluded.consultado, consultado_por=excluded.consultado_por, recibido_at=excluded.recibido_at
+      WHERE excluded.consultado > stock_lona_entrega.consultado`)
+      .run(pedido, numeroEntrega, JSON.stringify(guardado), fecha, consultadoPor, ahora.toISOString());
+  }).immediate();
+}
+
+export function leerComprobacionesLona(pedido: string, ofs: readonly string[]) {
+  const pendientes = new Set(ofs);
+  const resultado: { pedido: string; cliente: string; entrega: number; consultado: string; consultadoPor: string | null;
+    faltas: FaltaConAviso[] }[] = [];
+  if (!pendientes.size) return { resultado, sinComprobar: [] };
   const db = getDb();
   const filas = db.prepare(`SELECT entrega, datos, consultado, consultado_por AS consultadoPor
     FROM stock_lona_entrega WHERE pedido_id = ? ORDER BY consultado DESC, entrega DESC`).all(pedido) as
     { entrega: number; datos: string; consultado: string; consultadoPor: string | null }[];
-  if (!filas.length) return [];
-  const avisos = db.prepare(`SELECT entrega, codigo, avisado_at AS creadoAt, avisado_por AS pasadoPor
-    FROM stock_lona_aviso WHERE pedido_id = ?`).all(pedido) as (AvisoLona & { entrega: number; codigo: string })[];
-  const avisoPorLona = new Map(avisos.map(({ entrega, codigo, ...aviso }) => [`${entrega}:${codigo}`, aviso]));
-  const pendientes = new Set(ofs);
-  const resultado: { pedido: string; cliente: string; entrega: number; consultado: string; consultadoPor: string | null;
-    faltas: FaltaConAviso[] }[] = [];
+  if (!filas.length) return { resultado, sinComprobar: [...pendientes] };
+  const avisos = db.prepare(`SELECT entrega, codigo, necesita, avisado_at AS creadoAt, avisado_por AS pasadoPor
+    FROM stock_lona_aviso WHERE pedido_id = ?`).all(pedido) as AvisoGuardado[];
+  const avisosOF = db.prepare(`SELECT entrega, codigo, of, necesita, avisado_at AS creadoAt, avisado_por AS pasadoPor
+    FROM stock_lona_aviso_of WHERE pedido_id = ?`).all(pedido) as (AvisoGuardado & { of: string })[];
+  const avisoPorLona = new Map(avisos.map(aviso => [`${aviso.entrega}:${aviso.codigo}`, aviso]));
+  const avisoPorOF = new Map(avisosOF.map(aviso => [`${aviso.entrega}:${aviso.codigo}:${aviso.of}`, aviso]));
   for (const { datos, ...fila } of filas) {
-    const stock = JSON.parse(datos) as Pick<StockLona, "cliente" | "ofs" | "faltas">;
+    const stock = JSON.parse(datos) as DatosStock;
     const cubiertas = new Set(stock.ofs.filter(of => pendientes.delete(of)));
     const faltas = stock.faltas
       .filter(f => f.ofs.some(of => cubiertas.has(of)))
-      .map(f => ({ ...f, yaAvisado: avisoPorLona.get(`${fila.entrega}:${f.codigo}`) ?? null }));
+      .map(f => {
+        const clave = `${fila.entrega}:${f.codigo}`;
+        // Tras recortar una línea compartida sigue valiendo lo que se avisó para sus OF restantes.
+        const propio = f.ofs.reduce<AvisoGuardado | undefined>((ultimo, of) => {
+          const aviso = avisoPorOF.get(`${clave}:${of}`);
+          return aviso && (!ultimo || aviso.creadoAt > ultimo.creadoAt) ? aviso : ultimo;
+        }, undefined);
+        const aviso = propio ?? avisoPorLona.get(clave);
+        const coincide = aviso && (aviso.necesita === null || Math.abs(aviso.necesita - f.necesita) <= 0.005 + Number.EPSILON * f.necesita);
+        return { ...f, yaAvisado: coincide ? { creadoAt: aviso.creadoAt, pasadoPor: aviso.pasadoPor } : null };
+      });
     if (faltas.length) resultado.push({ pedido, cliente: stock.cliente, ...fila, faltas });
     if (!pendientes.size) break;
   }
-  return resultado;
+  return { resultado, sinComprobar: [...pendientes] };
 }
 
-export function registrarAvisoLona(pedido: string, entrega: number, codigo: string, operarioId: string, ts: string) {
-  getDb().prepare(`INSERT INTO stock_lona_aviso (pedido_id, entrega, codigo, avisado_por, avisado_at)
-    VALUES (?, ?, ?, ?, ?) ON CONFLICT(pedido_id, entrega, codigo) DO UPDATE SET
-    avisado_por=excluded.avisado_por, avisado_at=excluded.avisado_at`).run(pedido, entrega, codigo, operarioId, ts);
+export function leerStockLona(pedido: string, ofs: readonly string[]) {
+  return leerComprobacionesLona(pedido, ofs).resultado;
+}
+
+export function registrarAvisoLona(pedido: string, entrega: number, falta: FaltaLona, operarioId: string, ts: string) {
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare(`INSERT INTO stock_lona_aviso (pedido_id, entrega, codigo, avisado_por, avisado_at, necesita)
+      VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(pedido_id, entrega, codigo) DO UPDATE SET
+      avisado_por=excluded.avisado_por, avisado_at=excluded.avisado_at, necesita=excluded.necesita`)
+      .run(pedido, entrega, falta.codigo, operarioId, ts, falta.necesita);
+    const guardarOF = db.prepare(`INSERT INTO stock_lona_aviso_of (pedido_id, entrega, codigo, avisado_por, avisado_at, necesita, of)
+      VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(pedido_id, entrega, codigo, of) DO UPDATE SET
+      avisado_por=excluded.avisado_por, avisado_at=excluded.avisado_at, necesita=excluded.necesita`);
+    for (const of of falta.ofs) guardarOF.run(pedido, entrega, falta.codigo, operarioId, ts, falta.necesita, of);
+  }).immediate();
 }

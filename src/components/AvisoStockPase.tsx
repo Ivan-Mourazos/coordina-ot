@@ -5,6 +5,18 @@ import { faltanStock, metrosCuenta, metrosStock, textoOFStock, tieneCuentaStock 
 type Stock = VistaPlanteamiento["stockLona"];
 export const elegirCorreoStock = (s: Stock) => s?.faltas.some(f => !f.yaAvisado) ?? false;
 
+export function AvisoLonaSinComprobar({ ofs = [] }: { ofs?: readonly string[] }) {
+  return (
+    <div role="status">
+      {ofs.length > 0 && (
+        <p className="mt-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+          Sin comprobar el stock de lona: falta pasar el corte de la OF {ofs.join(", ")}.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
   stock: Stock; marcado: boolean; onCambiar: (valor: boolean) => void;
   modo?: "ensayo" | "off" | "activo";
@@ -19,7 +31,7 @@ export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
       <ul>{stock.faltas.map(f => {
         const prefijo = `${f.codigo}${f.entrega > 0 ? ` · Entrega ${f.entrega}` : ""} · ${textoOFStock(f.ofs)}`;
         return (
-          <li key={`${f.entrega}:${f.codigo}`}>
+          <li key={JSON.stringify([f.entrega, f.codigo, f.ofs])}>
             {tieneCuentaStock(f) ? (
               <>
                 {`${prefijo} · stock ${metrosCuenta(f.stock)} − ${metrosCuenta(f.reservado)} reservados = ${metrosCuenta(f.disponible)} disponible · necesita ${metrosCuenta(f.necesita)} · `}

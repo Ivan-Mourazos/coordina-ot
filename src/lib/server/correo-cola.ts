@@ -218,7 +218,7 @@ export function prepararCorreoStock(pedido: string, operarioId: string, ofs: rea
         const datos = { ...s, faltas: [falta] };
         insertar(pedido, [], para, cc, [], asuntoCorreoStock(pedido, s.cliente), cuerpoCorreoStock(datos, nombre || "—"),
           cuerpoCorreoStockHtml(datos, nombre || "—"), "pendiente", null, modo, operarioId, ts, "stock");
-        registrarAvisoLona(pedido, s.entrega, falta.codigo, operarioId, ts);
+        registrarAvisoLona(pedido, s.entrega, falta, operarioId, ts);
         encolado = true;
       }
     }

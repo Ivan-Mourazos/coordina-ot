@@ -314,12 +314,19 @@ function abrir(): Database.Database {
       avisado_por TEXT NOT NULL, avisado_at TEXT NOT NULL,
       PRIMARY KEY (pedido_id, entrega, codigo)
     );
+    -- Dos planos de la misma entrega pueden avisar de la misma lona con distintos ML.
+    CREATE TABLE IF NOT EXISTS stock_lona_aviso_of (
+      pedido_id TEXT NOT NULL, entrega INTEGER NOT NULL, codigo TEXT NOT NULL, of TEXT NOT NULL,
+      avisado_por TEXT NOT NULL, avisado_at TEXT NOT NULL, necesita REAL NOT NULL,
+      PRIMARY KEY (pedido_id, entrega, codigo, of)
+    );
   `);
   prepararClaveIntervalo(db);
   prepararTraspasado(db);
   prepararCierreRps(db);
   prepararCorreoHtml(db);
   prepararCorreoCopias(db);
+  prepararMetrosAvisoLona(db);
   prepararComentarioMarca(db);
   prepararNotaPublica(db);
   migrar(db);
@@ -382,6 +389,12 @@ function prepararTraspasado(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(fichaje_intervalo)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "traspasado_at")) return;
   db.exec("ALTER TABLE fichaje_intervalo ADD COLUMN traspasado_at TEXT");
+}
+
+function prepararMetrosAvisoLona(db: Database.Database): void {
+  const columnas = db.prepare("PRAGMA table_info(stock_lona_aviso)").all() as Array<{ name: string }>;
+  if (columnas.some((c) => c.name === "necesita")) return;
+  db.exec("ALTER TABLE stock_lona_aviso ADD COLUMN necesita REAL");
 }
 
 /** Qué falla, en una línea, junto al ✗ de un paso de la guía (16/10/2026). De

@@ -80,7 +80,8 @@ export function CerrarEnRpsInline({
   // imprimir y mandar su planteamiento, como al pasar el pedido entero.
   const [vista, setVista] = useState<VistaPlanteamiento | null>(null);
   const [eleccion, setEleccion] = useState<EleccionAlCerrar>({ imprimir: [], correoStock: false, mandarCorreo: true, nota: "", ajustes: AJUSTES_DE_SERIE });
-  const conPlanteamiento = !!vista && (!!vista.stockLona?.faltas.length || vista.modo !== "off" || (!!vista.correo && vista.correo.modo !== "off"));
+  const conPlanteamiento = !!vista && (!!vista.ofsLonaSinComprobar?.length || !!vista.stockLona?.faltas.length
+    || vista.modo !== "off" || (!!vista.correo && vista.correo.modo !== "off"));
 
   async function cargarYConfirmar() {
     setError(null);
