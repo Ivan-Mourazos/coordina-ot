@@ -351,7 +351,7 @@ export function VistaBelen({
     else if (p === "entregas") navegar({ vista: "entregas" });
   };
 
-  const hayVersionNueva = useVersionNueva();
+  const versionNueva = useVersionNueva("produccion");
 
   const salir = async () => {
     await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
@@ -600,7 +600,7 @@ export function VistaBelen({
       ) : null}
       <EntregasBelen activa={pestana === "entregas"} refresco={refresco} onAbrir={(pedido) => navegar({ pedido })} />
       {/* Se ha desplegado con la pestaña abierta: el mismo aviso que en OT. */}
-      {hayVersionNueva && <VersionNueva />}
+      {versionNueva && versionNueva.length > 0 && <VersionNueva cambios={versionNueva} />}
     </div>
   );
 }

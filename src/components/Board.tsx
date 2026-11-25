@@ -32,7 +32,7 @@ import { MetricasView } from "./MetricasView";
 import { PanelNovedades } from "./PanelNovedades";
 import { PanelGuiaRevision } from "./PanelGuiaRevision";
 import { PanelImpresoras } from "./PanelImpresoras";
-import { VersionNueva } from "./VersionNueva";
+import { useVersionNueva, VersionNueva } from "./VersionNueva";
 import { ULTIMA, type PerfilNovedades } from "@/lib/novedades";
 import { useNovedades } from "@/lib/useNovedades";
 import { Drawer } from "./Drawer";
@@ -713,11 +713,6 @@ export function Board({
   // solo. Se salta con la pestaña oculta o un arrastre en marcha, y se
   // conserva el fichandoRol de MI fichaje abierto (verdad local inmediata).
   const fichajeRef = useRef(fichaje);
-  // Qué versión servía el servidor cuando se cargó esta pestaña, y si ya hay
-  // otra. La primera va en un ref porque no se pinta: solo se compara con la
-  // que traiga cada vuelta del tablero.
-  const versionCargada = useRef<string | null>(null);
-  const [hayVersionNueva, setHayVersionNueva] = useState(false);
   useEffect(() => {
     fichajeRef.current = fichaje;
   }, [fichaje]);
@@ -755,21 +750,8 @@ export function Board({
         const r = await fetch(url, { cache: "no-store" });
         if (!r.ok) return;
 
-        // ¿SIGUE SIENDO LA MISMA VERSIÓN que cuando se cargó esta pestaña? Se
-        // apunta la primera que llega y a partir de ahí solo se compara. Si
-        // cambia es que se ha desplegado: esta pestaña se ha quedado con el
-        // código viejo y hay que decírselo a quien la tiene delante (ver
-        // `VersionNueva`). En desarrollo vale "dev" y no cambia.
-        //
-        // Se lee del JSON antes que de la cabecera: en producción la cabecera
-        // no llegaba al navegador (nginx se la quedaba por el camino) y el
-        // aviso no salía nunca (Iván, 27/10/2026).
-        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string; version?: string };
-        const version = t.version ?? r.headers.get("X-Coordina-Version");
-        if (version && version !== "dev") {
-          if (!versionCargada.current) versionCargada.current = version;
-          else if (versionCargada.current !== version) setHayVersionNueva(true);
-        }
+        // Si se ha desplegado con la pestaña abierta lo mira `useVersionNueva`.
+        const t = (await r.json()) as { pedidos: Pedido[]; operarios?: Operario[]; calculadoAt?: string };
 
         // Un sondeo arrancado antes del pase no puede reponer la foto vieja
         // después de que el servidor haya confirmado el envío.
@@ -1330,6 +1312,9 @@ export function Board({
     return [persona?.seccion ?? SECCION_POR_DEFECTO, ...(persona?.tambienEn ?? [])];
   }, [miId, esDireccion]);
   const novedades = useNovedades(miId, perfilNovedades);
+  // Se ha desplegado con la pestaña abierta: se pone al día sola, y solo
+  // avisa si trae novedades para esta persona (ver `VersionNueva`).
+  const versionNueva = useVersionNueva(perfilNovedades);
   // La guía de revisión, abierta desde el menú para leerla en frío. La de
   // trabajar está en la propia tarjeta de "Revisando"; esta es la de consulta.
   const [guiaAbierta, setGuiaAbierta] = useState(false);
@@ -3339,9 +3324,8 @@ export function Board({
         {guiaAbierta && <PanelGuiaRevision onCerrar={() => setGuiaAbierta(false)} />}
         {impresorasAbiertas && <PanelImpresoras miId={miId} onCerrar={() => setImpresorasAbiertas(false)} />}
 
-        {/* Se ha desplegado mientras esta pestaña estaba abierta. No se recarga
-            sola: se llevaría por delante la nota a medio escribir. */}
-        {hayVersionNueva && <VersionNueva />}
+        {/* Versión nueva con novedades para quien mira (ver `VersionNueva`). */}
+        {versionNueva && versionNueva.length > 0 && <VersionNueva cambios={versionNueva} />}
 
         {/* ── VISTA HISTORIAL ── */}
         {novedades.abierta && (

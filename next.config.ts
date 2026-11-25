@@ -19,8 +19,13 @@ function carpetaDeBuild(): string {
   return ".next";
 }
 
+const distDir = carpetaDeBuild();
+
 const nextConfig: NextConfig = {
-  distDir: carpetaDeBuild(),
+  distDir,
+  // Queda escrito en el código compilado: lo usa lib/server/version.ts para
+  // leer el BUILD_ID de su propia carpeta.
+  env: { COORDINA_DIST_DIR: distDir },
   // Nativos de Node: fuera del bundle de Server Components (require normal).
   serverExternalPackages: ["better-sqlite3", "mssql"],
 };

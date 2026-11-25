@@ -38,9 +38,9 @@ export async function GET(req: Request) {
       ? seccionDeOperario(operarioId)
       : undefined;
   const tablero = await getTablero(seccion);
-  // QUÉ VERSIÓN ESTÁ SIRVIENDO ESTE SERVIDOR. El Board ya pregunta aquí cada
-  // 30 s: comparándola con la que tenía al cargar se entera de un despliegue
-  // sin una sola petición más.
+  // QUÉ VERSIÓN ESTÁ SIRVIENDO ESTE SERVIDOR. Desde el 25/11/2026 el Board
+  // la pregunta a /api/version (que además dice si hay novedades); esto se
+  // queda para las pestañas abiertas con el código de antes.
   //
   // Hace falta porque una pestaña abierta desde antes se queda con el código
   // viejo, y con Next eso además se rompe: los trozos de JavaScript de la

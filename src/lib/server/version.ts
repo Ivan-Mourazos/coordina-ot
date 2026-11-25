@@ -13,6 +13,13 @@ import path from "node:path";
 // compilado NO cambia el código que tiene el navegador, y avisar ahí sería un
 // aviso falso — de los que enseñan a ignorar los avisos.
 //
+// EN QUÉ CARPETA. Desde el 25/11/2026 se compila en `.next-a` o `.next-b` por
+// turnos (scripts/desplegar.sh) y `.next` se queda con la compilación de antes
+// de aquello: leerla daba siempre la misma versión y nadie se enteraba de
+// ningún despliegue. La carpeta la deja escrita next.config.ts en el propio
+// código compilado (`COORDINA_DIST_DIR`), así que cada compilación lee la suya
+// aunque `.next-activa` ya apunte a la siguiente.
+//
 // En desarrollo no hay BUILD_ID (Next recompila al vuelo y ya recarga solo), y
 // entonces esto vale "dev" y no se avisa de nada.
 
@@ -21,7 +28,7 @@ let cache: string | null = null;
 export function versionDelServidor(): string {
   if (cache) return cache;
   try {
-    cache = readFileSync(path.join(process.cwd(), ".next", "BUILD_ID"), "utf8").trim() || "dev";
+    cache = readFileSync(path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.COORDINA_DIST_DIR || ".next", "BUILD_ID"), "utf8").trim() || "dev";
   } catch {
     cache = "dev";
   }
