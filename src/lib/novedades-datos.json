@@ -1,5 +1,25 @@
 [
   {
+    "id": "2026-11-25",
+    "hasta": "0ba1d3f",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "Al pasar un pedido, CoordinaOT te avisa si alguna OF con lona sigue sin comprobar",
+        "apartado": "ot",
+        "detalle": "El aviso indica las OF cuyo corte falta pasar. Si cambian los metros de una lona que ya avisaste, se vuelve a marcar la casilla del correo.",
+        "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "Dos listas nuevas en Pedidos: cuándo salió cada envío por transporte y cuándo se recogió o instaló en nave",
+        "apartado": "produccion",
+        "detalle": "Si un pedido se mandó con un albarán aparte que lo nombra, sale ese albarán con «(aparte)». Los que recoge el cliente toman el día apuntado en el WF de entrega.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-24",
     "hasta": "817478e",
     "cambios": [
