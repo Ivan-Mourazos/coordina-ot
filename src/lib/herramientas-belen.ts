@@ -39,6 +39,8 @@ export const GRUPO_DE: Record<IdHerramienta, IdGrupo> = {
   "sin-gestionar": "pedidos",
   "tp-cot": "pedidos",
   "con-oe": "pedidos",
+  "transporte": "pedidos",
+  "nave": "pedidos",
   "bultos-subidos": "bultos",
   "finalizadas-bultos": "bultos",
   "desfase": "bultos",

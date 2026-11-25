@@ -41,6 +41,20 @@ const TRAZOS: Record<IdHerramienta, React.ReactNode> = {
       <circle cx="12" cy="10" r="2.3" />
     </>
   ),
+  // Caja con líneas de movimiento: lo que sale por transporte
+  "transporte": (
+    <>
+      <path d="M9 6.5 15.5 4l6 2.5v8L15.5 17 9 14.5z" />
+      <path d="M9 6.5l6.5 2.7 6-2.7M15.5 9.2V17M2.5 9h4M3.5 12h3M4.5 15h2" />
+    </>
+  ),
+  // Nave con puerta: lo que se recoge o se instala en la nave
+  "nave": (
+    <>
+      <path d="M3.5 20V9.5L12 4l8.5 5.5V20z" />
+      <path d="M8 20v-6.5h8V20M8 16.5h8" />
+    </>
+  ),
   // Flecha que sale de la caja: trabajo que se manda fuera (OE)
   "con-oe": (
     <>

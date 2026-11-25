@@ -27,7 +27,9 @@ export type IdLista =
   | "sin-gestionar"
   | "con-oe"
   | "incidencias"
-  | "tiempos-abiertos";
+  | "tiempos-abiertos"
+  | "transporte"
+  | "nave";
 
 /** Cómo se pinta el valor. `of` y `pedido` van en negrita y monoespaciado;
  *  `fecha` espera ISO (yyyy-mm-dd) y sale dd/mm/aa; `numero` alineado a la
@@ -401,8 +403,46 @@ export const LISTAS_BELEN: readonly DefLista[] = [
       { clave: "tarea", titulo: "Tarea y máquina", largo: true },
     ],
   },
+  {
+    // Cristina, 25/11/2026: cuándo salió por transporte cada pedido. Si se
+    // mandó con un albarán aparte (Hijos de Rivera), se busca por el número
+    // del pedido en su texto: ver SQL_TRANSPORTE.
+    id: "transporte",
+    label: "Pedidos por transporte",
+    explica: "Pedidos que se envían por transporte: los que faltan por salir y los enviados en los últimos 60 días, con el día y el albarán del envío. Si salió con un albarán aparte que nombra el pedido, se ve «(aparte)».",
+    filtro: { clave: "estado", titulo: "Estado" },
+    columnas: [
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "cliente", titulo: "Cliente", largo: true },
+      // La primera fecha es la del filtro «desde/hasta».
+      { clave: "enviado", titulo: "Enviado", tipo: "fecha", siVacia: "sinEnvio" },
+      { clave: "albaran", titulo: "Albarán" },
+      { clave: "solicitada", titulo: "Solicitada", tipo: "fecha" },
+      { clave: "estado", titulo: "Estado", tipo: "estado" },
+    ],
+  },
+  {
+    // Cristina, 25/11/2026: los de instalar en nave se entregan el día del
+    // albarán; los que recoge el cliente, el día que apunta Producción en el
+    // WF «Entrega mercancía cliente».
+    id: "nave",
+    label: "Pedidos recoge/instala en nave",
+    explica: "Pedidos que recoge el cliente o se instalan en la nave: los que faltan y los entregados en los últimos 60 días. Instalar en nave, el día del albarán; recoger, el día que se apuntó en el WF de entrega.",
+    filtro: { clave: "forma", titulo: "Forma" },
+    columnas: [
+      { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
+      { clave: "cliente", titulo: "Cliente", largo: true },
+      { clave: "forma", titulo: "Forma" },
+      // La primera fecha es la del filtro «desde/hasta».
+      { clave: "entregado", titulo: "Entregado", tipo: "fecha", siVacia: "sinEntrega" },
+      { clave: "albaran", titulo: "Albarán" },
+      { clave: "fechaAlbaran", titulo: "F. albarán", tipo: "fecha" },
+      { clave: "quien", titulo: "Apuntó" },
+      { clave: "obs", titulo: "Observaciones", largo: true },
+      { clave: "estado", titulo: "Estado", tipo: "estado" },
+    ],
+  },
 ];
-
 export function esIdLista(v: unknown): v is IdLista {
   return LISTAS_BELEN.some((l) => l.id === v);
 }
