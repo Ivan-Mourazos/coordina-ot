@@ -1,6 +1,6 @@
 import sql from "mssql";
 import { getPool } from "./db";
-import { cacheConDisco } from "./cache-disco";
+import { cacheConDisco, type ConDisco } from "./cache-disco";
 import { familiaDeTexto } from "./rps";
 import { sumarDias } from "../fechas";
 import { partirOfId } from "../bonos";
@@ -26,6 +26,13 @@ export const catalogo = `
 export const columnas = `mo.CodManufacturingOrder AS orden, mo.Description AS descripcion,
   pf.CodProductFamily AS grupo, sf.CodProductSubFamily AS subfamilia, venta.cliente`;
 
+const SEIS_HORAS = 6 * 3_600_000;
+type OpcionesRps = Pick<ConDisco, "esperarRps" | "forzarRps">;
+
+// La familia es de la OF y se comparte entre sus fases y entre periodos.
+const familiasPorOrden = new Map<string, { familia: string; hasta: number }>();
+const familiasEnCurso = new Map<string, Promise<void>>();
+
 export async function leerFamiliasMetricas(movs: readonly MovimientoRegistrado[]): Promise<Map<string, string>> {
   const porId = new Map<string, string>();
   if (process.env.DATASOURCE !== "rps") {
@@ -33,21 +40,60 @@ export async function leerFamiliasMetricas(movs: readonly MovimientoRegistrado[]
     return porId;
   }
   const ids = new Map(movs.map((m) => [m.ofId, partirOfId(m.ofId)?.of]).filter((e): e is [string, string] => !!e[1]));
-  const ordenes = [...new Set(ids.values())];
-  if (!ordenes.length) return porId;
+  const nuevas: string[] = [];
+  const caducadas: string[] = [];
+  const pendientes = new Set<Promise<void>>();
+  const ahora = Date.now();
+  for (const orden of new Set(ids.values())) {
+    const guardada = familiasPorOrden.get(orden);
+    if (guardada && guardada.hasta > ahora) continue;
+    const enCurso = familiasEnCurso.get(orden);
+    if (enCurso) {
+      if (!guardada) pendientes.add(enCurso);
+    } else {
+      (guardada ? caducadas : nuevas).push(orden);
+    }
+  }
+  if (nuevas.length) pendientes.add(pedirFamilias(nuevas));
+  if (caducadas.length) {
+    void pedirFamilias(caducadas).catch((e: Error) => {
+      console.warn("[metricas] no se pudieron actualizar las familias:", e.message);
+    });
+  }
+  if (pendientes.size) await Promise.all(pendientes);
+  for (const [id, orden] of ids) {
+    const guardada = familiasPorOrden.get(orden);
+    if (guardada?.familia) porId.set(id, guardada.familia);
+  }
+  return porId;
+}
+
+function pedirFamilias(ordenes: string[]): Promise<void> {
+  const consulta = cargarFamilias(ordenes).finally(() => {
+    for (const orden of ordenes) familiasEnCurso.delete(orden);
+  });
+  for (const orden of ordenes) familiasEnCurso.set(orden, consulta);
+  return consulta;
+}
+
+async function cargarFamilias(ordenes: string[]): Promise<void> {
   const pool = await getPool();
-  const porOrden = new Map<string, string>();
   // Por debajo del límite de parámetros de SQL Server, incluso con «Todo».
   for (let i = 0; i < ordenes.length; i += 500) {
     const req = pool.request();
-    const marcas = ordenes.slice(i, i + 500).map((orden, j) => { req.input(`of${j}`, sql.VarChar(50), orden); return `@of${j}`; });
+    const lote = ordenes.slice(i, i + 500);
+    const marcas = lote.map((orden, j) => { req.input(`of${j}`, sql.VarChar(50), orden); return `@of${j}`; });
     const r = await req.query<FilaFamilia>(`SELECT ${columnas}
       FROM dbo.CPRManufacturingOrder mo ${catalogo}
       WHERE mo.CodCompany = '001' AND mo.CodManufacturingOrder IN (${marcas.join(",")})`);
-    for (const f of r.recordset) porOrden.set(f.orden.trim(), familiaDe(f));
+    const familias = new Map(r.recordset.map((f) => [f.orden.trim(), familiaDe(f)]));
+    const hasta = Date.now() + SEIS_HORAS;
+    for (const orden of lote) {
+      const familia = familias.get(orden);
+      if (familia) familiasPorOrden.set(orden, { familia, hasta });
+      else familiasPorOrden.delete(orden);
+    }
   }
-  for (const [id, orden] of ids) { const familia = porOrden.get(orden); if (familia) porId.set(id, familia); }
-  return porId;
 }
 
 /** Quien más tiempo de OT fichó en la OF, como código de empleado. Es la
@@ -61,6 +107,13 @@ const autorRps = `
 type FilaRps = FilaFamilia & { fecha: Date; autor: string | null };
 const deFila = (f: FilaRps) => ({ fecha: f.fecha.toISOString().slice(0, 10), orden: f.orden.trim(), familia: familiaDe(f), autor: f.autor?.trim() || null });
 
+interface ReglaIncidencias {
+  tipos: string;
+  desde?: string;
+  soloConTareaPropia?: boolean;
+  cache: ReturnType<typeof cacheConDisco<IncidenciaMetricas[]>>;
+}
+
 /** Qué improductivo de RPS es una incidencia de cada sección.
  *
  *  · OT: «… ERROR EN PLANTEAMIENTO», sea de corte, confección o soldadura
@@ -73,26 +126,45 @@ const deFila = (f: FilaRps) => ({ fecha: f.fecha.toISOString().slice(0, 10), ord
  *    %, y salía inflado.
  *
  *  Impresión no tiene: no lleva línea. */
-const INCIDENCIAS: Partial<Record<SeccionId, { tipos: string; desde?: string; soloConTareaPropia?: boolean }>> = {
-  ot: { tipos: "unpr.Description LIKE '%ERROR EN PLANTEAMIENTO%'" },
+const INCIDENCIAS: Partial<Record<SeccionId, ReglaIncidencias>> = {
+  ot: {
+    tipos: "unpr.Description LIKE '%ERROR EN PLANTEAMIENTO%'",
+    cache: cacheConDisco<IncidenciaMetricas[]>("metricas-incidencias-ot", SEIS_HORAS),
+  },
   diseno: {
     tipos: `unpr.Description IN ('ROTULACION-OTROS ERRORES ROTULACION', 'ROTULACION-ERROR AL DOCUMENTAR PEDIDO',
       'ROTULACION-ERROR EN CORTE DE MASCARA O VINILO', 'IMPRESION DIGITAL-ERROR EN ARCHIVO')`,
     desde: "2026-09-08",
     soloConTareaPropia: true,
+    cache: cacheConDisco<IncidenciaMetricas[]>("metricas-incidencias-diseno", SEIS_HORAS),
   },
 };
 
 /** Las incidencias de la sección (ver `INCIDENCIAS`). De TODO el equipo: a
  *  quién toca cada una lo decide `calcularDetalleMetricas`, que sabe quién la
  *  entregó en Coordina. Una fila por OF y día, aunque haya varios apuntes. */
-export async function leerIncidenciasMetricas(periodo: Periodo, seccion: SeccionId): Promise<IncidenciaMetricas[] | null> {
+export async function leerIncidenciasMetricas(
+  periodo: Periodo,
+  seccion: SeccionId,
+  opciones?: OpcionesRps,
+): Promise<IncidenciaMetricas[] | null> {
   const regla = INCIDENCIAS[seccion];
   if (process.env.DATASOURCE !== "rps" || !regla) return null;
   const desde = regla.desde && regla.desde > periodo.desde ? regla.desde : periodo.desde;
   if (periodo.hasta && desde > periodo.hasta) return [];
+  // Cada sección tiene su fichero. Lo de ayer vale mientras se pide lo de hoy.
+  return regla.cache(`${periodo.desde}|${periodo.hasta}`, () => consultarIncidencias(desde, periodo.hasta, seccion, regla), {
+    clave: periodo.desde,
+    maxEdadMs: 24 * 3_600_000,
+    ...opciones,
+  });
+}
+
+async function consultarIncidencias(
+  desde: string, hasta: string, seccion: SeccionId, regla: ReglaIncidencias,
+): Promise<IncidenciaMetricas[]> {
   const pool = await getPool();
-  const req = pool.request().input("desde", sql.Date, desde).input("hasta", sql.Date, periodo.hasta);
+  const req = pool.request().input("desde", sql.Date, desde).input("hasta", sql.Date, hasta);
   const r = await req.query<FilaRps>(`
     SELECT DISTINCT ${columnas}, CONVERT(date, imp.ImputationDate) AS fecha, ot.autor
     FROM dbo.CPRImputationMO imp
@@ -112,7 +184,7 @@ export async function leerIncidenciasMetricas(periodo: Periodo, seccion: Seccion
   return r.recordset.map(deFila);
 }
 
-const pasesGuardados = cacheConDisco<PaseRps[]>("metricas-pases-rps", 6 * 3_600_000);
+const pasesGuardados = cacheConDisco<PaseRps[]>("metricas-pases-rps", SEIS_HORAS);
 
 /** Las OF que OT cerró en RPS antes de que todo pasara por Coordina (ver
  *  COORDINA_EN_USO): la base del % de incidencias para esos meses, para las
@@ -120,7 +192,7 @@ const pasesGuardados = cacheConDisco<PaseRps[]>("metricas-pases-rps", 6 * 3_600_
  *  terminada en OLANET o con fin real en RPS, como en el Historial. Son meses
  *  que ya no cambian, así que se guardan unas horas, y también en disco: la
  *  primera vez tras arrancar no se esperan (ver cache-disco.ts). */
-export async function leerPasesRps(periodo: Periodo, seccion: SeccionId, opciones?: { esperarRps?: boolean }): Promise<PaseRps[]> {
+export async function leerPasesRps(periodo: Periodo, seccion: SeccionId, opciones?: OpcionesRps): Promise<PaseRps[]> {
   if (process.env.DATASOURCE !== "rps" || seccion !== "ot") return [];
   const hasta = periodo.hasta && periodo.hasta < COORDINA_EN_USO ? periodo.hasta : sumarDias(COORDINA_EN_USO, -1);
   if (periodo.desde > hasta) return [];
@@ -128,7 +200,7 @@ export async function leerPasesRps(periodo: Periodo, seccion: SeccionId, opcione
   return pasesGuardados(clave, () => consultarPases(periodo.desde, hasta), {
     clave,
     maxEdadMs: 24 * 3_600_000,
-    esperarRps: opciones?.esperarRps,
+    ...opciones,
   });
 }
 

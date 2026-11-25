@@ -149,32 +149,32 @@ export async function clientesDePedidos(pedidos: readonly string[]): Promise<Map
   return clientes;
 }
 
-const ncGuardadas = cacheConDisco<NoConformidad[]>("metricas-nc", 10 * 60_000);
+const ncMetricas = cacheConDisco<NoConformidad[]>("metricas-nc", 24 * 3_600_000);
+const ncRectificados = cacheConDisco<NoConformidad[]>("rectificados-nc", 10 * 60_000);
 
 /** Todas las NC de la empresa en el periodo, con sus defectos y causas, las
  *  secciones que tienen tareas en el pedido que falló y las familias de sus
  *  OF. Unas decenas al mes: el reparto se hace después, en `deLaSeccion`,
  *  `totalesNc`, `rectificadosPorFamilia` y `rectificadosPorMes`.
  *
- *  Se guarda 10 minutos por periodo: las gráficas piden el año entero aunque
- *  se mire un mes, y el año son unos 6 s contra RPS (medido el 26/10/2026).
- *  Calidad no abre NC cada minuto, y diez de retraso no cambian nada.
- *
- *  Con `disco` (Métricas): la primera vez tras arrancar se sirve lo guardado
- *  en disco mientras contesta RPS (ver cache-disco.ts). La clave del disco es
- *  el inicio del periodo: el del año acaba hoy y cambia cada día, y lo de
- *  ayer vale mientras llega lo de hoy. Los rectificados no lo usan: ahí una
- *  NC que falta es trabajo que no se ve. */
+ *  Métricas guarda el periodo 24 h y sirve el último resultado al renovar.
+ *  La clave del disco es el inicio del periodo: el del año acaba hoy y cambia
+ *  cada día, y lo de ayer vale mientras llega lo de hoy.
+ *  Rectificados conserva su caché de diez minutos y espera al caducar: ahí
+ *  una NC que falta es trabajo que no se ve. */
 export async function leerNcPeriodo(
   periodo: Periodo,
   opciones?: { disco?: boolean; esperarRps?: boolean },
 ): Promise<NoConformidad[] | null> {
   if (process.env.DATASOURCE !== "rps") return null;
-  return ncGuardadas(`${periodo.desde}|${periodo.hasta}`, () => consultarNcPeriodo(periodo), opciones?.disco ? {
+  const clave = `${periodo.desde}|${periodo.hasta}`;
+  const consultar = () => consultarNcPeriodo(periodo);
+  if (!opciones?.disco) return ncRectificados(clave, consultar);
+  return ncMetricas(clave, consultar, {
     clave: periodo.desde,
     maxEdadMs: 24 * 3_600_000,
     esperarRps: opciones.esperarRps,
-  } : undefined);
+  });
 }
 
 async function consultarNcPeriodo(periodo: Periodo): Promise<NoConformidad[]> {

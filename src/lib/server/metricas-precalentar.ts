@@ -2,25 +2,25 @@ import { periodoAnioRps } from "../metricas";
 import { hoyISO } from "../types";
 import { activarCacheEnDisco } from "./cache-disco";
 import { getPool } from "./db";
-import { leerPasesRps } from "./metricas-fuentes";
+import { leerIncidenciasMetricas, leerPasesRps } from "./metricas-fuentes";
 import { leerNcPeriodo } from "./nc-db";
 
-// ─── Las fuentes de RPS de Métricas, pedidas al arrancar ─────────────────────
-// De las cuatro consultas del detalle de Métricas, dos se guardan en memoria
-// porque son las lentas: las no conformidades del año (8,7 s) y las OF que OT
-// cerró en RPS antes de Coordina (4 s). Medido el 16/11/2026 con
-// scripts/medir-arranque.test.ts; las otras dos, incidencias y familias, son
-// 2,7 s y 0,7 s.
+// ─── Las fuentes de RPS de Métricas, al arrancar y cada hora ─────────────────
+// Métricas se mira de vez en cuando y sus datos de RPS no son del minuto, así
+// que nadie debería esperarlos (Iván, 25/11/2026). Al arrancar se piden en
+// serie, con el periodo de las gráficas (`periodoAnioRps`), y luego cada hora
+// por detrás:
 //
-// Lo guardado se pierde en cada reinicio, y cada actualización de la web es un
-// reinicio: el primero que abría Métricas después volvía a esperarlas enteras,
-// y compitiendo con todo lo demás que el arranque le pide a RPS.
+//  · incidencias de OT y Diseño: se renuevan en cada vuelta;
+//  · OF pasadas en RPS: meses que ya no cambian, solo al caducar (6 h);
+//  · no conformidades: solo informativas, una vez al día (24 h).
 //
-// Aquí se piden nada más arrancar, con el periodo que pedirán las gráficas
-// (`periodoAnioRps`). Si alguien abre Métricas mientras tanto no se duplican:
-// lo que se guarda es la consulta en curso, y se engancha a ella. Y no espera:
-// pedirlas al arrancar no bastó (seguían tardando 20 s y 48 s el 16/11/2026),
-// así que mientras llegan se sirve lo guardado en disco (ver cache-disco.ts).
+// Lo que caduca entre vueltas se sigue sirviendo mientras se rehace, y tras un
+// reinicio se sirve lo del disco (ver cache-disco.ts). Antes de esto, el
+// primero que abría Métricas tras caducar las NC esperaba sus 8,7 s enteros.
+
+const HORA_MS = 3_600_000;
+let arranque: Promise<void> | undefined;
 
 /** Lo más ocupadas que han estado las conexiones a RPS mientras se esperaba
  *  una consulta, para dejarlo escrito en el log. En el servidor estas dos
@@ -47,23 +47,46 @@ function vigilarConexiones(pool: { borrowed?: number; pending?: number } | null)
 
 export async function precalentarMetricas(): Promise<void> {
   if (process.env.DATASOURCE !== "rps") return;
-  // Desde aquí lo de Métricas se guarda en disco y, nada más arrancar, se
-  // sirve de allí mientras RPS contesta (ver cache-disco.ts).
+  arranque ??= iniciarRefresco();
+  return arranque;
+}
+
+async function iniciarRefresco(): Promise<void> {
   activarCacheEnDisco();
+  await refrescarMetricas();
+
+  let enCurso = false;
+  setInterval(async () => {
+    if (enCurso) return;
+    enCurso = true;
+    try {
+      await refrescarMetricas();
+    } catch (e) {
+      console.warn("[metricas] no se pudieron refrescar las fuentes:", (e as Error).message);
+    } finally {
+      enCurso = false;
+    }
+  }, HORA_MS).unref();
+}
+
+async function refrescarMetricas(): Promise<void> {
   // Solo para mirar cómo están las conexiones: si RPS no contesta, cada
   // fuente lo dirá por su cuenta al pedirse.
   const pool = await getPool().catch(() => null);
   const hoy = hoyISO();
   const anio = periodoAnioRps(hoy.slice(0, 4), hoy);
   const fuentes: Array<[string, () => Promise<unknown>]> = [
-    // `esperarRps`: lo cronometrado es RPS y no el disco, y la segunda no
-    // empieza hasta que RPS acaba con la primera.
+    // Las NC solo se consultan al caducar o al cambiar el tramo. Si hay
+    // consulta, se espera a que termine antes de pasar a las demás fuentes.
     ["no conformidades", () => leerNcPeriodo(anio, { disco: true, esperarRps: true })],
+    // Meses de antes de Coordina, que ya no cambian: solo al caducar (6 h).
     ["OF pasadas en RPS", () => leerPasesRps(anio, "ot", { esperarRps: true })],
+    ["incidencias de OT", () => leerIncidenciasMetricas(anio, "ot", { forzarRps: true })],
+    ["incidencias de Diseño", () => leerIncidenciasMetricas(anio, "diseno", { forzarRps: true })],
   ];
   // Una detrás de otra: el arranque ya tiene al tablero pidiendo a RPS, y las
   // conexiones son pocas (ver db.ts). Si una falla, la siguiente se intenta
-  // igual, y quien abra Métricas la volverá a pedir como hasta ahora.
+  // igual. Métricas puede servir lo anterior mientras se vuelve a intentar.
   for (const [nombre, pedir] of fuentes) {
     const t0 = Date.now();
     const conexiones = vigilarConexiones(pool);
@@ -72,7 +95,7 @@ export async function precalentarMetricas(): Promise<void> {
       console.info(`[metricas] ${nombre} del año listas en ${Date.now() - t0} ms${conexiones()}`);
     } catch (e) {
       conexiones();
-      console.warn(`[metricas] no se pudieron precalentar las ${nombre}:`, (e as Error).message);
+      console.warn(`[metricas] no se pudo actualizar ${nombre}:`, (e as Error).message);
     }
   }
 }
