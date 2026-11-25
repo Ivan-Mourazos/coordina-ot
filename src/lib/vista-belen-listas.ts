@@ -61,6 +61,9 @@ export interface DefLista {
   /** Un desplegable para quedarse con un valor de esta columna (p. ej. el
    *  problema: «Sin tiempo» u «8 h o más»). Salen los valores que haya. */
   filtro?: { clave: string; titulo: string };
+  /** Un segundo desplegable, igual que el primero (Belén, 25/11/2026: el
+   *  almacén en «recoge/instala en nave»). La columna no tiene por qué verse. */
+  filtro2?: { clave: string; titulo: string };
   /** Qué quiere decir una fila en amarillo, si la lista las tiene. */
   amarillo?: string;
   /** La consulta trae también SA y BE, pero de entrada solo se ven las de AR:
@@ -429,6 +432,7 @@ export const LISTAS_BELEN: readonly DefLista[] = [
     label: "Pedidos recoge/instala en nave",
     explica: "Pedidos que recoge el cliente o se instalan en la nave: los que faltan y los entregados en los últimos 60 días. Instalar en nave, el día del albarán; recoger, el día que se apuntó en el WF de entrega.",
     filtro: { clave: "forma", titulo: "Forma" },
+    filtro2: { clave: "almacen", titulo: "Almacén" },
     columnas: [
       { clave: "pedido", titulo: "Pedido", tipo: "pedido" },
       { clave: "cliente", titulo: "Cliente", largo: true },
@@ -458,12 +462,14 @@ export interface FiltroLista {
   hasta: string;
   /** El valor elegido en el desplegable de la lista (DefLista.filtro); "" = todos. */
   valor: string;
+  /** El del segundo desplegable (DefLista.filtro2); "" = todos. */
+  valor2: string;
   /** Enseñar SA y BE en las listas con DefLista.delegaciones. */
   delegaciones: boolean;
   orden: { clave: string; descendente: boolean } | null;
 }
 
-export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: "", valor: "", delegaciones: false, orden: null };
+export const FILTRO_LISTA_INICIAL: FiltroLista = { texto: "", desde: "", hasta: "", valor: "", valor2: "", delegaciones: false, orden: null };
 
 /** ¿Es de Arzúa? Las filas sin pedido cuentan como de aquí. */
 const esDeArzua = (fila: FilaLista) => !fila.pedido || fila.pedido.toUpperCase().startsWith("AR.");
@@ -475,8 +481,8 @@ export const filasALaVista = (filas: readonly FilaLista[], def: DefLista): reado
   def.delegaciones ? filas.filter(esDeArzua) : filas;
 
 /** Los valores que hay en la columna del desplegable, sin repetir y en orden. */
-export function valoresFiltro(filas: readonly FilaLista[], def: DefLista): string[] {
-  const clave = def.filtro?.clave;
+export function valoresFiltro(filas: readonly FilaLista[], def: DefLista, cual: "filtro" | "filtro2" = "filtro"): string[] {
+  const clave = def[cual]?.clave;
   if (!clave) return [];
   return [...new Set(filas.map((f) => f[clave]).filter((v): v is string | number => v !== null && v !== "").map(String))]
     .sort((a, b) => a.localeCompare(b, "es"));
@@ -493,6 +499,7 @@ export function filtrarLista(filas: readonly FilaLista[], def: DefLista, f: Filt
   const salida = filas.filter((fila) => {
     if (def.delegaciones && !f.delegaciones && !esDeArzua(fila)) return false;
     if (def.filtro && f.valor && String(fila[def.filtro.clave] ?? "") !== f.valor) return false;
+    if (def.filtro2 && f.valor2 && String(fila[def.filtro2.clave] ?? "") !== f.valor2) return false;
     if (fecha && (f.desde || f.hasta)) {
       const v = fila[fecha.clave];
       if (typeof v !== "string") return false;

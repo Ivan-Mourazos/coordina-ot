@@ -231,6 +231,20 @@ describe("el desplegable de la lista (delimitación: «Problema»)", () => {
   });
 });
 
+describe("el segundo desplegable (nave: «Forma» y «Almacén»)", () => {
+  const def = LISTAS_BELEN.find((l) => l.id === "nave")!;
+  const filas = [
+    { clave: "1", of: null, pedido: "AR.1", forma: "Recoge", almacen: "BERGONDO" },
+    { clave: "2", of: null, pedido: "AR.2", forma: "Recoge", almacen: "EXPEDICIONES ARZÚA" },
+    { clave: "3", of: null, pedido: "AR.3", forma: "Instala en nave", almacen: "BERGONDO" },
+  ];
+  test("ofrece sus valores y se combina con el primero", () => {
+    expect(valoresFiltro(filas, def, "filtro2")).toEqual(["BERGONDO", "EXPEDICIONES ARZÚA"]);
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, valor2: "BERGONDO" }).map((f) => f.clave)).toEqual(["1", "3"]);
+    expect(filtrarLista(filas, def, { ...FILTRO_LISTA_INICIAL, valor: "Recoge", valor2: "BERGONDO" }).map((f) => f.clave)).toEqual(["1"]);
+  });
+});
+
 describe("«Ver delegaciones»: SA y BE escondidas hasta marcar la casilla", () => {
   const def = LISTAS_BELEN.find((l) => l.id === "sin-tiempos")!;
   const filas = [

@@ -1192,6 +1192,19 @@ const SQL_TRANSPORTE = `
     DROP TABLE #envios;
     DROP TABLE #nombrados;`;
 
+// El almacén de donde sale (Belén, 25/11/2026: filtrar por Expediciones,
+// Bergondo…). El de las LÍNEAS, no el de la cabecera: en los pedidos de nave
+// de los últimos tres meses ningún pedido mezcla almacenes entre líneas, pero
+// en 68 de 337 la cabecera dice otro (Bergondo: 26 por línea, 2 por cabecera).
+// Sin líneas, el de la cabecera.
+const ALMACEN_DEL_PEDIDO = `
+    OUTER APPLY (
+      SELECT TOP 1 w.Description AS almacen
+      FROM (SELECT 0 AS orden, l.IDWarehouse FROM dbo.FACOrderLineSL l WHERE l.IDOrder = p.IDOrder
+            UNION ALL SELECT 1, o.IDWarehouse FROM dbo.FACOrderSL o WHERE o.IDOrder = p.IDOrder) x
+      JOIN dbo.GENWarehouse w ON w.IDWarehouse = x.IDWarehouse
+      ORDER BY x.orden) alm`;
+
 // Recoge o instala en nave. Instalar en nave (001-03): se entrega el día del
 // albarán (Cristina: «sempre cadran»). Recoge en nave (001-04): el albarán se
 // hace antes y el día de verdad lo apunta Producción en el WF «ENTREGA
@@ -1235,7 +1248,7 @@ const SQL_NAVE = `
            CASE p.IDFormaEntrega WHEN '001-04' THEN r.fecha ELSE a.DeliveryNoteDate END AS entregado,
            CASE WHEN a.IDOrder IS NULL THEN 'Sin albarán' ELSE 'Sin fecha de recogida' END AS sinEntrega,
            a.CodDeliveryNote AS albaran, a.DeliveryNoteDate AS fechaAlbaran,
-           r.quien, r.obs, li.solicitada,
+           r.quien, r.obs, li.solicitada, alm.almacen,
            CASE WHEN a.IDOrder IS NULL THEN 'Pendiente'
                 WHEN p.IDFormaEntrega = '001-04' AND r.IDOrder IS NULL THEN 'Sin recoger'
                 WHEN li.pendientes > 0 THEN 'Parcial'
@@ -1244,6 +1257,7 @@ const SQL_NAVE = `
     LEFT JOIN dbo.FACCustomer c ON c.IDCustomer = p.IDCustomer
     LEFT JOIN albaran a ON a.IDOrder = p.IDOrder AND a.n = 1
     LEFT JOIN recogida r ON r.IDOrder = p.IDOrder AND r.n = 1
+    ${ALMACEN_DEL_PEDIDO}
     ${LINEAS_DEL_PEDIDO}
     ORDER BY CASE WHEN a.IDOrder IS NULL THEN 0 ELSE 1 END,
              CASE WHEN a.IDOrder IS NULL AND li.solicitada IS NULL THEN 1 ELSE 0 END,

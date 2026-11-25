@@ -157,6 +157,7 @@ export function TablaListaBelen({
   const total = carga.tipo === "listo" ? (filtro.delegaciones ? carga.filas : filasALaVista(carga.filas, def)).length : 0;
   const escondidas = carga.tipo === "listo" && !filtro.delegaciones ? carga.filas.length - total : 0;
   const valores = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def) : []), [carga, def]);
+  const valores2 = useMemo(() => (carga.tipo === "listo" ? valoresFiltro(carga.filas, def, "filtro2") : []), [carga, def]);
   // Página: vuelve a la primera al cambiar cualquier filtro u orden. Al
   // actualizar los datos se queda donde estaba (si la página sigue existiendo).
   const [pagina, setPagina] = useState(0);
@@ -168,7 +169,7 @@ export function TablaListaBelen({
   const paginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
   const paginaActual = Math.min(pagina, paginas - 1);
   const visibles = useMemo(() => filas.slice(paginaActual * POR_PAGINA, (paginaActual + 1) * POR_PAGINA), [filas, paginaActual]);
-  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.delegaciones || filtro.orden !== null;
+  const filtrando = filtro.texto !== "" || filtro.desde !== "" || filtro.hasta !== "" || filtro.valor !== "" || filtro.valor2 !== "" || filtro.delegaciones || filtro.orden !== null;
 
   return (
     <section aria-label={def.label} aria-busy={carga.tipo === "cargando"}>
@@ -215,6 +216,14 @@ export function TablaListaBelen({
               valor={filtro.valor}
               opciones={[["", "Todos"], ...valores.map((v) => [v, v] as const)]}
               onCambiar={(valor) => setFiltro((f) => ({ ...f, valor }))}
+            />
+          )}
+          {def.filtro2 && valores2.length > 0 && (
+            <Seleccion
+              etiqueta={def.filtro2.titulo}
+              valor={filtro.valor2}
+              opciones={[["", "Todos"], ...valores2.map((v) => [v, v] as const)]}
+              onCambiar={(valor2) => setFiltro((f) => ({ ...f, valor2 }))}
             />
           )}
           {fecha && (
