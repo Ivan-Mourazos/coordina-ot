@@ -35,8 +35,8 @@ export const RAIZ_DOCUMENTOS =
 export function rutaEnDisco(rutaRps: string): string | null {
   const segmentos = segmentosEnShare(rutaRps);
   if (!segmentos) return null;
-  const ruta = path.join(RAIZ_DOCUMENTOS, ...segmentos);
-  if (!path.resolve(ruta).startsWith(path.resolve(RAIZ_DOCUMENTOS))) {
+  const ruta = path.join(/*turbopackIgnore: true*/ RAIZ_DOCUMENTOS, ...segmentos);
+  if (!path.resolve(ruta).startsWith(path.resolve(/*turbopackIgnore: true*/ RAIZ_DOCUMENTOS))) {
     console.error("[historial] documento fuera de la raíz del share:", rutaRps);
     return null;
   }

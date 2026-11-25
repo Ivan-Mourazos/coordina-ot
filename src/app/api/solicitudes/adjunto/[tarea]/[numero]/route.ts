@@ -47,8 +47,8 @@ export async function GET(
 
   const segmentos = segmentosEnShare(comoDocumentoRps(guardada));
   if (!segmentos) return new Response("Ese adjunto no está en el archivo de RPS", { status: 404 });
-  const ruta = path.join(RAIZ, ...segmentos);
-  if (!path.resolve(ruta).startsWith(path.resolve(RAIZ))) {
+  const ruta = path.join(/*turbopackIgnore: true*/ RAIZ, ...segmentos);
+  if (!path.resolve(ruta).startsWith(path.resolve(/*turbopackIgnore: true*/ RAIZ))) {
     console.error("[solicitudes] adjunto fuera de la raíz del share:", guardada);
     return new Response("Adjunto no encontrado", { status: 404 });
   }

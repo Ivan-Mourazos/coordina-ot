@@ -97,8 +97,8 @@ export async function GET(
   // validados no puede salir de RAIZ. La comprobación de abajo es el cinturón
   // sobre los tirantes — si algún día `segmentosEnShare` deja pasar algo, esto
   // lo para igual.
-  const ruta = path.join(RAIZ, ...segmentos);
-  if (!path.resolve(ruta).startsWith(path.resolve(RAIZ))) {
+  const ruta = path.join(/*turbopackIgnore: true*/ RAIZ, ...segmentos);
+  if (!path.resolve(ruta).startsWith(path.resolve(/*turbopackIgnore: true*/ RAIZ))) {
     console.error("[publico] documento fuera de la raíz del share:", doc.ruta);
     return new Response("Documento no encontrado", { status: 404 });
   }

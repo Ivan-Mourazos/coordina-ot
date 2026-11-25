@@ -161,8 +161,8 @@ const RAIZ_DOCS =
 export function rutaLocal(guardada: string): string | null {
   const segmentos = segmentosEnShare(comoDocumentoRps(guardada));
   if (!segmentos) return null;
-  const ruta = path.join(RAIZ_DOCS, ...segmentos);
-  return path.resolve(ruta).startsWith(path.resolve(RAIZ_DOCS)) ? ruta : null;
+  const ruta = path.join(/*turbopackIgnore: true*/ RAIZ_DOCS, ...segmentos);
+  return path.resolve(ruta).startsWith(path.resolve(/*turbopackIgnore: true*/ RAIZ_DOCS)) ? ruta : null;
 }
 
 /** El nombre con extensión de cada documento del técnico, por ruta. Para saberla
@@ -177,7 +177,7 @@ async function nombreDocumento(guardada: string): Promise<string | null> {
     let ext: string | null = null;
     if (ruta) {
       try {
-        const f = await open(ruta, "r");
+        const f = await open(/*turbopackIgnore: true*/ ruta, "r");
         try {
           const { buffer, bytesRead } = await f.read(Buffer.alloc(8), 0, 8, 0);
           ext = extensionPorContenido(buffer.subarray(0, bytesRead));

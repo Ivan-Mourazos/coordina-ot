@@ -107,7 +107,7 @@ export function medirConsultas({ web, dir, diasGuardados = 30 }) {
   if (proto[MARCA]) return;
   proto[MARCA] = true;
 
-  const carpeta = path.resolve(process.env.CONSULTAS_SQL_DIR || dir || "logs/consultas-sql");
+  const carpeta = path.resolve(/*turbopackIgnore: true*/ process.env.CONSULTAS_SQL_DIR || dir || "logs/consultas-sql");
   const catalogo = path.join(carpeta, "catalogo.jsonl");
   const conocidas = new Set();
   let pendientes = [];
@@ -124,9 +124,9 @@ export function medirConsultas({ web, dir, diasGuardados = 30 }) {
       /* sin catálogo todavía */
     }
     const limite = new Date(Date.now() - diasGuardados * 86_400_000).toISOString().slice(0, 10);
-    for (const f of await readdir(carpeta)) {
+    for (const f of await readdir(/*turbopackIgnore: true*/ carpeta)) {
       if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f) && f.slice(0, 10) < limite) {
-        await unlink(path.join(carpeta, f)).catch(() => {});
+        await unlink(path.join(/*turbopackIgnore: true*/ carpeta, f)).catch(() => {});
       }
     }
   })().catch((e) => console.error("[medir-consultas] no se puede preparar", carpeta, e.message));
