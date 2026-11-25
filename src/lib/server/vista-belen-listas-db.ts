@@ -1115,22 +1115,56 @@ const LINEAS_DEL_PEDIDO = `
 // si el texto lleva el número de pedido entero Y el albarán es del mismo
 // cliente que el pedido; se enseña con su número para poder comprobarlo. Ese
 // pedido sale aunque su forma no sea transporte (AR.26.05287 es «instalar»).
+// Ampliado el 25/11/2026 (Iván): también los hechos a nombre del cliente
+// comodín «ENVIOS SIN PEDIDO» (AR.26.02305 → AR26/02073), y de cualquier
+// fecha del último año si el pedido sigue abierto en RPS: Producción no
+// siempre lo cierra (AR.26.02507, 04083 y 04463 seguían pendientes meses
+// después de salir).
 // Medido el 25/11/2026: 1,1 s, 260 pedidos.
+/** «ENVIOS SIN PEDIDO»: cliente comodín de algunos albaranes de transporte. */
+const CLIENTE_ENVIOS_SIN_PEDIDO = "001-031180";
+
 const SQL_TRANSPORTE = `
+    SET NOCOUNT ON;
+    IF OBJECT_ID('tempdb..#envios') IS NOT NULL DROP TABLE #envios;
+    IF OBJECT_ID('tempdb..#nombrados') IS NOT NULL DROP TABLE #nombrados;
+    -- Los albaranes «Solo para transporte» del último año (unos 35) y los
+    -- pedidos que nombran, en tablas temporales: como CTE, SQL Server los
+    -- recalculaba en cada uso y pasaba de 60 s.
+    SELECT d.IDCustomer, d.DeliveryNoteDate, d.CodDeliveryNote, CONVERT(nvarchar(max), l.Comment) AS texto
+    INTO #envios
+    FROM dbo.FACDeliveryNoteSL d
+    JOIN dbo.FACDeliveryNoteLineSL l ON l.IDDeliveryNote = d.IDDeliveryNote
+    WHERE d.CodCompany = '001' AND d.IDDeliveryNoteType = '001-2'
+      AND d.DeliveryNoteDate >= DATEADD(year, -1, GETDATE());
+    -- Del mismo cliente: el texto puede nombrar varios pedidos («AR.26.02004/
+    -- AR.26.02005 Y AR.26.02061»), se buscan todos los suyos.
+    SELECT o.IDOrder, e.DeliveryNoteDate, e.CodDeliveryNote
+    INTO #nombrados
+    FROM #envios e
+    JOIN dbo.FACOrderSL o ON o.CodCompany = '001' AND o.IDCustomer = e.IDCustomer
+     AND o.CodOrder LIKE 'AR%' AND e.texto LIKE '%' + o.CodOrder + '%';
+    -- Del cliente comodín: el primer número de pedido del texto (buscar
+    -- cualquier pedido con LIKE recorría todos: 27 s).
+    INSERT INTO #nombrados
+    SELECT o.IDOrder, e.DeliveryNoteDate, e.CodDeliveryNote
+    FROM #envios e
+    CROSS APPLY (SELECT PATINDEX('%AR.[0-9][0-9].[0-9][0-9][0-9][0-9][0-9]%', e.texto) AS i) p
+    JOIN dbo.FACOrderSL o ON o.CodCompany = '001' AND o.CodOrder = CAST(SUBSTRING(e.texto, p.i, 11) AS varchar(11))
+    WHERE e.IDCustomer = '${CLIENTE_ENVIOS_SIN_PEDIDO}' AND p.i > 0;
+
     WITH ${ALBARANES_RECIENTES},
     aparte AS (
-      SELECT o.IDOrder, r.DeliveryNoteDate, r.CodDeliveryNote,
-             ROW_NUMBER() OVER (PARTITION BY o.IDOrder ORDER BY r.DeliveryNoteDate DESC, r.CodDeliveryNote DESC) AS n
-      FROM recientes r
-      JOIN dbo.FACDeliveryNoteLineSL l ON l.IDDeliveryNote = r.IDDeliveryNote
-      JOIN dbo.FACOrderSL o ON o.CodCompany = '001' AND o.IDCustomer = r.IDCustomer
-       AND o.CodOrder LIKE 'AR%' AND CONVERT(nvarchar(max), l.Comment) LIKE '%' + o.CodOrder + '%'
-      WHERE r.IDDeliveryNoteType = '001-2'),
+      SELECT IDOrder, DeliveryNoteDate, CodDeliveryNote,
+             ROW_NUMBER() OVER (PARTITION BY IDOrder ORDER BY DeliveryNoteDate DESC, CodDeliveryNote DESC) AS n
+      FROM #nombrados),
     ${PENDIENTES_DE_FORMA("'001-01'")},
     pedidos AS (
       SELECT o.IDOrder, o.CodOrder, o.IDCustomer
       FROM (SELECT IDOrder FROM pendientes UNION SELECT IDOrder FROM propio WHERE IDDeliveryNoteType <> '001-2'
-            UNION SELECT IDOrder FROM aparte) k
+            UNION SELECT a.IDOrder FROM aparte a
+             WHERE a.DeliveryNoteDate >= DATEADD(day, -60, CONVERT(date, GETDATE()))
+                OR EXISTS (SELECT 1 FROM dbo.FACOrderLineSL l WHERE l.IDOrder = a.IDOrder AND l.PendingDelivery = 1 AND l.Delivered = 0)) k
       JOIN dbo.FACOrderSL o ON o.IDOrder = k.IDOrder
       LEFT JOIN dbo._FACOrderSL_Custom oc ON oc.IDOrder = o.IDOrder
       WHERE o.CodOrder LIKE 'AR%' AND (oc.IDFormaEntrega = '001-01' OR o.IDOrder IN (SELECT IDOrder FROM aparte))),
@@ -1154,7 +1188,9 @@ const SQL_TRANSPORTE = `
     ORDER BY CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 THEN 0 ELSE 1 END,
              CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 AND li.solicitada IS NULL THEN 1 ELSE 0 END,
              CASE WHEN x.IDOrder IS NULL AND li.pendientes > 0 THEN li.solicitada END,
-             COALESCE(x.DeliveryNoteDate, s.DeliveryNoteDate) DESC, p.CodOrder`;
+             COALESCE(x.DeliveryNoteDate, s.DeliveryNoteDate) DESC, p.CodOrder;
+    DROP TABLE #envios;
+    DROP TABLE #nombrados;`;
 
 // Recoge o instala en nave. Instalar en nave (001-03): se entrega el día del
 // albarán (Cristina: «sempre cadran»). Recoge en nave (001-04): el albarán se
