@@ -7,19 +7,21 @@ import { periodoAnioRps } from "../metricas";
 const getPool = vi.hoisted(() => vi.fn());
 vi.mock("../server/db", () => ({ getPool }));
 
-// Lo que Métricas guarda de RPS (no conformidades y OF pasadas antes de
-// Coordina) vivía solo en memoria: después de cada actualización de la web, el
-// primero que abría Métricas volvía a esperar las dos consultas enteras. Al
-// arrancar se piden ya, con el mismo periodo que pedirán las gráficas.
+// El precalentado y el refresco usan el mismo periodo que piden las gráficas.
 
 /** Un RPS que contesta a todo sin filas y apunta cuántas consultas recibe. */
-function rpsVacio() {
-  const consultas: string[] = [];
+function rpsVacio(antesDeContestar?: (n: number) => Promise<void> | undefined) {
+  const consultas: { texto: string; parametros: Record<string, string> }[] = [];
   const pool = {
     request() {
+      const parametros: Record<string, string> = {};
       const peticion = {
-        input() { return peticion; },
-        async query(texto: string) { consultas.push(texto); return { recordset: [] }; },
+        input(nombre: string, _tipo: unknown, valor: string) { parametros[nombre] = valor; return peticion; },
+        async query(texto: string) {
+          consultas.push({ texto, parametros });
+          await antesDeContestar?.(consultas.length);
+          return { recordset: [] };
+        },
       };
       return peticion;
     },
@@ -30,13 +32,14 @@ function rpsVacio() {
 /** Las cachés son del módulo: cada prueba arranca con las suyas vacías. */
 async function modulos() {
   vi.resetModules();
-  const { leerPasesRps } = await import("../server/metricas-fuentes");
+  const { leerIncidenciasMetricas, leerPasesRps } = await import("../server/metricas-fuentes");
   const { leerNcPeriodo } = await import("../server/nc-db");
   const { precalentarMetricas } = await import("../server/metricas-precalentar");
-  return { leerPasesRps, leerNcPeriodo, precalentarMetricas };
+  return { leerIncidenciasMetricas, leerPasesRps, leerNcPeriodo, precalentarMetricas };
 }
 
 const HOY = "2026-11-16";
+const HORA = 3_600_000;
 const fuenteDeAntes = process.env.DATASOURCE;
 const rutaDeAntes = process.env.COORDINA_DB_PATH;
 // El precalentado enciende la caché en disco (ver cache-disco.ts): que escriba
@@ -48,7 +51,7 @@ beforeEach(async () => {
   globalThis.__coordinaCacheEnDisco = undefined;
   process.env.DATASOURCE = "rps";
   getPool.mockReset();
-  vi.useFakeTimers({ now: new Date(2026, 10, 16, 9, 0), toFake: ["Date"] });
+  vi.useFakeTimers({ now: new Date(2026, 10, 16, 9, 0), toFake: ["Date", "setInterval", "clearInterval"] });
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -58,6 +61,7 @@ afterEach(async () => {
   else process.env.COORDINA_DB_PATH = rutaDeAntes;
   await rm(carpeta, { recursive: true, force: true, maxRetries: 10, retryDelay: 20 });
   vi.restoreAllMocks();
+  vi.clearAllTimers();
   vi.useRealTimers();
   if (fuenteDeAntes === undefined) delete process.env.DATASOURCE;
   else process.env.DATASOURCE = fuenteDeAntes;
@@ -77,16 +81,19 @@ describe("las fuentes de RPS de Métricas al arrancar el servidor", () => {
   it("lo que piden las gráficas ya está pedido: abrir Métricas no vuelve a consultar", async () => {
     const { pool, consultas } = rpsVacio();
     getPool.mockResolvedValue(pool);
-    const { precalentarMetricas, leerNcPeriodo, leerPasesRps } = await modulos();
+    const { precalentarMetricas, leerNcPeriodo, leerPasesRps, leerIncidenciasMetricas } = await modulos();
 
     await precalentarMetricas();
     const alArrancar = consultas.length;
-    expect(alArrancar).toBeGreaterThan(0);
+    // Las NC usan dos consultas SQL; las demás fuentes, una cada una.
+    expect(alArrancar).toBe(5);
 
     // Lo mismo que pide /api/metricas para las gráficas del año.
     const anio = periodoAnioRps("2026", HOY);
-    expect(await leerNcPeriodo(anio)).toEqual([]);
+    expect(await leerNcPeriodo(anio, { disco: true })).toEqual([]);
     expect(await leerPasesRps(anio, "ot")).toEqual([]);
+    expect(await leerIncidenciasMetricas(anio, "ot")).toEqual([]);
+    expect(await leerIncidenciasMetricas(anio, "diseno")).toEqual([]);
     expect(consultas.length).toBe(alArrancar);
   });
 
@@ -98,7 +105,7 @@ describe("las fuentes de RPS de Métricas al arrancar el servidor", () => {
 
     const { pool, consultas } = rpsVacio();
     getPool.mockResolvedValue(pool);
-    expect(await leerNcPeriodo(periodoAnioRps("2026", HOY))).toEqual([]);
+    expect(await leerNcPeriodo(periodoAnioRps("2026", HOY), { disco: true })).toEqual([]);
     expect(consultas.length).toBeGreaterThan(0);
   });
 
@@ -112,7 +119,7 @@ describe("las fuentes de RPS de Métricas al arrancar el servidor", () => {
     await precalentarMetricas();
 
     const lineas = vi.mocked(console.info).mock.calls.map((c) => String(c[0]));
-    expect(lineas).toHaveLength(2);
+    expect(lineas).toHaveLength(4);
     for (const linea of lineas) expect(linea).toContain("hasta 5 conexiones ocupadas y 3 consultas en cola");
   });
 
@@ -123,5 +130,84 @@ describe("las fuentes de RPS de Métricas al arrancar el servidor", () => {
     await precalentarMetricas();
 
     expect(getPool).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("programa un solo refresco horario y solo vuelve a pedir las NC al cambiar de periodo", async () => {
+    vi.setSystemTime(new Date(2026, 10, 16, 22, 30));
+    const { pool, consultas } = rpsVacio();
+    getPool.mockResolvedValue(pool);
+    const { precalentarMetricas } = await modulos();
+
+    await Promise.all([precalentarMetricas(), precalentarMetricas()]);
+    await precalentarMetricas();
+    expect(vi.getTimerCount()).toBe(1);
+    expect(consultas).toHaveLength(5);
+    const fuentes = consultas.map((c) => c.texto);
+
+    // Cada hora, solo las incidencias: las OF pasadas esperan a caducar.
+    await vi.advanceTimersByTimeAsync(HORA);
+    expect(consultas.slice(5).map((c) => c.texto)).toEqual(fuentes.slice(3));
+    expect(consultas[6].parametros.hasta).toBe(HOY);
+
+    // Al cambiar de día, también las NC; las OF pasadas siguen sin pedirse.
+    await vi.advanceTimersByTimeAsync(HORA);
+    expect(consultas.slice(7).map((c) => c.texto)).toEqual([...fuentes.slice(0, 2), ...fuentes.slice(3)]);
+    expect(consultas[7].parametros.hasta).toBe("2026-11-17");
+    expect(consultas[9].parametros.hasta).toBe("2026-11-17");
+    expect(consultas[10].parametros.hasta).toBe("2026-11-17");
+  });
+
+  it("mantiene las consultas en serie y omite una vuelta si la anterior sigue en curso", async () => {
+    let liberar!: () => void;
+    const pendiente = new Promise<void>((resolver) => { liberar = resolver; });
+    const { pool, consultas } = rpsVacio((n) => n === 6 ? pendiente : undefined);
+    getPool.mockResolvedValue(pool);
+    const { precalentarMetricas } = await modulos();
+
+    await precalentarMetricas();
+    await vi.advanceTimersByTimeAsync(HORA);
+    expect(consultas).toHaveLength(6);
+    await vi.advanceTimersByTimeAsync(HORA);
+    expect(consultas).toHaveLength(6);
+
+    liberar();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(consultas).toHaveLength(7);
+    await vi.advanceTimersByTimeAsync(HORA);
+    expect(consultas).toHaveLength(9);
+  });
+
+  it("guarda las NC de Métricas 24 horas y las de Rectificados diez minutos", async () => {
+    const inicio = Date.now();
+    let liberar!: () => void;
+    const pendiente = new Promise<void>((resolver) => { liberar = resolver; });
+    const { pool, consultas } = rpsVacio((n) => n === 5 ? pendiente : undefined);
+    getPool.mockResolvedValue(pool);
+    const { leerNcPeriodo } = await modulos();
+    const anio = periodoAnioRps("2026", HOY);
+    const metricas = { disco: true, esperarRps: true };
+
+    await leerNcPeriodo(anio, metricas);
+    await leerNcPeriodo(anio);
+    vi.setSystemTime(inicio + 10 * 60_000 - 1);
+    await leerNcPeriodo(anio);
+    expect(consultas).toHaveLength(4);
+    vi.setSystemTime(inicio + 10 * 60_000);
+    const rectificados = leerNcPeriodo(anio);
+    const termino = vi.fn();
+    void rectificados.then(termino);
+    await leerNcPeriodo(anio, metricas);
+    expect(consultas).toHaveLength(5);
+    expect(termino).not.toHaveBeenCalled();
+    liberar();
+    await rectificados;
+
+    vi.setSystemTime(inicio + 24 * HORA - 1);
+    await leerNcPeriodo(anio, metricas);
+    expect(consultas).toHaveLength(6);
+    vi.setSystemTime(inicio + 24 * HORA);
+    await leerNcPeriodo(anio, metricas);
+    expect(consultas).toHaveLength(8);
   });
 });

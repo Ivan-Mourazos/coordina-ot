@@ -38,6 +38,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   globalThis.__coordinaCacheEnDisco = undefined;
   if (rutaDeAntes === undefined) delete process.env.COORDINA_DB_PATH;
   else process.env.COORDINA_DB_PATH = rutaDeAntes;
@@ -48,17 +49,18 @@ describe("cacheConDisco", () => {
   it("tras reiniciar sirve lo del disco sin esperar a RPS, y luego lo nuevo", async () => {
     activarCacheEnDisco();
     const antes = cacheConDisco<string[]>("prueba", 60_000);
-    await antes("k", async () => ["viejo"], DISCO);
+    await antes("ayer", async () => ["viejo"], DISCO);
     await hastaQueExista(rutaCacheDisco("prueba"));
 
     // Otro arranque: memoria vacía, RPS tardando.
     const despues = cacheConDisco<string[]>("prueba", 60_000);
     const rps = consultaPendiente<string[]>();
-    await expect(despues("k", () => rps.promesa, DISCO)).resolves.toEqual(["viejo"]);
+    await expect(despues("hoy", () => rps.promesa, DISCO)).resolves.toEqual(["viejo"]);
 
+    const actualizacion = despues("hoy", () => rps.promesa, { ...DISCO, esperarRps: true });
     rps.contestar(["nuevo"]);
-    await rps.promesa;
-    await expect(despues("k", () => Promise.reject(new Error("no debería pedirse")), DISCO)).resolves.toEqual(["nuevo"]);
+    await actualizacion;
+    await expect(despues("hoy", () => Promise.reject(new Error("no debería pedirse")), DISCO)).resolves.toEqual(["nuevo"]);
   });
 
   it("quien pide esperar a RPS no recibe lo del disco", async () => {
@@ -109,6 +111,60 @@ describe("cacheConDisco", () => {
     const pedir = cacheConDisco<string[]>("prueba", 60_000);
     const consultar = vi.fn(async () => ["rps"]);
     await Promise.all([pedir("k", consultar), pedir("k", consultar)]);
+    expect(consultar).toHaveBeenCalledTimes(1);
+  });
+
+  it("sirve la memoria caducada y comparte una sola renovación aunque vuelva a pasar la vigencia", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const pedir = cacheConDisco<string>("prueba", 60_000);
+    await pedir("k", async () => "viejo", DISCO);
+    vi.setSystemTime(Date.now() + 60_000);
+
+    const rps = consultaPendiente<string>();
+    const consultar = vi.fn(() => rps.promesa);
+    await expect(pedir("k", consultar, DISCO)).resolves.toBe("viejo");
+    vi.setSystemTime(Date.now() + 60_000);
+    await expect(pedir("k", consultar, DISCO)).resolves.toBe("viejo");
+    const esperando = pedir("k", consultar, { ...DISCO, esperarRps: true });
+    const sinDisco = pedir("k", consultar);
+    expect(consultar).toHaveBeenCalledTimes(1);
+    rps.contestar("nuevo");
+    await expect(esperando).resolves.toBe("nuevo");
+    await expect(sinDisco).resolves.toBe("nuevo");
+    await expect(pedir("k", consultar, DISCO)).resolves.toBe("nuevo");
+    expect(consultar).toHaveBeenCalledTimes(1);
+  });
+
+  it("si falla una renovación, registra el fallo, conserva lo viejo y permite reintentar", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const pedir = cacheConDisco<string>("prueba", 60_000);
+    await pedir("k", async () => "viejo", DISCO);
+    vi.setSystemTime(Date.now() + 60_000);
+    const rps = consultaPendiente<string>();
+    await expect(pedir("k", () => rps.promesa, DISCO)).resolves.toBe("viejo");
+    rps.fallar(new Error("RPS caído"));
+    await vi.waitFor(() => expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("no se pudo actualizar"), "RPS caído"));
+
+    const siguiente = consultaPendiente<string>();
+    const consultar = vi.fn(() => siguiente.promesa);
+    await expect(pedir("k", consultar, DISCO)).resolves.toBe("viejo");
+    const esperando = pedir("k", consultar, { ...DISCO, esperarRps: true });
+    siguiente.contestar("nuevo");
+    await expect(esperando).resolves.toBe("nuevo");
+    expect(consultar).toHaveBeenCalledTimes(1);
+  });
+
+  it("una renovación forzada consulta aun con datos vigentes y los deja disponibles durante la espera", async () => {
+    const pedir = cacheConDisco<string>("prueba", 60_000);
+    await pedir("k", async () => "viejo", DISCO);
+    const rps = consultaPendiente<string>();
+    const consultar = vi.fn(() => rps.promesa);
+    const forzada = pedir("k", consultar, { ...DISCO, forzarRps: true });
+    await expect(pedir("k", consultar, DISCO)).resolves.toBe("viejo");
+    const segunda = pedir("k", consultar, { ...DISCO, forzarRps: true });
+    const esperando = pedir("k", consultar, { ...DISCO, esperarRps: true });
+    rps.contestar("nuevo");
+    await expect(Promise.all([forzada, segunda, esperando])).resolves.toEqual(["nuevo", "nuevo", "nuevo"]);
     expect(consultar).toHaveBeenCalledTimes(1);
   });
 });
