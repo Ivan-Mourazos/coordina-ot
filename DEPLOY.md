@@ -65,9 +65,17 @@ quien mande la cabecera `X-Clave-Integracion` con esta clave, y la misma va en
 ## Actualizar versión
 
 ```bash
-cd /webs/coordina-ot && git pull && pnpm install && pnpm build
-pm2 restart coordina-ot
+cd /webs/coordina-ot && bash scripts/desplegar.sh
 ```
+
+Compila en `.next-a` o `.next-b` (la que no está en uso) con la web en pie y
+solo al final reinicia: la caída queda en los segundos del reinicio. Antes,
+`pnpm build` reescribía la carpeta desde la que sirve la web y esta quedaba
+rota todo el build. `pnpm install` solo corre si cambió `pnpm-lock.yaml`. Si el
+build falla, sigue la versión anterior. Para volver atrás:
+`echo .next-a > .next-activa && pm2 restart coordina-ot` (la otra carpeta).
+
+No usar `pnpm build` a mano en el servidor: compila encima de la carpeta en uso.
 
 ## Notas para IT
 

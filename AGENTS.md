@@ -75,6 +75,21 @@ desde la última entrada publicada y escribe la entrada nueva en
 `src/lib/novedades-datos.json`. Con `--ver` enseña lo que haría sin tocar nada.
 La FECHA no se pone a mano: la sella el servidor al estrenar la versión.
 
+# Despliegue: el comando (25/11/2026)
+
+Iván despliega a mano por SSH en el servidor; los agentes no despliegan nunca.
+Después de cada push a main, termina la respuesta con este comando listo para
+pegar:
+
+```bash
+cd /webs/coordina-ot && bash scripts/desplegar.sh
+```
+
+Compila en `.next-a`/`.next-b` (la carpeta libre) con la web en pie y solo
+reinicia al final. **No des `pnpm build && pm2 restart`**: compila encima de la
+carpeta desde la que sirve la web y la deja caída todo el build. Detalles y
+vuelta atrás en `DEPLOY.md`.
+
 # Estilo: paleta y metal (octubre 2026)
 
 **Sustituido por HeroUI (26/10/2026): lee `docs/ESTILO-HEROUI.md`.** La referencia aprobada es
