@@ -222,12 +222,22 @@ async function consultarPases(desde: string, hasta: string): Promise<PaseRps[]> 
       LEFT JOIN FinFase e ON e.orden = m.CodManufacturingOrder AND e.fase = t.CodMOTask
       WHERE COALESCE(t.Description, '') NOT LIKE 'PLANTEAR EN TALLER%'
       GROUP BY t.IDManufacturingOrder
+    ), Autores AS (
+      -- Lo mismo que \`autorRps\`, de una pasada: con el OUTER APPLY la vista
+      -- TGM_FICHAJES_OT (4 s entera) se leía por cada una de las ~2.500 OF y
+      -- la consulta pasó de 4 s a 5 min (25/11/2026). Así, 10 s.
+      SELECT f.IDManufacturingOrder, e.CodEmployee AS autor,
+             ROW_NUMBER() OVER (PARTITION BY f.IDManufacturingOrder ORDER BY f.tiempoTotal DESC, f.operario) AS n
+      FROM dbo.TGM_FICHAJES_OT f
+      JOIN dbo.GENEmployee e ON e.CodCompany = '001' AND e.Description = f.operario
+      WHERE f.IDManufacturingOrder IN (
+        SELECT c.IDManufacturingOrder FROM Cierres c WHERE c.fin >= @desde AND c.fin < DATEADD(day, 1, @hasta))
     )
     SELECT ${columnas}, CONVERT(date, c.fin) AS fecha, ot.autor
     FROM Cierres c
     JOIN dbo.CPRManufacturingOrder mo ON mo.IDManufacturingOrder = c.IDManufacturingOrder
     ${catalogo}
-    ${autorRps}
+    LEFT JOIN Autores ot ON ot.IDManufacturingOrder = mo.IDManufacturingOrder AND ot.n = 1
     WHERE c.fin >= @desde AND c.fin < DATEADD(day, 1, @hasta)
   `);
   return r.recordset.map(deFila);
