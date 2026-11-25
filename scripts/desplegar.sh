@@ -11,6 +11,9 @@
 #
 # Volver a la versión anterior (sigue compilada en la otra carpeta):
 #   echo .next-a > .next-activa && pm2 restart coordina-ot   (o .next-b)
+# Todo va entre llaves: bash lee el bloque entero antes de empezar. Sin ellas lee el fichero
+# a medida que avanza, y el git pull de abajo lo cambia a mitad de camino (25/11/2026).
+{
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -54,3 +57,5 @@ echo
 echo "!! La web no responde tras 60 s. Mira: pm2 logs $APP --lines 50"
 echo "!! Para volver a la versión anterior: echo $activa > .next-activa && pm2 restart $APP"
 exit 1
+}
+exit
