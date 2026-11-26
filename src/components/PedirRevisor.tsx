@@ -9,8 +9,10 @@ import { OpDot } from "./Select";
  *  los botones evita que cambiar revisor conserve un desplegable distinto. */
 export function BotonesRevisor({
   operarios, excluirIds, valorActual = null, onElegir,
-  deshabilitado = false, enfocarAlMontar = false, miId,
+  deshabilitado = false, enfocarAlMontar = false, miId, nombreCorto = false,
 }: {
+  /** Solo el nombre de pila: en la fila del tablero no caben los completos. */
+  nombreCorto?: boolean;
   operarios: Operario[];
   excluirIds: (string | null)[];
   valorActual?: string | null;
@@ -31,7 +33,7 @@ export function BotonesRevisor({
   const excluidos = new Set(excluirIds.filter(Boolean));
   const elegibles = operarios.filter((o) => !excluidos.has(o.id));
   return (
-    <div ref={grupo} role="group" aria-label="Compañeros que pueden revisar" className="flex flex-wrap items-center gap-1.5">
+    <div ref={grupo} role="group" aria-label="Compañeros que pueden revisar" className={`flex items-center gap-1 ${nombreCorto ? "flex-nowrap" : "flex-wrap"}`}>
       {elegibles.map((o) => (
         <button
           key={o.id}
@@ -40,11 +42,11 @@ export function BotonesRevisor({
           aria-pressed={o.id === valorActual}
           disabled={deshabilitado}
           onClick={() => onElegir(o.id)}
-          className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-semibold hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current disabled:cursor-wait disabled:opacity-60 ${o.id === valorActual ? ROL.revisar.chip : "bg-surface-2 text-text"}`}
+          className={`inline-flex h-6 items-center gap-1.5 rounded-full border border-border pl-0.5 pr-2 text-[11px] font-semibold hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-[-2px]! focus-visible:outline-current disabled:cursor-wait disabled:opacity-60 ${o.id === valorActual ? ROL.revisar.chip : "bg-surface-2 text-text"}`}
           style={o.id === valorActual ? { borderColor: ROL.revisar.color } : undefined}
         >
           <OpDot color={o.color} iniciales={o.iniciales} />
-          {o.nombre}{o.id === miId ? " (tú)" : ""}
+          {nombreCorto ? o.nombre.split(" ")[0] : o.nombre}{o.id === miId ? " (tú)" : ""}
         </button>
       ))}
       {elegibles.length === 0 && <span className="text-xs text-text-muted">No hay compañeros disponibles para revisar.</span>}
@@ -71,7 +73,10 @@ export function PedirRevisor({
   onConfirmar,
   onCancelar,
   onAbandonado,
+  nombreCorto = false,
 }: {
+  /** Solo el nombre de pila (la fila del tablero). */
+  nombreCorto?: boolean;
   operarios: Operario[];
   /** Ids que no pueden revisar (autores de las OFs afectadas). */
   excluirIds: (string | null)[];
@@ -112,23 +117,32 @@ export function PedirRevisor({
   }
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-2" aria-busy={guardando} onClick={(e) => e.stopPropagation()}>
-      <span className="text-[10px] text-text-muted">Revisor:</span>
-      <BotonesRevisor operarios={operarios} excluirIds={excluirIds} valorActual={valorInicial}
-        onElegir={(id) => void elegir(id)} deshabilitado={guardando} enfocarAlMontar />
-      {guardando && <span role="status" className="text-xs text-text-muted">Guardando…</span>}
+    // EN LA LÍNEA DE LOS BOTONES, en su lugar (Iván, 26/11/2026): salía
+    // debajo y la tarjeta crecía; ahora ocupa el sitio de los botones mientras
+    // se elige, y la flecha de delante vuelve atrás sin elegir.
+    <div className={`flex min-w-0 items-center gap-1 ${nombreCorto ? "flex-nowrap" : "flex-wrap"}`} aria-busy={guardando} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
-        aria-label="Cancelar elección de revisor"
+        aria-label="Volver sin elegir revisor"
+        title="Volver sin elegir revisor"
         disabled={guardando}
         onClick={() => {
           resuelto.current = true;
           onCancelar();
         }}
-        className="rounded bg-surface-2 px-2.5 py-1 text-[10px] font-semibold text-text hover:bg-[var(--glass-highlight)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60"
+        className="chip-3d inline-flex size-6 shrink-0 items-center justify-center rounded-full text-text-muted hover:text-text focus-visible:outline-2 focus-visible:outline-offset-[-2px]! disabled:cursor-wait disabled:opacity-60"
       >
-        Cancelar
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
+      {/* Sin «Revisor:» delante: sale al pulsar «Pasar a revisión», ya se sabe
+          qué son estos nombres. Y SIN foco puesto al abrir: el primer nombre
+          salía con el contorno del foco y parecía elegido (Iván, 26/11/2026).
+          Solo los nombres; se pulsa uno y se cierra. */}
+      <BotonesRevisor operarios={operarios} excluirIds={excluirIds} valorActual={valorInicial}
+        onElegir={(id) => void elegir(id)} deshabilitado={guardando} nombreCorto={nombreCorto} />
+      {guardando && <span role="status" className="text-xs text-text-muted">Guardando…</span>}
     </div>
   );
 }

@@ -289,7 +289,7 @@ export function PedidoLinea({
       // columnas estrechas de la zona personal (cinco fases repartiéndose el
       // ancho) «Parte nuevo» se montaba sobre la fecha y la cuenta de OF
       // salía cortada ("2 O").
-      className={`@container group relative flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         // Del color del ROL, no siempre verde: revisando salía igual que
         // planteando (Iván, 16/10/2026). Ver `.fila-fichando-*` en globals.css.
         fichandoAlguien ? `fila-fichando-${fichandoAlguien.fichandoRol}` : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
@@ -587,17 +587,27 @@ export function PedidoLinea({
         </span>
       )}
 
-      {/* Los compañeros, debajo de la fila (`basis-full`), como en la ficha:
-          pulsar un nombre manda. */}
+      {/* Los compañeros ENCIMA de la fila, en su sitio (Iván, 26/11/2026): la
+          fila no crece ni empuja el panel. Opaco, para que no se lea el texto
+          de debajo; la flecha de delante vuelve sin elegir. Nombre de pila:
+          los completos no caben en una columna de la zona personal. */}
       {pidiendoRevisor && onPasarRevision && (
-        <div className="basis-full" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="absolute inset-y-0 right-0 left-[6.5rem] z-10 flex items-center overflow-x-auto rounded-r-lg bg-surface pr-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <PedirRevisor
             operarios={operarios ?? []}
             excluirIds={pidiendoRevisor.map((o) => o.autorId)}
-            onConfirmar={async (rev) => {
-              if (await onPasarRevision(pidiendoRevisor.map((o) => o.id), rev)) setPidiendoRevisor(null);
+            // Se cierra al elegir: el pase se pinta al momento (ver Board) y,
+            // si el servidor no lo guarda, las OF vuelven a esta fila.
+            onConfirmar={(rev) => {
+              const ids = pidiendoRevisor.map((o) => o.id);
+              setPidiendoRevisor(null);
+              void onPasarRevision(ids, rev);
             }}
             onCancelar={() => setPidiendoRevisor(null)}
+            nombreCorto
           />
         </div>
       )}

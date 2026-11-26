@@ -16,7 +16,8 @@ test("los compañeros elegibles aparecen como botones con avatar y en el mismo o
   expect(nombres).toEqual(elegibles.map((o) => o.nombre));
   for (const op of elegibles) expect(html).toContain(op.iniciales);
   expect(html.match(/type="button"/g)).toHaveLength(elegibles.length + 1);
-  expect(html).toContain('aria-label="Cancelar elección de revisor"');
+  // Se vuelve sin elegir con la flecha de delante (antes «Cancelar» al final).
+  expect(html).toContain('aria-label="Volver sin elegir revisor"');
   expect(html).toContain("focus-visible:outline");
   expect(html).not.toContain('role="combobox"');
   expect(html).not.toContain('aria-haspopup="listbox"');
@@ -41,12 +42,12 @@ test("durante el envío se pueden deshabilitar todos los nombres", () => {
   expect(html.match(/disabled=""/g)).toHaveLength(OPERARIOS.length);
 });
 
-test("sin compañeros elegibles se explica el motivo y Cancelar sigue disponible", () => {
+test("sin compañeros elegibles se explica el motivo y la flecha de volver sigue disponible", () => {
   const html = renderToStaticMarkup(createElement(PedirRevisor, {
     operarios: OPERARIOS, excluirIds: OPERARIOS.map((o) => o.id), onConfirmar: noop, onCancelar: noop,
   }));
   expect(html).toContain("No hay compañeros disponibles para revisar.");
   expect(html.match(/<button/g)).toHaveLength(1);
-  expect(html).toContain("Cancelar");
+  expect(html).toContain("Volver sin elegir revisor");
   expect(html).not.toContain('disabled=""');
 });

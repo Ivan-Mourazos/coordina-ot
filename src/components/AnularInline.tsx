@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TAMANO_BLOQUE } from "@/lib/botones";
 import { CAUSAS, anulacionCompleta, codificarAnulacion, type CausaAnulacion } from "@/lib/anulacion";
 
 /** Anular preguntando POR QUÉ, ahí mismo.
@@ -41,7 +42,7 @@ export function AnularInline({
     return (
       <button
         onClick={() => setAbiertoPropio(true)}
-        className="ml-auto rounded-lg px-2.5 py-1 text-xs font-semibold text-error ring-1 ring-red-500/35 hover:bg-red-500/10"
+        className={`ml-auto ${TAMANO_BLOQUE} chip-3d text-error`}
       >
         Anular OF
       </button>

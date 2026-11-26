@@ -1809,11 +1809,32 @@ export function Board({
     const setMensajeRevision = (m: { error: boolean; texto: string } | null) =>
       setMensajeRevisionDe(m && { ...m, pedidoId });
     setMensajeRevision({ error: false, texto: "Mandando las OF a revisión…" });
+    // Lo que había antes de pintar el pase, para devolverlo si el servidor no
+    // lo guarda.
+    let previos: Map<string, { estado: OF["estado"]; revisorId: string | null }> | null = null;
     try {
       // Foto síncrona, no la del último render. Si una sola ya no puede pasar,
       // se explica cuál es y no se nombra revisor en ninguna.
-      prepararPaseRevision(pedidosRef.current, ofIds, revisorId, miId,
+      const prep = prepararPaseRevision(pedidosRef.current, ofIds, revisorId, miId,
         new Set(abierto(fichajeRef.current)?.ofIds ?? []));
+      // SE PINTA YA, sin esperar al servidor (Iván, 26/11/2026: «antes era
+      // instantáneo y ahora pone cargando»). Elegir revisor dejaba el
+      // selector en «Guardando…» lo que tardara el guardado —más con la pausa
+      // del reloj recién mandada delante—. La regla de no mentir se mantiene
+      // por el otro lado: si el servidor no lo guarda, las OF VUELVEN a como
+      // estaban y sale el error. Nunca queda en pantalla un pase que no existe.
+      previos = new Map(
+        pedidosRef.current.flatMap((p) => p.ofs).filter((o) => ofIds.includes(o.id))
+          .map((o) => [o.id, { estado: o.estado, revisorId: o.revisorId }]),
+      );
+      if (seccionRef.current === seccionActual) {
+        const optimistas = new Map(prep.cambiosOF.map((c) => [c.ofId, c]));
+        setPedidosSync((prev) => prev.map((p) => ({ ...p, ofs: p.ofs.map((of) => {
+          const c = optimistas.get(of.id);
+          return c ? { ...of, estado: c.estado, revisorId: c.revisorId, fichandoRol: null } : of;
+        }) })));
+        soltarDeMiFichaje(ofIds);
+      }
       const resultado = await solicitarPaseRevision(ofIds, revisorId, miId, seccionActual);
       revisionGuardadaSeq.current += 1;
       postSeqRef.current += 1;
@@ -1832,6 +1853,14 @@ export function Board({
         : "Las OF seleccionadas ya se han mandado a revisión." });
       return true;
     } catch (e) {
+      // Si ya se había pintado, se deshace: el servidor no lo tiene.
+      const deshacer = previos;
+      if (deshacer && seccionRef.current === seccionActual) {
+        setPedidosSync((prev) => prev.map((p) => ({ ...p, ofs: p.ofs.map((of) => {
+          const antes = deshacer.get(of.id);
+          return antes ? { ...of, estado: antes.estado, revisorId: antes.revisorId } : of;
+        }) })));
+      }
       setMensajeRevision({ error: true, texto: e instanceof Error ? e.message : "No se ha podido guardar el pase a revisión. Vuelve a intentarlo." });
       return false;
     } finally {

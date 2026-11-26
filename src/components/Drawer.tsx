@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePopover } from "@/lib/usePopover";
-import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO, BOTON_PASAR_REVISION } from "@/lib/botones";
+import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO, BOTON_PASAR_REVISION, TAMANO_BLOQUE } from "@/lib/botones";
 import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
@@ -1021,6 +1021,25 @@ export function Drawer({
                 desbordar; `empty:hidden`: sin botones no deja hueco. */}
             {!soloLectura && (
               <div className="mb-2 flex flex-wrap items-center gap-1 empty:hidden">
+                {pidiendoRevisorPedido ? (
+                  // Mientras se elige revisor, los nombres ocupan el sitio de
+                  // los botones: la ficha no crece (Iván, 26/11/2026).
+                  <PedirRevisor
+                    operarios={operarios}
+                    excluirIds={pidiendoRevisorPedido.map((o) => o.autorId)}
+                    onAbandonado={() => onSinRevisor?.(pidiendoRevisorPedido.map((o) => o.codigo))}
+                    // Se cierra AL ELEGIR, sin esperar al servidor: el pase ya se
+                    // pinta al momento (ver `pasarRevision` en Board) y, si falla,
+                    // las OF vuelven y el error sale en la ficha.
+                    onConfirmar={(rev) => {
+                      const ids = pidiendoRevisorPedido.map((o) => o.id);
+                      setPidiendoRevisorPedido(null);
+                      void onPasarRevision(ids, rev);
+                    }}
+                    onCancelar={() => setPidiendoRevisorPedido(null)}
+                  />
+                ) : (
+                  <>
                 {/* Con el reloj MÍO en marcha aquí, este botón para; si no, ficha.
                     Con UNA sola OF fichándose, la pausa está en su fila (Iván,
                     16/10/2026), igual que «Fichar», que solo sale con más de una. */}
@@ -1212,6 +1231,8 @@ export function Drawer({
                       : []),
                   ]}
                 />
+                  </>
+                )}
               </div>
             )}
 
@@ -1268,25 +1289,6 @@ export function Drawer({
 
           {/* El revisor se elige una vez y vale para todas. Los compañeros van
               debajo del rótulo y pueden saltar de línea en paneles estrechos. */}
-          {/* Como antes: pulsas «Pasar a revisión», salen los compañeros, y
-              pulsar un nombre las manda (Iván, 26/11/2026). Sin la frase de
-              encima ni el recuadro: a qué OF afecta ya se vio al pasar el ratón
-              por el botón. */}
-          {!soloLectura && pidiendoRevisorPedido && (
-            <div className="mb-2">
-              <PedirRevisor
-                operarios={operarios}
-                excluirIds={pidiendoRevisorPedido.map((o) => o.autorId)}
-                onAbandonado={() => onSinRevisor?.(pidiendoRevisorPedido.map((o) => o.codigo))}
-                onConfirmar={async (rev) => {
-                  if (await onPasarRevision(pidiendoRevisorPedido.map((o) => o.id), rev)) {
-                    setPidiendoRevisorPedido((actual) => actual === pidiendoRevisorPedido ? null : actual);
-                  }
-                }}
-                onCancelar={() => setPidiendoRevisorPedido(null)}
-              />
-            </div>
-          )}
 
           {ofsDeOT.length === 0 && (
             <p className="mb-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-text-muted">
@@ -2161,7 +2163,23 @@ function AccionesOF({
     : null;
 
   return (
-    <div className="mt-2.5 flex flex-wrap gap-2">
+    <div className="mt-2.5 flex flex-wrap items-center gap-1">
+      {pidiendoRevisor ? (
+        // Los nombres EN LUGAR de los botones de la OF: la tarjeta no crece.
+        <PedirRevisor
+          operarios={operarios}
+          excluirIds={[of.autorId]}
+          valorInicial={of.revisorId}
+          onAbandonado={() => onSinRevisor?.([of.codigo])}
+          // Se cierra al elegir: el pase se pinta al momento (ver Board).
+          onConfirmar={(rev) => {
+            setPidiendoRevisor(false);
+            void onPasarRevision([of.id], rev);
+          }}
+          onCancelar={() => setPidiendoRevisor(false)}
+        />
+      ) : (
+        <>
       {/* Coger, delante: sobre la OF de otra persona es lo primero que se
           plantea. Fichar sigue al lado para quien solo quiere echar una mano. */}
       {onCoger && (
@@ -2197,8 +2215,8 @@ function AccionesOF({
       ) : finalizarOF && of.estado === "aprobada" ? (
         // Finalizada en Diseño: nada de «Reanudar». Volver a ella es
         // «Recuperar», en "⋯", y no un clic de reloj por despiste.
-        <span className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted">
-          ✔ Finalizada
+        <span className={`${TAMANO_BLOQUE} border border-border text-text-muted`}>
+          Finalizada
         </span>
       ) : esFichable(of) && relojEsMio ? (
         autorAjeno && rolReloj !== "revisar" ? (
@@ -2276,7 +2294,7 @@ function AccionesOF({
               // El motivo también por `aria-label`: el `title` no lo anuncia un
               // lector de pantalla, y aquí es la única explicación que hay.
               aria-label={motivo ? `${rotulo}. ${motivo}` : undefined}
-              className="cursor-help rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted"
+              className={`${TAMANO_BLOQUE} cursor-help border border-border text-text-muted`}
             >
               {rotulo}
             </span>
@@ -2296,6 +2314,7 @@ function AccionesOF({
               fallos={fallosGuia}
               impedido={impedidoRevision}
               familias={of.familia ? [of.familia] : undefined}
+              claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}
             />
           );
@@ -2308,15 +2327,20 @@ function AccionesOF({
         // está acabado si sigue contando), pero el botón se queda en su sitio
         // y dice por qué: escondiéndolo, la fila cambiaba al fichar y pausar
         // (Iván, 16/10/2026).
+        // Morado con borde, como en la barra. Y con MI reloj en ella ya no
+        // sale apagado: pausa esta OF y pide revisor en un gesto (Iván,
+        // 26/11/2026), igual que el de la barra del pedido.
         if (a.id === "terminar_planteo")
           return (
             !pidiendoRevisor && (
               <Btn
                 key={a.id}
-                tone={tono[a.tono]}
-                disabled={fichandoYoEsta}
-                title={fichandoYoEsta ? "Pausa el reloj para poder pasar a revisión" : undefined}
-                onClick={() => setPidiendoRevisor(true)}
+                tone="pasarRevision"
+                title={fichandoYoEsta ? "Pausa el reloj de esta OF y la manda a revisar" : "Da por terminado el planteo y la manda a revisar"}
+                onClick={() => {
+                  if (fichandoYoEsta) onDesfichar(of.id);
+                  setPidiendoRevisor(true);
+                }}
               >
                 {a.label}
               </Btn>
@@ -2398,17 +2422,7 @@ function AccionesOF({
           else pedirConfirmacion(a);
         }}
       />
-      {pidiendoRevisor && (
-        <PedirRevisor
-          operarios={operarios}
-          excluirIds={[of.autorId]}
-          valorInicial={of.revisorId}
-          onAbandonado={() => onSinRevisor?.([of.codigo])}
-          onConfirmar={async (rev) => {
-            if (await onPasarRevision([of.id], rev)) setPidiendoRevisor(false);
-          }}
-          onCancelar={() => setPidiendoRevisor(false)}
-        />
+        </>
       )}
       {dialogo}
     </div>
@@ -2425,7 +2439,7 @@ function Btn({
 }: {
   children: React.ReactNode;
   onClick: () => void;
-  tone: "amber" | "teal" | "finalizar" | "reloj" | "revisar" | "ghost" | "rojo";
+  tone: "amber" | "teal" | "finalizar" | "reloj" | "revisar" | "pasarRevision" | "ghost" | "rojo";
   className?: string;
   title?: string;
   /** Apagado y sin poder pulsarse. El motivo va en `title`: un botón apagado
@@ -2435,8 +2449,10 @@ function Btn({
   const cls = {
     amber: "bg-amber-700 text-white hover:bg-amber-800",
     teal: "bg-teal-700 text-white hover:bg-teal-800",
-    // El de «Pasar a Producción»: dar algo por terminado (Diseño).
-    finalizar: "bg-cyan-700 text-white hover:bg-cyan-800",
+    // El de «Pasar a Producción»: dar algo por terminado (Diseño). Verde
+    // azulado desde el 26/11/2026, como «Pasar a Producción» en todas partes.
+    finalizar: "bg-teal-700 text-white hover:bg-teal-800",
+    pasarRevision: BOTON_PASAR_REVISION,
     // El reloj lleva el color de SU rol, el mismo de todo el tablero: verde
     // planteo, violeta revision. Fichar se reconoce por el color sin leer el
     // boton, y sobre una OF en revision el verde decia el rol equivocado.
@@ -2458,7 +2474,9 @@ function Btn({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`rounded-lg px-2.5 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${relieve} ${cls} ${className}`}
+      // El mismo tamaño que la barra del pedido (`TAMANO_BLOQUE`, 24 px):
+      // dentro de la OF los botones eran más grandes que los de arriba.
+      className={`${TAMANO_BLOQUE} disabled:cursor-not-allowed disabled:opacity-40 ${relieve} ${cls} ${className}`}
     >
       {children}
     </button>

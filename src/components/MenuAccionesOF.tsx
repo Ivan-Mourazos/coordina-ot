@@ -69,7 +69,7 @@ export function MenuAccionesOF({
         aria-label="Más acciones"
         aria-expanded={open}
         title="Más acciones para esta OF"
-        className="rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-text-muted hover:border-border-strong hover:text-text"
+        className="chip-3d inline-flex size-6 items-center justify-center rounded-[7px] text-xs font-bold text-text-muted hover:text-text"
       >
         ⋯
       </button>}

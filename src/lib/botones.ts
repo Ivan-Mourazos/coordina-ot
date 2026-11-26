@@ -7,9 +7,13 @@
 // Sin iconos en el texto (⏱ ▶ ⏸): la guía de estilo no quiere adornos en los
 // botones, y el color ya dice el rol (Iván, 26/11/2026).
 
-/** Barra de la ficha y de Revisiones: todos iguales, 24 px. */
-export const BOTON_BLOQUE =
-  "boton-3d inline-flex h-6 min-w-[84px] items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
+/** Solo el TAMAÑO de los botones de la ficha (sin relieve): para los que
+ *  llevan `chip-3d` u otro relieve propio. */
+export const TAMANO_BLOQUE =
+  "inline-flex h-6 min-w-[84px] items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
+
+/** Barra de la ficha, cada OF y Revisiones: todos iguales, 24 px. */
+export const BOTON_BLOQUE = `boton-3d ${TAMANO_BLOQUE}`;
 
 /** En las filas del tablero, un punto más bajo (22 px): la fila mide 30. Sin
  *  `display`: lo pone quien lo usa (`inline-flex` fijo o `AL_PASAR`). */
