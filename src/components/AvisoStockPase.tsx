@@ -1,6 +1,6 @@
 import type { VistaPlanteamiento } from "@/lib/planteamiento-textos";
 import { cuando } from "@/lib/planteamiento-textos";
-import { faltanStock, metrosCuenta, metrosStock, textoOFStock, tieneCuentaStock } from "@/lib/correo-stock";
+import { metrosCuenta, notaBobinas, resumenFalta, textoOFStock } from "@/lib/correo-stock";
 
 type Stock = VistaPlanteamiento["stockLona"];
 export const elegirCorreoStock = (s: Stock) => s?.faltas.some(f => !f.yaAvisado) ?? false;
@@ -27,26 +27,31 @@ export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
     f.yaAvisado && (!ultimo || f.yaAvisado.creadoAt > ultimo.creadoAt) ? f.yaAvisado : ultimo, null);
   return (
     <section className="mt-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
-      <h4 className="font-bold">Falta material</h4>
-      <ul>{stock.faltas.map(f => {
-        // La descripción es el nombre simple de la lona («PVC 900 NEGRO 9005 · 300 AN»): el stock
-        // suma todas sus marcas, no solo el código, y si ninguna bobina sola llega lo explica ahí.
-        const prefijo = `${f.codigo}${f.descripcion?.trim() ? ` ${f.descripcion.trim()}` : ""}${f.entrega > 0 ? ` · Entrega ${f.entrega}` : ""} · ${textoOFStock(f.ofs)}`;
+      <h4 className="font-bold">
+        Falta material <span className="font-normal text-amber-800 dark:text-amber-300">· {stock.faltas.length === 1 ? "1 lona" : `${stock.faltas.length} lonas`}</span>
+      </h4>
+      <ul className="mt-2 space-y-2">{stock.faltas.map(f => {
+        // Lo mismo que el correo (lib/correo-stock): necesita, disponible, reservas por pedido y bobinas.
+        const r = resumenFalta(f);
+        const nota = notaBobinas(r);
         return (
-          <li key={JSON.stringify([f.entrega, f.codigo, f.ofs])}>
-            {tieneCuentaStock(f) ? (
-              <>
-                {`${prefijo} · stock ${metrosCuenta(f.stock)} − ${metrosCuenta(f.reservado)} reservados = ${metrosCuenta(f.disponible)} disponible · necesita ${metrosCuenta(f.necesita)} · `}
-                <strong className="text-[#c20e4d] dark:text-rose-300">{`faltan ${metrosCuenta(faltanStock(f))}`}</strong>
-                {f.reservadoPropio > 0 && (
-                  <span className="block text-xs text-amber-800 dark:text-amber-300">
-                    {`Reservado para este pedido: ${metrosCuenta(f.reservadoPropio)} (no se resta)`}
-                  </span>
-                )}
-              </>
-            ) : (
-              `${prefijo} · necesita ${metrosStock(f.necesita)} · disponible ${metrosStock(f.disponible)}`
-            )}
+          <li key={JSON.stringify([f.entrega, f.codigo, f.ofs])}
+            className="rounded-xl bg-white/70 px-3 py-2.5 dark:bg-black/25">
+            <p className="font-bold">{r.nombre || r.codigo}</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              {[r.nombre ? r.codigo : "", f.entrega > 0 ? `Entrega ${f.entrega}` : "", textoOFStock(f.ofs)].filter(Boolean).join(" · ")}
+            </p>
+            <dl className="mt-1.5 grid grid-cols-[auto_auto] justify-start gap-x-6 tabular-nums">
+              <dt>Necesita</dt><dd className="text-right font-bold">{metrosCuenta(r.necesita)}</dd>
+              <dt>Stock disponible</dt>
+              <dd className={`text-right font-bold ${nota ? "" : "text-[#c20e4d] dark:text-rose-300"}`}>{metrosCuenta(r.disponible)}</dd>
+              {r.reservas.map(x => (
+                <Fila key={x.pedido} etiqueta={`Reservado · ${x.pedido}`} valor={metrosCuenta(x.ml)} />
+              ))}
+              {r.reservadoSinDesglose > 0 && <Fila etiqueta="Reservado para otros pedidos" valor={metrosCuenta(r.reservadoSinDesglose)} />}
+              {r.reservadoPropio > 0 && <Fila etiqueta="Ya reservado para este pedido" valor={metrosCuenta(r.reservadoPropio)} />}
+            </dl>
+            {nota && <p className="mt-1.5 font-bold text-[#c20e4d] dark:text-rose-300">{nota}</p>}
           </li>
         );
       })}</ul>
@@ -59,5 +64,14 @@ export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
       {modo === "ensayo" && <p>En modo ensayo solo se enviará al destinatario de prueba.</p>}
       {antes && <p>Ya se avisó el {cuando(antes.creadoAt)}{antes.pasadoPor && ` (${antes.pasadoPor})`}</p>}
     </section>
+  );
+}
+
+function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <>
+      <dt className="text-xs text-amber-800 dark:text-amber-300">{etiqueta}</dt>
+      <dd className="text-right text-xs text-amber-800 dark:text-amber-300">{valor}</dd>
+    </>
   );
 }

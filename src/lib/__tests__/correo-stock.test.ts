@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { asuntoCorreoStock, cuerpoCorreoStock, cuerpoCorreoStockHtml } from "../correo-stock";
-import { guardarStockLona, leerStockLona } from "../server/stock-lona-db";
+import { guardarStockLona, leerStockLona, validarStockLona } from "../server/stock-lona-db";
 import { getDb } from "../server/estado-db";
 import { correosParaEnviar, destinatariosStock, prepararCorreoStock } from "../server/correo-cola";
 
@@ -15,52 +15,72 @@ test("asunto y versiones del correo según la maqueta", () => {
   expect(asuntoCorreoStock(s.pedido, "")).toBe("Falta material AR.26.05016");
   expect(asuntoCorreoStock(s.pedido, "Bar")).toBe("Falta material AR.26.05016 · Bar");
   for (const cuerpo of [cuerpoCorreoStock(s, "Iván"), cuerpoCorreoStockHtml(s, "Iván")])
-    for (const t of ["LV1", "OF 123, OF 124", "42,30 m", "18,75 m", "23/11/2026 12:40", "Iván"]) expect(cuerpo).toContain(t);
+    for (const t of ["LV1", "OF 123, OF 124", "42,3 m", "18,75 m", "23/11/2026 12:40", "Iván"]) expect(cuerpo).toContain(t);
   const html = cuerpoCorreoStockHtml(s, "Iván");
   expect(html).toContain("FALTA MATERIAL");
   expect(html).toContain("Lona &lt;gris&gt;");
 });
 
-test("con la cuenta, texto plano y HTML muestran stock, reservas, disponible, falta y propio", () => {
+test("simplificado: necesita, disponible y lo reservado por cada pedido (Iván, 26/11/2026)", () => {
   const conCuenta = {
     ...s,
     faltas: [{
-      codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204",
+      codigo: "PLAST880NEGRP204", descripcion: "PVC 900 NEGRO 9005 · 300 AN",
       stock: 1257.8, reservado: 860, reservadoPropio: 40, disponible: 397.8, necesita: 410.2,
+      reservas: [{ pedido: "AR.26.05330", ml: 800 }, { pedido: "AR.26.05401", ml: 60 }],
       ofs: ["0234125"],
     }],
   };
-  const texto = cuerpoCorreoStock(conCuenta, "Iván");
-  expect(texto).toBe([
+  expect(cuerpoCorreoStock(conCuenta, "Iván")).toBe([
     "Falta material AR.26.05016 · Bar",
     "",
     "OF 0234125",
-    "No llega el stock de PLAST880NEGRP204 PVC negro 204",
-    "Stock en almacén: 1.257,8 m",
-    "− Reservado (otros pedidos): 860 m",
-    "= Disponible: 397,8 m",
-    "Necesita este pedido: 410,2 m",
-    "Faltan: 12,4 m",
-    "Reservado para este pedido: 40 m (no se resta)",
+    "PVC 900 NEGRO 9005 · 300 AN (PLAST880NEGRP204)",
+    "Necesita: 410,2 m",
+    "Stock disponible: 397,8 m",
+    "Reservado para otros pedidos:",
+    "  AR.26.05330: 800 m",
+    "  AR.26.05401: 60 m",
+    "Ya reservado para este pedido: 40 m",
     "",
     "Stock consultado 23/11/2026 12:40",
     "Por Iván",
   ].join("\n"));
-
   const html = cuerpoCorreoStockHtml(conCuenta, "Iván");
-  for (const trozo of [
-    "Stock en almacén", "1.257,8 m",
-    "− Reservado (otros pedidos)", "860 m",
-    "= Disponible", "397,8 m",
-    "Necesita este pedido", "410,2 m",
-    "Faltan", "12,4 m", "#c20e4d",
-    "Reservado para este pedido: 40 m (no se resta)",
-  ]) expect(html).toContain(trozo);
-  expect(html).toMatch(/color:#c20e4d[^>]*>Faltan<\/td>/);
+  for (const trozo of ["Necesita", "410,2 m", "Stock disponible", "397,8 m", "Reservado · AR.26.05330", "800 m",
+    "Reservado · AR.26.05401", "60 m", "Ya reservado para este pedido", "40 m"]) expect(html).toContain(trozo);
+  expect(html).not.toContain("Stock en almacén");
 
-  const sinPropio = { ...conCuenta, faltas: [{ ...conCuenta.faltas[0], reservadoPropio: 0 }] };
-  expect(cuerpoCorreoStock(sinPropio, "Iván")).not.toContain("Reservado para este pedido");
-  expect(cuerpoCorreoStockHtml(sinPropio, "Iván")).not.toContain("Reservado para este pedido");
+  const sinPropio = { ...conCuenta, faltas: [{ ...conCuenta.faltas[0], reservadoPropio: 0, reservas: [] }] };
+  expect(cuerpoCorreoStock(sinPropio, "Iván")).not.toContain("para este pedido");
+  expect(cuerpoCorreoStock(sinPropio, "Iván")).toContain("Reservado para otros pedidos: 860 m");
+});
+
+test("sumando llega pero ninguna bobina sola: lo dice así, con el dato nuevo y con el de antes", () => {
+  const nueva = { ...s, faltas: [{ codigo: "MONZAAZ15P250", descripcion: "PVC 580 AZUL 5015 · 250 AN",
+    necesita: 60, disponible: 245.7, bobinaMayor: 48.5, stock: 245.7, reservado: 0, reservadoPropio: 0, ofs: ["123"] }] };
+  const antigua = { ...s, faltas: [{ codigo: "MONZAAZ15P250",
+    descripcion: "PVC 580 AZUL 5015 · 250 AN — ninguna bobina sola llega (la mayor, 48,5 m; en total 245,7 m)",
+    necesita: 60, disponible: 48.5, ofs: ["123"] }] };
+  for (const datos of [nueva, antigua]) {
+    const texto = cuerpoCorreoStock(datos, "Iván");
+    expect(texto).toContain("PVC 580 AZUL 5015 · 250 AN (MONZAAZ15P250)\nNecesita: 60 m\nStock disponible: 245,7 m\n"
+      + "Hay stock, pero ninguna bobina llega a 60 m: la mayor tiene 48,5 m.");
+    expect(cuerpoCorreoStockHtml(datos, "Iván")).toContain("Hay stock, pero ninguna bobina llega a 60 m: la mayor tiene 48,5 m.");
+  }
+});
+
+test("Coordina acepta las reservas por pedido y la bobina mayor, y rechaza lo que no cuadra", () => {
+  const base = { pedido: "AR.26.05016", entrega: 1, cliente: "Bar", ofs: ["123"], lonas: [], consultadoPor: null,
+    consultado: "2026-11-23T11:40:00Z" };
+  const falta = { codigo: "LV1", descripcion: "PVC", necesita: 60, disponible: 245.7, ofs: ["123"] };
+  expect(validarStockLona({ ...base, faltas: [{ ...falta, bobinaMayor: 48.5, reservas: [{ pedido: "AR.26.05330", ml: 50 }] }] })?.faltas[0])
+    .toMatchObject({ bobinaMayor: 48.5, reservas: [{ pedido: "AR.26.05330", ml: 50 }] });
+  expect(validarStockLona({ ...base, faltas: [falta] })).toBeNull();
+  expect(validarStockLona({ ...base, faltas: [{ ...falta, bobinaMayor: 60 }] })).toBeNull();
+  expect(validarStockLona({ ...base, faltas: [{ ...falta, disponible: 10, reservas: [{ pedido: "", ml: 5 }] }] })).toBeNull();
+  expect(validarStockLona({ ...base, faltas: [{ ...falta, disponible: 10, otra: 1 }] })).toBeNull();
+  expect(validarStockLona({ ...base, faltas: [{ ...falta, disponible: 10, stock: 10 }] })).toBeNull();
 });
 
 test("solo encola faltas y congela los destinatarios del modo elegido", () => {
@@ -127,10 +147,10 @@ test.each([1, 3])("al pasar %i OF, encola un correo con las tres OF y los metros
   expect(prepararCorreoStock(pedido, "ivan", ofs.slice(0, cantidad), false, ahora).encolado).toBe(true);
   const correos = correosDe(pedido);
   expect(correos).toHaveLength(1);
-  expect(correos[0].cuerpo).toContain("OF 123, OF 124, OF 125\nNo llega el stock de LV1");
-  expect(correos[0].cuerpo).toContain("Necesita: 42,30 m · Stock disponible: 18,75 m");
-  expect(correos[0].html).toMatch(/OF 123, OF 124, OF 125<\/div>\s*<table[^>]+border-radius:12px[\s\S]*?No llega el stock de/);
-  expect(correos[0].html).toContain("42,30 m");
+  expect(correos[0].cuerpo).toContain("OF 123, OF 124, OF 125\nLona <gris> (LV1)");
+  expect(correos[0].cuerpo).toContain("Necesita: 42,3 m\nStock disponible: 18,75 m");
+  expect(correos[0].html).toMatch(/OF 123, OF 124, OF 125<\/div>\s*<table[^>]+border-radius:12px[\s\S]*?Lona &lt;gris&gt;/);
+  expect(correos[0].html).toContain("42,3 m");
   expect(correos[0].html).toContain("18,75 m");
 });
 
@@ -150,7 +170,7 @@ test("la misma lona en dos planos conserva ambos avisos y solo repite el que cam
   expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(true);
   const correos = correosDe(pedido);
   expect(correos).toHaveLength(3);
-  expect(correos[2].cuerpo).toContain("Necesita: 65,00 m");
+  expect(correos[2].cuerpo).toContain("Necesita: 65 m");
   expect(prepararCorreoStock(pedido, "ivan", ambas, false, ahora).encolado).toBe(false);
 });
 

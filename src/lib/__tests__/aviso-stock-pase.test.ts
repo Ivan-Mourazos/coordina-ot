@@ -18,8 +18,9 @@ test.each([false, true])("la casilla refleja si ya se avisó (%s)", antes => {
   expect(html.includes('checked=""')).toBe(!antes);
   expect(html.includes("Ya se avisó el 23/11 a las 12:40 (Iván)")).toBe(antes);
   expect(html).toContain("Mandar correo a Compras y Almacén");
-  expect(html).toContain("LV1 · OF 123, OF 124, OF 125 · necesita");
-  expect(html).toContain("LV2 · OF 123, OF 124, OF 125 · necesita");
+  expect(html).toContain(">LV1</p>");
+  expect(html).toContain(">LV2</p>");
+  expect(html).toContain("OF 123, OF 124, OF 125");
 });
 
 test.each([
@@ -49,23 +50,25 @@ test("muestra las OF con lona sin comprobar solo si hay alguna", () => {
   expect(render(["0234012", "0234013"])).toContain("Sin comprobar el stock de lona: falta pasar el corte de la OF 0234012, 0234013.");
   expect(render([])).not.toContain("Sin comprobar");
 });
-test("con la cuenta muestra stock menos reservados, disponible, necesita, faltan y reservado propio", () => {
+test("necesita, disponible y lo reservado por cada pedido; las bobinas con su frase (Iván, 26/11/2026)", () => {
   const conCuenta = {
     faltas: [{
-      codigo: "PLAST880NEGRP204", descripcion: "PVC negro 204",
+      codigo: "PLAST880NEGRP204", descripcion: "PVC 900 NEGRO 9005 · 300 AN",
       stock: 1257.8, reservado: 860, reservadoPropio: 40, disponible: 397.8, necesita: 410.2,
+      reservas: [{ pedido: "AR.26.05330", ml: 800 }, { pedido: "AR.26.05401", ml: 60 }],
       ofs: ["0234125"], entrega: 0, yaAvisado: null,
     }],
   };
   const html = renderToStaticMarkup(createElement(AvisoStockPase, { stock: conCuenta, marcado: true, onCambiar: vi.fn() }));
-  expect(html).toContain("PLAST880NEGRP204 · OF 0234125 · stock 1.257,8 m − 860 m reservados = 397,8 m disponible · necesita 410,2 m");
-  expect(html).toContain("faltan 12,4 m");
-  expect(html).toContain("#c20e4d");
-  expect(html).toContain("Reservado para este pedido: 40 m (no se resta)");
+  for (const t of [">PVC 900 NEGRO 9005 · 300 AN</p>", "PLAST880NEGRP204 · OF 0234125", "Necesita", "410,2 m", "Stock disponible",
+    "397,8 m", "Reservado · AR.26.05330", "800 m", "Reservado · AR.26.05401", "60 m", "Ya reservado para este pedido", "#c20e4d"])
+    expect(html).toContain(t);
+  expect(html).not.toContain("Stock en almacén");
 
-  const sinPropio = { faltas: [{ ...conCuenta.faltas[0], reservadoPropio: 0 }] };
-  const htmlSinPropio = renderToStaticMarkup(createElement(AvisoStockPase, { stock: sinPropio, marcado: true, onCambiar: vi.fn() }));
-  expect(htmlSinPropio).not.toContain("Reservado para este pedido");
+  const bobinas = { faltas: [{ ...conCuenta.faltas[0], disponible: 500, bobinaMayor: 300, reservas: [], reservadoPropio: 0 }] };
+  const htmlBobinas = renderToStaticMarkup(createElement(AvisoStockPase, { stock: bobinas, marcado: true, onCambiar: vi.fn() }));
+  expect(htmlBobinas).toContain("Hay stock, pero ninguna bobina llega a 410,2 m: la mayor tiene 300 m.");
+  expect(htmlBobinas).not.toContain("para este pedido");
 });
 test("solo la elección explícita prepara el aviso, y un fallo no interrumpe el pase", () => {
   lanzarPlanteamiento("P", "ivan", undefined, { correoStock: false }, ["123"]);

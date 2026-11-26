@@ -10,6 +10,10 @@ export interface FaltaLona {
   stock?: number;
   reservado?: number;
   reservadoPropio?: number;
+  /** Metros reservados por cada otro pedido (26/11/2026). */
+  reservas?: { pedido: string; ml: number }[];
+  /** Sumando llega (`disponible` ≥ `necesita`), pero ninguna bobina sola: la mayor (26/11/2026). */
+  bobinaMayor?: number;
 }
 interface Lona { codigo: string; descripcion: string; ml: number; ofs: string[]; origen: "corte" | "reserva" | "manual" }
 export interface StockLona {
@@ -73,14 +77,31 @@ export function validarStockLona(v: unknown): StockLona | null {
     lonas.push({ ...base, ml: linea.ml, ofs: linea.ofs.map(texto), origen: linea.origen });
   }
   const CLAVES_FALTA = ["codigo", "descripcion", "necesita", "disponible", "ofs"];
-  const CLAVES_FALTA_CUENTA = [...CLAVES_FALTA, "stock", "reservado", "reservadoPropio"];
+  const CLAVES_CUENTA = ["stock", "reservado", "reservadoPropio"];
+  const OPCIONALES = new Set([...CLAVES_CUENTA, "reservas", "bobinaMayor"]);
   const faltas: FaltaLona[] = [];
   const codigosConFalta = new Set<string>();
-  for (const f of v.faltas) {
-    if (!tieneClaves(f, CLAVES_FALTA) && !tieneClaves(f, CLAVES_FALTA_CUENTA)) return null;
-    if (!metros(f.necesita) || !metros(f.disponible) || f.disponible >= f.necesita || !ofsDeLona(f.ofs)) return null;
-    const conCuenta = Object.hasOwn(f, "stock");
+  for (const falta of v.faltas) {
+    if (!falta || typeof falta !== "object" || Array.isArray(falta)) return null;
+    const f = falta as Record<string, unknown>;
+    const claves = Object.keys(f);
+    if (!CLAVES_FALTA.every(c => claves.includes(c)) || !claves.every(c => CLAVES_FALTA.includes(c) || OPCIONALES.has(c))) return null;
+    const conCuenta = CLAVES_CUENTA.some(c => claves.includes(c));
+    if (conCuenta && !CLAVES_CUENTA.every(c => claves.includes(c))) return null;
+    // Con `bobinaMayor`, sumando llega: lo que falta es una bobina con el largo.
+    const conBobina = Object.hasOwn(f, "bobinaMayor");
+    if (!metros(f.necesita) || !metros(f.disponible) || !ofsDeLona(f.ofs)) return null;
+    if (conBobina ? !metros(f.bobinaMayor) || f.bobinaMayor >= f.necesita : f.disponible >= f.necesita) return null;
     if (conCuenta && (!metros(f.stock) || !metros(f.reservado) || !metros(f.reservadoPropio))) return null;
+    let reservas: { pedido: string; ml: number }[] | undefined;
+    if (Object.hasOwn(f, "reservas")) {
+      if (!Array.isArray(f.reservas) || f.reservas.length > 30) return null;
+      reservas = [];
+      for (const r of f.reservas) {
+        if (!tieneClaves(r, ["pedido", "ml"]) || typeof r.pedido !== "string" || !r.pedido.trim() || !metros(r.ml)) return null;
+        reservas.push({ pedido: r.pedido.trim().slice(0, 40), ml: r.ml });
+      }
+    }
     const base = material(f);
     if (!base || codigosConFalta.has(base.codigo)) return null;
     codigosConFalta.add(base.codigo);
@@ -90,6 +111,8 @@ export function validarStockLona(v: unknown): StockLona | null {
       disponible: f.disponible,
       ofs: f.ofs.map(texto),
       ...(conCuenta ? { stock: f.stock as number, reservado: f.reservado as number, reservadoPropio: f.reservadoPropio as number } : {}),
+      ...(reservas ? { reservas } : {}),
+      ...(conBobina ? { bobinaMayor: f.bobinaMayor as number } : {}),
     });
   }
   return { pedido, entrega: v.entrega, cliente: texto(v.cliente), ofs: [...ofs], lonas, faltas, origen,
