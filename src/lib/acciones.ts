@@ -346,4 +346,7 @@ export const A_LA_VISTA: ReadonlySet<AccionOF> = new Set<AccionOF>([
   // arriba): dejarla fuera de A_LA_VISTA la mandaba al cajón de "⋯" siendo lo
   // único que hay que hacer con esa OF.
   "volver_a_plantear",
+  // Junto a «Pendiente de X»: el autor que se da cuenta de que le faltaba algo
+  // la recupera ahí mismo, sin buscarla en el "⋯" (Iván, 26/11/2026).
+  "recuperar_planteo",
 ]);

@@ -56,3 +56,14 @@ test("no se le ofrece a quien no es el autor", () => {
   const html = pinta([enEspera(1, "ivan"), enEspera(2, "ivan")], "jaime");
   expect(html).not.toContain("Recuperar las");
 });
+
+test("con una sola, «Recuperar para plantear» sale a la vista junto a «Pendiente de…»", () => {
+  // Antes estaba en el "⋯" y no se encontraba (Iván, 26/11/2026).
+  const html = pinta([enEspera(1, "ivan")], "ivan");
+  expect(html).toContain("Pendiente de");
+  expect(html).toContain("Recuperar para plantear");
+});
+
+test("al revisor nombrado no se le ofrece recuperar el planteo de otro", () => {
+  expect(pinta([enEspera(1, "ivan")], "jaime")).not.toContain("Recuperar para plantear");
+});

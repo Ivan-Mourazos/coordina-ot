@@ -358,7 +358,7 @@ describe("qué sale suelto y qué va al cajón de ⋯", () => {
     // El criterio es la FRECUENCIA, no la importancia: un botón que se pulsa
     // una vez al mes no puede competir por el sitio con uno diario.
     expect([...A_LA_VISTA].sort()).toEqual(
-      ["aprobar", "devolver", "empezar_revision", "terminar_planteo", "volver_a_plantear"].sort(),
+      ["aprobar", "devolver", "empezar_revision", "recuperar_planteo", "terminar_planteo", "volver_a_plantear"].sort(),
     );
   });
 

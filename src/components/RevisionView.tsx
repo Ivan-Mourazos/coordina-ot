@@ -454,6 +454,15 @@ function FilaRevision({
           excluirIds={[...autores]}
           valorActual={revisorPorConfirmar ?? revisorComun}
           miId={miId}
+          // Quitar el revisor que ya está es recuperarla para plantear: solo
+          // el autor y solo mientras nadie la ha cogido (`recuperar_planteo`).
+          // El nombre se conserva por debajo, como en la ficha: al volver a
+          // mandarla ya viene puesto (Iván, 26/11/2026).
+          onQuitar={
+            estado === "por_revisar" && !revisorPorConfirmar && puedo("recuperar_planteo")
+              ? () => ofIds.forEach((id) => onAccion(id, "recuperar_planteo"))
+              : undefined
+          }
           onElegir={(v) => {
             if (v === revisorComun) return setRevisorPorConfirmar(null);
             if (esDeOtro) return setRevisorPorConfirmar(v);

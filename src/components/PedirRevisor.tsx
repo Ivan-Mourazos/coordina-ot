@@ -9,8 +9,10 @@ import { OpDot } from "./Select";
  *  los botones evita que cambiar revisor conserve un desplegable distinto. */
 export function BotonesRevisor({
   operarios, excluirIds, valorActual = null, onElegir,
-  deshabilitado = false, enfocarAlMontar = false, miId, nombreCorto = false,
+  deshabilitado = false, enfocarAlMontar = false, miId, nombreCorto = false, onQuitar,
 }: {
+  /** Pulsar el nombre ya elegido lo quita. Sin esto, no hace nada. */
+  onQuitar?: () => void;
   /** Solo el nombre de pila: en la fila del tablero no caben los completos. */
   nombreCorto?: boolean;
   operarios: Operario[];
@@ -34,21 +36,26 @@ export function BotonesRevisor({
   const elegibles = operarios.filter((o) => !excluidos.has(o.id));
   return (
     <div ref={grupo} role="group" aria-label="Compañeros que pueden revisar" className={`flex items-center gap-1 ${nombreCorto ? "flex-nowrap" : "flex-wrap"}`}>
-      {elegibles.map((o) => (
+      {elegibles.map((o) => {
+        const quitable = !!onQuitar && o.id === valorActual;
+        return (
         <button
           key={o.id}
           type="button"
-          aria-label={`Elegir a ${o.nombre} como revisor`}
+          aria-label={quitable ? `Quitar a ${o.nombre} de revisor` : `Elegir a ${o.nombre} como revisor`}
+          title={quitable ? `Quitar a ${o.nombre}: la OF vuelve a planteando` : undefined}
           aria-pressed={o.id === valorActual}
           disabled={deshabilitado}
-          onClick={() => onElegir(o.id)}
+          onClick={() => (quitable ? onQuitar?.() : onElegir(o.id))}
           className={`inline-flex h-6 items-center gap-1.5 rounded-full border border-border pl-0.5 pr-2 text-[11px] font-semibold hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-[-2px]! focus-visible:outline-current disabled:cursor-wait disabled:opacity-60 ${o.id === valorActual ? ROL.revisar.chip : "bg-surface-2 text-text"}`}
           style={o.id === valorActual ? { borderColor: ROL.revisar.color } : undefined}
         >
           <OpDot color={o.color} iniciales={o.iniciales} />
           {nombreCorto ? o.nombre.split(" ")[0] : o.nombre}{o.id === miId ? " (tú)" : ""}
+          {quitable && <span aria-hidden="true" className="-mr-0.5 opacity-70">×</span>}
         </button>
-      ))}
+        );
+      })}
       {elegibles.length === 0 && <span className="text-xs text-text-muted">No hay compañeros disponibles para revisar.</span>}
     </div>
   );
