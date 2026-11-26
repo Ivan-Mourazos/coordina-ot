@@ -29,7 +29,9 @@ export function AvisoStockPase({ stock, marcado, onCambiar, modo }: {
     <section className="mt-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
       <h4 className="font-bold">Falta material</h4>
       <ul>{stock.faltas.map(f => {
-        const prefijo = `${f.codigo}${f.entrega > 0 ? ` · Entrega ${f.entrega}` : ""} · ${textoOFStock(f.ofs)}`;
+        // La descripción es el nombre simple de la lona («PVC 900 NEGRO 9005 · 300 AN»): el stock
+        // suma todas sus marcas, no solo el código, y si ninguna bobina sola llega lo explica ahí.
+        const prefijo = `${f.codigo}${f.descripcion?.trim() ? ` ${f.descripcion.trim()}` : ""}${f.entrega > 0 ? ` · Entrega ${f.entrega}` : ""} · ${textoOFStock(f.ofs)}`;
         return (
           <li key={JSON.stringify([f.entrega, f.codigo, f.ofs])}>
             {tieneCuentaStock(f) ? (
