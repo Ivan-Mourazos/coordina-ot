@@ -133,7 +133,14 @@ export function Herramientas({
         >
           {yo.iniciales}
         </span>
-        <span className="text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>{SECCIONES[seccion].nombreCorto}</span>
+        {/* Tu nombre, como cualquier menú de cuenta (26/11/2026): antes ponía
+            la sección («OT») y se leía como si fueras «OT». La sección solo
+            se añade a quien trabaja en varias (Manuel), que es quien necesita
+            saber qué lista tiene delante. */}
+        <span className="max-w-40 truncate text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>
+          {yo.nombre}
+          {misSecciones.length > 0 && <span className="font-normal text-text-muted"> · {SECCIONES[seccion].nombreCorto}</span>}
+        </span>
         {/* Una flecha y no la rejilla de puntos (26/11/2026): la rejilla se
             leía como "aplicaciones" y no como el menú de tu cuenta. Es la
             misma flecha que lleva el menú de Producción. */}
