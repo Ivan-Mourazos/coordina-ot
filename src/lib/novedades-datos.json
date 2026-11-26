@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-26",
-    "hasta": "b19ab8b",
+    "hasta": "fa7f1ac",
     "cambios": [
       {
         "tipo": "arreglado",
@@ -28,6 +28,13 @@
         "apartado": "ot",
         "detalle": "«Fichar» en bloque ya no se lleva las OF aprobadas ni las de otra persona, y «Pasar a revisión» pausa el reloj por ti.",
         "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Puedes recuperar una OF mandada a revisar sin buscarla en el menú",
+        "apartado": "ot",
+        "detalle": "En la ficha sale «Recuperar para plantear» al lado de «Pendiente de…», y en Revisiones basta con quitar el revisor.",
+        "tanda": 3
       }
     ]
   },
